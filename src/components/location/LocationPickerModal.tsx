@@ -26,6 +26,9 @@ type PlaceHit = AsyncResultItem & { result: PlaceResult };
 // (drag the map to place — the pin never moves) + a "center on my location"
 // button. The picked location is the map's current center at confirm time;
 // the place label settles via debounced reverse geocode after each move.
+// The Address input is a manual override — it follows the geocoded street
+// until edited, so a street number the geocoder can't match (e.g. "Mikras
+// Asias 92" in a thinly-mapped area) can still be committed by hand.
 
 function CenterProbe({ onCenterMove }: { onCenterMove: (lat: number, lng: number) => void }) {
   const map = useMapEvents({
@@ -43,10 +46,13 @@ export const LocationPickerModal: React.FC<{
   open: boolean;
   onClose: () => void;
   onConfirm: (loc: PickedLocation) => void;
-}> = ({ open, onClose, onConfirm }) => {
+  /** Existing pin to edit — opens centered on it (with its label) instead of the default center. */
+  initial?: PickedLocation | null;
+}> = ({ open, onClose, onConfirm, initial }) => {
   const [place, setPlace] = useState('');
   const [parts, setParts] = useState<PlaceParts | null>(null);
   const [query, setQuery] = useState('');
+  const [address, setAddress] = useState('');
   const [center, setCenter] = useState<[number, number]>(DEFAULT_MAP_CENTER);
   const geocodeSeq = useRef(0);
   const geocodeTimer = useRef<number | null>(null);
@@ -57,15 +63,25 @@ export const LocationPickerModal: React.FC<{
   // A search pick centers the map programmatically — its own label is already
   // the right place name, so the moveend-driven reverse geocode is skipped.
   const skipNextGeocode = useRef(false);
+  // The address input is a manual OVERRIDE: it follows geocoded parts until
+  // the user edits it (e.g. to type a street number the geocoder can't match),
+  // then it stops following and the typed text wins on confirm.
+  const addressTouched = useRef(false);
 
-  // Reset on open (no geolocation auto-center — the locate-me button does it).
+  // Reset on open — centered on the location being edited when there is one
+  // (no geolocation auto-center — the locate-me button does it). `initial` is
+  // only meaningful at open time: while open, the modal owns its own state.
   useEffect(() => {
     if (!open) return;
-    setPlace('');
-    setParts(null);
-    setQuery('');
-    setCenter(DEFAULT_MAP_CENTER);
-    centerRef.current = DEFAULT_MAP_CENTER;
+    const start: [number, number] =
+      initial?.lat != null && initial.lng != null ? [initial.lat, initial.lng] : DEFAULT_MAP_CENTER;
+    setPlace(initial?.place || '');
+    setParts(initial ? { address: initial.address, city: initial.city, postcode: initial.postcode, country: initial.country } : null);
+    setQuery(initial?.place || '');
+    setAddress(initial?.address || '');
+    addressTouched.current = false;
+    setCenter(start);
+    centerRef.current = start;
     skipNextGeocode.current = false;
   }, [open]);
 
@@ -88,6 +104,7 @@ export const LocationPickerModal: React.FC<{
     setPlace(result.label);
     setParts(result.parts);
     setQuery(result.label);
+    if (!addressTouched.current) setAddress(result.parts.address || '');
   };
 
   const onCenterMove = (lat: number, lng: number) => {
@@ -112,6 +129,7 @@ export const LocationPickerModal: React.FC<{
           if (geocodeSeq.current === s && r) {
             setPlace(r.label);
             setParts(r.parts);
+            if (!addressTouched.current) setAddress(r.parts.address || '');
           }
         });
     }, GEOCODE_DEBOUNCE_MS);
@@ -137,7 +155,7 @@ export const LocationPickerModal: React.FC<{
         <ModalFooter>
           <button onClick={onClose} className="text-[11px] text-zinc-400 hover:text-zinc-200 px-3 py-1.5">Cancel</button>
           <button
-            onClick={() => onConfirm({ lat: center[0], lng: center[1], ...(place ? { place } : {}), ...(parts || {}) })}
+            onClick={() => onConfirm({ lat: center[0], lng: center[1], ...(place ? { place } : {}), ...(parts || {}), address: address.trim() || undefined })}
             className="text-[11px] font-medium bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-1.5"
           >
             Attach pin
@@ -152,6 +170,12 @@ export const LocationPickerModal: React.FC<{
           search={search}
           onPick={pickResult}
           placeholder="Search an address or place…"
+        />
+        <input
+          value={address}
+          onChange={e => { addressTouched.current = true; setAddress(e.target.value); }}
+          placeholder={place ? 'Street number / address' : 'Street number / address (or drag to drop a pin)'}
+          className="w-full bg-zinc-950 border border-zinc-700 rounded-md px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
         />
         <div className="rounded-md overflow-hidden border border-zinc-700 relative">
           <MapContainer

@@ -3,6 +3,10 @@ import type { Project, ProjectLocation } from '../types';
 import { generateUUID } from './utils';
 import { resolveTypeKey, typeLabelOf } from './locations';
 import { LocationPickerModal } from '../components/location/LocationPickerModal';
+import { type PickedLocation } from './places';
+import DropdownMenu from '../components/DropdownMenu';
+import DropdownItem from '../components/DropdownItem';
+import { Check, ChevronDown } from 'lucide-react';
 import {
   computeManagerDiff,
   type ManagerRow,
@@ -16,11 +20,29 @@ const numOrUndef = (v: string | undefined): number | undefined => {
   return Number.isFinite(n) ? n : undefined;
 };
 
+/** A location's display identity: name, falling back to address → place → "lat, lng". */
+const resolvedName = (
+  name?: string | null,
+  address?: string | null,
+  place?: string | null,
+  lat?: string | number | null,
+  lng?: string | number | null,
+): string => {
+  const n = (name || '').trim();
+  if (n) return n;
+  const a = (address || '').trim();
+  if (a) return a;
+  const p = (place || '').trim();
+  if (p) return p;
+  if (lat != null && lat !== '' && lng != null && lng !== '') return `${lat}, ${lng}`;
+  return '';
+};
+
 function buildLocationRows(project: Project, type: string): ManagerRow[] {
   return (project.locations || []).filter(l => l.type === type).map(l => ({
     key: l.id,
     id: l.id,
-    name: l.name,
+    name: resolvedName(l.name, l.address, l.place, l.lat, l.lng),
     address: l.address || '',
     place: l.place || '',
     lat: l.lat != null ? String(l.lat) : '',
@@ -37,7 +59,7 @@ function buildLocationRows(project: Project, type: string): ManagerRow[] {
 function toLocation(row: ManagerRow, type: string): ProjectLocation {
   return {
     id: row.id || generateUUID(),
-    name: row.name || '',
+    name: resolvedName(row.name, row.address, row.place, row.lat, row.lng) || '',
     type,
     address: row.address || undefined,
     place: row.place || undefined,
@@ -64,6 +86,10 @@ function commitLocationPlan(dispatch: (action: any) => void, plan: ManagerSavePl
       if (k === 'nearbyHospital' || k === 'nearbyPolice') continue;
       if (k === 'lat' || k === 'lng') {
         patch[k] = numOrUndef(v);
+      } else if (k === 'name' && !(v || '').trim()) {
+        // A blank identity is never stored — resolve from the row's other fields.
+        const src = { ...existing, ...u.updates };
+        patch[k] = resolvedName(src.name, src.address, src.place, src.lat, src.lng) || undefined;
       } else if (v === '') {
         patch[k] = undefined;
       } else {
@@ -85,7 +111,8 @@ const AddressCell: React.FC<{ row: ManagerRow; update: (f: string, v: string) =>
   const [open, setOpen] = useState(false);
   const hasPin = row.lat !== '' && row.lng !== '';
   const label = row.address || row.place || (hasPin ? `${row.lat}, ${row.lng}` : 'Set address…');
-  const apply = (loc: { lat: number; lng: number; place?: string; address?: string }) => {
+  const apply = (loc: PickedLocation) => {
+    if (!(row.name || '').trim()) update('name', (loc.address || loc.place || '').trim());
     update('lat', String(loc.lat));
     update('lng', String(loc.lng));
     update('place', loc.place || '');
@@ -102,7 +129,12 @@ const AddressCell: React.FC<{ row: ManagerRow; update: (f: string, v: string) =>
       >
         {label}
       </button>
-      <LocationPickerModal open={open} onClose={() => setOpen(false)} onConfirm={loc => { apply(loc); setOpen(false); }} />
+      <LocationPickerModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onConfirm={loc => { apply(loc); setOpen(false); }}
+        initial={hasPin ? { lat: Number(row.lat), lng: Number(row.lng), place: row.place || undefined, address: row.address || undefined } : null}
+      />
     </>
   );
 };
@@ -111,32 +143,62 @@ const addressField = (row: ManagerRow, update: (f: string, v: string) => void, r
   <AddressCell row={row} update={update} readOnly={readOnly} />
 );
 
-/** A "nearest facility" dropdown: picks another location row of the given type. */
-const nearbyField = (kind: 'hospital' | 'police') => (row: ManagerRow, update: (f: string, v: string) => void, readOnly: boolean, ctx: { project: Project }) => {
+/** A "nearest facility" cell: kit dropdown picking another location row of the given type. */
+const NearbyCell: React.FC<{
+  kind: 'hospital' | 'police';
+  row: ManagerRow;
+  update: (f: string, v: string) => void;
+  readOnly: boolean;
+  project: Project;
+}> = ({ kind, row, update, readOnly, project }) => {
+  const [open, setOpen] = useState(false);
   const typeKey = kind === 'hospital' ? 'hospital' : 'policeStation';
   const key = kind === 'hospital' ? 'nearbyHospital' : 'nearbyPolice';
-  const options = (ctx.project.locations || []).filter(l => l.type === typeKey && l.id !== row.key);
+  const options = (project.locations || []).filter(l => l.type === typeKey && l.id !== row.key);
   const current = row[key] || '';
-  const currentLabel = current
-    ? ((ctx.project.locations || []).find(l => l.id === current)?.name ?? '')
+  const currentLoc = current ? (project.locations || []).find(l => l.id === current) : undefined;
+  const currentLabel = currentLoc
+    ? resolvedName(currentLoc.name, currentLoc.address, currentLoc.place, currentLoc.lat, currentLoc.lng)
     : '';
   return (
-    <select
-      value={current}
-      disabled={readOnly}
-      onChange={e => update(key, e.target.value)}
-      className="w-full bg-white border border-zinc-200 rounded-md px-2 py-1 text-xs text-zinc-800 outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      width="w-56"
+      theme="light"
+      trigger={
+        <button
+          type="button"
+          disabled={readOnly}
+          title={`Set nearest ${typeKey === 'hospital' ? 'hospital' : 'police station'}`}
+          className="w-full flex items-center justify-between gap-1 text-left bg-white border border-zinc-200 rounded-md px-2 py-1 text-xs text-zinc-700 hover:border-zinc-400 transition-colors disabled:opacity-40"
+        >
+          <span className="truncate">{currentLabel || '—'}</span>
+          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
+        </button>
+      }
     >
-      <option value="">—</option>
+      <DropdownItem onClick={() => update(key, '')} icon={!current ? <Check className="w-3.5 h-3.5" /> : undefined}>
+        —
+      </DropdownItem>
       {options.map(l => (
-        <option key={l.id} value={l.id}>{l.name}</option>
+        <DropdownItem key={l.id} onClick={() => update(key, l.id)} icon={current === l.id ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          {resolvedName(l.name, l.address, l.place, l.lat, l.lng)}
+        </DropdownItem>
       ))}
       {current && !options.some(l => l.id === current) && (
-        <option value={current}>{currentLabel || '…'}</option>
+        <DropdownItem onClick={() => update(key, current)} icon={<Check className="w-3.5 h-3.5" />}>
+          {currentLabel || '…'}
+        </DropdownItem>
       )}
-    </select>
+    </DropdownMenu>
   );
 };
+
+/** A "nearest facility" dropdown: picks another location row of the given type. */
+const nearbyField = (kind: 'hospital' | 'police') => (row: ManagerRow, update: (f: string, v: string) => void, readOnly: boolean, ctx: { project: Project }) => (
+  <NearbyCell kind={kind} row={row} update={update} readOnly={readOnly} project={ctx.project} />
+);
 
 export const locationManagerConfig: ManagerShellConfig = {
   title: 'Locations',
@@ -190,9 +252,9 @@ export const locationManagerConfig: ManagerShellConfig = {
   makeBlankRow: () => ({ key: String(Date.now()), id: '', name: '', address: '', place: '', lat: '', lng: '', contactName: '', phone: '', email: '', notes: '', nearbyHospital: '', nearbyPolice: '' }),
   commitPlan: commitLocationPlan,
   sortModes: [
-    { key: 'name', label: 'By Name', comparator: (a, b) => (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase()) },
-    { key: 'address', label: 'By Address', comparator: (a, b) => (a.address || a.name).toLowerCase().localeCompare((b.address || b.name).toLowerCase()) },
-    { key: 'phone', label: 'By Phone', comparator: (a, b) => (a.phone || a.name).toLowerCase().localeCompare((b.phone || b.name).toLowerCase()) },
+    { key: 'name', label: 'By Name', comparator: (a, b) => resolvedName(a.name, a.address, a.place, a.lat, a.lng).toLowerCase().localeCompare(resolvedName(b.name, b.address, b.place, b.lat, b.lng).toLowerCase()) },
+    { key: 'address', label: 'By Address', comparator: (a, b) => (a.address || resolvedName(a.name, a.address, a.place, a.lat, a.lng)).toLowerCase().localeCompare((b.address || resolvedName(b.name, b.address, b.place, b.lat, b.lng)).toLowerCase()) },
+    { key: 'phone', label: 'By Phone', comparator: (a, b) => (a.phone || resolvedName(a.name, a.address, a.place, a.lat, a.lng)).toLowerCase().localeCompare((b.phone || resolvedName(b.name, b.address, b.place, b.lat, b.lng)).toLowerCase()) },
   ],
 };
 

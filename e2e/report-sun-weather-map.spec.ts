@@ -187,12 +187,24 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     await expect(page.getByText('Attach a location')).toBeVisible();
     await page.getByPlaceholder('Search an address or place…').fill('Big Ben');
         await page.getByRole('dialog').getByText('Big Ben, Bridge Street', { exact: false }).click();
+    // The editable address input follows the picked street — a manual
+    // street number override (geocoder can't match it) survives confirm.
+    await page.getByPlaceholder('Street number / address').fill('1 Bridge Street 92');
     await page.getByRole('button', { name: 'Attach pin' }).click();
         const paneAfter = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
     expect(paneAfter).not.toBe(paneBefore);
     // The address bar formats the picker's structured parts (address, city, postcode).
-    await expect(page.locator('[data-block-id="map-block"]')).toContainText('1 Bridge Street, London SW1A 2JR');
+    await expect(page.locator('[data-block-id="map-block"]')).toContainText('1 Bridge Street 92, London SW1A 2JR');
     await expect(page.locator('[data-block-id="map-block"] a[href^="https://www.google.com/maps?q=Big%20Ben"]')).toBeAttached();
+
+    // ---- picker re-open on the current pin: defaults to it, city/country
+    // kept, address input shows the edited street number (roadmap 52) ----
+    await page.locator('[data-block-id="map-block"]').click({ force: true });
+        await page.getByRole('button', { name: 'Change location' }).click();
+    const picker = page.getByRole('dialog');
+    await expect(picker.getByPlaceholder('Street number / address')).toHaveValue('1 Bridge Street 92');
+    await expect(picker.getByText('Big Ben, Bridge Street', { exact: false })).toBeVisible();
+    await picker.getByRole('button', { name: 'Cancel' }).click();
 
     // ---- image block: attach a file → data URL renders in the block ----
     // Deselect first: the map block's floating chrome overlaps the image card.

@@ -142,6 +142,8 @@ const RULES = [
   { g: 'src/components/Locations*.tsx', s: LOC },
   { g: 'src/lib/location*', s: LOC },
   { g: 'src/lib/locations.ts', s: LOC },
+  // shared location picker modal (locations manager + reports map block)
+  { g: 'src/components/location/**', s: [...LOC, 'report-sun-weather-map'] },
   { g: 'src/lib/rowBuffer.ts', s: MANAGERS },
   { g: 'src/lib/managerShell.tsx', s: MANAGERS },
   // import / export

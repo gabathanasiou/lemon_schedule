@@ -160,4 +160,68 @@ test.describe('Locations', () => {
       return s!.locations.find((l: any) => l.name === 'Green Field');
     }, { timeout: 8000 }).toEqual(expect.objectContaining({ phone: '555-0001', email: 'field@test.com' }));
   });
+
+  test('address picker re-edit starts at the pin; blank names fall back to the address; nearest-facility pickers use the kit dropdown', async ({ page }) => {
+    await openSeededProject(page);
+    await page.route('**://tile.openstreetmap.org/**', route => route.abort());
+
+    // Seed typed locations + facilities through the bridge, incl. a blank-name
+    // entry (name must resolve from the address) and a thinly-mapped address
+    // ("Mikras Asias 92" survives via the editable street-number input).
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const project = b.getProject();
+      const types = project.locationTypes || [];
+      const ensure = (key: string, label: string) => {
+        if (!types.some((t: any) => t.key === key)) b.dispatch({ type: 'ADD_LOCATION_TYPE', payload: { type: { key, label } } });
+      };
+      ensure('hospital', 'Hospital');
+      ensure('policeStation', 'Police Station');
+      const add = (location: any) => b.dispatch({ type: 'ADD_LOCATION', payload: { location } });
+      add({ id: 'loc-pin', name: '', type: 'unitBase', address: '99 New Rd', place: '99 New Rd, London', lat: 51.5, lng: -0.12 });
+      add({ id: 'loc-h1', name: 'St Mary', type: 'hospital', address: '1 Hospital Way' });
+      add({ id: 'loc-h2', name: 'City Gen', type: 'hospital', address: '2 Gen Rd' });
+      add({ id: 'loc-p1', name: 'Xanthi Precinct', type: 'policeStation', address: '3 Precinct St' });
+      add({ id: 'loc-p2', name: '', type: 'policeStation', address: 'Mikras Asias 92, Xanthi' });
+    });
+
+    await page.getByRole('button', { name: 'Production', exact: true }).click();
+    await page.getByRole('button', { name: 'Locations', exact: true }).click();
+    await page.locator('button', { hasText: 'Unit Base' }).first().click();
+
+    // ---- blank name resolves from the address in the manager ----
+    await expect(page.locator('input[value="99 New Rd"]')).toBeVisible();
+
+    // ---- address picker re-edit starts at the current pin + address ----
+    await page.locator('tr', { has: page.locator('input[value="99 New Rd"]') }).getByTitle('Set address').click();
+    const picker = page.getByRole('dialog');
+    await expect(picker.getByText('51.5000, -0.1200')).toBeVisible();
+    await expect(picker.getByPlaceholder('Street number / address')).toHaveValue('99 New Rd');
+    await picker.getByRole('button', { name: 'Cancel' }).click();
+
+    // ---- saving an untouched blank-name row persists the resolved name ----
+    await page.getByPlaceholder('Phone').last().fill('555-1234');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect.poll(async () => {
+      const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+      return (p.locations || []).find((l: any) => l.id === 'loc-pin');
+    }, { timeout: 8000 }).toEqual(expect.objectContaining({ name: '99 New Rd', phone: '555-1234' }));
+
+    // ---- nearest-facility pickers are kit dropdowns (self-row excluded) ----
+    await page.locator('button', { hasText: 'Hospital' }).first().click();
+    await page.locator('tr', { has: page.locator('input[value="St Mary"]') }).getByTitle('Set nearest hospital').click();
+    await page.getByRole('menuitem', { name: 'City Gen' }).click();
+    await expect(page.locator('tr', { has: page.locator('input[value="St Mary"]') }).getByTitle('Set nearest hospital')).toContainText('City Gen');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect.poll(async () => {
+      const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+      return (p.locations || []).find((l: any) => l.id === 'loc-h1');
+    }, { timeout: 8000 }).toEqual(expect.objectContaining({ nearby: { hospitalId: 'loc-h2' } }));
+
+    // ---- blank-name police station resolves too; its dropdown lists peers ----
+    await page.locator('button', { hasText: 'Police Station' }).first().click();
+    await expect(page.locator('input[value="Mikras Asias 92, Xanthi"]')).toBeVisible();
+    await page.locator('tr', { has: page.locator('input[value="Mikras Asias 92, Xanthi"]') }).getByTitle('Set nearest police station').click();
+    await expect(page.getByRole('menuitem', { name: 'Xanthi Precinct' })).toBeVisible();
+  });
 });

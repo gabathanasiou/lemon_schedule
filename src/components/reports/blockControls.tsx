@@ -1152,6 +1152,19 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             });
             setLocationOpen(false);
           }}
+          initial={
+            block.mapLat != null && block.mapLng != null
+              ? {
+                  lat: block.mapLat,
+                  lng: block.mapLng,
+                  place: block.mapPlace,
+                  address: block.mapAddress,
+                  city: block.mapCity,
+                  postcode: block.mapPostcode,
+                  country: block.mapCountry,
+                }
+              : null
+          }
         />
       )}
     </div>
