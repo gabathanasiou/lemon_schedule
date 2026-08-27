@@ -1144,7 +1144,20 @@ schedule in; export = Lemon Schedule out to the industry-standard tools.
   parser and round-trips through our own import with identical scene order +
   cast + pages; lint + playwright.
 
-## 42. Element Manager: per-day-type columns (`[ ]`)
+## 42. Element Manager: per-day-type columns (`[x]`)
+- Done: Element Manager (Breakdown → Element Manager) now shows Start/Finish
+  Date, Total Days and Co. Tra (company travel days — travel-attached days)
+  plus a column per day type, derived from `project.dayTypes` so custom
+  Calendar day types (and their labels) appear automatically. Shared pure
+  helper `computeElementDayStats` (`src/lib/elementDayStats.ts`) — keyed by
+  `elementKey` (cast = ID, others = name), work days from section dates via
+  `computeRowData` (pinned section excluded), statused days via
+  `isElementMarked` (`'*'` whole-category supported); date range/total =
+  union of both (the cursor invariant means they never overlap). Table
+  scrolls horizontally (`overflow-auto` was already in place); Locked column
+  intentionally skipped (needs a new element field + persistence). Covered by
+  `e2e/element-manager-day-columns.spec.ts` (custom type + attach flows
+  through bridge dispatches, cell values asserted against store truth).
 
 Update the **Element Manager** (Breakdown → Element Manager, `src/components/ElementManager.tsx`) to show per-element scheduling info like the MMS "Studio" view: Board ID, Locked, Element Name, Occu, **Start Date, Finish Date, Total Days, Co. Tra** — plus a **column per day type** (Work, Hold, Holiday, Travel, Rehearsal, Fitting…).
 
@@ -1162,6 +1175,20 @@ Update the **Element Manager** (Breakdown → Element Manager, `src/components/E
 - **Unblock**: one `.mmx` file with known content (2–3 scenes + tagged elements) — e.g. a Filmustage free-tier export, or a Screenwriter trial export. That single file makes it a contained task (XML with a known schema — like the FDX parser; the `TagData`/tag-resolution machinery in `fdx.ts` is the template).
 - **Scope if implemented**: NEW-PROJECT-ONLY import (same as `.msd`/`.sex` — update `parseMsdFile`-style flow + Project Manager "Import" accept list + e2e). Breakdown side only — script data (headings, characters, tagged elements, synopses, page counts), no stripboard. Do NOT build an .mmx export unless a user asks (screenwriter XML fans mostly read-side).
 - **Priority: low — parked knowingly.** `.sex` (item 41) already covers every real scheduling tool, and `.fdx` covers script-with-tags. This is a "who knows, maybe in the future" item; skip until a sample exists.
+
+## 44. Linked elements — anchors with one-way element links (`[ ]`)
+
+**Requested**: link elements together so adding the "anchor" adds its linked elements too. Example: cast **Yvonne** is the anchor, linked to set dressing **Ribbon** and props **Ribbon**. Adding Yvonne to a scene automatically adds both Ribbons.
+
+- **One-way, anchor-based — NOT bidirectional.** The anchor owns the links: an element can be an anchor (with its own links) AND a linked element of another anchor. Removing a linked element never affects the anchor; only anchor removal cascades.
+- **Multiple links per anchor** (different categories allowed — cast → set/props/etc.). Links reference elements canonically: cast = Board ID, every other category = exact name (`elementMatchId` in `src/lib/elements.ts`).
+- **Propagation** (anchor added to a scene): every scene value write path (Scene Sheet field commits, Glide cells, stripboard scene editing) gains the anchor's linked elements automatically — one shared helper in `src/lib/` (the write-path seam, not per-view duplication).
+- **Retroactive apply**: links created AFTER sheets exist must be applicable to existing scenes — a "Apply links to existing scenes" option in the Link Manager (per link or all links) that walks every scene containing the anchor and adds the linked elements (same shared helper, batch dispatch = one undo entry; scenes already containing a linked element are left untouched).
+- **Removal semantics**:
+  - Remove a linked element → anchor stays untouched.
+  - Remove the anchor while links remain → **warning modal (yes/no)**: "these linked elements will be removed from the scene too" — confirm cascades, cancel keeps the anchor.
+- **Link Manager = its own modal** (opened from Element Manager — e.g. a "Links" row action/column). Use the **Color Rules modal's element-selection UI**: category dropdown + element dropdown rows (Radix, `CategoryDropdown`/`RuleConditionRow` in `src/components/rules/`). `CategoryDropdown` is already app-shared (rules + calendar travel/hold modal); extract the **element dropdown + composed picker row** into an app-level shared component (next to `CategoryDropdown`) — **NOT the ui-kit**: the picker embeds app domain (icon registry, custom categories, cast ID display) and the kit's primitives are data-agnostic; a kit update also means publishing a new tag + version bump for no generic win.
+- Storage: per-anchor link list on the project (one source of truth, `src/lib/` helper like `elementDayStats.ts`); no bidirectional index needed — derive anchor-of lookups by scan.
 
 ---
 

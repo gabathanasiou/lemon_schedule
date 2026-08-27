@@ -7,6 +7,9 @@ import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems }
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import { loadCategoryElements, elementKey, countOccurrences } from '../lib/elements';
+import { computeElementDayStats } from '../lib/elementDayStats';
+import { getDayTypes } from '../lib/dayTypes';
+import { formatDateShort } from '../lib/utils';
 import { useRowBuffer } from '../lib/rowBuffer';
 import { setPendingTab } from '../lib/unsavedGuard';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
@@ -362,6 +365,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
 
+  const dayTypes = useMemo(() => getDayTypes(project), [project]);
+  const dayStats = useMemo(() => computeElementDayStats(project, category), [project, category]);
+
   const allCategoryKeys = useMemo(() => {
     const keys: { key: string; isCustom: boolean; isHidden: boolean }[] = [];
     for (const c of ELEMENT_CATEGORIES) {
@@ -551,24 +557,41 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                     {isCast && <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-16">Board ID</th>}
                     <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</th>
                     <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-14">Occ</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-24">Start Date</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-24">Finish Date</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-14">Total Days</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-14" title="Company travel days">Co. Tra</th>
+                    {dayTypes.map(t => (
+                      <th key={t.key} title={t.label} className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-14">{t.label}</th>
+                    ))}
                     <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center w-10" />
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r, ri) => (
+                  {rows.map((r, ri) => {
+                      const stats = dayStats.get(r.key);
+                      return (
                     <tr key={r.key} className={`border-b border-zinc-100 transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-blue-50/20`}>
                       {isCast && (
                         <td className="px-3 py-1">{renderInput(r.key, 'id', r.id, v => buf.updateRow(r.key, 'id', v), true)}</td>
                       )}
                       <td className="px-3 py-1">{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), false, isCast || isSet)}</td>
                       <td className="px-3 py-1 text-center text-[11px] text-zinc-400 font-medium">{r.occ}</td>
+                      <td className="px-3 py-1 text-[11px] text-zinc-400">{stats?.startDate ? formatDateShort(stats.startDate) : ''}</td>
+                      <td className="px-3 py-1 text-[11px] text-zinc-400">{stats?.finishDate ? formatDateShort(stats.finishDate) : ''}</td>
+                      <td className="px-3 py-1 text-center text-[11px] text-zinc-400 font-medium">{stats?.totalDays ?? 0}</td>
+                      <td className="px-3 py-1 text-center text-[11px] text-zinc-400 font-medium">{stats?.travelDays ?? 0}</td>
+                      {dayTypes.map(t => (
+                        <td key={t.key} title={t.label} className="px-3 py-1 text-center text-[11px] text-zinc-400 font-medium">{t.key === 'work' ? (stats?.workDays ?? 0) : (stats?.statusCounts[t.key] ?? 0)}</td>
+                      ))}
                       <td className="px-3 py-1 text-center">
                         <button onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
                         </button>
                       </td>
                     </tr>
-                  ))}
+                      );
+                    })}
                 </tbody>
               </table>
 

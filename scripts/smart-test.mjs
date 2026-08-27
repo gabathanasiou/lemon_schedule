@@ -43,7 +43,7 @@ const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize'];
 const SCHED = ['keyboard-mode'];
 const CAL = ['calendar-travel-hold', 'day-types'];
 const GLIDE = ['glide-breakdown', 'glide-clipboard'];
-const ELEM = ['element-manager-merge'];
+const ELEM = ['element-manager-merge', 'element-manager-day-columns'];
 const CAST = ['cast-single-source'];
 const CREW = ['crew-glide', 'crew-manager'];
 const LOC = ['locations', 'location-types'];
@@ -127,6 +127,7 @@ const RULES = [
   { g: 'src/lib/elements.ts', s: [...ELEM, ...REPORT] },
   // element / cast / crew / locations managers (buffered editor managers)
   { g: 'src/components/ElementManager.tsx', s: ELEM },
+  { g: 'src/lib/elementDayStats.ts', s: ELEM },
   { g: 'src/components/elements/**', s: ELEM },
   { g: 'src/components/CastTab.tsx', s: CAST },
   { g: 'src/lib/legacyMigration.ts', s: [...CAST, ...IMPORT] },
