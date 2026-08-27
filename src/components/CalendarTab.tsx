@@ -972,10 +972,10 @@ export const CalendarTab: React.FC<{
                       </Button>
                     }
                   >
-                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Day Types</div>
+                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Events</div>
                     <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, statuses: eventsFilter.statuses == null ? [] : null } })} className={FILTER_ROW}>
                       <FilterCheck on={eventsFilter.statuses == null} />
-                      <span className="font-semibold text-zinc-900">All Day Types</span>
+                      <span className="font-semibold text-zinc-900">All Events</span>
                     </button>
                     {getMarkableDayTypes(project).map(t => {
                       const on = eventsFilter.statuses == null || eventsFilter.statuses.includes(t.key);
