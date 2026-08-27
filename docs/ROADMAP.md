@@ -535,6 +535,25 @@ day-types registry (`work`/`holiday` keys) is untouched.
 
 ## Session handoff
 
+## 56. Promote shared bespoke components into @gabriel/ui-kit (`[ ]`)
+
+DESIGN-LANGUAGE §Mental model #2: "All interaction primitives come from `@gabriel/ui-kit`… extend the
+kit instead." The genuinely-shared components that are still app-local should move INTO the kit
+(same migration pattern as DatePicker → v0.1.34), keeping 1-line re-export shims in `src/components/`:
+
+- **`HoverTooltip` / `FloatingTooltip`** — rich-content (ReactNode) portal tooltips with smart
+  positioning + hover delay; the kit's `Tooltip` is string-only, so this is an extension, not a
+  duplicate. Used by day cells (violation/comment tooltips), `TravelHoldTooltip`, `ScheduleOverlays`.
+- **`RuleCard`** — the shared rule card (light + dark themes, conflict-count badge, cast-aware
+  `describeRuleDetailed`); used by the Rules tab + day modal Rules tab.
+- **`EntityDropdown`** — the cast/element picker (multi/single/chip variants); the app's largest
+  bespoke primitive, used everywhere.
+
+Per item: bump `@gabriel/ui-kit` (`package.json` → `@gabriel/ui-kit#v0.1.x`), re-verify the
+DESIGN-LANGUAGE §Primitive matrix + Recipes class strings, update this roadmap + the matrix in the
+same commit. The events-mode day cells, section tabs, and icon-only buttons stay bespoke
+(no kit primitive exists; icon-only is the documented exception).
+
 - Repo branch: `main` (push before ending session).
 - Next session: pick items above in order; re-read `docs/REPORTS-DESIGNER.md`
   before touching the designer, `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md`
