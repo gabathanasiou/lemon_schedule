@@ -210,6 +210,7 @@ export const RulesTab: React.FC = () => {
                             <RuleCard
                               key={rule.id}
                               rule={rule}
+                              castMembers={castMembers}
                               onEdit={readOnly ? () => {} : () => handleEdit(rule)}
                             />
                           ))}

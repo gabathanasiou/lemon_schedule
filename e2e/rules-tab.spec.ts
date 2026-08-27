@@ -24,7 +24,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await page.getByRole('dialog').getByRole('button', { name: '17', exact: true }).click();
   await page.getByRole('button', { name: 'Add Rule' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText(/Unavailable · Aug 17/)).toBeVisible();
+  await expect(page.getByText(/1\. FISHERMAN: unavailable/)).toBeVisible();
 
   // MAX_HOURS keeps the every-day toggle; switching to it preserves a workable state
   await page.getByRole('button', { name: 'New Rule' }).click();
@@ -37,7 +37,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await page.getByText('FISHERMAN', { exact: false }).last().click();
   await page.getByRole('dialog').getByRole('button', { name: '18', exact: true }).click();
   await page.getByRole('button', { name: 'Add Rule' }).click();
-  await expect(page.getByText(/Max 8h · Aug 18/)).toBeVisible();
+  await expect(page.getByText(/1\. FISHERMAN: max 8h/)).toBeVisible();
 
   // TIME_WINDOW window modes (after/before) still render after the toggle refactor
   await page.getByRole('button', { name: 'New Rule' }).click();
@@ -49,7 +49,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await page.getByText('FISHERMAN', { exact: false }).last().click();
   await page.getByRole('dialog').locator('input[type="time"]').first().fill('18:00');
   await page.getByRole('button', { name: 'Add Rule' }).click();
-  await expect(page.getByText(/Only after 18:00/)).toBeVisible();
+  await expect(page.getByText(/1\. FISHERMAN: only after 18:00/)).toBeVisible();
 
   // All three persisted via the bridge
   const types = await page.evaluate(() => {

@@ -15,13 +15,14 @@ import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import {
-  describeRule, RuleTypeIcon,
+  describeRule,
 } from '../rules/ruleMeta';
+import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
 import { typeRankOf, categoryRankOf } from '../../lib/events';
 import Button from '../Button';
 import Checkbox from '../Checkbox';
-import { Plus, X, Check, ChevronDown, Link2, Sun, Flag, Pencil, MessageSquare, Trash2 } from 'lucide-react';
+import { Plus, X, Check, ChevronDown, Link2, Sun, Flag, MessageSquare, Trash2 } from 'lucide-react';
 
 interface AttachRow {
   category: string;
@@ -511,19 +512,19 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                   </Button>
                 </div>
                 {rules.length === 0 ? (
-                  <p className={`${CREM_LABEL} text-zinc-600 italic`}>No date-scoped rules on this day.</p>
+                  <p className={`${CREM_LABEL} text-zinc-600 italic`}>No rules on this day.</p>
                 ) : (
-                  <ul className="space-y-1.5">
+                  <div className="space-y-1.5">
                     {rules.map(r => (
-                      <li key={r.id} className="flex items-center gap-2">
-                        <RuleTypeIcon type={r.type} className="w-3 h-3 text-zinc-500 shrink-0" />
-                        <span className="flex-1 min-w-0 text-[11px] text-zinc-300 truncate">{describeRule(r)}</span>
-                        <Button theme="dark" variant="subtle" onClick={() => openRuleEditor(r)} className="p-1 shrink-0" title="Edit rule">
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                      </li>
+                      <RuleCard
+                        key={r.id}
+                        rule={r}
+                        castMembers={project.castMembers || []}
+                        theme="dark"
+                        onEdit={() => openRuleEditor(r)}
+                      />
                     ))}
-                  </ul>
+                  </div>
                 )}
               </>
             )}

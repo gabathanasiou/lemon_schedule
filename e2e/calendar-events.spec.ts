@@ -71,7 +71,7 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
   await page.locator('[data-date-key="2026-08-10"] > div[role="button"]').first().click();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Rules', exact: true }).click();
-  await expect(page.getByText(/Unavailable/).first()).toBeVisible();
+  await expect(page.getByText(/unavailable/).first()).toBeVisible();
   await page.getByText('Add rule', { exact: true }).click();
   await expect(page.locator('[data-rule-editor]')).toBeVisible();
   await expect(page.getByText('Aug 10', { exact: false }).first()).toBeVisible();

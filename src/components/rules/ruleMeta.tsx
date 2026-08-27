@@ -1,6 +1,7 @@
 import React from 'react';
 import { ProjectRule } from '../../types';
 import { formatRuleDateShort, generateUUID } from '../../lib/utils';
+import { formatCastId, formatCastIds, timeWindowLabel } from '../../lib/violationMessages';
 import { Clock, CalendarX2, Timer, Ban, Bell } from 'lucide-react';
 
 export type RuleType = 'MAX_HOURS' | 'DATE_RESTRICTION' | 'TIME_WINDOW' | 'CAST_CONFLICT' | 'CAST_SCENE_FLAG';
@@ -153,6 +154,28 @@ export const RuleTypeIcon: React.FC<{ type: RuleType; className?: string }> = ({
   const Icon = RULE_TYPE_META[type].icon;
   return <Icon className={className} />;
 };
+
+/** Cast-aware rule description for cards ("1. FISHERMAN: max 8h" + extra-date
+ *  scope) — the shared text for RuleCard in both the Rules tab and the day
+ *  modal. `describeRule` stays the compact chip text. */
+export function describeRuleDetailed(rule: ProjectRule, castMembers: Array<{ id: string; name: string }>): string {
+  const scope = (dates?: string[]) => {
+    if (!dates || dates.length <= 1) return '';
+    return ` · also ${dates.length - 1} more date${dates.length === 2 ? '' : 's'}`;
+  };
+  switch (rule.type) {
+    case 'MAX_HOURS':
+      return `${formatCastId(rule.castId, castMembers)}: max ${rule.maxHours}h${scope(rule.dates)}`;
+    case 'DATE_RESTRICTION':
+      return `${formatCastId(rule.castId, castMembers)}: unavailable${scope(rule.dates)}`;
+    case 'TIME_WINDOW':
+      return `${formatCastId(rule.castId, castMembers)}: only ${timeWindowLabel(rule.windowStart, rule.windowEnd)}${scope(rule.dates)}`;
+    case 'CAST_CONFLICT':
+      return `${formatCastIds(rule.castIds, castMembers)} vs ${formatCastIds(rule.conflictCastIds, castMembers)}`;
+    default:
+      return `flag when ${formatCastIds(rule.castIds, castMembers)} appear`;
+  }
+}
 
 export interface RuleFormState {
   type: RuleType;
