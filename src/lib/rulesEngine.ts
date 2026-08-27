@@ -185,6 +185,17 @@ export interface SectionLike {
   daybreakRow?: ScheduleRow;
 }
 
+/** Rules relevant to a day — the shared definition used by the day modal's
+ *  Rules tab: date-scoped rules covering the day, plus every-day/global
+ *  rules (no dates) and CAST_* rules which always apply. */
+export function rulesRelevantToDay(rules: ProjectRule[], dateKey: string): ProjectRule[] {
+  return rules.filter(r => {
+    if (r.type === 'CAST_CONFLICT' || r.type === 'CAST_SCENE_FLAG') return true;
+    if ('dates' in r && r.dates != null && r.dates.length > 0) return r.dates.includes(dateKey);
+    return true;
+  });
+}
+
 /** Violation map for every scheduled day — one shared computation used by the
  *  Calendar tab and the Day Breakdown manager (never re-derived). Call time
  *  walks the daybreaks: the daybreak ABOVE a section governs its base time. */

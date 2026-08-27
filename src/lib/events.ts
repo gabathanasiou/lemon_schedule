@@ -1,4 +1,4 @@
-import { NonShootDate, ProjectRule, RuleType } from '../types';
+import { NonShootDate, ProjectRule, RuleType, RuleViolation } from '../types';
 import { getTypeListGroups, NON_SHOOT_ALL, isAllKeys, resolveElementName } from './nonShootHelpers';
 import { getMarkableDayTypes, getDayType } from './dayTypes';
 import { getLabel, DEFAULT_CATEGORY_LABELS, ELEMENT_CATEGORIES } from './categories';
@@ -21,8 +21,11 @@ import { getLabel, DEFAULT_CATEGORY_LABELS, ELEMENT_CATEGORIES } from './categor
 export type EventCard =
   | { id: string; kind: 'status'; dateKey: string; statusKey: string }
   | { id: string; kind: 'attachment'; dateKey: string; status: string; category: string; keys: string[]; all: boolean; comment?: string }
-  | { id: string; kind: 'flag'; dateKey: string }
-  | { id: string; kind: 'rulechip'; dateKey: string; rule: ProjectRule; run: string[]; runIdx: number };
+  /** One card per rule per date. `everyday` = the rule has no dates (or is a
+   *  CAST_* rule) and therefore shows a card on every calendar day —
+   *  display-only (no drag/delete). `violated`/`message` = this rule is
+   *  broken on this day (conflict emphasis). */
+  | { id: string; kind: 'rule'; dateKey: string; rule: ProjectRule; everyday: boolean; violated: boolean; message?: string };
 
 export function eventCardId(card: EventCard): string {
   return card.id;
@@ -57,9 +60,7 @@ export function filterCard(card: EventCard, filter: EventsFilter | undefined): b
       return filter.statuses == null || filter.statuses.includes(card.statusKey);
     case 'attachment':
       return !!filter.attachments && (filter.statuses == null || filter.statuses.includes(card.status));
-    case 'flag':
-      return !!filter.flags;
-    case 'rulechip':
+    case 'rule':
       return filter.rules == null || filter.rules.includes(card.rule.type);
   }
 }
@@ -68,66 +69,9 @@ export function filterCard(card: EventCard, filter: EventsFilter | undefined): b
 /* Date helpers                                                        */
 /* ------------------------------------------------------------------ */
 
-const DAY_MS = 86400000;
-
-export function isNextDate(a: string, b: string): boolean {
-  return Number(new Date(b + 'T00:00:00')) - Number(new Date(a + 'T00:00:00')) === DAY_MS;
-}
-
-export function isPrevDate(a: string, b: string): boolean {
-  return isNextDate(b, a);
-}
-
 /** Sorted ascending ISO date keys. */
 export function sortDateKeys(dates: string[]): string[] {
   return [...dates].sort((a, b) => a.localeCompare(b));
-}
-
-/* ------------------------------------------------------------------ */
-/* Rule runs — one chip per CONTIGUOUS run of `rule.dates`             */
-/* ------------------------------------------------------------------ */
-
-export interface RuleRun {
-  rule: ProjectRule;
-  run: string[];
-}
-
-export function isDateRule(rule: ProjectRule): boolean {
-  return rule.type === 'DATE_RESTRICTION' || ('dates' in rule && rule.dates != null && rule.dates.length > 0);
-}
-
-/** Splits a rule's dates into contiguous runs (ISO +1-day adjacency). */
-export function computeRuleRuns(rule: ProjectRule): RuleRun[] {
-  if (!('dates' in rule)) return [];
-  const dates = sortDateKeys(rule.dates || []);
-  if (dates.length === 0) return [];
-  const runs: RuleRun[] = [];
-  let current: string[] = [dates[0]];
-  for (let i = 1; i < dates.length; i++) {
-    if (isNextDate(current[current.length - 1], dates[i])) {
-      current.push(dates[i]);
-    } else {
-      runs.push({ rule, run: current });
-      current = [dates[i]];
-    }
-  }
-  runs.push({ rule, run: current });
-  return runs;
-}
-
-/** Every run of every date-scoped rule (chip overlay layer). */
-export function computeAllRuleRuns(rules: ProjectRule[]): RuleRun[] {
-  const out: RuleRun[] = [];
-  for (const rule of rules) {
-    if (!('dates' in rule) || !(rule.dates?.length)) continue;
-    for (const run of computeRuleRuns(rule)) out.push(run);
-  }
-  return out;
-}
-
-/** The runs of a rule that include the given date (chip cards for a day). */
-export function computeDayRuleRuns(rule: ProjectRule, dateKey: string): RuleRun[] {
-  return computeRuleRuns(rule).filter(r => r.run.includes(dateKey));
 }
 
 /* ------------------------------------------------------------------ */
@@ -148,12 +92,12 @@ export function categoryRankOf(category: string): number {
   return i === -1 ? ELEMENT_CATEGORIES.length : 1 + i;
 }
 
-/** Cards for ONE day, sorted: status → attachments → flag → rule chips. */
+/** Cards for ONE day, sorted: status → attachments → rules. */
 export function computeDayEvents(
   project: any,
   dateKey: string,
   entry: NonShootDate | undefined | null,
-  violations: { length: number } | undefined | null,
+  violations: RuleViolation[] | undefined | null,
   rules: ProjectRule[],
   filter?: EventsFilter,
 ): EventCard[] {
@@ -183,22 +127,21 @@ export function computeDayEvents(
     });
   }
 
-  if (violations && violations.length > 0) {
-    cards.push({ id: `ev-flag-${dateKey}`, kind: 'flag', dateKey });
-  }
-
+  // Rules: one card per date for dated rules; every-day/global rules get a
+  // card on EVERY day (display-only). A violated rule carries its message.
   for (const rule of rules) {
-    const runs = computeDayRuleRuns(rule, dateKey);
-    for (let i = 0; i < runs.length; i++) {
-      cards.push({
-        id: `ev-chip-${dateKey}-${rule.id}-${i}`,
-        kind: 'rulechip',
-        dateKey,
-        rule,
-        run: runs[i].run,
-        runIdx: i,
-      });
-    }
+    const hasDates = 'dates' in rule && rule.dates != null && rule.dates.length > 0;
+    if (hasDates && !rule.dates!.includes(dateKey)) continue;
+    const v = violations?.find(v => v.ruleId === rule.id);
+    cards.push({
+      id: `ev-rule-${dateKey}-${rule.id}`,
+      kind: 'rule',
+      dateKey,
+      rule,
+      everyday: !hasDates,
+      violated: !!v,
+      message: v?.message,
+    });
   }
 
   return cards.filter(c => filterCard(c, filter));
@@ -307,26 +250,35 @@ export function moveNonShootDate(nonShootDates: NonShootDate[], fromDate: string
   return { next, changed: true };
 }
 
-export type MoveRuleRunResult =
+export type RuleDateOpResult =
   | { changed: true; dates: string[] | undefined }
   | { changed: false; blocked: true };
 
-/**
- * Moves one run of a rule to `targetDate` — the target joins
- * `rule.dates`, the run's original dates leave. `DATE_RESTRICTION` floors
- * at one date (moving its last date is blocked); date-optional types drop
- * to "every day" (dates become undefined) when the last date leaves.
- */
-export function moveRuleRun(rule: ProjectRule, runDates: string[], targetDate: string): MoveRuleRunResult {
-  if (!('dates' in rule)) return { changed: false, blocked: true };
-  if (runDates.includes(targetDate)) return { changed: false, blocked: true };
-  const current = [...(rule.dates || [])];
-  const remaining = current.filter(d => !runDates.includes(d));
+/** Moves ONE date of a rule to `targetDate` (rule-card drag): the source date
+ *  leaves, the target joins. `DATE_RESTRICTION` floors at one date (moving
+ *  its last date is blocked); date-optional types drop to "every day"
+ *  (dates become undefined) when the last date moves. */
+export function moveRuleDate(rule: ProjectRule, fromDate: string, toDate: string): RuleDateOpResult {
+  if (!('dates' in rule) || !rule.dates?.length || fromDate === toDate) return { changed: false, blocked: true };
+  const remaining = rule.dates.filter(d => d !== fromDate);
+  if (remaining.length === 0) {
+    if (rule.type === 'DATE_RESTRICTION') return { changed: false, blocked: true };
+    return { changed: true, dates: [toDate] };
+  }
+  return { changed: true, dates: sortDateKeys([...remaining, toDate]) };
+}
+
+/** Removes ONE date from a rule (card delete). Same floor rules as
+ *  `moveRuleDate` — removing a no-date rule's date is always blocked. */
+export function removeRuleDate(rule: ProjectRule, dateKey: string): RuleDateOpResult {
+  if (!('dates' in rule) || !rule.dates?.length) return { changed: false, blocked: true };
+  const remaining = rule.dates.filter(d => d !== dateKey);
+  if (remaining.length === rule.dates.length) return { changed: false, blocked: true };
   if (remaining.length === 0) {
     if (rule.type === 'DATE_RESTRICTION') return { changed: false, blocked: true };
     return { changed: true, dates: undefined };
   }
-  return { changed: true, dates: sortDateKeys([...remaining, targetDate]) };
+  return { changed: true, dates: sortDateKeys(remaining) };
 }
 
 /** Rebuilds a rule with new dates (used by chip drags / day permutations).

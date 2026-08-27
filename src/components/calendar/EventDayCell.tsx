@@ -7,6 +7,7 @@ import { getDayHeaderColors } from '../../lib/ribbonUtils';
 import { typeIconComponent, dayTypeTextColor, DayTypeVisual } from '../../lib/dayTypes';
 import { formatFullDate } from './calendarUtils';
 import { Flag, Plus, MessageSquare } from 'lucide-react';
+import { RULE_TYPE_META, describeRuleDetailed } from '../rules/ruleMeta';
 import { ViolationTooltip } from '../ViolationTooltip';
 import { HoverTooltip } from '../HoverTooltip';
 import { isAllKeys, resolveElementName } from '../../lib/nonShootHelpers';
@@ -35,6 +36,8 @@ export const EventDayCell: React.FC<{
   onCardClick: (cardId: string, e: React.MouseEvent) => void;
   /** Card double-click opens the shared editor focused on that event type. */
   onCardDoubleClick?: (card: EventCard) => void;
+  /** Right-click on a rule card (remove date / edit). */
+  onCardContextMenu?: (card: EventCard, e: React.MouseEvent) => void;
   onOpenEvents: (dateKey: string) => void;
   onContextMenu?: (e: React.MouseEvent, dateKey: string) => void;
   readOnly?: boolean;
@@ -43,7 +46,7 @@ export const EventDayCell: React.FC<{
    *  header drag. */
   hasEvents?: boolean;
   dropZone?: EventDropZoneProp | null;
-}> = ({ dateKey, date, isToday, cards, travelHoldEntry, dayTypeVisual, dayTypeCode, violations, sectionLabel, selectedIds, onCardClick, onCardDoubleClick, onOpenEvents, onContextMenu, readOnly, flash, hasEvents, dropZone }) => {
+}> = ({ dateKey, date, isToday, cards, travelHoldEntry, dayTypeVisual, dayTypeCode, violations, sectionLabel, selectedIds, onCardClick, onCardDoubleClick, onCardContextMenu, onOpenEvents, onContextMenu, readOnly, flash, hasEvents, dropZone }) => {
   const { state } = useProject();
   const project = state.present;
 
@@ -67,8 +70,11 @@ export const EventDayCell: React.FC<{
   const headerStyle = statusHeaderStyle || (sectionLabel ? { background: hdr.background, color: hdr.color } : undefined);
   const headerLabel = visual ? visual.label.toUpperCase() : sectionLabel || '';
 
-  // Only attachment cards render in the cell — status/flag live in the header.
-  const cellCards = cards.filter(c => c.kind === 'attachment');
+  // Attachment + rule cards render in the cell; status/conflicts live in the
+  // header. Every-day rule cards are display-only — they don't count as
+  // "content" (the add affordance + whole-day drag ignore them).
+  const cellCards = cards.filter(c => c.kind === 'attachment' || c.kind === 'rule');
+  const manageableCards = cellCards.filter(c => c.kind !== 'rule' || !c.everyday);
   const drop = dropZone && dropZone.dateKey === dateKey ? dropZone : null;
 
   return (
@@ -128,9 +134,10 @@ export const EventDayCell: React.FC<{
             selected={selectedIds.has(card.id)}
             onClick={(e) => onCardClick(card.id, e)}
             onDoubleClick={(e) => { e.stopPropagation(); onCardDoubleClick?.(card); }}
+            onContextMenu={(e) => { if (card.kind === 'rule') { e.preventDefault(); e.stopPropagation(); onCardContextMenu?.(card, e); } }}
           />
         ))}
-        {cellCards.length === 0 && (
+        {manageableCards.length === 0 && (
           <button
             onClick={(e) => { e.stopPropagation(); onOpenEvents(dateKey); }}
             className="w-full flex items-center justify-center gap-1 py-1 rounded border border-dashed border-zinc-300 text-[9px] font-semibold text-zinc-400 hover:text-zinc-600 hover:border-zinc-400 transition-colors"
@@ -195,11 +202,18 @@ export const EventCardView: React.FC<{
       </HoverTooltip>
     );
   }
-  if (card.kind === 'flag') {
+  if (card.kind === 'rule') {
+    const meta = RULE_TYPE_META[card.rule.type];
+    const Icon = meta.icon;
     return (
-      <div onClick={onClick} className={`${base} bg-red-50 text-red-600 flex items-center gap-1`}>
-        <Flag className="w-2.5 h-2.5 fill-red-400 text-red-400 shrink-0" />
-        Conflicts — open day events for details
+      <div
+        onClick={onClick}
+        title={card.violated && card.message ? card.message : (card.everyday ? `${meta.label} — every day` : describeRuleDetailed(card.rule, project.castMembers || []))}
+        className={`${base} flex items-center gap-1 ${card.violated ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-700'}`}
+      >
+        <Icon className={`w-2.5 h-2.5 shrink-0 ${meta.chipIcon}`} />
+        <span className="truncate flex-1">{describeRuleDetailed(card.rule, project.castMembers || [])}</span>
+        {card.violated && <Flag className="w-2.5 h-2.5 fill-red-400 text-red-400 shrink-0" />}
       </div>
     );
   }
@@ -212,20 +226,31 @@ const DraggableEventCard: React.FC<{
   selected: boolean;
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
-}> = ({ card, project, selected, onClick, onDoubleClick }) => {
+  onContextMenu?: (e: React.MouseEvent) => void;
+}> = ({ card, project, selected, onClick, onDoubleClick, onContextMenu }) => {
   const dragData = card.kind === 'status'
     ? { type: 'EVENT_CARD', dateKey: card.dateKey, cardKind: 'status' as const, status: card.statusKey }
     : card.kind === 'attachment'
       ? { type: 'EVENT_CARD', dateKey: card.dateKey, cardKind: 'attachment' as const, status: card.status, category: card.category, keys: card.keys }
-      : undefined;
+      : card.kind === 'rule'
+        ? { type: 'EVENT_CARD', dateKey: card.dateKey, cardKind: 'rule' as const, ruleId: card.rule.id }
+        : undefined;
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: card.id,
     data: dragData,
-    disabled: !dragData,
+    // every-day rule cards are display-only (nothing to move)
+    disabled: !dragData || (card.kind === 'rule' && card.everyday),
   });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes} data-event-key={card.id}
+      {...(card.kind === 'rule' ? {
+        'data-card-kind': 'rule',
+        'data-card-rule': card.rule.id,
+        'data-card-source': card.dateKey,
+        'data-card-everyday': card.everyday ? '1' : '',
+      } : {})}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
       className={`cursor-pointer ${isDragging ? 'opacity-40' : ''}`}
     >
       <EventCardView card={card} project={project} selected={selected} onClick={onClick} />

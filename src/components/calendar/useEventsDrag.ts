@@ -3,7 +3,7 @@ import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core'
 import { NonShootDate, ProjectRule, ScheduleVersion } from '../../types';
 import {
   applyDatePermutation, buildPermutation, mergeAttachmentInto,
-  moveRuleRun, removeAttachmentFrom, withRuleDates,
+  moveRuleDate, removeAttachmentFrom, withRuleDates,
 } from '../../lib/events';
 
 /** Events-mode drag state (roadmap 45) — cards, chips and the day header all
@@ -15,9 +15,9 @@ export interface EventsDropZone {
 }
 
 export interface EventsDragMeta {
-  type: 'EVENT_CARD' | 'EVENT_CHIP' | 'EVENT_DAY';
+  type: 'EVENT_CARD' | 'EVENT_DAY';
   dateKey: string;
-  cardKind?: 'status' | 'attachment';
+  cardKind?: 'status' | 'attachment' | 'rule';
   status?: string;
   category?: string;
   keys?: string[];
@@ -124,7 +124,7 @@ export function useEventsDrag(config: UseEventsDragConfig) {
   const handleDragStart = (e: DragStartEvent) => {
     const data = e.active.data.current as EventsDragMeta | undefined;
     if (!data) return;
-    if (data.type !== 'EVENT_CARD' && data.type !== 'EVENT_CHIP' && data.type !== 'EVENT_DAY') return;
+    if (data.type !== 'EVENT_CARD' && data.type !== 'EVENT_DAY') return;
     setActiveEventId(e.active.id as string);
     setActiveMeta(data);
     if (data.type === 'EVENT_DAY') {
@@ -178,17 +178,6 @@ export function useEventsDrag(config: UseEventsDragConfig) {
       return;
     }
 
-    if (meta.type === 'EVENT_CHIP') {
-      const rule = rules.find(r => r.id === meta.ruleId);
-      if (!rule || !meta.run) return;
-      const res = moveRuleRun(rule, meta.run, targetDateKey);
-      if (res.changed) {
-        dispatch({ type: 'UPDATE_RULE', payload: withRuleDates(rule, res.dates) });
-        setFlashDateKey(targetDateKey);
-      }
-      return;
-    }
-
     // EVENT_CARD — every drag (single or batch) applies per-card collision
     // rules: an attachment card merges into the target day's lists for its
     // status × category (removed from the source), a status card replaces
@@ -197,26 +186,25 @@ export function useEventsDrag(config: UseEventsDragConfig) {
     // Card metadata is resolved from DOM attrs — ids are opaque (dateKeys /
     // category keys contain dashes, never parse them).
     const entries = new Map<string, NonShootDate>(nonShootDates.map(n => [n.date, n]));
-    for (const chipId of activeEventIds) {
-      if (!chipId.startsWith('ev-run-')) continue;
-      const el = calendarGridRef.current?.querySelector(`[data-event-key="${chipId}"]`);
-      if (!el) continue;
-      const ruleId = el.getAttribute('data-chip-rule');
-      const run = el.getAttribute('data-chip-run');
-      if (!ruleId || !run) continue;
-      const rule = rules.find(r => r.id === ruleId);
-      if (!rule) continue;
-      const res = moveRuleRun(rule, JSON.parse(run), targetDateKey);
-      if (res.changed) allUpdates.push({ type: 'UPDATE_RULE', payload: withRuleDates(rule, res.dates) });
-    }
-
     for (const cardId of activeEventIds) {
-      if (cardId.startsWith('ev-run-') || cardId.startsWith('ev-day-')) continue;
+      if (cardId.startsWith('ev-day-')) continue;
       const el = calendarGridRef.current?.querySelector(`[data-event-key="${cardId}"]`);
       if (!el) continue;
       const cell = el.closest('[data-date-key]');
       const sourceDate = cell?.getAttribute('data-date-key') || '';
       if (!sourceDate || sourceDate === targetDateKey) continue;
+
+      // Rule cards move ONE date of their rule to the target day
+      if (cardId.startsWith('ev-rule-')) {
+        const ruleId = el.getAttribute('data-card-rule');
+        if (!ruleId) continue;
+        const rule = rules.find(r => r.id === ruleId);
+        if (!rule) continue;
+        const res = moveRuleDate(rule, sourceDate, targetDateKey);
+        if (res.changed) allUpdates.push({ type: 'UPDATE_RULE', payload: withRuleDates(rule, res.dates) });
+        continue;
+      }
+
       const kind = cardId.startsWith('ev-status-') ? 'status' : 'attachment';
       const src = entries.get(sourceDate);
       const target = entries.get(targetDateKey);

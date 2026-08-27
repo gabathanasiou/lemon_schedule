@@ -2,8 +2,9 @@ import { test, expect } from '@playwright/test';
 import { openSeededProject } from './helpers';
 
 /** Calendar Events mode (roadmap item 45): mode toggle + persistence,
- *  attachment cards (type symbol + comma elements), spanning rule chips,
- *  event-type filter, Day Events modal, chip/card/day drags. Whole-day info
+ *  attachment cards (type symbol + comma elements), PER-DATE RULE CARDS
+ *  (one per rule date + everyday/global rules on every day), event-type
+ *  filter, Day Events modal, rule-card/attachment/day drags. Whole-day info
  *  (status, conflicts) lives in the day header — no status/flag cards.
  *  State is asserted through the debug bridge. */
 test('calendar events: mode toggle, attachment cards, spanning chips, filter, modal', async ({ page }) => {
@@ -34,36 +35,42 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
 
   // ---- Attachment cards render on the travel day (symbol + comma elements)
   const travelDay = page.locator('[data-date-key="2026-08-16"]');
-  await expect(travelDay.getByText(/FISHERMAN/)).toBeVisible();
-  await expect(travelDay.getByText(/COAT/)).toBeVisible();
+  await expect(travelDay.locator('[data-event-key^="ev-att-"]').getByText(/FISHERMAN/)).toBeVisible();
+  await expect(travelDay.locator('[data-event-key^="ev-att-"]').getByText(/COAT/)).toBeVisible();
   const attCard = page.locator('[data-date-key="2026-08-16"] [data-event-key^="ev-att-"]').first();
   await expect(attCard.locator('svg')).toBeVisible();
 
-  // ---- Spanning chip: one chip across the 3 consecutive days, wider than one cell
-  const chip = page.locator('[data-chip-rule]').first();
-  await expect(chip).toBeVisible();
-  const chipBox = await chip.boundingBox();
-  const cellBox = await page.locator('[data-date-key="2026-08-10"]').boundingBox();
-  expect(chipBox!.width).toBeGreaterThan(cellBox!.width * 2);
-  expect(await page.locator('[data-chip-rule]').count()).toBe(2);
+  // ---- Rule cards: one card per date (3 for r-chip-1 + 1 for r-chip-2)
+  await expect(page.locator('[data-date-key="2026-08-10"] [data-event-key^="ev-rule-"]').first()).toBeVisible();
+  // dated-rule cards only (everyday cards appear on every day, asserted below)
+  await expect(page.locator('[data-event-key^="ev-rule-"]:not([data-card-everyday="1"])')).toHaveCount(4);
+  // Everyday/global rules get a card on EVERY day (seed's CAST_SCENE_FLAG "flag when 9 appear")
+  const globalCard = page.locator('[data-date-key="2026-08-20"] [data-event-key^="ev-rule-"][data-card-everyday="1"]').first();
+  await expect(globalCard).toBeVisible();
 
   // ---- Filter: hiding the Travel status drops its attachment cards; empty days keep the add affordance
   await page.getByRole('button', { name: 'Filter' }).click();
   await page.locator('button:has-text("Travel")').first().click();
   await page.keyboard.press('Escape');
-  await expect(page.locator('[data-date-key="2026-08-16"]').getByText(/FISHERMAN/)).toHaveCount(0);
+  await expect(page.locator('[data-date-key="2026-08-16"] [data-event-key^="ev-att-"]').getByText(/FISHERMAN/)).toHaveCount(0);
   await expect(page.locator('button:has-text("Add event")').first()).toBeVisible();
   await page.getByRole('button', { name: 'Filter' }).click();
   await page.locator('button:has-text("Travel")').first().click();
   await page.keyboard.press('Escape');
-  await expect(page.locator('[data-date-key="2026-08-16"]').getByText(/FISHERMAN/)).toBeVisible();
+  await expect(page.locator('[data-date-key="2026-08-16"] [data-event-key^="ev-att-"]').getByText(/FISHERMAN/)).toBeVisible();
 
-  // ---- Rules filter hides chips
+  // ---- Rules filter hides rule cards (everyday CAST_SCENE_FLAG card too)
   await page.getByRole('button', { name: 'Filter' }).click();
+  await page.locator('button:has-text("Max Hours")').click();
+  await page.locator('button:has-text("Cast Conflict")').click();
+  await page.locator('button:has-text("Cast Scene Flag")').click();
   await page.locator('button:has-text("Date Restriction")').click();
   await page.keyboard.press('Escape');
-  await expect(page.locator('[data-chip-rule]')).toHaveCount(0);
+  await expect(page.locator('[data-event-key^="ev-rule-"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Filter' }).click();
+  await page.locator('button:has-text("Max Hours")').click();
+  await page.locator('button:has-text("Cast Conflict")').click();
+  await page.locator('button:has-text("Cast Scene Flag")').click();
   await page.locator('button:has-text("Date Restriction")').click();
   await page.keyboard.press('Escape');
 
@@ -72,9 +79,11 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Rules', exact: true }).click();
   await expect(page.getByText(/unavailable/).first()).toBeVisible();
+  // Everyday/global rules show here too (rulesRelevantToDay)
+  await expect(page.getByText(/GHOST/).first()).toBeVisible();
   await page.getByText('Add rule', { exact: true }).click();
   await expect(page.locator('[data-rule-editor]')).toBeVisible();
-  await expect(page.getByText('Aug 10', { exact: false }).first()).toBeVisible();
+  await expect(page.getByRole('dialog').last().getByText('Dates', { exact: true })).toHaveCount(0);
   // Adding from a specific day locks the rule to that day — no calendar grid, no every-day toggle
   await expect(page.getByRole('dialog').last().getByRole('button', { name: 'Previous month' })).toHaveCount(0);
   await expect(page.getByRole('dialog').last().getByText('Every day', { exact: true })).toHaveCount(0);
@@ -135,7 +144,7 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
   await expect(page.locator('button[title="Erase"]')).toHaveCount(0);
 });
 
-test('calendar events: chip drag remaps dates; attachment card drag moves the group; day drag permutes', async ({ page }) => {
+test('calendar events: rule-card drag moves a date; card delete removes it; attachment card drag moves the group; day drag permutes', async ({ page }) => {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Calendar' }).click();
   await expect(page.locator('[data-date-key="2026-08-10"]')).toBeVisible();
@@ -153,19 +162,37 @@ test('calendar events: chip drag remaps dates; attachment card drag moves the gr
   });
 
   await page.getByRole('button', { name: 'Events', exact: true }).click();
-  await expect(page.locator('[data-chip-rule]')).toHaveCount(2);
+  await expect(page.locator('[data-event-key^="ev-rule-"]:not([data-card-everyday="1"])')).toHaveCount(4);
 
-  // ---- Chip body drag: move run A (10-12) to 08-20; run B stays
-  const chip = await page.locator('[data-chip-rule]').nth(0).boundingBox();
+  // ---- Rule-card drag: move the 08-10 card to 08-20 (that date leaves, target joins)
+  const card10 = await page.locator('[data-date-key="2026-08-10"] [data-event-key^="ev-rule-"]:not([data-card-everyday="1"])').first().boundingBox();
   const t20 = await page.locator('[data-date-key="2026-08-20"]').boundingBox();
-  await page.mouse.move(chip!.x + chip!.width / 2, chip!.y + chip!.height / 2);
+  await page.mouse.move(card10!.x + card10!.width / 2, card10!.y + card10!.height / 2);
   await page.mouse.down();
   await page.mouse.move(t20!.x + t20!.width / 2, t20!.y + t20!.height / 2, { steps: 15 });
   await page.mouse.up();
   await expect.poll(() => page.evaluate(() => {
     const r = (window as any).__lemonSchedule.getState().present.rules.find((x: any) => x.id === 'r-chip-1');
     return r ? r.dates.join(',') : '';
-  })).toBe('2026-08-14,2026-08-20');
+  })).toBe('2026-08-11,2026-08-12,2026-08-14,2026-08-20');
+
+  // ---- Right-click a rule card: remove its date from the rule
+  await page.locator('[data-date-key="2026-08-11"] [data-event-key^="ev-rule-"]:not([data-card-everyday="1"])').first().click({ button: 'right' });
+  await page.getByText('Remove from this day', { exact: true }).click();
+  await expect.poll(() => page.evaluate(() => {
+    const r = (window as any).__lemonSchedule.getState().present.rules.find((x: any) => x.id === 'r-chip-1');
+    return r ? r.dates.join(',') : '';
+  })).toBe('2026-08-12,2026-08-14,2026-08-20');
+
+  // ---- Rule-card double-click opens the Edit Rule modal pre-filled; editing
+  // from a day stays day-locked — no calendar grid, extra dates read-only
+  await page.locator('[data-date-key="2026-08-12"] [data-event-key^="ev-rule-"]:not([data-card-everyday="1"])').first().dblclick();
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Edit Rule' })).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('button', { name: /Date Restriction/ })).toBeVisible();
+  await expect(page.getByRole('dialog').last().getByRole('button', { name: 'Previous month' })).toHaveCount(0);
+  await expect(page.getByRole('dialog').last().getByText('Dates', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cancel' }).first().click();
+  await page.getByRole('button', { name: 'Cancel' }).click();
 
   // ---- Attachment card drag: the Cast group (first card) moves to 08-21,
   // the source day keeps its Wardrobe group

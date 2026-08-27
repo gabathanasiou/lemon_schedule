@@ -9,7 +9,7 @@ import {
   getDayTypes, getDayType, typeIconComponent, iconForType, DAY_TYPE_BUILTIN_KEYS, DAY_TYPE_BUILTIN_ICONS, slugifyDayType,
 } from '../../lib/dayTypes';
 import { getNonShootEntryMap, upsertNonShootDate, getTypeListGroups, resolveElementName } from '../../lib/nonShootHelpers';
-import { computeSectionViolationMap } from '../../lib/rulesEngine';
+import { computeSectionViolationMap, rulesRelevantToDay } from '../../lib/rulesEngine';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DayEventsModal } from './DayEventsModal';
 import { AddDayTypeModal, EditDayTypeModal } from './DayTypeModals';
@@ -45,8 +45,7 @@ export const DayTypesTab: React.FC = () => {
     return computeSectionViolationMap(activeVersion.rows, productionSections, sectionDateMap, project.rules || [], project.scenes, project.castMembers || []);
   }, [activeVersion, productionSections, sectionDateMap, project.rules, project.scenes, project.castMembers]);
   const projectRules = useMemo(() => project.rules || [], [project.rules]);
-  const dateRules = (dateKey: string) =>
-    projectRules.filter((r): r is ProjectRule & { dates: string[] } => 'dates' in r && !!r.dates?.includes(dateKey));
+  const dateRules = (dateKey: string) => rulesRelevantToDay(projectRules, dateKey);
 
   const categoryLabel = (key: string) => {
     const c = ELEMENT_CATEGORIES.find(x => x.key === key);

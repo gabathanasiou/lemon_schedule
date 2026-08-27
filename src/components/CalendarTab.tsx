@@ -5,12 +5,12 @@ import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
-import { computeSectionViolationMap } from '../lib/rulesEngine';
+import { computeSectionViolationMap, rulesRelevantToDay } from '../lib/rulesEngine';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
@@ -38,7 +38,7 @@ import { DayTypesTab } from './calendar/DayTypesTab';
 import { PopoutPlaceholder } from './PopoutWindow';
 import { getDayTypes, getMarkableDayTypes, getDayTypeVisual, getDayTypeLabel, getDayTypeCode, typeIconComponent } from '../lib/dayTypes';
 import { getNonShootEntryMap, hasAnyLists, upsertNonShootDate } from '../lib/nonShootHelpers';
-import { computeDayEvents, computeRuleRuns, DEFAULT_EVENTS_FILTER } from '../lib/events';
+import { computeDayEvents, removeRuleDate, withRuleDates, DEFAULT_EVENTS_FILTER } from '../lib/events';
 import { describeRule, RULE_TYPE_META, RULE_TYPES } from './rules/ruleMeta';
 import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
 import { useCalendarDrag } from './calendar/useCalendarDrag';
@@ -48,99 +48,6 @@ import { BoneyardExpandButton } from './BoneyardExpandButton';
 import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, estimateMonthHeight, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
 const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
-const CHIP_TOP = 38;      // below the day header (34px + margins)
-const CHIP_HEIGHT = 18;
-const CHIP_GAP = 2;
-
-/** Presentational rule chip — shared by the week overlay and the drag ghost. */
-const RuleChipView: React.FC<{ rule: ProjectRule; selected?: boolean; className?: string }> = ({ rule, selected, className = '' }) => {
-  const meta = RULE_TYPE_META[rule.type];
-  return (
-    <div className={`rounded px-1.5 flex items-center gap-1 text-[9px] font-semibold leading-none whitespace-nowrap overflow-hidden ${meta.badge} ${selected ? 'ring-1 ring-zinc-800' : ''} ${className}`}>
-      <meta.icon className="w-2.5 h-2.5 shrink-0" />
-      <span className="truncate">{describeRule(rule)}</span>
-    </div>
-  );
-};
-
-/** The week-level rule-chip overlay (events mode): one chip per contiguous
- *  run, spanning its day cells (Apple-month-view style). Chips sit at the
- *  top of the week over the cell headers; overlapping runs stack on rows. */
-const EventsChipLayer: React.FC<{
-  chips: { rule: ProjectRule; run: string[]; chipId: string }[];
-  weekDates: string[];
-  selectedIds: Set<string>;
-  onCardClick: (id: string, e: React.MouseEvent) => void;
-}> = ({ chips, weekDates, selectedIds, onCardClick }) => {
-  const spans = chips.map(c => {
-    const inWeek = c.run.filter(d => weekDates.includes(d));
-    const first = weekDates.indexOf(inWeek[0]);
-    const last = weekDates.indexOf(inWeek[inWeek.length - 1]);
-    return { ...c, first, last };
-  }).sort((a, b) => a.first - b.first || a.last - b.last);
-  const rows: typeof spans[] = [];
-  for (const s of spans) {
-    let placed = false;
-    for (const row of rows) {
-      const lastSpan = row[row.length - 1];
-      if (s.first > lastSpan.last) { row.push(s); placed = true; break; }
-    }
-    if (!placed) rows.push([s]);
-  }
-  return (
-    <div className="absolute inset-x-0 top-0 pointer-events-none" style={{ zIndex: 5 }}>
-      {rows.map((row, ri) => row.map(s => {
-        const left = (s.first / 7) * 100;
-        const width = ((s.last - s.first + 1) / 7) * 100;
-        return (
-          <RuleChip
-            key={s.chipId}
-            chipId={s.chipId}
-            rule={s.rule}
-            run={s.run}
-            left={`${left}%`}
-            width={`${width}%`}
-            top={CHIP_TOP + ri * (CHIP_HEIGHT + CHIP_GAP)}
-            selected={selectedIds.has(s.chipId)}
-            onClick={(e) => onCardClick(s.chipId, e)}
-          />
-        );
-      }))}
-    </div>
-  );
-};
-
-const RuleChip: React.FC<{
-  chipId: string;
-  rule: ProjectRule;
-  run: string[];
-  left: string;
-  width: string;
-  top: number;
-  selected: boolean;
-  onClick: (e: React.MouseEvent) => void;
-}> = ({ chipId, rule, run, left, width, top, selected, onClick }) => {
-  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
-    id: chipId,
-    data: { type: 'EVENT_CHIP', dateKey: run[0], ruleId: rule.id, run },
-  });
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      data-event-key={chipId}
-      data-chip-rule={rule.id}
-      data-chip-run={JSON.stringify(run)}
-      onClick={onClick}
-      title={describeRule(rule)}
-      className={`absolute cursor-pointer select-none pointer-events-auto ${isDragging ? 'opacity-40' : ''}`}
-      style={{ left, width, top, height: CHIP_HEIGHT }}
-    >
-      <RuleChipView rule={rule} selected={selected} className="w-full h-full" />
-    </div>
-  );
-};
 
 export const CalendarTab: React.FC<{
   onOpenScene?: (sceneId: string) => void;
@@ -224,7 +131,7 @@ export const CalendarTab: React.FC<{
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [prodDatesOpen, setProdDatesOpen] = useState(false);
-  const [travelHoldModal, setTravelHoldModal] = useState<{ dateKey: string; status?: string } | null>(null);
+  const [travelHoldModal, setTravelHoldModal] = useState<{ dateKey: string; status?: string; rule?: ProjectRule } | null>(null);
   const [selectedEventKeys, setSelectedEventKeys] = useState<Set<string>>(new Set());
   const selectedEventKeysRef = useRef(selectedEventKeys);
   selectedEventKeysRef.current = selectedEventKeys;
@@ -261,6 +168,7 @@ export const CalendarTab: React.FC<{
 
   const [contextMenuDate, setContextMenuDate] = useState<string | null>(null);
   const [contextMenuBodyTarget, setContextMenuBodyTarget] = useState<string | null>(null);
+  const [ruleCardMenu, setRuleCardMenu] = useState<{ ruleId: string; dateKey: string; x: number; y: number; everyday: boolean } | null>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -889,24 +797,14 @@ export const CalendarTab: React.FC<{
 
   const visibleDates = useMemo(() => days.map(d => d.dateKey), [days]);
 
-  const ruleChips = useMemo(() => {
-    const out: { rule: ProjectRule; run: string[]; chipId: string }[] = [];
-    for (const r of projectRules) {
-      if (eventsFilter.rules != null && !eventsFilter.rules.includes(r.type)) continue;
-      const runs = computeRuleRuns(r);
-      runs.forEach((run, i) => out.push({ rule: r, run: run.run, chipId: `ev-run-${r.id}-${i}` }));
-    }
-    return out;
-  }, [projectRules, eventsFilter.rules]);
-
-  /** Dates carrying ANY event state (entry or chip) — the day header becomes
-   *  draggable (whole-day move) only when there is something to move. */
+  /** Dates carrying ANY event state (entry or rule date) — the day header
+   *  becomes draggable (whole-day move) only when there is something. */
   const eventStateDates = useMemo(() => {
     const dates = new Set<string>();
     for (const n of nonShootDates) if (n.status || hasAnyLists(n)) dates.add(n.date);
-    for (const c of ruleChips) for (const d of c.run) dates.add(d);
+    for (const r of projectRules) if ('dates' in r && r.dates) for (const d of r.dates) dates.add(d);
     return dates;
-  }, [nonShootDates, ruleChips]);
+  }, [nonShootDates, projectRules]);
   const {
     activeEventId, activeEventIds, activeMeta: activeEventMeta, dropZone: eventsDropZone,
     handleDragStart: handleEventDragStart, handleDragOver: handleEventDragOver,
@@ -1088,20 +986,12 @@ export const CalendarTab: React.FC<{
                       );
                     })}
                     <DropdownDivider />
-                    {([
-                      { key: 'attachments' as const, label: 'Attachments' },
-                      { key: 'flags' as const, label: 'Flags / Conflicts' },
-                    ]).map(g => {
-                      const on = g.key === 'attachments' ? eventsFilter.attachments : eventsFilter.flags;
-                      return (
-                        <button key={g.key} onClick={() => updateCal({ eventsFilter: { ...eventsFilter, [g.key]: !on } })} className="w-full text-left px-3 py-1.5 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100">
-                          <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${on ? 'bg-zinc-900 border-zinc-900' : 'border-zinc-300'}`}>
-                            {on && <Check className="w-2.5 h-2.5 text-white" />}
-                          </span>
-                          {g.label}
-                        </button>
-                      );
-                    })}
+                    <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, attachments: !eventsFilter.attachments } })} className="w-full text-left px-3 py-1.5 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100">
+                      <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${eventsFilter.attachments ? 'bg-zinc-900 border-zinc-900' : 'border-zinc-300'}`}>
+                        {eventsFilter.attachments && <Check className="w-2.5 h-2.5 text-white" />}
+                      </span>
+                      Attachments
+                    </button>
                     <DropdownDivider />
                     <div className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Rules</div>
                     {RULE_TYPES.map(t => {
@@ -1252,7 +1142,6 @@ export const CalendarTab: React.FC<{
                         const weekDates = week
                           .filter((s): s is Extract<MonthSlot, { filler: false }> => !s.filler)
                           .map(s => s.dateKey);
-                        const chips = ruleChips.filter(c => c.run.some(d => weekDates.includes(d)));
                         return (
                           <div key={`wk-${wi}`} data-cal-week className="relative border-t border-zinc-200">
                             <div className="grid grid-cols-7 border-l border-zinc-200">
@@ -1275,7 +1164,13 @@ export const CalendarTab: React.FC<{
                                     onCardDoubleClick={(card) => setTravelHoldModal({
                                       dateKey: card.dateKey,
                                       ...(card.kind === 'attachment' ? { status: card.status } : {}),
+                                      ...(card.kind === 'rule' ? { rule: card.rule } : {}),
                                     })}
+                                    onCardContextMenu={(card, e) => {
+                                      if (card.kind === 'rule') {
+                                        setRuleCardMenu({ ruleId: card.rule.id, dateKey: card.dateKey, x: e.clientX, y: e.clientY, everyday: card.everyday });
+                                      }
+                                    }}
                                     onOpenEvents={(dk) => setTravelHoldModal({ dateKey: dk })}
                                     onContextMenu={(e, dateKey) => {
                                       setContextMenuDate(dateKey);
@@ -1288,9 +1183,6 @@ export const CalendarTab: React.FC<{
                                 );
                               })}
                             </div>
-                            {chips.length > 0 && (
-                              <EventsChipLayer chips={chips} weekDates={weekDates} selectedIds={selectedEventKeys} onCardClick={handleEventCardClick} />
-                            )}
                           </div>
                         );
                       });
@@ -1388,20 +1280,14 @@ export const CalendarTab: React.FC<{
           activeEventMeta.type === 'EVENT_DAY' ? (
             <div className="flex flex-col gap-0.5 opacity-90">
               {(eventsByDate.get(activeEventMeta.dateKey) || [])
-                .filter(c => c.kind !== 'rulechip')
                 .slice(0, 3)
                 .map(card => (
                   <div key={card.id} className="w-56"><EventCardView card={card} project={project} /></div>
                 ))}
-              {((eventsByDate.get(activeEventMeta.dateKey) || []).filter(c => c.kind !== 'rulechip').length) > 3 && (
-                <div className="text-[9px] text-center text-zinc-500">+{(eventsByDate.get(activeEventMeta.dateKey) || []).filter(c => c.kind !== 'rulechip').length - 3} more</div>
+              {((eventsByDate.get(activeEventMeta.dateKey) || []).length) > 3 && (
+                <div className="text-[9px] text-center text-zinc-500">+{(eventsByDate.get(activeEventMeta.dateKey) || []).length - 3} more</div>
               )}
             </div>
-          ) : activeEventMeta.type === 'EVENT_CHIP' ? (
-            (() => {
-              const r = projectRules.find(x => x.id === activeEventMeta.ruleId);
-              return r ? <div className="w-44"><RuleChipView rule={r} /></div> : null;
-            })()
           ) : (
             (() => {
               for (const cards of eventsByDate.values()) {
@@ -1413,6 +1299,26 @@ export const CalendarTab: React.FC<{
           )
         ) : null}
       </DragOverlay>
+
+      {ruleCardMenu && (
+        <ContextMenu open x={ruleCardMenu.x} y={ruleCardMenu.y} onClose={() => setRuleCardMenu(null)}>
+          <ContextMenuItem
+            variant="danger"
+            disabled={ruleCardMenu.everyday}
+            icon={<Trash2 className="w-3.5 h-3.5" />}
+            onClick={() => {
+              const rule = projectRules.find(r => r.id === ruleCardMenu.ruleId);
+              if (rule) {
+                const res = removeRuleDate(rule, ruleCardMenu.dateKey);
+                if (res.changed) dispatch({ type: 'UPDATE_RULE', payload: withRuleDates(rule, res.dates) });
+              }
+              setRuleCardMenu(null);
+            }}
+          >
+            {ruleCardMenu.everyday ? 'Every-day rule — edit dates in the rule editor' : 'Remove from this day'}
+          </ContextMenuItem>
+        </ContextMenu>
+      )}
 
       {contextMenuDate && contextMenu && (
         <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => { setContextMenu(null); setContextMenuDate(null); }}>
@@ -1515,8 +1421,9 @@ export const CalendarTab: React.FC<{
           dateKey={travelHoldModal.dateKey}
           entry={nonShootEntryByDate.get(travelHoldModal.dateKey)}
           violations={violationMap.get(travelHoldModal.dateKey) || []}
-          rules={projectRules.filter((r): r is ProjectRule & { dates: string[] } => 'dates' in r && !!r.dates?.includes(travelHoldModal.dateKey))}
+          rules={rulesRelevantToDay(projectRules, travelHoldModal.dateKey)}
           initialStatus={travelHoldModal.status}
+          initialRule={travelHoldModal.rule}
           onSave={(entry) => handleTravelHoldSave(travelHoldModal.dateKey, entry)}
           onClose={() => setTravelHoldModal(null)}
         />

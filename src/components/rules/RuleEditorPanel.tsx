@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ProjectRule, Scene, CastMember } from '../../types';
-import { getUniqueCastIds, formatRuleDateShort } from '../../lib/utils';
+import { getUniqueCastIds } from '../../lib/utils';
 import { usePortalTarget } from '../../lib/popoutTarget';
 import { EntityDropdown } from '../EntityDropdown';
 import DatePicker from '../DatePicker';
@@ -117,9 +117,10 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
   );
 
   /** Adding from a specific day (events UI) locks the rule to that day:
-   *  single date, no every-day toggle, no multi-date picker. Editing keeps
-   *  the full surface (an existing rule may span days). */
-  const dayLocked = !!preseedDateKey && !initial;
+   *  single date, no every-day toggle, no multi-date picker. Editing from a
+   *  day is locked the same way — dates show read-only; full date editing
+   *  lives on the Rules tab (no preseed). */
+  const dayLocked = !!preseedDateKey;
 
   const FieldBox: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className }) => (
     <div className={`border border-zinc-700 rounded-lg p-3 space-y-3 ${className ?? ''}`}>
@@ -189,11 +190,12 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       )}
       </FieldBox>
 
-      {/* Dates */}
-      {(form.type === 'DATE_RESTRICTION' || form.type === 'MAX_HOURS' || form.type === 'TIME_WINDOW') && (
+      {/* Dates — hidden entirely when opened from a day (add or edit); the
+          full date surface lives on the Rules tab (no preseed). */}
+      {!dayLocked && (form.type === 'DATE_RESTRICTION' || form.type === 'MAX_HOURS' || form.type === 'TIME_WINDOW') && (
         <FieldBox label="Dates">
           <div className="flex items-center justify-end mb-1.5">
-            {form.type !== 'DATE_RESTRICTION' && !dayLocked && (
+            {form.type !== 'DATE_RESTRICTION' && (
               <Checkbox
                 checked={form.datesMode === 'all'}
                 onChange={on => setForm(f => ({
@@ -205,11 +207,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
               />
             )}
           </div>
-          {dayLocked ? (
-            <p className={`${CREM_LABEL} text-zinc-500 italic`}>
-              Applies to this day only — {formatRuleDateShort(preseedDateKey!)}.
-            </p>
-          ) : form.datesMode === 'all' && form.type !== 'DATE_RESTRICTION' ? (
+          {form.datesMode === 'all' && form.type !== 'DATE_RESTRICTION' ? (
             <p className={`${CREM_LABEL} text-zinc-500 italic`}>Applies every day.</p>
           ) : (
             <DatePicker

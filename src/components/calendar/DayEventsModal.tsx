@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useProject } from '../../store';
 import { NonShootDate, ProjectRule, RuleViolation } from '../../types';
 import { getTypeLists, NON_SHOOT_ALL } from '../../lib/nonShootHelpers';
@@ -49,6 +49,9 @@ interface DayEventsModalProps {
   /** Event type to focus on open (card double-click) — its section is added
    *  if missing and scrolled into view. */
   initialStatus?: string;
+  /** Rule to open in the rule editor on mount (rule-card double-click) —
+   *  opens on the Rules tab with the editor ready. */
+  initialRule?: ProjectRule | null;
   onSave: (entry: NonShootDate) => void;
   onClose: () => void;
 }
@@ -68,7 +71,7 @@ const blankRows = (): AttachRow[] => [{ category: 'cast', keys: [], all: false }
  *  read-only Conflicts, and date-scoped Rules (edit/add via the shared
  *  RuleEditorPanel, pre-seeded with the date — same editor the Rules tab
  *  opens). Per-open section filter collapses by kind. */
-export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, violations, rules = [], initialStatus, onSave, onClose }) => {
+export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, violations, rules = [], initialStatus, initialRule, onSave, onClose }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
   const portalTarget = usePortalTarget();
@@ -98,11 +101,19 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
   const activeType = statusKey ? getDayType(project, statusKey) : undefined;
 
   // Tabbed layout (per-open, not persisted): one section at a time.
-  const [activeTab, setActiveTab] = useState<'events' | 'conflicts' | 'rules'>('events');
+  const [activeTab, setActiveTab] = useState<'events' | 'conflicts' | 'rules'>(initialRule ? 'rules' : 'events');
 
-  // Inline rule editor state: null closed, { rule: undefined } = add, { rule } = edit.
+  // Rule editor state: null closed, { rule: undefined } = add, { rule } = edit.
   // The editor itself is the shared RuleEditorPanel (rules/RuleEditorPanel.tsx).
-  const [ruleEditor, setRuleEditor] = useState<{ rule?: ProjectRule | null } | null>(null);
+  // `initialRule` (rule-card double-click) opens the Rules tab with the editor ready.
+  const [ruleEditor, setRuleEditor] = useState<{ rule?: ProjectRule | null } | null>(initialRule ? { rule: initialRule } : null);
+  // Radix stacks dialogs by open ORDER — mounting the nested modal in the same
+  // commit as the day modal corrupts the stack (both get aria-hidden). Open it
+  // one commit later so the day modal registers first.
+  const [ruleModalReady, setRuleModalReady] = useState(!initialRule);
+  useEffect(() => {
+    if (initialRule) setRuleModalReady(true);
+  }, [initialRule]);
 
   const openRuleEditor = (rule?: ProjectRule | null) => {
     setRuleEditor({ rule });
@@ -513,7 +524,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
       </div>
     </Modal>
 
-    {ruleEditor && (
+    {ruleEditor && ruleModalReady && (
       <Modal open onClose={() => setRuleEditor(null)} title={ruleEditor.rule ? 'Edit Rule' : 'Add Rule'} width="max-w-lg">
         <div className="p-6">
           <RuleEditorPanel

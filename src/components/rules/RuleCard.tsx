@@ -2,7 +2,7 @@ import React from 'react';
 import { ProjectRule } from '../../types';
 import { cn } from '../../lib/utils';
 import { RULE_TYPE_META, describeRule, describeRuleDetailed } from './ruleMeta';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Flag } from 'lucide-react';
 
 interface RuleCardProps {
   rule: ProjectRule;
@@ -11,9 +11,11 @@ interface RuleCardProps {
    *  ("1. FISHERMAN: max 8h") instead of the compact chip text. */
   castMembers?: Array<{ id: string; name: string }>;
   theme?: 'light' | 'dark';
+  /** How many violations this rule has on the day the card is shown for. */
+  conflicts?: number;
 }
 
-export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, castMembers, theme = 'light' }) => {
+export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, castMembers, theme = 'light', conflicts }) => {
   const meta = RULE_TYPE_META[rule.type];
   const Icon = meta.icon;
   const dark = theme === 'dark';
@@ -41,6 +43,11 @@ export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, castMembers, t
             {desc}
           </span>
         </div>
+        {!!conflicts && conflicts > 0 && (
+          <span className={cn('flex items-center gap-1 text-[10px] font-bold mt-1', dark ? 'text-red-400' : 'text-red-600')}>
+            <Flag className="w-3 h-3 fill-current" /> {conflicts} {conflicts === 1 ? 'conflict' : 'conflicts'}
+          </span>
+        )}
       </div>
       <ChevronRight className={cn('w-4 h-4 shrink-0', dark ? 'text-zinc-600' : 'text-zinc-300')} />
     </button>
