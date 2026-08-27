@@ -42,6 +42,9 @@ function buildLocationRows(project: Project, type: string): ManagerRow[] {
   return (project.locations || []).filter(l => l.type === type).map(l => ({
     key: l.id,
     id: l.id,
+    // Identity = the RESOLVED name (display + rename diff + delete-on-blank):
+    // a blank stored name falls back to address → place → pin. Locations never
+    // merge (canMerge false), so identical identities are always distinct rows.
     name: resolvedName(l.name, l.address, l.place, l.lat, l.lng),
     address: l.address || '',
     place: l.place || '',
@@ -95,6 +98,14 @@ function commitLocationPlan(dispatch: (action: any) => void, plan: ManagerSavePl
       } else {
         patch[k] = v;
       }
+    }
+    // Persist the resolved name for still-blank rows (name falls back to
+    // address → place → pin). Locations never merge, so an identical identity
+    // on another row is fine — the rows stay distinct.
+    if (existing && !(existing.name || '').trim() && !('name' in u.updates)) {
+      const src = { ...existing, ...u.updates };
+      const resolved = resolvedName(src.name, src.address, src.place, src.lat, src.lng);
+      if (resolved) patch.name = resolved;
     }
     if ('nearbyHospital' in u.updates || 'nearbyPolice' in u.updates) {
       patch.nearby = {
@@ -251,6 +262,7 @@ export const locationManagerConfig: ManagerShellConfig = {
   loadRows: buildLocationRows,
   makeBlankRow: () => ({ key: String(Date.now()), id: '', name: '', address: '', place: '', lat: '', lng: '', contactName: '', phone: '', email: '', notes: '', nearbyHospital: '', nearbyPolice: '' }),
   commitPlan: commitLocationPlan,
+  canMerge: false,
   sortModes: [
     { key: 'name', label: 'By Name', comparator: (a, b) => resolvedName(a.name, a.address, a.place, a.lat, a.lng).toLowerCase().localeCompare(resolvedName(b.name, b.address, b.place, b.lat, b.lng).toLowerCase()) },
     { key: 'address', label: 'By Address', comparator: (a, b) => (a.address || resolvedName(a.name, a.address, a.place, a.lat, a.lng)).toLowerCase().localeCompare((b.address || resolvedName(b.name, b.address, b.place, b.lat, b.lng)).toLowerCase()) },

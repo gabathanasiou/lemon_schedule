@@ -39,20 +39,20 @@ test.describe('Locations', () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(2);
 
-    // Same-name duplicate in the same type → merge dialog on save
+    // A same-name duplicate in the same type saves as its OWN row — locations
+    // never merge on save (identical names are distinct locations).
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('Studio One');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(page.getByText('Merge Locations', { exact: true })).toBeVisible({ timeout: 5000 });
-    await page.getByRole('button', { name: 'Merge' }).click();
-    await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(2);
+    await expect(page.getByText('Merge Locations', { exact: true })).not.toBeVisible({ timeout: 3000 });
+    await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(3);
 
     // Switch to another type and add there — grouped by the sidebar
     await page.locator('button', { hasText: 'Unit Base' }).first().click();
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('River Lot');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(3);
+    await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(4);
 
     // ---- Glide ----
     await page.getByRole('button', { name: 'Locations Glide', exact: true }).click();
@@ -159,6 +159,51 @@ test.describe('Locations', () => {
       const s = await locationState(page);
       return s!.locations.find((l: any) => l.name === 'Green Field');
     }, { timeout: 8000 }).toEqual(expect.objectContaining({ phone: '555-0001', email: 'field@test.com' }));
+  });
+
+  test('save keeps modified blank-name locations at the same address (no merge-delete)', async ({ page }) => {
+    await openSeededProject(page);
+
+    // Two blank-name locations sharing one address (auto-resolved identity) —
+    // the regression case: saving must never merge/delete either of them.
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const type = b.getProject().locationTypes[0].key;
+      const add = (id: string) => b.dispatch({ type: 'ADD_LOCATION', payload: { location: { id, name: '', type, address: '10 First St', lat: 51.5, lng: -0.12, nearby: {} } } });
+      add('loc-same-a');
+      add('loc-same-b');
+    });
+
+    await page.getByRole('button', { name: 'Production', exact: true }).click();
+    await page.getByRole('button', { name: 'Locations', exact: true }).click();
+
+    // Edit the second duplicate row's phone and save — no merge dialog, no deletion.
+    await page.getByRole('textbox', { name: 'Phone' }).nth(1).fill('555-1234');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByText('Merge Locations', { exact: true })).not.toBeVisible({ timeout: 3000 });
+    await expect.poll(async () => {
+      const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+      return (p.locations || []).filter((l: any) => l.id === 'loc-same-a' || l.id === 'loc-same-b').length;
+    }, { timeout: 8000 }).toBe(2);
+    // The edited row survives with its change and its resolved name persisted;
+    // the sibling keeps a blank identity (no duplicate stored names).
+    await expect.poll(async () => {
+      const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+      return (p.locations || []).find((l: any) => l.id === 'loc-same-b');
+    }, { timeout: 8000 }).toEqual(expect.objectContaining({ name: '10 First St', phone: '555-1234' }));
+    await expect.poll(async () => {
+      const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+      return (p.locations || []).find((l: any) => l.id === 'loc-same-a');
+    }, { timeout: 8000 }).toEqual(expect.objectContaining({ name: '' }));
+
+    // A second save on the sibling must stay merge-free too.
+    await page.getByRole('textbox', { name: 'Phone' }).nth(0).fill('111-2222');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByText('Merge Locations', { exact: true })).not.toBeVisible({ timeout: 3000 });
+    await expect.poll(async () => {
+      const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+      return (p.locations || []).filter((l: any) => l.id === 'loc-same-a' || l.id === 'loc-same-b').length;
+    }, { timeout: 8000 }).toBe(2);
   });
 
   test('address picker re-edit starts at the pin; blank names fall back to the address; nearest-facility pickers use the kit dropdown', async ({ page }) => {

@@ -66,6 +66,9 @@ export interface ManagerShellConfig {
   /** First field is the merge identity (name). */
   fields: ManagerFieldDef[];
   mergeableFields: string[];
+  /** Same-name rows merge on save (crew). Set false when identical names are
+   *  legitimately distinct records (locations) — no merge dialog, no absorb. */
+  canMerge?: boolean;
   categories(project: Project): CrewRole[];
   addCategory(dispatch: (action: any) => void, label: string, categories: CrewRole[]): string | null;
   renameCategory(dispatch: (action: any) => void, key: string, label: string): void;
@@ -81,10 +84,14 @@ const cellInputCls = 'w-full bg-transparent px-2 py-1 text-xs text-zinc-800 outl
 
 /** Name-keyed buffered diff (mirrors the crew manager's merge semantics):
  *  rows ending on the same name merge into one record; mergeable fields prefer
- *  non-empty values; blanked/removed rows delete to the database trash. */
-export function computeManagerDiff(snap: ManagerRow[], current: ManagerRow[], identityField: string, mergeableFields: string[]): ManagerSavePlan {
+ *  non-empty values; blanked/removed rows delete to the database trash.
+ *  `canMerge` (default true) switches the merge machinery off entirely — e.g.
+ *  locations: same-named rows are distinct records and always save as-is. */
+export function computeManagerDiff(snap: ManagerRow[], current: ManagerRow[], identityField: string, mergeableFields: string[], canMerge = true): ManagerSavePlan {
   const snapByKey = new Map<string, ManagerRow>(snap.map(r => [r.key, r]));
-  const snapByIdentity = new Map<string, ManagerRow>(snap.map(r => [r[identityField].trim().toLowerCase(), r]));
+  const snapByIdentity = canMerge
+    ? new Map<string, ManagerRow>(snap.map(r => [r[identityField].trim().toLowerCase(), r]))
+    : null;
 
   const updates: ManagerSavePlan['updates'] = [];
   const adds: ManagerRow[] = [];
@@ -93,6 +100,7 @@ export function computeManagerDiff(snap: ManagerRow[], current: ManagerRow[], id
   const dropKeys: string[] = [];
   const handled = new Set<string>();
 
+  if (canMerge) {
   const groups = new Map<string, ManagerRow[]>();
   for (const r of current) {
     const name = r[identityField].trim().toLowerCase();
@@ -135,6 +143,7 @@ export function computeManagerDiff(snap: ManagerRow[], current: ManagerRow[], id
     }
     merges.push({ sourceNames, targetName: target[identityField].trim() });
   }
+  }
 
   for (const r of current) {
     if (handled.has(r.key)) continue;
@@ -150,6 +159,10 @@ export function computeManagerDiff(snap: ManagerRow[], current: ManagerRow[], id
       for (const f of mergeableFields) if ((s[f] || '') !== (r[f] || '')) u[f] = r[f] || '';
       if (Object.keys(u).length > 0) updates.push({ id: s.id, updates: u });
     } else if (name) {
+      if (!canMerge || !snapByIdentity) {
+        adds.push({ ...r, [identityField]: r[identityField].trim() });
+        continue;
+      }
       const match = snapByIdentity.get(name);
       if (match) {
         // New row duplicates an existing record's name → absorb its details.
@@ -287,7 +300,7 @@ export const DatabaseManagerView: React.FC<{
     const dialogLabels: { label: string; merges: ManagerSavePlan['merges'] }[] = [];
     const identityField = config.fields[0]?.key || 'name';
     for (const scope of buf.bufferedScopes()) {
-      const d = computeManagerDiff(buf.cachedSnapshot(scope) || [], buf.cachedRows(scope) || [], identityField, config.mergeableFields);
+      const d = computeManagerDiff(buf.cachedSnapshot(scope) || [], buf.cachedRows(scope) || [], identityField, config.mergeableFields, config.canMerge);
       diffs[scope] = d;
       if (d.merges.length > 0) dialogLabels.push({ label: categoryLabel(scope), merges: d.merges });
     }
