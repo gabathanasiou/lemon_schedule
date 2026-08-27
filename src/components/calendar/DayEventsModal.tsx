@@ -14,12 +14,11 @@ import { usePortalTarget } from '../../lib/popoutTarget';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
-import DatePicker from '../DatePicker';
 import {
-  describeRule, RuleTypeIcon, RULE_TYPE_META, RULE_TYPES,
-  RuleFormState, blankRuleForm, formFromRule, validateRuleForm, buildRulesFromForm,
+  describeRule, RuleTypeIcon,
 } from '../rules/ruleMeta';
-import { Plus, X, Check, ChevronDown, Link2, Sun, Flag, Pencil, MessageSquare, Trash2, AlertCircle } from 'lucide-react';
+import { RuleEditorPanel } from '../rules/RuleEditorPanel';
+import { Plus, X, Check, ChevronDown, Link2, Sun, Flag, Pencil, MessageSquare, Trash2 } from 'lucide-react';
 
 interface AttachRow {
   category: string;
@@ -62,8 +61,9 @@ const blankRows = (): AttachRow[] => [{ category: 'cast', keys: [], all: false }
  *  reuses. A day can carry MULTIPLE event types: one section per status with
  *  attachment rows (category + cast/elements + All) and a per-row comment
  *  ("Traveling from Singapore"), plus the single day status picker (header),
- *  read-only Conflicts, and date-scoped Rules (edit/add via RuleFormModal,
- *  pre-seeded with the date). Per-open section filter collapses by kind. */
+ *  read-only Conflicts, and date-scoped Rules (edit/add via the shared
+ *  RuleEditorPanel, pre-seeded with the date — same editor the Rules tab
+ *  opens). Per-open section filter collapses by kind. */
 export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, violations, rules = [], initialStatus, onSave, onClose }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -99,14 +99,11 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
   const [showConflicts, setShowConflicts] = useState(true);
   const [showRules, setShowRules] = useState(true);
 
-  // Inline rule editor state: null closed, { rule: undefined } = add, { rule } = edit
+  // Inline rule editor state: null closed, { rule: undefined } = add, { rule } = edit.
+  // The editor itself is the shared RuleEditorPanel (rules/RuleEditorPanel.tsx).
   const [ruleEditor, setRuleEditor] = useState<{ rule?: ProjectRule | null } | null>(null);
-  const [ruleForm, setRuleForm] = useState<RuleFormState>(blankRuleForm());
-  const [ruleError, setRuleError] = useState('');
 
   const openRuleEditor = (rule?: ProjectRule | null) => {
-    setRuleForm(rule ? formFromRule(rule) : { ...blankRuleForm(), type: 'DATE_RESTRICTION', dates: [dateKey], datesMode: 'specific' });
-    setRuleError('');
     setRuleEditor({ rule });
   };
 
@@ -246,17 +243,6 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
     };
     onSave(next);
     onClose();
-  };
-
-  const handleRuleSave = () => {
-    const err = validateRuleForm(ruleForm);
-    if (err) { setRuleError(err); return; }
-    const rules = buildRulesFromForm(ruleForm, ruleEditor?.rule ?? null);
-    for (const r of rules) {
-      dispatch({ type: ruleEditor?.rule ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });
-    }
-    setRuleEditor(null);
-    setRuleError('');
   };
 
   const getItemsFor = (category: string) => getCategoryElements(project, category);
@@ -512,199 +498,23 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
         {showRules && (
           <div className="mb-1">
             {ruleEditor ? (
-              <div className="border border-zinc-700 rounded-lg p-3 space-y-4" data-rule-editor>
-                <div className="flex items-center justify-between">
-                  <span className={`${CREM_LABEL} text-zinc-300 uppercase font-semibold tracking-wider`}>
-                    {ruleEditor.rule ? 'Edit Rule' : 'Add Rule'}
-                  </span>
-                  <button onClick={() => setRuleEditor(null)} className="text-zinc-500 hover:text-zinc-200 transition-colors p-0.5">
-                    <X className={XSZ} />
-                  </button>
-                </div>
-
-                {/* Rule type */}
-                <div className="grid grid-cols-2 gap-1.5">
-                  {RULE_TYPES.map(t => {
-                    const m = RULE_TYPE_META[t];
-                    const Icon = m.icon;
-                    const selected = ruleForm.type === t;
-                    return (
-                      <button key={t} type="button" onClick={() => setRuleForm(f => ({ ...f, type: t }))}
-                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-[10px] font-semibold transition-colors text-left ${
-                          selected ? 'bg-zinc-700 text-white' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
-                        }`}
-                      >
-                        <Icon className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{m.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Cast */}
-                {ruleForm.type !== 'CAST_CONFLICT' && ruleForm.type !== 'CAST_SCENE_FLAG' ? (
-                  <div>
-                    <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Board IDs</label>
-                    <EntityDropdown
-                      value={ruleForm.castIds.join(', ')}
-                      onChange={val => setRuleForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
-                      items={castOptions}
-                      positioning="fixed"
-                      portalTarget={portalTarget ?? document.body}
-                      mode="multi"
-                      variant="chip"
-                      showSceneCounts
-                      scenes={project.scenes}
-                      placeholder="e.g. 1, 2, JOHN"
-                      className="text-xs"
-                      displayMode="id"
-                      renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
-                    />
-                  </div>
-                ) : ruleForm.type === 'CAST_SCENE_FLAG' ? (
-                  <div>
-                    <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Cast</label>
-                    <EntityDropdown
-                      value={ruleForm.castIds.join(', ')}
-                      onChange={val => setRuleForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
-                      items={castOptions}
-                      positioning="fixed"
-                      portalTarget={portalTarget ?? document.body}
-                      mode="multi"
-                      variant="chip"
-                      placeholder="e.g. 1, 2"
-                      className="text-xs"
-                      displayMode="id"
-                      renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div>
-                      <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Group A</label>
-                      <EntityDropdown
-                        value={ruleForm.castIds.join(', ')}
-                        onChange={val => setRuleForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
-                        items={castOptions}
-                        positioning="fixed"
-                        portalTarget={portalTarget ?? document.body}
-                        mode="multi"
-                        variant="chip"
-                        placeholder="e.g. 1, 2"
-                        className="text-xs"
-                        displayMode="id"
-                        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
-                      />
-                    </div>
-                    <div>
-                      <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Group B</label>
-                      <EntityDropdown
-                        value={ruleForm.conflictCastIds.join(', ')}
-                        onChange={val => setRuleForm(f => ({ ...f, conflictCastIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
-                        items={castOptions}
-                        positioning="fixed"
-                        portalTarget={portalTarget ?? document.body}
-                        mode="multi"
-                        variant="chip"
-                        placeholder="e.g. 3, 4"
-                        className="text-xs"
-                        displayMode="id"
-                        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Dates */}
-                {(ruleForm.type === 'DATE_RESTRICTION' || ruleForm.type === 'MAX_HOURS' || ruleForm.type === 'TIME_WINDOW') && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider`}>Dates</label>
-                      {ruleForm.type !== 'DATE_RESTRICTION' && (
-                        <button
-                          onClick={() => setRuleForm(f => ({ ...f, datesMode: f.datesMode === 'all' ? 'specific' : 'all', dates: f.datesMode === 'all' ? [dateKey] : [] }))}
-                          className={`${CREM_LABEL} font-medium flex items-center gap-1.5 transition-colors ${ruleForm.datesMode === 'all' ? 'text-zinc-300' : 'text-zinc-500 hover:text-zinc-300'}`}
-                        >
-                          <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${ruleForm.datesMode === 'all' ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-700'}`}>
-                            {ruleForm.datesMode === 'all' && <Check className="w-2.5 h-2.5 text-zinc-200" />}
-                          </span>
-                          Every day
-                        </button>
-                      )}
-                    </div>
-                    {ruleForm.datesMode === 'all' ? (
-                      <p className={`${CREM_LABEL} text-zinc-500 italic`}>Applies every day.</p>
-                    ) : (
-                      <DatePicker
-                        selected={ruleForm.dates}
-                        onChange={dates => setRuleForm(f => ({ ...f, dates }))}
-                        theme="dark"
-                      />
-                    )}
-                  </div>
-                )}
-
-                {/* Per-type fields */}
-                {ruleForm.type === 'MAX_HOURS' && (
-                  <div>
-                    <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Max hours per day</label>
-                    <input
-                      type="number"
-                      min={0.5}
-                      step={0.5}
-                      value={ruleForm.maxHours}
-                      onChange={e => setRuleForm(f => ({ ...f, maxHours: e.target.value }))}
-                      className={`${CREM_TEXT} w-24 px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500`}
-                    />
-                  </div>
-                )}
-                {ruleForm.type === 'TIME_WINDOW' && (
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1 block`}>Start</label>
-                      <input
-                        type="time"
-                        value={ruleForm.windowStart || ''}
-                        onChange={e => setRuleForm(f => ({ ...f, windowMode: 'range', windowStart: e.target.value }))}
-                        className={`${CREM_TEXT} px-2 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500`}
-                      />
-                    </div>
-                    <div>
-                      <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1 block`}>End</label>
-                      <input
-                        type="time"
-                        value={ruleForm.windowEnd || ''}
-                        onChange={e => setRuleForm(f => ({ ...f, windowMode: 'range', windowEnd: e.target.value }))}
-                        className={`${CREM_TEXT} px-2 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500`}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {ruleError && (
-                  <div className="flex items-center gap-2 text-[11px] text-red-400 bg-red-950/40 border border-red-900/50 rounded px-2.5 py-2">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    {ruleError}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between gap-2">
-                  {ruleEditor.rule ? (
-                    <button
-                      onClick={() => { if (ruleEditor.rule) dispatch({ type: 'DELETE_RULE', payload: ruleEditor.rule.id }); setRuleEditor(null); setRuleError(''); }}
-                      className={`${CREM_LABEL} text-red-400 hover:text-red-300 font-medium flex items-center gap-1 transition-colors`}
-                    >
-                      <Trash2 className={XSZ} /> Delete
-                    </button>
-                  ) : <div />}
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setRuleEditor(null)} className={`${CREM_LABEL} text-zinc-400 hover:text-zinc-200 font-medium transition-colors`}>Cancel</button>
-                    <button onClick={handleRuleSave} className={`${CREM_LABEL} bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-3 py-1.5 rounded transition-colors`}>
-                      {ruleEditor.rule ? 'Save Changes' : 'Add Rule'}
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <RuleEditorPanel
+                initial={ruleEditor.rule ?? null}
+                preseedDateKey={dateKey}
+                scenes={project.scenes}
+                castMembers={project.castMembers || []}
+                onSave={(rules) => {
+                  for (const r of rules) {
+                    dispatch({ type: ruleEditor?.rule ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });
+                  }
+                  setRuleEditor(null);
+                }}
+                onDelete={() => {
+                  if (ruleEditor?.rule) dispatch({ type: 'DELETE_RULE', payload: ruleEditor.rule.id });
+                  setRuleEditor(null);
+                }}
+                onClose={() => setRuleEditor(null)}
+              />
             ) : (
               <>
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2.5">
@@ -739,6 +549,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
             )}
           </div>
         )}
+
       </div>
     </Modal>
   );

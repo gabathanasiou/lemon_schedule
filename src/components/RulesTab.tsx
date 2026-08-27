@@ -4,7 +4,8 @@ import { ProjectRule } from '../types';
 import { cn } from '../lib/utils';
 import { RULE_TYPE_META, RuleType, describeRule, getRuleGroupKey, getRuleSearchText } from './rules/ruleMeta';
 import { RuleCard } from './rules/RuleCard';
-import { RuleFormModal } from './rules/RuleFormModal';
+import { RuleEditorPanel } from './rules/RuleEditorPanel';
+import Modal from './Modal';
 import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
 
 export const RulesTab: React.FC = () => {
@@ -223,15 +224,25 @@ export const RulesTab: React.FC = () => {
         </div>
       </div>
 
-      <RuleFormModal
-        open={showForm}
-        initial={editingRule}
-        scenes={scenes}
-        castMembers={castMembers}
-        onClose={() => { setShowForm(false); setEditingRule(null); }}
-        onSave={handleSave}
-        onDelete={editingRule ? () => { handleDelete(editingRule); setShowForm(false); setEditingRule(null); } : undefined}
-      />
+      {showForm && (
+        <Modal
+          open
+          onClose={() => { setShowForm(false); setEditingRule(null); }}
+          title={editingRule ? 'Edit Rule' : 'New Rule'}
+          width="max-w-lg"
+        >
+          <div className="p-6">
+            <RuleEditorPanel
+              initial={editingRule}
+              scenes={scenes}
+              castMembers={castMembers}
+              onSave={handleSave}
+              onDelete={editingRule ? () => { handleDelete(editingRule); setShowForm(false); setEditingRule(null); } : undefined}
+              onClose={() => { setShowForm(false); setEditingRule(null); }}
+            />
+          </div>
+        </Modal>
+      )}
     </>
   );
 };

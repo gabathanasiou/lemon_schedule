@@ -115,7 +115,7 @@ interface EntityDropdownProps {
  * - BreakdownTab generic element editors (following the fix to use multi)
  * - SortableRibbon cast fields
  * - PrintDialog shoot day picker
- * - Various dialog cast pickers (RuleFormFields, DoodDialog, etc.)
+ * - Various dialog cast pickers (RuleEditorPanel, DoodDialog, etc.)
  *
  * ### `single` - search-then-select, commas allowed in value
  * The input is a free-text query that filters items. Clicking an item immediately

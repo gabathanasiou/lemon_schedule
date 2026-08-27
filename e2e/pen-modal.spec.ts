@@ -25,7 +25,7 @@ async function openApp(page: Page) {
 }
 
 const dialogVisible = (page: Page) => page.evaluate(() => !!document.querySelector('[role="dialog"]'));
-const customModalVisible = (page: Page) => page.evaluate(() => !!document.querySelector('.fixed.inset-0.z-\\[10001\\]'));
+const customModalVisible = (page: Page) => page.evaluate(() => !!document.querySelector('.fixed.inset-0.z-\\[10001\\], .z-\\[10000\\]'));
 
 test.describe('Apple Pencil in modals', () => {
   test('shared Modal (Help): item tap stays open, close tap works', async ({ page }) => {
@@ -83,7 +83,7 @@ test.describe('Apple Pencil in modals', () => {
     await expect.poll(() => dialogVisible(page), { timeout: 5000 }).toBe(false);
   });
 
-  test('custom overlay (RuleFormModal): pen taps work', async ({ page }) => {
+  test('custom overlay (RuleEditorPanel): pen taps work', async ({ page }) => {
     await openApp(page);
     await page.getByRole('button', { name: 'Rules' }).click();
         await page.getByRole('button', { name: 'New Rule' }).click();
@@ -93,7 +93,7 @@ test.describe('Apple Pencil in modals', () => {
     await expect(saveBtn).toBeVisible({ timeout: 5000 });
 
     // pen tap on a neutral form area — modal stays open
-    const modal = page.locator('.bg-white.rounded-xl.shadow-2xl').first();
+    const modal = page.locator('[role="dialog"]').last();
     const mb = await modal.boundingBox();
     expect(mb).not.toBeNull();
     await penTapAt(page, mb!.x + 40, mb!.y + 60);
