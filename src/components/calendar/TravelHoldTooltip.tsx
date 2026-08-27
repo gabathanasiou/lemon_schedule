@@ -2,12 +2,17 @@ import React from 'react';
 import { NonShootDate } from '../../types';
 import { getTypeListGroups, isAllKeys, resolveElementName } from '../../lib/nonShootHelpers';
 import { getLabel, DEFAULT_CATEGORY_LABELS } from '../../lib/categories';
-import { getDayType } from '../../lib/dayTypes';
+import { getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { HoverTooltip } from '../HoverTooltip';
-import { Plane, Pause } from 'lucide-react';
 
 /** Hover tooltip for a day's attachments — one section per day type with
- *  lists (travel/hold built-ins keep their plane/pause accents). */
+ *  lists; the type's icon + colour come from the Day Breakdown manager. */
+const TypeGlyph: React.FC<{ project: any; status: string }> = ({ project, status }) => {
+  const Icon = typeIconComponent(project.dayTypes, status);
+  const def = getDayType(project, status);
+  return <Icon className="w-2.5 h-2.5 shrink-0" style={def?.color ? { color: def.color } : undefined} />;
+};
+
 export const TravelHoldContent: React.FC<{
   entry?: NonShootDate | null;
   project: any;
@@ -49,9 +54,8 @@ export const TravelHoldContent: React.FC<{
         return (
           <div key={sg[0].status} className={i > 0 ? 'mt-1.5 pt-1 border-t border-zinc-700' : ''}>
             <div className="flex items-center gap-1 font-bold text-[10px] text-zinc-200">
-              <span className="w-2 h-2 rounded-full shrink-0 border border-zinc-600" style={def?.color ? { background: def.color } : undefined} />
-              {isTravel ? <Plane className="w-2.5 h-2.5 text-purple-300" /> : isHold ? <Pause className="w-2.5 h-2.5 text-red-300" /> : null}
-              <span>{isTravel ? 'Traveling' : isHold ? 'On Hold' : label}</span>
+              <TypeGlyph project={project} status={sg[0].status} />
+              <span style={def?.color ? { color: def.color } : undefined}>{isTravel ? 'Traveling' : isHold ? 'On Hold' : label}</span>
             </div>
             {sg.map(renderGroup)}
           </div>

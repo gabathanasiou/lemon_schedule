@@ -1079,7 +1079,10 @@ export const CalendarTab: React.FC<{
                           <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${on ? 'bg-zinc-900 border-zinc-900' : 'border-zinc-300'}`}>
                             {on && <Check className="w-2.5 h-2.5 text-white" />}
                           </span>
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-zinc-300" style={t.color ? { background: t.color } : undefined} />
+                          {(() => {
+                            const Icon = typeIconComponent(project.dayTypes, t.key);
+                            return <Icon className="w-3.5 h-3.5 shrink-0" style={t.color ? { color: t.color } : undefined} />;
+                          })()}
                           {t.label}
                         </button>
                       );
@@ -1417,9 +1420,9 @@ export const CalendarTab: React.FC<{
             const Icon = typeIconComponent(project.dayTypes, t.key);
             return (
               <ContextMenuItem key={t.key} onClick={() => { handleNonShootToggle(contextMenuDate, t.key); setContextMenu(null); setContextMenuDate(null); }}
-                icon={<Icon className="w-3.5 h-3.5" />}
+                icon={<Icon className="w-3.5 h-3.5" style={t.color ? { color: t.color } : undefined} />}
               >
-                {t.label}
+                <span style={t.color ? { color: t.color } : undefined}>{t.label}</span>
               </ContextMenuItem>
             );
           })}

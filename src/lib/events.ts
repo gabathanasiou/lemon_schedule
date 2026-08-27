@@ -134,6 +134,20 @@ export function computeDayRuleRuns(rule: ProjectRule, dateKey: string): RuleRun[
 /* Day events assembly                                                 */
 /* ------------------------------------------------------------------ */
 
+/** Rank of a day type key in the manager's order (unknowns sort last). */
+export function typeRankOf(project: any, status: string): number {
+  const typeOrder = getMarkableDayTypes(project).map(t => t.key);
+  const i = typeOrder.indexOf(status);
+  return i === -1 ? typeOrder.length : i;
+}
+
+/** Rank of an attachment category: cast first, then ELEMENT_CATEGORIES order. */
+export function categoryRankOf(category: string): number {
+  if (category === 'cast') return 0;
+  const i = ELEMENT_CATEGORIES.findIndex(c => c.key === category);
+  return i === -1 ? ELEMENT_CATEGORIES.length : 1 + i;
+}
+
 /** Cards for ONE day, sorted: status → attachments → flag → rule chips. */
 export function computeDayEvents(
   project: any,
@@ -149,21 +163,10 @@ export function computeDayEvents(
     cards.push({ id: `ev-status-${dateKey}`, kind: 'status', dateKey, statusKey: entry.status });
   }
 
-  const typeOrder = getMarkableDayTypes(project).map(t => t.key);
-  const statusRank = (status: string) => {
-    const i = typeOrder.indexOf(status);
-    return i === -1 ? typeOrder.length : i;
-  };
-  const catRank = (category: string) => {
-    if (category === 'cast') return 0;
-    const i = ELEMENT_CATEGORIES.findIndex(c => c.key === category);
-    return i === -1 ? ELEMENT_CATEGORIES.length : 1 + i;
-  };
-
   const groups = getTypeListGroups(entry).sort((a, b) => {
-    const r = statusRank(a.status) - statusRank(b.status);
+    const r = typeRankOf(project, a.status) - typeRankOf(project, b.status);
     if (r !== 0) return r;
-    return catRank(a.category) - catRank(b.category);
+    return categoryRankOf(a.category) - categoryRankOf(b.category);
   });
   const nameOf = (key: string, category: string) => resolveElementName(key, category, project);
   for (const g of groups) {

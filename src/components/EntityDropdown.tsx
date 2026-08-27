@@ -475,7 +475,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       ref={ref}
       className={
         variant === 'chip'
-          ? `flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-750 relative ${className || ''}`
+          ? `flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900 relative ${className || ''}`
           : (standalone ? '' : `relative h-[1lh] ${className || ''}`)
       }
       onMouseDown={e => e.stopPropagation()}

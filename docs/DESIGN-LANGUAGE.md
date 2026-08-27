@@ -143,8 +143,8 @@ rounded-lg shadow-lg`, `DD_PANEL_CLASS_LIB` `:21-24`; items `DD_ITEM_CLASS_LIB` 
 
 **EntityDropdown chip version** (`variant="chip"` — modal rows: Link Manager, Color Rules rows,
 `days-status` pattern, DayEventsModal attachment rows + inline rule editor cast pickers,
-ProductionDatesModal-adjacent modals). Trigger = dark chip: `bg-zinc-800 border border-zinc-700
-rounded text-zinc-300 hover:bg-zinc-750 px-2.5 py-1.5 flex items-center gap-1.5` + chevron
+ProductionDatesModal-adjacent modals). Trigger = dark chip: `bg-zinc-950 border border-zinc-700
+rounded text-zinc-300 hover:bg-zinc-900 px-2.5 py-1.5 flex items-center gap-1.5` + chevron
 (`w-3 h-3 text-zinc-500 absolute right-2`) + value/placeholder overlay; committed value stays raw,
 the overlay resolves cast as Glide-style (`1. FISHERMAN`, `—` fallback) via the `items` prop.
 **Every entity dropdown rendered inside a dark modal uses `variant="chip"`** — the dark trigger +

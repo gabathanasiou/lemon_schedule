@@ -2,9 +2,9 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useProject } from '../../store';
 import { NonShootDate, ProjectRule, RuleViolation } from '../../types';
 import { getTypeLists, NON_SHOOT_ALL } from '../../lib/nonShootHelpers';
-import { getMarkableDayTypes, getDayType, iconForType } from '../../lib/dayTypes';
+import { getMarkableDayTypes, getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { getCategoryElements } from '../../lib/elements';
-import { ELEMENT_CATEGORIES, getLabel, getCustomIcon } from '../../lib/categories';
+import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { getUniqueCastIds } from '../../lib/utils';
 import Modal, { ModalFooter } from '../Modal';
 import { EntityDropdown } from '../EntityDropdown';
@@ -18,6 +18,9 @@ import {
   describeRule, RuleTypeIcon,
 } from '../rules/ruleMeta';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
+import { typeRankOf, categoryRankOf } from '../../lib/events';
+import Button from '../Button';
+import Checkbox from '../Checkbox';
 import { Plus, X, Check, ChevronDown, Link2, Sun, Flag, Pencil, MessageSquare, Trash2 } from 'lucide-react';
 
 interface AttachRow {
@@ -93,11 +96,8 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
   const [addTypeOpen, setAddTypeOpen] = useState(false);
   const activeType = statusKey ? getDayType(project, statusKey) : undefined;
 
-  // Per-open section filter (not persisted): status / attachments / conflicts / rules
-  const [showStatus, setShowStatus] = useState(true);
-  const [showAttachments, setShowAttachments] = useState(true);
-  const [showConflicts, setShowConflicts] = useState(true);
-  const [showRules, setShowRules] = useState(true);
+  // Tabbed layout (per-open, not persisted): one section at a time.
+  const [activeTab, setActiveTab] = useState<'events' | 'conflicts' | 'rules'>('events');
 
   // Inline rule editor state: null closed, { rule: undefined } = add, { rule } = edit.
   // The editor itself is the shared RuleEditorPanel (rules/RuleEditorPanel.tsx).
@@ -131,7 +131,9 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
     });
     const out: EventSection[] = statuses.map(status => ({
       status,
-      rows: Object.entries(entry!.lists![status]!).map(([category, keys]) => ({ category, keys: [...keys], all: keys.includes(NON_SHOOT_ALL) })),
+      rows: Object.entries(entry!.lists![status]!)
+        .map(([category, keys]) => ({ category, keys: [...keys], all: keys.includes(NON_SHOOT_ALL) }))
+        .sort((a, b) => categoryRankOf(a.category) - categoryRankOf(b.category)),
       comments: { ...(entry?.comments?.[status] || {}) },
       commentOpen: {},
     }));
@@ -142,7 +144,8 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
     if (initialStatus && !out.some(s => s.status === initialStatus)) {
       out.push({ status: initialStatus, rows: blankRows(), comments: {}, commentOpen: {} });
     }
-    return out;
+    // Same ordering as the calendar cards: manager's day-type order.
+    return out.sort((a, b) => typeRankOf(project, a.status) - typeRankOf(project, b.status));
   };
 
   const [sections, setSections] = useState<EventSection[]>(seedSections);
@@ -247,9 +250,9 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
 
   const getItemsFor = (category: string) => getCategoryElements(project, category);
 
-  const StatusIcon = (key: string | null, sizeClass: string = XSZ) => {
-    const Icon = getCustomIcon(iconForType(project.dayTypes, key));
-    return <Icon className={sizeClass} />;
+  const StatusIcon = (key: string | null, sizeClass: string = XSZ, color?: string) => {
+    const Icon = typeIconComponent(project.dayTypes, key);
+    return <Icon className={sizeClass} style={color ? { color } : undefined} />;
   };
 
   const addableTypes = dayTypes.filter(t => !sections.some(s => s.status === t.key));
@@ -258,45 +261,23 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
     <Modal open onClose={onClose} title={`Day Events — ${formatDateLabel(dateKey)}`} width="max-w-2xl"
       footer={
         <ModalFooter>
-          <button onPointerDown={(e) => { e.preventDefault(); onClose(); }} className={`${CREM_FOOTER_BTN} text-zinc-400 font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors`}>
+          <Button theme="dark" variant="subtle" className="px-6 py-2 text-zinc-400" onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
             Cancel
-          </button>
-          <button onPointerDown={(e) => { e.preventDefault(); handleSave(); }} className={`${CREM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`}>
+          </Button>
+          <Button theme="dark" variant="primary" className="px-6 py-2" onPointerDown={(e) => { e.preventDefault(); handleSave(); }}>
             Save
-          </button>
+          </Button>
         </ModalFooter>
       }
     >
       <div className={CREM_BODY}>
-        {/* Section filter (per-open, not persisted) */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-4 border border-zinc-800 rounded-lg px-3 py-2">
-          {[
-            { key: 'status' as const, label: 'Status', on: showStatus, set: setShowStatus },
-            { key: 'attachments' as const, label: 'Attachments', on: showAttachments, set: setShowAttachments },
-            { key: 'conflicts' as const, label: 'Conflicts', on: showConflicts, set: setShowConflicts },
-            { key: 'rules' as const, label: 'Rules', on: showRules, set: setShowRules },
-          ].map(t => (
-            <button
-              key={t.key}
-              onClick={() => t.set(!t.on)}
-              className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors ${t.on ? 'text-zinc-200' : 'text-zinc-600 hover:text-zinc-400'}`}
-            >
-              <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${t.on ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-700'}`}>
-                {t.on && <Check className="w-2.5 h-2.5 text-zinc-200" />}
-              </span>
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {showStatus && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2.5">
-              <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
-                <Sun className={`${XSZ} text-zinc-500`} />
-                Day Status
-              </span>
-            </div>
+        {/* Day status + section tabs — one row, status always settable */}
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-zinc-800 mb-3">
+          <div className="flex items-center gap-2.5">
+          <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+            <Sun className={`${XSZ} text-zinc-500`} />
+            Day Status
+          </span>
             <DropdownMenu
               open={statusMenuOpen}
               onClose={() => setStatusMenuOpen(false)}
@@ -304,15 +285,11 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
               width="w-52"
               theme="dark"
               trigger={
-                <button
-                  type="button"
-                  className={`${CREM_BTN_COND} flex items-center gap-2`}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-zinc-600" style={activeType?.color ? { background: activeType.color } : undefined} />
-                  {StatusIcon(statusKey)}
-                  <span className="truncate">{activeType?.label || 'None'}</span>
-                  <ChevronDown className="w-3 h-3 text-zinc-600 shrink-0" />
-                </button>
+                <Button theme="dark" variant="subtle" className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 flex items-center gap-2">
+                  {StatusIcon(statusKey, XSZ, activeType?.color)}
+                  <span className={`truncate ${activeType?.color ? '' : 'text-zinc-200'}`} style={activeType?.color ? { color: activeType.color } : undefined}>{activeType?.label || 'None'}</span>
+                  <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                </Button>
               }
             >
               <DropdownItem onClick={() => { changeStatus(null); setStatusMenuOpen(false); }} icon={<X className="w-3.5 h-3.5" />}>
@@ -321,21 +298,31 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
               <DropdownDivider />
               {dayTypes.map(t => (
                 <DropdownItem key={t.key} onClick={() => { changeStatus(t.key); setStatusMenuOpen(false); }}
-                  icon={
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-zinc-600" style={t.color ? { background: t.color } : undefined} />
-                      {StatusIcon(t.key, 'w-3.5 h-3.5')}
-                    </span>
-                  }
+                  icon={StatusIcon(t.key, 'w-3.5 h-3.5', t.color)}
                 >
-                  {t.label}
+                  <span style={t.color ? { color: t.color } : undefined}>{t.label}</span>
                 </DropdownItem>
               ))}
             </DropdownMenu>
           </div>
-        )}
+          <div className="flex border border-zinc-800 rounded p-0.5 bg-zinc-950 w-fit">
+            {([
+              { key: 'events' as const, label: 'Events' },
+              { key: 'conflicts' as const, label: 'Conflicts' },
+              { key: 'rules' as const, label: 'Rules' },
+            ]).map(t => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === t.key ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        {showAttachments && (
+        {activeTab === 'events' && (
           <div className="mb-4">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
               <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
@@ -348,23 +335,18 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                 width="w-52"
                 theme="dark"
                 trigger={
-                  <button className={`${CREM_LABEL} text-zinc-400 hover:text-zinc-200 font-medium flex items-center gap-1`} style={{ padding: 0, background: 'none', border: 'none' }}>
-                    <Plus className={XSZ} /> Add event type
-                  </button>
+                  <Button theme="dark" variant="primary" className="flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> Add event type
+                  </Button>
                 }
               >
                 {addableTypes.length === 0 ? (
                   <DropdownItem onClick={() => setAddTypeOpen(false)}>All types are attached</DropdownItem>
                 ) : addableTypes.map(t => (
                   <DropdownItem key={t.key} onClick={() => { addSection(t.key); setAddTypeOpen(false); }}
-                    icon={
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-zinc-600" style={t.color ? { background: t.color } : undefined} />
-                        {StatusIcon(t.key, 'w-3.5 h-3.5')}
-                      </span>
-                    }
+                    icon={StatusIcon(t.key, 'w-3.5 h-3.5', t.color)}
                   >
-                    {t.label}
+                    <span style={t.color ? { color: t.color } : undefined}>{t.label}</span>
                   </DropdownItem>
                 ))}
               </DropdownMenu>
@@ -377,19 +359,18 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                 {sections.map(sec => {
                   const def = getDayType(project, sec.status);
                   const attachable = def?.attachable !== false;
-                  const SecIcon = getCustomIcon(iconForType(project.dayTypes, sec.status));
+                  const SecIcon = typeIconComponent(project.dayTypes, sec.status);
                   return (
                     <div key={sec.status} data-event-section={`${dateKey}-${sec.status}`} className="border border-zinc-800 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-zinc-600" style={def?.color ? { background: def.color } : undefined} />
-                        <SecIcon className={`${XSZ} text-zinc-300`} />
-                        <span className={`${CREM_TEXT} text-zinc-200 font-semibold`}>{def?.label || sec.status}</span>
-                        <button onPointerDown={(e) => { e.preventDefault(); addRow(sec.status); }} className={`${CREM_LABEL} text-zinc-400 hover:text-zinc-200 font-medium flex items-center gap-1 ml-auto`} style={{ padding: 0, background: 'none', border: 'none' }}>
-                          <Plus className={XSZ} /> Add
-                        </button>
-                        <button onPointerDown={(e) => { e.preventDefault(); removeSection(sec.status); }} className="text-zinc-600 hover:text-red-400 transition-colors p-0.5" title={`Remove ${def?.label || sec.status}`}>
-                          <Trash2 className={XSZ} />
-                        </button>
+                        <SecIcon className={XSZ} style={def?.color ? { color: def.color } : undefined} />
+                        <span className={`${CREM_TEXT} font-semibold ${def?.color ? '' : 'text-zinc-200'}`} style={def?.color ? { color: def.color } : undefined}>{def?.label || sec.status}</span>
+                        <Button theme="dark" variant="subtle" className="ml-auto flex items-center gap-1" onPointerDown={(e) => { e.preventDefault(); addRow(sec.status); }}>
+                          <Plus className="w-3 h-3" /> Add
+                        </Button>
+                        <Button theme="dark" variant="danger-ghost" onPointerDown={(e) => { e.preventDefault(); removeSection(sec.status); }} title={`Remove ${def?.label || sec.status}`} className="p-1">
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
                       </div>
                       {!attachable ? (
                         <p className={`${CREM_LABEL} text-zinc-600 italic`}>This day type doesn't support attaching cast or elements.</p>
@@ -412,7 +393,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                                     customCategories={project.customCategories}
                                     open={openDropdown === `cat-${sec.status}-${i}`}
                                     onOpenChange={(o) => setOpenDropdown(o ? `cat-${sec.status}-${i}` : null)}
-                                    btnClass={CREM_BTN_COND}
+                                    btnClass="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors flex items-center gap-1.5"
                                     itemClass={CREM_DD_ITEM}
                                   />
                                   <EntityDropdown
@@ -429,26 +410,25 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                                     readOnly={r.all}
                                     renderItem={isCast ? (item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
                                   />
-                                  <button
-                                    onPointerDown={(e) => { e.preventDefault(); toggleAll(sec.status, i); }}
-                                    title={`All ${catLabel}`}
-                                    className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-zinc-800 transition-colors shrink-0"
-                                  >
-                                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${r.all ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
-                                      {r.all && <Check className="w-3 h-3 text-zinc-200" />}
-                                    </span>
-                                    <span className={`${CREM_TEXT} text-zinc-400`}>All</span>
-                                  </button>
-                                  <button
+                                  <Checkbox
+                                    checked={r.all}
+                                    onChange={() => toggleAll(sec.status, i)}
+                                    label="All"
+                                    theme="dark"
+                                    className="shrink-0"
+                                  />
+                                  <Button
+                                    theme="dark"
+                                    variant="subtle"
                                     onPointerDown={(e) => { e.preventDefault(); toggleComment(sec.status, r.category); }}
                                     title={comment ? `Comment: ${comment}` : 'Add a comment'}
-                                    className={`p-0.5 shrink-0 transition-colors ${comment ? 'text-amber-300' : 'text-zinc-600 hover:text-zinc-300'}`}
+                                    className={`p-1 shrink-0 ${comment ? '!text-amber-300' : ''}`}
                                   >
-                                    <MessageSquare className={XSZ} />
-                                  </button>
-                                  <button onPointerDown={(e) => { e.preventDefault(); removeRow(sec.status, i); }} className="text-zinc-600 hover:text-red-400 transition-colors p-0.5 shrink-0">
-                                    <X className={XSZ} />
-                                  </button>
+                                    <MessageSquare className="w-3 h-3" />
+                                  </Button>
+                                  <Button theme="dark" variant="subtle" onPointerDown={(e) => { e.preventDefault(); removeRow(sec.status, i); }} className="p-1 shrink-0" title="Remove row">
+                                    <X className="w-3 h-3" />
+                                  </Button>
                                 </div>
                                 {(open || comment) && (
                                   <input
@@ -476,7 +456,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
           </div>
         )}
 
-        {showConflicts && violations && violations.length > 0 && (
+        {activeTab === 'conflicts' && (
           <div className="mb-4">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2.5">
               <span className={`${CREM_LABEL} text-red-400/80 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
@@ -484,18 +464,22 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                 Conflicts
               </span>
             </div>
-            <ul className="space-y-1.5">
-              {violations.map(v => (
-                <li key={v.ruleId} className="text-[11px] leading-snug">
-                  <span className="text-red-300 font-medium">{v.message}</span>
-                  {v.detail && <span className="text-zinc-500"> — {v.detail}</span>}
-                </li>
-              ))}
-            </ul>
+            {!violations || violations.length === 0 ? (
+              <p className={`${CREM_LABEL} text-zinc-600 italic`}>No conflicts on this day.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {violations.map(v => (
+                  <li key={v.ruleId} className="text-[11px] leading-snug">
+                    <span className="text-red-300 font-medium">{v.message}</span>
+                    {v.detail && <span className="text-zinc-500"> — {v.detail}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
-        {showRules && (
+        {activeTab === 'rules' && (
           <div className="mb-1">
             {ruleEditor ? (
               <RuleEditorPanel
@@ -522,9 +506,9 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                     <Sun className={`${XSZ} text-zinc-500`} />
                     Rules
                   </span>
-                  <button onClick={() => openRuleEditor()} className={`${CREM_LABEL} text-zinc-400 hover:text-zinc-200 font-medium flex items-center gap-1`} style={{ padding: 0, background: 'none', border: 'none' }}>
-                    <Plus className={XSZ} /> Add rule
-                  </button>
+                  <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => openRuleEditor()}>
+                    <Plus className="w-3 h-3" /> Add rule
+                  </Button>
                 </div>
                 {rules.length === 0 ? (
                   <p className={`${CREM_LABEL} text-zinc-600 italic`}>No date-scoped rules on this day.</p>
@@ -534,13 +518,9 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                       <li key={r.id} className="flex items-center gap-2">
                         <RuleTypeIcon type={r.type} className="w-3 h-3 text-zinc-500 shrink-0" />
                         <span className="flex-1 min-w-0 text-[11px] text-zinc-300 truncate">{describeRule(r)}</span>
-                        <button
-                          onClick={() => openRuleEditor(r)}
-                          className="p-0.5 text-zinc-500 hover:text-zinc-200 transition-colors shrink-0"
-                          title="Edit rule"
-                        >
+                        <Button theme="dark" variant="subtle" onClick={() => openRuleEditor(r)} className="p-1 shrink-0" title="Edit rule">
                           <Pencil className="w-3 h-3" />
-                        </button>
+                        </Button>
                       </li>
                     ))}
                   </ul>

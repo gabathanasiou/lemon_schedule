@@ -26,7 +26,7 @@ test('calendar travel/hold: status dropdown, attach section, header icons, toolt
   await page.locator('input.text-inherit').nth(0).click();
   await page.getByText('FISHERMAN', { exact: true }).first().click();
   await page.getByRole('button', { name: 'Save' }).click();
-  const planeIcon = dayCell.locator('svg.fill-purple-400');
+  const planeIcon = dayCell.locator('svg[style*="rgb(147, 51, 234)"]');
   await expect(planeIcon).toBeVisible();
 
   await planeIcon.hover();
@@ -49,7 +49,7 @@ test('calendar travel/hold: status dropdown, attach section, header icons, toolt
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(day2.getByText('All Cast', { exact: true })).toBeVisible();
 
-  await day2.locator('button', { has: page.locator('svg.fill-red-400') }).hover();
+  await day2.locator('button', { has: page.locator('svg[style*="rgb(220, 38, 38)"]') }).hover();
   const allTip = page.locator('.fixed.px-2\\.5').filter({ hasText: 'On Hold' }).first();
   await expect(allTip).toContainText('All Cast');
 

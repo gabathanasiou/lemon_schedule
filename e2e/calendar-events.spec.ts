@@ -70,6 +70,7 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
   // ---- Day Events modal: rules section, inline rule editor pre-seeded with the date
   await page.locator('[data-date-key="2026-08-10"] > div[role="button"]').first().click();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Rules', exact: true }).click();
   await expect(page.getByText(/Unavailable/).first()).toBeVisible();
   await page.getByText('Add rule', { exact: true }).click();
   await expect(page.locator('[data-rule-editor]')).toBeVisible();
@@ -80,7 +81,7 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
   // ---- Card double-click opens the shared editor focused on that event type
   await page.locator('[data-date-key="2026-08-16"] [data-event-key^="ev-att-"]').first().dblclick();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
-  await expect(page.getByText('Event Types', { exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog').getByText('Event Types', { exact: true }).first()).toBeVisible();
   await expect(page.locator('[data-event-section]').first()).toContainText('Travel');
 
   // ---- Per-row comment: add "Traveling from Singapore" to the Cast row
@@ -103,6 +104,7 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
 
   // ---- Multi-status day: add a Hold event type, mark a cast member, save — both sections persist
   await page.locator('[data-date-key="2026-08-16"] > div[role="button"]').first().click();
+  await expect(page.locator('[data-event-section]').first().locator('svg.lucide-plane')).toBeVisible();
   await page.getByText('Add event type', { exact: true }).click();
   await page.getByText('Hold', { exact: true }).last().click();
   const holdSection = page.locator('[data-event-section]').last();
@@ -117,6 +119,9 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
     const e = (v.nonShootDates || []).find((n: any) => n.date === '2026-08-16');
     return Object.keys(e?.lists || {}).sort().join(',');
   })).toBe('hold,travel');
+
+  // ---- Multi-event day: the day header collapses to a single yellow star
+  await expect(page.locator('[data-date-key="2026-08-16"] svg.lucide-star')).toBeVisible();
 
   // ---- Mode persists across reload
   await page.reload();
