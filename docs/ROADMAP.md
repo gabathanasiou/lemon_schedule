@@ -341,6 +341,167 @@ versions. Sections, contents → Lemon mapping:
 - **Scope if implemented**: NEW-PROJECT-ONLY import (same as `.msd`/`.sex` — update `parseMsdFile`-style flow + Project Manager "Import" accept list + e2e). Breakdown side only — script data (headings, characters, tagged elements, synopses, page counts), no stripboard. Do NOT build an .mmx export unless a user asks (screenwriter XML fans mostly read-side).
 - **Priority: low — parked knowingly.** `.sex` (item 41) already covers every real scheduling tool, and `.fdx` covers script-with-tags. This is a "who knows, maybe in the future" item; skip until a sample exists.
 
+## 45. Calendar Events mode — day event cards + Day Events modal (`[ ]`)
+
+A second **view mode** for the Calendar tab: instead of strips, each day renders **event cards** from **existing data only** (no new data model). Events attach to **any** date — the internal storage type is named `NonShootDate` (legacy), but nothing is "non-shoot"-specific (a "Rehearsal" custom day type with cast attachments is just another event day).
+
+- **Mode toggle**: segmented `Strips | Events` in the calendar toolbar (next to the View menu). Persist `viewMode` in the existing calendar prefs (`usePersistState` `lemon_schedule_calendar_view`, CalendarTab.tsx:91 — extend the inline `{displayField, showBreaks, showConflicts}` type + `updateCal`). Paint-tool row hidden in Events mode (cards are the surface).
+- **Cards per day, sorted by event type, then element** (no manual reordering):
+  1. **status card** — the day's day type, colored/iconed via `getDayTypeVisual`; one per date (status is single-valued per date),
+  2. **attachment cards** — one per list group (`getTravelHoldGroups`): "Travel — Cast: Fisherman", "Hold — All Makeup"; category order (cast first), then element name,
+  3. **flag card** — that day's rule violations (`violations.length > 0`),
+  4. **rule chips** — date-scoped rules (`DATE_RESTRICTION`, dated `TIME_WINDOW`/`MAX_HOURS`): **consecutive `dates` collapse into one spanning chip across the day cells, wrapping across week rows (Apple-month-view style); non-consecutive dates = separate chips** — one chip per contiguous run, labeled via `describeRule`.
+  5. Empty days → an "add event" affordance.
+- **Event-type filter (view)**: toolbar `Filter` control (DropdownMenu, same pattern as the View menu) with checkbox groups — **Day statuses** (per existing day type), **Attachments**, **Flags/Conflicts**, **Rules** (per rule type). Hidden kinds drop their cards from every day (empty days keep the add affordance). Persisted alongside `viewMode` in the same prefs (`eventsFilter`).
+- **Day Events modal** (`TravelHoldModal` → `DayEventsModal`): status picker + **any-category attachment rows** (cast by ID, others by name — existing rows machinery); read-only **Conflicts** section (that day's violations); **Rules section** — rules whose `dates` include this date (edit → `RuleFormModal`) + "Add rule" pre-seeded with this date; global/no-date rules (`CAST_*`, every-day `MAX_HOURS`/`TIME_WINDOW`) stay on the Rules tab (kept this item). **Event-type filter inside the modal body** (same checkbox groups, collapses sections by kind — per-open state, not persisted). Save paths: `UPDATE_VERSION` nonShootDates + `ADD_RULE`/`UPDATE_RULE` (actions/breakdown.ts). Opened by: card click, empty-day add, day double-click, body right-click "Manage Events…".
+- **Selection + batch drag (strip-view parity)**: cards support marquee drag-select over the grid (existing `MarqueeOverlay` + `useMarquee`), shift+click ranges, `Cmd+A` + arrow-key navigation (extend `useCalendarKeyboard`; events mode = its own per-container cursor, mode-local selection state per AGENTS.md §Container Model). Dragging any selected card moves the whole selection; **collision rules on drop**: attachment cards merge into the target day's `lists` per category, a status card replaces the target's status (single status per date), rule chips each remap per the chip-drag rule below. Clipboard copy/paste of events is NOT included.
+- **Card/chip single-drag** (dnd-kit, `data-date-key` targeting): status/attachment card → another day moves the date's `NonShootDate` (swap with an existing one); **rule chip body → another date moves the run** (adds target to `rule.dates`, removes the run's original dates; `DATE_RESTRICTION` floors at 1 date — last-date drag-away blocked with a tooltip; date-optional types drop to "every day").
+- **Day drag in Events mode moves the day's whole event state — status, attachments, AND rule chips**: a swap/insert drag performs a **date permutation** applied symmetrically — `NonShootDate` entries exchange `.date`, and every rule's `dates` get the same transposition/cycle (`date(A)↔date(B)` for a swap; the cyclic shift across involved dates for an insert-move). A rule covering both dates stays; one covering only one follows the day, so the chips on day A after the drag are exactly the chips it had before. No `DATE_RESTRICTION` floor issue (dates exchanged, never deleted). **Strips mode keeps today's behavior** (swaps strips + call times only) — regression-guarded.
+- **Invariant trap**: the section date cursor skips statused dates — event/date swaps can shift section dates; reuse `daybreakUtils` cursor logic (never re-derive), respect the pinned daybreak.
+- **Verify**: lint + playwright on the seeded project — sorted cards render (status/attachments/flags/rule); spanning chips collapse consecutive runs and wrap weeks; filter hides/shows cards per event type (view + modal); modal edits status + attachments + rules; multi-select via marquee/shift+click/Cmd+A/arrows; batch drag merges/replaces per collision rules; rule-chip move mutates `dates`; events-mode day swap swaps events + re-maps rule dates but not strips; strips-mode day swap regression unchanged.
+
+**Relations**: builds on item 39's day-status/attachments infra (AGENTS.md §Day Types & Non-Shoot Status). Follow-up: item 46.
+
+## 46. Events everywhere — resizable span chips, reusable editors, ui-kit DatePicker, Rules-tab path (`[ ]`)
+
+Reuses the Days Events surface (from 45) beyond the calendar, so events are manageable from where the data lives:
+
+- **Span chip edge-resize (Apple-style)**: hovering a rule chip shows edge grab targets; edge-drag adds/removes dates from `rule.dates` one day at a time (extending/shrinking the run, across week boundaries). Edge rules: `DATE_RESTRICTION` floors at 1 date; `TIME_WINDOW`/`MAX_HOURS` shrink-to-zero → becomes every-day (chip disappears, tooltip explains). Drag disambiguation with card drag + day-header swap by hit region (chip edges vs chip body vs card vs cell chrome).
+- **Shared editor shell**: extract the modal (45) into one component rendering in day-centric *and* element-centric contexts (AGENTS.md Rule 1/4 — no second copy).
+- **Element Manager events**: an "Events" action (LinkManager pattern — `elements/LinkManagerModal.tsx` grouped-card modal, header slot; buffered rows untouched): per element, lists every date it appears on (attachment in any `lists` category, or covered by a rule) + "Add event on a date" (date picker → shared modal for that date, pre-attached).
+- **Day manager (DayTypesTab) events data**: a selected day type's pane lists its dates' event summaries (attachments/conflicts) and opens the shared modal per date (currently dates-only list).
+- **`DatePicker` → ui-kit**: move `src/components/DatePicker.tsx` (116 lines, no store deps) into `@gabriel/ui-kit` (no date component there today); app consumes the kit export; DESIGN-LANGUAGE primitive-row entry (per AGENTS.md §UI Primitives).
+- **Rules-tab retirement** (tracked, NOT this item's scope): remove the tab only after the events UI edits every rule type (incl. a global/no-date surface for `CAST_CONFLICT`, `CAST_SCENE_FLAG`, every-day `MAX_HOURS`/`TIME_WINDOW`).
+
+**Relations**: depends on item 45 (shared modal + chips first).
+
+## 47. BUG: type-a-digit "schedule to day N" fails at the day-count boundary (`[ ]`)
+
+**Requested**: scenes in the boneyard, you press "15" to schedule them to day 15 — make sure they actually get scheduled there.
+
+**Diagnosis** (`commitDigits`, ScheduleTab.tsx:1157-1213 + keydown handler 1215-1244; overlay in `schedule/ScheduleOverlays.tsx`): `daybreakOrderRef` includes the **pinned** daybreak, so `daybreaks.length` = production days + 1, and the boundary math is off by exactly that:
+
+- Guard `dayNum > daybreaks.length` admits one **phantom day** (N+1 on an N-day schedule) — e.g. 14 production days + pinned = 15 entries; typing "15" passes the guard, misses the `dayNum < daybreaks.length` branch, and the else-branch appends the rows **after the last daybreak** (tail of the last section) instead of rejecting or targeting day 15 — the selection visibly "doesn't get scheduled" (or lands wrong).
+- Any `dayNum >= daybreaks.length + 1` is silently ignored (buffer just clears).
+- The else-branch (`dayNum === daybreaks.length`) also schedules to the end-of-stripboard rather than the last day's own section via `lastDaybreak.order - 0.5`.
+
+**Fix**: treat the pinned daybreak as non-targetable for digit scheduling — last valid day = `daybreaks.length - 1`; target the last day via its own daybreak (`order - 0.5`, like every other day — with `renumberRows` after); bail cleanly for `dayNum` beyond production days (no phantom append, no silent no-op). Enter-to-commit and the 350 ms auto-commit keep working.
+
+**Verify**: playwright on a seeded project — select boneyard scenes (bridge or click), type "15" (or the last day's number) → rows land in that day's section in selection order with correct `order`-renumbering; typing a number > production days → nothing moves; press Enter to commit immediately; lint + full suite (strips-mode DnD regression untouched).
+
+## 48. Ribbon text font size — master + per-cell (`[ ]`)
+
+**Requested**: ribbon editor font-size selection; a **master text size** per full ribbon (default **14**) and a **per-cell size** offset relative to the master (range −8…+8) — every ribbon rendering must respect it.
+
+- **Model**: `RibbonDesign.textSize?: number` — master px, default **14** for new designs; unset (legacy) keeps rendering at today's 8 pt equivalent so existing schedules don't silently change. `RibbonCell.textSizeOffset?: number` — px offset applied to the master (−8…+8, effective cell size = `max(master + offset, 6)`); 0/unset = master.
+- **One seam**: extend `getRibbonCellBaseStyle` (src/lib/ribbonUtils.ts:56 — the canonical cell styler used by stripboard, calendar-adjacent renderers, print and designer preview) to take the effective text size; generalize the hardcoded `fontSize: '8pt'` + `lineHeight: calc(8pt * 1.1 + …)` (lines 72-73) to the effective size. Because every ribbon cell funnels through this one function (AGENTS.md §Ribbon Cells), all renderings respect it automatically: stripboard `SortableRibbon`/rows, edit-mode rows, `PrintSchedule`/DaySection/PrintDialog, RibbonTab live preview + designer grid — plus the reports Ribbon block if its cells share the base style (verify parity 1:1 like item 29).
+- **Designer UI**: RibbonTab master-size control (stepper/slider, e.g. 6–24 px) + per-cell offset control (−8…+8) on the cell chrome / context menu surface with a reset-to-master affordance. Both persist through the normal design-save path (like `cellPaddingV/H`).
+- **Verify**: lint + playwright — set master + a few cell offsets in the designer; assert stripboard strips, print output and live preview all reflect the sizes (bridge reads design + computed font sizes); legacy designs (no `textSize`) render unchanged.
+
+## 49. Manager pages cleanup — table borders, input squeeze, toolbar buttons (`[ ]`)
+
+**Requested**: the manager pages (`ElementManager.tsx`, and the shared `lib/managerShell.tsx` `DatabaseManagerView` behind Crew/Locations) — (1) name text inputs can get very small and squeezed for no reason, (2) add vertical line borders so the tables look like tables, (3) remove the "Cast" etc. selected-item label from the top toolbar, (4) make all top buttons the shared toolbar buttons used in the schedule tab — check the ui-kit first, add what's missing.
+
+- **Vertical borders**: the row lists are tables (`border-collapse`) with only `border-b` per row — add column dividers (`border-r border-zinc-100` on `th`/`td`, keep row+header borders at `border-zinc-200`) so columns read as table columns. Both `managerShell.tsx:450-477` and `ElementManager.tsx:579-621`. Keep the alternating row tint + hover.
+- **Squeezed inputs (root cause)**: auto-width columns with no `min-width` collapse when the fixed columns sum beyond the container — crew/location's width-less `email` column (`crewManagerConfig.ts:52-54`, `locationManagerConfig.tsx:154-161`) and ElementManager's "Name" column against the many `w-14` per-day-type columns (ElementManager.tsx:582-591). Fix: give auto columns a `min-w` (≥ 140px for name, 32px+ for counts) so inputs can never shrink below a usable width; `w-full` inputs unchanged.
+- **Remove the category label from the top bar**: the selected category ("Cast", "Role", space… ) currently renders as a toolbar title in `headerContent`/`topBar` (`managerShell.tsx:366`, `404`; `ElementManager.tsx:388`, `417`) — a leftover tab-style indicator. Delete it; the sidebar already shows selection.
+- **Shared toolbar buttons**: manager top bars use bespoke `bg-white border border-zinc-300 …` styles (Revert, Save/Saved, Links, Sort, Add, count label) instead of the canonical toolbar-button recipe the schedule tab uses (`px-2.5 py-1 rounded text-xs font-semibold hover:bg-zinc-200 text-zinc-600`; primary `bg-zinc-900 text-white`; danger ghost). **ui-kit has no Button primitive today (verified against `@gabriel/ui-kit` dist exports)** → add `Button` to the kit (variants: subtle/toolbar, primary, danger-ghost; optional dark theme for dark toolbars; cloud coloring via `useIsCloudProject` baked in), consume it in the manager shells, and convert the schedule/calendar toolbar buttons onto it so the recipe lives in ONE shared place. DESIGN-LANGUAGE update for the new primitive (AGENTS.md §UI Primitives — same commit).
+- **Verify**: lint + playwright — seeded project: manager tables show vertical column borders; name input keeps a usable width with many day types/wide rows; no category label in any manager top bar; top buttons match the schedule-tab look (snapshot) and Save/Revert/Add/Sort/Links still work (buffered-row flow, merge dialog untouched); schedule toolbar regression unchanged after the kit `Button` conversion.
+
+## 50. EXPERIMENTAL: EntityDropdown committed values as chips (`[ ]`)
+
+**Parked exploration — not building now.** Review question: should
+`EntityDropdown` render committed multi-values as per-value chip pills
+(tag-input pattern) instead of the comma-joined resolved text? The chip
+variant (`variant="chip"`) already exists — the trigger shows the values
+resolved Glide-style via the `chipDisplay` overlay (`EntityDropdown.tsx:457`).
+
+**Why parked** (verified against the code):
+- The value IS the input (caret-at-end to append, backspace, Enter/Tab
+  commit, Glide callbacks) — per-value chips would render only in the closed
+  trigger and vanish on open, so the text-editing model underneath stays.
+- The ui-kit has no generic Chip primitive (TokenChipView is tied to the
+  contenteditable token editor) — this would be new in-app UI.
+- 34 call sites; multi-chip triggers wrap/overflow the single-line modal
+  rows (Link Manager cards, ElementPicker/ElementPickerRow).
+
+**When it becomes worth it** — a requirement giving committed values
+per-item affordances: per-chip × to remove one cast member from a
+travel/hold attachment or linked row without retyping the list; or
+category-colored chips (45/46's calendar event chips are the visual
+precedent). A kit `Tag/Chip` primitive could host both if item 49's
+`Button` work opens the door to kit primitives generally.
+
+**Experimental-branch plan (when triggered)**:
+- Work on an experimental branch ONLY; scope = a NEW `variant="tags"`
+  (default untouched), wired into ONE place first — Link Manager multi
+  rows (biggest density case).
+- Interaction contract to evaluate: click chip = remove (and how it
+  coexists with toggle-in-panel); Backspace on last chip removes it;
+  typing appends a fresh segment; committed value stays raw comma-
+  separated (invariant intact).
+- Kill criteria: row wrap pain in Link Manager, keyboard-flow regressions
+  in Glide/SceneSheet cell editing, double-affordance blur (chip × vs
+  panel toggle). Survives → DESIGN-LANGUAGE update + rollout to remaining
+  modal rows; fails → delete the branch (AGENTS.md rule 3 — no speculative
+  abstractions).
+
+**Verify**: probe spec exercising the new variant only; full suite green
+with `variant="tags"` unused by default UI.
+
+**Relations**: chip language + modal patterns from items 45/46; kit
+primitive work out of item 49.
+
+## 51. Breakdown sheet view — selectable scene order (sheet / scene number / stripboard) (`[ ]`)
+
+**Requested**: the breakdown sheet view (Glide + SceneSheet) navigates
+scenes by **sheet order** (`project.scenes` array order). Add a view-order
+selector: **Sheet order** (default, today), **Scene number order**, or
+**Current stripboard order**.
+
+**Facts**:
+- Sheet order = the `project.scenes` array (scene→row invariant); sheet #
+  (the row marker / Sheet # column, `SceneSheetFields.tsx:41`) is array
+  index + 1 today; SceneSheet prev/next + the direct sheet-jump input
+  navigate by index (`SceneSheet.tsx:53,283,307`).
+- Scene number order → `naturalSortSceneStrings` (`src/lib/utils.ts:132` —
+  already used by the printed BreakdownSheet, `print/BreakdownSheet.tsx:78`).
+- Stripboard order → the active version's `rows` SCENE rows in row order
+  (rows arrays are the single source of truth — AGENTS.md, never re-derive);
+  scenes with `containerId: null` (boneyard) append at the end in sheet
+  order — the breakdown must still show them.
+
+**Design**:
+- **View-only preference** (`usePersistState`, e.g.
+  `lemon_schedule_breakdown_order`) — a sorted COPY drives rendering and
+  navigation; NEVER reorders `project.scenes` (edits, copy/paste,
+  undo/redo and ADD_SCENE/INSERT_SCENE_AT semantics all keep mapping by
+  id — Glide `provideEditor` and bulk ops stay raw-index-on-array).
+- **Sheet # column always shows the TRUE sheet number** (original
+  index + 1), not the view position — printed breakdown sheets carry real
+  sheet numbers; only row order changes.
+- **"Navigate by" dropdown** — ui-kit `DropdownMenu` (via the
+  `src/components/DropdownMenu.tsx` re-export), the **Calendar View-menu
+  recipe** (`CalendarTab.tsx:874-922`): trigger button = current order
+  label + `ChevronDown`, click-to-toggle, one `DropdownItem` per order
+  with a trailing `Check` on the active one; entry in DESIGN-LANGUAGE's
+  primitive matrix row for the Breakdown tab. Mounted in the Breakdown
+  tab's `PageToolbar` rightContent (header-portal pattern). Affects Glide
+  row order + SceneSheet prev/next; decide whether the direct sheet-jump
+  input reads as true sheet # or as view position in non-sheet orders.
+- Keyboard nav, selection ranges and copy/paste operate in the visible
+  order; the debug bridge reads stay id-ordered (order is UI-side only).
+
+**Verify**: lint + playwright on the seeded project — the three orders
+render distinct row sequences with correct sheet # markers (bridge);
+editing a cell in scene-number order commits to the right scene (bridge
+`getSceneValues`); new scene/duplicate lands at the array end in every
+order; SceneSheet prev/next follows the selected order; preference
+persists across reload; stripboard + undo/redo untouched.
+
+**Relations**: stripboard order derives from the canonical rows model
+(AGENTS.md §Rows & Sections, same source the reports/calendar consume).
+
 ---
 
 ## Session handoff

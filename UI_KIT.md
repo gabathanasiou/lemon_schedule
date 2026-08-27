@@ -34,6 +34,10 @@ Migration is optional and must pass the Playwright suite first. Until then, if
 you fix a bug in the in-app copy, consider porting the fix to the kit so it
 doesn't resurface.
 
+**Design language:** every kit change that alters visuals or APIs must be
+reflected in `docs/DESIGN-LANGUAGE.md` (the canonical booklet — class recipes +
+primitive matrix) in the same change, per its "Keeping this doc current" section.
+
 ## Theming
 
 Kit components are 100% themeable via `--ui-*` CSS variables
