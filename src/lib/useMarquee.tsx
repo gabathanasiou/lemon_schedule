@@ -89,6 +89,7 @@ export function useMarquee(
   containerRef: React.RefObject<HTMLElement>,
   onSelectionChange: (ids: Set<string>, isAddMode: boolean) => void,
   isEnabled: boolean = true,
+  targetSelector: string = '[data-row-id]',
 ) {
   const currentWindow = useCurrentWindow();
   const currentDocument = useCurrentDocument();
@@ -171,20 +172,21 @@ export function useMarquee(
       if (e.button !== 0) return;
 
       const target = e.target as HTMLElement;
-      const onRibbon = target.closest('[data-row-id]');
+      const onTarget = target.closest(targetSelector);
+      const targetAttr = targetSelector.replace(/^\[|\]$/g, '');
 
       if (isTouchLike(e.pointerType) && !_addMode && getMarqueeMode() === 'off') {
         if (target.closest('button, input, select, textarea, [role="button"]')) return;
         return;
       }
 
-      if (onRibbon && e.altKey) {
+      if (onTarget && e.altKey) {
         e.stopPropagation();
       } else {
         if (isTouchLike(e.pointerType) && getMarqueeMode() === 'tool') return;
-        if (!_addMode && onRibbon) {
-          const rowId = onRibbon.getAttribute('data-row-id') || '';
-          if (!rowId.startsWith('empty-')) return;
+        if (!_addMode && onTarget) {
+          const id = onTarget.getAttribute(targetAttr) || '';
+          if (!id.startsWith('empty-')) return;
         }
         if (target.closest('button, input, select, textarea, [role="button"]')) return;
         e.stopPropagation();
@@ -238,7 +240,7 @@ export function useMarquee(
       hadMovement = true;
 
       if (width > 10 || height > 10) {
-        const rowEls = container.querySelectorAll('[data-row-id]');
+        const rowEls = container.querySelectorAll(targetSelector);
         const intersected = new Set<string>();
         rowEls.forEach((el) => {
           const r = el.getBoundingClientRect();
@@ -296,7 +298,7 @@ export function useMarquee(
       container.removeEventListener('touchstart', onTouchStart);
       setRowsDisabled(false);
     };
-  }, [containerRef, isEnabled]);
+  }, [containerRef, isEnabled, targetSelector]);
 
   return { marqueeBox, justEndedRef: _marqueeJustEndedRef };
 }

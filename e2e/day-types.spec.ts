@@ -111,8 +111,8 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
 
   // ---- Attach a cast member to the Rehearsal day ----------------------------
   await header.dblclick({ force: true });
-  await expect(page.getByText('Day Status —', { exact: false })).toBeVisible();
-  await expect(page.getByText('Attached Rehearsal', { exact: true })).toBeVisible();
+  await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
+  await expect(page.locator('[data-event-section]').first()).toContainText('Rehearsal');
   await page.locator('input.text-inherit').nth(0).click();
   await page.getByText('FISHERMAN', { exact: true }).first().click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();

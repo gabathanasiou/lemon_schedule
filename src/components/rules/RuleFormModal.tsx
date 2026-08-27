@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ProjectRule, Scene, CastMember } from '../../types';
-import { generateUUID, getUniqueCastIds, cn } from '../../lib/utils';
+import { getUniqueCastIds, cn } from '../../lib/utils';
 import {
   RULE_TYPE_META, RuleFormState, RuleType, blankRuleForm, formFromRule,
+  validateRuleForm, buildRulesFromForm,
 } from './ruleMeta';
 import { MaxHoursFields, DateRestrictionFields, TimeWindowFields, CastConflictFields, CastSceneFlagFields } from './RuleFormFields';
 import { X, AlertCircle, Info, Trash2 } from 'lucide-react';
 import { EntityDropdown } from '../EntityDropdown';
 import { IS_COARSE } from '../../lib/device';
-import { useCurrentWindow } from '../../lib/popoutTarget';
+import { useCurrentWindow, usePortalTarget } from '../../lib/popoutTarget';
 
 const RFM_HEADER_PX = IS_COARSE ? 'px-7' : 'px-6';
 const RFM_HEADER_PY = IS_COARSE ? 'py-5' : 'py-4';
@@ -34,25 +36,30 @@ interface RuleFormModalProps {
   onClose: () => void;
   onSave: (rules: ProjectRule[]) => void;
   onDelete?: () => void;
+  /** New-rule seed: opens with `datesMode: 'specific'` on these dates (events UI). */
+  preseedDates?: string[];
 }
 
 export const RuleFormModal: React.FC<RuleFormModalProps> = ({
-  open, initial, scenes, castMembers, onClose, onSave, onDelete,
+  open, initial, scenes, castMembers, onClose, onSave, onDelete, preseedDates,
 }) => {
   const [form, setForm] = useState<RuleFormState>(blankRuleForm());
   const [error, setError] = useState('');
   const currentWindow = useCurrentWindow();
+  const portalTarget = usePortalTarget();
 
   useEffect(() => {
     if (open) {
       if (initial) {
         setForm(formFromRule(initial));
+      } else if (preseedDates && preseedDates.length > 0) {
+        setForm({ ...blankRuleForm(), type: 'DATE_RESTRICTION', dates: [...preseedDates], datesMode: 'specific' });
       } else {
         setForm(blankRuleForm());
       }
       setError('');
     }
-  }, [open, initial]);
+  }, [open, initial, preseedDates]);
 
   useEffect(() => {
     if (!open) return;
@@ -80,73 +87,14 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
   const setType = (t: RuleType) => setForm(f => ({ ...f, type: t }));
 
   const handleSave = () => {
-    if (form.castIds.length === 0) {
-      setError('Select at least one cast member');
-      return;
-    }
-    if (form.type === 'DATE_RESTRICTION' && form.dates.length === 0) {
-      setError('At least one date is required');
-      return;
-    }
-    if (form.type === 'CAST_CONFLICT') {
-      if (form.castIds.length === 0 || form.conflictCastIds.length === 0) {
-        setError('Both groups must have at least one cast member');
-        return;
-      }
-    }
-    if (form.type === 'CAST_SCENE_FLAG' && form.castIds.length === 0) {
-      setError('Select at least one cast member');
-      return;
-    }
+    const err = validateRuleForm(form);
+    if (err) { setError(err); return; }
     setError('');
-
-    const id = initial?.id || generateUUID();
-    const saveSingle = (castId: string, ruleId: string): ProjectRule => {
-      if (form.type === 'MAX_HOURS') {
-        const h = parseFloat(form.maxHours);
-        return { id: ruleId, type: 'MAX_HOURS', castId, maxHours: h, dates: form.dates.length > 0 ? form.dates : undefined };
-      }
-      if (form.type === 'DATE_RESTRICTION') {
-        return { id: ruleId, type: 'DATE_RESTRICTION', castId, dates: [...form.dates] };
-      }
-      const base: any = { id: ruleId, type: 'TIME_WINDOW', castId, dates: [...form.dates] };
-      if (form.windowMode === 'range') {
-        if (form.windowStart) base.windowStart = form.windowStart;
-        if (form.windowEnd) base.windowEnd = form.windowEnd;
-      } else if (form.windowMode === 'after') {
-        if (form.windowStart) base.windowStart = form.windowStart;
-      } else if (form.windowMode === 'before') {
-        if (form.windowEnd) base.windowEnd = form.windowEnd;
-      }
-      return base;
-    };
-
-    let rules: ProjectRule[];
-    if (form.type === 'CAST_CONFLICT') {
-      rules = [{ id, type: 'CAST_CONFLICT', castIds: [...form.castIds], conflictCastIds: [...form.conflictCastIds] }];
-    } else if (form.type === 'CAST_SCENE_FLAG') {
-      rules = [{ id, type: 'CAST_SCENE_FLAG', castIds: [...form.castIds] }];
-    } else if (form.type === 'MAX_HOURS') {
-      const h = parseFloat(form.maxHours);
-      if (isNaN(h) || h <= 0) { setError('Max hours must be a positive number'); return; }
-      rules = buildSingleRules();
-    } else {
-      rules = buildSingleRules();
-    }
-    onSave(rules);
-
-    function buildSingleRules(): ProjectRule[] {
-      if (initial) {
-        const result: ProjectRule[] = [saveSingle(form.castIds[0].trim(), initial.id)];
-        for (let i = 1; i < form.castIds.length; i++) result.push(saveSingle(form.castIds[i].trim(), generateUUID()));
-        return result;
-      }
-      return form.castIds.map(cid => saveSingle(cid.trim(), generateUUID()));
-    }
+    onSave(buildRulesFromForm(form, initial));
   };
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
         className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
@@ -291,6 +239,7 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    portalTarget ?? document.body,
   );
 };

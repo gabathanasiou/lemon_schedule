@@ -9,10 +9,10 @@ test('calendar travel/hold: status dropdown, attach section, header icons, toolt
   await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
 
-  // Double-click a day header opens the modal (no status → attachment hint)
+  // Double-click a day header opens the day events modal (no status → attachment hint)
   await header.dblclick();
-  await expect(page.getByText('Day Status —', { exact: false })).toBeVisible();
-  await expect(page.getByText('Pick a day type to attach cast or elements.')).toBeVisible();
+  await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
+  await expect(page.getByText('No event types attached', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
 
   // Set Travel via context menu, then Manage Travel/Hold → attach a cast member
@@ -22,7 +22,7 @@ test('calendar travel/hold: status dropdown, attach section, header icons, toolt
 
   await header.click({ button: 'right', force: true });
   await page.getByText('Manage Travel/Hold…').click();
-  await expect(page.getByText('Attached Travel', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-event-section]').first()).toContainText('Travel');
   await page.locator('input.text-inherit').nth(0).click();
   await page.getByText('FISHERMAN', { exact: true }).first().click();
   await page.getByRole('button', { name: 'Save' }).click();
@@ -44,7 +44,7 @@ test('calendar travel/hold: status dropdown, attach section, header icons, toolt
 
   await header2.dblclick({ force: true });
   await page.waitForTimeout(400);
-  await expect(page.getByText('Attached Hold', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-event-section]').last()).toContainText('Hold');
   await page.getByText('All', { exact: true }).last().click();
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(day2.getByText('All Cast', { exact: true })).toBeVisible();

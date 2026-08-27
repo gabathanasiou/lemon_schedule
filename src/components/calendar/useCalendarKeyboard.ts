@@ -29,6 +29,8 @@ interface UseCalendarKeyboardConfig {
   palette: SceneColorPalette;
   onOpenScene?: (sceneId: string) => void;
   onOpenSceneInPopout?: (sceneId: string) => void;
+  /** Events mode owns the keyboard — strips hook stays off. */
+  enabled?: boolean;
 }
 
 export function useCalendarKeyboard(config: UseCalendarKeyboardConfig) {
@@ -37,10 +39,12 @@ export function useCalendarKeyboard(config: UseCalendarKeyboardConfig) {
     selectedRowIdsRef, lastClickedIdRef, boneyardFlatRef, scrollToRow,
     activeVersion, dispatch, cutSelected, pasteClipboard, selectNextAfterRemove,
     setColorPicker, palette, onOpenScene, onOpenSceneInPopout,
+    enabled = true,
   } = config;
 
   // Selection navigation: Escape clears, Cmd+A selects the boneyard, ArrowUp/Down moves the cursor
   useEffect(() => {
+    if (!enabled) return;
     const isInEditable = (el: EventTarget | null) => {
       const t = el as HTMLElement | null;
       if (!t) return false;
@@ -116,10 +120,11 @@ export function useCalendarKeyboard(config: UseCalendarKeyboardConfig) {
     };
     currentWindow.addEventListener('keydown', handler);
     return () => currentWindow.removeEventListener('keydown', handler);
-  }, [currentWindow, scrollToRow, setSelectedRowIds, setLastClickedId]);
+  }, [currentWindow, scrollToRow, setSelectedRowIds, setLastClickedId, enabled]);
 
   // Clipboard + delete + open: Cmd+X/V, Backspace/Delete, Enter
   useEffect(() => {
+    if (!enabled) return;
     const isInEditable = (el: EventTarget | null) => {
       const t = el as HTMLElement | null;
       if (!t) return false;
@@ -203,5 +208,5 @@ export function useCalendarKeyboard(config: UseCalendarKeyboardConfig) {
     };
     currentWindow.addEventListener('keydown', handler);
     return () => currentWindow.removeEventListener('keydown', handler);
-  }, [currentWindow, activeVersion, dispatch, cutSelected, pasteClipboard, selectNextAfterRemove, setColorPicker, onOpenScene, onOpenSceneInPopout]);
+  }, [currentWindow, activeVersion, dispatch, cutSelected, pasteClipboard, selectNextAfterRemove, setColorPicker, onOpenScene, onOpenSceneInPopout, enabled]);
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ProjectRule } from '../../types';
-import { formatRuleDateShort } from '../../lib/utils';
+import { formatRuleDateShort, generateUUID } from '../../lib/utils';
 import { Clock, CalendarX2, Timer, Ban, Bell } from 'lucide-react';
 
 export type RuleType = 'MAX_HOURS' | 'DATE_RESTRICTION' | 'TIME_WINDOW' | 'CAST_CONFLICT' | 'CAST_SCENE_FLAG';
@@ -243,3 +243,61 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
     windowEnd: we || '17:00',
   };
 };
+
+/* ------------------------------------------------------------------ */
+/* Form → rule building (shared by the RulesTab modal and the events  */
+/* day modal's inline editor — one source of truth)                    */
+/* ------------------------------------------------------------------ */
+
+/** Returns an error message or null when the form is valid. */
+export function validateRuleForm(form: RuleFormState): string | null {
+  if (form.castIds.length === 0) return 'Select at least one cast member';
+  if (form.type === 'DATE_RESTRICTION' && form.dates.length === 0) return 'At least one date is required';
+  if (form.type === 'CAST_CONFLICT') {
+    if (form.castIds.length === 0 || form.conflictCastIds.length === 0) return 'Both groups must have at least one cast member';
+  }
+  if (form.type === 'CAST_SCENE_FLAG' && form.castIds.length === 0) return 'Select at least one cast member';
+  if (form.type === 'MAX_HOURS') {
+    const h = parseFloat(form.maxHours);
+    if (isNaN(h) || h <= 0) return 'Max hours must be a positive number';
+  }
+  return null;
+}
+
+/** Builds the ProjectRule[] a form saves (multi-cast expansion for single
+ *  rules; `initial` keeps its id on the first expanded rule). */
+export function buildRulesFromForm(form: RuleFormState, initial: ProjectRule | null): ProjectRule[] {
+  const id = initial?.id || generateUUID();
+  const saveSingle = (castId: string, ruleId: string): ProjectRule => {
+    if (form.type === 'MAX_HOURS') {
+      const h = parseFloat(form.maxHours);
+      return { id: ruleId, type: 'MAX_HOURS', castId, maxHours: h, dates: form.dates.length > 0 ? form.dates : undefined };
+    }
+    if (form.type === 'DATE_RESTRICTION') {
+      return { id: ruleId, type: 'DATE_RESTRICTION', castId, dates: [...form.dates] };
+    }
+    const base: any = { id: ruleId, type: 'TIME_WINDOW', castId, dates: [...form.dates] };
+    if (form.windowMode === 'range') {
+      if (form.windowStart) base.windowStart = form.windowStart;
+      if (form.windowEnd) base.windowEnd = form.windowEnd;
+    } else if (form.windowMode === 'after') {
+      if (form.windowStart) base.windowStart = form.windowStart;
+    } else if (form.windowMode === 'before') {
+      if (form.windowEnd) base.windowEnd = form.windowEnd;
+    }
+    return base;
+  };
+
+  if (form.type === 'CAST_CONFLICT') {
+    return [{ id, type: 'CAST_CONFLICT', castIds: [...form.castIds], conflictCastIds: [...form.conflictCastIds] }];
+  }
+  if (form.type === 'CAST_SCENE_FLAG') {
+    return [{ id, type: 'CAST_SCENE_FLAG', castIds: [...form.castIds] }];
+  }
+  if (initial) {
+    const result: ProjectRule[] = [saveSingle(form.castIds[0].trim(), initial.id)];
+    for (let i = 1; i < form.castIds.length; i++) result.push(saveSingle(form.castIds[i].trim(), generateUUID()));
+    return result;
+  }
+  return form.castIds.map(cid => saveSingle(cid.trim(), generateUUID()));
+}

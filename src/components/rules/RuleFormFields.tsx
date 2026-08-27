@@ -2,7 +2,7 @@ import React from 'react';
 import { RuleFormState } from './ruleMeta';
 import { cn } from '../../lib/utils';
 import { EntityDropdown } from '../EntityDropdown';
-import { DatePicker } from '../DatePicker';
+import DatePicker from '../DatePicker';
 
 export const MaxHoursFields: React.FC<{
   form: RuleFormState;

@@ -93,6 +93,10 @@ export interface NonShootDate {
    *  categories = names; `'*'` = whole category). `travel`/`hold` lists were
    *  folded into `lists.travel`/`lists.hold` by the LOAD migration. */
   lists?: Record<string, Record<string, string[]>>;
+  /** Per-event comments: type key → category → comment text (e.g. a travel
+   *  day's "Traveling from Singapore"). Shown as tooltips on event cards and
+   *  edited in the Day Events modal. */
+  comments?: Record<string, Record<string, string>>;
 }
 
 export interface ScheduleVersion {
@@ -138,6 +142,8 @@ export type ProjectRule =
   | { id: string; type: 'TIME_WINDOW'; castId: string; dates: string[]; windowStart?: string; windowEnd?: string }
   | { id: string; type: 'CAST_CONFLICT'; castIds: string[]; conflictCastIds: string[] }
   | { id: string; type: 'CAST_SCENE_FLAG'; castIds: string[] }
+
+export type RuleType = ProjectRule['type'];
 
 export interface RuleViolation {
   ruleId: string;

@@ -25,7 +25,7 @@ async function openApp(page: Page) {
 }
 
 const dialogVisible = (page: Page) => page.evaluate(() => !!document.querySelector('[role="dialog"]'));
-const customModalVisible = (page: Page) => page.evaluate(() => !!document.querySelector('.fixed.inset-0.z-\\[9999\\]'));
+const customModalVisible = (page: Page) => page.evaluate(() => !!document.querySelector('.fixed.inset-0.z-\\[10001\\]'));
 
 test.describe('Apple Pencil in modals', () => {
   test('shared Modal (Help): item tap stays open, close tap works', async ({ page }) => {
