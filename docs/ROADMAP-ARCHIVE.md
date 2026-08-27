@@ -47,3 +47,4 @@ cross-reference them; never renumber.
 | 41 | Import & export `.sex` (Scheduling Exchange) files | `docs/IMPORT-EXPORT.md`; `src/lib/import/sex.ts`; reference `tools/sex_probe.py`, golden `e2e/fixtures/lair-v10.expected.json` |
 | 42 | Element Manager: per-day-type columns | `computeElementDayStats` — `src/lib/elementDayStats.ts` |
 | 44 | Linked elements — anchors with one-way element links | **AGENTS.md §Element Links** (canonical); `src/lib/elementLinks.ts`; `useLinkedEditGuard` write-path seam |
+| 49 | Manager pages cleanup — table borders, input squeeze, toolbar buttons | **AGENTS.md §UI Primitives** + `docs/DESIGN-LANGUAGE.md` §Buttons; kit `@gabriel/ui-kit` v0.1.33 `Button` (barrel `src/components/Button.tsx`); borders/min-w in `src/lib/managerShell.tsx`, `src/components/ElementManager.tsx`; all tab toolbars (schedule/calendar/breakdown/design/reports) converted onto kit Button |
