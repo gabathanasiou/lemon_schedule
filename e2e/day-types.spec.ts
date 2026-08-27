@@ -183,3 +183,67 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();
   await expect(page.locator(`[data-date-key="${lastSectionDate}"]`).getByText('REHEARSAL', { exact: true })).toHaveCount(0);
 });
+
+test('day breakdown pane: date rows show event summaries + open the shared day modal (roadmap 46)', async ({ page }) => {
+  const seed = loadSeedProject();
+  await page.addInitScript(seedProjectScript({ raw: seed.raw }));
+  await page.goto('http://localhost:3001/lemon_schedule/');
+  const card = page.getByText(seed.data.title, { exact: true }).first();
+  await card.click({ timeout: 8000 });
+  await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByRole('banner').getByRole('button', { name: 'Calendar', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
+
+  const sidebar = page.locator('aside');
+
+  // A Day Off date from the seed (defensive: create one via the bridge if needed)
+  const holidayDate = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+    const found = (v.nonShootDates || []).find((n: any) => n.status === 'holiday')?.date;
+    if (found) return found;
+    const rows = (window as any).__lemonSchedule.getRows();
+    const secs = (rows?.sections || []).filter((s: any) => !s.isPinned);
+    const last = secs[secs.length - 1]?.date;
+    (window as any).__lemonSchedule.dispatch({
+      type: 'UPDATE_VERSION',
+      payload: { id: v.id, nonShootDates: [...(v.nonShootDates || []), { date: last, status: 'holiday' }] },
+    });
+    return last;
+  });
+  expect(holidayDate).toBeTruthy();
+
+  // Day Off pane: the date row is clickable and opens the shared day modal
+  await sidebar.getByText('Day Off', { exact: true }).click();
+  const dateRow = page.getByText(holidayDate, { exact: true }).first();
+  await expect(dateRow).toBeVisible();
+  await dateRow.click();
+  await expect(page.getByRole('dialog').getByText('Day Events —', { exact: false })).toBeVisible();
+
+  // Add a Hold event with a cast member — the modal's shared save path
+  const dlg = page.getByRole('dialog');
+  await dlg.getByText('Add event type', { exact: true }).click();
+  await page.getByText('Hold', { exact: true }).last().click();
+  const holdSection = page.locator('[data-event-section]').last();
+  await expect(holdSection).toContainText('Hold');
+  await holdSection.locator('input').first().click();
+  await page.getByText('FISHERMAN', { exact: false }).last().click();
+  await dlg.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  // Persisted via the bridge; the pane row now shows the attachment summary
+  await expect.poll(() => page.evaluate((d) => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+    return (v.nonShootDates || []).find((n: any) => n.date === d)?.lists?.hold?.cast?.join(',') || '';
+  }, holidayDate)).toBe('1');
+  await expect(page.getByText(/Hold Cast: 1\. FISHERMAN/)).toBeVisible();
+
+  // Work pane: production day rows open the modal too (add-events context)
+  await sidebar.getByText('Work', { exact: true }).click();
+  const prodRow = page.locator('button[title="Open day events"]').first();
+  await expect(prodRow).toBeVisible();
+  await prodRow.click();
+  await expect(page.getByRole('dialog').getByText('Day Events —', { exact: false })).toBeVisible();
+  await dlg.getByRole('button', { name: 'Cancel' }).click();
+});

@@ -10,7 +10,7 @@ import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu'
 import Button from './Button';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
-import { checkSection } from '../lib/rulesEngine';
+import { computeSectionViolationMap } from '../lib/rulesEngine';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
@@ -37,7 +37,7 @@ import { useEventsKeyboard } from './calendar/useEventsKeyboard';
 import { DayTypesTab } from './calendar/DayTypesTab';
 import { PopoutPlaceholder } from './PopoutWindow';
 import { getDayTypes, getMarkableDayTypes, getDayTypeVisual, getDayTypeLabel, getDayTypeCode, typeIconComponent } from '../lib/dayTypes';
-import { getNonShootEntryMap, hasAnyLists } from '../lib/nonShootHelpers';
+import { getNonShootEntryMap, hasAnyLists, upsertNonShootDate } from '../lib/nonShootHelpers';
 import { computeDayEvents, computeRuleRuns, DEFAULT_EVENTS_FILTER } from '../lib/events';
 import { describeRule, RULE_TYPE_META, RULE_TYPES } from './rules/ruleMeta';
 import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
@@ -387,18 +387,10 @@ export const CalendarTab: React.FC<{
 
   const handleTravelHoldSave = useCallback((dateKey: string, entry: NonShootDate) => {
     if (!activeVersion) return;
-    const current = activeVersion.nonShootDates || [];
-    const idx = current.findIndex(ns => ns.date === dateKey);
-    const hasLists = hasAnyLists(entry);
-    let next: NonShootDate[];
-    if (!entry.status && !hasLists) {
-      next = idx >= 0 ? current.filter(ns => ns.date !== dateKey) : current;
-    } else if (idx >= 0) {
-      next = current.map(ns => ns.date === dateKey ? entry : ns);
-    } else {
-      next = [...current, entry];
-    }
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
+    dispatch({
+      type: 'UPDATE_VERSION',
+      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(activeVersion.nonShootDates, dateKey, entry) },
+    });
   }, [activeVersion, dispatch]);
 
   const sectionDateMap = hookSectionDateMap;
@@ -425,18 +417,8 @@ export const CalendarTab: React.FC<{
   }, [project.hiddenCategories, project.customCategories, project.categoryLabels]);
 
   const violationMap = useMemo(() => {
-    const m = new Map<string, RuleViolation[]>();
-    if (!activeVersion || !showConflicts) return m;
-    const firstDaybreak = activeVersion.rows.find(r => r.type === 'DAYBREAK');
-    let baseTime = firstDaybreak?.daybreakCallTime || '08:00';
-    for (const s of sections) {
-      const dateKey = sectionDateMap.get(s.index);
-      if (!dateKey) continue;
-      const v = checkSection(s.rows, dateKey, baseTime, project.rules || [], project.scenes, project.castMembers || []);
-      if (v.length > 0) m.set(dateKey, v);
-      baseTime = s.daybreakRow?.daybreakCallTime || baseTime;
-    }
-    return m;
+    if (!activeVersion || !showConflicts) return new Map<string, RuleViolation[]>();
+    return computeSectionViolationMap(activeVersion.rows, sections, sectionDateMap, project.rules || [], project.scenes, project.castMembers || []);
   }, [activeVersion, project.rules, project.scenes, project.castMembers, showConflicts, sections, sectionDateMap]);
 
   const sceneViolationMap = useMemo(() => {

@@ -18,8 +18,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function checkSection(
-  sectionRows: ScheduleRow[],
-  sectionDate: string | undefined,
+  sectionRows: ScheduleRow[],  sectionDate: string | undefined,
   sectionBaseTime: string,
   rules: ProjectRule[],
   scenes: Scene[],
@@ -178,4 +177,34 @@ export function checkSection(
   }
 
   return violations;
+}
+
+export interface SectionLike {
+  index: number;
+  rows: ScheduleRow[];
+  daybreakRow?: ScheduleRow;
+}
+
+/** Violation map for every scheduled day — one shared computation used by the
+ *  Calendar tab and the Day Breakdown manager (never re-derived). Call time
+ *  walks the daybreaks: the daybreak ABOVE a section governs its base time. */
+export function computeSectionViolationMap(
+  rows: ScheduleRow[],
+  sections: SectionLike[],
+  sectionDateMap: Map<number, string>,
+  rules: ProjectRule[],
+  scenes: Scene[],
+  castMembers: CastMember[],
+): Map<string, RuleViolation[]> {
+  const m = new Map<string, RuleViolation[]>();
+  const firstDaybreak = rows.find(r => r.type === 'DAYBREAK');
+  let baseTime = firstDaybreak?.daybreakCallTime || '08:00';
+  for (const s of sections) {
+    const dateKey = sectionDateMap.get(s.index);
+    if (!dateKey) continue;
+    const v = checkSection(s.rows, dateKey, baseTime, rules, scenes, castMembers);
+    if (v.length > 0) m.set(dateKey, v);
+    baseTime = s.daybreakRow?.daybreakCallTime || baseTime;
+  }
+  return m;
 }

@@ -23,6 +23,22 @@ export function getNonShootEntryMap(dates: NonShootDate[] | undefined | null): M
   return m;
 }
 
+/** Next `nonShootDates` array for a modal save (single write path shared by
+ *  the Calendar + Day Breakdown manager): empty entries are removed, existing
+ *  dates are replaced, new ones appended. */
+export function upsertNonShootDate(dates: NonShootDate[] | undefined, dateKey: string, entry: NonShootDate): NonShootDate[] {
+  const current = dates || [];
+  const idx = current.findIndex(ns => ns.date === dateKey);
+  const hasLists = hasAnyLists(entry);
+  if (!entry.status && !hasLists) {
+    return idx >= 0 ? current.filter(ns => ns.date !== dateKey) : current;
+  }
+  if (idx >= 0) {
+    return current.map(ns => ns.date === dateKey ? entry : ns);
+  }
+  return [...current, entry];
+}
+
 /** The list map for ONE status key (empty when the entry has none). */
 export function getTypeLists(entry?: NonShootDate | null, statusKey?: string | null): Record<string, string[]> {
   if (!statusKey) return {};

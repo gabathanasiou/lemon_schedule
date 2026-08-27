@@ -2,11 +2,16 @@ import React, { useMemo, useState } from 'react';
 import { useProject } from '../../store';
 import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { useDialog } from '../Dialog';
-import { Pencil, Trash2, CalendarDays } from 'lucide-react';
+import { Pencil, Trash2, CalendarDays, Flag, MessageSquare } from 'lucide-react';
 import SidebarNav, { SidebarNavRow } from '../SidebarNav';
+import { ProjectRule, RuleViolation } from '../../types';
 import {
-  getDayTypes, typeIconComponent, iconForType, DAY_TYPE_BUILTIN_KEYS, DAY_TYPE_BUILTIN_ICONS, slugifyDayType,
+  getDayTypes, getDayType, typeIconComponent, iconForType, DAY_TYPE_BUILTIN_KEYS, DAY_TYPE_BUILTIN_ICONS, slugifyDayType,
 } from '../../lib/dayTypes';
+import { getNonShootEntryMap, upsertNonShootDate, getTypeListGroups, resolveElementName } from '../../lib/nonShootHelpers';
+import { computeSectionViolationMap } from '../../lib/rulesEngine';
+import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
+import { DayEventsModal } from './DayEventsModal';
 import { AddDayTypeModal, EditDayTypeModal } from './DayTypeModals';
 
 /** Day Breakdown manager — ElementManager-style: sidebar of types (icon + label +
@@ -22,6 +27,7 @@ export const DayTypesTab: React.FC = () => {
   const dayTypes = useMemo(() => getDayTypes(project), [project]);
 
   const [selectedKey, setSelectedKey] = useState<string>(dayTypes[0]?.key || '');
+  const [eventDate, setEventDate] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editKey, setEditKey] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -30,6 +36,36 @@ export const DayTypesTab: React.FC = () => {
   const [attachable, setAttachable] = useState(true);
 
   const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
+
+  // Shared day-modal data: entry per date, rule violations per scheduled day,
+  // date-scoped rules (same computations the Calendar tab uses).
+  const nonShootEntryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
+  const violationMap = useMemo(() => {
+    if (!activeVersion) return new Map<string, RuleViolation[]>();
+    return computeSectionViolationMap(activeVersion.rows, productionSections, sectionDateMap, project.rules || [], project.scenes, project.castMembers || []);
+  }, [activeVersion, productionSections, sectionDateMap, project.rules, project.scenes, project.castMembers]);
+  const projectRules = useMemo(() => project.rules || [], [project.rules]);
+  const dateRules = (dateKey: string) =>
+    projectRules.filter((r): r is ProjectRule & { dates: string[] } => 'dates' in r && !!r.dates?.includes(dateKey));
+
+  const categoryLabel = (key: string) => {
+    const c = ELEMENT_CATEGORIES.find(x => x.key === key);
+    if (c) return getLabel(key, c.label, project.categoryLabels);
+    return project.customCategories?.find(x => x.key === key)?.label || key;
+  };
+
+  // Day summary for a row: attachment groups (type · category: names) + conflicts.
+  const summaryFor = (dateKey: string, statusKey?: string | null) => {
+    const entry = nonShootEntryByDate.get(dateKey);
+    const groups = getTypeListGroups(entry);
+    const parts = groups.map(g => {
+      const t = getDayType(project, g.status);
+      const names = g.keys.map(k => k === '*' ? 'All' : resolveElementName(k, g.category, project));
+      return `${t?.label || g.status} ${categoryLabel(g.category)}: ${names.join(', ')}`;
+    });
+    const violations = violationMap.get(dateKey) || [];
+    return { parts, violations };
+  };
 
   // The Work built-in shows the schedule's actual working days
   // (canonical `useDaybreakSections` computation — never re-derived).
@@ -204,13 +240,28 @@ export const DayTypesTab: React.FC = () => {
                 </div>
               ) : (
                 <ul className="space-y-1">
-                  {productionDays.map(pd => (
-                    <li key={pd.date} className="flex items-center gap-2 px-2.5 py-2 rounded-md bg-zinc-50 border border-zinc-100 text-xs text-zinc-700">
-                      <span className="font-bold">DAY {pd.day}</span>
-                      <span className="font-semibold">{new Date(pd.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                      <span className="text-zinc-400 font-mono text-[10px]">{pd.date}</span>
-                    </li>
-                  ))}
+                  {productionDays.map(pd => {
+                    const { parts, violations } = summaryFor(pd.date);
+                    return (
+                      <li key={pd.date}>
+                        <button
+                          onClick={() => setEventDate(pd.date)}
+                          title="Open day events"
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md bg-zinc-50 border border-zinc-100 text-xs text-zinc-700 hover:bg-zinc-100 hover:border-zinc-200 transition-colors text-left cursor-pointer"
+                        >
+                          <span className="font-bold">DAY {pd.day}</span>
+                          <span className="font-semibold">{new Date(pd.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                          <span className="text-zinc-400 font-mono text-[10px]">{pd.date}</span>
+                          {parts.length > 0 && <span className="truncate text-zinc-500 min-w-0">{parts.join(' · ')}</span>}
+                          {violations.length > 0 && (
+                            <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-red-500 shrink-0">
+                              <Flag className="w-3 h-3" /> {violations.length}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )
             ) : usedDates.length === 0 ? (
@@ -221,12 +272,34 @@ export const DayTypesTab: React.FC = () => {
               </div>
             ) : (
               <ul className="space-y-1">
-                {usedDates.map(date => (
-                  <li key={date} className="flex items-center gap-2 px-2.5 py-2 rounded-md bg-zinc-50 border border-zinc-100 text-xs text-zinc-700">
-                    <span className="font-semibold">{new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                    <span className="text-zinc-400 font-mono text-[10px]">{date}</span>
-                  </li>
-                ))}
+                {usedDates.map(date => {
+                  const entry = nonShootEntryByDate.get(date);
+                  const { parts, violations } = summaryFor(date, selectedKey);
+                  const hasComments = !!entry?.comments?.[selectedKey] && Object.keys(entry.comments[selectedKey]).length > 0;
+                  return (
+                    <li key={date}>
+                      <button
+                        onClick={() => setEventDate(date)}
+                        title="Open day events"
+                        className="w-full flex flex-col gap-1 px-2.5 py-2 rounded-md bg-zinc-50 border border-zinc-100 text-xs text-zinc-700 hover:bg-zinc-100 hover:border-zinc-200 transition-colors text-left cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="font-semibold">{new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                          <span className="text-zinc-400 font-mono text-[10px]">{date}</span>
+                          {hasComments && <MessageSquare className="w-3 h-3 text-amber-500" />}
+                          {violations.length > 0 && (
+                            <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-red-500 shrink-0">
+                              <Flag className="w-3 h-3" /> {violations.length}
+                            </span>
+                          )}
+                        </span>
+                        {parts.length > 0 && (
+                          <span className="truncate text-zinc-500">{parts.join(' · ')}</span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -259,6 +332,24 @@ export const DayTypesTab: React.FC = () => {
         onAttachableChange={setAttachable}
         onSubmit={update}
       />
+      {eventDate && (
+        <DayEventsModal
+          dateKey={eventDate}
+          entry={nonShootEntryByDate.get(eventDate)}
+          violations={violationMap.get(eventDate) || []}
+          rules={dateRules(eventDate)}
+          initialStatus={isProductionRow ? undefined : selectedKey}
+          onSave={(entry) => {
+            if (activeVersion) {
+              dispatch({
+                type: 'UPDATE_VERSION',
+                payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(activeVersion.nonShootDates, eventDate, entry) },
+              });
+            }
+          }}
+          onClose={() => setEventDate(null)}
+        />
+      )}
     </div>
   );
 };
