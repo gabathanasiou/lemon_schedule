@@ -5,7 +5,7 @@ import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Link2 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -48,14 +48,6 @@ import { BoneyardExpandButton } from './BoneyardExpandButton';
 import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, estimateMonthHeight, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
 const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
-
-const FILTER_ROW = 'w-full text-left px-3 py-1.5 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100';
-
-const FilterCheck: React.FC<{ on: boolean }> = ({ on }) => (
-  <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors shrink-0 ${on ? 'bg-zinc-900 border-zinc-900' : 'border-zinc-300'}`}>
-    {on && <Check className="w-2.5 h-2.5 text-white" />}
-  </span>
-);
 
 export const CalendarTab: React.FC<{
   onOpenScene?: (sceneId: string) => void;
@@ -973,53 +965,45 @@ export const CalendarTab: React.FC<{
                     }
                   >
                     <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Events</div>
-                    <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, statuses: eventsFilter.statuses == null ? [] : null } })} className={FILTER_ROW}>
-                      <FilterCheck on={eventsFilter.statuses == null} />
-                      <span className="font-semibold text-zinc-900">All Events</span>
-                    </button>
+                    <DropdownItem keepOpen onClick={() => updateCal({ eventsFilter: { ...eventsFilter, statuses: eventsFilter.statuses == null ? [] : null } })} className="font-semibold">
+                      <span className="flex items-center justify-between w-full gap-2">All Events{eventsFilter.statuses == null && <Check className="w-3.5 h-3.5 shrink-0" />}</span>
+                    </DropdownItem>
                     {getMarkableDayTypes(project).map(t => {
                       const on = eventsFilter.statuses == null || eventsFilter.statuses.includes(t.key);
                       return (
-                        <button key={t.key} onClick={() => {
+                        <DropdownItem key={t.key} keepOpen onClick={() => {
                           const all = getMarkableDayTypes(project).map(x => x.key);
                           const cur = eventsFilter.statuses == null ? all : eventsFilter.statuses;
                           const next = cur.includes(t.key) ? cur.filter(k => k !== t.key) : [...cur, t.key];
                           updateCal({ eventsFilter: { ...eventsFilter, statuses: next.length === all.length ? null : next } });
-                        }} className={FILTER_ROW}>
-                          <FilterCheck on={on} />
-                          {(() => {
-                            const Icon = typeIconComponent(project.dayTypes, t.key);
-                            return <Icon className="w-3.5 h-3.5 shrink-0" style={t.color ? { color: t.color } : undefined} />;
-                          })()}
-                          {t.label}
-                        </button>
+                        }} icon={(() => {
+                          const Icon = typeIconComponent(project.dayTypes, t.key);
+                          return <Icon className="w-3.5 h-3.5" style={t.color ? { color: t.color } : undefined} />;
+                        })()}>
+                          <span className="flex items-center justify-between w-full gap-2">{t.label}{on && <Check className="w-3.5 h-3.5 shrink-0" />}</span>
+                        </DropdownItem>
                       );
                     })}
                     <DropdownDivider />
-                    <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, attachments: !eventsFilter.attachments } })} className={FILTER_ROW}>
-                      <FilterCheck on={eventsFilter.attachments} />
-                      <Link2 className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
-                      <span className="text-zinc-900">Cast &amp; Elements</span>
-                    </button>
+                    <DropdownItem keepOpen onClick={() => updateCal({ eventsFilter: { ...eventsFilter, attachments: !eventsFilter.attachments } })} icon={<Link2 className="w-3.5 h-3.5" />}>
+                      <span className="flex items-center justify-between w-full gap-2">Cast &amp; Elements{eventsFilter.attachments && <Check className="w-3.5 h-3.5 shrink-0" />}</span>
+                    </DropdownItem>
                     <DropdownDivider />
                     <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Rules</div>
-                    <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, rules: eventsFilter.rules == null ? [] : null } })} className={FILTER_ROW}>
-                      <FilterCheck on={eventsFilter.rules == null} />
-                      <span className="font-semibold text-zinc-900">All Rule Types</span>
-                    </button>
+                    <DropdownItem keepOpen onClick={() => updateCal({ eventsFilter: { ...eventsFilter, rules: eventsFilter.rules == null ? [] : null } })} className="font-semibold">
+                      <span className="flex items-center justify-between w-full gap-2">All Rule Types{eventsFilter.rules == null && <Check className="w-3.5 h-3.5 shrink-0" />}</span>
+                    </DropdownItem>
                     {RULE_TYPES.map(t => {
                       const on = eventsFilter.rules == null || eventsFilter.rules.includes(t);
                       const meta = RULE_TYPE_META[t];
                       return (
-                        <button key={t} onClick={() => {
+                        <DropdownItem key={t} keepOpen onClick={() => {
                           const cur = eventsFilter.rules == null ? [...RULE_TYPES] : eventsFilter.rules;
                           const next = cur.includes(t) ? cur.filter(k => k !== t) : [...cur, t];
                           updateCal({ eventsFilter: { ...eventsFilter, rules: next.length === RULE_TYPES.length ? null : next } });
-                        }} className={FILTER_ROW}>
-                          <FilterCheck on={on} />
-                          <meta.icon className={`w-3 h-3 shrink-0 ${meta.chipIcon}`} />
-                          {meta.label}
-                        </button>
+                        }} icon={<meta.icon className={`w-3 h-3 ${meta.chipIcon}`} />}>
+                          <span className="flex items-center justify-between w-full gap-2">{meta.label}{on && <Check className="w-3.5 h-3.5 shrink-0" />}</span>
+                        </DropdownItem>
                       );
                     })}
                   </DropdownMenu>

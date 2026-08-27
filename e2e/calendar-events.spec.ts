@@ -50,28 +50,28 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
 
   // ---- Filter: hiding the Travel status drops its attachment cards; empty days keep the add affordance
   await page.getByRole('button', { name: 'Filter' }).click();
-  await page.locator('button:has-text("Travel")').first().click();
+  await page.getByRole('menuitem', { name: /Travel/ }).first().click();
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-date-key="2026-08-16"] [data-event-key^="ev-att-"]').getByText(/FISHERMAN/)).toHaveCount(0);
   await expect(page.locator('button:has-text("Add event")').first()).toBeVisible();
   await page.getByRole('button', { name: 'Filter' }).click();
-  await page.locator('button:has-text("Travel")').first().click();
+  await page.getByRole('menuitem', { name: /Travel/ }).first().click();
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-date-key="2026-08-16"] [data-event-key^="ev-att-"]').getByText(/FISHERMAN/)).toBeVisible();
 
   // ---- Rules filter hides rule cards (everyday CAST_SCENE_FLAG card too)
   await page.getByRole('button', { name: 'Filter' }).click();
-  await page.locator('button:has-text("Max Hours")').click();
-  await page.locator('button:has-text("Cast Conflict")').click();
-  await page.locator('button:has-text("Cast Scene Flag")').click();
-  await page.locator('button:has-text("Date Restriction")').click();
+  await page.getByRole('menuitem', { name: /Max Hours/ }).click();
+  await page.getByRole('menuitem', { name: /Cast Conflict/ }).click();
+  await page.getByRole('menuitem', { name: /Cast Scene Flag/ }).click();
+  await page.getByRole('menuitem', { name: /Date Restriction/ }).click();
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-event-key^="ev-rule-"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Filter' }).click();
-  await page.locator('button:has-text("Max Hours")').click();
-  await page.locator('button:has-text("Cast Conflict")').click();
-  await page.locator('button:has-text("Cast Scene Flag")').click();
-  await page.locator('button:has-text("Date Restriction")').click();
+  await page.getByRole('menuitem', { name: /Max Hours/ }).click();
+  await page.getByRole('menuitem', { name: /Cast Conflict/ }).click();
+  await page.getByRole('menuitem', { name: /Cast Scene Flag/ }).click();
+  await page.getByRole('menuitem', { name: /Date Restriction/ }).click();
   await page.keyboard.press('Escape');
 
   // ---- Day Events modal: rules section, inline rule editor pre-seeded with the date
