@@ -259,6 +259,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
   const addableTypes = dayTypes.filter(t => !sections.some(s => s.status === t.key));
 
   return (
+    <>
     <Modal open onClose={onClose} title={`Day Events — ${formatDateLabel(dateKey)}`} width="max-w-2xl"
       footer={
         <ModalFooter>
@@ -482,56 +483,60 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
 
         {activeTab === 'rules' && (
           <div className="mb-1">
-            {ruleEditor ? (
-              <RuleEditorPanel
-                initial={ruleEditor.rule ?? null}
-                preseedDateKey={dateKey}
-                scenes={project.scenes}
-                castMembers={project.castMembers || []}
-                onSave={(rules) => {
-                  for (const r of rules) {
-                    dispatch({ type: ruleEditor?.rule ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });
-                  }
-                  setRuleEditor(null);
-                }}
-                onDelete={() => {
-                  if (ruleEditor?.rule) dispatch({ type: 'DELETE_RULE', payload: ruleEditor.rule.id });
-                  setRuleEditor(null);
-                }}
-                onClose={() => setRuleEditor(null)}
-              />
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2.5">
+              <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+                <Sun className={`${XSZ} text-zinc-500`} />
+                Rules
+              </span>
+              <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => openRuleEditor()}>
+                <Plus className="w-3 h-3" /> Add rule
+              </Button>
+            </div>
+            {rules.length === 0 ? (
+              <p className={`${CREM_LABEL} text-zinc-600 italic`}>No rules on this day.</p>
             ) : (
-              <>
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2.5">
-                  <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
-                    <Sun className={`${XSZ} text-zinc-500`} />
-                    Rules
-                  </span>
-                  <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => openRuleEditor()}>
-                    <Plus className="w-3 h-3" /> Add rule
-                  </Button>
-                </div>
-                {rules.length === 0 ? (
-                  <p className={`${CREM_LABEL} text-zinc-600 italic`}>No rules on this day.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {rules.map(r => (
-                      <RuleCard
-                        key={r.id}
-                        rule={r}
-                        castMembers={project.castMembers || []}
-                        theme="dark"
-                        onEdit={() => openRuleEditor(r)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </>
+              <div className="space-y-1.5">
+                {rules.map(r => (
+                  <RuleCard
+                    key={r.id}
+                    rule={r}
+                    castMembers={project.castMembers || []}
+                    theme="dark"
+                    onEdit={() => openRuleEditor(r)}
+                  />
+                ))}
+              </div>
             )}
           </div>
         )}
 
       </div>
     </Modal>
+
+    {ruleEditor && (
+      <Modal open onClose={() => setRuleEditor(null)} title={ruleEditor.rule ? 'Edit Rule' : 'Add Rule'} width="max-w-lg">
+        <div className="p-6">
+          <RuleEditorPanel
+            bare
+            initial={ruleEditor.rule ?? null}
+            preseedDateKey={dateKey}
+            scenes={project.scenes}
+            castMembers={project.castMembers || []}
+            onSave={(rules) => {
+              for (const r of rules) {
+                dispatch({ type: ruleEditor?.rule ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });
+              }
+              setRuleEditor(null);
+            }}
+            onDelete={() => {
+              if (ruleEditor?.rule) dispatch({ type: 'DELETE_RULE', payload: ruleEditor.rule.id });
+              setRuleEditor(null);
+            }}
+            onClose={() => setRuleEditor(null)}
+          />
+        </div>
+      </Modal>
+    )}
+    </>
   );
 };
