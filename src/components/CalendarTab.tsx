@@ -30,6 +30,7 @@ import PageToolbar from './PageToolbar';
 import ColorField from './ColorField';
 import { DayCell, FillerCell } from './calendar/DayCell';
 import { DayEventsModal } from './calendar/DayEventsModal';
+import { ProductionDatesModal } from './calendar/ProductionDatesModal';
 import { EventDayCell, EventCardView } from './calendar/EventDayCell';
 import { useEventsDrag } from './calendar/useEventsDrag';
 import { useEventsKeyboard } from './calendar/useEventsKeyboard';
@@ -158,11 +159,13 @@ export const CalendarTab: React.FC<{
   const { productionDays, productionSections, sectionDateMap: hookSectionDateMap, productionChronoDayMap } = useDaybreakSections();
 
   const today = new Date().toISOString().slice(0, 10);
-  const [startDate, setStartDate] = useState(() => activeVersion?.productionStart || today);
+  const [startDate, setStartDate] = useState(() => activeVersion?.prepStart || activeVersion?.productionStart || today);
 
   useEffect(() => {
-    if (activeVersion?.productionStart) setStartDate(activeVersion.productionStart);
-  }, [activeVersion?.productionStart]);
+    if (activeVersion?.prepStart || activeVersion?.productionStart) {
+      setStartDate(activeVersion.prepStart || activeVersion.productionStart);
+    }
+  }, [activeVersion?.prepStart, activeVersion?.productionStart]);
 
   const containerDay = useMemo(() => {
     if (!activeVersion) return 1;
@@ -217,6 +220,7 @@ export const CalendarTab: React.FC<{
   }, [boneyardCollapsed]);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [prodDatesOpen, setProdDatesOpen] = useState(false);
   const [travelHoldModal, setTravelHoldModal] = useState<{ dateKey: string; status?: string } | null>(null);
   const [selectedEventKeys, setSelectedEventKeys] = useState<Set<string>>(new Set());
   const selectedEventKeysRef = useRef(selectedEventKeys);
@@ -372,40 +376,6 @@ export const CalendarTab: React.FC<{
     const l = new Date(last.year, last.month, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
     return first.year === last.year && first.month === last.month ? f : `${f} - ${l}`;
   }, [calendarMonths]);
-
-  const openAutoDayOff = useCallback(() => {
-    setAutoDayOffOpen(true);
-  }, []);
-
-  const handleApplyAutoDaysOff = useCallback(() => {
-    if (!activeVersion || days.length === 0) return;
-    const from = days[0].dateKey;
-    const to = days[days.length - 1].dateKey;
-    const fromDate = new Date(from + 'T00:00:00');
-    const toDate = new Date(to + 'T00:00:00');
-    const current = activeVersion.nonShootDates || [];
-    const targetDates = new Set<string>();
-    const cursor = new Date(fromDate);
-    while (cursor <= toDate) {
-      const jsDay = cursor.getDay();
-      const monBased = jsDay === 0 ? 6 : jsDay - 1;
-      if (autoDayOffDays.has(monBased)) {
-        targetDates.add(toDateKey(cursor));
-      }
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    let next = current.filter(ns => {
-      if (ns.date < from || ns.date > to) return true;
-      return targetDates.has(ns.date);
-    });
-    for (const date of targetDates) {
-      if (!next.find(ns => ns.date === date)) {
-        next.push({ date, status: 'holiday' as const });
-      }
-    }
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
-    setAutoDayOffOpen(false);
-  }, [activeVersion, days, autoDayOffDays, dispatch]);
 
   const nonShootDateMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -1075,23 +1045,15 @@ export const CalendarTab: React.FC<{
                 <button onClick={goToday} title="Jump to today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
                   Today
                 </button>
-                <span className="text-zinc-400">|</span>
-                <span className="text-[10px] font-semibold text-zinc-500">START</span>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={e => updateStartDate(e.target.value)}
-                  className="text-[10px] font-semibold px-2 rounded border border-zinc-300 bg-white cursor-pointer h-[25px]"
-                />
               </div>
             }
             rightContent={
               <div className="flex items-center gap-3">
                 <Button
-                  onClick={openAutoDayOff}
+                  onClick={() => setProdDatesOpen(true)}
                 >
                   <CalendarDays className="w-3.5 h-3.5" />
-                  Days Off
+                  Production Dates
                 </Button>
                 <div className="flex border border-zinc-200 rounded p-0.5">
                   {(['strips', 'events'] as const).map(m => (
@@ -1537,40 +1499,8 @@ export const CalendarTab: React.FC<{
           </div>
         </Modal>
       )}
-      {autoDayOffOpen && (
-        <Modal open onClose={() => setAutoDayOffOpen(false)} title="Auto Day Off" width="max-w-sm"
-          footer={
-            <ModalFooter>
-              <button onClick={() => setAutoDayOffOpen(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-              <button onClick={handleApplyAutoDaysOff} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Apply</button>
-            </ModalFooter>
-          }
-        >
-          <div className="p-6 space-y-5">
-            <div>
-              <span className="text-xs text-zinc-300">Days of the week</span>
-              <div className="flex gap-1.5 mt-2">
-                {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((label, i) => (
-                  <button
-                    key={label}
-                    onClick={() => setAutoDayOffDays(prev => {
-                      const next = new Set(prev);
-                      if (next.has(i)) next.delete(i); else next.add(i);
-                      return next;
-                    })}
-                    className={`w-9 h-8 text-[10px] font-semibold rounded transition-colors ${
-                      autoDayOffDays.has(i)
-                        ? 'bg-zinc-700 text-white'
-                        : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 border border-zinc-800'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Modal>
+      {prodDatesOpen && (
+        <ProductionDatesModal onClose={() => setProdDatesOpen(false)} />
       )}
       <CustomOrderSortModal
         open={customOrderModal?.open ?? false}

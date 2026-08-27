@@ -107,6 +107,13 @@ export interface ScheduleVersion {
   rows: ScheduleRow[];
   nonShootDates?: NonShootDate[];
   productionStart?: string;
+  /** Production window (MMS-style): prep starts before production; post end
+   *  closes the window. The calendar range spans prepStart..postEnd. */
+  prepStart?: string;
+  postEnd?: string;
+  /** Weekly days-off pattern, Mon=0..Sun=6 — materialized via the Production
+   *  Dates modal's Apply Days Off. */
+  weeklyDaysOff?: number[];
   legacy?: boolean;
 }
 
