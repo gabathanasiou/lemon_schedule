@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES, useIsCloudProject } from '../store';
 import { useDialog } from './Dialog';
-import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff, Check, Link2 } from 'lucide-react';
+import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen } from 'lucide-react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -11,6 +11,7 @@ import { computeElementDayStats } from '../lib/elementDayStats';
 import { getDayTypes } from '../lib/dayTypes';
 import { formatDateShort } from '../lib/utils';
 import { useRowBuffer } from '../lib/rowBuffer';
+import { useScrolledLeft } from '../lib/useScrolledLeft';
 import { setPendingTab } from '../lib/unsavedGuard';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
 import { MergeRowsModal } from './elements/MergeRowsModal';
@@ -335,7 +336,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     }
   }
 
-  const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean, upper?: boolean) => {
+  const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean, upper?: boolean, centered?: boolean) => {
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
       if (e.key === 'Tab') {
@@ -354,7 +355,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         onKeyDown={handleKey}
         onFocus={buf.noteFocusStart}
         onBlur={buf.noteFocusEnd}
-        className="w-full border border-zinc-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 bg-white transition-shadow"
+        className={`w-full bg-transparent px-2 py-1 text-xs text-zinc-800 outline-none rounded focus:bg-white focus:ring-1 focus:ring-zinc-400 transition-shadow ${centered ? 'text-center' : ''}`}
       />
     );
   };
@@ -367,6 +368,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
+  const lockedIds = useMemo(() => new Set((project.lockedElementIds || {})[category] || []), [project.lockedElementIds, category]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tableScrolled = useScrolledLeft(scrollRef);
 
   const dayTypes = useMemo(() => getDayTypes(project), [project]);
   const dayStats = useMemo(() => computeElementDayStats(project, category), [project, category]);
@@ -405,8 +409,6 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
   const actionBar = (
     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap shrink-0">
-      <span className="text-[11px] text-zinc-500 font-semibold">{rows.length} {rows.length === 1 ? 'element' : 'elements'}</span>
-      <div className="w-px h-4 bg-zinc-200 mx-1" />
       <Button onClick={() => setShowLinks(true)} disabled={readOnly} title="Link elements so adding the anchor adds its linked elements too">
         <Link2 className="w-3 h-3" />
         Links
@@ -419,13 +421,12 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       {revertButton}
       {saveButton}
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
-      <span className="text-[11px] text-zinc-500 font-medium">{rows.length} {rows.length === 1 ? 'elem' : 'elems'}</span>
       <Button onClick={() => setShowLinks(true)} disabled={readOnly}>
         <Link2 className="w-3 h-3" /> Links
       </Button>
-      <DropdownMenu open={showSortMenu} onClose={() => setShowSortMenu(false)} width="w-40" theme="light"
+      <DropdownMenu open={showSortMenu} onOpenChange={setShowSortMenu} width="w-40" theme="light"
         trigger={
-          <Button onClick={() => setShowSortMenu(p => !p)}>Sort ▾</Button>
+          <Button>Sort ▾</Button>
         }
       >
         {isCast && (
@@ -441,7 +442,18 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         </DropdownItem>
       </DropdownMenu>
       {isCast && (
-        <Button onClick={() => buf.mutateRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} disabled={readOnly}>
+        <Button
+          onClick={async () => {
+            const ok = await dialog.confirm({
+              title: 'Auto-ID Cast Members?',
+              message: 'Auto-ID assigns sequential Board IDs (continuing after the highest existing one) to cast members with an empty Board ID. Locked Board IDs are never changed.',
+              suppressKey: 'lemon_schedule_dnwa_auto_id',
+            });
+            if (!ok) return;
+            buf.mutateRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() || lockedIds.has(r.key) ? r : { ...r, id: String(n++) }); });
+          }}
+          disabled={readOnly}
+        >
           Auto-ID
         </Button>
       )}
@@ -568,19 +580,18 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
           {/* Table card */}
           <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm min-h-0">
-            <div className="h-full overflow-auto tab-scroll pb-10">
-              <table className="w-full border-collapse">
+            <div ref={scrollRef} className="h-full overflow-auto tab-scroll pb-10">
+              <table className="w-full manager-table">
                 <thead>
-                  <tr className="bg-zinc-50 border-b border-zinc-200">
-                    {isCast && <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-100 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-16">Board ID</th>}
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-100 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-[140px]">Name</th>
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-100 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14">Occ</th>
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-100 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-24">Start Date</th>
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-100 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-24">Finish Date</th>
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-100 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14">Total Days</th>
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-100 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14" title="Company travel days">Co. Tra</th>
+                  <tr className="bg-zinc-50">
+                    {isCast && <th className={`sticky top-0 left-0 z-30 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>}
+                    <th className={`sticky top-0 ${isCast ? 'left-24' : 'left-0'} z-30 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-[140px] ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14">Occ</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-24">Start Date</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-24">Finish Date</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14">Total Days</th>
                     {dayTypes.map(t => (
-                      <th key={t.key} title={t.label} className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-100 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14">{t.label}</th>
+                      <th key={t.key} title={t.label} className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14">{t.label}</th>
                     ))}
                     <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center w-10" />
                   </tr>
@@ -589,18 +600,33 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                   {rows.map((r, ri) => {
                       const stats = dayStats.get(r.key);
                       return (
-                    <tr key={r.key} className={`border-b border-zinc-100 transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-blue-50/20`}>
+                    <tr key={r.key} className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}>
                       {isCast && (
-                        <td className="px-3 py-1 border-r border-zinc-100">{renderInput(r.key, 'id', r.id, v => buf.updateRow(r.key, 'id', v), true)}</td>
+                        <td className={`sticky left-0 z-10 px-3 py-1 border-r border-zinc-200 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>
+                          <div className="flex items-center gap-1">
+                            <div className="flex-1 min-w-0">
+                              {renderInput(r.key, 'id', r.id, v => buf.updateRow(r.key, 'id', v), true, false, true)}
+                            </div>
+                            <button
+                              onClick={() => dispatch({ type: 'TOGGLE_ELEMENT_LOCK', payload: { category, id: r.key } })}
+                              disabled={readOnly}
+                              title={lockedIds.has(r.key) ? 'Unlock Board ID — Auto-ID may renumber it' : 'Lock Board ID — Auto-ID never changes it'}
+                              className="p-1 rounded-md shrink-0 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                            >
+                              {lockedIds.has(r.key)
+                                ? <Lock className="w-3.5 h-3.5 text-zinc-700 hover:text-red-500" />
+                                : <LockOpen className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-800" />}
+                            </button>
+                          </div>
+                        </td>
                       )}
-                      <td className="px-3 py-1 border-r border-zinc-100">{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), false, isCast || isSet)}</td>
-                      <td className="px-3 py-1 border-r border-zinc-100 text-center text-[11px] text-zinc-400 font-medium">{r.occ}</td>
-                      <td className="px-3 py-1 border-r border-zinc-100 text-[11px] text-zinc-400">{stats?.startDate ? formatDateShort(stats.startDate) : ''}</td>
-                      <td className="px-3 py-1 border-r border-zinc-100 text-[11px] text-zinc-400">{stats?.finishDate ? formatDateShort(stats.finishDate) : ''}</td>
-                      <td className="px-3 py-1 border-r border-zinc-100 text-center text-[11px] text-zinc-400 font-medium">{stats?.totalDays ?? 0}</td>
-                      <td className="px-3 py-1 border-r border-zinc-100 text-center text-[11px] text-zinc-400 font-medium">{stats?.travelDays ?? 0}</td>
+                      <td className={`sticky ${isCast ? 'left-24' : 'left-0'} z-10 px-3 py-1 border-r border-zinc-200 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), false, isCast || isSet)}</td>
+                      <td className="px-3 py-1 border-r border-zinc-200 text-center text-[11px] text-zinc-400 font-medium">{r.occ}</td>
+                      <td className="px-3 py-1 border-r border-zinc-200 text-[11px] text-zinc-400">{stats?.startDate ? formatDateShort(stats.startDate) : ''}</td>
+                      <td className="px-3 py-1 border-r border-zinc-200 text-[11px] text-zinc-400">{stats?.finishDate ? formatDateShort(stats.finishDate) : ''}</td>
+                      <td className="px-3 py-1 border-r border-zinc-200 text-center text-[11px] text-zinc-400 font-medium">{stats?.totalDays ?? 0}</td>
                       {dayTypes.map(t => (
-                        <td key={t.key} title={t.label} className="px-3 py-1 border-r border-zinc-100 text-center text-[11px] text-zinc-400 font-medium">{t.key === 'work' ? (stats?.workDays ?? 0) : (stats?.statusCounts[t.key] ?? 0)}</td>
+                        <td key={t.key} title={t.label} className="px-3 py-1 border-r border-zinc-200 text-center text-[11px] text-zinc-400 font-medium">{t.key === 'work' ? (stats?.workDays ?? 0) : (stats?.statusCounts[t.key] ?? 0)}</td>
                       ))}
                       <td className="px-3 py-1 text-center">
                         <button onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">

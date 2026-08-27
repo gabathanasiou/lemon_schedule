@@ -6,6 +6,7 @@ import { generateUUID } from './utils';
 import { Plus, Trash2, UserPlus, Pencil, Save, Undo2, Check } from 'lucide-react';
 import SidebarNav, { SidebarNavRow } from '../components/SidebarNav';
 import { useRowBuffer } from './rowBuffer';
+import { useScrolledLeft } from './useScrolledLeft';
 import { LabelModal } from '../components/elements/CategoryModals';
 import { MergeRowsModal } from '../components/elements/MergeRowsModal';
 import DropdownMenu from '../components/DropdownMenu';
@@ -76,7 +77,7 @@ export interface ManagerShellConfig {
   sortModes: ManagerSortMode[];
 }
 
-const cellInputCls = 'w-full bg-white border border-zinc-200 rounded-md px-2 py-1 text-xs text-zinc-800 outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow';
+const cellInputCls = 'w-full bg-transparent px-2 py-1 text-xs text-zinc-800 outline-none rounded focus:bg-white focus:ring-1 focus:ring-zinc-400 transition-shadow';
 
 /** Name-keyed buffered diff (mirrors the crew manager's merge semantics):
  *  rows ending on the same name merge into one record; mergeable fields prefer
@@ -198,6 +199,9 @@ export const DatabaseManagerView: React.FC<{
 
   const [mergeDialog, setMergeDialog] = useState<{ labels: { label: string; merges: ManagerSavePlan['merges'] }[] } | null>(null);
   const pendingDiffsRef = React.useRef<Record<string, ManagerSavePlan> | null>(null);
+
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const tableScrolled = useScrolledLeft(scrollRef);
 
   const doSaveRef = React.useRef<() => void>(() => {});
 
@@ -385,12 +389,9 @@ export const DatabaseManagerView: React.FC<{
       {revertButton}
       {saveButton}
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
-      <span className="text-[11px] text-zinc-500 font-medium">
-        {rows.length} {rows.length === 1 ? config.nounSingular : config.nounPlural}
-      </span>
-      <DropdownMenu open={showSortMenu} onClose={() => setShowSortMenu(false)} width="w-40" theme="light"
+      <DropdownMenu open={showSortMenu} onOpenChange={setShowSortMenu} width="w-40" theme="light"
         trigger={
-          <Button onClick={() => setShowSortMenu(p => !p)}>Sort ▾</Button>
+          <Button>Sort ▾</Button>
         }
       >
         {config.sortModes.map(mode => (
@@ -429,29 +430,29 @@ export const DatabaseManagerView: React.FC<{
 
       <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
         {!headerTarget && topBar}
-        <div className="flex flex-col h-full px-4 py-4 gap-3">
+        <div className={`flex-1 flex flex-col h-full px-4 py-4 gap-3`}>
           <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm min-h-0">
-            <div className="h-full overflow-auto tab-scroll pb-10">
+            <div ref={scrollRef} className="h-full overflow-auto tab-scroll pb-10">
               {category && rows.length === 0 && (
-                <div className="text-xs text-zinc-400 py-8 text-center border-b border-zinc-100">
+                <div className="text-xs text-zinc-400 py-8 text-center">
                   No {config.nounPlural} in this {config.categorySingular} yet.
                 </div>
               )}
               {rows.length > 0 && (
-                <table className="w-full border-collapse">
+                <table className="w-full manager-table">
                   <thead>
-                    <tr className="bg-zinc-50 border-b border-zinc-200">
-                      {config.fields.map(f => (
-                        <th key={f.key} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-100 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider ${f.width || ''}`}>{f.label}</th>
+                    <tr className="bg-zinc-50">
+                      {config.fields.map((f, fi) => (
+                        <th key={f.key} className={`sticky top-0 ${fi === 0 ? `left-0 z-30 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : 'z-10'} bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider ${f.width || ''}`}>{f.label}</th>
                       ))}
                       <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center w-12" />
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((r, ri) => (
-                      <tr key={r.key} className={`border-b border-zinc-100 transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-blue-50/20`}>
-                        {config.fields.map(f => (
-                          <td key={f.key} className="px-3 py-1 border-r border-zinc-100">
+                      <tr key={r.key} className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}>
+                        {config.fields.map((f, fi) => (
+                          <td key={f.key} className={`${fi === 0 ? `sticky left-0 z-10 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : ''} px-3 py-1 border-r border-zinc-200`}>
                             {f.render
                               ? f.render(r, (field, val) => buf.updateRow(r.key, field, val), readOnly, { project })
                               : defaultInput(f, r, (field, val) => buf.updateRow(r.key, field, val), readOnly)}

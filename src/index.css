@@ -112,6 +112,17 @@ input, textarea, [contenteditable] {
   }
 }
 
+/* Manager editor tables: separate borders so sticky pinned columns keep
+   their borders while scrolled (collapsed tables drop sticky borders). */
+.manager-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.manager-table th,
+.manager-table td {
+  border-bottom: 1px solid var(--color-zinc-200);
+}
+
 /* Edit mode: fields that can be tapped-to-edit signal affordance on hover.
    gated by the container attribute so the mode toggle never re-renders rows. */
 @media (any-hover: hover) {
