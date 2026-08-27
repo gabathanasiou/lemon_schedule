@@ -218,6 +218,7 @@ export const BoneyardBlock: React.FC<{
                   breakdownElements={state.present.breakdownElements}
                   customCategories={state.present.customCategories}
                   hiddenCategories={state.present.hiddenCategories}
+                  elementLinks={state.present.elementLinks}
                 />
               </React.Fragment>
             ))}

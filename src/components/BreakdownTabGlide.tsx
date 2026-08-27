@@ -43,6 +43,7 @@ import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { useGlideColumnWidths } from '../lib/glideColumns';
 import { useDedupeCellCommit } from '../lib/glideEditGuard';
 import { createBlankScene } from '../lib/sceneFactory';
+import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -359,6 +360,7 @@ export function GlideBreakdownTab({
   selectModeRef.current = marqueeMode === 'tool';
   const projectRef = useRef(project);
   projectRef.current = project;
+  const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
   allBreakdownLabelsRef.current = allBreakdownLabels;
   const gridSelectionRef = useRef(gridSelection);
@@ -385,9 +387,12 @@ export function GlideBreakdownTab({
       for (const item of newItems) {
         dispatch({ type: 'ADD_ELEMENT', payload: { category: colKey, element: isCast ? { id: item, name: '' } : { id: item, name: item } } });
       }
+      const scene = currentProject.scenes.find((s: Scene) => s.id === sceneId);
+      if (scene) linkGuard.tryCommitSceneEdit(scene, { [colKey]: updates[colKey] });
+      return;
     }
     dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, ...updates } });
-  }, [dispatch, allBreakdownCategories]);
+  }, [dispatch, allBreakdownCategories, linkGuard]);
 
   const getSceneValue = useCallback((scene: Scene, colKey: string): string => {
     if (colKey === 'intExt' || colKey === 'dayNight') return (scene as any)[colKey] || '';

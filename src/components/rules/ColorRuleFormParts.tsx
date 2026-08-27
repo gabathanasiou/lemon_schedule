@@ -1,13 +1,12 @@
-import React, { useEffect, useRef } from 'react';
-import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Check, ChevronDown, Plus, X } from 'lucide-react';
+import React from 'react';
+import { X } from 'lucide-react';
 import { ColorRuleCondition, SceneColorEntry, SceneColorPalette, ProjectElement } from '../../types';
 import { getNoteBannerColors } from '../../lib/ribbonUtils';
 import { IS_COARSE } from '../../lib/device';
 import ColorField from '../ColorField';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
-import { CategoryDropdown } from './CategoryDropdown';
+import { ElementPickerRow } from './ElementPicker';
 
 export interface ColorRuleSizes {
   XSZ: string;
@@ -53,87 +52,25 @@ export function RuleConditionRow({
   getElementName, sizes,
 }: RuleConditionRowProps) {
   const { XSZ, CREM_BTN_COND, CREM_DD_ITEM } = sizes;
-  const isCast = cond.category === 'cast';
-  const elContentRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (openDropdown !== `el-${idx}`) return;
-    const raf = requestAnimationFrame(() => {
-      const active = elContentRef.current?.querySelector(`[data-el="${cond.elementId}"]`) as HTMLElement | null;
-      if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [openDropdown, idx, cond.elementId]);
-
   return (
-    <div className="flex items-center gap-2">
-      <CategoryDropdown
-        value={cond.category}
-        onChange={(cat) => setConditionCategory(idx, cat)}
-        allCategoryKeys={allCategoryKeys}
-        categoryLabelLookup={categoryLabelLookup}
-        customCategories={customCategories}
-        open={openDropdown === `cat-${idx}`}
-        onOpenChange={(o) => setOpenDropdown(o ? `cat-${idx}` : null)}
-        btnClass={CREM_BTN_COND}
-        itemClass={CREM_DD_ITEM}
-      />
-
-      <span className="text-xs text-zinc-500 font-medium shrink-0">=</span>
-
-      <RadixDropdownMenu.Root modal={true} open={openDropdown === `el-${idx}`} onOpenChange={(o) => setOpenDropdown(o ? `el-${idx}` : null)}>
-        <RadixDropdownMenu.Trigger asChild>
-          <button className={`flex-1 flex items-center gap-1.5 ${CREM_BTN_COND} bg-zinc-800 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-0 justify-between`}>
-            <span className="truncate">
-              {cond.elementId
-                ? (isCast ? `${cond.elementId}. ${getElementName(cond.category, cond.elementId)}` : getElementName(cond.category, cond.elementId))
-                : 'Select...'}
-            </span>
-            <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-          </button>
-        </RadixDropdownMenu.Trigger>
-        <RadixDropdownMenu.Portal>
-          <RadixDropdownMenu.Content
-            ref={elContentRef}
-            className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[160px]"
-            align="start"
-            sideOffset={4}
-            collisionPadding={8}
-          >
-            {elements.length === 0 ? (
-              <div className={`${CREM_DD_ITEM} text-zinc-500`}>No elements</div>
-            ) : elements.slice().sort((a, b) => {
-              if (isCast) {
-                const ia = parseInt(a.id) ?? 0;
-                const ib = parseInt(b.id) ?? 0;
-                return ia - ib;
-              }
-              return (a.name || a.id).localeCompare(b.name || b.id);
-            }).map(el => {
-              const active = (el.id || el.name) === cond.elementId;
-              return (
-                <RadixDropdownMenu.Item
-                  key={el.id || el.name}
-                  data-el={el.id || el.name}
-                  onSelect={() => setConditionElement(idx, el.id || el.name)}
-                  className={`flex items-center gap-2 ${CREM_DD_ITEM} rounded transition-colors outline-none cursor-pointer select-none whitespace-nowrap ${
-                    active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
-                  }`}
-                >
-                  {isCast && <span className="text-zinc-400 shrink-0">{el.id}.</span>}
-                  <span className="truncate">{el.name || el.id}</span>
-                  {active && <Check className="w-3 h-3 shrink-0 ml-auto" />}
-                </RadixDropdownMenu.Item>
-              );
-            })}
-          </RadixDropdownMenu.Content>
-        </RadixDropdownMenu.Portal>
-      </RadixDropdownMenu.Root>
-
-      <button onClick={() => removeCondition(idx)} className="text-zinc-600 hover:text-red-400 transition-colors p-0.5 shrink-0">
-        <X className={XSZ} />
-      </button>
-    </div>
+    <ElementPickerRow
+      category={cond.category}
+      elementValue={cond.elementId}
+      onCategoryChange={(cat) => setConditionCategory(idx, cat)}
+      onElementChange={(el) => setConditionElement(idx, el)}
+      allCategoryKeys={allCategoryKeys}
+      categoryLabelLookup={categoryLabelLookup}
+      customCategories={customCategories}
+      elements={elements}
+      getElementName={getElementName}
+      openDropdown={openDropdown}
+      setOpenDropdown={setOpenDropdown}
+      idPrefix={String(idx)}
+      btnClass={CREM_BTN_COND}
+      itemClass={CREM_DD_ITEM}
+      onRemove={() => removeCondition(idx)}
+      removeIcon={<X className={XSZ} />}
+    />
   );
 }
 

@@ -45,6 +45,7 @@ const CAL = ['calendar-travel-hold', 'day-types'];
 const GLIDE = ['glide-breakdown', 'glide-clipboard'];
 const ELEM = ['element-manager-merge', 'element-manager-day-columns'];
 const CAST = ['cast-single-source'];
+const LINKED = ['linked-elements'];
 const CREW = ['crew-glide', 'crew-manager'];
 const LOC = ['locations', 'location-types'];
 const IMPORT = ['msd-import', 'cast-single-source'];
@@ -95,7 +96,7 @@ const RULES = [
   // ribbon designer + stripboard cell rendering
   { g: 'src/components/ribbon/**', s: RIBBON },
   { g: 'src/components/RibbonTab.tsx', s: RIBBON },
-  { g: 'src/components/SortableRibbon.tsx', s: RIBBON },
+  { g: 'src/components/SortableRibbon.tsx', s: [...RIBBON, ...LINKED] },
   { g: 'src/components/RibbonCellText.tsx', s: RIBBON },
   { g: 'src/components/columnResize.tsx', s: RIBBON },
   { g: 'src/lib/ribbon*.ts', s: RIBBON },
@@ -120,14 +121,17 @@ const RULES = [
   { g: 'src/lib/places.ts', s: CAL },
   { g: 'src/lib/timezones.ts', s: CAL },
   // glide breakdown
-  { g: 'src/components/BreakdownTabGlide.tsx', s: GLIDE },
+  { g: 'src/components/BreakdownTabGlide.tsx', s: [...GLIDE, ...LINKED] },
   { g: 'src/lib/glide*', s: GLIDE },
-  { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM] },
+  { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED] },
   { g: 'src/lib/paletteOps.ts', s: [...GLIDE, ...ELEM] },
   { g: 'src/lib/elements.ts', s: [...ELEM, ...REPORT] },
   // element / cast / crew / locations managers (buffered editor managers)
-  { g: 'src/components/ElementManager.tsx', s: ELEM },
+  { g: 'src/components/ElementManager.tsx', s: [...ELEM, ...LINKED] },
   { g: 'src/lib/elementDayStats.ts', s: ELEM },
+  { g: 'src/lib/elementLinks.ts', s: LINKED },
+  { g: 'src/lib/useLinkedEditGuard.ts', s: LINKED },
+  { g: 'src/components/elements/LinkManagerModal.tsx', s: LINKED },
   { g: 'src/components/elements/**', s: ELEM },
   { g: 'src/components/CastTab.tsx', s: CAST },
   { g: 'src/lib/legacyMigration.ts', s: [...CAST, ...IMPORT] },
@@ -148,6 +152,9 @@ const RULES = [
   { g: 'src/components/Modal.tsx', s: MODAL },
   { g: 'src/components/ColorField.tsx', s: MODAL },
   { g: 'src/components/KeyboardToggleButton.tsx', s: ['keyboard-mode'] },
+  // color rules + shared element pickers (rules tab + colors tab)
+  { g: 'src/components/rules/**', s: RIBBON },
+  { g: 'src/components/ColorRule*.tsx', s: RIBBON },
 ];
 
 // ---- tiny glob: supports `**` (any depth), `*` (within a segment) ----

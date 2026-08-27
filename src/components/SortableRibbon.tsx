@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation, SceneColorPalette, CustomCategoryDef, ProjectElement } from '../types';
+import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation, SceneColorPalette, CustomCategoryDef, ProjectElement, ElementLink } from '../types';
 import { ComputedRowInput, formatElapsedCaption } from '../lib/daybreakUtils';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
@@ -24,6 +24,7 @@ import SortableRowBreak from './ribbon/SortableRowBreak';
 import SortableRowDaybreak from './ribbon/SortableRowDaybreak';
 import SortableRowScene from './ribbon/SortableRowScene';
 import { RowRenderCtx } from './ribbon/rowRenderTypes';
+import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 
 const ENTITY_KEYS = new Set([
   'cast', 'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -47,6 +48,7 @@ const sortableRowPropsEqual = (a: any, b: any) => {
   if (a.activeVersionId !== b.activeVersionId) return false;
   if (a.palette !== b.palette || a.castMembers !== b.castMembers) return false;
   if (a.breakdownElements !== b.breakdownElements || a.customCategories !== b.customCategories) return false;
+  if (a.elementLinks !== b.elementLinks) return false;
   if (a.hiddenCategories !== b.hiddenCategories) return false;
   return true;
 };
@@ -81,10 +83,13 @@ const SortableRowContent: React.FC<{
   breakdownElements?: Record<string, ProjectElement[]>,
   customCategories?: CustomCategoryDef[],
   hiddenCategories?: string[],
-}> = React.memo(({ row, scenes, scene: sceneProp, isSelected, isFaded, isCompact, isEditable, focusField, sceneViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories }) => {
+  elementLinks?: ElementLink[],
+}> = React.memo(({ row, scenes, scene: sceneProp, isSelected, isFaded, isCompact, isEditable, focusField, sceneViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories, elementLinks }) => {
   const portalTarget = usePortalTarget();
 
   const isTouchMode = useTouchMode();
+
+  const linkGuard = useLinkedEditGuard(elementLinks, customCategories, dispatch);
 
   const scene = sceneProp !== undefined ? sceneProp : (row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) ?? null : null);
 
@@ -113,9 +118,11 @@ const SortableRowContent: React.FC<{
       processed.set = processed.set.toUpperCase();
       if (processed.set !== oldSet) setCapitalized = true;
     }
+    const entityKeys: string[] = [];
     for (const [key, val] of Object.entries(processed)) {
       if (key === 'id') continue;
       if (typeof val === 'string' && val.trim() && (ENTITY_KEYS.has(key) || key.startsWith('_cat_'))) {
+        entityKeys.push(key);
         const existing = key === 'cast' ? (castMembers ?? []) : (breakdownElements?.[key] || []);
         const existingNames = new Set(existing.map(e => (key === 'cast' ? e.id : (e.name || e.id)).toUpperCase()));
         const items = getFieldItems(key, val);
@@ -126,7 +133,11 @@ const SortableRowContent: React.FC<{
         }
       }
     }
-    dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, ...processed } });
+    if (entityKeys.length > 0) {
+      void linkGuard.tryCommitSceneEdit(scene, processed);
+    } else {
+      dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, ...processed } });
+    }
     if (setCapitalized && oldSet && oldSet.toUpperCase() === processed.set) {
       dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'set', id: oldSet, updates: { id: processed.set, name: processed.set } } });
     }
@@ -655,12 +666,13 @@ const sortableRibbonPropsEqual = (a: any, b: any) => {
   if (a.activeVersionId !== b.activeVersionId) return false;
   if (a.palette !== b.palette || a.castMembers !== b.castMembers) return false;
   if (a.breakdownElements !== b.breakdownElements || a.customCategories !== b.customCategories) return false;
+  if (a.elementLinks !== b.elementLinks) return false;
   if (a.hiddenCategories !== b.hiddenCategories) return false;
   return true;
 };
 
 export const SortableRibbon = React.memo(({
-  row, scenes, scene, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, isEditable, focusField, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories,
+  row, scenes, scene, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, isEditable, focusField, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories, elementLinks,
 }: {
   row: ComputedRowInput,
   scenes: Scene[],
@@ -695,6 +707,7 @@ export const SortableRibbon = React.memo(({
   breakdownElements?: Record<string, ProjectElement[]>,
   customCategories?: CustomCategoryDef[],
   hiddenCategories?: string[],
+  elementLinks?: ElementLink[],
 }) => {
   if (readOnly) {
     return (
@@ -728,6 +741,7 @@ export const SortableRibbon = React.memo(({
         breakdownElements={breakdownElements}
         customCategories={customCategories}
         hiddenCategories={hiddenCategories}
+        elementLinks={elementLinks}
       />
     );
   }
@@ -796,6 +810,7 @@ export const SortableRibbon = React.memo(({
         breakdownElements={breakdownElements}
         customCategories={customCategories}
         hiddenCategories={hiddenCategories}
+        elementLinks={elementLinks}
       />
     </div>
   );

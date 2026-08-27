@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES, useIsCloudProject } from '../store';
 import { useDialog } from './Dialog';
-import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff, Check } from 'lucide-react';
+import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff, Check, Link2 } from 'lucide-react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -14,6 +14,7 @@ import { useRowBuffer } from '../lib/rowBuffer';
 import { setPendingTab } from '../lib/unsavedGuard';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
 import { MergeRowsModal } from './elements/MergeRowsModal';
+import { LinkManagerModal } from './elements/LinkManagerModal';
 import SidebarNav, { SidebarNavRow } from './SidebarNav';
 
 interface LocalRow {
@@ -81,6 +82,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const [newCatIcon, setNewCatIcon] = useState('Tag');
   const [newCatMultiValue, setNewCatMultiValue] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [showLinks, setShowLinks] = useState(false);
 
   const [sortMode, setSortMode] = useState<'id' | 'name' | 'occurrences'>(isCast ? 'id' : 'name');
 
@@ -402,6 +404,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const actionBar = (
     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap shrink-0">
       <span className="text-[11px] text-zinc-500 font-semibold">{rows.length} {rows.length === 1 ? 'element' : 'elements'}</span>
+      <div className="w-px h-4 bg-zinc-200 mx-1" />
+      <button onClick={() => setShowLinks(true)} disabled={readOnly} className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-zinc-600 hover:bg-zinc-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" title="Link elements so adding the anchor adds its linked elements too">
+        <Link2 className="w-3 h-3" />
+        Links
+      </button>
     </div>
   );
 
@@ -418,6 +425,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       </button>
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
       <span className="text-[11px] text-zinc-500 font-medium">{rows.length} {rows.length === 1 ? 'elem' : 'elems'}</span>
+      <button onClick={() => setShowLinks(true)} disabled={readOnly} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+        <Link2 className="w-3 h-3" /> Links
+      </button>
       <DropdownMenu open={showSortMenu} onClose={() => setShowSortMenu(false)} width="w-40" theme="light"
         trigger={
           <button onClick={() => setShowSortMenu(p => !p)} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
@@ -651,6 +661,13 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           onNameChange={setNewCatName}
           onSubmit={updateBuiltinLabel}
         />
+
+        {showLinks && (
+          <LinkManagerModal
+            initialAnchorCategory={category}
+            onClose={() => setShowLinks(false)}
+          />
+        )}
       </div>
     </div>
   );

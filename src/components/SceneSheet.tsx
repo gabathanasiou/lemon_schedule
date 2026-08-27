@@ -11,6 +11,7 @@ import { parsePageCount, formatPageCount, generateUUID, formatDateLong } from '.
 import { sceneStyle, getIntExtOptions, getDayNightOptions, getFallbackStripColors } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
+import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 
 const BREAKDOWN_CATS = [
   'set', 'cast', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -67,6 +68,8 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const scene = scenes[index];
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
 
+  const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
+
   const { sceneToSection, sectionLabelMap, sectionDateMap } = useDaybreakSections();
 
   const sectionIdx = scene ? (sceneToSection.get(scene.id) ?? null) : null;
@@ -84,6 +87,9 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         const name = isCast ? (castMembers.find(m => m.id === item)?.name ?? '') : item;
         dispatch({ type: 'ADD_ELEMENT', payload: { category: field, element: { id: item, name } } });
       }
+      const scene = scenes.find(s => s.id === sceneId);
+      if (scene) void linkGuard.tryCommitSceneEdit(scene, { [field]: value });
+      return;
     }
     if (field === 'pageCount') {
       if (value === '') {
@@ -98,7 +104,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     if (field === 'scriptDay') processed = value.replace(/[^0-9]/g, '');
     if (field === 'set') processed = value.toUpperCase();
     dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, [field]: processed } });
-  }, [dispatch, breakdownElements, castMembers, allBreakdownCats]);
+  }, [dispatch, breakdownElements, castMembers, allBreakdownCats, scenes, linkGuard]);
 
   const commitFieldRef = useRef(commitField);
   commitFieldRef.current = commitField;

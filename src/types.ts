@@ -201,6 +201,16 @@ export interface ProjectElement {
   name: string;
 }
 
+/** One-way anchor→linked element link (roadmap 44). Anchor owns the link;
+ *  values use `elementMatchId`: cast = Board ID, other categories = name. */
+export interface ElementLink {
+  id: string;
+  anchorCategory: string;
+  anchorValue: string;
+  linkedCategory: string;
+  linkedValue: string;
+}
+
 export interface CustomCategoryDef {
   key: string;
   label: string;
@@ -508,9 +518,12 @@ export interface Project {
   locationTypes?: CrewRole[];
   locations?: ProjectLocation[];
   locationsTrash?: LocationTrashItem[];
-  /** Custom day types (calendar day statuses). Built-ins present unless
+  /**
+   * Custom day types (calendar day statuses). Built-ins present unless
    *  untouched (old projects fall back via `getDayTypes` in lib/dayTypes). */
   dayTypes?: DayTypeDef[];
+  /** Element links (anchor-based, one-way) — see lib/elementLinks.ts. */
+  elementLinks?: ElementLink[];
   reportDesigns?: ReportDesign[];
   activeReportId?: string;
   reportTrash?: ReportTrashItem[];
