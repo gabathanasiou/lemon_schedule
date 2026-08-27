@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { openSeededProject } from './helpers';
 
-// Element Manager day columns (roadmap 42): Start/Finish Date, Total Days,
-// Co. Tra (company travel days) + one column per day type — derived from
-// `project.dayTypes` so custom Calendar day types appear automatically.
-// Production counts come from section dates (scene → stripboard section →
-// date); statused days from the element's `nonShootDates.lists` attachment.
+// Element Manager day columns (roadmap 42): Start/Finish Date, Total Days +
+// one column per day type — derived from `project.dayTypes` so custom Calendar
+// day types appear automatically. Company travel shows under the Travel type
+// column (no separate "Co. Tra" column). Production counts come from section
+// dates (scene → stripboard section → date); statused days from the element's
+// `nonShootDates.lists` attachment.
 
-test('element manager: date range, total days, Co. Tra and per-day-type columns', async ({ page }) => {
+test('element manager: date range, total days and per-day-type columns', async ({ page }) => {
   await openSeededProject(page);
 
   // Custom day type + statused days attached to FISHERMAN — through the same
@@ -85,9 +86,9 @@ test('element manager: date range, total days, Co. Tra and per-day-type columns'
   await page.getByRole('button', { name: 'Element Manager' }).click();
   await page.locator('aside').getByRole('button', { name: /Cast/ }).click();
 
-  // Header: built-in + custom day-type columns, and the MMS info block.
+  // Header: built-in + custom day-type columns.
   const thead = page.locator('thead').first();
-  for (const label of ['Start Date', 'Finish Date', 'Total Days', 'Co. Tra']) {
+  for (const label of ['Start Date', 'Finish Date', 'Total Days']) {
     await expect(thead.getByText(label, { exact: true })).toBeVisible();
   }
   for (const t of expected.dayTypeLabels) {
@@ -96,19 +97,18 @@ test('element manager: date range, total days, Co. Tra and per-day-type columns'
   await expect(thead.getByText('Rehearsal', { exact: true })).toBeVisible();
 
   // FISHERMAN's row: dates + counts per column (Board ID=0, Name=1, Occ=2,
-  // Start=3, Finish=4, Total Days=5, Co. Tra=6, then day types in order).
+  // Start=3, Finish=4, Total Days=5, then day types in order).
   const row = page.locator('tr', { has: page.locator('input[value="FISHERMAN"]') });
   await expect(row).toBeVisible();
   const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   await expect(row.locator('td').nth(3)).toHaveText(fmt(expected.startDate));
   await expect(row.locator('td').nth(4)).toHaveText(fmt(expected.finishDate));
   await expect(row.locator('td').nth(5)).toHaveText(String(expected.totalDays));
-  await expect(row.locator('td').nth(6)).toHaveText(String(expected.statusCounts['travel'] || 0));
   const dayTypeCols = expected.dayTypes;
   for (let i = 0; i < dayTypeCols.length; i++) {
     const key = dayTypeCols[i];
     const val = key === 'work' ? expected.workDays : (expected.statusCounts[key] || 0);
-    await expect(row.locator('td').nth(7 + i)).toHaveText(String(val));
+    await expect(row.locator('td').nth(6 + i)).toHaveText(String(val));
   }
 
   // Sanity: FISHERMAN has rehearsals + travel attached and appears on the schedule.

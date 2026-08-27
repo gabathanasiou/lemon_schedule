@@ -37,8 +37,6 @@ export interface ElementDayStats {
   totalDays: number;
   /** Day-type key → attached days (statused dates the element is on). */
   statusCounts: Record<string, number>;
-  /** Company travel days — alias of `statusCounts['travel']` (MMS "Co. Tra"). */
-  travelDays: number;
 }
 
 export function computeElementDayStats(project: Project, category: string): Map<string, ElementDayStats> {
@@ -99,7 +97,7 @@ export function computeElementDayStats(project: Project, category: string): Map<
 
   for (const e of elements) {
     const k = elementKey(e);
-    const s: ElementDayStats = out.get(k) || { workDays: 0, totalDays: 0, statusCounts: {}, travelDays: 0 };
+    const s: ElementDayStats = out.get(k) || { workDays: 0, totalDays: 0, statusCounts: {} };
     if (!out.has(k)) out.set(k, s);
     const refKey = byKey.get(k)!.refKey;
 
@@ -127,7 +125,6 @@ export function computeElementDayStats(project: Project, category: string): Map<
       s.startDate = sorted[0];
       s.finishDate = sorted[sorted.length - 1];
     }
-    s.travelDays = s.statusCounts['travel'] || 0;
     s.totalDays = s.workDays + Object.values(s.statusCounts).reduce((a, b) => a + b, 0);
   }
 

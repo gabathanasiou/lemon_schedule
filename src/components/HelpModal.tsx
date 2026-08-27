@@ -179,7 +179,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>Z</Kbd> / <Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>Z</Kbd></>} action="Undo / redo unsaved edits (one step per operation: rename, add, delete, sort, Auto-ID) — same as the top Undo/Redo buttons" />
           <Row keys={<>Revert</>} action="Discard all unsaved edits back to the last save" />
           <Row keys={<>Save then <Kbd>⌘</Kbd> + <Kbd>Z</Kbd></>} action="Undoes the whole save as one step" />
-          <Row keys={<>Day columns</>} action="Start Date, Finish Date, Total Days and Co. Tra (company travel days) from the schedule, plus a column per day type — built-ins and every custom type from the Calendar's Day Types tab; scroll the table horizontally to see them all" />
+          <Row keys={<>Day columns</>} action="Start Date, Finish Date and Total Days from the schedule, plus a column per day type — built-ins (Work, Hold, Travel, Day Off) and every custom type from the Calendar's Day Types tab; scroll the table horizontally to see them all" />
         </Section>
 
         <Section title="Crew Manager">

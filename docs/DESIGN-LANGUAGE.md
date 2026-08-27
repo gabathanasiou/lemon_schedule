@@ -90,6 +90,11 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 | Intro copy | `text-xs text-zinc-400 leading-relaxed` | `LinkManagerModal.tsx:211` |
 | Modal body | `p-6 space-y-5` (single-field forms may use `space-y-4`) | `LinkManagerModal.tsx:210`, `ScheduleModals.tsx:93` |
 
+### Tables (light managers)
+| Element | Classes | Source |
+|---|---|---|
+| Manager table rows | grid `border-b` / `border-r border-zinc-200` (lines must stay readable under the hover tint), zebra `bg-white` / `bg-zinc-50/30`, **row hover `hover:bg-zinc-100`** (gray — no blue), `transition-colors` | `managerShell.tsx:452`, `ElementManager.tsx:602` |
+
 ### Status colors
 | Meaning | Classes |
 |---|---|

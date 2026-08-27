@@ -24,7 +24,7 @@ export const DAY_TYPE_BUILTIN_ICONS: Record<string, string> = {
 };
 
 export const DEFAULT_DAY_TYPES: DayTypeDef[] = [
-  { key: 'work', label: 'Production Days', color: '#2563eb', markable: false, builtin: true },
+  { key: 'work', label: 'Work', color: '#2563eb', markable: false, builtin: true },
   { key: 'hold', label: 'Hold', color: '#dc2626', attachable: true, builtin: true },
   { key: 'travel', label: 'Travel', color: '#9333ea', attachable: true, builtin: true },
   { key: 'holiday', label: 'Day Off', color: '#71717a', builtin: true },
@@ -43,7 +43,7 @@ export function getDayTypes(project: Project): DayTypeDef[] {
 }
 
 /** Types the user can explicitly mark on a calendar day (excludes the
- *  Production Days built-in — it's the default state, not a markable status). */
+ *  Work built-in — it's the default state, not a markable status). */
 export function getMarkableDayTypes(project: Project): DayTypeDef[] {
   return resolveDayTypes(project.dayTypes).filter(t => t.markable !== false);
 }

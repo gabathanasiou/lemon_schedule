@@ -31,7 +31,7 @@ export const DayTypesTab: React.FC = () => {
 
   const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
 
-  // The Production Days built-in shows the schedule's actual working days
+  // The Work built-in shows the schedule's actual working days
   // (canonical `useDaybreakSections` computation — never re-derived).
   const productionDays = useMemo(() => {
     const out: { date: string; day: number }[] = [];
