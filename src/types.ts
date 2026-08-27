@@ -78,8 +78,8 @@ export interface DayTypeDef {
    *  travel/hold). Built-ins: hold + travel yes, holiday no. */
   attachable?: boolean;
   /** Whether the type can be explicitly marked on calendar days. Built-in
-   *  "Production Days" is the default state of every shooting day — never
-   *  marked (marking would skip the date from the schedule). */
+   *  "Work" is the default state of every shooting day — never marked
+   *  (marking would skip the date from the schedule). */
   markable?: boolean;
   /** Built-in types (hold/travel/holiday): keys locked, label/color editable. */
   builtin?: boolean;
@@ -502,6 +502,8 @@ export interface Project {
   castMembers: CastMember[];
   customCategories: CustomCategoryDef[];
   hiddenCategories: string[];
+  /** Per-category element locks (cast = Board IDs) protected from Auto-ID renumbering. */
+  lockedElementIds?: Record<string, string[]>;
   categoryLabels: Record<string, string>;
   elementsTrash: ElementTrashItem[];
   categoryTrash: CategoryTrashItem[];

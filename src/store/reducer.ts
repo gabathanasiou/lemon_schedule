@@ -16,7 +16,7 @@ import {
   caseAddElement, caseUpdateElement, caseDeleteElement, caseMergeElements, caseRestoreElementFromTrash,
   caseAddCustomCategory, caseRenameCustomCategory, caseUpdateCustomCategory,
   caseDeleteCustomCategory, caseRestoreCategoryFromTrash, caseHideCategory, caseShowCategory,
-  caseRestoreHiddenCategory, caseSetCategoryLabel,
+  caseRestoreHiddenCategory, caseSetCategoryLabel, caseToggleElementLock,
 } from './actions/breakdown';
 import {
   caseUpdateSceneRibbon, caseAddRibbonDesign, caseUpdateRibbonDesign, caseDeleteRibbonDesign,
@@ -180,6 +180,7 @@ export type Action =
   | { type: 'SHOW_CATEGORY'; payload: string }
   | { type: 'RESTORE_HIDDEN_CATEGORY'; payload: string }
   | { type: 'SET_CATEGORY_LABEL'; payload: { key: string; label: string } }
+  | { type: 'TOGGLE_ELEMENT_LOCK'; payload: { category: string; id: string } }
   | { type: 'ADD_ELEMENT'; payload: { category: string; element: { id: string; name: string } } }
   | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
@@ -247,6 +248,7 @@ export const ACTION_TYPES = new Set<string>([
   'ADD_CUSTOM_CATEGORY', 'UPDATE_CUSTOM_CATEGORY', 'RENAME_CUSTOM_CATEGORY',
   'DELETE_CUSTOM_CATEGORY', 'RESTORE_CATEGORY_FROM_TRASH', 'HIDE_CATEGORY',
   'SHOW_CATEGORY', 'RESTORE_HIDDEN_CATEGORY', 'SET_CATEGORY_LABEL',
+  'TOGGLE_ELEMENT_LOCK',
   'ADD_ELEMENT', 'UPDATE_ELEMENT', 'DELETE_ELEMENT', 'MERGE_ELEMENTS',
   'RESTORE_ELEMENT_FROM_TRASH',
   'UPDATE_SCENE_RIBBON', 'ADD_RIBBON_DESIGN', 'UPDATE_RIBBON_DESIGN',
@@ -468,6 +470,7 @@ export function reducer(state: State, action: Action): State {
     case 'HIDE_CATEGORY': return caseHideCategory(state, action, applyChange);
     case 'SHOW_CATEGORY': return caseShowCategory(state, action, applyChange);
     case 'RESTORE_HIDDEN_CATEGORY': return caseRestoreHiddenCategory(state, action, applyChange);
+    case 'TOGGLE_ELEMENT_LOCK': return caseToggleElementLock(state, action, applyChange);
     case 'SET_CATEGORY_LABEL': return caseSetCategoryLabel(state, action, applyChange);
     case 'UPDATE_SCENE_RIBBON': return caseUpdateSceneRibbon(state, action, applyChange);
     case 'ADD_RIBBON_DESIGN': return caseAddRibbonDesign(state, action, applyChange);

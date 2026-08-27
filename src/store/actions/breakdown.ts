@@ -464,6 +464,20 @@ export function caseRestoreHiddenCategory(state: State, action: Action, applyCha
   });
 }
 
+export function caseToggleElementLock(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'TOGGLE_ELEMENT_LOCK') return state;
+  const { category, id } = action.payload;
+  const locks = { ...(state.present.lockedElementIds || {}) };
+  const list = new Set(locks[category] || []);
+  if (list.has(id)) list.delete(id);
+  else list.add(id);
+  locks[category] = [...list].sort();
+  return applyChange({
+    ...state.present,
+    lockedElementIds: locks,
+  });
+}
+
 export function caseSetCategoryLabel(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'SET_CATEGORY_LABEL') return state;
   return applyChange({
