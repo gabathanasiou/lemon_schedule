@@ -144,23 +144,30 @@ export const DayTypesTab: React.FC = () => {
   const renderRowActions = (row: SidebarNavRow, active: boolean) => {
     if (DAY_TYPE_BUILTIN_KEYS.has(row.key)) return null;
     const hoverCls = active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300';
+    // Inner actions are spans (role=button) — they live inside the row's own
+    // <button> and nested buttons are invalid HTML.
+    const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${readOnly ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
     return (
       <>
-        <button
-          onClick={(e) => { e.stopPropagation(); openEdit(row.key); }}
-          disabled={readOnly}
+        <span
+          role="button"
+          tabIndex={-1}
+          aria-disabled={readOnly}
+          onClick={(e) => { e.stopPropagation(); if (!readOnly) openEdit(row.key); }}
           title="Edit"
-          className={`p-0.5 rounded transition-colors ${hoverCls} disabled:opacity-30 disabled:cursor-not-allowed`}
+          className={actionCls(hoverCls)}
         >
           <Pencil className="w-3 h-3 text-zinc-400" />
-        </button>
-        <button
-          onClick={async (e) => { e.stopPropagation(); await remove(row.key); }}
-          disabled={readOnly}
-          className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} disabled:opacity-30 disabled:cursor-not-allowed`}
+        </span>
+        <span
+          role="button"
+          tabIndex={-1}
+          aria-disabled={readOnly}
+          onClick={async (e) => { e.stopPropagation(); if (!readOnly) await remove(row.key); }}
+          className={actionCls(active ? 'hover:bg-red-900/50' : 'hover:bg-red-100')}
         >
           <Trash2 className="w-3 h-3 text-red-400" />
-        </button>
+        </span>
       </>
     );
   };

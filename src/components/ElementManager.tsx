@@ -463,11 +463,18 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     const showHideToggle = !isCustom && !isProtected;
     const showDelete = isCustom;
     const hoverCls = active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300';
+    // Inner actions are spans (role=button), NOT <button>s — they live inside
+    // the row's own <button> and nested buttons are invalid HTML.
+    const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${readOnly ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
     return (
       <>
-        <button
+        <span
+          role="button"
+          tabIndex={-1}
+          aria-disabled={readOnly}
           onClick={(e) => {
             e.stopPropagation();
+            if (readOnly) return;
             if (isCustom) {
               const cat = project.customCategories.find(c => c.key === key);
               setEditCatKey(key); setNewCatName(cat?.label || row.label); setNewCatIcon(cat?.icon || 'Tag'); setNewCatMultiValue(cat?.multiValue ?? true); setShowEditCustom(true);
@@ -476,55 +483,63 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
               setShowEditBuiltin(true);
             }
           }}
-          disabled={readOnly}
-          className={`p-0.5 rounded transition-colors ${hoverCls} disabled:opacity-30 disabled:cursor-not-allowed`}
+          className={actionCls(hoverCls)}
         >
           <Pencil className="w-3 h-3 text-zinc-400" />
-        </button>
+        </span>
         {showHideToggle && !isHidden && (
-          <button
+          <span
+            role="button"
+            tabIndex={-1}
+            aria-disabled={readOnly}
             onClick={async (e) => {
               e.stopPropagation();
+              if (readOnly) return;
               const ok = await dialog.confirm({ title: `Hide "${row.label}"?`, message: 'Category will be hidden from all views.', danger: true, suppressKey: 'lemon_schedule_dnwa_hide_category' });
               if (ok) {
                 dispatch({ type: 'HIDE_CATEGORY', payload: key });
                 if (category === key) switchCategory('cast');
               }
             }}
-            disabled={readOnly}
-            className={`p-0.5 rounded transition-colors ${hoverCls} disabled:opacity-30 disabled:cursor-not-allowed`}
+            className={actionCls(hoverCls)}
           >
             <EyeOff className="w-3 h-3 text-zinc-400" />
-          </button>
+          </span>
         )}
         {showHideToggle && isHidden && (
-          <button
+          <span
+            role="button"
+            tabIndex={-1}
+            aria-disabled={readOnly}
             onClick={(e) => {
               e.stopPropagation();
+              if (readOnly) return;
               dispatch({ type: 'SHOW_CATEGORY', payload: key });
             }}
-            disabled={readOnly}
-            className={`p-0.5 rounded transition-colors ${hoverCls} disabled:opacity-30 disabled:cursor-not-allowed`}
+            className={actionCls(hoverCls)}
             title="Unhide category"
           >
             <Eye className="w-3 h-3 text-zinc-400" />
-          </button>
+          </span>
         )}
         {showDelete && (
-          <button
+          <span
+            role="button"
+            tabIndex={-1}
+            aria-disabled={readOnly}
             onClick={async (e) => {
               e.stopPropagation();
+              if (readOnly) return;
               const ok = await dialog.confirm({ title: `Delete "${row.label}"?`, message: 'Category and all its data will be permanently deleted.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_category' });
               if (ok) {
                 dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: key });
                 if (category === key) switchCategory('cast');
               }
             }}
-            disabled={readOnly}
-            className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} disabled:opacity-30 disabled:cursor-not-allowed`}
+            className={actionCls(active ? 'hover:bg-red-900/50' : 'hover:bg-red-100')}
           >
             <Trash2 className="w-3 h-3 text-red-400" />
-          </button>
+          </span>
         )}
       </>
     );
