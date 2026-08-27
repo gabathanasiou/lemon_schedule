@@ -22,6 +22,7 @@ import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu'
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { getCategoryElements } from '../lib/elements';
 import DropdownMenu from './DropdownMenu';
+import Button from './Button';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import ImportDialog from './ImportDialog';
@@ -896,19 +897,15 @@ export function GlideBreakdownTab({
 
   const headerContent = (
     <div className="flex items-center justify-end gap-1">
-      <button
-        onClick={addScene}
-        disabled={readOnly}
-        className={`${isCloud ? "bg-blue-950 hover:bg-blue-900" : "bg-zinc-900 hover:bg-zinc-800"} text-white px-3 py-1 rounded text-[11px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
-      >
+      <Button variant="primary" cloud={isCloud} onClick={addScene} disabled={readOnly}>
         + Add Scene
-      </button>
+      </Button>
       <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-44" theme="light"
         trigger={
-          <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+          <Button>
             Edit
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-          </button>
+          </Button>
         }
       >
         <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<Search className="w-3.5 h-3.5" />} disabled={readOnly}>
@@ -928,10 +925,10 @@ export function GlideBreakdownTab({
 
       <DropdownMenu open={viewOpen} onOpenChange={setViewOpen} width="w-44" theme="light"
         trigger={
-          <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+          <Button>
             View
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-          </button>
+          </Button>
         }
       >
         <DropdownItem onClick={() => { setFontSize(fontSize + 1.5); }} keepOpen icon={<ZoomIn className="w-3.5 h-3.5" />}>
@@ -952,10 +949,10 @@ export function GlideBreakdownTab({
 
       <DropdownMenu open={infoOpen} onOpenChange={setInfoOpen} width="w-48" theme="light"
         trigger={
-          <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+          <Button>
             Info
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-          </button>
+          </Button>
         }
       >
         <div className="px-4 py-2.5 text-xs text-zinc-500 space-y-1.5">

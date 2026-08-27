@@ -6,6 +6,7 @@ import DoodsTab from './DoodsTab';
 import ElementBreakdownView from './ElementBreakdownView';
 import { PanelLeftOpen, PanelLeftClose, Printer } from 'lucide-react';
 import PageToolbar from './PageToolbar';
+import Button from './Button';
 import { PopoutPlaceholder } from './PopoutWindow';
 
 function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): string {
@@ -67,13 +68,10 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
           <div className="flex items-center gap-2">
             <div ref={setPortalTarget} className="flex items-center gap-2" />
             {onPrint ? (
-              <button
-                onClick={onPrint}
-                className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
-              >
+              <Button theme="dark" onClick={onPrint}>
                 <Printer className="w-3.5 h-3.5" />
                 Print
-              </button>
+              </Button>
             ) : undefined}
           </div>
         }

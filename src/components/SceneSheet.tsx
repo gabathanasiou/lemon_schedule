@@ -4,6 +4,7 @@ import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store
 import { Scene } from '../types';
 import { ChevronLeft, ChevronRight, Plus, Copy, Trash2 } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
+import Button from './Button';
 import SceneSheetFields from './SceneSheetFields';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
@@ -282,19 +283,19 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         </div>
         <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
         <div className="w-px h-5 bg-zinc-200 mx-1" />
-        <button onClick={createNewScene} disabled={readOnly} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" title="New Scene Sheet">
+        <Button onClick={createNewScene} disabled={readOnly} title="New Scene Sheet">
           <Plus className="w-3.5 h-3.5" />
           New
-        </button>
-        <button onClick={duplicateScene} disabled={readOnly} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" title="Duplicate Scene Sheet">
+        </Button>
+        <Button onClick={duplicateScene} disabled={readOnly} title="Duplicate Scene Sheet">
           <Copy className="w-3.5 h-3.5" />
           Duplicate
-        </button>
+        </Button>
       </div>
-      <button onClick={deleteCurrentScene} disabled={readOnly} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" title="Delete Scene Sheet">
+      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={readOnly} title="Delete Scene Sheet">
         <Trash2 className="w-3.5 h-3.5" />
         Delete
-      </button>
+      </Button>
     </div>
   ) : null;
 
@@ -306,15 +307,15 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       <span className="text-[11px] text-zinc-500">of {scenes.length}</span>
       <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-500" /></button>
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
-      <button onClick={createNewScene} disabled={readOnly} className={`${isCloud ? "bg-blue-950 hover:bg-blue-900" : "bg-zinc-900 hover:bg-zinc-800"} text-white px-2.5 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed`}>
+      <Button variant="primary" cloud={isCloud} onClick={createNewScene} disabled={readOnly}>
         <Plus className="w-3 h-3" /> New
-      </button>
-      <button onClick={duplicateScene} disabled={readOnly} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+      </Button>
+      <Button onClick={duplicateScene} disabled={readOnly}>
         <Copy className="w-3 h-3" /> Duplicate
-      </button>
-      <button onClick={deleteCurrentScene} disabled={readOnly} className="bg-white border border-zinc-300 px-2.5 py-1 text-rose-600 rounded text-[11px] font-medium hover:bg-rose-50 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+      </Button>
+      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={readOnly}>
         <Trash2 className="w-3 h-3" /> Delete
-      </button>
+      </Button>
     </>
   ) : null;
 

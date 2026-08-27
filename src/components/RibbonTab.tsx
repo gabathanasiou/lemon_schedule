@@ -22,6 +22,7 @@ import {
   PanelTop, Equal, PanelBottom,
 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
+import Button from './Button';
 import { ItemManagerDropdown } from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import { useDialog } from './Dialog';
@@ -608,11 +609,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         header="RIBBON DESIGNS"
         itemLabel="Design"
         trigger={
-          <button className={`flex items-center gap-1.5 rounded px-2 py-1 transition-colors ${readOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-zinc-800'}`}>
+          <Button theme="dark" className={readOnly ? 'opacity-40 cursor-not-allowed' : ''}>
             <span className="text-xs font-semibold text-zinc-500">Editing:</span>
             <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
             <ChevronDown className="w-3 h-3 text-zinc-500" />
-          </button>
+          </Button>
         }
       />
       <div className="flex-1" />
@@ -621,11 +622,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         onOpenChange={setViewMenuOpen}
         width="w-36"
         trigger={
-          <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+          <Button theme="dark">
             <span className="text-xs font-semibold text-zinc-500">View:</span>
             <span className="text-xs font-semibold text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
             <ChevronDown className="w-3 h-3 text-zinc-500" />
-          </button>
+          </Button>
         }
       >
         {(['portrait', 'landscape', 'full'] as const).map(m => (

@@ -13,6 +13,7 @@ import Modal from './Modal';
 import ColorField from './ColorField';
 import { ModalFooter } from './Modal';
 import DropdownMenu from './DropdownMenu';
+import Button from './Button';
 import DropdownItem from './DropdownItem';
 import { ColorRuleEditModal } from './ColorRuleEditModal';
 import { findEntry, clonePalette, updateSceneColor } from '../lib/paletteOps';
@@ -327,10 +328,10 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
 
       {headerTarget && createPortal(
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen} width="w-44" trigger={
-          <button className="flex items-center gap-1.5 rounded px-2 py-1 hover:bg-zinc-800 transition-colors">
+          <Button theme="dark">
             <span className="text-xs font-semibold text-zinc-400">Edit</span>
             <ChevronDown className="w-3 h-3 text-zinc-500" />
-          </button>
+          </Button>
         }>
           <DropdownItem onClick={handleExport} icon={<Download className="w-3.5 h-3.5" />}>
             Export Palette & Rules

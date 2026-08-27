@@ -7,6 +7,7 @@ import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } fr
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
+import Button from './Button';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { checkSection } from '../lib/rulesEngine';
@@ -864,23 +865,22 @@ export const CalendarTab: React.FC<{
             }
             rightContent={
               <div className="flex items-center gap-3">
-                <button
+                <Button
                   onClick={openAutoDayOff}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600"
                 >
                   <CalendarDays className="w-3.5 h-3.5" />
                   Days Off
-                </button>
+                </Button>
                 <DropdownMenu
                   open={viewMenuOpen}
                   onOpenChange={setViewMenuOpen}
                   width="w-48"
                   theme="light"
                   trigger={
-                    <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600">
+                    <Button>
                       View
                       <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-                    </button>
+                    </Button>
                   }
                 >
                   <DropdownSubmenu id="display-field" label="Display Field" side="left" width="w-44" icon={<AlignLeft className="w-3.5 h-3.5" />}>

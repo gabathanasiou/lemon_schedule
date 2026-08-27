@@ -4,6 +4,7 @@ import { useProject } from '../../store';
 import { RibbonDesign } from '../../types';
 import { CellBorders, ViewMode } from '../../lib/persist';
 import PageToolbar from '../PageToolbar';
+import Button from '../Button';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
@@ -122,11 +123,11 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         width="w-44"
         theme="light"
         trigger={
-          <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
+          <Button variant="primary" cloud={isCloud}>
             <Sunset className="w-3.5 h-3.5 shrink-0" />
              Day Breaks
             <ChevronDown className="w-3 h-3 shrink-0" />
-          </button>
+          </Button>
         }
       >
         <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('duration'); }} icon={<Clock className="w-3.5 h-3.5" />}>Add by Duration</DropdownItem>
@@ -140,15 +141,15 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         width="w-48"
         theme="light"
         trigger={
-          <button
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
+          <Button
+            variant="primary"
+            cloud={isCloud}
             title="Add note/break banners to every day, or delete banners"
           >
             <CalendarPlus className="w-3.5 h-3.5 shrink-0" />
             Banners
             <ChevronDown className="w-3 h-3 shrink-0" />
-          </button>
-        }
+          </Button>        }
       >
         <DropdownItem onClick={() => { setBannerMenuOpen(false); setBannerModalOpen(true); }} icon={<StickyNote className="w-3.5 h-3.5" />} disabled={!hasDaybreakDays}>Add Banners</DropdownItem>
         <DropdownDivider />
@@ -175,10 +176,10 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         width="w-48"
         theme="light"
           trigger={
-            <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600">
+            <Button>
               View
               <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-            </button>
+            </Button>
         }
       >
         <DropdownSubmenu id="ribbon-layout" label="Ribbon Layout" icon={<LayoutTemplate className="w-3.5 h-3.5" />} width="w-44">
@@ -216,9 +217,12 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
           ))}
         </DropdownSubmenu>
       </DropdownMenu>
-      <button
+      <Button
+        variant="primary"
+        cloud={isCloud}
         onClick={() => !readOnly && onToggleEdit()}
-        className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${readOnly ? 'opacity-30 cursor-not-allowed' : ''} ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
+        disabled={readOnly}
+        className={textEditingEnabled ? 'bg-blue-600! hover:bg-blue-500!' : ''}
       >
         {isEditPending ? (
           <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
@@ -226,16 +230,13 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
           <Pencil className="w-3.5 h-3.5 shrink-0" />
         )}
         Edit
-      </button>
+      </Button>
       <div className="w-px h-4 bg-zinc-200" />
       {onPrint && (
-        <button
-          onClick={onPrint}
-          className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
-        >
+        <Button variant="primary" cloud={isCloud} onClick={onPrint}>
           <Printer className="w-3.5 h-3.5 shrink-0" />
           Print
-        </button>
+        </Button>
       )}
       <div className="w-px h-4 bg-zinc-200" />
       <button
