@@ -49,6 +49,14 @@ import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAM
 const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
 
+const FILTER_ROW = 'w-full text-left px-3 py-1.5 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100';
+
+const FilterCheck: React.FC<{ on: boolean }> = ({ on }) => (
+  <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors shrink-0 ${on ? 'bg-zinc-900 border-zinc-900' : 'border-zinc-300'}`}>
+    {on && <Check className="w-2.5 h-2.5 text-white" />}
+  </span>
+);
+
 export const CalendarTab: React.FC<{
   onOpenScene?: (sceneId: string) => void;
   onOpenSceneInPopout?: (sceneId: string) => void;
@@ -964,7 +972,11 @@ export const CalendarTab: React.FC<{
                       </Button>
                     }
                   >
-                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Day statuses</div>
+                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Day Types</div>
+                    <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, statuses: eventsFilter.statuses == null ? [] : null } })} className={FILTER_ROW}>
+                      <FilterCheck on={eventsFilter.statuses == null} />
+                      <span className="font-semibold text-zinc-900">All Day Types</span>
+                    </button>
                     {getMarkableDayTypes(project).map(t => {
                       const on = eventsFilter.statuses == null || eventsFilter.statuses.includes(t.key);
                       return (
@@ -973,10 +985,8 @@ export const CalendarTab: React.FC<{
                           const cur = eventsFilter.statuses == null ? all : eventsFilter.statuses;
                           const next = cur.includes(t.key) ? cur.filter(k => k !== t.key) : [...cur, t.key];
                           updateCal({ eventsFilter: { ...eventsFilter, statuses: next.length === all.length ? null : next } });
-                        }} className="w-full text-left px-3 py-1.5 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100">
-                          <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${on ? 'bg-zinc-900 border-zinc-900' : 'border-zinc-300'}`}>
-                            {on && <Check className="w-2.5 h-2.5 text-white" />}
-                          </span>
+                        }} className={FILTER_ROW}>
+                          <FilterCheck on={on} />
                           {(() => {
                             const Icon = typeIconComponent(project.dayTypes, t.key);
                             return <Icon className="w-3.5 h-3.5 shrink-0" style={t.color ? { color: t.color } : undefined} />;
@@ -986,28 +996,29 @@ export const CalendarTab: React.FC<{
                       );
                     })}
                     <DropdownDivider />
-                    <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, attachments: !eventsFilter.attachments } })} className="w-full text-left px-3 py-1.5 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100">
-                      <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${eventsFilter.attachments ? 'bg-zinc-900 border-zinc-900' : 'border-zinc-300'}`}>
-                        {eventsFilter.attachments && <Check className="w-2.5 h-2.5 text-white" />}
-                      </span>
-                      Attachments
+                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Attachment Cards</div>
+                    <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, attachments: !eventsFilter.attachments } })} className={FILTER_ROW}>
+                      <FilterCheck on={eventsFilter.attachments} />
+                      <span className="text-zinc-900">Show attachment cards</span>
                     </button>
                     <DropdownDivider />
-                    <div className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Rules</div>
+                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Rules</div>
+                    <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, rules: eventsFilter.rules == null ? [] : null } })} className={FILTER_ROW}>
+                      <FilterCheck on={eventsFilter.rules == null} />
+                      <span className="font-semibold text-zinc-900">All Rule Types</span>
+                    </button>
                     {RULE_TYPES.map(t => {
                       const on = eventsFilter.rules == null || eventsFilter.rules.includes(t);
-                      const RuleIcon = RULE_TYPE_META[t].icon;
+                      const meta = RULE_TYPE_META[t];
                       return (
                         <button key={t} onClick={() => {
                           const cur = eventsFilter.rules == null ? [...RULE_TYPES] : eventsFilter.rules;
                           const next = cur.includes(t) ? cur.filter(k => k !== t) : [...cur, t];
                           updateCal({ eventsFilter: { ...eventsFilter, rules: next.length === RULE_TYPES.length ? null : next } });
-                        }} className="w-full text-left px-3 py-1.5 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100">
-                          <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${on ? 'bg-zinc-900 border-zinc-900' : 'border-zinc-300'}`}>
-                            {on && <Check className="w-2.5 h-2.5 text-white" />}
-                          </span>
-                          <RuleIcon className="w-3 h-3 text-zinc-500" />
-                          {RULE_TYPE_META[t].label}
+                        }} className={FILTER_ROW}>
+                          <FilterCheck on={on} />
+                          <meta.icon className={`w-3 h-3 shrink-0 ${meta.chipIcon}`} />
+                          {meta.label}
                         </button>
                       );
                     })}
