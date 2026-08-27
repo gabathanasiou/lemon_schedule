@@ -75,6 +75,9 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
   await page.getByText('Add rule', { exact: true }).click();
   await expect(page.locator('[data-rule-editor]')).toBeVisible();
   await expect(page.getByText('Aug 10', { exact: false }).first()).toBeVisible();
+  // Adding from a specific day locks the rule to that day — no calendar grid, no every-day toggle
+  await expect(page.getByRole('dialog').last().getByRole('button', { name: 'Previous month' })).toHaveCount(0);
+  await expect(page.getByRole('dialog').last().getByText('Every day', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Cancel' }).first().click();
   await page.getByRole('button', { name: 'Cancel' }).click();
 
