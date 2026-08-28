@@ -66,6 +66,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+  // Read by handleRowClick via ref: SortableRibbon's memo comparator ignores
+  // onSelectToggle, so row click handlers keep a pre-toggle closure - a stale
+  // captured value would never enter per-row edit mode (or range-select).
+  const lastClickedIdRef = useRef<string | null>(null);
+  lastClickedIdRef.current = lastClickedId;
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [editingTarget, setEditingTarget] = useState<{ rowId: string; fieldKey: string | null } | null>(null);
   const effectiveTextEditingEnabled = textEditingEnabled && !readOnly;
@@ -229,14 +234,14 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       setLastClickedId(id);
     } else if (e.shiftKey && id.startsWith('empty-')) {
       return;
-    } else if (e.shiftKey && lastClickedId && !lastClickedId.startsWith('empty-')) {
+    } else if (e.shiftKey && lastClickedIdRef.current && !lastClickedIdRef.current.startsWith('empty-')) {
       e.stopPropagation();
       const clickedRow = activeVersion.rows.find(r => r.id === id);
-      const anchorRow = activeVersion.rows.find(r => r.id === lastClickedId);
+      const anchorRow = activeVersion.rows.find(r => r.id === lastClickedIdRef.current);
       const isBoneyard = (clickedRow && getContainerBlock(clickedRow) !== 'stripboard') ||
         (anchorRow && getContainerBlock(anchorRow) !== 'stripboard');
       const allIds = isBoneyard ? containerIdsRef.current.boneyard as string[] : containerIdsRef.current.stripboard;
-      const idxA = allIds.indexOf(lastClickedId);
+      const idxA = allIds.indexOf(lastClickedIdRef.current);
       const idxB = allIds.indexOf(id);
       if (idxA >= 0 && idxB >= 0) {
         const range = allIds.slice(Math.min(idxA, idxB), Math.max(idxA, idxB) + 1);
@@ -1098,8 +1103,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   const selectedRowIdsRef = useRef(selectedRowIds);
   selectedRowIdsRef.current = selectedRowIds;
-  const lastClickedIdRef = useRef(lastClickedId);
-  lastClickedIdRef.current = lastClickedId;
   const flatRowIdsRef = useRef<string[]>([]);
   flatRowIdsRef.current = existingDays.flatMap(dayInt => {
     const dayRows = scheduledRows[dayInt];
@@ -1157,8 +1160,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const commitDigits = useCallback(() => {
     const data = digitDataRef.current;
     if (!data.buffer) return;
-    const daybreaks = daybreakOrderRef.current;
-    if (daybreaks.filter(d => !d.pinned).length === 0) {
+    const daybreaks = daybreakOrderRef.current.filter(d => !d.pinned);
+    if (daybreaks.length === 0) {
       setDigitBuffer('');
       digitDataRef.current.buffer = '';
       return;
@@ -1169,30 +1172,18 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       digitDataRef.current.buffer = '';
       return;
     }
-    let newRows: ScheduleRow[];
-    if (dayNum < daybreaks.length) {
-      const targetDaybreak = daybreaks[dayNum];
-      newRows = data.rows.map(r => {
-        if (data.rowIds.includes(r.id)) {
-          return { ...r, containerId: 1, order: targetDaybreak.order - 0.5 + data.rowIds.indexOf(r.id) * 0.01 };
-        }
-        return r;
-      });
-      newRows.sort((a, b) => {
-        if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
-        return a.order - b.order;
-      });
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: data.versionId, rows: renumberRows(newRows) } });
-    } else {
-      const maxOrder = daybreaks.length > 0 ? Math.max(...daybreaks.map(d => d.order)) : -1;
-      newRows = data.rows.map(r => {
-        if (data.rowIds.includes(r.id)) {
-          return { ...r, containerId: 1, order: maxOrder + 1 + data.rowIds.indexOf(r.id) };
-        }
-        return r;
-      });
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: data.versionId, rows: newRows } });
-    }
+    const targetDaybreak = daybreaks[dayNum - 1];
+    const newRows = data.rows.map(r => {
+      if (data.rowIds.includes(r.id)) {
+        return { ...r, containerId: 1, order: targetDaybreak.order - 0.5 + data.rowIds.indexOf(r.id) * 0.01 };
+      }
+      return r;
+    });
+    newRows.sort((a, b) => {
+      if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
+      return a.order - b.order;
+    });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: data.versionId, rows: renumberRows(newRows) } });
     const scheduledIds = new Set(data.rowIds);
     const remainingBoneyard = data.rows
       .filter(r => getContainerBlock(r) === 'boneyard' && !scheduledIds.has(r.id))

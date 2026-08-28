@@ -40,7 +40,7 @@ const REPORT = [
   'report-breakdown-day-gap-look', 'report-table-resize',
 ];
 const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize'];
-const SCHED = ['keyboard-mode'];
+const SCHED = ['keyboard-mode', 'digit-schedule'];
 const CAL = ['calendar-travel-hold', 'day-types'];
 const GLIDE = ['glide-breakdown', 'glide-clipboard'];
 const ELEM = ['element-manager-merge', 'element-manager-day-columns'];
@@ -104,6 +104,7 @@ const RULES = [
   { g: 'src/lib/mergeGroups.ts', s: [...RIBBON, ...ELEM] },
   // schedule stripboard
   { g: 'src/components/schedule/**', s: SCHED },
+  { g: 'src/components/ScheduleTab.tsx', s: SCHED },
   { g: 'src/components/StripBlock.tsx', s: [...SCHED, ...RIBBON] },
   { g: 'src/components/Boneyard*.tsx', s: SCHED },
   { g: 'src/components/StripboardContextMenuContent.tsx', s: SCHED },

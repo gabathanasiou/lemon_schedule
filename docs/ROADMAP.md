@@ -377,7 +377,9 @@ Reuses the Days Events surface (from 45) beyond the calendar, so events are mana
 
 **Relations**: depends on item 45 (shared modal + chips first).
 
-## 47. BUG: type-a-digit "schedule to day N" fails at the day-count boundary (`[ ]`)
+## 47. BUG: type-a-digit "schedule to day N" fails at the day-count boundary (`[x]` Done)
+
+**Done**: `commitDigits` (ScheduleTab.tsx) now filters the pinned daybreak out of the target list — valid days = 1..production-day-count, every day targets its own daybreak via `order - 0.5` (with `renumberRows`), and `dayNum` beyond production days bails cleanly (no phantom append, no silent no-op). Also fixed en route: `handleRowClick` read `lastClickedId` from a stale closure (SortableRibbon's memo comparator ignores `onSelectToggle`), which broke shift+click range selection in the stripboard/boneyard — it now reads `lastClickedIdRef` (the same ref the keyboard hook uses). Verified by `e2e/digit-schedule.spec.ts` (day-N scheduling with Enter-commit, out-of-range bail, last-day boundary; RULES entry: `ScheduleTab.tsx` → SCHED bucket ∪ `digit-schedule`).
 
 **Requested**: scenes in the boneyard, you press "15" to schedule them to day 15 — make sure they actually get scheduled there.
 
@@ -387,9 +389,9 @@ Reuses the Days Events surface (from 45) beyond the calendar, so events are mana
 - Any `dayNum >= daybreaks.length + 1` is silently ignored (buffer just clears).
 - The else-branch (`dayNum === daybreaks.length`) also schedules to the end-of-stripboard rather than the last day's own section via `lastDaybreak.order - 0.5`.
 
-**Fix**: treat the pinned daybreak as non-targetable for digit scheduling — last valid day = `daybreaks.length - 1`; target the last day via its own daybreak (`order - 0.5`, like every other day — with `renumberRows` after); bail cleanly for `dayNum` beyond production days (no phantom append, no silent no-op). Enter-to-commit and the 350 ms auto-commit keep working.
+**Fix**: treat the pinned daybreak as non-targetable for digit scheduling — last valid day = `daybreaks.length - 1`; target the last day via its own daybreak (`order - 0.5`, like every other day — with `renumberRows` after); bail cleanly for `dayNum` beyond production days (no phantom append, no silent no-op). Enter-to-commit and the 350 ms auto-commit keep working. **Bonus fix while here**: `handleRowClick`'s shift+click range branch read `lastClickedId` from a stale per-row closure (the `sortableRibbonPropsEqual` memo ignores `onSelectToggle`) — it now reads `lastClickedIdRef` like the edit-mode branch already did, so range selection works on the stripboard and boneyard.
 
-**Verify**: playwright on a seeded project — select boneyard scenes (bridge or click), type "15" (or the last day's number) → rows land in that day's section in selection order with correct `order`-renumbering; typing a number > production days → nothing moves; press Enter to commit immediately; lint + full suite (strips-mode DnD regression untouched).
+**Verify**: playwright on a seeded project — select boneyard scenes (bridge or click), type "15" (or the last day's number) → rows land in that day's section in selection order with correct `order`-renumbering; typing a number > production days → nothing moves; press Enter to commit immediately; lint + full suite (strips-mode DnD regression untouched). All covered by `e2e/digit-schedule.spec.ts`.
 
 ## 48. Ribbon text font size — master + per-cell (`[ ]`)
 
