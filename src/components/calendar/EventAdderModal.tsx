@@ -10,7 +10,6 @@ import Modal, { ModalFooter } from '../Modal';
 import DatePicker from '../DatePicker';
 import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
-import { RuleEditorPanel } from '../rules/RuleEditorPanel';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { usePortalTarget } from '../../lib/popoutTarget';
 import DropdownMenu from '../DropdownMenu';
@@ -83,7 +82,6 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
       ? [{ id: newRowId(), category: preseed.category, keys: [...preseed.keys].filter(k => k !== NON_SHOOT_ALL), all: preseed.keys.length === 1 && preseed.keys[0] === NON_SHOOT_ALL, notes: {}, noteOpen: true }]
       : [{ id: newRowId(), category: 'cast', keys: [], all: false, notes: {}, noteOpen: true }],
   );
-  const [ruleMode, setRuleMode] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const categoryLabelLookup = useMemo(() => {
@@ -184,31 +182,14 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
           <Button theme="dark" variant="subtle" className="px-6 py-2 text-zinc-400" onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
             Cancel
           </Button>
-          {!ruleMode && (
-            <Button theme="dark" variant="primary" className="px-6 py-2" disabled={!dateKey} onPointerDown={(e) => { e.preventDefault(); create(); }}>
+          <Button theme="dark" variant="primary" className="px-6 py-2" disabled={!dateKey} onPointerDown={(e) => { e.preventDefault(); create(); }}>
               Create
             </Button>
-          )}
         </ModalFooter>
       }
     >
       <div className={CREM_BODY}>
-        {ruleMode ? (
-          <RuleEditorPanel
-            bare
-            initial={null}
-            preseedDateKey={dateKey || undefined}
-            scenes={project.scenes}
-            castMembers={project.castMembers || []}
-            anchoredKeys={anchoredByCategory.get('cast')}
-            onSave={(rules) => {
-              for (const r of rules) dispatch({ type: 'ADD_RULE', payload: r });
-              onClose();
-            }}
-            onClose={() => setRuleMode(false)}
-          />
-        ) : (
-          <div className="space-y-5">
+        <div className="space-y-5">
             {/* Date: pre-targeted label, else the picker */}
             <div>
               <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
@@ -269,7 +250,29 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
               </DropdownMenu>
             </div>
 
-            {/* Elements: locked to the element, or comma-typed rows per category */}
+            {locked ? (
+            /* Element-locked: no cast & elements section — the element is in
+               the title. Just its note. */
+            <div>
+              <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+                <MessageSquare className={`${XSZ} text-zinc-500`} />
+                Note for {elementName}
+              </span>
+              <input
+                type="text"
+                value={rows[0]?.keys[0] ? (rows[0].notes[rows[0].keys[0]] || '') : ''}
+                onChange={(e) => {
+                  const r = rows[0];
+                  if (r && r.keys[0]) patchRow(r.id, { notes: { ...r.notes, [r.keys[0]]: e.target.value } });
+                }}
+                placeholder={`e.g. "Traveling from Singapore"`}
+                className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
+                autoFocus
+              />
+            </div>
+          ) : (
+            <>
+            {/* Elements: comma-typed rows per category (parentless mode) */}
             <div>
               <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
                 <Plus className={`${XSZ} text-zinc-500`} />
@@ -285,42 +288,31 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
                   return (
                     <div key={r.id} className="space-y-1">
                       <div className="flex items-center gap-2">
-                        {locked ? (
-                          <span className="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-300 flex items-center gap-1.5 shrink-0">
-                            {catDef}
-                          </span>
-                        ) : (
-                          <CategoryDropdown
-                            value={r.category}
-                            onChange={(cat) => patchRow(r.id, { category: cat, keys: [], all: false })}
-                            allCategoryKeys={allCategoryKeys}
-                            categoryLabelLookup={categoryLabelLookup}
-                            customCategories={project.customCategories}
-                            open={openDropdown === `cat-${r.id}`}
-                            onOpenChange={(o) => setOpenDropdown(o ? `cat-${r.id}` : null)}
-                            btnClass="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors flex items-center gap-1.5"
-                            itemClass={CREM_DD_ITEM}
-                          />
-                        )}
-                        {locked && r.all ? (
-                          <span className={`${CREM_TEXT} text-xs text-zinc-300`}>All {catDef}</span>
-                        ) : (
-                          <EntityDropdown
-                            value={r.keys.join(', ')}
-                            onChange={val => patchRow(r.id, { keys: val.split(',').map(x => x.trim()).filter(Boolean), all: false })}
-                            items={items}
-                            positioning="fixed"
-                            portalTarget={portalTarget ?? document.body}
-                            mode={locked ? 'single' : 'multi'}
-                            variant="chip"
-                            placeholder={locked ? 'This element' : isCast ? 'Type cast members, comma-separated — e.g. 1, 2' : 'Type elements, comma-separated'}
-                            className="text-xs flex-1 min-w-0"
-                            displayMode={isCast ? 'id' : 'name'}
-                            readOnly={locked}
-                            anchoredKeys={anchoredByCategory.get(r.category)}
-                            renderItem={isCast ? (item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
-                          />
-                        )}
+                        <CategoryDropdown
+                          value={r.category}
+                          onChange={(cat) => patchRow(r.id, { category: cat, keys: [], all: false })}
+                          allCategoryKeys={allCategoryKeys}
+                          categoryLabelLookup={categoryLabelLookup}
+                          customCategories={project.customCategories}
+                          open={openDropdown === `cat-${r.id}`}
+                          onOpenChange={(o) => setOpenDropdown(o ? `cat-${r.id}` : null)}
+                          btnClass="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors flex items-center gap-1.5"
+                          itemClass={CREM_DD_ITEM}
+                        />
+                        <EntityDropdown
+                          value={r.keys.join(', ')}
+                          onChange={val => patchRow(r.id, { keys: val.split(',').map(x => x.trim()).filter(Boolean), all: false })}
+                          items={items}
+                          positioning="fixed"
+                          portalTarget={portalTarget ?? document.body}
+                          mode="multi"
+                          variant="chip"
+                          placeholder={isCast ? 'Type cast members, comma-separated — e.g. 1, 2' : 'Type elements, comma-separated'}
+                          className="text-xs flex-1 min-w-0"
+                          displayMode={isCast ? 'id' : 'name'}
+                          anchoredKeys={anchoredByCategory.get(r.category)}
+                          renderItem={isCast ? (item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
+                        />
                         <Button
                           theme="dark"
                           variant="subtle"
@@ -330,20 +322,16 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
                         >
                           <MessageSquare className="w-3 h-3" />
                         </Button>
-                        {!locked && (
-                          <>
-                            <Checkbox
-                              checked={r.all}
-                              onChange={() => patchRow(r.id, { all: !r.all, keys: !r.all ? [NON_SHOOT_ALL] : [] })}
-                              label="All"
-                              theme="dark"
-                              className="shrink-0"
-                            />
-                            <Button theme="dark" variant="subtle" onPointerDown={(e) => { e.preventDefault(); setRows(prev => prev.filter(x => x.id !== r.id)); }} className="p-1 shrink-0" title={`Remove this ${catDef} row`}>
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </>
-                        )}
+                        <Checkbox
+                          checked={r.all}
+                          onChange={() => patchRow(r.id, { all: !r.all, keys: !r.all ? [NON_SHOOT_ALL] : [] })}
+                          label="All"
+                          theme="dark"
+                          className="shrink-0"
+                        />
+                        <Button theme="dark" variant="subtle" onPointerDown={(e) => { e.preventDefault(); setRows(prev => prev.filter(x => x.id !== r.id)); }} className="p-1 shrink-0" title={`Remove this ${catDef} row`}>
+                          <X className="w-3 h-3" />
+                        </Button>
                       </div>
                       {(r.noteOpen || hasNotes) && noteKeys.length > 0 && (
                         <div className="space-y-1.5 pl-10">
@@ -368,34 +356,17 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
                   );
                 })}
               </div>
-              {!locked && (
-                <button
-                  type="button"
-                  onClick={() => setRows(prev => [...prev, { id: newRowId(), category: allCategoryKeys[0]?.key || 'cast', keys: [], all: false, notes: {}, noteOpen: true }])}
-                  className="mt-2 flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add {categoryLabelLookup[allCategoryKeys[0]?.key] || 'category'} row
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between">
-              {locked && rows[0]?.keys.length > 0 && (
-                <span className={`${CREM_LABEL} text-zinc-500 flex items-center gap-1.5`}>
-                  <Sun className="w-3 h-3" />
-                  Will create {rows[0].keys.length} card{rows[0].keys.length === 1 ? '' : 's'} on {dateKey ? formatDateLabel(dateKey) : 'the picked date'}
-                </span>
-              )}
               <button
                 type="button"
-                onClick={() => setRuleMode(true)}
-                className="ml-auto flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+                onClick={() => setRows(prev => [...prev, { id: newRowId(), category: allCategoryKeys[0]?.key || 'cast', keys: [], all: false, notes: {}, noteOpen: true }])}
+                className="mt-2 flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
               >
-                <Clock4 className="w-3 h-3" /> Create a rule instead
+                <Plus className="w-3.5 h-3.5" /> Add {categoryLabelLookup[allCategoryKeys[0]?.key] || 'category'} row
               </button>
             </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </Modal>
   );
