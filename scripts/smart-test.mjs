@@ -39,8 +39,9 @@ const REPORT = [
   'report-xmlns', 'report-canvas-sampling', 'report-ribbon-samples',
   'report-breakdown-day-gap-look', 'report-table-resize',
 ];
-const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize'];
+const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'ribbon-text-size'];
 const SCHED = ['keyboard-mode', 'digit-schedule'];
+const SHEET = ['scene-sheet-order'];
 const CAL = ['calendar-travel-hold', 'day-types', 'production-dates'];
 const GLIDE = ['glide-breakdown', 'glide-clipboard'];
 const ELEM = ['element-manager-merge', 'element-manager-day-columns', 'element-events'];
@@ -124,7 +125,7 @@ const RULES = [
   // glide breakdown
   { g: 'src/components/BreakdownTabGlide.tsx', s: [...GLIDE, ...LINKED] },
   { g: 'src/lib/glide*', s: GLIDE },
-  { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED] },
+  { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED, ...SHEET] },
   { g: 'src/lib/paletteOps.ts', s: [...GLIDE, ...ELEM] },
   { g: 'src/lib/elements.ts', s: [...ELEM, ...REPORT] },
   // element / cast / crew / locations managers (buffered editor managers)

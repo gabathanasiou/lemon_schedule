@@ -1,8 +1,63 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ArrowRightLeft, ChevronDown, AlignLeft, AlignCenter, AlignRight, PanelTop, Equal, PanelBottom, WrapText, X, Eye, Ellipsis } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
 import { RibbonRow, RibbonCell } from '../../types';
 import { getAlign } from '../../lib/ribbonUtils';
+
+/**
+ * Live number input for toolbar numeric fields. Commits clamped values on
+ * every change (live preview), but keeps a free-typed draft while focused so
+ * the user can type digits one at a time or clear the box before typing
+ * (a clamped controlled input snaps on the first keystroke). Enter/blur
+ * clamps + finalizes; Escape reverts to the committed value.
+ */
+function LiveNumberInput({ value, min, max, fallback, onCommit, readOnly, ariaLabel, className }: {
+  value: number | undefined;
+  min: number;
+  max: number;
+  fallback: number;
+  onCommit: (v: number) => void;
+  readOnly: boolean;
+  ariaLabel: string;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const focusedRef = useRef(false);
+  useEffect(() => { if (!focusedRef.current) setDraft(null); }, [value]);
+  const display = draft !== null ? draft : String(value ?? fallback);
+  const clamp = (n: number) => Math.max(min, Math.min(max, n));
+  return (
+    <input
+      type="number"
+      aria-label={ariaLabel}
+      value={display}
+      onFocus={() => { focusedRef.current = true; }}
+      onChange={e => {
+        const raw = e.target.value;
+        setDraft(raw);
+        const n = parseInt(raw, 10);
+        if (raw !== '' && !Number.isNaN(n)) onCommit(clamp(n));
+      }}
+      onBlur={() => {
+        focusedRef.current = false;
+        if (draft === null) return;
+        const n = parseInt(draft, 10);
+        if (Number.isNaN(n)) {
+          setDraft(null);
+        } else {
+          onCommit(clamp(n));
+          setDraft(null);
+        }
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        if (e.key === 'Escape') { setDraft(null); (e.target as HTMLInputElement).blur(); }
+      }}
+      readOnly={readOnly}
+      className={className}
+    />
+  );
+}
 
 export interface SelCellRef {
   row: RibbonRow;
@@ -242,23 +297,21 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
         <div className="w-px h-5 bg-zinc-700 mx-0.5" />
         <span className="text-[10px] text-zinc-500 shrink-0">Size</span>
         <Tooltip content="Cell text size offset (px) vs the design master — −8…+8">
-          <input
-            type="number"
+          <LiveNumberInput
+            value={selCell?.cell.textSizeOffset ?? 0}
             min={-8}
             max={8}
-            value={selCell?.cell.textSizeOffset ?? 0}
-            onChange={e => {
-              if (readOnly || !selCell) return;
-              const v = Math.max(-8, Math.min(8, parseInt(e.target.value) || 0));
-              setTextSizeOffset?.(selCell.cell.id, v);
-            }}
+            fallback={0}
+            onCommit={v => selCell && setTextSizeOffset?.(selCell.cell.id, v)}
             readOnly={readOnly || !selCell}
+            ariaLabel="Cell text size offset"
             className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
           />
         </Tooltip>
         {selCell && (selCell.cell.textSizeOffset !== undefined && selCell.cell.textSizeOffset !== 0) && (
           <Tooltip content="Reset to design master size">
             <button
+              aria-label="Reset to design master size"
               onClick={() => setTextSizeOffset?.(selCell.cell.id, undefined)}
               disabled={readOnly}
               className="h-6 w-6 rounded border border-zinc-700 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 disabled:opacity-25 flex items-center justify-center transition-colors"
@@ -273,67 +326,55 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
         <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Layout</span>
         <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
         <Tooltip content="Vertical Cell Padding (px)">
-          <input
-            type="number"
+          <LiveNumberInput
+            value={cellPaddingV}
             min={0}
             max={24}
-            value={cellPaddingV ?? 6}
-            onChange={e => {
-              if (readOnly) return;
-              const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-              dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: designId, cellPaddingV: v } });
-            }}
+            fallback={6}
+            onCommit={v => dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: designId, cellPaddingV: v } })}
             readOnly={readOnly}
+            ariaLabel="Vertical cell padding"
             className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
           />
         </Tooltip>
         <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
         <Tooltip content="Horizontal Cell Padding (px)">
-          <input
-            type="number"
+          <LiveNumberInput
+            value={cellPaddingH}
             min={0}
             max={24}
-            value={cellPaddingH ?? 6}
-            onChange={e => {
-              if (readOnly) return;
-              const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-              dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: designId, cellPaddingH: v } });
-            }}
+            fallback={6}
+            onCommit={v => dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: designId, cellPaddingH: v } })}
             readOnly={readOnly}
+            ariaLabel="Horizontal cell padding"
             className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
           />
         </Tooltip>
         <div className="w-px h-5 bg-zinc-700 mx-0.5" />
         <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
         <Tooltip content="Edge Padding (px)">
-          <input
-            type="number"
+          <LiveNumberInput
+            value={edgePadding}
             min={0}
             max={12}
-            value={edgePadding ?? 2}
-            onChange={e => {
-              if (readOnly) return;
-              const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
-              dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: designId, edgePadding: v } });
-            }}
+            fallback={2}
+            onCommit={v => dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: designId, edgePadding: v } })}
             readOnly={readOnly}
+            ariaLabel="Edge padding"
             className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
           />
         </Tooltip>
         <div className="w-px h-5 bg-zinc-700 mx-0.5" />
         <span className="text-[10px] text-zinc-500 shrink-0">Master Size</span>
         <Tooltip content="Master text size (px) for the whole ribbon — cells scale with it">
-          <input
-            type="number"
+          <LiveNumberInput
+            value={textSize}
             min={6}
             max={24}
-            value={textSize ?? 14}
-            onChange={e => {
-              if (readOnly) return;
-              const v = Math.max(6, Math.min(24, parseInt(e.target.value) || 14));
-              dispatch({ type: 'SET_RIBBON_TEXT_SIZE', payload: { id: designId, textSize: v } });
-            }}
+            fallback={8}
+            onCommit={v => dispatch({ type: 'SET_RIBBON_TEXT_SIZE', payload: { id: designId, textSize: v } })}
             readOnly={readOnly}
+            ariaLabel="Master text size"
             className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
           />
         </Tooltip>

@@ -2,18 +2,21 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom';
 import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store';
 import { Scene } from '../types';
-import { ChevronLeft, ChevronRight, Plus, Copy, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Check, ChevronDown, ListOrdered } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import Button from './Button';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
 import SceneSheetFields from './SceneSheetFields';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
-import { parsePageCount, formatPageCount, generateUUID, formatDateLong } from '../lib/utils';
+import { parsePageCount, formatPageCount, generateUUID, formatDateLong, naturalSortSceneStrings } from '../lib/utils';
 import { sceneStyle, getIntExtOptions, getDayNightOptions, getFallbackStripColors } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
+import { usePersistState } from '../lib/persist';
 
 const BREAKDOWN_CATS = [
   'set', 'cast', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -28,6 +31,14 @@ const BREAKDOWN_LABEL: Record<string, string> = {
 
 let persistedIndex = 0;
 
+export type BreakdownOrder = 'sheet' | 'sceneNumber' | 'stripboard';
+
+const ORDER_LABELS: Record<BreakdownOrder, string> = {
+  sheet: 'Sheet Order',
+  sceneNumber: 'Scene Number Order',
+  stripboard: 'Stripboard Order',
+};
+
 export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule, onOpenScheduleInPopout }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void; onOpenScheduleInPopout?: (sceneId: string) => void }) {
   const { state, dispatch, readOnly } = useProject();
   const isCloud = useIsCloudProject();
@@ -35,6 +46,11 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const scenes = project.scenes;
   const breakdownElements = project.breakdownElements || {};
   const castMembers = project.castMembers || [];
+
+  const [orderPrefs, setOrderPrefs] = usePersistState<{ order: BreakdownOrder }>('lemon_schedule_breakdown_order', { order: 'sheet' });
+  const order = orderPrefs.order;
+  const setOrder = useCallback((o: BreakdownOrder) => setOrderPrefs({ order: o }), [setOrderPrefs]);
+  const [orderMenuOpen, setOrderMenuOpen] = useState(false);
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
 
@@ -50,16 +66,45 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     return labels;
   }, [project.customCategories, project.categoryLabels]);
 
-  const [index, setIndex] = useState(() => Math.min(initialIndex ?? persistedIndex, Math.max(scenes.length - 1, 0)));
+  // View order — a sorted COPY drives rendering + navigation; the scenes
+  // array itself is never reordered (edits/undo/ADD_SCENE map by id).
+  const orderedScenes = useMemo(() => {
+    if (order === 'sheet') return scenes;
+    if (order === 'sceneNumber') {
+      return [...scenes].sort((a, b) => naturalSortSceneStrings(a.sceneNumber, b.sceneNumber));
+    }
+    const version = project.versions.find(v => v.id === project.activeVersionId) || project.versions[0];
+    const boardIds: string[] = [];
+    if (version) {
+      for (const r of version.rows) {
+        if (r.type === 'SCENE' && r.sceneId && r.containerId !== null) boardIds.push(r.sceneId);
+      }
+    }
+    const onBoard = new Set(boardIds);
+    const rest = scenes.filter(s => !onBoard.has(s.id));
+    const byId = new Map(scenes.map(s => [s.id, s]));
+    return [...boardIds.map(id => byId.get(id)).filter(Boolean), ...rest] as Scene[];
+  }, [order, scenes, project.versions, project.activeVersionId]);
+
+  const [index, setIndex] = useState(() => {
+    const sheetIdx = Math.min(initialIndex ?? persistedIndex, Math.max(scenes.length - 1, 0));
+    return Math.max(0, orderedScenes.findIndex(s => s.id === scenes[sheetIdx]?.id));
+  });
   useEffect(() => { persistedIndex = index; }, [index]);
   const [sheetInput, setSheetInput] = useState(String(index + 1));
 
+  // Echo guard: navigation here reports via onIndexChange → App feeds it back
+  // as initialIndex. In non-sheet orders the sheet-index → view-position
+  // remap must NOT re-fire on our own echo (it would yoyo the position), so
+  // only apply initialIndex when it differs from the last one we emitted.
+  const lastReportedIndexRef = useRef<number | null>(null);
   useEffect(() => {
-    if (initialIndex !== undefined) {
-      const idx = Math.min(initialIndex, Math.max(scenes.length - 1, 0));
-      setIndex(idx);
-      setSheetInput(String(idx + 1));
-    }
+    if (initialIndex === undefined) return;
+    if (lastReportedIndexRef.current === initialIndex) return;
+    const sheetIdx = Math.min(initialIndex, Math.max(scenes.length - 1, 0));
+    const idx = Math.max(0, orderedScenes.findIndex(s => s.id === scenes[sheetIdx]?.id));
+    setIndex(idx);
+    setSheetInput(String(idx + 1));
   }, [initialIndex, scenes.length]);
 
   const [edits, setEdits] = useState<Record<string, Partial<Scene>>>({});
@@ -67,10 +112,31 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   editsRef.current = edits;
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const scene = scenes[index];
+  const scene = orderedScenes[index];
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
 
   const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
+
+  // Keep the current scene visible when the view order changes.
+  const pendingSceneIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingSceneIdRef.current;
+    if (!id) return;
+    pendingSceneIdRef.current = null;
+    const pos = orderedScenes.findIndex(s => s.id === id);
+    if (pos >= 0) {
+      setIndex(pos);
+      setSheetInput(String(pos + 1));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order, orderedScenes]);
+
+  const switchOrder = useCallback((o: BreakdownOrder) => {
+    if (o === order) { setOrderMenuOpen(false); return; }
+    pendingSceneIdRef.current = scene?.id ?? null;
+    setOrder(o);
+    setOrderMenuOpen(false);
+  }, [order, scene, setOrder]);
 
   // Per-category anchor item keys — Anchor icons in the sheet's entity
   // dropdowns next to elements that anchor element links.
@@ -138,10 +204,11 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
 
   const goTo = useCallback((n: number) => {
     commitTextEdits();
-    const idx = Math.max(0, Math.min(scenes.length - 1, n));
+    const idx = Math.max(0, Math.min(orderedScenes.length - 1, n));
     setIndex(idx); setSheetInput(String(idx + 1));
+    lastReportedIndexRef.current = idx;
     onIndexChange?.(idx);
-  }, [scenes.length, onIndexChange, commitTextEdits]);
+  }, [orderedScenes.length, onIndexChange, commitTextEdits]);
 
   const update = useCallback((field: string, value: any) => {
     if (!scene || readOnly) return;
@@ -190,33 +257,35 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         artDept: '',
       }
     });
-    const newIdx = scenes.length;
+    const newIdx = Math.max(0, orderedScenes.findIndex(s => s.id === newId));
     setIndex(newIdx);
     setSheetInput(String(newIdx + 1));
+    lastReportedIndexRef.current = newIdx;
     onIndexChange?.(newIdx);
-  }, [dispatch, scenes.length, onIndexChange, commitTextEdits]);
+  }, [orderedScenes, onIndexChange, commitTextEdits, dispatch]);
 
   const duplicateScene = useCallback(() => {
     if (!scene) return;
     commitTextEdits();
     const dup: Scene = { ...scene, id: generateUUID() };
-    dispatch({ type: 'INSERT_SCENE_AT', payload: { index: index + 1, scene: dup } });
-    const newIdx = index + 1;
+    dispatch({ type: 'INSERT_SCENE_AT', payload: { index: scenes.indexOf(scene) + 1, scene: dup } });
+    const newIdx = Math.max(0, orderedScenes.findIndex(s => s.id === dup.id));
     setIndex(newIdx);
     setSheetInput(String(newIdx + 1));
+    lastReportedIndexRef.current = newIdx;
     onIndexChange?.(newIdx);
-  }, [scene, index, dispatch, onIndexChange, commitTextEdits]);
+  }, [scene, scenes, orderedScenes, dispatch, onIndexChange, commitTextEdits]);
 
   const deleteCurrentScene = useCallback(() => {
     if (!scene) return;
     setEdits({});
     dispatch({ type: 'DELETE_SCENE', payload: scene.id });
-    const newLen = scenes.length - 1;
-    const newIdx = Math.min(index, Math.max(0, newLen - 1));
+    const newIdx = Math.min(index, Math.max(0, orderedScenes.length - 2));
     setIndex(newIdx);
     setSheetInput(String(newIdx + 1));
+    lastReportedIndexRef.current = newIdx;
     onIndexChange?.(newIdx);
-  }, [scene, index, dispatch, scenes.length, onIndexChange]);
+  }, [scene, index, dispatch, orderedScenes.length, onIndexChange]);
 
   const breakdownItems = useMemo(() => {
     const result: Record<string, { id: string; name: string }[]> = {};
@@ -289,7 +358,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-600" /></button>
         <div className="flex items-center gap-1 text-sm">
           <span className="text-zinc-400">Sheet</span>
-          <input type="text" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-12 text-center border border-zinc-200 rounded-md px-1 py-0.5 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
+          <input type="text" aria-label="Sheet number" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-12 text-center border border-zinc-200 rounded-md px-1 py-0.5 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
           <span className="text-zinc-400">of {scenes.length}</span>
         </div>
         <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
@@ -312,9 +381,33 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
 
   const headerContent = scenes.length > 0 ? (
     <>
+      <DropdownMenu
+        open={orderMenuOpen}
+        onOpenChange={setOrderMenuOpen}
+        width="w-52"
+        theme="light"
+        trigger={
+          <Button>
+            <ListOrdered className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">{ORDER_LABELS[order]}</span>
+            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          </Button>
+        }
+      >
+        {(['sheet', 'sceneNumber', 'stripboard'] as const).map(o => (
+          <DropdownItem
+            key={o}
+            onClick={() => switchOrder(o)}
+            icon={order === o ? <Check className="w-3.5 h-3.5" /> : undefined}
+          >
+            {ORDER_LABELS[o]}
+          </DropdownItem>
+        ))}
+      </DropdownMenu>
+      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
       <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-500" /></button>
       <span className="text-[11px] text-zinc-500">Sheet</span>
-      <input type="text" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-10 text-center border border-zinc-200 rounded px-1 py-0.5 text-[11px] font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
+      <input type="text" aria-label="Sheet number" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-10 text-center border border-zinc-200 rounded px-1 py-0.5 text-[11px] font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
       <span className="text-[11px] text-zinc-500">of {scenes.length}</span>
       <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-500" /></button>
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
@@ -376,7 +469,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           palette={project.colorPalette}
           customCategories={project.customCategories}
           anchoredByCategory={anchoredByCategory}
-          sheetNumber={index + 1}
+          sheetNumber={scenes.indexOf(scene) + 1}
         />
 
         {/* Notes */}
