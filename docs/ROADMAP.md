@@ -364,18 +364,22 @@ A second **view mode** for the Calendar tab: instead of strips, each day renders
 
 **Relations**: builds on item 39's day-status/attachments infra (AGENTS.md §Day Types & Non-Shoot Status). Follow-up: item 46 (span-chip resize, Element Manager events, DayTypesTab summaries, Rules-tab retirement).
 
-## 46. Events everywhere — resizable span chips, reusable editors, ui-kit DatePicker, Rules-tab path (`[ ]`)
+## 46. Events everywhere — Element Manager events, reusable editors, ui-kit DatePicker (`[x]` Done)
+
+**Done**: the Element Manager got a per-row **Events** button (calendar icon, before the row's delete) opening the **element events manager** (`elements/ElementEventsModal.tsx`). Per element: one **collapsible card per day type** (icon + colored label + day count, chevron toggle) with its dates — each date shows the category, **only this element's name** (`Cast: 1. FISHERMAN`; `All Cast` for whole-category) and the **comment inline**; per-group Remove drops only that status×category group (`removeItemsFrom` + `upsertNonShootDate`) and Edit opens the shared day modal. **Add Event** is a collapsed button that reveals the dark DatePicker + "Add to {date}" (+ outside-window hint) and opens the shared `DayEventsModal` with the element **pre-seeded** (`preseedItems`). A dedicated **Violations** section lists the element's rules firing per scheduled day (shared `computeSectionViolationMap`); the collapsible **Rules** section lists the element's rules (dark `RuleCard`s) with **Add Rule** → shared `RuleEditorPanel` pre-scoped to the element's cast member (hidden for non-cast — "can't carry rules"). Canonical computation: `src/lib/elementEvents.ts` (`computeElementAttachments`, `ruleRefersToElement` — rules are cast-referenced by ID). **"Attachment" is dead vocabulary** — events / the card's cast & elements everywhere (`preseedItems`, `mergeItemsInto`/`removeItemsFrom`; storage key `lists` untouched). Verified by `e2e/element-events.spec.ts`; RULES entry: `elementEvents.ts` → ELEM.
+
+**Events count everywhere, not just the day status** (user decision — research: MMS/StudioBinder DOODs are whole-day states, no "card on a work day" precedent, so the rule is ours): DOOD cells (`deriveDood`) get the type letter from the day's **status OR cards** with **work wins** (`W`/`SW`/`WF` — it's rare to travel while working); totals/lists count status AND card days (a travel card on a work day counts as a travel event, cell says `W`); multi-type days show the first type in manager order, all counted in their lists. Same rule in Element Manager day-type columns (`computeElementDayStats`), Day Breakdown pane lists (`DayTypesTab`), and the reports `dayType` field (`dayTypeForDate`).
 
 Reuses the Days Events surface (from 45) beyond the calendar, so events are manageable from where the data lives:
 
-- **Span chip edge-resize (Apple-style)**: hovering a rule chip shows edge grab targets; edge-drag adds/removes dates from `rule.dates` one day at a time (extending/shrinking the run, across week boundaries). Edge rules: `DATE_RESTRICTION` floors at 1 date; `TIME_WINDOW`/`MAX_HOURS` shrink-to-zero → becomes every-day (chip disappears, tooltip explains). Drag disambiguation with card drag + day-header swap by hit region (chip edges vs chip body vs card vs cell chrome).
+- **Span-chip edge-resize (DROPPED — superseded)**: item 45's final pass replaced chips with **per-date rule cards** and deleted the run/span machinery (`computeRuleRuns`/`EventsChipLayer`/`moveRuleRun`). Resizing a spanning run is obsolete: a card drag moves one date, right-click removes a date, double-click opens the day-locked editor.
 - **Shared editor shell** (DONE — landed with this change): the rule editor is now ONE component, `RuleEditorPanel` (`src/components/rules/RuleEditorPanel.tsx`), used by the day modal (inline, pre-seeded with the day) AND the Rules tab (in a dark ui-kit Modal). The old `RuleFormModal`/`RuleFormFields` are deleted; the panel adds the after/before/all-day window modes the old modal had, so every rule type is fully editable from both surfaces. One source of truth: `ruleMeta.tsx` `validateRuleForm`/`buildRulesFromForm` + kit `DatePicker` dark + `EntityDropdown variant="chip"`.
-- **Element Manager events**: an "Events" action (LinkManager pattern — `elements/LinkManagerModal.tsx` grouped-card modal, header slot; buffered rows untouched): per element, lists every date it appears on (attachment in any `lists` category, or covered by a rule) + "Add event on a date" (date picker → shared modal for that date, pre-attached).
+- **Element Manager events**: a per-row Events button (before the row delete) opens the element events manager — collapsible day-type cards with only-this-element rows + inline comments, a collapsed Add-Event date picker, a Violations section, and rules with Add Rule. Buffered rows untouched (overlay action like the existing delete).
 - **Day manager (DayTypesTab) events data** (DONE): the Day Breakdown pane now shows per-date event summaries (attachment groups via `getTypeListGroups` + `resolveElementName`, comments glyph, conflict flags via the shared `computeSectionViolationMap`) and every date row opens the shared `DayEventsModal` (same save path — `upsertNonShootDate` — as the Calendar tab; production-day rows open it in add-events context).
 - **`DatePicker` → ui-kit** (DONE — landed with item 45): the picker is now `@gabriel/ui-kit` v0.1.34 (`DatePicker`, themeable light/dark, multi-select); the app consumes it via the `src/components/DatePicker.tsx` barrel; DESIGN-LANGUAGE primitive-row entry (per AGENTS.md §UI Primitives).
 - **Rules-tab retirement** (tracked, NOT this item's scope): the tab now opens the shared `RuleEditorPanel` (no second form) and REMAINS as the global/no-date surface (`CAST_CONFLICT`, `CAST_SCENE_FLAG`, every-day `MAX_HOURS`/`TIME_WINDOW`). Any future removal must preserve a home for those rule shapes.
 
-**Relations**: depends on item 45 (shared modal + chips first).
+**Relations**: depended on item 45 (shared modal first) — the chip/run machinery came from 45 and was deleted there; the element events surface is the remaining 46 scope.
 
 ## 47. BUG: type-a-digit "schedule to day N" fails at the day-count boundary (`[x]` Done)
 
@@ -446,10 +450,11 @@ with `variant="tags"` unused by default UI.
 **Relations**: chip language + modal patterns from items 45/46; kit
 primitive work out of item 49.
 
-## 51. Breakdown sheet view — selectable scene order (sheet / scene number / stripboard) (`[ ]`)
+## 51. Scene sheet view — selectable scene order (sheet / scene number / stripboard) (`[ ]`)
 
-**Requested**: the breakdown sheet view (Glide + SceneSheet) navigates
-scenes by **sheet order** (`project.scenes` array order). Add a view-order
+**Requested**: the scene sheet view (SceneSheet — the Breakdown tab's
+Sheet view) navigates scenes by **sheet order** (`project.scenes` array
+order). Add a view-order
 selector: **Sheet order** (default, today), **Scene number order**, or
 **Current stripboard order**.
 
@@ -468,9 +473,9 @@ selector: **Sheet order** (default, today), **Scene number order**, or
 **Design**:
 - **View-only preference** (`usePersistState`, e.g.
   `lemon_schedule_breakdown_order`) — a sorted COPY drives rendering and
-  navigation; NEVER reorders `project.scenes` (edits, copy/paste,
-  undo/redo and ADD_SCENE/INSERT_SCENE_AT semantics all keep mapping by
-  id — Glide `provideEditor` and bulk ops stay raw-index-on-array).
+  navigation; NEVER reorders `project.scenes` (edits, undo/redo and
+  ADD_SCENE/INSERT_SCENE_AT semantics all keep mapping by id — the view
+  index maps back to a scene id at render time, never an array reorder).
 - **Sheet # column always shows the TRUE sheet number** (original
   index + 1), not the view position — printed breakdown sheets carry real
   sheet numbers; only row order changes.
@@ -480,18 +485,19 @@ selector: **Sheet order** (default, today), **Scene number order**, or
   label + `ChevronDown`, click-to-toggle, one `DropdownItem` per order
   with a trailing `Check` on the active one; entry in DESIGN-LANGUAGE's
   primitive matrix row for the Breakdown tab. Mounted in the Breakdown
-  tab's `PageToolbar` rightContent (header-portal pattern). Affects Glide
-  row order + SceneSheet prev/next; decide whether the direct sheet-jump
+  tab's `PageToolbar` rightContent (header-portal pattern). Affects
+  SceneSheet prev/next; decide whether the direct sheet-jump
   input reads as true sheet # or as view position in non-sheet orders.
-- Keyboard nav, selection ranges and copy/paste operate in the visible
-  order; the debug bridge reads stay id-ordered (order is UI-side only).
+- SceneSheet prev/next arrows and the sheet-jump input operate in the
+  visible order; the debug bridge reads stay id-ordered (order is
+  UI-side only).
 
 **Verify**: lint + playwright on the seeded project — the three orders
-render distinct row sequences with correct sheet # markers (bridge);
-editing a cell in scene-number order commits to the right scene (bridge
-`getSceneValues`); new scene/duplicate lands at the array end in every
-order; SceneSheet prev/next follows the selected order; preference
-persists across reload; stripboard + undo/redo untouched.
+render distinct scene sequences with correct sheet # markers (bridge);
+editing a field in scene-number order commits to the right scene (bridge);
+new scene/duplicate lands at the array end in every order; SceneSheet
+prev/next arrows follow the selected order; preference persists across
+reload; stripboard + undo/redo untouched.
 
 **Relations**: stripboard order derives from the canonical rows model
 (AGENTS.md §Rows & Sections, same source the reports/calendar consume).
