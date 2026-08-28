@@ -90,18 +90,22 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
   await page.getByRole('button', { name: 'Cancel' }).first().click();
   await page.getByRole('button', { name: 'Cancel' }).click();
 
-  // ---- Card double-click opens the shared editor focused on that event type
+  // ---- Card double-click opens the SINGLE-EVENT editor for that element's
+//     card (same as the element events manager's pencil — not the day modal)
   await page.locator('[data-date-key="2026-08-16"] [data-event-key^="ev-att-"]').first().dblclick();
-  await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
-  await expect(page.getByRole('dialog').getByText('Event Types', { exact: true }).first()).toBeVisible();
-  await expect(page.locator('[data-event-section]').first()).toContainText('Travel');
+  const eventModal = page.getByRole('dialog').last();
+  await expect(eventModal.getByRole('heading', { name: /1\. FISHERMAN/ })).toBeVisible();
+  await expect(eventModal.getByText('Event Type', { exact: true })).toBeVisible();
+  // From the calendar the element + category are editable (the element
+  // manager locks them)
+  await expect(eventModal.getByText('Element', { exact: true })).toBeVisible();
+  await expect(eventModal.getByRole('button', { name: /Cast/ })).toBeVisible();
 
   // ---- Per-element note: add "Traveling from Singapore" to the FISHERMAN card
-  await page.getByRole('dialog').locator('button[title^="Notes for"], button[title^="Add notes per element"]').first().click();
-  const noteInput = page.getByRole('dialog').getByPlaceholder('Note for 1. FISHERMAN', { exact: false });
+  const noteInput = eventModal.getByPlaceholder('e.g. "Traveling from Singapore"');
   await expect(noteInput).toBeVisible();
   await noteInput.fill('Traveling from Singapore');
-  await page.getByRole('button', { name: 'Save' }).click();
+  await eventModal.getByRole('button', { name: 'Save' }).click();
   await expect.poll(() => page.evaluate(() => {
     const s = (window as any).__lemonSchedule;
     const st = s.getState().present;

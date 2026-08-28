@@ -31,6 +31,7 @@ import ColorField from './ColorField';
 import { DayCell, FillerCell } from './calendar/DayCell';
 import { DayEventsModal } from './calendar/DayEventsModal';
 import { EventAdderModal } from './calendar/EventAdderModal';
+import { EventModal } from './calendar/EventModal';
 import { ProductionDatesModal } from './calendar/ProductionDatesModal';
 import { EventDayCell, EventCardView } from './calendar/EventDayCell';
 import { useEventsDrag } from './calendar/useEventsDrag';
@@ -134,6 +135,7 @@ export const CalendarTab: React.FC<{
   const [prodDatesOpen, setProdDatesOpen] = useState(false);
   const [travelHoldModal, setTravelHoldModal] = useState<{ dateKey: string; status?: string; rule?: ProjectRule } | null>(null);
   const [adderDate, setAdderDate] = useState<string | null>(null);
+  const [eventModal, setEventModal] = useState<{ dateKey: string; statusKey: string; category: string; elementKey: string } | null>(null);
   const [selectedEventKeys, setSelectedEventKeys] = useState<Set<string>>(new Set());
   const selectedEventKeysRef = useRef(selectedEventKeys);
   selectedEventKeysRef.current = selectedEventKeys;
@@ -1158,11 +1160,20 @@ export const CalendarTab: React.FC<{
                                     sectionLabel={chronoDay != null ? `DAY ${chronoDay}` : undefined}
                                     selectedIds={selectedEventKeys}
                                     onCardClick={handleEventCardClick}
-                                    onCardDoubleClick={(card) => setTravelHoldModal({
-                                      dateKey: card.dateKey,
-                                      ...(card.kind === 'attachment' ? { status: card.status } : {}),
-                                      ...(card.kind === 'rule' ? { rule: card.rule } : {}),
-                                    })}
+                                    onCardDoubleClick={(card) => {
+                                      // Per-element card → the single-event editor
+                                      // (same as the element events manager's pencil);
+                                      // whole-category/status/rule cards keep their day surfaces.
+                                      if (card.kind === 'attachment' && !card.all) {
+                                        setEventModal({ dateKey: card.dateKey, statusKey: card.status, category: card.category, elementKey: card.key });
+                                        return;
+                                      }
+                                      setTravelHoldModal({
+                                        dateKey: card.dateKey,
+                                        ...(card.kind === 'attachment' ? { status: card.status } : {}),
+                                        ...(card.kind === 'rule' ? { rule: card.rule } : {}),
+                                      });
+                                    }}
                                     onCardContextMenu={(card, e) => {
                                       if (card.kind === 'rule') {
                                         setRuleCardMenu({ ruleId: card.rule.id, dateKey: card.dateKey, x: e.clientX, y: e.clientY, everyday: card.everyday });
@@ -1418,6 +1429,16 @@ export const CalendarTab: React.FC<{
         <EventAdderModal
           date={adderDate}
           onClose={() => setAdderDate(null)}
+        />
+      )}
+      {eventModal && (
+        <EventModal
+          dateKey={eventModal.dateKey}
+          statusKey={eventModal.statusKey}
+          category={eventModal.category}
+          elementKey={eventModal.elementKey}
+          editableElement
+          onClose={() => setEventModal(null)}
         />
       )}
       {travelHoldModal && (
