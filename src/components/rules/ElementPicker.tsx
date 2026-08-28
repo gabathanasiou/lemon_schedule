@@ -30,7 +30,6 @@ export const ElementPickerRow: React.FC<{
   setOpenDropdown: React.Dispatch<React.SetStateAction<string | null>>;
   idPrefix: string;
   btnClass: string;
-  itemClass: string;
   onRemove?: () => void;
   removeIcon?: React.ReactNode;
   removeBtnClass?: string;
@@ -45,7 +44,7 @@ export const ElementPickerRow: React.FC<{
   disabledCategoryKeys?: ReadonlySet<string>;
   /** Item keys that are element-link anchors — Anchor icon in the picker panel. */
   anchoredKeys?: Set<string>;
-}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, itemClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys, anchoredKeys }) => {
+}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys, anchoredKeys }) => {
   const portalTarget = usePortalTarget();
   const isCast = category === 'cast';
   return (
@@ -60,7 +59,6 @@ export const ElementPickerRow: React.FC<{
         open={openDropdown === `cat-${idPrefix}`}
         onOpenChange={(o) => setOpenDropdown(o ? `cat-${idPrefix}` : null)}
         btnClass={btnClass}
-        itemClass={itemClass}
       />
 
       <span className="text-xs text-zinc-500 font-medium shrink-0">=</span>

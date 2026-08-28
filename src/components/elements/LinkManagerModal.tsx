@@ -26,7 +26,6 @@ interface AnchorGroup {
 
 const BTN = 'px-2 py-1.5 text-xs';
 const ANCHOR_BTN = 'px-2 py-1.5 text-xs font-semibold';
-const ITEM = 'px-3 py-2 text-xs';
 const ICON_BTN = 'p-1.5 rounded-md transition-colors shrink-0';
 const REMOVE_BTN = `${ICON_BTN} text-zinc-600 hover:text-red-400 hover:bg-zinc-800`;
 /** Labeled action button — reads as an action even without hovering (NN/g:
@@ -287,7 +286,6 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                       setOpenDropdown={setOpenDropdown}
                       idPrefix={`a${gi}`}
                       btnClass={ANCHOR_BTN}
-                      itemClass={ITEM}
                       anchoredKeys={anchoredByCategory.get(g.category)}
                       trailing={
                         <button
@@ -331,7 +329,6 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                         setOpenDropdown={setOpenDropdown}
                         idPrefix={`l${gi}-${li}`}
                         btnClass={BTN}
-                        itemClass={ITEM}
                         anchoredKeys={anchoredByCategory.get(l.linkedCategory)}
                         onRemove={() => removeLink(g.id, l.id)}
                         removeIcon={<X className="w-3.5 h-3.5" />}

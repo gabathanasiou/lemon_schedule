@@ -15,7 +15,6 @@ export interface ColorRuleSizes {
   CREM_TEXT: string;
   CREM_BODY: string;
   CREM_BTN_COND: string;
-  CREM_DD_ITEM: string;
   CREM_CELL_BODY: string;
 }
 
@@ -25,7 +24,6 @@ export const ruleModalSizes = (): ColorRuleSizes => ({
   CREM_TEXT: IS_COARSE ? 'text-sm' : 'text-xs',
   CREM_BODY: IS_COARSE ? 'p-7 space-y-6' : 'p-6 space-y-5',
   CREM_BTN_COND: IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2.5 py-1.5 text-xs',
-  CREM_DD_ITEM: IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs',
   CREM_CELL_BODY: IS_COARSE ? 'p-7 space-y-6' : 'p-6 space-y-5',
 });
 
@@ -49,7 +47,7 @@ export function RuleConditionRow({
   openDropdown, setOpenDropdown, setConditionCategory, setConditionElement, removeCondition,
   sizes,
 }: RuleConditionRowProps) {
-  const { XSZ, CREM_BTN_COND, CREM_DD_ITEM } = sizes;
+  const { XSZ, CREM_BTN_COND } = sizes;
   return (
     <ElementPickerRow
       category={cond.category}
@@ -64,7 +62,6 @@ export function RuleConditionRow({
       setOpenDropdown={setOpenDropdown}
       idPrefix={String(idx)}
       btnClass={CREM_BTN_COND}
-      itemClass={CREM_DD_ITEM}
       onRemove={() => removeCondition(idx)}
       removeIcon={<X className={XSZ} />}
     />

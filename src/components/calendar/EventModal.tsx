@@ -47,7 +47,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
   const project = state.present;
   const portalTarget = usePortalTarget();
   const sizes = ruleModalSizes();
-  const { XSZ, CREM_BODY, CREM_LABEL, CREM_TEXT, CREM_DD_ITEM } = sizes;
+  const { XSZ, CREM_BODY, CREM_LABEL, CREM_TEXT } = sizes;
 
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
@@ -188,7 +188,6 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
                 open={openDropdown === 'ev-cat'}
                 onOpenChange={(o) => setOpenDropdown(o ? 'ev-cat' : null)}
                 btnClass="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors flex items-center gap-1.5"
-                itemClass={CREM_DD_ITEM}
               />
               <EntityDropdown
                 value={key}

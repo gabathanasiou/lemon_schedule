@@ -86,7 +86,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
   const portalTarget = usePortalTarget();
 
   const sizes = ruleModalSizes();
-  const { XSZ, CREM_LABEL, CREM_TEXT, CREM_BODY, CREM_BTN_COND, CREM_DD_ITEM } = sizes;
+  const { XSZ, CREM_LABEL, CREM_TEXT, CREM_BODY, CREM_BTN_COND } = sizes;
 
   const categoryLabelLookup = useMemo(() => {
     const map: Record<string, string> = {};
@@ -459,7 +459,6 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                                     open={openDropdown === `cat-${sec.status}-${i}`}
                                     onOpenChange={(o) => setOpenDropdown(o ? `cat-${sec.status}-${i}` : null)}
                                     btnClass="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors flex items-center gap-1.5"
-                                    itemClass={CREM_DD_ITEM}
                                   />
                                   <EntityDropdown
                                     value={r.all ? '' : r.keys.join(', ')}
