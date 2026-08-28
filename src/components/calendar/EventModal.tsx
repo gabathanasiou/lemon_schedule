@@ -173,69 +173,8 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
       }
     >
       <div className={CREM_BODY}>
-        {/* Date — pick or change it */}
-        <div>
-          <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-            <Sun className={`${XSZ} text-zinc-500`} />
-            Date
-          </span>
-          {date ? (
-            <button
-              type="button"
-              onClick={() => setDate('')}
-              title="Change date"
-              className="px-2.5 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 transition-colors flex items-center gap-2"
-            >
-              {formatDateLabel(date)}
-              <X className="w-3 h-3 text-zinc-500" />
-            </button>
-          ) : (
-            <DatePicker
-              selected={[]}
-              onChange={(ds) => setDate(ds[0] || '')}
-              theme="dark"
-            />
-          )}
-          {dateOutOfWindow && (
-            <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>
-          )}
-        </div>
-
-        {/* Event type */}
-        <div>
-          <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-            <Sun className={`${XSZ} text-zinc-500`} />
-            Event Type
-          </span>
-          <DropdownMenu
-            open={typeMenuOpen}
-            onOpenChange={setTypeMenuOpen}
-            width="w-52"
-            theme="dark"
-            trigger={
-              <Button theme="dark" variant="subtle" className="bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 flex items-center gap-2">
-                <TypeIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
-                <span className="truncate text-zinc-200">{activeType?.label || type}</span>
-                <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-              </Button>
-            }
-          >
-            {attachableTypes.map(t => {
-              const Icon = typeIconComponent(project.dayTypes, t.key);
-              return (
-                <DropdownItem key={t.key} onClick={() => { setType(t.key); setTypeMenuOpen(false); }}
-                  icon={<Icon className="w-3.5 h-3.5" style={t.color ? { color: t.color } : undefined} />}
-                >
-                  <span className="text-zinc-200">{t.label}</span>
-                </DropdownItem>
-              );
-            })}
-          </DropdownMenu>
-          <p className={`${CREM_LABEL} text-zinc-600 mt-1.5`}>Changing the type moves this element's card to the new type.</p>
-        </div>
-
-        {/* Element + category — editable from the calendar, locked from the
-            element manager (the title already names the element) */}
+        {/* Element — at the top (editable from the calendar; the element
+            manager locks it — the title already names the element) */}
         {editableElement && (
           <div>
             <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
@@ -271,6 +210,68 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
             </div>
           </div>
         )}
+
+        {/* Date + Event Type — side by side */}
+        <div className="grid grid-cols-2 gap-3 items-start">
+          <div>
+            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+              <Sun className={`${XSZ} text-zinc-500`} />
+              Date
+            </span>
+            {date ? (
+              <button
+                type="button"
+                onClick={() => setDate('')}
+                title="Change date"
+                className="px-2.5 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 transition-colors flex items-center gap-2"
+              >
+                {formatDateLabel(date)}
+                <X className="w-3 h-3 text-zinc-500" />
+              </button>
+            ) : (
+              <DatePicker
+                selected={[]}
+                onChange={(ds) => setDate(ds[0] || '')}
+                theme="dark"
+              />
+            )}
+            {dateOutOfWindow && (
+              <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>
+            )}
+          </div>
+
+          <div>
+            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+              <Sun className={`${XSZ} text-zinc-500`} />
+              Event Type
+            </span>
+            <DropdownMenu
+              open={typeMenuOpen}
+              onOpenChange={setTypeMenuOpen}
+              width="w-52"
+              theme="dark"
+              trigger={
+                <Button theme="dark" variant="subtle" className="bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 flex items-center gap-2">
+                  <TypeIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
+                  <span className="truncate text-zinc-200">{activeType?.label || type}</span>
+                  <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                </Button>
+              }
+            >
+              {attachableTypes.map(t => {
+                const Icon = typeIconComponent(project.dayTypes, t.key);
+                return (
+                  <DropdownItem key={t.key} onClick={() => { setType(t.key); setTypeMenuOpen(false); }}
+                    icon={<Icon className="w-3.5 h-3.5" style={t.color ? { color: t.color } : undefined} />}
+                  >
+                    <span className="text-zinc-200">{t.label}</span>
+                  </DropdownItem>
+                );
+              })}
+            </DropdownMenu>
+            <p className={`${CREM_LABEL} text-zinc-600 mt-1.5`}>Changing the type moves this element's card to the new type.</p>
+          </div>
+        </div>
 
         {/* Note — open by default */}
         <div>
