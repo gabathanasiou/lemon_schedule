@@ -632,3 +632,126 @@ light + dark chip), `SelectDropdown` (stripboard INT/EXT/day-night cells), `Auto
 paints at 0,0). Unmount-driven closes play on a pinned clone (`data-morph-clone`). Verified by
 `e2e/overlay-morph.spec.ts` (open/close morph mid-flight, origin anchoring, close-flash regression,
 reduced-motion, opt-out, keyboard nav + typeahead).
+
+**Known gaps (follow-up items)**: the print dialogs' dropdowns (`PrintDialog`/`ElementBreakdownDialog`/`DoodDialog`) and the bespoke `rules/CategoryDropdown.tsx` still use raw Radix — see items 60 and 61.
+
+## 59. Modal backdrop — darken once, never stacked (`[ ]`)
+
+**Requested**: darken the background when a modal is open — but only ONE dim layer.
+Stacked modals must NOT stack background darkenings.
+
+**Facts**:
+- Today overlays are deliberately transparent: `.ui-overlay { background: transparent !important }` (`index.css:35-37`, the kit confirm/alert too) and DESIGN-LANGUAGE §Modal anatomy documents "transparent — no background dimming" (the stack fade + morph carry the hierarchy).
+- `src/components/Modal.tsx` is a shim over the kit `Modal` (adds `overlayMorphOptIn()`); dialogs portal as siblings into the window body, so the stack is expressed in pure CSS: `[data-modal-stack][data-state="open"]:has(~ [data-modal-stack][data-state="open"])` fades every non-top modal to invisible (`index.css:52-58`).
+
+**Design** (same sibling-CSS machinery — no new layering):
+- Give the modal overlay a dim (`bg-black/20`-class, the kit default recipe) and zero it for non-top modals: extend the `:has(~ [data-modal-stack][data-state=open])` selector to clear the dim on every modal that has an open modal after it — exactly ONE dim layer renders regardless of stack depth, belonging to the top modal.
+- Popout windows: dialogs portal per-window, so the per-window sibling `:has()` keeps each window's dim independent (matches the existing fade).
+- The kit confirm/alert (no `data-modal-stack`) keeps its overlay but must not double-dim on top of the app modal's dim — its overlay stays transparent (the top modal's dim already covers it).
+- Update DESIGN-LANGUAGE §Modal anatomy + feedback taxonomy (dim = chrome, one layer) and the `index.css` comment block; remove the now-stale "transparent" wording.
+- **Verify**: lint + e2e (extend `overlay-morph.spec.ts` or a new spec) — open Day Events → Rule Editor (and a 3-deep stack): count dimmed overlay elements == 1, parent transparent; confirm/alert over a modal adds no second dim; popout window dims independently; reduced-motion + `lemon_schedule_modal_morph` opt-out unaffected.
+
+**Relations**: rides the stack CSS + morph language from item 58; touches `Modal.tsx` shim territory.
+
+## 60. Print dialogs' dropdowns → ui-kit base (`[ ]`)
+
+**Requested**: the print menus' dropdowns should use the ui-kit dropdowns — so they inherit the animation system (overlay morph) and the mobile sizing.
+
+**Facts**: item 58 swept dropdowns for the morph, but the print dialogs were missed — three files use RAW `@radix-ui/react-dropdown-menu` directly (hand-rolled item classes, `modal={true}`, no morph, no coarse-pointer sizing):
+- `PrintDialog.tsx:151-177`+ — ribbon-design picker (+ a second raw menu at `:181`),
+- `print/ElementBreakdownDialog.tsx:91-125` — element-category picker,
+- `print/DoodDialog.tsx:226-263` — DOOD category picker.
+The kit re-export is `src/components/DropdownMenu.tsx` (`DropdownMenu`/`DropdownItem`/`DropdownDivider`, dark theme — the Calendar View-menu recipe).
+
+**Design**: swap the raw Radix blocks for the kit `DropdownMenu` (items via `DropdownItem` with the single-highlight rule), inheriting the trigger-anchored open/close morph (item 58), Esc/typeahead, and `IS_COARSE` sizing. Keep the dialogs' existing triggers/behavior; print categories keep their per-item icons/checks (kit `DropdownItem` icon prop).
+
+**Verify**: lint + e2e — open each print dialog, exercise its dropdown(s) (pick a ribbon/category), assert the morph (`overlay-morph` probes) + correct selection; print-stub flows untouched. DESIGN-LANGUAGE primitive matrix: update the print-dialogs row.
+
+**Relations**: closes item 58's coverage gap; rides the kit `DropdownMenu` language.
+
+## 61. Category dropdowns → ui-kit base (`[x]` Done)
+
+**Done** (commit `4f3e6837`, kit v0.1.52): `rules/CategoryDropdown.tsx` rebuilt on the kit `DropdownMenu` base — same props/API (`value`, `onChange`, `allCategoryKeys`, `categoryLabelLookup`, `disabledKeys`, `minWidth`, controlled `open`/`onOpenChange`, `CAT_ICONS`/`getCustomIcon`) so all four call sites (DayEventsModal rows, EventModal, EventAdderModal, ElementPicker) inherited the morph + sizing with zero call-site churn; icons left + Check via the kit `DropdownItem` `trailing` slot (v0.1.50); 256px cap + modal z-index via `contentClassName` (v0.1.49's `contentClassName` addition); the redundant `itemClass` prop removed across all call sites. Kit bumps along the way: submenu trigger unlights during the close morph (v0.1.49), `DropdownItem` trailing slot (v0.1.50), wheel-scroll fix for portaled overlays inside modals — the modal scroll-lock (`react-remove-scroll` in Radix Dialog) was canceling wheels on body-portaled menus; `useOverlayMorph` now intercepts in-overlay wheels at document capture (v0.1.52).
+
+**Follow-up (item 64)**: item 64 replaces the kit menu's highlight + positioning model entirely (single-highlight + panel positioning) — CategoryDropdown inherits it automatically; its open-scroll-to-active switches from `focus()` to `initialHighlightIndex` + scrollIntoView.
+
+**Requested**: the "category" dropdowns (category pickers) should use the ui-kit dropdown as a base — inherit the animation system and the mobile sizing.
+
+**Facts**: `rules/CategoryDropdown.tsx` is a bespoke Radix dropdown (`modal={true}`, hand-rolled trigger/panel/item classes, no overlay morph) used by four surfaces:
+- `DayEventsModal` attachment rows (`calendar/DayEventsModal.tsx:453`),
+- `EventModal` + `EventAdderModal` (single-event editor + adder),
+- `rules/ElementPicker.tsx` — Color Rules condition rows + Link Manager anchor/linked rows.
+The kit `DropdownMenu` (re-export `src/components/DropdownMenu.tsx`) is click-to-toggle, `modal:false`, arrows/typeahead/Esc, with the trigger-anchored morph (item 58) and coarse-pointer sizing.
+
+**Design**: rebuild `CategoryDropdown` ON the kit `DropdownMenu` base — keep the existing props/API (`value`, `onChange`, `allCategoryKeys`, `categoryLabelLookup`, `disabledKeys`, `minWidth`, controlled `open`/`onOpenChange`, custom-category icons via `CAT_ICONS`/`getCustomIcon`) so all four call sites inherit morph + sizing with no call-site churn. Preserve the disabled-row rendering (visible, `cursor-not-allowed`) and the active-check affordance per the single-highlight rule.
+
+**Verify**: lint + e2e — morph present on the category panels (overlay-morph probes), disabled keys stay visibly disabled, color-rules/link-manager/day-modal/event-modals specs still green (add a RULES entry if a spec maps to `CategoryDropdown.tsx`). DESIGN-LANGUAGE primitive matrix: the picker row.
+
+**Relations**: closes item 58's coverage gap for the last bespoke dropdown; item 62 reworks `DayEventsModal` (a main call site) — land the dropdown base first.
+
+## 62. Day events manager — per-element event cards via a shared card component (`[ ]`)
+
+**Requested**: in the day event manager, separate the different elements and event types — use a shared component for event cards like the Element Manager's event manager, so the user can edit every element on his own.
+
+**Facts**:
+- `DayEventsModal` (`calendar/DayEventsModal.tsx`) today: per-status sections → category rows = a multi-mode `EntityDropdown` with comma-joined elements + an "All" checkbox + a per-category comment popover revealing inline per-element note inputs (`comments[status][category][key]` — the data model ALREADY carries per-element notes; item 46 moved `ElementEventsModal` to per-element cards, DayEventsModal kept the group model).
+- `ElementEventsModal` (`elements/ElementEventsModal.tsx`) has the "event card" language: per day-type collapsible cards (icon + colored label + day count) with date rows — date + inline per-element note + Edit (opens the single-event editor `calendar/EventModal.tsx`) + X (removes that element's card). `EventAdderModal` (parentless multi-element mode) already exists for adding.
+- The calendar day-cell cards (item 45) double-click into `EventModal` focused on one event type — per-element targeting is the natural extension.
+
+**Design**:
+- **Extract the shared card**: one component rendering one element × one event type (icon + colored label, per-day-type shell; date row with inline note + Edit → `EventModal` + X-remove) consumed by BOTH `ElementEventsModal` and the reworked `DayEventsModal`. No logic split — both modals render through the same card (AGENTS.md rule 1).
+- **DayEventsModal rework**: inside each event-type section, replace the comma-joined multi rows + All with per-element cards (the day is one date, so the card = that element's date row). Add → the shared `EventAdderModal` (parentless mode) or a per-section add; removing a card removes only that element's entry; notes stay per element; `resolveElementName` display ("1. FISHERMAN" for cast).
+- Calendar day-cell card double-click (item 45) keeps working — now targeting the exact element's card.
+- **Verify**: lint + e2e — day modal lists per-element cards (bridge: `comments[status][category][key]` per element), editing one element leaves the others untouched, add/remove per element, both modals render through the same shared component, calendar card dblclick opens the right element's editor, element-manager events spec (`calendar-events`/day-types related) stays green.
+
+**Relations**: builds on items 45/46 (DayEventsModal shell + per-element notes + EventModal/EventAdderModal); rides item 61's `CategoryDropdown` kit base inside the same modal.
+
+## 63. BUG: Glide entity-dropdown cell swallows the first keystroke after a refresh (`[ ]`)
+
+**Requested**: in the Glide breakdown, select a cell that opens an entity dropdown (cast/elements) and start typing — **the first time after a page refresh the first keystroke is missed**. Reported on cloud projects; unknown whether cloud-only.
+
+**Facts**:
+- The Glide cell editor (`createGlideCellEditor`, `src/lib/glideEditor.tsx:79-82`) mounts `EntityDropdown` (and `AutocompleteDropdown` for plain fields) with `defaultOpen` + `autoFocus` — the keystroke-vs-mount race lives here.
+- "First time after a refresh" is the clue: on a fresh load the canvas/keys/panels mount async; in cloud projects the project hydrates via a Drive read + migration before/around the first edit, so the editor may mount while the app is still settling (remount? focus stolen by the grid's own click/tap focus handling, `BreakdownTabGlide.tsx:722-800`?). First keystroke then lands while nothing has keyboard focus (or the grid still owns it) and is dropped; subsequent opens work because the editor is already warm.
+- **Scope question for the worker**: reproduce on a LOCAL project too (the "refresh" could be the variable, not the cloud) — if it reproduces locally, it's a general mount/focus race, and "cloud" is just where it was noticed (slower hydration makes it flaky-more-visible).
+
+**Design**:
+- Reproduce first: seed project → open Glide → fresh reload → click an entity cell → type immediately. If flaky, instrument `activeElement` at keystroke time.
+- Likely fix territory: (a) focus is applied before the dropdown's input is mounted/visible — defer the actual `.focus()` until the open panel's input exists (rAF/`setTimeout(0)` after open, or focus on first `pointerdown`+commit-order in `EntityDropdown`'s own open effect); (b) the grid's click-focus (canvas `.focus()` on click/tap) stealing focus back after the editor mounts; (c) a remount caused by late hydration in cloud projects (provider `readOnly`/sync flip, storage load completing after first paint).
+- Whatever the root cause, the fix is one place: the editor mount/focus path in `glideEditor.tsx` (do not touch the canvas key handling).
+- **Verify**: lint + playwright — seed → reload → click entity cell → type "MARY…" immediately (no waits): first keystroke lands in the dropdown (assert the input value/filter); repeat N times + on the dev server AND the preview build; local + cloud-seeded project. Regression: `glide-*` specs green (typing, tab cycle, typeahead).
+
+**Relations**: rides the Glide editor machinery (`glideEditor.tsx`); the calendar/travel-hold surfaces that share `EntityDropdown` are unaffected (this is the editor mount path only).
+
+## 64. Kit dropdown menu → EntityDropdown-panel behavior (`[ ]`)
+
+**Requested**: the kit `DropdownMenu` (and every surface on it — AppHeader File menu + submenus, Schedule View menu + submenus, day-status/event-type pickers, the CategoryDropdown from item 61) should behave like the EntityDropdown dark panel ("almost 1-1", per the user's words): one highlight shared by cursor + arrows, panel positioning (below trigger, width-matched, viewport-clamped), wheel-scrollable everywhere, typeahead kept, future search support.
+
+**Facts**:
+- The EntityDropdown dark panel (`src/components/DropdownPanel.tsx`) is the canonical behavior: ONE `highlightedIndex` written by pointer hover (`onItemHover`) AND the arrows (latest wins); `onHoverLeave` clears a pointer-driven highlight; NO CSS hover fills; checked rows distinct (dark = Check glyph); positioned via the kit's own `useFixedPosition` (fixed below the trigger, width = trigger width, max-height clamped to the viewport, `ready` visibility gate, portaled). The positioning hooks ALREADY live in the kit (`useSmartPosition.ts`); the app re-exports them (`src/lib/useSmartPosition.ts`).
+- Current kit menu problems: (a) two independent highlight sources — CSS `:hover` fill + Radix roving-focus `data-highlighted` — so cursor and arrows can light two rows at once; (b) Radix popper sizing (`max-h-[min(75vh,30rem)]`, up to 480px) can overflow the viewport inside modals (the y=-102 off-screen case); (c) wheel scrolling inside modals currently relies on the v0.1.52 capture interceptor in `useOverlayMorph` (keep it) — the panel also carries its own manual wheel handler (belt and suspenders).
+- REGRESSIONS TO REVERT (both in the kit, both from the 0.1.53/54 experiment — the user's "this broke all the dropdown menus"): v0.1.53's `pointerenter → item.focus()` + the `.ui-menu:has(...)` hover-suppression rule (focus stealing + suppressed fills killed cursor hover); v0.1.54's trigger-reopen (`persistedRef`/`triggerOnClick` + the onClick injection) — its close-morph race can strand a menu with inline `pointer-events: none`.
+- Kit menu consumers: AppHeader File menu (+submenus), ScheduleToolbar View menu (+submenus), CalendarTab display-field submenu, reports `CollectionMenu`/`FieldPicker` (submenus), `ItemManagerDropdown` (Element Manager etc.), DayEventsModal Day Status + Add-event-type pickers, `CategoryDropdown` (item 61). Submenus MUST keep working (side placement) — the panel model has no submenu concept, so submenus stay on the Radix popper.
+
+**Design** (all kit-side — `~/Documents/Software Apps/ui-kit`, one bump to v0.1.55; then app: package.json bump + the CategoryDropdown tweak + spec/doc updates in the same commit):
+1. **Reverts**: delete the `DropdownItem` pointerenter-focus handler; delete the `.ui-menu:has(.ui-item[data-highlighted]) .ui-item:hover` rule; delete the trigger-reopen (the onClick injection + `persistedRef`/`triggerOnClick`) — restore the plain close-morph guard.
+2. **Single-highlight** (the panel's exact model):
+   - `DropdownMenu` (root content) AND `DropdownSubmenu` (its content) each own `highlightedIndex` + a pointer-driven flag, exposed via a NESTED context (per-surface indices — submenu items must not share the root index).
+   - Items register into the nearest context on mount (registration order = index; activate callback; label for typeahead). Index clamps/resets when the list changes — this registration map is what makes future search trivial (a later `search` prop filters children; same machinery — the user asked for search support "in the future").
+   - `DropdownItem`: `onPointerEnter` → set its index (pointer-driven); content `onPointerLeave` → clear when pointer-driven. Fill = index class only (dark `bg-zinc-700 text-white`-equivalent via tokens).
+   - Keyboard (content `onKeyDown`): ArrowDown/Up → move the index (preventDefault; latest wins); Enter/Space → activate the highlighted item; **typeahead KEPT** (letter buffer → first matching item, per surface); Escape → Radix close unchanged.
+   - CSS: remove the `.ui-item:hover` background fill and the `.ui-item[data-highlighted]` fill; KEEP `.ui-item[data-state="open"]` (submenu trigger) + `.ui-sub-closing`; `ui-item-danger` keeps its red text (no fill).
+   - `ItemManagerDropdown` rows keep their own row/active/hover classes (specialized list — untouched).
+3. **Panel positioning** (root menu content only): swap the Radix popper for the kit's `useFixedPosition` — fixed, below the trigger, `width = max(trigger width, width prop as min-width)`, max-height clamped to the viewport, `ready` visibility gate, portaled; `align="left|right"` mirrored (left → panel left at trigger left; right → panel right at trigger right); give `useFixedPosition` an optional width param for the clamp math (it currently hardcodes 200). **Submenus keep the Radix popper side-placement**; ContextMenu (press-point anchored) unchanged; the morph anchor (trigger rect) unchanged.
+4. **Wheel**: keep the v0.1.52 `useOverlayMorph` interceptor; add the panel's manual wheel handler (`if scrollable { preventDefault; scrollTop += deltaY }`) to the menu content.
+5. **API addition**: `initialHighlightIndex?: number` on `DropdownMenu` — applied on open (the panel's single-mode "highlight the current on open" behavior).
+
+**App-side**:
+- `CategoryDropdown`: replace the focus-based open-scroll-to-active with `initialHighlightIndex` (the active category's index) + scrollIntoView on open.
+- `package.json`: kit → v0.1.55; then `rm -rf node_modules/.vite-*` + restart the dev server (the stale-pre-bundle pitfall — a running server keeps the old kit until restart).
+- `e2e/overlay-morph.spec.ts` "keyboard nav and typeahead still work in animated menus": asserts Radix `data-highlighted` — update to the new highlight contract (arrow moves the index class; the typeahead letter-jump assertion stays).
+- Docs in the same commit: `DESIGN-LANGUAGE.md` (dropdown anatomy + primitive matrix — menus now share the panel's highlight/positioning model; the single-highlight rule covers kit menus), AGENTS.md UI-primitives bullet, `docs/UI-KIT.md` note.
+
+**Verify**: lint + full smart suite; focused e2e (extend `overlay-morph.spec.ts`): hover follows the cursor (exactly ONE lit row), arrows latest-wins, hover-leave clears a pointer-driven highlight, typeahead letter-jump, wheel scroll inside the day-event modal, menu opens below the trigger width-matched and fully on-screen, category picker opens on the active row, submenus still open sideways, item-manager rename input unaffected (no focus stealing). Smart-test RULES: `src/components/DropdownMenu.tsx` → ALL, `src/components/calendar/**` → CAL already cover the app-side churn.
+
+**Relations**: supersedes/reverts the v0.1.53+54 highlight approach; closes item 61's residual behavior gap (CategoryDropdown inherits the panel-behavior kit menu); rides item 58's morph + the kit's own `useFixedPosition`; item 60's print-dialog conversions land on the reworked menu.
