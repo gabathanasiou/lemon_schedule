@@ -1,13 +1,14 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject, ProjectMeta, loadProjectFromStorage } from '../store';
 import { Project } from '../types';
 import { exportProjectFromStorage, exportProjectData } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
 import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData, formatDriveError, getDriveErrorStatus } from '../lib/googleDriveStorage';
-import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, AlertTriangle, Loader2, RefreshCw, Skull, FileUp } from 'lucide-react';
+import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, AlertTriangle, Loader2, RefreshCw, Skull, FileUp, Check } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
 import ProjectCard from './ProjectCard';
 import NewProjectModal from './NewProjectModal';
 import { parseMsdFile, parseSexFile } from '../lib/import';
@@ -564,36 +565,27 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
           <>
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{sortedList.length} {activeTab === 'cloud' ? 'cloud' : 'local'} project{sortedList.length !== 1 ? 's' : ''}</span>
-              <div className="relative">
-                <RadixDropdownMenu.Root open={showSortMenu} onOpenChange={(o) => setShowSortMenu(o)} modal={true}>
-                  <RadixDropdownMenu.Trigger asChild>
-                    <button className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800 px-2.5 py-1 rounded-md transition-colors">
-                      <ArrowUpDown className="w-3 h-3" />
-                      {sortOptions.find(o => o.key === sortKey)?.label}
-                    </button>
-                  </RadixDropdownMenu.Trigger>
-                  <RadixDropdownMenu.Portal>
-                    <RadixDropdownMenu.Content
-                      className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 min-w-[140px]"
-                      align="end"
-                      sideOffset={4}
-                      collisionPadding={8}
-                    >
-                      {sortOptions.map(opt => (
-                        <RadixDropdownMenu.Item
-                          key={opt.key}
-                          onSelect={() => setSortKey(opt.key)}
-                          className={`text-left px-3 py-1.5 text-xs transition-colors outline-none cursor-pointer ${
-                            sortKey === opt.key ? 'text-white bg-zinc-800' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 focus-visible:bg-zinc-900 focus-visible:text-zinc-200'
-                          }`}
-                        >
-                          {opt.label}
-                        </RadixDropdownMenu.Item>
-                      ))}
-                    </RadixDropdownMenu.Content>
-                  </RadixDropdownMenu.Portal>
-                </RadixDropdownMenu.Root>
-              </div>
+              <DropdownMenu
+                open={showSortMenu}
+                onOpenChange={setShowSortMenu}
+                align="right"
+                trigger={
+                  <button className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800 px-2.5 py-1 rounded-md transition-colors">
+                    <ArrowUpDown className="w-3 h-3" />
+                    {sortOptions.find(o => o.key === sortKey)?.label}
+                  </button>
+                }
+              >
+                {sortOptions.map(opt => (
+                  <DropdownItem
+                    key={opt.key}
+                    onClick={() => setSortKey(opt.key)}
+                    icon={sortKey === opt.key ? <Check className="w-3.5 h-3.5" /> : undefined}
+                  >
+                    {opt.label}
+                  </DropdownItem>
+                ))}
+              </DropdownMenu>
             </div>
             <div className="max-h-[50vh] overflow-y-auto scrollbar-custom mt-2">
             <div className="space-y-2">

@@ -178,13 +178,24 @@ Structure (all in `src/components/Modal.tsx`):
 - **Header** (`:177`): `flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 bg-zinc-950`, `cursor-grab`, **draggable** by pointer-capture; icon (`text-zinc-400`) + title `text-xs font-bold text-white truncate` (`:184`) + optional Reset (`:190`) + close X `text-zinc-500 hover:text-white` (`:195`).
 - **Body** (`:201`): `overflow-y-auto flex-1 bg-zinc-900 text-zinc-100`; content carries `p-6 space-y-5`.
 - **Footer** (`ModalFooter`, `:227-233`): `flex items-center justify-end gap-3 px-5 py-2 border-t border-zinc-800 bg-zinc-950`.
+- **Footer buttons — one hero, rest ghost**: every modal footer has exactly ONE hero button — the
+  primary action, solid `bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700
+  hover:bg-zinc-700 transition-colors` (e.g. "+ New Project" in the Project Manager). EVERY other
+  button — Cancel, secondary actions, Import — is the ghost/subtle style:
+  `px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200
+  transition-colors disabled:opacity-50` (e.g. "Import" in the Project Manager). No second hero;
+  async heroes swap to a `Loader2` spin + `disabled`.
 - **No manual resize** — the modal auto-fits its content (content-driven height changes animate,
   see Morph below); drag-to-move by the header is the only manual geometry control. Default
   width comes from the `width` prop (`max-w-* w-full`, else `max-w-xl`) clamped by
   `min(100%, 100vw - 64px)` + `max-height: 100vh - 64px`.
 
 Behavior: Esc and outside-click = cancel (touch: overlay `onTouchEnd` closes unless a Radix menu is
-open, `:165-169`); Enter = confirm; Radix focus trap. Portaled overlays above the modal
+open, `:165-169`); Enter = confirm — when nothing interactive is focused
+(input/textarea/button/dropdown open), Enter clicks the footer's LAST button
+(the app's footer convention: Cancel first, primary action last, danger first
+with `mr-auto`); an explicit `data-modal-confirm` marker on a footer button
+wins over the heuristic, and a disabled last button is a no-op. Radix focus trap. Portaled overlays above the modal
 (DurationKeypad) must set their own `pointer-events:auto` (`Modal.tsx:66-67`).
 
 Stacking (modal spawns modal, e.g. Day Events → Rule Editor): the parent fades to **invisible**
