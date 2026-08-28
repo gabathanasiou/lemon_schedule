@@ -15,10 +15,10 @@ test.describe('Crew Manager', () => {
     await expect(directorRow).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add Role' })).toBeVisible();
 
-    // Select a role -> header shows its label + member count
+    // Select a role -> sidebar shows its member count
     await directorRow.click();
     await expect(page.getByRole('button', { name: 'Add Member' })).toBeVisible();
-    await expect(page.getByText('0 members', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Director 0', exact: true })).toBeVisible();
 
     // Add a member: appends a blank row, edits buffer until Save
     await page.getByRole('button', { name: 'Add Member' }).click();
@@ -32,7 +32,7 @@ test.describe('Crew Manager', () => {
     await page.locator('button', { hasText: 'Producer' }).first().click();
     await page.locator('button', { hasText: 'Director' }).first().click();
         await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
-    await expect(page.getByText('1 member', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Director 1', exact: true })).toBeVisible();
 
     // Cmd+Z undoes the last buffered edit locally
     await page.getByPlaceholder('Phone').fill('555-9999');
@@ -49,7 +49,7 @@ test.describe('Crew Manager', () => {
     await page.getByRole('button', { name: 'Merge & Save' }).click();
         await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
     await expect(page.locator('input[value="jane doe"]')).toHaveCount(0);
-    await expect(page.getByText('1 member', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Director 1', exact: true })).toBeVisible();
 
     // Sort menu works
     await page.getByRole('button', { name: 'Sort ▾' }).click();
@@ -58,7 +58,7 @@ test.describe('Crew Manager', () => {
     // Delete member -> save -> crew trash has it; restore brings it back
     await page.locator('button[title="Delete member"]').click();
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-        await expect(page.getByText('0 members', { exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Director 0', exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'File' }).click();
     await page.getByRole('menuitem', { name: 'Trash...' }).click();
