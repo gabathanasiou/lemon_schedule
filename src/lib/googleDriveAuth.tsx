@@ -3,6 +3,11 @@ import { GoogleOAuthProvider, useGoogleLogin, googleLogout } from '@react-oauth/
 
 const SESSION_KEY = 'lemon_google_signed_in';
 const TOKEN_KEY = 'lemon_google_token';
+// localStorage FLAG only — "this user has signed in before", used to trigger a
+// silent GIS token restore on fresh tabs. The token itself NEVER touches
+// localStorage (security rule: sessionStorage + useRef only); GIS holds the
+// real session (cookies/its own storage) and can mint a new token silently.
+const SIGNED_IN_FLAG = 'lemon_google_was_signed_in';
 
 export interface GoogleUser {
   name: string;
@@ -73,6 +78,7 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
         if (response.access_token) {
           accessTokenRef.current = response.access_token;
           sessionStorage.setItem(TOKEN_KEY, response.access_token);
+          setIsSignedIn(true);
           setNeedsReauth(false);
           setTokenVersion(v => v + 1);
           fetchUserInfo(response.access_token);
@@ -107,6 +113,7 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
       setTokenVersion(v => v + 1);
       sessionStorage.setItem(SESSION_KEY, '1');
       sessionStorage.setItem(TOKEN_KEY, tokenResponse.access_token);
+      localStorage.setItem(SIGNED_IN_FLAG, '1');
       await fetchUserInfo(tokenResponse.access_token);
       scheduleTokenRefresh(tokenResponse.access_token, tokenResponse.expires_in);
     },
@@ -127,6 +134,7 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
     setNeedsReauth(false);
     sessionStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(SIGNED_IN_FLAG);
     googleLogout();
   }, []);
 
@@ -137,6 +145,12 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
       setIsSignedIn(true);
       fetchUserInfo(savedToken);
       scheduleTokenRefresh(savedToken);
+    } else if (localStorage.getItem(SIGNED_IN_FLAG)) {
+      // Fresh tab, user has signed in before: silently restore the GIS session
+      // (GIS persists its own session; the access token stays in sessionStorage,
+      // never localStorage). Two attempts to cover the GIS script load race.
+      setTimeout(() => doSilentRefresh(), 800);
+      setTimeout(() => doSilentRefresh(), 2500);
     }
     setIsReady(true);
     return () => {

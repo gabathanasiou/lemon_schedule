@@ -1,5 +1,6 @@
 import { Project, ScheduleRow, ScheduleVersion, Scene, TrashItem, VersionTrashItem } from '../../types';
 import { generateUUID, parsePageCount } from '../../lib/utils';
+import { pruneVersionTrash } from '../storage';
 import type { Action, State } from '../reducer';
 import { ensurePinnedDaybreak } from '../rows';
 
@@ -248,7 +249,7 @@ export function caseDeleteVersion(state: State, action: Action, applyChange: App
     ...state.present,
     versions: newVersions,
     activeVersionId: newActiveId,
-    versionTrash: [...(state.present.versionTrash || []), trashItem]
+    versionTrash: pruneVersionTrash([...(state.present.versionTrash || []), trashItem])
   });
 }
 

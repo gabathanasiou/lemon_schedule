@@ -1,5 +1,6 @@
 import type { ProjectMeta } from '../store';
 import type { Project } from '../types';
+import { pruneVersionTrash } from '../store/storage';
 
 export function getDriveErrorStatus(err: unknown): number | null {
   const msg = err instanceof Error ? err.message : String(err ?? '');
@@ -34,35 +35,76 @@ export interface DriveProjectMeta {
   driveFileId: string;
 }
 
-// Builds the multipart body BYTE-IDENTICAL to what `FormData` produces (verified
-// against the browser's own serialization in e2e debugging), so Google parses it
-// exactly as before — but as a plain Uint8Array we can gzip. Gzipping shrinks
-// the upload ~5-10×, which drastically cuts mid-flight connection drops
-// (Safari's "The network connection was lost" on flaky paths).
-function buildMultipartBody(metadata: Record<string, unknown>, fileJson: string): { boundary: string; bytes: Uint8Array } {
-  const encoder = new TextEncoder();
-  const boundary = `lemonSchedule_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
-  const parts: Uint8Array[] = [
-    encoder.encode(`--${boundary}\r\nContent-Disposition: form-data; name="metadata"; filename="blob"\r\nContent-Type: application/json\r\n\r\n`),
-    encoder.encode(JSON.stringify(metadata)),
-    encoder.encode(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="blob"\r\nContent-Type: application/json\r\n\r\n`),
-    encoder.encode(fileJson),
-    encoder.encode(`\r\n--${boundary}--\r\n`),
-  ];
-  const total = parts.reduce((n, p) => n + p.byteLength, 0);
-  const bytes = new Uint8Array(total);
-  let off = 0;
-  for (const p of parts) {
-    bytes.set(p, off);
-    off += p.byteLength;
-  }
-  return { boundary, bytes };
+// Upload strategy — TEXT-ONLY, SMALL request bodies. Never gzip/binary, never
+// FormData, never large raw JSON.
+//
+// Ad-blocker content scripts (AdGuard Extra et al.) wrap window.fetch to
+// inspect request bodies for filter matching. They read the body as TEXT and
+// rebuild the request from what they read. Verified in a live Safari with
+// AdGuard active:
+//   - binary bodies (gzip) get corrupted by the text re-encode → Google resets
+//     the connection → "TypeError: Load failed" on every save
+//   - FormData bodies lose their browser-generated multipart boundary header →
+//     Drive 403s the create
+//   - plain-text bodies over ~300KB get aborted mid-flight (6s then "Load
+//     failed"); bodies ≤100KB pass reliably
+//   - upload.googleapis.com and uploadType=resumable URLs are rule-blocked
+//     outright; www.googleapis.com/upload passes
+//
+// So every request body is a STRING of ASCII text: updates use uploadType=media
+// with the encoded payload; creates use a manually-framed string multipart with
+// an explicit boundary header (no FormData). Large payloads are stored as
+// base64(gzip(json)) — ~30x smaller and pure text, so it survives both the
+// re-encode AND the size cutoff. Small files stay plain JSON (readable, and
+// small uploads pass cleanly). Detection is unambiguous: JSON starts with
+// '{'/'[', base64 never does.
+
+const PLAIN_JSON_LIMIT = 100 * 1024;
+
+function isPlainJson(raw: string): boolean {
+  const t = raw.trimStart();
+  return t.startsWith('{') || t.startsWith('[');
 }
 
-async function gzip(bytes: Uint8Array): Promise<Uint8Array> {
+async function encodePayload(json: string): Promise<string> {
+  if (json.length <= PLAIN_JSON_LIMIT || typeof CompressionStream === 'undefined') {
+    return json;
+  }
+  const bytes = new TextEncoder().encode(json);
   const cs = new CompressionStream('gzip');
   const stream = new Blob([bytes]).stream().pipeThrough(cs);
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const gz = new Uint8Array(await new Response(stream).arrayBuffer());
+  return await new Promise<string>((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(',')[1] ?? '');
+    fr.onerror = () => reject(fr.error);
+    fr.readAsDataURL(new Blob([gz]));
+  });
+}
+
+async function decodePayload(raw: string): Promise<string> {
+  if (isPlainJson(raw)) return raw;
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('Drive file is compressed but this browser cannot decompress it');
+  }
+  const bin = atob(raw.trim());
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const ds = new DecompressionStream('gzip');
+  const stream = new Blob([bytes]).stream().pipeThrough(ds);
+  return new Response(stream).text();
+}
+
+function buildMultipartBody(metadata: Record<string, unknown>, payload: string): { boundary: string; body: string } {
+  const boundary = `lemonSchedule_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+  const body = [
+    `--${boundary}\r\nContent-Disposition: form-data; name="metadata"; filename="blob"\r\nContent-Type: application/json\r\n\r\n`,
+    JSON.stringify(metadata),
+    `\r\n--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="blob"\r\nContent-Type: application/json\r\n\r\n`,
+    payload,
+    `\r\n--${boundary}--\r\n`,
+  ].join('');
+  return { boundary, body };
 }
 
 async function uploadJson(
@@ -71,42 +113,50 @@ async function uploadJson(
   data: unknown,
   existingFileId?: string,
 ): Promise<string> {
+  const payload = await encodePayload(JSON.stringify(data));
+  if (existingFileId) {
+    const res = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=media`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: payload,
+      },
+    );
+    if (!res.ok) {
+      if (res.status === 404 || res.status === 410) {
+        return uploadJson(accessToken, name, data);
+      }
+      const text = await res.text();
+      throw new Error(`Drive API error: ${res.status} ${text}`);
+    }
+    const file = await res.json();
+    return file.id;
+  }
+
   const metadata: Record<string, unknown> = {
     name,
     mimeType: 'application/json',
+    parents: ['appDataFolder'],
   };
-  if (!existingFileId) {
-    metadata.parents = ['appDataFolder'];
-  }
+  const { boundary, body } = buildMultipartBody(metadata, payload);
 
-  const { boundary, bytes } = buildMultipartBody(metadata, JSON.stringify(data));
-
-  const url = existingFileId
-    ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`
-    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-
-  const method = existingFileId ? 'PATCH' : 'POST';
-
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${accessToken}`,
-    'Content-Type': `multipart/form-data; boundary=${boundary}`,
-  };
-  let body: BodyInit = bytes;
-  if (typeof CompressionStream !== 'undefined') {
-    headers['Content-Encoding'] = 'gzip';
-    body = await gzip(bytes);
-  }
-
-  const res = await fetch(url, {
-    method,
-    headers,
-    body,
-  });
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+      },
+      body,
+    },
+  );
 
   if (!res.ok) {
-    if (existingFileId && (res.status === 404 || res.status === 410)) {
-      return uploadJson(accessToken, name, data);
-    }
     const text = await res.text();
     throw new Error(`Drive API error: ${res.status} ${text}`);
   }
@@ -191,7 +241,7 @@ export async function listDriveProjectMetas(
 
   try {
     const raw = await downloadFile(accessToken, indexFile.id);
-    const parsed: DriveProjectMeta[] = JSON.parse(raw);
+    const parsed: DriveProjectMeta[] = JSON.parse(await decodePayload(raw));
     const result: DriveProjectMeta[] = [];
     for (const entry of parsed) {
       if (!entry.driveFileId) {
@@ -219,7 +269,14 @@ export async function readDriveProject(
   driveFileId: string,
 ): Promise<Project> {
   const raw = await downloadFile(accessToken, driveFileId);
-  return JSON.parse(raw);
+  const project: Project = JSON.parse(await decodePayload(raw));
+  // Cloud reads must apply the same trash retention as local loads — without
+  // this, cloud projects keep every deleted version forever and re-upload
+  // them on every save (a project can become 69% trash).
+  if (Array.isArray(project.versionTrash)) {
+    project.versionTrash = pruneVersionTrash(project.versionTrash);
+  }
+  return project;
 }
 
 export async function saveDriveProject(

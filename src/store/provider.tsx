@@ -107,10 +107,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   });
 
   // Bounded auto-retry for transient network-level save failures (Safari
-  // dropping the upload mid-flight, flaky Wi-Fi, Google edge blips). Each
-  // retry is a fresh connection — the failure mode self-heals. Stops after
-  // MAX_SAVE_RETRIES; the next edit or manual Retry restarts the cycle.
-  const MAX_SAVE_RETRIES = 2;
+  // dropping the upload mid-flight, flaky Wi-Fi, Google edge blips,
+  // ad-blocker interference that stalls uploads ~25% of the time). Each
+  // retry is a fresh connection — the failure mode self-heals. Exponential
+  // backoff 2s/4s/8s/16s; every save attempt gets a fresh budget (the reset
+  // lives at the top of the save effect), so a bad episode can never exhaust
+  // retries for later edits.
+  const MAX_SAVE_RETRIES = 4;
   const retryCountRef = useRef(0);
   const scheduleSaveRetry = useCallback(() => {
     if (retryCountRef.current >= MAX_SAVE_RETRIES) return;
@@ -134,7 +137,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           console.error('Drive save retry failed:', err2);
           setDriveErrorMsg(driveErrorDetail(err2));
         });
-    }, attempt * 4000);
+    }, Math.pow(2, attempt) * 2000);
   }, []);
 
   // Proactive connectivity probe - the browser `offline` event is slow/unreliable (Wi-Fi
@@ -314,6 +317,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const project = saveProjectRef.current;
       const meta = projectList.find(p => p.id === currentProjectId);
       const isCloud = !!meta?.driveFileId;
+
+      // Fresh retry budget per save attempt: retryCountRef must not carry over
+      // between episodes, or one bad episode exhausts it permanently and every
+      // later failure saves without retrying (sticky red cloud).
+      retryCountRef.current = 0;
 
       if (isCloud) {
         if (skipSaveRef.current) { skipSaveRef.current = false; return; }

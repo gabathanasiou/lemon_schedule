@@ -53,6 +53,18 @@ export function saveProjectListToStorage(list: ProjectMeta[]) {
   localStorage.setItem(INDEX_KEY, JSON.stringify(localOnly));
 }
 
+// Version trash retention: 30-day TTL + cap at the 10 most recent deletions.
+// Deleted versions carry full row arrays, so an unbounded trash makes every
+// project file grow forever (one user's file was 69% trash). Pruned on every
+// load (local AND cloud) and on every new delete — see pruneVersionTrash.
+export const VERSION_TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const VERSION_TRASH_MAX = 10;
+
+export function pruneVersionTrash(list: VersionTrashItem[]): VersionTrashItem[] {
+  const fresh = (list || []).filter(t => Date.now() - t.deletedAt < VERSION_TRASH_TTL_MS);
+  return fresh.slice(-VERSION_TRASH_MAX);
+}
+
 export function loadProjectFromStorage(id: string): Project | null {
   try {
     const stored = localStorage.getItem(getProjectStorageKey(id));
@@ -70,9 +82,7 @@ export function loadProjectFromStorage(id: string): Project | null {
           ...t,
           versionName: t.versionName || 'Unknown'
         }));
-        parsed.versionTrash = (parsed.versionTrash || []).filter((t: VersionTrashItem) => {
-          return Date.now() - t.deletedAt < thirtyDays;
-        });
+        parsed.versionTrash = pruneVersionTrash(parsed.versionTrash || []);
         parsed.rulesTrash = (parsed.rulesTrash || []).filter((t: RuleTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });
