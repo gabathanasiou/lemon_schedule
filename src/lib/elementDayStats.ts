@@ -108,7 +108,9 @@ export function computeElementDayStats(project: Project, category: string): Map<
       const set = new Set<string>();
       dates.set(k, set);
       for (const entry of activeVersion.nonShootDates || []) {
-        if (entry.status !== key) continue;
+        // The element is marked under this type via the day's STATUS or a
+        // card (a `lists` group — extra events like a travel card on a work
+        // day count in the column too; `'*'` = whole category).
         if (isElementMarked(entry, key, category, refKey)) set.add(entry.date);
       }
       if (set.size > 0) s.statusCounts[key] = set.size;

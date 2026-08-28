@@ -4,7 +4,7 @@ import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { useDialog } from '../Dialog';
 import { Pencil, Trash2, CalendarDays, Flag, MessageSquare } from 'lucide-react';
 import SidebarNav, { SidebarNavRow } from '../SidebarNav';
-import { ProjectRule, RuleViolation } from '../../types';
+import { ProjectRule, RuleViolation, NonShootDate } from '../../types';
 import {
   getDayTypes, getDayType, typeIconComponent, iconForType, DAY_TYPE_BUILTIN_KEYS, DAY_TYPE_BUILTIN_ICONS, slugifyDayType,
 } from '../../lib/dayTypes';
@@ -80,13 +80,18 @@ export const DayTypesTab: React.FC = () => {
 
   const isProductionRow = selectedKey === 'work';
 
+  /** Dates where the type applies: as the day's status OR as a card (a
+   *  `lists` group under that type — extra events count like statused days). */
+  const appearsOn = (n: NonShootDate, key: string) =>
+    n.status === key || Object.values(n.lists?.[key] || {}).some(v => v.length > 0);
+
   const countFor = (key: string) =>
-    key === 'work' ? productionDays.length : nonShootDates.filter(n => n.status === key).length;
+    key === 'work' ? productionDays.length : nonShootDates.filter(n => appearsOn(n, key)).length;
 
   const usedDates = useMemo(() => {
     if (!selectedKey || isProductionRow) return [];
     return nonShootDates
-      .filter(n => n.status === selectedKey)
+      .filter(n => appearsOn(n, selectedKey))
       .map(n => n.date)
       .sort();
   }, [selectedKey, nonShootDates, isProductionRow]);

@@ -146,26 +146,54 @@ export function deriveDood(
     }
 
     const typeDayLists: Record<string, string[]> = {};
+    // The day-type letter for an element: manager-order scan of the day's
+    // status AND its cards (`lists` groups — a card on an unstatused day
+    // counts like a marked status; `'*'` = whole category). Status letters
+    // only apply when the element is actually marked under the day's status;
+    // a card on a WORK day yields the letter for counts but the cell shows
+    // work (work wins — it's rare to travel while working).
+    const typeLetter = (ns: NonShootDate | undefined, st: string | undefined): { key: string; code: string } | null => {
+      if (!typeCodes) return null;
+      // The day's own status first — its letter always wins for marked elements.
+      if (st) {
+        const code = typeCodes.get(st);
+        if (code && isElementMarked(ns, st, category, elementId)) return { key: st, code };
+      }
+      // Cards: first type in manager order where the element is marked.
+      for (const key of typeCodes.keys()) {
+        if (key === st) continue;
+        const code = typeCodes.get(key);
+        if (!code) continue;
+        if (isElementMarked(ns, key, category, elementId)) return { key, code };
+      }
+      return null;
+    };
     const cells: string[] = days.map(d => {
       const ns = nonShootByDate.get(d.isoDate);
       const st = ns?.status;
-      const code = st ? typeCodes?.get(st) : '';
-      if (st && code && isElementMarked(ns, st, category, elementId)) {
-        (typeDayLists[st] = typeDayLists[st] || []).push(d.isoDate);
-        return code;
+      const match = typeLetter(ns, st);
+      if (match) {
+        (typeDayLists[match.key] = typeDayLists[match.key] || []).push(d.isoDate);
+        // Status-marked days are non-shoot (the section cursor skips them)
+        // — the type letter always wins there. Cards on a shoot day lose to
+        // the work cell calendar below.
+        if (st === match.key) return match.code;
       }
-      if (!appearSet.has(d.dayInt)) {
-        return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';
+      if (appearSet.has(d.dayInt)) {
+        if (d.isoDate === firstDate && d.isoDate === lastDate) return 'SWF';
+        if (d.isoDate === firstDate) return 'SW';
+        if (d.isoDate === lastDate) return 'WF';
+        return 'W';
       }
-      if (d.isoDate === firstDate && d.isoDate === lastDate) return 'SWF';
-      if (d.isoDate === firstDate) return 'SW';
-      if (d.isoDate === lastDate) return 'WF';
-      return 'W';
+      if (match) return match.code;
+      return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';
     });
 
     const workDays = appearSet.size;
-    const holdCount = cells.filter(c => c === 'H').length;
-    const travelCount = cells.filter(c => c === 'T').length;
+    // Event-day counts: statuses AND cards (a travel card on a work day counts
+    // as a travel event even when the cell shows work — totals see both).
+    const holdCount = (typeDayLists['hold'] || []).length;
+    const travelCount = (typeDayLists['travel'] || []).length;
     const workDayList: string[] = [];
     const holdDayList: string[] = [];
     const travelDayList: string[] = [];
@@ -175,6 +203,12 @@ export function deriveDood(
       else if (c === 'H') holdDayList.push(d.isoDate);
       else if (c) workDayList.push(d.isoDate);
     });
+    // Card events on work days never appear in the cells — the type lists
+    // carry them (deduped, sorted — totals see the same days as the lists).
+    for (const d of typeDayLists['travel'] || []) if (!travelDayList.includes(d)) travelDayList.push(d);
+    for (const d of typeDayLists['hold'] || []) if (!holdDayList.includes(d)) holdDayList.push(d);
+    travelDayList.sort();
+    holdDayList.sort();
     const elementName = getElementDisplayName(elementId, isCast, castMemberNames, elementNameMap);
 
     doodRows.push({ elementId, elementName, cells });

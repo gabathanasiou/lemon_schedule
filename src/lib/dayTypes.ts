@@ -61,10 +61,17 @@ export function getDayTypeLabel(project: Project, key?: string | null): string {
   return getDayType(project, key)?.label || '';
 }
 
-/** The type of the non-shoot date covering `date` (if any). */
+/** The type covering `date`: the day's status, else the first type (manager
+ *  order) with any `lists` card on it (extra events count like statused days). */
 export function dayTypeForDate(project: Project, nonShootDates: NonShootDate[] | undefined | null, date: string): DayTypeDef | undefined {
   const entry = (nonShootDates || []).find(n => n.date === date);
-  return getDayType(project, entry?.status);
+  if (!entry) return undefined;
+  if (entry.status) return getDayType(project, entry.status);
+  for (const t of resolveDayTypes(project.dayTypes)) {
+    const lists = Object.values(entry.lists?.[t.key] || {});
+    if (lists.some(v => v.length > 0)) return t;
+  }
+  return undefined;
 }
 
 export function dayTypeLabelForDate(project: Project, nonShootDates: NonShootDate[] | undefined | null, date: string): string {
