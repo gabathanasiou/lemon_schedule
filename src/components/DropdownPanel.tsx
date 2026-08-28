@@ -1,8 +1,17 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
+import { useOverlayMorph } from '@gabriel/ui-kit';
+import { overlayMorphOptIn } from '../lib/overlayMotion';
 import { EntityItem } from './EntityDropdown';
 import { DD_PANEL_CLASS_LIB as DD_PANEL_CLASS, DD_ITEM_CLASS_LIB as DD_ITEM_CLASS, DD_ITEM_BASE_LIB as DD_ITEM_BASE } from '../lib/dropdown';
+
+/* The panel morph (trigger-anchored scale+fade, the modal FLIP language) is
+   shared from the ui-kit; this app-side panel carries the app's opt-out flag
+   (localStorage lemon_schedule_modal_morph === '0', documented in
+   docs/DESIGN-LANGUAGE.md §Modal anatomy & rules). The close is ALWAYS
+   unmount-driven (the parent removes this panel to close), so the reverse
+   morph plays on a pinned clone — the modal's clone pattern. */
 
 interface DropdownPanelProps {
   positioning: 'relative' | 'fixed' | string;
@@ -28,13 +37,15 @@ interface DropdownPanelProps {
   /** Dark menu surface for modal chips (variant="chip") — the dark design
    *  language used by the color-rules/link-manager pickers. */
   dark?: boolean;
+  /** The trigger wrapper rect — the morph grows out of it. */
+  anchorRef?: React.RefObject<HTMLElement | null>;
 }
 
 export default function DropdownPanel({
   positioning, pos, panelRef, scrollRef, panelMinWidth,
   dropdownItems, currentIds, highlightedIndex, itemKey,
   searchQuery, hasExactMatch, renderItem, defaultRenderer,
-  onItemClick, onItemHover, onHoverLeave, commitHint, onCommit, portalTarget, dark = false,
+  onItemClick, onItemHover, onHoverLeave, commitHint, onCommit, portalTarget, dark = false, anchorRef,
 }: DropdownPanelProps) {
   const ITEM_BASE = dark ? 'flex items-center gap-2 px-3 py-2 text-xs rounded transition-colors cursor-pointer select-none whitespace-nowrap w-full text-left' : DD_ITEM_BASE;
   const LIGHT_BASE = `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2`;
@@ -57,9 +68,25 @@ export default function DropdownPanel({
     if (checked) return `${LIGHT_BASE} bg-blue-50 text-blue-700 active:bg-blue-200`;
     return `${LIGHT_BASE} text-zinc-600 active:bg-zinc-200 active:text-zinc-900`;
   };
+  const setContentRef = useOverlayMorph({
+    visible: true,
+    morph: overlayMorphOptIn(),
+    ref: panelRef,
+    anchor: () => {
+      const el = anchorRef?.current;
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, width: r.width, height: r.height };
+    },
+    cloneOnUnmount: true,
+  });
+  const setRef = React.useCallback((node: HTMLDivElement | null) => {
+    panelRef.current = node;
+    setContentRef(node);
+  }, [panelRef, setContentRef]);
   const panel = (
     <div
-      ref={panelRef}
+      ref={setRef}
       className={`click-outside-ignore ${dark ? 'bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 flex flex-col pointer-events-auto min-w-[200px]' : DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
       style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, visibility: pos.ready ? 'visible' : 'hidden', ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
     >

@@ -726,6 +726,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           commitHint={commitHint}
           onCommit={() => commit()}
           portalTarget={portalTarget}
+          anchorRef={ref}
           dark={variant === 'chip'}
         />
       )}

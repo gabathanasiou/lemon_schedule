@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useOverlayMorph } from '@gabriel/ui-kit';
 import { useDropdown, useOpenHandler, useEscapeCapture, DD_ITEM } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
+import { overlayMorphOptIn } from '../lib/overlayMotion';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
 
@@ -62,10 +64,33 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   });
   const ref = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number });
+  /* Fixed panels stay INVISIBLE until the positioning rAF flips `ready` —
+     the panel must never paint a frame at (0,0) before it is positioned. */
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288, ready: false } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleOpen = useOpenHandler(setOpen);
+
+  /* The shared overlay morph (the modal FLIP language — EntityDropdown
+     panels use the same recipe): grow out of the trigger, close morph plays
+     on a pinned clone since the parent unmounts the panel to close. */
+  const anchor = useCallback(() => {
+    const el = ref.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { left: r.left, top: r.top, width: r.width, height: r.height };
+  }, []);
+  const setContentRef = useOverlayMorph({
+    visible: true,
+    morph: overlayMorphOptIn(),
+    ref: scrollRef,
+    anchor,
+    cloneOnUnmount: true,
+  });
+  const setPanelRef = React.useCallback((node: HTMLDivElement | null) => {
+    scrollRef.current = node;
+    setContentRef(node);
+  }, [setContentRef]);
 
   // Escape dismisses ONLY this dropdown — never the enclosing modal.
   useEscapeCapture(open, () => { setOpen(false); setVal(value); });
@@ -79,7 +104,11 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
     setVal(value);
   }, scrollRef);
 
-  useFixedPosition(ref, positioning === 'fixed' && open, setPos);
+  useFixedPosition(ref, positioning === 'fixed' && open, (p) => setPos({ ...p, ready: true }));
+
+  useEffect(() => {
+    if (open) setPos(p => ({ ...p, ready: false }));
+  }, [open]);
 
   useEffect(() => {
     return () => { if (highlightTimer.current) clearTimeout(highlightTimer.current); };
@@ -150,13 +179,13 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
       {open && filtered.length > 0 && (() => {
         const panel = (
          <div
-          ref={scrollRef}
+          ref={setPanelRef}
           className={
             positioning === 'fixed'
               ? 'click-outside-ignore z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[160px]'
               : `click-outside-ignore absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1 min-w-[160px]`
           }
-          style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxH, ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
+          style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxH, visibility: pos.ready ? 'visible' : 'hidden', ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
         >
           {filtered.map((opt, i) => (
             <div

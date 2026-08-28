@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useOverlayMorph } from '@gabriel/ui-kit';
 import { useDropdown, useOpenHandler, useEscapeCapture, DD_ITEM } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
+import { overlayMorphOptIn } from '../lib/overlayMotion';
 import { advanceRibbonFocus } from '../lib/ribbonEditNav';
 import { IS_COARSE } from '../lib/device';
 
@@ -44,6 +46,27 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
 
   // Escape dismisses ONLY this dropdown — never the enclosing modal.
   useEscapeCapture(open, () => setOpen(false));
+
+  /* The shared overlay morph (the modal FLIP language — EntityDropdown
+     panels use the same recipe): grow out of the trigger, close morph plays
+     on a pinned clone since the parent unmounts the panel to close. */
+  const anchor = useCallback(() => {
+    const el = ref.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { left: r.left, top: r.top, width: r.width, height: r.height };
+  }, []);
+  const setContentRef = useOverlayMorph({
+    visible: true,
+    morph: overlayMorphOptIn(),
+    ref: scrollRef,
+    anchor,
+    cloneOnUnmount: true,
+  });
+  const setPanelRef = React.useCallback((node: HTMLDivElement | null) => {
+    scrollRef.current = node;
+    setContentRef(node);
+  }, [setContentRef]);
 
   useEffect(() => {
     if (autoFocus && !readOnly && ref.current) {
@@ -114,7 +137,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
       )}
       {open && (
         <div
-          ref={scrollRef}
+          ref={setPanelRef}
           className={
             positioning === 'fixed'
               ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[120px]'
