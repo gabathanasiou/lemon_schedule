@@ -298,7 +298,7 @@ export function withRuleDates(rule: ProjectRule & { dates?: string[] }, dates: s
  * status × category (append without duplicates; NO_DUP with `'*'`).
  * A comment travels with the group when provided.
  */
-export function mergeAttachmentInto(
+export function mergeItemsInto(
   entry: NonShootDate | undefined,
   status: string,
   category: string,
@@ -332,7 +332,7 @@ export function mergeAttachmentInto(
  * The group's comment is dropped with it. Returns `undefined` when the entry
  * loses its status AND all its lists and should be dropped entirely.
  */
-export function removeAttachmentFrom(
+export function removeItemsFrom(
   entry: NonShootDate | undefined,
   status: string,
   category: string,

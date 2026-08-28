@@ -53,6 +53,11 @@ interface DayEventsModalProps {
   /** Rule to open in the rule editor on mount (rule-card double-click) —
    *  opens on the Rules tab with the editor ready. */
   initialRule?: ProjectRule | null;
+  /** Pre-attach this element on open (Element Manager events): the element's
+   *  category row is seeded with the keys — merged into an existing section's
+   *  same-category row, added to the first section, or a new section under
+   *  the first attachable day type when the day has none. */
+  preseedItems?: { category: string; keys: string[] };
   onSave: (entry: NonShootDate) => void;
   onClose: () => void;
 }
@@ -72,7 +77,7 @@ const blankRows = (): AttachRow[] => [{ category: 'cast', keys: [], all: false }
  *  read-only Conflicts, and date-scoped Rules (edit/add via the shared
  *  RuleEditorPanel, pre-seeded with the date — same editor the Rules tab
  *  opens). Per-open section filter collapses by kind. */
-export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, violations, rules = [], initialStatus, initialRule, onSave, onClose }) => {
+export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, violations, rules = [], initialStatus, initialRule, preseedItems, onSave, onClose }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
   const portalTarget = usePortalTarget();
@@ -165,6 +170,29 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
     }
     if (initialStatus && !out.some(s => s.status === initialStatus)) {
       out.push({ status: initialStatus, rows: blankRows(), comments: {}, commentOpen: {} });
+    }
+    // Element Manager events: pre-attach the element's category row (merge
+    // into an existing same-category row, else the first section, else a new
+    // section under the first attachable day type).
+    if (preseedItems && preseedItems.keys.length > 0) {
+      const { category: cat, keys } = preseedItems;
+      const existingSection = out.find(s => s.rows.some(r => r.category === cat));
+      if (existingSection) {
+        const row = existingSection.rows.find(r => r.category === cat);
+        if (row) {
+          row.keys = [...new Set([...row.keys, ...keys])];
+          row.all = false;
+        } else {
+          existingSection.rows.push({ category: cat, keys: [...keys], all: false });
+        }
+      } else if (out.length > 0) {
+        out[0].rows.push({ category: cat, keys: [...keys], all: false });
+      } else {
+        const firstAttachable = getMarkableDayTypes(project).find(t => t.attachable !== false);
+        if (firstAttachable) {
+          out.push({ status: firstAttachable.key, rows: [{ category: cat, keys: [...keys], all: false }], comments: {}, commentOpen: {} });
+        }
+      }
     }
     // Same ordering as the calendar cards: manager's day-type order.
     return out.sort((a, b) => typeRankOf(project, a.status) - typeRankOf(project, b.status));

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES, useIsCloudProject } from '../store';
 import { useDialog } from './Dialog';
-import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen } from 'lucide-react';
+import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen, CalendarDays } from 'lucide-react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -16,6 +16,7 @@ import { setPendingTab } from '../lib/unsavedGuard';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
 import { MergeRowsModal } from './elements/MergeRowsModal';
 import { LinkManagerModal } from './elements/LinkManagerModal';
+import { ElementEventsModal } from './elements/ElementEventsModal';
 import Button from './Button';
 import SidebarNav, { SidebarNavRow } from './SidebarNav';
 
@@ -85,6 +86,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const [newCatMultiValue, setNewCatMultiValue] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
+  const [eventsTarget, setEventsTarget] = useState<{ key: string; id: string; name: string } | null>(null);
 
   const [sortMode, setSortMode] = useState<'id' | 'name' | 'occurrences'>(isCast ? 'id' : 'name');
 
@@ -628,8 +630,15 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                       {dayTypes.map(t => (
                         <td key={t.key} title={t.label} className="px-3 py-1 border-r border-zinc-200 text-center text-[11px] text-zinc-400 font-medium">{t.key === 'work' ? (stats?.workDays ?? 0) : (stats?.statusCounts[t.key] ?? 0)}</td>
                       ))}
-                      <td className="px-3 py-1 text-center">
-                        <button onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
+                      <td className="px-3 py-1 text-center whitespace-nowrap">
+                        <button
+                          onClick={() => setEventsTarget({ key: r.key, id: r.id, name: r.name })}
+                          title={`Events — dates, rules and violations for ${r.name || r.id}`}
+                          className="p-1 rounded-md hover:bg-blue-50 transition-colors opacity-40 hover:opacity-100 align-middle"
+                        >
+                          <CalendarDays className="w-3.5 h-3.5 text-blue-500" />
+                        </button>
+                        <button onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed align-middle">
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
                         </button>
                       </td>
@@ -700,6 +709,15 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           <LinkManagerModal
             initialAnchorCategory={category}
             onClose={() => setShowLinks(false)}
+          />
+        )}
+        {eventsTarget && (
+          <ElementEventsModal
+            category={category}
+            rowKey={eventsTarget.key}
+            rowId={eventsTarget.id}
+            rowName={eventsTarget.name}
+            onClose={() => setEventsTarget(null)}
           />
         )}
       </div>

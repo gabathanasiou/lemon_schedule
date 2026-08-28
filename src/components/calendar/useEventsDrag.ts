@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core';
 import { NonShootDate, ProjectRule, ScheduleVersion } from '../../types';
 import {
-  applyDatePermutation, buildPermutation, mergeAttachmentInto,
-  moveRuleDate, removeAttachmentFrom, withRuleDates,
+  applyDatePermutation, buildPermutation, mergeItemsInto,
+  moveRuleDate, removeItemsFrom, withRuleDates,
 } from '../../lib/events';
 
 /** Events-mode drag state (roadmap 45) — cards, chips and the day header all
@@ -240,8 +240,8 @@ export function useEventsDrag(config: UseEventsDragConfig) {
         const keys: string[] = raw ? JSON.parse(raw) : [];
         const comment = cardEl.getAttribute('data-card-comment') || undefined;
         if (!status || !category) continue;
-        entries.set(sourceDate, removeAttachmentFrom(src, status, category, keys));
-        const merged = mergeAttachmentInto(target, status, category, keys, comment);
+        entries.set(sourceDate, removeItemsFrom(src, status, category, keys));
+        const merged = mergeItemsInto(target, status, category, keys, comment);
         entries.set(targetDateKey, { ...merged, date: targetDateKey });
       }
     }
