@@ -156,7 +156,7 @@ export const StackedGhosts: React.FC<{ rows: ComputedRowInput[]; scenes: Scene[]
   );
 };
 
-export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, editingTarget?: { rowId: string; fieldKey: string | null } | null, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, editingTarget, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, editingTarget?: { rowId: string; fieldKey: string | null } | null, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, textSize?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, editingTarget, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders }) => {
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -328,6 +328,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
                         ribbon={ribbon}
                         colWidths={colWidths}
                         cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
+                        textSize={textSize}
                         edgePadding={edgePadding}
                         cellBorders={cellBorders}
                         nextDaybreakCallTime={nextDb?.callTime}

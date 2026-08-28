@@ -1,7 +1,7 @@
 import React from 'react';
 import { ComputedRowInput } from '../../lib/daybreakUtils';
 import { formatDuration, parseDuration } from '../../lib/utils';
-import { getRibbonCellBaseStyle, getNoteBreakPad } from '../../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, ribCellTextSize, getNoteBreakPad } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
 import { CellInput } from '../CellInput';
 import DurationKeypad from '../DurationKeypad';
@@ -10,12 +10,18 @@ import { RowRenderCtx } from './rowRenderTypes';
 export default function SortableRowBreak({ row, ctx }: { row: ComputedRowInput; ctx: RowRenderCtx }) {
   const {
     isSelected, isFaded, isCompact, focusedRowId, onRowNavigate, ribbon, colWidths,
-    cellPaddingV, cellPaddingH, edgePadding, palette, nb, sel,
+    cellPaddingV, cellPaddingH, textSize, edgePadding, palette, nb, sel,
     updateRow, inputClass, noteBreakPadPx, fmt, elapsedCaption, isTouchMode, alignTextClass,
   } = ctx;
 
   const breakStyle: React.CSSProperties = { background: nb.background, color: nb.color };
   if (isSelected && !isFaded) { breakStyle.background = sel.background; breakStyle.color = sel.color; }
+
+  const cellBase = (cell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span, ribCellTextSize(textSize, cell));
+  const captionTs = (cell) => {
+    const ts = ribCellTextSize(textSize, cell);
+    return ts !== undefined ? { fontSize: `${ts}px` } : { fontSize: '8pt' };
+  };
 
   if (ribbon && ribbon.length > 0 && !isCompact) {
     const cells = ribbon[0].cells;
@@ -42,7 +48,7 @@ export default function SortableRowBreak({ row, ctx }: { row: ComputedRowInput; 
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  ...cellBase(cell, 1),
                   textAlign: 'center',
                   padding: noteBreakPadPx,
                   overflow: 'visible',
@@ -65,7 +71,7 @@ export default function SortableRowBreak({ row, ctx }: { row: ComputedRowInput; 
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  ...cellBase(cell, 1),
                   padding: noteBreakPadPx,
                   overflow: 'visible',
                 }}>
@@ -90,7 +96,7 @@ export default function SortableRowBreak({ row, ctx }: { row: ComputedRowInput; 
                     />
                   )}
                   {ci === estColIdx && elapsedCaption && (
-                    <span style={{ fontSize: '8pt' }}>{elapsedCaption}</span>
+                    <span style={captionTs(cell)}>{elapsedCaption}</span>
                   )}
                 </div>
               );
@@ -100,12 +106,12 @@ export default function SortableRowBreak({ row, ctx }: { row: ComputedRowInput; 
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  ...cellBase(cell, 1),
                   padding: noteBreakPadPx, overflow: 'visible',
                   whiteSpace: 'normal', wordBreak: 'break-word',
                   display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1,
                 }}>
-                  <span style={{ fontSize: '8pt' }}>{elapsedCaption}</span>
+                  <span style={captionTs(cell)}>{elapsedCaption}</span>
                 </div>
               );
             }
@@ -113,14 +119,14 @@ export default function SortableRowBreak({ row, ctx }: { row: ComputedRowInput; 
               const v = row.computedCallTime || '';
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                ...cellBase(cell, 1),
                 padding: noteBreakPadPx,
                 overflow: 'visible',
-              }}>{v ? <RibbonCellText cell={cell}>{fmt(cell.prefix, v, cell.suffix)}</RibbonCellText> : ''}</div>;
+              }}>{v ? <RibbonCellText cell={cell} textSize={textSize}>{fmt(cell.prefix, v, cell.suffix)}</RibbonCellText> : ''}</div>;
             }
             return <div key={cell.id} style={{
               gridColumn: ci + 1, gridRow: 1,
-              ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+              ...cellBase(cell, 1),
               padding: noteBreakPadPx,
               overflow: 'visible',
             }} />;

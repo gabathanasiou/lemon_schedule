@@ -1,7 +1,7 @@
 import React from 'react';
 import { ComputedRowInput } from '../../lib/daybreakUtils';
 import { formatDuration, formatPageCount } from '../../lib/utils';
-import { getRibbonCellBaseStyle, getNoteBreakPad, getDayHeaderColors, getDayFooterColors, getSelectedStripColors } from '../../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, ribCellTextSize, getNoteBreakPad, getDayHeaderColors, getDayFooterColors, getSelectedStripColors } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
 import { CellInput } from '../CellInput';
 import { RowRenderCtx } from './rowRenderTypes';
@@ -10,7 +10,7 @@ import { TEST_IDS } from '../../lib/testIds';
 export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInput; ctx: RowRenderCtx }) {
   const {
     isSelected, isFaded, isCompact, focusedRowId, onRowNavigate, ribbon, colWidths,
-    cellPaddingV, cellPaddingH, edgePadding, palette,
+    cellPaddingV, cellPaddingH, textSize, edgePadding, palette,
     inputClass, fmt, alignTextClass, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, nextViolationBadge,
   } = ctx;
   const dh = getDayHeaderColors(palette);
@@ -26,6 +26,12 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
   const sectionEndTime = row.sectionEndTime || '';
   const nextDaybreakNum = row.hasNextDaybreak ? parseInt((row.daybreakLabel || '').match(/\d+/)?.[0] || '0', 10) + 1 : 0;
   const nextLabel = nextDaybreakNum > 0 ? `START OF DAY ${nextDaybreakNum}` : '';
+
+  const cellBase = (cell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span, ribCellTextSize(textSize, cell));
+  const captionTs = (cell) => {
+    const ts = ribCellTextSize(textSize, cell);
+    return ts !== undefined ? { fontSize: `${ts}px` } : { fontSize: '8pt' };
+  };
 
   if (ribbon && ribbon.length > 0 && !isCompact) {
     const cells = ribbon[0].cells;
@@ -77,12 +83,12 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                   return (
                     <div key={cell.id} data-testid={TEST_IDS.sectionFooter} style={{
                       gridColumn: ci + 1, gridRow: 1,
-                      ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                      ...cellBase(cell, 1),
                       padding: daybreakPadPx, overflow: 'visible',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                       position: 'relative',
                     }}>
-                      <RibbonCellText cell={cell}>{row.daybreakLabel || 'End of Day'}</RibbonCellText>
+                      <RibbonCellText cell={cell} textSize={textSize}>{row.daybreakLabel || 'End of Day'}</RibbonCellText>
                       {row.daybreakDate && (
                         <span style={{ fontSize: '7pt', opacity: 0.8 }}>
                           {(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}
@@ -97,12 +103,12 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                   return (
                     <div key={cell.id} style={{
                       gridColumn: ci + 1, gridRow: 1,
-                      ...getRibbonCellBaseStyle(estCell, cellPaddingV, cellPaddingH, 1),
+                      ...cellBase(estCell, 1),
                       padding: daybreakPadPx, overflow: 'visible',
                       whiteSpace: 'normal', wordBreak: 'break-word',
                       display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1,
                     }}>
-                      <span style={{ fontSize: '8pt' }}>
+                      <span style={captionTs(cell)}>
                         EST: {formatDuration(sectionShoot)}{sectionBreak > 0 ? <span> + {formatDuration(sectionBreak)} break</span> : null}
                       </span>
                     </div>
@@ -113,12 +119,12 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                   return (
                     <div key={cell.id} style={{
                       gridColumn: ci + 1, gridRow: 1,
-                      ...getRibbonCellBaseStyle(pc, cellPaddingV, cellPaddingH, 1),
+                      ...cellBase(pc, 1),
                       padding: daybreakPadPx, overflow: 'visible',
                       display: 'flex', flexDirection: 'column', alignItems: pc.align === 'right' ? 'flex-end' : pc.align === 'left' ? 'flex-start' : 'center', justifyContent: 'center', gap: 1,
                     }}>
                       <span style={{ fontSize: '7pt', opacity: 0.8 }}>Total:</span>
-                      <RibbonCellText cell={pc}>{formatPageCount(sectionPages)} {pc.suffix || 'pgs'}</RibbonCellText>
+                      <RibbonCellText cell={pc} textSize={textSize}>{formatPageCount(sectionPages)} {pc.suffix || 'pgs'}</RibbonCellText>
                     </div>
                   );
                 }
@@ -126,7 +132,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                   return (
                     <div key={cell.id} style={{
                       gridColumn: ci + 1, gridRow: 1,
-                      ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                      ...cellBase(cell, 1),
                       padding: daybreakPadPx, overflow: 'visible',
                     }} />
                   );
@@ -135,16 +141,16 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                   return (
                     <div key={cell.id} style={{
                       gridColumn: ci + 1, gridRow: 1,
-                      ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                      ...cellBase(cell, 1),
                       padding: daybreakPadPx, overflow: 'visible',
                     }}>
-                      {sectionEndTime ? <RibbonCellText cell={cell}>{fmt(cell.prefix, sectionEndTime, cell.suffix)}</RibbonCellText> : ''}
+                      {sectionEndTime ? <RibbonCellText cell={cell} textSize={textSize}>{fmt(cell.prefix, sectionEndTime, cell.suffix)}</RibbonCellText> : ''}
                     </div>
                   );
                 }
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  ...cellBase(cell, 1),
                   padding: daybreakPadPx, overflow: 'visible',
                 }} />;
               })}
@@ -160,11 +166,11 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                     return (
                       <div key={cell.id} data-testid={TEST_IDS.nextDayHeader} style={{
                         gridColumn: ci + 1, gridRow: 1,
-                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        ...cellBase(cell, 1),
                         padding: daybreakPadPx, overflow: 'visible',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                       }}>
-                        <RibbonCellText cell={cell}><strong>{nextLabel}</strong></RibbonCellText>
+                        <RibbonCellText cell={cell} textSize={textSize}><strong>{nextLabel}</strong></RibbonCellText>
                         {nextDateStr && <span style={{ fontSize: '7pt', opacity: 0.8 }}>{nextDateStr}</span>}
                       </div>
                     );
@@ -173,7 +179,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                     return (
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
-                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        ...cellBase(cell, 1),
                         padding: daybreakPadPx, overflow: 'visible',
                       }}>
                         <CellInput
@@ -193,7 +199,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                     return (
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
-                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        ...cellBase(cell, 1),
                         padding: daybreakPadPx, overflow: 'visible',
                       }}>
                         <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
@@ -203,7 +209,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                   return (
                     <div key={cell.id} style={{
                       gridColumn: ci + 1, gridRow: 1,
-                      ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                      ...cellBase(cell, 1),
                       padding: daybreakPadPx, overflow: 'visible',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>

@@ -287,6 +287,7 @@ export interface RibbonCell {
   prefix?: string;
   suffix?: string;
   textContent?: string;   // for 'text' type static cells
+  textSizeOffset?: number; // px offset vs the design's master textSize (−8…+8); 0/unset = master
 }
 
 export interface RibbonRow {
@@ -304,6 +305,7 @@ export interface RibbonDesign {
   cellPaddingV?: number;
   cellPaddingH?: number;
   edgePadding?: number;
+  textSize?: number;      // master text size in px (default 14 for new designs); unset = legacy 8pt
 }
 
 // ---- Reports Designer -------------------------------------------------------

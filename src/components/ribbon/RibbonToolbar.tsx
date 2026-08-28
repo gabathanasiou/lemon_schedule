@@ -36,7 +36,9 @@ interface RibbonToolbarProps {
   designId: string;
   cellPaddingV?: number;
   cellPaddingH?: number;
+  textSize?: number;
   edgePadding?: number;
+  setTextSizeOffset?: (cellId: string, offset: number | undefined) => void;
 }
 
 export default function RibbonToolbar(props: RibbonToolbarProps) {
@@ -45,7 +47,8 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
     onAddColumn, removeColumn, addRow, removeRow, swapCellsAllRows, moveRow,
     copyFromAbove, copyFromBelow, copyFromLeft, copyFromRight,
     setAlign, setVerticalAlign, setOverflow, setTextContent, setAffix,
-    onOpenFieldMenu, dispatch, designId, cellPaddingV, cellPaddingH, edgePadding,
+    onOpenFieldMenu, dispatch, designId, cellPaddingV, cellPaddingH, textSize, edgePadding,
+    setTextSizeOffset,
   } = props;
 
   return (
@@ -236,6 +239,34 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             </Tooltip>
           </div>
         )}
+        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <span className="text-[10px] text-zinc-500 shrink-0">Size</span>
+        <Tooltip content="Cell text size offset (px) vs the design master — −8…+8">
+          <input
+            type="number"
+            min={-8}
+            max={8}
+            value={selCell?.cell.textSizeOffset ?? 0}
+            onChange={e => {
+              if (readOnly || !selCell) return;
+              const v = Math.max(-8, Math.min(8, parseInt(e.target.value) || 0));
+              setTextSizeOffset?.(selCell.cell.id, v);
+            }}
+            readOnly={readOnly || !selCell}
+            className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
+          />
+        </Tooltip>
+        {selCell && (selCell.cell.textSizeOffset !== undefined && selCell.cell.textSizeOffset !== 0) && (
+          <Tooltip content="Reset to design master size">
+            <button
+              onClick={() => setTextSizeOffset?.(selCell.cell.id, undefined)}
+              disabled={readOnly}
+              className="h-6 w-6 rounded border border-zinc-700 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 disabled:opacity-25 flex items-center justify-center transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </Tooltip>
+        )}
       </div>
       {/* Layout */}
       <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
@@ -284,6 +315,23 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
               if (readOnly) return;
               const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
               dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: designId, edgePadding: v } });
+            }}
+            readOnly={readOnly}
+            className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
+          />
+        </Tooltip>
+        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <span className="text-[10px] text-zinc-500 shrink-0">Master Size</span>
+        <Tooltip content="Master text size (px) for the whole ribbon — cells scale with it">
+          <input
+            type="number"
+            min={6}
+            max={24}
+            value={textSize ?? 14}
+            onChange={e => {
+              if (readOnly) return;
+              const v = Math.max(6, Math.min(24, parseInt(e.target.value) || 14));
+              dispatch({ type: 'SET_RIBBON_TEXT_SIZE', payload: { id: designId, textSize: v } });
             }}
             readOnly={readOnly}
             className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"

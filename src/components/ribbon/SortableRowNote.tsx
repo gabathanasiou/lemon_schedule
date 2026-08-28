@@ -1,7 +1,7 @@
 import React from 'react';
 import { ComputedRowInput } from '../../lib/daybreakUtils';
 import { formatDuration, parseDuration } from '../../lib/utils';
-import { getRibbonCellBaseStyle, getNoteBreakPad } from '../../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, ribCellTextSize, getNoteBreakPad } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
 import { CellInput } from '../CellInput';
 import DurationKeypad from '../DurationKeypad';
@@ -10,12 +10,18 @@ import { RowRenderCtx } from './rowRenderTypes';
 export default function SortableRowNote({ row, ctx }: { row: ComputedRowInput; ctx: RowRenderCtx }) {
   const {
     isSelected, isFaded, isCompact, focusedRowId, onRowNavigate, ribbon, colWidths,
-    cellPaddingV, cellPaddingH, edgePadding, palette, nb, sel,
+    cellPaddingV, cellPaddingH, textSize, edgePadding, palette, nb, sel,
     updateRow, inputClass, noteBreakPadPx, fmt, isTouchMode, alignTextClass,
   } = ctx;
 
   const noteStyle: React.CSSProperties = { background: row.noteColor || nb.background, color: row.noteTextColor || nb.color };
   if (isSelected && !isFaded) { noteStyle.background = sel.background; noteStyle.color = sel.color; }
+
+  const cellBase = (cell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span, ribCellTextSize(textSize, cell));
+  const captionTs = (cell) => {
+    const ts = ribCellTextSize(textSize, cell);
+    return ts !== undefined ? { fontSize: `${ts}px` } : { fontSize: '8pt' };
+  };
 
   if (ribbon && ribbon.length > 0 && !isCompact) {
     const cells = ribbon[0].cells;
@@ -40,7 +46,7 @@ export default function SortableRowNote({ row, ctx }: { row: ComputedRowInput; c
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  ...cellBase(cell, 1),
                   textAlign: 'center',
                   padding: noteBreakPadPx,
                   overflow: 'visible',
@@ -64,7 +70,7 @@ export default function SortableRowNote({ row, ctx }: { row: ComputedRowInput; c
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  ...cellBase(cell, 1),
                   padding: noteBreakPadPx,
                   overflow: 'visible',
                 }}>
@@ -96,14 +102,14 @@ export default function SortableRowNote({ row, ctx }: { row: ComputedRowInput; c
               const v = row.computedCallTime || '';
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                ...cellBase(cell, 1),
                 padding: noteBreakPadPx,
                 overflow: 'visible',
-              }}>{v ? <RibbonCellText cell={cell}>{fmt(cell.prefix, v, cell.suffix)}</RibbonCellText> : ''}</div>;
+              }}>{v ? <RibbonCellText cell={cell} textSize={textSize}>{fmt(cell.prefix, v, cell.suffix)}</RibbonCellText> : ''}</div>;
             }
             return <div key={cell.id} style={{
               gridColumn: ci + 1, gridRow: 1,
-              ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+              ...cellBase(cell, 1),
               padding: noteBreakPadPx,
               overflow: 'visible',
             }} />;

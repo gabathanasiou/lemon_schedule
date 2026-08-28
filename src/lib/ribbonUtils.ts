@@ -53,11 +53,20 @@ export function getAlign(cell?: RibbonCell): React.CSSProperties['textAlign'] {
   return (FIELD_MAP[cell?.field || '']?.align as React.CSSProperties['textAlign']) || 'left';
 }
 
-export function getRibbonCellBaseStyle(cell: RibbonCell, cellPaddingV?: number, cellPaddingH?: number, span = 1): React.CSSProperties {
+/** Effective cell text size in px — the design's master `textSize` plus the
+ *  cell's `textSizeOffset` (clamped to a 6px floor). Returns undefined for
+ *  legacy designs (no master) so rendering keeps today's 8pt equivalent. */
+export function ribCellTextSize(textSize: number | undefined, cell?: RibbonCell): number | undefined {
+  if (textSize === undefined) return undefined;
+  return Math.max(textSize + (cell?.textSizeOffset ?? 0), 6);
+}
+
+export function getRibbonCellBaseStyle(cell: RibbonCell, cellPaddingV?: number, cellPaddingH?: number, span = 1, textSize?: number): React.CSSProperties {
   const va = cell.verticalAlign;
   const multiRow = span > 1;
   const cpv = cellPaddingV ?? 6;
   const cph = cellPaddingH ?? 6;
+  const ts = textSize !== undefined ? `${textSize}px` : '8pt';
   return {
     minWidth: 0,
     padding: multiRow ? `0px ${cph}px` : `${cpv}px ${cph}px`,
@@ -69,8 +78,8 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPaddingV?: number, 
     alignSelf: 'stretch',
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
     fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
-    fontSize: '8pt',
-    lineHeight: multiRow ? `calc(8pt * 1.1 + ${cpv * 2}px)` : 1.1,
+    fontSize: ts,
+    lineHeight: multiRow ? `calc(${ts} * 1.1 + ${cpv * 2}px)` : 1.1,
     fontFamily: 'Helvetica, sans-serif',
   };
 }

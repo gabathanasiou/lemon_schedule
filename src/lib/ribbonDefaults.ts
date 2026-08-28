@@ -135,6 +135,7 @@ export function getDefaultRibbonDesign(): RibbonDesign {
     cellPaddingV: 3,
     cellPaddingH: 3,
     edgePadding: 3,
+    textSize: 14,
   };
 }
 

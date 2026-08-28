@@ -34,6 +34,7 @@ const boneyardBlockPropsEqual = (a: any, b: any) => {
   if (a.forceExpanded !== b.forceExpanded) return false;
   if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
   if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
+  if (a.textSize !== b.textSize) return false;
   if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
   if (a.onRowClick !== b.onRowClick) return false;
   if (a.onSelectionChange !== b.onSelectionChange) return false;
@@ -66,10 +67,11 @@ export const BoneyardBlock: React.FC<{
   colWidths?: number[],
   cellPaddingV?: number,
   cellPaddingH?: number,
+  textSize?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
   forceExpanded?: boolean,
-}> = React.memo(({ rows, projectScenes, textEditingEnabled, editingTarget, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, collapsed, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
+}> = React.memo(({ rows, projectScenes, textEditingEnabled, editingTarget, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, collapsed, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
   const isCloud = useIsCloudProject();
   const currentDocument = useCurrentDocument();
@@ -209,6 +211,7 @@ export const BoneyardBlock: React.FC<{
                   ribbon={ribbon}
                   colWidths={colWidths}
                   cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
+                  textSize={textSize}
                   edgePadding={edgePadding}
                   cellBorders={cellBorders}
                   dispatch={dispatch}

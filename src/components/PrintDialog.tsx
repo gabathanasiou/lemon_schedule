@@ -7,7 +7,7 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import Checklist from './Checklist';
-import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, getFallbackStripColors, computeMergeGroups, formatCellText, PREVIEW_SAMPLES } from '../lib/ribbonUtils';
+import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, ribCellTextSize, resolveSceneColor, getCellBorderProps, getFallbackStripColors, computeMergeGroups, formatCellText, PREVIEW_SAMPLES } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
@@ -274,11 +274,11 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                                     <div key={cell.id} style={{
                                       gridColumn: (p.hSpan && p.hSpan > 1) ? (col + 1) + ' / span ' + p.hSpan : col + 1,
                                       gridRow: span > 1 ? (row + 1) + ' / span ' + span : row + 1,
-                                      ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span),
+                                      ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span, ribCellTextSize(design?.textSize, cell)),
                                       borderRight: lastVisCol < rows[0].cells.length - 1 ? (settings.cellBorders === 'vertical' || settings.cellBorders === 'both' ? '1px solid ' + rowStyle.color : '1px solid rgba(0,0,0,0.12)') : 'none',
                                      ...cellBorderStyle,
                                    }}>
-                                     <RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV}>
+                                     <RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV} textSize={design?.textSize}>
                                        {display || ''}
                                      </RibbonCellText>
                                    </div>

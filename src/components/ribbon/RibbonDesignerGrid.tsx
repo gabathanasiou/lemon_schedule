@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pencil } from 'lucide-react';
 import { RibbonRow, RibbonCell } from '../../types';
-import { getAlign, getRibbonCellBaseStyle, FIELD_MAP } from '../../lib/ribbonUtils';
+import { getAlign, getRibbonCellBaseStyle, ribCellTextSize, FIELD_MAP } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
 import { ColumnResizeStrip } from '../columnResize';
 import { IS_COARSE } from '../../lib/device';
@@ -30,6 +30,7 @@ interface RibbonDesignerGridProps {
   customFieldLabels: Record<string, string>;
   cellPaddingV?: number;
   cellPaddingH?: number;
+  textSize?: number;
   edgePadding?: number;
 }
 
@@ -38,7 +39,7 @@ export default function RibbonDesignerGrid({
   tabBarRef, gridRef, cellRefs, mergeLookup, cellDragRef, setCellDrag,
   setCellDropTarget, setDropHover, dropHover, cellDropTarget,
   startResize, moveCellToRow, assign, customFieldLabels,
-  cellPaddingV, cellPaddingH, edgePadding,
+  cellPaddingV, cellPaddingH, textSize, edgePadding,
 }: RibbonDesignerGridProps) {
   return (
     <section className={`bg-zinc-900 rounded-lg border border-zinc-800 ${readOnly ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -69,7 +70,7 @@ export default function RibbonDesignerGrid({
           background: '#ffffff',
           color: '#464646',
           fontFamily: 'Helvetica, sans-serif',
-          fontSize: '8pt',
+          fontSize: textSize !== undefined ? `${textSize}px` : '8pt',
           lineHeight: 1.1,
           paddingTop: (edgePadding ?? 2),
           paddingBottom: (edgePadding ?? 2),
@@ -118,7 +119,7 @@ export default function RibbonDesignerGrid({
                   }}
                   style={{
                     position: 'relative',
-                    ...getRibbonCellBaseStyle(c, cellPaddingV, cellPaddingH),
+                    ...getRibbonCellBaseStyle(c, cellPaddingV, cellPaddingH, 1, ribCellTextSize(textSize, c)),
                     gridColumn: ci + 1,
                     gridRow: ri + 1,
                     padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`,

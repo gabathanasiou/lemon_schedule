@@ -12,6 +12,7 @@ export interface RowRenderCtx {
   colWidths?: number[];
   cellPaddingV?: number;
   cellPaddingH?: number;
+  textSize?: number;
   edgePadding?: number;
   cellBorders?: 'none' | 'vertical' | 'horizontal' | 'both';
   nextDaybreakCallTime?: string;

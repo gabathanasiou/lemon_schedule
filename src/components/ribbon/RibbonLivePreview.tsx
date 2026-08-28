@@ -3,7 +3,7 @@ import { Eye } from 'lucide-react';
 import { RibbonRow, RibbonCell, SceneColorPalette } from '../../types';
 import {
   resolveSceneColor, getFallbackStripColors, computeMergeGroups,
-  getFieldValueFromSample, getCellBorderProps, getRibbonCellBaseStyle, formatCellText, FIELD_MAP,
+  getFieldValueFromSample, getCellBorderProps, getRibbonCellBaseStyle, ribCellTextSize, formatCellText, FIELD_MAP,
   PREVIEW_SAMPLES,
 } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
@@ -18,12 +18,13 @@ interface RibbonLivePreviewProps {
   previewSectionRef: React.MutableRefObject<HTMLDivElement | null>;
   cellPaddingV?: number;
   cellPaddingH?: number;
+  textSize?: number;
   edgePadding?: number;
 }
 
 export default function RibbonLivePreview({
   rows, colWidths, palette, cellBorders, customFieldLabels, previewSectionRef,
-  cellPaddingV, cellPaddingH, edgePadding,
+  cellPaddingV, cellPaddingH, textSize, edgePadding,
 }: RibbonLivePreviewProps) {
   return (
     <section ref={previewSectionRef} className="bg-zinc-900 rounded-lg border border-zinc-800">
@@ -85,7 +86,7 @@ export default function RibbonLivePreview({
                       const cellBorderStyle = getCellBorderProps(cellBorders, rowStyle.color, lastVisCol >= rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
                       return (
                         <div key={p.id} style={{
-                          ...getRibbonCellBaseStyle(c, cellPaddingV, cellPaddingH, span),
+                          ...getRibbonCellBaseStyle(c, cellPaddingV, cellPaddingH, span, ribCellTextSize(textSize, c)),
                           gridColumn: (p.hSpan && p.hSpan > 1) ? `${p.col + 1} / span ${p.hSpan}` : p.col + 1,
                           gridRow: span > 1 ? `${p.row + 1} / span ${span}` : p.row + 1,
                           padding: span > 1 ? `0px ${cellPaddingH ?? 6}px` : `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`,
@@ -93,7 +94,7 @@ export default function RibbonLivePreview({
                           borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                           ...cellBorderStyle,
                         }}>
-                          <RibbonCellText cell={c} span={span} cellPadding={cellPaddingV} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
+                          <RibbonCellText cell={c} span={span} cellPadding={cellPaddingV} textSize={textSize} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
                             {formatCellText(val ? c.prefix : undefined, display, val ? c.suffix : undefined)}
                           </RibbonCellText>
                         </div>

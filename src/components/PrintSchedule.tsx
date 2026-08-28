@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, RibbonRow, RibbonCell, SceneColorEntry, ColorRule, SceneColorPalette } from '../types';
-import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, getCellBorderProps, getFallbackStripColors } from '../lib/ribbonUtils';
+import { getFieldValue, getRibbonCellBaseStyle, ribCellTextSize, formatCellText, getNoteBreakPad, getCellBorderProps, getFallbackStripColors } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
 import { formatDuration, formatDateLong } from '../lib/utils';
@@ -28,6 +28,7 @@ interface PrintScheduleProps {
   colWidths?: number[];
   cellPaddingV?: number;
   cellPaddingH?: number;
+  textSize?: number;
   edgePadding?: number;
   cellBorders?: CellBorders;
   viewMode?: ViewMode;
@@ -46,6 +47,7 @@ interface DaySectionProps {
   colWidths?: number[];
   cellPaddingV?: number;
   cellPaddingH?: number;
+  textSize?: number;
   edgePadding?: number;
   cellBorders?: CellBorders;
   sceneColors?: SceneColorEntry[];
@@ -54,7 +56,7 @@ interface DaySectionProps {
   colorPalette?: SceneColorPalette;
 }
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules, colorPalette }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules, colorPalette }) => {
   const { computedRows, sectionSums } = computeRowData(
     rows,
     scenes,
@@ -109,7 +111,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
 
   const estColIdx = mainCellIdx === cells?.length - 1 && durationColIdx >= 0 ? durationColIdx : (cells ? cells.length - 1 : -1);
 
-  const cellPrintStyle = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
+  const cellPrintStyle = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span, ribCellTextSize(textSize, cell));
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     formatCellText(prefix, val, suffix);
@@ -126,13 +128,13 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
       style.gridColumn = (hSpan && hSpan > 1) ? `${col + 1} / span ${hSpan}` : col + 1;
       style.gridRow = span > 1 ? `${row + 2} / span ${span}` : row + 2;
     }
-    return <div key={cell.id} style={style}><RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV}>{display || ''}</RibbonCellText></div>;
+    return <div key={cell.id} style={style}><RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV} textSize={textSize}>{display || ''}</RibbonCellText></div>;
   };
 
   const ctx: PrintRowCtx = {
     cells, filteredWidths, mainCellIdx, estColIdx, noteBreakPadPx, fmt,
     pageCountColIdx, pageCountCell, durationColIdx, durationCell, renderSceneCellFlex,
-    showTimes, showDurations, cellPaddingV, cellPaddingH, edgePadding, cellBorders,
+    showTimes, showDurations, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders,
     ribbon, filteredRibbon, scenes, sceneColors, fallbackOverride, colorRules, colorPalette,
     chronoDay, dateStr, callTime, runningElapsed, totalPages, totalBreakTime,
   };
@@ -153,7 +155,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
   );
 };
 
-const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, viewMode }) => {
+const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, viewMode }) => {
   const VIEW_WIDTHS: Record<string, number | null> = { portrait: 730, landscape: 1060, full: null };
   const contentMaxWidth = viewMode ? VIEW_WIDTHS[viewMode] : null;
 
@@ -219,6 +221,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 colWidths={colWidths}
                 cellPaddingV={cellPaddingV}
                 cellPaddingH={cellPaddingH}
+                textSize={textSize}
                 edgePadding={edgePadding}
                 cellBorders={cellBorders}
                 sceneColors={project.colorPalette?.sceneColors}

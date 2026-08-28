@@ -509,6 +509,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const activeColWidths = activeRibbonDesign.colWidths;
   const cellPaddingV = activeRibbonDesign.cellPaddingV;
   const cellPaddingH = activeRibbonDesign.cellPaddingH;
+  const textSize = activeRibbonDesign.textSize;
   const edgePadding = activeRibbonDesign.edgePadding;
   const currentRibbonName = activeRibbonDesign.name;
 
@@ -1400,7 +1401,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   return next;
                 }
                 return addMode ? new Set([...prev, ...ids]) : ids;
-              })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); if (editingModeRef.current) setEditingTarget({ rowId, fieldKey: null }); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} collapsed={boneyardCollapsed} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceBoneyardExpanded} />
+              })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); if (editingModeRef.current) setEditingTarget({ rowId, fieldKey: null }); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} collapsed={boneyardCollapsed} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} textSize={textSize} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceBoneyardExpanded} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} data-marquee-container data-edit-mode={effectiveTextEditingEnabled ? '1' : undefined} onScroll={() => { updateRenderWindow(); if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}
@@ -1444,7 +1445,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                     onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); if (editingModeRef.current) setEditingTarget({ rowId, fieldKey: null }); }}
                       ribbon={activeRibbon}
                       colWidths={activeColWidths}
-                      cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
+                      cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} textSize={textSize} edgePadding={edgePadding}
                      cellBorders={cellBorders}
                   />
                     </div>
@@ -1465,6 +1466,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         colWidths={activeColWidths}
         cellPaddingV={cellPaddingV}
         cellPaddingH={cellPaddingH}
+        textSize={textSize}
         edgePadding={edgePadding}
         cellBorders={cellBorders}
         digitBuffer={digitBuffer}

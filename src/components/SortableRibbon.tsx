@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation, SceneColorPalette, CustomCategoryDef, ProjectElement, ElementLink } from '../types';
 import { ComputedRowInput, formatElapsedCaption } from '../lib/daybreakUtils';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, ribCellTextSize, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -42,6 +42,7 @@ const sortableRowPropsEqual = (a: any, b: any) => {
   if (a.sceneViolations !== b.sceneViolations || a.sectionViolations !== b.sectionViolations || a.nextSectionViolations !== b.nextSectionViolations) return false;
   if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
   if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
+  if (a.textSize !== b.textSize) return false;
   if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
   if (a.nextDaybreakCallTime !== b.nextDaybreakCallTime) return false;
   if (a.nextDateStr !== b.nextDateStr) return false;
@@ -54,7 +55,7 @@ const sortableRowPropsEqual = (a: any, b: any) => {
   return true;
 };
 
-const SortableRowContent: React.FC<{ 
+const SortableRowContent: React.FC<{
   row: ComputedRowInput,
   scenes: Scene[],
   scene?: Scene | null,
@@ -72,6 +73,7 @@ const SortableRowContent: React.FC<{
   colWidths?: number[],
   cellPaddingV?: number,
   cellPaddingH?: number,
+  textSize?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
   nextDaybreakCallTime?: string,
@@ -85,7 +87,7 @@ const SortableRowContent: React.FC<{
   customCategories?: CustomCategoryDef[],
   hiddenCategories?: string[],
   elementLinks?: ElementLink[],
-}> = React.memo(({ row, scenes, scene: sceneProp, isSelected, isFaded, isCompact, isEditable, focusField, sceneViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories, elementLinks }) => {
+}> = React.memo(({ row, scenes, scene: sceneProp, isSelected, isFaded, isCompact, isEditable, focusField, sceneViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories, elementLinks }) => {
   const portalTarget = usePortalTarget();
 
   const isTouchMode = useTouchMode();
@@ -282,6 +284,11 @@ const SortableRowContent: React.FC<{
 
   const alignTextClass = (cell: RibbonCell) => cell.align === 'right' ? 'text-right' : cell.align === 'left' ? 'text-left' : 'text-center';
 
+  const cellFont = (cell: RibbonCell): React.CSSProperties => {
+    const ts = ribCellTextSize(textSize, cell);
+    return ts !== undefined ? { fontSize: `${ts}px`, lineHeight: 1.1 } : { fontSize: '8pt', lineHeight: 1.1 };
+  };
+
   const nb = getNoteBannerColors(palette);
   const sel = getSelectedStripColors(palette);
 
@@ -303,7 +310,7 @@ const SortableRowContent: React.FC<{
             options={getIntExtOptions(palette)}
             className="text-left w-full"
             readOnly={!isEditable}
-            style={{ fontSize: '8pt', lineHeight: 1.1 }}
+            style={cellFont(cell)}
           />
         </td>
       );
@@ -317,7 +324,7 @@ const SortableRowContent: React.FC<{
             options={getDayNightOptions(palette)}
             className="text-left w-full"
             readOnly={!isEditable}
-            style={{ fontSize: '8pt', lineHeight: 1.1 }}
+            style={cellFont(cell)}
           />
         </td>
       );
@@ -354,10 +361,10 @@ const SortableRowContent: React.FC<{
               }}
               className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
               readOnly={!isEditable}
-              style={{ fontSize: '8pt', lineHeight: 1.1 }}
+              style={cellFont(cell)}
             />
           ) : (
-            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: overflowVisible ? 'nowrap' : wrap ? 'normal' : 'nowrap', overflow: overflowVisible || wrap ? 'visible' : 'hidden', textOverflow: overflowVisible || wrap ? undefined : 'ellipsis', display: 'block' }}>
+            <span className={inputClass} style={{ ...cellFont(cell), whiteSpace: overflowVisible ? 'nowrap' : wrap ? 'normal' : 'nowrap', overflow: overflowVisible || wrap ? 'visible' : 'hidden', textOverflow: overflowVisible || wrap ? undefined : 'ellipsis', display: 'block' }}>
               {prefix}{val}{suffix || ' pgs'}
             </span>
           )}
@@ -402,7 +409,7 @@ const SortableRowContent: React.FC<{
             onChange={val => updateScene({sceneNumber: val})}
             className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
             readOnly={!isEditable}
-            style={{ fontSize: '8pt', lineHeight: 1.1 }}
+            style={cellFont(cell)}
           />
           {violationBadge}
         </td>
@@ -411,7 +418,7 @@ const SortableRowContent: React.FC<{
     if (field === 'text') {
       return (
         <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
-          <span style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap' }}>{cell.textContent || ''}</span>
+          <span style={{ ...cellFont(cell), whiteSpace: wrap ? 'normal' : 'nowrap' }}>{cell.textContent || ''}</span>
         </td>
       );
     }
@@ -432,13 +439,13 @@ const SortableRowContent: React.FC<{
           onChange={val => updateScene({[field]: val})}
           className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
           readOnly={!isEditable}
-          style={{ fontSize: '8pt', lineHeight: 1.1 }}
+          style={cellFont(cell)}
           placeholder={fieldLabels[field] || field}
         />
       </td>
     );
   };
-  const cellFlexBase = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
+  const cellFlexBase = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span, ribCellTextSize(textSize, cell));
 
   const ENTITY_FIELDS = useMemo(() => {
     const hiddenSet = new Set(hiddenCategories || []);
@@ -517,7 +524,7 @@ const SortableRowContent: React.FC<{
           {isEditable ? (
             <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({intExt: val as any})} options={getIntExtOptions(palette)} className="text-left w-full" readOnly={!isEditable} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -529,7 +536,7 @@ const SortableRowContent: React.FC<{
           {isEditable ? (
             <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({dayNight: val as any})} options={getDayNightOptions(palette)} className="text-left w-full" readOnly={!isEditable} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -541,7 +548,7 @@ const SortableRowContent: React.FC<{
           {isEditable ? (
             <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!isEditable} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" anchoredKeys={anchoredByCategory.get('cast')} renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -553,7 +560,7 @@ const SortableRowContent: React.FC<{
           {isEditable ? (
             <CellInput autoFocus={focusField === field} value={scene!.pageCount} prefix={prefix} suffix={suffix || 'pgs'} onChange={val => { if (val === '') { updateScene({ pageCount: '', pageCountDecimal: 0 }); } else { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); } }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!isEditable} placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} className={inputClass} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -594,7 +601,7 @@ const SortableRowContent: React.FC<{
           {isEditable ? (
             <CellInput autoFocus={focusField === field} value={sv} prefix={prefix} suffix={suffix} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!isEditable} placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
           )}
           {violationBadge}
         </div>
@@ -603,14 +610,14 @@ const SortableRowContent: React.FC<{
     if (field === 'text') {
       return (
         <div key={cellId} style={style}>
-          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV}>{cell.textContent || ''}</RibbonCellText>
+          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize}>{cell.textContent || ''}</RibbonCellText>
         </div>
       );
     }
     if (field === 'callTime') {
       return (
         <div key={cellId} style={style}>
-          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV}>{fmt(prefix, val, suffix)}</RibbonCellText>
+          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize}>{fmt(prefix, val, suffix)}</RibbonCellText>
         </div>
       );
     }
@@ -622,7 +629,7 @@ const SortableRowContent: React.FC<{
           {isEditable ? (
             <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} anchoredKeys={anchoredByCategory.get(field)} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -633,7 +640,7 @@ const SortableRowContent: React.FC<{
         {isEditable ? (
           <CellInput autoFocus={focusField === field} onRowNavigate={onRowNavigate} value={val} prefix={prefix} suffix={suffix} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!isEditable} placeholder={fieldLabels[field] || field} multiline={!!wrap} />
         ) : (
-          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
+          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
         )}
       </div>
     );
@@ -641,7 +648,7 @@ const SortableRowContent: React.FC<{
 
   const ctx: RowRenderCtx = {
     isSelected, isFaded, isCompact, focusedRowId, onRowNavigate, ribbon, colWidths,
-    cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime,
+    cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, nextDaybreakCallTime,
     onUpdateNextDaybreak, nextDateStr, textEditingEnabled: isEditable,
     palette: palette,
     nb, sel,
@@ -670,6 +677,7 @@ const sortableRibbonPropsEqual = (a: any, b: any) => {
   if (a.focusedRowId !== b.focusedRowId) return false;
   if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
   if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
+  if (a.textSize !== b.textSize) return false;
   if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
   if (a.nextDaybreakCallTime !== b.nextDaybreakCallTime) return false;
   if (a.nextDateStr !== b.nextDateStr) return false;
@@ -684,7 +692,7 @@ const sortableRibbonPropsEqual = (a: any, b: any) => {
 };
 
 export const SortableRibbon = React.memo(({
-  row, scenes, scene, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, isEditable, focusField, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories, elementLinks,
+  row, scenes, scene, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, isEditable, focusField, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories, elementLinks,
 }: {
   row: ComputedRowInput,
   scenes: Scene[],
@@ -706,6 +714,7 @@ export const SortableRibbon = React.memo(({
   colWidths?: number[],
   cellPaddingV?: number,
   cellPaddingH?: number,
+  textSize?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
   nextDaybreakCallTime?: string,
@@ -741,6 +750,7 @@ export const SortableRibbon = React.memo(({
         colWidths={colWidths}
         cellPaddingV={cellPaddingV}
         cellPaddingH={cellPaddingH}
+        textSize={textSize}
         edgePadding={edgePadding}
         cellBorders={cellBorders}
         nextDaybreakCallTime={nextDaybreakCallTime}
@@ -810,6 +820,7 @@ export const SortableRibbon = React.memo(({
         colWidths={colWidths}
         cellPaddingV={cellPaddingV}
         cellPaddingH={cellPaddingH}
+        textSize={textSize}
         edgePadding={edgePadding}
         cellBorders={cellBorders}
         nextDaybreakCallTime={nextDaybreakCallTime}

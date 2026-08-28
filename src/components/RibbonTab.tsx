@@ -331,6 +331,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     })), colWidths);
   }, [rows, colWidths, commit]);
 
+  const setTextSizeOffset = useCallback((cellId: string, offset: number | undefined) => {
+    const ids = mergeSiblingIds(cellId, rows);
+    commit(rows.map(r => ({
+      ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, textSizeOffset: offset } : c),
+    })), colWidths);
+  }, [rows, colWidths, commit]);
+
   const setOverflow = useCallback((cellId: string, mode: 'truncate' | 'wrap' | 'none' | 'visible') => {
     const ids = mergeSiblingIds(cellId, rows);
     const update: Partial<RibbonCell> = mode === 'wrap'
@@ -580,7 +587,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               try {
                 const data = JSON.parse(reader.result as string);
                 if (data.rows && Array.isArray(data.rows)) {
-                  dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPaddingV: data.cellPaddingV ?? data.cellPadding ?? 3, cellPaddingH: data.cellPaddingH ?? 3, edgePadding: data.edgePadding ?? 3 } });
+                  dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPaddingV: data.cellPaddingV ?? data.cellPadding ?? 3, cellPaddingH: data.cellPaddingH ?? 3, edgePadding: data.edgePadding ?? 3, textSize: data.textSize } });
                 }
               } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
               setDesignMenuOpen(false);
@@ -590,7 +597,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           input.click();
         }}
         onExport={() => {
-          const blob = new Blob([JSON.stringify({ name: activeDesign.name, colWidths, rows, cellPaddingV: activeDesign.cellPaddingV, cellPaddingH: activeDesign.cellPaddingH, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
+          const blob = new Blob([JSON.stringify({ name: activeDesign.name, colWidths, rows, cellPaddingV: activeDesign.cellPaddingV, cellPaddingH: activeDesign.cellPaddingH, edgePadding: activeDesign.edgePadding, textSize: activeDesign.textSize }, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.ribbon`;
@@ -602,6 +609,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: 3 } });
           dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: 3 } });
           dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: 3 } });
+          dispatch({ type: 'SET_RIBBON_TEXT_SIZE', payload: { id: activeDesign.id, textSize: 14 } });
           dispatch({ type: 'BATCH_COMMIT' });
         }}
         readOnly={readOnly}
@@ -694,7 +702,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             designId={activeDesign.id}
             cellPaddingV={activeDesign.cellPaddingV}
             cellPaddingH={activeDesign.cellPaddingH}
+            textSize={activeDesign.textSize}
             edgePadding={activeDesign.edgePadding}
+            setTextSizeOffset={setTextSizeOffset}
           />
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
@@ -722,6 +732,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               customFieldLabels={customFieldLabels}
               cellPaddingV={activeDesign.cellPaddingV}
               cellPaddingH={activeDesign.cellPaddingH}
+              textSize={activeDesign.textSize}
               edgePadding={activeDesign.edgePadding}
             />
 
@@ -734,6 +745,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               previewSectionRef={previewSectionRef}
               cellPaddingV={activeDesign.cellPaddingV}
               cellPaddingH={activeDesign.cellPaddingH}
+              textSize={activeDesign.textSize}
               edgePadding={activeDesign.edgePadding}
             />
 

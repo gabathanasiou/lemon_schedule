@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScheduleRow, Scene, RibbonRow, RibbonCell, SceneColorEntry, ColorRule, SceneColorPalette } from '../../types';
-import { getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle, getCellBorderProps, computeMergeGroups, getDayHeaderColors, getDayFooterColors } from '../../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, ribCellTextSize, getNoteBreakPad, sceneStyle, getCellBorderProps, computeMergeGroups, getDayHeaderColors, getDayFooterColors } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
 import { formatDuration, formatPageCount, addMinutesToTime, formatDateLong } from '../../lib/utils';
 import { ComputedRow, formatElapsedCaption } from '../../lib/daybreakUtils';
@@ -22,6 +22,7 @@ export interface PrintRowCtx {
   showDurations: boolean;
   cellPaddingV?: number;
   cellPaddingH?: number;
+  textSize?: number;
   edgePadding?: number;
   cellBorders?: CellBorders;
   ribbon?: RibbonRow[];
@@ -37,6 +38,13 @@ export interface PrintRowCtx {
   runningElapsed: number;
   totalPages: number;
   totalBreakTime: number;
+}
+
+/** Print font for a cell: the design's effective text size (master + offset),
+ *  8pt for legacy designs. */
+function printFontSize(ctx: PrintRowCtx, cell: RibbonCell): string {
+  const ts = ribCellTextSize(ctx.textSize, cell);
+  return ts !== undefined ? `${ts}px` : '8pt';
 }
 
 export const PrintNoteRow: React.FC<{ r: ScheduleRow & Partial<ComputedRow>; ctx: PrintRowCtx }> = ({ r, ctx }) => {
@@ -63,7 +71,7 @@ export const PrintNoteRow: React.FC<{ r: ScheduleRow & Partial<ComputedRow>; ctx
                 overflow: 'visible',
                 whiteSpace: 'normal',
                 wordBreak: 'break-word',
-                fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                fontSize: printFontSize(ctx, cell), lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
               }}>
                 {r.noteText || ''}
               </div>
@@ -82,7 +90,7 @@ export const PrintNoteRow: React.FC<{ r: ScheduleRow & Partial<ComputedRow>; ctx
               gridColumn: ci + 1, gridRow: 1,
               padding: noteBreakPadPx,
               textAlign: 'center',
-              fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+              fontSize: printFontSize(ctx, cell), lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
             }}>
               {content}
             </div>
@@ -135,7 +143,7 @@ export const PrintBreakRow: React.FC<{ r: ScheduleRow & Partial<ComputedRow>; ct
                 overflow: 'visible',
                 whiteSpace: 'normal',
                 wordBreak: 'break-word',
-                fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                fontSize: printFontSize(ctx, cell), lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
               }}>
                 {r.breakLabel || 'BREAK'}
               </div>
@@ -151,7 +159,7 @@ export const PrintBreakRow: React.FC<{ r: ScheduleRow & Partial<ComputedRow>; ct
                 overflow: 'visible',
                 whiteSpace: 'normal',
                 wordBreak: 'break-word',
-                fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                fontSize: printFontSize(ctx, cell), lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
               }}>
                 <span>{elapsedCaption}</span>
               </div>
@@ -170,7 +178,7 @@ export const PrintBreakRow: React.FC<{ r: ScheduleRow & Partial<ComputedRow>; ct
               gridColumn: ci + 1, gridRow: 1,
               padding: noteBreakPadPx,
               textAlign: 'center',
-              fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+              fontSize: printFontSize(ctx, cell), lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
             }}>
               {content}
               {ci === estColIdx && showElapsed && (
@@ -229,7 +237,7 @@ export const PrintDaybreakRow: React.FC<{ r: ScheduleRow & Partial<ComputedRow>;
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                     padding: noteBreakPadPx, textAlign: 'center',
                     overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word',
-                    fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                    fontSize: printFontSize(ctx, cell), lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                   }}>
                     <span>{cr.daybreakLabel || 'End of Day'}</span>
                     {showStats && (
@@ -250,7 +258,7 @@ export const PrintDaybreakRow: React.FC<{ r: ScheduleRow & Partial<ComputedRow>;
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   padding: noteBreakPadPx, textAlign: 'center',
-                  fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                  fontSize: printFontSize(ctx, cell), lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                 }}>
                   {content}
                 </div>
@@ -267,7 +275,7 @@ export const PrintDaybreakRow: React.FC<{ r: ScheduleRow & Partial<ComputedRow>;
                     <div key={cell.id} style={{
                       gridColumn: ci + 1, gridRow: 1,
                       padding: '1px 4px', textAlign: 'center',
-                      fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                      fontSize: printFontSize(ctx, cell), lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                     }}>
                       <span style={{ fontWeight: 600, fontSize: '10px' }}>CALL </span>
                       {sCallTime}
@@ -400,7 +408,7 @@ export const PrintSectionHeader: React.FC<{ ctx: PrintRowCtx }> = ({ ctx }) => {
             return (
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, ctx.cellPaddingV, ctx.cellPaddingH, 1),
+                ...getRibbonCellBaseStyle(cell, ctx.cellPaddingV, ctx.cellPaddingH, 1, ribCellTextSize(ctx.textSize, cell)),
                 textAlign: 'center', padding: noteBreakPadPx,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
               }}>
@@ -413,7 +421,7 @@ export const PrintSectionHeader: React.FC<{ ctx: PrintRowCtx }> = ({ ctx }) => {
             return (
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, ctx.cellPaddingV, ctx.cellPaddingH, 1),
+                ...getRibbonCellBaseStyle(cell, ctx.cellPaddingV, ctx.cellPaddingH, 1, ribCellTextSize(ctx.textSize, cell)),
                 textAlign: 'center', padding: noteBreakPadPx,
               }}>
                 CALL {callTime || ''}
@@ -423,7 +431,7 @@ export const PrintSectionHeader: React.FC<{ ctx: PrintRowCtx }> = ({ ctx }) => {
           return (
             <div key={cell.id} style={{
               gridColumn: ci + 1, gridRow: 1,
-              ...getRibbonCellBaseStyle(cell, ctx.cellPaddingV, ctx.cellPaddingH, 1),
+              ...getRibbonCellBaseStyle(cell, ctx.cellPaddingV, ctx.cellPaddingH, 1, ribCellTextSize(ctx.textSize, cell)),
               textAlign: 'center', padding: noteBreakPadPx,
             }} />
           );
@@ -450,7 +458,7 @@ export const PrintSectionFooter: React.FC<{ ctx: PrintRowCtx }> = ({ ctx }) => {
             return (
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1, ribCellTextSize(ctx.textSize, cell)),
                 textAlign: 'center', padding: noteBreakPadPx,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
               }}>
@@ -463,14 +471,14 @@ export const PrintSectionFooter: React.FC<{ ctx: PrintRowCtx }> = ({ ctx }) => {
             return (
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(pageCountCell, cellPaddingV, cellPaddingH, 1),
+                ...getRibbonCellBaseStyle(pageCountCell, cellPaddingV, cellPaddingH, 1, ribCellTextSize(ctx.textSize, pageCountCell)),
                 padding: noteBreakPadPx,
                 display: 'flex', flexDirection: 'column',
                 alignItems: pageCountCell.align === 'right' ? 'flex-end' : pageCountCell.align === 'left' ? 'flex-start' : 'center',
                 justifyContent: 'center', gap: 1,
               }}>
                 <span style={{ fontSize: '7pt', opacity: 0.8 }}>Total:</span>
-                <span style={{ fontSize: '8pt' }}>{formatPageCount(totalPages)} {pageCountCell.suffix || 'pgs'}</span>
+                <span style={{ fontSize: printFontSize(ctx, pageCountCell) }}>{formatPageCount(totalPages)} {pageCountCell.suffix || 'pgs'}</span>
               </div>
             );
           }
@@ -480,10 +488,10 @@ export const PrintSectionFooter: React.FC<{ ctx: PrintRowCtx }> = ({ ctx }) => {
             return (
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(estCell, cellPaddingV, cellPaddingH, 1),
+                ...getRibbonCellBaseStyle(estCell, cellPaddingV, cellPaddingH, 1, ribCellTextSize(ctx.textSize, estCell)),
                 padding: noteBreakPadPx, display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1,
               }}>
-                <span style={{ fontSize: '8pt' }}>
+                <span style={{ fontSize: printFontSize(ctx, estCell) }}>
                   EST: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 ? <> + {formatDuration(totalBreakTime)} break</> : ''}
                 </span>
               </div>
@@ -493,7 +501,7 @@ export const PrintSectionFooter: React.FC<{ ctx: PrintRowCtx }> = ({ ctx }) => {
             return (
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1, ribCellTextSize(ctx.textSize, cell)),
                 textAlign: 'center', padding: noteBreakPadPx,
               }}>
                 {addMinutesToTime(callTime || '08:00', runningElapsed)}
@@ -503,7 +511,7 @@ export const PrintSectionFooter: React.FC<{ ctx: PrintRowCtx }> = ({ ctx }) => {
           return (
             <div key={cell.id} style={{
               gridColumn: ci + 1, gridRow: 1,
-              ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+              ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1, ribCellTextSize(ctx.textSize, cell)),
               textAlign: 'center', padding: noteBreakPadPx,
             }} />
           );

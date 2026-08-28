@@ -37,6 +37,7 @@ export function caseAddRibbonDesign(state: State, action: Action, applyChange: A
     cellPaddingV: action.payload.cellPaddingV ?? source?.cellPaddingV ?? 3,
     cellPaddingH: action.payload.cellPaddingH ?? source?.cellPaddingH ?? 3,
     edgePadding: action.payload.edgePadding ?? source?.edgePadding ?? 3,
+    textSize: action.payload.textSize ?? source?.textSize ?? 14,
   };
   return applyChange({
     ...state.present,
@@ -110,6 +111,16 @@ export function caseSetRibbonEdgePadding(state: State, action: Action, applyChan
     ...state.present,
     ribbonDesigns: state.present.ribbonDesigns.map(d =>
       d.id === action.payload.id ? { ...d, edgePadding: action.payload.edgePadding } : d
+    ),
+  });
+}
+
+export function caseSetRibbonTextSize(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'SET_RIBBON_TEXT_SIZE') return state;
+  return applyChange({
+    ...state.present,
+    ribbonDesigns: state.present.ribbonDesigns.map(d =>
+      d.id === action.payload.id ? { ...d, textSize: action.payload.textSize } : d
     ),
   });
 }

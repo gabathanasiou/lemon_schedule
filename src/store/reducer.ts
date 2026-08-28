@@ -21,7 +21,7 @@ import {
 import {
   caseUpdateSceneRibbon, caseAddRibbonDesign, caseUpdateRibbonDesign, caseDeleteRibbonDesign,
   caseRestoreRibbonFromTrash, caseSetRibbonCellPaddingV, caseSetRibbonCellPaddingH,
-  caseSetRibbonEdgePadding, caseRenameRibbonDesign, caseSetActiveRibbon,
+  caseSetRibbonEdgePadding, caseSetRibbonTextSize, caseRenameRibbonDesign, caseSetActiveRibbon,
   caseSetColorPalette, caseAddColorRule, caseUpdateColorRule, caseDeleteColorRule,
   caseRestoreColorRuleFromTrash, caseReorderColorRules,
 } from './actions/design';
@@ -187,7 +187,7 @@ export type Action =
   | { type: 'MERGE_ELEMENTS'; payload: { category: string; renames: { oldName: string; newName: string }[]; removes: { id: string; name: string; toTrash: boolean }[]; adds: { id: string; name: string }[] } }
   | { type: 'RESTORE_ELEMENT_FROM_TRASH'; payload: string }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
-  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; colWidths?: number[]; cellPaddingV?: number; cellPaddingH?: number; edgePadding?: number; id?: string } }
+  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; colWidths?: number[]; cellPaddingV?: number; cellPaddingH?: number; edgePadding?: number; textSize?: number; id?: string } }
   | { type: 'UPDATE_RIBBON_DESIGN'; payload: { id: string; rows: RibbonRow[]; colWidths: number[] } }
   | { type: 'DELETE_RIBBON_DESIGN'; payload: string }
   | { type: 'RENAME_RIBBON_DESIGN'; payload: { id: string; name: string } }
@@ -196,6 +196,7 @@ export type Action =
   | { type: 'SET_RIBBON_CELL_PADDING_V'; payload: { id: string; cellPaddingV: number } }
   | { type: 'SET_RIBBON_CELL_PADDING_H'; payload: { id: string; cellPaddingH: number } }
   | { type: 'SET_RIBBON_EDGE_PADDING'; payload: { id: string; edgePadding: number } }
+  | { type: 'SET_RIBBON_TEXT_SIZE'; payload: { id: string; textSize: number } }
   | { type: 'SET_COLOR_PALETTE'; payload: SceneColorPalette }
   | { type: 'ADD_COLOR_RULE'; payload: ColorRule }
   | { type: 'UPDATE_COLOR_RULE'; payload: ColorRule }
@@ -254,7 +255,7 @@ export const ACTION_TYPES = new Set<string>([
   'UPDATE_SCENE_RIBBON', 'ADD_RIBBON_DESIGN', 'UPDATE_RIBBON_DESIGN',
   'DELETE_RIBBON_DESIGN', 'RENAME_RIBBON_DESIGN', 'SET_ACTIVE_RIBBON',
   'RESTORE_RIBBON_FROM_TRASH', 'SET_RIBBON_CELL_PADDING_V', 'SET_RIBBON_CELL_PADDING_H',
-  'SET_RIBBON_EDGE_PADDING', 'SET_COLOR_PALETTE', 'ADD_COLOR_RULE', 'UPDATE_COLOR_RULE',
+  'SET_RIBBON_EDGE_PADDING', 'SET_RIBBON_TEXT_SIZE', 'SET_COLOR_PALETTE', 'ADD_COLOR_RULE', 'UPDATE_COLOR_RULE',
   'DELETE_COLOR_RULE', 'RESTORE_COLOR_RULE_FROM_TRASH', 'REORDER_COLOR_RULES',
   'ADD_REPORT_DESIGN', 'UPDATE_REPORT_DESIGN', 'UPDATE_REPORT_PAGE',
   'RENAME_REPORT_DESIGN', 'SET_ACTIVE_REPORT', 'DELETE_REPORT_DESIGN',
@@ -493,6 +494,7 @@ export function reducer(state: State, action: Action): State {
     case 'SET_RIBBON_CELL_PADDING_V': return caseSetRibbonCellPaddingV(state, action, applyChange);
     case 'SET_RIBBON_CELL_PADDING_H': return caseSetRibbonCellPaddingH(state, action, applyChange);
     case 'SET_RIBBON_EDGE_PADDING': return caseSetRibbonEdgePadding(state, action, applyChange);
+    case 'SET_RIBBON_TEXT_SIZE': return caseSetRibbonTextSize(state, action, applyChange);
     case 'RENAME_RIBBON_DESIGN': return caseRenameRibbonDesign(state, action, applyChange);
     case 'SET_ACTIVE_RIBBON': return caseSetActiveRibbon(state, action, applyChange);
     case 'SET_COLOR_PALETTE': return caseSetColorPalette(state, action, applyChange);

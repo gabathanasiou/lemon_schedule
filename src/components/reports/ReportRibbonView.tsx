@@ -2,7 +2,7 @@ import React from 'react';
 import { ReportBlock, RibbonRow, RibbonCell, RibbonDesign, Scene } from '../../types';
 import { ReportCtx, ReportSceneInfo, ReportDayInfo, ReportCollectionItem, ruleBearingAncestor, parentScenesOf, RibbonPrintOptions } from '../../lib/reportData';
 import { CellBorders } from '../../lib/persist';
-import { getRibbonCellBaseStyle, getNoteBreakPad, getCellBorderProps, formatCellText, ribbonCellDisplayValue, PREVIEW_SAMPLES } from '../../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, ribCellTextSize, getNoteBreakPad, getCellBorderProps, formatCellText, ribbonCellDisplayValue, PREVIEW_SAMPLES } from '../../lib/ribbonUtils';
 import { getMergeLookup } from '../../lib/mergeGroups';
 import {
   sceneStyle, getDayHeaderColors, getDayFooterColors, getFallbackStripColors,
@@ -78,6 +78,7 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
   const cpv = design.cellPaddingV ?? 3;
   const cph = design.cellPaddingH ?? 3;
   const edge = design.edgePadding ?? 3;
+  const ts = design.textSize;
   const style = sceneStyle(it.scene, ctx.project.colorPalette?.sceneColors, getFallbackStripColors(ctx.project.colorPalette), ctx.project.colorPalette?.colorRules);
   const numCols = Math.max(...rows.map(r => r.cells.length));
   const baseWidths = design.colWidths && design.colWidths.length === numCols
@@ -121,7 +122,7 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
         gridTemplateColumns: colPct,
         gridTemplateRows: `repeat(${rows.length}, auto)`,
         padding: `${edge}px ${edge}px`,
-        fontSize: 8,
+        fontSize: ribCellTextSize(ts) ?? 8,
         lineHeight: 1.1,
         fontFamily: 'Helvetica, sans-serif',
       }}
@@ -134,7 +135,7 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
           const span = m ? m.group.span : 1;
           const isH = m ? m.group.direction === 'h' : false;
           const isV = m ? m.group.direction === 'v' : false;
-          const base = getRibbonCellBaseStyle(cell, cpv, cph, span);
+          const base = getRibbonCellBaseStyle(cell, cpv, cph, span, ribCellTextSize(ts, cell));
           const d = ribbonCellDisplayValue(cell, sceneDataFor(it), { sample, customFieldLabels });
           const lastInRow = (ci + (isH ? span : 1) - 1) >= rows[0].cells.length - 1;
           const lastRow = (ri + (isV ? span : 1) - 1) >= rows.length - 1;
@@ -150,7 +151,7 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
                 ...getCellBorderProps(cellBorders, style.color, lastInRow, lastRow),
               }}
             >
-              <RibbonCellText cell={cell} span={span} cellPadding={cpv} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>
+              <RibbonCellText cell={cell} span={span} cellPadding={cpv} textSize={ts} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>
                 {d.text || '\u00A0'}
               </RibbonCellText>
             </div>
@@ -179,6 +180,7 @@ const DaybreakFooterHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
   const cpv = design.cellPaddingV ?? 3;
   const cph = design.cellPaddingH ?? 3;
   const edge = design.edgePadding ?? 3;
+  const ts = design.textSize;
   const notePadV = getNoteBreakPad(cpv, design.rows.length);
   const daybreakPadV = Math.max(cpv, Math.floor(notePadV / 2));
   const pad = `${daybreakPadV}px ${cph}px`;
@@ -194,16 +196,16 @@ const DaybreakFooterHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
         {cells.map((cell, ci) => {
           if (ci === mainCellIdx) {
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                <RibbonCellText cell={cell}>{day.label ? `End of ${day.label}` : 'End of Day'}</RibbonCellText>
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                <RibbonCellText cell={cell} textSize={ts}>{day.label ? `End of ${day.label}` : 'End of Day'}</RibbonCellText>
                 {day.date && <span style={{ fontSize: '7pt', opacity: 0.8 }}>{formatLongDate(day.date)}</span>}
               </div>
             );
           }
           if (ci === estColIdx && showDurations && total > 0) {
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word', display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1 }}>
-                <span style={{ fontSize: '8pt' }}>
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word', display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1 }}>
+                <span style={{ fontSize: ribCellTextSize(ts, cell) ?? 8 }}>
                   EST: {formatDuration(day.shootMin)}{day.breakMin > 0 ? <span> + {formatDuration(day.breakMin)} break</span> : null}
                 </span>
               </div>
@@ -211,24 +213,24 @@ const DaybreakFooterHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
           }
           if (ci === pageCountColIdx && day.totalPages > 0 && pageCountCell) {
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(pageCountCell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: pcAlign, justifyContent: 'center', gap: 1 }}>
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(pageCountCell, cpv, cph, 1, ribCellTextSize(ts, pageCountCell)), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: pcAlign, justifyContent: 'center', gap: 1 }}>
                 <span style={{ fontSize: '7pt', opacity: 0.8 }}>Total:</span>
-                <RibbonCellText cell={pageCountCell}>{formatPageCount(day.totalPages)} {pageCountCell.suffix || 'pgs'}</RibbonCellText>
+                <RibbonCellText cell={pageCountCell} textSize={ts}>{formatPageCount(day.totalPages)} {pageCountCell.suffix || 'pgs'}</RibbonCellText>
               </div>
             );
           }
           if (cell.field === 'callTime') {
             const d = ribbonCellDisplayValue(cell, { computedCallTime: day.endTime }, { sample });
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }}>
-                {showCall && d.text ? <RibbonCellText cell={cell} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible' }}>
+                {showCall && d.text ? <RibbonCellText cell={cell} textSize={ts} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
               </div>
             );
           }
           if (cell.field === 'duration') {
-            return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }} />;
+            return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible' }} />;
           }
-          return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }} />;
+          return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible' }} />;
         })}
       </div>
     </div>
@@ -242,6 +244,7 @@ const DaybreakHeaderHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
   const cpv = design.cellPaddingV ?? 3;
   const cph = design.cellPaddingH ?? 3;
   const edge = design.edgePadding ?? 3;
+  const ts = design.textSize;
   const notePadV = getNoteBreakPad(cpv, design.rows.length);
   const daybreakPadV = Math.max(cpv, Math.floor(notePadV / 2));
   const pad = `${daybreakPadV}px ${cph}px`;
@@ -253,7 +256,7 @@ const DaybreakHeaderHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
         {cells.map((cell, ci) => {
           if (ci === mainCellIdx) {
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                 <RibbonCellText cell={cell}><strong>{startLabel}</strong></RibbonCellText>
                 {day.date && <span style={{ fontSize: '7pt', opacity: 0.8 }}>{formatLongDate(day.date)}</span>}
               </div>
@@ -262,20 +265,20 @@ const DaybreakHeaderHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
           if (cell.field === 'callTime') {
             const d = ribbonCellDisplayValue(cell, { computedCallTime: day.callTime }, { sample });
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }}>
-                {showCall && d.text ? <RibbonCellText cell={cell} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible' }}>
+                {showCall && d.text ? <RibbonCellText cell={cell} textSize={ts} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
               </div>
             );
           }
           if (cell.field === 'duration') {
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }}>
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible' }}>
                 {showCall && <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>}
               </div>
             );
           }
           return (
-            <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {ci === lastCellIdx ? '\u00A0' : null}
             </div>
           );
@@ -295,6 +298,7 @@ const StaticNoteRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNul
   const cpv = design.cellPaddingV ?? 3;
   const cph = design.cellPaddingH ?? 3;
   const edge = design.edgePadding ?? 3;
+  const ts = design.textSize;
   const pad = `${getNoteBreakPad(cpv, design.rows.length)}px ${cph}px`;
 
   return (
@@ -303,8 +307,8 @@ const StaticNoteRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNul
         {cells.map((cell, ci) => {
           if (ci === mainCellIdx) {
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), textAlign: 'center', padding: pad, overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.4 }}>
-                <RibbonCellText cell={cell}>{row.noteText || '\u00A0'}</RibbonCellText>
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), textAlign: 'center', padding: pad, overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.4 }}>
+                <RibbonCellText cell={cell} textSize={ts}>{row.noteText || '\u00A0'}</RibbonCellText>
               </div>
             );
           }
@@ -314,20 +318,20 @@ const StaticNoteRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNul
             const v = row.estimatedDuration ? formatDuration(row.estimatedDuration) : '';
             const text = v ? formatCellText(cell.prefix, v, cell.suffix) : '';
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', alignItems: 'center', justifyContent: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center' }}>
-                <RibbonCellText cell={cell}>{text}</RibbonCellText>
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible', display: 'flex', alignItems: 'center', justifyContent: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center' }}>
+                <RibbonCellText cell={cell} textSize={ts}>{text}</RibbonCellText>
               </div>
             );
           }
           if (cell.field === 'callTime') {
             const d = ribbonCellDisplayValue(cell, { computedCallTime: row.computedCallTime }, { sample });
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }}>
-                {d.text ? <RibbonCellText cell={cell} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible' }}>
+                {d.text ? <RibbonCellText cell={cell} textSize={ts} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
               </div>
             );
           }
-          return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }} />;
+          return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible' }} />;
         })}
       </div>
     </div>
@@ -342,6 +346,7 @@ const StaticBreakRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNu
   const cpv = design.cellPaddingV ?? 3;
   const cph = design.cellPaddingH ?? 3;
   const edge = design.edgePadding ?? 3;
+  const ts = design.textSize;
   const pad = `${getNoteBreakPad(cpv, design.rows.length)}px ${cph}px`;
   const caption = formatElapsedCaption(row);
 
@@ -351,8 +356,8 @@ const StaticBreakRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNu
         {cells.map((cell, ci) => {
           if (ci === mainCellIdx) {
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), textAlign: 'center', padding: pad, overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                <RibbonCellText cell={cell}>{row.breakLabel || 'BREAK'}</RibbonCellText>
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), textAlign: 'center', padding: pad, overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                <RibbonCellText cell={cell} textSize={ts}>{row.breakLabel || 'BREAK'}</RibbonCellText>
               </div>
             );
           }
@@ -361,29 +366,29 @@ const StaticBreakRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNu
             const v = row.breakDuration ? formatDuration(row.breakDuration) : '';
             const text = v ? formatCellText(cell.prefix, v, cell.suffix) : '';
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center', gap: 1, justifyContent: 'center' }}>
-                <RibbonCellText cell={cell}>{text}</RibbonCellText>
-                {ci === estColIdx && caption && <span style={{ fontSize: '8pt' }}>{caption}</span>}
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center', gap: 1, justifyContent: 'center' }}>
+                <RibbonCellText cell={cell} textSize={ts}>{text}</RibbonCellText>
+                {ci === estColIdx && caption && <span style={{ fontSize: ribCellTextSize(ts, cell) ?? 8 }}>{caption}</span>}
               </div>
             );
           }
           if (ci === estColIdx && caption) {
             const estAlign = cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center';
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word', display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1 }}>
-                <span style={{ fontSize: '8pt' }}>{caption}</span>
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word', display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1 }}>
+                <span style={{ fontSize: ribCellTextSize(ts, cell) ?? 8 }}>{caption}</span>
               </div>
             );
           }
           if (cell.field === 'callTime') {
             const d = ribbonCellDisplayValue(cell, { computedCallTime: row.computedCallTime }, { sample });
             return (
-              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }}>
-                {d.text ? <RibbonCellText cell={cell} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
+              <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible' }}>
+                {d.text ? <RibbonCellText cell={cell} textSize={ts} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
               </div>
             );
           }
-          return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }} />;
+          return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1, ribCellTextSize(ts, cell)), padding: pad, overflow: 'visible' }} />;
         })}
       </div>
     </div>
