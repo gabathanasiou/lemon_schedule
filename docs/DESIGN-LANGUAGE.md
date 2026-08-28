@@ -54,6 +54,12 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 | Cloud (`data-theme="blue"` or `bg-blue-950`) | light toolbars switch to `bg-blue-950` + `text-blue-50` active tabs | `useIsCloudProject()`; `PageToolbar.tsx:44-48` |
 
 - Modals/menus are dark even when they sit on light pages.
+- **Section containers inside dark modals must step UP a luminance level** — never
+  same-as-body backgrounds (black-on-black): on the `bg-zinc-900` modal body, grouped
+  sections (day-type cards, violation boxes, picker panels, rule lists) use gray
+  containers `bg-zinc-800 border border-zinc-700 rounded-lg` with inner dividers
+  `border-zinc-700/60`. Contents may sit directly on the body only when they are
+  single rows (labels, help text) — anything boxed must be visibly lighter.
 - **Exception**: kit `ContextMenu` is **light-themed by default** (`data-theme="light"`,
   `node_modules/@gabriel/ui-kit/dist/index.js:539`) because it anchors on light surfaces.
   DropdownMenu (dark) and Dialog (dark) set their own themes (`index.js:174`, `:671`).
@@ -264,6 +270,9 @@ MUST be added to `HelpModal.tsx` (AGENTS.md rule).
 6. **No raw colors outside the zinc palette/tokens** — no brand colors, no saturated UI chrome;
    danger/success/amber semantics as in §Status colors.
 7. **No mixing layers** — a light card inside a dark modal or vice versa is a bug.
+8. **No black-on-black sections in dark modals** — section containers take a gray
+   backdrop (`bg-zinc-800 border-zinc-700` on the `bg-zinc-900` body); same-as-body
+   backgrounds bury the hierarchy (see §Two-layer surface model).
 8. **No parallel dropdown/menu families** — extend `src/lib/dropdown.ts` classes or the kit;
    `rules/ElementPicker.tsx` `ElementDropdown`/`ElementPickerRow` are the shared picker rows
    (extend, never fork).

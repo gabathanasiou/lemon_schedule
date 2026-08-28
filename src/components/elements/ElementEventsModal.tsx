@@ -206,7 +206,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
               <Plus className="w-3.5 h-3.5" /> Add Event on a Date
             </Button>
           ) : (
-            <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 space-y-3">
+            <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
                   <CalendarDays className="w-3 h-3" /> Pick a date
@@ -247,11 +247,11 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                 const Icon = typeIconComponent(project.dayTypes, status);
                 const collapsed = collapsedTypes.has(status);
                 return (
-                  <div key={status} data-element-event-type={status} className="rounded-lg border border-zinc-800 bg-zinc-900 overflow-hidden">
+                  <div key={status} data-element-event-type={status} className="rounded-lg border border-zinc-700 bg-zinc-800 overflow-hidden">
                     <button
                       type="button"
                       onClick={() => toggleType(status)}
-                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-zinc-800/60 transition-colors text-left"
+                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-zinc-700/50 transition-colors text-left"
                     >
                       {collapsed ? <ChevronRight className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
                       <Icon className="w-3.5 h-3.5 shrink-0" style={def?.color ? { color: def.color } : undefined} />
@@ -259,7 +259,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                       <span className="text-[10px] text-zinc-500">{rows.length} {rows.length === 1 ? 'day' : 'days'}</span>
                     </button>
                     {!collapsed && (
-                      <div className="border-t border-zinc-800 px-3 py-2 space-y-2">
+                      <div className="border-t border-zinc-700/60 px-3 py-2 space-y-2">
                         {rows.map(({ date, groups }) => (
                           <div key={date} data-element-event-date={date} className="flex items-start gap-2">
                             <div className="w-24 shrink-0 pt-0.5">
@@ -268,7 +268,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                                 <button
                                   onClick={() => setNested({ kind: 'day', date })}
                                   title="Edit this day's events"
-                                  className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
+                                  className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-100 transition-colors"
                                 >
                                   <Pencil className="w-2.5 h-2.5" /> Edit
                                 </button>
@@ -296,7 +296,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                                         onClick={() => removeGroup(date, g)}
                                         title={`Remove ${identity.name} from ${def?.label || status} · ${categoryLabel(g.category)} on this day`}
                                         aria-label={`Remove ${identity.name} from this day`}
-                                        className="p-0.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-red-400 transition-colors shrink-0"
+                                        className="p-0.5 rounded hover:bg-zinc-700 text-zinc-500 hover:text-red-400 transition-colors shrink-0"
                                       >
                                         <X className="w-3 h-3" />
                                       </button>
@@ -325,7 +325,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
           {data.violations.size === 0 ? (
             <p className={`${CREM_LABEL} text-zinc-600 italic`}>No violations on any scheduled day.</p>
           ) : (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
+            <div className="rounded-lg border border-zinc-700 bg-zinc-800 divide-y divide-zinc-700/60">
               {[...data.violations.entries()]
                 .sort((a, b) => a[0].localeCompare(b[0]))
                 .map(([date, vs]) => vs.map(v => (
@@ -364,7 +364,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
               data.rules.length === 0 ? (
                 <p className={`${CREM_LABEL} text-zinc-600 italic`}>No rules reference this cast member.</p>
               ) : (
-                <div className="space-y-1.5">
+                <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-2 space-y-1.5">
                   {data.rules.map(r => (
                     <RuleCard key={r.id} rule={r} castMembers={project.castMembers || []} theme="dark"
                       onEdit={readOnly ? () => {} : () => setNested({ kind: 'rule', rule: r })} />
