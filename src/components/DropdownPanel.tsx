@@ -90,7 +90,9 @@ export default function DropdownPanel({
       className={`click-outside-ignore ${dark ? 'bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 flex flex-col pointer-events-auto min-w-[200px]' : DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
       style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, visibility: pos.ready ? 'visible' : 'hidden', ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
     >
-      <div ref={scrollRef} className="overflow-y-auto max-h-72" style={positioning === 'fixed' ? { maxHeight: pos.maxH - 16 } : undefined} onMouseLeave={onHoverLeave}>
+      {/* scrollbar-custom: always-visible thin scrollbar — with macOS overlay
+          scrollbars a tiny panel hides the scroll position entirely. */}
+      <div ref={scrollRef} className="overflow-y-auto max-h-72 scrollbar-custom" style={positioning === 'fixed' ? { maxHeight: pos.maxH - 16 } : undefined} onMouseLeave={onHoverLeave}>
       {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
         const checked = currentIds.includes(itemKey(m));
         const highlighted = highlightedIndex === idx;
