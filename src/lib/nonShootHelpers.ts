@@ -25,7 +25,10 @@ export function getNonShootEntryMap(dates: NonShootDate[] | undefined | null): M
 
 /** Next `nonShootDates` array for a modal save (single write path shared by
  *  the Calendar + Day Breakdown manager): empty entries are removed, existing
- *  dates are replaced, new ones appended. */
+ *  dates are replaced, new ones appended. The `pattern` flag is STICKY: an
+ *  entry update that doesn't mention it keeps the existing entry's flag, so a
+ *  generated day off cycled through other statuses stays generated (unchecking
+ *  its weekday still removes it). Pass `pattern: false` explicitly to clear. */
 export function upsertNonShootDate(dates: NonShootDate[] | undefined, dateKey: string, entry: NonShootDate): NonShootDate[] {
   const current = dates || [];
   const idx = current.findIndex(ns => ns.date === dateKey);
@@ -34,7 +37,11 @@ export function upsertNonShootDate(dates: NonShootDate[] | undefined, dateKey: s
     return idx >= 0 ? current.filter(ns => ns.date !== dateKey) : current;
   }
   if (idx >= 0) {
-    return current.map(ns => ns.date === dateKey ? entry : ns);
+    const prev = current[idx];
+    const next = entry.pattern === undefined && prev.pattern !== undefined
+      ? { ...entry, pattern: prev.pattern }
+      : entry;
+    return current.map(ns => ns.date === dateKey ? next : ns);
   }
   return [...current, entry];
 }

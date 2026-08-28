@@ -178,7 +178,10 @@ Structure (all in `src/components/Modal.tsx`):
 - **Header** (`:177`): `flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 bg-zinc-950`, `cursor-grab`, **draggable** by pointer-capture; icon (`text-zinc-400`) + title `text-xs font-bold text-white truncate` (`:184`) + optional Reset (`:190`) + close X `text-zinc-500 hover:text-white` (`:195`).
 - **Body** (`:201`): `overflow-y-auto flex-1 bg-zinc-900 text-zinc-100`; content carries `p-6 space-y-5`.
 - **Footer** (`ModalFooter`, `:227-233`): `flex items-center justify-end gap-3 px-5 py-2 border-t border-zinc-800 bg-zinc-950`.
-- Resizable from 8 edges/corners (min 200×150, 32px viewport clamp), body max-height adjusts.
+- **No manual resize** — the modal auto-fits its content (content-driven height changes animate,
+  see Morph below); drag-to-move by the header is the only manual geometry control. Default
+  width comes from the `width` prop (`max-w-* w-full`, else `max-w-xl`) clamped by
+  `min(100%, 100vw - 64px)` + `max-height: 100vh - 64px`.
 
 Behavior: Esc and outside-click = cancel (touch: overlay `onTouchEnd` closes unless a Radix menu is
 open, `:165-169`); Enter = confirm; Radix focus trap. Portaled overlays above the modal
@@ -219,8 +222,7 @@ single-form (`DayTypeModals.tsx:26`) · `max-w-lg` merge/violations (`ViolationM
 HelpModal · `max-w-2xl` color rules / travel-hold / import (`ImportDialog`) · `max-w-3xl`
 links manager / print dialogs (`LinkManagerModal.tsx:200`, `PrintDialog.tsx:130`).
 
-Touch bumps (`IS_COARSE`, `Modal.tsx:10-19`): header `px-6 py-3`, title `text-sm`, footer `px-6 py-3`,
-resize handles 10px, `HEADER_HEIGHT` 44.
+Touch bumps (`IS_COARSE`, kit `Modal.tsx`): header `px-6 py-3`, title `text-sm`, footer `px-6 py-3`.
 
 **When NOT to use a modal** (NN/g modal-vs-nonmodal): noncritical info (use banner/tooltip/pill),
 routine actions (no confirm at all), decisions needing info behind the modal (keep on page),

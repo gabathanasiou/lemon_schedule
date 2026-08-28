@@ -1336,7 +1336,7 @@ export const CalendarTab: React.FC<{
               <ContextMenuItem key={t.key} onClick={() => { handleNonShootToggle(contextMenuDate, t.key); setContextMenu(null); setContextMenuDate(null); }}
                 icon={<Icon className="w-3.5 h-3.5" style={t.color ? { color: t.color } : undefined} />}
               >
-                <span className="text-zinc-200">{t.label}</span>
+                {t.label}
               </ContextMenuItem>
             );
           })}

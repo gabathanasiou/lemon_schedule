@@ -41,7 +41,7 @@ const REPORT = [
 ];
 const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize'];
 const SCHED = ['keyboard-mode', 'digit-schedule'];
-const CAL = ['calendar-travel-hold', 'day-types'];
+const CAL = ['calendar-travel-hold', 'day-types', 'production-dates'];
 const GLIDE = ['glide-breakdown', 'glide-clipboard'];
 const ELEM = ['element-manager-merge', 'element-manager-day-columns', 'element-events'];
 const CAST = ['cast-single-source'];

@@ -231,7 +231,7 @@ export function useEventsDrag(config: UseEventsDragConfig) {
         const tgtComments = { ...(target?.comments || {}) };
         if (target?.status) delete tgtComments[target.status];
         tgtComments[statusKey] = { ...(tgtComments[statusKey] || {}), ...(movedNotes || {}) };
-        const tgtNext: NonShootDate = { date: targetDateKey, status: statusKey };
+        const tgtNext: NonShootDate = { date: targetDateKey, status: statusKey, ...(target?.pattern ? { pattern: true } : {}) };
         if (Object.keys(tgtLists).length > 0) tgtNext.lists = tgtLists;
         if (Object.keys(tgtComments).length > 0) tgtNext.comments = tgtComments;
         entries.set(sourceDate, srcNext);

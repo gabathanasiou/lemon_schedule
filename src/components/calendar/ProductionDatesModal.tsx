@@ -5,6 +5,7 @@ import Modal, { ModalFooter } from '../Modal';
 import DateField from '../DateField';
 import { toDateKey } from './calendarUtils';
 import { addDays, advanceDateCursor, buildNonShootSet } from '../../lib/daybreakUtils';
+import type { NonShootDate } from '../../types';
 import { CalendarDays, Check } from 'lucide-react';
 
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -17,10 +18,11 @@ const monBased = (key: string): number => {
 
 /** Production Dates manager (roadmap 54, MMS-style): prep start, production
  *  start and post end dates + the weekly days-off pattern. The calendar range
- *  spans prep..post; Apply Days Off / Save materialize holidays MMS-style:
- *  across the SCHEDULED span — from production start through the stripboard's
- *  last shooting day (post end only extends the window) — so days off work
- *  even without a post end. Existing statused dates are never overwritten. */
+ *  spans prep..post; Apply Days Off / Save SYNC the pattern MMS-style: mark
+ *  pattern weekdays Day Off across the SCHEDULED span — from production start
+ *  through the stripboard's last shooting day (post end only extends the
+ *  window) — and remove ONLY the statuses the pattern itself created when a
+ *  weekday is unchecked. Hand-made statuses and event cards are never touched. */
 export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -54,15 +56,20 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const productionDayCount = () =>
     (activeVersion?.rows || []).filter(r => r.containerId === 1 && r.type === 'DAYBREAK' && !r.pinned).length;
 
-  /** Marks the weekly days-off across the schedule's span (prep start → the
-   *  last scheduled day, post end only when later). Returns how many were
-   *  added. Existing statused dates are never touched. */
-  const applyDaysOff = (): number => {
-    if (!activeVersion) return 0;
+  /** Syncs the weekly days-off across the schedule's span (prep start → the
+   *  last scheduled day, post end only when later):
+   *  - pattern weekdays without any entry get a `holiday` status (marked
+   *    `pattern: true`);
+   *  - pattern-created Day Off statuses on weekdays NO LONGER in the pattern
+   *    are removed (cards/notes on those days survive, the status is stripped);
+   *  - everything else — hand-made statuses, event cards, notes — is kept.
+   *  Returns { added, removed }. */
+  const applyDaysOff = (): { added: number; removed: number } => {
+    if (!activeVersion) return { added: 0, removed: 0 };
     const from = prepStart || prodStart;
-    if (!from) { setApplyNote('Set at least a production (or prep) start date first.'); return 0; }
+    if (!from) { setApplyNote('Set at least a production (or prep) start date first.'); return { added: 0, removed: 0 }; }
     const fromDate = new Date(from + 'T00:00:00');
-    if (isNaN(fromDate.getTime())) { setApplyNote('Invalid start date.'); return 0; }
+    if (isNaN(fromDate.getTime())) { setApplyNote('Invalid start date.'); return { added: 0, removed: 0 }; }
 
     const nonShootSet = buildNonShootSet(activeVersion.nonShootDates);
     const skip = (d: string) => nonShootSet.has(d) || daysOff.has(monBased(d));
@@ -83,19 +90,46 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
 
     const current = activeVersion.nonShootDates || [];
     const existing = new Map(current.map(n => [n.date, n]));
-    const added: { date: string; status: 'holiday' }[] = [];
+    const added: NonShootDate[] = [];
     const walk = new Date(fromDate);
     while (walk <= toDate) {
       const key = toDateKey(walk);
       if (daysOff.has(monBased(key)) && !existing.has(key)) {
-        added.push({ date: key, status: 'holiday' });
+        added.push({ date: key, status: 'holiday', pattern: true });
       }
       walk.setDate(walk.getDate() + 1);
     }
-    if (added.length === 0) { setApplyNote('No new days off to add — pattern days already have a status.'); return 0; }
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: [...current, ...added] } });
-    setApplyNote(`Marked ${added.length} day${added.length === 1 ? '' : 's'} off (${added[0].date} – ${added[added.length - 1].date}).`);
-    return added.length;
+
+    // Remove pattern-created holidays on weekdays that left the pattern. The
+    // pattern is a global version property, so this is not span-bounded. If
+    // the day carries cards/notes, keep the entry with the status stripped.
+    let removed = 0;
+    const retained: NonShootDate[] = [];
+    for (const n of current) {
+      if (n.status === 'holiday' && n.pattern && !daysOff.has(monBased(n.date))) {
+        removed++;
+        const hasContent = (n.lists && Object.keys(n.lists).length > 0) ||
+          (n.comments && Object.keys(n.comments).length > 0);
+        if (hasContent) retained.push({ ...n, status: undefined, pattern: undefined });
+        continue;
+      }
+      retained.push(n);
+    }
+
+    if (added.length === 0 && removed === 0) {
+      setApplyNote('No new days off to add — pattern days already have a status.');
+      return { added: 0, removed: 0 };
+    }
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: [...retained, ...added] } });
+    const parts: string[] = [];
+    if (added.length > 0) {
+      parts.push(`Marked ${added.length} day${added.length === 1 ? '' : 's'} off (${added[0].date} – ${added[added.length - 1].date})`);
+    }
+    if (removed > 0) {
+      parts.push(`removed ${removed} day${removed === 1 ? '' : 's'} (weekday unchecked)`);
+    }
+    setApplyNote(`${parts.join('; ')}.`);
+    return { added: added.length, removed };
   };
 
   const handleSave = () => {
@@ -158,7 +192,7 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
             <button
               onClick={applyDaysOff}
               className={`${CREM_LABEL} text-zinc-300 hover:text-white font-medium transition-colors`}
-              title="Mark the weekly days off as Day Off across the schedule (post end extends the window)"
+              title="Sync the weekly days off with the schedule (adds pattern days, removes unchecked ones)"
             >
               Apply Days Off
             </button>
@@ -180,7 +214,7 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
           </div>
           <p className={`${CREM_LABEL} text-zinc-600 mt-2 flex items-center gap-1`}>
             <Check className="w-3 h-3 shrink-0" />
-            Days off are marked Day Off from the start through the schedule's last day (post end extends the window); existing statuses are kept.
+            Days off sync both ways across the schedule (post end extends the window): pattern days are marked Day Off, unchecking a weekday removes only the statuses it created — hand-marked statuses and event cards are kept.
           </p>
           {applyNote && (
             <p className={`${CREM_LABEL} text-zinc-400 mt-2`}>{applyNote}</p>

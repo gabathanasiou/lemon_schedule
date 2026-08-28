@@ -30,6 +30,33 @@ html, body, #root {
   z-index: 10001 !important;
 }
 
+/* Modal overlays carry no dimming (the stack fade/morph owns hierarchy) —
+   keep the ui-kit confirm/alert's overlay transparent too. */
+.ui-overlay {
+  background: transparent !important;
+}
+
+/* Stacked app modals (e.g. Day Events → Rule Editor): dialogs portal as
+   siblings into the window body, so DOM order = stack order. Any open modal
+   with an open modal AFTER it fades to invisible — only the top modal stays
+   visible. pointer-events: none is required: the faded parent still outranks
+   the child's overlay and would swallow clicks meant for it (they now hit the
+   overlay, closing the child — standard stacked-dialog behavior). Modal
+   overlays are TRANSPARENT (no background dimming — the stack hierarchy is
+   carried by the fade + morph alone); the ui-kit confirm/alert keeps its own
+   overlay but deliberately does NOT dim the modal beneath it (no
+   data-modal-stack). The fade pairs with the FLIP morph in Modal.tsx (child
+   scales out of the parent's box; the survivor shrinks back from the closing
+   modal's box; standalone modals zoom in/out) — 180ms lands the fade with the
+   220ms morph. */
+[data-modal-stack] {
+  transition: opacity 180ms ease;
+}
+[data-modal-stack][data-state="open"]:has(~ [data-modal-stack][data-state="open"]) {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Designer canvas: anchors inside blocks are inert so links can't hijack
    block selection (preview and print keep them clickable). */
 .block-card a {

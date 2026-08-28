@@ -89,6 +89,13 @@ export interface NonShootDate {
   date: string; // YYYY-MM-DD
   /** Day-type key (see `Project.dayTypes`; built-ins: hold/travel/holiday). */
   status?: string;
+  /** Set by the Production Dates modal's days-off sync: this Day Off status
+   *  was created from the weekly pattern. Only pattern-created entries are
+   *  ever removed when a weekday is unchecked — hand-made statuses and event
+   *  cards always survive. STICKY: entry updates that don't mention it keep
+   *  the existing flag (see `upsertNonShootDate`), so a generated day off
+   *  cycled through other statuses stays generated. */
+  pattern?: boolean;
   /** Type key → category → element keys attached that day (cast = IDs, other
    *  categories = names; `'*'` = whole category). `travel`/`hold` lists were
    *  folded into `lists.travel`/`lists.hold` by the LOAD migration. */

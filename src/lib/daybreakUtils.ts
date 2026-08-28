@@ -52,6 +52,15 @@ export function buildNonShootSet(nonShootDates?: NonShootDate[] | null): Set<str
   return new Set((nonShootDates || []).filter(n => n.status).map(n => n.date));
 }
 
+/** Advance `date` forward to the first calendar day the skip predicate does NOT match.
+ *  The canonical date-cursor skip (statused days; the modal walk adds the weekly
+ *  days-off pattern on top) — never re-derive the loop elsewhere. */
+export function advanceDateCursor(date: string, skip: (d: string) => boolean): string {
+  let d = date;
+  while (skip(d)) d = addDays(d, 1);
+  return d;
+}
+
 export function formatElapsedCaption(row: { computedDayElapsed?: number; previousBreakEndElapsed?: number }): string | null {
   if (row.computedDayElapsed == null) return null;
   if (row.previousBreakEndElapsed != null) {
@@ -148,9 +157,8 @@ export function computeRowData(
   let lastBreakEndElapsed: number | undefined;
 
   const getDate = (isPinned: boolean): string => {
-    while (nonShootSet.has(dateCursor)) dateCursor = addDays(dateCursor, 1);
-    const d = dateCursor;
-    if (!isPinned) dateCursor = addDays(dateCursor, 1);
+    const d = advanceDateCursor(dateCursor, d => nonShootSet.has(d));
+    if (!isPinned) dateCursor = addDays(d, 1);
     return d;
   };
 
