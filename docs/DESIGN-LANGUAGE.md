@@ -95,6 +95,7 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 | Help micro-copy | `text-[10px] text-zinc-600` | `DayTypeModals.tsx:61` |
 | Intro copy | `text-xs text-zinc-400 leading-relaxed` | `LinkManagerModal.tsx:211` |
 | Modal body | `p-6 space-y-5` (single-field forms may use `space-y-4`) | `LinkManagerModal.tsx:210`, `ScheduleModals.tsx:93` |
+| **Date field** | `DateField` (`src/components/DateField.tsx`) — a composition of kit parts (promotion candidate under roadmap 56, same path as `DatePicker` → v0.1.34): **chrome** (default) = a chip trigger (`bg-zinc-800 border-zinc-700 text-xs`, label = `summaryLabel`, sibling ✕ `aria-label="Clear date"` that clears WITHOUT opening the panel) that spawns the kit `DropdownMenu` (dark, `w-64`) hosting the kit `DatePicker` — single mode collapses to the LATEST pick (the kit picker is a toggle), ✕ is a sibling button (never nested in the trigger); **inline** = the calendar renders directly (rule editor Dates box — every date visible for multi-pick). Used by: EventModal, EventAdderModal, ProductionDatesModal (chrome), RuleEditorPanel (inline) | `DateField.tsx` |
 
 ### Tables (light managers)
 | Element | Classes | Source |
@@ -182,6 +183,36 @@ Structure (all in `src/components/Modal.tsx`):
 Behavior: Esc and outside-click = cancel (touch: overlay `onTouchEnd` closes unless a Radix menu is
 open, `:165-169`); Enter = confirm; Radix focus trap. Portaled overlays above the modal
 (DurationKeypad) must set their own `pointer-events:auto` (`Modal.tsx:66-67`).
+
+Stacking (modal spawns modal, e.g. Day Events → Rule Editor): the parent fades to **invisible**
+(`opacity:0` + `pointer-events:none`, 180ms) while the child is open — only the top modal stays
+visible. Pure structural CSS in `index.css`: `[data-modal-stack][data-state=open]:has(~ [data-modal-stack][data-state=open])`
+(dialogs portal as siblings into the window body; any open modal with an open modal after it
+fades). Modal overlays are **transparent — no background dimming** (the stack fade + morph carry
+the hierarchy; `.ui-overlay` in `index.css` also clears the ui-kit confirm/alert dim). The ui-kit
+confirm/alert deliberately does NOT dim the modal beneath it.
+
+Morph: stacked modals **grow out of the modal beneath them** and the survivor **shrinks back from
+the closing modal's box**; **standalone modals zoom in from 94% on open and zoom back out on
+close** — a hand-rolled FLIP in `Modal.tsx` (no animation lib): measure both rects, pin the
+content box onto the target box with a `translate+scale` transform (`transform-origin: 0 0`),
+force a reflow, then double-rAF to identity with a 220ms `cubic-bezier(0.32,0.72,0,1)` transition.
+The transform lives on the **content box itself** (a wrapper would crop inside its fixed
+`overflow-hidden` box) and never touches `pointer-events`. Enter: the child finds its stack parent
+among open `[data-modal-stack]` siblings (DOM order = stack order, so popout windows work
+per-window automatically); no parent → zoom-in. Close: the Modal owns its dismissal paths (X, Esc,
+outside-click, overlay touch) and intercepts them via `doClose` — plays the zoom-out, THEN calls
+`onClose` (footer buttons that call `onClose` directly snap closed; stacked children skip the
+self-zoom since the survivor's morph-back is the close effect). Exit-morph parent side: a
+MutationObserver arms a per-frame poll that tracks the child's last box; when the child disappears
+it plays the reverse map while the CSS fade restores it (the inline transition carries
+`opacity 180ms` so the fade keeps running). Drag/resize are gated while a morph runs; an
+animation token cancels stale rAF/timeouts on rapid open/close. **Content-driven size changes** (tab switches,
+async loads — e.g. Project Manager Local↔Cloud) FLIP the box height: a ResizeObserver pins the
+old height, transitions to the new px height, then releases to auto — user drag/resize stays
+instant and mid-morph fires re-anchor afterwards. `prefers-reduced-motion` skips
+all of it. Opt-out: `localStorage lemon_schedule_modal_morph === '0'` — no code change needed to
+disable.
 
 Width ladder (verified call sites): `max-w-sm` simple forms (`CustomOrderSortModal`) · `max-w-md`
 single-form (`DayTypeModals.tsx:26`) · `max-w-lg` merge/violations (`ViolationModal`) · `max-w-xl`

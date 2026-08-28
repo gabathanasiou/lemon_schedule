@@ -7,7 +7,7 @@ import { getCategoryElements } from '../../lib/elements';
 import { anchoredKeysFor } from '../../lib/elementLinks';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import Modal, { ModalFooter } from '../Modal';
-import DatePicker from '../DatePicker';
+import DateField from '../DateField';
 import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
@@ -191,32 +191,20 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
       <div className={CREM_BODY}>
         <div className="space-y-5">
             {/* Date: pre-targeted label, else the picker */}
-            <div>
-              <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-                <Sun className={`${XSZ} text-zinc-500`} />
-                Date
-              </span>
-              {dateKey ? (
-                <button
-                  type="button"
-                  onClick={() => setDateKey(null)}
-                  title="Change date"
-                  className="px-2.5 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 transition-colors flex items-center gap-2"
-                >
-                  {formatDateLabel(dateKey)}
-                  <X className="w-3 h-3 text-zinc-500" />
-                </button>
-              ) : (
-                <DatePicker
-                  selected={[]}
-                  onChange={(ds) => setDateKey(ds[0] || null)}
-                  theme="dark"
-                />
-              )}
-              {dateOutOfWindow && (
-                <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>
-              )}
-            </div>
+          <div>
+            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+              <Sun className={`${XSZ} text-zinc-500`} />
+              Date
+            </span>
+            <DateField
+              value={dateKey ? [dateKey] : []}
+              onChange={(ds) => setDateKey(ds[0] || null)}
+              placeholder="Pick a date"
+            />
+            {dateOutOfWindow && (
+              <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>
+            )}
+          </div>
 
             {/* Event type */}
             <div>

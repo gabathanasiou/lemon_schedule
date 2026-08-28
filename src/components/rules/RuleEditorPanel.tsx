@@ -3,7 +3,7 @@ import { ProjectRule, Scene, CastMember } from '../../types';
 import { getUniqueCastIds } from '../../lib/utils';
 import { usePortalTarget } from '../../lib/popoutTarget';
 import { EntityDropdown } from '../EntityDropdown';
-import DatePicker from '../DatePicker';
+import DateField from '../DateField';
 import Checkbox from '../Checkbox';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
@@ -213,10 +213,12 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
           {form.datesMode === 'all' && form.type !== 'DATE_RESTRICTION' ? (
             <p className={`${CREM_LABEL} text-zinc-500 italic`}>Applies every day.</p>
           ) : (
-            <DatePicker
-              selected={form.dates}
+            <DateField
+              multi
+              variant="inline"
+              value={form.dates}
               onChange={dates => setForm(f => ({ ...f, dates }))}
-              theme="dark"
+              placeholder="Pick dates"
             />
           )}
         </FieldBox>

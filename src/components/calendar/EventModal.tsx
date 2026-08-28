@@ -8,7 +8,7 @@ import { anchoredKeysFor } from '../../lib/elementLinks';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { mergeItemsInto, removeItemsFrom } from '../../lib/events';
 import Modal, { ModalFooter } from '../Modal';
-import DatePicker from '../DatePicker';
+import DateField from '../DateField';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { EntityDropdown } from '../EntityDropdown';
@@ -16,7 +16,7 @@ import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { usePortalTarget } from '../../lib/popoutTarget';
 import Button from '../Button';
-import { ChevronDown, Sun, Trash2, X, MessageSquare } from 'lucide-react';
+import { ChevronDown, Sun, Trash2, MessageSquare } from 'lucide-react';
 
 interface EventModalProps {
   /** The single event being edited: one element's card on one date. */
@@ -218,23 +218,11 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
               <Sun className={`${XSZ} text-zinc-500`} />
               Date
             </span>
-            {date ? (
-              <button
-                type="button"
-                onClick={() => setDate('')}
-                title="Change date"
-                className="px-2.5 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 transition-colors flex items-center gap-2"
-              >
-                {formatDateLabel(date)}
-                <X className="w-3 h-3 text-zinc-500" />
-              </button>
-            ) : (
-              <DatePicker
-                selected={[]}
-                onChange={(ds) => setDate(ds[0] || '')}
-                theme="dark"
-              />
-            )}
+            <DateField
+              value={date ? [date] : []}
+              onChange={(ds) => setDate(ds[0] || '')}
+              placeholder="Pick a date"
+            />
             {dateOutOfWindow && (
               <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>
             )}

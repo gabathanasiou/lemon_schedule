@@ -110,18 +110,20 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   }, seedInfo.fid)).toBe(3);
 
   // ---- Add Event on a new date: the shared adder opens ELEMENT-LOCKED (the
-  //     element in its category), the date is picked inside, Create merges it
-  //     onto the day as a per-element card
+  //     element in its category), the date is picked via the chrome calendar,
+  //     Create merges it onto the day as a per-element card
   await modal.getByRole('button', { name: 'Add Event on a Date' }).click();
   const adder = page.getByRole('dialog').last();
   await expect(adder.getByRole('heading', { name: /1\. FISHERMAN/ })).toBeVisible();
+  await adder.getByRole('button', { name: 'Pick a date' }).click();
   // The kit DatePicker opens on the current month — navigate to August 2026
-  // whenever we land elsewhere (the fixture dates live in August).
+  // whenever we land elsewhere (the fixture dates live in August). The chrome
+  // panel portals to the page root, so the picker lives OUTSIDE the dialog.
   let guard = 0;
-  while (!(await adder.getByText(/August 2026/).isVisible().catch(() => false)) && guard++ < 24) {
-    await adder.getByRole('button', { name: 'Previous month' }).click();
+  while (!(await page.getByText(/August 2026/).isVisible().catch(() => false)) && guard++ < 24) {
+    await page.getByRole('button', { name: 'Previous month' }).first().click();
   }
-  await adder.getByRole('button', { name: '17', exact: true }).click();
+  await page.getByRole('button', { name: '17', exact: true }).first().click();
   await adder.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { name: /1\. FISHERMAN — Events/ })).toBeVisible();
   await expect.poll(() => page.evaluate((fid) => {

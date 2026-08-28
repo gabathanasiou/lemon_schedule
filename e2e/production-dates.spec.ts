@@ -20,10 +20,34 @@ test('production dates: window + days off modal replaces START/Days Off', async 
   await expect(page.getByText('Post End', { exact: true })).toBeVisible();
 
   // Set the window: prep 2026-07-01, prod 2026-08-10 (existing), post 2026-09-30
-  const dateInputs = page.locator('input[type="date"]');
-  await dateInputs.nth(0).fill('2026-07-01');
-  await dateInputs.nth(1).fill('2026-08-10');
-  await dateInputs.nth(2).fill('2026-09-30');
+  // via the date buttons that spawn the calendar chrome panel (portaled to the
+  // page root — never scoped to the modal).
+  const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const targetKey = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}`;
+  const now = new Date();
+  const navTo = async (key: string) => {
+    let cur = monthKey(now);
+    const target = targetKey(parseInt(key.slice(0, 4), 10), parseInt(key.slice(5, 7), 10));
+    let guard = 0;
+    while (cur !== target && guard++ < 24) {
+      if (cur < target) await page.getByRole('button', { name: 'Next month' }).first().click();
+      else await page.getByRole('button', { name: 'Previous month' }).first().click();
+      cur = monthKey(new Date(parseInt(cur.slice(0, 4), 10), parseInt(cur.slice(5, 7), 10) - 1 + (cur < target ? 1 : -1), 1));
+    }
+  };
+  // Each Production Window row: label + its DateField chip (stable regardless
+  // of the current label text).
+  const rowFor = (label: string) =>
+    page.locator('div.flex.items-center.justify-between', { hasText: label }).first();
+  const chipIn = (label: string) => rowFor(label).locator('button[type="button"]').first();
+  const pickDate = async (label: string, y: number, m: number, day: number) => {
+    await chipIn(label).click();
+    await navTo(targetKey(y, m));
+    await page.getByRole('button', { name: String(day), exact: true }).first().click();
+  };
+  await pickDate('Prep Start', 2026, 7, 1);
+  await pickDate('Production Start', 2026, 8, 10);
+  await pickDate('Post End', 2026, 9, 30);
   await page.getByRole('button', { name: 'Save' }).click();
 
   // Version persisted via the bridge
