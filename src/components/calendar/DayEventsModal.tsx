@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useProject } from '../../store';
 import { NonShootDate, ProjectRule, RuleViolation } from '../../types';
-import { getTypeLists, NON_SHOOT_ALL } from '../../lib/nonShootHelpers';
+import { getTypeLists, NON_SHOOT_ALL, resolveElementName } from '../../lib/nonShootHelpers';
 import { getMarkableDayTypes, getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { getCategoryElements } from '../../lib/elements';
 import { anchoredKeysFor } from '../../lib/elementLinks';
@@ -31,13 +31,15 @@ interface AttachRow {
   all: boolean;
 }
 
-/** One editable event type on the day — its attachment rows + per-row comments. */
+/** One editable event type on the day — its attachment rows + PER-ELEMENT
+ *  notes (each element's card carries its own note). */
 interface EventSection {
   status: string;
   rows: AttachRow[];
-  /** category → comment text. */
-  comments: Record<string, string>;
-  /** category → comment input open. */
+  /** category → element key → note text (saved into
+   *  `comments[status][category][key]`). */
+  notes: Record<string, Record<string, string>>;
+  /** category → note editor open. */
   commentOpen: Record<string, boolean>;
 }
 
@@ -156,24 +158,33 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
       const v = Object.values(entry!.lists![s] || {});
       return v.some(arr => arr.length > 0);
     });
+    const notesFor = (status: string): Record<string, Record<string, string>> => {
+      const notes: Record<string, Record<string, string>> = {};
+      if (entry?.comments?.[status] && typeof entry.comments[status] === 'object') {
+        for (const [category, catNotes] of Object.entries(entry.comments[status])) {
+          if (catNotes && typeof catNotes === 'object') notes[category] = { ...catNotes };
+        }
+      }
+      return notes;
+    };
     const out: EventSection[] = statuses.map(status => ({
       status,
       rows: Object.entries(entry!.lists![status]!)
         .map(([category, keys]) => ({ category, keys: [...keys], all: keys.includes(NON_SHOOT_ALL) }))
         .sort((a, b) => categoryRankOf(a.category) - categoryRankOf(b.category)),
-      comments: { ...(entry?.comments?.[status] || {}) },
+      notes: notesFor(status),
       commentOpen: {},
     }));
     if (entry?.status && !out.some(s => s.status === entry.status)) {
       const t = getDayType(project, entry.status);
-      if (t?.attachable) out.push({ status: entry.status, rows: blankRows(), comments: {}, commentOpen: {} });
+      if (t?.attachable) out.push({ status: entry.status, rows: blankRows(), notes: {}, commentOpen: {} });
     }
     if (initialStatus && !out.some(s => s.status === initialStatus)) {
-      out.push({ status: initialStatus, rows: blankRows(), comments: {}, commentOpen: {} });
+      out.push({ status: initialStatus, rows: blankRows(), notes: {}, commentOpen: {} });
     }
-    // Element Manager events: pre-attach the element's category row (merge
-    // into an existing same-category row, else the first section, else a new
-    // section under the first attachable day type).
+    // Element Manager events: pre-add the element's cards (merge into an
+    // existing same-category row, else the first section, else a new section
+    // under the first attachable day type).
     if (preseedItems && preseedItems.keys.length > 0) {
       const { category: cat, keys } = preseedItems;
       const existingSection = out.find(s => s.rows.some(r => r.category === cat));
@@ -190,7 +201,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
       } else {
         const firstAttachable = getMarkableDayTypes(project).find(t => t.attachable !== false);
         if (firstAttachable) {
-          out.push({ status: firstAttachable.key, rows: [{ category: cat, keys: [...keys], all: false }], comments: {}, commentOpen: {} });
+          out.push({ status: firstAttachable.key, rows: [{ category: cat, keys: [...keys], all: false }], notes: {}, commentOpen: {} });
         }
       }
     }
@@ -207,7 +218,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
     if (key && !sections.some(s => s.status === key)) {
       const t = getDayType(project, key);
       if (t?.attachable) {
-        setSections(prev => [...prev, { status: key, rows: blankRows(), comments: {}, commentOpen: {} }]);
+        setSections(prev => [...prev, { status: key, rows: blankRows(), notes: {}, commentOpen: {} }]);
         requestAnimationFrame(() => {
           document.querySelector(`[data-event-section="${dateKey}-${key}"]`)?.scrollIntoView({ block: 'nearest' });
         });
@@ -217,7 +228,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
 
   const addSection = (status: string) => {
     if (sections.some(s => s.status === status)) return;
-    setSections(prev => [...prev, { status, rows: blankRows(), comments: {}, commentOpen: {} }]);
+    setSections(prev => [...prev, { status, rows: blankRows(), notes: {}, commentOpen: {} }]);
     requestAnimationFrame(() => {
       document.querySelector(`[data-event-section="${dateKey}-${status}"]`)?.scrollIntoView({ block: 'nearest' });
     });
@@ -255,9 +266,9 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
       ? { ...s, rows: s.rows.map((r, i) => i === idx ? { ...r, all: !r.all, keys: !r.all ? [NON_SHOOT_ALL] : [] } : r) }
       : s));
 
-  const setComment = (status: string, category: string, text: string) =>
+  const setComment = (status: string, category: string, key: string, text: string) =>
     setSections(prev => prev.map(s => s.status === status
-      ? { ...s, comments: { ...s.comments, [category]: text } }
+      ? { ...s, notes: { ...s.notes, [category]: { ...(s.notes[category] || {}), [key]: text } } }
       : s));
 
   const toggleComment = (status: string, category: string) =>
@@ -267,7 +278,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
 
   const handleSave = () => {
     const nextLists: Record<string, Record<string, string[]>> = {};
-    const nextComments: Record<string, Record<string, string>> = {};
+    const nextComments: Record<string, Record<string, Record<string, string>>> = {};
     for (const sec of sections) {
       const map: Record<string, string[]> = {};
       for (let i = 0; i < sec.rows.length; i++) {
@@ -280,11 +291,15 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
         map[r.category] = [...(map[r.category] || []), ...keys];
       }
       if (Object.keys(map).length > 0) nextLists[sec.status] = map;
-      for (const [cat, text] of Object.entries(sec.comments)) {
-        const trimmed = text.trim();
-        if (trimmed) {
+      for (const [cat, notes] of Object.entries(sec.notes)) {
+        const nonEmpty: Record<string, string> = {};
+        for (const [key, text] of Object.entries(notes)) {
+          const trimmed = text.trim();
+          if (trimmed) nonEmpty[key] = trimmed;
+        }
+        if (Object.keys(nonEmpty).length > 0) {
           nextComments[sec.status] = nextComments[sec.status] || {};
-          nextComments[sec.status][cat] = trimmed;
+          nextComments[sec.status][cat] = nonEmpty;
         }
       }
     }
@@ -338,7 +353,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
               trigger={
                 <Button theme="dark" variant="subtle" className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 flex items-center gap-2">
                   {StatusIcon(statusKey, XSZ, activeType?.color)}
-                  <span className={`truncate ${activeType?.color ? '' : 'text-zinc-200'}`} style={activeType?.color ? { color: activeType.color } : undefined}>{activeType?.label || 'None'}</span>
+                  <span className="truncate text-zinc-200">{activeType?.label || 'None'}</span>
                   <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
                 </Button>
               }
@@ -351,7 +366,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                 <DropdownItem key={t.key} onClick={() => { changeStatus(t.key); setStatusMenuOpen(false); }}
                   icon={StatusIcon(t.key, 'w-3.5 h-3.5', t.color)}
                 >
-                  <span style={t.color ? { color: t.color } : undefined}>{t.label}</span>
+                  <span className="text-zinc-200">{t.label}</span>
                 </DropdownItem>
               ))}
             </DropdownMenu>
@@ -397,7 +412,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                   <DropdownItem key={t.key} onClick={() => { addSection(t.key); setAddTypeOpen(false); }}
                     icon={StatusIcon(t.key, 'w-3.5 h-3.5', t.color)}
                   >
-                    <span style={t.color ? { color: t.color } : undefined}>{t.label}</span>
+                    <span className="text-zinc-200">{t.label}</span>
                   </DropdownItem>
                 ))}
               </DropdownMenu>
@@ -415,7 +430,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                     <div key={sec.status} data-event-section={`${dateKey}-${sec.status}`} className="border border-zinc-800 rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <SecIcon className={XSZ} style={def?.color ? { color: def.color } : undefined} />
-                        <span className={`${CREM_TEXT} font-semibold ${def?.color ? '' : 'text-zinc-200'}`} style={def?.color ? { color: def.color } : undefined}>{def?.label || sec.status}</span>
+                        <span className={`${CREM_TEXT} font-semibold text-zinc-200`}>{def?.label || sec.status}</span>
                         <Button theme="dark" variant="subtle" className="ml-auto flex items-center gap-1" onPointerDown={(e) => { e.preventDefault(); addRow(sec.status); }}>
                           <Plus className="w-3 h-3" /> Add
                         </Button>
@@ -431,8 +446,10 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                             const isCast = r.category === 'cast';
                             const items = getItemsFor(r.category);
                             const catLabel = categoryLabelLookup[r.category] || r.category;
-                            const comment = sec.comments[r.category] || '';
+                            const rowNotes = sec.notes[r.category] || {};
                             const open = sec.commentOpen[r.category];
+                            const hasNotes = Object.values(rowNotes).some(t => t.trim());
+                            const noteKeys = r.all ? [NON_SHOOT_ALL] : (r.keys.length > 0 ? r.keys : []);
                             return (
                               <div key={`${sec.status}-${i}`} className="space-y-1">
                                 <div ref={el => { rowRefs.current.set(`${sec.status}-${i}`, el); }} className="flex items-center gap-2">
@@ -473,8 +490,8 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                                     theme="dark"
                                     variant="subtle"
                                     onPointerDown={(e) => { e.preventDefault(); toggleComment(sec.status, r.category); }}
-                                    title={comment ? `Comment: ${comment}` : 'Add a comment'}
-                                    className={`p-1 shrink-0 ${comment ? '!text-amber-300' : ''}`}
+                                    title={hasNotes ? `Notes for ${noteKeys.length} element${noteKeys.length === 1 ? '' : 's'}` : 'Add notes per element'}
+                                    className={`p-1 shrink-0 ${hasNotes ? '!text-amber-300' : ''}`}
                                   >
                                     <MessageSquare className="w-3 h-3" />
                                   </Button>
@@ -482,15 +499,24 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                                     <X className="w-3 h-3" />
                                   </Button>
                                 </div>
-                                {(open || comment) && (
-                                  <input
-                                    type="text"
-                                    value={comment}
-                                    onChange={(e) => setComment(sec.status, r.category, e.target.value)}
-                                    placeholder={`Comment for ${catLabel} — e.g. "Traveling from Singapore"`}
-                                    className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
-                                    autoFocus={open && !comment}
-                                  />
+                                {(open || hasNotes) && noteKeys.length > 0 && (
+                                  <div className="space-y-1.5 pl-10">
+                                    {noteKeys.map(k => (
+                                      <div key={k} className="flex items-center gap-2">
+                                        <span className="text-[10px] text-zinc-400 truncate max-w-[130px] shrink-0">
+                                          {r.all ? `All ${catLabel}` : resolveElementName(k, r.category, project)}
+                                        </span>
+                                        <input
+                                          type="text"
+                                          value={rowNotes[k] || ''}
+                                          onChange={(e) => setComment(sec.status, r.category, k, e.target.value)}
+                                          placeholder={`Note for ${r.all ? `all ${catLabel}` : resolveElementName(k, r.category, project)} — e.g. "Traveling from Singapore"`}
+                                          className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
+                                          autoFocus={open && !rowNotes[k]}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
                             );

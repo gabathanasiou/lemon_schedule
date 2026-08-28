@@ -96,21 +96,23 @@ test('calendar events: mode toggle, attachment cards, spanning chips, filter, mo
   await expect(page.getByRole('dialog').getByText('Event Types', { exact: true }).first()).toBeVisible();
   await expect(page.locator('[data-event-section]').first()).toContainText('Travel');
 
-  // ---- Per-row comment: add "Traveling from Singapore" to the Cast row
-  await page.locator('button[title*="Add a comment"]').first().click();
-  const commentInput = page.locator('input[placeholder*="Comment for Cast"]');
-  await expect(commentInput).toBeVisible();
-  await commentInput.fill('Traveling from Singapore');
+  // ---- Per-element note: add "Traveling from Singapore" to the FISHERMAN card
+  await page.getByRole('dialog').locator('button[title^="Notes for"], button[title^="Add notes per element"]').first().click();
+  const noteInput = page.getByRole('dialog').getByPlaceholder('Note for 1. FISHERMAN', { exact: false });
+  await expect(noteInput).toBeVisible();
+  await noteInput.fill('Traveling from Singapore');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect.poll(() => page.evaluate(() => {
     const s = (window as any).__lemonSchedule;
     const st = s.getState().present;
     const v = st.versions.find((x: any) => x.id === st.activeVersionId);
     const e = (v.nonShootDates || []).find((n: any) => n.date === '2026-08-16');
-    return e?.comments?.travel?.cast || '';
+    return e?.comments?.travel?.cast?.['1'] || '';
   })).toBe('Traveling from Singapore');
+  // One per-element card shows the note glyph (only FISHERMAN's card — MARY
+  // and the coat carry none)
   const commentGlyph = page.locator('[data-date-key="2026-08-16"] [data-event-key^="ev-att-"] svg.lucide-message-square');
-  await expect(commentGlyph).toBeVisible();
+  await expect(commentGlyph).toHaveCount(1);
   await commentGlyph.hover();
   await expect(page.getByText('Traveling from Singapore').first()).toBeVisible();
 

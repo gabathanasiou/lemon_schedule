@@ -211,37 +211,44 @@ export function useEventsDrag(config: UseEventsDragConfig) {
       if (kind === 'status') {
         const statusKey = el.querySelector('[data-card-status]')?.getAttribute('data-card-status') || el.getAttribute('data-card-status') || '';
         if (!statusKey) continue;
-        // source: status + its lists move away; keep other-status lists
+        // source: status + its lists + its notes move away; keep other-status lists
         const srcLists = { ...(src?.lists || {}) };
         const movedLists: Record<string, string[]> = srcLists[statusKey] || {};
         delete srcLists[statusKey];
-        const srcNext: NonShootDate | undefined = src && Object.keys(srcLists).length > 0
-          ? { date: src.date, lists: srcLists }
+        const srcComments = { ...(src?.comments || {}) };
+        const movedNotes: Record<string, Record<string, string>> | undefined = srcComments[statusKey];
+        if (movedNotes) delete srcComments[statusKey];
+        const srcNext: NonShootDate | undefined = src && (Object.keys(srcLists).length > 0 || Object.keys(srcComments).length > 0)
+          ? { date: src.date, lists: srcLists, ...(Object.keys(srcComments).length > 0 ? { comments: srcComments } : {}) }
           : undefined;
-        // target: status replaced; old status's lists dropped; moved lists merge in
+        // target: status replaced; old status's lists + notes dropped; moved ones merge in
         const tgtLists = { ...(target?.lists || {}) };
         if (target?.status) delete tgtLists[target.status];
         for (const [cat, keys] of Object.entries(movedLists)) {
           const prev = tgtLists[statusKey]?.[cat] || [];
           tgtLists[statusKey] = { ...(tgtLists[statusKey] || {}), [cat]: [...new Set([...prev, ...keys])] };
         }
+        const tgtComments = { ...(target?.comments || {}) };
+        if (target?.status) delete tgtComments[target.status];
+        tgtComments[statusKey] = { ...(tgtComments[statusKey] || {}), ...(movedNotes || {}) };
         const tgtNext: NonShootDate = { date: targetDateKey, status: statusKey };
         if (Object.keys(tgtLists).length > 0) tgtNext.lists = tgtLists;
+        if (Object.keys(tgtComments).length > 0) tgtNext.comments = tgtComments;
         entries.set(sourceDate, srcNext);
         entries.set(targetDateKey, tgtNext);
       } else {
-        // attachment: data-card-status / data-card-category / data-card-keys
-        // (rendered on the inner card view — resolve from either node)
+        // attachment card: one ELEMENT moves — data-card-status / -category /
+        // -key / -comment (rendered on the inner card view — resolve from
+        // either node)
         const inner = el.querySelector('[data-card-status]') as HTMLElement | null;
         const cardEl = inner || (el as HTMLElement);
         const status = cardEl.getAttribute('data-card-status') || '';
         const category = cardEl.getAttribute('data-card-category') || '';
-        const raw = cardEl.getAttribute('data-card-keys');
-        const keys: string[] = raw ? JSON.parse(raw) : [];
+        const key = cardEl.getAttribute('data-card-key') || '';
         const comment = cardEl.getAttribute('data-card-comment') || undefined;
-        if (!status || !category) continue;
-        entries.set(sourceDate, removeItemsFrom(src, status, category, keys));
-        const merged = mergeItemsInto(target, status, category, keys, comment);
+        if (!status || !category || !key) continue;
+        entries.set(sourceDate, removeItemsFrom(src, status, category, [key]));
+        const merged = mergeItemsInto(target, status, category, [key], comment ? { [key]: comment } : undefined);
         entries.set(targetDateKey, { ...merged, date: targetDateKey });
       }
     }

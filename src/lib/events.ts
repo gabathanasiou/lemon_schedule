@@ -20,7 +20,10 @@ import { getLabel, DEFAULT_CATEGORY_LABELS, ELEMENT_CATEGORIES } from './categor
 
 export type EventCard =
   | { id: string; kind: 'status'; dateKey: string; statusKey: string }
-  | { id: string; kind: 'attachment'; dateKey: string; status: string; category: string; keys: string[]; all: boolean; comment?: string }
+  /** One card PER ELEMENT (roadmap 46 choice): an element marked under a
+   *  status × category gets its own card with its own note. `all` = the
+   *  whole category is marked (`'*'` card). */
+  | { id: string; kind: 'attachment'; dateKey: string; status: string; category: string; key: string; all: boolean; comment?: string }
   /** One card per rule per date. `everyday` = the rule has no dates (or is a
    *  CAST_* rule) and therefore shows a card on every calendar day —
    *  display-only (no drag/delete). `violated`/`message` = this rule is
@@ -114,17 +117,32 @@ export function computeDayEvents(
   });
   const nameOf = (key: string, category: string) => resolveElementName(key, category, project);
   for (const g of groups) {
-    const keys = isAllKeys(g.keys) ? g.keys : [...g.keys].sort((a, b) => nameOf(a, g.category).localeCompare(nameOf(b, g.category)));
-    cards.push({
-      id: `ev-att-${dateKey}-${g.status}-${g.category}`,
-      kind: 'attachment',
-      dateKey,
-      status: g.status,
-      category: g.category,
-      keys: g.keys,
-      all: isAllKeys(g.keys),
-      comment: entry?.comments?.[g.status]?.[g.category],
-    });
+    const notes = entry?.comments?.[g.status]?.[g.category] || {};
+    if (isAllKeys(g.keys)) {
+      cards.push({
+        id: `ev-att-${dateKey}-${g.status}-${g.category}-*`,
+        kind: 'attachment',
+        dateKey,
+        status: g.status,
+        category: g.category,
+        key: '*',
+        all: true,
+        comment: notes['*'] || undefined,
+      });
+      continue;
+    }
+    for (const k of [...g.keys].sort((a, b) => nameOf(a, g.category).localeCompare(nameOf(b, g.category)))) {
+      cards.push({
+        id: `ev-att-${dateKey}-${g.status}-${g.category}-${k}`,
+        kind: 'attachment',
+        dateKey,
+        status: g.status,
+        category: g.category,
+        key: k,
+        all: false,
+        comment: notes[k] || undefined,
+      });
+    }
   }
 
   // Rules: one card per date for dated rules; every-day/global rules get a
@@ -294,16 +312,16 @@ export function withRuleDates(rule: ProjectRule & { dates?: string[] }, dates: s
 /* ------------------------------------------------------------------ */
 
 /**
- * Merges an attachment card's keys into the target entry's lists for its
- * status × category (append without duplicates; NO_DUP with `'*'`).
- * A comment travels with the group when provided.
+ * Merges keys into the target entry's lists for their status × category
+ * (append without duplicates; NO_DUP with `'*'`). Notes travel per element:
+ * `notes[key]` is written to `comments[status][category][key]`.
  */
 export function mergeItemsInto(
   entry: NonShootDate | undefined,
   status: string,
   category: string,
   keys: string[],
-  comment?: string,
+  notes?: Record<string, string>,
 ): NonShootDate {
   const lists = { ...(entry?.lists || {}) };
   const statusLists = { ...(lists[status] || {}) };
@@ -314,23 +332,49 @@ export function mergeItemsInto(
       return {
         ...(entry || { date: entry?.date || '' }),
         lists: { ...lists, [status]: { ...statusLists, [category]: [NON_SHOOT_ALL] } },
-        ...(comment ? { comments: { ...(entry?.comments || {}), [status]: { ...(entry?.comments?.[status] || {}), [category]: comment } } } : {}),
+        ...(notes?.[k] ? { comments: setNote(entry?.comments, status, category, k, notes[k]) } : {}),
       };
     }
     if (!merged.includes(k)) merged.push(k);
   }
   const nextLists = { ...lists, [status]: { ...statusLists, [category]: merged } };
-  return {
-    ...(entry || { date: entry?.date || '' }),
-    lists: nextLists,
-    ...(comment ? { comments: { ...(entry?.comments || {}), [status]: { ...(entry?.comments?.[status] || {}), [category]: comment } } } : {}),
-  };
+  const withNotes: NonShootDate = { ...(entry || { date: entry?.date || '' }), lists: nextLists };
+  if (notes) {
+    let comments = entry?.comments ? { ...entry.comments } : {};
+    for (const [k, text] of Object.entries(notes)) {
+      if (k === NON_SHOOT_ALL || !merged.includes(k)) continue;
+      comments = setNote(comments, status, category, k, text);
+    }
+    if (Object.keys(comments).length > 0) withNotes.comments = comments;
+  }
+  return withNotes;
+}
+
+/** Writes `comments[status][category][key]`, pruning empty branches. Legacy
+ *  per-card strings are treated as absent (beta — old comments dropped). */
+export function setNote(
+  comments: NonShootDate['comments'],
+  status: string,
+  category: string,
+  key: string,
+  text: string,
+): NonShootDate['comments'] {
+  const next = { ...(comments || {}) };
+  const statusNotes = { ...(next[status] || {}) };
+  const prevCat = statusNotes[category];
+  const catNotes = prevCat && typeof prevCat === 'object' ? { ...prevCat } : {};
+  const trimmed = text.trim();
+  if (trimmed) catNotes[key] = trimmed;
+  else delete catNotes[key];
+  statusNotes[category] = catNotes;
+  next[status] = statusNotes;
+  return next;
 }
 
 /**
- * Removes an attachment group's keys from an entry (batch-drag source side).
- * The group's comment is dropped with it. Returns `undefined` when the entry
- * loses its status AND all its lists and should be dropped entirely.
+ * Removes keys from an entry (drag source side). Their notes are dropped
+ * with them. Returns `undefined` when the entry loses its status AND all
+ * its lists and should be dropped entirely.
  */
 export function removeItemsFrom(
   entry: NonShootDate | undefined,
@@ -352,17 +396,28 @@ export function removeItemsFrom(
     if (Object.keys(statusLists).length > 0) lists[status] = statusLists;
     else delete lists[status];
   }
-  const comments = { ...(entry.comments || {}) };
-  const statusComments = { ...(comments[status] || {}) };
-  if (statusComments[category] !== undefined) {
-    delete statusComments[category];
-    if (Object.keys(statusComments).length > 0) comments[status] = statusComments;
-    else delete comments[status];
+  let comments = entry.comments ? { ...entry.comments } : undefined;
+  if (comments?.[status]?.[category] && typeof comments[status][category] === 'object') {
+    const catNotes = { ...comments[status][category] };
+    for (const k of removing) delete catNotes[k];
+    if (Object.keys(catNotes).length > 0) {
+      comments = { ...comments, [status]: { ...comments[status], [category]: catNotes } };
+    } else {
+      const statusNotes = { ...comments[status] };
+      delete statusNotes[category];
+      if (Object.keys(statusNotes).length > 0) {
+        comments = { ...comments, [status]: statusNotes };
+      } else {
+        const rest = { ...comments };
+        delete rest[status];
+        comments = Object.keys(rest).length > 0 ? rest : undefined;
+      }
+    }
   }
-  if (Object.keys(lists).length === 0 && !entry.status) return undefined;
+  if (Object.keys(lists).length === 0 && !entry.status && (!comments || Object.keys(comments).length === 0)) return undefined;
   const next: NonShootDate = { date: entry.date, ...(entry.status ? { status: entry.status } : {}) };
   if (Object.keys(lists).length > 0) next.lists = lists;
-  if (Object.keys(comments).length > 0) next.comments = comments;
+  if (comments && Object.keys(comments).length > 0) next.comments = comments;
   return next;
 }
 

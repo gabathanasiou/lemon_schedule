@@ -2,18 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useProject } from '../../store';
 import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { NonShootDate, ProjectRule, RuleViolation } from '../../types';
-import { computeSectionViolationMap, rulesRelevantToDay } from '../../lib/rulesEngine';
+import { computeSectionViolationMap } from '../../lib/rulesEngine';
 import { computeElementEvents, ElementEventGroup } from '../../lib/elementEvents';
 import { getCategoryElements, elementMatchId, elementKey } from '../../lib/elements';
 import { getNonShootEntryMap, upsertNonShootDate, isAllKeys, resolveElementName } from '../../lib/nonShootHelpers';
-import { removeItemsFrom, typeRankOf } from '../../lib/events';
-import { getLabel, ELEMENT_CATEGORIES } from '../../lib/categories';
+import { removeItemsFrom, setNote, typeRankOf, statusLabel } from '../../lib/events';
 import { getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { anchoredKeysFor } from '../../lib/elementLinks';
 import Modal, { ModalFooter } from '../Modal';
-import DatePicker from '../DatePicker';
 import Button from '../Button';
-import { DayEventsModal } from '../calendar/DayEventsModal';
+import { EventAdderModal } from '../calendar/EventAdderModal';
+import { EventModal } from '../calendar/EventModal';
 import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
@@ -29,8 +28,9 @@ interface ElementEventsModalProps {
 }
 
 type NestedModal =
-  | { kind: 'day'; date: string }
-  | { kind: 'rule'; rule: ProjectRule | null };
+  | { kind: 'event'; date: string; status: string }
+  | { kind: 'rule'; rule: ProjectRule | null }
+  | { kind: 'adder' };
 
 function formatDateLabel(dateKey: string): string {
   const d = new Date(dateKey + 'T00:00:00');
@@ -68,6 +68,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
 
   const isCast = category === 'cast';
 
+  // Type cards: dates grouped by day type, in manager order.
   const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
   const entryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
 
@@ -84,12 +85,6 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
     () => computeElementEvents(nonShootDates, identity.refKey, project.rules || [], violationMap),
     [nonShootDates, identity.refKey, project.rules, violationMap],
   );
-
-  const categoryLabel = (key: string) => {
-    const c = ELEMENT_CATEGORIES.find(x => x.key === key);
-    if (c) return getLabel(key, c.label, project.categoryLabels);
-    return project.customCategories?.find(x => x.key === key)?.label || key;
-  };
 
   // Type cards: dates grouped by day type, in manager order.
   const typeCards = useMemo(() => {
@@ -122,6 +117,8 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickedDate, setPickedDate] = useState<string | null>(null);
+  /** Date whose note input is open (inline add/edit — Enter/blur commits). */
+  const [noteDate, setNoteDate] = useState<string | null>(null);
 
   // Nested modals (Radix stacks dialogs by open order — mounting in the same
   // commit corrupts the stack) open one commit later.
@@ -131,38 +128,30 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
     if (nested) setNestedReady(true);
   }, [nested]);
 
-  // Add-event picker: restricted to the production window (prep..post), when
-  // the version declares one — dates outside still work, just warned about.
-  const windowBounds = useMemo(() => {
-    const lo = activeVersion?.prepStart || activeVersion?.productionStart;
-    const hi = activeVersion?.postEnd;
-    if (!lo && !hi) return null;
-    return { lo: lo || '0000-01-01', hi: hi || '9999-12-31' };
-  }, [activeVersion]);
-  const pickedInWindow = !pickedDate || !windowBounds || (pickedDate >= windowBounds.lo && pickedDate <= windowBounds.hi);
+  const openAddEvent = () => setNested({ kind: 'adder' });
 
-  const openAddEvent = () => {
-    if (!pickedDate || !pickedInWindow) return;
-    setPickerOpen(false);
-    setNested({ kind: 'day', date: pickedDate });
-  };
-
-  const saveDay = (date: string, entry: NonShootDate) => {
-    if (!activeVersion) return;
+  const removeGroup = (date: string, status: string, groups: ElementEventGroup[]) => {
+    if (readOnly) return;
+    let entry = entryByDate.get(date);
+    for (const g of groups) {
+      if (isAllKeys(g.keys)) continue;
+      entry = removeItemsFrom(entry, g.status, g.category, [identity.refKey]);
+    }
+    if (!activeVersion || !entry) return;
     dispatch({
       type: 'UPDATE_VERSION',
       payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, date, entry) },
     });
-    setNested(null);
   };
 
-  const removeGroup = (date: string, g: ElementEventGroup) => {
-    if (readOnly || isAllKeys(g.keys)) return;
-    const next = removeItemsFrom(entryByDate.get(date), g.status, g.category, [identity.refKey]);
+  /** Inline note save — the note lives under the row's (status × category)
+   *  slot keyed by THIS element; empty text clears it. */
+  const commitNote = (date: string, status: string, category: string, text: string) => {
     if (!activeVersion) return;
+    const entry = entryByDate.get(date) || { date };
     dispatch({
       type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, date, next) },
+      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, date, { ...entry, comments: setNote(entry.comments, status, category, identity.refKey, text) }) },
     });
   };
 
@@ -193,43 +182,17 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
     >
       <div className={CREM_BODY}>
 
-        {/* Add Event — the calendar stays collapsed until picked */}
+        {/* Add Event — opens the shared adder (element-locked) */}
         <div>
-          {!pickerOpen ? (
-            <Button
-              theme="dark"
-              variant="primary"
-              onClick={() => { setPickerOpen(true); setPickedDate(null); }}
-              disabled={readOnly}
-              className="flex items-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Event on a Date
-            </Button>
-          ) : (
-            <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
-                  <CalendarDays className="w-3 h-3" /> Pick a date
-                </span>
-                <button onClick={() => setPickerOpen(false)} className="text-zinc-500 hover:text-zinc-300 transition-colors p-1" title="Close picker">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <DatePicker
-                selected={pickedDate ? [pickedDate] : []}
-                onChange={(ds) => setPickedDate(ds[0] || null)}
-                theme="dark"
-              />
-              <div className="flex items-center gap-2">
-                <Button theme="dark" variant="primary" onClick={openAddEvent} disabled={!pickedDate || !pickedInWindow}>
-                  <Plus className="w-3 h-3" /> {pickedDate ? `Add to ${formatDateLabel(pickedDate)}` : 'Pick a date first'}
-                </Button>
-                {pickedDate && !pickedInWindow && (
-                  <span className="text-[10px] text-amber-400">Outside this production's date range — events still work, but the calendar may not show the day.</span>
-                )}
-              </div>
-            </div>
-          )}
+          <Button
+            theme="dark"
+            variant="primary"
+            onClick={openAddEvent}
+            disabled={readOnly}
+            className="flex items-center gap-1.5"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Event on a Date
+          </Button>
         </div>
 
         {/* Events — one collapsible card per day type */}
@@ -255,58 +218,77 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                     >
                       {collapsed ? <ChevronRight className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
                       <Icon className="w-3.5 h-3.5 shrink-0" style={def?.color ? { color: def.color } : undefined} />
-                      <span className={`${CREM_TEXT} font-semibold`} style={def?.color ? { color: def.color } : undefined}>{def?.label || status}</span>
+                      <span className={`${CREM_TEXT} font-semibold text-zinc-200`}>{def?.label || status}</span>
                       <span className="text-[10px] text-zinc-500">{rows.length} {rows.length === 1 ? 'day' : 'days'}</span>
                     </button>
                     {!collapsed && (
-                      <div className="border-t border-zinc-700/60 px-3 py-2 space-y-2">
-                        {rows.map(({ date, groups }) => (
-                          <div key={date} data-element-event-date={date} className="flex items-start gap-2">
-                            <div className="w-24 shrink-0 pt-0.5">
-                              <div className={`${CREM_TEXT} text-zinc-300 font-medium`}>{formatDateLabel(date)}</div>
+                      <div className="border-t border-zinc-700/60 divide-y divide-zinc-700/60">
+                        {rows.map(({ date, groups }) => {
+                          const note = groups.map(g => g.comment).find(Boolean) || '';
+                          const noteCategory = groups.find(g => !isAllKeys(g.keys))?.category || groups[0]?.category;
+                          const wholeOnly = groups.every(g => isAllKeys(g.keys));
+                          return (
+                            <div key={date} data-element-event-date={date} className="flex items-center gap-2 px-3 py-1.5">
+                              <span className="w-28 shrink-0 text-[11px] font-medium text-zinc-300">{formatDateLabel(date)}</span>
+                              <div className="flex-1 min-w-0">
+                                {noteDate === date && noteCategory && !readOnly ? (
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    defaultValue={note}
+                                    placeholder="Add a note — e.g. 'Traveling from Singapore'"
+                                    onBlur={(e) => { setNoteDate(null); commitNote(date, status, noteCategory, e.target.value); }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                      if (e.key === 'Escape') { setNoteDate(null); }
+                                    }}
+                                    className={`${CREM_TEXT} w-full px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600 text-[11px]`}
+                                  />
+                                ) : note ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => !readOnly && setNoteDate(date)}
+                                    title={readOnly ? note : 'Edit note'}
+                                    className="flex items-center gap-1 text-[11px] text-zinc-400 italic hover:text-zinc-200 transition-colors w-full text-left min-w-0"
+                                  >
+                                    <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-500" />
+                                    <span className="truncate">"{note}"</span>
+                                  </button>
+                                ) : !readOnly ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setNoteDate(date)}
+                                    className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
+                                  >
+                                    <MessageSquare className="w-2.5 h-2.5" /> Add note
+                                  </button>
+                                ) : (
+                                  <span className={`${CREM_LABEL} text-zinc-600 italic`}>No note</span>
+                                )}
+                              </div>
                               {!readOnly && (
-                                <button
-                                  onClick={() => setNested({ kind: 'day', date })}
-                                  title="Edit this day's events"
-                                  className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-100 transition-colors"
-                                >
-                                  <Pencil className="w-2.5 h-2.5" /> Edit
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => setNested({ kind: 'event', date, status })}
+                                    title="Edit this event"
+                                    className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => removeGroup(date, status, groups)}
+                                    disabled={wholeOnly}
+                                    title={wholeOnly ? `The whole ${statusLabel(status, project)} category is marked — remove the day's events in the editor` : `Remove ${identity.name} from this day`}
+                                    aria-label={`Remove ${identity.name} from this day`}
+                                    className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </>
                               )}
                             </div>
-                            <div className="flex-1 min-w-0 space-y-1">
-                              {groups.map(g => {
-                                const whole = isAllKeys(g.keys);
-                                const names = whole
-                                  ? `All ${categoryLabel(g.category)}`
-                                  : resolveElementName(identity.refKey, category, project);
-                                return (
-                                  <div key={`${g.status}-${g.category}`} data-element-event-group={`${g.status}-${g.category}`}
-                                    className="flex items-center gap-1.5 text-[11px] text-zinc-300">
-                                    <span className="shrink-0">{categoryLabel(g.category)}:</span>
-                                    <span className={`${CREM_TEXT} font-medium text-zinc-200 truncate`}>{names}</span>
-                                    {g.comment && (
-                                      <span className="flex items-center gap-1 min-w-0">
-                                        <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-500" />
-                                        <span className="italic text-zinc-400 truncate">"{g.comment}"</span>
-                                      </span>
-                                    )}
-                                    {!readOnly && !whole && (
-                                      <button
-                                        onClick={() => removeGroup(date, g)}
-                                        title={`Remove ${identity.name} from ${def?.label || status} · ${categoryLabel(g.category)} on this day`}
-                                        aria-label={`Remove ${identity.name} from this day`}
-                                        className="p-0.5 rounded hover:bg-zinc-700 text-zinc-500 hover:text-red-400 transition-colors shrink-0"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -379,14 +361,18 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
       </div>
 
       {/* Nested shared editors (deferred mount — Radix dialog stack) */}
-      {nested?.kind === 'day' && nestedReady && (
-        <DayEventsModal
+      {nested?.kind === 'event' && nestedReady && (
+        <EventModal
           dateKey={nested.date}
-          entry={entryByDate.get(nested.date)}
-          violations={violationMap.get(nested.date) || []}
-          rules={rulesRelevantToDay(project.rules || [], nested.date)}
-          preseedItems={{ category, keys: [identity.refKey] }}
-          onSave={(entry) => saveDay(nested.date, entry)}
+          statusKey={nested.status}
+          category={category}
+          elementKey={identity.refKey}
+          onClose={() => setNested(null)}
+        />
+      )}
+      {nested?.kind === 'adder' && nestedReady && (
+        <EventAdderModal
+          preseed={{ category, keys: [identity.refKey] }}
           onClose={() => setNested(null)}
         />
       )}

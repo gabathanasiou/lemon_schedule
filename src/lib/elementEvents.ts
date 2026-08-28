@@ -37,7 +37,7 @@ export function computeElementAttachments(
           status: g.status,
           category: g.category,
           keys: [...g.keys],
-          comment: entry.comments?.[g.status]?.[g.category],
+          comment: entry.comments?.[g.status]?.[g.category]?.[refKey],
         });
       }
     }

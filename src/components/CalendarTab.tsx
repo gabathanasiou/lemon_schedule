@@ -5,7 +5,7 @@ import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Link2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Link2, Plus } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -30,6 +30,7 @@ import PageToolbar from './PageToolbar';
 import ColorField from './ColorField';
 import { DayCell, FillerCell } from './calendar/DayCell';
 import { DayEventsModal } from './calendar/DayEventsModal';
+import { EventAdderModal } from './calendar/EventAdderModal';
 import { ProductionDatesModal } from './calendar/ProductionDatesModal';
 import { EventDayCell, EventCardView } from './calendar/EventDayCell';
 import { useEventsDrag } from './calendar/useEventsDrag';
@@ -132,6 +133,7 @@ export const CalendarTab: React.FC<{
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [prodDatesOpen, setProdDatesOpen] = useState(false);
   const [travelHoldModal, setTravelHoldModal] = useState<{ dateKey: string; status?: string; rule?: ProjectRule } | null>(null);
+  const [adderDate, setAdderDate] = useState<string | null>(null);
   const [selectedEventKeys, setSelectedEventKeys] = useState<Set<string>>(new Set());
   const selectedEventKeysRef = useRef(selectedEventKeys);
   selectedEventKeysRef.current = selectedEventKeys;
@@ -1323,11 +1325,12 @@ export const CalendarTab: React.FC<{
               <ContextMenuItem key={t.key} onClick={() => { handleNonShootToggle(contextMenuDate, t.key); setContextMenu(null); setContextMenuDate(null); }}
                 icon={<Icon className="w-3.5 h-3.5" style={t.color ? { color: t.color } : undefined} />}
               >
-                <span style={t.color ? { color: t.color } : undefined}>{t.label}</span>
+                <span className="text-zinc-200">{t.label}</span>
               </ContextMenuItem>
             );
           })}
           <ContextMenuDivider />
+          <ContextMenuItem onClick={() => { setAdderDate(contextMenuDate); setContextMenu(null); setContextMenuDate(null); }} icon={<Plus className="w-3.5 h-3.5" />}>Add Events…</ContextMenuItem>
           <ContextMenuItem onClick={() => { setTravelHoldModal({ dateKey: contextMenuDate }); setContextMenu(null); setContextMenuDate(null); }} icon={<><Plane className="w-3 h-3" /><Pause className="w-3 h-3" /></>}>{viewMode === 'events' ? 'Manage Events…' : 'Manage Travel/Hold…'}</ContextMenuItem>
           {nonShootDateMap.has(contextMenuDate) && (
             <>
@@ -1411,6 +1414,12 @@ export const CalendarTab: React.FC<{
           if (customOrderModal?.criterion) handleCustomOrderSort(customOrderModal.criterion, order);
         }}
       />
+      {adderDate && (
+        <EventAdderModal
+          date={adderDate}
+          onClose={() => setAdderDate(null)}
+        />
+      )}
       {travelHoldModal && (
         <DayEventsModal
           dateKey={travelHoldModal.dateKey}

@@ -65,16 +65,29 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   await expect(modal.getByRole('heading', { name: /FISHERMAN — Events/ })).toBeVisible();
   const travelCol = 6 + seedInfo.travelIdx;
 
-  // ---- Events: one Travel card, one date, only this element + pair of boxing gloves scoping
+  // ---- Events: one Travel card, one day row — plain date + actions (no
+  //     element name in the rows; it's in the modal title)
   const travelCard = modal.locator('[data-element-event-type="travel"]');
   await expect(travelCard).toBeVisible();
   await expect(travelCard.locator('[data-element-event-date]')).toHaveCount(1);
-  await expect(travelCard.locator('[data-element-event-date="2026-08-16"]')).toContainText('1. FISHERMAN');
-  const castGroup = travelCard.locator('[data-element-event-group="travel-cast"]');
-  await expect(castGroup).toContainText('Cast:');
-  await expect(castGroup).toContainText('1. FISHERMAN');
-  // pair of boxing gloves sits on the same day but under its OWN card (only this element each)
-  await expect(travelCard.locator('[data-element-event-group="travel-wardrobe"]')).toHaveCount(0);
+  const row16 = travelCard.locator('[data-element-event-date="2026-08-16"]');
+  await expect(row16).toContainText('Aug');
+  await expect(row16.locator('button[title="Edit this event"]')).toBeVisible();
+  await expect(row16.locator('button[aria-label="Remove 1. FISHERMAN from this day"]')).toBeVisible();
+  await expect(travelCard.locator('[data-element-event-group]')).toHaveCount(0);
+
+  // ---- Inline note: add "Packing the gloves" to the Aug 16 travel event
+  await row16.getByRole('button', { name: /Add note/ }).click();
+  const noteInput = row16.locator('input');
+  await noteInput.fill('Packing the gloves');
+  await noteInput.press('Enter');
+  await expect.poll(() => page.evaluate((fid) => {
+    const st = (window as any).__lemonSchedule.getState().present;
+    const v = st.versions.find((x: any) => x.id === st.activeVersionId);
+    const e = (v.nonShootDates || []).find((n: any) => n.date === '2026-08-16');
+    return e?.comments?.travel?.cast?.[fid] || '';
+  }, seedInfo.fid)).toBe('Packing the gloves');
+  await expect(row16.getByText('Packing the gloves')).toBeVisible();
 
   // ---- NO rows for rule coverage (dated rules don't list their dates)
   await expect(modal.locator('[data-element-event-date="2026-08-10"]')).toHaveCount(0);
@@ -96,24 +109,21 @@ test('element manager events: type cards, add/remove, violations, rules, count c
     return (s.getState().present.rules || []).filter((r: any) => r.castId === fid).length;
   }, seedInfo.fid)).toBe(3);
 
-  // ---- Add Event on a new date: collapsed picker → shared day modal, the
-  //     element pre-seeded in the Travel card's cast row
+  // ---- Add Event on a new date: the shared adder opens ELEMENT-LOCKED (the
+  //     element in its category), the date is picked inside, Create merges it
+  //     onto the day as a per-element card
   await modal.getByRole('button', { name: 'Add Event on a Date' }).click();
+  const adder = page.getByRole('dialog').last();
+  await expect(adder.getByRole('heading', { name: /1\. FISHERMAN/ })).toBeVisible();
   // The kit DatePicker opens on the current month — navigate to August 2026
   // whenever we land elsewhere (the fixture dates live in August).
   let guard = 0;
-  while (!(await modal.getByText(/August 2026/).isVisible().catch(() => false)) && guard++ < 24) {
-    await modal.getByRole('button', { name: 'Previous month' }).click();
+  while (!(await adder.getByText(/August 2026/).isVisible().catch(() => false)) && guard++ < 24) {
+    await adder.getByRole('button', { name: 'Previous month' }).click();
   }
-  await modal.getByRole('button', { name: '17', exact: true }).click();
-  await modal.getByRole('button', { name: /Add to/ }).click();
-  const dayModal = page.getByRole('dialog').last();
-  await expect(dayModal.getByText('Day Events —', { exact: false })).toBeVisible();
-  // Pre-seeded: a section under the FIRST ATTACHABLE type (manager order —
-  // Hold here), with the element already in the row
-  await expect(dayModal.locator('[data-event-section]')).toHaveCount(1);
-  await expect(dayModal.locator('[data-event-section] input').first()).toHaveValue(seedInfo.fid);
-  await dayModal.getByRole('button', { name: 'Save' }).click();
+  await adder.getByRole('button', { name: '17', exact: true }).click();
+  await adder.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /1\. FISHERMAN — Events/ })).toBeVisible();
   await expect.poll(() => page.evaluate((fid) => {
     const st = (window as any).__lemonSchedule.getState().present;
     const v = st.versions.find((x: any) => x.id === st.activeVersionId);
@@ -130,7 +140,7 @@ test('element manager events: type cards, add/remove, violations, rules, count c
 
   // ---- Remove drops only the cast group: the Travel column drops, the day
   //     keeps its Wardrobe group (pair of boxing gloves survives in the store)
-  await travelCard.locator('[data-element-event-group="travel-cast"] button[aria-label="Remove 1. FISHERMAN from this day"]').click();
+  await row16.getByRole('button', { name: 'Remove 1. FISHERMAN from this day' }).click();
   await expect.poll(() => page.evaluate(() => {
     const s = (window as any).__lemonSchedule;
     const st = s.getState().present;
@@ -141,10 +151,9 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   await expect(fisherRow.locator('td').nth(travelCol)).toHaveText('0');
   // Wardrobe pair of boxing gloves still on the day (only the cast group was removed)
   await expect(page.locator('[data-element-event-date="2026-08-16"]')).toHaveCount(0);
-  await expect(modal.locator('[data-element-event-group="travel-wardrobe"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Close' }).click();
 
-  // ---- Non-cast elements: cards render, rules are cast-only
+  // ---- Non-cast elements: day rows render, rules are cast-only
   await page.locator('aside').getByRole('button', { name: /Wardrobe/ }).click();
   const glovesRow = page.locator('tr', { has: page.locator('input[value="pair of boxing gloves"]') });
   await expect(glovesRow).toBeVisible();
@@ -152,5 +161,5 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   await expect(page.getByRole('dialog').getByRole('heading', { name: /pair of boxing gloves — Events/ })).toBeVisible();
   await expect(page.getByRole('dialog').getByText("can't carry rules", { exact: false })).toBeVisible();
   await expect(page.locator('[data-element-event-type="travel"] [data-element-event-date]')).toHaveCount(1);
-  await expect(page.locator('[data-element-event-type="travel"] [data-element-event-date="2026-08-16"]')).toContainText('pair of boxing gloves');
+  await expect(page.locator('[data-element-event-type="travel"] [data-element-event-date="2026-08-16"]')).toContainText('Aug');
 });

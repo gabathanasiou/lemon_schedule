@@ -175,11 +175,11 @@ export const EventCardView: React.FC<{
     const t = (project.dayTypes || []).find((d: any) => d.key === card.status);
     const color = t?.color || '#52525b';
     const Icon = typeIconComponent(project.dayTypes, card.status);
-    const names = isAllKeys(card.keys)
+    const names = card.all
       ? `All ${categoryLabel(card.category, project)}`
-      : card.keys.map(k => resolveElementName(k, card.category, project)).join(', ');
+      : resolveElementName(card.key, card.category, project);
     const inner = (
-      <div data-card-status={card.status} data-card-category={card.category} data-card-keys={JSON.stringify(card.keys)}
+      <div data-card-status={card.status} data-card-category={card.category} data-card-key={card.key}
         data-card-comment={card.comment || ''}
         onClick={onClick} title={names}
         className={`${base} text-zinc-700 flex items-start gap-1.5`}
@@ -231,7 +231,7 @@ const DraggableEventCard: React.FC<{
   const dragData = card.kind === 'status'
     ? { type: 'EVENT_CARD', dateKey: card.dateKey, cardKind: 'status' as const, status: card.statusKey }
     : card.kind === 'attachment'
-      ? { type: 'EVENT_CARD', dateKey: card.dateKey, cardKind: 'attachment' as const, status: card.status, category: card.category, keys: card.keys }
+      ? { type: 'EVENT_CARD', dateKey: card.dateKey, cardKind: 'attachment' as const, status: card.status, category: card.category, key: card.key }
       : card.kind === 'rule'
         ? { type: 'EVENT_CARD', dateKey: card.dateKey, cardKind: 'rule' as const, ruleId: card.rule.id }
         : undefined;

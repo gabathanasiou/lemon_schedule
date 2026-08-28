@@ -331,6 +331,19 @@ export function reducer(state: State, action: Action): State {
       }),
     }));
 
+    // Beta note: comments were per-card strings before the per-element cards
+    // change — old shared comments are dropped (no migration).
+    for (const v of p.versions) {
+      for (const n of v.nonShootDates || []) {
+        for (const cats of Object.values((n as any).comments || {})) {
+          if (Object.values(cats).some((val: any) => typeof val === 'string')) {
+            console.warn('lemon_schedule: old shared event comments dropped (per-element cards landed; beta — no migration).');
+            break;
+          }
+        }
+      }
+    }
+
     // Reports Designer + Production Info defaults
     p.productionInfo = p.productionInfo || {};
     p.crewRoles = p.crewRoles?.length ? p.crewRoles : DEFAULT_CREW_ROLES;
