@@ -89,7 +89,15 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
       },
       error_callback: (error: any) => {
         console.warn('GIS token client error:', error?.type);
-        setNeedsReauth(true);
+        // Popup-blocked / user-cancelled errors are NOT proof the session
+        // expired: Safari blocks the fallback popup when the silent refresh
+        // runs without a user gesture (ITP + timer-driven refresh). Treating
+        // those as "expired" locks cloud projects for no reason — the user
+        // just signs in with a click when they need to.
+        const fatalTypes = ['session_expired', 'access_denied', 'invalid_client', 'invalid_request', 'unauthorized_client', 'unsupported_grant_type'];
+        if (error?.type && fatalTypes.includes(error.type)) {
+          setNeedsReauth(true);
+        }
       },
     });
     client.requestAccessToken({ prompt: '' });
