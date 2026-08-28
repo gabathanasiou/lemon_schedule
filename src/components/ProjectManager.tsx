@@ -7,6 +7,7 @@ import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFrom
 import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, AlertTriangle, Loader2, RefreshCw, Skull, FileUp, Check } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import ProjectCard from './ProjectCard';
@@ -341,46 +342,41 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         <ModalFooter>
           {activeTab === 'local' ? (
             <>
-              <button
+              <ModalFooterButton
+                variant="ghost"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={importing || !!parsingSchedule}
                 title="Import a project (.lemon/.json) or schedule (.msd/.sex) as a new project"
-                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
-              </button>
-              <button
+              </ModalFooterButton>
+              <ModalFooterButton
                 onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(false); }}
-                className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
               >
-              <Plus className="w-3.5 h-3.5" /> New Project
-              </button>
+                <Plus className="w-3.5 h-3.5" /> New Project
+              </ModalFooterButton>
             </>
           ) : auth.isSignedIn ? (
             <>
-              <button
+              <ModalFooterButton
+                variant="ghost"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={importing || !!parsingSchedule}
                 title="Import a project (.lemon/.json) or schedule (.msd/.sex) as a new project"
-                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
-              </button>
-              <button
+              </ModalFooterButton>
+              <ModalFooterButton
                 onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(true); }}
                 disabled={creatingCloud}
-                className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {creatingCloud ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} {creatingCloud ? 'Creating...' : 'New Cloud Project'}
-              </button>
+              </ModalFooterButton>
             </>
           ) : (
-            <button
-              onClick={() => auth.signIn()}
-              className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
-            >
+            <ModalFooterButton onClick={() => auth.signIn()}>
               <Cloud className="w-3.5 h-3.5" /> Sign in with Google
-            </button>
+            </ModalFooterButton>
           )}
           <input type="file" accept=".lemon,.json,.msd,.sex" ref={fileInputRef} onChange={handleImportFile} className="hidden" />
         </ModalFooter>
