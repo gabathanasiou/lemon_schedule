@@ -160,9 +160,15 @@ const RULES = [
   // color rules + shared element pickers (rules tab + colors tab)
   { g: 'src/components/rules/**', s: RIBBON },
   { g: 'src/components/ColorRule*.tsx', s: RIBBON },
-  // entity dropdowns are shared app-wide (sheets, glide, stripboard, modals)
+  // entity dropdowns + overlay surfaces are shared app-wide (sheets, glide, stripboard, modals)
   { g: 'src/components/EntityDropdown.tsx', s: 'ALL' },
   { g: 'src/components/DropdownPanel.tsx', s: 'ALL' },
+  { g: 'src/components/DropdownMenu.tsx', s: 'ALL' },
+  { g: 'src/components/DropdownSubmenu.tsx', s: 'ALL' },
+  { g: 'src/components/ContextMenu.tsx', s: 'ALL' },
+  { g: 'src/components/SelectDropdown.tsx', s: 'ALL' },
+  { g: 'src/components/AutocompleteDropdown.tsx', s: 'ALL' },
+  { g: 'src/lib/overlayMotion.ts', s: 'ALL' },
 ];
 
 // ---- tiny glob: supports `**` (any depth), `*` (within a segment) ----
