@@ -134,6 +134,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme**; press-point-anchored morph, closes on Esc |
 | Entity/cast picker in a cell or form | `EntityDropdown` | Modes: `multi` (comma list, click toggles), `single` (search-then-select), `select` (legacy). `items` prop REQUIRED — no context fallback. **Inside modals use `variant="chip"`** (dark chip trigger + dark panel; §EntityDropdown chip version below) — cells/forms keep the light default |
 | Inline cell text edit | `CellInput` | **Commits on blur only, never per keystroke**; Enter=commit, Esc=cancel |
+| Live numeric box (toolbar steppers: ribbon Pad V/H, Edge, Master Size, cell offset) | `LiveNumberInput` (`RibbonToolbar.tsx`) | Free-typed draft while focused (type digits one at a time, delete-to-empty); commit clamps live (preview updates), Enter/blur clamps + finalizes, Escape reverts to the committed value. Never a clamped controlled input — clamping on change snaps the first keystroke |
 | Confirm/prompt/alert | `useDialog().confirm/prompt/alert` | Modal Radix dialog, focus trap, Enter=confirm |
 | Confirm + remember-24h | `dialog.confirm({…, danger:true, suppressKey})` | For frequent-but-serious only |
 | Popup above keyboard | `FloatingChrome` / `useSmartPosition` | iOS visual-viewport aware |

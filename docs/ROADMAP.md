@@ -397,7 +397,9 @@ Reuses the Days Events surface (from 45) beyond the calendar, so events are mana
 
 **Verify**: playwright on a seeded project — select boneyard scenes (bridge or click), type "15" (or the last day's number) → rows land in that day's section in selection order with correct `order`-renumbering; typing a number > production days → nothing moves; press Enter to commit immediately; lint + full suite (strips-mode DnD regression untouched). All covered by `e2e/digit-schedule.spec.ts`.
 
-## 48. Ribbon text font size — master + per-cell (`[ ]`)
+## 48. Ribbon text font size — master + per-cell (`[x]` Done)
+
+**Done**: `RibbonDesign.textSize` (master px, default 14 for new designs) + `RibbonCell.textSizeOffset` (−8…+8, effective = `ribCellTextSize`, 6px floor); one seam `getRibbonCellBaseStyle(…, textSize?)` (legacy designs without `textSize` keep 8pt rendering). All renderers thread the master (stripboard SortableRibbon + row components, print, designer canvas/live preview, PrintDialog, reports ribbon block); `SET_RIBBON_TEXT_SIZE` + `caseSetRibbonTextSize`. Designer UI: `LiveNumberInput` master-size control (Layout row) + per-cell offset + reset-to-master (Style row); the toolbar's numeric boxes are all `LiveNumberInput` (free-typed draft — type digits one at a time, delete-to-empty — Enter/blur clamps, Escape reverts). Verified by `e2e/ribbon-text-size.spec.ts` (master+offset in preview & stripboard, legacy 8pt, new-design default 14; RULES entry: `ribbon-text-size` in the RIBBON bucket).
 
 **Requested**: ribbon editor font-size selection; a **master text size** per full ribbon (default **14**) and a **per-cell size** offset relative to the master (range −8…+8) — every ribbon rendering must respect it.
 
@@ -450,7 +452,9 @@ with `variant="tags"` unused by default UI.
 **Relations**: chip language + modal patterns from items 45/46; kit
 primitive work out of item 49.
 
-## 51. Scene sheet view — selectable scene order (sheet / scene number / stripboard) (`[ ]`)
+## 51. Scene sheet view — selectable scene order (sheet / scene number / stripboard) (`[x]` Done)
+
+**Done**: "Navigate by" dropdown in the Breakdown toolbar (Calendar View-menu recipe) — persisted pref `lemon_schedule_breakdown_order` (`{order}` via `usePersistState`): **Sheet** (default), **Scene Number** (`naturalSortSceneStrings`), **Stripboard** (active version's SCENE rows in row order, boneyard scenes appended in sheet order). A sorted COPY drives rendering/navigation — `project.scenes` never reorders; the Sheet # column always shows the TRUE sheet number (array index + 1). Switching orders keeps the current scene visible (pending-scene-id remap); prev/next + sheet-jump input operate in the visible order; `initialIndex` is echo-guarded (`lastReportedIndexRef`) so App's onIndexChange feedback doesn't yoyo the position in non-sheet orders. Verified by `e2e/scene-sheet-order.spec.ts` (three orders + true sheet markers, scene-keeping, edits commit to the right scene, pref persists; RULES entry: `scene-sheet-order` on the SceneSheet rule).
 
 **Requested**: the scene sheet view (SceneSheet — the Breakdown tab's
 Sheet view) navigates scenes by **sheet order** (`project.scenes` array
