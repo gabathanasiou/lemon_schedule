@@ -34,6 +34,37 @@ export interface DriveProjectMeta {
   driveFileId: string;
 }
 
+// Builds the multipart body BYTE-IDENTICAL to what `FormData` produces (verified
+// against the browser's own serialization in e2e debugging), so Google parses it
+// exactly as before — but as a plain Uint8Array we can gzip. Gzipping shrinks
+// the upload ~5-10×, which drastically cuts mid-flight connection drops
+// (Safari's "The network connection was lost" on flaky paths).
+function buildMultipartBody(metadata: Record<string, unknown>, fileJson: string): { boundary: string; bytes: Uint8Array } {
+  const encoder = new TextEncoder();
+  const boundary = `lemonSchedule_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+  const parts: Uint8Array[] = [
+    encoder.encode(`--${boundary}\r\nContent-Disposition: form-data; name="metadata"; filename="blob"\r\nContent-Type: application/json\r\n\r\n`),
+    encoder.encode(JSON.stringify(metadata)),
+    encoder.encode(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="blob"\r\nContent-Type: application/json\r\n\r\n`),
+    encoder.encode(fileJson),
+    encoder.encode(`\r\n--${boundary}--\r\n`),
+  ];
+  const total = parts.reduce((n, p) => n + p.byteLength, 0);
+  const bytes = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) {
+    bytes.set(p, off);
+    off += p.byteLength;
+  }
+  return { boundary, bytes };
+}
+
+async function gzip(bytes: Uint8Array): Promise<Uint8Array> {
+  const cs = new CompressionStream('gzip');
+  const stream = new Blob([bytes]).stream().pipeThrough(cs);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
 async function uploadJson(
   accessToken: string,
   name: string,
@@ -48,15 +79,7 @@ async function uploadJson(
     metadata.parents = ['appDataFolder'];
   }
 
-  const formData = new FormData();
-  formData.append(
-    'metadata',
-    new Blob([JSON.stringify(metadata)], { type: 'application/json' }),
-  );
-  formData.append(
-    'file',
-    new Blob([JSON.stringify(data)], { type: 'application/json' }),
-  );
+  const { boundary, bytes } = buildMultipartBody(metadata, JSON.stringify(data));
 
   const url = existingFileId
     ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`
@@ -64,10 +87,20 @@ async function uploadJson(
 
   const method = existingFileId ? 'PATCH' : 'POST';
 
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    'Content-Type': `multipart/form-data; boundary=${boundary}`,
+  };
+  let body: BodyInit = bytes;
+  if (typeof CompressionStream !== 'undefined') {
+    headers['Content-Encoding'] = 'gzip';
+    body = await gzip(bytes);
+  }
+
   const res = await fetch(url, {
     method,
-    headers: { Authorization: `Bearer ${accessToken}` },
-    body: formData,
+    headers,
+    body,
   });
 
   if (!res.ok) {
