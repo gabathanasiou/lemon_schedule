@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 
 export interface MergeItem {
   sourceNames: string[];
@@ -30,8 +31,8 @@ export function MergeRowsModal({ title, intro, groups, confirmLabel = 'Merge & S
     <Modal open onClose={onCancel} title={title} width="max-w-lg"
       footer={
         <ModalFooter>
-          <button onClick={onCancel} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-          <button onClick={onConfirm} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">{confirmLabel}</button>
+          <ModalFooterButton variant="ghost" onClick={onCancel}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={onConfirm}>{confirmLabel}</ModalFooterButton>
         </ModalFooter>
       }
     >

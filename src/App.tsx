@@ -43,6 +43,7 @@ import DropdownSubmenu from './components/DropdownSubmenu';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './components/ContextMenu';
 import Modal from './components/Modal';
 import { ModalFooter } from './components/Modal';
+import ModalFooterButton from './components/ModalFooterButton';
 import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
@@ -1003,10 +1004,10 @@ function AppContent() {
         <Modal open onClose={() => setShowRestoreModal(null)} title="Restore from Folder" icon={<HardDrive className="w-4 h-4" />} width="max-w-xl"
           footer={
             <ModalFooter>
-              <button onClick={() => setShowRestoreModal(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
+              <ModalFooterButton variant="ghost" onClick={() => setShowRestoreModal(null)}>
                 Cancel
-              </button>
-              <button
+              </ModalFooterButton>
+              <ModalFooterButton
                 disabled={showRestoreModal.projects.length === 0}
                 onClick={async () => {
                   try {
@@ -1017,10 +1018,9 @@ function AppContent() {
                     setShowRestoreModal(null);
                   } catch (e) { console.error(e); }
                 }}
-                className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors"
               >
                 Restore {showRestoreModal.projects.length > 0 ? `(${showRestoreModal.projects.length})` : ''}
-              </button>
+              </ModalFooterButton>
             </ModalFooter>
           }
         >

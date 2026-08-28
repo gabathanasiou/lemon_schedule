@@ -7,6 +7,7 @@ import { getCategoryElements } from '../../lib/elements';
 import { applyLinkToScenes, isLinkableCategory, anchoredKeysFor } from '../../lib/elementLinks';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import { ElementPickerRow } from '../rules/ElementPicker';
 import { Plus, X, Link2, Check } from 'lucide-react';
 
@@ -243,10 +244,10 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
     <Modal open onClose={onClose} title="Element Links" width="max-w-3xl"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Close</button>
-          <button onClick={applyAll} disabled={validLinkCount === 0} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <ModalFooterButton variant="ghost" onClick={onClose}>Close</ModalFooterButton>
+          <ModalFooterButton onClick={applyAll} disabled={validLinkCount === 0}>
             Apply All Links
-          </button>
+          </ModalFooterButton>
         </ModalFooter>
       }
     >

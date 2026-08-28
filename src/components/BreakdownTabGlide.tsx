@@ -29,6 +29,7 @@ import ImportDialog from './ImportDialog';
 import { exportBreakdownCSV, parseCSV } from '../lib/import';
 import type { ImportResult } from '../lib/import';
 import Modal, { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 import Checkbox from './Checkbox';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from '../lib/persist';
 import { IS_COARSE, useHardwareKeyboard, isTouchLike } from '../lib/device';
@@ -1137,13 +1138,14 @@ export function GlideBreakdownTab({
         width="max-w-sm"
         footer={
           <ModalFooter>
-            <button
+            <ModalFooterButton
+              variant="ghost"
               onClick={() => { setDeleteConfirm(null); setSuppressDeleteWarning(false); }}
-              className="px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
             >
               Cancel
-            </button>
-            <button
+            </ModalFooterButton>
+            <ModalFooterButton
+              variant="danger-solid"
               onClick={() => {
                 if (deleteConfirm) {
                   const ids = deleteConfirm.sceneId.split(',');
@@ -1157,10 +1159,9 @@ export function GlideBreakdownTab({
                   setSuppressDeleteWarning(false);
                 }
               }}
-              className="px-3 py-1.5 rounded-md text-xs font-semibold bg-red-600 text-white hover:bg-red-500 transition-colors"
             >
               Delete
-            </button>
+            </ModalFooterButton>
           </ModalFooter>
         }
       >

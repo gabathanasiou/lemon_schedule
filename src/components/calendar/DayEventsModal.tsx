@@ -8,6 +8,7 @@ import { anchoredKeysFor } from '../../lib/elementLinks';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { getUniqueCastIds } from '../../lib/utils';
 import Modal, { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
@@ -85,7 +86,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
   const portalTarget = usePortalTarget();
 
   const sizes = ruleModalSizes();
-  const { XSZ, CREM_LABEL, CREM_TEXT, CREM_BODY, CREM_BTN_COND, CREM_DD_ITEM, CREM_FOOTER_BTN } = sizes;
+  const { XSZ, CREM_LABEL, CREM_TEXT, CREM_BODY, CREM_BTN_COND, CREM_DD_ITEM } = sizes;
 
   const categoryLabelLookup = useMemo(() => {
     const map: Record<string, string> = {};
@@ -327,12 +328,8 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
     <Modal open onClose={onClose} title={`Day Events — ${formatDateLabel(dateKey)}`} width="max-w-2xl"
       footer={
         <ModalFooter>
-          <Button theme="dark" variant="subtle" className="px-6 py-2 text-zinc-400" onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
-            Cancel
-          </Button>
-          <Button theme="dark" variant="primary" className="px-6 py-2" onPointerDown={(e) => { e.preventDefault(); handleSave(); }}>
-            Save
-          </Button>
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={handleSave}>Save</ModalFooterButton>
         </ModalFooter>
       }
     >
@@ -398,7 +395,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
               <DropdownMenu
                 open={addTypeOpen}
                 onOpenChange={setAddTypeOpen}
-                width="w-52"
+                width="w-36"
                 theme="dark"
                 trigger={
                   <Button theme="dark" variant="primary" className="flex items-center gap-1">

@@ -12,6 +12,7 @@ import { RotateCcw, Download, Upload, Palette, Sun, Plus, X, GripVertical, Wand2
 import Modal from './Modal';
 import ColorField from './ColorField';
 import { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 import DropdownMenu from './DropdownMenu';
 import Button from './Button';
 import DropdownItem from './DropdownItem';
@@ -349,8 +350,8 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           onReset={() => { const d = editing.resetDefaults(); setEditBg(d.bg); setEditText(d.text); }}
           footer={
             <ModalFooter>
-              <button onClick={() => setEditing(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-              <button onClick={applyEdit} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Apply</button>
+              <ModalFooterButton variant="ghost" onClick={() => setEditing(null)}>Cancel</ModalFooterButton>
+              <ModalFooterButton onClick={applyEdit}>Apply</ModalFooterButton>
             </ModalFooter>
           }
         >

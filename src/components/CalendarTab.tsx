@@ -13,6 +13,7 @@ import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { computeSectionViolationMap, rulesRelevantToDay } from '../lib/rulesEngine';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
 import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { IS_COARSE } from '../lib/device';
@@ -1386,8 +1387,8 @@ export const CalendarTab: React.FC<{
         <Modal open onClose={() => setColorPicker(null)} title="Edit Banner" width="max-w-md"
           footer={
             <ModalFooter>
-              <button onClick={() => setColorPicker(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-              <button onClick={applyNoteColor} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Apply</button>
+              <ModalFooterButton variant="ghost" onClick={() => setColorPicker(null)}>Cancel</ModalFooterButton>
+              <ModalFooterButton onClick={applyNoteColor}>Apply</ModalFooterButton>
             </ModalFooter>
           }
         >

@@ -4,6 +4,7 @@ import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commi
 import { Upload, Loader2, GripVertical } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 import Checkbox from './Checkbox';
 import {
   DndContext,
@@ -224,17 +225,12 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
 
   const footer = (stage === 'select' || stage === 'review') ? (
     <ModalFooter>
-      <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
-        Cancel
-      </button>
+      <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
       {stage === 'review' && (
-        <button
-          onClick={handleImport}
-          className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
-        >
+        <ModalFooterButton onClick={handleImport}>
           <Upload className="w-3.5 h-3.5" />
           Import {result?.scenes.length || 0} Scenes
-        </button>
+        </ModalFooterButton>
       )}
     </ModalFooter>
   ) : undefined;

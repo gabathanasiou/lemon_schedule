@@ -19,6 +19,7 @@ import DropdownMenu from '../components/DropdownMenu';
 import DropdownItem from '../components/DropdownItem';
 import DropdownDivider from '../components/DropdownDivider';
 import Modal, { ModalFooter } from '../components/Modal';
+import ModalFooterButton from '../components/ModalFooterButton';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from './persist';
 import { IS_COARSE, useHardwareKeyboard, isTouchLike } from './device';
 import { createGlideTheme } from './glideTheme';
@@ -690,8 +691,8 @@ export const GlideGridShell: React.FC<{
         <Modal open onClose={() => setPendingImport(null)} title={config.labels.importTitle} width="max-w-md"
           footer={
             <ModalFooter>
-              <button onClick={() => setPendingImport(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-              <button onClick={() => { config.commitImport(dispatch, pendingImport.result, project); setPendingImport(null); }} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Import</button>
+              <ModalFooterButton variant="ghost" onClick={() => setPendingImport(null)}>Cancel</ModalFooterButton>
+              <ModalFooterButton onClick={() => { config.commitImport(dispatch, pendingImport.result, project); setPendingImport(null); }}>Import</ModalFooterButton>
             </ModalFooter>
           }
         >

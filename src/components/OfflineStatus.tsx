@@ -2,6 +2,7 @@ import React from 'react';
 import { Loader2, CloudOff, WifiOff } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 
 interface OfflineStatusProps {
   readOnly: boolean;
@@ -65,13 +66,13 @@ export default function OfflineStatus({
             width="max-w-md"
             footer={
               <ModalFooter>
-                <button
+                <ModalFooterButton
+                  variant="ghost"
                   onClick={() => setShowModal(false)}
-                  className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
                 >
                   OK
-                </button>
-                <button
+                </ModalFooterButton>
+                <ModalFooterButton
                   onClick={() => {
                     if (isAuthIssue) {
                       setShowModal(false);
@@ -81,11 +82,10 @@ export default function OfflineStatus({
                     }
                   }}
                   disabled={!isAuthIssue && retryingConnection}
-                  className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-60 flex items-center gap-1.5"
                 >
                   {!isAuthIssue && retryingConnection && <Loader2 className="w-3 h-3 animate-spin" />}
                   {isAuthIssue ? 'Sign in' : retryingConnection ? 'Reconnecting...' : 'Retry Connection'}
-                </button>
+                </ModalFooterButton>
               </ModalFooter>
             }
           >

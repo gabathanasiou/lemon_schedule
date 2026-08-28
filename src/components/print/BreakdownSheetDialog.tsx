@@ -3,6 +3,7 @@ import { useProject } from '../../store';
 import { Printer } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import Checklist from '../Checklist';
 
 export interface BreakdownSheetOptions {
@@ -53,17 +54,14 @@ export default function BreakdownSheetDialog({ onPrint, onClose }: BreakdownShee
     <Modal open onClose={onClose} onReset={resetSettings} title="Scene Breakdown" icon={<Printer className="w-4 h-4" />} width="max-w-xl"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
-            Cancel
-          </button>
-          <button
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton
             onClick={() => onPrint({ sortOrder, sceneIds: selectedSceneIds })}
             disabled={selectedSceneIds.length === 0}
-            className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Printer className="w-3.5 h-3.5" />
             Print / Save PDF
-          </button>
+          </ModalFooterButton>
         </ModalFooter>
       }
     >

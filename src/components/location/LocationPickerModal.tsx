@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Crosshair } from 'lucide-react';
 import Modal, { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import {
   getPlacesProvider,
   type PickedLocation,
@@ -153,13 +154,12 @@ export const LocationPickerModal: React.FC<{
       icon={<MapPin className="w-3.5 h-3.5" />}
       footer={
         <ModalFooter>
-          <button onClick={onClose} className="text-[11px] text-zinc-400 hover:text-zinc-200 px-3 py-1.5">Cancel</button>
-          <button
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton
             onClick={() => onConfirm({ lat: center[0], lng: center[1], ...(place ? { place } : {}), ...(parts || {}), address: address.trim() || undefined })}
-            className="text-[11px] font-medium bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-1.5"
           >
             Attach pin
-          </button>
+          </ModalFooterButton>
         </ModalFooter>
       }
     >

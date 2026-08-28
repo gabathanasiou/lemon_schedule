@@ -5,6 +5,7 @@ import { Printer, ChevronDown, Check } from 'lucide-react';
 import { RibbonCell } from '../types';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 import Checklist from './Checklist';
 import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, getFallbackStripColors, computeMergeGroups, formatCellText, PREVIEW_SAMPLES } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
@@ -130,17 +131,14 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
     <Modal open onClose={onClose} onReset={resetSettings} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-3xl"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
-            Cancel
-          </button>
-          <button
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton
             onClick={() => onPrint({ showTimes: settings.showTimes, showDurations: settings.showDurations, showCastList: settings.showCastList, showExportDate: settings.showExportDate, showPageNumbers: settings.showPageNumbers, includeStatusDays: settings.includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId: settings.selectedRibbonId, cellBorders: settings.cellBorders, viewMode })}
             disabled={selectedDays.size === 0}
-            className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Printer className="w-3.5 h-3.5" />
             Print / Save PDF
-          </button>
+          </ModalFooterButton>
         </ModalFooter>
       }
     >

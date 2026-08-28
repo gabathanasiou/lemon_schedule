@@ -179,12 +179,14 @@ Structure (all in `src/components/Modal.tsx`):
 - **Body** (`:201`): `overflow-y-auto flex-1 bg-zinc-900 text-zinc-100`; content carries `p-6 space-y-5`.
 - **Footer** (`ModalFooter`, `:227-233`): `flex items-center justify-end gap-3 px-5 py-2 border-t border-zinc-800 bg-zinc-950`.
 - **Footer buttons — one hero, rest ghost**: every modal footer has exactly ONE hero button — the
-  primary action, solid `bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700
-  hover:bg-zinc-700 transition-colors` (e.g. "+ New Project" in the Project Manager). EVERY other
-  button — Cancel, secondary actions, Import — is the ghost/subtle style:
-  `px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200
-  transition-colors disabled:opacity-50` (e.g. "Import" in the Project Manager). No second hero;
-  async heroes swap to a `Loader2` spin + `disabled`.
+  primary action — and EVERY other button (Cancel, secondary actions, Import) is the ghost style.
+  Use the kit's `ModalFooterButton` (`src/components/ModalFooterButton.tsx` re-export) — never
+  hand-write footer classes. Variants: `hero` (default; solid
+  `bg-zinc-800 text-white border-zinc-700`, e.g. "+ New Project" in the Project Manager), `ghost`
+  (e.g. "Import"), `danger` (text+ghost destructive, left-aligned with `mr-auto` — Delete), and
+  `danger-solid` (red confirm — Delete Selected). Sizes (coarse-aware `px-6 py-2` /
+  `px-7 py-2.5 text-sm`), icon spacing (`gap-2`) and disabled states are baked in. A single-button
+  footer IS the hero (Close). No second hero; async heroes swap to a `Loader2` spin + `disabled`.
 - **No manual resize** — the modal auto-fits its content (content-driven height changes animate,
   see Morph below); drag-to-move by the header is the only manual geometry control. Default
   width comes from the `width` prop (`max-w-* w-full`, else `max-w-xl`) clamped by

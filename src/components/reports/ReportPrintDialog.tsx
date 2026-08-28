@@ -7,6 +7,7 @@ import { useReportCtx } from '../../lib/useReportCtx';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { useCellBorders, CellBorders } from '../../lib/persist';
 import Modal, { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import Checklist from '../Checklist';
 import { RibbonDummyPreview } from './ReportRibbonView';
 
@@ -169,16 +170,11 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
     <Modal open onClose={onClose} onReset={resetSettings} title={`Print — ${design.name || 'Report'}`} icon={<Printer className="w-4 h-4" />} width="max-w-3xl"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={doPrint}
-            className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
-          >
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={doPrint}>
             <Printer className="w-3.5 h-3.5" />
             Print / Save PDF
-          </button>
+          </ModalFooterButton>
         </ModalFooter>
       }
     >

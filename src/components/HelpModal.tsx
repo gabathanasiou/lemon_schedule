@@ -13,10 +13,10 @@ const HM_KBD = IS_COARSE ? 'inline-flex items-center justify-center min-w-[2rem]
 const HM_SECTION_TITLE = IS_COARSE ? 'text-xs' : 'text-[10px]';
 const HM_TABLE_CELL = IS_COARSE ? 'text-sm py-2' : 'text-xs py-1.5';
 const HM_CONTENT = IS_COARSE ? 'px-7 py-5 space-y-6' : 'px-6 py-4 space-y-5';
-const HM_FOOTER_BTN = IS_COARSE ? 'px-7 py-2.5 text-sm' : 'px-6 py-2 text-xs';
 
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 
 const Kbd: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <kbd className={HM_KBD}>
@@ -50,9 +50,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
     <Modal open={open} onClose={onClose} title="Stripboard Controls" width="max-w-xl"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className={`${HM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`}>
-            Close
-          </button>
+          <ModalFooterButton onClick={onClose}>Close</ModalFooterButton>
         </ModalFooter>
       }
     >

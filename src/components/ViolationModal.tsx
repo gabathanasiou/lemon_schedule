@@ -1,5 +1,6 @@
 import React from 'react';
 import Modal, { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 import { ViolationContent } from './ViolationTooltip';
 import { RuleViolation, CastMember } from '../types';
 import { Flag } from 'lucide-react';
@@ -33,7 +34,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({
       footer={
         <ModalFooter>
           <span className="text-[10px] text-zinc-500 mr-auto">{violations.length} violation{violations.length !== 1 ? 's' : ''}</span>
-          <button onClick={onClose} className="text-[11px] px-3 py-1 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">Close</button>
+          <ModalFooterButton onClick={onClose}>Close</ModalFooterButton>
         </ModalFooter>
       }
     >
@@ -72,7 +73,7 @@ export const ShootViolationsModal: React.FC<ShootViolationsModalProps> = ({
       footer={
         <ModalFooter>
           <span className="text-[10px] text-zinc-500 mr-auto">{totalViolations} violation{totalViolations !== 1 ? 's' : ''} across {dayViolations.length} day{dayViolations.length !== 1 ? 's' : ''}</span>
-          <button onClick={onClose} className="text-[11px] px-3 py-1 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">Close</button>
+          <ModalFooterButton onClick={onClose}>Close</ModalFooterButton>
         </ModalFooter>
       }
     >

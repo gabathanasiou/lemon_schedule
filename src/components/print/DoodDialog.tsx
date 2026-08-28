@@ -6,6 +6,7 @@ import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import Checkbox from '../Checkbox';
 import Checklist from '../Checklist';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../lib/categories';
@@ -209,17 +210,11 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
     <Modal open onClose={onClose} onReset={resetSettings} title={`Day Out of Days - ${categoryLabel}`} icon={<Printer className="w-4 h-4" />} width="max-w-2xl"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={handlePrint}
-            disabled={!canPrint}
-            className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={handlePrint} disabled={!canPrint}>
             <Printer className="w-3.5 h-3.5" />
             Print / Save PDF
-          </button>
+          </ModalFooterButton>
         </ModalFooter>
       }
     >

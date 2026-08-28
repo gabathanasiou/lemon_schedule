@@ -6,6 +6,7 @@ import { IS_COARSE } from '../../lib/device';
 import ColorField from '../ColorField';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import { ElementPickerRow } from './ElementPicker';
 
 export interface ColorRuleSizes {
@@ -15,7 +16,6 @@ export interface ColorRuleSizes {
   CREM_BODY: string;
   CREM_BTN_COND: string;
   CREM_DD_ITEM: string;
-  CREM_FOOTER_BTN: string;
   CREM_CELL_BODY: string;
 }
 
@@ -26,7 +26,6 @@ export const ruleModalSizes = (): ColorRuleSizes => ({
   CREM_BODY: IS_COARSE ? 'p-7 space-y-6' : 'p-6 space-y-5',
   CREM_BTN_COND: IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2.5 py-1.5 text-xs',
   CREM_DD_ITEM: IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs',
-  CREM_FOOTER_BTN: IS_COARSE ? 'px-7 py-2.5 text-sm' : 'px-6 py-2 text-xs',
   CREM_CELL_BODY: IS_COARSE ? 'p-7 space-y-6' : 'p-6 space-y-5',
 });
 
@@ -183,13 +182,13 @@ interface MatrixCellEditorProps {
 
 export function MatrixCellEditor({ cellEdit, setCellEdit, cellBg, setCellBg, cellText, setCellText, commitCellEdit, palette, sizes }: MatrixCellEditorProps) {
   if (!cellEdit) return null;
-  const { CREM_FOOTER_BTN, CREM_CELL_BODY, CREM_TEXT } = sizes;
+  const { CREM_CELL_BODY, CREM_TEXT } = sizes;
   return (
     <Modal open onClose={() => setCellEdit(null)} title={`Edit: ${cellEdit.ie} ${cellEdit.dn}`} width="max-w-sm"
       footer={
         <ModalFooter>
-          <button onClick={() => setCellEdit(null)} className={`${CREM_FOOTER_BTN} text-zinc-400 font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors`}>Cancel</button>
-          <button onClick={commitCellEdit} className={`${CREM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`}>Apply</button>
+          <ModalFooterButton variant="ghost" onClick={() => setCellEdit(null)}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={commitCellEdit}>Apply</ModalFooterButton>
         </ModalFooter>
       }
     >

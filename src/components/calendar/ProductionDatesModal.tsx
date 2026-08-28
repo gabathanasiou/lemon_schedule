@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useProject } from '../../store';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import Modal, { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import DateField from '../DateField';
 import { toDateKey } from './calendarUtils';
 import { addDays, advanceDateCursor, buildNonShootSet } from '../../lib/daybreakUtils';
@@ -29,7 +30,7 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
   const sizes = ruleModalSizes();
-  const { XSZ, CREM_LABEL, CREM_TEXT, CREM_BODY, CREM_FOOTER_BTN } = sizes;
+  const { XSZ, CREM_LABEL, CREM_TEXT, CREM_BODY } = sizes;
 
   const [prepStart, setPrepStart] = useState<string>(activeVersion?.prepStart || '');
   const [prodStart, setProdStart] = useState<string>(activeVersion?.productionStart || '');
@@ -152,12 +153,8 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
     <Modal open onClose={onClose} title="Production Dates" width="max-w-md"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className={`${CREM_FOOTER_BTN} text-zinc-400 font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors`}>
-            Cancel
-          </button>
-          <button onClick={handleSave} disabled={!saveEnabled} className={`${CREM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}>
-            Save
-          </button>
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={handleSave} disabled={!saveEnabled}>Save</ModalFooterButton>
         </ModalFooter>
       }
     >

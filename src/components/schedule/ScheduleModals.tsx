@@ -1,6 +1,7 @@
 import React from 'react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import Checklist from '../Checklist';
 import ColorField from '../ColorField';
 import { FieldBox, SuffixField } from '../FieldBox';
@@ -85,8 +86,8 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
         <Modal open onClose={() => setColorPicker(null)} title="Edit Banner" width="max-w-md"
           footer={
             <ModalFooter>
-              <button onClick={() => setColorPicker(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-              <button onClick={applyNoteColor} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Apply</button>
+              <ModalFooterButton variant="ghost" onClick={() => setColorPicker(null)}>Cancel</ModalFooterButton>
+              <ModalFooterButton onClick={applyNoteColor}>Apply</ModalFooterButton>
             </ModalFooter>
           }
         >
@@ -121,8 +122,8 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
           <Modal open onClose={() => setAutoDaybreakPrompt(null)} title={autoDaybreakPrompt.mode === 'duration' ? 'Add Day Break by Duration' : 'Add Day Break by Pages'} width="max-w-sm"
             footer={
               <ModalFooter>
-                <button onClick={() => setAutoDaybreakPrompt(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={confirmAutoDaybreak} disabled={!valid} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Place Day Breaks</button>
+                <ModalFooterButton variant="ghost" onClick={() => setAutoDaybreakPrompt(null)}>Cancel</ModalFooterButton>
+                <ModalFooterButton onClick={confirmAutoDaybreak} disabled={!valid}>Place Day Breaks</ModalFooterButton>
               </ModalFooter>
             }
           >
@@ -176,12 +177,12 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
           <Modal open onClose={() => setAutoDaybreakCleanup(null)} title="Prepare Stripboard" width="max-w-sm"
             footer={
               <ModalFooter>
-                <button onClick={() => setAutoDaybreakCleanup(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={() => {
+                <ModalFooterButton variant="ghost" onClick={() => setAutoDaybreakCleanup(null)}>Cancel</ModalFooterButton>
+                <ModalFooterButton onClick={() => {
                   const c = autoDaybreakCleanup;
                   setAutoDaybreakCleanup(null);
                   executeAutoDaybreak(c.mode, c.threshold, autoDaybreakNotesAction, autoDaybreakBreaksAction);
-                }} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Place Day Breaks</button>
+                }}>Place Day Breaks</ModalFooterButton>
               </ModalFooter>
             }
           >
@@ -231,14 +232,14 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
           <Modal open onClose={() => setBannerDelete(null)} title={bannerDelete.type === 'NOTE' ? 'Delete Notes' : 'Delete Breaks'} width="max-w-md"
             footer={
               <ModalFooter>
-                <button onClick={() => setBannerDelete(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button
+                <ModalFooterButton variant="ghost" onClick={() => setBannerDelete(null)}>Cancel</ModalFooterButton>
+                <ModalFooterButton
+                  variant="danger-solid"
                   onClick={() => deleteBanners(bannerDelete.type, checkedKeys)}
                   disabled={checkedCount === 0}
-                  className="px-6 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Delete Selected{checkedCount > 0 ? ` (${checkedCount})` : ''}
-                </button>
+                </ModalFooterButton>
               </ModalFooter>
             }
           >

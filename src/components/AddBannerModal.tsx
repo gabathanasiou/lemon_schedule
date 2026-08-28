@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 import ColorField from './ColorField';
 import { CellInput } from './CellInput';
 import DurationKeypad from './DurationKeypad';
@@ -145,8 +146,8 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
       width="max-w-md"
       footer={
         <ModalFooter>
-          <button onClick={() => { reset(); onClose(); }} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-          <button onClick={handleAdd} disabled={!canAdd} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800">Add Banners</button>
+          <ModalFooterButton variant="ghost" onClick={() => { reset(); onClose(); }}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={handleAdd} disabled={!canAdd}>Add Banners</ModalFooterButton>
         </ModalFooter>
       }
     >

@@ -7,6 +7,7 @@ import { getCategoryElements } from '../../lib/elements';
 import { anchoredKeysFor } from '../../lib/elementLinks';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import Modal, { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import DateField from '../DateField';
 import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
@@ -179,12 +180,8 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
     <Modal open onClose={onClose} title={locked ? `Add Event${elementName ? ` — ${elementName}` : ''}` : 'Add Events'} width="max-w-xl"
       footer={
         <ModalFooter>
-          <Button theme="dark" variant="subtle" className="px-6 py-2 text-zinc-400" onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
-            Cancel
-          </Button>
-          <Button theme="dark" variant="primary" className="px-6 py-2" disabled={!dateKey} onPointerDown={(e) => { e.preventDefault(); create(); }}>
-              Create
-            </Button>
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={create} disabled={!dateKey}>Create</ModalFooterButton>
         </ModalFooter>
       }
     >

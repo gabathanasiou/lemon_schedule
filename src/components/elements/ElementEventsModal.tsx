@@ -10,6 +10,7 @@ import { removeItemsFrom, setNote, typeRankOf, statusLabel } from '../../lib/eve
 import { getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { anchoredKeysFor } from '../../lib/elementLinks';
 import Modal, { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import Button from '../Button';
 import { EventAdderModal } from '../calendar/EventAdderModal';
 import { EventModal } from '../calendar/EventModal';
@@ -174,9 +175,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
     <Modal open onClose={onClose} title={`${identity.name} — Events`} width="max-w-2xl"
       footer={
         <ModalFooter>
-          <Button theme="dark" variant="subtle" className="px-6 py-2 text-zinc-400" onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
-            Close
-          </Button>
+          <ModalFooterButton onClick={onClose}>Close</ModalFooterButton>
         </ModalFooter>
       }
     >

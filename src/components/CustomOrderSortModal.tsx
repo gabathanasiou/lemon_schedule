@@ -4,7 +4,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowUpDown } from 'lucide-react';
 import Modal, { ModalFooter } from './Modal';
-import { IS_COARSE } from '../lib/device';
+import ModalFooterButton from './ModalFooterButton';
 
 const SortableOption: React.FC<{ id: string; label: string }> = ({ id, label }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -80,8 +80,6 @@ export function CustomOrderSortModal({ open, onClose, title, options, onSort }: 
     onClose();
   };
 
-  const itemPad = IS_COARSE ? 'px-4 py-2.5 text-sm' : 'px-3 py-1.5 text-xs';
-
   return (
     <Modal
       open={open}
@@ -92,18 +90,8 @@ export function CustomOrderSortModal({ open, onClose, title, options, onSort }: 
         <ModalFooter>
           <div className="flex items-center gap-2">
             <div className="flex-1" />
-            <button
-              onClick={onClose}
-              className={`${itemPad} rounded bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSort}
-              className={`${itemPad} rounded bg-white text-zinc-900 font-semibold hover:bg-zinc-200 transition-colors`}
-            >
-              Sort
-            </button>
+            <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+            <ModalFooterButton onClick={handleSort}>Sort</ModalFooterButton>
           </div>
         </ModalFooter>
       }

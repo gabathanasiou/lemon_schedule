@@ -13,6 +13,7 @@ import {
   RuleFormState, blankRuleForm, formFromRule, validateRuleForm, buildRulesFromForm,
 } from './ruleMeta';
 import { ruleModalSizes } from './ColorRuleFormParts';
+import ModalFooterButton from '../ModalFooterButton';
 import { X, Trash2, AlertCircle, ChevronDown } from 'lucide-react';
 
 /** The shared dark rule editor (roadmap 46's shared shell) — one copy used by
@@ -49,7 +50,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
   const portalTarget = usePortalTarget();
   const sizes = ruleModalSizes();
-  const { XSZ, CREM_LABEL, CREM_FOOTER_BTN } = sizes;
+  const { XSZ, CREM_LABEL } = sizes;
   const selectedMeta = RULE_TYPE_META[form.type];
   const SelectedIcon = selectedMeta.icon;
 
@@ -291,18 +292,15 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
 
       <div className="flex items-center justify-between gap-2">
         {onDelete ? (
-          <button
-            onClick={onDelete}
-            className={`${CREM_FOOTER_BTN} text-red-400 hover:bg-zinc-800 hover:text-red-300 font-medium rounded-lg transition-colors flex items-center gap-1.5`}
-          >
+          <ModalFooterButton variant="danger" onClick={onDelete}>
             <Trash2 className={XSZ} /> Delete
-          </button>
+          </ModalFooterButton>
         ) : <div />}
         <div className="flex items-center gap-2">
-          <button onClick={onClose} className={`${CREM_FOOTER_BTN} text-zinc-400 font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors`}>Cancel</button>
-          <button onClick={handleSave} className={`${CREM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`}>
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={handleSave}>
             {initial ? 'Save Changes' : 'Add Rule'}
-          </button>
+          </ModalFooterButton>
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { anchoredKeysFor } from '../../lib/elementLinks';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { mergeItemsInto, removeItemsFrom } from '../../lib/events';
 import Modal, { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 import DateField from '../DateField';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
@@ -160,15 +161,11 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
     <Modal open onClose={onClose} title={`${name} — ${dayLabel}`} width="max-w-lg"
       footer={
         <ModalFooter>
-          <Button theme="dark" variant="danger-ghost" className="px-6 py-2 mr-auto" onPointerDown={(e) => { e.preventDefault(); remove(); }}>
+          <ModalFooterButton variant="danger" className="mr-auto" onClick={() => { remove(); }}>
             <Trash2 className="w-3.5 h-3.5" /> Delete Event
-          </Button>
-          <Button theme="dark" variant="subtle" className="px-6 py-2 text-zinc-400" onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
-            Cancel
-          </Button>
-          <Button theme="dark" variant="primary" className="px-6 py-2" onPointerDown={(e) => { e.preventDefault(); save(); }}>
-            Save
-          </Button>
+          </ModalFooterButton>
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={() => { save(); }}>Save</ModalFooterButton>
         </ModalFooter>
       }
     >

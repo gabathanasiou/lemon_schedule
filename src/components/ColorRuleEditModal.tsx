@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../store';
 import { ColorRule, ColorRuleCondition, ColorOverride, SceneColorEntry, ProjectElement } from '../types';
 import { generateUUID } from '../lib/utils';
@@ -8,6 +7,7 @@ import { getCategoryElements } from '../lib/elements';
 import { getIntExtOptions, getDayNightOptions, DEFAULT_COLOR_PALETTE, getNoteBannerColors } from '../lib/ribbonUtils';
 import { IS_COARSE } from '../lib/device';
 import Modal, { ModalFooter } from './Modal';
+import ModalFooterButton from './ModalFooterButton';
 import ColorField from './ColorField';
 import { Plus, X, ChevronDown, Check } from 'lucide-react';
 
@@ -175,23 +175,19 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
   };
 
   const sizes = ruleModalSizes();
-  const { CREM_LABEL, CREM_TEXT, CREM_BODY, CREM_FOOTER_BTN, XSZ } = sizes;
+  const { CREM_LABEL, CREM_TEXT, CREM_BODY, XSZ } = sizes;
 
   return (
     <Modal open onClose={onClose} title={isEditing ? 'Edit Color Rule' : 'New Color Rule'} width="max-w-2xl"
       footer={
         <ModalFooter>
           {isEditing && onDelete && (
-            <button onClick={() => { onDelete(rule!.id); onClose(); }} className={`${CREM_FOOTER_BTN} text-red-400 font-medium rounded-lg hover:bg-red-900/30 hover:text-red-300 transition-colors mr-auto`}>
+            <ModalFooterButton variant="danger" className="mr-auto" onClick={() => { onDelete(rule!.id); onClose(); }}>
               Delete
-            </button>
+            </ModalFooterButton>
           )}
-          <button onClick={onClose} className={`${CREM_FOOTER_BTN} text-zinc-400 font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors`}>
-            Cancel
-          </button>
-          <button onClick={handleSave} className={`${CREM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`}>
-            Save
-          </button>
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={handleSave}>Save</ModalFooterButton>
         </ModalFooter>
       }
     >

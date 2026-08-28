@@ -3,6 +3,7 @@ import { Plus, Pencil } from 'lucide-react';
 import { IconGrid } from './IconGrid';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
 
 interface CategoryFormProps {
   open: boolean;
@@ -26,8 +27,8 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
     <Modal open onClose={onClose} title={title} icon={icon} width="max-w-md"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-          <button onClick={onSubmit} disabled={!name.trim()} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors">{submitLabel}</button>
+          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={onSubmit} disabled={!name.trim()}>{submitLabel}</ModalFooterButton>
         </ModalFooter>
       }
     >
