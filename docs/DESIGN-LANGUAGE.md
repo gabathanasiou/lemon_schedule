@@ -130,8 +130,8 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Need | Use | Notes |
 |---|---|---|
 | Toolbar / action button | kit `Button` | Variants `subtle`/`primary`/`danger-ghost`; `cloud` prop colors light primary for cloud projects (derive via `useIsCloudProject`); `theme="dark"` for dark toolbars; icon-only nav + status pills stay bespoke |
-| Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; arrows/typeahead/Esc; `modal:false`; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`) |
-| Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme** |
+| Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; arrows/typeahead/Esc; `modal:false`; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy) |
+| Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme**; press-point-anchored morph, closes on Esc |
 | Entity/cast picker in a cell or form | `EntityDropdown` | Modes: `multi` (comma list, click toggles), `single` (search-then-select), `select` (legacy). `items` prop REQUIRED — no context fallback. **Inside modals use `variant="chip"`** (dark chip trigger + dark panel; §EntityDropdown chip version below) — cells/forms keep the light default |
 | Inline cell text edit | `CellInput` | **Commits on blur only, never per keystroke**; Enter=commit, Esc=cancel |
 | Confirm/prompt/alert | `useDialog().confirm/prompt/alert` | Modal Radix dialog, focus trap, Enter=confirm |
@@ -228,7 +228,15 @@ async loads — e.g. Project Manager Local↔Cloud) FLIP the box height: a Resiz
 old height, transitions to the new px height, then releases to auto — user drag/resize stays
 instant and mid-morph fires re-anchor afterwards. `prefers-reduced-motion` skips
 all of it. Opt-out: `localStorage lemon_schedule_modal_morph === '0'` — no code change needed to
-disable.
+disable. **The same motion language covers every overlay** (roadmap 58): dropdown menus grow out
+of their trigger's corner, submenus out of their entry edge, context menus out of the press point,
+and EntityDropdown/Select/Autocomplete panels out of their trigger — the kit's shared
+`overlayMorph.ts` (`useOverlayMorph`, exported via `@gabriel/ui-kit`) replicates the modal zoom
+(reduce-motion + the same opt-out key gate it; app shims inject the key, kit stays key-agnostic).
+**Close-flash rule**: closing styles are NEVER cleared while the overlay is still mounted (clearing
+`opacity` repaints one full-opacity frame if the unmount render is deferred) — the box is pinned
+`visibility: hidden` and styles are restored only after the node detaches (menus, `Modal.zoomOut`)
+or on a pinned clone for unmount-driven closes (`cloneOnUnmount`, panels).
 
 Width ladder (verified call sites): `max-w-sm` simple forms (`CustomOrderSortModal`) · `max-w-md`
 single-form (`DayTypeModals.tsx:26`) · `max-w-lg` merge/violations (`ViolationModal`) · `max-w-xl`
@@ -269,6 +277,7 @@ multi-step wizards (dedicate a page), anything not related to the current task.
 | Loading | `Loader2` + `animate-spin`, often with label swap ("Reconnecting…") | `SaveIndicator.tsx:88`, `OfflineStatus.tsx:52` |
 | Empty state | Centered `text-zinc-500` + filled CTA button | `SceneSheet.tsx:260-272`; "Trash is empty" `App.tsx:923` |
 | Reference info | `Tooltip`/`HoverTooltip` (hover-only; touch gets info inline instead) | `ViolationTooltip` |
+| Overlay open/close | Trigger-anchored scale+fade morph (220ms modal easing, §Modal) — **feedback, not chrome**: no slides/overshoot/springs on functional menus; hover items keep `transition-colors` only; `active:transition-none` stays (instant touch) | kit `overlayMorph.ts`; `e2e/overlay-morph.spec.ts` |
 
 **There is no toast system and none should be invented** — pick a mechanism from the table.
 

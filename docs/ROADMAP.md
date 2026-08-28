@@ -613,40 +613,18 @@ intact; bridge reads untouched.
 **Relations**: rides item 44's model (`elementLinks.ts`); EntityDropdown may move into `@gabriel/ui-kit`
 (item 56) — the `anchoredKeys` prop (added here) must ride along in the migration.
 
-## 58. ui-kit animations — dropdowns, menus, dialogs (`[ ]`)
+## 58. ui-kit animations — dropdowns, menus, dialogs (`[x]` Done)
 
-**Requested**: animate the ui-kit interaction surfaces — dropdowns, menus, etc.
-
-**Current state** (verified in `~/Documents/Software Apps/ui-kit`):
-- `DropdownMenu.tsx:101` — **open-only** fade-in + scale-up (`opacity-0 scale-95
-  data-[state=open]:opacity-100 data-[state=open]:scale-100 transition-all duration-150 ease-out`);
-  **close snaps** (no `data-[state=closed]` exit animation), no `prefers-reduced-motion` gate.
-- `DropdownSubmenu.tsx` / `ContextMenu.tsx` — **no animation** (grep: no opacity/scale/transition).
-- App-side: `Modal.tsx` already has the hand-rolled FLIP morph (DESIGN-LANGUAGE §Modal — `prefers-reduced-motion` skips it); kit `Dialog` re-exports the app modal.
-- History: commit `c668e17d` (fade-in + scale-up on dropdown menus/submenus) — the open side landed; the ask is the missing rest.
-
-**Design** (THE MODAL MORPH IS THE REFERENCE — `Modal.tsx` FLIP system, DESIGN-LANGUAGE §Modal anatomy):
-- **Same motion language as the modals**: scale + opacity with the modal's exact easing
-  `220ms cubic-bezier(0.32,0.72,0,1)` and origin-anchored transforms — dropdowns/menus
-  **grow out of their trigger** (origin = the trigger's anchor corner, scale in from ~94%
-  like the standalone modal zoom-in) and **shrink back on close** (the modal's zoom-out,
-  not a snap). Open = transform-origin at the anchor (submenu: origin at its left/right
-  entry edge; context menu: origin at the press point). Close animations are part of the
-  contract — no more `data-[state=open]`-only half-animation; Radix exit via
-  `onAnimationEnd`/state-class transition (same hand-rolled, no-lib approach).
-- **Coverage**: kit `DropdownMenu` (incl. submenus), `ContextMenu`, and the app-local
-  drop-ins that mirror kit panels (`src/components/DropdownPanel.tsx`, EntityDropdown
-  panels, `src/components/ContextMenu.tsx` shim) — one recipe, both homes (rule 2 — no
-  second copy). Kit `Dialog` already re-exports the app modal (morph inherited).
-- **Motion hygiene** (inherited from the modal system): `prefers-reduced-motion` skips ALL
-  of it; **same opt-out pattern** — `localStorage lemon_schedule_modal_morph === '0'`-style
-  key (`lemon_schedule_ui_animations`?) so any morph-family regression can be disabled
-  without a code change; no new deps, transforms/opacity only (never layout); rapid
-  open/close cancels stale rAF/timeouts (the modal's animation token pattern).
-- **Feedback taxonomy** (DESIGN-LANGUAGE §feedback): animations are **feedback**, not
-  chrome — no slides/overshoot/springs on functional menus; hover items keep
-  `transition-colors` only; `active:transition-none` stays (instant touch feedback).
-
-**Verify**: lint + playwright — menu/submenu/context-menu open with the trigger-anchored scale morph (computed transform mid-animation), **close animates** (reverse morph) instead of snapping, keyboard nav + typeahead unaffected, `page.emulateMedia({ reducedMotion: 'reduce' })` → instant open/close, the modal-morph opt-out key also disables menu animations, EntityDropdown chip-panel dark variant matches, stripboard context menu + Calendar day context menu still fixed-position at the right spot.
-
-**Relations**: updates DESIGN-LANGUAGE (feedback taxonomy + primitive matrix + the modal-morph section gains the "same language, all overlays" note) in the same commit; rides item 56 (kit promotion of `FloatingTooltip`/`RuleCard`/`EntityDropdown` — promoted surfaces inherit the same motion classes); **the `Modal.tsx` FLIP morph is the motion-language source of truth — replicate it, never re-derive** (DESIGN-LANGUAGE §Modal anatomy, `docs/DESIGN-LANGUAGE.md:175-216`).
+**Done**: every overlay surface now shares the modal FLIP motion language — kit
+`overlayMorph.ts` (`useOverlayMorph`/`playOverlayOpen`/`playOverlayClose`/`cloneOverlayClose`,
+exported from `@gabriel/ui-kit`): trigger-anchored scale+fade (220ms `cubic-bezier(0.32,0.72,0,1)`,
+zoom from 94%) with a real close morph, `prefers-reduced-motion` + the `lemon_schedule_modal_morph`
+opt-out key (app shims inject it; submenus inherit via `SubmenuContext`), animation-token
+cancellation, pointer-transparent closing, no style-clear-while-mounted (close-flash rule — see
+`docs/DESIGN-LANGUAGE.md` §Modal anatomy). Coverage: kit `DropdownMenu` (incl. `ItemManagerDropdown`),
+`DropdownSubmenu`, `ContextMenu` (also gains Esc-to-close), app `DropdownPanel` (EntityDropdown
+light + dark chip), `SelectDropdown` (stripboard INT/EXT/day-night cells), `AutocompleteDropdown`
+(SceneSheet/Glide fields — the fixed panel also gained the `pos.ready` visibility gate so it never
+paints at 0,0). Unmount-driven closes play on a pinned clone (`data-morph-clone`). Verified by
+`e2e/overlay-morph.spec.ts` (open/close morph mid-flight, origin anchoring, close-flash regression,
+reduced-motion, opt-out, keyboard nav + typeahead).
