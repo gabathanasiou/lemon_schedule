@@ -177,7 +177,7 @@ Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collecti
 ## Legacy parallel machinery (REMOVED — do not use)
 - The old worktree-orchestration pipeline was retired and removed from disk: `orchestrator`/`docs-curator` agents, `/spawn-feature` `/roadmap-sprint` `/cleanup-worker` commands, the `orchestrate-roadmap` skill, and the phone web-hub scripts (`hub-server.mjs`/`npm run hub`, `start-web.sh`, `tui.sh`, `preview-workers.sh`, `worker-ports.sh`, `watch-workers.sh`) plus the `~/.zshrc` autostart guard. If ever revived, all removed files are preserved in `.opencode/.trash-deprecated/`. The `code-reviewer` subagent stays LIVE as the on-demand reviewer.
 
-## File Layout (post-refactor — see `docs/REFACTOR-PLAN.md`)
+## File Layout (post-refactor — see `plans/archive/REFACTOR-PLAN.md`)
 - `src/store/` — barrel + storage/reducer(+actions)/provider/rows
 - `src/lib/` — shared: `sceneFactory`, `glideCells`, `glidePaste`, `glideEditor`, `elements`, `paletteOps`, `mergeGroups`, `sceneColors`, `ribbonDefaults` (ribbonUtils re-exports these), `useStripboardContextMenu`, `useDriveProjectList`, `import/`
 - `src/components/schedule/` — Toolbar/ContextMenu/Modals/Overlays + hooks (`useScheduleKeyboard`, `useScheduleDrag`, `useBoneyardSort`) — ScheduleTab is the composition root

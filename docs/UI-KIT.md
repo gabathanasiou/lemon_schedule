@@ -16,7 +16,7 @@ Before building any of these by hand again, check the kit first:
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)
-- Install: `npm install github:gabathanasiou/ui-kit#v0.1.0` (bump the `#v0.x.y` ref when you update it)
+- Install: `npm install github:gabathanasiou/ui-kit#v0.1.34` (bump the `#v0.x.y` ref when you update it)
 - Setup: import `@gabriel/ui-kit/ui-kit.css` + `@source` the package in Tailwind + the `@custom-variant hover` gate — full steps in the kit's README.
 
 ## Making changes / improvements
@@ -28,11 +28,12 @@ The kit is the single source of truth. If you improve a component there:
 3. Bump `version` in package.json → commit → `git tag v0.1.1 && git push --tags`
 4. Update the pinned ref in whichever app needs it, then `npm install`
 
-**About this app:** lemon_schedule still runs its own in-app copies of these
-components — it has NOT been migrated yet (deliberate: no risk to a working app).
-Migration is optional and must pass the Playwright suite first. Until then, if
-you fix a bug in the in-app copy, consider porting the fix to the kit so it
-doesn't resurface.
+**About this app:** lemon_schedule is being migrated incrementally (roadmap
+item 56, `docs/ROADMAP.md`). So far the kit's `Button` (all tab toolbars) and
+`DropdownItem`/`DropdownMenu` pieces are in use; remaining in-app copies stay
+until swapped. Each migration step must pass the Playwright suite. Until a
+component is migrated, if you fix a bug in the in-app copy, consider porting
+the fix to the kit so it doesn't resurface.
 
 **Design language:** every kit change that alters visuals or APIs must be
 reflected in `docs/DESIGN-LANGUAGE.md` (the canonical booklet — class recipes +

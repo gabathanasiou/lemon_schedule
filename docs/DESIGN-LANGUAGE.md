@@ -3,14 +3,14 @@
 Status: **read this before building or changing ANY UI** in lemon_schedule. This is the canonical
 design language: principles, exact class recipes, primitive choice, and anti-patterns.
 Scope: app chrome (modals, menus, dialogs, pickers, toolbars, feedback, empty/loading states)
-and the device model (desktop + iPadOS). NOT covered: print/paper subsystem (`docs/print-system.md`),
+and the device model (desktop + iPadOS). NOT covered: print/paper subsystem (AGENTS.md §Print),
 Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 
 ---
 
 ## Keeping this doc current (update it in the SAME commit as the code)
 
-- **ui-kit bump** (`package.json` → `@gabriel/ui-kit#v0.1.x`, see `UI_KIT.md`): re-verify §Recipes
+- **ui-kit bump** (`package.json` → `@gabriel/ui-kit#v0.1.x`, see `UI-KIT.md`): re-verify §Recipes
   class strings and the §Primitive matrix against `node_modules/@gabriel/ui-kit` and fix this doc.
 - **New primitive / feedback pattern**: register it in the primitive matrix or feedback taxonomy in
   the same change that adds it.
@@ -256,7 +256,7 @@ MUST be added to `HelpModal.tsx` (AGENTS.md rule).
 ## Anti-patterns (MUST NOT)
 
 1. **Never write a second copy of a primitive** — kit first, then the app shim re-export; fix bugs
-   in the kit, port back to in-app copies if not yet migrated (`UI_KIT.md`).
+   in the kit, port back to in-app copies if not yet migrated (`UI-KIT.md`).
 2. **No new toast system** — use the §Feedback taxonomy.
 3. **No hardcoded ribbon-cell styling** — always `getRibbonCellBaseStyle` (`src/lib/ribbonUtils.ts`).
 4. **No per-keystroke commits** — `CellInput` commits on blur; EntityDropdown commits on exit.

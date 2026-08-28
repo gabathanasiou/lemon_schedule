@@ -1,7 +1,7 @@
 # Reports Text Block → TipTap Editor (implementation guide)
 
 Branch: `reports/tiptap-editor` (off current `reports/token-editor` HEAD).
-Status: PLAN — for another agent to implement. Read `docs/TOKEN-EDITOR-WIP.md` first for
+Status: PLAN — for another agent to implement. Read `plans/archive/TOKEN-EDITOR-WIP.md` first for
 context on the hand-rolled implementation being replaced.
 
 ## Goal
@@ -31,7 +31,7 @@ Replace the hand-rolled contentEditable chip/autocomplete implementation (curren
   new deps must be imported by ≥1 source file; reuse shared modules
   (`searchReportFields`, `fieldChipColor`, `tokenChipCss`, `tokenTagCss`,
   `resolveReportTokensHtml`, `TokenPreview` all stay).
-- Do not delete `docs/TOKEN-EDITOR-WIP.md` (update it with a pointer to this doc).
+- The superseded hand-rolled implementation notes are archived at `plans/archive/TOKEN-EDITOR-WIP.md`.
 
 ## Dependencies (TipTap v3 — React 19 compatible)
 
@@ -192,7 +192,7 @@ note the result).
   conflicts with the other agent's edits to this file first; if conflicted, leave it).
 - Delete: `src/lib/reportTokens.ts`, `src/components/reports/TokenAutocomplete.tsx`,
   `e2e/probe-cursor.spec.ts`, `e2e/probe-nav.spec.ts` (debug probes committed earlier).
-- Update `docs/TOKEN-EDITOR-WIP.md` with a short "superseded by TipTap" note + link.
+- The hand-rolled implementation notes are archived (`plans/archive/TOKEN-EDITOR-WIP.md`).
 
 ## Gotchas learned from the hand-rolled session (do not reintroduce)
 
