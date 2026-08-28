@@ -45,7 +45,7 @@ export function useSaveIndicator(): SaveState {
 
 export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) {
   const { status, lastSavedAt } = useSaveIndicator();
-  const { driveSaveError, storageQuotaError, retryDriveSync } = useProject();
+  const { driveSaveError, driveErrorMsg, storageQuotaError, retryDriveSync } = useProject();
   const auth = useGoogleAuth();
   const [showTooltip, setShowTooltip] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -164,7 +164,7 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
           onClick={async () => { setRetrying(true); await retryDriveSync(); setRetrying(false); }}
           disabled={retrying}
           className="cursor-pointer"
-          title="Sync failed - click to retry"
+          title={`Sync failed${driveErrorMsg ? `: ${driveErrorMsg}` : ''} - click to retry`}
         >
           {retrying ? (
             <Loader2 className="w-3.5 h-3.5 text-rose-400 animate-spin" />
@@ -174,7 +174,7 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
         </button>
         {showTooltip && (
           <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
-            Sync failed - click to retry
+            {driveErrorMsg ? `Sync failed: ${driveErrorMsg} - click to retry` : 'Sync failed - click to retry'}
           </div>
         )}
       </div>

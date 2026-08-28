@@ -4,7 +4,7 @@ import { Project } from '../types';
 import { generateUUID } from '../lib/utils';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
-import { readDriveProject, removeFromDriveIndex } from '../lib/googleDriveStorage';
+import { readDriveProject, removeFromDriveIndex, formatDriveError } from '../lib/googleDriveStorage';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
 import { performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 import {
@@ -20,6 +20,14 @@ import {
 } from './storage';
 import { Action, State, reducer, makeBlankProject } from './reducer';
 import { installAgentBridge, notifyAgentBridge } from '../lib/debugBridge';
+
+// Friendly message + the raw error text (diagnostic gold for sync failures —
+// e.g. Safari's "Load failed" vs a Drive 429 vs an expired token).
+function driveErrorDetail(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? '').trim();
+  const friendly = formatDriveError(err);
+  return raw && raw !== friendly ? `${friendly} (${raw.slice(0, 100)})` : friendly;
+}
 
 export interface ProjectContextType {
   state: State;
@@ -37,6 +45,7 @@ export interface ProjectContextType {
   updateProjectMeta: (id: string, updates: Partial<ProjectMeta>) => void;
   registerPostSaveHandler: (handler: ((project: Project) => Promise<void>) | null) => void;
   driveSaveError: boolean;
+  driveErrorMsg: string | null;
   storageQuotaError: boolean;
   retryDriveSync: () => Promise<void>;
   retryConnectivity: () => Promise<boolean>;
@@ -53,6 +62,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const auth = useGoogleAuth();
   const driveFileIdRef = useRef<string | undefined>(undefined);
   const [driveSaveError, setDriveSaveError] = useState(false);
+  const [driveErrorMsg, setDriveErrorMsg] = useState<string | null>(null);
   const [storageQuotaError, setStorageQuotaError] = useState(false);
 
   const blank = makeBlankProject();
@@ -80,33 +90,93 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   authStateRef.current = { isSignedIn: auth.isSignedIn, needsReauth: auth.needsReauth };
   const probeRef = useRef<() => Promise<boolean>>(async () => false);
 
+  // Live connectivity/sync snapshot for the agent bridge diagnostics()
+  const connStateRef = useRef({
+    isOnline: navigator.onLine,
+    realOnline: navigator.onLine,
+    driveSaveError: false,
+    driveErrorMsg: null as string | null,
+  });
+  connStateRef.current = { isOnline, realOnline, driveSaveError, driveErrorMsg };
+  const syncDiagRef = useRef({
+    lastProbeAt: 0,
+    lastProbeOk: true,
+    lastProbeError: null as string | null,
+    saveRetryCount: 0,
+    lastPayloadBytes: 0,
+  });
+
+  // Bounded auto-retry for transient network-level save failures (Safari
+  // dropping the upload mid-flight, flaky Wi-Fi, Google edge blips). Each
+  // retry is a fresh connection — the failure mode self-heals. Stops after
+  // MAX_SAVE_RETRIES; the next edit or manual Retry restarts the cycle.
+  const MAX_SAVE_RETRIES = 2;
+  const retryCountRef = useRef(0);
+  const scheduleSaveRetry = useCallback(() => {
+    if (retryCountRef.current >= MAX_SAVE_RETRIES) return;
+    const attempt = ++retryCountRef.current;
+    syncDiagRef.current.saveRetryCount = retryCountRef.current;
+    setTimeout(() => {
+      const token = sessionStorage.getItem('lemon_google_token');
+      const meta = projectListRef.current.find(p => p.id === currentProjectIdRef.current);
+      if (!token || !meta?.driveFileId) return;
+      console.warn(`[sync] save retry ${attempt}/${MAX_SAVE_RETRIES}…`);
+      pushProjectAndUpdateIndex(token, { ...presentRef.current }, meta.driveFileId)
+        .then(() => {
+          setDriveSaveError(false);
+          setDriveErrorMsg(null);
+          lastSaveFailedRef.current = false;
+          setRealOnline(true);
+          retryCountRef.current = 0;
+          syncDiagRef.current.saveRetryCount = 0;
+        })
+        .catch((err2: any) => {
+          console.error('Drive save retry failed:', err2);
+          setDriveErrorMsg(driveErrorDetail(err2));
+        });
+    }, attempt * 4000);
+  }, []);
+
   // Proactive connectivity probe - the browser `offline` event is slow/unreliable (Wi-Fi
-  // drops can leave navigator.onLine true for a long time), so ping the Drive API on a
-  // 10s interval plus key events. Auth state wins over probe results: an HTTP response
-  // (even 401/403) proves the network is up, but never unlocks editing while the session
-  // is signed out or expired.
+  // drops can leave navigator.onLine true for a long time), so ping Google on a
+  // 10s interval plus key events. Auth state wins over probe results: an HTTP
+  // response (even 401/403) proves the network is up, but never unlocks editing
+  // while the session is signed out or expired. Uses the no-auth captive-portal
+  // endpoint (204) — no 401 console spam and no token involvement.
   useEffect(() => {
     const currentMeta = () => projectListRef.current.find(p => p.id === currentProjectIdRef.current);
     const isCloudContext = () => !!currentMeta()?.driveFileId || authStateRef.current.isSignedIn;
     const probe = async (): Promise<boolean> => {
       if (!isCloudContext()) return true;
       try {
-        const res = await fetch('https://www.googleapis.com/drive/v3/about?fields=kind', {
+        // Any HTTP response (200/401/403/204/429/5xx…) proves the network is up —
+        // only a thrown fetch (no response) means offline. Never classify a
+        // Drive API hiccup as "no internet" (that locks the project and drops
+        // edits while the connection is actually fine).
+        // gstatic/generate_204 is Google's captive-portal endpoint: no auth,
+        // always 204, and `no-cors` keeps the fetch opaque-but-resolving so
+        // CORS can never turn a healthy network into an "offline" verdict.
+        await fetch('https://www.gstatic.com/generate_204', {
           method: 'HEAD',
+          mode: 'no-cors',
           cache: 'no-store',
         });
-        if (res.ok || res.status === 401 || res.status === 403) {
-          setIsOnline(true);
-          lastSaveFailedRef.current = false;
-          const meta = currentMeta();
-          if (meta?.driveFileId && authStateRef.current.isSignedIn && !authStateRef.current.needsReauth) {
-            setRealOnline(true);
-          }
-          return !meta?.driveFileId || (authStateRef.current.isSignedIn && !authStateRef.current.needsReauth);
+        syncDiagRef.current.lastProbeAt = Date.now();
+        syncDiagRef.current.lastProbeOk = true;
+        syncDiagRef.current.lastProbeError = null;
+        setIsOnline(true);
+        lastSaveFailedRef.current = false;
+        const meta = currentMeta();
+        if (meta?.driveFileId && authStateRef.current.isSignedIn && !authStateRef.current.needsReauth) {
+          setRealOnline(true);
         }
-        setIsOnline(false);
-        return false;
-      } catch {
+        return !meta?.driveFileId || (authStateRef.current.isSignedIn && !authStateRef.current.needsReauth);
+      } catch (e) {
+        const detail = e instanceof Error ? e.message : String(e);
+        syncDiagRef.current.lastProbeAt = Date.now();
+        syncDiagRef.current.lastProbeOk = false;
+        syncDiagRef.current.lastProbeError = detail;
+        console.warn('[connectivity] probe failed:', detail);
         setIsOnline(false);
         if (currentMeta()?.driveFileId) setRealOnline(false);
         lastSaveFailedRef.current = true;
@@ -163,6 +233,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       dispatch: (action) => bridgeDispatch(action),
       getProjectList: () => projectListRef.current,
       getCurrentProjectId: () => currentProjectIdRef.current,
+      getConnectivity: () => ({
+        ...connStateRef.current,
+        ...syncDiagRef.current,
+        signedIn: authStateRef.current.isSignedIn,
+        needsReauth: authStateRef.current.needsReauth,
+        projectIsCloud: !!projectListRef.current.find(p => p.id === currentProjectIdRef.current)?.driveFileId,
+        navigatorOnLine: navigator.onLine,
+      }),
     });
     return uninstall;
   }, [bridgeDispatch]);
@@ -241,6 +319,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         if (skipSaveRef.current) { skipSaveRef.current = false; return; }
         if (auth.isSignedIn && auth.accessToken && isOnline && meta?.driveFileId) {
           try {
+            // Diagnostic: payload size drives upload fragility (Safari drops big
+            // multipart bodies mid-flight more often than small ones).
+            syncDiagRef.current.lastPayloadBytes = new Blob([JSON.stringify(project)]).size;
             const newFileId = await pushProjectAndUpdateIndex(
               auth.accessToken, project, meta.driveFileId,
             );
@@ -257,8 +338,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
               return updated;
             });
             setDriveSaveError(false);
+            setDriveErrorMsg(null);
+            retryCountRef.current = 0;
           } catch (err: any) {
             console.error('Drive save failed:', err);
+            setDriveErrorMsg(driveErrorDetail(err));
             if (err?.message?.includes('401')) {
               auth.refreshToken();
               setTimeout(async () => {
@@ -267,16 +351,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                   if (token && meta?.driveFileId) {
                     await pushProjectAndUpdateIndex(token, project, meta.driveFileId);
                     setDriveSaveError(false);
+                    setDriveErrorMsg(null);
                     lastSaveFailedRef.current = false;
                     setRealOnline(true);
+                    retryCountRef.current = 0;
                   }
                 } catch {
                   // Give up - user can manually retry
                 }
               }, 2000);
             } else {
+              // A failed Drive write is NOT "offline" — the network can be fine
+              // while Google hiccups or Safari drops the upload mid-flight
+              // ("The network connection was lost"). Bounded auto-retries
+              // self-heal transient drops on a fresh connection; the probe
+              // independently detects real disconnects.
               lastSaveFailedRef.current = true;
-              setRealOnline(false);
+              scheduleSaveRetry();
             }
             setDriveSaveError(true);
           }
@@ -323,6 +414,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (auth.isSignedIn && !prevSignedInRef.current) {
       if (meta?.driveFileId) {
         setDriveSaveError(false);
+        setDriveErrorMsg(null);
       }
     } else if (!auth.isSignedIn && prevSignedInRef.current) {
       if (meta?.driveFileId) {
@@ -343,6 +435,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setDriveSaveError(true);
     } else if (!auth.needsReauth && prevNeedsReauthRef.current) {
       setDriveSaveError(false);
+      setDriveErrorMsg(null);
     }
     prevNeedsReauthRef.current = auth.needsReauth;
   }, [auth.needsReauth, currentProjectId]);
@@ -356,7 +449,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         const token = sessionStorage.getItem('lemon_google_token');
         if (token) {
           pushProjectAndUpdateIndex(token, { ...presentRef.current }, meta.driveFileId)
-            .then(() => { setDriveSaveError(false); lastSaveFailedRef.current = false; setRealOnline(true); })
+            .then(() => { setDriveSaveError(false); setDriveErrorMsg(null); lastSaveFailedRef.current = false; setRealOnline(true); })
             .catch(() => {});
         }
       }
@@ -659,9 +752,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     try {
       await pushProjectAndUpdateIndex(token, { ...presentRef.current }, meta.driveFileId);
       setDriveSaveError(false);
+      setDriveErrorMsg(null);
       lastSaveFailedRef.current = false;
       setRealOnline(true);
     } catch (err: any) {
+      setDriveErrorMsg(driveErrorDetail(err));
       if (err?.message?.includes('401')) {
         auth.refreshToken();
         setTimeout(async () => {
@@ -670,16 +765,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             if (token && meta?.driveFileId) {
               await pushProjectAndUpdateIndex(token, { ...presentRef.current }, meta.driveFileId);
               setDriveSaveError(false);
+              setDriveErrorMsg(null);
               lastSaveFailedRef.current = false;
               setRealOnline(true);
             }
-          } catch {
+          } catch (err2: any) {
+            setDriveErrorMsg(driveErrorDetail(err2));
             setDriveSaveError(true);
           }
         }, 2000);
       } else {
+        // Same as the save pipeline: a failed retry is not proof of being
+        // offline — keep editing and let the probe classify connectivity.
         lastSaveFailedRef.current = true;
-        setRealOnline(false);
       }
       setDriveSaveError(true);
     }
@@ -705,12 +803,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     updateProjectMeta,
     registerPostSaveHandler,
     driveSaveError,
+    driveErrorMsg,
     storageQuotaError,
     retryDriveSync,
     retryConnectivity,
     closeProject,
     consumeLegacyMigrationNotice,
-  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, storageQuotaError, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, storageQuotaError, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
 
   return (
     <ProjectContext.Provider value={contextValue}>

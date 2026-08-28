@@ -14,6 +14,12 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     headless: true,
     screenshot: 'only-on-failure',
+    // The overlay morph (kit overlayMorph.ts) self-disables under
+    // prefers-reduced-motion. Tests aren't about animation — motion OFF
+    // removes the 220ms close-morph clone that intercepted clicks on menu
+    // items and made ~15 specs flaky ("element is not stable"/"detached").
+    // overlay-morph.spec.ts (the one spec ABOUT the morph) opts back in.
+    contextOptions: { reducedMotion: 'reduce' },
     // The agentic debug bridge (window.__lemonSchedule) is gated behind
     // LEMON_AGENT in production builds — the suite runs the PRODUCTION
     // preview, so every test context opens agent mode. Inert unless a spec

@@ -12,6 +12,11 @@ import { openSeededProject } from './helpers';
 
 const MENU = '[data-radix-menu-content]';
 
+// This spec IS about the morph — re-enable motion (the suite default is
+// contextOptions.reducedMotion: 'reduce' so the other ~150 specs don't race
+// the close clone; the reduced-motion case below emulates it inline).
+test.use({ contextOptions: { reducedMotion: 'no-preference' } });
+
 type MorphSample = { scale: number; opacity: number; origin: string; w: number; h: number; t: number };
 
 /** Sample computed transform/opacity of the LAST matching element every

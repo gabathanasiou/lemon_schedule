@@ -57,6 +57,21 @@ html, body, #root {
   pointer-events: none;
 }
 
+/* The kit Modal animates its HEIGHT when content resizes (ResizeObserver
+   height/top transition — kit Modal.tsx). A click started mid-transition
+   lands on the wrong element at pointerup: the button moves between press
+   and release, so Save/Cancel clicks right after editing a modal get
+   swallowed (flaky modal saves — the Day Events modal's Save was a regular
+   victim). The kit's resize path has no reduced-motion check, so kill the
+   inline transition from here: under reduced motion the height snaps
+   instantly (no moving target under the pointer); the kit's setTimeout
+   cleanup still clears its inline styles. */
+@media (prefers-reduced-motion: reduce) {
+  [role="dialog"] {
+    transition: none !important;
+  }
+}
+
 /* Designer canvas: anchors inside blocks are inert so links can't hijack
    block selection (preview and print keep them clickable). */
 .block-card a {

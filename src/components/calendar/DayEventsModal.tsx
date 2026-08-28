@@ -518,8 +518,16 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                               </div>
                             );
                           })}
-                          {sec.rows.length === 1 && sec.rows[0].keys.length === 0 && !sec.rows[0].all && (
-                            <p className={`${CREM_LABEL} text-zinc-600 italic`}>Nothing marked — press Add to mark elements.</p>
+                          {/* The hint's slot is ALWAYS reserved while the
+                              section has a single row: the multi-mode entity
+                              input commits on blur, so clicking Save while it
+                              is focused would hide this hint mid-click and
+                              shrink the modal (the button moves between
+                              pointerdown and pointerup — the click lands on
+                              the footer and the save is silently lost). The
+                              invisible copy keeps the layout pinned. */}
+                          {(sec.rows.length === 1 && !sec.rows[0].all) && (
+                            <p className={`${CREM_LABEL} text-zinc-600 italic ${sec.rows[0].keys.length === 0 ? '' : 'invisible'}`}>Nothing marked — press Add to mark elements.</p>
                           )}
                         </div>
                       )}

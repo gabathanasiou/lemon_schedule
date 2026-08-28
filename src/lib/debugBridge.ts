@@ -24,12 +24,29 @@ import type { ProjectMeta } from '../store/storage';
  * - Gated: dev builds always; prod/preview only with localStorage `LEMON_AGENT=1`.
  */
 
-export interface AgentBridgeApi {
+export interface AgentBridgeConnectivitySnapshot {
+  isOnline: boolean;
+  realOnline: boolean;
+  driveSaveError: boolean;
+  driveErrorMsg: string | null;
+  lastProbeAt: number;
+  lastProbeOk: boolean;
+  lastProbeError: string | null;
+  saveRetryCount: number;
+  lastPayloadBytes: number;
+  signedIn: boolean;
+  needsReauth: boolean;
+  projectIsCloud: boolean;
+  navigatorOnLine: boolean;
+}
+
+interface AgentBridgeApi {
   getState: () => State;
   getProject: () => Project;
   dispatch: (action: Action) => void;
   getProjectList: () => ProjectMeta[];
   getCurrentProjectId: () => string | null;
+  getConnectivity: () => AgentBridgeConnectivitySnapshot;
 }
 
 export interface AgentBridgeRowSnapshot {
@@ -82,6 +99,7 @@ export interface LemonAgentBridge {
     sections: AgentBridgeSectionsSnapshot[];
   };
   getSceneValues: () => { columns: string[]; rows: AgentBridgeSceneSnapshot[] };
+  diagnostics: () => AgentBridgeConnectivitySnapshot;
   dispatch: (action: Action) => void;
   undo: () => void;
   redo: () => void;
@@ -161,6 +179,7 @@ function buildBridge(): LemonAgentBridge {
     '  getVersion(versionId?)       → active (or given) schedule version meta',
     '  getRows(versionId?)          → computed stripboard rows in order + sections (call times, daybreaks, sums)',
     '  getSceneValues()             → Glide grid truth: every scene, every column value (canvas is opaque to the DOM)',
+    '  diagnostics()                → connectivity/sync snapshot (probe result, Drive save error, payload size, retries)',
     '  pastCount() / futureCount()  → undo/redo stack depths',
     '',
     'Writes (same Action union the UI uses; see src/store/reducer.ts — ~95 types):',
@@ -253,6 +272,7 @@ function buildBridge(): LemonAgentBridge {
     },
     getRows,
     getSceneValues,
+    diagnostics: () => deepClone(api().getConnectivity()),
     dispatch,
     undo: () => dispatch({ type: 'UNDO' }),
     redo: () => dispatch({ type: 'REDO' }),
