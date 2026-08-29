@@ -73,7 +73,8 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
   const isCast = category === 'cast';
 
   // Type cards: dates grouped by day type, in manager order.
-  const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
+  const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId);
+  const nonShootDates = useMemo(() => activeCalendarVersion?.nonShootDates || [], [activeCalendarVersion?.nonShootDates]);
   const entryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
 
   // Same shared computation the Calendar + Day Types manager use.
@@ -161,25 +162,25 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
       if (isAllKeys(g.keys)) continue;
       entry = removeItemsFrom(entry, g.status, g.category, [identity.refKey]);
     }
-    if (!activeVersion) return;
+    if (!activeCalendarVersion) return;
     // `removeItemsFrom` returns undefined when the entry is FULLY emptied
     // (the card was the day's only content and there's no day status) —
     // that means the date row must be pruned, not left untouched. Upsert
     // an empty entry so `upsertNonShootDate` removes the date.
     dispatch({
-      type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, date, entry ?? { date }) },
+      type: 'UPDATE_CALENDAR_VERSION',
+      payload: { id: activeCalendarVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, date, entry ?? { date }) },
     });
   };
 
   /** Inline note save — the note lives under the row's (status × category)
    *  slot keyed by THIS element; empty text clears it. */
   const commitNote = (date: string, status: string, category: string, text: string) => {
-    if (!activeVersion) return;
+    if (!activeCalendarVersion) return;
     const entry = entryByDate.get(date) || { date };
     dispatch({
-      type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, date, { ...entry, comments: setNote(entry.comments, status, category, identity.refKey, text) }) },
+      type: 'UPDATE_CALENDAR_VERSION',
+      payload: { id: activeCalendarVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, date, { ...entry, comments: setNote(entry.comments, status, category, identity.refKey, text) }) },
     });
   };
 

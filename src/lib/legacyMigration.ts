@@ -156,7 +156,7 @@ function migrateLegacyVersion(v: ScheduleVersion): ScheduleVersion {
   delete (v as any).dayMeta;
   delete (v as any).legacy;
 
-  return { ...v, rows: newRows, productionStart: firstDate || undefined };
+  return { ...v, rows: newRows };
 }
 
 export function migrateLegacyProject(project: Project): LegacyMigrationResult {

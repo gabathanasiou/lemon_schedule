@@ -53,9 +53,9 @@ export const TravelHoldContent: React.FC<{
         const isHold = sg[0].status === 'hold';
         return (
           <div key={sg[0].status} className={i > 0 ? 'mt-1.5 pt-1 border-t border-zinc-700' : ''}>
-            <div className="flex items-center gap-1 font-bold text-[10px] text-zinc-200">
+            <div className="flex items-center gap-1 font-bold text-[10px] text-zinc-100">
               <TypeGlyph project={project} status={sg[0].status} />
-              <span style={def?.color ? { color: def.color } : undefined}>{isTravel ? 'Traveling' : isHold ? 'On Hold' : label}</span>
+              <span>{isTravel ? 'Traveling' : isHold ? 'On Hold' : label}</span>
             </div>
             {sg.map(renderGroup)}
           </div>

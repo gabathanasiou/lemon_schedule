@@ -22,7 +22,6 @@ export const DayCell: React.FC<{
   onContextMenu?: (e: React.MouseEvent, dateKey: string) => void;
   nonShootStatus?: string;
   dayTypeVisual?: DayTypeVisual | null;
-  dayTypeCode?: string;
   travelHoldEntry?: NonShootDate;
   onEditTravelHold?: (dateKey: string) => void;
   sectionIndex?: number;
@@ -43,7 +42,7 @@ export const DayCell: React.FC<{
   activeDragDay?: number | null;
   dropState?: DayDropState;
   flashColor?: 'a' | 'b';
-}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, dayTypeVisual, dayTypeCode, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, dayTypeVisual, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
   const { readOnly, state } = useProject();
   const project = state.present;
   const { setNodeRef, isOver } = useDroppable({
@@ -140,8 +139,6 @@ export const DayCell: React.FC<{
           <DayStatusBadges
             travelHoldEntry={travelHoldEntry}
             project={project}
-            dayTypeCode={dayTypeCode}
-            dayTypeVisual={dayTypeVisual}
             onEdit={onEditTravelHold}
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none leading-none gap-[3px]">

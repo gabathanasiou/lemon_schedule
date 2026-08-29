@@ -5,7 +5,7 @@ import {
   Scene,
   ScheduleRow,
 } from '../../types';
-import { formatPageCount, generateUUID } from '../utils';
+import { formatPageCount, generateUUID, makeBlankCalendarVersion } from '../utils';
 import { makeBlankProject } from '../../store/reducer';
 import {
   categoryNameToKey,
@@ -324,9 +324,14 @@ function buildProject(parsed: ParsedSex, fallbackTitle?: string): Project {
     createdAt: now,
     updatedAt: now,
     rows,
-    nonShootDates: [],
   }];
   project.activeVersionId = project.versions[0].id;
+  // Calendar plan: blank c01 (item 66 — calendar data lives in calendar
+  // versions, independent of schedule versions). SEX carries no calendar
+  // data; LOAD/makeBlankProject-equivalent bootstrap keeps the project valid.
+  const blankCal = makeBlankCalendarVersion('c01');
+  project.calendarVersions = [blankCal];
+  project.activeCalendarVersionId = blankCal.id;
   return project;
 }
 

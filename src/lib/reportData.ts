@@ -1,4 +1,4 @@
-import { Project, ScheduleVersion, Scene, ScheduleRow, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation } from '../types';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { loadCategoryElements, elementMatchId } from './elements';
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
@@ -379,6 +379,9 @@ function elementsOfSceneFor(ctx: ReportCtx, scene: Scene, category?: string): Re
 export interface ReportCtx {
   project: Project;
   version: ScheduleVersion;
+  /** Active calendar plan — production window + day statuses/events
+   *  (item 66: calendar data is versioned independently of the schedule). */
+  calendarVersion: CalendarVersion;
   sceneInfos: ReportSceneInfo[];
   dayInfos: ReportDayInfo[];
   categoryInfos: ReportCategoryInfo[];
@@ -405,6 +408,7 @@ export function todayIso(): string {
 export function buildReportCtx(
   project: Project,
   version: ScheduleVersion,
+  calendarVersion: CalendarVersion,
   daybreak: ReportDaybreakData,
 ): ReportCtx {
   const { sections, computedRows } = daybreak;
@@ -537,8 +541,8 @@ export function buildReportCtx(
     breakMin: dayInfos.reduce((sum, d) => sum + d.breakMin, 0),
     pages: dayInfos.reduce((sum, d) => sum + d.totalPages, 0),
     scenes: sceneInfos.length,
-    firstDay: dayInfos[0]?.date || version.productionStart || todayIso(),
-    lastDay: dayInfos[dayInfos.length - 1]?.date || version.productionStart || todayIso(),
+    firstDay: dayInfos[0]?.date || calendarVersion.productionStart || todayIso(),
+    lastDay: dayInfos[dayInfos.length - 1]?.date || calendarVersion.productionStart || todayIso(),
   };
 
   const { sectionViolations, sceneViolations, totalViolations } = computeViolationIndex(project, sections);
@@ -549,6 +553,7 @@ export function buildReportCtx(
   return {
     project,
     version,
+    calendarVersion,
     sceneInfos,
     dayInfos,
     categoryInfos,
@@ -625,8 +630,8 @@ function computeElementStats(
   const { totals } = deriveDood(
     ctx.project.scenes,
     ctx.version.rows,
-    ctx.version.productionStart || todayIso(),
-    ctx.version.nonShootDates || [],
+    ctx.calendarVersion.productionStart || todayIso(),
+    ctx.calendarVersion.nonShootDates || [],
     elements.map(matchKey),
     ctx.dayInfos.map(d => d.section.index),
     true,

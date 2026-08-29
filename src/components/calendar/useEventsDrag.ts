@@ -48,6 +48,8 @@ export function useEventsDrag(config: UseEventsDragConfig) {
   const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set());
   const [activeMeta, setActiveMeta] = useState<EventsDragMeta | null>(null);
   const [dropZone, setDropZone] = useState<EventsDropZone | null>(null);
+  /** Width of the dragged card (ghost renders at the source's size). */
+  const [activeWidth, setActiveWidth] = useState<number | undefined>(undefined);
   const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
 
   const reset = useCallback(() => {
@@ -55,6 +57,7 @@ export function useEventsDrag(config: UseEventsDragConfig) {
     setActiveEventIds(new Set());
     setActiveMeta(null);
     setDropZone(null);
+    setActiveWidth(undefined);
     dragPointerRef.current = null;
   }, []);
 
@@ -131,6 +134,8 @@ export function useEventsDrag(config: UseEventsDragConfig) {
       setActiveEventIds(new Set([`ev-day-${data.dateKey}`]));
       return;
     }
+    const el = document.querySelector(`[data-event-key="${e.active.id}"]`);
+    setActiveWidth(el ? el.getBoundingClientRect().width : undefined);
     const current = selectedEventKeysRef.current;
     if (current.has(e.active.id as string) && current.size > 1) {
       setActiveEventIds(new Set(current));
@@ -264,6 +269,7 @@ export function useEventsDrag(config: UseEventsDragConfig) {
     activeEventId,
     activeEventIds,
     activeMeta,
+    activeWidth,
     dropZone,
     handleDragStart,
     handleDragOver,

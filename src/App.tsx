@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ProjectProvider, useProject, useIsCloudProject, DEFAULT_CATEGORY_LABELS } from './store';
 import { useDialog } from './components/Dialog';
-import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, CrewTrashItem, Project } from './types';
+import { TrashItem, VersionTrashItem, CalendarVersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, CrewTrashItem, Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
@@ -78,7 +78,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity } = useProject();
+  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity, activeCalendarVersion } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<AppTabId>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons' | 'designer'>('ribbons');
@@ -579,8 +579,8 @@ function AppContent() {
           title={project.title || 'Production Schedule'}
           scenes={project.scenes}
           scheduleRows={version?.rows || []}
-          productionStart={version?.productionStart}
-          nonShootDates={version?.nonShootDates}
+          productionStart={activeCalendarVersion?.productionStart}
+          nonShootDates={activeCalendarVersion?.nonShootDates}
           castMembers={project.castMembers || []}
           elementIds={elementIds}
           dayInts={doodOptions.dayInts}
@@ -617,8 +617,8 @@ function AppContent() {
           title={project.title || 'Production Schedule'}
           scenes={project.scenes}
           rows={version?.rows || []}
-          productionStart={version?.productionStart}
-          nonShootDates={version?.nonShootDates}
+          productionStart={activeCalendarVersion?.productionStart}
+          nonShootDates={activeCalendarVersion?.nonShootDates}
           castMembers={project.castMembers || []}
           customCategories={project.customCategories || []}
           category={elementBreakdownOptions.category}
@@ -630,7 +630,7 @@ function AppContent() {
   if (reportPrint && version) {
     return (
       <div>
-        <ReportPrint project={project} version={version} design={reportPrint.design} daybreak={reportPrint.daybreak} scopeFilter={reportPrint.scopeFilter} printOptions={reportPrint.printOptions} onReady={() => setReportPrintReady(true)} />
+        <ReportPrint project={project} version={version} calendarVersion={activeCalendarVersion!} design={reportPrint.design} daybreak={reportPrint.daybreak} scopeFilter={reportPrint.scopeFilter} printOptions={reportPrint.printOptions} onReady={() => setReportPrintReady(true)} />
       </div>
     );
   }
@@ -663,9 +663,9 @@ function AppContent() {
   // {{sunrise}} / {{sunset}} never print empty. Best-effort — a network miss
   // just leaves the fields as "—".
   const handleReportPrint = async (design: ReportDesign, scopeFilter?: ReportScopeFilter, printOptions?: ReportPrintOptions) => {
-    if (version) {
+    if (version && activeCalendarVersion) {
       try {
-        await prepareSunWeatherForDesign(project, version, { sections, computedRows }, design);
+        await prepareSunWeatherForDesign(project, version, activeCalendarVersion, { sections, computedRows }, design);
       } catch { /* best-effort */ }
     }
     setReportPrintReady(false);
@@ -888,7 +888,7 @@ function AppContent() {
                 <p className="text-zinc-500 text-[11px] mt-0.5">Items expire after 30 days</p>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-3">
-                {(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0) + (project.colorRulesTrash?.length || 0) + (project.crewTrash?.length || 0) > 0 && (
+                {(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.calendarVersionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0) + (project.colorRulesTrash?.length || 0) + (project.crewTrash?.length || 0) > 0 && (
                   <button
                     onClick={async () => { const ok = await dialog.confirm({ title: 'Empty Trash?', message: 'Permanently delete all trash items?', danger: true, suppressKey: 'lemon_schedule_dnwa_empty_trash' }); if (ok) dispatch({ type: 'EMPTY_TRASH' }); }}
                     className="text-[10px] text-red-500 hover:text-red-400 font-semibold px-1.5 py-0.5 rounded hover:bg-red-500/10 transition-colors"
@@ -905,6 +905,7 @@ function AppContent() {
               {(() => {
                 const items: Array<{ kind: 'scene'; id: string; data: TrashItem }
                   | { kind: 'version'; id: string; data: VersionTrashItem }
+                  | { kind: 'calendarVersion'; id: string; data: CalendarVersionTrashItem }
                   | { kind: 'rule'; id: string; data: RuleTrashItem }
                   | { kind: 'ribbon'; id: string; data: RibbonTrashItem }
                   | { kind: 'element'; id: string; data: ElementTrashItem }
@@ -913,6 +914,7 @@ function AppContent() {
                   | { kind: 'crew'; id: string; data: CrewTrashItem }> = [
                     ...(project.trash || []).map(t => ({ kind: 'scene' as const, id: t.scene.id, data: t })),
                     ...(project.versionTrash || []).map(t => ({ kind: 'version' as const, id: t.version.id, data: t })),
+                    ...(project.calendarVersionTrash || []).map(t => ({ kind: 'calendarVersion' as const, id: t.version.id, data: t })),
                     ...(project.rulesTrash || []).map(t => ({ kind: 'rule' as const, id: t.rule.id, data: t })),
                     ...(project.ribbonTrash || []).map(t => ({ kind: 'ribbon' as const, id: t.design.id, data: t })),
                     ...(project.elementsTrash || []).map(t => ({ kind: 'element' as const, id: t.element.id, data: t })),
@@ -934,6 +936,10 @@ function AppContent() {
                     const t = item.data as VersionTrashItem;
                     title = t.version.name;
                     subtitle = `Version · ${formatTime(t.deletedAt)}`;
+                  } else if (item.kind === 'calendarVersion') {
+                    const t = item.data as CalendarVersionTrashItem;
+                    title = t.version.name;
+                    subtitle = `Calendar Plan · ${formatTime(t.deletedAt)}`;
                   } else if (item.kind === 'rule') {
                     const t = item.data as RuleTrashItem;
                     const meta = RULE_TYPE_META[t.rule.type];
@@ -967,14 +973,15 @@ function AppContent() {
                   }
                   const actionType = item.kind === 'scene' ? 'RESTORE_SCENE'
                     : item.kind === 'version' ? 'RESTORE_VERSION_FROM_TRASH'
+                    : item.kind === 'calendarVersion' ? 'RESTORE_CALENDAR_VERSION_FROM_TRASH'
                     : item.kind === 'rule' ? 'RESTORE_RULE_FROM_TRASH'
                     : item.kind === 'element' ? 'RESTORE_ELEMENT_FROM_TRASH'
                     : item.kind === 'category' ? 'RESTORE_CATEGORY_FROM_TRASH'
                     : item.kind === 'colorrule' ? 'RESTORE_COLOR_RULE_FROM_TRASH'
                     : item.kind === 'crew' ? 'RESTORE_CREW_PERSON_FROM_TRASH'
                     : 'RESTORE_RIBBON_FROM_TRASH';
-                  const kindLabel = item.kind === 'scene' ? 'Scene' : item.kind === 'version' ? 'Version' : item.kind === 'rule' ? 'Rule' : item.kind === 'element' ? 'Element' : item.kind === 'category' ? 'Category' : item.kind === 'colorrule' ? 'Color Rule' : item.kind === 'crew' ? 'Crew' : 'Ribbon';
-                  const kindColor = item.kind === 'scene' ? 'text-sky-400' : item.kind === 'version' ? 'text-emerald-400' : item.kind === 'rule' ? 'text-amber-400' : item.kind === 'element' ? 'text-orange-400' : item.kind === 'category' ? 'text-pink-400' : item.kind === 'colorrule' ? 'text-teal-400' : item.kind === 'crew' ? 'text-cyan-400' : 'text-violet-400';
+                  const kindLabel = item.kind === 'scene' ? 'Scene' : item.kind === 'version' ? 'Version' : item.kind === 'calendarVersion' ? 'Calendar' : item.kind === 'rule' ? 'Rule' : item.kind === 'element' ? 'Element' : item.kind === 'category' ? 'Category' : item.kind === 'colorrule' ? 'Color Rule' : item.kind === 'crew' ? 'Crew' : 'Ribbon';
+                  const kindColor = item.kind === 'scene' ? 'text-sky-400' : item.kind === 'version' ? 'text-emerald-400' : item.kind === 'calendarVersion' ? 'text-lime-400' : item.kind === 'rule' ? 'text-amber-400' : item.kind === 'element' ? 'text-orange-400' : item.kind === 'category' ? 'text-pink-400' : item.kind === 'colorrule' ? 'text-teal-400' : item.kind === 'crew' ? 'text-cyan-400' : 'text-violet-400';
                   return (
                     <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900 group">
                       <div className="min-w-0">

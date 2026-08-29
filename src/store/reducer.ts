@@ -1,5 +1,5 @@
-import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef } from '../types';
-import { generateUUID, normalizePunctuation } from '../lib/utils';
+import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef } from '../types';
+import { generateUUID, normalizePunctuation, makeBlankCalendarVersion } from '../lib/utils';
 import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
 import { DEFAULT_LOCATION_TYPES } from '../lib/locations';
@@ -9,6 +9,8 @@ import {
   caseEmptyTrash, caseSortScenes, caseSortScenesBy, caseInsertSceneAt, caseUpdateVersion, caseUpdateRow,
   caseNewVersion, caseDeleteVersion, caseRestoreVersionFromTrash, caseRenameVersion,
   caseSetActiveVersion, caseImportScenes,
+  caseUpdateCalendarVersion, caseNewCalendarVersion, caseDeleteCalendarVersion,
+  caseRenameCalendarVersion, caseSetActiveCalendarVersion, caseRestoreCalendarVersionFromTrash,
 } from './actions/schedule';
 import {
   caseAddRule, caseUpdateRule, caseDeleteRule, caseRestoreRuleFromTrash,
@@ -88,6 +90,7 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
   };
   const defaultReports = getDefaultReportDesigns();
   const defaultReport = defaultReports[0];
+  const blankCalendar = makeBlankCalendarVersion('c01');
   return {
     id,
     title,
@@ -107,9 +110,10 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
         daybreakCallTime: '08:00',
         pinned: true,
       }],
-      productionStart: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
     }],
     activeVersionId: id,
+    calendarVersions: [blankCalendar],
+    activeCalendarVersionId: blankCalendar.id,
     trash: [],
     versionTrash: [],
     rulesTrash: [],
@@ -163,6 +167,12 @@ export type Action =
   | { type: 'DELETE_VERSION', payload: string }
   | { type: 'RENAME_VERSION', payload: { id: string, name: string } }
   | { type: 'SET_ACTIVE_VERSION', payload: string }
+  | { type: 'UPDATE_CALENDAR_VERSION', payload: Partial<CalendarVersion> & { id: string } }
+  | { type: 'NEW_CALENDAR_VERSION', payload: { name: string, cloneFromId?: string | null, id?: string } }
+  | { type: 'DELETE_CALENDAR_VERSION', payload: string }
+  | { type: 'RESTORE_CALENDAR_VERSION_FROM_TRASH', payload: string }
+  | { type: 'RENAME_CALENDAR_VERSION', payload: { id: string, name: string } }
+  | { type: 'SET_ACTIVE_CALENDAR_VERSION', payload: string }
   | { type: 'IMPORT_SCENES', payload: Scene[] }
   | { type: 'ADD_RULE'; payload: ProjectRule }
   | { type: 'UPDATE_RULE'; payload: ProjectRule }
@@ -244,6 +254,9 @@ export const ACTION_TYPES = new Set<string>([
   'RESTORE_VERSION_FROM_TRASH', 'SORT_SCENES', 'SORT_SCENES_BY', 'INSERT_SCENE_AT',
   'UPDATE_VERSION', 'UPDATE_ROW', 'NEW_VERSION', 'DELETE_VERSION', 'RENAME_VERSION',
   'SET_ACTIVE_VERSION', 'IMPORT_SCENES',
+  'UPDATE_CALENDAR_VERSION', 'NEW_CALENDAR_VERSION', 'DELETE_CALENDAR_VERSION',
+  'RESTORE_CALENDAR_VERSION_FROM_TRASH',
+  'RENAME_CALENDAR_VERSION', 'SET_ACTIVE_CALENDAR_VERSION',
   'ADD_RULE', 'UPDATE_RULE', 'DELETE_RULE', 'RESTORE_RULE_FROM_TRASH',
   'ADD_CAST_MEMBER', 'UPDATE_CAST_MEMBER', 'DELETE_CAST_MEMBER',
   'ADD_CUSTOM_CATEGORY', 'UPDATE_CUSTOM_CATEGORY', 'RENAME_CUSTOM_CATEGORY',
@@ -315,35 +328,21 @@ export function reducer(state: State, action: Action): State {
     }
     p = ensureAllScenesHaveRows(p);
 
-    // NonShootDate migration: legacy `travel`/`hold`/`castIds` → `lists`
-    // keyed by status (one per-type attachment map for every date).
-    p.versions = p.versions.map(v => ({
-      ...v,
-      nonShootDates: (v.nonShootDates || []).map((n: any) => {
-        if (n.lists || (!n.travel && !n.hold && !n.castIds)) return n;
-        const lists: Record<string, Record<string, string[]>> = {};
-        if (n.travel) lists.travel = n.travel;
-        if (n.hold) lists.hold = n.hold;
-        if (n.status === 'travel' && n.castIds) {
-          const ids = String(n.castIds).split(',').map((x: string) => x.trim()).filter(Boolean);
-          if (ids.length) lists.travel = { ...(lists.travel || {}), cast: [...(lists.travel?.cast || []), ...ids] };
-        }
-        return { date: n.date, status: n.status, lists };
-      }),
-    }));
-
-    // Beta note: comments were per-card strings before the per-element cards
-    // change — old shared comments are dropped (no migration).
-    for (const v of p.versions) {
-      for (const n of v.nonShootDates || []) {
-        for (const cats of Object.values((n as any).comments || {})) {
-          if (Object.values(cats).some((val: any) => typeof val === 'string')) {
-            console.warn('lemon_schedule: old shared event comments dropped (per-element cards landed; beta — no migration).');
-            break;
-          }
-        }
-      }
+    // Calendar versions (item 66): NO migration — the old per-version calendar
+    // data (nonShootDates/productionStart/prepStart/postEnd/weeklyDaysOff on
+    // ScheduleVersion) is dropped by design (user decision). Old project JSON
+    // carries the stale fields; LOAD ignores them. Only bootstrap a blank
+    // calendar version so every project opens with a valid active plan.
+    if (!p.calendarVersions || p.calendarVersions.length === 0) {
+      const blank = makeBlankCalendarVersion('c01');
+      p.calendarVersions = [blank];
+      p.activeCalendarVersionId = blank.id;
     }
+    // Stale activeCalendarVersionId — fall back to the first plan.
+    if (!p.activeCalendarVersionId || !p.calendarVersions.some((c: any) => c.id === p.activeCalendarVersionId)) {
+      p.activeCalendarVersionId = p.calendarVersions[0]?.id || '';
+    }
+    p.calendarVersionTrash = p.calendarVersionTrash || [];
 
     // Reports Designer + Production Info defaults
     p.productionInfo = p.productionInfo || {};
@@ -463,6 +462,12 @@ export function reducer(state: State, action: Action): State {
     case 'RESTORE_VERSION_FROM_TRASH': return caseRestoreVersionFromTrash(state, action, applyChange);
     case 'RENAME_VERSION': return caseRenameVersion(state, action, applyChange);
     case 'SET_ACTIVE_VERSION': return caseSetActiveVersion(state, action, applyChange);
+    case 'UPDATE_CALENDAR_VERSION': return caseUpdateCalendarVersion(state, action, applyChange);
+    case 'NEW_CALENDAR_VERSION': return caseNewCalendarVersion(state, action, applyChange);
+    case 'DELETE_CALENDAR_VERSION': return caseDeleteCalendarVersion(state, action, applyChange);
+    case 'RESTORE_CALENDAR_VERSION_FROM_TRASH': return caseRestoreCalendarVersionFromTrash(state, action, applyChange);
+    case 'RENAME_CALENDAR_VERSION': return caseRenameCalendarVersion(state, action, applyChange);
+    case 'SET_ACTIVE_CALENDAR_VERSION': return caseSetActiveCalendarVersion(state, action, applyChange);
     case 'IMPORT_SCENES': return caseImportScenes(state, action, applyChange);
     case 'ADD_RULE': return caseAddRule(state, action, applyChange);
     case 'UPDATE_RULE': return caseUpdateRule(state, action, applyChange);

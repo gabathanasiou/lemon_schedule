@@ -1,6 +1,6 @@
-import { Project, ScheduleRow, ScheduleVersion, Scene, TrashItem, VersionTrashItem } from '../../types';
-import { generateUUID, parsePageCount } from '../../lib/utils';
-import { pruneVersionTrash } from '../storage';
+import { Project, ScheduleRow, ScheduleVersion, CalendarVersion, Scene, TrashItem, VersionTrashItem, CalendarVersionTrashItem } from '../../types';
+import { generateUUID, parsePageCount, makeBlankCalendarVersion } from '../../lib/utils';
+import { pruneVersionTrash, pruneCalendarVersionTrash } from '../storage';
 import type { Action, State } from '../reducer';
 import { ensurePinnedDaybreak } from '../rows';
 
@@ -104,6 +104,7 @@ export function caseEmptyTrash(state: State, action: Action, applyChange: ApplyC
     ...state.present,
     trash: [],
     versionTrash: [],
+    calendarVersionTrash: [],
     rulesTrash: [],
     colorRulesTrash: [],
     ribbonTrash: [],
@@ -217,7 +218,6 @@ export function caseNewVersion(state: State, action: Action, applyChange: ApplyC
         daybreakCallTime: '08:00',
         pinned: true,
       }, ...sceneRows],
-      productionStart: new Date().toISOString().slice(0, 10),
     };
   }
   return applyChange({
@@ -276,6 +276,92 @@ export function caseRenameVersion(state: State, action: Action, applyChange: App
 export function caseSetActiveVersion(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'SET_ACTIVE_VERSION') return state;
   return applyChange({ ...state.present, activeVersionId: action.payload });
+}
+
+export function caseUpdateCalendarVersion(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'UPDATE_CALENDAR_VERSION') return state;
+  const payload = action.payload;
+  return applyChange({
+    ...state.present,
+    calendarVersions: state.present.calendarVersions.map(v => v.id === payload.id ? { ...v, ...payload, updatedAt: Date.now() } : v)
+  });
+}
+
+export function caseNewCalendarVersion(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'NEW_CALENDAR_VERSION') return state;
+  const newId = action.payload.id || generateUUID();
+  const parent = action.payload.cloneFromId
+    ? state.present.calendarVersions.find(v => v.id === action.payload.cloneFromId)
+    : null;
+
+  const newVersion: CalendarVersion = parent
+    ? {
+        ...parent,
+        id: newId,
+        name: action.payload.name,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+    : makeBlankCalendarVersion(action.payload.name, newId);
+
+  return applyChange({
+    ...state.present,
+    calendarVersions: [...state.present.calendarVersions, newVersion],
+    activeCalendarVersionId: newVersion.id
+  });
+}
+
+export function caseDeleteCalendarVersion(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'DELETE_CALENDAR_VERSION') return state;
+  const versionId = action.payload;
+  const version = state.present.calendarVersions.find(v => v.id === versionId);
+  if (!version) return state;
+  const newVersions = state.present.calendarVersions.filter(v => v.id !== versionId);
+
+  if (newVersions.length === 0) return state;
+
+  const newActiveId = state.present.activeCalendarVersionId === versionId
+    ? newVersions[0].id
+    : state.present.activeCalendarVersionId;
+
+  // Same bounded retention as schedule versions: 30-day TTL + newest 10,
+  // pruned on every delete so the project file never bloats.
+  const trashItem: CalendarVersionTrashItem = {
+    version: { ...version },
+    deletedAt: Date.now(),
+  };
+
+  return applyChange({
+    ...state.present,
+    calendarVersions: newVersions,
+    activeCalendarVersionId: newActiveId,
+    calendarVersionTrash: pruneCalendarVersionTrash([...(state.present.calendarVersionTrash || []), trashItem]),
+  });
+}
+
+export function caseRestoreCalendarVersionFromTrash(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'RESTORE_CALENDAR_VERSION_FROM_TRASH') return state;
+  const item = (state.present.calendarVersionTrash || []).find(t => t.version.id === action.payload);
+  if (!item) return state;
+  return applyChange({
+    ...state.present,
+    calendarVersions: [...state.present.calendarVersions, item.version],
+    calendarVersionTrash: (state.present.calendarVersionTrash || []).filter(t => t.version.id !== action.payload)
+  });
+}
+
+export function caseRenameCalendarVersion(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'RENAME_CALENDAR_VERSION') return state;
+  const { id, name } = action.payload;
+  return applyChange({
+    ...state.present,
+    calendarVersions: state.present.calendarVersions.map(v => v.id === id ? { ...v, name, updatedAt: Date.now() } : v)
+  });
+}
+
+export function caseSetActiveCalendarVersion(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'SET_ACTIVE_CALENDAR_VERSION') return state;
+  return applyChange({ ...state.present, activeCalendarVersionId: action.payload });
 }
 
 export function caseImportScenes(state: State, action: Action, applyChange: ApplyChange): State {

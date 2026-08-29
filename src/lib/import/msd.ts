@@ -24,8 +24,9 @@ import { FDX_CATEGORY_MAP, categoryNameToKey, normalizeCharacterName } from './s
  * NEW-PROJECT-ONLY (user decision): the parser builds a COMPLETE `Project`
  * consumed by `importProjectFromData` — no ImportResult/commitImport
  * involvement. Boards map to versions; day breaks to DAYBREAK rows; banners
- * to NOTE rows; undated strips to the Boneyard; calendars materialize into
- * per-version productionStart + nonShootDates.
+ * to NOTE rows; undated strips to the Boneyard; each board's calendar
+ * materializes into a CalendarVersion (item 66 — calendar data is versioned
+ * independently of the schedule).
  */
 
 const SECTION_MARKER = '/********* EPSF SECTION *********/';
@@ -487,25 +488,41 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
   // --- calendars -----------------------------------------------------------
   const calendars = parseCalendars(calendarsDoc);
 
-  // --- versions (one per stripboard) ---------------------------------------
+  // --- versions (one per stripboard) + calendar plans (one per board's
+  // calendar — item 66: calendar data lives in calendar versions) ----------
   const activeBoardName = readActiveBoard(stripboardDoc);
   const rowsByBoard = buildVersionRows(stripboardDoc, sceneIdByBdsid, estimateById);
   const now = Date.now();
   project.versions = rowsByBoard.map(([boardName, boardRows]) => {
-    const cal = calendars.get(boardAttrCalendar(stripboardDoc, boardName));
     const version: any = {
       id: generateUUID(),
       name: boardName,
       createdAt: now,
       updatedAt: now,
       rows: boardRows,
-      productionStart: cal?.productionStart || undefined,
-      nonShootDates: cal?.nonShootDates || [],
     };
     if (boardName === activeBoardName) project.activeVersionId = version.id;
     return version;
   });
   project.activeVersionId = project.activeVersionId || project.versions[0]?.id;
+
+  const calendarPlans: { boardName: string; cal: CalModel }[] = [];
+  for (const [boardName] of rowsByBoard) {
+    const cal = calendars.get(boardAttrCalendar(stripboardDoc, boardName));
+    calendarPlans.push({ boardName, cal: cal ?? { nonShootDates: [] } });
+  }
+  project.calendarVersions = calendarPlans.map(({ boardName, cal }) => ({
+    id: generateUUID(),
+    name: `${boardName} Calendar`,
+    createdAt: now,
+    updatedAt: now,
+    productionStart: cal.productionStart || undefined,
+    nonShootDates: cal.nonShootDates,
+  }));
+  const activeBoardCal = calendarPlans.find(p => p.boardName === activeBoardName);
+  project.activeCalendarVersionId = activeBoardCal
+    ? project.calendarVersions[calendarPlans.indexOf(activeBoardCal)].id
+    : project.calendarVersions[0]?.id || '';
 
   return project;
 }

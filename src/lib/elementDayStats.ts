@@ -43,6 +43,7 @@ export function computeElementDayStats(project: Project, category: string): Map<
   const out = new Map<string, ElementDayStats>();
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) return out;
+  const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId) || project.calendarVersions[0];
 
   const containerRows = activeVersion.rows
     .filter(r => r.containerId != null && r.containerId !== -1)
@@ -51,8 +52,8 @@ export function computeElementDayStats(project: Project, category: string): Map<
       return a.order - b.order;
     });
 
-  const nonShootSet = buildNonShootSet(activeVersion.nonShootDates);
-  const startDate = activeVersion.productionStart || new Date().toISOString().slice(0, 10);
+  const nonShootSet = buildNonShootSet(activeCalendarVersion?.nonShootDates);
+  const startDate = activeCalendarVersion?.productionStart || new Date().toISOString().slice(0, 10);
   const firstDaybreak = containerRows.find(r => r.type === 'DAYBREAK');
   const callTimeBase = firstDaybreak?.daybreakCallTime || '08:00';
 
@@ -107,7 +108,7 @@ export function computeElementDayStats(project: Project, category: string): Map<
       if (dates.has(k)) continue;
       const set = new Set<string>();
       dates.set(k, set);
-      for (const entry of activeVersion.nonShootDates || []) {
+      for (const entry of activeCalendarVersion?.nonShootDates || []) {
         // The element is marked under this type via the day's STATUS or a
         // card (a `lists` group — extra events like a travel card on a work
         // day count in the column too; `'*'` = whole category).

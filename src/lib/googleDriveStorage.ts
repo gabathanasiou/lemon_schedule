@@ -1,6 +1,6 @@
 import type { ProjectMeta } from '../store';
 import type { Project } from '../types';
-import { pruneVersionTrash } from '../store/storage';
+import { pruneVersionTrash, pruneCalendarVersionTrash } from '../store/storage';
 
 export function getDriveErrorStatus(err: unknown): number | null {
   const msg = err instanceof Error ? err.message : String(err ?? '');
@@ -275,6 +275,9 @@ export async function readDriveProject(
   // them on every save (a project can become 69% trash).
   if (Array.isArray(project.versionTrash)) {
     project.versionTrash = pruneVersionTrash(project.versionTrash);
+  }
+  if (Array.isArray(project.calendarVersionTrash)) {
+    project.calendarVersionTrash = pruneCalendarVersionTrash(project.calendarVersionTrash);
   }
   return project;
 }

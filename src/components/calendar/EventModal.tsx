@@ -49,8 +49,8 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
   const sizes = ruleModalSizes();
   const { XSZ, CREM_BODY, CREM_LABEL, CREM_TEXT } = sizes;
 
-  const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
-  const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
+  const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId);
+  const nonShootDates = useMemo(() => activeCalendarVersion?.nonShootDates || [], [activeCalendarVersion?.nonShootDates]);
   const entryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
 
   const attachableTypes = useMemo(
@@ -70,11 +70,11 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
   });
 
   const windowBounds = useMemo(() => {
-    const lo = activeVersion?.prepStart || activeVersion?.productionStart;
-    const hi = activeVersion?.postEnd;
+    const lo = activeCalendarVersion?.prepStart || activeCalendarVersion?.productionStart;
+    const hi = activeCalendarVersion?.postEnd;
     if (!lo && !hi) return null;
     return { lo: lo || '0000-01-01', hi: hi || '9999-12-31' };
-  }, [activeVersion]);
+  }, [activeCalendarVersion]);
   const dateOutOfWindow = !!windowBounds && (date < windowBounds.lo || date > windowBounds.hi);
 
   const activeType = getDayType(project, type);
@@ -128,12 +128,12 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
     let entryNew = date === dateKey ? entryOld : entryByDate.get(date);
     entryNew = mergeItemsInto(entryNew, type, cat, [key], trimmed ? { [key]: trimmed } : undefined);
 
-    const updates: { type: 'UPDATE_VERSION'; payload: { id: string; nonShootDates: NonShootDate[] } }[] = [];
+    const updates: { type: 'UPDATE_CALENDAR_VERSION'; payload: { id: string; nonShootDates: NonShootDate[] } }[] = [];
     if (date === dateKey) {
-      updates.push({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, nonShootDates: upsertNonShootDate(nonShootDates, date, entryNew) } });
+      updates.push({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion!.id, nonShootDates: upsertNonShootDate(nonShootDates, date, entryNew) } });
     } else {
-      updates.push({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, entryOld) } });
-      updates.push({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, nonShootDates: upsertNonShootDate(nonShootDates, date, entryNew) } });
+      updates.push({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion!.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, entryOld) } });
+      updates.push({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion!.id, nonShootDates: upsertNonShootDate(nonShootDates, date, entryNew) } });
     }
     dispatch({ type: 'BATCH_START' });
     for (const u of updates) dispatch(u);
@@ -153,10 +153,10 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
         if (keys.includes(elementKey)) entry = removeItemsFrom(entry, st, c, [elementKey]);
       }
     }
-    if (!activeVersion) return;
+    if (!activeCalendarVersion) return;
     dispatch({
-      type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, entry ?? { date: dateKey, lists: {} }) },
+      type: 'UPDATE_CALENDAR_VERSION',
+      payload: { id: activeCalendarVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, entry ?? { date: dateKey, lists: {} }) },
     });
     onClose();
   };

@@ -63,8 +63,8 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
   const sizes = ruleModalSizes();
   const { XSZ, CREM_BODY, CREM_LABEL, CREM_TEXT } = sizes;
 
-  const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
-  const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
+  const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId);
+  const nonShootDates = useMemo(() => activeCalendarVersion?.nonShootDates || [], [activeCalendarVersion?.nonShootDates]);
   const entryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
 
   const attachableTypes = useMemo(
@@ -152,29 +152,29 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
   };
 
   const create = () => {
-    if (dateKeys.length === 0 || !activeVersion || readOnly) return;
+    if (dateKeys.length === 0 || !activeCalendarVersion || readOnly) return;
     const created: { date: string; entry: NonShootDate }[] = [];
     for (const d of dateKeys) {
       const entry = buildEntry(d);
       if (entry) created.push({ date: d, entry });
     }
     if (created.length === 0) return;
-    // UPDATE_VERSION REPLACES the version's nonShootDates wholesale — each
-    // dispatch carries a full snapshot, so a loop of dispatches computed
-    // from the same base would clobber earlier dates (only the last lands).
-    // Accumulate into ONE merged array and dispatch once.
+    // UPDATE_CALENDAR_VERSION REPLACES the calendar version's nonShootDates
+    // wholesale — each dispatch carries a full snapshot, so a loop of
+    // dispatches computed from the same base would clobber earlier dates
+    // (only the last lands). Accumulate into ONE merged array and dispatch once.
     let merged = nonShootDates;
     for (const { date, entry } of created) merged = upsertNonShootDate(merged, date, entry);
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: merged } });
+    dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, nonShootDates: merged } });
     onClose();
   };
 
   const windowBounds = useMemo(() => {
-    const lo = activeVersion?.prepStart || activeVersion?.productionStart;
-    const hi = activeVersion?.postEnd;
+    const lo = activeCalendarVersion?.prepStart || activeCalendarVersion?.productionStart;
+    const hi = activeCalendarVersion?.postEnd;
     if (!lo && !hi) return null;
     return { lo: lo || '0000-01-01', hi: hi || '9999-12-31' };
-  }, [activeVersion]);
+  }, [activeCalendarVersion]);
   const dateOutOfWindow = !!windowBounds && dateKeys.some(d => d < windowBounds.lo || d > windowBounds.hi);
 
   return (

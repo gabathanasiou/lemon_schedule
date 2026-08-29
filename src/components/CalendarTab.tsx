@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { DndContext, useDraggable, DragOverlay, closestCorners, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useProject } from '../store';
+import { useProject, useIsCloudProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
@@ -31,6 +31,9 @@ import PageToolbar from './PageToolbar';
 import ColorField from './ColorField';
 import { DayCell, FillerCell } from './calendar/DayCell';
 import { DayEventsModal } from './calendar/DayEventsModal';
+import { useDialog } from './Dialog';
+import { ItemManagerDropdown } from './DropdownMenu';
+import { generateUUID } from '../lib/utils';
 import { EventAdderModal } from './calendar/EventAdderModal';
 import { EventModal } from './calendar/EventModal';
 import { ProductionDatesModal } from './calendar/ProductionDatesModal';
@@ -39,7 +42,7 @@ import { useEventsDrag } from './calendar/useEventsDrag';
 import { useEventsKeyboard } from './calendar/useEventsKeyboard';
 import { DayTypesTab } from './calendar/DayTypesTab';
 import { PopoutPlaceholder } from './PopoutWindow';
-import { getDayTypes, getMarkableDayTypes, getDayTypeVisual, getDayTypeLabel, getDayTypeCode, typeIconComponent } from '../lib/dayTypes';
+import { getDayTypes, getMarkableDayTypes, getDayTypeVisual, getDayTypeLabel, typeIconComponent } from '../lib/dayTypes';
 import { getNonShootEntryMap, hasAnyLists, upsertNonShootDate } from '../lib/nonShootHelpers';
 import { computeDayEvents, removeRuleDate, withRuleDates, DEFAULT_EVENTS_FILTER } from '../lib/events';
 import { describeRule, RULE_TYPE_META, RULE_TYPES } from './rules/ruleMeta';
@@ -63,19 +66,23 @@ export const CalendarTab: React.FC<{
   shiftHeld?: boolean;
 }> = ({ onOpenScene, onOpenSceneInPopout, subTab = 'calendar', onSubTabChange, poppedOutSubTabs = new Set(), onToggleSubPopout, onCloseSubPopout, shiftHeld: poppedShiftHeld = false }) => {
   const { state, dispatch } = useProject();
+  const dialog = useDialog();
+  const isCloudProject = useIsCloudProject();
   const currentWindow = useCurrentWindow();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId);
+  const [showCalVersionsMenu, setShowCalVersionsMenu] = useState(false);
   const { productionDays, productionSections, sectionDateMap: hookSectionDateMap, productionChronoDayMap } = useDaybreakSections();
 
   const today = new Date().toISOString().slice(0, 10);
-  const [startDate, setStartDate] = useState(() => activeVersion?.prepStart || activeVersion?.productionStart || today);
+  const [startDate, setStartDate] = useState(() => activeCalendarVersion?.prepStart || activeCalendarVersion?.productionStart || today);
 
   useEffect(() => {
-    if (activeVersion?.prepStart || activeVersion?.productionStart) {
-      setStartDate(activeVersion.prepStart || activeVersion.productionStart);
+    if (activeCalendarVersion?.prepStart || activeCalendarVersion?.productionStart) {
+      setStartDate(activeCalendarVersion.prepStart || activeCalendarVersion.productionStart);
     }
-  }, [activeVersion?.prepStart, activeVersion?.productionStart]);
+  }, [activeCalendarVersion?.prepStart, activeCalendarVersion?.productionStart]);
 
   const containerDay = useMemo(() => {
     if (!activeVersion) return 1;
@@ -85,21 +92,21 @@ export const CalendarTab: React.FC<{
 
   const updateStartDate = useCallback((d: string) => {
     setStartDate(d);
-    if (activeVersion) {
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, productionStart: d } });
+    if (activeCalendarVersion) {
+      dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, productionStart: d } });
     }
-  }, [activeVersion, dispatch, containerDay]);
+  }, [activeCalendarVersion, dispatch, containerDay]);
 
   const didInit = useRef(false);
   useEffect(() => {
-    if (!activeVersion || didInit.current) return;
-    if (activeVersion.productionStart) return;
+    if (!activeCalendarVersion || didInit.current) return;
+    if (activeCalendarVersion.productionStart) return;
     didInit.current = true;
     const sd = new Date().toISOString().slice(0, 10);
     updateStartDate(sd);
-  }, [activeVersion, updateStartDate]);
+  }, [activeCalendarVersion, updateStartDate]);
 
-  const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
+  const nonShootDates = useMemo(() => activeCalendarVersion?.nonShootDates || [], [activeCalendarVersion?.nonShootDates]);
 
   const [calSettings, setCalSettings] = usePersistState<{
     displayField: string;
@@ -155,8 +162,8 @@ export const CalendarTab: React.FC<{
   const [autoDayOffDays, setAutoDayOffDays] = useState<Set<number>>(new Set([5, 6]));
 
   const handleNonShootToggle = useCallback((dateKey: string, status: string | null) => {
-    if (!activeVersion) return;
-    const current = activeVersion.nonShootDates || [];
+    if (!activeCalendarVersion) return;
+    const current = activeCalendarVersion.nonShootDates || [];
     let next: NonShootDate[];
     if (status === null) {
       next = current.filter(ns => ns.date !== dateKey);
@@ -168,12 +175,12 @@ export const CalendarTab: React.FC<{
         next = [...current, { date: dateKey, status }];
       }
     }
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
-  }, [activeVersion, dispatch]);
+    dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, nonShootDates: next } });
+  }, [activeCalendarVersion, dispatch]);
 
   const [contextMenuDate, setContextMenuDate] = useState<string | null>(null);
   const [contextMenuBodyTarget, setContextMenuBodyTarget] = useState<string | null>(null);
-  const [ruleCardMenu, setRuleCardMenu] = useState<{ ruleId: string; dateKey: string; x: number; y: number; everyday: boolean } | null>(null);
+  const [ruleCardMenu, setRuleCardMenu] = useState<{ ruleId: string; dateKey: string; x: number; y: number } | null>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -302,12 +309,12 @@ export const CalendarTab: React.FC<{
   const nonShootEntryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
 
   const handleTravelHoldSave = useCallback((dateKey: string, entry: NonShootDate) => {
-    if (!activeVersion) return;
+    if (!activeCalendarVersion) return;
     dispatch({
-      type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(activeVersion.nonShootDates, dateKey, entry) },
+      type: 'UPDATE_CALENDAR_VERSION',
+      payload: { id: activeCalendarVersion.id, nonShootDates: upsertNonShootDate(activeCalendarVersion.nonShootDates, dateKey, entry) },
     });
-  }, [activeVersion, dispatch]);
+  }, [activeCalendarVersion, dispatch]);
 
   const sectionDateMap = hookSectionDateMap;
   const chronoDayMap = productionChronoDayMap;
@@ -811,7 +818,7 @@ export const CalendarTab: React.FC<{
     return dates;
   }, [nonShootDates, projectRules]);
   const {
-    activeEventId, activeEventIds, activeMeta: activeEventMeta, dropZone: eventsDropZone,
+    activeEventId, activeEventIds, activeMeta: activeEventMeta, activeWidth, dropZone: eventsDropZone,
     handleDragStart: handleEventDragStart, handleDragOver: handleEventDragOver,
     handleDragEnd: handleEventDragEnd, reset: resetEventsDrag,
   } = useEventsDrag({
@@ -891,6 +898,47 @@ export const CalendarTab: React.FC<{
       onChange={(t) => onSubTabChange?.(t as 'calendar' | 'dayTypes')}
       onPopout={(id) => onToggleSubPopout?.(id)}
       shiftHeld={poppedShiftHeld}
+      rightContent={
+        <ItemManagerDropdown
+          open={showCalVersionsMenu}
+          onClose={(open) => setShowCalVersionsMenu(open)}
+          items={project.calendarVersions.map(v => ({ id: v.id, name: v.name }))}
+          activeId={project.activeCalendarVersionId}
+          closeOnSelect
+          onSelect={(id) => dispatch({ type: 'SET_ACTIVE_CALENDAR_VERSION', payload: id })}
+          onRename={(id, name) => dispatch({ type: 'RENAME_CALENDAR_VERSION', payload: { id, name } })}
+          onDuplicate={(id) => {
+            const v = project.calendarVersions.find(x => x.id === id);
+            if (!v) return;
+            const name = `${v.name} Copy`;
+            const newId = generateUUID();
+            dispatch({ type: 'NEW_CALENDAR_VERSION', payload: { name, cloneFromId: id, id: newId } });
+            return newId;
+          }}
+          onDelete={async (id) => {
+            const ok = await dialog.confirm({ title: 'Delete Calendar Version?', message: 'This can be restored from Trash.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_calendar_version' });
+            if (ok) dispatch({ type: 'DELETE_CALENDAR_VERSION', payload: id });
+          }}
+          onCreate={() => {
+            const name = `C${String(project.calendarVersions.length + 1).padStart(2, '0')}`;
+            const newId = generateUUID();
+            dispatch({ type: 'NEW_CALENDAR_VERSION', payload: { name, cloneFromId: null, id: newId } });
+            return newId;
+          }}
+          readOnly={false}
+          theme={isCloudProject ? 'blue' : 'light'}
+          label="Calendar"
+          header="CALENDAR VERSIONS"
+          itemLabel="Calendar"
+          trigger={
+            <Button theme={isCloudProject ? 'dark' : 'light'}>
+              <span className="text-xs font-semibold text-zinc-400">Calendar:</span>
+              <span className={`text-xs font-semibold ${isCloudProject ? 'text-zinc-200' : 'text-zinc-900'}`}>{activeCalendarVersion?.name || 'Select Calendar'}</span>
+              <ChevronDown className="w-3 h-3 text-zinc-400" />
+            </Button>
+          }
+        />
+      }
     />
     {poppedOutSubTabs.has(subTab) ? (
       <PopoutPlaceholder title={subTab === 'dayTypes' ? 'Day Breakdown' : 'Calendar'} onBringBack={() => onCloseSubPopout?.(subTab)} />
@@ -1156,7 +1204,6 @@ export const CalendarTab: React.FC<{
                                     cards={eventsByDate.get(day.dateKey) || []}
                                     travelHoldEntry={nonShootEntryByDate.get(day.dateKey)}
                                     dayTypeVisual={getDayTypeVisual(project, nonShootDateMap.get(day.dateKey))}
-                                    dayTypeCode={getDayTypeCode(project, nonShootDateMap.get(day.dateKey))}
                                     violations={violationMap.get(day.dateKey) || []}
                                     sectionLabel={chronoDay != null ? `DAY ${chronoDay}` : undefined}
                                     selectedIds={selectedEventKeys}
@@ -1177,10 +1224,11 @@ export const CalendarTab: React.FC<{
                                     }}
                                     onCardContextMenu={(card, e) => {
                                       if (card.kind === 'rule') {
-                                        setRuleCardMenu({ ruleId: card.rule.id, dateKey: card.dateKey, x: e.clientX, y: e.clientY, everyday: card.everyday });
+                                        setRuleCardMenu({ ruleId: card.rule.id, dateKey: card.dateKey, x: e.clientX, y: e.clientY });
                                       }
                                     }}
                                     onOpenEvents={(dk) => setTravelHoldModal({ dateKey: dk })}
+                                    onAddEvent={(dk) => setAdderDate(dk)}
                                     onContextMenu={(e, dateKey) => {
                                       setContextMenuDate(dateKey);
                                       setContextMenu({ x: e.clientX, y: e.clientY, rowId: '', containerId: null });
@@ -1225,7 +1273,6 @@ export const CalendarTab: React.FC<{
                           dateKey={day.dateKey} date={day.date} isToday={day.isToday}
                           nonShootStatus={nonShootDateMap.get(day.dateKey)}
                           dayTypeVisual={getDayTypeVisual(project, nonShootDateMap.get(day.dateKey))}
-                          dayTypeCode={getDayTypeCode(project, nonShootDateMap.get(day.dateKey))}
                           travelHoldEntry={nonShootEntryByDate.get(day.dateKey)}
                           onEditTravelHold={(dk) => setTravelHoldModal({ dateKey: dk })}
                           sectionIndex={dateSectionIdx ?? undefined}
@@ -1287,21 +1334,25 @@ export const CalendarTab: React.FC<{
         ) : null}
         {viewMode === 'events' && activeEventId && activeEventMeta ? (
           activeEventMeta.type === 'EVENT_DAY' ? (
-            <div className="flex flex-col gap-0.5 opacity-90">
-              {(eventsByDate.get(activeEventMeta.dateKey) || [])
-                .slice(0, 3)
-                .map(card => (
-                  <div key={card.id} className="w-56"><EventCardView card={card} project={project} /></div>
-                ))}
-              {((eventsByDate.get(activeEventMeta.dateKey) || []).length) > 3 && (
-                <div className="text-[9px] text-center text-zinc-500">+{(eventsByDate.get(activeEventMeta.dateKey) || []).length - 3} more</div>
-              )}
+            // Same ghost as the strips-mode day-header drag: a compact pill.
+            <div className="bg-zinc-900 text-white rounded px-3 py-2 shadow-xl opacity-90">
+              <div className="text-[11px] font-bold uppercase tracking-wider">
+                {(() => {
+                  const idx = dateSectionMap.get(activeEventMeta.dateKey);
+                  return idx != null ? `DAY ${chronoDayMap.get(idx) ?? 0}` : '';
+                })()}
+              </div>
+              <div className="text-[9px] text-zinc-400">{(eventsByDate.get(activeEventMeta.dateKey) || []).length} events</div>
             </div>
           ) : (
             (() => {
               for (const cards of eventsByDate.values()) {
                 const c = cards.find(x => x.id === activeEventId);
-                if (c) return <div className="w-56"><EventCardView card={c} project={project} /></div>;
+                if (c) return (
+                  <div className={activeWidth ? '' : 'w-56'} style={activeWidth ? { width: activeWidth } : undefined}>
+                    <EventCardView card={c} project={project} />
+                  </div>
+                );
               }
               return null;
             })()
@@ -1313,7 +1364,6 @@ export const CalendarTab: React.FC<{
         <ContextMenu open x={ruleCardMenu.x} y={ruleCardMenu.y} onClose={() => setRuleCardMenu(null)}>
           <ContextMenuItem
             variant="danger"
-            disabled={ruleCardMenu.everyday}
             icon={<Trash2 className="w-3.5 h-3.5" />}
             onClick={() => {
               const rule = projectRules.find(r => r.id === ruleCardMenu.ruleId);
@@ -1324,7 +1374,7 @@ export const CalendarTab: React.FC<{
               setRuleCardMenu(null);
             }}
           >
-            {ruleCardMenu.everyday ? 'Every-day rule — edit dates in the rule editor' : 'Remove from this day'}
+            Remove from this day
           </ContextMenuItem>
         </ContextMenu>
       )}

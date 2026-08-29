@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Scene } from "../types";
+import { CalendarVersion, Scene } from "../types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -142,6 +142,22 @@ export function generateUUID(): string {
     const v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+/** A fresh blank calendar version (item 66): production window unset except
+ *  `productionStart` = today (mirrors `makeBlankProject`'s seeded version).
+ *  `id` lets callers pin the id (NEW_CALENDAR_VERSION must match the id the
+ *  UI handed the item-manager rename flow — see caseNewCalendarVersion). */
+export function makeBlankCalendarVersion(name = 'c01', id?: string): CalendarVersion {
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return {
+    id: id || generateUUID(),
+    name,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    productionStart: today,
+  };
 }
 
 export function exportProjectData(data: string, title: string): void {

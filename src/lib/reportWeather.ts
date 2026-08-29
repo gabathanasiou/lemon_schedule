@@ -9,7 +9,7 @@
 //  - https://archive-api.open-meteo.com/v1/archive   — any past date (ERA5)
 // Both return weather_code + sunrise/sunset in local time via `timezone=`.
 
-import { Project, ScheduleVersion, ReportDesign } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, ReportDesign } from '../types';
 import { ReportCtx, ReportDaybreakData, buildReportCtx, getReportLocation, LONDON_LOCATION, pickLocation, designLocationsIn, type ReportLocationInfo } from './reportData';
 import { getBrowserTimeZone } from './timezones';
 
@@ -285,8 +285,8 @@ export async function prepareSunWeatherForCtx(ctx: ReportCtx, design?: ReportDes
   ]);
 }
 
-export async function prepareSunWeatherForDesign(project: Project, version: ScheduleVersion, daybreak: ReportDaybreakData, design?: ReportDesign): Promise<void> {
-  const ctx = buildReportCtx(project, version, daybreak);
+export async function prepareSunWeatherForDesign(project: Project, version: ScheduleVersion, calendarVersion: CalendarVersion, daybreak: ReportDaybreakData, design?: ReportDesign): Promise<void> {
+  const ctx = buildReportCtx(project, version, calendarVersion, daybreak);
   await prepareSunWeatherForCtx(ctx, design);
 }
 

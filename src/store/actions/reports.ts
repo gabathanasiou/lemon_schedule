@@ -391,11 +391,11 @@ export function caseSortLocationsBy(state: State, action: Action, applyChange: A
 
 /** Whole-registry commit from the Day Breakdown manager. Also prunes any
  *  non-shoot status whose key no longer exists (deleting a type in use falls
- *  back to no status — same single rule for every version). */
+ *  back to no status — same single rule for every calendar version). */
 export function caseSetDayTypes(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'SET_DAY_TYPES') return state;
   const keys = new Set(action.payload.dayTypes.map(t => t.key));
-  const versions = state.present.versions.map(v => {
+  const calendarVersions = state.present.calendarVersions.map(v => {
     const nonShootDates = (v.nonShootDates || []).filter(n => !n.status || keys.has(n.status));
     if (nonShootDates.length === (v.nonShootDates?.length || 0)) return v;
     return { ...v, nonShootDates };
@@ -403,6 +403,6 @@ export function caseSetDayTypes(state: State, action: Action, applyChange: Apply
   return applyChange({
     ...state.present,
     dayTypes: action.payload.dayTypes,
-    versions,
+    calendarVersions,
   });
 }

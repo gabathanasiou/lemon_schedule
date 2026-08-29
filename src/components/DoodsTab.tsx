@@ -74,7 +74,7 @@ interface DoodsTabProps {
 }
 
 export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
-  const { state } = useProject();
+  const { state, activeCalendarVersion } = useProject();
   const project = state.present;
   const { sections, productionSections, sectionDateMap, sectionLabelMap, sceneToSection, startDate, activeVersion } = useDaybreakSections();
   const castMembers = project.castMembers || [];
@@ -121,7 +121,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
     if (sectionByDate.size === 0) return [];
 
     const nonShootMap = new Map<string, string>();
-    for (const n of activeVersion?.nonShootDates || []) nonShootMap.set(n.date, n.status);
+    for (const n of activeCalendarVersion?.nonShootDates || []) nonShootMap.set(n.date, n.status);
 
     const dateKeys = Array.from(sectionByDate.keys()).sort();
     const entries: { sectionIndex: number; isoDate: string; label: string; isShooting: boolean; status?: string; hasGap?: boolean }[] = [];
@@ -141,7 +141,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
     }
 
     return entries;
-  }, [productionSections, sectionDateMap, sectionLabelMap, startDate, activeVersion?.nonShootDates]);
+  }, [productionSections, sectionDateMap, sectionLabelMap, startDate, activeCalendarVersion?.nonShootDates]);
 
   const data = useMemo(() => {
     const scenes = project.scenes;
@@ -173,7 +173,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         }
       }
 
-      const nonShootDates = (state.present.versions.find(v => v.id === state.present.activeVersionId)?.nonShootDates || []);
+      const nonShootDates = activeCalendarVersion?.nonShootDates || [];
 
       const typeCounts: Record<string, number> = {};
       const cells: string[] = sectionDayEntries.map(d => {
@@ -220,7 +220,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
     }
 
     return { days: sectionDayEntries, rows: doodRows };
-  }, [project.scenes, sections, sectionDayEntries, sceneToSection, elementIds, castMembers, selectedCategory, isCast, state.present.versions, state.present.activeVersionId, typeCodes]);
+  }, [project.scenes, sections, sectionDayEntries, sceneToSection, elementIds, castMembers, selectedCategory, isCast, activeCalendarVersion, typeCodes]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();

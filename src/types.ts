@@ -113,6 +113,19 @@ export interface ScheduleVersion {
   createdAt: number;
   updatedAt: number;
   rows: ScheduleRow[];
+  legacy?: boolean;
+}
+
+/** An independent calendar plan: production window + day statuses/events.
+ *  The stripboard's section dates/call times derive from the ACTIVE calendar
+ *  version (the date cursor skips statused dates), so switching calendar
+ *  versions shifts the schedule's dates. Schedule versions and calendar
+ *  versions are independent axes (item 66). */
+export interface CalendarVersion {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
   nonShootDates?: NonShootDate[];
   productionStart?: string;
   /** Production window (MMS-style): prep starts before production; post end
@@ -122,7 +135,6 @@ export interface ScheduleVersion {
   /** Weekly days-off pattern, Mon=0..Sun=6 — materialized via the Production
    *  Dates modal's Apply Days Off. */
   weeklyDaysOff?: number[];
-  legacy?: boolean;
 }
 
 export interface TrashItem {
@@ -133,6 +145,11 @@ export interface TrashItem {
 
 export interface VersionTrashItem {
   version: ScheduleVersion;
+  deletedAt: number;
+}
+
+export interface CalendarVersionTrashItem {
+  version: CalendarVersion;
   deletedAt: number;
 }
 
@@ -516,8 +533,16 @@ export interface Project {
   scenes: Scene[];
   versions: ScheduleVersion[];
   activeVersionId: string;
+  /** Independent calendar plans (production window + day statuses/events) —
+   *  item 66. The active calendar version drives the stripboard's dates and
+   *  every calendar surface. */
+  calendarVersions: CalendarVersion[];
+  activeCalendarVersionId: string;
   trash: TrashItem[];
   versionTrash: VersionTrashItem[];
+  /** Deleted calendar plans (item 66) — same retention as version trash
+   *  (30-day TTL + newest 10), so the project file never bloats. */
+  calendarVersionTrash?: CalendarVersionTrashItem[];
   rulesTrash: RuleTrashItem[];
   colorRulesTrash: ColorRuleTrashItem[];
   ribbonTrash: RibbonTrashItem[];

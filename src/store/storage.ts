@@ -1,4 +1,4 @@
-import { Project, ScheduleVersion, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, ReportTrashItem, CrewTrashItem } from '../types';
+import { Project, ScheduleVersion, TrashItem, VersionTrashItem, CalendarVersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, ReportTrashItem, CrewTrashItem } from '../types';
 import { cid } from '../lib/ribbonUtils';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
 
@@ -65,6 +65,13 @@ export function pruneVersionTrash(list: VersionTrashItem[]): VersionTrashItem[] 
   return fresh.slice(-VERSION_TRASH_MAX);
 }
 
+/** Calendar plans get the same bounded retention as schedule versions —
+ *  pruned on every load and on every new delete. */
+export function pruneCalendarVersionTrash(list: CalendarVersionTrashItem[]): CalendarVersionTrashItem[] {
+  const fresh = (list || []).filter(t => Date.now() - t.deletedAt < VERSION_TRASH_TTL_MS);
+  return fresh.slice(-VERSION_TRASH_MAX);
+}
+
 export function loadProjectFromStorage(id: string): Project | null {
   try {
     const stored = localStorage.getItem(getProjectStorageKey(id));
@@ -83,6 +90,7 @@ export function loadProjectFromStorage(id: string): Project | null {
           versionName: t.versionName || 'Unknown'
         }));
         parsed.versionTrash = pruneVersionTrash(parsed.versionTrash || []);
+        parsed.calendarVersionTrash = pruneCalendarVersionTrash(parsed.calendarVersionTrash || []);
         parsed.rulesTrash = (parsed.rulesTrash || []).filter((t: RuleTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });

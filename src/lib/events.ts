@@ -145,8 +145,10 @@ export function computeDayEvents(
     }
   }
 
-  // Rules: one card per date for dated rules; every-day/global rules get a
-  // card on EVERY day (display-only). A violated rule carries its message.
+  // Rules: one card per date for dated rules; every-day/global rules (no
+  // dates) also produce a card stamped `everyday` — the UI never renders
+  // those (their home is the Rules tab), but the flag gates it. A violated
+  // rule carries its message.
   for (const rule of rules) {
     const hasDates = 'dates' in rule && rule.dates != null && rule.dates.length > 0;
     if (hasDates && !rule.dates!.includes(dateKey)) continue;

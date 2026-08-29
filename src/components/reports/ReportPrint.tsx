@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Project, ScheduleVersion, ReportDesign } from '../../types';
+import { Project, ScheduleVersion, CalendarVersion, ReportDesign } from '../../types';
 import { buildReportCtx, ReportDaybreakData, ReportScopeFilter, ReportPrintOptions } from '../../lib/reportData';
 import { getReportFieldMap } from '../../lib/reportFields';
 import { ReportChunkPage } from './ReportBlockView';
@@ -11,6 +11,7 @@ import { useReportPaginator, ReportMeasureContainer } from './useReportPaginator
 interface ReportPrintProps {
   project: Project;
   version: ScheduleVersion;
+  calendarVersion: CalendarVersion;
   design: ReportDesign;
   daybreak: ReportDaybreakData;
   scopeFilter?: ReportScopeFilter;
@@ -18,8 +19,8 @@ interface ReportPrintProps {
   onReady?: () => void;
 }
 
-const ReportPrint: React.FC<ReportPrintProps> = ({ project, version, design, daybreak, scopeFilter, printOptions, onReady }) => {
-  const ctx = useMemo(() => buildReportCtx(project, version, daybreak), [project, version, daybreak]);
+const ReportPrint: React.FC<ReportPrintProps> = ({ project, version, calendarVersion, design, daybreak, scopeFilter, printOptions, onReady }) => {
+  const ctx = useMemo(() => buildReportCtx(project, version, calendarVersion, daybreak), [project, version, calendarVersion, daybreak]);
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
   const page = printOptions?.page || design.page;
   const pages = useMemo(() => paginateBlocks(design.blocks || []), [design.blocks]);

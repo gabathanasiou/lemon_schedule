@@ -28,14 +28,15 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId);
 
   const sizes = ruleModalSizes();
   const { XSZ, CREM_LABEL, CREM_TEXT, CREM_BODY } = sizes;
 
-  const [prepStart, setPrepStart] = useState<string>(activeVersion?.prepStart || '');
-  const [prodStart, setProdStart] = useState<string>(activeVersion?.productionStart || '');
-  const [postEnd, setPostEnd] = useState<string>(activeVersion?.postEnd || '');
-  const [daysOff, setDaysOff] = useState<Set<number>>(new Set(activeVersion?.weeklyDaysOff || [5, 6]));
+  const [prepStart, setPrepStart] = useState<string>(activeCalendarVersion?.prepStart || '');
+  const [prodStart, setProdStart] = useState<string>(activeCalendarVersion?.productionStart || '');
+  const [postEnd, setPostEnd] = useState<string>(activeCalendarVersion?.postEnd || '');
+  const [daysOff, setDaysOff] = useState<Set<number>>(new Set(activeCalendarVersion?.weeklyDaysOff || [5, 6]));
   const [applyNote, setApplyNote] = useState('');
 
   const toggleDay = (i: number) =>
@@ -66,13 +67,13 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
    *  - everything else — hand-made statuses, event cards, notes — is kept.
    *  Returns { added, removed }. */
   const applyDaysOff = (): { added: number; removed: number } => {
-    if (!activeVersion) return { added: 0, removed: 0 };
+    if (!activeCalendarVersion) return { added: 0, removed: 0 };
     const from = prepStart || prodStart;
     if (!from) { setApplyNote('Set at least a production (or prep) start date first.'); return { added: 0, removed: 0 }; }
     const fromDate = new Date(from + 'T00:00:00');
     if (isNaN(fromDate.getTime())) { setApplyNote('Invalid start date.'); return { added: 0, removed: 0 }; }
 
-    const nonShootSet = buildNonShootSet(activeVersion.nonShootDates);
+    const nonShootSet = buildNonShootSet(activeCalendarVersion.nonShootDates);
     const skip = (d: string) => nonShootSet.has(d) || daysOff.has(monBased(d));
 
     // Walk the same date cursor the stripboard uses: land N production days
@@ -89,7 +90,7 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
     if (postEnd && !isNaN(new Date(postEnd + 'T00:00:00').getTime()) && postEnd > to) to = postEnd;
     const toDate = new Date(to + 'T00:00:00');
 
-    const current = activeVersion.nonShootDates || [];
+    const current = activeCalendarVersion.nonShootDates || [];
     const existing = new Map(current.map(n => [n.date, n]));
     const added: NonShootDate[] = [];
     const walk = new Date(fromDate);
@@ -121,7 +122,7 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
       setApplyNote('No new days off to add — pattern days already have a status.');
       return { added: 0, removed: 0 };
     }
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: [...retained, ...added] } });
+    dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, nonShootDates: [...retained, ...added] } });
     const parts: string[] = [];
     if (added.length > 0) {
       parts.push(`Marked ${added.length} day${added.length === 1 ? '' : 's'} off (${added[0].date} – ${added[added.length - 1].date})`);
@@ -134,15 +135,15 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
   };
 
   const handleSave = () => {
-    if (!activeVersion) return;
+    if (!activeCalendarVersion) return;
     dispatch({ type: 'BATCH_START' });
     applyDaysOff();
-    const payload: any = { id: activeVersion.id };
+    const payload: any = { id: activeCalendarVersion.id };
     if (prepStart) payload.prepStart = prepStart; else payload.prepStart = undefined;
     if (prodStart) payload.productionStart = prodStart;
     if (postEnd) payload.postEnd = postEnd; else payload.postEnd = undefined;
     payload.weeklyDaysOff = [...daysOff].sort();
-    dispatch({ type: 'UPDATE_VERSION', payload });
+    dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload });
     dispatch({ type: 'BATCH_COMMIT' });
     onClose();
   };

@@ -3,7 +3,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useProject } from '../../store';
 import { NonShootDate, RuleViolation } from '../../types';
 import { EventCard, categoryLabel } from '../../lib/events';
-import { getDayHeaderColors } from '../../lib/ribbonUtils';
+import { getDayHeaderColors, getSelectedStripColors } from '../../lib/ribbonUtils';
 import { typeIconComponent, dayTypeTextColor, DayTypeVisual } from '../../lib/dayTypes';
 import { formatFullDate } from './calendarUtils';
 import { Flag, Plus, MessageSquare } from 'lucide-react';
@@ -29,7 +29,6 @@ export const EventDayCell: React.FC<{
   cards: EventCard[];
   travelHoldEntry?: NonShootDate | null;
   dayTypeVisual?: DayTypeVisual | null;
-  dayTypeCode?: string;
   violations: RuleViolation[];
   sectionLabel?: string;
   selectedIds: Set<string>;
@@ -39,6 +38,8 @@ export const EventDayCell: React.FC<{
   /** Right-click on a rule card (remove date / edit). */
   onCardContextMenu?: (card: EventCard, e: React.MouseEvent) => void;
   onOpenEvents: (dateKey: string) => void;
+  /** Empty-day "Add event" affordance — opens the shared event adder. */
+  onAddEvent?: (dateKey: string) => void;
   onContextMenu?: (e: React.MouseEvent, dateKey: string) => void;
   readOnly?: boolean;
   flash?: boolean;
@@ -46,7 +47,7 @@ export const EventDayCell: React.FC<{
    *  header drag. */
   hasEvents?: boolean;
   dropZone?: EventDropZoneProp | null;
-}> = ({ dateKey, date, isToday, cards, travelHoldEntry, dayTypeVisual, dayTypeCode, violations, sectionLabel, selectedIds, onCardClick, onCardDoubleClick, onCardContextMenu, onOpenEvents, onContextMenu, readOnly, flash, hasEvents, dropZone }) => {
+}> = ({ dateKey, date, isToday, cards, travelHoldEntry, dayTypeVisual, violations, sectionLabel, selectedIds, onCardClick, onCardDoubleClick, onCardContextMenu, onOpenEvents, onAddEvent, onContextMenu, readOnly, flash, hasEvents, dropZone }) => {
   const { state } = useProject();
   const project = state.present;
 
@@ -70,11 +71,15 @@ export const EventDayCell: React.FC<{
   const headerStyle = statusHeaderStyle || (sectionLabel ? { background: hdr.background, color: hdr.color } : undefined);
   const headerLabel = visual ? visual.label.toUpperCase() : sectionLabel || '';
 
-  // Attachment + rule cards render in the cell; status/conflicts live in the
-  // header. Every-day rule cards are display-only — they don't count as
-  // "content" (the add affordance + whole-day drag ignore them).
-  const cellCards = cards.filter(c => c.kind === 'attachment' || c.kind === 'rule');
-  const manageableCards = cellCards.filter(c => c.kind !== 'rule' || !c.everyday);
+  // Attachment + dated rule cards render in the cell; status/conflicts live in
+  // the header. Global (every-day) rules never render a card — their home is
+  // the Rules tab — so they don't count as "content" (the add affordance +
+  // whole-day drag ignore them).
+  const cellCards = cards.filter(c => c.kind === 'attachment' || (c.kind === 'rule' && !c.everyday));
+  // One type icon per day: only the FIRST attachment card of each day type
+  // carries the symbol — the header badge for that type is also suppressed
+  // (DayStatusBadges), so the type's identity shows exactly once.
+  const seenTypeIcons = new Set<string>();
   const drop = dropZone && dropZone.dateKey === dateKey ? dropZone : null;
 
   return (
@@ -109,8 +114,6 @@ export const EventDayCell: React.FC<{
         <DayStatusBadges
           travelHoldEntry={travelHoldEntry}
           project={project}
-          dayTypeCode={dayTypeCode}
-          dayTypeVisual={dayTypeVisual}
           onEdit={(dk) => onOpenEvents(dk)}
         />
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none leading-none gap-[3px]">
@@ -128,19 +131,23 @@ export const EventDayCell: React.FC<{
         </span>
       </div>
 
-      <div className="flex-1 min-h-0 px-1 pb-1 space-y-0.5 overflow-y-auto overscroll-contain">
-        {cellCards.map(card => (
-          <DraggableEventCard key={card.id} card={card} project={project}
-            selected={selectedIds.has(card.id)}
-            onClick={(e) => onCardClick(card.id, e)}
-            onDoubleClick={(e) => { e.stopPropagation(); onCardDoubleClick?.(card); }}
-            onContextMenu={(e) => { if (card.kind === 'rule') { e.preventDefault(); e.stopPropagation(); onCardContextMenu?.(card, e); } }}
-          />
-        ))}
-        {manageableCards.length === 0 && (
+      <div className="flex-1 min-h-0 px-1 pb-1 space-y-0.5 overflow-y-auto overscroll-contain flex flex-col">
+        {cellCards.map(card => {
+          const showIcon = card.kind !== 'attachment' || !seenTypeIcons.has(card.status);
+          if (card.kind === 'attachment') seenTypeIcons.add(card.status);
+          return (
+            <DraggableEventCard key={card.id} card={card} project={project} showIcon={showIcon}
+              selected={selectedIds.has(card.id)}
+              onClick={(e) => onCardClick(card.id, e)}
+              onDoubleClick={(e) => { e.stopPropagation(); onCardDoubleClick?.(card); }}
+              onContextMenu={(e) => { if (card.kind === 'rule') { e.preventDefault(); e.stopPropagation(); onCardContextMenu?.(card, e); } }}
+            />
+          );
+        })}
+        {cellCards.length === 0 && (
           <button
-            onClick={(e) => { e.stopPropagation(); onOpenEvents(dateKey); }}
-            className="w-full flex items-center justify-center gap-1 py-1 rounded border border-dashed border-zinc-300 text-[9px] font-semibold text-zinc-400 hover:text-zinc-600 hover:border-zinc-400 transition-colors"
+            onClick={(e) => { e.stopPropagation(); if (onAddEvent) onAddEvent(dateKey); else onOpenEvents(dateKey); }}
+            className="w-full flex-1 flex items-center justify-center gap-1 rounded border border-dashed border-zinc-300 text-[9px] font-semibold text-zinc-400 hover:text-zinc-600 hover:border-zinc-400 transition-colors"
             title="Add event"
           >
             <Plus className="w-2.5 h-2.5" /> Add event
@@ -151,22 +158,26 @@ export const EventDayCell: React.FC<{
   );
 };
 
-/** Presentational event card — shared by the cell and the drag ghost. */
+/** Presentational event card — shared by the cell and the drag ghost.
+ *  Selection follows the stripboard's selected-strip palette colors
+ *  (getSelectedStripColors), applied inline so the card's own background
+ *  (inline tint or bg-* class) can't override it. */
 export const EventCardView: React.FC<{
   card: EventCard;
   project: any;
   selected?: boolean;
+  showIcon?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   className?: string;
-}> = ({ card, project, selected, onClick, className = '' }) => {
-  const base = `relative w-full text-left px-1.5 py-0.5 rounded text-[10px] leading-snug select-none ${
-    selected ? 'ring-1 ring-blue-500 bg-blue-50/60' : ''
-  } ${className}`;
+}> = ({ card, project, selected, showIcon = true, onClick, className = '' }) => {
+  const sel = getSelectedStripColors(project?.colorPalette);
+  const selStyle = selected ? { background: sel.background, color: sel.color } : undefined;
+  const base = `relative w-full text-left px-1.5 py-0.5 rounded text-[10px] leading-snug select-none ${className}`;
   if (card.kind === 'status') {
     const t = (project.dayTypes || []).find((d: any) => d.key === card.statusKey);
     const color = t?.color || '#52525b';
     return (
-      <div data-card-status={card.statusKey} className={`${base} text-white font-bold uppercase tracking-wide`} style={{ background: color }}>
+      <div data-card-status={card.statusKey} className={`${base} text-white font-bold uppercase tracking-wide`} style={selStyle || { background: color }}>
         {t?.label || card.statusKey}
       </div>
     );
@@ -183,18 +194,21 @@ export const EventCardView: React.FC<{
         data-card-comment={card.comment || ''}
         onClick={onClick} title={names}
         className={`${base} text-zinc-700 flex items-start gap-1.5`}
-        style={{ background: `${color}1A` }}
+        style={selStyle || { background: `${color}1A` }}
       >
-        <Icon className="w-3 h-3 shrink-0 mt-[1px]" style={{ color }} />
+        {showIcon && <Icon className="w-3 h-3 shrink-0 mt-[1px]" style={{ color: selected ? sel.color : color }} />}
         <span className="min-w-0">{names}</span>
-        {card.comment && <MessageSquare className="w-2.5 h-2.5 shrink-0 mt-[1px] text-amber-500" />}
+        {card.comment && <MessageSquare className="w-2.5 h-2.5 shrink-0 mt-[1px] text-amber-500" style={selected ? { color: sel.color } : undefined} />}
       </div>
     );
     if (!card.comment) return inner;
     return (
-      <HoverTooltip content={
+      <HoverTooltip className="w-full" content={
         <div className="max-w-[220px]">
-          <div className="text-[9px] font-bold uppercase tracking-wider text-amber-300 mb-0.5">{t?.label || card.status} — {categoryLabel(card.category, project)}</div>
+          <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-100 mb-0.5">
+            <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
+            <span>{t?.label || card.status} — {categoryLabel(card.category, project)}</span>
+          </div>
           <div className="text-[11px] text-zinc-100 leading-snug">{card.comment}</div>
         </div>
       }>
@@ -208,12 +222,15 @@ export const EventCardView: React.FC<{
     return (
       <div
         onClick={onClick}
-        title={card.violated && card.message ? card.message : (card.everyday ? `${meta.label} — every day` : describeRuleDetailed(card.rule, project.castMembers || []))}
+        title={card.violated && card.message ? card.message : describeRuleDetailed(card.rule, project.castMembers || [])}
         className={`${base} flex items-center gap-1 ${card.violated ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-700'}`}
+        style={selStyle}
       >
-        <Icon className={`w-2.5 h-2.5 shrink-0 ${meta.chipIcon}`} />
+        {card.violated && <Flag className="w-2.5 h-2.5 fill-red-400 text-red-400 shrink-0" style={selected ? { color: sel.color, fill: sel.color } : undefined} />}
         <span className="truncate flex-1">{describeRuleDetailed(card.rule, project.castMembers || [])}</span>
-        {card.violated && <Flag className="w-2.5 h-2.5 fill-red-400 text-red-400 shrink-0" />}
+        <span className="shrink-0" style={selected ? { color: sel.color } : undefined}>
+          <Icon className={`w-2.5 h-2.5 ${selected ? '' : meta.chipIcon}`} />
+        </span>
       </div>
     );
   }
@@ -224,10 +241,11 @@ const DraggableEventCard: React.FC<{
   card: EventCard;
   project: any;
   selected: boolean;
+  showIcon?: boolean;
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
-}> = ({ card, project, selected, onClick, onDoubleClick, onContextMenu }) => {
+}> = ({ card, project, selected, showIcon = true, onClick, onDoubleClick, onContextMenu }) => {
   const dragData = card.kind === 'status'
     ? { type: 'EVENT_CARD', dateKey: card.dateKey, cardKind: 'status' as const, status: card.statusKey }
     : card.kind === 'attachment'
@@ -238,8 +256,7 @@ const DraggableEventCard: React.FC<{
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: card.id,
     data: dragData,
-    // every-day rule cards are display-only (nothing to move)
-    disabled: !dragData || (card.kind === 'rule' && card.everyday),
+    disabled: !dragData,
   });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes} data-event-key={card.id}
@@ -247,13 +264,12 @@ const DraggableEventCard: React.FC<{
         'data-card-kind': 'rule',
         'data-card-rule': card.rule.id,
         'data-card-source': card.dateKey,
-        'data-card-everyday': card.everyday ? '1' : '',
       } : {})}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       className={`cursor-pointer ${isDragging ? 'opacity-40' : ''}`}
     >
-      <EventCardView card={card} project={project} selected={selected} onClick={onClick} />
+      <EventCardView card={card} project={project} selected={selected} showIcon={showIcon} onClick={onClick} />
     </div>
   );
 };

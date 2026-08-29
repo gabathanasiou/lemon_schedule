@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState, useRef, useMemo } from 'react';
 import { flushSync } from 'react-dom';
-import { Project } from '../types';
+import { CalendarVersion, Project } from '../types';
 import { generateUUID } from '../lib/utils';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
@@ -32,6 +32,10 @@ function driveErrorDetail(err: unknown): string {
 export interface ProjectContextType {
   state: State;
   dispatch: React.Dispatch<Action>;
+  /** The active calendar version (production window + day statuses/events) —
+   *  drives every calendar surface AND the stripboard's dates. Independent of
+   *  the active schedule version (item 66). */
+  activeCalendarVersion: CalendarVersion | undefined;
   projectList: ProjectMeta[];
   currentProjectId: string | null;
   initialized: boolean;
@@ -830,6 +834,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const contextValue = useMemo(() => ({
     state,
     dispatch: guardedDispatch,
+    activeCalendarVersion: state.present.calendarVersions.find(v => v.id === state.present.activeCalendarVersionId),
     projectList,
     currentProjectId,
     initialized,

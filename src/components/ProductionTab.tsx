@@ -69,6 +69,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
   const project = state.present;
   const dialog = useDialog();
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId);
 
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
@@ -166,8 +167,8 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
                 <label className="flex items-center gap-3 text-xs text-zinc-500">
                   <span className="w-40 shrink-0 text-right">Production Start</span>
                   <CommitInput
-                    value={activeVersion?.productionStart || ''}
-                    onCommit={v => activeVersion && dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, productionStart: v } })}
+                    value={activeCalendarVersion?.productionStart || ''}
+                    onCommit={v => activeCalendarVersion && dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, productionStart: v } })}
                     readOnly={readOnly}
                     placeholder="YYYY-MM-DD"
                   />

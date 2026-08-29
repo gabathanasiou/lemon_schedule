@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pencil, Printer, HelpCircle, Clock, FileText, Trash2, StickyNote, CalendarPlus, ChevronDown, Check, LayoutTemplate, Monitor, Table, Flag, Sunset, Loader2 } from 'lucide-react';
 import { useProject } from '../../store';
+import { useDialog } from '../Dialog';
 import { RibbonDesign } from '../../types';
 import { CellBorders, ViewMode } from '../../lib/persist';
 import PageToolbar from '../PageToolbar';
@@ -9,8 +10,9 @@ import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import DropdownSubmenu from '../DropdownSubmenu';
+import { ItemManagerDropdown } from '../DropdownMenu';
 import SortDropdown, { SortCriterion } from '../SortDropdown';
-import { formatDuration } from '../../lib/utils';
+import { formatDuration, generateUUID } from '../../lib/utils';
 import { BoneyardExpandButton, BoneyardCollapseButton } from '../BoneyardExpandButton';
 
 interface SelectionSummary {
@@ -78,7 +80,8 @@ interface ScheduleToolbarProps {
 }
 
 export default function ScheduleToolbar(props: ScheduleToolbarProps) {
-  const { dispatch } = useProject();
+  const { state, dispatch } = useProject();
+  const project = state.present;
   const {
     shootViolations, onShowViolations, selectionSummary, bufferSummary, isCloud,
     boneyardCollapsed, onExpandBoneyard, onCollapseBoneyard,
@@ -90,6 +93,52 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
     textEditingEnabled, setTextEditingEnabled, readOnly, onPrint, onShowHelp,
     isEditPending, onToggleEdit,
   } = props;
+
+  const [showVersionsMenu, setShowVersionsMenu] = React.useState(false);
+  const dialog = useDialog();
+  const version = project.versions.find(v => v.id === project.activeVersionId);
+
+  const versionPicker = (
+    <ItemManagerDropdown
+      open={showVersionsMenu}
+      onClose={(open) => setShowVersionsMenu(open)}
+      items={project.versions.map(v => ({ id: v.id, name: v.name }))}
+      activeId={project.activeVersionId}
+      closeOnSelect
+      onSelect={(id) => dispatch({ type: 'SET_ACTIVE_VERSION', payload: id })}
+      onRename={(id, name) => dispatch({ type: 'RENAME_VERSION', payload: { id, name } })}
+      onDuplicate={(id) => {
+        const v = project.versions.find(x => x.id === id);
+        if (!v) return;
+        const name = `${v.name} Copy`;
+        const newId = generateUUID();
+        dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: id, id: newId } });
+        return newId;
+      }}
+      onDelete={async (id) => {
+        const ok = await dialog.confirm({ title: 'Delete Version?', message: 'This can be restored from Trash.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_version' });
+        if (ok) dispatch({ type: 'DELETE_VERSION', payload: id });
+      }}
+      onCreate={() => {
+        const name = `V${String(project.versions.length + 1).padStart(2, '0')}`;
+        const newId = generateUUID();
+        dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null, id: newId } });
+        return newId;
+      }}
+      readOnly={false}
+      theme={isCloud ? 'blue' : 'light'}
+      label="Version"
+      header="SCHEDULE VERSIONS"
+      itemLabel="Version"
+      trigger={
+        <Button theme={isCloud ? 'dark' : 'light'}>
+          <span className="text-xs font-semibold text-zinc-400">Schedule:</span>
+          <span className={`text-xs font-semibold ${isCloud ? 'text-zinc-200' : 'text-zinc-900'}`}>{version?.name || 'Select Version'}</span>
+          <ChevronDown className="w-3 h-3 text-zinc-400" />
+        </Button>
+      }
+    />
+  );
 
   const controls = (
     <>
@@ -246,6 +295,8 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       >
         <HelpCircle className="w-4 h-4" />
       </button>
+      <div className="w-px h-4 bg-zinc-200" />
+      {versionPicker}
     </>
   );
 

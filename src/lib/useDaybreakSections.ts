@@ -6,7 +6,7 @@ import { addDays, buildNonShootSet, computeRowData, ProductionDay, ComputedRow, 
 export type { ProductionDay, ComputedRow, SectionSums, SectionInfo };
 
 export function useDaybreakSections() {
-  const { state } = useProject();
+  const { state, activeCalendarVersion } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
@@ -18,9 +18,9 @@ export function useDaybreakSections() {
     });
   }, [activeVersion]);
 
-  const nonShootSet = useMemo(() => buildNonShootSet(activeVersion?.nonShootDates), [activeVersion?.nonShootDates]);
+  const nonShootSet = useMemo(() => buildNonShootSet(activeCalendarVersion?.nonShootDates), [activeCalendarVersion?.nonShootDates]);
 
-  const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
+  const startDate = activeCalendarVersion?.productionStart || new Date().toISOString().slice(0, 10);
 
   const firstDaybreak = useMemo(() => containerRows.find(r => r.type === 'DAYBREAK'), [containerRows]);
   const callTimeBase = firstDaybreak?.daybreakCallTime || '08:00';

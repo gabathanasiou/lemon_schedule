@@ -1,24 +1,23 @@
 import React from 'react';
 import { NonShootDate } from '../../types';
-import { DayTypeVisual, getDayType, typeIconComponent } from '../../lib/dayTypes';
+import { getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { getStatusesWithLists } from '../../lib/nonShootHelpers';
 import { TravelHoldTooltip } from './TravelHoldTooltip';
 import { Star } from 'lucide-react';
 
 /** The status badge cluster in a calendar day header — shared by the strips
  *  and events day cells. Icons + colours come from the Day Breakdown manager
- *  (`project.dayTypes`), never hardcoded. A day carrying MORE THAN ONE event
- *  type (attachment lists under multiple status keys) collapses to a single
- *  yellow star; one custom status shows its code chip; a lone travel/hold
- *  shows its type icon. */
+ *  (`project.dayTypes`), never hardcoded. Rules:
+ *  - The day's OWN type never badges the header — its identity lives on the
+ *    day (label + colour) and on its attachment cards (first card's icon).
+ *  - One FOREIGN event type (attachments under a type that isn't the day
+ *    status) shows its icon — the cards alone wouldn't say "also this".
+ *  - Several types with attachments collapse to the amber star. */
 export const DayStatusBadges: React.FC<{
   travelHoldEntry?: NonShootDate | null;
   project: any;
-  dayTypeCode?: string;
-  dayTypeVisual?: DayTypeVisual | null;
   onEdit?: (dateKey: string) => void;
-}> = ({ travelHoldEntry, project, dayTypeCode, dayTypeVisual, onEdit }) => {
-  const visual = dayTypeVisual || null;
+}> = ({ travelHoldEntry, project, onEdit }) => {
   const entry = travelHoldEntry || undefined;
   const statusesWithLists = getStatusesWithLists(entry);
 
@@ -45,22 +44,8 @@ export const DayStatusBadges: React.FC<{
     <span className="w-5 shrink-0 flex justify-start items-center gap-0.5">
       {statusesWithLists.length > 1 ? (
         typeButton(<Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />, 'Multiple event types')
-      ) : statusesWithLists.length === 1 ? (
-        (() => {
-          const key = statusesWithLists[0];
-          if (entry?.status && entry.status === key && key !== 'travel' && key !== 'hold') {
-            return typeButton(
-              <span
-                className="w-3 h-3 rounded-sm text-[7px] font-bold text-white flex items-center justify-center leading-none"
-                style={visual?.color ? { background: visual.color } : { background: '#52525b' }}
-              >
-                {dayTypeCode || '•'}
-              </span>,
-              dayTypeCode ? `${dayTypeCode} — ${visual?.label || ''}` : undefined,
-            );
-          }
-          return typeButton(typeIcon(key, 'w-2.5 h-2.5'));
-        })()
+      ) : statusesWithLists.length === 1 && entry?.status !== statusesWithLists[0] ? (
+        typeButton(typeIcon(statusesWithLists[0], 'w-2.5 h-2.5'))
       ) : null}
     </span>
   );

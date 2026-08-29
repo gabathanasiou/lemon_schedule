@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, Trash2, Undo2, Redo2 } from 'lucide-react';
 import { useProject } from '../store';
 import { useDialog } from './Dialog';
-import { generateUUID } from '../lib/utils';
 import { IS_COARSE } from '../lib/device';
 import { ReportDesign } from '../types';
 import DropdownMenu from './DropdownMenu';
@@ -10,7 +9,6 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
 import { SaveIndicator } from './SaveIndicator';
-import { ItemManagerDropdown } from './DropdownMenu';
 import { useUnsavedGuardState, performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 
 export type AppTabId = 'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'production' | 'reports';
@@ -51,7 +49,6 @@ export default function AppHeader(props: AppHeaderProps) {
   const dialog = useDialog();
   const guardState = useUnsavedGuardState();
   const project = state.present;
-  const version = project.versions.find(v => v.id === project.activeVersionId);
   const {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
     onOpenProjectManager, onImportClick, onImportNewProject, onExportCSV, onExportJSON, onExportSex,
@@ -61,7 +58,6 @@ export default function AppHeader(props: AppHeaderProps) {
 
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
-  const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [tabScrollMask, setTabScrollMask] = useState('none');
   const topTabContainerRef = useRef<HTMLDivElement>(null);
   const checkTabScroll = useCallback(() => {
@@ -223,49 +219,6 @@ export default function AppHeader(props: AppHeaderProps) {
           >
             <Redo2 className="w-3.5 h-3.5" />
           </button>
-        </div>
-        <div className="border border-white/10 rounded bg-white/5">
-        <ItemManagerDropdown
-          open={showVersionsMenu}
-          onClose={(open) => setShowVersionsMenu(open)}
-          items={project.versions.map(v => ({ id: v.id, name: v.name }))}
-          activeId={project.activeVersionId}
-          closeOnSelect
-          onSelect={(id) => dispatch({ type: 'SET_ACTIVE_VERSION', payload: id })}
-          onRename={(id, name) => dispatch({ type: 'RENAME_VERSION', payload: { id, name } })}
-          onDuplicate={(id) => {
-            const v = project.versions.find(x => x.id === id);
-            if (!v) return;
-            const name = `${v.name} Copy`;
-            const newId = generateUUID();
-            dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: id, id: newId } });
-            return newId;
-          }}
-          onDelete={async (id) => {
-            const ok = await dialog.confirm({ title: 'Delete Version?', message: 'This can be restored from Trash.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_version' });
-            if (ok) dispatch({ type: 'DELETE_VERSION', payload: id });
-          }}
-          onCreate={() => {
-            const name = `V${String(project.versions.length + 1).padStart(2, '0')}`;
-            const newId = generateUUID();
-            dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null, id: newId } });
-            return newId;
-          }}
-          onTrash={() => onShowTrash()}
-          readOnly={false}
-          theme={isCloudProject ? 'blue' : 'dark'}
-          label="Version"
-          header="SCHEDULE VERSIONS"
-          itemLabel="Version"
-          trigger={
-            <button
-              className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 cursor-pointer select-none font-sans text-xs text-white whitespace-nowrap ${isCloudProject ? 'hover:bg-blue-900/60' : 'hover:bg-zinc-800'}`}
-            >
-              <span><span className="hidden md:inline">Version: </span><strong>{version?.name || 'Select Version'}</strong></span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-          }
-        />
         </div>
       </div>
     </header>

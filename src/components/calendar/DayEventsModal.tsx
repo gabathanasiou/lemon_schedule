@@ -64,8 +64,8 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
   const { XSZ, CREM_BODY, CREM_LABEL, CREM_TEXT } = sizes;
 
   // Live from the store (the modal mutates directly — no staged save).
-  const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
-  const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
+  const activeCalendarVersion = state.present.calendarVersions.find(v => v.id === state.present.activeCalendarVersionId);
+  const nonShootDates = useMemo(() => activeCalendarVersion?.nonShootDates || [], [activeCalendarVersion?.nonShootDates]);
   const entryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
   const entry = entryByDate.get(dateKey);
 
@@ -155,7 +155,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
   /** The day status applies IMMEDIATELY (undoable) — nothing is staged. */
   const changeStatus = (key: string | null) => {
     setStatusKey(key);
-    if (!activeVersion) return;
+    if (!activeCalendarVersion) return;
     const base = entryByDate.get(dateKey);
     const next: NonShootDate = {
       ...(base || { date: dateKey }),
@@ -164,30 +164,30 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
     };
     if (!key) delete next.status;
     dispatch({
-      type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, next) },
+      type: 'UPDATE_CALENDAR_VERSION',
+      payload: { id: activeCalendarVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, next) },
     });
   };
 
   /** Removes ONE element's group of a type (the day's whole-category mark
    *  when `all`). A fully-emptied entry prunes the date row. */
   const removeGroup = (status: string, category: string, refKey: string, all: boolean) => {
-    if (readOnly || !activeVersion) return;
+    if (readOnly || !activeCalendarVersion) return;
     const next = removeItemsFrom(entryByDate.get(dateKey), status, category, all ? [NON_SHOOT_ALL] : [refKey]);
     dispatch({
-      type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, next ?? { date: dateKey }) },
+      type: 'UPDATE_CALENDAR_VERSION',
+      payload: { id: activeCalendarVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, next ?? { date: dateKey }) },
     });
   };
 
   /** Inline note save — `comments[status][category][refKey]` ('*' for the
    *  whole-category mark); empty text clears it. */
   const commitNote = (status: string, category: string, refKey: string, text: string) => {
-    if (!activeVersion) return;
+    if (!activeCalendarVersion) return;
     const base = entryByDate.get(dateKey) || { date: dateKey };
     dispatch({
-      type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, { ...base, comments: setNote(base.comments, status, category, refKey, text) }) },
+      type: 'UPDATE_CALENDAR_VERSION',
+      payload: { id: activeCalendarVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, { ...base, comments: setNote(base.comments, status, category, refKey, text) }) },
     });
   };
 

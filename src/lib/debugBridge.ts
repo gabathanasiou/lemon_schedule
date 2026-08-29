@@ -10,7 +10,7 @@ import {
 import { computeRowData, buildNonShootSet } from './daybreakUtils';
 import { createBlankScene } from './sceneFactory';
 import { generateUUID } from './utils';
-import type { Project, Scene, CustomCategoryDef } from '../types';
+import type { Project, Scene, CalendarVersion, CustomCategoryDef } from '../types';
 import type { ProjectMeta } from '../store/storage';
 
 /**
@@ -92,7 +92,8 @@ export interface LemonAgentBridge {
   getProject: () => Project;
   getProjectList: () => ProjectMeta[];
   getCurrentProjectId: () => string | null;
-  getVersion: (versionId?: string | null) => { id: string; name: string; productionStart: string } | null;
+  getVersion: (versionId?: string | null) => { id: string; name: string; calendarVersionId?: string; calendarVersionName?: string } | null;
+  getCalendarVersion: () => CalendarVersion | null;
   getRows: (versionId?: string | null) => {
     projectId: string;
     versionId: string;
@@ -177,8 +178,9 @@ function buildBridge(): LemonAgentBridge {
     '  getProject()                 → active Project (shorthand for getState().present)',
     '  getProjectList()             → localStorage project index (name/id/driveFileId)',
     '  getCurrentProjectId()        → selected project id or null',
-    '  getVersion(versionId?)       → active (or given) schedule version meta',
-    '  getRows(versionId?)          → computed stripboard rows in order + sections (call times, daybreaks, sums)',
+    '  getVersion(versionId?)       → active (or given) schedule version meta (rows only; calendar data lives in calendar versions)',
+    '  getRows(versionId?)          → computed stripboard rows in order + sections (call times, daybreaks, sums) — dates from the ACTIVE calendar version',
+    '  getCalendarVersion()         → active calendar version meta (production window + nonShootDates)',
     '  getSceneValues()             → Glide grid truth: every scene, every column value (canvas is opaque to the DOM)',
     '  diagnostics()                → connectivity/sync snapshot (probe result, Drive save error, payload size, retries)',
     '  pastCount() / futureCount()  → undo/redo stack depths',
@@ -204,11 +206,12 @@ function buildBridge(): LemonAgentBridge {
     const project = api().getProject();
     const version = project.versions.find((v) => v.id === (versionId || project.activeVersionId)) || project.versions[0];
     if (!version) return { projectId: project.id, versionId: '', rows: [], sections: [] };
+    const calendarVersion = project.calendarVersions.find((v) => v.id === project.activeCalendarVersionId) || project.calendarVersions[0];
     const { computedRows, sections } = computeRowData(
       version.rows,
       project.scenes,
-      version.productionStart,
-      buildNonShootSet(version.nonShootDates),
+      calendarVersion?.productionStart,
+      buildNonShootSet(calendarVersion?.nonShootDates),
     );
     return {
       projectId: project.id,
@@ -267,9 +270,15 @@ function buildBridge(): LemonAgentBridge {
     getVersion: (versionId?: string | null) => {
       const project = api().getProject();
       const version = project.versions.find((v) => v.id === (versionId || project.activeVersionId)) || project.versions[0];
+      const calendarVersion = project.calendarVersions.find((v) => v.id === project.activeCalendarVersionId) || project.calendarVersions[0];
       return version
-        ? { id: version.id, name: version.name, productionStart: version.productionStart }
+        ? { id: version.id, name: version.name, calendarVersionId: calendarVersion?.id, calendarVersionName: calendarVersion?.name }
         : null;
+    },
+    getCalendarVersion: () => {
+      const project = api().getProject();
+      const v = project.calendarVersions.find((c) => c.id === project.activeCalendarVersionId) || project.calendarVersions[0] || null;
+      return v ? deepClone(v) : null;
     },
     getRows,
     getSceneValues,

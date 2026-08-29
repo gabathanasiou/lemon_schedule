@@ -35,7 +35,8 @@ export const DayTypesTab: React.FC = () => {
   const [color, setColor] = useState('');
   const [attachable, setAttachable] = useState(true);
 
-  const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
+  const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId);
+  const nonShootDates = useMemo(() => activeCalendarVersion?.nonShootDates || [], [activeCalendarVersion?.nonShootDates]);
 
   // Shared day-modal data: entry per date, rule violations per scheduled day,
   // date-scoped rules (same computations the Calendar tab uses).
