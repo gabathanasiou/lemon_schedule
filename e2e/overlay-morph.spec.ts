@@ -261,11 +261,13 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
   });
 
   test('keyboard nav and typeahead still work in animated menus', async ({ page }) => {
+    // Item 64: ONE highlighted row (`.ui-item-highlighted`) written by the
+    // arrows AND the typeahead letter-jump (Radix data-highlighted is inert).
     await openScheduleViewMenu(page);
     await page.keyboard.press('ArrowDown');
-    await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toHaveAttribute('data-highlighted', '');
+    await expect(page.locator('.ui-item-highlighted')).toContainText('Ribbon Layout');
     await page.keyboard.press('c');
-    await expect(page.getByRole('menuitem', { name: 'Cell Borders' })).toHaveAttribute('data-highlighted', '');
+    await expect(page.locator('.ui-item-highlighted')).toContainText('Cell Borders');
     await page.keyboard.press('Enter');
     await expect(page.locator(MENU)).toHaveCount(0);
   });

@@ -26,13 +26,14 @@ export const CategoryDropdown: React.FC<{
   minWidth?: string;
 }> = ({ value, onChange, allCategoryKeys, categoryLabelLookup, customCategories, disabledKeys, open, onOpenChange, btnClass, minWidth }) => {
   const contentRef = useRef<HTMLDivElement>(null);
+  const activeIndex = allCategoryKeys.findIndex(k => k.key === value);
 
   useEffect(() => {
     if (!open) return;
+    // Scroll the active row into view (the kit's initialHighlightIndex lights
+    // it — no focus stealing).
     const raf = requestAnimationFrame(() => {
-      const row = contentRef.current?.querySelector(`[data-cat="${value}"]`) as HTMLElement | null;
-      const active = row?.querySelector('[role="menuitem"]') as HTMLElement | null;
-      if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
+      contentRef.current?.querySelector(`[data-cat="${value}"]`)?.scrollIntoView({ block: 'nearest' });
     });
     return () => cancelAnimationFrame(raf);
   }, [open, value]);
@@ -42,6 +43,7 @@ export const CategoryDropdown: React.FC<{
       open={open}
       onOpenChange={onOpenChange}
       theme="dark"
+      initialHighlightIndex={activeIndex >= 0 ? activeIndex : undefined}
       width={minWidth ? `${minWidth}!` : 'min-w-[160px]!'}
       contentClassName="z-[10001] max-h-64!"
       trigger={
