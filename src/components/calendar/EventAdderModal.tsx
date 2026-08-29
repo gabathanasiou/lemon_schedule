@@ -8,7 +8,6 @@ import { anchoredKeysFor } from '../../lib/elementLinks';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
-import { useDialog } from '../Dialog';
 import DateField from '../DateField';
 import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
@@ -19,7 +18,7 @@ import DropdownItem from '../DropdownItem';
 import Button from '../Button';
 import Checkbox from '../Checkbox';
 import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
-import { Plus, X, ChevronDown, Sun, Clock4, MessageSquare } from 'lucide-react';
+import { Plus, X, ChevronDown, Sun, Clock4 } from 'lucide-react';
 
 interface AdderRow {
   id: string;
@@ -27,10 +26,6 @@ interface AdderRow {
   /** Element keys for this category (cast = IDs, others = names). */
   keys: string[];
   all: boolean;
-  /** Per-element notes keyed by element key (saved into
-   *  `comments[status][category][key]` — each element's card carries its own). */
-  notes: Record<string, string>;
-  noteOpen: boolean;
 }
 
 let adderRowSeq = 0;
@@ -64,7 +59,6 @@ function formatDateLabel(dateKey: string): string {
 export function EventAdderModal({ date: preseedDate, preseed, status: statusProp, onClose }: EventAdderModalProps) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
-  const dialog = useDialog();
   const portalTarget = usePortalTarget();
   const sizes = ruleModalSizes();
   const { XSZ, CREM_BODY, CREM_LABEL, CREM_TEXT } = sizes;
@@ -85,8 +79,8 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
   const [dateKeys, setDateKeys] = useState<string[]>(preseedDate ? [preseedDate] : []);
   const [rows, setRows] = useState<AdderRow[]>(
     preseed
-      ? [{ id: newRowId(), category: preseed.category, keys: [...preseed.keys].filter(k => k !== NON_SHOOT_ALL), all: preseed.keys.length === 1 && preseed.keys[0] === NON_SHOOT_ALL, notes: {}, noteOpen: true }]
-      : [{ id: newRowId(), category: 'cast', keys: [], all: false, notes: {}, noteOpen: true }],
+      ? [{ id: newRowId(), category: preseed.category, keys: [...preseed.keys].filter(k => k !== NON_SHOOT_ALL), all: preseed.keys.length === 1 && preseed.keys[0] === NON_SHOOT_ALL }]
+      : [{ id: newRowId(), category: 'cast', keys: [], all: false }],
   );
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
@@ -146,13 +140,6 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
       } else {
         statusLists[cat] = [...new Set([...(statusLists[cat] || []).filter(k => k !== NON_SHOOT_ALL), ...keys])];
       }
-      const row = rows.find(r => r.category === cat);
-      const nonEmpty: Record<string, string> = {};
-      for (const [k, t] of Object.entries(row?.notes || {})) {
-        const trimmed = t.trim();
-        if (trimmed) nonEmpty[k] = trimmed;
-      }
-      if (Object.keys(nonEmpty).length > 0) nextComments[status] = { ...(nextComments[status] || {}), [cat]: nonEmpty };
     }
     if (Object.keys(statusLists).length === 0) return null;
     lists[status] = statusLists;
@@ -161,25 +148,11 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
       ...(entry?.status ? { status: entry.status } : {}),
       lists,
     };
-    if (Object.keys(nextComments).length > 0) {
-      const comments = entry?.comments ? { ...entry.comments } : {};
-      comments[status] = { ...(comments[status] || {}), ...nextComments[status] };
-      next.comments = comments;
-    }
     return next;
   };
 
-  const create = async () => {
+  const create = () => {
     if (dateKeys.length === 0 || !activeVersion || readOnly) return;
-    const noteText = locked && rows[0]?.keys[0] ? (rows[0].notes[rows[0].keys[0]] || '') : '';
-    if (locked && dateKeys.length > 1 && noteText.trim()) {
-      const ok = await dialog.confirm({
-        title: 'Note applies to all dates',
-        message: `The note "${noteText.trim()}" will be added to every one of the ${dateKeys.length} selected dates.`,
-        suppressKey: 'lemon_schedule_dnwa_multi_date_note',
-      });
-      if (!ok) return;
-    }
     const created: { date: string; entry: NonShootDate }[] = [];
     for (const d of dateKeys) {
       const entry = buildEntry(d);
@@ -270,24 +243,10 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
 
             {locked ? (
             /* Element-locked: no cast & elements section — the element is in
-               the title. Just its note. */
-            <div>
-              <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-                <MessageSquare className={`${XSZ} text-zinc-500`} />
-                Note for {elementName}
-              </span>
-              <input
-                type="text"
-                value={rows[0]?.keys[0] ? (rows[0].notes[rows[0].keys[0]] || '') : ''}
-                onChange={(e) => {
-                  const r = rows[0];
-                  if (r && r.keys[0]) patchRow(r.id, { notes: { ...r.notes, [r.keys[0]]: e.target.value } });
-                }}
-                placeholder={`e.g. "Traveling from Singapore"`}
-                className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
-                autoFocus
-              />
-            </div>
+               the title. Nothing else to pick. */
+            <p className={`${CREM_LABEL} text-zinc-600 italic`}>
+              {elementName} will be added on the selected date{dateKeys.length > 1 ? 's' : ''}.
+            </p>
           ) : (
             <>
             {/* Elements: comma-typed rows per category (parentless mode) */}
@@ -301,84 +260,53 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
                   const isCast = r.category === 'cast';
                   const items = getCategoryElements(project, r.category);
                   const catDef = categoryLabelLookup[r.category] || r.category;
-                  const hasNotes = Object.values(r.notes).some(t => t.trim());
-                  const noteKeys = r.all ? [NON_SHOOT_ALL] : r.keys;
                   return (
-                    <div key={r.id} className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <CategoryDropdown
-                          value={r.category}
-                          onChange={(cat) => patchRow(r.id, { category: cat, keys: [], all: false })}
-                          allCategoryKeys={allCategoryKeys}
-                          categoryLabelLookup={categoryLabelLookup}
-                          customCategories={project.customCategories}
-                          open={openDropdown === `cat-${r.id}`}
-                          onOpenChange={(o) => setOpenDropdown(o ? `cat-${r.id}` : null)}
-                          btnClass="text-xs"
-                        />
-                        <EntityDropdown
-                          value={r.keys.join(', ')}
-                          onChange={val => patchRow(r.id, { keys: val.split(',').map(x => x.trim()).filter(Boolean), all: false })}
-                          items={items}
-                          positioning="fixed"
-                          portalTarget={portalTarget ?? document.body}
-                          mode="multi"
-                          variant="chip"
-                          placeholder={isCast ? 'Type cast members, comma-separated — e.g. 1, 2' : 'Type elements, comma-separated'}
-                          className="text-xs flex-1 min-w-0"
-                          displayMode={isCast ? 'id' : 'name'}
-                          anchoredKeys={anchoredByCategory.get(r.category)}
-                          renderItem={isCast ? (item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
-                        />
-                        <Button
-                          theme="dark"
-                          variant="subtle"
-                          onPointerDown={(e) => { e.preventDefault(); patchRow(r.id, { noteOpen: !r.noteOpen }); }}
-                          title="Notes per element"
-                          className={`p-1 shrink-0 ${hasNotes ? '!text-amber-300' : ''}`}
-                        >
-                          <MessageSquare className="w-3 h-3" />
-                        </Button>
-                        <Checkbox
-                          checked={r.all}
-                          onChange={() => patchRow(r.id, { all: !r.all, keys: !r.all ? [NON_SHOOT_ALL] : [] })}
-                          label="All"
-                          theme="dark"
-                          className="shrink-0"
-                        />
-                        <Button theme="dark" variant="subtle" onPointerDown={(e) => { e.preventDefault(); setRows(prev => prev.filter(x => x.id !== r.id)); }} className="p-1 shrink-0" title={`Remove this ${catDef} row`}>
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      {(r.noteOpen || hasNotes) && noteKeys.length > 0 && (
-                        <div className="space-y-1.5 pl-10">
-                          {noteKeys.map(k => (
-                            <div key={k} className="flex items-center gap-2">
-                              <span className="text-[10px] text-zinc-400 truncate max-w-[130px] shrink-0">
-                                {r.all ? `All ${catDef}` : resolveElementName(k, r.category, project)}
-                              </span>
-                              <input
-                                type="text"
-                                value={r.notes[k] || ''}
-                                onChange={(e) => patchRow(r.id, { notes: { ...r.notes, [k]: e.target.value } })}
-                                placeholder={`Note for ${r.all ? `all ${catDef}` : resolveElementName(k, r.category, project)} — e.g. "Traveling from Singapore"`}
-                                className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
-                                autoFocus={r.noteOpen && !r.notes[k]}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    <div key={r.id} className="flex items-center gap-2">
+                      <CategoryDropdown
+                        value={r.category}
+                        onChange={(cat) => patchRow(r.id, { category: cat, keys: [], all: false })}
+                        allCategoryKeys={allCategoryKeys}
+                        categoryLabelLookup={categoryLabelLookup}
+                        customCategories={project.customCategories}
+                        open={openDropdown === `cat-${r.id}`}
+                        onOpenChange={(o) => setOpenDropdown(o ? `cat-${r.id}` : null)}
+                        btnClass="text-xs"
+                      />
+                      <EntityDropdown
+                        value={r.keys.join(', ')}
+                        onChange={val => patchRow(r.id, { keys: val.split(',').map(x => x.trim()).filter(Boolean), all: false })}
+                        items={items}
+                        positioning="fixed"
+                        portalTarget={portalTarget ?? document.body}
+                        mode="multi"
+                        variant="chip"
+                        placeholder={isCast ? 'Type cast members, comma-separated — e.g. 1, 2' : 'Type elements, comma-separated'}
+                        className="text-xs flex-1 min-w-0"
+                        displayMode={isCast ? 'id' : 'name'}
+                        anchoredKeys={anchoredByCategory.get(r.category)}
+                        renderItem={isCast ? (item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
+                      />
+                      <Checkbox
+                        checked={r.all}
+                        onChange={() => patchRow(r.id, { all: !r.all, keys: !r.all ? [NON_SHOOT_ALL] : [] })}
+                        label="All"
+                        theme="dark"
+                        variant="plain"
+                        className="shrink-0"
+                      />
+                      <Button theme="dark" variant="subtle" onPointerDown={(e) => { e.preventDefault(); setRows(prev => prev.filter(x => x.id !== r.id)); }} className="p-1 shrink-0" title={`Remove this ${catDef} row`}>
+                        <X className="w-3 h-3" />
+                      </Button>
                     </div>
                   );
                 })}
               </div>
               <button
                 type="button"
-                onClick={() => setRows(prev => [...prev, { id: newRowId(), category: allCategoryKeys[0]?.key || 'cast', keys: [], all: false, notes: {}, noteOpen: true }])}
+                onClick={() => setRows(prev => [...prev, { id: newRowId(), category: allCategoryKeys[0]?.key || 'cast', keys: [], all: false }])}
                 className="mt-2 flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
               >
-                <Plus className="w-3.5 h-3.5" /> Add {categoryLabelLookup[allCategoryKeys[0]?.key] || 'category'} row
+                <Plus className="w-3.5 h-3.5" /> Add element
               </button>
             </div>
             </>
