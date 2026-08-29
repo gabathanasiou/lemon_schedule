@@ -103,6 +103,18 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 |---|---|---|
 | Manager table rows | grid `border-b` / `border-r border-zinc-200` (lines must stay readable under the hover tint), zebra `bg-white` / `bg-zinc-50/30`, **row hover `hover:bg-zinc-100`** (gray — no blue), `transition-colors` | `managerShell.tsx:452`, `ElementManager.tsx:602` |
 
+### Item cards & rows (dark modals)
+
+The grouped-list surface of the element events manager, extracted as the shared `ItemCard` +
+`ItemRow` (`src/components/cards/`) — use these for any "one card per item, rows inside" list in a
+dark modal (day-type cards, Rules sections; RulesTab cast groups + day types are the light-theme
+migration candidates — the components are dark-only today).
+
+| Element | Classes | Source |
+|---|---|---|
+| Group card | container `rounded-lg border border-zinc-700 bg-zinc-800 overflow-hidden`; header row `flex items-center gap-2 px-3 py-2 hover:bg-zinc-700/50 transition-colors` — the toggle is a `flex-1 min-w-0 text-left` **button** (chevron `w-3.5 h-3.5 text-zinc-500`, icon, title `text-xs font-semibold text-zinc-200 truncate`, count `text-[10px] text-zinc-500`) with right-aligned `trailing` actions (e.g. Add Rule) OUTSIDE it — never nest a button inside the toggle; body band `border-t border-zinc-700/60 bg-zinc-900/60 p-2 space-y-1.5` — rows sit with gaps, no dividers (`bodyClass` overrides) | `cards/ItemCard.tsx` |
+| Interactive row | `ITEM_ROW_CLASS` (`src/components/cards/ItemRow.tsx`): `group flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800/60 transition-colors cursor-pointer rounded-md` — **row-wide click opens the item's editor**; title cell `w-28 ... group-hover:text-zinc-100` (focusable button, pointer cursor); **body + trailing swallow their own clicks** (note text = I-beam `cursor-text`; the remove X never opens the editor). The **dark `RuleCard` renders as this row** (compact: description + conflicts + delete X; full: + icon box + type chip) inside the per-type rule cards and the day modal's Rules tab — the light RulesTab theme keeps its boxed card | `cards/ItemRow.tsx`, `rules/RuleCard.tsx` |
+
 ### Status colors
 | Meaning | Classes |
 |---|---|
@@ -142,6 +154,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Full form surface | `Modal` + `ModalFooter` | §Modal anatomy |
 | Full-page detail editor | SceneSheet pattern (light page, NOT a modal) | `SceneSheet.tsx` |
 | Multi-select lists | `Checklist` / `RadioList` / `Checkbox` | kit, `data-theme` aware |
+| Grouped item list (dark modals) | `ItemCard` + `ItemRow` (`src/components/cards/`) | Collapsible group card + interactive row — the element events manager's day-type sections and its Rules section (first migrations). §Item cards below |
 
 Dropdown **light picker** classes live in `src/lib/dropdown.ts` (panel `bg-white border-zinc-200
 rounded-lg shadow-lg`, `DD_PANEL_CLASS_LIB` `:21-24`; items `DD_ITEM_CLASS_LIB` `:16-17`; selected

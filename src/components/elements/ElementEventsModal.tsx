@@ -16,8 +16,11 @@ import { EventAdderModal } from '../calendar/EventAdderModal';
 import { EventModal } from '../calendar/EventModal';
 import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
+import { RULE_TYPE_META, RULE_TYPES } from '../rules/ruleMeta';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
-import { ChevronDown, ChevronRight, CalendarDays, Plus, X, Flag, Clock4 } from 'lucide-react';
+import { ItemCard } from '../cards/ItemCard';
+import { ItemRow } from '../cards/ItemRow';
+import { CalendarDays, Plus, X, Flag, Clock4 } from 'lucide-react';
 
 interface ElementEventsModalProps {
   category: string;
@@ -87,6 +90,19 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
     [nonShootDates, identity.refKey, project.rules, violationMap],
   );
 
+  // Rules grouped by type, in the manager's rule-type order — one ItemCard
+  // per type (the same grouping the day-type cards use for events).
+  const rulesByType = useMemo(() => {
+    const map = new Map<string, ProjectRule[]>();
+    for (const r of data.rules) {
+      const list = map.get(r.type);
+      if (list) list.push(r); else map.set(r.type, [r]);
+    }
+    return [...map.entries()].sort(
+      (a, b) => (RULE_TYPES as string[]).indexOf(a[0]) - (RULE_TYPES as string[]).indexOf(b[0]),
+    );
+  }, [data.rules]);
+
   // Type cards: dates grouped by day type, in manager order.
   const typeCards = useMemo(() => {
     const byStatus = new Map<string, { date: string; groups: ElementEventGroup[] }[]>();
@@ -114,7 +130,14 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
       return next;
     });
   };
-  const [rulesCollapsed, setRulesCollapsed] = useState(false);
+  const [collapsedRuleTypes, setCollapsedRuleTypes] = useState<Set<string>>(new Set());
+  const toggleRuleType = (type: string) => {
+    setCollapsedRuleTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      return next;
+    });
+  };
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickedDate, setPickedDate] = useState<string | null>(null);
@@ -213,94 +236,76 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                 const Icon = typeIconComponent(project.dayTypes, status);
                 const collapsed = collapsedTypes.has(status);
                 return (
-                  <div key={status} data-element-event-type={status} className="rounded-lg border border-zinc-700 bg-zinc-800 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => toggleType(status)}
-                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-zinc-700/50 transition-colors text-left"
-                    >
-                      {collapsed ? <ChevronRight className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
-                      <Icon className="w-3.5 h-3.5 shrink-0" style={def?.color ? { color: def.color } : undefined} />
-                      <span className={`${CREM_TEXT} font-semibold text-zinc-200`}>{def?.label || status}</span>
-                      <span className="text-[10px] text-zinc-500">{rows.length} {rows.length === 1 ? 'day' : 'days'}</span>
-                    </button>
-                    {!collapsed && (
-                      <div className="border-t border-zinc-700/60 divide-y divide-zinc-700/60 bg-zinc-900/60">
-                        {rows.map(({ date, groups }) => {
-                          const note = groups.map(g => g.comment).find(Boolean) || '';
-                          const noteCategory = groups.find(g => !isAllKeys(g.keys))?.category || groups[0]?.category;
-                          const wholeOnly = groups.every(g => isAllKeys(g.keys));
-                          return (
-                            <div
-                              key={date}
-                              data-element-event-date={date}
-                              onClick={() => setNested({ kind: 'event', date, status })}
-                              title={`Edit ${identity.name}'s event on this day`}
-                              className="group flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                  <ItemCard
+                    key={status}
+                    icon={<Icon className="w-3.5 h-3.5 shrink-0" style={def?.color ? { color: def.color } : undefined} />}
+                    title={def?.label || status}
+                    count={`${rows.length} ${rows.length === 1 ? 'day' : 'days'}`}
+                    collapsed={collapsed}
+                    onToggle={() => toggleType(status)}
+                    dataProps={{ 'data-element-event-type': status }}
+                  >
+                    {rows.map(({ date, groups }) => {
+                      const note = groups.map(g => g.comment).find(Boolean) || '';
+                      const noteCategory = groups.find(g => !isAllKeys(g.keys))?.category || groups[0]?.category;
+                      const wholeOnly = groups.every(g => isAllKeys(g.keys));
+                      return (
+                        <ItemRow
+                          key={date}
+                          onClick={() => setNested({ kind: 'event', date, status })}
+                          titleAttr={`Edit ${identity.name}'s event on this day`}
+                          title={formatDateLabel(date)}
+                          dataProps={{ 'data-element-event-date': date }}
+                          trailing={!readOnly && (
+                            <button
+                              onClick={() => removeGroup(date, status, groups)}
+                              disabled={wholeOnly}
+                              title={wholeOnly ? `The whole ${statusLabel(status, project)} category is marked — remove the day's events in the editor` : `Remove ${identity.name} from this day`}
+                              aria-label={`Remove ${identity.name} from this day`}
+                              className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); setNested({ kind: 'event', date, status }); }}
-                                className="w-28 shrink-0 text-left text-[11px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors cursor-pointer"
-                              >
-                                {formatDateLabel(date)}
-                              </button>
-                              <div className="flex-1 min-w-0">
-                                {noteDate === date && noteCategory && !readOnly ? (
-                                  <input
-                                    autoFocus
-                                    type="text"
-                                    defaultValue={note}
-                                    placeholder="Add a note — e.g. 'Traveling from Singapore'"
-                                    onClick={(e) => e.stopPropagation()}
-                                    onBlur={(e) => { setNoteDate(null); commitNote(date, status, noteCategory, e.target.value); }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                                      if (e.key === 'Escape') { setNoteDate(null); }
-                                    }}
-                                    className={`${CREM_TEXT} px-2 py-0.5 rounded bg-zinc-900 border border-transparent hover:border-zinc-600 focus:border-zinc-500 transition-colors outline-none placeholder-zinc-600 text-[11px] [field-sizing:content] min-w-60 cursor-text`}
-                                  />
-                                ) : note ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); !readOnly && setNoteDate(date); }}
-                                    title={readOnly ? note : 'Edit note'}
-                                    className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-text"
-                                  >
-                                    <span className="text-zinc-500 shrink-0 font-medium">Notes:</span>
-                                    <span className="truncate italic">"{note}"</span>
-                                  </button>
-                                ) : !readOnly ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); setNoteDate(date); }}
-                                    className="text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors cursor-text"
-                                  >
-                                    Add note
-                                  </button>
-                                ) : (
-                                  <span className={`${CREM_LABEL} text-zinc-600 italic`}>No note</span>
-                                )}
-                              </div>
-                              {!readOnly && (
-                                <>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); removeGroup(date, status, groups); }}
-                                    disabled={wholeOnly}
-                                    title={wholeOnly ? `The whole ${statusLabel(status, project)} category is marked — remove the day's events in the editor` : `Remove ${identity.name} from this day`}
-                                    aria-label={`Remove ${identity.name} from this day`}
-                                    className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        >
+                          {noteDate === date && noteCategory && !readOnly ? (
+                            <input
+                              autoFocus
+                              type="text"
+                              defaultValue={note}
+                              placeholder="Add a note — e.g. 'Traveling from Singapore'"
+                              onBlur={(e) => { setNoteDate(null); commitNote(date, status, noteCategory, e.target.value); }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                if (e.key === 'Escape') { setNoteDate(null); }
+                              }}
+                              className={`${CREM_TEXT} px-2 py-0.5 rounded bg-zinc-900 border border-transparent hover:border-zinc-600 focus:border-zinc-500 transition-colors outline-none placeholder-zinc-600 text-[11px] [field-sizing:content] min-w-60 cursor-text`}
+                            />
+                          ) : note ? (
+                            <button
+                              type="button"
+                              onClick={() => !readOnly && setNoteDate(date)}
+                              title={readOnly ? note : 'Edit note'}
+                              className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-text"
+                            >
+                              <span className="text-zinc-500 shrink-0 font-medium">Notes:</span>
+                              <span className="truncate italic">"{note}"</span>
+                            </button>
+                          ) : !readOnly ? (
+                            <button
+                              type="button"
+                              onClick={() => setNoteDate(date)}
+                              className="text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors cursor-text"
+                            >
+                              Add note
+                            </button>
+                          ) : (
+                            <span className={`${CREM_LABEL} text-zinc-600 italic`}>No note</span>
+                          )}
+                        </ItemRow>
+                      );
+                    })}
+                  </ItemCard>
                 );
               })}
             </div>
@@ -330,35 +335,44 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
           </div>
         )}
 
-        {/* Rules referencing this element — hidden when there are none (and
-            never shown for non-cast elements, which can't carry rules) */}
+        {/* Rules referencing this element — one collapsible card per rule
+            type; hidden when there are none (and never shown for non-cast
+            elements, which can't carry rules) */}
         {(isCast || data.rules.length > 0) && (
-          <div>
+          <div className="space-y-2">
             <div className="flex items-center justify-between mb-2">
-              <button
-                type="button"
-                onClick={() => setRulesCollapsed(c => !c)}
-                className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 hover:text-zinc-200 transition-colors`}
-              >
-                {rulesCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
                 <Clock4 className="w-3 h-3" />
                 Rules
-                <span className="text-zinc-500 normal-case font-medium text-[10px]">({data.rules.length})</span>
-              </button>
+              </span>
               {isCast && !readOnly && (
                 <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'rule', rule: addRuleSkeleton })}>
                   <Plus className="w-3 h-3" /> Add Rule
                 </Button>
               )}
             </div>
-            {!rulesCollapsed && data.rules.length > 0 && (
-              <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-2 space-y-1.5">
-                {data.rules.map(r => (
-                  <RuleCard key={r.id} rule={r} castMembers={project.castMembers || []} theme="dark"
-                    onEdit={readOnly ? () => {} : () => setNested({ kind: 'rule', rule: r })} />
-                ))}
-              </div>
-            )}
+            {rulesByType.map(([type, rules]) => {
+              const meta = RULE_TYPE_META[type];
+              const Icon = meta.icon;
+              const collapsed = collapsedRuleTypes.has(type);
+              return (
+                <ItemCard
+                  key={type}
+                  icon={<Icon className={`w-3.5 h-3.5 shrink-0 ${meta.chipIcon}`} />}
+                  title={meta.label}
+                  count={`${rules.length} ${rules.length === 1 ? 'rule' : 'rules'}`}
+                  collapsed={collapsed}
+                  onToggle={() => toggleRuleType(type)}
+                  dataProps={{ 'data-element-rule-type': type }}
+                >
+                  {rules.map(r => (
+                    <RuleCard key={r.id} rule={r} castMembers={project.castMembers || []} theme="dark" compact
+                      onEdit={readOnly ? () => {} : () => setNested({ kind: 'rule', rule: r })}
+                      onDelete={readOnly ? undefined : () => dispatch({ type: 'DELETE_RULE', payload: r.id })} />
+                  ))}
+                </ItemCard>
+              );
+            })}
           </div>
         )}
       </div>

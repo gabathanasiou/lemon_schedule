@@ -155,21 +155,24 @@ export const RuleTypeIcon: React.FC<{ type: RuleType; className?: string }> = ({
   return <Icon className={className} />;
 };
 
-/** Cast-aware rule description for cards ("1. FISHERMAN: max 8h" + extra-date
- *  scope) — the shared text for RuleCard in both the Rules tab and the day
- *  modal. `describeRule` stays the compact chip text. */
+/** Cast-aware rule description for the rule CARDS ("1. FISHERMAN: max 8h").
+ *  Specific scopes are spelled out — the dates themselves (first two + "+N
+ *  more") and the time window — so a card reads at a glance. `describeRule`
+ *  stays the compact chip text (tooltips, search). */
 export function describeRuleDetailed(rule: ProjectRule, castMembers: Array<{ id: string; name: string }>): string {
-  const scope = (dates?: string[]) => {
-    if (!dates || dates.length <= 1) return '';
-    return ` · also ${dates.length - 1} more date${dates.length === 2 ? '' : 's'}`;
+  const dateClause = (dates?: string[], none = 'every day') => {
+    if (!dates || dates.length === 0) return none;
+    if (dates.length === 1) return `on ${formatRuleDateShort(dates[0])}`;
+    if (dates.length === 2) return `on ${formatRuleDateShort(dates[0])}, ${formatRuleDateShort(dates[1])}`;
+    return `on ${formatRuleDateShort(dates[0])}, ${formatRuleDateShort(dates[1])} +${dates.length - 2} more`;
   };
   switch (rule.type) {
     case 'MAX_HOURS':
-      return `${formatCastId(rule.castId, castMembers)}: max ${rule.maxHours}h${scope(rule.dates)}`;
+      return `${formatCastId(rule.castId, castMembers)}: max ${rule.maxHours}h ${dateClause(rule.dates)}`;
     case 'DATE_RESTRICTION':
-      return `${formatCastId(rule.castId, castMembers)}: unavailable${scope(rule.dates)}`;
+      return `${formatCastId(rule.castId, castMembers)}: unavailable ${dateClause(rule.dates, 'no dates set')}`;
     case 'TIME_WINDOW':
-      return `${formatCastId(rule.castId, castMembers)}: only ${timeWindowLabel(rule.windowStart, rule.windowEnd)}${scope(rule.dates)}`;
+      return `${formatCastId(rule.castId, castMembers)}: only ${timeWindowLabel(rule.windowStart, rule.windowEnd)} ${dateClause(rule.dates)}`;
     case 'CAST_CONFLICT':
       return `${formatCastIds(rule.castIds, castMembers)} vs ${formatCastIds(rule.conflictCastIds, castMembers)}`;
     default:

@@ -72,7 +72,8 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   await expect(travelCard.locator('[data-element-event-date]')).toHaveCount(1);
   const row16 = travelCard.locator('[data-element-event-date="2026-08-16"]');
   await expect(row16).toContainText('Aug');
-  await expect(row16.locator('button[title="Edit this event"]')).toBeVisible();
+  // The whole row is the editor trigger (title on the row); the remove X is trailing
+  await expect(row16).toHaveAttribute('title', "Edit 1. FISHERMAN's event on this day");
   await expect(row16.locator('button[aria-label="Remove 1. FISHERMAN from this day"]')).toBeVisible();
   await expect(travelCard.locator('[data-element-event-group]')).toHaveCount(0);
 
@@ -110,20 +111,18 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   }, seedInfo.fid)).toBe(3);
 
   // ---- Add Event on a new date: the shared adder opens ELEMENT-LOCKED (the
-  //     element in its category), the date is picked via the chrome calendar,
+  //     element in its category) with the calendar INLINE (multi-pick),
   //     Create merges it onto the day as a per-element card
   await modal.getByRole('button', { name: 'Add Event on a Date' }).click();
   const adder = page.getByRole('dialog').last();
   await expect(adder.getByRole('heading', { name: /1\. FISHERMAN/ })).toBeVisible();
-  await adder.getByRole('button', { name: 'Pick a date' }).click();
-  // The kit DatePicker opens on the current month — navigate to August 2026
-  // whenever we land elsewhere (the fixture dates live in August). The chrome
-  // panel portals to the page root, so the picker lives OUTSIDE the dialog.
+  // The inline DatePicker opens on the current month — navigate to August 2026
+  // whenever we land elsewhere (the fixture dates live in August).
   let guard = 0;
-  while (!(await page.getByText(/August 2026/).isVisible().catch(() => false)) && guard++ < 24) {
-    await page.getByRole('button', { name: 'Previous month' }).first().click();
+  while (!(await adder.getByText(/August 2026/).isVisible().catch(() => false)) && guard++ < 24) {
+    await adder.getByRole('button', { name: 'Previous month' }).click();
   }
-  await page.getByRole('button', { name: '17', exact: true }).first().click();
+  await adder.getByRole('button', { name: '17', exact: true }).click();
   await adder.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { name: /1\. FISHERMAN — Events/ })).toBeVisible();
   await expect.poll(() => page.evaluate((fid) => {
@@ -155,13 +154,14 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   await expect(page.locator('[data-element-event-date="2026-08-16"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Close' }).click();
 
-  // ---- Non-cast elements: day rows render, rules are cast-only
+  // ---- Non-cast elements: day rows render, rules are cast-only (the Rules
+  //     section is hidden entirely — it can never carry rules)
   await page.locator('aside').getByRole('button', { name: /Wardrobe/ }).click();
   const glovesRow = page.locator('tr', { has: page.locator('input[value="pair of boxing gloves"]') });
   await expect(glovesRow).toBeVisible();
   await glovesRow.locator('button[title^="Events"]').click();
   await expect(page.getByRole('dialog').getByRole('heading', { name: /pair of boxing gloves — Events/ })).toBeVisible();
-  await expect(page.getByRole('dialog').getByText("can't carry rules", { exact: false })).toBeVisible();
+  await expect(page.getByRole('dialog').getByText('Rules', { exact: true })).toHaveCount(0);
   await expect(page.locator('[data-element-event-type="travel"] [data-element-event-date]')).toHaveCount(1);
   await expect(page.locator('[data-element-event-type="travel"] [data-element-event-date="2026-08-16"]')).toContainText('Aug');
 });
