@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { openSeededProject } from './helpers';
 
-test('calendar travel/hold: status dropdown, attach section, header icons, tooltip, body chips, DOODS cells', async ({ page }) => {
+test('calendar travel/hold: status dropdown, event cards, header icons, tooltip, body chips, DOODS cells', async ({ page }) => {
   await openSeededProject(page);
 
   await page.getByRole('button', { name: 'Calendar' }).click();
@@ -9,23 +9,31 @@ test('calendar travel/hold: status dropdown, attach section, header icons, toolt
   await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
 
-  // Double-click a day header opens the day events modal (no status → attachment hint)
+  // Double-click a day header opens the day events modal (no events → empty state)
   await header.dblclick();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
-  await expect(page.getByText('No event types attached', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByText('No events on this day', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Done' }).click();
 
-  // Set Travel via context menu, then Manage Travel/Hold → attach a cast member
+  // Set Travel via context menu, then manage the day → add FISHERMAN's travel card
   await header.click({ button: 'right' });
   await page.getByText('Travel', { exact: true }).click();
   await expect(dayCell.getByText('TRAVEL', { exact: true })).toBeVisible();
 
   await header.click({ button: 'right', force: true });
   await page.getByText('Manage Travel/Hold…').click();
-  await expect(page.locator('[data-event-section]').first()).toContainText('Travel');
-  await page.locator('input.text-inherit').nth(0).click();
+  // Add Event opens the shared adder pre-targeted to this day (Travel preselected)
+  await page.getByRole('button', { name: 'Add Event' }).click();
+  const adder = page.getByRole('dialog').last();
+  await expect(adder.getByRole('heading', { name: 'Add Events' })).toBeVisible();
+  await adder.locator('input').first().click();
   await page.getByText('FISHERMAN', { exact: true }).first().click();
-  await page.getByRole('button', { name: 'Save' }).click();
+  await adder.getByRole('button', { name: 'Create', exact: true }).click();
+  // The travel card lists FISHERMAN with its category label
+  const travelCard = page.locator('[data-event-card="travel"]');
+  await expect(travelCard).toContainText('FISHERMAN');
+  await expect(travelCard).toContainText('Cast');
+  await page.getByRole('button', { name: 'Done' }).click();
   const planeIcon = dayCell.locator('svg[style*="rgb(147, 51, 234)"]');
   await expect(planeIcon).toBeVisible();
 
@@ -34,7 +42,7 @@ test('calendar travel/hold: status dropdown, attach section, header icons, toolt
   await expect(tip).toBeVisible();
   await expect(tip).toContainText('FISHERMAN');
 
-  // Hold day: label on the calendar, then attach all cast via the All checkbox
+  // Hold day: label on the calendar, then attach ALL cast via the adder's All checkbox
   const day2 = page.locator('[data-date-key="2026-08-11"]');
   const header2 = day2.locator('[class*="flex items-center justify-between"]').first();
   await header2.click({ button: 'right' });
@@ -44,9 +52,13 @@ test('calendar travel/hold: status dropdown, attach section, header icons, toolt
 
   await header2.dblclick({ force: true });
   await page.waitForTimeout(400);
-  await expect(page.locator('[data-event-section]').last()).toContainText('Hold');
+  await page.getByRole('button', { name: 'Add Event' }).click();
+  const adder2 = page.getByRole('dialog').last();
   await page.getByText('All', { exact: true }).last().click();
-  await page.getByRole('button', { name: 'Save' }).click();
+  await adder2.getByRole('button', { name: 'Create', exact: true }).click();
+  // The hold card shows the whole-category row "All Cast"
+  await expect(page.locator('[data-event-card="hold"]')).toContainText('All Cast');
+  await page.getByRole('button', { name: 'Done' }).click();
   await expect(day2.getByText('All Cast', { exact: true })).toBeVisible();
 
   await day2.locator('button', { has: page.locator('svg[style*="rgb(220, 38, 38)"]') }).hover();

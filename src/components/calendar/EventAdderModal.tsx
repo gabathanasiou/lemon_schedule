@@ -37,13 +37,15 @@ let adderRowSeq = 0;
 const newRowId = () => `arow-${++adderRowSeq}`;
 
 interface EventAdderModalProps {
-  /** Pre-targeted date (calendar right-click). When absent the adder shows
-   *  the date picker. */
+  /** Pre-targeted date (calendar right-click / the day modal's Add Event).
+   *  When absent the adder shows the date picker. */
   date?: string;
   /** Element-locked mode (Element Manager): a fixed category + element(s) —
    *  only that element's cards are created. Without it, rows are free-form
    *  (comma-typed multi elements per category, like the day manager). */
   preseed?: { category: string; keys: string[] };
+  /** Pre-selected event type (the day modal opens it with the day's status). */
+  status?: string;
   onClose: () => void;
 }
 
@@ -59,7 +61,7 @@ function formatDateLabel(dateKey: string): string {
  *  locked to one element (Element Manager mode). Create merges into the
  *  day's entry; each element renders as its own card. A "Create Rule
  *  instead" swap builds a rule on the same date via the shared editor. */
-export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAdderModalProps) {
+export function EventAdderModal({ date: preseedDate, preseed, status: statusProp, onClose }: EventAdderModalProps) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const dialog = useDialog();
@@ -75,7 +77,7 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
     () => getMarkableDayTypes(project).filter(t => t.attachable !== false),
     [project],
   );
-  const [status, setStatus] = useState<string>(attachableTypes[0]?.key || 'travel');
+  const [status, setStatus] = useState<string>(statusProp ?? (attachableTypes[0]?.key || 'travel'));
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
 
   // Element-locked mode: the category + element(s) are fixed by the caller.

@@ -1,70 +1,45 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useProject } from '../../store';
 import { NonShootDate, ProjectRule, RuleViolation } from '../../types';
-import { getTypeLists, NON_SHOOT_ALL, resolveElementName } from '../../lib/nonShootHelpers';
+import { NON_SHOOT_ALL, getNonShootEntryMap, upsertNonShootDate } from '../../lib/nonShootHelpers';
 import { getMarkableDayTypes, getDayType, typeIconComponent } from '../../lib/dayTypes';
-import { getCategoryElements } from '../../lib/elements';
-import { anchoredKeysFor } from '../../lib/elementLinks';
-import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
-import { getUniqueCastIds } from '../../lib/utils';
 import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
-import { EntityDropdown } from '../EntityDropdown';
-import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { usePortalTarget } from '../../lib/popoutTarget';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
-import {
-  describeRule,
-} from '../rules/ruleMeta';
+import { RULE_TYPE_META, RULE_TYPES } from '../rules/ruleMeta';
 import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
-import { typeRankOf, categoryRankOf } from '../../lib/events';
+import { ItemCard } from '../cards/ItemCard';
+import { ItemRow } from '../cards/ItemRow';
+import { removeItemsFrom, setNote, computeDayTypeCards } from '../../lib/events';
+import { ELEMENT_CATEGORIES, getLabel, CAT_ICONS, getCustomIcon } from '../../lib/categories';
+import { EventAdderModal } from './EventAdderModal';
+import { EventModal } from './EventModal';
 import Button from '../Button';
-import Checkbox from '../Checkbox';
-import { Plus, X, Check, ChevronDown, Link2, Sun, Flag, MessageSquare, Trash2 } from 'lucide-react';
-
-interface AttachRow {
-  category: string;
-  keys: string[];
-  all: boolean;
-}
-
-/** One editable event type on the day — its attachment rows + PER-ELEMENT
- *  notes (each element's card carries its own note). */
-interface EventSection {
-  status: string;
-  rows: AttachRow[];
-  /** category → element key → note text (saved into
-   *  `comments[status][category][key]`). */
-  notes: Record<string, Record<string, string>>;
-  /** category → note editor open. */
-  commentOpen: Record<string, boolean>;
-}
+import { Plus, X, ChevronDown, Link2, Sun, Flag } from 'lucide-react';
 
 interface DayEventsModalProps {
   dateKey: string;
-  entry?: NonShootDate | null;
   violations?: RuleViolation[];
   /** Rules whose `dates` include this date (DATE_RESTRICTION + dated MAX_HOURS/TIME_WINDOW). */
   rules?: ProjectRule[];
-  /** Event type to focus on open (card double-click) — its section is added
-   *  if missing and scrolled into view. */
+  /** Event type to focus on open (card double-click). */
   initialStatus?: string;
   /** Rule to open in the rule editor on mount (rule-card double-click) —
    *  opens on the Rules tab with the editor ready. */
   initialRule?: ProjectRule | null;
-  /** Pre-attach this element on open (Element Manager events): the element's
-   *  category row is seeded with the keys — merged into an existing section's
-   *  same-category row, added to the first section, or a new section under
-   *  the first attachable day type when the day has none. */
-  preseedItems?: { category: string; keys: string[] };
-  onSave: (entry: NonShootDate) => void;
   onClose: () => void;
 }
+
+type NestedModal =
+  | { kind: 'event'; status: string; category: string; refKey: string }
+  | { kind: 'rule'; rule: ProjectRule | null }
+  | { kind: 'adder' };
 
 function formatDateLabel(dateKey: string): string {
   const d = new Date(dateKey + 'T00:00:00');
@@ -72,59 +47,92 @@ function formatDateLabel(dateKey: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-const blankRows = (): AttachRow[] => [{ category: 'cast', keys: [], all: false }];
-
 /** The day-centric events editor (roadmap 45) — the shared shell item 46
- *  reuses. A day can carry MULTIPLE event types: one section per status with
- *  attachment rows (category + cast/elements + All) and a per-row comment
- *  ("Traveling from Singapore"), plus the single day status picker (header),
- *  read-only Conflicts, and date-scoped Rules (edit/add via the shared
- *  RuleEditorPanel, pre-seeded with the date — same editor the Rules tab
- *  opens). Per-open section filter collapses by kind. */
-export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, violations, rules = [], initialStatus, initialRule, preseedItems, onSave, onClose }) => {
-  const { state, dispatch } = useProject();
+ *  reuses. Every mutation applies IMMEDIATELY (undoable): one collapsible
+ *  ItemCard per event type with a row per element (cast as "1. FISHERMAN",
+ *  whole-category marks as "All <Category>"), row click opens the shared
+ *  single-event editor, inline per-element notes, ✕ removes the group.
+ *  "+ Add Event" opens the shared adder pre-targeted to this day. The
+ *  day-status picker dispatches immediately too — the footer is just Done.
+ *  Read-only Conflicts + date-scoped Rules (per-type cards) complete it. */
+export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violations, rules = [], initialStatus, initialRule, onClose }) => {
+  const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const portalTarget = usePortalTarget();
 
   const sizes = ruleModalSizes();
-  const { XSZ, CREM_LABEL, CREM_TEXT, CREM_BODY, CREM_BTN_COND } = sizes;
+  const { XSZ, CREM_BODY, CREM_LABEL, CREM_TEXT } = sizes;
 
+  // Live from the store (the modal mutates directly — no staged save).
+  const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
+  const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
+  const entryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
+  const entry = entryByDate.get(dateKey);
+
+  const dayTypes = useMemo(() => getMarkableDayTypes(project), [project]);
+  const [statusKey, setStatusKey] = useState<string | null>(initialStatus ?? entry?.status ?? null);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const activeType = statusKey ? getDayType(project, statusKey) : undefined;
+
+  // Category labels + icons — each element row shows its category (a type
+  // card mixes cast + props + wardrobe, so the origin must be visible).
   const categoryLabelLookup = useMemo(() => {
     const map: Record<string, string> = {};
     for (const c of ELEMENT_CATEGORIES) map[c.key] = getLabel(c.key, c.label, project.categoryLabels);
     for (const c of project.customCategories || []) map[c.key] = c.label;
     return map;
   }, [project.categoryLabels, project.customCategories]);
-
-  const allCategoryKeys = useMemo(() => {
-    const keys: { key: string; isCustom: boolean }[] = [];
-    const seen = new Set<string>();
-    for (const c of ELEMENT_CATEGORIES) { if (!seen.has(c.key)) { seen.add(c.key); keys.push({ key: c.key, isCustom: false }); } }
-    for (const c of project.customCategories || []) { if (!seen.has(c.key)) { seen.add(c.key); keys.push({ key: c.key, isCustom: true }); } }
-    return keys;
-  }, [project.customCategories]);
-
-  // Per-category anchor item keys — Anchor icons in the attachment pickers.
-  const anchoredByCategory = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    for (const cat of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
-      map.set(cat, anchoredKeysFor(project.elementLinks, cat));
+  const catIcon = (category: string, className: string) => {
+    const custom = (project.customCategories || []).find(c => c.key === category);
+    if (custom) {
+      const I = getCustomIcon(custom.icon || 'Tag');
+      return <I className={className} />;
     }
-    return map;
-  }, [project.elementLinks]);
+    const I = CAT_ICONS[category];
+    return I ? <I className={className} /> : null;
+  };
 
-  const dayTypes = useMemo(() => getMarkableDayTypes(project), [project]);
-  const [statusKey, setStatusKey] = useState<string | null>(entry?.status || null);
-  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
-  const [addTypeOpen, setAddTypeOpen] = useState(false);
-  const activeType = statusKey ? getDayType(project, statusKey) : undefined;
+  // Event-type cards: one per type, rows = the elements marked on this day.
+  const typeCards = useMemo(
+    () => computeDayTypeCards(project, entry),
+    [project, entry],
+  );
+  const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(new Set());
+  const toggleType = (status: string) => {
+    setCollapsedTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status); else next.add(status);
+      return next;
+    });
+  };
+  /** Row whose note input is open (inline add/edit — Enter/blur commits). */
+  const [noteFor, setNoteFor] = useState<{ status: string; category: string; refKey: string } | null>(null);
+
+  // Rules grouped by type, in the manager's rule-type order — one ItemCard
+  // per type (the element events manager's rules view, shared).
+  const rulesByType = useMemo(() => {
+    const map = new Map<string, ProjectRule[]>();
+    for (const r of rules) {
+      const list = map.get(r.type);
+      if (list) list.push(r); else map.set(r.type, [r]);
+    }
+    return [...map.entries()].sort(
+      (a, b) => (RULE_TYPES as string[]).indexOf(a[0]) - (RULE_TYPES as string[]).indexOf(b[0]),
+    );
+  }, [rules]);
+  const [collapsedRuleTypes, setCollapsedRuleTypes] = useState<Set<string>>(new Set());
+  const toggleRuleType = (type: string) => {
+    setCollapsedRuleTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      return next;
+    });
+  };
 
   // Tabbed layout (per-open, not persisted): one section at a time.
   const [activeTab, setActiveTab] = useState<'events' | 'conflicts' | 'rules'>(initialRule ? 'rules' : 'events');
 
   // Rule editor state: null closed, { rule: undefined } = add, { rule } = edit.
-  // The editor itself is the shared RuleEditorPanel (rules/RuleEditorPanel.tsx).
-  // `initialRule` (rule-card double-click) opens the Rules tab with the editor ready.
   const [ruleEditor, setRuleEditor] = useState<{ rule?: ProjectRule | null } | null>(initialRule ? { rule: initialRule } : null);
   // Radix stacks dialogs by open ORDER — mounting the nested modal in the same
   // commit as the day modal corrupts the stack (both get aria-hidden). Open it
@@ -134,203 +142,66 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
     if (initialRule) setRuleModalReady(true);
   }, [initialRule]);
 
+  const [nested, setNested] = useState<NestedModal | null>(null);
+  const [nestedReady, setNestedReady] = useState(false);
+  useEffect(() => {
+    if (nested) setNestedReady(true);
+  }, [nested]);
+
   const openRuleEditor = (rule?: ProjectRule | null) => {
     setRuleEditor({ rule });
   };
 
-  const castOptions = useMemo(() => {
-    const ids = [...new Set([
-      ...getUniqueCastIds(project.scenes),
-      ...(project.castMembers || []).map(m => m.id),
-    ])].sort((a, b) => {
-      const na = parseInt(a, 10), nb = parseInt(b, 10);
-      if (!isNaN(na) && !isNaN(nb)) return na - nb;
-      if (!isNaN(na)) return -1;
-      if (!isNaN(nb)) return 1;
-      return a.localeCompare(b);
-    });
-    return ids.map(id => {
-      const m = (project.castMembers || []).find(c => c.id === id);
-      return { id, name: m?.name || '?' };
-    });
-  }, [project.scenes, project.castMembers]);
-
-  const seedSections = (): EventSection[] => {
-    const statuses = Object.keys(entry?.lists || {}).filter(s => {
-      const v = Object.values(entry!.lists![s] || {});
-      return v.some(arr => arr.length > 0);
-    });
-    const notesFor = (status: string): Record<string, Record<string, string>> => {
-      const notes: Record<string, Record<string, string>> = {};
-      if (entry?.comments?.[status] && typeof entry.comments[status] === 'object') {
-        for (const [category, catNotes] of Object.entries(entry.comments[status])) {
-          if (catNotes && typeof catNotes === 'object') notes[category] = { ...catNotes };
-        }
-      }
-      return notes;
-    };
-    const out: EventSection[] = statuses.map(status => ({
-      status,
-      rows: Object.entries(entry!.lists![status]!)
-        .map(([category, keys]) => ({ category, keys: [...keys], all: keys.includes(NON_SHOOT_ALL) }))
-        .sort((a, b) => categoryRankOf(a.category) - categoryRankOf(b.category)),
-      notes: notesFor(status),
-      commentOpen: {},
-    }));
-    if (entry?.status && !out.some(s => s.status === entry.status)) {
-      const t = getDayType(project, entry.status);
-      if (t?.attachable) out.push({ status: entry.status, rows: blankRows(), notes: {}, commentOpen: {} });
-    }
-    if (initialStatus && !out.some(s => s.status === initialStatus)) {
-      out.push({ status: initialStatus, rows: blankRows(), notes: {}, commentOpen: {} });
-    }
-    // Element Manager events: pre-add the element's cards (merge into an
-    // existing same-category row, else the first section, else a new section
-    // under the first attachable day type).
-    if (preseedItems && preseedItems.keys.length > 0) {
-      const { category: cat, keys } = preseedItems;
-      const existingSection = out.find(s => s.rows.some(r => r.category === cat));
-      if (existingSection) {
-        const row = existingSection.rows.find(r => r.category === cat);
-        if (row) {
-          row.keys = [...new Set([...row.keys, ...keys])];
-          row.all = false;
-        } else {
-          existingSection.rows.push({ category: cat, keys: [...keys], all: false });
-        }
-      } else if (out.length > 0) {
-        out[0].rows.push({ category: cat, keys: [...keys], all: false });
-      } else {
-        const firstAttachable = getMarkableDayTypes(project).find(t => t.attachable !== false);
-        if (firstAttachable) {
-          out.push({ status: firstAttachable.key, rows: [{ category: cat, keys: [...keys], all: false }], notes: {}, commentOpen: {} });
-        }
-      }
-    }
-    // Same ordering as the calendar cards: manager's day-type order.
-    return out.sort((a, b) => typeRankOf(project, a.status) - typeRankOf(project, b.status));
-  };
-
-  const [sections, setSections] = useState<EventSection[]>(seedSections);
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const rowRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
-
+  /** The day status applies IMMEDIATELY (undoable) — nothing is staged. */
   const changeStatus = (key: string | null) => {
     setStatusKey(key);
-    if (key && !sections.some(s => s.status === key)) {
-      const t = getDayType(project, key);
-      if (t?.attachable) {
-        setSections(prev => [...prev, { status: key, rows: blankRows(), notes: {}, commentOpen: {} }]);
-        requestAnimationFrame(() => {
-          document.querySelector(`[data-event-section="${dateKey}-${key}"]`)?.scrollIntoView({ block: 'nearest' });
-        });
-      }
-    }
-  };
-
-  const addSection = (status: string) => {
-    if (sections.some(s => s.status === status)) return;
-    setSections(prev => [...prev, { status, rows: blankRows(), notes: {}, commentOpen: {} }]);
-    requestAnimationFrame(() => {
-      document.querySelector(`[data-event-section="${dateKey}-${status}"]`)?.scrollIntoView({ block: 'nearest' });
+    if (!activeVersion) return;
+    const base = entryByDate.get(dateKey);
+    const next: NonShootDate = {
+      ...(base || { date: dateKey }),
+      date: dateKey,
+      ...(key ? { status: key } : {}),
+    };
+    if (!key) delete next.status;
+    dispatch({
+      type: 'UPDATE_VERSION',
+      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, next) },
     });
   };
 
-  const removeSection = (status: string) =>
-    setSections(prev => prev.filter(s => s.status !== status));
-
-  const sectionFor = (status: string) => sections.find(s => s.status === status)!;
-
-  const addRow = (status: string) => {
-    const first = allCategoryKeys[0];
-    setSections(prev => prev.map(s => s.status === status
-      ? { ...s, rows: [...s.rows, { category: first ? first.key : 'cast', keys: [], all: false }] }
-      : s));
+  /** Removes ONE element's group of a type (the day's whole-category mark
+   *  when `all`). A fully-emptied entry prunes the date row. */
+  const removeGroup = (status: string, category: string, refKey: string, all: boolean) => {
+    if (readOnly || !activeVersion) return;
+    const next = removeItemsFrom(entryByDate.get(dateKey), status, category, all ? [NON_SHOOT_ALL] : [refKey]);
+    dispatch({
+      type: 'UPDATE_VERSION',
+      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, next ?? { date: dateKey }) },
+    });
   };
 
-  const removeRow = (status: string, idx: number) =>
-    setSections(prev => prev.map(s => s.status === status
-      ? { ...s, rows: s.rows.filter((_, i) => i !== idx) }
-      : s));
-
-  const setCategory = (status: string, idx: number, category: string) =>
-    setSections(prev => prev.map(s => s.status === status
-      ? { ...s, rows: s.rows.map((r, i) => i === idx ? { ...r, category, keys: [], all: false } : r) }
-      : s));
-
-  const setKeys = (status: string, idx: number, keys: string[]) =>
-    setSections(prev => prev.map(s => s.status === status
-      ? { ...s, rows: s.rows.map((r, i) => i === idx ? { ...r, keys, all: false } : r) }
-      : s));
-
-  const toggleAll = (status: string, idx: number) =>
-    setSections(prev => prev.map(s => s.status === status
-      ? { ...s, rows: s.rows.map((r, i) => i === idx ? { ...r, all: !r.all, keys: !r.all ? [NON_SHOOT_ALL] : [] } : r) }
-      : s));
-
-  const setComment = (status: string, category: string, key: string, text: string) =>
-    setSections(prev => prev.map(s => s.status === status
-      ? { ...s, notes: { ...s.notes, [category]: { ...(s.notes[category] || {}), [key]: text } } }
-      : s));
-
-  const toggleComment = (status: string, category: string) =>
-    setSections(prev => prev.map(s => s.status === status
-      ? { ...s, commentOpen: { ...s.commentOpen, [category]: !s.commentOpen[category] } }
-      : s));
-
-  const handleSave = () => {
-    const nextLists: Record<string, Record<string, string[]>> = {};
-    const nextComments: Record<string, Record<string, Record<string, string>>> = {};
-    for (const sec of sections) {
-      const map: Record<string, string[]> = {};
-      for (let i = 0; i < sec.rows.length; i++) {
-        const r = sec.rows[i];
-        const raw = rowRefs.current.get(`${sec.status}-${i}`)?.querySelector('input')?.value ?? '';
-        const keys = r.all
-          ? [NON_SHOOT_ALL]
-          : (raw || r.keys.join(', ')).split(',').map(k => k.trim()).filter(Boolean);
-        if (keys.length === 0) continue;
-        map[r.category] = [...(map[r.category] || []), ...keys];
-      }
-      if (Object.keys(map).length > 0) nextLists[sec.status] = map;
-      for (const [cat, notes] of Object.entries(sec.notes)) {
-        const nonEmpty: Record<string, string> = {};
-        for (const [key, text] of Object.entries(notes)) {
-          const trimmed = text.trim();
-          if (trimmed) nonEmpty[key] = trimmed;
-        }
-        if (Object.keys(nonEmpty).length > 0) {
-          nextComments[sec.status] = nextComments[sec.status] || {};
-          nextComments[sec.status][cat] = nonEmpty;
-        }
-      }
-    }
-    const next: NonShootDate = {
-      date: dateKey,
-      ...(statusKey ? { status: statusKey } : {}),
-      ...(Object.keys(nextLists).length > 0 ? { lists: nextLists } : {}),
-      ...(Object.keys(nextComments).length > 0 ? { comments: nextComments } : {}),
-    };
-    onSave(next);
-    onClose();
+  /** Inline note save — `comments[status][category][refKey]` ('*' for the
+   *  whole-category mark); empty text clears it. */
+  const commitNote = (status: string, category: string, refKey: string, text: string) => {
+    if (!activeVersion) return;
+    const base = entryByDate.get(dateKey) || { date: dateKey };
+    dispatch({
+      type: 'UPDATE_VERSION',
+      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, { ...base, comments: setNote(base.comments, status, category, refKey, text) }) },
+    });
   };
-
-  const getItemsFor = (category: string) => getCategoryElements(project, category);
 
   const StatusIcon = (key: string | null, sizeClass: string = XSZ, color?: string) => {
     const Icon = typeIconComponent(project.dayTypes, key);
     return <Icon className={sizeClass} style={color ? { color } : undefined} />;
   };
 
-  const addableTypes = dayTypes.filter(t => !sections.some(s => s.status === t.key));
-
   return (
     <>
     <Modal open onClose={onClose} title={`Day Events — ${formatDateLabel(dateKey)}`} width="max-w-2xl"
       footer={
         <ModalFooter>
-          <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
-          <ModalFooterButton onClick={handleSave}>Save</ModalFooterButton>
+          <ModalFooterButton onClick={onClose}>Done</ModalFooterButton>
         </ModalFooter>
       }
     >
@@ -387,151 +258,100 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
         </div>
 
         {activeTab === 'events' && (
-          <div className="mb-4">
+          <div>
             <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
               <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
                 <Link2 className={`${XSZ} text-zinc-400`} />
-                Event Types
+                Events
               </span>
-              <DropdownMenu
-                open={addTypeOpen}
-                onOpenChange={setAddTypeOpen}
-                width="w-36"
-                theme="dark"
-                trigger={
-                  <Button theme="dark" variant="primary" className="flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> Add event type
-                  </Button>
-                }
-              >
-                {addableTypes.length === 0 ? (
-                  <DropdownItem onClick={() => setAddTypeOpen(false)}>All types are attached</DropdownItem>
-                ) : addableTypes.map(t => (
-                  <DropdownItem key={t.key} onClick={() => { addSection(t.key); setAddTypeOpen(false); }}
-                    icon={StatusIcon(t.key, 'w-3.5 h-3.5', t.color)}
-                  >
-                    <span className="text-zinc-200">{t.label}</span>
-                  </DropdownItem>
-                ))}
-              </DropdownMenu>
+              <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'adder' })} disabled={readOnly}>
+                <Plus className="w-3 h-3" /> Add Event
+              </Button>
             </div>
 
-            {sections.length === 0 ? (
-              <p className={`${CREM_LABEL} text-zinc-600 italic`}>No event types attached — pick a day status or add an event type.</p>
+            {typeCards.length === 0 ? (
+              <p className={`${CREM_LABEL} text-zinc-600 italic`}>No events on this day — add an event.</p>
             ) : (
-              <div className="space-y-4">
-                {sections.map(sec => {
-                  const def = getDayType(project, sec.status);
-                  const attachable = def?.attachable !== false;
-                  const SecIcon = typeIconComponent(project.dayTypes, sec.status);
+              <div className="space-y-2">
+                {typeCards.map(({ status, rows }) => {
+                  const def = getDayType(project, status);
+                  const Icon = typeIconComponent(project.dayTypes, status);
+                  const collapsed = collapsedTypes.has(status);
                   return (
-                    <div key={sec.status} data-event-section={`${dateKey}-${sec.status}`} className="border border-zinc-800 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <SecIcon className={XSZ} style={def?.color ? { color: def.color } : undefined} />
-                        <span className={`${CREM_TEXT} font-semibold text-zinc-200`}>{def?.label || sec.status}</span>
-                        <Button theme="dark" variant="subtle" className="ml-auto flex items-center gap-1" onPointerDown={(e) => { e.preventDefault(); addRow(sec.status); }}>
-                          <Plus className="w-3 h-3" /> Add
-                        </Button>
-                        <Button theme="dark" variant="danger-ghost" onPointerDown={(e) => { e.preventDefault(); removeSection(sec.status); }} title={`Remove ${def?.label || sec.status}`} className="p-1">
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      {!attachable ? (
-                        <p className={`${CREM_LABEL} text-zinc-600 italic`}>This day type doesn't support attaching cast or elements.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {sec.rows.map((r, i) => {
-                            const isCast = r.category === 'cast';
-                            const items = getItemsFor(r.category);
-                            const catLabel = categoryLabelLookup[r.category] || r.category;
-                            const rowNotes = sec.notes[r.category] || {};
-                            const open = sec.commentOpen[r.category];
-                            const hasNotes = Object.values(rowNotes).some(t => t.trim());
-                            const noteKeys = r.all ? [NON_SHOOT_ALL] : (r.keys.length > 0 ? r.keys : []);
-                            return (
-                              <div key={`${sec.status}-${i}`} className="space-y-1">
-                                <div ref={el => { rowRefs.current.set(`${sec.status}-${i}`, el); }} className="flex items-center gap-2">
-                                  <CategoryDropdown
-                                    value={r.category}
-                                    onChange={(cat) => setCategory(sec.status, i, cat)}
-                                    allCategoryKeys={allCategoryKeys}
-                                    categoryLabelLookup={categoryLabelLookup}
-                                    customCategories={project.customCategories}
-                                    open={openDropdown === `cat-${sec.status}-${i}`}
-                                    onOpenChange={(o) => setOpenDropdown(o ? `cat-${sec.status}-${i}` : null)}
-                                    btnClass="text-xs"
-                                  />
-                                  <EntityDropdown
-                                    value={r.all ? '' : r.keys.join(', ')}
-                                    onChange={val => setKeys(sec.status, i, val.split(',').map(x => x.trim()).filter(Boolean))}
-                                    items={items}
-                                    positioning="fixed"
-                                    portalTarget={portalTarget ?? document.body}
-                                    mode="multi"
-                                    variant="chip"
-                                    placeholder={r.all ? 'All elements of this category' : isCast ? 'Search cast members...' : 'Search elements...'}
-                                    className="text-xs flex-1 min-w-0"
-                                    displayMode={isCast ? 'id' : 'name'}
-                                    readOnly={r.all}
-                                    anchoredKeys={anchoredByCategory.get(r.category)}
-                                    renderItem={isCast ? (item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
-                                  />
-                                  <Checkbox
-                                    checked={r.all}
-                                    onChange={() => toggleAll(sec.status, i)}
-                                    label="All"
-                                    theme="dark"
-                                    className="shrink-0"
-                                  />
-                                  <Button
-                                    theme="dark"
-                                    variant="subtle"
-                                    onPointerDown={(e) => { e.preventDefault(); toggleComment(sec.status, r.category); }}
-                                    title={hasNotes ? `Notes for ${noteKeys.length} element${noteKeys.length === 1 ? '' : 's'}` : 'Add notes per element'}
-                                    className={`p-1 shrink-0 ${hasNotes ? '!text-amber-300' : ''}`}
-                                  >
-                                    <MessageSquare className="w-3 h-3" />
-                                  </Button>
-                                  <Button theme="dark" variant="subtle" onPointerDown={(e) => { e.preventDefault(); removeRow(sec.status, i); }} className="p-1 shrink-0" title="Remove row">
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                                {(open || hasNotes) && noteKeys.length > 0 && (
-                                  <div className="space-y-1.5 pl-10">
-                                    {noteKeys.map(k => (
-                                      <div key={k} className="flex items-center gap-2">
-                                        <span className="text-[10px] text-zinc-400 truncate max-w-[130px] shrink-0">
-                                          {r.all ? `All ${catLabel}` : resolveElementName(k, r.category, project)}
-                                        </span>
-                                        <input
-                                          type="text"
-                                          value={rowNotes[k] || ''}
-                                          onChange={(e) => setComment(sec.status, r.category, k, e.target.value)}
-                                          placeholder={`Note for ${r.all ? `all ${catLabel}` : resolveElementName(k, r.category, project)} — e.g. "Traveling from Singapore"`}
-                                          className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
-                                          autoFocus={open && !rowNotes[k]}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                          {/* The hint's slot is ALWAYS reserved while the
-                              section has a single row: the multi-mode entity
-                              input commits on blur, so clicking Save while it
-                              is focused would hide this hint mid-click and
-                              shrink the modal (the button moves between
-                              pointerdown and pointerup — the click lands on
-                              the footer and the save is silently lost). The
-                              invisible copy keeps the layout pinned. */}
-                          {(sec.rows.length === 1 && !sec.rows[0].all) && (
-                            <p className={`${CREM_LABEL} text-zinc-600 italic ${sec.rows[0].keys.length === 0 ? '' : 'invisible'}`}>Nothing marked — press Add to mark elements.</p>
+                    <ItemCard
+                      key={status}
+                      icon={<Icon className="w-3.5 h-3.5 shrink-0" style={def?.color ? { color: def.color } : undefined} />}
+                      title={def?.label || status}
+                      count={`${rows.length} ${rows.length === 1 ? 'element' : 'elements'}`}
+                      collapsed={collapsed}
+                      onToggle={() => toggleType(status)}
+                      dataProps={{ 'data-event-card': status }}
+                    >
+                      {rows.map(row => (
+                        <ItemRow
+                          key={`${row.category}|${row.refKey}`}
+                          onClick={() => setNested({ kind: 'event', status, category: row.category, refKey: row.refKey })}
+                          titleAttr={`Edit ${row.name}'s ${def?.label || status} event on this day`}
+                          titleClass="w-56 shrink-0 text-left text-[11px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors cursor-pointer flex items-center gap-1.5"
+                          title={
+                            <>
+                              {catIcon(row.category, 'w-3.5 h-3.5 shrink-0 text-zinc-500')}
+                              {!row.all && (
+                                <span className="shrink-0 text-[9px] uppercase tracking-wider text-zinc-500">
+                                  {categoryLabelLookup[row.category] || row.category}
+                                </span>
+                              )}
+                              <span className="truncate">{row.name}</span>
+                            </>
+                          }
+                          dataProps={{ 'data-event-row': `${status}|${row.category}|${row.refKey}` }}
+                          trailing={!readOnly && (
+                            <button
+                              onClick={() => removeGroup(status, row.category, row.refKey, row.all)}
+                              aria-label={`Remove ${row.name} from this day`}
+                              title={`Remove ${row.name}'s ${def?.label || status} event`}
+                              className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors shrink-0"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
                           )}
-                        </div>
-                      )}
-                    </div>
+                        >
+                          {noteFor && noteFor.status === status && noteFor.category === row.category && noteFor.refKey === row.refKey && !readOnly ? (
+                            <input
+                              autoFocus
+                              type="text"
+                              defaultValue={row.comment || ''}
+                              placeholder="Add a note — e.g. 'Traveling from Singapore'"
+                              onClick={(e) => e.stopPropagation()}
+                              onBlur={(e) => { setNoteFor(null); commitNote(status, row.category, row.refKey, e.target.value); }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                if (e.key === 'Escape') { setNoteFor(null); }
+                              }}
+                              className={`${CREM_TEXT} px-2 py-0.5 rounded bg-zinc-950 border border-transparent hover:border-zinc-600 focus:border-zinc-500 transition-colors outline-none placeholder-zinc-600 text-[11px] [field-sizing:content] min-w-60 cursor-text`}
+                            />
+                          ) : row.comment ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setNoteFor({ status, category: row.category, refKey: row.refKey }); }}
+                              title={readOnly ? row.comment : 'Edit note'}
+                              className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-text"
+                            >
+                              <span className="text-zinc-500 shrink-0 font-medium">Notes:</span>
+                              <span className="truncate italic">"{row.comment}"</span>
+                            </button>
+                          ) : !readOnly ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setNoteFor({ status, category: row.category, refKey: row.refKey }); }}
+                              className="text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors cursor-text"
+                            >
+                              Add note
+                            </button>
+                          ) : null}
+                        </ItemRow>
+                      ))}
+                    </ItemCard>
                   );
                 })}
               </div>
@@ -576,16 +396,34 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
             {rules.length === 0 ? (
               <p className={`${CREM_LABEL} text-zinc-600 italic`}>No rules on this day.</p>
             ) : (
-              <div className="space-y-1.5">
-                {rules.map(r => (
-                  <RuleCard
-                    key={r.id}
-                    rule={r}
-                    castMembers={project.castMembers || []}
-                    theme="dark"
-                    onEdit={() => openRuleEditor(r)}
-                  />
-                ))}
+              <div className="space-y-2">
+                {rulesByType.map(([type, rs]) => {
+                  const meta = RULE_TYPE_META[type];
+                  const Icon = meta.icon;
+                  return (
+                    <ItemCard
+                      key={type}
+                      icon={<Icon className={`w-3.5 h-3.5 shrink-0 ${meta.chipIcon}`} />}
+                      title={meta.label}
+                      count={`${rs.length} ${rs.length === 1 ? 'rule' : 'rules'}`}
+                      collapsed={collapsedRuleTypes.has(type)}
+                      onToggle={() => toggleRuleType(type)}
+                      dataProps={{ 'data-rule-type': type }}
+                    >
+                      {rs.map(r => (
+                        <RuleCard
+                          key={r.id}
+                          rule={r}
+                          castMembers={project.castMembers || []}
+                          theme="dark"
+                          compact
+                          onEdit={() => openRuleEditor(r)}
+                          onDelete={readOnly ? undefined : () => dispatch({ type: 'DELETE_RULE', payload: r.id })}
+                        />
+                      ))}
+                    </ItemCard>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -593,6 +431,23 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
 
       </div>
     </Modal>
+
+    {nested?.kind === 'event' && nestedReady && (
+      <EventModal
+        dateKey={dateKey}
+        statusKey={nested.status}
+        category={nested.category}
+        elementKey={nested.refKey}
+        onClose={() => setNested(null)}
+      />
+    )}
+    {nested?.kind === 'adder' && nestedReady && (
+      <EventAdderModal
+        date={dateKey}
+        status={statusKey || undefined}
+        onClose={() => setNested(null)}
+      />
+    )}
 
     {ruleEditor && ruleModalReady && (
       <Modal open onClose={() => setRuleEditor(null)} title={ruleEditor.rule ? 'Edit Rule' : 'Add Rule'} width="max-w-lg">
@@ -603,7 +458,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
             preseedDateKey={dateKey}
             scenes={project.scenes}
             castMembers={project.castMembers || []}
-            anchoredKeys={anchoredByCategory.get('cast')}
+            anchoredKeys={undefined}
             onSave={(rules) => {
               for (const r of rules) {
                 dispatch({ type: ruleEditor?.rule ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });

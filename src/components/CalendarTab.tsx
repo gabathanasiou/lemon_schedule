@@ -1445,12 +1445,10 @@ export const CalendarTab: React.FC<{
       {travelHoldModal && (
         <DayEventsModal
           dateKey={travelHoldModal.dateKey}
-          entry={nonShootEntryByDate.get(travelHoldModal.dateKey)}
           violations={violationMap.get(travelHoldModal.dateKey) || []}
           rules={rulesRelevantToDay(projectRules, travelHoldModal.dateKey)}
           initialStatus={travelHoldModal.status}
           initialRule={travelHoldModal.rule}
-          onSave={(entry) => handleTravelHoldSave(travelHoldModal.dateKey, entry)}
           onClose={() => setTravelHoldModal(null)}
         />
       )}

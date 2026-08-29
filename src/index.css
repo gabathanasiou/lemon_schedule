@@ -118,6 +118,14 @@ input, textarea, [contenteditable] {
   body {
     @apply font-sans antialiased bg-gray-50 text-gray-900 text-[12px] font-normal;
   }
+
+  /* Every button is clickable (kit + app): Chrome 88+ defaults buttons to
+     `cursor: default`, which reads as dead. Utilities still win over this
+     base rule — `disabled:cursor-not-allowed`, `cursor-text` (the note
+     text), `cursor-default` etc. */
+  button {
+    cursor: pointer;
+  }
 }
 
 .scrollbar-custom::-webkit-scrollbar {

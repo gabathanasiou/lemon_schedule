@@ -48,7 +48,7 @@ export function ItemRow({ onClick, title, titleClass, titleAttr, children, trail
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onClick(); }}
-        className={titleClass || 'w-28 shrink-0 text-left text-[11px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors cursor-pointer'}
+        className={titleClass || 'w-44 shrink-0 text-left text-[11px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors cursor-pointer'}
       >
         {title}
       </button>

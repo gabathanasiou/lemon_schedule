@@ -156,12 +156,14 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       <DropdownMenu
         open={typeMenuOpen}
         onOpenChange={setTypeMenuOpen}
-        width="w-52"
+        width="w-56"
         theme="dark"
         trigger={
-          <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`} data-rule-type>
-            <SelectedIcon className={`w-3.5 h-3.5 shrink-0 ${selectedMeta.chipIcon}`} />
-            <span className="truncate">{selectedMeta.label}</span>
+          <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`} data-rule-type>
+            <span className="flex items-center gap-1.5 min-w-0">
+              <SelectedIcon className={`w-3.5 h-3.5 shrink-0 ${selectedMeta.chipIcon}`} />
+              <span className="truncate">{selectedMeta.label}</span>
+            </span>
             <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
           </button>
         }

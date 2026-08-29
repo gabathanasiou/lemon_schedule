@@ -339,18 +339,9 @@ export const DayTypesTab: React.FC = () => {
       {eventDate && (
         <DayEventsModal
           dateKey={eventDate}
-          entry={nonShootEntryByDate.get(eventDate)}
           violations={violationMap.get(eventDate) || []}
           rules={dateRules(eventDate)}
           initialStatus={isProductionRow ? undefined : selectedKey}
-          onSave={(entry) => {
-            if (activeVersion) {
-              dispatch({
-                type: 'UPDATE_VERSION',
-                payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(activeVersion.nonShootDates, eventDate, entry) },
-              });
-            }
-          }}
           onClose={() => setEventDate(null)}
         />
       )}

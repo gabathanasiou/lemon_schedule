@@ -41,7 +41,7 @@ export function ItemCard({ title, icon, count, collapsed, onToggle, trailing, bo
         <button
           type="button"
           onClick={onToggle}
-          className="flex items-center gap-2 flex-1 min-w-0 text-left"
+          className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
         >
           {collapsed ? <ChevronRight className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
           {icon}
@@ -51,7 +51,7 @@ export function ItemCard({ title, icon, count, collapsed, onToggle, trailing, bo
         {trailing && <div className="shrink-0">{trailing}</div>}
       </div>
       {!collapsed && children && (
-        <div className={bodyClass || 'border-t border-zinc-700/60 bg-zinc-900/60 p-1.5 space-y-1'}>{children}</div>
+        <div className={bodyClass || 'border-t border-zinc-700/60 bg-zinc-900/60 divide-y divide-zinc-700/60 p-1.5'}>{children}</div>
       )}
     </div>
   );

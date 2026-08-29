@@ -80,7 +80,6 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
   const activeType = getDayType(project, type);
   const TypeIcon = typeIconComponent(project.dayTypes, type);
   const NoteIcon = typeIconComponent(project.dayTypes, type);
-  const name = resolveElementName(key, cat, project);
   const dayLabel = formatDateLabel(date);
 
   const categoryLabelLookup = useMemo(() => {
@@ -89,6 +88,9 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
     for (const c of project.customCategories || []) map[c.key] = c.label;
     return map;
   }, [project.categoryLabels, project.customCategories]);
+
+  // Whole-category cards ("All Cast") label as the category, not '*'.
+  const name = key === NON_SHOOT_ALL ? `All ${categoryLabelLookup[cat]}` : resolveElementName(key, cat, project);
 
   const allCategoryKeys = useMemo(() => {
     const keys: { key: string; isCustom: boolean }[] = [];
@@ -112,11 +114,12 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
     const changed = date !== dateKey || type !== statusKey || cat !== category || key !== elementKey;
 
     // Remove the ORIGINAL card (old date × old type, any category holding the
-    // old element — its note goes with it). Whole-category cards untouched.
+    // old element — its note goes with it). Whole-category cards untouched —
+    // EXCEPT when editing the All-card itself (its '*' mark must move).
     let entryOld = entryByDate.get(dateKey);
     if (changed) {
       for (const [c, keys] of Object.entries(getTypeLists(entryOld, statusKey))) {
-        if (keys.includes(NON_SHOOT_ALL)) continue;
+        if (keys.includes(NON_SHOOT_ALL) && elementKey !== NON_SHOOT_ALL) continue;
         if (keys.includes(elementKey)) entryOld = removeItemsFrom(entryOld, statusKey, c, [elementKey]);
       }
     }
@@ -140,12 +143,13 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
 
   const remove = () => {
     if (readOnly) return;
-    // Delete the ORIGINAL card wherever it sits.
+    // Delete the ORIGINAL card wherever it sits (the All-card deletes its
+    // whole-category mark).
     let entry = entryByDate.get(dateKey);
     for (const st of Object.keys(entry?.lists || {})) {
       if (st !== statusKey) continue;
       for (const [c, keys] of Object.entries(getTypeLists(entry, st))) {
-        if (keys.includes(NON_SHOOT_ALL)) continue;
+        if (keys.includes(NON_SHOOT_ALL) && elementKey !== NON_SHOOT_ALL) continue;
         if (keys.includes(elementKey)) entry = removeItemsFrom(entry, st, c, [elementKey]);
       }
     }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import DropdownMenu from './DropdownMenu';
 import DatePicker from './DatePicker';
 import { DD_CHIP_TRIGGER_CLASS } from '../lib/dropdown';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 /**
  * DateField — a date button that spawns the calendar in a floating chrome
@@ -102,17 +102,6 @@ export default function DateField({ value, onChange, placeholder = 'Pick a date'
           multi={multi}
         />
       </DropdownMenu>
-      {hasValue && (
-        <button
-          type="button"
-          aria-label="Clear date"
-          title="Clear date"
-          onClick={() => onChange([])}
-          className="p-1 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700 transition-colors shrink-0"
-        >
-          <X className="w-3 h-3" />
-        </button>
-      )}
     </div>
   );
 }

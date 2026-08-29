@@ -430,3 +430,64 @@ export function categoryLabel(category: string, project: any): string {
 export function statusLabel(statusKey: string, project: any): string {
   return getDayType(project, statusKey)?.label || statusKey;
 }
+
+/* ------------------------------------------------------------------ */
+/* Day type cards (the day modal's per-type element lists)             */
+/* ------------------------------------------------------------------ */
+
+/** One element row inside a day-type card: the element's card on this day
+ *  (cast = Board ID, others = names). `all` = the WHOLE category is marked
+ *  (`'*'` — rendered as "All <Category>"). */
+export interface DayTypeElementRow {
+  category: string;
+  refKey: string;
+  name: string;
+  all: boolean;
+  comment?: string;
+}
+
+/** The day modal's Events view: one card per day type, rows = every element
+ *  marked for that type on this day (whole-category marks become "All
+ *  <Category>" rows). Types in manager order; rows cast-first then category
+ *  order, alphabetically. NEVER re-derive this in components. */
+export function computeDayTypeCards(
+  project: any,
+  entry: NonShootDate | undefined | null,
+): { status: string; rows: DayTypeElementRow[] }[] {
+  const byStatus = new Map<string, DayTypeElementRow[]>();
+  for (const g of getTypeListGroups(entry)) {
+    const rows = byStatus.get(g.status) || [];
+    const comments = entry?.comments?.[g.status]?.[g.category] || {};
+    if (isAllKeys(g.keys)) {
+      rows.push({
+        category: g.category,
+        refKey: NON_SHOOT_ALL,
+        name: `All ${categoryLabel(g.category, project)}`,
+        all: true,
+        comment: comments[NON_SHOOT_ALL] || undefined,
+      });
+    } else {
+      for (const k of [...g.keys].sort()) {
+        rows.push({
+          category: g.category,
+          refKey: k,
+          name: resolveElementName(k, g.category, project),
+          all: false,
+          comment: comments[k] || undefined,
+        });
+      }
+    }
+    byStatus.set(g.status, rows);
+  }
+  const out: { status: string; rows: DayTypeElementRow[] }[] = [];
+  for (const [status, rows] of byStatus) {
+    rows.sort((a, b) => {
+      const r = categoryRankOf(a.category) - categoryRankOf(b.category);
+      if (r !== 0) return r;
+      if (a.all !== b.all) return a.all ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    });
+    out.push({ status, rows });
+  }
+  return out.sort((a, b) => typeRankOf(project, a.status) - typeRankOf(project, b.status));
+}
