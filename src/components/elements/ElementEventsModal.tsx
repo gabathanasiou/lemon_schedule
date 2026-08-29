@@ -191,9 +191,11 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
   }, [isCast, identity.refKey]);
 
   const saveRule = (rules: ProjectRule[]) => {
-    const editing = nested?.kind === 'rule' && !!nested.rule?.id;
+    const editingId = nested?.kind === 'rule' ? nested.rule?.id : undefined;
     for (const r of rules) {
-      dispatch({ type: editing ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });
+      // Multi-ID expansion: the first rule keeps the edited rule's id
+      // (UPDATE), the extras are NEW rules (ADD) — decide per rule.
+      dispatch({ type: editingId && r.id === editingId ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });
     }
     setNested(null);
   };

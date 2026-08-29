@@ -461,7 +461,10 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
             anchoredKeys={undefined}
             onSave={(rules) => {
               for (const r of rules) {
-                dispatch({ type: ruleEditor?.rule ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });
+                // Multi-ID expansion: the FIRST rule keeps the edited rule's
+                // id (UPDATE), the extras are NEW rules (ADD) — decide per
+                // rule, never once for the batch.
+                dispatch({ type: ruleEditor?.rule && r.id === ruleEditor.rule.id ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });
               }
               setRuleEditor(null);
             }}
