@@ -240,7 +240,7 @@ test('a generated day off cycled through another status stays generated (sticky 
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
   await dialog.getByRole('button', { name: 'Day Off', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Travel' }).click();
-  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page.getByText('Day Events —', { exact: false })).toBeHidden();
 
   // Travel → Day Off again
@@ -248,7 +248,7 @@ test('a generated day off cycled through another status stays generated (sticky 
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
   await dialog.getByRole('button', { name: 'Travel', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Day Off' }).click();
-  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page.getByText('Day Events —', { exact: false })).toBeHidden();
 
   // the generated flag survived the round trip

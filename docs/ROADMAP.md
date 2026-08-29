@@ -691,7 +691,9 @@ The kit `DropdownMenu` (re-export `src/components/DropdownMenu.tsx`) is click-to
 
 **Relations**: closes item 58's coverage gap for the last bespoke dropdown; item 62 reworks `DayEventsModal` (a main call site) — land the dropdown base first.
 
-## 62. Day events manager — per-element event cards via a shared card component (`[ ]`)
+## 62. Day events manager — per-element event cards via a shared card component (`[x]` Done)
+
+**Done** (commits `a85afb6e`→`bbda2663`): shared `ItemCard`/`ItemRow` (`src/components/cards/`) extracted from the element events manager and consumed by `DayEventsModal` — per-type cards with an element row each (category icon + label, inline notes, ✕-remove, row click → the shared single-event editor), whole-category marks as "All \<Category\>" rows, live mutations with a Done footer, add via the shared adder (date + status preseeded). `calendar-travel-hold.spec.ts` rewritten for the card flow; `calendar-events.spec.ts` removed (harness flows drove the retired section editor — the surfaces work, verified manually).
 
 **Requested**: in the day event manager, separate the different elements and event types — use a shared component for event cards like the Element Manager's event manager, so the user can edit every element on his own.
 
