@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { DndContext, useDraggable, DragOverlay, closestCorners, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useProject, useIsCloudProject } from '../store';
+import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
@@ -67,7 +67,6 @@ export const CalendarTab: React.FC<{
 }> = ({ onOpenScene, onOpenSceneInPopout, subTab = 'calendar', onSubTabChange, poppedOutSubTabs = new Set(), onToggleSubPopout, onCloseSubPopout, shiftHeld: poppedShiftHeld = false }) => {
   const { state, dispatch } = useProject();
   const dialog = useDialog();
-  const isCloudProject = useIsCloudProject();
   const currentWindow = useCurrentWindow();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -926,14 +925,14 @@ export const CalendarTab: React.FC<{
             return newId;
           }}
           readOnly={false}
-          theme={isCloudProject ? 'blue' : 'light'}
+          theme="light"
           label="Calendar"
           header="CALENDAR VERSIONS"
           itemLabel="Calendar"
           trigger={
-            <Button theme={isCloudProject ? 'dark' : 'light'}>
+            <Button theme="light">
               <span className="text-xs font-semibold text-zinc-400">Calendar:</span>
-              <span className={`text-xs font-semibold ${isCloudProject ? 'text-zinc-200' : 'text-zinc-900'}`}>{activeCalendarVersion?.name || 'Select Calendar'}</span>
+              <span className="text-xs font-semibold text-zinc-900">{activeCalendarVersion?.name || 'Select Calendar'}</span>
               <ChevronDown className="w-3 h-3 text-zinc-400" />
             </Button>
           }

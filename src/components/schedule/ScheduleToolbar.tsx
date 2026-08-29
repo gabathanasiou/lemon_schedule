@@ -126,14 +126,14 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         return newId;
       }}
       readOnly={false}
-      theme={isCloud ? 'blue' : 'light'}
+      theme="light"
       label="Version"
       header="SCHEDULE VERSIONS"
       itemLabel="Version"
       trigger={
-        <Button theme={isCloud ? 'dark' : 'light'}>
+        <Button theme="light">
           <span className="text-xs font-semibold text-zinc-400">Schedule:</span>
-          <span className={`text-xs font-semibold ${isCloud ? 'text-zinc-200' : 'text-zinc-900'}`}>{version?.name || 'Select Version'}</span>
+          <span className="text-xs font-semibold text-zinc-900">{version?.name || 'Select Version'}</span>
           <ChevronDown className="w-3 h-3 text-zinc-400" />
         </Button>
       }
