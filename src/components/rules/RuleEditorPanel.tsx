@@ -16,6 +16,17 @@ import { ruleModalSizes } from './ColorRuleFormParts';
 import ModalFooterButton from '../ModalFooterButton';
 import { X, Trash2, AlertCircle, ChevronDown } from 'lucide-react';
 
+/** Modal-style field box (label above, bordered panel). Module scope — an
+ *  inline definition would be a NEW component type every render, remounting
+ *  the whole field tree (type menu, cast chips, date picker) on each form
+ *  change. */
+const FieldBox: React.FC<{ label: string; children: React.ReactNode; className?: string; labelClass?: string }> = ({ label, children, className, labelClass = '' }) => (
+  <div className={`border border-zinc-700 rounded-lg p-3 space-y-3 ${className ?? ''}`}>
+    <span className={`${labelClass} text-zinc-500 uppercase font-semibold tracking-wider block`}>{label}</span>
+    {children}
+  </div>
+);
+
 /** The shared dark rule editor (roadmap 46's shared shell) — one copy used by
  *  the Calendar's Day Events modal (inline, pre-seeded with the day) AND the
  *  Rules tab (in a dark Modal, add/edit). Covers every rule type: board IDs
@@ -126,13 +137,6 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
    *  lives on the Rules tab (no preseed). */
   const dayLocked = !!preseedDateKey;
 
-  const FieldBox: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className }) => (
-    <div className={`border border-zinc-700 rounded-lg p-3 space-y-3 ${className ?? ''}`}>
-      <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider block`}>{label}</span>
-      {children}
-    </div>
-  );
-
 
   return (
     <div className="space-y-4" data-rule-editor>
@@ -148,7 +152,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       )}
 
       {/* Rule type */}
-      <FieldBox label="Rule Type">
+      <FieldBox label="Rule Type" labelClass={CREM_LABEL}>
       <DropdownMenu
         open={typeMenuOpen}
         onOpenChange={setTypeMenuOpen}
@@ -177,7 +181,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       </FieldBox>
 
       {/* Cast */}
-      <FieldBox label={form.type === 'CAST_CONFLICT' || form.type === 'CAST_SCENE_FLAG' ? 'Cast' : 'Board IDs'}>
+      <FieldBox label={form.type === 'CAST_CONFLICT' || form.type === 'CAST_SCENE_FLAG' ? 'Cast' : 'Board IDs'} labelClass={CREM_LABEL}>
       {form.type === 'CAST_CONFLICT' ? (
         <div className="space-y-2">
           <div>
@@ -197,7 +201,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       {/* Dates — hidden entirely when opened from a day (add or edit); the
           full date surface lives on the Rules tab (no preseed). */}
       {!dayLocked && (form.type === 'DATE_RESTRICTION' || form.type === 'MAX_HOURS' || form.type === 'TIME_WINDOW') && (
-        <FieldBox label="Dates">
+        <FieldBox label="Dates" labelClass={CREM_LABEL}>
           <div className="flex items-center justify-end mb-1.5">
             {form.type !== 'DATE_RESTRICTION' && (
               <Checkbox
@@ -227,7 +231,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
 
       {/* Max hours */}
       {form.type === 'MAX_HOURS' && (
-        <FieldBox label="Max Hours per Day">
+        <FieldBox label="Max Hours per Day" labelClass={CREM_LABEL}>
           <input
             type="number"
             min={0.5}
@@ -241,7 +245,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
 
       {/* Time window */}
       {form.type === 'TIME_WINDOW' && (
-        <FieldBox label="Time Restriction">
+        <FieldBox label="Time Restriction" labelClass={CREM_LABEL}>
           <div className="grid grid-cols-2 gap-1.5">
             {windowModes.map(wm => (
               <button
