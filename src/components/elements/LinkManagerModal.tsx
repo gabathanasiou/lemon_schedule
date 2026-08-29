@@ -261,13 +261,13 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
           const gComplete = !!g.anchorValue && g.links.some(l => l.linkedCategory && l.linkedValue);
           const appliedCount = applied[g.id];
           return (
-            <div key={g.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-3">
+            <div key={g.id} className="rounded-lg border border-zinc-800 px-3 py-3">
               <div className="flex gap-2.5">
                 {/* Gutter: anchor icon with a ruler that branches down the
                     linked list — hierarchy without a text label. */}
                 <div className="flex flex-col items-center shrink-0">
                   <Link2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                  {g.links.length > 0 && <div className="w-px flex-1 bg-zinc-800 my-1 min-h-2" />}
+                  {g.links.length > 0 && <div className="w-px flex-1 bg-zinc-700/60 my-1 min-h-2" />}
                 </div>
 
                 <div className="flex-1 min-w-0 space-y-2">
