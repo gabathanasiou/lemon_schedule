@@ -17,7 +17,7 @@ import { EventModal } from '../calendar/EventModal';
 import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
-import { ChevronDown, ChevronRight, CalendarDays, Plus, Pencil, X, MessageSquare, Flag, Clock4 } from 'lucide-react';
+import { ChevronDown, ChevronRight, CalendarDays, Plus, X, Flag, Clock4 } from 'lucide-react';
 
 interface ElementEventsModalProps {
   category: string;
@@ -138,10 +138,14 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
       if (isAllKeys(g.keys)) continue;
       entry = removeItemsFrom(entry, g.status, g.category, [identity.refKey]);
     }
-    if (!activeVersion || !entry) return;
+    if (!activeVersion) return;
+    // `removeItemsFrom` returns undefined when the entry is FULLY emptied
+    // (the card was the day's only content and there's no day status) —
+    // that means the date row must be pruned, not left untouched. Upsert
+    // an empty entry so `upsertNonShootDate` removes the date.
     dispatch({
       type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, date, entry) },
+      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, date, entry ?? { date }) },
     });
   };
 
@@ -221,14 +225,26 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                       <span className="text-[10px] text-zinc-500">{rows.length} {rows.length === 1 ? 'day' : 'days'}</span>
                     </button>
                     {!collapsed && (
-                      <div className="border-t border-zinc-700/60 divide-y divide-zinc-700/60">
+                      <div className="border-t border-zinc-700/60 divide-y divide-zinc-700/60 bg-zinc-900/60">
                         {rows.map(({ date, groups }) => {
                           const note = groups.map(g => g.comment).find(Boolean) || '';
                           const noteCategory = groups.find(g => !isAllKeys(g.keys))?.category || groups[0]?.category;
                           const wholeOnly = groups.every(g => isAllKeys(g.keys));
                           return (
-                            <div key={date} data-element-event-date={date} className="flex items-center gap-2 px-3 py-1.5">
-                              <span className="w-28 shrink-0 text-[11px] font-medium text-zinc-300">{formatDateLabel(date)}</span>
+                            <div
+                              key={date}
+                              data-element-event-date={date}
+                              onClick={() => setNested({ kind: 'event', date, status })}
+                              title={`Edit ${identity.name}'s event on this day`}
+                              className="flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setNested({ kind: 'event', date, status }); }}
+                                className="w-28 shrink-0 text-left text-[11px] font-medium text-zinc-300 hover:text-zinc-100 transition-colors cursor-pointer"
+                              >
+                                {formatDateLabel(date)}
+                              </button>
                               <div className="flex-1 min-w-0">
                                 {noteDate === date && noteCategory && !readOnly ? (
                                   <input
@@ -236,30 +252,31 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                                     type="text"
                                     defaultValue={note}
                                     placeholder="Add a note — e.g. 'Traveling from Singapore'"
+                                    onClick={(e) => e.stopPropagation()}
                                     onBlur={(e) => { setNoteDate(null); commitNote(date, status, noteCategory, e.target.value); }}
                                     onKeyDown={(e) => {
                                       if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                                       if (e.key === 'Escape') { setNoteDate(null); }
                                     }}
-                                    className={`${CREM_TEXT} w-full px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600 text-[11px]`}
+                                    className={`${CREM_TEXT} px-2 py-0.5 rounded bg-zinc-900 border border-transparent hover:border-zinc-600 focus:border-zinc-500 transition-colors outline-none placeholder-zinc-600 text-[11px] [field-sizing:content] min-w-60 cursor-text`}
                                   />
                                 ) : note ? (
                                   <button
                                     type="button"
-                                    onClick={() => !readOnly && setNoteDate(date)}
+                                    onClick={(e) => { e.stopPropagation(); !readOnly && setNoteDate(date); }}
                                     title={readOnly ? note : 'Edit note'}
-                                    className="flex items-center gap-1 text-[11px] text-zinc-400 italic hover:text-zinc-200 transition-colors w-full text-left min-w-0"
+                                    className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-text"
                                   >
-                                    <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-500" />
-                                    <span className="truncate">"{note}"</span>
+                                    <span className="text-zinc-500 shrink-0 font-medium">Notes:</span>
+                                    <span className="truncate italic">"{note}"</span>
                                   </button>
                                 ) : !readOnly ? (
                                   <button
                                     type="button"
-                                    onClick={() => setNoteDate(date)}
-                                    className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors"
+                                    onClick={(e) => { e.stopPropagation(); setNoteDate(date); }}
+                                    className="text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors cursor-text"
                                   >
-                                    <MessageSquare className="w-2.5 h-2.5" /> Add note
+                                    Add note
                                   </button>
                                 ) : (
                                   <span className={`${CREM_LABEL} text-zinc-600 italic`}>No note</span>
@@ -268,14 +285,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                               {!readOnly && (
                                 <>
                                   <button
-                                    onClick={() => setNested({ kind: 'event', date, status })}
-                                    title="Edit this event"
-                                    className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors shrink-0"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => removeGroup(date, status, groups)}
+                                    onClick={(e) => { e.stopPropagation(); removeGroup(date, status, groups); }}
                                     disabled={wholeOnly}
                                     title={wholeOnly ? `The whole ${statusLabel(status, project)} category is marked — remove the day's events in the editor` : `Remove ${identity.name} from this day`}
                                     aria-label={`Remove ${identity.name} from this day`}
@@ -297,15 +307,14 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
           )}
         </div>
 
-        {/* Violations — the element's rules firing on scheduled days */}
-        <div>
-          <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-2`}>
-            <Flag className="w-3 h-3 text-red-400" />
-            Violations
-          </span>
-          {data.violations.size === 0 ? (
-            <p className={`${CREM_LABEL} text-zinc-600 italic`}>No violations on any scheduled day.</p>
-          ) : (
+        {/* Violations — the element's rules firing on scheduled days (hidden
+            when none fire) */}
+        {data.violations.size > 0 && (
+          <div>
+            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-2`}>
+              <Flag className="w-3 h-3 text-red-400" />
+              Violations
+            </span>
             <div className="rounded-lg border border-zinc-700 bg-zinc-800 divide-y divide-zinc-700/60">
               {[...data.violations.entries()]
                 .sort((a, b) => a[0].localeCompare(b[0]))
@@ -318,45 +327,40 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                   </div>
                 )))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Rules referencing this element */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <button
-              type="button"
-              onClick={() => setRulesCollapsed(c => !c)}
-              className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 hover:text-zinc-200 transition-colors`}
-            >
-              {rulesCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              <Clock4 className="w-3 h-3" />
-              Rules
-              <span className="text-zinc-500 normal-case font-medium text-[10px]">({data.rules.length})</span>
-            </button>
-            {isCast && !readOnly && (
-              <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'rule', rule: addRuleSkeleton })}>
-                <Plus className="w-3 h-3" /> Add Rule
-              </Button>
+        {/* Rules referencing this element — hidden when there are none (and
+            never shown for non-cast elements, which can't carry rules) */}
+        {(isCast || data.rules.length > 0) && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <button
+                type="button"
+                onClick={() => setRulesCollapsed(c => !c)}
+                className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 hover:text-zinc-200 transition-colors`}
+              >
+                {rulesCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                <Clock4 className="w-3 h-3" />
+                Rules
+                <span className="text-zinc-500 normal-case font-medium text-[10px]">({data.rules.length})</span>
+              </button>
+              {isCast && !readOnly && (
+                <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'rule', rule: addRuleSkeleton })}>
+                  <Plus className="w-3 h-3" /> Add Rule
+                </Button>
+              )}
+            </div>
+            {!rulesCollapsed && data.rules.length > 0 && (
+              <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-2 space-y-1.5">
+                {data.rules.map(r => (
+                  <RuleCard key={r.id} rule={r} castMembers={project.castMembers || []} theme="dark"
+                    onEdit={readOnly ? () => {} : () => setNested({ kind: 'rule', rule: r })} />
+                ))}
+              </div>
             )}
           </div>
-          {!rulesCollapsed && (
-            isCast ? (
-              data.rules.length === 0 ? (
-                <p className={`${CREM_LABEL} text-zinc-600 italic`}>No rules reference this cast member.</p>
-              ) : (
-                <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-2 space-y-1.5">
-                  {data.rules.map(r => (
-                    <RuleCard key={r.id} rule={r} castMembers={project.castMembers || []} theme="dark"
-                      onEdit={readOnly ? () => {} : () => setNested({ kind: 'rule', rule: r })} />
-                  ))}
-                </div>
-              )
-            ) : (
-              <p className={`${CREM_LABEL} text-zinc-600 italic`}>Rules reference cast members by Board ID — this element can't carry rules.</p>
-            )
-          )}
-        </div>
+        )}
       </div>
 
       {/* Nested shared editors (deferred mount — Radix dialog stack) */}

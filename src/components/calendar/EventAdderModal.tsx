@@ -8,6 +8,7 @@ import { anchoredKeysFor } from '../../lib/elementLinks';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
+import { useDialog } from '../Dialog';
 import DateField from '../DateField';
 import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
@@ -61,6 +62,7 @@ function formatDateLabel(dateKey: string): string {
 export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAdderModalProps) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
+  const dialog = useDialog();
   const portalTarget = usePortalTarget();
   const sizes = ruleModalSizes();
   const { XSZ, CREM_BODY, CREM_LABEL, CREM_TEXT } = sizes;
@@ -78,7 +80,7 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
 
   // Element-locked mode: the category + element(s) are fixed by the caller.
   const locked = !!preseed;
-  const [dateKey, setDateKey] = useState<string | null>(preseedDate || null);
+  const [dateKeys, setDateKeys] = useState<string[]>(preseedDate ? [preseedDate] : []);
   const [rows, setRows] = useState<AdderRow[]>(
     preseed
       ? [{ id: newRowId(), category: preseed.category, keys: [...preseed.keys].filter(k => k !== NON_SHOOT_ALL), all: preseed.keys.length === 1 && preseed.keys[0] === NON_SHOOT_ALL, notes: {}, noteOpen: true }]
@@ -119,9 +121,9 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
   const patchRow = (id: string, patch: Partial<AdderRow>) =>
     setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
 
-  const create = () => {
-    if (!dateKey || !activeVersion || readOnly) return;
-    const entry = entryByDate.get(dateKey);
+  /** Builds the day's entry for ONE date (existing lists merge, cards append). */
+  const buildEntry = (date: string): NonShootDate | null => {
+    const entry = entryByDate.get(date);
     const lists = { ...(entry?.lists || {}) };
     const statusLists = { ...(lists[status] || {}) };
     const usedByCategory = new Map<string, string[]>();
@@ -150,10 +152,10 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
       }
       if (Object.keys(nonEmpty).length > 0) nextComments[status] = { ...(nextComments[status] || {}), [cat]: nonEmpty };
     }
-    if (Object.keys(statusLists).length === 0) return;
+    if (Object.keys(statusLists).length === 0) return null;
     lists[status] = statusLists;
     const next: NonShootDate = {
-      date: dateKey,
+      date,
       ...(entry?.status ? { status: entry.status } : {}),
       lists,
     };
@@ -162,10 +164,33 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
       comments[status] = { ...(comments[status] || {}), ...nextComments[status] };
       next.comments = comments;
     }
-    dispatch({
-      type: 'UPDATE_VERSION',
-      payload: { id: activeVersion.id, nonShootDates: upsertNonShootDate(nonShootDates, dateKey, next) },
-    });
+    return next;
+  };
+
+  const create = async () => {
+    if (dateKeys.length === 0 || !activeVersion || readOnly) return;
+    const noteText = locked && rows[0]?.keys[0] ? (rows[0].notes[rows[0].keys[0]] || '') : '';
+    if (locked && dateKeys.length > 1 && noteText.trim()) {
+      const ok = await dialog.confirm({
+        title: 'Note applies to all dates',
+        message: `The note "${noteText.trim()}" will be added to every one of the ${dateKeys.length} selected dates.`,
+        suppressKey: 'lemon_schedule_dnwa_multi_date_note',
+      });
+      if (!ok) return;
+    }
+    const created: { date: string; entry: NonShootDate }[] = [];
+    for (const d of dateKeys) {
+      const entry = buildEntry(d);
+      if (entry) created.push({ date: d, entry });
+    }
+    if (created.length === 0) return;
+    // UPDATE_VERSION REPLACES the version's nonShootDates wholesale — each
+    // dispatch carries a full snapshot, so a loop of dispatches computed
+    // from the same base would clobber earlier dates (only the last lands).
+    // Accumulate into ONE merged array and dispatch once.
+    let merged = nonShootDates;
+    for (const { date, entry } of created) merged = upsertNonShootDate(merged, date, entry);
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: merged } });
     onClose();
   };
 
@@ -175,14 +200,14 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
     if (!lo && !hi) return null;
     return { lo: lo || '0000-01-01', hi: hi || '9999-12-31' };
   }, [activeVersion]);
-  const dateOutOfWindow = !!dateKey && !!windowBounds && (dateKey < windowBounds.lo || dateKey > windowBounds.hi);
+  const dateOutOfWindow = !!windowBounds && dateKeys.some(d => d < windowBounds.lo || d > windowBounds.hi);
 
   return (
     <Modal open onClose={onClose} title={locked ? `Add Event${elementName ? ` — ${elementName}` : ''}` : 'Add Events'} width="max-w-xl"
       footer={
         <ModalFooter>
           <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
-          <ModalFooterButton onClick={create} disabled={!dateKey}>Create</ModalFooterButton>
+          <ModalFooterButton onClick={create} disabled={dateKeys.length === 0}>Create</ModalFooterButton>
         </ModalFooter>
       }
     >
@@ -195,9 +220,11 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
               Date
             </span>
             <DateField
-              value={dateKey ? [dateKey] : []}
-              onChange={(ds) => setDateKey(ds[0] || null)}
+              value={dateKeys}
+              onChange={setDateKeys}
               placeholder="Pick a date"
+              variant={locked ? 'inline' : 'chrome'}
+              multi={locked}
             />
             {dateOutOfWindow && (
               <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>
