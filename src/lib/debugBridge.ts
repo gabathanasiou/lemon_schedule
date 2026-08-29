@@ -28,6 +28,7 @@ export interface AgentBridgeConnectivitySnapshot {
   isOnline: boolean;
   realOnline: boolean;
   driveSaveError: boolean;
+  driveRetryPending: boolean;
   driveErrorMsg: string | null;
   lastProbeAt: number;
   lastProbeOk: boolean;
