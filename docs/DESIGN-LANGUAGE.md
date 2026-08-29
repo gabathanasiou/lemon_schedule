@@ -130,8 +130,8 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Need | Use | Notes |
 |---|---|---|
 | Toolbar / action button | kit `Button` | Variants `subtle`/`primary`/`danger-ghost`; `cloud` prop colors light primary for cloud projects (derive via `useIsCloudProject`); `theme="dark"` for dark toolbars; icon-only nav + status pills stay bespoke |
-| Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; arrows/typeahead/Esc; `modal:false`; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy) |
-| Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme**; press-point-anchored morph, closes on Esc |
+| Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; **one `.ui-item-highlighted` row** (pointer hover + arrows, latest wins; no CSS hover fills — Radix `data-highlighted` inert), arrows/typeahead/Esc + the document-level menu key-lock (mini-modal: menu keys stay captured even when focus sits on a canvas); `modal:false`; root content = panel positioning (fixed below the trigger, width-matched, viewport-clamped); submenus keep the Radix popper side-placement; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy) |
+| Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme**; press-point-anchored morph, closes on Esc. Shares the kit menu machinery (highlight/keys/lock) — `ContextMenuSub` = `DropdownSubmenu` |
 | Entity/cast picker in a cell or form | `EntityDropdown` | Modes: `multi` (comma list, click toggles), `single` (search-then-select), `select` (legacy). `items` prop REQUIRED — no context fallback. **Inside modals use `variant="chip"`** (dark chip trigger + dark panel; §EntityDropdown chip version below) — cells/forms keep the light default |
 | Inline cell text edit | `CellInput` | **Commits on blur only, never per keystroke**; Enter=commit, Esc=cancel |
 | Live numeric box (toolbar steppers: ribbon Pad V/H, Edge, Master Size, cell offset) | `LiveNumberInput` (`RibbonToolbar.tsx`) | Free-typed draft while focused (type digits one at a time, delete-to-empty); commit clamps live (preview updates), Enter/blur clamps + finalizes, Escape reverts to the committed value. Never a clamped controlled input — clamping on change snaps the first keystroke |
@@ -170,6 +170,22 @@ for light), which pointer hover (`onMouseEnter` → `onItemHover`) and the keybo
 distinct from the highlight: dark `bg-zinc-800/40 text-zinc-100` + trailing `Check` glyph
 (`DropdownPanel.tsx`), light `bg-blue-50 text-blue-700`.
 
+**Single-highlight rule (kit menus AND context menus — the kit `DropdownMenu`/`DropdownSubmenu`/
+`ContextMenu` share the panel's highlight model, item 64)**: the one lit row is `.ui-item-highlighted`
+(kit `tokens.css`) — written by pointer hover AND the keyboard arrows (latest wins; `onPointerLeave`
+clears a pointer-driven highlight); NO CSS hover fills (the `.ui-item:hover` fill is suppressed
+while a row is highlighted; Radix `data-highlighted` is inert). Checked rows stay distinct (dark =
+Check glyph; light = blue bg). **Menu key-lock (mini-modal)**: while a menu is open, the MENU keys
+(arrows/Enter/Space/typeahead letters) are captured at the document and routed to the surface even
+when focus sits on a stripboard canvas or the page body; events inside the menu pass through;
+every other key (Cmd+Z, Esc, Tab…) is untouched. A submenu trigger row: Enter/ArrowRight opens the
+sub (the keyboard-opened sub pre-lights its first item), ArrowLeft closes it and returns the
+highlight to the trigger row. The menu machinery (highlight context, keys/lock/wheel handlers) is
+kit-internal (`ui-kit/src/DropdownMenu.tsx`) — stable handlers created once per hook instance; the
+composed-ref cleanup removes the ATTACHED closure (a per-render reassignment leaked the document
+lock, and a leaked lock from a remounted menu kept its last activeRef forever — eating menu keys
+app-wide).
+
 `EntityDropdown` as a cell editor: **separate commit from exit** — `onChange` updates the value,
 `onExit` leaves edit mode; never call both in one handler (editor unmounts and can't reopen).
 
@@ -205,9 +221,12 @@ Stacking (modal spawns modal, e.g. Day Events → Rule Editor): the parent fades
 (`opacity:0` + `pointer-events:none`, 180ms) while the child is open — only the top modal stays
 visible. Pure structural CSS in `index.css`: `[data-modal-stack][data-state=open]:has(~ [data-modal-stack][data-state=open])`
 (dialogs portal as siblings into the window body; any open modal with an open modal after it
-fades). Modal overlays are **transparent — no background dimming** (the stack fade + morph carry
-the hierarchy; `.ui-overlay` in `index.css` also clears the ui-kit confirm/alert dim). The ui-kit
-confirm/alert deliberately does NOT dim the modal beneath it.
+fades). The modal overlay dims the background **ONE layer per window** (`.ui-modal-overlay`,
+kit `tokens.css`) — stacked modals never stack darkenings: the sibling `:has(~ [data-modal-stack][data-state=open])`
+selector zeroes the dim on every non-top modal, so exactly one dim layer exists (belonging to the
+top modal); it fades 220ms WITH the close morph (`ui-modal-overlay-closing`) and stacked swaps are
+instant. The ui-kit confirm/alert overlay deliberately stays transparent — no double-dim over the
+modal's own layer.
 
 Morph: stacked modals **grow out of the modal beneath them** and the survivor **shrinks back from
 the closing modal's box**; **standalone modals zoom in from 94% on open and zoom back out on

@@ -635,7 +635,9 @@ reduced-motion, opt-out, keyboard nav + typeahead).
 
 **Known gaps (follow-up items)**: the print dialogs' dropdowns (`PrintDialog`/`ElementBreakdownDialog`/`DoodDialog`) and the bespoke `rules/CategoryDropdown.tsx` still use raw Radix — see items 60 and 61.
 
-## 59. Modal backdrop — darken once, never stacked (`[ ]`)
+## 59. Modal backdrop — darken once, never stacked (`[x]` Done)
+
+**Done** (kit v0.1.55, commit `7cf28cc`/`bc16a18`): implemented in the kit — `.ui-modal-overlay` CSS (`ui-kit/src/styles/tokens.css`) dims the background exactly ONE layer per window regardless of stack depth (non-top `[data-modal-stack]` modals zero the dim via the sibling `:has(~ [data-modal-stack][data-state="open"])` selector — the same sibling-CSS machinery item 58's stack fade uses); the dim fades 220ms WITH the close morph (`ui-modal-overlay-closing`) and stacked swaps are instant (a new top modal's dim appears immediately, the old one's zeroes). The kit confirm/alert overlay stays transparent — no double-dim over the app modal. App Modal shim unchanged (`overlayMorphOptIn` still gates motion).
 
 **Requested**: darken the background when a modal is open — but only ONE dim layer.
 Stacked modals must NOT stack background darkenings.
@@ -723,7 +725,9 @@ The kit `DropdownMenu` (re-export `src/components/DropdownMenu.tsx`) is click-to
 
 **Relations**: rides the Glide editor machinery (`glideEditor.tsx`); the calendar/travel-hold surfaces that share `EntityDropdown` are unaffected (this is the editor mount path only).
 
-## 64. Kit dropdown menu → EntityDropdown-panel behavior (`[ ]`)
+## 64. Kit dropdown menu → EntityDropdown-panel behavior (`[x]` Done)
+
+**Done** (kit v0.1.55, commits `96aac0f`→`bc16a18` + the stable-handler fix `438bb71`): the kit `DropdownMenu`/`DropdownSubmenu`/`ContextMenu` all share ONE highlight surface (`MenuHighlightContext` + `useMenuHighlightState` in `ui-kit/src/DropdownMenu.tsx`) — a single `highlightedIndex` written by pointer hover AND the keyboard arrows (latest wins), `onPointerLeave` clears a pointer-driven highlight, NO CSS hover fills (the lit row is `.ui-item-highlighted` only, Radix `data-highlighted` is inert). Root menu content uses panel positioning (fixed below the trigger, width-matched, viewport-clamped via the kit's `useFixedPosition`, `ready` visibility gate); submenus keep the Radix popper side-placement. Keyboard = arrows/Enter/Space/typeahead via `useMenuKeys` (content-level, capture) + a document-level `useMenuKeyLock` (the mini-modal lock: menu keys are captured even when focus sits on the stripboard canvas) + `useMenuWheel` for portaled content inside modals; `initialHighlightIndex` pre-lights a row on open (CategoryDropdown uses it — its open-scroll-to-active no longer focuses). NOTE vs the original item text: the v0.1.54 **trigger-reopen was KEPT and FIXED, not deleted** — the dismiss-click interleave bug (one click closing AND reopening the menu, stranding it mid-morph) is gone; a trigger click during the close morph reopens cleanly. (The app-side lock leak that made a remounted menu eat menu keys app-wide — fixed in the kit with stable handlers.)
 
 **Requested**: the kit `DropdownMenu` (and every surface on it — AppHeader File menu + submenus, Schedule View menu + submenus, day-status/event-type pickers, the CategoryDropdown from item 61) should behave like the EntityDropdown dark panel ("almost 1-1", per the user's words): one highlight shared by cursor + arrows, panel positioning (below trigger, width-matched, viewport-clamped), wheel-scrollable everywhere, typeahead kept, future search support.
 
@@ -755,3 +759,20 @@ The kit `DropdownMenu` (re-export `src/components/DropdownMenu.tsx`) is click-to
 **Verify**: lint + full smart suite; focused e2e (extend `overlay-morph.spec.ts`): hover follows the cursor (exactly ONE lit row), arrows latest-wins, hover-leave clears a pointer-driven highlight, typeahead letter-jump, wheel scroll inside the day-event modal, menu opens below the trigger width-matched and fully on-screen, category picker opens on the active row, submenus still open sideways, item-manager rename input unaffected (no focus stealing). Smart-test RULES: `src/components/DropdownMenu.tsx` → ALL, `src/components/calendar/**` → CAL already cover the app-side churn.
 
 **Relations**: supersedes/reverts the v0.1.53+54 highlight approach; closes item 61's residual behavior gap (CategoryDropdown inherits the panel-behavior kit menu); rides item 58's morph + the kit's own `useFixedPosition`; item 60's print-dialog conversions land on the reworked menu.
+
+## 65. Event calendar: hide every-day rule cards; flag-left / rule-icon-right on rule cards (`[ ]`)
+
+**Requested**: in the Calendar tab's Events mode, (1) rules that are global — they apply to EVERY day (`CAST_CONFLICT`, `CAST_SCENE_FLAG`, no-date `MAX_HOURS`/`TIME_WINDOW`) — must NOT render a card on every day cell; a "GEORGE has a scene flag" card on all 40 days is noise, not signal. (2) Rule and conflict cards should carry the **flag icon on the LEFT** and the **rule icon on the RIGHT** (today: rule icon left, violated flag right).
+
+**Facts**:
+- Item 45's "Rules render as PER-DATE CARDS" pass explicitly chose "every-day/global rules (no dates, CAST_*) get a card on EVERY day (display-only, marked `data-card-everyday`)" — this item reverses that decision.
+- Card model: `computeDayEvents` (`src/lib/events.ts:159`) stamps `everyday: !hasDates` on rule cards; `EventDayCell` renders them in `cellCards` (`EventDayCell.tsx:76` — keeps ALL rule cards) while `manageableCards` (line 77) already filters them out of the add-affordance/drag-content accounting. The every-day card is drag-disabled (`useDraggable disabled`, line 242) and its right-click menu is a no-op ("Every-day rule — edit dates in the rule editor", `CalendarTab.tsx:1327`).
+- Layout: `EventCardView` rule branch (`EventDayCell.tsx:205-219`) = rule icon left (`meta.icon`, `meta.chipIcon` color) + truncated `describeRuleDetailed` + `Flag` right (only when `card.violated`).
+- e2e: `e2e/calendar-events.spec.ts` asserts everyday cards directly (lines 45-48: 4 dated cards + `[data-card-everyday="1"]` present on a day; line 62: the Rules filter hides the everyday card too) — these flip with the change.
+
+**Design**:
+1. **Hide global cards**: keep the card model untouched (`everyday` still on the card — it's the natural gate) but stop RENDERING them: filter `c.kind === 'rule' && c.everyday` out of `cellCards` in `EventDayCell.tsx:76` (merges with the existing `manageableCards` filter — one filter for both). Then prune the dead paths the card can no longer reach: `data-card-everyday` attr, the drag-disabled everyday branch (line 242), and the right-click no-op menu state (`ruleCardMenu.everyday` + `CalendarTab.tsx:1316/1327` — the context menu on a rule card should always be the per-date "Remove from this day"/edit menu). The **Rules tab remains the home of global rules** (item 46's retirement note already says so) — hiding cards is view-only, rules still fire/flag in the stripboard/calendar headers via `computeSectionViolationMap`.
+2. **Icon swap on rule/conflict cards**: in `EventCardView`'s rule branch, move the violated `Flag` BEFORE the text span (left edge) and the `meta.icon` AFTER it (right edge, `shrink-0`, keep `meta.chipIcon` coloring). Violated ("conflict") cards = flag left + rule icon right; clean rule cards = rule icon right only. Day-header conflict flag (`DayStatusBadges`/`ViolationTooltip`) is header territory, not a card — untouched.
+3. **Verify**: lint + playwright — seeded project with one global rule (e.g. CAST_SCENE_FLAG) + one dated rule: no `[data-event-key^="ev-rule-"]` card on ANY day for the global rule; dated cards still render/drag/right-click/dblclick (existing assertions minus everyday); a violated dated rule card shows flag first in DOM order, rule icon last; `calendar-events.spec.ts` updated (everyday assertions → expect NO every-day cards; the Rules filter block keeps asserting the filter still hides dated rule cards). Smart-test RULES: `src/components/calendar/**` → CAL already covers.
+
+**Relations**: reverses item 45's "card on EVERY day" decision (the `data-card-everyday` display-only card); consistent with item 46's Rules-tab retirement note (Rules tab stays the global/no-date surface); touches `src/lib/events.ts` only as read-only (no model change).
