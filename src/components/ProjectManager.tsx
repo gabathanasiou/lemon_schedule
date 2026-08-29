@@ -568,7 +568,14 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 trigger={
                   <button className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800 px-2.5 py-1 rounded-md transition-colors">
                     <ArrowUpDown className="w-3 h-3" />
-                    {sortOptions.find(o => o.key === sortKey)?.label}
+                    {/* Reserve the widest sort label's width so the button
+                        never jumps between "Last Modified" / "Created" / "A-Z" */}
+                    <span className="relative inline-flex">
+                      <span aria-hidden className="invisible whitespace-nowrap">{sortOptions[0].label}</span>
+                      <span className="absolute inset-y-0 left-0 flex items-center whitespace-nowrap">
+                        {sortOptions.find(o => o.key === sortKey)?.label}
+                      </span>
+                    </span>
                   </button>
                 }
               >
