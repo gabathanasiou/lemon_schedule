@@ -508,7 +508,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                                           value={rowNotes[k] || ''}
                                           onChange={(e) => setComment(sec.status, r.category, k, e.target.value)}
                                           placeholder={`Note for ${r.all ? `all ${catLabel}` : resolveElementName(k, r.category, project)} — e.g. "Traveling from Singapore"`}
-                                          className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
+                                          className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
                                           autoFocus={open && !rowNotes[k]}
                                         />
                                       </div>

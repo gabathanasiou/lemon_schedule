@@ -208,25 +208,17 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
     >
       <div className={CREM_BODY}>
 
-        {/* Add Event — opens the shared adder (element-locked) */}
-        <div>
-          <Button
-            theme="dark"
-            variant="primary"
-            onClick={openAddEvent}
-            disabled={readOnly}
-            className="flex items-center gap-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add Event on a Date
-          </Button>
-        </div>
-
         {/* Events — one collapsible card per day type */}
         <div>
-          <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-2`}>
-            <CalendarDays className="w-3 h-3 text-zinc-400" />
-            Events
-          </span>
+          <div className="flex items-center justify-between mb-2">
+            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+              <CalendarDays className="w-3 h-3 text-zinc-400" />
+              Events
+            </span>
+            <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={openAddEvent} disabled={readOnly}>
+              <Plus className="w-3 h-3" /> Add Event
+            </Button>
+          </div>
           {typeCards.length === 0 ? (
             <p className={`${CREM_LABEL} text-zinc-600 italic`}>No events yet — add {identity.name} to a day above.</p>
           ) : (
@@ -280,7 +272,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                                 if (e.key === 'Escape') { setNoteDate(null); }
                               }}
-                              className={`${CREM_TEXT} px-2 py-0.5 rounded bg-zinc-900 border border-transparent hover:border-zinc-600 focus:border-zinc-500 transition-colors outline-none placeholder-zinc-600 text-[11px] [field-sizing:content] min-w-60 cursor-text`}
+                              className={`${CREM_TEXT} px-2 py-0.5 rounded bg-zinc-950 border border-transparent hover:border-zinc-600 focus:border-zinc-500 transition-colors outline-none placeholder-zinc-600 text-[11px] [field-sizing:content] min-w-60 cursor-text`}
                             />
                           ) : note ? (
                             <button
@@ -352,7 +344,10 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                 </Button>
               )}
             </div>
-            {rulesByType.map(([type, rules]) => {
+            {data.rules.length === 0 ? (
+              <p className={`${CREM_LABEL} text-zinc-600 italic`}>No rules yet — add a rule for {identity.name}.</p>
+            ) : (
+              rulesByType.map(([type, rules]) => {
               const meta = RULE_TYPE_META[type];
               const Icon = meta.icon;
               const collapsed = collapsedRuleTypes.has(type);
@@ -373,7 +368,8 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                   ))}
                 </ItemCard>
               );
-            })}
+            })
+            )}
           </div>
         )}
       </div>

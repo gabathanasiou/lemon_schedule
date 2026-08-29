@@ -207,7 +207,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
           </div>
         )}
 
-        {/* Date + Event Type — side by side */}
+        {/* Date + Event Type — side by side; both pickers fill their column */}
         <div className="grid grid-cols-2 gap-3 items-start">
           <div>
             <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
@@ -218,6 +218,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
               value={date ? [date] : []}
               onChange={(ds) => setDate(ds[0] || '')}
               placeholder="Pick a date"
+              className="w-full"
             />
             {dateOutOfWindow && (
               <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>
@@ -232,12 +233,14 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
             <DropdownMenu
               open={typeMenuOpen}
               onOpenChange={setTypeMenuOpen}
-              width="w-52"
+              width="w-56"
               theme="dark"
               trigger={
-                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`}>
-                  <TypeIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
-                  <span className="truncate">{activeType?.label || type}</span>
+                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <TypeIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
+                    <span className="truncate">{activeType?.label || type}</span>
+                  </span>
                   <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
                 </button>
               }
@@ -253,7 +256,6 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
                 );
               })}
             </DropdownMenu>
-            <p className={`${CREM_LABEL} text-zinc-600 mt-1.5`}>Changing the type moves this element's card to the new type.</p>
           </div>
         </div>
 
@@ -268,7 +270,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder='e.g. "Traveling from Singapore"'
-            className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
+            className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
             autoFocus
           />
         </div>

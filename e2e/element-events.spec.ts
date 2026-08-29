@@ -113,7 +113,7 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   // ---- Add Event on a new date: the shared adder opens ELEMENT-LOCKED (the
   //     element in its category) with the calendar INLINE (multi-pick),
   //     Create merges it onto the day as a per-element card
-  await modal.getByRole('button', { name: 'Add Event on a Date' }).click();
+  await modal.getByRole('button', { name: 'Add Event' }).click();
   const adder = page.getByRole('dialog').last();
   await expect(adder.getByRole('heading', { name: /1\. FISHERMAN/ })).toBeVisible();
   // The inline DatePicker opens on the current month — navigate to August 2026

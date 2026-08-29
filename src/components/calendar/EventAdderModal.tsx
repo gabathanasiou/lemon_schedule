@@ -225,6 +225,7 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
               placeholder="Pick a date"
               variant={locked ? 'inline' : 'chrome'}
               multi={locked}
+              className={locked ? undefined : 'w-full'}
             />
             {dateOutOfWindow && (
               <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>
@@ -243,9 +244,11 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
                 width="w-52"
                 theme="dark"
                 trigger={
-                  <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`}>
-                    <StatusIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
-                    <span className="truncate">{activeType?.label || status}</span>
+                  <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <StatusIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
+                      <span className="truncate">{activeType?.label || status}</span>
+                    </span>
                     <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
                   </button>
                 }
@@ -279,7 +282,7 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
                   if (r && r.keys[0]) patchRow(r.id, { notes: { ...r.notes, [r.keys[0]]: e.target.value } });
                 }}
                 placeholder={`e.g. "Traveling from Singapore"`}
-                className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
+                className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
                 autoFocus
               />
             </div>
@@ -357,7 +360,7 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
                                 value={r.notes[k] || ''}
                                 onChange={(e) => patchRow(r.id, { notes: { ...r.notes, [k]: e.target.value } })}
                                 placeholder={`Note for ${r.all ? `all ${catDef}` : resolveElementName(k, r.category, project)} — e.g. "Traveling from Singapore"`}
-                                className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
+                                className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
                                 autoFocus={r.noteOpen && !r.notes[k]}
                               />
                             </div>

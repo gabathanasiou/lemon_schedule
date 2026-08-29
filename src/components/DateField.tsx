@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import DropdownMenu from './DropdownMenu';
 import DatePicker from './DatePicker';
-import { X } from 'lucide-react';
+import { DD_CHIP_TRIGGER_CLASS } from '../lib/dropdown';
+import { ChevronDown, X } from 'lucide-react';
 
 /**
  * DateField — a date button that spawns the calendar in a floating chrome
@@ -25,6 +26,10 @@ interface DateFieldProps {
   multi?: boolean;
   /** `chrome` (button → floating panel) or `inline` (calendar always visible). */
   variant?: 'chrome' | 'inline';
+  /** Chrome only: when set, the wrapper + trigger stretch to fill their
+   *  column (`flex w-full`, trigger `flex-1 justify-between`) — the event
+   *  editor's Date / Event Type row. */
+  className?: string;
 }
 
 function shortLabel(dateKey: string): string {
@@ -57,9 +62,10 @@ const Picker = ({ value, onChange, multi }: { value: string[]; onChange: (dates:
   />
 );
 
-export default function DateField({ value, onChange, placeholder = 'Pick a date', multi, variant = 'chrome' }: DateFieldProps) {
+export default function DateField({ value, onChange, placeholder = 'Pick a date', multi, variant = 'chrome', className }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const hasValue = value.length > 0;
+  const fullWidth = !!className;
 
   if (variant === 'inline') {
     return (
@@ -70,7 +76,7 @@ export default function DateField({ value, onChange, placeholder = 'Pick a date'
   }
 
   return (
-    <div className="inline-flex items-center gap-1">
+    <div className={`${fullWidth ? 'flex w-full' : 'inline-flex'} items-center gap-1 ${className || ''}`}>
       <DropdownMenu
         open={open}
         onOpenChange={setOpen}
@@ -80,9 +86,10 @@ export default function DateField({ value, onChange, placeholder = 'Pick a date'
           <button
             type="button"
             title={hasValue ? 'Change date' : placeholder}
-            className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700 transition-colors select-none"
+            className={`${DD_CHIP_TRIGGER_CLASS} text-xs select-none transition-colors ${fullWidth ? 'flex-1 min-w-0 justify-between' : ''}`}
           >
             <span className="truncate">{summaryLabel(value, placeholder)}</span>
+            <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
           </button>
         }
       >
