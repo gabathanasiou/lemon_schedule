@@ -236,12 +236,12 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                               data-element-event-date={date}
                               onClick={() => setNested({ kind: 'event', date, status })}
                               title={`Edit ${identity.name}'s event on this day`}
-                              className="flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800/60 transition-colors cursor-pointer"
+                              className="group flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800/60 transition-colors cursor-pointer"
                             >
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setNested({ kind: 'event', date, status }); }}
-                                className="w-28 shrink-0 text-left text-[11px] font-medium text-zinc-300 hover:text-zinc-100 transition-colors cursor-pointer"
+                                className="w-28 shrink-0 text-left text-[11px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors cursor-pointer"
                               >
                                 {formatDateLabel(date)}
                               </button>
