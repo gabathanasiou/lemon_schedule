@@ -17,6 +17,7 @@ import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import Button from '../Button';
 import Checkbox from '../Checkbox';
+import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import { Plus, X, ChevronDown, Sun, Clock4, MessageSquare } from 'lucide-react';
 
 interface AdderRow {
@@ -215,11 +216,11 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
                 width="w-52"
                 theme="dark"
                 trigger={
-                  <Button theme="dark" variant="subtle" className="bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 flex items-center gap-2">
+                  <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`}>
                     <StatusIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
-                    <span className="truncate text-zinc-200">{activeType?.label || status}</span>
+                    <span className="truncate">{activeType?.label || status}</span>
                     <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-                  </Button>
+                  </button>
                 }
               >
                 {attachableTypes.map(t => {
@@ -281,7 +282,7 @@ export function EventAdderModal({ date: preseedDate, preseed, onClose }: EventAd
                           customCategories={project.customCategories}
                           open={openDropdown === `cat-${r.id}`}
                           onOpenChange={(o) => setOpenDropdown(o ? `cat-${r.id}` : null)}
-                          btnClass="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors flex items-center gap-1.5"
+                          btnClass="text-xs"
                         />
                         <EntityDropdown
                           value={r.keys.join(', ')}

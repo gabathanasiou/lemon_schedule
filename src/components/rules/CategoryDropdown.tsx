@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
+import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 
@@ -47,7 +48,7 @@ export const CategoryDropdown: React.FC<{
       width={minWidth ? `${minWidth}!` : 'min-w-[160px]!'}
       contentClassName="z-[10001] max-h-64!"
       trigger={
-        <button className={`flex items-center gap-1.5 ${btnClass} bg-zinc-800 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-750 shrink-0 ${minWidth || 'min-w-[120px]'} justify-between`}>
+        <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} ${btnClass} shrink-0 ${minWidth || 'min-w-[120px]'} justify-between cursor-pointer`}>
           <span className="truncate">{categoryLabelLookup[value] || value}</span>
           <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
         </button>

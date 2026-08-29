@@ -3,6 +3,7 @@ import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import { ReportBlock, ReportCollection, ReportDesign, RibbonDesign } from '../../types';
 import { ReportScope, reportItemKey, reportItemLabel, resolveCollectionItems, RibbonPrintOptions, ReportPrintOptions } from '../../lib/reportData';
+import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { useCellBorders, CellBorders } from '../../lib/persist';
@@ -184,7 +185,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
             <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Page Size</span>
             <RadixDropdownMenu.Root>
               <RadixDropdownMenu.Trigger asChild>
-                <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5">
+                <button className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                   <span className="tabular-nums">{page === 'inherit' ? 'From design' : page === 'portrait' ? 'Portrait' : 'Landscape'}</span>
                   <ChevronDown className="w-3 h-3 text-zinc-500" />
                 </button>
@@ -250,7 +251,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
                   <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ribbon Layout</span>
                   <RadixDropdownMenu.Root>
                     <RadixDropdownMenu.Trigger asChild>
-                      <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5">
+                      <button className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                         <span className="tabular-nums truncate max-w-[160px]">{design?.name || '—'}</span>
                         <ChevronDown className="w-3 h-3 text-zinc-500" />
                       </button>

@@ -26,7 +26,7 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { ChevronDown, Anchor } from 'lucide-react';
 import { Scene } from '../types';
-import { useDropdown, useEscapeCapture, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB } from '../lib/dropdown';
+import { useDropdown, useEscapeCapture, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB, DD_CHIP_TRIGGER_CLASS } from '../lib/dropdown';
 import { buildDropdownItems } from '../lib/dropdownItems';
 import DropdownPanel from './DropdownPanel';
 
@@ -507,7 +507,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       ref={ref}
       className={
         variant === 'chip'
-          ? `flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900 relative ${className || ''}`
+          ? `${DD_CHIP_TRIGGER_CLASS} relative ${className || ''}`
           : (standalone ? '' : `relative h-[1lh] ${className || ''}`)
       }
       onMouseDown={e => e.stopPropagation()}

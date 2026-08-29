@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../../store';
+import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
@@ -91,7 +92,7 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
           <RadixDropdownMenu.Root open={showCategories} onOpenChange={(o) => setShowCategories(o)} modal={true}>
             <RadixDropdownMenu.Trigger asChild>
               <button
-                className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors"
+                className={`${DD_CHIP_TRIGGER_CLASS} text-xs w-full justify-between cursor-pointer px-3 py-2`}
               >
                 <span>{categoryLabel}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />

@@ -3,6 +3,17 @@ import { CastMember } from '../types';
 import { IS_COARSE } from './device';
 import { useCurrentDocument } from './popoutTarget';
 
+/**
+ * Dark chip trigger — the shared "chip button" look for ANY dropdown/menu
+ * trigger inside a dark modal (EntityDropdown `variant="chip"`,
+ * CategoryDropdown triggers, the day-status menu trigger, …). Text size is
+ * NOT included — consumers add `text-xs` (or their size); real `<button>`
+ * triggers add `cursor-pointer`. Layout-specific extras (a `relative` wrapper
+ * for an absolute value overlay, `justify-between`, min-widths) append on top.
+ */
+export const DD_CHIP_TRIGGER_CLASS =
+  'flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900';
+
 const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 
 export const DD_ITEM = (active: boolean) =>

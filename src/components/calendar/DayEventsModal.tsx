@@ -7,6 +7,7 @@ import { getCategoryElements } from '../../lib/elements';
 import { anchoredKeysFor } from '../../lib/elementLinks';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { getUniqueCastIds } from '../../lib/utils';
+import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { EntityDropdown } from '../EntityDropdown';
@@ -348,11 +349,11 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
               width="w-52"
               theme="dark"
               trigger={
-                <Button theme="dark" variant="subtle" className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 flex items-center gap-2">
+                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`}>
                   {StatusIcon(statusKey, XSZ, activeType?.color)}
-                  <span className="truncate text-zinc-200">{activeType?.label || 'None'}</span>
+                  <span className="truncate">{activeType?.label || 'None'}</span>
                   <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-                </Button>
+                </button>
               }
             >
               <DropdownItem onClick={() => { changeStatus(null); setStatusMenuOpen(false); }} icon={<X className="w-3.5 h-3.5" />}>
@@ -458,7 +459,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                                     customCategories={project.customCategories}
                                     open={openDropdown === `cat-${sec.status}-${i}`}
                                     onOpenChange={(o) => setOpenDropdown(o ? `cat-${sec.status}-${i}` : null)}
-                                    btnClass="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors flex items-center gap-1.5"
+                                    btnClass="text-xs"
                                   />
                                   <EntityDropdown
                                     value={r.all ? '' : r.keys.join(', ')}

@@ -7,7 +7,7 @@ import DateField from '../DateField';
 import Checkbox from '../Checkbox';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
-import Button from '../Button';
+import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import {
   RULE_TYPE_META, RULE_TYPES,
   RuleFormState, blankRuleForm, formFromRule, validateRuleForm, buildRulesFromForm,
@@ -159,11 +159,11 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
         width="w-52"
         theme="dark"
         trigger={
-          <Button theme="dark" variant="subtle" className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 flex items-center gap-2" data-rule-type>
+          <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`} data-rule-type>
             <SelectedIcon className={`w-3.5 h-3.5 shrink-0 ${selectedMeta.chipIcon}`} />
-            <span className="truncate text-zinc-200">{selectedMeta.label}</span>
+            <span className="truncate">{selectedMeta.label}</span>
             <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-          </Button>
+          </button>
         }
       >
         {RULE_TYPES.map(t => {

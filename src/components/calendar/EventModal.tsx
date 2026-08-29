@@ -16,7 +16,7 @@ import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { usePortalTarget } from '../../lib/popoutTarget';
-import Button from '../Button';
+import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import { ChevronDown, Sun, Trash2, MessageSquare } from 'lucide-react';
 
 interface EventModalProps {
@@ -187,7 +187,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
                 customCategories={project.customCategories}
                 open={openDropdown === 'ev-cat'}
                 onOpenChange={(o) => setOpenDropdown(o ? 'ev-cat' : null)}
-                btnClass="px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors flex items-center gap-1.5"
+                btnClass="text-xs"
               />
               <EntityDropdown
                 value={key}
@@ -235,11 +235,11 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
               width="w-52"
               theme="dark"
               trigger={
-                <Button theme="dark" variant="subtle" className="bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 flex items-center gap-2">
+                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`}>
                   <TypeIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
-                  <span className="truncate text-zinc-200">{activeType?.label || type}</span>
+                  <span className="truncate">{activeType?.label || type}</span>
                   <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-                </Button>
+                </button>
               }
             >
               {attachableTypes.map(t => {

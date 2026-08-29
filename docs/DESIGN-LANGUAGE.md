@@ -82,6 +82,7 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 | Ghost (Cancel, Close) | `px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors` (`DayTypeModals.tsx:29`) |
 | Solid (primary action) | `px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors` (`DayTypeModals.tsx:30`) |
 | Labeled icon action | `flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 hover:text-white` (`LinkManagerModal.tsx:33` — icon-only buttons need text labels) |
+| Chip button (dark-modal dropdown triggers) | `DD_CHIP_TRIGGER_CLASS` (`src/lib/dropdown.ts`): `flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900` — the cast-dropdown/chip look. Text size NOT included (add `text-xs`), real `<button>` triggers add `cursor-pointer`, layout extras (`relative` for an absolute value overlay, `justify-between`, min-widths, `w-full px-3 py-2` for full-width) append on top. Single source for the EntityDropdown `variant="chip"` trigger AND every value-displaying menu trigger styled like it (day-status + event-type pickers, `CategoryDropdown`, rule-type picker, print-dialog ribbon-layout/page-size/category pickers) — never hand-write the strings |
 | Icon-only | `p-1.5 rounded-md transition-colors shrink-0 text-zinc-600 hover:text-red-400 hover:bg-zinc-800` (`LinkManagerModal.tsx:29-30`) |
 | Toolbar micro (dark) | desktop `h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700`; touch `h-10 px-3.5 text-sm` (kit `TB_BTN`) |
 | Danger ghost | `text-red-400 hover:bg-rose-950/40` (dark) / `text-rose-600 hover:bg-rose-50` (light) |
@@ -151,12 +152,16 @@ rounded-lg shadow-lg`, `DD_PANEL_CLASS_LIB` `:21-24`; items `DD_ITEM_CLASS_LIB` 
 
 **EntityDropdown chip version** (`variant="chip"` — modal rows: Link Manager, Color Rules rows,
 `days-status` pattern, DayEventsModal attachment rows + inline rule editor cast pickers,
-ProductionDatesModal-adjacent modals). Trigger = dark chip: `bg-zinc-950 border border-zinc-700
-rounded text-zinc-300 hover:bg-zinc-900 px-2.5 py-1.5 flex items-center gap-1.5` + chevron
+ProductionDatesModal-adjacent modals). Trigger = dark chip — the shared **`DD_CHIP_TRIGGER_CLASS`**
+(§Buttons "Chip button"): `bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900
+px-2.5 py-1.5 flex items-center gap-1.5` (+ `relative` for the absolute value overlay) + chevron
 (`w-3 h-3 text-zinc-500 absolute right-2`) + value/placeholder overlay; committed value stays raw,
 the overlay resolves cast as Glide-style (`1. FISHERMAN`, `—` fallback) via the `items` prop.
 **Every entity dropdown rendered inside a dark modal uses `variant="chip"`** — the dark trigger +
-dark panel are the modal theme (the light default is for light cells/forms only).
+dark panel are the modal theme (the light default is for light cells/forms only). **Any other
+dropdown/menu trigger inside a dark modal can adopt the same look by using `DD_CHIP_TRIGGER_CLASS`**
+(e.g. the day-status DropdownMenu trigger in DayEventsModal, `CategoryDropdown` — its trigger IS the
+constant, so category pickers everywhere already match the cast chips).
 Clicking the chip prepares the text: single selects all (retype replaces), multi sets the caret at
 the end (typing appends a segment). **Escape inside any open dropdown dismisses only the dropdown,
 never the enclosing modal** (`useEscapeCapture` in `src/lib/dropdown.ts` — a mount-registered
