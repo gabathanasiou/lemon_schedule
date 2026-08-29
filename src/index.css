@@ -88,14 +88,13 @@ html, body, #root {
   text-decoration: underline;
 }
 
-/* Tailwind gates hover: utilities behind @media (hover: hover), which is false
-   on iPadOS (primary pointer stays coarse even with a trackpad/pencil) — so
-   hover styles were dead for the iPad cursor. Gate on any-hover instead: any
-   hover-capable pointer (mouse/trackpad/pencil) enables them. */
+/* Hover styles are UNGATED so iOS Safari's native tap-to-hover engages on
+   touch: the first tap applies :hover (highlight/reveal — sticky until the
+   next tap) and defers the click to the second tap. Tailwind's default
+   (hover: hover) gate is false on iPadOS and (any-hover: hover) is false when
+   no hovering pointer is attached — either one kills the native behavior. */
 @custom-variant hover {
-  @media (any-hover: hover) {
-    &:hover { @slot; }
-  }
+  &:hover { @slot; }
 }
 
 html {
@@ -150,16 +149,16 @@ input, textarea, [contenteditable] {
   pointer-events: none;
 }
 
+/* Reveal-on-hover chrome (row/card action buttons). Ungated: desktop shows
+   them on hover; iOS shows them on tap (sticky :hover) so the first tap
+   reveals, the second tap activates. :focus-within keeps them reachable by
+   keyboard. */
 .hover-reveal {
-  opacity: 1;
+  opacity: 0;
 }
-@media (any-hover: hover) and (any-pointer: fine) {
-  .hover-reveal {
-    opacity: 0;
-  }
-  .group:hover .hover-reveal {
-    opacity: 1;
-  }
+.group:hover .hover-reveal,
+.group:focus-within .hover-reveal {
+  opacity: 1;
 }
 
 /* Manager editor tables: separate borders so sticky pinned columns keep
@@ -174,15 +173,14 @@ input, textarea, [contenteditable] {
 }
 
 /* Edit mode: fields that can be tapped-to-edit signal affordance on hover.
+   Ungated — on iOS the tap's sticky :hover is the affordance.
    gated by the container attribute so the mode toggle never re-renders rows. */
-@media (any-hover: hover) {
-  [data-edit-mode="1"] [data-row-id] [data-ribbon-field]:not(:has(input)):not(:has(textarea)) {
-    transition: background-color 100ms ease;
-  }
-  [data-edit-mode="1"] [data-row-id] [data-ribbon-field]:not(:has(input)):not(:has(textarea)):hover {
-    background: rgba(0, 0, 0, 0.09);
-    cursor: pointer;
-  }
+[data-edit-mode="1"] [data-row-id] [data-ribbon-field]:not(:has(input)):not(:has(textarea)) {
+  transition: background-color 100ms ease;
+}
+[data-edit-mode="1"] [data-row-id] [data-ribbon-field]:not(:has(input)):not(:has(textarea)):hover {
+  background: rgba(0, 0, 0, 0.09);
+  cursor: pointer;
 }
 
 /* Stripboard row virtualization: chunks of rows skip layout/paint when far
