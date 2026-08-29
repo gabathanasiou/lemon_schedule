@@ -128,7 +128,7 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
     const tracePromise = traceMorph(page, '.ui-menu');
     const menu = page.locator('.ui-menu').last();
     await expect(menu).toBeAttached();
-    await expect(page.getByRole('button', { name: 'Add Note Below' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Add Note Below' })).toBeVisible();
 
     const samples = (await tracePromise)!;
     const mids = midMorph(samples);
@@ -268,6 +268,13 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
     await expect(page.locator('.ui-item-highlighted')).toContainText('Ribbon Layout');
     await page.keyboard.press('c');
     await expect(page.locator('.ui-item-highlighted')).toContainText('Cell Borders');
+    // Enter on a SUBMENU trigger row opens the sub — the keyboard-opened sub
+    // pre-lights its first item, so a second Enter activates it and closes
+    // the whole chain (the item-64 keyboard semantics).
+    await page.keyboard.press('Enter');
+    const sub = page.locator(MENU).last();
+    await expect(sub).toBeVisible();
+    await expect(page.locator('.ui-item-highlighted').last()).toContainText('None');
     await page.keyboard.press('Enter');
     await expect(page.locator(MENU)).toHaveCount(0);
   });

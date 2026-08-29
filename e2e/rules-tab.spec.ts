@@ -22,6 +22,9 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await page.getByRole('dialog').locator('input').first().click();
   await page.keyboard.type('1');
   await page.getByText('FISHERMAN', { exact: false }).last().click();
+  // The multi-pick panel stays open for the next pick — dismiss it before
+  // the date grid (the panel would otherwise cover the calendar).
+  await page.keyboard.press('Escape');
   await page.getByRole('dialog').getByRole('button', { name: '17', exact: true }).click();
   await page.getByRole('button', { name: 'Add Rule' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -36,6 +39,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await page.getByRole('dialog').locator('input').first().click();
   await page.keyboard.type('1');
   await page.getByText('FISHERMAN', { exact: false }).last().click();
+  await page.keyboard.press('Escape');
   await page.getByRole('dialog').getByRole('button', { name: '18', exact: true }).click();
   await page.getByRole('button', { name: 'Add Rule' }).click();
   await expect(page.getByText(/1\. FISHERMAN: max 8h/)).toBeVisible();

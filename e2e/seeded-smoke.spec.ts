@@ -66,8 +66,8 @@ test.describe('Schedule Tab Toolbar & Context Menu', () => {
 
     const row = page.locator('[data-row-id]').first();
     await row.click({ button: 'right', force: true });
-    await expect(page.getByRole('button', { name: 'Add Note Below' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Add Day Break Below' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Add Note Below' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Add Day Break Below' })).toBeVisible();
     await page.keyboard.press('Escape');
   });
 
@@ -127,7 +127,7 @@ test.describe('Daybreak Context Actions', () => {
   const before = await page.evaluate(daybreakCount);
   const row = page.locator('[data-row-id]').nth(1);
   await row.click({ button: 'right', force: true });
-  await page.getByRole('button', { name: 'Add Day Break Below' }).click();
+  await page.getByRole('menuitem', { name: 'Add Day Break Below' }).click();
   await expect(page.locator('[data-testid="daybreak-row"]').first()).toBeAttached({ timeout: 5000 });
   const after = await page.evaluate(daybreakCount);
   expect(after).toBe(before + 1);
