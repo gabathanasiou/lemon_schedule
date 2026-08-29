@@ -274,6 +274,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                               type="text"
                               defaultValue={note}
                               placeholder="Add a note — e.g. 'Traveling from Singapore'"
+                              onClick={(e) => e.stopPropagation()}
                               onBlur={(e) => { setNoteDate(null); commitNote(date, status, noteCategory, e.target.value); }}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
@@ -284,7 +285,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                           ) : note ? (
                             <button
                               type="button"
-                              onClick={() => !readOnly && setNoteDate(date)}
+                              onClick={(e) => { e.stopPropagation(); !readOnly && setNoteDate(date); }}
                               title={readOnly ? note : 'Edit note'}
                               className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-text"
                             >
@@ -294,7 +295,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                           ) : !readOnly ? (
                             <button
                               type="button"
-                              onClick={() => setNoteDate(date)}
+                              onClick={(e) => { e.stopPropagation(); setNoteDate(date); }}
                               className="text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors cursor-text"
                             >
                               Add note

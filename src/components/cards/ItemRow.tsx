@@ -9,10 +9,11 @@ import React, { ReactNode } from 'react';
  *   fill) and the title cell highlights with the row (`group-hover`).
  * - The title cell is a focusable button (keyboard path) that triggers the
  *   same `onClick`.
- * - Body and trailing actions SWALLOW their own clicks — the note text
- *   (I-beam cursor) and the remove X never open the editor. Consumers put
- *   the note text / action buttons in `children` / `trailing` without
- *   stopPropagation of their own.
+ * - Body clicks BUBBLE to the row (the row opens the editor) — interactive
+ *   elements inside the body (note text, the note input) must
+ *   `stopPropagation` themselves.
+ * - Trailing actions (e.g. the remove X) SWALLOW their own clicks — they
+ *   never open the editor.
  */
 export interface ItemRowProps {
   /** Row-wide click — opens the item's editor. */
@@ -51,7 +52,7 @@ export function ItemRow({ onClick, title, titleClass, titleAttr, children, trail
       >
         {title}
       </button>
-      <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>{children}</div>
+      <div className="flex-1 min-w-0">{children}</div>
       {trailing && <div className="shrink-0" onClick={(e) => e.stopPropagation()}>{trailing}</div>}
     </div>
   );

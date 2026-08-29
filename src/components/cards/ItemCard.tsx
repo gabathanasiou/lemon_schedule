@@ -11,7 +11,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
  * Header: chevron + icon + title + count on the zinc-800 card, with an
  * optional right-aligned `trailing` action (e.g. "Add Rule") OUTSIDE the
  * toggle button (never nest a button inside the toggle). Body renders the
- * dark band (`border-t bg-zinc-900/60 p-2 space-y-1.5` — rows sit with gaps,
+ * dark band (`border-t bg-zinc-900/60 p-1.5 space-y-1` — rows sit with gaps,
  * no dividers) unless `bodyClass` overrides it.
  *
  * Dark theme only — a light variant belongs to the RulesTab migration.
@@ -51,7 +51,7 @@ export function ItemCard({ title, icon, count, collapsed, onToggle, trailing, bo
         {trailing && <div className="shrink-0">{trailing}</div>}
       </div>
       {!collapsed && children && (
-        <div className={bodyClass || 'border-t border-zinc-700/60 bg-zinc-900/60 p-2 space-y-1.5'}>{children}</div>
+        <div className={bodyClass || 'border-t border-zinc-700/60 bg-zinc-900/60 p-1.5 space-y-1'}>{children}</div>
       )}
     </div>
   );
