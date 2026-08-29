@@ -9,7 +9,7 @@ Before building any of these by hand again, check the kit first:
 
 - Dropdown menus, submenus, item lists → `DropdownMenu / DropdownItem / DropdownSubmenu`
 - Right-click / long-press menus → `ContextMenu` + `LongPressMenuProvider` (add `data-context-menu` to a target)
-- confirm/prompt/alert dialogs → `DialogProvider` + `useDialog()`
+- confirm/prompt/alert dialogs → `DialogProvider` + `useDialog()` (renders through the kit Modal's `flat` chrome — dialogs inherit the morph/dim/coarse sizing; `Modal` accepts a `flat` prop for dialog-style chrome without header/footer bars) — render **through the kit Modal** (`flat` chrome, v0.1.60): morph, one-dim backdrop, coarse sizing, Enter always = primary action
 - Touch/pointer detection, touch-first variants → `device.ts` + `useTouchMode()`
 - Popups above the keyboard → `useSmartPosition / useFixedPosition`
 

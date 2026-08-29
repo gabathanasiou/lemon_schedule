@@ -52,6 +52,7 @@ const LOC = ['locations', 'location-types'];
 const IMPORT = ['msd-import', 'cast-single-source'];
 const PRINT = ['report-pagination', 'report-page-breaks'];
 const MODAL = ['pen-modal', 'keyboard-mode'];
+const TRASH = ['trash-restore'];
 const MANAGERS = [...ELEM, ...CREW, ...LOC];
 const CANARY = ['seeded-smoke', 'debug-bridge'];
 
@@ -156,6 +157,8 @@ const RULES = [
   // pointer / keyboard / modals
   { g: 'src/lib/device.ts', s: MODAL },
   { g: 'src/components/Modal.tsx', s: MODAL },
+  { g: 'src/components/TrashModal.tsx', s: TRASH },
+  { g: 'src/components/NewProjectModal.tsx', s: TRASH },
   { g: 'src/components/ColorField.tsx', s: MODAL },
   { g: 'src/components/KeyboardToggleButton.tsx', s: ['keyboard-mode'] },
   // color rules + shared element pickers (rules tab + colors tab)

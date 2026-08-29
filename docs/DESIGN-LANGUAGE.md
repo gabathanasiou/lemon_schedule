@@ -107,13 +107,15 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 
 The grouped-list surface of the element events manager, extracted as the shared `ItemCard` +
 `ItemRow` (`src/components/cards/`) — use these for any "one card per item, rows inside" list in a
-dark modal (day-type cards, Rules sections; RulesTab cast groups + day types are the light-theme
+dark modal (day-type cards, Rules sections; **the Trash modal's per-kind sections**,
+`TrashModal.tsx`; RulesTab cast groups + day types are the light-theme
 migration candidates — the components are dark-only today).
 
 | Element | Classes | Source |
 |---|---|---|
 | Group card | container `rounded-lg border border-zinc-700 bg-zinc-800 overflow-hidden`; header row `flex items-center gap-2 px-3 py-2 hover:bg-zinc-700/50 transition-colors` — the toggle is a `flex-1 min-w-0 text-left cursor-pointer` **button** (chevron `w-3.5 h-3.5 text-zinc-500`, icon, title `text-xs font-semibold text-zinc-200 truncate`, count `text-[10px] text-zinc-500`) with right-aligned `trailing` actions (e.g. Add Rule) OUTSIDE it — never nest a button inside the toggle; body band `border-t border-zinc-700/60 bg-zinc-900/60 divide-y divide-zinc-700/60 p-1.5` — rows sit with divider lines (`bodyClass` overrides) | `cards/ItemCard.tsx` |
 | Interactive row | `ITEM_ROW_CLASS` (`src/components/cards/ItemRow.tsx`): `group flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800/60 transition-colors cursor-pointer rounded-md` — **row-wide click opens the item's editor**; title cell default `w-44 ... group-hover:text-zinc-100` (focusable button, pointer cursor; widen via `titleClass` — e.g. the day modal's `w-56` category label + element name); **body clicks bubble to the row** (interactive note text = I-beam `cursor-text` + `stopPropagation` itself; the input too); **trailing swallows its clicks** (the remove X never opens the editor). The **dark `RuleCard` renders as this row** (compact: description + conflicts + delete X; full: + icon box + type chip) inside the per-type rule cards and the day modal's Rules tab — the light RulesTab theme keeps its boxed card | `cards/ItemRow.tsx`, `rules/RuleCard.tsx` |
+| Trash viewer | `TrashModal` — the File menu's Trash… on the kit Modal: **one `ItemCard` section per trash kind** (Scenes/Versions/Calendar Plans/Rules/Elements/Custom Categories/Color Rules/Crew/Ribbon Designs, kind icon + count, `data-trash-section`), rows = title + subtitle + Restore (`RotateCcw`, `data-trash-item`); footer = Empty (ghost danger `mr-auto`, DNWA confirm) + Close hero; "Trash is empty" state | `components/TrashModal.tsx` |
 
 ### Status colors
 | Meaning | Classes |
@@ -150,7 +152,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Entity/cast picker in a cell or form | `EntityDropdown` | Modes: `multi` (comma list, click toggles), `single` (search-then-select), `select` (legacy). `items` prop REQUIRED — no context fallback. **Inside modals use `variant="chip"`** (dark chip trigger + dark panel; §EntityDropdown chip version below) — cells/forms keep the light default |
 | Inline cell text edit | `CellInput` | **Commits on blur only, never per keystroke**; Enter=commit, Esc=cancel |
 | Live numeric box (toolbar steppers: ribbon Pad V/H, Edge, Master Size, cell offset) | `LiveNumberInput` (`RibbonToolbar.tsx`) | Free-typed draft while focused (type digits one at a time, delete-to-empty); commit clamps live (preview updates), Enter/blur clamps + finalizes, Escape reverts to the committed value. Never a clamped controlled input — clamping on change snaps the first keystroke |
-| Confirm/prompt/alert | `useDialog().confirm/prompt/alert` | Modal Radix dialog, focus trap, Enter=confirm |
+| Confirm/prompt/alert | `useDialog().confirm/prompt/alert` | **Renders through the kit Modal (`flat` chrome — no header/footer bars, item 67)**: inherits the zoom/stack morph, the one-dim backdrop and the viewport clamp; Enter ALWAYS triggers the primary action (document-capture, even with focus on the X close button); Esc/outside = cancel |
 | Confirm + remember-24h | `dialog.confirm({…, danger:true, suppressKey})` | For frequent-but-serious only |
 | Popup above keyboard | `FloatingChrome` / `useSmartPosition` | iOS visual-viewport aware |
 | Full form surface | `Modal` + `ModalFooter` | §Modal anatomy |
@@ -234,7 +236,11 @@ open, `:165-169`); Enter = confirm — when nothing interactive is focused
 (input/textarea/button/dropdown open), Enter clicks the footer's LAST button
 (the app's footer convention: Cancel first, primary action last, danger first
 with `mr-auto`); an explicit `data-modal-confirm` marker on a footer button
-wins over the heuristic, and a disabled last button is a no-op. Radix focus trap. Portaled overlays above the modal
+wins over the heuristic, and a disabled last button is a no-op. **Dialogs
+(`flat` chrome) differ deliberately**: Enter ALWAYS triggers the primary
+action (document-capture in the kit Dialog — Radix focuses the X close button
+on open, which would otherwise make Enter cancel), while Esc/outside/X stay
+cancel. Radix focus trap. Portaled overlays above the modal
 (DurationKeypad) must set their own `pointer-events:auto` (`Modal.tsx:66-67`).
 
 Stacking (modal spawns modal, e.g. Day Events → Rule Editor): the parent fades to **invisible**
@@ -245,8 +251,9 @@ fades). The modal overlay dims the background **ONE layer per window** (`.ui-mod
 kit `tokens.css`) — stacked modals never stack darkenings: the sibling `:has(~ [data-modal-stack][data-state=open])`
 selector zeroes the dim on every non-top modal, so exactly one dim layer exists (belonging to the
 top modal); it fades 220ms WITH the close morph (`ui-modal-overlay-closing`) and stacked swaps are
-instant. The ui-kit confirm/alert overlay deliberately stays transparent — no double-dim over the
-modal's own layer.
+instant. The ui-kit confirm/prompt/alert dialogs are Modal instances too (item 67 — flat chrome),
+so they participate in the stack + dim machinery identically: a dialog over a modal dims once (its
+own layer), the modal beneath fades.
 
 Morph: stacked modals **grow out of the modal beneath them** and the survivor **shrinks back from
 the closing modal's box**; **standalone modals zoom in from 94% on open and zoom back out on
