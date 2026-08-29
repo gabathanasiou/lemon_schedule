@@ -28,8 +28,8 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
    `bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg` is wrong by definition.
    Extract shared strings into module-level constants at the second use (like
    `LinkManagerModal.tsx:26-33`, kit `EditorChrome` `TB_*`).
-4. **One design language across desktop and iPadOS.** Touch/pen are first-class: hover gates on
-   `any-hover`, paddings bump via `IS_COARSE`, tap feedback is `:active` (never JS pulses).
+4. **One design language across desktop and iPadOS.** Touch/pen are first-class: hover styles are
+   un-gated (iOS tap-to-hover), paddings bump via `IS_COARSE`, tap feedback is `:active` (never JS pulses).
 
 ## Principles applied (NN/g heuristics → how this app does it)
 
@@ -132,12 +132,18 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 
 ### Global CSS invariants (`src/index.css`)
 - **Every `<button>` is `cursor: pointer`** (a base-layer rule — Chrome 88+ defaulted buttons to `cursor: default`, which reads as dead). Utility overrides still win: `disabled:cursor-not-allowed`, `cursor-text` (note text), `cursor-default`. No button needs an explicit `cursor-pointer` class.
-- Hover utilities gate on `any-hover` via `@custom-variant hover` (`index.css:53-57`) — **every hover
-  must be a Tailwind `hover:` variant or `.group:hover`, never a hand-written `:hover` rule**.
+- **Hover styles are UNGATED** (`index.css @custom-variant hover` — no media query; kit `tokens.css`
+  header): iOS Safari's native tap-to-hover — first tap applies `:hover` (sticky highlight/reveal),
+  the click defers to the second tap — only engages when the tapped element has a matching `:hover`
+  rule. `(hover: hover)` is false on iPadOS and `(any-hover: hover)` is false when no hovering
+  pointer is attached — either gate kills the native behavior on touch. Every hover is still a
+  Tailwind `hover:` variant or `.group:hover`/`.group:focus-within`, never a bare hand-written rule.
 - `user-select: none` globally except inputs/contenteditable (`index.css:59-73`).
 - `touch-action: manipulation` on `button, a, [role=button], [role=menuitem], [role=option]`
   (`index.css:65-67`).
-- `.hover-reveal`: visible on touch, revealed on `group:hover` on fine pointers (`index.css:103-113`).
+- `.hover-reveal`: hidden until hover/tap (`opacity: 0`, un-gated), revealed by `.group:hover` +
+  `.group:focus-within` (`index.css`) — on iOS the first tap on the row reveals it, the second tap
+  activates; `:focus-within` keeps the revealed controls keyboard-reachable.
 - Focus-visible: kit applies `outline: 2px solid var(--ui-accent-soft-text); outline-offset: 1px`
   (`node_modules/@gabriel/ui-kit/dist/ui-kit.css:210-213`).
 
@@ -147,7 +153,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 |---|---|---|
 | Toolbar / action button | kit `Button` | Variants `subtle`/`primary`/`danger-ghost`; `cloud` prop colors light primary for cloud projects (derive via `useIsCloudProject`); `theme="dark"` for dark toolbars; icon-only nav + status pills stay bespoke |
 | Version picker (schedule/calendar/ribbon-design dropdown) | `ItemManagerDropdown` | Per-tab placement (item 66: Schedule tab toolbar right edge + Calendar tab outer PageToolbar — **no header pickers**); trigger = kit `Button` with a muted label span + `text-zinc-900`/`text-zinc-200` value span + muted chevron (ribbon-designer recipe); rename inline uses the kit's theme-aware input (light theme = light input) — the create flow must dispatch with the SAME id the menu handed to its inline rename (`makeBlankCalendarVersion(name, id)`) or the rename input never appears |
-| Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; **one `.ui-item-highlighted` row** (pointer hover + arrows, latest wins; no CSS hover fills — Radix `data-highlighted` inert), arrows/typeahead/Esc + the document-level menu key-lock (mini-modal: menu keys stay captured even when focus sits on a canvas); `modal:false`; root content = panel positioning (fixed below the trigger, width-matched, viewport-clamped); submenus keep the Radix popper side-placement; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy) |
+| Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; **one `.ui-item-highlighted` row** (pointer hover + arrows, latest wins; the CSS `:hover` fill feeds iOS tap-to-hover but is suppressed while a row is highlighted — kit `tokens.css`, keyed on the kit class not Radix's attr), arrows/typeahead/Esc + the document-level menu key-lock (mini-modal: menu keys stay captured even when focus sits on a canvas); `modal:false`; root content = panel positioning (fixed below the trigger, width-matched, viewport-clamped); submenus keep the Radix popper side-placement; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy) |
 | Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme**; press-point-anchored morph, closes on Esc. Shares the kit menu machinery (highlight/keys/lock) — `ContextMenuSub` = `DropdownSubmenu` |
 | Entity/cast picker in a cell or form | `EntityDropdown` | Modes: `multi` (comma list, click toggles), `single` (search-then-select), `select` (legacy). `items` prop REQUIRED — no context fallback. **Inside modals use `variant="chip"`** (dark chip trigger + dark panel; §EntityDropdown chip version below) — cells/forms keep the light default |
 | Inline cell text edit | `CellInput` | **Commits on blur only, never per keystroke**; Enter=commit, Esc=cancel |
@@ -185,7 +191,8 @@ never the enclosing modal** (`useEscapeCapture` in `src/lib/dropdown.ts` — a m
 document-capture interceptor; Radix dialogs close on Escape otherwise).
 Panel = dark surface: `bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl
 z-[10001] p-1 min-w-[200px]`, items `px-3 py-2 text-xs`. **Single-highlight rule (all EntityDropdown
-panels, both themes)**: panels have NO CSS hover fills — the one active row is `highlightedIndex`
+panels, both themes)**: rows keep their un-gated Tailwind `hover:` fills (they feed iOS
+tap-to-hover), but `highlightedIndex` is the ONE active row
 (`bg-zinc-700 text-white` for dark, `bg-zinc-100 text-zinc-900` / checked `bg-blue-100 text-blue-700`
 for light), which pointer hover (`onMouseEnter` → `onItemHover`) and the keyboard arrows both write
 (latest wins; leaving the list clears a pointer-driven highlight via `onHoverLeave`). Checked rows =
@@ -195,8 +202,10 @@ distinct from the highlight: dark `bg-zinc-800/40 text-zinc-100` + trailing `Che
 **Single-highlight rule (kit menus AND context menus — the kit `DropdownMenu`/`DropdownSubmenu`/
 `ContextMenu` share the panel's highlight model, item 64)**: the one lit row is `.ui-item-highlighted`
 (kit `tokens.css`) — written by pointer hover AND the keyboard arrows (latest wins; `onPointerLeave`
-clears a pointer-driven highlight); NO CSS hover fills (the `.ui-item:hover` fill is suppressed
-while a row is highlighted; Radix `data-highlighted` is inert). Checked rows stay distinct (dark =
+clears a pointer-driven highlight); the CSS `.ui-item:hover` fill feeds iOS tap-to-hover but is
+suppressed while a row is highlighted (`.ui-menu:has(.ui-item.ui-item-highlighted) .ui-item:hover:not(.ui-item-highlighted)` —
+keyed on the kit class, NOT Radix's `[data-highlighted]`, which stays on the last pointer-hovered
+item when the keyboard moves the highlight away). Checked rows stay distinct (dark =
 Check glyph; light = blue bg). **Menu key-lock (mini-modal)**: while a menu is open, the MENU keys
 (arrows/Enter/Space/typeahead letters) are captured at the document and routed to the surface even
 when focus sits on a stripboard canvas or the page body; events inside the menu pass through;
@@ -337,8 +346,11 @@ N scenes" — not "Success! Your links have been applied".
 
 ## Hover, tap & device model
 
-- **Hover** only via the `any-hover` gate (`index.css:53-57`, kit `ui-kit.css:10-14`): `(hover: hover)`
-  is false on iPadOS even with cursor/pencil. `group-hover` composes `hover:` so it's covered.
+- **Hover styles are un-gated** (`index.css @custom-variant hover`, kit `tokens.css` header): iOS
+  Safari's native tap-to-hover — first tap applies `:hover` (sticky until the next tap) and defers
+  the click to the second tap — only engages when the tapped element has a matching `:hover` rule.
+  `(hover: hover)` is false on iPadOS even with cursor/pencil and `(any-hover: hover)` is false when
+  no hovering pointer is attached — either gate kills the native behavior on touch.
 - **`:active` is outside the gate** — instant touch feedback; add `active:transition-none` to avoid
   delay. No JS flash/pulse affordances: iOS sticky hover (tap → `:hover` until next tap) IS the tap
   feedback and doubles with anything extra.
@@ -368,7 +380,9 @@ MUST be added to `HelpModal.tsx` (AGENTS.md rule).
 2. **No new toast system** — use the §Feedback taxonomy.
 3. **No hardcoded ribbon-cell styling** — always `getRibbonCellBaseStyle` (`src/lib/ribbonUtils.ts`).
 4. **No per-keystroke commits** — `CellInput` commits on blur; EntityDropdown commits on exit.
-5. **No bare `:hover` / `group-hover`-only reveal without the any-hover gate** — touch would lose it.
+5. **Never gate hover styles behind `(hover: hover)` / `(any-hover: hover)`** — a non-matching gate
+   kills iOS tap-to-hover (first tap = sticky `:hover` highlight/reveal, click on the second tap).
+   Un-gated `hover:`/`:hover` is the rule; `.hover-reveal` needs a `.group:focus-within` path.
 6. **No raw colors outside the zinc palette/tokens** — no brand colors, no saturated UI chrome;
    danger/success/amber semantics as in §Status colors.
 7. **No mixing layers** — a light card inside a dark modal or vice versa is a bug.
