@@ -28,22 +28,16 @@ Related bugs to fix while here:
   **1:1 with the stripboard**.
 - **Breaks same as notes** — 1:1 with the stripboard.
 
-## 2. REMINDER: Location Manager fix + wire locations into scenes (`[ ]`)
+## 2. REMINDER: Location Manager fix + wire locations into scenes (`[x]` Done)
 
-**Partial (scene sheet + MSD import)**: the Scene Sheet's Location cell is now
-an editable autocomplete (`AutocompleteDropdown`, int/EXT-style) seeded from
-the Locations Manager DB; the field is formalized on `Scene` (`location:
-string`, `createBlankScene`); the print breakdown sheet prints it. The `.msd`
-import now materializes every distinct scene Location string into the
-locations DB under an "MSD Import" type (MMS has no location registry).
-Still open: stripboard/glide location columns.
-
-**Reminder: the Location Manager needs to be fixed.**
-
-- Wire locations so they can be linked/input into scenes.
-- **There is no location column/type on scenes** even though it exists in the
-  scene sheet — wire them together (one source of truth; scene sheet and
-  stripboard/glide must agree).
+**Done**: the Scene Sheet's Location cell is an editable autocomplete
+(`AutocompleteDropdown`, int/EXT-style) seeded from the Locations Manager DB;
+the field is formalized on `Scene` (`location: string`, `createBlankScene`); the
+print breakdown sheet prints it. The `.msd` import materializes every distinct
+scene Location string into the locations DB under an "MSD Import" type (MMS has
+no location registry). **The stripboard/glide location columns were DROPPED
+(user decision) — locations are not wired into the stripboard/glide; the scene
+sheet is the single location surface and this item is closed.**
 
 ## 10. Future: CallSheet Designer (`[~]`)
 
@@ -200,7 +194,9 @@ diffs render; lint + playwright. **Out of scope** (follow-ups): Filmustage-
 style cross-version schedule/budget impact reports, archived-versions hub —
 this item is the import acceptance step only.
 
-## 40. Import legacy Movie Magic Scheduling `.msd` files (`[ ]`)
+## 40. Import legacy Movie Magic Scheduling `.msd` files (`[x]` Done)
+
+**Done**: `parseMsdFile` (`src/lib/import/msd.ts`, container splitter + XML → complete Project) wired into the Project Manager and App File → Import as NEW-PROJECT-ONLY (`importProjectFromData`); maps 20 MMS categories → elements/cast (cast by ID), sets/location/sequence/unit → scene fields, boards → versions with full rows in strip order (pinned anchor + N−1 breaks — no phantom Day 1), board calendars → calendar versions (item 74: one per distinct MMS calendar, named by the MMS name, with prepStart/postEnd/weeklyDaysOff + window-bounded nonShootDates), page counts as app eighths (`formatPageCount`), `scriptPageNumbers`. Reference parser `tools/msd_probe.py` + golden `e2e/fixtures/wonderful-life.expected.json`; verified by `e2e/msd-import.spec.ts` (146 scenes, active board's days in exact strip order, undo restores).
 
 **Requested**: import `.msd` ("Movie Schedule Data") files — the native
 schedule format of legacy **Movie Magic Scheduling 6** (EP) — so full
@@ -789,7 +785,9 @@ The kit `DropdownMenu` (re-export `src/components/DropdownMenu.tsx`) is click-to
 
 **Relations**: reverses item 45's "card on EVERY day" decision (the `data-card-everyday` display-only card); consistent with item 46's Rules-tab retirement note (Rules tab stays the global/no-date surface); touches `src/lib/events.ts` only as read-only (no model change).
 
-## 66. Calendar versions — independent production dates + events (`[ ]`)
+## 66. Calendar versions — independent production dates + events (`[x]` Done)
+
+**Done**: `CalendarVersion` is an independent axis — `Project.calendarVersions` + `activeCalendarVersionId`, calendar fields REMOVED from `ScheduleVersion` (nonShootDates, productionStart, prepStart, postEnd, weeklyDaysOff). No migration (old per-version data dropped; LOAD bootstraps a blank `c01` with productionStart = today). Actions: `SET_ACTIVE_CALENDAR_VERSION`/`NEW_CALENDAR_VERSION`/`RENAME_CALENDAR_VERSION`/`DELETE_CALENDAR_VERSION` (calendarVersionTrash, same 30-day/newest-10 retention)/`UPDATE_CALENDAR_VERSION`. `useProject().activeCalendarVersion` (memoized) is the single read seam — every calendar surface consumes it. UI: header version dropdown removed; schedule picker lives in ScheduleToolbar, calendar picker in the Calendar tab's outer PageToolbar (both `ItemManagerDropdown`). Stripboard dates/call times shift on calendar-version switch (daybreakUtils cursor skips the active version's statused dates). `.msd`/`.sex` imports materialize per-board/per-MMS-calendar calendar versions (items 40/74). Rules stay project-level.
 
 **Requested**: the schedule version holds ALL calendar data (`nonShootDates`, production dates, weekly days off). Add **calendar versions**: an independent version axis so the same stripboard can carry different production windows / day plans / event sets.
 
@@ -1246,3 +1244,71 @@ stay green), so the app check is regression-only.
 Modal, survivor-fade watchdog — the new close animation must compose with all);
 precedent from item 64's `registerOverlayClose` registry; kit-primitive work
 parallels item 56.
+
+## 80. ui-kit Modal — iPad keyboard / visual-viewport rework + install into the app (`[ ]`)
+
+**Requested**: the ui-kit was upgraded (working tree) with a `Modal` rework so
+modals stop jumping when the iPad software keyboard opens/closes; install it in
+the app (bump the pin) and track the upgrade here.
+
+**Facts — the upgrade is UNCOMMITTED** in `~/Documents/Software Apps/ui-kit`
+(main at `fdf29ee` = v0.1.65). Modified files:
+- `src/Modal.tsx` — the keyboard/visual-viewport rework:
+  - **Coarse-pointer devices keep the modal CSS-centred** (`left-1/2 top-1/2
+    -translate-*` — no explicit `dragPos` pin) through the whole lifecycle; the
+    browser keeps it dead-centre across any viewport/keyboard resize and nothing
+    can snap it. Drag still works (the first drag pins the position). The
+    height-FLIP re-centring effect and the entire JS keyboard/reposition effect
+    are skipped on `IS_COARSE`.
+  - **Keyboard detection** (desktop too): a keyboard transition = the visual
+    viewport shrank below the layout height, OR the layout viewport shrank
+    height-only (iPad's classic keyboard resize — `innerHeight` drops,
+    `innerWidth` unchanged). `kbActiveRef` **latches** true and only clears after
+    a ~600ms settle timer, so the ResizeObserver's per-frame deliveries during a
+    keyboard dismissal never re-centre the modal ("pushed down after the keyboard
+    closes").
+  - **rAF-coalesced** `visualViewport` resize/scroll handling: keyboard up → move
+    only when the keyboard actually covers the modal (or a Safari pan pushed the
+    top off-screen); dismissing → freeze in place; gone + settled → re-centre
+    un-dragged modals / re-clamp dragged ones.
+  - **`maxHeight` clamp dropped while the keyboard is up** — the modal keeps its
+    natural size and the covered bottom sits under the keyboard (body scrolls)
+    instead of being squished to the visual viewport.
+  - `MAX_EDGE` 32 → 16.
+  - The three `IS_COARSE` short-circuits are marked **TEMPORARY** in code — if the
+    CSS-centring approach proves out on a physical iPad, promote it (remove the
+    TEMPORARY comments; document as the coarse recipe in DESIGN-LANGUAGE §Modal
+    anatomy).
+- `playground/src/main.tsx` — `KeyboardModalDemo` (iPad virtual-keyboard repro:
+  live readout of `innerHeight` vs `visualViewport.height/offsetTop` + focused
+  flag, input + textarea to raise the keyboard) + a `dnwa-reset` button.
+- `playground/specs/dialog.spec.ts` — DNWA reset test (reset while suppressed
+  re-opens; suppressed state is labelled; reset clears suppression).
+- `package.json` — `dev` script (`vite playground --host`).
+
+**Install steps (kit → app, one commit each side)**:
+1. **Kit**: `npm run build` (js + types + css, `dist/` is committed) → commit the
+   rework + playground + rebuilt `dist/` → bump `package.json` `version` → e.g.
+   **v0.1.66** → tag `v0.1.66` + push.
+2. **App**: `package.json` pin `@gabriel/ui-kit` → `#v0.1.66`, add the new commit
+   hash to `allowScripts` (the app's `prepare` is blocked; the kit ships a
+   committed `dist/`), `npm install`, then `rm -rf node_modules/.vite-*` + restart
+   the dev server (stale pre-bundled deps — the standard kit-bump pitfall).
+3. **Verify**: `npm run lint` + `npx playwright test` — iPad: `playwright.ipad.config.ts`
+   (`e2e/ipad-touch-scroll.spec.ts` — modal centring in a mocked keyboard
+   viewport; `e2e/ipad-modal-drag-menu.spec.ts` regression); desktop: modal/dialog
+   stacked + drag flows (`overlay-morph.spec.ts`, day-modal/element-events specs)
+   — desktop behavior must be byte-identical (the JS re-centring is still active
+   there). Kit-side: `npm run test:playground` (dialog DNWA reset spec + modal
+   specs). **Manual iPad check** (user decision, the real test): open a modal with
+   a text field → focus it → the modal stays centred / the header reachable; blur
+   → no "pushed down" jump; repeat in a stacked modal.
+4. **Docs in the same commit**: DESIGN-LANGUAGE §Modal anatomy (keyboard-aware
+   centring + the coarse CSS-centring recipe once promoted), `docs/UI-KIT.md`
+   note beside the v0.1.64 visual-viewport entry.
+
+**Relations**: follow-up/hardening of item 70 (v0.1.64's visual-viewport centring
+— this replaces its JS re-centring on coarse pointers and fixes the keyboard-jump
+it introduced); rides items 67/71 (Modal flat chrome, stack morph + fade-recovery
+watchdog must compose with the new keyboard logic); lands via the item-56 kit-bump
+process.
