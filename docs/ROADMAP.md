@@ -834,3 +834,182 @@ Verified by `e2e/trash-restore.spec.ts` (sections per kind with counts via bridg
 **Verify**: lint + playwright — trash: File → Trash shows per-kind sections with counts, restore one item per kind (bridge `getProject()`), Empty (DNWA) clears everything, empty state; dialogs: confirm/prompt/alert behave identically (existing flows — element-link cascade confirm, delete-version DNWA, day-modal adds) AND morph probes pass over a modal (dialog zooms out of the modal box, no double dim — item 59's invariant holds); new project: create/cancel from ProjectManager (local + cloud), Enter = create, autoselect, disabled Create without a name. Smart-test RULES: add `TrashModal.tsx` + `NewProjectModal.tsx` (or a TRASH bucket).
 
 **Relations**: rides item 58/59's morph/dim language and item 62's ItemCard/ItemRow; closes the kit Dialog's animation gap (58/59 explicitly exempted it); app-side conversions follow item 56's kit-bump pattern.
+
+## 68. Date picker opens on the relevant month — selected date, else production start, else today (`[x]` Done)
+
+**Done** (kit v0.1.63): the kit `DatePicker` gained an `initialView?: string` prop — the visible month/year seeds ON MOUNT from that ISO date (parse-fallback to today when invalid). `DateField` threads it through; each host computes the fallback chain once via the shared `initialViewFor(fieldValue, productionStart)` (`src/components/calendar/calendarUtils.ts`): the field's picked date (latest pick) → the active calendar version's `productionStart` → omitted (kit falls back to real today). Wired in EventModal, EventAdderModal, ProductionDatesModal (all three fields), and RuleEditorPanel (inline Dates box; `productionStart` threaded from RulesTab/DayEventsModal/ElementEventsModal). Because chrome-mode `DateField` remounts the picker per panel open, every open lands on the relevant month. Verified by `e2e/date-picker-initial.spec.ts` (picked date wins, empty-field → production start, no production start → real today); RULES entry: `DateField.tsx` → CAL∪RIBBON, `RulesTab.tsx` → RIBBON, `date-picker-initial` added to CAL.
+
+**Requested**: the date picker should open on the **currently selected date** when there is one; if there's no date, it should open on the **current production start date**; if there's no production start, it should open on **real today**.
+
+**Facts**:
+- The kit `DatePicker` seeds its visible month/year to **today** on mount and never re-seeds (ui-kit `DatePicker.tsx:41-43`: `useState(today.getFullYear())` / `useState(today.getMonth())`). When a rule/event already has a date set, the panel still opens on today's month — the user must page away (or use the month-grid jump) to see the relevant month.
+- App surfaces all go through the same composition: `DateField` (`src/components/DateField.tsx`) wraps the kit `DatePicker` in a `DropdownMenu` (chrome variant) or renders it inline; consumed by `EventModal` (`DateField.tsx:221`), `EventAdderModal` (:197), `ProductionDatesModal` (:50), and `RuleEditorPanel` (:223). The inline variant (rule-editor Dates box) is a long-lived mount, so its view state persists across edits.
+- "Production start" comes from the **active calendar version** (`useProject().activeCalendarVersion.productionStart` — item 66 moved calendar data off `ScheduleVersion`). Every host above already has the version in scope (e.g. `EventModal.tsx:73` bounds dates by `prepStart || productionStart`).
+
+**Design**:
+- **Kit**: add an optional `initialView?: string` prop (`YYYY-MM-DD`, single date) to the kit `DatePicker` — seed `viewYear`/`viewMonth` from it on **mount** (parse like the chip renderer, `DatePicker.tsx:202`), falling back to today when absent/invalid. In multi-mode, seed from the first date (or the latest? — decide in the worker: first = oldest date visible, latest = most recent pick; "the currently selected date" reads most naturally as the latest/single pick). Because chrome-mode `DateField` mounts the picker per panel open (Radix presence unmounts on close), each open re-seeds — exactly the requested behavior. The inline variant only re-seeds on full remount (acceptable: the rule editor's dates are often picked via the chrome fields in the day modal; note it in the DESIGN-LANGUAGE row).
+- **App**: `DateField` gains an optional `initialView?: string` passthrough; each host computes the fallback chain once before rendering:
+  1. the field's current value (`value[0]` — single mode, or the chosen date for multi),
+  2. else `activeCalendarVersion?.productionStart` (each host already reads the active calendar version),
+  3. else omitted → kit falls back to real today.
+  Share the chain via a tiny helper (e.g. `initialViewFor(fieldValue, activeCalendarVersion)` in `src/lib/calendar` territory — one source of truth, no re-derivation) so all four hosts pass identical logic.
+- **Docs**: DESIGN-LANGUAGE primitive matrix DateField row notes the open-on-relevant-month rule; AGENTS.md unchanged (behavior-level).
+- **Verify**: lint + playwright — seeded project: open EventModal / rule editor with an existing date far from today → panel shows that month (bridge or month-grid label); a dated field with `productionStart` set but no value → opens on production start; empty field + no production start → today's month; after picking, reopening shows the picked month. `EventAdderModal`/`ProductionDatesModal` get the same probes. Smart-test RULES entry for `DateField.tsx` if the mapping doesn't already cover it.
+
+**Relations**: rides the kit `DatePicker` (v0.1.34+ — the `initialView` prop needs a kit bump via item 56's process); `DateField` is a promotion candidate for the same bump path.
+
+## 69. BUG: dropdowns/menus inside modals don't scroll with touch on iPad (`[ ]`)
+
+**Requested**: on iPad, **entity dropdowns and dropdowns inside modals can't be scrolled with a finger** — the panel opens but swiping over the list does nothing (wheel is fine on a Magic Mouse, touch is dead).
+
+**Facts**:
+- `react-remove-scroll` (pulled in by Radix Dialog → the kit `Modal`) installs **non-passive `document`-level `touchmove` listeners** that `preventDefault()` any touchmove whose target is **outside the dialog content** (`node_modules/react-remove-scroll/dist/es2015/SideEffect.js:140`, `shouldPrevent` → `!lastProps.current.noIsolation`). Portaled dropdown panels — the EntityDropdown chip panel, the kit `DropdownMenu` content, `SelectDropdown`, `AutocompleteDropdown`, `AsyncResultsDropdown` (once portaled) — all live outside the modal content, so every touch scroll inside them is cancelled.
+- The **wheel** case was already fixed in kit v0.1.52: `useOverlayMorph` intercepts wheels at **document capture** and `stopImmediatePropagation()`s them when the target is inside the overlay, so react-remove-scroll's bubble listener never sees them (`ui-kit/src/overlayMorph.ts:309-317`). There is **no touchmove twin** — that is the entire gap.
+- iOS also lets a scroll gesture end in a `touchend` that becomes a click on an item, so the failure reads as "list won't move at all" rather than "item got picked."
+
+**Design**:
+- **Kit** (one `@gabriel/ui-kit` bump): in `useOverlayMorph`, register a second document-capture interceptor for `touchmove` mirroring the wheel one — `if (el.contains(e.target)) e.stopImmediatePropagation()` — so react-remove-scroll's non-passive `document` bubble listener never cancels the scroll. Gate exactly like the wheel one (`ready && visible`), never by the morph opt-out (scrolling must work even with animations off). Every app panel built on `useOverlayMorph` (`DropdownPanel`, `SelectDropdown`, `AutocompleteDropdown`, the kit menu/submenu/context-menu) inherits it; remaining overlay surfaces (kit `DatePicker` popover, `Tooltip`, `FloatingChrome`, and `AsyncResultsDropdown` until item 72 lands) get a quick check for the same exposure.
+- **Docs**: DESIGN-LANGUAGE §Modal anatomy / dropdown anatomy note — "overlays inside modals stay touch-scrollable (capture interceptor)"; `docs/UI-KIT.md` note beside the v0.1.52 wheel one.
+
+**Verify**: lint + **webkit iPad** — `npx playwright test --config=playwright.ipad.config.ts e2e/ipad-touch-scroll.spec.ts`: open a modal → open an entity dropdown / kit menu inside → `page.evaluate` dispatch a cancelable `touchmove` `Event` on the panel → assert it is **not** `defaultPrevented` (native scroll would proceed). Red before the fix (react-remove-scroll cancels it), green after. Regression: `overlay-morph.spec.ts`, day-modal/rule-editor flows green.
+
+**Relations**: rides item 58's overlay-morph sweep and the v0.1.52 wheel interceptor; pairs with item 70 (same kit bump — both are overlay/positioning touch bugs); item 72 depends on this landing (its kit-based panel needs touch scroll).
+
+## 70. iPad: modals + dropdowns stay inside the visible viewport — respect the software keyboard (`[ ]`)
+
+**Requested**: two related iPad problems —
+1. The **Project Manager sometimes appears off the viewport centre** (and other modals too).
+2. **Dropdowns in general should respect the iPad keyboard and never extend past it.**
+
+**Facts**:
+- The kit `Modal` centers on `currentWindowRef.current.innerHeight` (`ui-kit/src/Modal.tsx:252`, and the ResizeObserver re-center at `:391`; `clampPos` at `:436-446` too). On iPad, `window.innerHeight` is the **layout** viewport; the **visible** area is `visualViewport.height − visualViewport.offsetTop` (Safari chrome/keyboard). The modal centers against a too-tall viewport → pushed down / off-centre relative to what's visible. "Sometimes" = whenever Safari's chrome or the keyboard occupies the bottom.
+- `useFixedPosition` (`ui-kit/src/useSmartPosition.ts:72-73`) already measures `visualViewport?.height` + `offsetTop`, but only re-runs on `window` `resize` + scroll. The iOS keyboard fires `resize` on **`window.visualViewport`**, not `window` — and inside a modal the page can't scroll (react-remove-scroll), so a panel open near the keyboard never re-measures and hangs past it.
+- `useSmartPosition` (relative panels) uses `win.innerHeight` and runs **once** on open — no keyboard awareness at all.
+
+**Design**:
+- **Kit** (same bump as item 69):
+  1. `Modal` — centre and clamp against `visualViewport.height`/`offsetTop` (init, RO re-centre, `clampPos`), and subscribe to `visualViewport` `resize` + `scroll` so opening/closing the keyboard re-centres a modal whose input just raised it.
+  2. `useFixedPosition` — add `window.visualViewport` `resize`/`scroll` subscriptions to the existing re-measure.
+  3. `useSmartPosition` — clamp `vh` to `visualViewport.height` (offset-adjusted), and re-run while open on `visualViewport` + window resize/scroll.
+- **Docs**: DESIGN-LANGUAGE §Modal anatomy — "modals centre on the visual viewport (keyboard-aware)"; `docs/UI-KIT.md` note.
+
+**Verify**: lint + **webkit iPad** — `e2e/ipad-touch-scroll.spec.ts`: mock `window.visualViewport` (shrunk `height` + nonzero `offsetTop`, `addEventListener` stub that records handlers) → open the Project Manager → assert its box is centred inside the visible area (red before); open an entity dropdown → assert panel bottom + `maxHeight` stay inside the visible area (red before); fire `visualViewport.resize` while a panel is open → assert it re-clamps (red before). Regression: modals still centre on desktop, dropdowns still width-match + viewport-clamp (existing specs).
+
+**Relations**: pairs with item 69 (same kit bump); item 72 depends on this (its kit-based panel needs the keyboard clamp); `useFixedPosition`/`useSmartPosition` are shared with the whole dropdown family.
+
+## 71. BUG: Cancel on the Add Events modal can freeze the day modal (`[ ]`)
+
+**Requested**: in the Calendar, open a day (day events modal) → **Add Event** → press **Cancel** — sometimes the Add Events modal closes but the **previous day modal never comes back and the app appears frozen**.
+
+**Facts**:
+- The Add Events modal (`EventAdderModal`) and the day modal (`DayEventsModal`) are **stacked** kit Modals — siblings in the window body, `[data-modal-stack]`, DOM order = stack order. Cancel = `setNested(null)` → the child unmounts → the **survivor's exit-morph** (`ui-kit/src/Modal.tsx:329-358`) shrinks the day modal back from the closing child's last rect.
+- `playMorph` pins an inline `transform` and clears it in a `MORPH_MS + 80` **token-guarded** timeout (`Modal.tsx:50-71`). If **any other animation** (a size change via the RO, an open-morph re-run, a stacked sibling) calls `beginAnim` inside that ~300ms window, the token increments and the exit-morph's cleanup **bails without clearing the inline transform** → the survivor stays stuck scaled/translated to the child's box (invisible) while still mounted → frozen surface (it still holds the Radix scroll lock + overlay dim). On iPad the soft-keyboard `visualViewport` changes can trigger a size change right around Cancel, matching "sometimes."
+- The app already works around a sibling Radix-stacking race (`DayEventsModal.tsx:137-149`, `nestedReady`); the freeze is the kit Modal's survivor-morph token race, so the fix belongs in the kit.
+
+**Design**:
+- **Kit**: harden the survivor exit-morph so a superseded animation can never leave a stale inline transform — either (a) track and clear the pinned `transform`/`transition` on the survivor whenever a new animation supersedes the token, or (b) refuse competing `beginAnim`s during an in-flight exit-morph (re-anchor the RO after). Keep the morph-back look identical when it runs clean.
+- App-side: no change expected beyond the kit bump; verify the full stacked set (day modal → Add Events / EventModal / Rule editor) round-trips.
+
+**Verify**: lint + playwright (webkit iPad config + desktop): day modal → Add Event → Cancel → day modal **visible and interactive** (assert heading + click a row), repeated ~10× to catch the race; same for EventModal and the rule editor (open → close → parent reappears). Regression: `calendar-travel-hold.spec.ts`, `element-events.spec.ts`, `overlay-morph.spec.ts`.
+
+**Relations**: rides items 58/59's stack morph language; independent of 69/70 (Modal-only) but lands in the same kit bump.
+
+## 72. Addresses-picker autocomplete (`AsyncResultsDropdown`) → ui-kit base (`[ ]`)
+
+**Requested**: the address autocomplete in the **Attach a location** picker (Locations manager + reports map block) should be built on the ui-kit — styled like the **dark entity dropdown** (chip trigger + dark panel), with the async **loader** kept. It already scrolls, but it's a bespoke parallel dropdown that misses the morph, the keyboard clamp, and the single-highlight contract.
+
+**Facts**:
+- `src/components/location/AsyncResultsDropdown.tsx` is a hand-rolled dropdown: `useSmartPosition` only (relative panel, no portal, no `useFixedPosition`), no overlay morph, plain buttons, own highlight. Because it renders **inline inside the modal body** it avoids the item-69 portal/touch problem today — but it is exactly the parallel-abstraction AGENTS.md rule 1 forbids, and it can't respect the iPad keyboard (item 70).
+- It's the only async-search dropdown in the app (`LocationPickerModal` — the map's address search — plus the reports map block via `LocationPickerModal`).
+- The dark entity dropdown look to reuse: `EntityDropdown variant="chip"` trigger + the dark `DropdownPanel` (`bg-zinc-950/95 backdrop-blur-md border-zinc-800 rounded-lg shadow-2xl p-1`, single-highlight rows, Check glyphs).
+
+**Design**:
+- **App**: rebuild `AsyncResultsDropdown` on the kit `DropdownMenu` base (dark theme, controlled `open`, custom trigger = the search input with the `Search` icon + `Loader2` spinner while `searching`, custom children = the async result rows styled with the dark panel row classes + single-highlight). Keep the debounce, sequence guard, arrows/Enter/Escape, and `onPick` API identical (`search: (q) => Promise<T[]>`, `AsyncResultItem` unchanged). Because it now uses the kit menu's `useFixedPosition` + `useOverlayMorph`, it inherits the keyboard clamp (70), wheel + touch scroll (69), and the morph for free.
+- Docs: DESIGN-LANGUAGE primitive matrix — replace the bespoke row with the AsyncResultsDropdown row (kit DropdownMenu base, dark chip panel + loader).
+
+**Verify**: lint + playwright — `locations.spec.ts` + `report-sun-weather-map` green (address search picks, debounce, arrows); `e2e/ipad-touch-scroll.spec.ts` asserts the picker's panel scrolls (touch) + respects the mocked keyboard; `overlay-morph.spec.ts` extended with the async panel morph probe.
+
+**Relations**: depends on items 69 + 70 (the kit base must be touch-scrollable + keyboard-clamped first); rides item 58's morph language and item 61's kit-base pattern for bespoke dropdowns.
+
+## 73. Calendar event chips: icon-left on every card, tooltip names the kind, Add Events defaults to the day's type (`[x]` Done)
+
+**Done**: every event chip carries its kind icon on the LEFT — attachment cards always (the `seenTypeIcons` first-card-only dedupe removed from `EventDayCell.tsx`), and rule cards per the user's follow-up: a CLEAN dated rule card shows its rule-type icon on the left, while a **VIOLATED card shows the red FLAG as its icon** (left, no rule-type icon, no trailing flag — the rule kind is read from the hover tooltip; `calendar-rule-cards.spec.ts` assertion updated for suite-green). Hover tooltips name the kind on every chip: attachment cards always render the rich `HoverTooltip` ("Travel — Cast" header, comment body when present — comment-less cards got no kind tooltip before), rule cards swap the native `title` for the same tooltip (rule-kind header + description/violation message). Add Events defaults the adder's type to the day's OWN status: `CalendarTab` passes `adderStatus` (the day's status when it's attachable — shared `getAttachableDayTypes` gate in `dayTypes.ts`, used by the adder too, so the preselection can't drift) into the adder's existing `status` prop; no-status and non-attachable (Day Off) days keep the first-attachable fallback. Verification = manual (user decision — small visual change; no new spec, AGENTS.md rule 7); lint green.
+
+**Requested**: three related calendar-events polish asks —
+1. **Every event chip should show its icon on the LEFT** (today only the FIRST attachment card per day type carries the type symbol, and rule cards put the icon on the right).
+2. **The hover tooltip should say the kind of event** (e.g. "Travel", "Hold") on every chip.
+3. **The Add Events button should default the adder's event type to the day's own type** — "if the day type is travel, the default event type on the adder is travel."
+
+**Facts**:
+- Cards render in `EventDayCell` → `EventCardView` (`src/components/calendar/EventDayCell.tsx`), model in `src/lib/events.ts` (`EventCard` union: `status | attachment | rule`; `cellCards` = attachment + dated rule cards, global rule cards already hidden — item 65).
+- **Icon-left today**: attachment cards DO render the type icon on the left (`EventDayCell.tsx:199`) — but `showIcon` is only true for the first card of each day type (`seenTypeIcons` dedupe, `:136-137`; "the type's identity shows exactly once" — the header badge for that type is suppressed too). Rule cards are the opposite: violated `Flag` on the LEFT, the rule icon on the RIGHT (`:229-233`) — that layout is item 65's deliberate swap (user request then: "flag left, rule icon right"). This item reverses the rule-card half.
+- **Tooltip today**: attachment cards show a rich `HoverTooltip` (type label + category + comment) ONLY when the card carries a comment (`:205-217`); comment-less attachment cards fall back to a native `title` = the element names only (`:195`) — no event kind. Rule cards use a native `title` = `describeRuleDetailed` (`:225`) — the kind is implied, not stated up front.
+- **Adder default type**: `EventAdderModal` (`calendar/EventAdderModal.tsx:75`) already accepts a `status` prop and seeds from it (`statusProp ?? (attachableTypes[0]?.key || 'travel')` — `attachableTypes` = `getMarkableDayTypes(project).filter(t => t.attachable !== false)`, so work/holiday are excluded). The day modal already passes the day's status (`DayEventsModal.tsx:267` → `status={statusKey || undefined}` at `:444-450`). The GAP is the two Calendar-tab call sites that open the adder with NO status: the events-mode empty-day "Add event" affordance (`CalendarTab.tsx:1230`, `onAddEvent={(dk) => setAdderDate(dk)}`) and the day right-click "Add Events…" (`:1394`) — both render `EventAdderModal date={adderDate}` (`:1478-1483`) with no `status`, so the adder falls back to the first attachable type in manager order, not the day's type.
+
+**Design**:
+1. **Icon left on every chip** (`EventCardView`):
+   - **Attachment**: drop the `seenTypeIcons` dedupe — `showIcon` always true, every card shows its type icon on the left (colored per the day type, as today). DayStatusBadges already suppresses the header badge for types with cards, so a multi-card day reads "N of type X" via the repeated symbol — the intended signal. The dedupe comment + this item's rationale go in the commit.
+   - **Rule**: move the rule icon to the LEFT (before the text, `meta.icon`, `meta.chipIcon` color) and the violated `Flag` back to the RIGHT — the exact inverse of item 65's swap (the flag keeps its red fill). Clean rule cards = icon left only. NOTE for the worker: this explicitly reverses item 65's "flag left / rule icon right" user decision — flag the reversal in the commit message; if the user still prefers the flag-left for conflicts, they'll say so when this lands.
+2. **Tooltip names the kind** (every chip, both `EventDayCell` and the shared drag-ghost path — `EventCardView` is shared):
+   - **Attachment**: render the existing rich `HoverTooltip` for ALL attachment cards, not just comment-carrying ones — header line = type icon + `<label> — <Category>` (the comment line shown only when `card.comment` exists; the `MessageSquare` glyph stays tied to comments). `className="w-full"` stays (item 65's full-width fix).
+   - **Rule**: swap the native `title` for the same `HoverTooltip` — header line = rule type label (`RULE_TYPE_META[card.rule.type].label`) + body = `describeRuleDetailed` (violation message first when `card.violated`). Native `title` removed.
+3. **Add Events default = the day's type**: in `CalendarTab`, resolve the day's status (`nonShootDateMap.get(dateKey)?.status` — available at both call sites) and pass it to the adder as `status` **only when it's an attachable type** (`getMarkableDayTypes(project)` + `attachable !== false` — reuse the exact `attachableTypes` gate the adder applies, one helper so they can't drift); days without a status (or with a non-attachable status like holiday) keep the current first-attachable fallback inside the adder. DayEventsModal's existing pass-through is the model (`status={statusKey || undefined}`).
+
+**Verify**: **no new automated spec** (user decision — a small visual/UI-only change; verified manually instead, per AGENTS.md rule 7). Lint + a manual check list:
+- **Icon-left**: a day with several Travel attachment cards renders the Travel symbol on the LEFT of EVERY card (not just the first); a VIOLATED rule card shows the red FLAG as its icon on the left (no rule-type icon); a clean rule card shows its rule icon on the left.
+- **Tooltip**: hover any attachment card → tooltip names the kind + category ("Travel — Cast"), plus the comment body when the card has one; hover a rule card (violated or clean) → tooltip names the rule kind ("Max Hours") + description/violation message; no stale native `title`s.
+- **Default type**: mark a day Travel → the events-mode empty-day "Add event" and the day right-click "Add Events…" open the adder with Travel pre-selected; a no-status day (and a Day-Off day) keep the first-attachable fallback. Day modal → Add Event regression untouched (it already passes the status).
+- **The ONE spec change this item needs**: `calendar-rule-cards.spec.ts:58-65` asserts item 65's flag-left/icon-right rule-card layout — flip it to the new icon-left/flag-right (suite-green requirement; no new coverage is added).
+
+**Relations**: replaces item 65's rule-card layout (flag-left/icon-right) — clean rule cards put the rule icon left, violated cards show the FLAG as the icon (rule kind via tooltip); rides item 45/46's card model (`src/lib/events.ts`, untouched — view-only changes); the adder `status` prop is item 46's (no model change, call-site wiring only).
+
+## 74. MSD import × calendar versions — distinct MMS calendars as calendar versions (`[ ]`)
+
+**Requested**: now that calendar versions exist (item 66), check the `.msd`
+import: is it worth importing the DIFFERENT calendar versions from MMS — each
+with its own dates, flagged days off, and other events — instead of today's
+flat per-board copy?
+
+**Facts** (current `src/lib/import/msd.ts`):
+- `CalendarMgr` holds MULTIPLE `Calendar` definitions (demo: "5 Day Week",
+  "6 Day Week", "Actor Unavailable"); each `StripBoard` references one via
+  `CalendarName`, but calendar data is an independent axis (item 66) — no need
+  to link boards to calendars.
+- The import creates ONE CalendarVersion PER BOARD (`${boardName} Calendar`),
+  filling only `productionStart` + materialized `nonShootDates` (weekly days
+  off + SpecialDay Off/Holiday→`holiday`, CompanyTravel→`travel`, bounded to
+  the production window). `prepStart`/`postEnd` (MMS
+  `ProductionPrepStartDate`/`ProductionEndDate`/`ProductionWrapDate`) and the
+  `weeklyDaysOff` pattern (`DaysOff Sun=1…`) are parsed for the window bound
+  but DROPPED — CalendarVersion now supports both (item 66; app days-off is
+  MMS-style since item 54).
+- `e2e/msd-import.spec.ts:177-187` asserts "some calendar version matches the
+  golden board's calendar content" — the golden stores calendars BY NAME.
+
+**Design** (user decision — full enhancement, NO board linking):
+- **One CalendarVersion per distinct MMS calendar**, named by the MMS calendar
+  name ("5 Day Week", "6 Day Week", "Actor Unavailable" — including
+  unreferenced ones, so nothing a real file defines is lost; a file with N
+  calendars yields N versions even if some boards share).
+- **Fill the dropped fields**: `prepStart` (ProductionPrepStartDate), `postEnd`
+  (ProductionEndDate/WrapDate), `weeklyDaysOff` (DaysOff → Mon=0..Sun=6 array
+  — reverse the WEEKDAYS order), plus the existing `productionStart` +
+  materialized `nonShootDates` (keep the window bound that keeps the demo's
+  2003–2007 template SpecialDays out).
+- Replace the per-board `calendarPlans`/`boardAttrCalendar` block in
+  `buildProject` (msd.ts:509-525) with a distinct-calendars pass;
+  `activeCalendarVersionId` = first version (default, as LOAD bootstraps).
+- `.sex` (item 41) stays blank-`c01` — SEX carries no calendar data (sex.ts:329).
+
+**Verify**: lint + playwright — update `tools/msd_probe.py` + the golden
+(`e2e/fixtures/wonderful-life.expected.json`, `calendars` key already keyed by
+name) to emit prepStart/postEnd/weeklyDaysOff; the spec then asserts: one
+calendar version PER distinct MMS calendar (3, including "Actor Unavailable"),
+named by the MMS name; each carries prepStart/postEnd/weeklyDaysOff +
+nonShootDates; stripboard dates/call times on the active board unchanged;
+switching calendar versions shifts section dates (bridge `getRows`); undo
+restores exactly. Docs: `docs/IMPORT-EXPORT.md` MSD section.
+
+**Relations**: builds on item 40's `.msd` parser + item 66's CalendarVersion
+axis (its "Import touchpoint" line); the app-side days-off pattern language
+from item 54.
