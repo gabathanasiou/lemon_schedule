@@ -270,7 +270,12 @@ own layer), the modal beneath fades. **Fade-recovery watchdog**: iOS Safari can 
 modal's composited layer stuck at `opacity:0` after its child unmounts (the reported "previous
 modal invisible but still there" freeze) — the survivor's exit-morph watchdog pins it back inline
 (`opacity:1`, which wins over the `:has` rule) once the fade window has passed, and the next
-stack-open releases the override so future fades still work.
+stack-open releases the override so future fades still work. **Radix pin (roadmap 71)**: stacked
+modals also break on iPad when `react-dismissable-layer` <1.1.19 — 1.1.12 defers TOUCH
+outside-dismissal to the click, so a touch-tap Cancel on the top modal left the stacked dialog's
+body at `pointer-events:none` on close (day modal back, app locked; the playground's 1.1.19+ never
+showed it). Keep `@radix-ui/react-dialog` ≥1.1.23 + `@radix-ui/react-dropdown-menu` ≥2.1.24, bumped
+TOGETHER (a partial bump forks the shared dismissable layer and breaks menus inside modals).
 
 **Viewport & keyboard** (roadmap 70): modals centre and clamp against the **visual viewport**
 (`window.visualViewport.height`/`offsetTop`) — on iPad the software keyboard and Safari chrome live
