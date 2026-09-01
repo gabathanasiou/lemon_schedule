@@ -10,6 +10,7 @@ import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
 import RichTextEditor, { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import DropdownMenu, { ItemManagerDropdown } from '../DropdownMenu';
+import Button from '../Button';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
@@ -417,10 +418,10 @@ export const TextStylesModal: React.FC<{
               return st ? <span className="truncate" style={styleCss(st)}>{s.name}</span> : s.name;
             }}
             trigger={
-              <button type="button" className="w-32 flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700/60 transition-colors">
+              <Button theme="dark" className="w-32">
                 {sel ? <span className="truncate">{sel.name}</span> : <span className="truncate text-zinc-500">No styles</span>}
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-500 ml-auto shrink-0" />
-              </button>
+              </Button>
             }
           />
           {sel && (

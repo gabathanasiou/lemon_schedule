@@ -8,6 +8,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
+import Button from './Button';
 import { SaveIndicator } from './SaveIndicator';
 import { useUnsavedGuardState, performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 
@@ -76,8 +77,6 @@ export default function AppHeader(props: AppHeaderProps) {
     return () => window.removeEventListener('resize', checkTabScroll);
   }, [checkTabScroll]);
 
-  const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800';
-  const activeTabClass = isCloudProject ? 'bg-white text-blue-950' : 'bg-white text-zinc-900';
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
   const tabButtons: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'reports'];
@@ -93,7 +92,7 @@ export default function AppHeader(props: AppHeaderProps) {
             theme={isCloudProject ? 'blue' : 'dark'}
             trigger={
               <button
-                className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 font-sans cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 font-sans font-semibold cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
               >
                 <span className="hidden md:inline">File</span>
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -189,14 +188,17 @@ export default function AppHeader(props: AppHeaderProps) {
         <div ref={topTabContainerRef} onScroll={checkTabScroll} className="overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
           <div className="flex items-center gap-1 mx-auto shrink-0 w-fit">
             {tabButtons.map(tabId => (
-              <button
+              <Button
                 key={tabId}
+                variant="tab-header"
+                cloud={isCloudProject}
+                active={activeTab === tabId}
                 onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout(tabId); } else { setActiveTab(tabId); } }}
                 onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); onTabContextMenu(e, tabId); }}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === tabId ? activeTabClass : inactiveTabText}`}
+                className="shrink-0"
               >
                 {tabId === 'breakdown' ? 'Breakdown' : tabId === 'schedule' ? 'Schedule' : tabId === 'calendar' ? 'Calendar' : tabId === 'design' ? 'Design' : tabId === 'rules' ? 'Rules' : tabId === 'production' ? 'Production' : 'Reports'}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

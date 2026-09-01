@@ -3,6 +3,7 @@ import { useIsCloudProject } from '../store';
 import { ExternalLink } from 'lucide-react';
 import { IS_COARSE, isTouchLike } from '../lib/device';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
+import Button from './Button';
 
 export interface ToolbarTab {
   id: string;
@@ -41,11 +42,6 @@ const JUSTIFY = {
 export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shiftHeld = false, children, rightContent, justify = 'between', theme = 'light' }: PageToolbarProps) {
   const t = THEME[theme];
   const isCloud = useIsCloudProject();
-  const activeBg = theme === 'light' && isCloud ? 'bg-blue-950' : 'bg-zinc-950';
-  const activeText = theme === 'light' && isCloud ? 'text-blue-50' : 'text-white';
-  const inactiveHover = theme === 'light' && isCloud
-    ? 'text-blue-950 hover:bg-blue-950/10 hover:text-blue-950'
-    : t.inactive;
 
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; tabId: string } | null>(null);
 
@@ -131,8 +127,12 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
           {tabs.map(tab => {
             const active = activeTab === tab.id;
             return (
-              <button
+              <Button
                 key={tab.id}
+                variant="tab"
+                theme={theme}
+                cloud={isCloud}
+                active={active}
                 onClick={() => {
                   if (shiftHeld && !IS_COARSE && onPopout) {
                     onPopout(tab.id);
@@ -144,12 +144,10 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
                 } : undefined}
-                className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors shrink-0 whitespace-nowrap ${
-                  active ? `${activeBg} ${activeText}` : inactiveHover
-                }`}
+                className="shrink-0"
               >
                 {tab.label}
-              </button>
+              </Button>
             );
           })}
           </div>

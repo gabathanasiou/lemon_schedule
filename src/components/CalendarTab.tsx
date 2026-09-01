@@ -5,7 +5,7 @@ import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Link2, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -112,7 +112,7 @@ export const CalendarTab: React.FC<{
     showBreaks: boolean;
     showConflicts: boolean;
     viewMode: 'strips' | 'events';
-    eventsFilter: { statuses: string[] | null; attachments: boolean; flags: boolean; rules: RuleType[] | null };
+    eventsFilter: { statuses: string[] | null; flags: boolean; rules: RuleType[] | null };
     /** Day cells size to their content (default) vs the fixed 170px grid row. */
     expandDays: boolean;
   }>('lemon_schedule_calendar_view', {
@@ -1051,10 +1051,6 @@ export const CalendarTab: React.FC<{
                         </DropdownItem>
                       );
                     })}
-                    <DropdownDivider />
-                    <DropdownItem keepOpen onClick={() => updateCal({ eventsFilter: { ...eventsFilter, attachments: !eventsFilter.attachments } })} icon={<Link2 className="w-3.5 h-3.5" />}>
-                      <span className="flex items-center justify-between w-full gap-2">Cast &amp; Elements{eventsFilter.attachments && <Check className="w-3.5 h-3.5 shrink-0" />}</span>
-                    </DropdownItem>
                     <DropdownDivider />
                     <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Rules</div>
                     <DropdownItem keepOpen onClick={() => updateCal({ eventsFilter: { ...eventsFilter, rules: eventsFilter.rules == null ? [] : null } })} className="font-semibold">

@@ -51,7 +51,6 @@ export function countMovableEvents(cards: EventCard[]): number {
 export interface EventsFilter {
   /** null = all statuses shown, array = only these day-type keys. */
   statuses: string[] | null;
-  attachments: boolean;
   flags: boolean;
   /** null = all rule types shown, array = only these types. */
   rules: RuleType[] | null;
@@ -59,7 +58,6 @@ export interface EventsFilter {
 
 export const DEFAULT_EVENTS_FILTER: EventsFilter = {
   statuses: null,
-  attachments: true,
   flags: true,
   rules: null,
 };
@@ -70,7 +68,7 @@ export function filterCard(card: EventCard, filter: EventsFilter | undefined): b
     case 'status':
       return filter.statuses == null || filter.statuses.includes(card.statusKey);
     case 'attachment':
-      return !!filter.attachments && (filter.statuses == null || filter.statuses.includes(card.status));
+      return filter.statuses == null || filter.statuses.includes(card.status);
     case 'rule':
       return filter.rules == null || filter.rules.includes(card.rule.type);
   }

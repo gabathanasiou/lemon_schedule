@@ -24,6 +24,7 @@ import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
 import { Printer, Eye, EyeOff, ChevronDown, Check } from 'lucide-react';
+import Button from '../Button';
 
 function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
   // Palette attributes become text blocks with the {{field}} token embedded —
@@ -700,10 +701,10 @@ const DesignsMenu: React.FC<{
       header="REPORT DESIGNS"
       readOnly={readOnly}
       trigger={
-        <span className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 px-1 py-0.5 rounded hover:bg-zinc-800">
-          Editing: {designs.find(d => d.id === activeId)?.name || '—'}
-          <ChevronDown className="w-3 h-3" />
-        </span>
+        <Button theme="dark" className={readOnly ? 'opacity-40 cursor-not-allowed' : ''}>
+          <span className="text-xs font-semibold text-zinc-500">Editing: <span className="text-zinc-200">{designs.find(d => d.id === activeId)?.name || '—'}</span></span>
+          <ChevronDown className="w-3 h-3 text-zinc-500" />
+        </Button>
       }
       onSelect={id => { onSelect(id); setOpen(false); }}
       onRename={(id, name) => { onRename(id, name); }}
