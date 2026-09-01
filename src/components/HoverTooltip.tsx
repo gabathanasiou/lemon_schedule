@@ -58,7 +58,7 @@ export const HoverTooltip: React.FC<{
       {show && createPortal(
         <div
           ref={tipRef}
-          className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20"
+          className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20 pointer-events-none"
           style={{ left: pos.x, top: pos.y - 4, transform: `translate(calc(-50% + ${tipOffset}px), -100%)`, zIndex: 99999 }}
         >
           {content}
