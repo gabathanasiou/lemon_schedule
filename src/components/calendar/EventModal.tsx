@@ -5,6 +5,7 @@ import { getMarkableDayTypes, getDayType, typeIconComponent } from '../../lib/da
 import { getNonShootEntryMap, upsertNonShootDate, getTypeLists, NON_SHOOT_ALL, resolveElementName } from '../../lib/nonShootHelpers';
 import { getCategoryElements } from '../../lib/elements';
 import { anchoredKeysFor } from '../../lib/elementLinks';
+import { useQueueCastNaming, addNewElement } from '../../lib/newCastNaming';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { mergeItemsInto, removeItemsFrom } from '../../lib/events';
 import Modal, { ModalFooter } from '../Modal';
@@ -45,6 +46,7 @@ function formatDateLabel(dateKey: string): string {
  *  removes the card. Never the whole-day editor — other cards untouched. */
 export function EventModal({ dateKey, statusKey, category, elementKey, editableElement, onClose }: EventModalProps) {
   const { state, dispatch, readOnly } = useProject();
+  const { queue } = useQueueCastNaming();
   const project = state.present;
   const portalTarget = usePortalTarget();
   const sizes = ruleModalSizes();
@@ -197,6 +199,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
               <EntityDropdown
                 value={key}
                 onChange={setKey}
+                onCreateItem={(item) => addNewElement(dispatch, queue, cat, item)}
                 items={getCategoryElements(project, cat)}
                 positioning="fixed"
                 portalTarget={portalTarget ?? document.body}

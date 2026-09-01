@@ -5,6 +5,7 @@ import { getAttachableDayTypes, getDayType, typeIconComponent } from '../../lib/
 import { getNonShootEntryMap, upsertNonShootDate, NON_SHOOT_ALL, resolveElementName } from '../../lib/nonShootHelpers';
 import { getCategoryElements } from '../../lib/elements';
 import { anchoredKeysFor } from '../../lib/elementLinks';
+import { useQueueCastNaming, addNewElement } from '../../lib/newCastNaming';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -59,6 +60,7 @@ function formatDateLabel(dateKey: string): string {
  *  instead" swap builds a rule on the same date via the shared editor. */
 export function EventAdderModal({ date: preseedDate, preseed, status: statusProp, onClose }: EventAdderModalProps) {
   const { state, dispatch, readOnly } = useProject();
+  const { queue } = useQueueCastNaming();
   const project = state.present;
   const portalTarget = usePortalTarget();
   const sizes = ruleModalSizes();
@@ -277,6 +279,7 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
                       <EntityDropdown
                         value={r.keys.join(', ')}
                         onChange={val => patchRow(r.id, { keys: val.split(',').map(x => x.trim()).filter(Boolean), all: false })}
+                        onCreateItem={(item) => addNewElement(dispatch, queue, r.category, item)}
                         items={items}
                         positioning="fixed"
                         portalTarget={portalTarget ?? document.body}

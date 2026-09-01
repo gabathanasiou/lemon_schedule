@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useProject } from '../store';
+import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { ColorRule, ColorRuleCondition, ColorOverride, SceneColorEntry, ProjectElement } from '../types';
 import { generateUUID } from '../lib/utils';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
@@ -27,7 +28,8 @@ function findEntryIdx(entries: SceneColorEntry[], intExt: string, dayNight: stri
 }
 
 export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, onClose }) => {
-  const { state } = useProject();
+  const { state, dispatch } = useProject();
+  const { queue } = useQueueCastNaming();
   const palette = state.present.colorPalette || DEFAULT_COLOR_PALETTE;
   const ieOptions = getIntExtOptions(palette);
   const dnOptions = getDayNightOptions(palette);
@@ -228,6 +230,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                   setConditionCategory={setConditionCategory}
                   setConditionElement={setConditionElement}
                   removeCondition={removeCondition}
+                  onCreateItem={(item) => addNewElement(dispatch, queue, cond.category, item)}
                   sizes={sizes}
                 />
                 </React.Fragment>

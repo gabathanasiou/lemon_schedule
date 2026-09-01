@@ -69,6 +69,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 ### Cast & Entities
 - **Cast referenced by ID** (`scene.cast` = comma-separated IDs; compare by `e.id`; EntityDropdown `displayMode="id"`). **All other categories by name** (`e.name`).
 - **New cast via entity fields** (stripboard/Glide/Sheet) → shared `addNewElement` (`lib/newCastNaming.tsx`): creates the member BLANK and queues it for the naming modal (mounted in `App.tsx`). Save = `UPDATE_CAST_MEMBER` (uppercased, one batch); per-entry undo = `DELETE_CAST_MEMBER`. Never dispatch `ADD_ELEMENT` cast with `name:''` outside it (CastTab's manager-add stays a blank inline row — no modal).
+- **Every EntityDropdown auto-creates missing elements** via the `onCreateItem` prop: the component diffs each committed segment against `items` (comma-list in multi/select, whole string in single) and calls the prop for gaps. Wired in the Link Manager (anchor + linked rows), Color Rules conditions, the day/event modals (`EventModal`/`EventAdderModal`) and the Rule Editor cast picker — all route through `addNewElement`. The stripboard/Glide/SceneSheet do NOT pass it (their commit flow already creates), so creation never double-fires.
 - Category registry: `ELEMENT_CATEGORIES` in `src/lib/categories.ts` (key/label/multiValue/fdxFallbacks). Add built-ins there only. Use `isMultiValue(field, customCategories)` + `getFieldItems(field, value)` — never raw `split(',')`.
 
 ### Scene Strip Colors

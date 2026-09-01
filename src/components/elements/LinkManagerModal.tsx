@@ -10,6 +10,7 @@ import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { ElementPickerRow } from '../rules/ElementPicker';
+import { useQueueCastNaming, addNewElement } from '../../lib/newCastNaming';
 import { Plus, X, Link2, Check } from 'lucide-react';
 
 interface LinkDraft {
@@ -46,6 +47,14 @@ const ACTION_BTN = 'flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium 
 export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAnchorCategory?: string; onClose: () => void }) {
   const { state, dispatch } = useProject();
   const project = state.present;
+  const { queue } = useQueueCastNaming();
+
+  /** Creating a link (anchor or linked element) that has no element yet makes
+   *  the element — same shared flow as the stripboard/Glide/SceneSheet. */
+  const ensureElement = useCallback((category: string, item: string) => {
+    if (!category || !item) return;
+    addNewElement(dispatch, queue, category, item);
+  }, [dispatch, queue]);
 
   // Storage is FLAT (one ElementLink per value) — regroup into the draft's
   // one-row-per-category shape: values of the same (anchor, category) join
@@ -322,6 +331,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                     elementValue={g.anchorValue}
                     onCategoryChange={(cat) => patchGroup(g.id, { category: cat, anchorValue: '' })}
                     onElementChange={(v) => patchGroup(g.id, { anchorValue: v })}
+                    onCreateItem={(item) => ensureElement(g.category, item)}
                     allCategoryKeys={allCategoryKeys}
                     categoryLabelLookup={categoryLabelLookup}
                     customCategories={project.customCategories}
@@ -346,6 +356,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                         elementValue={l.linkedValue}
                         onCategoryChange={(cat) => patchLink(g.id, l.id, { linkedCategory: cat, linkedValue: '' })}
                         onElementChange={(v) => patchLink(g.id, l.id, { linkedValue: v })}
+                        onCreateItem={(item) => ensureElement(l.linkedCategory, item)}
                         allCategoryKeys={linkedCategoryKeys}
                         categoryLabelLookup={categoryLabelLookup}
                         customCategories={project.customCategories}

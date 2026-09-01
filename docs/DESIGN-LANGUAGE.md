@@ -250,6 +250,12 @@ app-wide).
 `EntityDropdown` as a cell editor: **separate commit from exit** — `onChange` updates the value,
 `onExit` leaves edit mode; never call both in one handler (editor unmounts and can't reopen).
 
+**Auto-create** (`onCreateItem`): every commit diffs the value's segments against `items`
+(comma-list in multi/select, whole string in single) and calls `onCreateItem` for gaps — the
+shared "type a new element and it appears" flow (`addNewElement`, cast → naming modal). Wired in
+the Link Manager, Color Rules, event modals and the rule editor; stripboard/Glide/Sheet create in
+their own commit flow and omit the prop.
+
 **Spreadsheet overlay editors** (`autoGrow`, EntityDropdown + AutocompleteDropdown): the inline
 editor grows with its content (`field-sizing: content`, `width: auto`, `w-max` wrapper) instead of
 filling the cell, capped at Glide's 400px overlay max then scrolling to the caret — so long

@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { ProjectRule, Scene, CastMember } from '../../types';
 import { getUniqueCastIds } from '../../lib/utils';
 import { usePortalTarget } from '../../lib/popoutTarget';
+import { useProject } from '../../store';
+import { useQueueCastNaming, addNewElement } from '../../lib/newCastNaming';
 import { initialViewFor } from '../calendar/calendarUtils';
 import { EntityDropdown } from '../EntityDropdown';
 import DateField from '../DateField';
@@ -56,6 +58,8 @@ export interface RuleEditorPanelProps {
 export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
   initial, preseedDateKey, scenes, castMembers, anchoredKeys, onSave, onDelete, onClose, bare, productionStart,
 }) => {
+  const { dispatch } = useProject();
+  const { queue } = useQueueCastNaming();
   const [form, setForm] = useState<RuleFormState>(() => {
     if (initial) return formFromRule(initial);
     if (preseedDateKey) return { ...blankRuleForm(), type: 'DATE_RESTRICTION', dates: [preseedDateKey], datesMode: 'specific' };
@@ -101,6 +105,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
     <EntityDropdown
       value={value.join(', ')}
       onChange={val => setter(val.split(',').map(x => x.trim()).filter(Boolean))}
+      onCreateItem={(item) => addNewElement(dispatch, queue, 'cast', item)}
       items={castOptions}
       positioning="fixed"
       portalTarget={portalTarget ?? document.body}

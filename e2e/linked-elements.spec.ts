@@ -259,6 +259,55 @@ test('link manager: anchor card links multiple elements and applies retroactivel
   await expect(modal).toBeVisible();
 });
 
+test('link manager: typing a brand-new element in a linked row creates it', async ({ page }) => {
+  await openSeededProject(page);
+  // Clear the seed's links so the modal starts from one clean anchor card.
+  await page.evaluate(() => {
+    const b = (window as any).__lemonSchedule;
+    b.dispatch({ type: 'UPDATE_PROJECT', payload: { elementLinks: [] } });
+  });
+  const anchor = await seedLeadCast(page);
+
+  await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+  await page.getByRole('button', { name: 'Element Manager' }).click();
+  await page.getByRole('button', { name: 'Links', exact: true }).click();
+  const modal = page.getByRole('dialog');
+  await expect(modal).toBeVisible();
+  await expect(modal).toContainText('Element Links');
+
+  const elementInput = modal.locator('[data-el-dropdown] input');
+  // Anchor (cast): pick the lead member.
+  await elementInput.nth(0).click();
+  await page.keyboard.type(anchor.name.slice(0, 4));
+  await page.getByText(anchor.name, { exact: true }).last().click();
+
+  // Linked row (props, multi): type a brand-new name and pick the synthetic
+  // "Add" row — the element must be created, not just referenced.
+  await elementInput.nth(1).click();
+  await page.keyboard.type('zzz brand new prop');
+  const addRow = page.getByText(/Add "zzz brand new prop"/);
+  await expect(addRow).toBeVisible();
+  await addRow.click();
+
+  await page.waitForFunction(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    return (p.breakdownElements?.props || []).some((e: any) => e.name === 'zzz brand new prop');
+  });
+
+  // The link persisted referencing the (now real) element.
+  const created = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const el = (p.breakdownElements?.props || []).find((e: any) => e.name === 'zzz brand new prop');
+    const links = p.elementLinks || [];
+    return {
+      created: !!el,
+      linked: links.some((l: any) => l.linkedCategory === 'props' && l.linkedValue === 'zzz brand new prop'),
+    };
+  });
+  expect(created.created).toBe(true);
+  expect(created.linked).toBe(true);
+});
+
 test('anchored elements show an anchor icon in pickers (link manager + scene sheet)', async ({ page }) => {
   await openSeededProject(page);
   await seedRibbonElement(page);

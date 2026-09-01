@@ -39,13 +39,14 @@ interface RuleConditionRowProps {
   setConditionCategory: (idx: number, cat: string) => void;
   setConditionElement: (idx: number, elementId: string) => void;
   removeCondition: (idx: number) => void;
+  onCreateItem?: (item: string) => void;
   sizes: ColorRuleSizes;
 }
 
 export function RuleConditionRow({
   cond, idx, categoryLabelLookup, allCategoryKeys, elements, customCategories,
   openDropdown, setOpenDropdown, setConditionCategory, setConditionElement, removeCondition,
-  sizes,
+  onCreateItem, sizes,
 }: RuleConditionRowProps) {
   const { XSZ, CREM_BTN_COND } = sizes;
   return (
@@ -54,6 +55,7 @@ export function RuleConditionRow({
       elementValue={cond.elementId}
       onCategoryChange={(cat) => setConditionCategory(idx, cat)}
       onElementChange={(el) => setConditionElement(idx, el)}
+      onCreateItem={onCreateItem}
       allCategoryKeys={allCategoryKeys}
       categoryLabelLookup={categoryLabelLookup}
       customCategories={customCategories}

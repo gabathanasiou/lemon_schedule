@@ -97,6 +97,11 @@ interface EntityDropdownProps {
    *  instead of filling the cell — for spreadsheet overlay editors so long
    *  comma-lists (cast, breakdown categories) stay visible while typing. */
   autoGrow?: boolean;
+  /** Called for each committed item segment that has NO matching entry in
+   *  `items` — lets callers auto-create new elements (cast → the naming modal
+   *  flow). Fires on every commit (pick/Enter/Tab/blur) against the final
+   *  value, so free-typed "Add new" entries create too. */
+  onCreateItem?: (item: string) => void;
   /** Item keys that act as element-link anchors — an Anchor icon is shown next
    *  to them in the panel. Keys use `itemKey` space (cast: `e.id`, others:
    *  `e.name`; names matched case-insensitively). See `anchoredKeysFor`. */
@@ -204,7 +209,7 @@ interface EntityDropdownProps {
  */
 export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   value,
-  onChange,
+  onChange: onChangeProp,
   className,
   readOnly,
   placeholder = 'Type...',
@@ -234,6 +239,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   variant = 'default',
   anchoredKeys,
   autoGrow = false,
+  onCreateItem,
 }) => {
   const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
@@ -339,6 +345,32 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   }, [open]);
 
   const itemKey = useCallback((m: EntityItem) => displayMode === 'name' ? m.name : (m.id || m.name), [displayMode]);
+
+  /** Fires `onCreateItem` for every committed segment with no matching entry
+   *  in `items` — the shared "type a new element and it appears" flow. Split
+   *  mirrors the value semantics: comma-list in multi/select, whole string in
+   *  single (commas are literal, e.g. set names). Runs on EVERY commit, so a
+   *  pick, a free-typed Enter and a blur all create missing elements. */
+  const ensureNew = useCallback((newVal: string) => {
+    if (!onCreateItem || !newVal) return;
+    const segments = mode === 'multi' || mode === 'select'
+      ? newVal.split(',').map(s => s.trim()).filter(Boolean)
+      : [newVal];
+    for (const seg of segments) {
+      const exists = items.some(m => {
+        const key = itemKey(m);
+        return displayMode === 'id' ? String(key) === seg : key.toLowerCase() === seg.toLowerCase();
+      });
+      if (!exists) onCreateItem(seg);
+    }
+  }, [onCreateItem, items, mode, displayMode, itemKey]);
+
+  /* All commits route through this wrapper so creation stays in ONE place —
+     every internal `onChange(...)` call now auto-creates missing items. */
+  const onChange = useCallback((v: string) => {
+    ensureNew(v);
+    onChangeProp(v);
+  }, [ensureNew, onChangeProp]);
 
   const currentIds = useMemo(() => {
     if (mode === 'multi' || mode === 'select') {

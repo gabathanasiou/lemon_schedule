@@ -44,7 +44,10 @@ export const ElementPickerRow: React.FC<{
   disabledCategoryKeys?: ReadonlySet<string>;
   /** Item keys that are element-link anchors — Anchor icon in the picker panel. */
   anchoredKeys?: Set<string>;
-}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys, anchoredKeys }) => {
+  /** Called by the EntityDropdown for committed values with no matching
+   *  element — auto-creates new elements (cast naming flow). */
+  onCreateItem?: (item: string) => void;
+}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys, anchoredKeys, onCreateItem }) => {
   const portalTarget = usePortalTarget();
   const isCast = category === 'cast';
   return (
@@ -76,6 +79,7 @@ export const ElementPickerRow: React.FC<{
           displayMode={isCast ? 'id' : 'name'}
           placeholder={placeholder || 'Select...'}
           anchoredKeys={anchoredKeys}
+          onCreateItem={onCreateItem}
           renderItem={isCast ? (item) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>) : undefined}
         />
       </span>

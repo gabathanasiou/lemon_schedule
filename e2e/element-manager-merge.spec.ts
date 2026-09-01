@@ -400,7 +400,7 @@ test.describe('Element Manager merge/save', () => {
 
     await undoBtn.click();
     await expect(page.locator('tbody textarea[data-manager-name]').first()).toHaveValue(firstValue, { timeout: 5000 });
-    const namesAfter = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
+    const namesAfter = await page.locator('tbody textarea[data-manager-name]').evaluateAll(inputs => inputs.map(i => (i as HTMLTextAreaElement).value));
     expect(namesAfter).toEqual(namesBefore);
   });
 });
