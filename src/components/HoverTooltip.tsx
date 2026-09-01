@@ -25,6 +25,11 @@ export const HoverTooltip: React.FC<{
   const tipRef = useRef<HTMLDivElement>(null);
   const [tipOffset, setTipOffset] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* Once the delay has been satisfied and the tooltip has shown, keep it
+     armed so moving to another tooltip icon shows it IMMEDIATELY (no re-wait).
+     Re-arm after the mouse leaves for a moment. */
+  const armedRef = useRef(false);
 
   const updatePos = () => {
     if (!ref.current) return;
@@ -34,19 +39,27 @@ export const HoverTooltip: React.FC<{
 
   const onEnter = () => {
     updatePos();
+    if (cooldownRef.current) { clearTimeout(cooldownRef.current); cooldownRef.current = null; }
+    if (armedRef.current) { setShow(true); return; }
     if (delay > 0) {
-      timerRef.current = setTimeout(() => setShow(true), delay);
+      timerRef.current = setTimeout(() => { setShow(true); armedRef.current = true; }, delay);
     } else {
       setShow(true);
+      armedRef.current = true;
     }
   };
 
   const onLeave = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     setShow(false);
+    if (cooldownRef.current) clearTimeout(cooldownRef.current);
+    cooldownRef.current = setTimeout(() => { armedRef.current = false; }, 1000);
   };
 
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (cooldownRef.current) clearTimeout(cooldownRef.current);
+  }, []);
 
   useLayoutEffect(() => {
     if (show && tipRef.current) {
