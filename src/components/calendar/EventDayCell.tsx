@@ -189,6 +189,20 @@ export const EventCardView: React.FC<{
     const names = card.all
       ? `All ${categoryLabel(card.category, project)}`
       : resolveElementName(card.key, card.category, project);
+    const tip = (
+      <div className="max-w-[220px]">
+        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-100 mb-0.5">
+          <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
+          <span>{t?.label || card.status} · {categoryLabel(card.category, project)}</span>
+        </div>
+        {card.comment && (
+          <div className="flex items-start gap-1 mt-1 text-[11px] italic text-zinc-100 leading-snug">
+            <MessageSquare className="w-2.5 h-2.5 shrink-0 mt-[2px] text-amber-400" />
+            <span>{card.comment}</span>
+          </div>
+        )}
+      </div>
+    );
     const inner = (
       <div data-card-status={card.status} data-card-category={card.category} data-card-key={card.key}
         data-card-comment={card.comment || ''}
@@ -196,29 +210,16 @@ export const EventCardView: React.FC<{
         className={`${base} text-zinc-700 flex items-start gap-1.5`}
         style={selStyle || { background: `${color}1A` }}
       >
-        <Icon className="w-3 h-3 shrink-0 mt-[1px]" style={{ color: selected ? sel.color : color }} />
-        <span className="min-w-0">{names}</span>
+        {/* The tooltip anchors to the icon only — hovering the label/comment
+            does not pop it. */}
+        <HoverTooltip className="shrink-0 inline-flex mt-[1px]" content={tip}>
+          <Icon className="w-3 h-3" style={{ color: selected ? sel.color : color }} />
+        </HoverTooltip>
+        <span className="flex-1 min-w-0">{names}</span>
         {card.comment && <MessageSquare className="w-2.5 h-2.5 shrink-0 mt-[1px] text-amber-500" style={selected ? { color: sel.color } : undefined} />}
       </div>
     );
-    return (
-      <HoverTooltip className="w-full" content={
-        <div className="max-w-[220px]">
-          <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-100 mb-0.5">
-            <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
-            <span>{t?.label || card.status} · {categoryLabel(card.category, project)}</span>
-          </div>
-          {card.comment && (
-            <div className="flex items-start gap-1 mt-1 text-[11px] italic text-zinc-100 leading-snug">
-              <MessageSquare className="w-2.5 h-2.5 shrink-0 mt-[2px] text-amber-400" />
-              <span>{card.comment}</span>
-            </div>
-          )}
-        </div>
-      }>
-        {inner}
-      </HoverTooltip>
-    );
+    return inner;
   }
   if (card.kind === 'rule') {
     const meta = RULE_TYPE_META[card.rule.type];
