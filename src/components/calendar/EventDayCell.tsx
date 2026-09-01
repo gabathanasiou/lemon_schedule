@@ -206,7 +206,7 @@ export const EventCardView: React.FC<{
       >
         {/* The tooltip anchors to the icon only — hovering the label/comment
             does not pop it. */}
-        <HoverTooltip className="shrink-0 inline-flex mt-[1px]" delay={30000} content={tip}>
+        <HoverTooltip className="shrink-0 inline-flex mt-[1px]" content={tip}>
           <Icon className="w-3 h-3" style={{ color: selected ? sel.color : color }} />
         </HoverTooltip>
         <span className="flex-1 min-w-0">{names}</span>
