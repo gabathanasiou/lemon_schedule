@@ -142,7 +142,7 @@ export default function RibbonDesignerGrid({
                     fontStyle: assigned ? undefined : 'italic',
                   }}>
                     {(align === 'center' || align === 'right') && <span style={{ flex: '1 1 0' }} />}
-                    <RibbonCellText cell={c} span={1} style={{ flexShrink: 1, minWidth: 0 }}>
+                    <RibbonCellText cell={c} span={1} textSize={textSize} style={{ flexShrink: 1, minWidth: 0 }}>
                       {(c.prefix ? '*' : '') + (assigned ? label : 'Empty') + (c.suffix ? '*' : '')}
                     </RibbonCellText>
                     {(align === 'left' || align === 'center') && ci < numCols - 1 && <span style={{ flex: '1 1 0' }} />}
