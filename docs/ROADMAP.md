@@ -1874,3 +1874,19 @@ cell + grid) + CAL bucket specs (`calendar-view` updated to the kit-menu
 addressing; `calendar-rule-cards` Filter-menu flow unchanged; travel-hold /
 day-types / production-dates / date-picker-initial). The events-mode add-event
 button + contextual Filter are manual/visual (rule 7).
+
+## 93. Ribbon designer — kit ContextMenu/dropdown for the cell menu (`[ ]`)
+
+- The ribbon designer's **cell context menu** (`RibbonContextMenu.tsx`) is a
+  bespoke fixed menu — rework it onto the kit `ContextMenu` so it gets the
+  shared morph/positioning/keyboard/close-on-outside for free:
+  - the **field list** (all fields, active check) → kit `ContextMenuItem`s;
+  - **Clear field / Delete Column** → kit `ContextMenuItem` (danger);
+  - **Prefix / Suffix / Text-content inputs** stay in a small custom floating
+    strip (the kit menu's single-highlight key lock captures typed letters, so
+    a Radix menu can't host text inputs without breaking typing).
+- The toolbar buttons/icon-tabs/size-fields are already kit-powered (item 92
+  batch); this item is the last bespoke surface in the designer.
+
+**Verify**: lint + designer manual pass (open the cell menu, pick/clear/delete
+a field, edit prefix/suffix/text).
