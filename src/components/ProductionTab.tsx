@@ -5,7 +5,6 @@ import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { getBrowserTimeZone, COMMON_TIMEZONES } from '../lib/timezones';
 import { CrewPerson } from '../types';
 import PageToolbar from './PageToolbar';
-import { AutocompleteDropdown } from './AutocompleteDropdown';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -107,6 +106,8 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
   }, [crew, crewRoles]);
 
   const [addingName, setAddingName] = useState<{ role: string } | null>(null);
+
+  const [tzOpen, setTzOpen] = useState(false);
 
   const commitInfo = (patch: Record<string, string>) => dispatch({ type: 'SET_PRODUCTION_INFO', payload: patch });
 
@@ -214,16 +215,30 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
                 <label className="flex items-center gap-3 text-xs text-zinc-500">
                   <span className="w-40 shrink-0 text-right">Timezone</span>
                   <div className="flex-1 min-w-0">
-                    <AutocompleteDropdown
-                      value={productionInfo.timezone || ''}
-                      onChange={v => commitInfo({ timezone: v })}
-                      options={COMMON_TIMEZONES}
-                      normalize={v => v.toLowerCase()}
-                      readOnly={readOnly}
-                      standalone
-                      fuzzy
-                      placeholder={`Browser default (${getBrowserTimeZone()})`}
-                    />
+                    {readOnly ? (
+                      <span className="px-2 py-1 text-xs text-zinc-800">{productionInfo.timezone || '—'}</span>
+                    ) : (
+                      <DropdownMenu
+                        open={tzOpen}
+                        onOpenChange={setTzOpen}
+                        theme="light"
+                        width="w-72"
+                        searchable
+                        searchPlaceholder="Search timezones…"
+                        trigger={
+                          <button type="button" className="flex w-full items-center justify-between gap-2 rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400">
+                            <span className="truncate">{productionInfo.timezone || `Browser default (${getBrowserTimeZone()})`}</span>
+                            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
+                          </button>
+                        }
+                      >
+                        {COMMON_TIMEZONES.map(tz => (
+                          <DropdownItem key={tz} selected={productionInfo.timezone === tz} onClick={() => { commitInfo({ timezone: tz }); setTzOpen(false); }}>
+                            {tz}
+                          </DropdownItem>
+                        ))}
+                      </DropdownMenu>
+                    )}
                   </div>
                   <span className="text-[10px] text-zinc-400">Sunrise / sunset & weather</span>
                 </label>
