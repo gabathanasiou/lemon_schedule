@@ -1463,7 +1463,10 @@ band), and the bottom-right shows a whisper lockup — `LEMON
 SCHEDULE` (`text-[10px] uppercase tracking-[0.2em] text-zinc-600`) + `v{version}`
 (`text-zinc-700`). The item-59 one-dim is zeroed only on this screen (`.pm-boot
 .ui-modal-overlay { background: transparent }` in `index.css`, body class toggled
-by the component) so the backdrop reads crisp. **Version is build-time injected**:
+by the component) so the backdrop reads crisp. **iPad-safe**: the wrapper is
+`fixed inset-0` (not `h-screen`), and the lockup clears the home indicator via
+`env(safe-area-inset-bottom/right)` — verified on emulated iPad Pro 11 (webkit
+834×1194): modal centred/on-screen, lockup visible, no overlap. **Version is build-time injected**:
 `vite.config.ts` reads `package.json`'s `version` and `define`s `__APP_VERSION__`
 (declared in `vite-env.d.ts`; `tsconfig.json` gained `resolveJsonModule`), exposed
 via `src/lib/appVersion.ts`. Standard bump flow (what people do generally): semver

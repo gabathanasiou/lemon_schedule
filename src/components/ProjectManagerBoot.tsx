@@ -13,7 +13,7 @@ export function ProjectManagerBoot() {
   }, []);
 
   return (
-    <div className="pm-boot relative h-screen w-screen overflow-hidden">
+    <div className="pm-boot fixed inset-0 overflow-hidden">
       <div
         aria-hidden
         className="absolute inset-0 bg-zinc-950"
@@ -26,7 +26,7 @@ export function ProjectManagerBoot() {
         <ProjectManager />
       </div>
       <div
-        className="pointer-events-none absolute bottom-4 right-5 flex items-baseline gap-2 select-none"
+        className="pointer-events-none absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] flex items-baseline gap-2 select-none"
         aria-hidden
       >
         <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">

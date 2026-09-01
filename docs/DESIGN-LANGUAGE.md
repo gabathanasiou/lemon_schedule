@@ -74,6 +74,12 @@ no color, no motifs:
   screen + ONE soft lightening at the **bottom edge only** (a `h-56
   bg-gradient-to-t from-zinc-900/70 to-transparent` band, `pointer-events-none`).
   Minimal on purpose — no color, no centered glow, no motifs.
+- **iPad-safe**: the wrapper is `fixed inset-0` (not `h-screen`) so the
+  bottom-anchored band + lockup never fall below the fold when the Safari chrome
+  shows, and the lockup sits at `bottom-[max(1rem,env(safe-area-inset-bottom))]
+  right-[max(1.25rem,env(safe-area-inset-right))]` so it clears the iPad home
+  indicator. Verified on emulated iPad Pro 11 (webkit, 834×1194): modal centred +
+  on-screen, lockup visible and non-overlapping.
 - **App lockup, bottom-right**: `LEMON SCHEDULE` (`text-[10px] font-semibold uppercase
   tracking-[0.2em] text-zinc-600`) + `v{APP_VERSION}` (`text-[10px] text-zinc-700`),
   `pointer-events-none select-none`. Version is build-time injected from `package.json`
