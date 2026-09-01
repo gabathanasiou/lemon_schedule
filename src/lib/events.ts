@@ -36,6 +36,14 @@ export function eventCardId(card: EventCard): string {
 
 export const cardDateKey = (card: EventCard): string => card.dateKey;
 
+/** Number of events a whole-day drag actually moves: status + attachment
+ *  cards + dated rule cards. Every-day rules are global (a card on every
+ *  day) — never counted and never dragged. Shared by the drag ghost so the
+ *  count matches what the day renders. */
+export function countMovableEvents(cards: EventCard[]): number {
+  return cards.reduce((n, c) => n + (c.kind === 'rule' && c.everyday ? 0 : 1), 0);
+}
+
 /* ------------------------------------------------------------------ */
 /* Filter model (persisted via arrays — Sets aren't serializable)      */
 /* ------------------------------------------------------------------ */
@@ -246,6 +254,30 @@ export function buildPermutation(sortedDates: string[], sourceDate: string, targ
 export interface MoveNonShootDateResult {
   next: NonShootDate[];
   changed: boolean;
+}
+
+/**
+ * Applies a date→date bijection (swap or rotation) to `NonShootDate` entries —
+ * used by whole-day drags so a day's status + event cards travel with its
+ * content. Entries whose date isn't in the mapping are untouched; entries
+ * landing on the same destination (a degenerate mapping) keep the last write.
+ * Sorted by date for stable storage.
+ */
+export function applyNonShootDateMapping(nonShootDates: NonShootDate[], mapping: Map<string, string>): NonShootDate[] {
+  if (mapping.size === 0) return nonShootDates;
+  const next = new Map<string, NonShootDate>();
+  for (const ns of nonShootDates || []) {
+    const d = mapping.get(ns.date) ?? ns.date;
+    next.set(d, { ...ns, date: d });
+  }
+  return Array.from(next.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Swaps the `NonShootDate` entries of two dates (a day swap in the stripboard
+ *  moves each day's status + cards with its content). */
+export function swapNonShootDates(nonShootDates: NonShootDate[], a: string, b: string): NonShootDate[] {
+  if (a === b) return nonShootDates;
+  return applyNonShootDateMapping(nonShootDates, new Map([[a, b], [b, a]]));
 }
 
 /**

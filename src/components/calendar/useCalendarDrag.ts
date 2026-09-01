@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core';
-import { ScheduleRow, ScheduleVersion } from '../../types';
+import { ScheduleRow, ScheduleVersion, NonShootDate } from '../../types';
 import { isAddModeActive } from '../../lib/useMarquee';
-import { DayDropState, buildDayBlocks, rebuildRowsFromBlocks } from './calendarUtils';
+import { DayDropState, DayBlock, buildDayBlocks, rebuildRowsFromBlocks } from './calendarUtils';
+import { applyNonShootDateMapping } from '../../lib/events';
 
 export interface UseCalendarDragConfig {
   activeId: string | null;
@@ -22,6 +23,10 @@ export interface UseCalendarDragConfig {
   calendarGridRef: React.MutableRefObject<HTMLDivElement | null>;
   dragPointerRef: React.MutableRefObject<{ x: number; y: number } | null>;
   activeVersion: ScheduleVersion | undefined;
+  /** Active calendar version id + its events — a day drag moves the day's
+   *  status/cards with its content (item 66: events live on CalendarVersion). */
+  activeCalendarVersionId: string;
+  nonShootDates: NonShootDate[];
   sections: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[];
   dateSectionMap: Map<string, number>;
   sectionDateMap: Map<number, string>;
@@ -35,8 +40,8 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
     activeId, setActiveId, activeDragDay, setActiveDragDay, activeDragRow, setActiveDragRow,
     activeDragIds, setActiveDragIds, insertBeforeId, setInsertBeforeId,
     dayDropState, setDayDropState, setSelectedRowIds, selectedRowIdsRef,
-    calendarGridRef, dragPointerRef, activeVersion, sections, dateSectionMap,
-    sectionDateMap, nonShootDateMap, flashDays, dispatch,
+    calendarGridRef, dragPointerRef, activeVersion, activeCalendarVersionId, nonShootDates,
+    sections, dateSectionMap, sectionDateMap, nonShootDateMap, flashDays, dispatch,
   } = config;
 
   const activeType = activeId ? (activeDragDay !== null ? 'DAY' : 'SCENE_CARD') : null;
@@ -143,14 +148,6 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
 
     if (activeData?.type === 'DAY') {
       const sourceIdx = activeData.sectionIndex as number;
-      const overData = over.data.current as any;
-      let targetIdx: number | null = null;
-      if (overData?.sectionIndex != null) {
-        targetIdx = overData.sectionIndex;
-      } else if (typeof over.id === 'string' && over.id.startsWith('day-')) {
-        const dateKey = over.id.slice(4);
-        targetIdx = dateSectionMap.get(dateKey) ?? null;
-      }
       if (sourceIdx < 0 || sourceIdx >= sections.length) return;
 
       const allRows = activeVersion.rows.map(r => ({ ...r }));
@@ -158,14 +155,27 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
       const scheduled = allRows.filter(r => r.containerId != null).sort((a, b) => a.order - b.order);
       const { blocks, tail } = buildDayBlocks(scheduled);
 
-      // Insert: drop on a day's edge or in the gap between days
-      let insertT: number | null = null;
+      // The drop target is the pointer-tracked drop zone (the highlighted
+      // cell the user sees) — dnd-kit's `over` lands on whatever nested
+      // droppable (a scene card) sits under the pointer and is unreliable.
       const drop = dayDropState;
-      if (drop && drop.zone === 'insert') {
-        insertT = (drop.side === 'after' ? drop.sectionIndex + 1 : drop.sectionIndex);
-      }
+      if (!drop || drop.sectionIndex == null) return;
+      const targetIdx = drop.sectionIndex;
 
-      if (insertT != null && sourceIdx >= 1) {
+      const applyRowsAndStatus = (nextBlocks: DayBlock[], nextTail: ScheduleRow[], mapping: Map<string, string>) => {
+        const updates: { type: string; payload: any }[] = [];
+        updates.push({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: rebuildRowsFromBlocks(nextBlocks, nextTail, boneyard) } });
+        const nextNonShoot = applyNonShootDateMapping(nonShootDates, mapping);
+        if (activeCalendarVersionId && JSON.stringify(nextNonShoot) !== JSON.stringify(nonShootDates)) {
+          updates.push({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersionId, nonShootDates: nextNonShoot } });
+        }
+        dispatch({ type: 'BATCH_START' });
+        for (const u of updates) dispatch(u);
+        dispatch({ type: 'BATCH_COMMIT' });
+      };
+
+      if (drop.zone === 'insert') {
+        let insertT = drop.side === 'after' ? targetIdx + 1 : targetIdx;
         insertT = Math.max(1, Math.min(blocks.length, insertT));
         if (sourceIdx === insertT || sourceIdx + 1 === insertT) return;
 
@@ -178,7 +188,6 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
         const moved = blocks.splice(sourceIdx, 1)[0];
         const targetIndex = insertT > sourceIdx ? insertT - 1 : insertT;
         blocks.splice(targetIndex, 0, moved);
-        console.log(`[INSERT] section ${sourceIdx} -> position ${insertT} | scenes ${moved.content.length}`);
 
         // Rotate call times so every day keeps its own call time as it shifts
         for (let i = 1; i < blocks.length; i++) {
@@ -186,14 +195,24 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
           if (gov) gov.daybreakCallTime = callTimeOfDay.get(blocks[i].origIdx) || '08:00';
         }
 
-        const combined = rebuildRowsFromBlocks(blocks, tail, boneyard);
-        dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+        // The same rotation applies to each day's status/cards: a date-to-date
+        // mapping built from where every block's original date landed.
+        const lo = Math.min(sourceIdx, targetIndex);
+        const hi = Math.max(sourceIdx, targetIndex);
+        const mapping = new Map<string, string>();
+        for (let p = lo; p <= hi; p++) {
+          const before = sectionDateMap.get(p);
+          const after = sectionDateMap.get(blocks[p].origIdx);
+          if (before && after) mapping.set(before, after);
+        }
+
+        applyRowsAndStatus(blocks, tail, mapping);
         flashDays([[targetIndex, 'a']]);
         return;
       }
 
       // Swap: drop on the center of a day cell
-      if (targetIdx == null || sourceIdx === targetIdx) return;
+      if (sourceIdx === targetIdx) return;
       if (targetIdx < 0 || targetIdx >= sections.length) return;
 
       const sourceBlock = blocks[sourceIdx];
@@ -210,14 +229,19 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
         if (srcAbove && tgtAbove) {
           const a = srcAbove.daybreakCallTime;
           const b = tgtAbove.daybreakCallTime;
-          console.log(`[SWAP] section ${sourceIdx} <-> ${targetIdx} | callTime ${a} <-> ${b} | scenes ${sourceBlock.content.length} <-> ${targetBlock.content.length}`);
           srcAbove.daybreakCallTime = b;
           tgtAbove.daybreakCallTime = a;
         }
       }
 
-      const combined = rebuildRowsFromBlocks(blocks, tail, boneyard);
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+      const sourceDate = sectionDateMap.get(sourceIdx);
+      const targetDate = sectionDateMap.get(targetIdx);
+      const mapping = new Map<string, string>();
+      if (sourceDate && targetDate) {
+        mapping.set(sourceDate, targetDate);
+        mapping.set(targetDate, sourceDate);
+      }
+      applyRowsAndStatus(blocks, tail, mapping);
       flashDays([[sourceIdx, 'a'], [targetIdx, 'b']]);
       return;
     }

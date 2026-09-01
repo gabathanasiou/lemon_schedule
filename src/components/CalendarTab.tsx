@@ -44,7 +44,7 @@ import { DayTypesTab } from './calendar/DayTypesTab';
 import { PopoutPlaceholder } from './PopoutWindow';
 import { getDayTypes, getMarkableDayTypes, getAttachableDayTypes, getDayTypeVisual, getDayTypeLabel, typeIconComponent } from '../lib/dayTypes';
 import { getNonShootEntryMap, hasAnyLists, upsertNonShootDate } from '../lib/nonShootHelpers';
-import { computeDayEvents, removeRuleDate, withRuleDates, DEFAULT_EVENTS_FILTER } from '../lib/events';
+import { computeDayEvents, countMovableEvents, removeRuleDate, withRuleDates, DEFAULT_EVENTS_FILTER } from '../lib/events';
 import { describeRule, RULE_TYPE_META, RULE_TYPES } from './rules/ruleMeta';
 import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
 import { useCalendarDrag } from './calendar/useCalendarDrag';
@@ -642,6 +642,8 @@ export const CalendarTab: React.FC<{
     calendarGridRef,
     dragPointerRef,
     activeVersion,
+    activeCalendarVersionId: activeCalendarVersion?.id || '',
+    nonShootDates,
     sections,
     dateSectionMap,
     sectionDateMap,
@@ -834,6 +836,7 @@ export const CalendarTab: React.FC<{
     handleDragEnd: handleEventDragEnd, reset: resetEventsDrag,
   } = useEventsDrag({
     activeVersion,
+    activeCalendarVersionId: activeCalendarVersion?.id || '',
     nonShootDates,
     rules: projectRules,
     visibleDates,
@@ -1353,7 +1356,7 @@ export const CalendarTab: React.FC<{
                   return idx != null ? `DAY ${chronoDayMap.get(idx) ?? 0}` : '';
                 })()}
               </div>
-              <div className="text-[9px] text-zinc-400">{(eventsByDate.get(activeEventMeta.dateKey) || []).length} events</div>
+              <div className="text-[9px] text-zinc-400">{countMovableEvents(eventsByDate.get(activeEventMeta.dateKey) || [])} events</div>
             </div>
           ) : (
             (() => {

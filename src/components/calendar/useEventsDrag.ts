@@ -27,6 +27,9 @@ export interface EventsDragMeta {
 
 interface UseEventsDragConfig {
   activeVersion: ScheduleVersion | undefined;
+  /** The active calendar version id — events data lives on the
+   *  CalendarVersion (item 66), never on the ScheduleVersion. */
+  activeCalendarVersionId: string;
   nonShootDates: NonShootDate[];
   rules: ProjectRule[];
   /** Sorted unique dates of the visible calendar range (permutation domain). */
@@ -40,7 +43,7 @@ interface UseEventsDragConfig {
 
 export function useEventsDrag(config: UseEventsDragConfig) {
   const {
-    activeVersion, nonShootDates, rules, visibleDates,
+    activeVersion, activeCalendarVersionId, nonShootDates, rules, visibleDates,
     selectedEventKeysRef, setSelectedEventKeys, calendarGridRef, setFlashDateKey, dispatch,
   } = config;
 
@@ -64,6 +67,7 @@ export function useEventsDrag(config: UseEventsDragConfig) {
   const updateDropZone = useCallback((x: number, y: number) => {
     const container = calendarGridRef.current;
     if (!container) return;
+    const isCard = activeMeta?.type === 'EVENT_CARD';
     let inside: { el: Element; rect: DOMRect; dateKey: string } | null = null;
     let nearest: { el: Element; rect: DOMRect; dateKey: string; dist: number } | null = null;
     for (const el of container.querySelectorAll('[data-cal-day]')) {
@@ -81,6 +85,12 @@ export function useEventsDrag(config: UseEventsDragConfig) {
     }
     const t = inside || nearest;
     if (!t) { setDropZone(null); return; }
+    if (isCard) {
+      // A card merges into the target day wherever it lands — always a
+      // full-cell swap highlight (never the insert edge affordance).
+      setDropZone(prev => (prev && prev.zone === 'swap' && prev.dateKey === t.dateKey ? prev : { dateKey: t.dateKey, zone: 'swap' }));
+      return;
+    }
     if (inside) {
       const ratio = inside.rect.width > 0 ? (x - inside.rect.left) / inside.rect.width : 0.5;
       if (ratio < 0.3) {
@@ -94,10 +104,10 @@ export function useEventsDrag(config: UseEventsDragConfig) {
     }
     const side = x < nearest!.rect.left || y < nearest!.rect.top ? 'before' : 'after';
     setDropZone(prev => (prev && prev.zone === 'insert' && prev.side === side && prev.dateKey === nearest!.dateKey ? prev : { dateKey: nearest!.dateKey, zone: 'insert', side }));
-  }, [calendarGridRef]);
+  }, [calendarGridRef, activeMeta?.type]);
 
   useEffect(() => {
-    if (activeMeta?.type !== 'EVENT_DAY') { dragPointerRef.current = null; setDropZone(null); return; }
+    if (!activeMeta) { dragPointerRef.current = null; setDropZone(null); return; }
     const onMove = (e: PointerEvent) => {
       dragPointerRef.current = { x: e.clientX, y: e.clientY };
       updateDropZone(e.clientX, e.clientY);
@@ -158,7 +168,9 @@ export function useEventsDrag(config: UseEventsDragConfig) {
     dragPointerRef.current = null;
     if (!over || !meta || !activeVersion) return;
 
-    const targetDateKey = resolveTargetDate(over.id as string, over.data.current);
+    // The pointer-tracked drop zone is the highlighted cell the user dropped
+    // on; `over` (dnd-kit's last collision) is the fallback.
+    const targetDateKey = zone?.dateKey || resolveTargetDate(over.id as string, over.data.current);
     if (!targetDateKey) return;
 
     const allUpdates: { type: string; payload: any }[] = [];
@@ -170,7 +182,7 @@ export function useEventsDrag(config: UseEventsDragConfig) {
       const mapping = buildPermutation(visibleDates, meta.dateKey, targetDateKey, mode);
       if (mapping.size === 0) return;
       const { nonShootDates: nextDates, rules: nextRules } = applyDatePermutation(nonShootDates, rules, mapping);
-      allUpdates.push({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: nextDates } });
+      allUpdates.push({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersionId, nonShootDates: nextDates } });
       for (const r of nextRules) {
         const before = datesFor(r);
         const after = datesFor(rules.find(x => x.id === r.id) || r);
@@ -259,7 +271,7 @@ export function useEventsDrag(config: UseEventsDragConfig) {
     }
     const next = Array.from(entries.values()).filter((n): n is NonShootDate => !!n).sort((a, b) => a.date.localeCompare(b.date));
     if (JSON.stringify(next) !== JSON.stringify(nonShootDates)) {
-      allUpdates.push({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
+      allUpdates.push({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersionId, nonShootDates: next } });
     }
     batchDispatch(allUpdates);
     setFlashDateKey(targetDateKey);
