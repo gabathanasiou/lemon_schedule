@@ -51,7 +51,7 @@ test('events mode: global rule cards hidden; dated rule card is flag-as-icon-lef
   // The dated rule renders exactly one card, on its date, violated (red tint).
   const card = grid.locator('[data-card-rule="ev-dated"]');
   await expect(card).toHaveCount(1);
-  const inner = card.locator('div').first();
+  const inner = card.locator('div.bg-red-100').first();
   await expect(inner).toHaveClass(/bg-red-100/);
 
   // Violated card: the red FLAG is its icon (left, first child) — no rule-type

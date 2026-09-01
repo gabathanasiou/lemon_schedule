@@ -53,6 +53,12 @@ const IMPORT = ['msd-import', 'cast-single-source'];
 const PRINT = ['report-pagination', 'report-page-breaks'];
 const MODAL = ['pen-modal', 'keyboard-mode'];
 const TRASH = ['trash-restore'];
+/* iPad touch/keyboard/viewport specs (roadmap 69-71). Gated to the webkit iPad
+   project (`test.skip` in the spec), so running them via smart-test's default
+   config only reports them as skipped — they're the real gate under
+   `playwright.ipad.config.ts` (run explicitly). Listed so the mapping documents
+   which source files affect iPad behavior. */
+const IPAD = ['ipad-touch-scroll'];
 const MANAGERS = [...ELEM, ...CREW, ...LOC];
 const CANARY = ['seeded-smoke', 'debug-bridge'];
 
@@ -149,7 +155,7 @@ const RULES = [
   { g: 'src/lib/location*', s: LOC },
   { g: 'src/lib/locations.ts', s: LOC },
   // shared location picker modal (locations manager + reports map block)
-  { g: 'src/components/location/**', s: [...LOC, 'report-sun-weather-map'] },
+  { g: 'src/components/location/**', s: [...LOC, 'report-sun-weather-map', ...IPAD] },
   { g: 'src/lib/rowBuffer.ts', s: MANAGERS },
   { g: 'src/lib/managerShell.tsx', s: MANAGERS },
   // import / export
@@ -157,8 +163,8 @@ const RULES = [
   { g: 'src/components/ImportDialog.tsx', s: IMPORT },
   { g: 'e2e/fixtures/**', s: ['msd-import'] },
   // pointer / keyboard / modals
-  { g: 'src/lib/device.ts', s: MODAL },
-  { g: 'src/components/Modal.tsx', s: MODAL },
+  { g: 'src/lib/device.ts', s: [...MODAL, ...IPAD] },
+  { g: 'src/components/Modal.tsx', s: [...MODAL, ...IPAD] },
   { g: 'src/components/TrashModal.tsx', s: TRASH },
   { g: 'src/components/NewProjectModal.tsx', s: TRASH },
   { g: 'src/components/ColorField.tsx', s: MODAL },

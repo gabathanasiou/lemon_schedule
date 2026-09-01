@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, seedDayDates } from './helpers';
 
 // Roadmap 69-71: iPad WebKit touch/viewport bugs. Run under
 // `playwright.ipad.config.ts` (webkit, `devices['iPad Pro 11']`, hasTouch).
@@ -43,7 +43,9 @@ async function installKeyboardMock(page: Page) {
 
 async function openDayModalWithAdder(page: Page) {
   await page.getByRole('button', { name: 'Calendar' }).click();
-  const dayCell = page.locator('[data-date-key="2026-08-10"]');
+  const days = await seedDayDates(page);
+  expect(days.length).toBeGreaterThan(0);
+  const dayCell = page.locator(`[data-date-key="${days[0]}"]`);
   await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
   await header.dblclick();
@@ -54,9 +56,11 @@ async function openDayModalWithAdder(page: Page) {
   return { dayCell, header, adder };
 }
 
-/** Opens the adder's cast-row entity dropdown (dark chip panel). */
+/** Opens the adder's cast-row entity dropdown (dark chip panel). The chip
+ *  input never carries a placeholder attribute (the placeholder renders in a
+ *  pointer-transparent overlay span), so locate it by its chip-input class. */
 async function openAdderEntityDropdown(page: Page, adder: ReturnType<typeof page.getByRole>) {
-  const input = adder.locator('input[placeholder*="Type cast members"]');
+  const input = adder.locator('input.cursor-pointer').first();
   await input.click();
   const panel = page.locator('.click-outside-ignore').last();
   await expect(panel).toBeVisible();
@@ -115,10 +119,14 @@ test('Project Manager centres within the visible viewport', async ({ page }) => 
   const pm = page.getByText('Project Manager', { exact: true });
   await expect(pm).toBeVisible();
 
-  // Safari bottom toolbar occupies ~200px: visible area shrinks from the bottom.
+  // Safari chrome + keyboard leave a visible area that is NOT the full layout
+  // viewport: mock the visual viewport as a 500px-tall strip starting at y=50.
+  // A keyboard-aware modal must centre inside it (centre = 50 + 500/2 = 300),
+  // not at innerHeight/2 (≈597 on the iPad Pro 11 layout viewport).
   await page.evaluate(() => {
-    const vv = (window as unknown as { __mockVV: { setHeight: (h: number) => void; _origHeight: number } }).__mockVV;
-    vv.setHeight(Math.round(vv._origHeight * 0.82));
+    const vv = (window as unknown as { __mockVV: { offsetTop: number; setHeight: (h: number) => void } }).__mockVV;
+    vv.offsetTop = 50;
+    vv.setHeight(500);
   });
 
   const modal = page.locator('[data-modal-stack]').last();
@@ -138,7 +146,9 @@ test('Cancel on the Add Events modal returns to a visible, interactive day modal
   await installKeyboardMock(page);
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Calendar' }).click();
-  const dayCell = page.locator('[data-date-key="2026-08-10"]');
+  const days = await seedDayDates(page);
+  expect(days.length).toBeGreaterThan(0);
+  const dayCell = page.locator(`[data-date-key="${days[0]}"]`);
   await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
 
@@ -166,10 +176,13 @@ test('Cancel on the Add Events modal returns to a visible, interactive day modal
     await expect(dayHeading).toBeVisible();
 
     // The previous modal must come back VISIBLE (opacity 1) and on-screen —
-    // the reported freeze leaves it invisible-but-clickable.
+    // the reported freeze leaves it invisible-but-clickable (the `:has()`
+    // stack fade in tokens.css stays applied → opacity 0 forever).
     const dayModal = page.locator('[data-modal-stack]').last();
-    const opacity = await dayModal.evaluate((el) => getComputedStyle(el).opacity);
-    expect(opacity, 'day modal must not stay faded after the adder closes').toBe('1');
+    await expect.poll(
+      async () => dayModal.evaluate((el) => getComputedStyle(el).opacity),
+      { timeout: 1500 },
+    ).toBe('1');
     const box = await dayModal.boundingBox();
     expect(box).toBeTruthy();
     const vh = page.viewportSize()!.height;
