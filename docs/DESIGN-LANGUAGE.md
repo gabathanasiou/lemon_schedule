@@ -69,7 +69,7 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 ### Dark surfaces & menus
 | Element | Classes | Source |
 |---|---|---|
-| Dark panel (menus, popovers, pickers) | `bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl` | `rules/ElementPicker.tsx:56`, `PrintDialog.tsx:162` |
+| Dark panel (menus, popovers, pickers) | `bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl` | `rules/ElementPicker.tsx:56`; the print-dialog pickers render through the kit `DropdownMenu` (item 60 — `PrintDialog.tsx`, `print/ElementBreakdownDialog.tsx`, `print/DoodDialog.tsx`, `reports/ReportPrintDialog.tsx`) |
 | Modal content | `bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col` | `Modal.tsx:173` |
 | Modal header / footer | `bg-zinc-950 border-b/t border-zinc-800` | `Modal.tsx:177,229` |
 | Overlay | `fixed inset-0 z-[9999] bg-black/20` | `Modal.tsx:163` |

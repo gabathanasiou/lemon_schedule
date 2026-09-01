@@ -38,6 +38,7 @@ const REPORT = [
   'report-smart-scoping', 'report-sun-weather-map', 'report-violations',
   'report-xmlns', 'report-canvas-sampling', 'report-ribbon-samples',
   'report-breakdown-day-gap-look', 'report-table-resize',
+  'print-dialog-dropdowns',
 ];
 const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'ribbon-text-size'];
 const SCHED = ['keyboard-mode', 'digit-schedule'];
@@ -50,7 +51,7 @@ const LINKED = ['linked-elements'];
 const CREW = ['crew-glide', 'crew-manager'];
 const LOC = ['locations', 'location-types'];
 const IMPORT = ['msd-import', 'cast-single-source'];
-const PRINT = ['report-pagination', 'report-page-breaks'];
+const PRINT = ['report-pagination', 'report-page-breaks', 'print-dialog-dropdowns'];
 const MODAL = ['pen-modal', 'keyboard-mode'];
 const TRASH = ['trash-restore'];
 /* iPad touch/keyboard/viewport specs (roadmap 69-71). Gated to the webkit iPad

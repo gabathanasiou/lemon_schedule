@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import { RibbonCell } from '../types';
 import { DD_CHIP_TRIGGER_CLASS } from '../lib/dropdown';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
@@ -110,6 +111,9 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
 
   const update = (patch: Partial<typeof defaultSettings>) => setSettings(s => ({ ...s, ...patch }));
 
+  const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
+  const [pageSizeOpen, setPageSizeOpen] = useState(false);
+
   const toggleAll = () => {
     if (selectedDays.size === dayEntries.length) {
       updateSelectedDays(() => new Set());
@@ -149,65 +153,52 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             <div className="flex items-center border-b border-zinc-800 pb-1.5">
               <div className="flex items-center gap-2 flex-1">
                 <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ribbon Layout</span>
-                <RadixDropdownMenu.Root>
-                  <RadixDropdownMenu.Trigger asChild>
-                    <button className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+                <DropdownMenu
+                  open={ribbonMenuOpen}
+                  onOpenChange={setRibbonMenuOpen}
+                  theme="dark"
+                  align="left"
+                  width="min-w-[180px]!"
+                  contentClassName="z-[10001] max-h-72!"
+                  trigger={
+                    <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                       <span className="tabular-nums truncate max-w-[120px]">{settings.selectedRibbonId ? (ribbonDesigns.find(d => d.id === settings.selectedRibbonId)?.name || 'Unknown') : (ribbonDesigns[0]?.name || 'Unknown')}</span>
                       <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
                     </button>
-                  </RadixDropdownMenu.Trigger>
-                  <RadixDropdownMenu.Portal>
-                    <RadixDropdownMenu.Content
-                      className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
-                      align="start"
-                      sideOffset={4}
-                      collisionPadding={8}
+                  }
+                >
+                  {ribbonDesigns.map(d => (
+                    <DropdownItem
+                      key={d.id}
+                      onClick={() => { setRibbonMenuOpen(false); update({ selectedRibbonId: d.id }); }}
+                      className={settings.selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : ''}
+                      trailing={settings.selectedRibbonId === d.id ? <Check className="w-3 h-3 shrink-0" /> : undefined}
                     >
-                      {ribbonDesigns.map(d => (
-                        <RadixDropdownMenu.Item
-                          key={d.id}
-                          onSelect={() => update({ selectedRibbonId: d.id })}
-                          className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${settings.selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
-                        >
-                          <span className="flex-1">{d.name}</span>
-                          {settings.selectedRibbonId === d.id && <Check className="w-3 h-3 shrink-0" />}
-                        </RadixDropdownMenu.Item>
-                      ))}
-                    </RadixDropdownMenu.Content>
-                  </RadixDropdownMenu.Portal>
-                </RadixDropdownMenu.Root>
+                      {d.name}
+                    </DropdownItem>
+                  ))}
+                </DropdownMenu>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Page Size</span>
-                <RadixDropdownMenu.Root>
-                  <RadixDropdownMenu.Trigger asChild>
-                    <button className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+                <DropdownMenu
+                  open={pageSizeOpen}
+                  onOpenChange={setPageSizeOpen}
+                  theme="dark"
+                  align="right"
+                  width="min-w-[180px]!"
+                  contentClassName="z-[10001]"
+                  trigger={
+                    <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                       <span className="tabular-nums">{viewMode === 'portrait' ? 'Portrait' : viewMode === 'landscape' ? 'Landscape' : 'Full'}</span>
                       <ChevronDown className="w-3 h-3 text-zinc-500" />
                     </button>
-                  </RadixDropdownMenu.Trigger>
-                  <RadixDropdownMenu.Portal>
-                    <RadixDropdownMenu.Content
-                      className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
-                      align="end"
-                      sideOffset={4}
-                      collisionPadding={8}
-                    >
-                      <RadixDropdownMenu.Item onSelect={() => setViewMode('portrait')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${viewMode === 'portrait' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
-                        <span className="flex-1">Portrait</span>
-                        {viewMode === 'portrait' && <Check className="w-3 h-3 shrink-0" />}
-                      </RadixDropdownMenu.Item>
-                      <RadixDropdownMenu.Item onSelect={() => setViewMode('landscape')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${viewMode === 'landscape' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
-                        <span className="flex-1">Landscape</span>
-                        {viewMode === 'landscape' && <Check className="w-3 h-3 shrink-0" />}
-                      </RadixDropdownMenu.Item>
-                      <RadixDropdownMenu.Item onSelect={() => setViewMode('full')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${viewMode === 'full' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
-                        <span className="flex-1">Full Width</span>
-                        {viewMode === 'full' && <Check className="w-3 h-3 shrink-0" />}
-                      </RadixDropdownMenu.Item>
-                    </RadixDropdownMenu.Content>
-                  </RadixDropdownMenu.Portal>
-                </RadixDropdownMenu.Root>
+                  }
+                >
+                  <DropdownItem onClick={() => { setPageSizeOpen(false); setViewMode('portrait'); }} className={viewMode === 'portrait' ? 'bg-zinc-800 text-white' : ''} trailing={viewMode === 'portrait' ? <Check className="w-3 h-3 shrink-0" /> : undefined}>Portrait</DropdownItem>
+                  <DropdownItem onClick={() => { setPageSizeOpen(false); setViewMode('landscape'); }} className={viewMode === 'landscape' ? 'bg-zinc-800 text-white' : ''} trailing={viewMode === 'landscape' ? <Check className="w-3 h-3 shrink-0" /> : undefined}>Landscape</DropdownItem>
+                  <DropdownItem onClick={() => { setPageSizeOpen(false); setViewMode('full'); }} className={viewMode === 'full' ? 'bg-zinc-800 text-white' : ''} trailing={viewMode === 'full' ? <Check className="w-3 h-3 shrink-0" /> : undefined}>Full Width</DropdownItem>
+                </DropdownMenu>
               </div>
             </div>
             {(() => {

@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import { ReportBlock, ReportCollection, ReportDesign, RibbonDesign } from '../../types';
 import { ReportScope, reportItemKey, reportItemLabel, resolveCollectionItems, RibbonPrintOptions, ReportPrintOptions } from '../../lib/reportData';
 import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import DropdownMenu from '../DropdownMenu';
+import DropdownItem from '../DropdownItem';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { useCellBorders, CellBorders } from '../../lib/persist';
@@ -120,6 +121,8 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
     } catch { /* ignore */ }
     return 'inherit';
   });
+  const [pageOpen, setPageOpen] = useState(false);
+  const [ribbonMenuOpenId, setRibbonMenuOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!pageKey) return;
@@ -183,33 +186,31 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
         <div className="flex items-center border-b border-zinc-800 pb-1.5">
           <div className="flex items-center gap-2 flex-1">
             <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Page Size</span>
-            <RadixDropdownMenu.Root>
-              <RadixDropdownMenu.Trigger asChild>
-                <button className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+            <DropdownMenu
+              open={pageOpen}
+              onOpenChange={setPageOpen}
+              theme="dark"
+              align="left"
+              width="min-w-[180px]!"
+              contentClassName="z-[10001]"
+              trigger={
+                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                   <span className="tabular-nums">{page === 'inherit' ? 'From design' : page === 'portrait' ? 'Portrait' : 'Landscape'}</span>
                   <ChevronDown className="w-3 h-3 text-zinc-500" />
                 </button>
-              </RadixDropdownMenu.Trigger>
-              <RadixDropdownMenu.Portal>
-                <RadixDropdownMenu.Content
-                  className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
-                  align="start"
-                  sideOffset={4}
-                  collisionPadding={8}
+              }
+            >
+              {(['inherit', 'portrait', 'landscape'] as const).map(m => (
+                <DropdownItem
+                  key={m}
+                  onClick={() => { setPageOpen(false); setPage(m); }}
+                  className={page === m ? 'bg-zinc-800 text-white' : ''}
+                  trailing={page === m ? <Check className="w-3 h-3 shrink-0" /> : undefined}
                 >
-                  {(['inherit', 'portrait', 'landscape'] as const).map(m => (
-                    <RadixDropdownMenu.Item
-                      key={m}
-                      onSelect={() => setPage(m)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${page === m ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
-                    >
-                      <span className="flex-1">{m === 'inherit' ? 'From design' : m === 'portrait' ? 'Portrait' : 'Landscape'}</span>
-                      {page === m && <Check className="w-3 h-3 shrink-0" />}
-                    </RadixDropdownMenu.Item>
-                  ))}
-                </RadixDropdownMenu.Content>
-              </RadixDropdownMenu.Portal>
-            </RadixDropdownMenu.Root>
+                  {m === 'inherit' ? 'From design' : m === 'portrait' ? 'Portrait' : 'Landscape'}
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
           </div>
         </div>
 
@@ -249,33 +250,31 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
               <div className="flex items-center border-b border-zinc-800 pb-1.5">
                 <div className="flex items-center gap-2 flex-1">
                   <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ribbon Layout</span>
-                  <RadixDropdownMenu.Root>
-                    <RadixDropdownMenu.Trigger asChild>
-                      <button className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+                  <DropdownMenu
+                    open={ribbonMenuOpenId === b.id}
+                    onOpenChange={(o) => setRibbonMenuOpenId(o ? b.id : null)}
+                    theme="dark"
+                    align="left"
+                    width="min-w-[180px]!"
+                    contentClassName="z-[10001]"
+                    trigger={
+                      <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                         <span className="tabular-nums truncate max-w-[160px]">{design?.name || '—'}</span>
                         <ChevronDown className="w-3 h-3 text-zinc-500" />
                       </button>
-                    </RadixDropdownMenu.Trigger>
-                    <RadixDropdownMenu.Portal>
-                      <RadixDropdownMenu.Content
-                        className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
-                        align="start"
-                        sideOffset={4}
-                        collisionPadding={8}
+                    }
+                  >
+                    {ribbonDesigns.map(d => (
+                      <DropdownItem
+                        key={d.id}
+                        onClick={() => { setRibbonMenuOpenId(null); patchRibbon(b.id, { ribbonId: d.id }); }}
+                        className={o.ribbonId === d.id ? 'bg-zinc-800 text-white' : ''}
+                        trailing={o.ribbonId === d.id ? <Check className="w-3 h-3 shrink-0" /> : undefined}
                       >
-                        {ribbonDesigns.map(d => (
-                          <RadixDropdownMenu.Item
-                            key={d.id}
-                            onSelect={() => patchRibbon(b.id, { ribbonId: d.id })}
-                            className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${o.ribbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
-                          >
-                            <span className="flex-1">{d.name}</span>
-                            {o.ribbonId === d.id && <Check className="w-3 h-3 shrink-0" />}
-                          </RadixDropdownMenu.Item>
-                        ))}
-                      </RadixDropdownMenu.Content>
-                    </RadixDropdownMenu.Portal>
-                  </RadixDropdownMenu.Root>
+                        {d.name}
+                      </DropdownItem>
+                    ))}
+                  </DropdownMenu>
                 </div>
               </div>
 

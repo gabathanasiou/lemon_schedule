@@ -11,22 +11,16 @@ roadmap worker session, so it stays lean.
   before becoming an item here.
 
 ---
-## 1. Ribbon Block outside a Repeater (`[ ]`)
+## 1. Ribbon Block outside a Repeater (`[x]` Done)
 
-Block types today: `text | field | repeat | table | columns | ribbon | pageBreak | spacer`
-(see `docs/REPORTS-DESIGNER.md`). A **Ribbon block placed outside any Repeater**
-should:
-- **Default to showing ALL ribbons of the schedule** (not just a sample).
-- **Preview**: show only the first four + an indication that there are more
-  ("+ N more" style hint).
-- Add a **special property to toggle displaying day breaks** on/off.
-- When on, day breaks display **1:1 from the stripboard**, exactly like the
-  ribbons do.
-
-Related bugs to fix while here:
-- **Notes currently display weirdly** in the ribbon block — they must display
-  **1:1 with the stripboard**.
-- **Breaks same as notes** — 1:1 with the stripboard.
+**Done**: a ribbon block outside any repeater renders the FULL schedule
+(`ReportRibbonView` → `FullSchedule`, `src/components/reports/ReportRibbonView.tsx`),
+the designer/preview caps it at `DAYBREAK_PREVIEW_LIMIT` (4) with a "…N more
+strips" hint, the day-breaks toggle (`ribbonDayBreaks`/`ribbonHeaders`) renders
+START OF DAY / End of Day halves, and note/break rows render 1:1 with the
+stripboard via the shared renderers (`StaticNoteRow`/`StaticBreakRow` +
+`ribbonCellDisplayValue`). Verified by `e2e/report-pagination.spec.ts` (top-level
+ribbon full schedule + day breaks).
 
 ## 2. REMINDER: Location Manager fix + wire locations into scenes (`[x]` Done)
 
@@ -659,9 +653,21 @@ Stacked modals must NOT stack background darkenings.
 
 **Relations**: rides the stack CSS + morph language from item 58; touches `Modal.tsx` shim territory.
 
-## 60. Print dialogs' dropdowns → ui-kit base (`[ ]`)
+## 60. Print dialogs' dropdowns → ui-kit base (`[x]` Done)
 
-**Requested**: the print menus' dropdowns should use the ui-kit dropdowns — so they inherit the animation system (overlay morph) and the mobile sizing.
+**Done**: all four print surfaces now render their pickers through the kit
+`DropdownMenu` (dark theme) — `PrintDialog` (Ribbon Layout + Page Size),
+`print/ElementBreakdownDialog` (Category), `print/DoodDialog` (Category), and
+`reports/ReportPrintDialog` (Page Size + per-ribbon-block Ribbon Layout). Each
+inherits the trigger-anchored morph (item 58), Esc/typeahead, `IS_COARSE`
+sizing and single-highlight/checked-row contract; items use the kit
+`DropdownItem` icon/trailing props; category pickers use
+`initialHighlightIndex` + scrollIntoView (the item-64 model — the old
+`active.focus()` is gone); `contentClassName="z-[10001] …"` lifts the menus
+above the app modals. The last raw-Radix dropdowns in the app are gone (only
+the kit `Separator` shim in `DropdownDivider` and the non-print `SortDropdown`
+remain). Verified by `e2e/print-dialog-dropdowns.spec.ts` (morph + select +
+trigger update + checked row, per dialog).
 
 **Facts**: item 58 swept dropdowns for the morph, but the print dialogs were missed — three files use RAW `@radix-ui/react-dropdown-menu` directly (hand-rolled item classes, `modal={true}`, no morph, no coarse-pointer sizing):
 - `PrintDialog.tsx:151-177`+ — ribbon-design picker (+ a second raw menu at `:181`),

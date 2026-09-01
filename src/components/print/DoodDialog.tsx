@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../../store';
 import { getElementsFromScenes } from '../../store';
 import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import { Printer, ChevronDown, Check } from 'lucide-react';
+import DropdownMenu from '../DropdownMenu';
+import DropdownItem from '../DropdownItem';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -118,8 +119,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
   useEffect(() => {
     if (!showCategories) return;
     const raf = requestAnimationFrame(() => {
-      const active = catContentRef.current?.querySelector(`[data-cat="${category}"]`) as HTMLElement | null;
-      if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
+      catContentRef.current?.querySelector(`[data-cat="${category}"]`)?.scrollIntoView({ block: 'nearest' });
     });
     return () => cancelAnimationFrame(raf);
   }, [showCategories, category]);
@@ -160,6 +160,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
   }, [category]);
 
   const categoryLabel = categoryLabelLookup[category] || category;
+  const activeIndex = allCategoryKeys.findIndex(k => k.key === category);
 
   const toggleElement = (id: string) => {
     setSelectedElementIds(prev => {
@@ -224,46 +225,45 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
           <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider border-b border-zinc-800 pb-1.5 mb-3 block">
             Category
           </label>
-          <RadixDropdownMenu.Root open={showCategories} onOpenChange={(o) => setShowCategories(o)} modal={true}>
-            <RadixDropdownMenu.Trigger asChild>
+          <DropdownMenu
+            open={showCategories}
+            onOpenChange={setShowCategories}
+            theme="dark"
+            align="left"
+            width="min-w-[180px]!"
+            initialHighlightIndex={activeIndex >= 0 ? activeIndex : undefined}
+            contentClassName="z-[10001] max-h-64! scrollbar-custom"
+            trigger={
               <button
+                type="button"
                 className={`${DD_CHIP_TRIGGER_CLASS} text-xs w-full justify-between cursor-pointer px-3 py-2`}
               >
                 <span>{categoryLabel}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
               </button>
-            </RadixDropdownMenu.Trigger>
-            <RadixDropdownMenu.Portal>
-              <RadixDropdownMenu.Content
-                ref={catContentRef}
-                className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[180px] scrollbar-custom"
-                align="start"
-                sideOffset={4}
-                collisionPadding={8}
-              >
-                {allCategoryKeys.map(({ key, isCustom }) => {
-                  const Icon = isCustom
-                    ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')
-                    : CAT_ICONS[key] || null;
-                  const active = key === category;
-                  return (
-                    <RadixDropdownMenu.Item
-                      key={key}
-                      data-cat={key}
-                      onSelect={() => setCategory(key)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${
-                        active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white'
-                      }`}
+            }
+          >
+            <div ref={catContentRef} className="flex flex-col">
+              {allCategoryKeys.map(({ key, isCustom }) => {
+                const Icon = isCustom
+                  ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')
+                  : CAT_ICONS[key] || null;
+                const active = key === category;
+                return (
+                  <div key={key} data-cat={key}>
+                    <DropdownItem
+                      onClick={() => setCategory(key)}
+                      className={active ? 'bg-zinc-800 text-white' : ''}
+                      icon={Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+                      trailing={active ? <Check className="w-3 h-3 shrink-0" /> : undefined}
                     >
-                      {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
-                      <span className="flex-1">{categoryLabelLookup[key] || key}</span>
-                      {active && <Check className="w-3 h-3 shrink-0" />}
-                    </RadixDropdownMenu.Item>
-                  );
-                })}
-              </RadixDropdownMenu.Content>
-            </RadixDropdownMenu.Portal>
-          </RadixDropdownMenu.Root>
+                      {categoryLabelLookup[key] || key}
+                    </DropdownItem>
+                  </div>
+                );
+              })}
+            </div>
+          </DropdownMenu>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
