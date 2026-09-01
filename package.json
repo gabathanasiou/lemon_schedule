@@ -17,7 +17,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@floating-ui/react-dom": "^2.1.8",
-    "@gabriel/ui-kit": "github:gabathanasiou/ui-kit#v0.1.76",
+    "@gabriel/ui-kit": "github:gabathanasiou/ui-kit#v0.1.77",
     "@glideapps/glide-data-grid": "^6.0.4-alpha24",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-dropdown-menu": "^2.1.24",
