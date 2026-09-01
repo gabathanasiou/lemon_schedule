@@ -5,19 +5,19 @@ import Button from '../Button';
 import { RibbonRow, RibbonCell } from '../../types';
 import { getAlign } from '../../lib/ribbonUtils';
 
-/* Kit `Button` recipes that preserve the toolbar's bespoke look — the `!`
-   overrides beat the kit button's baked size/font-weight/disabled so the
-   toolbar reads exactly as before while being powered by the ui-kit. */
-const BTN = '!h-7 !text-[10px] !font-medium rounded !bg-zinc-800 !border !border-zinc-700 !disabled:opacity-30 flex items-center transition-colors';
-const BTN_LABEL = `${BTN} !px-2.5 !gap-1.5 !text-zinc-300 hover:!bg-zinc-700`;
-const BTN_LABEL_DANGER = `${BTN} !px-2.5 !gap-1.5 !text-zinc-300 hover:!bg-red-950/50`;
-const BTN_MOVE = `${BTN} !px-2 !gap-0.5 !text-zinc-400 hover:!bg-zinc-700 !disabled:opacity-25`;
-const BTN_CHANGE = `${BTN} !px-2.5 !gap-1 !text-zinc-300 hover:!bg-zinc-700`;
-const BTN_ICON = '!h-7 !w-7 rounded !border flex items-center justify-center !disabled:opacity-25 transition-colors';
-const BTN_ICON_NB = '!h-7 !w-7 rounded flex items-center justify-center !disabled:opacity-25 transition-colors';
+/* Kit `Button` recipes preserving the toolbar's dark-bordered look while
+   letting the kit's coarse sizing (padding/font) drive the size — no fixed
+   heights/fonts, so the designer toolbar scales with the global coarse knob. */
+const BTN = 'rounded !bg-zinc-800 !border !border-zinc-700 !disabled:opacity-30 flex items-center transition-colors';
+const BTN_LABEL = `${BTN} !text-zinc-300 hover:!bg-zinc-700`;
+const BTN_LABEL_DANGER = `${BTN} !text-zinc-300 hover:!bg-red-950/50`;
+const BTN_MOVE = `${BTN} !text-zinc-400 hover:!bg-zinc-700 !disabled:opacity-25`;
+const BTN_CHANGE = `${BTN} !text-zinc-300 hover:!bg-zinc-700`;
+const BTN_ICON = 'rounded !border flex items-center justify-center !disabled:opacity-25 transition-colors';
+const BTN_ICON_NB = 'rounded flex items-center justify-center !disabled:opacity-25 transition-colors';
 const BTN_ICON_ACTIVE = '!bg-blue-900/50 !border-blue-700 !text-blue-300';
 const BTN_ICON_INACTIVE = '!bg-zinc-800 !border-zinc-700 !text-zinc-500 hover:!bg-zinc-700';
-const BTN_X = '!h-6 !w-6 rounded !border !border-zinc-700 !bg-zinc-800 !text-zinc-400 hover:!bg-zinc-700 hover:!text-zinc-200 !disabled:opacity-25 flex items-center justify-center transition-colors';
+const BTN_X = 'rounded !border !border-zinc-700 !bg-zinc-800 !text-zinc-400 hover:!bg-zinc-700 hover:!text-zinc-200 !disabled:opacity-25 flex items-center justify-center transition-colors';
 
 /**
  * Live number input for toolbar numeric fields. Commits clamped values on
@@ -228,7 +228,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
                 onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
                 disabled={readOnly || !selCell}
                 className={`${BTN_ICON} ${active ? BTN_ICON_ACTIVE : BTN_ICON_INACTIVE}`}>
-                <Icon className="w-3 h-3" />
+                <Icon className="w-3 h-3 shrink-0" />
               </Button>
             </Tooltip>
           );
@@ -246,7 +246,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
                 onClick={() => selCell && setVerticalAlign(selId!, active && va !== 'middle' ? undefined : va)}
                 disabled={readOnly || !selCell}
                 className={`${BTN_ICON} ${active ? BTN_ICON_ACTIVE : BTN_ICON_INACTIVE}`}>
-                <Icon className="w-3 h-3" />
+                <Icon className="w-3 h-3 shrink-0" />
               </Button>
             </Tooltip>
           );
@@ -264,7 +264,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
                   onClick={() => selCell && !active && setOverflow(selId!, mode)}
                   disabled={readOnly || !selCell}
                   className={`${BTN_ICON_NB} ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-zinc-800 !text-zinc-500 hover:!bg-zinc-700'} ${i < 3 ? '!border-r !border-zinc-700' : ''}`}>
-                  <Icon className="w-3 h-3" />
+                  <Icon className="w-3 h-3 shrink-0" />
                 </Button>
               </Tooltip>
             );
@@ -278,7 +278,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
               onChange={e => selCell && setTextContent(selCell.cell.id, e.target.value)}
               placeholder="Text content..."
               disabled={readOnly || !selCell}
-              className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30 w-32 shrink-0"
+              className="ui-input h-7 px-2 text-[10px] disabled:opacity-30 w-32 shrink-0"
             />
           </Tooltip>
         ) : (
@@ -289,7 +289,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
                 onChange={e => selCell?.cell.field && setAffix(selCell.cell.id, 'prefix', e.target.value)}
                 placeholder="Prefix"
                 disabled={readOnly || !selCell || !selCell.cell.field}
-                className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-25"
+                className="ui-input h-7 w-14 px-1.5 text-[10px] disabled:opacity-25"
               />
             </Tooltip>
             <Tooltip content="Suffix">
@@ -298,7 +298,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
                 onChange={e => selCell?.cell.field && setAffix(selCell.cell.id, 'suffix', e.target.value)}
                 placeholder="Suffix"
                 disabled={readOnly || !selCell || !selCell.cell.field}
-                className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-25"
+                className="ui-input h-7 w-14 px-1.5 text-[10px] disabled:opacity-25"
               />
             </Tooltip>
           </div>
@@ -314,7 +314,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             onCommit={v => selCell && setTextSizeOffset?.(selCell.cell.id, v)}
             readOnly={readOnly || !selCell}
             ariaLabel="Cell text size offset"
-            className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
+            className="ui-input w-10 h-6 text-[11px] text-center shrink-0 read-only:opacity-50"
           />
         </Tooltip>
         {selCell && (selCell.cell.textSizeOffset !== undefined && selCell.cell.textSizeOffset !== 0) && (
@@ -325,7 +325,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
               disabled={readOnly}
               className={BTN_X}
             >
-              <X className="w-3 h-3" />
+              <X className="w-3 h-3 shrink-0" />
             </Button>
           </Tooltip>
         )}
@@ -343,7 +343,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             onCommit={v => dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: designId, cellPaddingV: v } })}
             readOnly={readOnly}
             ariaLabel="Vertical cell padding"
-            className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
+            className="ui-input w-10 h-6 text-[11px] text-center shrink-0 read-only:opacity-50"
           />
         </Tooltip>
         <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
@@ -356,7 +356,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             onCommit={v => dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: designId, cellPaddingH: v } })}
             readOnly={readOnly}
             ariaLabel="Horizontal cell padding"
-            className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
+            className="ui-input w-10 h-6 text-[11px] text-center shrink-0 read-only:opacity-50"
           />
         </Tooltip>
         <div className="w-px h-5 bg-zinc-700 mx-0.5" />
@@ -370,7 +370,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             onCommit={v => dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: designId, edgePadding: v } })}
             readOnly={readOnly}
             ariaLabel="Edge padding"
-            className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
+            className="ui-input w-10 h-6 text-[11px] text-center shrink-0 read-only:opacity-50"
           />
         </Tooltip>
         <div className="w-px h-5 bg-zinc-700 mx-0.5" />
@@ -384,7 +384,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             onCommit={v => dispatch({ type: 'SET_RIBBON_TEXT_SIZE', payload: { id: designId, textSize: v } })}
             readOnly={readOnly}
             ariaLabel="Master text size"
-            className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
+            className="ui-input w-10 h-6 text-[11px] text-center shrink-0 read-only:opacity-50"
           />
         </Tooltip>
       </div>
