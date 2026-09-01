@@ -1,12 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
-import { useDropdown } from '../../lib/dropdown';
-import { useSmartPosition } from '../../lib/useSmartPosition';
+import { useDropdown, useEscapeCapture } from '../../lib/dropdown';
+import { useFixedPosition } from '../../lib/useSmartPosition';
+import { IS_COARSE, useHardwareKeyboard } from '../../lib/device';
+import { useKeyboardMode } from '../../lib/persist';
+import DropdownPanel from '../DropdownPanel';
 
-// Reusable async-search dropdown (dark, matches the app's menu styling):
-// typing debounces a search and the results float in a panel under the input
-// (they never push surrounding layout down). Picking calls onPick; Escape or
-// clicking outside closes the panel. T carries the data each result needs.
+// Reusable async-search dropdown (dark — the shared entity-dropdown panel
+// look): typing debounces a search and the results float in the shared
+// DropdownPanel under the input (they never push surrounding layout down).
+// Picking calls onPick; Escape or clicking outside closes the panel. T
+// carries the data each result needs. Built on the shared dark panel (morph +
+// touch/wheel scroll + visual-viewport keyboard clamp via the kit hooks) so
+// the picker behaves like every other dropdown on iPad.
 
 export interface AsyncResultItem {
   key: string;
@@ -34,15 +40,27 @@ export function AsyncResultsDropdown<T extends AsyncResultItem>({
   const [highlighted, setHighlighted] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const seq = useRef(0);
   const searchRef = useRef(search);
   searchRef.current = search;
+  const [keyboardMode] = useKeyboardMode();
+  const hwKeyboard = useHardwareKeyboard();
 
-  useSmartPosition(ref, open);
+  /* Fixed positioning + the same pos/ready contract as DropdownPanel: the
+     panel stays invisible until the positioning rAF flips `ready`. */
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288, ready: false } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
 
-  const close = useCallback(() => setOpen(false), []);
-  useDropdown(open, ref, close, panelRef);
+  useEscapeCapture(open, () => setOpen(false));
+
+  useFixedPosition(ref, open, (p) => setPos({ ...p, ready: true }));
+
+  useDropdown(open, ref, () => setOpen(false), panelRef);
+
+  useEffect(() => {
+    if (open) setPos(p => ({ ...p, ready: false }));
+  }, [open]);
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -78,6 +96,7 @@ export function AsyncResultsDropdown<T extends AsyncResultItem>({
       <div className="relative">
         <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input
+          readOnly={IS_COARSE && !hwKeyboard && keyboardMode === 'off'}
           value={value}
           onChange={e => { onValueChange(e.target.value); runSearch(e.target.value); }}
           onFocus={() => { if (value.trim() && (results.length > 0 || searching)) setOpen(true); }}
@@ -95,25 +114,27 @@ export function AsyncResultsDropdown<T extends AsyncResultItem>({
         )}
       </div>
       {open && (
-        <div
-          ref={panelRef}
-          className="click-outside-ignore absolute top-full left-0 right-0 z-[1100] mt-1 bg-zinc-900 border border-zinc-700 rounded-md shadow-lg py-1 max-h-48 overflow-y-auto"
-        >
-          {results.length > 0 ? results.map((r, i) => (
-            <button
-              key={r.key}
-              type="button"
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => pick(r)}
-              onMouseEnter={() => setHighlighted(i)}
-              className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${i === highlighted ? 'bg-zinc-700 text-white' : 'text-zinc-300 hover:bg-zinc-800'}`}
-            >
-              {r.label}
-            </button>
-          )) : (
-            <div className="px-3 py-1.5 text-[11px] text-zinc-500">No matches</div>
-          )}
-        </div>
+        <DropdownPanel
+          dark
+          positioning="fixed"
+          pos={pos}
+          panelRef={panelRef}
+          scrollRef={scrollRef}
+          dropdownItems={results.map(r => ({ id: r.key, name: r.label }))}
+          currentIds={[]}
+          highlightedIndex={highlighted}
+          itemKey={(m) => m.id}
+          searchQuery=""
+          hasExactMatch
+          renderItem={(m) => <span className="truncate">{m.name}</span>}
+          defaultRenderer={(m) => <span className="truncate">{m.name}</span>}
+          onItemClick={(m) => pick(results.find(r => r.key === m.id) as T)}
+          onItemHover={(i) => setHighlighted(i)}
+          onHoverLeave={() => setHighlighted(-1)}
+          onCommit={() => {}}
+          portalTarget={null}
+          anchorRef={ref}
+        />
       )}
     </div>
   );
