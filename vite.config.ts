@@ -39,6 +39,11 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
+        // Glide's overlay editor is React.lazy()-loaded (a separate prod chunk)
+        // — its exports map blocks deep imports, so alias the internal file to
+        // preload the chunk at app boot (see BreakdownTabGlide.tsx). Rollup
+        // dedupes this to the SAME chunk Glide's lazy() requests.
+        '@glide-overlay-editor': path.resolve(__dirname, 'node_modules/@glideapps/glide-data-grid/dist/esm/internal/data-grid-overlay-editor/data-grid-overlay-editor.js'),
       },
       dedupe: ['react', 'react-dom'],
     },

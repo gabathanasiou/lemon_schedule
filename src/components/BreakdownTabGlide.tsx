@@ -37,6 +37,16 @@ import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
+
+/* Preload Glide's lazy overlay-editor chunk at app boot (this module is
+   statically imported by App). The overlay editor is React.lazy()-loaded by
+   Glide — on the FIRST edit after a fresh page load the chunk is fetched
+   async, and every keystroke typed while it's in flight is swallowed (the grid
+   re-opens the editor per keystroke with a single-key replace, so only the
+   last one survives). Warm it here so the first edit never suspends. Resolved
+   via the @glide-overlay-editor alias (vite.config.ts) — the same module Glide
+   lazy()s, so Rollup emits ONE chunk. */
+void import('@glide-overlay-editor');
 import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { planPaste } from '../lib/glidePaste';
