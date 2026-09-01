@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, loadSeedProject, waitForPersistedProject } from './helpers';
+import { openSeededProject, loadSeedProject, waitForPersistedProject, nameCell } from './helpers';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -146,8 +146,8 @@ test.describe('cast single source of truth (castMembers)', () => {
     await openElementManagerCast(page);
 
     // rename the lead cast member via the ID+Name row
-    const row = page.locator('tr', { has: page.locator(`input[value="${m1().name}"]`) });
-    const nameInput = row.locator('input').last();
+    const row = page.locator('tr', { has: nameCell(page, m1().name) });
+    const nameInput = row.locator('textarea[data-manager-name]');
     await nameInput.click();
     await page.keyboard.press('Meta+A');
     await page.keyboard.type(`${m1().name} II`, { delay: 15 });

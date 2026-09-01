@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedLeadCast, seedElement, seedDayDates } from './helpers';
+import { openSeededProject, seedLeadCast, seedElement, seedDayDates, nameCell } from './helpers';
 
 // Element Manager Events (roadmap item 46): the per-row Events button opens
 // the element events manager — one collapsible card per day type with only
@@ -73,7 +73,7 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
   await page.getByRole('button', { name: 'Element Manager' }).click();
 
-  const memberRow = page.locator('tr', { has: page.locator(`input[value="${member.name}"]`) });
+  const memberRow = page.locator('tr', { has: nameCell(page, member.name) });
   await expect(memberRow).toBeVisible();
   await memberRow.locator('button[title^="Events"]').click();
   const modal = page.getByRole('dialog');
@@ -182,7 +182,7 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   // ---- Non-cast elements: day rows render, rules are cast-only (the Rules
   //     section is hidden entirely — it can never carry rules)
   await page.locator('aside').getByRole('button', { name: /Wardrobe/ }).click();
-  const wardrobeRow = page.locator('tr', { has: page.locator(`input[value="${wardrobe.name}"]`) });
+  const wardrobeRow = page.locator('tr', { has: nameCell(page, wardrobe.name) });
   await expect(wardrobeRow).toBeVisible();
   await wardrobeRow.locator('button[title^="Events"]').click();
   await expect(page.getByRole('dialog').getByRole('heading', { name: new RegExp(`${esc(wardrobe.name)} — Events`) })).toBeVisible();

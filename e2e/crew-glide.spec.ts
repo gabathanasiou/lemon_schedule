@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, nameCell } from './helpers';
 
 type AnyPage = any;
 
@@ -133,7 +133,7 @@ test.describe('Crew Glide', () => {
     // Lands on the Crew manager with the Grip role selected
     await expect(page.getByText('Roles', { exact: true })).toBeVisible();
     await expect(page.locator('button.bg-zinc-900', { hasText: 'Grip' })).toBeVisible();
-    await expect(page.locator('input[value="Alice Smith"]')).toBeVisible();
+    await expect(nameCell(page, 'Alice Smith')).toBeVisible();
 
     // --- Back to the glide: CSV export ---
     await page.getByRole('button', { name: 'Crew Glide', exact: true }).click();

@@ -92,6 +92,17 @@ export function seedTitle(): string {
   return loadSeedProject().data.title;
 }
 
+const escRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** A manager grid's NAME cell holding the given value. Manager name cells are
+ *  auto-wrapping textareas (`data-manager-name`) so long names wrap to two
+ *  lines — `input[value=…]` no longer matches them. Matches the value EXACTLY
+ *  and case-sensitively (the merge specs distinguish "FISHING BOAT" from
+ *  "fishing boat"). */
+export function nameCell(page: Page, value: string) {
+  return page.locator('textarea[data-manager-name]').filter({ hasText: new RegExp(`^${escRegExp(value)}$`) }).first();
+}
+
 /** Seeds the demo project and opens it from the Project Manager screen. */
 export async function openSeededProject(page: Page) {
   const seed = loadSeedProject();

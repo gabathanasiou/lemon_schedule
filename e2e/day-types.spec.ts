@@ -72,7 +72,8 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   }
   // Work is first, and its count = the schedule's production days.
   const prodRow = sidebar.getByText(WORK, { exact: true }).locator('..');
-  const prodFirst = await sidebar.locator('button').first().evaluate(el => el.textContent || '');
+  // The first category row (the sidebar's collapse toggle is an icon-only button).
+  const prodFirst = await sidebar.locator('button').filter({ hasText: /\S/ }).first().evaluate(el => el.textContent || '');
   expect(prodFirst).toContain(WORK);
   const prodCount = await page.evaluate(() => {
     const rows = (window as any).__lemonSchedule?.getRows?.();

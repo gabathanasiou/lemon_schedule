@@ -1523,7 +1523,9 @@ build-time version from package.json.
 **Relations**: one-screen exception to item 59's one-dim rule (the `.pm-boot` dim-zero);
 rides the item-56 kit-bump process territory (the version define is app-side only).
 
-## 83. Tabs, mini tabs, File-menu trigger + item-version triggers → kit `Button` (`[ ]`)
+## 83. Tabs, mini tabs, File-menu trigger + item-version triggers → kit `Button` (`[x]` Done)
+
+**Done** (kit v0.1.70): the kit `Button` gained `variant="tab"` (PageToolbar mini-tab recipe — solid dark/cloud active pill, per-theme inactive hover, baked `px-3 py-1.5 text-xs` + coarse bump) and `variant="tab-header"` (AppHeader top-tab recipe — inverted white pill on the dark header, cloud variants; `active` fills the selected pill instead of the blue toggle tint). AppHeader top tabs + PageToolbar sub-tabs consume them (shift/right-click pop-out, touch drag-scroll, scroll masks all preserved). The Report Designer "Editing:" trigger + the reports text-style picker trigger became kit `Button`s (dark). **The File menu trigger was reverted to its original bespoke styling + `font-semibold` (user decision — preferred the pre-swap look).**
 
 **Requested**: make the tabs and mini tabs use the ui-kit **`Button`** — "same as
 the File menu" — and make the File menu's dropdown trigger a kit `Button` too,
@@ -1626,7 +1628,9 @@ File-menu trigger conversion parallels item 51's kit-`DropdownMenu` recipe
 `ItemManagerDropdown` triggers (items 66/68's picker work used `<Button>` only
 for the Schedule/Calendar/Ribbon pickers).
 
-## 84. Manager pages — coarse scaling for the grid + category sidebar (`[ ]`)
+## 84. Manager pages — coarse scaling for the grid + category sidebar (`[x]` Done)
+
+**Done**: manager table + sidebar chrome moved to `src/lib/managerTable.ts` — `useManagerTableSizes()` returns interpolated padding/font/icon px via the kit's own `useCoarseSize`/`coarsePx` (`useManagerTableSizes`), so the tables track the coarseScale knob (the kit feeds 50% by default) and the coarse targets match the **Glide** reference (~12.5px text, modest padding — no more oversized cells). Consumed by `managerShell.tsx`, `ElementManager.tsx`, `SidebarNav.tsx`, `DayTypesTab.tsx`. `SidebarNav` (shared by Element/Crew/Location managers + Day Types tab) also gained a **collapse-to-rail button** (ReportsTab pattern) and a **category search box** (ReportPalette pattern, built on the kit `inputCls('sm')` + `data-theme="light"`). **Bonus (user asks)**: the manager Name column now caps at a max width and **wraps to a second line** (auto-sized `textarea[data-manager-name]` with `[field-sizing:content]`), and the Element Manager's Events + Delete actions moved to **separate columns with bigger buttons**. e2e specs updated for the wrapping name cells (`nameCell` helper in `e2e/helpers.ts`). The Link Manager's anchor cards render through the kit **`CardSection`** (one collapsible card per anchor — header shows the anchor + link count, trailing Apply/remove; body = anchor picker + linked rows).
 
 **Requested**: on iPad (coarse pointer), the **manager pages** — Element
 Manager, Crew Manager, Location Manager (the sidebar-of-categories + table
@@ -1703,7 +1707,9 @@ no new e2e beyond the probe (AGENTS.md rule 7) unless a cheap probe exists.
 `cellInputCls` seam; `SidebarNav` is shared by ElementManager + all
 `DatabaseManagerView` DBs — one component, every manager inherits.
 
-## 85. Events-mode Filter menu — remove the "Cast & Elements" toggle (redundant with "All Events") (`[ ]`)
+## 85. Events-mode Filter menu — remove the "Cast & Elements" toggle (redundant with "All Events") (`[x]` Done)
+
+**Done**: the "Cast & Elements" row is gone from the Events-mode Filter menu (`CalendarTab.tsx`); `attachments` dropped from `EventsFilter`/`DEFAULT_EVENTS_FILTER`/`filterCard` (`src/lib/events.ts` — attachment cards render on `statuses` alone, so "All Events" covers them). Stale persisted prefs carrying `attachments: false` simply stop being read (no migration).
 
 **Requested**: in the Calendar tab's Events-mode **Filter** menu, remove the
 **"Cast & Elements"** option — it's the same thing as the "All Events" toggle

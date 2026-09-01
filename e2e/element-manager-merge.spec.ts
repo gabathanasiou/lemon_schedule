@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, nameCell } from './helpers';
 
 type Project = any;
 
@@ -18,7 +18,7 @@ async function openElementManagerCategory(page: import('@playwright/test').Page,
 }
 
 async function renameRow(page: import('@playwright/test').Page, from: string, to: string) {
-  const input = page.locator(`input[value="${from}"]`).first();
+  const input = nameCell(page, from);
   await input.click();
   await page.keyboard.press('Meta+A');
   await page.keyboard.type(to, { delay: 20 });
@@ -178,7 +178,7 @@ test.describe('Element Manager merge/save', () => {
     await openElementManagerCategory(page, 'Vehicles');
 
     // Delete the FISHING BOAT row (case-variant of fishing boat, used in 3 scenes)
-    const row = page.locator('tr', { has: page.locator('input[value="FISHING BOAT"]') });
+    const row = page.locator('tr', { has: nameCell(page, 'FISHING BOAT') });
     await row.locator('button').last().click();
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -203,7 +203,7 @@ test.describe('Element Manager merge/save', () => {
     await openElementManagerCategory(page, 'Vehicles');
 
     // ship is unique: 1 scene, 1 element
-    const row = page.locator('tr', { has: page.locator('input[value="ship"]') });
+    const row = page.locator('tr', { has: nameCell(page, 'ship') });
     await row.locator('button').last().click();
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -343,14 +343,14 @@ test.describe('Element Manager merge/save', () => {
     await expect(redoBtn).toBeDisabled();
 
     await undoBtn.click();
-    await expect(page.locator('input[value="FISHING BOAT"]')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('input[value="ski boat"]')).toHaveCount(0);
+    await expect(nameCell(page, 'FISHING BOAT')).toBeVisible({ timeout: 5000 });
+    await expect(nameCell(page, 'ski boat')).toHaveCount(0);
     await expect(undoBtn).toBeDisabled();
     await expect(redoBtn).toBeEnabled();
 
     await redoBtn.click();
-    await expect(page.locator('input[value="ski boat"]')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('input[value="FISHING BOAT"]')).toHaveCount(0);
+    await expect(nameCell(page, 'ski boat')).toBeVisible({ timeout: 5000 });
+    await expect(nameCell(page, 'FISHING BOAT')).toHaveCount(0);
     await expect(undoBtn).toBeEnabled();
   });
 
@@ -360,10 +360,10 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'FISHING BOAT', 'ski boat');
 
     await page.keyboard.press('Meta+z');
-    await expect(page.locator('input[value="FISHING BOAT"]')).toBeVisible({ timeout: 5000 });
+    await expect(nameCell(page, 'FISHING BOAT')).toBeVisible({ timeout: 5000 });
 
     await page.keyboard.press('Meta+Shift+z');
-    await expect(page.locator('input[value="ski boat"]')).toBeVisible({ timeout: 5000 });
+    await expect(nameCell(page, 'ski boat')).toBeVisible({ timeout: 5000 });
   });
 
   test('adding and deleting rows each undo as one step', async ({ page }) => {
@@ -378,28 +378,28 @@ test.describe('Element Manager merge/save', () => {
     await expect(page.locator('tbody tr')).toHaveCount(beforeCount);
 
     // delete the 'gun' row, then undo brings it back
-    const gunRow = page.locator('tr', { has: page.locator('input[value="gun"]') });
+    const gunRow = page.locator('tr', { has: nameCell(page, 'gun') });
     await gunRow.locator('button').last().click();
-    await expect(page.locator('input[value="gun"]')).toHaveCount(0);
+    await expect(nameCell(page, 'gun')).toHaveCount(0);
     await undoBtn.click();
-    await expect(page.locator('input[value="gun"]')).toBeVisible({ timeout: 5000 });
+    await expect(nameCell(page, 'gun')).toBeVisible({ timeout: 5000 });
   });
 
   test('sorting undoes as one step', async ({ page }) => {
     await openElementManagerCategory(page, 'Vehicles');
 
-    const namesBefore = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
+    const namesBefore = await page.locator('tbody textarea[data-manager-name]').evaluateAll(inputs => inputs.map(i => (i as HTMLTextAreaElement).value));
     const undoBtn = page.getByRole('button', { name: 'Undo (Cmd+Z)' });
-    const firstValue = await page.locator('tbody input').first().inputValue();
+    const firstValue = await page.locator('tbody textarea[data-manager-name]').first().inputValue();
 
     await page.getByRole('button', { name: 'Sort ▾' }).click();
     await page.getByRole('menuitem', { name: 'By Name' }).click();
-    await expect(page.locator('tbody input').first()).not.toHaveValue(firstValue, { timeout: 5000 });
-    const namesSorted = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
+    await expect(page.locator('tbody textarea[data-manager-name]').first()).not.toHaveValue(firstValue, { timeout: 5000 });
+    const namesSorted = await page.locator('tbody textarea[data-manager-name]').evaluateAll(inputs => inputs.map(i => (i as HTMLTextAreaElement).value));
     expect(namesSorted).not.toEqual(namesBefore);
 
     await undoBtn.click();
-    await expect(page.locator('tbody input').first()).toHaveValue(firstValue, { timeout: 5000 });
+    await expect(page.locator('tbody textarea[data-manager-name]').first()).toHaveValue(firstValue, { timeout: 5000 });
     const namesAfter = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
     expect(namesAfter).toEqual(namesBefore);
   });

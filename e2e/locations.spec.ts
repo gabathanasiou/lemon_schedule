@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, nameCell } from './helpers';
 
 type AnyPage = any;
 
@@ -31,7 +31,7 @@ test.describe('Locations', () => {
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('Studio One');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-        await expect(page.locator('input[value="Studio One"]')).toBeVisible();
+        await expect(nameCell(page, 'Studio One')).toBeVisible();
 
     // A second, different-named location saves cleanly (no merge dialog)
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
@@ -235,10 +235,10 @@ test.describe('Locations', () => {
     await page.locator('button', { hasText: 'Unit Base' }).first().click();
 
     // ---- blank name resolves from the address in the manager ----
-    await expect(page.locator('input[value="99 New Rd"]')).toBeVisible();
+    await expect(nameCell(page, '99 New Rd')).toBeVisible();
 
     // ---- address picker re-edit starts at the current pin + address ----
-    await page.locator('tr', { has: page.locator('input[value="99 New Rd"]') }).getByTitle('Set address').click();
+    await page.locator('tr', { has: nameCell(page, '99 New Rd') }).getByTitle('Set address').click();
     const picker = page.getByRole('dialog');
     await expect(picker.getByText('51.5000, -0.1200')).toBeVisible();
     await expect(picker.getByPlaceholder('Street number / address')).toHaveValue('99 New Rd');
@@ -254,9 +254,9 @@ test.describe('Locations', () => {
 
     // ---- nearest-facility pickers are kit dropdowns (self-row excluded) ----
     await page.locator('button', { hasText: 'Hospital' }).first().click();
-    await page.locator('tr', { has: page.locator('input[value="St Mary"]') }).getByTitle('Set nearest hospital').click();
+    await page.locator('tr', { has: nameCell(page, 'St Mary') }).getByTitle('Set nearest hospital').click();
     await page.getByRole('menuitem', { name: 'City Gen' }).click();
-    await expect(page.locator('tr', { has: page.locator('input[value="St Mary"]') }).getByTitle('Set nearest hospital')).toContainText('City Gen');
+    await expect(page.locator('tr', { has: nameCell(page, 'St Mary') }).getByTitle('Set nearest hospital')).toContainText('City Gen');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect.poll(async () => {
       const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
@@ -265,8 +265,8 @@ test.describe('Locations', () => {
 
     // ---- blank-name police station resolves too; its dropdown lists peers ----
     await page.locator('button', { hasText: 'Police Station' }).first().click();
-    await expect(page.locator('input[value="Mikras Asias 92, Xanthi"]')).toBeVisible();
-    await page.locator('tr', { has: page.locator('input[value="Mikras Asias 92, Xanthi"]') }).getByTitle('Set nearest police station').click();
+    await expect(nameCell(page, 'Mikras Asias 92, Xanthi')).toBeVisible();
+    await page.locator('tr', { has: nameCell(page, 'Mikras Asias 92, Xanthi') }).getByTitle('Set nearest police station').click();
     await expect(page.getByRole('menuitem', { name: 'Xanthi Precinct' })).toBeVisible();
   });
 });

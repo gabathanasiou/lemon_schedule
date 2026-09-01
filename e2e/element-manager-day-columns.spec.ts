@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedLeadCast } from './helpers';
+import { openSeededProject, seedLeadCast, nameCell } from './helpers';
 
 // Element Manager day columns (roadmap 42): Start/Finish Date, Total Days +
 // one column per day type — derived from `project.dayTypes` so custom Calendar
@@ -99,7 +99,7 @@ test('element manager: date range, total days and per-day-type columns', async (
 
   // The member's row: dates + counts per column (Board ID=0, Name=1, Occ=2,
   // Start=3, Finish=4, Total Days=5, then day types in order).
-  const row = page.locator('tr', { has: page.locator(`input[value="${member.name}"]`) });
+  const row = page.locator('tr', { has: nameCell(page, member.name) });
   await expect(row).toBeVisible();
   const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   await expect(row.locator('td').nth(3)).toHaveText(fmt(expected.startDate));

@@ -160,6 +160,7 @@ const RULES = [
   { g: 'src/components/location/**', s: [...LOC, 'report-sun-weather-map', ...IPAD] },
   { g: 'src/lib/rowBuffer.ts', s: MANAGERS },
   { g: 'src/lib/managerShell.tsx', s: MANAGERS },
+  { g: 'src/lib/managerTable.ts', s: MANAGERS },
   // import / export
   { g: 'src/lib/import/**', s: IMPORT },
   { g: 'src/components/ImportDialog.tsx', s: IMPORT },
