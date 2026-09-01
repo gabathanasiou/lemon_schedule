@@ -7,7 +7,7 @@ import {
   ScheduleRow,
   Scene,
 } from '../../types';
-import { formatPageCount, generateUUID } from '../utils';
+import { formatPageCount, generateUUID, makeBlankCalendarVersion } from '../utils';
 import { makeBlankProject } from '../../store/reducer';
 import { FDX_CATEGORY_MAP, categoryNameToKey, normalizeCharacterName } from './shared';
 
@@ -24,9 +24,10 @@ import { FDX_CATEGORY_MAP, categoryNameToKey, normalizeCharacterName } from './s
  * NEW-PROJECT-ONLY (user decision): the parser builds a COMPLETE `Project`
  * consumed by `importProjectFromData` — no ImportResult/commitImport
  * involvement. Boards map to versions; day breaks to DAYBREAK rows; banners
- * to NOTE rows; undated strips to the Boneyard; each board's calendar
+ * to NOTE rows; undated strips to the Boneyard; each DISTINCT MMS calendar
  * materializes into a CalendarVersion (item 66 — calendar data is versioned
- * independently of the schedule).
+ * independently of the schedule; roadmap 74 — one version per MMS calendar,
+ * no board linking).
  */
 
 const SECTION_MARKER = '/********* EPSF SECTION *********/';
@@ -442,6 +443,33 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
   });
   project.scenes = scenes;
 
+  // --- locations DB (roadmap 2) -------------------------------------------
+  // MMS has NO location registry — each sheet's `Location` attribute is a
+  // free-text string with no type. Materialize the distinct names into the
+  // locations DB under an "MSD Import" type so the scene-sheet location
+  // picker and the Locations Manager agree on what was imported.
+  const MSD_LOCATION_TYPE = 'msdImport';
+  if (!(project.locationTypes || []).some(t => t.key === MSD_LOCATION_TYPE)) {
+    project.locationTypes = [
+      ...(project.locationTypes || []),
+      { key: MSD_LOCATION_TYPE, label: 'MSD Import', builtin: false },
+    ];
+  }
+  const seenLocation = new Set<string>();
+  project.locations = [
+    ...(project.locations || []),
+    ...scenes
+      .map(s => (s.location || '').trim())
+      .filter(Boolean)
+      .filter(name => {
+        const k = name.toLowerCase();
+        if (seenLocation.has(k)) return false;
+        seenLocation.add(k);
+        return true;
+      })
+      .map(name => ({ id: generateUUID(), name, type: MSD_LOCATION_TYPE })),
+  ];
+
   // --- cast + elements registry ------------------------------------------
   // Cast: Board IDs pre-assigned above in ElementMgr roster order; sheets'
   // first-appearance fills registry-missing names.
@@ -488,8 +516,10 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
   // --- calendars -----------------------------------------------------------
   const calendars = parseCalendars(calendarsDoc);
 
-  // --- versions (one per stripboard) + calendar plans (one per board's
-  // calendar — item 66: calendar data lives in calendar versions) ----------
+  // --- versions (one per stripboard) + calendar versions (one per DISTINCT
+  // MMS calendar — item 66: calendar data lives in calendar versions; roadmap
+  // 74: no board↔calendar linking, every MMS calendar lands as its own
+  // version, named by the MMS name) -----------------------------------------
   const activeBoardName = readActiveBoard(stripboardDoc);
   const rowsByBoard = buildVersionRows(stripboardDoc, sceneIdByBdsid, estimateById);
   const now = Date.now();
@@ -506,23 +536,21 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
   });
   project.activeVersionId = project.activeVersionId || project.versions[0]?.id;
 
-  const calendarPlans: { boardName: string; cal: CalModel }[] = [];
-  for (const [boardName] of rowsByBoard) {
-    const cal = calendars.get(boardAttrCalendar(stripboardDoc, boardName));
-    calendarPlans.push({ boardName, cal: cal ?? { nonShootDates: [] } });
-  }
-  project.calendarVersions = calendarPlans.map(({ boardName, cal }) => ({
+  const calVersions = Array.from(calendars.entries()).map(([calName, cal]) => ({
     id: generateUUID(),
-    name: `${boardName} Calendar`,
+    name: calName,
     createdAt: now,
     updatedAt: now,
-    productionStart: cal.productionStart || undefined,
+    productionStart: cal.productionStart,
+    prepStart: cal.prepStart,
+    postEnd: cal.postEnd,
+    weeklyDaysOff: cal.weeklyDaysOff,
     nonShootDates: cal.nonShootDates,
   }));
-  const activeBoardCal = calendarPlans.find(p => p.boardName === activeBoardName);
-  project.activeCalendarVersionId = activeBoardCal
-    ? project.calendarVersions[calendarPlans.indexOf(activeBoardCal)].id
-    : project.calendarVersions[0]?.id || '';
+  // A file with no CalendarMgr still needs a calendar version (LOAD bootstraps
+  // a blank c01 when none exists).
+  project.calendarVersions = calVersions.length > 0 ? calVersions : [makeBlankCalendarVersion('c01')];
+  project.activeCalendarVersionId = project.calendarVersions[0]?.id || '';
 
   return project;
 }
@@ -537,15 +565,6 @@ function readActiveBoard(stripboardDoc: Document): string | undefined {
   for (const prop of stripboardDoc.getElementsByTagName('Property')) {
     if (prop.getAttribute('Name') === 'ActiveStripBoard') {
       return prop.getAttribute('Value') || undefined;
-    }
-  }
-  return undefined;
-}
-
-function boardAttrCalendar(stripboardDoc: Document, boardName: string): string | undefined {
-  for (const board of stripboardDoc.getElementsByTagName('StripBoard')) {
-    if (board.getAttribute('Name') === boardName) {
-      return board.getAttribute('CalendarName') || undefined;
     }
   }
   return undefined;
@@ -640,6 +659,9 @@ function buildVersionRows(
 
 interface CalModel {
   productionStart?: string;
+  prepStart?: string;
+  postEnd?: string;
+  weeklyDaysOff?: number[];
   nonShootDates: { date: string; status: string }[];
 }
 
@@ -650,12 +672,14 @@ function parseCalendars(calendarsDoc: Document | undefined): Map<string, CalMode
     const name = cal.getAttribute('Name');
     if (!name) continue;
     let prodStart: string | null = null;
-    let prodEnd: string | null = null;
+    let prepStart: string | null = null;
+    let postEnd: string | null = null;
     for (const sd of cal.getElementsByTagName('ScheduleDate')) {
       const iso = parseMmddyyyy(sd.getAttribute('Date') || '');
       const dateName = sd.getAttribute('Name');
       if (dateName === 'ProductionStartDate') prodStart = iso;
-      if ((dateName === 'ProductionEndDate' || dateName === 'ProductionWrapDate') && iso) prodEnd = iso;
+      if (dateName === 'ProductionPrepStartDate') prepStart = iso;
+      if ((dateName === 'ProductionEndDate' || dateName === 'ProductionWrapDate') && iso) postEnd = iso;
     }
     const daysOff: Record<string, boolean> = {};
     for (const doEl of cal.getElementsByTagName('DaysOff')) {
@@ -672,23 +696,26 @@ function parseCalendars(calendarsDoc: Document | undefined): Map<string, CalMode
         off: sp.getAttribute('Off') === '1',
       });
     }
-    out.set(name, materializeCalendar(prodStart, prodEnd, daysOff, specials));
+    out.set(name, materializeCalendar(prodStart, prepStart, postEnd, daysOff, specials));
   }
   return out;
 }
 
 /** Materialize the weekly pattern + special days into explicit dates bounded
  *  to the production window (off/weekends/holidays → `holiday` = "Day Off";
- *  company travel → `travel`). */
+ *  company travel → `travel`). Carries the MMS production window + weekly
+ *  days-off pattern through so they land on the CalendarVersion (item 66 —
+ *  prepStart/postEnd/weeklyDaysOff are all first-class there). */
 function materializeCalendar(
   prodStart: string | null,
-  prodEnd: string | null,
+  prepStart: string | null,
+  postEnd: string | null,
   daysOff: Record<string, boolean>,
   specials: { date: string; holiday: boolean; travel: boolean; off: boolean }[],
 ): CalModel {
   if (!prodStart) return { nonShootDates: [] };
   const lo = new Date(prodStart + 'T00:00:00Z');
-  const hi = prodEnd ? new Date(prodEnd + 'T00:00:00Z') : lo;
+  const hi = postEnd ? new Date(postEnd + 'T00:00:00Z') : lo;
   const day = 86400000;
   const status: Record<string, string> = {};
   const skirt = (d: Date) => lo.getTime() - 30 * day <= d.getTime() && d.getTime() <= hi.getTime() + 30 * day;
@@ -698,7 +725,15 @@ function materializeCalendar(
     if (sp.holiday || sp.off) status[sp.date] = 'holiday';
     else if (sp.travel) status[sp.date] = 'travel';
   }
-  if (Object.values(daysOff).some(v => v)) {
+  // MMS DaysOff is Sun=0..Sat=6; Lemon weeklyDaysOff is Mon=0..Sun=6 —
+  // reverse the WEEKDAYS order for the pattern array.
+  const weeklyDaysOff: number[] = [];
+  for (let i = 0; i < 7; i++) {
+    const lemonIdx = (i + 6) % 7; // Lemon index of MMS weekday i
+    if (daysOff[WEEKDAYS[i]]) weeklyDaysOff.push(lemonIdx);
+  }
+  weeklyDaysOff.sort((a, b) => a - b);
+  if (weeklyDaysOff.length > 0) {
     for (let t = lo.getTime(); t <= hi.getTime(); t += day) {
       const d = new Date(t);
       const weekday = WEEKDAYS[d.getUTCDay()];
@@ -710,6 +745,9 @@ function materializeCalendar(
   }
   return {
     productionStart: prodStart,
+    ...(prepStart ? { prepStart } : {}),
+    ...(postEnd ? { postEnd } : {}),
+    ...(weeklyDaysOff.length > 0 ? { weeklyDaysOff } : {}),
     nonShootDates: Object.entries(status)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, s]) => ({ date, status: s })),

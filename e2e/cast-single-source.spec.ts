@@ -172,11 +172,10 @@ test.describe('cast single source of truth (castMembers)', () => {
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();
 
     // The Cast box renders an EntityDropdown; clicking it opens a panel with member items
-    const firstCast = await page.evaluate(() => {
-      const p = (window as any).__lemonSchedule.getProject();
-      return String(p.scenes[0].cast || '');
-    });
-    const castInput = page.locator(`input[value="${firstCast}"]`).first();
+    const castInput = page
+      .locator('div.grid > div', { has: page.getByText('Cast', { exact: true }) })
+      .locator('input')
+      .first();
     await castInput.click();
 
     await expect(page.getByText(m1().name, { exact: true }).first()).toBeVisible({ timeout: 5000 });

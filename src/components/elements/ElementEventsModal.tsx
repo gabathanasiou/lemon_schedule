@@ -19,7 +19,7 @@ import { RuleEditorPanel } from '../rules/RuleEditorPanel';
 import { RULE_TYPE_META, RULE_TYPES } from '../rules/ruleMeta';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { ItemCard } from '../cards/ItemCard';
-import { ItemRow } from '../cards/ItemRow';
+import { ItemRow, ITEM_ROW_BODY_WRAP } from '../cards/ItemRow';
 import { CalendarDays, Plus, X, Flag, Clock4 } from 'lucide-react';
 
 interface ElementEventsModalProps {
@@ -250,6 +250,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                           onClick={() => setNested({ kind: 'event', date, status })}
                           titleAttr={`Edit ${identity.name}'s event on this day`}
                           title={formatDateLabel(date)}
+                          bodyClass={ITEM_ROW_BODY_WRAP}
                           dataProps={{ 'data-element-event-date': date }}
                           trailing={!readOnly && (
                             <button

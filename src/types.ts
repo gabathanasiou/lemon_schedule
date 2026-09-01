@@ -17,6 +17,7 @@ export interface Scene {
   scriptDay: string;
   intExt: IntExt;
   set: string;
+  location: string;
   dayNight: DayNight;
   description: string;
   cast: string;

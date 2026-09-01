@@ -58,7 +58,7 @@ import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/P
 import VersionToolbar from './components/VersionToolbar';
 import { LongPressMenuProvider, getMarqueeMode, setTransientMarquee } from './lib/useLongPressMenu';
 import { isInteractiveElement } from '@gabriel/ui-kit';
-import { IS_COARSE } from './lib/device';
+import { IS_COARSE, pickerAccept } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
 import AppHeader, { AppTabId } from './components/AppHeader';
@@ -704,8 +704,8 @@ function AppContent() {
         />
       )}
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
-      <input ref={importFileRef} type="file" accept=".csv,.fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
-      <input ref={newProjectFileRef} type="file" accept=".lemon,.json,.msd,.sex" onChange={handleNewProjectImport} className="hidden" />
+      <input ref={importFileRef} type="file" accept={pickerAccept('.csv,.fdx,.fountain,.txt')} onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
+      <input ref={newProjectFileRef} type="file" accept={pickerAccept('.lemon,.json,.msd,.sex')} onChange={handleNewProjectImport} className="hidden" />
 
       <OfflineStatus
         readOnly={readOnly}

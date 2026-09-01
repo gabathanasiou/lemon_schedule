@@ -18,6 +18,7 @@ type PState = {
     crew?: Record<string, { id: string; name: string }[]>;
     customCategories: { key: string }[];
     breakdownElements: Record<string, { id: string; name: string }[]>;
+    locations?: any[];
     colorPalette?: {
       sceneColors: { intExt: string; dayNight: string; background: string; text: string }[];
       selectedStripBg: string;
@@ -135,6 +136,23 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
     expect(multi).toBeTruthy();
     expect(castNamesOf(multi.cast).sort()).toEqual(['CLARENCE', 'GEORGE']);
 
+    // locations DB (roadmap 2) — MMS has no location registry, so every
+    // distinct scene Location string materializes under the "MSD Import" type
+    const goldenLocNames = [
+      ...new Set(
+        p.scenes
+          .map((s: any) => String(s.location || '').trim())
+          .filter(Boolean)
+          .map((n: string) => n.toLowerCase()),
+      ),
+    ].sort();
+    const importedLocNames = (p.locations || [])
+      .filter((l: any) => l.type === 'msdImport')
+      .map((l: any) => String(l.name || '').toLowerCase())
+      .sort();
+    expect(importedLocNames).toEqual(goldenLocNames);
+    expect(importedLocNames.length).toBeGreaterThan(0);
+
     // versions (one per MMS stripboard)
     expect(p.versions).toHaveLength(GOLDEN.versions.length);
     const active = p.versions.find(v => v.id === p.activeVersionId);
@@ -174,17 +192,25 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
       const scheduledLabels = scheduled.map((r: any) => byId.get(r.sceneId));
       expect(scheduledLabels).toEqual(goldenStripLabels(gv));
 
-      // Calendar data lives on CalendarVersion (item 66) — each board's MMS
-      // calendar is materialized as one calendar version; the version rows
-      // themselves only carry the stripboard. Assert some calendar version
-      // matches the golden board's calendar content.
+      // Calendar data lives on CalendarVersion (item 66) — every DISTINCT MMS
+      // calendar materializes as one calendar version, named by the MMS name
+      // (roadmap 74 — no board linking). The version rows themselves only
+      // carry the stripboard. Assert: one version per MMS calendar, each
+      // carrying the production window + weekly pattern + nonShootDates.
       const gCal = GOLDEN.calendars[gv.calendar];
-      const materialized = (p.calendarVersions || []).some((c: any) =>
-        c.productionStart === gCal?.productionStart &&
-        (c.nonShootDates || []).map((n: any) => n.date + ':' + n.status).join(',') ===
-          (gCal?.nonShootDates || []).map((n: any) => n.date + ':' + n.status).join(',')
+      expect(Object.keys(p.calendarVersions || {}).length).toBe(
+        Object.keys(GOLDEN.calendars).length,
       );
-      expect(materialized, `version ${gv.name} materializes its MMS calendar`).toBe(true);
+      const materialized = (p.calendarVersions || []).find(
+        (c: any) =>
+          c.productionStart === gCal?.productionStart &&
+          (c.nonShootDates || []).map((n: any) => n.date + ':' + n.status).join(',') ===
+            (gCal?.nonShootDates || []).map((n: any) => n.date + ':' + n.status).join(',') &&
+          (c.prepStart || null) === (gCal?.prepStart || null) &&
+          (c.postEnd || null) === (gCal?.postEnd || null) &&
+          (c.weeklyDaysOff || []).join(',') === (gCal?.weeklyDaysOff || []).join(',')
+      );
+      expect(materialized, `version ${gv.name} materializes its MMS calendar`).toBeTruthy();
     }
   });
 });

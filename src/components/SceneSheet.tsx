@@ -237,6 +237,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         scriptDay: '',
         intExt: '' as any,
         set: '',
+        location: '',
         dayNight: '' as any,
         description: '',
         cast: '',
@@ -329,6 +330,13 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     (breakdownElements['set'] || []).forEach(e => { const v = e.name.toUpperCase(); if (v) sets.set(v, v); });
     return [...sets.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
   }, [scenes, breakdownElements]);
+
+  const locationOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    (project.locations || []).forEach(l => { const t = l.name.trim(); if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t); } });
+    return out.sort((a, b) => a.localeCompare(b));
+  }, [project.locations]);
 
   const blurOnEnter = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); } };
 
@@ -463,6 +471,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           inputCls={inputCls}
           blurOnEnter={blurOnEnter}
           setItems={setItems}
+          locationOptions={locationOptions}
           breakdownItems={breakdownItems}
           allBreakdownCats={allBreakdownCats}
           allBreakdownLabel={allBreakdownLabel}

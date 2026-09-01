@@ -38,6 +38,14 @@ Status: read this before touching any import/export work.
 - ColorSettings → palette (ColorGrid → `colorPalette.sceneColors`,
   Hilite→selectedStrip*, DayStrip→dayHeader*, Banner→note*).
 - Daybreaks ONLY between ScheduleDay groups, pinned anchors day 1.
+- **Calendar versions (roadmap 74)**: one `CalendarVersion` per DISTINCT MMS
+  calendar (`CalendarMgr`), named by the MMS name — including ones no board
+  references (nothing a real file defines is lost). Each carries
+  `productionStart`, `prepStart`, `postEnd`, `weeklyDaysOff` (MMS `DaysOff`
+  Sun=0..Sat=6 → Lemon Mon=0..Sun=6) + materialized `nonShootDates`
+  (Off/Holiday→`holiday`, CompanyTravel→`travel`, window-bounded). No board↔
+  calendar linking — the active calendar version is just the first one.
+  Files without a `CalendarMgr` get a blank `c01` (same fallback as LOAD).
 
 ## SEX — Scheduling Exchange `SSI*` (roadmap 41)
 
@@ -55,6 +63,20 @@ Status: read this before touching any import/export work.
 - **Commit an append import** → `commitImport()` (batches dispatches, one undo entry).
 - **Export breakdown CSV** → `exportBreakdownCSV()` (visible columns).
 - **Shared helpers**: `parseSceneHeading`, `FDX_CATEGORY_MAP`, `buildCSVLabelToKeyMap()`.
+
+## File-picker accept lists (roadmap 76 — iPad/iOS)
+
+- All import file inputs accept **`pickerAccept(desktop)`** (`src/lib/device.ts`):
+  on coarse-pointer devices (iPad/iOS) the native Files picker resolves each
+  `accept` extension to a UTType and greys out unregistered ones (`.lemon`,
+  `.msd`, `.sex`, `.fdx`, `.fountain` — only `.json`/`.csv`/`.txt` are known),
+  so the helper returns `*/*` on `IS_COARSE` and the desktop string otherwise.
+- The parsers validate by `file.name` extension (`App.tsx:438`,
+  `ProjectManager.handleImportFile`), so a broader picker can't mis-fire —
+  a wrongly-picked file hits the existing Import Error dialog.
+- Entry points: new-project import `ProjectManager.tsx` + `App.tsx`
+  (`.lemon,.json,.msd,.sex`), append import `App.tsx` + `ImportDialog.tsx`
+  (`.csv,.fdx,.fountain,.txt`).
 
 ## Verification checklist
 

@@ -613,23 +613,22 @@ def board_ids_of(v, rows):
 
 
 def build_calendar_model(m, versions):
-    """Materialize calendars (window-bounded nonShootDates) for the boards.
+    """Materialize calendars (window-bounded nonShootDates) for EVERY distinct
+    MMS calendar definition (roadmap 74 — one CalendarVersion per calendar,
+    including ones no board references; no board linking).
 
-    Rules: productionStart = ProductionStartDate; weekly DaysOff pattern +
-    SpecialDays (Off->hold, Holiday->holiday, CompanyTravel->travel) expanded
-    into explicit dates bounded to [prepStart, wrap] + a 30d skirt; special
-    days outside the window (template junk) are dropped.
+    Rules: productionStart = ProductionStartDate; prepStart =
+    ProductionPrepStartDate; postEnd = ProductionEndDate/WrapDate; weekly
+    DaysOff pattern (MMS Sun=0..Sat=6 -> Lemon Mon=0..Sun=6) + SpecialDays
+    (Off->hold, Holiday->holiday, CompanyTravel->travel) expanded into
+    explicit dates bounded to [prepStart, wrap] + a 30d skirt; special days
+    outside the window (template junk) are dropped.
     """
     out = {}
-    for board in m.boards:
-        cal_name = board["calendar"]
-        cal = m.calendars.get(cal_name)
-        if cal is None:
-            m.anomaly(f"board {board['name']!r} references missing calendar {cal_name!r}")
-            continue
+    for cal_name, cal in m.calendars.items():
         prod_start = cal["dates"].get("ProductionStartDate")
-        prod_end = cal["dates"].get("ProductionEndDate") or cal["dates"].get("ProductionWrapDate")
         prep_start = cal["dates"].get("ProductionPrepStartDate")
+        prod_end = cal["dates"].get("ProductionEndDate") or cal["dates"].get("ProductionWrapDate")
         if not prod_start:
             m.anomaly(f"calendar {cal_name!r}: no ProductionStartDate")
             continue
@@ -650,7 +649,14 @@ def build_calendar_model(m, versions):
                 non_shoot[d.isoformat()] = "holiday"
             elif sp["travel"]:
                 non_shoot[d.isoformat()] = "travel"
+        # MMS DaysOff Sun=0..Sat=6 -> Lemon weeklyDaysOff Mon=0..Sun=6.
+        weekly_off = []
         if cal["daysOff"]:
+            mms_to_lemon = {0: 6, 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
+            for i, day in enumerate(("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")):
+                if cal["daysOff"][day]:
+                    weekly_off.append(mms_to_lemon[i])
+            weekly_off.sort()
             d = prod_start
             while d <= prod_end:
                 if cal["daysOff"].get(d.strftime("%a")[:3].capitalize()):
@@ -659,7 +665,9 @@ def build_calendar_model(m, versions):
         non_shoot_list = [{"date": k, "status": v} for k, v in sorted(non_shoot.items())]
         out[cal_name] = {
             "productionStart": prod_start.isoformat(),
-            "productionEnd": prod_end.isoformat(),
+            "prepStart": prep_start.isoformat() if prep_start else None,
+            "postEnd": prod_end.isoformat(),
+            "weeklyDaysOff": weekly_off,
             "nonShootDates": non_shoot_list,
         }
     return out
@@ -724,7 +732,7 @@ def run_integrity(m, scenes, versions, by_bdsid, calendars):
             for s in raw["special"]:
                 if s["date"] and ps - timedelta(days=30) <= s["date"] <= pe + timedelta(days=30):
                     window_specials += 1
-        rep.append(f"calendar {name!r}: start {cal['productionStart']} end {cal['productionEnd']} "
+        rep.append(f"calendar {name!r}: start {cal['productionStart']} end {cal['postEnd']} "
                    f"-> {len(cal['nonShootDates'])} nonShoot dates "
                    f"(special-in-window: {window_specials})")
     return rep

@@ -7507,9 +7507,73 @@
  ],
  "activeVersion": "Actor Scenario",
  "calendars": {
+  "Actor Unavailable": {
+   "productionStart": "2009-04-15",
+   "prepStart": "2008-05-07",
+   "postEnd": "2009-05-28",
+   "weeklyDaysOff": [
+    5,
+    6
+   ],
+   "nonShootDates": [
+    {
+     "date": "2009-04-18",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-19",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-25",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-26",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-02",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-03",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-09",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-10",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-16",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-17",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-23",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-24",
+     "status": "holiday"
+    }
+   ]
+  },
   "5 Day Week": {
    "productionStart": "2009-04-06",
-   "productionEnd": "2009-05-19",
+   "prepStart": "2008-06-04",
+   "postEnd": "2009-05-19",
+   "weeklyDaysOff": [
+    5,
+    6
+   ],
    "nonShootDates": [
     {
      "date": "2009-04-11",
@@ -7563,7 +7627,11 @@
   },
   "6 Day Week": {
    "productionStart": "2009-04-01",
-   "productionEnd": "2009-06-03",
+   "prepStart": "2008-04-01",
+   "postEnd": "2009-06-03",
+   "weeklyDaysOff": [
+    0
+   ],
    "nonShootDates": [
     {
      "date": "2009-04-06",

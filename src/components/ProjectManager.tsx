@@ -14,6 +14,7 @@ import ProjectCard from './ProjectCard';
 import NewProjectModal from './NewProjectModal';
 import { parseMsdFile, parseSexFile } from '../lib/import';
 import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
+import { pickerAccept } from '../lib/device';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { useDriveProjectList } from '../lib/useDriveProjectList';
 
@@ -378,7 +379,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               <Cloud className="w-3.5 h-3.5" /> Sign in with Google
             </ModalFooterButton>
           )}
-          <input type="file" accept=".lemon,.json,.msd,.sex" ref={fileInputRef} onChange={handleImportFile} className="hidden" />
+          <input type="file" accept={pickerAccept('.lemon,.json,.msd,.sex')} ref={fileInputRef} onChange={handleImportFile} className="hidden" />
         </ModalFooter>
       }
     >

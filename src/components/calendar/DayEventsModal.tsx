@@ -15,7 +15,7 @@ import { RULE_TYPE_META, RULE_TYPES } from '../rules/ruleMeta';
 import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
 import { ItemCard } from '../cards/ItemCard';
-import { ItemRow } from '../cards/ItemRow';
+import { ItemRow, ITEM_ROW_BODY_WRAP } from '../cards/ItemRow';
 import { removeItemsFrom, setNote, computeDayTypeCards } from '../../lib/events';
 import { ELEMENT_CATEGORIES, getLabel, CAT_ICONS, getCustomIcon } from '../../lib/categories';
 import { EventAdderModal } from './EventAdderModal';
@@ -293,6 +293,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                           onClick={() => setNested({ kind: 'event', status, category: row.category, refKey: row.refKey })}
                           titleAttr={`Edit ${row.name}'s ${def?.label || status} event on this day`}
                           titleClass="w-56 shrink-0 text-left text-[11px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors cursor-pointer flex items-center gap-1.5"
+                          bodyClass={ITEM_ROW_BODY_WRAP}
                           title={
                             <>
                               {catIcon(row.category, 'w-3.5 h-3.5 shrink-0 text-zinc-500')}

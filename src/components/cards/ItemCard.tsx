@@ -37,7 +37,7 @@ export interface ItemCardProps {
 export function ItemCard({ title, icon, count, collapsed, onToggle, trailing, bodyClass, dataProps, children }: ItemCardProps) {
   return (
     <div {...dataProps} className="rounded-lg border border-zinc-700 bg-zinc-800 overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 hover:bg-zinc-700/50 transition-colors">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 hover:bg-zinc-700/50 transition-colors">
         <button
           type="button"
           onClick={onToggle}

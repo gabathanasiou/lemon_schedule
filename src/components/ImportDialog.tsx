@@ -21,7 +21,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-
+import { pickerAccept } from '../lib/device';
 interface ImportDialogProps {
   initialResult?: ImportResult;
   initialFileName?: string;
@@ -252,7 +252,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                 <input
                   ref={fileInputRef}
                   type="file"
-                      accept={fileFilter || ".csv,.fdx,.fountain,.txt"}
+                      accept={pickerAccept(fileFilter || ".csv,.fdx,.fountain,.txt")}
                   onChange={handleFileChange}
                   className="hidden"
                 />

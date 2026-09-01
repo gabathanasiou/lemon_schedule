@@ -30,6 +30,14 @@ Related bugs to fix while here:
 
 ## 2. REMINDER: Location Manager fix + wire locations into scenes (`[ ]`)
 
+**Partial (scene sheet + MSD import)**: the Scene Sheet's Location cell is now
+an editable autocomplete (`AutocompleteDropdown`, int/EXT-style) seeded from
+the Locations Manager DB; the field is formalized on `Scene` (`location:
+string`, `createBlankScene`); the print breakdown sheet prints it. The `.msd`
+import now materializes every distinct scene Location string into the
+locations DB under an "MSD Import" type (MMS has no location registry).
+Still open: stripboard/glide location columns.
+
 **Reminder: the Location Manager needs to be fixed.**
 
 - Wire locations so they can be linked/input into scenes.
@@ -973,7 +981,22 @@ Verified by `e2e/trash-restore.spec.ts` (sections per kind with counts via bridg
 
 **Relations**: replaces item 65's rule-card layout (flag-left/icon-right) — clean rule cards put the rule icon left, violated cards show the FLAG as the icon (rule kind via tooltip); rides item 45/46's card model (`src/lib/events.ts`, untouched — view-only changes); the adder `status` prop is item 46's (no model change, call-site wiring only).
 
-## 74. MSD import × calendar versions — distinct MMS calendars as calendar versions (`[ ]`)
+## 74. MSD import × calendar versions — distinct MMS calendars as calendar versions (`[x]` Done)
+
+**Done**: `src/lib/import/msd.ts` now materializes ONE CalendarVersion per
+DISTINCT MMS calendar (`parseCalendars` iterates every `Calendar` in
+`CalendarMgr`, keyed by name), named by the MMS name — including calendars no
+board references ("Actor Unavailable" in the demo). Each calendar version
+carries `productionStart`, `prepStart` (ProductionPrepStartDate), `postEnd`
+(ProductionEndDate/WrapDate), `weeklyDaysOff` (MMS `DaysOff` Sun=0..Sat=6 →
+Lemon Mon=0..Sun=6, sorted) + the window-bounded materialized `nonShootDates`
+as before. The per-board `calendarPlans`/`boardAttrCalendar` block was deleted;
+`activeCalendarVersionId` = first version, and a file with no `CalendarMgr`
+gets a blank `c01` (`makeBlankCalendarVersion` — the LOAD fallback). `tools/
+msd_probe.py` emits the new fields (all 3 demo calendars, prepStart/postEnd/
+weeklyDaysOff per calendar) and `e2e/msd-import.spec.ts` asserts one calendar
+version per distinct MMS calendar matching the golden's prepStart/postEnd/
+weeklyDaysOff/nonShootDates. Verified by `e2e/msd-import.spec.ts`.
 
 **Requested**: now that calendar versions exist (item 66), check the `.msd`
 import: is it worth importing the DIFFERENT calendar versions from MMS — each
@@ -1024,7 +1047,9 @@ restores exactly. Docs: `docs/IMPORT-EXPORT.md` MSD section.
 axis (its "Import touchpoint" line); the app-side days-off pattern language
 from item 54.
 
-## 75. ItemCard/ItemRow re-arrange on narrow widths — wrap, don't resize (`[ ]`)
+## 75. ItemCard/ItemRow re-arrange on narrow widths — wrap, don't resize (`[x]` Done)
+
+**Done**: `ItemRow` is a wrap-flexbox (`flex-wrap gap-y-1`, `ITEM_ROW_CLASS`) with an optional `bodyClass` prop (default `flex-1 min-w-0`); the two event modals pass the shared `ITEM_ROW_BODY_WRAP` (`flex-1 min-w-[13rem]`) so below a width threshold the note area stacks onto its own full-width line under the fixed date cell, the trailing X flowing beside it — sizes byte-identical at normal widths. `ItemCard` header also wraps (`flex-wrap gap-x-2 gap-y-1`). Dark `RuleCard` untouched (empty body, flex-1 title). Verified at 768px iPad (single line, unchanged) and 420px (date on line 1, note + ✕ on line 2, no overflow); lint green; layout-only → no e2e (rule 7).
 
 **Requested**: the collapsible category cards (`ItemCard`) and their rows
 (`ItemRow`) — the element events manager's day-type sections, the day modal's
@@ -1081,7 +1106,9 @@ widths).
 56 (kit promotion — ship the wrap-ready layout); complements item 70 (iPad
 viewport centring); independent of 69/71 (Modal morph races).
 
-## 76. BUG: iPad project import greys out `.lemon` files — picker must accept the same types as desktop (`[ ]`)
+## 76. BUG: iPad project import greys out `.lemon` files — picker must accept the same types as desktop (`[x]` Done)
+
+**Done**: `pickerAccept(desktopAccepts)` helper in `src/lib/device.ts` — on coarse-pointer devices (iPad/iOS) the native Files picker can't resolve unregistered UTTypes (`.lemon`/`.msd`/`.sex`/`.fdx`/`.fountain`), so it greys those files out; the helper returns `*/*` on `IS_COARSE` and the desktop accept string otherwise. Wired into every import file input: `ProjectManager.tsx` + `App.tsx` new-project import (`.lemon,.json,.msd,.sex`), `App.tsx` + `ImportDialog.tsx` append import (`.csv,.fdx,.fountain,.txt`). The handlers already parse by `file.name` extension, so a broader picker can't mis-fire — a wrongly-picked file still hits the Import Error dialog. Desktop filter unchanged.
 
 **Requested**: importing a project on iPad opens the native Files picker, but `.lemon` files are **greyed out / not selectable** — only `.json` files can be picked. Desktop accepts `.lemon` fine. It must accept the same file types as desktop.
 
@@ -1104,7 +1131,9 @@ viewport centring); independent of 69/71 (Modal morph races).
 
 **Relations**: sibling of the iPad touch/keyboard bugs (items 69–72 — same `playwright.ipad.config.ts` territory); rides the import entry-points from items 40/41; independent of the parse pipeline.
 
-## 77. Dark EntityDropdown panel gets coarse-pointer sizing — inherit the dropdown item scale (`[ ]`)
+## 77. Dark EntityDropdown panel gets coarse-pointer sizing — inherit the dropdown item scale (`[x]` Done)
+
+**Done**: `DD_ITEM_BASE_DARK_LIB` in `src/lib/dropdown.ts` (`IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs'` — the kit menu's coarse scale, so the dark chip panel matches the rest of the dropdown family), consumed by `DropdownPanel.tsx:50`'s dark branch. The dark chip trigger also scales (`DD_CHIP_TRIGGER_CLASS` gains an `IS_COARSE` padding bump) — same shared const, one line. Light panel + kit menu untouched.
 
 **Requested**: on mobile (coarse pointer), the **dark entity-dropdown panel** (`EntityDropdown variant="chip"` inside dark modals — Link Manager pickers, day-status/event-type menus, rule-editor cast pickers) should be **resized like the other dropdowns** so the rows are easier to tap. It should inherit the same properties the rest of the dropdown family already has.
 
@@ -1124,3 +1153,95 @@ viewport centring); independent of 69/71 (Modal morph races).
 **Verify**: lint + visual check on iPad (coarse) and desktop — open the Link Manager / a day-modal status picker on a coarse device: dark panel rows render at the coarse size (assert padding/text via the bridge or a probe `IS_COARSE` flag); desktop unchanged (`text-xs`, byte-for-byte); light panel + kit menu scaling untouched. Layout-only → no e2e (AGENTS.md rule 7) unless a probe spec is cheap.
 
 **Relations**: closes the same gap as item 69/70's coarse sizing but app-side (`DropdownPanel`, not the kit); rides `dropdown.ts` (the shared class source); item 50's chip exploration is a different surface (committed-value chips, not sizing).
+
+## 78. BUG: kit menu stays open when dragging the modal on iPad — touch dismissal must not defer to `click` (`[x]` Done)
+
+**Done** (kit v0.1.65, commit `fdf29ee`): `DropdownMenu` gained a document-**capture** `pointerdown` listener (popout-aware via `useCurrentDocument`) that dismisses on a **touch** pointerdown outside the menu content (`contentElRef` + `closest('[data-radix-menu-content]')` — root AND open submenus) and outside the trigger (Radix owns the trigger toggle) — the app `DropdownPanel`'s model (item 64). Gated on `pointerType === 'touch'` so mouse/pen keep Radix's immediate pointerdown dismissal (a non-gated listener would double-dismiss). Dismissing flips the controlled `open` (same call `registerOverlayClose` makes); the close-morph/`persisted` machinery + `handleOpenChange` guard swallow the duplicate Radix dismissal. Playground: `ipad` (WebKit + hasTouch) project added to `playground/playwright.config.ts`, new `modal-drag-dismiss.spec.ts` (touch-drag closes, menu-item tap doesn't) + `helpers.ts` `waitForOverlaySettle` (the app's poll-for-morph-settle helper). App: `e2e/ipad-modal-drag-menu.spec.ts` (under `playwright.ipad.config.ts`) drives the seeded day modal's Day Status + Add Events menus — touch-drag on the modal header closes them, modal stays interactive. Smart-test RULES: `IPAD` bucket gained `ipad-modal-drag-menu`.
+
+**Requested**: on iPad, inside a modal with an **entity dropdown** open, dragging the modal closes the dropdown (correct). With any **kit menu** open (category selection, day-status/event-type pickers, ItemManagerDropdown…) the menu does NOT close (wrong). On Mac (mouse) it works.
+
+**Root cause — Radix defers touch outside-dismissal to `click`, and a drag has no `click`**:
+- The app's `DropdownPanel` closes on any document-level `pointerdown` outside wrapper+panel (`useDropdown`, `src/lib/dropdown.ts:46-65`) → a touch `pointerdown` on the modal header to start the drag closes it. ✓
+- The kit `DropdownMenu` relies on Radix's `DismissableLayer` → `usePointerDownOutside` (`@radix-ui/react-dismissable-layer`): for `event.pointerType === "touch"` it does NOT dismiss on `pointerdown` — it registers a one-time document `click` listener and dismisses only if that `click` fires (`node_modules/.../dismissable-layer/dist/index.js:194-200`). This is deliberate: a touch that becomes a scroll shouldn't dismiss the menu. But a **modal drag** is `pointerdown` + `pointermove` + `pointerup` with **no `click`** (the modal's `onPointerMove` calls `preventDefault`, and the browser suppresses click after a drag) → the deferred dismissal never fires → the menu stays open. Mouse/pen (`pointerType !== 'touch'`) dismiss immediately on `pointerdown`, which is why Mac works.
+- This is a kit gap (item 64's "kit menus share the panel's model" — the panel closes on any outside pointerdown; the kit menu must too, for touch).
+
+**Design** (kit-side, one `@gabriel/ui-kit` bump; app gets the version bump + docs only):
+- In `ui-kit/src/DropdownMenu.tsx`, while `open`, register a document-**capture** `pointerdown` listener (popout-aware via `useCurrentDocument`, same as `useMenuKeyLock`) that dismisses when the touch `pointerdown` lands outside the menu:
+  - Gate on `e.pointerType === 'touch'` only — mouse/pen already dismiss immediately via Radix (a non-gated listener would double-dismiss with Radix's own pointerdown handling and could fight the trigger toggle).
+  - Skip when the target is inside the **trigger** (`triggerRef`) — Radix's toggle-dismiss owns that path (the `closeFromTriggerPointerDownRef` dance must not be bypassed).
+  - Skip when the target is inside **any open menu content** (root `contentElRef` or an open submenu) — check `target.closest('[data-radix-menu-content]')` (both Radix `Content` and `SubContent` carry it), so a tap inside a submenu item still selects it.
+  - Otherwise `onOpenChange?.(false)` + `onClose?.()` (the same call the `registerOverlayClose` callback makes).
+  - The close-morph/`persisted` machinery is untouched: flipping the controlled `open` runs the existing `[open]` effect (collapses submenus) and the morph plays as usual. The `handleOpenChange` guard (`!o && !openRef.current`) already swallows a duplicate Radix dismissal that follows.
+- `DropdownSubmenu` needs nothing extra — dismissing the root collapses the whole chain (`setSubChain([])` in the root's `[open]` effect); a submenu's own `usePointerDownOutside` is not the broken path.
+- Docs: `docs/UI-KIT.md` note beside the v0.1.52 wheel / v0.1.64 touch entries.
+
+**Verify**: lint + **playground** (kit source, `npx vite playground`): extend `playground/src/main.tsx`'s `MenuInsideModal` demo and add a spec in `playground/specs/` that dispatches a cancelable **touch** `pointerdown` (or a touch drag via WebKit `hasTouch`) on the modal header with a kit menu open and asserts the menu closes (red before — Radix defers to click; green after). Then `npm run test:playground` for the kit; app-side: `npm run lint` + smart suite (the app only bumps the kit — existing dropdown specs like `overlay-morph.spec.ts` / `calendar-rule-cards`/`rules-tab` guard the menu surfaces), plus a manual iPad check (drag the modal with the category picker open → it closes; drag with the entity dropdown open → still closes).
+
+**Relations**: closes item 64's "panel model" gap for touch (the kit menu already shares the panel's highlight + positioning); rides the item 69/70/71 iPad work (same kit, same `playwright.ipad.config.ts` territory); distinct from item 77 (app-side `DropdownPanel` sizing).
+
+## 79. ui-kit Modal — dismiss (cancel) or accept the WHOLE modal stack (`[ ]`)
+
+**Requested**: give the kit `Modal` (and the `Dialog` through it) a first-class
+capability so a **child modal or dialog at any depth** can (1) **dismiss
+(cancel) the whole stack** — close itself AND every parent beneath it,
+discarding in-flight edits, or (2) **accept the whole stack** — the child
+applies its own action first, then the whole stack closes (parents just close,
+nothing of theirs applied). **Capability only (user decision)**: this item adds
+the kit primitive + playground demo/spec; NO existing app flow is rewired —
+future agents wire cancel/save buttons to it (e.g. a Link-Manager "Cancel"
+that dismisses the whole cascade chain, a day-modal "Done" that closes every
+nested editor).
+
+**Facts**:
+- Modals portal as SIBLINGS into the window body; `[data-modal-stack]` + DOM
+  order = stack order; `stackParents`/`stackChildren` (ui-kit `Modal.tsx:140-156`)
+  already locate ancestors/descendants by DOM — the stack graph is known.
+- Each Modal owns its `onClose` (caller prop) + dismissal paths (X/Esc/outside/
+  overlay touch → `doClose`, Modal.tsx:294-309); stacked children skip the
+  self-zoom (the survivor's morph-back is the close effect).
+- React context flows ACROSS portals: the child modal is rendered inside the
+  parent's children (DayEventsModal → RuleEditorPanel / EventAdderModal, the
+  item-62 cards' editors, the item-46 element event managers), so a
+  `ModalContext` provided by each Modal is visible to its descendants — the
+  natural close-propagation seam.
+- The kit's `registerOverlayClose` (overlayRegistry.ts) is ONE-AT-A-TIME —
+  a modal STACK needs a stack-ordered registry (or a context chain), not that.
+- The app `src/components/Modal.tsx` shim spreads props and `Dialog.tsx` is a
+  1:1 re-export → a kit-only addition lands with zero app call-site churn
+  (kit bump only, per the item-56 process).
+
+**Design** (kit-side, one `@gabriel/ui-kit` bump; app = version bump + docs):
+- New mechanism in `ui-kit/src/Modal.tsx`: a per-window **modal-stack
+  registry** (or a `ModalContext` chaining each Modal's `close`/`onClose` to
+  its stack parent — pick the one that keeps popout windows independent).
+  Every open Modal registers on mount, unregisters on close/unmount; order =
+  stack order.
+- Exported capability for children: `useModalStack()` (or equivalent) exposing
+  at minimum `closeStack()` — called from any child, it closes the whole
+  stack above and including the caller (topmost first, so the morph plays
+  naturally). Cancel = call `closeStack()` bare; Accept = run the child's own
+  commit/dispatch first, THEN `closeStack()` (parents just close).
+- **Close animation must be specced, not guessed**: decide how N layers close
+  at once — sequential per-layer exit-morphs vs. one coordinated top-morph +
+  parents fading — and guard against stranding a survivor mid-morph (the
+  item-71 fade-recovery watchdog must still win; verify all-N-layers-gone
+  leaves NO frozen modal, one dim → zero).
+- The `Dialog` inherits automatically (renders through the kit Modal `flat`
+  chrome, item 67); add a `ConfirmOptions`/`PromptOptions` escape hatch only
+  if the stack close needs dialog-resolve semantics (likely not — the caller
+  resolves the child dialog as today, then calls `closeStack`).
+- Playground: extend `StackedModalDemo` (`playground/src/main.tsx:226`) with a
+  "Cancel whole stack" button on the DEEPEST modal + a dialog-variant demo;
+  new `playground/specs/modal-stack-dismiss.spec.ts`: open 3 layers → click
+  the deep cancel → ALL layers gone, exactly one overlay dim then zero, no
+  frozen survivor (repeat ~10× for the morph race), popout-window stacks close
+  independently.
+
+**Verify**: lint + `npm run test:playground` (kit) for the new spec; app side:
+lint + smart suite — no app behavior changes (existing modal/dialog/stack specs
+stay green), so the app check is regression-only.
+
+**Relations**: rides items 58/59/67/71 (morph, one-dim backdrop, Dialog-through-
+Modal, survivor-fade watchdog — the new close animation must compose with all);
+precedent from item 64's `registerOverlayClose` registry; kit-primitive work
+parallels item 56.

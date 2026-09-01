@@ -58,7 +58,7 @@ const TRASH = ['trash-restore'];
    config only reports them as skipped — they're the real gate under
    `playwright.ipad.config.ts` (run explicitly). Listed so the mapping documents
    which source files affect iPad behavior. */
-const IPAD = ['ipad-touch-scroll'];
+const IPAD = ['ipad-touch-scroll', 'ipad-modal-drag-menu'];
 const MANAGERS = [...ELEM, ...CREW, ...LOC];
 const CANARY = ['seeded-smoke', 'debug-bridge'];
 

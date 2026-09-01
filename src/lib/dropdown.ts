@@ -12,7 +12,7 @@ import { useCurrentDocument } from './popoutTarget';
  * for an absolute value overlay, `justify-between`, min-widths) append on top.
  */
 export const DD_CHIP_TRIGGER_CLASS =
-  'flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900';
+  `flex items-center gap-1.5 ${IS_COARSE ? 'px-3.5 py-2.5' : 'px-2.5 py-1.5'} bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900`;
 
 const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 
@@ -23,6 +23,11 @@ export const DD_CONTAINER =
   "absolute top-full z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1";
 
 export const DD_ITEM_BASE_LIB = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
+
+/* Dark panel item base (EntityDropdown variant="chip" / DropdownPanel dark) —
+   scales with IS_COARSE like the kit menu (DropdownMenu ITEM_PAD) and the
+   light panel, so iPad tap targets are as big as every other dropdown. */
+export const DD_ITEM_BASE_DARK_LIB = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs';
 
 export const DD_ITEM_CLASS_LIB = (active: boolean) =>
   `w-full text-left ${DD_ITEM_BASE_LIB} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 active:bg-blue-200' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 active:text-zinc-900'}`;

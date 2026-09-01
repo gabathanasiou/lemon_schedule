@@ -15,6 +15,7 @@ export function createBlankScene(partial?: Partial<Scene>): Scene {
     scriptDay: '',
     intExt: '' as any,
     set: '',
+    location: '',
     dayNight: '' as any,
     description: '',
     cast: '',

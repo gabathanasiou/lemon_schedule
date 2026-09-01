@@ -4,7 +4,7 @@ import { Check } from 'lucide-react';
 import { useOverlayMorph } from '@gabriel/ui-kit';
 import { overlayMorphOptIn } from '../lib/overlayMotion';
 import { EntityItem } from './EntityDropdown';
-import { DD_PANEL_CLASS_LIB as DD_PANEL_CLASS, DD_ITEM_CLASS_LIB as DD_ITEM_CLASS, DD_ITEM_BASE_LIB as DD_ITEM_BASE } from '../lib/dropdown';
+import { DD_PANEL_CLASS_LIB as DD_PANEL_CLASS, DD_ITEM_CLASS_LIB as DD_ITEM_CLASS, DD_ITEM_BASE_LIB as DD_ITEM_BASE, DD_ITEM_BASE_DARK_LIB } from '../lib/dropdown';
 
 /* The panel morph (trigger-anchored scale+fade, the modal FLIP language) is
    shared from the ui-kit; this app-side panel carries the app's opt-out flag
@@ -47,7 +47,7 @@ export default function DropdownPanel({
   searchQuery, hasExactMatch, renderItem, defaultRenderer,
   onItemClick, onItemHover, onHoverLeave, commitHint, onCommit, portalTarget, dark = false, anchorRef,
 }: DropdownPanelProps) {
-  const ITEM_BASE = dark ? 'flex items-center gap-2 px-3 py-2 text-xs rounded transition-colors cursor-pointer select-none whitespace-nowrap w-full text-left' : DD_ITEM_BASE;
+  const ITEM_BASE = dark ? `flex items-center gap-2 ${DD_ITEM_BASE_DARK_LIB} rounded transition-colors cursor-pointer select-none whitespace-nowrap w-full text-left` : DD_ITEM_BASE;
   const LIGHT_BASE = `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2`;
   // SINGLE-highlight rule (both themes): NO CSS hover fills — the one active
   // row is `highlightedIndex`, which pointer hover (onMouseEnter →
