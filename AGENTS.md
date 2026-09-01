@@ -7,7 +7,7 @@
 - **`npm run test:smart`** — smart E2E subset runner (`scripts/smart-test.mjs`): diffs the working tree vs `HEAD` (or `SMART_BASE=<ref>`), maps changed files to specs via the `RULES` table in the script, and runs only those + canaries (`seeded-smoke`, `debug-bridge`) + last-run failures. Core/shared files (`src/store/**`, `daybreakUtils`, `categories`, `ribbonUtils`, configs, `e2e/helpers.ts`…) escalate to the FULL suite; unmapped `src/` changes run canaries only, with a warning to add a RULES entry. `--list` prints the selection without running; `--full` forces everything; `npm run test:full` = full suite. **Extend `RULES` when adding features** (a feature with no rule gets skipped by name). Rule 7's safety net: the full suite runs before done/commit **only for logic/data/store changes** — visual-only changes (rule 7) skip it.
 - Perf/memory harnesses are tagged `@perf` and EXCLUDED from the default run (`grepInvert`) — run them explicitly: `npx playwright test --config=playwright.perf.config.ts` (dev :3001) / `playwright.perf-prod.config.ts` (preview :4173); see `docs/PERF-DIAGNOSIS.md`.
 - The suite opens agent mode in prod builds (`LEMON_AGENT=1` via `storageState` in `playwright.config.ts`) so specs can read `window.__lemonSchedule` state — prefer the bridge over localStorage reads (sync, no debounced-save waits). Prefer `expect`/`expect.poll`/`waitForFunction` over `waitForTimeout` (web-first; remaining waits are true interaction pacing: drags, canvas settles).
-- `e2e/helpers.ts`: `ensureProject(page)`, `openSeededProject(page)` (seeds "Town - Jason" from `~/Downloads` pre-boot; override via `LEMON_SEED_PATH`; boots to the header anchor — no sleeps), `waitForPersistedProject(page, expr)` (polls localStorage for a normalized state — use before reads when persistence is under test). Seed + seed-script cached per project JSON/worker.
+- `e2e/helpers.ts`: `ensureProject(page)`, `openSeededProject(page)` (seeds "IT'S A WONDERFUL LIFE" from `~/Downloads/IT'S A WONDERFUL LIFE.lemon` pre-boot; override via `LEMON_SEED_PATH`; boots to the header anchor — no sleeps), `waitForPersistedProject(page, expr)` (polls localStorage for a normalized state — use before reads when persistence is under test). Seed + seed-script cached per project JSON/worker. **Specs must be seed-agnostic** — resolve cast/dates/elements/counts from the debug bridge (`seedLeadCast`, `seedDayDates`, `seedElement`, `activeCalendar`, `seedTitle`) instead of hardcoding the seed's content (the seed is a real exported project and can change).
 - `DISABLE_HMR=true` — disable HMR/file watching (AI Studio sets this).
 
 ## Core Rules (read first — these override convenience)
@@ -22,7 +22,7 @@
 ## Explaining to the User (plain language)
 - Talk about features in real terms, not code: "scene 1. GEORGE in the kitchen" or "scene ribbon" not "a SCENE row"; "cast member 1. FISHERMAN" not "cast entity"; "the hold list on Jun 3" not "NonShootDate.lists".
 - Ground explanations in how it plays out in real life: "drag scene 3. DINER onto Jun 4 → call time becomes 7:45 AM since the two scenes before run 2h 15m."
-- Use project data for examples (seeded "Town - Jason" works). ASCII sketches/visuals welcome when they clarify.
+- Use project data for examples (seeded "IT'S A WONDERFUL LIFE" works). ASCII sketches/visuals welcome when they clarify.
 
 ## Stack & Storage
 - React 19 + Vite 6 + Tailwind v4 (`@tailwindcss/vite`). Path alias `@/*` → root. Deploy base `/lemon_schedule/`.

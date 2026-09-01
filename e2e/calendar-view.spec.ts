@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, seedTitle } from './helpers';
 
 /** Calendar View prefs: "Expand Day Cells" (default ON) sizes strips-mode day
  *  cells to their content; turning it off returns the fixed 170px rows. */
@@ -19,6 +19,9 @@ test('calendar view: day cells expand by default; Expand Day Cells toggle restor
   });
   expect(richDate).toBeTruthy();
 
+  // The grid virtualizes months — scroll to the bottom so the richest day's
+  // cell mounts (its month may be beyond the initial viewport).
+  await page.locator('[data-cal-grid]').evaluate(el => { el.scrollTop = el.scrollHeight; });
   const cell = page.locator(`[data-date-key="${richDate}"]`).first();
   await expect(cell).toBeVisible();
 
@@ -41,7 +44,7 @@ test('calendar view: day cells expand by default; Expand Day Cells toggle restor
   await expect.poll(height).toBeGreaterThan(170);
 
   await page.reload();
-  await page.getByText('Town - Jason', { exact: true }).first().click();
+  await page.getByText(seedTitle(), { exact: true }).first().click();
   await page.getByRole('button', { name: 'Calendar' }).click();
   await page.getByRole('button', { name: 'View' }).click();
   await expect(page.getByRole('button', { name: 'Expand Day Cells' })).toBeVisible();

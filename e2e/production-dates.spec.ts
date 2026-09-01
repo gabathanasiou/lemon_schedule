@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, activeCalendar, seedDayDates } from './helpers';
 
 /** Production Dates Manager (roadmap 54, MMS-style): prep/prod/post window +
  *  weekly days-off in ONE modal — replaces the old START input + Days Off
@@ -7,9 +7,8 @@ import { openSeededProject } from './helpers';
  *  (production start → the stripboard's last shooting day; post end only
  *  extends the window): pattern weekdays become Day Off (marked `pattern`),
  *  unchecking a weekday removes ONLY those pattern-created statuses —
- *  hand-made statuses and event cards always survive. The seeded project's
- *  ACTIVE version starts Mon 2026-08-10 with 22 shooting days and every
- *  weekend already statused Aug 1 → Sep 27. */
+ *  hand-made statuses and event cards always survive. All dates are derived
+ *  from the seed's active calendar version (seed-agnostic). */
 
 async function openProdDates(page: import('@playwright/test').Page) {
   // .first() = the header tab (the Calendar sub-tab duplicates the name)
@@ -20,6 +19,13 @@ async function openProdDates(page: import('@playwright/test').Page) {
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
   'August', 'September', 'October', 'November', 'December'];
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const addDays = (iso: string, n: number) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return dateKey(new Date(y, m - 1, d + n));
+};
 
 /** Navigates the DateField chrome (popover menu, named after its trigger) to (y, m). */
 async function navTo(page: import('@playwright/test').Page, trigger: string, y: number, m: number) {
@@ -48,13 +54,13 @@ async function versionSummary(page: import('@playwright/test').Page) {
   return page.evaluate(() => {
     const s = (window as any).__lemonSchedule;
     const st = s.getState().present;
-    const v = st.versions.find((x: any) => x.id === st.activeVersionId);
+    const cal = (st.calendarVersions || []).find((c: any) => c.id === st.activeCalendarVersionId) || (st.calendarVersions || [])[0];
     return {
-      prepStart: v.prepStart || '',
-      productionStart: v.productionStart || '',
-      postEnd: v.postEnd || '',
-      weeklyDaysOff: (v.weeklyDaysOff || []).join(','),
-      statuses: (v.nonShootDates || []).map((n: any) => ({ date: n.date, status: n.status, pattern: !!n.pattern })),
+      prepStart: cal.prepStart || '',
+      productionStart: cal.productionStart || '',
+      postEnd: cal.postEnd || '',
+      weeklyDaysOff: (cal.weeklyDaysOff || []).join(','),
+      statuses: (cal.nonShootDates || []).map((n: any) => ({ date: n.date, status: n.status, pattern: !!n.pattern })),
     };
   });
 }
@@ -64,13 +70,23 @@ async function clearStatuses(page: import('@playwright/test').Page) {
   await page.evaluate(() => {
     const s = (window as any).__lemonSchedule;
     const st = s.getState().present;
-    const v = st.versions.find((x: any) => x.id === st.activeVersionId);
-    s.dispatch({ type: 'UPDATE_VERSION', payload: { id: v.id, nonShootDates: [] } });
+    const cal = (st.calendarVersions || []).find((c: any) => c.id === st.activeCalendarVersionId) || (st.calendarVersions || [])[0];
+    s.dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: cal.id, nonShootDates: [] } });
   });
 }
 
 test('production dates: window + days off modal replaces START/Days Off', async ({ page }) => {
   await openSeededProject(page);
+  const cal = await activeCalendar(page);
+  const prodStart = cal.productionStart;
+  const weekly = cal.weeklyDaysOff || [5, 6];
+  const days = await seedDayDates(page);
+  const lastSection = days[days.length - 1];
+  const [pY, pM] = prodStart.split('-').map(Number);
+  const prepY = pM === 1 ? pY - 1 : pY;
+  const prepM = pM === 1 ? 12 : pM - 1;
+  const prep = `${prepY}-${pad(prepM)}-01`;
+  const post = addDays(lastSection, 21);
 
   // Old controls gone, single Production Dates button present
   await expect(page.locator('text=START')).toHaveCount(0);
@@ -80,26 +96,29 @@ test('production dates: window + days off modal replaces START/Days Off', async 
   await expect(page.getByText('Production Start', { exact: true })).toBeVisible();
   await expect(page.getByText('Post End', { exact: true })).toBeVisible();
 
-  // Set the window: prep 2026-07-01, post 2026-09-30 (production start stays
-  // the seeded 2026-08-10 — re-picking a pre-filled date would toggle it off)
-  await pickDate(page, 'Pick a date', 2026, 7, 1);  // Prep Start (first empty field)
-  await pickDate(page, 'Pick a date', 2026, 9, 30); // Post End (only empty field left)
+  // Set the window (production start stays the seeded value — re-picking a
+  // pre-filled date would toggle it off)
+  const [postY, postM, postD] = post.split('-').map(Number);
+  const [prepY2, prepM2] = prep.split('-').map(Number);
+  await pickDate(page, 'Pick a date', prepY2, prepM2, 1);   // Prep Start (first empty field)
+  await pickDate(page, 'Pick a date', postY, postM, postD); // Post End (only empty field left)
   await page.getByRole('button', { name: 'Save' }).click();
 
   // Window + pattern persisted; Save ALSO materialized the days off
-  // (MMS-style) — the July weekends are new, August's are untouched.
+  // (MMS-style) — the prep-month weekends are new, the seed's are untouched.
   await expect.poll(async () => {
     const v = await versionSummary(page);
     return `${v.prepStart}|${v.productionStart}|${v.postEnd}|${v.weeklyDaysOff}`;
-  }).toBe('2026-07-01|2026-08-10|2026-09-30|5,6');
+  }).toBe(`${prep}|${prodStart}|${post}|${weekly.join(',')}`);
   const afterSave = await versionSummary(page);
   const dates = afterSave.statuses.filter(s => s.status === 'holiday').map(s => s.date);
-  expect(dates).toContain('2026-07-04');  // materialized by SAVE across the window
-  expect(dates).toContain('2026-07-26');
-  expect(dates).toContain('2026-08-15');  // pre-existing weekend, untouched
+  // The first prep-month Saturday was materialized by SAVE across the window
+  const firstPrepSat = dateKey(new Date(prepY2, prepM2 - 1, 1 + ((6 - new Date(prepY2, prepM2 - 1, 1).getDay() + 7) % 7)));
+  expect(dates).toContain(firstPrepSat);
+  expect(dates).toContain(prodStart); // pre-existing statused weekend, untouched
 
-  // Calendar range now starts at the prep date (July 2026 visible)
-  await expect(page.locator('text=JULY 2026').first()).toBeVisible();
+  // Calendar range now starts at the prep date (the prep month is visible)
+  await expect(page.locator(`text=${MONTHS[prepM2 - 1].toUpperCase()} ${prepY2}`).first()).toBeVisible();
 
   // Apply Days Off is idempotent: every pattern day in the window is already statused
   await page.getByRole('button', { name: 'Production Dates' }).click();
@@ -114,6 +133,9 @@ test('production dates: window + days off modal replaces START/Days Off', async 
 
 test('days off apply across the scheduled span without a post end (MMS-style)', async ({ page }) => {
   await openSeededProject(page);
+  const cal = await activeCalendar(page);
+  const prodStart = cal.productionStart;
+  const weekly: number[] = cal.weeklyDaysOff || [5, 6];
   await clearStatuses(page);
 
   await openProdDates(page);
@@ -124,40 +146,39 @@ test('days off apply across the scheduled span without a post end (MMS-style)', 
   const result = await page.evaluate(() => {
     const s = (window as any).__lemonSchedule;
     const st = s.getState().present;
-    const v = st.versions.find((x: any) => x.id === st.activeVersionId);
-    const holidays = new Set((v.nonShootDates || [])
+    const cal = (st.calendarVersions || []).find((c: any) => c.id === st.activeCalendarVersionId) || (st.calendarVersions || [])[0];
+    const holidays = new Set((cal.nonShootDates || [])
       .filter((n: any) => n.status === 'holiday').map((n: any) => n.date));
     const rows = s.getRows();
     return {
-      start: v.productionStart,
+      start: cal.productionStart,
       sectionDates: rows.sections.map((sec: any) => sec.date),
       holidays: [...holidays].sort(),
     };
   });
 
-  // sections[0] is the pinned anchor (stays on the start date); sections[1..]
-  // are the production days. Day 1 = Mon Aug 10; day 6 = Mon Aug 17 — the
-  // first weekend was skipped by the pattern. No section ever sits on a
-  // Saturday or Sunday.
-  expect(result.sectionDates[0]).toBe(result.start);
-  expect(result.sectionDates[1]).toBe('2026-08-10');
-  expect(result.sectionDates[6]).toBe('2026-08-17');
+  // sections[0] is the pinned anchor — it sits on the first working date at
+  // or after productionStart (the cursor skips statused day-off weekdays);
+  // sections[1..] are the production days. No section ever sits on a day-off
+  // weekday. (weeklyDaysOff uses Mon=0; JS getDay uses Sun=0 — translate.)
+  const offDow = weekly.map(d => (d + 1) % 7);
+  {
+    const anchor = new Date(result.start + 'T00:00:00');
+    while (offDow.includes(anchor.getDay())) anchor.setDate(anchor.getDate() + 1);
+    expect(result.sectionDates[0]).toBe(dateKey(anchor));
+  }
   for (const d of result.sectionDates.slice(1)) {
-    const js = new Date(d + 'T00:00:00').getDay();
-    expect([0, 6], `section on weekend ${d}`).not.toContain(js);
+    const jsDow = new Date(d + 'T00:00:00').getDay();
+    expect(offDow, `section on day-off weekday ${d}`).not.toContain(jsDow);
   }
 
-  // Every Saturday/Sunday between the start and the last scheduled day is off
+  // Every day-off weekday between the start and the last scheduled day is off
   const last = result.sectionDates[result.sectionDates.length - 1];
+  const expected: string[] = [];
   const cur = new Date(result.start + 'T00:00:00');
   const end = new Date(last + 'T00:00:00');
-  const expected: string[] = [];
   while (cur <= end) {
-    const js = cur.getDay();
-    if (js === 0 || js === 6) {
-      const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
-      expected.push(key);
-    }
+    if (offDow.includes(cur.getDay())) expected.push(dateKey(cur));
     cur.setDate(cur.getDate() + 1);
   }
   expect(expected.length).toBeGreaterThan(0);
@@ -166,71 +187,94 @@ test('days off apply across the scheduled span without a post end (MMS-style)', 
 
 test('saving the modal alone materializes the days-off pattern', async ({ page }) => {
   await openSeededProject(page);
+  const cal = await activeCalendar(page);
+  const prodStart = cal.productionStart;
+  const weekly = cal.weeklyDaysOff || [5, 6];
   await clearStatuses(page);
 
   await openProdDates(page);
   await page.getByRole('button', { name: 'Save' }).click(); // no Apply click
 
   const v = await versionSummary(page);
-  expect(v.weeklyDaysOff).toBe('5,6');
-  const added = v.statuses.filter(s => s.status === 'holiday' && s.date >= v.productionStart);
+  expect(v.weeklyDaysOff).toBe(weekly.join(','));
+  const added = v.statuses.filter(s => s.status === 'holiday' && s.date >= prodStart);
   expect(added.length).toBeGreaterThan(0);
   expect(added.every(s => s.pattern)).toBe(true);
 });
 
 test('unchecking a weekday removes only pattern-created days off (MMS-style)', async ({ page }) => {
   await openSeededProject(page);
+  const cal = await activeCalendar(page);
+  const prodStart = cal.productionStart;
+  const weekly: number[] = cal.weeklyDaysOff || [5, 6];
   await clearStatuses(page);
 
-  // A hand-made Saturday holiday — the pattern must never touch or remove it
-  await page.evaluate(() => {
+  // A hand-made day-off on the first calendar day after the start — the
+  // pattern must never touch or remove it. Translate JS getDay (Sun=0) to the
+  // app's weekday (Mon=0): appDow = (jsDow - 1 + 7) % 7.
+  const handMade = addDays(prodStart, 1);
+  const handMadeJsDow = new Date(handMade + 'T00:00:00').getDay();
+  const handMadeDow = (handMadeJsDow - 1 + 7) % 7;
+  await page.evaluate(({ date }) => {
     const s = (window as any).__lemonSchedule;
     const st = s.getState().present;
-    const v = st.versions.find((x: any) => x.id === st.activeVersionId);
-    s.dispatch({ type: 'UPDATE_VERSION', payload: {
-      id: v.id,
-      nonShootDates: [...(v.nonShootDates || []), { date: '2026-08-15', status: 'holiday' }],
+    const cal = (st.calendarVersions || []).find((c: any) => c.id === st.activeCalendarVersionId) || (st.calendarVersions || [])[0];
+    s.dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: {
+      id: cal.id,
+      nonShootDates: [...(cal.nonShootDates || []), { date, status: 'holiday' }],
     } });
-  });
+  }, { date: handMade });
 
   await openProdDates(page);
   await page.getByRole('button', { name: 'Apply Days Off' }).click();
   await expect(page.getByText(/Marked \d+ days off/)).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
 
-  // Pattern-created statuses carry the flag; the hand-made Saturday does not
+  // Pattern-created statuses carry the flag; the hand-made one does not
   const afterApply = await versionSummary(page);
   const flagged = afterApply.statuses.filter(s => s.status === 'holiday' && s.pattern);
   expect(flagged.length).toBeGreaterThan(0);
-  expect(afterApply.statuses.find(s => s.date === '2026-08-15')?.pattern).toBe(false);
+  expect(afterApply.statuses.find(s => s.date === handMade)?.pattern).toBe(false);
 
-  // Uncheck SATURDAY and save: pattern-created Saturdays are removed,
-  // Sundays stay, and the hand-made Saturday survives.
+  // Uncheck the day-off weekday the hand-made falls on and save: pattern-
+  // created ones of that weekday are removed, the other weekday stays, and
+  // the hand-made day survives.
+  const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  const dayLabel = WEEKDAY_LABELS[handMadeDow];
+  const other = weekly.find(d => d !== handMadeDow)!;
   await page.getByRole('button', { name: 'Production Dates' }).click();
-  await page.getByRole('button', { name: 'SAT', exact: true }).click();
+  await page.getByRole('button', { name: dayLabel, exact: true }).click();
   await page.getByRole('button', { name: 'Save' }).click();
 
   const after = await versionSummary(page);
-  expect(after.weeklyDaysOff).toBe('6');
+  expect(after.weeklyDaysOff).toBe(String(other));
   const holidays = after.statuses.filter(s => s.status === 'holiday').map(s => s.date);
-  const isSat = (d: string) => new Date(d + 'T00:00:00').getDay() === 6;
-  const isSun = (d: string) => new Date(d + 'T00:00:00').getDay() === 0;
-  const sats = holidays.filter(isSat);
-  const suns = holidays.filter(isSun);
-  expect(sats).toEqual(['2026-08-15']); // hand-made survives, pattern-created gone
-  expect(suns.length).toBeGreaterThan(0); // Sundays untouched
+  const isDow = (d: string, appDow: number) => (new Date(d + 'T00:00:00').getDay() - 1 + 7) % 7 === appDow;
+  const made = holidays.filter(d => isDow(d, handMadeDow));   // hand-made weekday: only the hand-made survives
+  const kept = holidays.filter(d => isDow(d, other));          // other weekday: pattern-created stay
+  expect(made).toEqual([handMade]);
+  expect(kept.length).toBeGreaterThan(0);
 });
 
 test('a generated day off cycled through another status stays generated (sticky flag)', async ({ page }) => {
   await openSeededProject(page);
+  const cal = await activeCalendar(page);
+  const prodStart = cal.productionStart;
   await clearStatuses(page);
   await openProdDates(page);
   await page.getByRole('button', { name: 'Apply Days Off' }).click();
   await expect(page.getByText(/Marked \d+ days off/)).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
 
-  const DAY = '2026-08-22'; // a generated Saturday in the span
+  const DAY = await page.evaluate((start) => {
+    const [y, m, d] = start.split('-').map(Number);
+    const cur = new Date(y, m - 1, d + 1);
+    while (cur.getDay() !== 6) cur.setDate(cur.getDate() + 1);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
+  }, prodStart);
   const cell = page.locator(`[data-date-key="${DAY}"]`);
+  await expect(cell).toBeVisible();
   const header = cell.locator('[class*="flex items-center justify-between"]').first();
   const dialog = page.getByRole('dialog');
 
@@ -255,8 +299,8 @@ test('a generated day off cycled through another status stays generated (sticky 
   const flag = await page.evaluate((d) => {
     const s = (window as any).__lemonSchedule;
     const st = s.getState().present;
-    const v = st.versions.find((x: any) => x.id === st.activeVersionId);
-    const n = (v.nonShootDates || []).find((x: any) => x.date === d);
+    const cal = (st.calendarVersions || []).find((c: any) => c.id === st.activeCalendarVersionId) || (st.calendarVersions || [])[0];
+    const n = (cal.nonShootDates || []).find((x: any) => x.date === d);
     return { status: n?.status, pattern: !!n?.pattern };
   }, DAY);
   expect(flag).toEqual({ status: 'holiday', pattern: true });
@@ -267,5 +311,6 @@ test('a generated day off cycled through another status stays generated (sticky 
   await page.getByRole('button', { name: 'Save' }).click();
   const after = await versionSummary(page);
   expect(after.statuses.some(s => s.date === DAY && s.status === 'holiday')).toBe(false);
-  expect(after.statuses.some(s => s.date === '2026-08-23' && s.status === 'holiday')).toBe(true);
+  const sunday = addDays(DAY, 1);
+  expect(after.statuses.some(s => s.date === sunday && s.status === 'holiday')).toBe(true);
 });

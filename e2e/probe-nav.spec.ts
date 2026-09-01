@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, seedTitle } from './helpers';
 
 test('@perf probe: arrow navigation across multiple chips + text', async ({ page }) => {
   const logs: string[] = [];
@@ -14,7 +14,7 @@ test('@perf probe: arrow navigation across multiple chips + text', async ({ page
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
   
-  const title = page.getByText('Town - Jason — One-Liner').first();
+  const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
     const editor = page.locator('.block-chrome .richtext-editor').first();

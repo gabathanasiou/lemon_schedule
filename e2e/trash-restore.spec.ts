@@ -32,13 +32,19 @@ test('trash modal: sections per kind with counts, restore', async ({ page }) => 
 
   const before = await trashCounts(page);
 
-  // Populate the trash via the bridge: one scene, one version, one rule.
+  // Populate the trash via the bridge: one scene, one version (a throwaway
+  // NON-active one — the active version can't be deleted), one rule.
   await page.evaluate(() => {
     const b = (window as any).__lemonSchedule;
     const p = b.getProject();
+    let versionId = (p.versions || []).find((v: any) => v.id !== p.activeVersionId)?.id;
+    if (!versionId) {
+      versionId = 'v-trash-' + Date.now();
+      b.dispatch({ type: 'NEW_VERSION', payload: { id: versionId, name: 'Trash Me' } });
+    }
     b.batch(() => {
       b.dispatch({ type: 'DELETE_SCENE', payload: p.scenes[0].id });
-      b.dispatch({ type: 'DELETE_VERSION', payload: p.versions[0].id });
+      b.dispatch({ type: 'DELETE_VERSION', payload: versionId });
       b.dispatch({ type: 'DELETE_RULE', payload: p.rules[0].id });
     });
   });

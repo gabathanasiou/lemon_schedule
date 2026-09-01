@@ -80,7 +80,7 @@ No backend, no database — data lives in your browser's localStorage. Sign in w
 
 ## E2E Testing
 
-The Playwright suite includes smoke tests that load a real production project ("Town - Jason") from `~/Downloads/Town - Jason.lemon` (override with `LEMON_SEED_PATH`) to exercise the stripboard, calendar, glide breakdown, ribbon designer, and print flow with real data.
+The Playwright suite includes smoke tests that load a real production project ("IT'S A WONDERFUL LIFE") from `~/Downloads/IT'S A WONDERFUL LIFE.lemon` (override with `LEMON_SEED_PATH`) to exercise the stripboard, calendar, glide breakdown, ribbon designer, and print flow with real data. Specs resolve their data from the debug bridge, so the seed file can be re-exported from the app at any time without breaking the suite.
 
 ## Data & Storage
 

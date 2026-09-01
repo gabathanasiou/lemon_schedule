@@ -50,7 +50,18 @@ test.describe('ribbon text size (roadmap 48)', () => {
   test('legacy designs (no textSize) stay at 8pt; new designs default to master 14', async ({ page }) => {
     await openSeededProject(page);
 
-    // The seeded project's designs are legacy → the stripboard renders 8pt.
+    // The seeded project's designs carry a textSize — force a legacy design
+    // (no textSize field) so the 8pt fallback path is exercised.
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      b.dispatch({
+        type: 'UPDATE_PROJECT',
+        payload: { ribbonDesigns: (p.ribbonDesigns || []).map((d: any) => ({ ...d, textSize: undefined })) },
+      });
+    });
+
+    // Legacy → the stripboard renders 8pt.
     await expect
       .poll(() => page.evaluate(() => {
         const p: any = (window as any).__lemonSchedule.getProject();

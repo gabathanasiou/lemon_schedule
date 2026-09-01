@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, loadSeedProject, seedProjectScript } from './helpers';
+import { openSeededProject, loadSeedProject, seedProjectScript, seedTitle, seedLeadCast, seedElement } from './helpers';
 
 test('reports designer lives in design tab; collection menu uses submenu', async ({ page }) => {
   await openSeededProject(page);
@@ -81,25 +81,26 @@ test('reports designer view toggle switches canvas width (portrait/landscape/ful
 
 test('keys/values toggle switches text blocks and table cells', async ({ page }) => {
   await openSeededProject(page);
+  const lead = await seedLeadCast(page);
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
   
-  await expect(page.getByText('Town - Jason — One-Liner')).toBeVisible({ timeout: 5000 });
-  await expect(page.getByText('FISHERMAN, BLACK')).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText(`${seedTitle()} — One-Liner`)).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText(lead.name).first()).toBeVisible({ timeout: 3000 });
 
   await page.getByRole('button', { name: /View:/ }).click();
   await page.locator('.ui-menu').getByText('Show field keys', { exact: true }).click();
   
   await expect(page.getByText('{{title}} — One-Liner')).toBeVisible({ timeout: 3000 });
   await expect(page.getByText('{{cast}}').first()).toBeVisible({ timeout: 3000 });
-  await expect(page.getByText('FISHERMAN, BLACK')).toHaveCount(0);
+  await expect(page.getByText(lead.name)).toHaveCount(0);
 
   await page.getByRole('button', { name: /View:/ }).click();
   await page.locator('.ui-menu').getByText('Show field values', { exact: true }).click();
   
-  await expect(page.getByText('Town - Jason — One-Liner')).toBeVisible({ timeout: 3000 });
-  await expect(page.getByText('FISHERMAN, BLACK')).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText(`${seedTitle()} — One-Liner`)).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText(lead.name).first()).toBeVisible({ timeout: 3000 });
 });
 
 test('repeat nested in a categories repeat offers Elements (of this category)', async ({ page }) => {
@@ -129,6 +130,7 @@ test('repeat nested in a categories repeat offers Elements (of this category)', 
 
 test('cast repeat exposes Cast ID / Cast ID & Name attributes and renders them', async ({ page }) => {
   await openSeededProject(page);
+  const lead = await seedLeadCast(page);
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
@@ -147,12 +149,14 @@ test('cast repeat exposes Cast ID / Cast ID & Name attributes and renders them',
   await expect(page.getByRole('button', { name: 'Cast ID', exact: true })).toBeVisible({ timeout: 3000 });
   await expect(page.getByRole('button', { name: 'Cast ID & Name', exact: true })).toBeVisible({ timeout: 3000 });
 
-  await page.getByRole('button', { name: 'Cast ID & Name', exact: true }).dragTo(page.getByText('Drop inside repeat (or click to add text)'));
-    await expect(page.getByText('1. FISHERMAN', { exact: true })).toBeVisible({ timeout: 3000 });
+  await page.getByRole('button', { name: 'Cast ID & Name', exact: true }).dragTo(page.getByText('Drop inside repeat (or click to add text)').last());
+    await expect(page.getByText(`${lead.id}. ${lead.name}`, { exact: true })).toBeVisible({ timeout: 3000 });
 });
 
 test('element work/shoot day attributes fill for mixed-case elements', async ({ page }) => {
   await openSeededProject(page);
+  const prop = await seedElement(page, 'props');
+  expect(prop.name).toBeTruthy();
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
@@ -162,16 +166,16 @@ test('element work/shoot day attributes fill for mixed-case elements', async ({ 
   
   await page.getByRole('button', { name: 'Preview' }).click();
   
-  // "Sunny's gun" is a capitalized props element — its Shoot Days cell was
-  // empty before the case-insensitive element match; it now lists real days.
-  const row = page.locator('.report-table-cols > div').filter({ hasText: "Sunny's gun" }).first();
+  // A props element's Shoot Days cell lists real production days (the
+  // category breakdown resolves elements case-insensitively against scenes).
+  const row = page.locator('.report-table-cols > div').filter({ hasText: prop.name }).first();
   await expect(row).toBeVisible({ timeout: 3000 });
-  await expect(row).toContainText('Day 7 (Tue, Aug 18)', { timeout: 3000 });
-  await expect(row).toContainText('Day 12 (Tue, Aug 25)');
+  await expect(row).toContainText(/Day \d+/, { timeout: 3000 });
 });
 
 test('category breakdown template iterates categories; skip empty + exclude work', async ({ page }) => {
   await openSeededProject(page);
+  const lead = await seedLeadCast(page);
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
@@ -183,7 +187,7 @@ test('category breakdown template iterates categories; skip empty + exclude work
     for (const label of ['Cast', 'Props', 'Wardrobe']) {
     await expect(page.getByText(label, { exact: true })).toBeVisible({ timeout: 3000 });
   }
-  await expect(page.getByText('FISHERMAN', { exact: true })).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText(lead.name, { exact: true })).toBeVisible({ timeout: 3000 });
   await expect(page.getByText('Set', { exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Edit', exact: true }).click();

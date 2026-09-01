@@ -6,6 +6,15 @@ import path from 'node:path';
 
 type Project = any;
 
+// Seed-agnostic member handles: the lead (id 1) and two more cast members the
+// seed is guaranteed to have (id 2, id 4 for a sequential-id seed).
+const seedCast = () => (loadSeedProject().data.castMembers || []);
+const memberBy = (id: string) => seedCast().find((m: any) => String(m.id) === String(id)) || seedCast()[0];
+const m1 = () => seedCast()[0];
+const m2 = () => seedCast()[1] || m1();
+const m4 = () => memberBy('4') || m1();
+const castCount = () => seedCast().length;
+
 async function getProject(page: import('@playwright/test').Page): Promise<Project> {
   return page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
@@ -13,14 +22,19 @@ async function getProject(page: import('@playwright/test').Page): Promise<Projec
   });
 }
 
-/** Builds a legacy-shaped project from the seed: cast names only live in the breakdownElements.cast mirror. */
+/** Builds a legacy-shaped project from the seed: cast names only live in the
+ *  breakdownElements.cast mirror (built from castMembers — the current seed
+ *  exports no mirror). */
 function makeLegacyCastProject(opts: { dropCastMembers?: boolean; conflictName?: string; extraMirrorMembers?: { id: string; name: string }[] } = {}): Project {
   const seed = loadSeedProject().data;
   const legacy = JSON.parse(JSON.stringify(seed));
+  if (!legacy.breakdownElements.cast) {
+    legacy.breakdownElements.cast = (legacy.castMembers || []).map((m: any) => ({ id: String(m.id), name: m.name }));
+  }
   if (opts.dropCastMembers) {
     delete legacy.castMembers;
   } else if (opts.conflictName) {
-    legacy.castMembers = legacy.castMembers.map((m: any) => m.id === '1' ? { ...m, name: opts.conflictName } : m);
+    legacy.castMembers = legacy.castMembers.map((m: any) => String(m.id) === String(m1().id) ? { ...m, name: opts.conflictName } : m);
   }
   if (opts.extraMirrorMembers) {
     legacy.breakdownElements.cast = [...legacy.breakdownElements.cast, ...opts.extraMirrorMembers];
@@ -64,11 +78,11 @@ test.describe('cast single source of truth (castMembers)', () => {
     await openSeededProject(page);
 
     // Wait for the persisted (normalized) state: mirror stripped, castMembers kept
-    await waitForPersistedProject(page, '!p.breakdownElements.cast && (p.castMembers || []).length === 23');
+    await waitForPersistedProject(page, `!p.breakdownElements.cast && (p.castMembers || []).length === ${castCount()}`);
     await expect.poll(async () => {
       const p = await getProject(page);
       return p ? (p.castMembers || []).length : 0;
-    }, { timeout: 8000 }).toBe(23);
+    }, { timeout: 8000 }).toBe(castCount());
 
     const project = await getProject(page);
     expect(project.breakdownElements.cast).toBeUndefined();
@@ -82,31 +96,31 @@ test.describe('cast single source of truth (castMembers)', () => {
     await expect.poll(async () => {
       const p = await getProject(page);
       return p ? (p.castMembers || []).length : 0;
-    }, { timeout: 8000 }).toBe(24);
+    }, { timeout: 8000 }).toBe(castCount() + 1);
 
     const project = await getProject(page);
     expect(project.breakdownElements.cast).toBeUndefined();
     const names = (project.castMembers || []).map((m: any) => m.name);
-    expect(names).toContain('FISHERMAN');
-    expect(names).toContain('SENKAR');
+    expect(names).toContain(m1().name);
+    expect(names).toContain(m2().name);
     expect(names).toContain('EXTRA MAN');
-    // scene references by id still resolve (id 4 = JO in the mirror)
-    expect(project.scenes.some((s: any) => (s.cast || '').includes('4'))).toBe(true);
+    // scene references by id still resolve (id 4 is a real member in the mirror)
+    expect(project.scenes.some((s: any) => String(s.cast || '').split(',').map((x: string) => x.trim()).includes(String(m4().id)))).toBe(true);
   });
 
   test('legacy cast conversion: castMembers wins on name conflicts, mirror fills gaps', async ({ page }) => {
     // castMembers exists but diverged from the mirror: id 1 renamed, id 99 only in the mirror
-    const legacy = makeLegacyCastProject({ conflictName: 'FISHERMAN II', extraMirrorMembers: [{ id: '99', name: 'EXTRA MAN' }] });
+    const legacy = makeLegacyCastProject({ conflictName: `${m1().name} II`, extraMirrorMembers: [{ id: '99', name: 'EXTRA MAN' }] });
     await seedLegacyProject(page, legacy);
 
     await expect.poll(async () => {
       const p = await getProject(page);
       return p ? (p.castMembers || []).length : 0;
-    }, { timeout: 8000 }).toBe(24);
+    }, { timeout: 8000 }).toBe(castCount() + 1);
 
     const project = await getProject(page);
-    const byId = new Map((project.castMembers || []).map((m: any) => [m.id, m.name]));
-    expect(byId.get('1')).toBe('FISHERMAN II');
+    const byId = new Map((project.castMembers || []).map((m: any) => [String(m.id), m.name]));
+    expect(byId.get(String(m1().id))).toBe(`${m1().name} II`);
     expect(byId.get('99')).toBe('EXTRA MAN');
     expect(project.breakdownElements.cast).toBeUndefined();
   });
@@ -123,33 +137,33 @@ test.describe('cast single source of truth (castMembers)', () => {
     const project = await getProject(page);
     expect(project).toBeTruthy();
     const names = (project.castMembers || []).map((m: any) => m.name);
-    expect(names).toContain('FISHERMAN');
-    expect(names).toContain('SENKAR');
+    expect(names).toContain(m1().name);
+    expect(names).toContain(m2().name);
     expect(project.breakdownElements.cast).toBeUndefined();
   });
 
   test('element manager cast edits land in castMembers and never re-create the mirror', async ({ page }) => {
     await openElementManagerCast(page);
 
-    // rename cast member 1 (FISHERMAN) via the ID+Name row
-    const row = page.locator('tr', { has: page.locator('input[value="FISHERMAN"]') });
+    // rename the lead cast member via the ID+Name row
+    const row = page.locator('tr', { has: page.locator(`input[value="${m1().name}"]`) });
     const nameInput = row.locator('input').last();
     await nameInput.click();
     await page.keyboard.press('Meta+A');
-    await page.keyboard.type('FISHERMAN II', { delay: 15 });
+    await page.keyboard.type(`${m1().name} II`, { delay: 15 });
     await page.keyboard.press('Enter');
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await waitForPersistedProject(page, "(p.castMembers.find(m => m.id === '1') || {}).name === 'FISHERMAN II'");
+    await waitForPersistedProject(page, `(p.castMembers.find(m => String(m.id) === '${m1().id}') || {}).name === '${m1().name} II'`);
 
     const project = await getProject(page);
-    const member = (project.castMembers || []).find((m: any) => m.id === '1');
+    const member = (project.castMembers || []).find((m: any) => String(m.id) === String(m1().id));
     expect(member).toBeTruthy();
-    expect(member.name).toBe('FISHERMAN II');
+    expect(member.name).toBe(`${m1().name} II`);
     expect(project.breakdownElements.cast).toBeUndefined();
     // scene cast references still by id
     const castVals = project.scenes.map((s: any) => s.cast || '').join(', ');
-    expect(castVals.includes('1')).toBe(true);
+    expect(castVals.includes(String(m1().id))).toBe(true);
   });
 
   test('scene sheet cast dropdown lists members from castMembers', async ({ page }) => {
@@ -158,11 +172,15 @@ test.describe('cast single source of truth (castMembers)', () => {
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();
 
     // The Cast box renders an EntityDropdown; clicking it opens a panel with member items
-    const castInput = page.locator('input[value="4, 11"]').first();
+    const firstCast = await page.evaluate(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return String(p.scenes[0].cast || '');
+    });
+    const castInput = page.locator(`input[value="${firstCast}"]`).first();
     await castInput.click();
 
-    await expect(page.getByText('FISHERMAN', { exact: true }).first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('SENKAR', { exact: true }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(m1().name, { exact: true }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(m2().name, { exact: true }).first()).toBeVisible({ timeout: 5000 });
     await page.keyboard.press('Escape');
   });
 
@@ -173,8 +191,8 @@ test.describe('cast single source of truth (castMembers)', () => {
     await page.locator('aside').getByRole('button', { name: /Cast/ }).click();
 
     // members with scenes show as "id. name"
-    await expect(page.getByText('1. FISHERMAN', { exact: false }).first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('4. JO', { exact: false }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(`${m1().id}. ${m1().name}`, { exact: false }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(`${m4().id}. ${m4().name}`, { exact: false }).first()).toBeVisible({ timeout: 5000 });
   });
 
   test('CSV import: cast members land in castMembers, scenes reference ids, elements in breakdownElements', async ({ page }) => {
@@ -255,22 +273,22 @@ test.describe('cast single source of truth (castMembers)', () => {
 
     // Rules tab — color rule cards render cast conditions as "id. name"
     await page.getByRole('button', { name: 'Rules' }).click();
-    await expect(page.getByText('1. FISHERMAN', { exact: false }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(`${m1().id}. ${m1().name}`, { exact: false }).first()).toBeVisible({ timeout: 5000 });
 
     // Reports -> Day Out of Days -> Print dialog lists members
     await page.getByRole('button', { name: 'Reports' }).click();
     await page.getByRole('button', { name: 'Print' }).click();
-    await expect(page.getByText('1. FISHERMAN', { exact: false }).first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('4. JO', { exact: false }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(`${m1().id}. ${m1().name}`, { exact: false }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(`${m4().id}. ${m4().name}`, { exact: false }).first()).toBeVisible({ timeout: 5000 });
     await page.keyboard.press('Escape');
 
     // Schedule -> Print -> Cast List renders in the print output
     await page.evaluate(() => { window.print = () => {}; });
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.getByRole('button', { name: 'Print' }).click();
+    await page.getByRole('button', { name: 'Print', exact: true }).click();
     await page.getByRole('button', { name: 'Print / Save PDF' }).click();
     await expect(page.locator('.print-root')).toBeAttached({ timeout: 5000 });
-    await expect(page.getByText('FISHERMAN', { exact: false }).first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('JO', { exact: false }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(m1().name, { exact: false }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(m4().name, { exact: false }).first()).toBeVisible({ timeout: 5000 });
   });
 });

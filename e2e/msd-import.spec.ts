@@ -26,6 +26,7 @@ type PState = {
     };
     versions: any[];
     activeVersionId: string;
+    calendarVersions?: any[];
   };
 };
 
@@ -173,11 +174,17 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
       const scheduledLabels = scheduled.map((r: any) => byId.get(r.sceneId));
       expect(scheduledLabels).toEqual(goldenStripLabels(gv));
 
-      expect(v.productionStart).toBe(GOLDEN.calendars[gv.calendar]?.productionStart);
-      const expectedNS = GOLDEN.calendars[gv.calendar]?.nonShootDates || [];
-      expect((v.nonShootDates || []).map((n: any) => n.date + ':' + n.status)).toEqual(
-        expectedNS.map((n: any) => n.date + ':' + n.status),
+      // Calendar data lives on CalendarVersion (item 66) — each board's MMS
+      // calendar is materialized as one calendar version; the version rows
+      // themselves only carry the stripboard. Assert some calendar version
+      // matches the golden board's calendar content.
+      const gCal = GOLDEN.calendars[gv.calendar];
+      const materialized = (p.calendarVersions || []).some((c: any) =>
+        c.productionStart === gCal?.productionStart &&
+        (c.nonShootDates || []).map((n: any) => n.date + ':' + n.status).join(',') ===
+          (gCal?.nonShootDates || []).map((n: any) => n.date + ':' + n.status).join(',')
       );
+      expect(materialized, `version ${gv.name} materializes its MMS calendar`).toBe(true);
     }
   });
 });

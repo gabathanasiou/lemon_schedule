@@ -26,6 +26,13 @@ test.describe('Crew Glide', () => {
   test('add via add-row, create roles in cells, sort, go-to-manager, CSV round trip', async ({ page }) => {
     await openSeededProject(page);
 
+    // The seed ships crew members — start from an empty crew (persisted).
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      b.dispatch({ type: 'UPDATE_PROJECT', payload: { crew: {} } });
+    });
+    await expect.poll(() => memberCount(page)).toBe(0);
+
     await page.getByRole('button', { name: 'Production', exact: true }).click();
         await page.getByRole('button', { name: 'Crew Glide', exact: true }).click();
     

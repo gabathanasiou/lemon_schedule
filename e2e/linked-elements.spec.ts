@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, seedLeadCast } from './helpers';
 
 // Roadmap 44 — linked elements: one-way anchor-based links. Adding the
 // anchor to a scene (any write path — Scene Sheet here) adds its linked
@@ -7,7 +7,7 @@ import { openSeededProject } from './helpers';
 // first (cancel keeps it; confirm cascades). The Link Manager (Element
 // Manager → Links) manages links and retroactively applies them.
 
-// Anchor: cast member 1 (FISHERMAN — guaranteed present in the seed).
+// Anchor: the seed's lead cast member (guaranteed present + widely cast).
 async function seedRibbonElement(page: any) {
   await page.evaluate(() => {
     const b = (window as any).__lemonSchedule;
@@ -20,20 +20,20 @@ async function seedRibbonElement(page: any) {
   });
 }
 
-async function seedLinks(page: any) {
+async function seedLinks(page: any, anchorId: string) {
   await seedRibbonElement(page);
-  await page.evaluate(() => {
+  await page.evaluate((aId) => {
     const b = (window as any).__lemonSchedule;
     b.dispatch({
       type: 'UPDATE_PROJECT',
       payload: {
         elementLinks: [
-          { id: 'link-1', anchorCategory: 'cast', anchorValue: '1', linkedCategory: 'props', linkedValue: 'LINKED RIBBON' },
+          { id: 'link-1', anchorCategory: 'cast', anchorValue: String(aId), linkedCategory: 'props', linkedValue: 'LINKED RIBBON' },
         ],
       },
     });
-  });
-  return { anchorId: '1' };
+  }, anchorId);
+  return { anchorId };
 }
 
 // Scene WITHOUT the anchor (clean propagation target) — returns its index and cast.
@@ -82,7 +82,8 @@ async function sceneCast(page: any, id: string) {
 
 test('scene sheet: adding the anchor adds its linked elements', async ({ page }) => {
   await openSeededProject(page);
-  const { anchorId } = await seedLinks(page);
+  const anchor = await seedLeadCast(page);
+  const { anchorId } = await seedLinks(page, anchor.id);
   const target = await findScenes(page, anchorId);
 
   await gotoSheet(page, target.index);
@@ -102,7 +103,8 @@ test('scene sheet: adding the anchor adds its linked elements', async ({ page })
 
 test('scene sheet: removing an anchor with links warns — cancel keeps it, confirm cascades', async ({ page }) => {
   await openSeededProject(page);
-  const { anchorId } = await seedLinks(page);
+  const anchor = await seedLeadCast(page);
+  const { anchorId } = await seedLinks(page, anchor.id);
   const target = await findScenes(page, anchorId);
 
   await gotoSheet(page, target.index);
@@ -151,15 +153,22 @@ test('scene sheet: removing an anchor with links warns — cancel keeps it, conf
 test('link manager: anchor card links multiple elements and applies retroactively', async ({ page }) => {
   await openSeededProject(page);
   await seedRibbonElement(page);
-  const anchorId = '1';
+  const anchor = await seedLeadCast(page);
+  const anchorId = anchor.id;
+  // The seed ships its own links — clear them so exactly one anchor card exists.
+  await page.evaluate(() => {
+    const b = (window as any).__lemonSchedule;
+    b.dispatch({ type: 'UPDATE_PROJECT', payload: { elementLinks: [] } });
+  });
 
-  // Find a scene with the anchor but no props yet (clean retroactive target).
+  // Find a scene with the anchor and clear its props (clean retroactive target).
   const target = await page.evaluate((aId) => {
     const b = (window as any).__lemonSchedule;
     const p = b.getProject();
     const s = p.scenes.find((x: any) =>
-      (x.cast || '').split(',').map((c: string) => c.trim()).includes(String(aId)) && !x.props);
-    if (!s) throw new Error('seed: no scene with anchor and empty props');
+      (x.cast || '').split(',').map((c: string) => c.trim()).includes(String(aId)));
+    if (!s) throw new Error('seed: no scene with anchor');
+    b.dispatch({ type: 'UPDATE_SCENE', payload: { id: s.id, props: '' } });
     return { id: s.id };
   }, anchorId);
 
@@ -174,9 +183,9 @@ test('link manager: anchor card links multiple elements and applies retroactivel
   // Day-status-modal style rows: type to filter, CLICK the item (mouse).
   const elementInput = modal.locator('[data-el-dropdown] input');
   await elementInput.nth(0).click();
-  await page.keyboard.type('fish');
-  await page.getByText('FISHERMAN', { exact: true }).last().click();
-  await expect(elementInput.nth(0)).toHaveValue('1');
+  await page.keyboard.type(anchor.name.slice(0, 4));
+  await page.getByText(anchor.name, { exact: true }).last().click();
+  await expect(elementInput.nth(0)).toHaveValue(String(anchorId));
 
   // Linked row = multi-select per category: pick BOTH ribbon props in it.
   await elementInput.nth(1).click();
@@ -193,7 +202,7 @@ test('link manager: anchor card links multiple elements and applies retroactivel
   // One linked row per category: Add pre-fills the NEXT unused category
   // (cast + sets skipped → Background Actors), so a duplicate Props row
   // can't be created by adding.
-  await modal.getByRole('button', { name: 'Add Linked Element' }).click();
+  await modal.getByRole('button', { name: 'Add Linked Element' }).first().click();
   await expect(modal.getByRole('button', { name: 'Background Actors', exact: true })).toBeVisible();
 
   // Used categories are DISABLED in the linked row's category menu…
@@ -253,19 +262,20 @@ test('link manager: anchor card links multiple elements and applies retroactivel
 test('anchored elements show an anchor icon in pickers (link manager + scene sheet)', async ({ page }) => {
   await openSeededProject(page);
   await seedRibbonElement(page);
-  await page.evaluate(() => {
+  const anchor = await seedLeadCast(page);
+  await page.evaluate((aId) => {
     const b = (window as any).__lemonSchedule;
     b.dispatch({
       type: 'UPDATE_PROJECT',
       payload: {
         elementLinks: [
-          { id: 'link-1', anchorCategory: 'cast', anchorValue: '1', linkedCategory: 'props', linkedValue: 'LINKED RIBBON' },
+          { id: 'link-1', anchorCategory: 'cast', anchorValue: String(aId), linkedCategory: 'props', linkedValue: 'LINKED RIBBON' },
         ],
       },
     });
-  });
+  }, anchor.id);
 
-  // Link Manager: the anchor picker shows the icon next to FISHERMAN (cast 1)…
+  // Link Manager: the anchor picker shows the icon next to the anchor member…
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
   await page.getByRole('button', { name: 'Element Manager' }).click();
   await page.getByRole('button', { name: 'Links', exact: true }).click();
@@ -274,8 +284,8 @@ test('anchored elements show an anchor icon in pickers (link manager + scene she
   const elementInput = modal.locator('[data-el-dropdown] input');
 
   await elementInput.nth(0).click();
-  await page.keyboard.type('fish');
-  const anchorRow = page.getByText('FISHERMAN', { exact: true }).last();
+  await page.keyboard.type(anchor.name.slice(0, 4));
+  const anchorRow = page.getByText(anchor.name, { exact: true }).last();
   await expect(anchorRow).toBeVisible();
   await expect(anchorRow.locator('xpath=ancestor::button').locator('svg.lucide-anchor')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -295,8 +305,8 @@ test('anchored elements show an anchor icon in pickers (link manager + scene she
   const castBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Cast', { exact: true }) }).first();
   const castInput = castBox.locator('input').first();
   await castInput.click();
-  await page.keyboard.type('fish');
-  const sheetRow = page.getByText('FISHERMAN', { exact: true }).last();
+  await page.keyboard.type(anchor.name.slice(0, 4));
+  const sheetRow = page.getByText(anchor.name, { exact: true }).last();
   await expect(sheetRow).toBeVisible();
   await expect(sheetRow.locator('xpath=ancestor::button').locator('svg.lucide-anchor')).toBeVisible();
 });

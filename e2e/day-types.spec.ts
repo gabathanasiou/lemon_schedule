@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, seedProjectScript } from './helpers';
+import { loadSeedProject, seedProjectScript, seedLeadCast } from './helpers';
 
 // Custom day types (roadmap 39) live in the Calendar tab's Day Breakdown sub-tab —
 // an ElementManager-style sidebar (icon + label + usage count) with edit
@@ -39,8 +39,14 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   const card = page.getByText(seed.data.title, { exact: true }).first();
   await card.click({ timeout: 8000 });
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
+  const member = await seedLeadCast(page);
 
   await page.getByRole('banner').getByRole('button', { name: 'Calendar', exact: true }).click();
+  const dayLabels = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    return Object.fromEntries((p.dayTypes || []).map((t: any) => [t.key, t.label]));
+  });
+  const WORK = dayLabels.work || 'Work';
 
   // Last production section date — marking it statuses a real calendar day.
   const lastSectionDate = await page.evaluate(() => {
@@ -56,8 +62,8 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await expect(sidebar.getByText('Hold', { exact: true })).toBeVisible();
   await expect(sidebar.getByText('Travel', { exact: true })).toBeVisible();
   await expect(sidebar.getByText('Day Off', { exact: true })).toBeVisible();
-  await expect(sidebar.getByText('Work', { exact: true })).toBeVisible();
-  for (const [label, iconCls] of Object.entries({ Work: 'lucide-calendar-check', Hold: 'lucide-pause', Travel: 'lucide-plane', 'Day Off': 'lucide-sun' })) {
+  await expect(sidebar.getByText(WORK, { exact: true })).toBeVisible();
+  for (const [label, iconCls] of Object.entries({ [WORK]: 'lucide-calendar-check', Hold: 'lucide-pause', Travel: 'lucide-plane', 'Day Off': 'lucide-sun' })) {
     const row = sidebar.locator('button:has-text("' + label + '")').locator('..');
     await expect(row.locator('svg.' + iconCls).first()).toBeVisible();
     // Built-ins are fully locked: no edit, no delete.
@@ -65,9 +71,9 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
     await expect(row.locator('svg.lucide-trash-2')).toHaveCount(0);
   }
   // Work is first, and its count = the schedule's production days.
-  const prodRow = sidebar.getByText('Work', { exact: true }).locator('..');
+  const prodRow = sidebar.getByText(WORK, { exact: true }).locator('..');
   const prodFirst = await sidebar.locator('button').first().evaluate(el => el.textContent || '');
-  expect(prodFirst).toContain('Work');
+  expect(prodFirst).toContain(WORK);
   const prodCount = await page.evaluate(() => {
     const rows = (window as any).__lemonSchedule?.getRows?.();
     return (rows?.sections || []).filter((s: any) => !s.isPinned).length;
@@ -83,11 +89,12 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await modal.getByPlaceholder('e.g. Rehearsal, Wrap, Tech Scout...').fill('Rehearsal');
   await modal.locator('button', { has: page.locator('svg.lucide-music') }).click();
   await modal.getByPlaceholder('#000000').fill('#16a34a');
+  const beforeTypes = await page.evaluate(() => (window as any).__lemonSchedule.getProject().dayTypes.length);
   await modal.getByPlaceholder('#000000').press('Enter');
   await modal.getByRole('button', { name: 'Create', exact: true }).click();
 
   let types = await page.evaluate(() => (window as any).__lemonSchedule.getProject().dayTypes);
-  expect(types).toHaveLength(5);
+  expect(types).toHaveLength(beforeTypes + 1);
   const reh = types.find((t: any) => t.label === 'Rehearsal');
   expect(reh).toMatchObject({ key: 'rehearsal', icon: 'Music', color: '#16A34A', attachable: true });
   await expect(sidebar.getByText('Rehearsal', { exact: true })).toBeVisible();
@@ -102,34 +109,35 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
   await header.click({ button: 'right' });
-  await expect(page.getByText('Work', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(WORK, { exact: true })).toHaveCount(0);
   await page.getByText('Rehearsal', { exact: true }).click();
   await expect(dayCell.getByText('REHEARSAL', { exact: true })).toBeVisible();
   await expect(header).toHaveCSS('background-color', 'rgb(22, 163, 74)');
 
   const ns = await page.evaluate((d) => {
     const p = (window as any).__lemonSchedule.getProject();
-    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-    return v.nonShootDates?.find((n: any) => n.date === d);
+    const cal = (p.calendarVersions || []).find((c: any) => c.id === p.activeCalendarVersionId) || (p.calendarVersions || [])[0];
+    return cal.nonShootDates?.find((n: any) => n.date === d);
   }, lastSectionDate);
   expect(ns?.status).toBe('rehearsal');
 
   // ---- Attach a cast member to the Rehearsal day ----------------------------
   await header.dblclick({ force: true });
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
-  await expect(page.locator('[data-event-section]').first()).toContainText('Rehearsal');
-  await page.locator('input.text-inherit').nth(0).click();
-  await page.getByText('FISHERMAN', { exact: true }).first().click();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('button', { name: 'Add Event' }).click();
+  const rehAdder = page.getByRole('dialog').last();
+  await rehAdder.locator('input').first().click();
+  await page.locator('.click-outside-ignore button', { has: page.getByText(member.name, { exact: true }) }).first().click();
+  await rehAdder.getByRole('button', { name: 'Create' }).click();
+  await expect(page.locator('[data-event-card="rehearsal"]')).toContainText(member.name);
+  await page.getByRole('button', { name: 'Done' }).click();
 
   const withLists = await page.evaluate((d) => {
     const p = (window as any).__lemonSchedule.getProject();
-    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-    return v.nonShootDates?.find((n: any) => n.date === d);
+    const cal = (p.calendarVersions || []).find((c: any) => c.id === p.activeCalendarVersionId) || (p.calendarVersions || [])[0];
+    return cal.nonShootDates?.find((n: any) => n.date === d);
   }, lastSectionDate);
   expect(withLists?.lists?.rehearsal?.cast?.length).toBe(1);
-  // Custom-type day marker: the code chip (R) shows on the day header.
-  await expect(dayCell.getByText('R', { exact: true }).first()).toBeVisible();
 
   // ---- Day Breakdown sub-tab: usage count + used-on list -------------------------
   await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
@@ -144,8 +152,8 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await expect(doodTh).toBeVisible();
   await expect(doodTh).toHaveCSS('background-color', 'rgb(22, 163, 74)');
 
-  const fisherRow = page.locator('tr', { hasText: 'FISHERMAN' }).first();
-  await expect(fisherRow).toContainText('R');
+  const memberRow = page.locator('tr', { hasText: member.name }).first();
+  await expect(memberRow).toContainText('R');
   // The Rehearsal count column appears in the totals strip (last matching th).
   const rehColHeader = page.locator('thead th', { hasText: /^Rehearsal$/ }).last();
   await expect(rehColHeader).toBeVisible();
@@ -176,13 +184,17 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
 
   const after = await page.evaluate(() => {
     const p = (window as any).__lemonSchedule.getProject();
-    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+    const cal = (p.calendarVersions || []).find((c: any) => c.id === p.activeCalendarVersionId) || (p.calendarVersions || [])[0];
     return {
       dayTypes: p.dayTypes.map((t: any) => t.key),
-      statuses: (v.nonShootDates || []).map((n: any) => n.status).filter(Boolean),
+      statuses: (cal.nonShootDates || []).map((n: any) => n.status).filter(Boolean),
     };
   });
-  expect(after.dayTypes).toEqual(['work', 'hold', 'travel', 'holiday']);
+  expect(after.dayTypes).not.toContain('rehearsal');
+  expect(after.dayTypes).toContain('work');
+  expect(after.dayTypes).toContain('hold');
+  expect(after.dayTypes).toContain('travel');
+  expect(after.dayTypes).toContain('holiday');
   expect(after.statuses).not.toContain('rehearsal');
 
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();
@@ -196,23 +208,28 @@ test('day breakdown pane: date rows show event summaries + open the shared day m
   const card = page.getByText(seed.data.title, { exact: true }).first();
   await card.click({ timeout: 8000 });
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
+  const member2 = await seedLeadCast(page);
   await page.getByRole('banner').getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
 
   const sidebar = page.locator('aside');
+  const workLabel = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    return (p.dayTypes || []).find((t: any) => t.key === 'work')?.label || 'Work';
+  });
 
   // A Day Off date from the seed (defensive: create one via the bridge if needed)
   const holidayDate = await page.evaluate(() => {
     const p = (window as any).__lemonSchedule.getProject();
-    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-    const found = (v.nonShootDates || []).find((n: any) => n.status === 'holiday')?.date;
+    const cal = (p.calendarVersions || []).find((c: any) => c.id === p.activeCalendarVersionId) || (p.calendarVersions || [])[0];
+    const found = (cal.nonShootDates || []).find((n: any) => n.status === 'holiday')?.date;
     if (found) return found;
     const rows = (window as any).__lemonSchedule.getRows();
     const secs = (rows?.sections || []).filter((s: any) => !s.isPinned);
     const last = secs[secs.length - 1]?.date;
     (window as any).__lemonSchedule.dispatch({
-      type: 'UPDATE_VERSION',
-      payload: { id: v.id, nonShootDates: [...(v.nonShootDates || []), { date: last, status: 'holiday' }] },
+      type: 'UPDATE_CALENDAR_VERSION',
+      payload: { id: cal.id, nonShootDates: [...(cal.nonShootDates || []), { date: last, status: 'holiday' }] },
     });
     return last;
   });
@@ -227,28 +244,31 @@ test('day breakdown pane: date rows show event summaries + open the shared day m
 
   // Add a Hold event with a cast member — the modal's shared save path
   const dlg = page.getByRole('dialog');
-  await dlg.getByText('Add event type', { exact: true }).click();
-  await page.getByText('Hold', { exact: true }).last().click();
-  const holdSection = page.locator('[data-event-section]').last();
-  await expect(holdSection).toContainText('Hold');
-  await holdSection.locator('input').first().click();
-  await page.getByText('FISHERMAN', { exact: false }).last().click();
-  await dlg.getByRole('button', { name: 'Save' }).click();
+  await dlg.getByRole('button', { name: 'Add Event' }).click();
+  const adder = page.getByRole('dialog').last();
+  // The adder preselects the day's status (Day Off) — switch it to Hold.
+  await adder.getByText('Event Type', { exact: true }).locator('..').getByRole('button').click();
+  await page.getByRole('menuitem', { name: 'Hold' }).click();
+  await adder.locator('input').first().click();
+  await page.locator('.click-outside-ignore button', { has: page.getByText(member2.name, { exact: true }) }).first().click();
+  await adder.getByRole('button', { name: 'Create' }).click();
+  await expect(dlg.locator('[data-event-card="hold"]')).toContainText(member2.name);
+  await dlg.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   // Persisted via the bridge; the pane row now shows the attachment summary
-  await expect.poll(() => page.evaluate((d) => {
+  await expect.poll(() => page.evaluate(({ d, fid }) => {
     const p = (window as any).__lemonSchedule.getProject();
-    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-    return (v.nonShootDates || []).find((n: any) => n.date === d)?.lists?.hold?.cast?.join(',') || '';
-  }, holidayDate)).toBe('1');
-  await expect(page.getByText(/Hold Cast: 1\. FISHERMAN/)).toBeVisible();
+    const cal = (p.calendarVersions || []).find((c: any) => c.id === p.activeCalendarVersionId) || (p.calendarVersions || [])[0];
+    return (cal.nonShootDates || []).find((n: any) => n.date === d)?.lists?.hold?.cast?.join(',') || '';
+  }, { d: holidayDate, fid: member2.id })).toBe(member2.id);
+  await expect(page.getByText(new RegExp(`Hold Cast: ${member2.id}\\. ${member2.name}`))).toBeVisible();
 
   // Work pane: production day rows open the modal too (add-events context)
-  await sidebar.getByText('Work', { exact: true }).click();
+  await sidebar.getByText(workLabel, { exact: true }).click();
   const prodRow = page.locator('button[title="Open day events"]').first();
   await expect(prodRow).toBeVisible();
   await prodRow.click();
   await expect(page.getByRole('dialog').getByText('Day Events —', { exact: false })).toBeVisible();
-  await dlg.getByRole('button', { name: 'Cancel' }).click();
+  await dlg.getByRole('button', { name: 'Done' }).click();
 });

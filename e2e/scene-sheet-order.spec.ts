@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, seedTitle } from './helpers';
 
 // Scene sheet view order (roadmap 51): the sheet navigates by Sheet order
 // (default), Scene Number order, or the current stripboard order. The order
@@ -87,11 +87,15 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Sheet' }).click();
 
-    // Jump to sheet 34 (a scene in the middle), then switch to Stripboard
-    // order — the SAME scene must stay visible.
-    await sheetJumpInput(page).fill('34');
+    // Jump to a mid-sheet scene, then switch to Stripboard order — the SAME
+    // scene must stay visible. (Seed-agnostic: resolve the scene at that sheet
+    // position from the project rather than assuming its number.)
+    const p0 = await project(page);
+    const midIdx = Math.min(33, p0.scenes.length - 2);
+    const midScene = p0.scenes[midIdx];
+    await sheetJumpInput(page).fill(String(midIdx + 1));
     await page.keyboard.press('Enter');
-    await expect(sceneNoInput(page)).toHaveValue('34');
+    await expect(sceneNoInput(page)).toHaveValue(String(midScene.sceneNumber));
 
     const sceneIdAt = async () => {
       const p = await project(page);
@@ -116,7 +120,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
       return p.scenes.find((s: any) => s.id === prevId)?.sceneNumber;
     }).toBe('999');
     // The sheet-order scene is untouched.
-    expect((await project(page)).scenes.find((s: any) => s.id === beforeId)?.sceneNumber).toBe('34');
+    expect((await project(page)).scenes.find((s: any) => s.id === beforeId)?.sceneNumber).toBe(String(midScene.sceneNumber));
 
     // Undo restores the edit (bridge-driven, one undo entry).
     await page.evaluate(() => (window as any).__lemonSchedule.undo());
@@ -133,7 +137,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     await expect(page.getByRole('button', { name: 'Scene Number Order' })).toBeVisible();
 
     await page.reload();
-    await page.getByText('Town - Jason', { exact: true }).first().click();
+    await page.getByText(seedTitle(), { exact: true }).first().click();
     await page.getByRole('button', { name: 'Sheet' }).click();
     await expect(page.getByRole('button', { name: 'Scene Number Order' })).toBeVisible();
     const pref = await page.evaluate(() => JSON.parse(localStorage.getItem('lemon_schedule_breakdown_order') || '{}').order);

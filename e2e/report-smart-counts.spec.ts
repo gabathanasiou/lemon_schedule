@@ -34,9 +34,11 @@ test('smart Element/Scene Count resolve per day and per category (scoped to the 
   const rows = version.rows.slice().sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
   const scheduledRows = rows.filter((r: any) => r.containerId != null && r.containerId !== -1);
   const boundaries = scheduledRows.filter((r: any) => r.type === 'DAYBREAK').map((r: any) => r.order);
+  // buildReportCtx skips rows AFTER the last daybreak (no section) — mirror it.
+  const lastBoundary = boundaries[boundaries.length - 1];
   const sceneById = new Map(project.scenes.map((s: any) => [s.id, s]));
   const scheduledScenes = scheduledRows
-    .filter((r: any) => r.type === 'SCENE' && r.sceneId)
+    .filter((r: any) => r.type === 'SCENE' && r.sceneId && r.order < lastBoundary)
     .map((r: any) => sceneById.get(r.sceneId))
     .filter(Boolean);
   const scenesOfDay = (k: number) =>

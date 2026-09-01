@@ -22,8 +22,8 @@ export async function ensureProject(page: Page) {
 }
 
 /**
- * Reads the "Town - Jason" demo project (.lemon = JSON export) from disk.
- * The file lives outside the repo (Downloads), so tests get real data to
+ * Reads the "IT'S A WONDERFUL LIFE" demo project (.lemon = JSON export) from
+ * disk. The file lives outside the repo (Downloads), so tests get real data to
  * exercise the schedule/calendar/glide views without committing the file.
  * Cached per mtime — one read + parse per suite run, not per test.
  */
@@ -31,7 +31,7 @@ let seedCache: { raw: string; data: any; mtimeMs: number } | null = null;
 export function loadSeedProject(): { raw: string; data: any } {
   const candidates = [
     process.env.LEMON_SEED_PATH,
-    path.join(os.homedir(), 'Downloads', 'Town - Jason.lemon'),
+    path.join(os.homedir(), 'Downloads', "IT'S A WONDERFUL LIFE.lemon"),
   ];
   for (const c of candidates) {
     if (!c) continue;
@@ -87,6 +87,11 @@ export function seedProjectScript(seed: { raw: string }): string {
   return script;
 }
 
+/** The seeded project's title (for specs that assert the app header). */
+export function seedTitle(): string {
+  return loadSeedProject().data.title;
+}
+
 /** Seeds the demo project and opens it from the Project Manager screen. */
 export async function openSeededProject(page: Page) {
   const seed = loadSeedProject();
@@ -95,6 +100,78 @@ export async function openSeededProject(page: Page) {
   const card = page.getByText(seed.data.title, { exact: true }).first();
   await card.click({ timeout: 8000 });
   await expect(APP_BOOT_ANCHOR(page)).toBeVisible({ timeout: 10000 });
+}
+
+// ---------------------------------------------------------------------------
+// Seed-agnostic data accessors. The suite must not assume the seed project's
+// cast/dates/elements (the seed is a real exported .lemon and can change) —
+// every spec resolves what it needs from the live debug bridge instead of
+// hardcoding "FISHERMAN" / "2026-08-10" / etc.
+// ---------------------------------------------------------------------------
+
+/** The seed's lead cast member: the one appearing in the most scheduled
+ *  scenes. `{ id, name }` — cast is referenced by ID everywhere. */
+export async function seedLeadCast(page: Page): Promise<{ id: string; name: string }> {
+  return page.evaluate(() => {
+    const b: any = (window as any).__lemonSchedule;
+    const p = b.getProject();
+    const cast: any[] = p.castMembers || [];
+    const rows = b.getRows();
+    const sceneIdByRow = new Map(
+      (rows.rows || []).filter((r: any) => r.type === 'SCENE' && r.sceneId).map((r: any) => [r.id, r.sceneId]),
+    );
+    const counts = new Map<string, number>();
+    for (const s of rows.sections || []) {
+      if (s.isPinned) continue;
+      for (const rid of s.rows || []) {
+        const sc = p.scenes.find((x: any) => x.id === sceneIdByRow.get(rid));
+        if (!sc) continue;
+        for (const id of String(sc.cast || '').split(',').map((x: string) => x.trim()).filter(Boolean)) {
+          counts.set(id, (counts.get(id) || 0) + 1);
+        }
+      }
+    }
+    let best = cast[0];
+    let bestN = -1;
+    for (const m of cast) {
+      const n = counts.get(String(m.id)) || 0;
+      if (n > bestN) { bestN = n; best = m; }
+    }
+    return { id: String(best?.id ?? ''), name: best?.name ?? '' };
+  });
+}
+
+/** The active calendar version (production window / nonShootDates source). */
+export async function activeCalendar(page: Page): Promise<any> {
+  return page.evaluate(() => {
+    const b: any = (window as any).__lemonSchedule;
+    const p = b.getProject();
+    return (p.calendarVersions || []).find((c: any) => c.id === p.activeCalendarVersionId) || (p.calendarVersions || [])[0] || null;
+  });
+}
+
+/** The schedule's production day dates (excludes the pinned daybreak anchor),
+ *  in calendar order — index 0 is DAY 1. */
+export async function seedDayDates(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const b: any = (window as any).__lemonSchedule;
+    const rows = b.getRows();
+    return (rows.sections || []).filter((s: any) => !s.isPinned).map((s: any) => s.date);
+  });
+}
+
+/** A named element in a breakdown category, or the first one when no name is
+ *  given. Resolves to `{ id, name }`. */
+export async function seedElement(page: Page, category: string, name?: string): Promise<{ id: string; name: string }> {
+  return page.evaluate(({ category, name }) => {
+    const b: any = (window as any).__lemonSchedule;
+    const p = b.getProject();
+    let list: any[] = [];
+    if (category === 'cast') list = p.castMembers || [];
+    else list = (p.breakdownElements || {})[category] || [];
+    const found = name ? list.find((e: any) => e.name === name) : list[0];
+    return { id: String(found?.id ?? ''), name: found?.name ?? '' };
+  }, { category, name });
 }
 
 /** Waits until the PERSISTED project in localStorage satisfies `expr` (a

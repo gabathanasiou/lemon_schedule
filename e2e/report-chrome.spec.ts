@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, seedTitle } from './helpers';
 
 async function openDesigner(page: any) {
   await openSeededProject(page);
@@ -10,7 +10,7 @@ async function openDesigner(page: any) {
 test('block chrome stays fully inside the viewport, also after scrolling', async ({ page }) => {
   await openDesigner(page);
 
-  const title = page.getByText('Town - Jason — One-Liner').first();
+  const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
   
@@ -77,7 +77,7 @@ test('table column chrome stays inside the viewport and anchors to its column', 
 test('token autocomplete anchors to the caret and stays inside the window', async ({ page }) => {
   await openDesigner(page);
 
-  const title = page.getByText('Town - Jason — One-Liner').first();
+  const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
   

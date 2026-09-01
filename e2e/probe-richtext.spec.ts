@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, seedTitle } from './helpers';
 
 async function openDesigner(page: any) {
   await openSeededProject(page);
@@ -9,7 +9,7 @@ async function openDesigner(page: any) {
 
 async function openTitleChrome(page: any) {
   await openDesigner(page);
-  const title = page.getByText('Town - Jason — One-Liner').first();
+  const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
     const chrome = page.locator('.block-chrome');
@@ -200,5 +200,5 @@ test('text styles modal: version-picker editing — create, rename, live preview
   await chrome.getByRole('button', { name: /Direct formatting/ }).click();
   await page.locator('.ui-menu').getByText('Test', { exact: true }).click();
   await expect(chrome.getByRole('button', { name: 'Test' })).toBeVisible({ timeout: 3000 });
-  await expect(page.getByText('Town - Jason — One-Liner').first()).toHaveCSS('font-size', '30px');
+  await expect(page.getByText(`${seedTitle()} — One-Liner`).first()).toHaveCSS('font-size', '30px');
 });

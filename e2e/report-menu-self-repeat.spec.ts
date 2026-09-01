@@ -27,7 +27,7 @@ test('repeat menu hides self-redundant days under a days parent', async ({ page 
   await expect(page.getByRole('button', { name: 'Days', exact: true })).toBeVisible({ timeout: 3000 });
 
   // Nest another repeat inside the Days repeat.
-  await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty'));
+  await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty').last());
   
   // The child's menu offers the contextual scenes (of this day) + base
   // collections, but NOT Days — a Days repeat inside a Days repeat is
@@ -52,7 +52,7 @@ test('repeat menu hides scenes under a scenes parent once the child is not over 
   
   // Nest a repeat inside it (child defaults to Scenes too — that IS the
   // current value, so it stays listed as exempted).
-  await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty'));
+  await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty').last());
     await expect(page.getByRole('button', { name: 'Scenes (of this scene)', exact: true })).toBeVisible({ timeout: 3000 });
 
   // Switch the child to Days.
@@ -79,7 +79,7 @@ test('repeat menu hides crew under a crew parent and keeps crew labels honest', 
   await expect(page.getByRole('button', { name: 'Crew', exact: true })).toBeVisible({ timeout: 3000 });
 
   // Nest a repeat inside the Crew repeat.
-  await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty'));
+  await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty').last());
   
   // Crew is non-rule-bearing: the child label has no "(of this crew member)"
   // decoration and its menu does NOT list Crew (self-redundant).
@@ -108,7 +108,7 @@ test('elements submenu grays the parent own category under a cast parent', async
   await expect(page.getByRole('button', { name: 'Elements · Cast', exact: true })).toBeVisible({ timeout: 3000 });
 
   // Nest a repeat inside the Cast repeat.
-  await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty'));
+  await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty').last());
   
   // Child over Scenes (default) — open its Elements submenu: Cast is the
   // parent's own category ("cast of this cast member") and must be grayed.
@@ -131,7 +131,7 @@ test('table over menu hides self-redundant collections under a days parent', asy
   await expect(page.getByRole('button', { name: 'Days', exact: true })).toBeVisible({ timeout: 3000 });
 
   // Nest a table inside the Days repeat.
-  await page.getByRole('button', { name: 'Table', exact: true }).dragTo(page.locator('.repeat-drop-empty'));
+  await page.getByRole('button', { name: 'Table', exact: true }).dragTo(page.locator('.repeat-drop-empty').last());
   
   // Nested table over menu: base collections minus self-redundant Days.
   await page.getByRole('button', { name: 'Scenes (of this day)', exact: true }).click();

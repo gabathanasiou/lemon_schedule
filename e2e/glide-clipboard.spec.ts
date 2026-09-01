@@ -124,24 +124,44 @@ test.describe('Glide Breakdown clipboard', () => {
     await expect.poll(async () => (await sceneData(page, row))?.num, { timeout: 8000 }).toBe(num);
   };
 
-  const FIRST_ROW_CLIP = /^1\t7\/8\t\tEXT\tCITY STREET\tDAY\t\t4, 11\t/;
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  /** Builds the clipboard regex for the FIRST scene row from the live project
+   *  (seed-agnostic). Row layout: `num pages <present> intExt set dayNight …` —
+   *  the <present> column may be empty or "Present". */
+  const firstRowClip = (page: any) => page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const s = p.scenes[0];
+    return {
+      num: String(s.sceneNumber),
+      pages: String(s.pageCount || ''),
+      intExt: s.intExt || '',
+      set: s.set || '',
+      dayNight: s.dayNight || '',
+    };
+  });
+
+  const FIRST_ROW_RE = (c: { num: string; pages: string; intExt: string; set: string; dayNight: string }) =>
+    new RegExp(`^${esc(c.num)}\\t${esc(c.pages)}\\t[^\\t]*\\t${esc(c.intExt)}\\t${esc(c.set)}\\t${esc(c.dayNight)}\\t`);
 
   test('CTX: Copy row', async ({ page }) => {
     await openGlide(page);
+    const first = await firstRowClip(page);
     await tapRowMarker(page, 0);
     const copyItem = page.getByText('Copy', { exact: true }).last();
     await expect(copyItem).toBeVisible();
     await copyItem.click();
-        await expect.poll(() => clipRead(page), { timeout: 5000 }).toMatch(FIRST_ROW_CLIP);
+        await expect.poll(() => clipRead(page), { timeout: 5000 }).toMatch(FIRST_ROW_RE(first));
   });
 
   test('CTX: Cut row clears it and copies to clipboard', async ({ page }) => {
     await openGlide(page);
+    const first = await firstRowClip(page);
     await tapRowMarker(page, 0);
     const cutItem = page.getByText('Cut', { exact: true }).last();
     await expect(cutItem).toBeVisible();
     await cutItem.click();
-        await expect.poll(() => clipRead(page), { timeout: 5000 }).toMatch(FIRST_ROW_CLIP);
+        await expect.poll(() => clipRead(page), { timeout: 5000 }).toMatch(FIRST_ROW_RE(first));
     await expectSceneNum(page, 0, '');
   });
 
@@ -169,9 +189,10 @@ test.describe('Glide Breakdown clipboard', () => {
 
   test('KB: Cmd+C copies the focused cell', async ({ page }) => {
     await openGlide(page);
+    const first = await firstRowClip(page);
     await tapCell(page, 0, 0);
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+c' : 'Control+c');
-        await expect.poll(() => clipRead(page), { timeout: 5000 }).toBe('1');
+        await expect.poll(() => clipRead(page), { timeout: 5000 }).toBe(first.num);
   });
 
   test('KB: Cmd+V pastes into the focused cell', async ({ page }) => {
@@ -184,9 +205,10 @@ test.describe('Glide Breakdown clipboard', () => {
 
   test('KB: Cmd+X cuts the focused cell', async ({ page }) => {
     await openGlide(page);
+    const first = await firstRowClip(page);
     await tapCell(page, 0, 0);
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+x' : 'Control+x');
-        await expect.poll(() => clipRead(page), { timeout: 5000 }).toBe('1');
+        await expect.poll(() => clipRead(page), { timeout: 5000 }).toBe(first.num);
     await expectSceneNum(page, 0, '');
   });
 

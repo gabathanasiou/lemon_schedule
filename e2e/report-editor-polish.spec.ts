@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, seedTitle } from './helpers';
 
 async function openDesigner(page: any) {
   await openSeededProject(page);
@@ -31,7 +31,7 @@ test('floating block editor shows per-type controls on selection', async ({ page
   await openDesigner(page);
 
   // the one-liner title text block
-  const title = page.getByText('Town - Jason — One-Liner').first();
+  const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
   
@@ -50,7 +50,7 @@ test('floating block editor shows per-type controls on selection', async ({ page
   await chrome.locator('.richtext-editor').click();
   await page.keyboard.press('End');
   await page.keyboard.type(' — DRAFT');
-    await expect(page.getByText('Town - Jason — One-Liner — DRAFT')).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText(`${seedTitle()} — One-Liner — DRAFT`)).toBeVisible({ timeout: 3000 });
 });
 
 async function countColumns(page: any, table: any): Promise<number> {
@@ -62,7 +62,7 @@ async function countColumns(page: any, table: any): Promise<number> {
 test('text styles: applying a heading style overrides direct formatting', async ({ page }) => {
   await openDesigner(page);
 
-  const title = page.getByText('Town - Jason — One-Liner').first();
+  const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await expect(title).toHaveCSS('font-size', '16px');
 
@@ -88,7 +88,7 @@ test('text styles: applying a heading style overrides direct formatting', async 
 test('status bar: deselect clears selection; editor switches between chrome and toolbar', async ({ page }) => {
   await openDesigner(page);
 
-  const title = page.getByText('Town - Jason — One-Liner').first();
+  const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
     await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
@@ -104,7 +104,7 @@ test('status bar: deselect clears selection; editor switches between chrome and 
   await expect(page.getByText('Select a block to edit it. Click an item in the palette to add it.')).toBeVisible({ timeout: 3000 });
 
   // re-select → still pinned in the toolbar (mode persists per session)
-  await page.getByText('Town - Jason — One-Liner').first().click();
+  await page.getByText(`${seedTitle()} — One-Liner`).first().click();
     await expect(page.locator('.block-chrome')).toHaveCount(0);
   await expect(page.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
 

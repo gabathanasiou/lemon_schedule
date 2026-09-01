@@ -9,6 +9,10 @@ import { loadSeedProject, seedProjectScript } from './helpers';
 
 const B = (n: string) => `gbl-${n}`;
 
+/** The report text blocks HTML-escape quotes — decode before comparing. */
+const decodeHtml = (s: string) =>
+  s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+
 function gapBreakdownLookDesign() {
   return {
     id: 'gbl-test-design',
@@ -122,12 +126,12 @@ test('days repeat resolves Breakdown attributes per-day; palette offers the Brea
   // The tokens resolve to the sampled day's union instead of staying raw
   // {{tokens}}. (.report-text-block only — the block-card wrapper repeats the
   // same text.)
-  const canvasText = await page.evaluate(() =>
+  const canvasText = decodeHtml(await page.evaluate(() =>
     Array.from(document.querySelectorAll('.report-text-block'))
       .map(el => (el as HTMLElement).innerText?.trim())
       .filter(Boolean)
       .join('\n'),
-  );
+  ));
   expect(canvasText).toContain(`Day ${sampled.cast ? days.indexOf(sampled) + 1 : 1} — ${sampled.cast}`);
   expect(canvasText).toContain(`Props: ${sampled.props}`);
   expect(canvasText).not.toContain('{{cast}}');
@@ -160,7 +164,7 @@ test('preview renders a different Breakdown union for every day', async ({ page 
   await page.waitForFunction(() => document.querySelectorAll('[data-paginated="true"] .report-page').length >= 2, null, { timeout: 15000 });
 
   const text = await page.locator('.report-page').allInnerTexts();
-  const joined = text.join('\n');
+  const joined = decodeHtml(text.join('\n'));
   expect(joined).toContain(`Day 1 — ${days[0].cast}`);
   expect(joined).toContain(`Day 2 — ${days[1].cast}`);
   expect(joined).toContain(`Props: ${days[1].props}`);

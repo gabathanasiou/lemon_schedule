@@ -62,13 +62,14 @@ test.describe('Crew Manager', () => {
 
     await page.getByRole('button', { name: 'File' }).click();
     await page.getByRole('menuitem', { name: 'Trash...' }).click();
-    const trashOverlay = page.locator('.fixed.inset-0.z-\\[9999\\]');
-    await expect(trashOverlay.locator('h2', { hasText: 'Trash' })).toBeVisible();
-    const janeTrashRow = trashOverlay.locator('div.flex.items-center.justify-between').filter({ hasText: 'Jane Doe' });
+    await expect(page.getByRole('heading', { name: 'Trash' })).toBeVisible();
+    const crewSection = page.locator('[data-trash-section="crew"]');
+    await expect(crewSection).toBeVisible();
+    const janeTrashRow = crewSection.locator('[data-trash-item="crew"]').filter({ hasText: 'Jane Doe' });
     await expect(janeTrashRow).toBeVisible();
     await janeTrashRow.getByTitle('Restore').click();
         await expect(janeTrashRow).toHaveCount(0);
-    await trashOverlay.click({ position: { x: 10, y: 10 } });
+    await page.keyboard.press('Escape');
         await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
 
     // Add a custom role via the modal; it becomes the active selection

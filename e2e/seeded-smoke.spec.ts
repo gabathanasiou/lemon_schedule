@@ -4,7 +4,7 @@ import { openSeededProject } from './helpers';
 test.describe('Seeded Project Smoke Tests', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('loads the Town - Jason project and renders the schedule stripboard', async ({ page }) => {
+  test('loads the seeded project and renders the schedule stripboard', async ({ page }) => {
     await openSeededProject(page);
 
     const scheduleBtn = page.getByRole('button', { name: 'Schedule' });
@@ -54,7 +54,7 @@ test.describe('Schedule Tab Toolbar & Context Menu', () => {
     await page.getByRole('button', { name: 'Schedule' }).click();
 
     await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Print' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Print', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Day Breaks' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Banners' })).toBeVisible();
     await expect(page.locator('text=days').first()).toBeVisible();
@@ -104,7 +104,7 @@ test.describe('Print', () => {
     await openSeededProject(page);
 
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.getByRole('button', { name: 'Print' }).click();
+    await page.getByRole('button', { name: 'Print', exact: true }).click();
 
     await page.getByRole('button', { name: 'Print / Save PDF' }).click();
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, seedLeadCast } from './helpers';
 
 // Roadmap 65: global (every-day) rules never render a card in Calendar
 // Events mode — their home is the Rules tab (they still fire in the
@@ -10,31 +10,32 @@ import { openSeededProject } from './helpers';
 
 test('events mode: global rule cards hidden; dated rule card is flag-left / icon-right, per-date menu', async ({ page }) => {
   await openSeededProject(page);
+  const cast = await seedLeadCast(page);
   await page.getByRole('button', { name: 'Calendar' }).click();
 
   // One global rule (CAST_SCENE_FLAG — no dates) + one dated MAX_HOURS on a
-  // production day where FISHERMAN (cast id 1) actually works — the 1h cap
-  // fires there (violated card). Via the bridge.
-  const added = await page.evaluate(() => {
+  // production day where the lead cast actually works — the 1h cap fires
+  // there (violated card). Via the bridge, resolved against the seed.
+  const added = await page.evaluate((fid) => {
     const v = (window as any).__lemonSchedule;
     const rows = v.getRows();
     const p = v.getProject();
     const secs = (rows?.sections || []).filter((s: any) => !s.isPinned);
-    const fisherDay = secs.find((s: any) => s.rows.some((r: any) => {
+    const workDay = secs.find((s: any) => s.rows.some((r: any) => {
       const scene = p.scenes.find((x: any) => x.id === r.sceneId);
-      return scene && String(scene.cast || '').split(',').includes('1');
+      return scene && String(scene.cast || '').split(',').map((x: string) => x.trim()).includes(String(fid));
     }));
-    const date = fisherDay?.date ?? secs[secs.length - 1]?.date ?? '';
+    const date = workDay?.date ?? secs[secs.length - 1]?.date ?? '';
     v.dispatch({
       type: 'ADD_RULE',
-      payload: { id: 'ev-global', type: 'CAST_SCENE_FLAG', castIds: ['1'] },
+      payload: { id: 'ev-global', type: 'CAST_SCENE_FLAG', castIds: [String(fid)] },
     });
     v.dispatch({
       type: 'ADD_RULE',
-      payload: { id: 'ev-dated', type: 'MAX_HOURS', castId: '1', maxHours: 1, dates: [date] },
+      payload: { id: 'ev-dated', type: 'MAX_HOURS', castId: String(fid), maxHours: 1, dates: [date] },
     });
     return { last: date };
-  });
+  }, cast.id);
   expect(added.last).toBeTruthy();
 
   await page.getByRole('button', { name: 'Events', exact: true }).click();
@@ -53,12 +54,13 @@ test('events mode: global rule cards hidden; dated rule card is flag-left / icon
   await expect(inner).toHaveClass(/bg-red-100/);
 
   // Violated card: flag on the LEFT (first child), rule icon on the RIGHT.
+  // The icon is wrapped in a trailing <span>, so probe inside it.
   const iconOrder = await inner.evaluate(el => {
     const kids = Array.from(el.children) as HTMLElement[];
-    return {
-      first: kids[0]?.classList.contains('lucide-flag') ?? false,
-      last: kids[kids.length - 1]?.classList.contains('lucide-clock') ?? false,
-    };
+    const first = kids[0]?.classList.contains('lucide-flag') ?? false;
+    const lastWrap = kids[kids.length - 1];
+    const last = !!lastWrap?.querySelector('.lucide-clock');
+    return { first, last };
   });
   expect(iconOrder).toEqual({ first: true, last: true });
 
