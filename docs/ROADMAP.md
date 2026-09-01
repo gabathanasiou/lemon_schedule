@@ -1943,3 +1943,31 @@ a field, edit prefix/suffix/text).
 
 **Verify**: lint + `scene-sheet-cell-layout.spec.ts` + scene-sheet-order
 regression.
+
+## 96. Spread `wrapValue` (multiline entity dropdown + growing container) to the other surfaces (`[ ]`)
+
+- The Scene Sheet got the opt-in `wrapValue` prop (`EntityDropdown`: closed
+  values wrap onto new lines, the editor is a wrapping `<textarea>` covering
+  the whole cell, and the container grows with content — roadmap 95). The
+  SAME pain exists wherever an entity dropdown holds a long comma-list inside
+  a fixed container. Check and extend:
+- Candidate surfaces (verify each on a seeded project with a long cast/list):
+  - **Link Manager** (`elements/LinkManagerModal.tsx`) — the linked-element
+    rows are the chip-`EntityDropdown` `ElementPickerRow`s; long lists may
+    truncate and the row container stays fixed.
+  - **Glide overlay editors** (`src/lib/glideEditor.tsx`) — `autoGrow`
+    widens horizontally (roadmap 88) but never grows vertically/height.
+  - **Stripboard / boneyard cells** — edit-mode cells truncate; may be
+    intentionally single-line (leave if so — the sheet form was the pain).
+  - **Day/event modal attachment rows** (`DayEventsModal`, `ElementEventsModal`)
+    — multi-mode EntityDropdown rows.
+  - **Color Rules / rule editor cast pickers** (`rules/ElementPicker.tsx`).
+- The `wrapValue` prop is already opt-in and surface-agnostic; `resolveClosed`
+  resolves cast to "1. NAME". The worker should wire `wrapValue` per surface
+  where it fits (and stretch the container like the sheet's `flex flex-col` +
+  `flex-1` + `pb-[1lh]`), NOT change EntityDropdown's default behavior.
+- Decide per surface: full multiline growth vs. keep single-line cells that
+  are edited in place (stripboard). Document the choice in the item's Done
+  note. Only add to `SHEET`-adjacent specs that exercise the changed surface.
+
+**Verify**: lint + e2e for each surface actually changed.
