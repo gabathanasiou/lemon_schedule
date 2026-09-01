@@ -13,9 +13,6 @@ const BTN_LABEL = `${BTN} !text-zinc-300 hover:!bg-zinc-700`;
 const BTN_LABEL_DANGER = `${BTN} !text-zinc-300 hover:!bg-red-950/50`;
 const BTN_MOVE = `${BTN} !text-zinc-400 hover:!bg-zinc-700 !disabled:opacity-25`;
 const BTN_CHANGE = `${BTN} !text-zinc-300 hover:!bg-zinc-700`;
-const BTN_ICON = 'rounded !border flex items-center justify-center !disabled:opacity-25 transition-colors';
-const BTN_ICON_ACTIVE = '!bg-blue-900/50 !border-blue-700 !text-blue-300';
-const BTN_ICON_INACTIVE = '!bg-zinc-800 !border-zinc-700 !text-zinc-500 hover:!bg-zinc-700';
 const BTN_X = 'rounded !border !border-zinc-700 !bg-zinc-800 !text-zinc-400 hover:!bg-zinc-700 hover:!text-zinc-200 !disabled:opacity-25 flex items-center justify-center transition-colors';
 
 /**
@@ -223,10 +220,10 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
           const label = a === 'left' ? 'Align Left' : a === 'center' ? 'Align Center' : 'Align Right';
           return (
             <Tooltip key={a} content={label}>
-              <Button theme="dark"
+              <Button theme="dark" variant="tab" active={active}
                 onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
                 disabled={readOnly || !selCell}
-                className={`${BTN_ICON} ${active ? BTN_ICON_ACTIVE : BTN_ICON_INACTIVE}`}>
+                className={`!rounded-md ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-transparent !text-zinc-400 hover:!bg-zinc-800'}`}>
                 <Icon className="w-3 h-3 shrink-0" />
               </Button>
             </Tooltip>
@@ -241,10 +238,10 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
           const label = va === 'top' ? 'Align Top' : va === 'middle' ? 'Align Middle' : 'Align Bottom';
           return (
             <Tooltip key={va} content={label}>
-              <Button theme="dark"
+              <Button theme="dark" variant="tab" active={active}
                 onClick={() => selCell && setVerticalAlign(selId!, active && va !== 'middle' ? undefined : va)}
                 disabled={readOnly || !selCell}
-                className={`${BTN_ICON} ${active ? BTN_ICON_ACTIVE : BTN_ICON_INACTIVE}`}>
+                className={`!rounded-md ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-transparent !text-zinc-400 hover:!bg-zinc-800'}`}>
                 <Icon className="w-3 h-3 shrink-0" />
               </Button>
             </Tooltip>
