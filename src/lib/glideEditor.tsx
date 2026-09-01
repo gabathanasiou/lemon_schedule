@@ -76,10 +76,10 @@ export function createGlideCellEditor(opts: GlideEditorOptions) {
       };
 
       if (editorCfg.kind === 'enum') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={editorCfg.options} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={editorCfg.placeholder} />;
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={editorCfg.options} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={editorCfg.placeholder} autoGrow />;
       }
       const cfg = editorCfg;
-      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} />;
+      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} autoGrow />;
     };
     return { editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   };

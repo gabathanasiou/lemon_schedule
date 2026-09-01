@@ -250,6 +250,13 @@ app-wide).
 `EntityDropdown` as a cell editor: **separate commit from exit** — `onChange` updates the value,
 `onExit` leaves edit mode; never call both in one handler (editor unmounts and can't reopen).
 
+**Spreadsheet overlay editors** (`autoGrow`, EntityDropdown + AutocompleteDropdown): the inline
+editor grows with its content (`field-sizing: content`, `width: auto`, `w-max` wrapper) instead of
+filling the cell, capped at Glide's 400px overlay max then scrolling to the caret — so long
+comma-lists (cast, breakdown categories) stay visible while typing. Skips the transparent-input +
+truncate-span overlay and the hover/focus gray fill (those belong to in-cell editing, e.g. the
+Schedule stripboard, not popout editors).
+
 ## Modal anatomy & rules
 
 Structure (all in `src/components/Modal.tsx`):

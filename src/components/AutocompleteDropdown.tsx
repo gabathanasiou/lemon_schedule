@@ -62,6 +62,10 @@ interface AutocompleteDropdownProps {
   /** Called when Tab is pressed - allows passing movement to Glide's onFinishedEditing */
   onTabExit?: () => void;
   portalTarget?: HTMLElement | null;
+  /** Grow the inline editor's width with its content (`field-sizing: content`)
+   *  instead of filling the cell — for spreadsheet overlay editors so long
+   *  values stay visible while typing. */
+  autoGrow?: boolean;
 }
 
 export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
@@ -81,6 +85,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   onTabExit,
   portalTarget,
   fuzzy = false,
+  autoGrow = false,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const [keyboardMode] = useKeyboardMode();
@@ -191,7 +196,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
     : 'bg-transparent outline-none uppercase text-inherit w-full text-left';
 
   return (
-    <div ref={ref} className={standalone ? 'relative' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
+    <div ref={ref} className={standalone ? 'relative' : `relative ${autoGrow ? 'w-max ' : ''}${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
       <input
         autoFocus={autoFocusProp}
         readOnly={IS_COARSE && !hwKeyboard && keyboardMode === 'off'}
@@ -200,6 +205,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
         onClick={() => { setVal(value); typedRef.current = false; if (!open) { const idx = options.findIndex(opt => normalize(opt) === normalize(value)); setHighlightedIndex(idx >= 0 ? idx : 0); standalone ? setOpen(true) : handleOpen(); } }}
         onFocus={() => { typedRef.current = false; if (!open) { standalone ? setOpen(true) : undefined; } }}
         placeholder={placeholder}
+        style={autoGrow && !standalone ? { width: 'auto', fieldSizing: 'content', maxWidth: 400 } as React.CSSProperties : undefined}
         className={`${inputClasses} ${standalone ? '' : (className || '')}`}
         onKeyDown={e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, filtered.length - 1)); }

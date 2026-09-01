@@ -93,6 +93,10 @@ interface EntityDropdownProps {
    *  bordered button-like trigger with chevron — for modal rows like the link
    *  manager / color rules; panel behavior identical). */
   variant?: 'default' | 'chip';
+  /** Grow the inline editor's width with its content (`field-sizing: content`)
+   *  instead of filling the cell — for spreadsheet overlay editors so long
+   *  comma-lists (cast, breakdown categories) stay visible while typing. */
+  autoGrow?: boolean;
   /** Item keys that act as element-link anchors — an Anchor icon is shown next
    *  to them in the panel. Keys use `itemKey` space (cast: `e.id`, others:
    *  `e.name`; names matched case-insensitively). See `anchoredKeysFor`. */
@@ -229,6 +233,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   style,
   variant = 'default',
   anchoredKeys,
+  autoGrow = false,
 }) => {
   const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
@@ -508,7 +513,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       className={
         variant === 'chip'
           ? `${DD_CHIP_TRIGGER_CLASS} relative ${className || ''}`
-          : (standalone ? '' : `relative h-[1lh] ${className || ''}`)
+          : (standalone ? '' : `relative h-[1lh] ${autoGrow ? 'w-max ' : ''}${className || ''}`)
       }
       onMouseDown={e => e.stopPropagation()}
       onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}
@@ -538,9 +543,15 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           else el.setSelectionRange(len, len);
         }}
         onBlur={() => commit()}
-        placeholder={standalone ? placeholder : ''}
-        className={`${DD_INPUT_CLASS(standalone)} ${variant === 'chip' ? 'cursor-pointer pr-5' : ''} ${standalone ? '' : (className || '')} ${(standalone || variant === 'chip') ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`}
-        style={standalone ? style : { ...style, color: 'transparent', caretColor: '#2563eb' }}
+        placeholder={standalone || autoGrow ? placeholder : ''}
+        className={`${DD_INPUT_CLASS(standalone)} ${variant === 'chip' ? 'cursor-pointer pr-5' : ''} ${standalone ? '' : (className || '')} ${(standalone || variant === 'chip' || autoGrow) ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`}
+        style={
+          standalone
+            ? style
+            : autoGrow
+              ? { ...style, color: 'inherit', caretColor: '#2563eb', width: 'auto', fieldSizing: 'content', maxWidth: 400, minWidth: 72 } as React.CSSProperties
+              : { ...style, color: 'transparent', caretColor: '#2563eb' }
+        }
         onKeyDown={e => {
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') {
@@ -655,7 +666,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           }
         }}
       />
-      {!standalone && (
+      {!standalone && !autoGrow && (
         <span
           className={`absolute inset-y-0 truncate pointer-events-none whitespace-nowrap text-left flex items-center ${variant === 'chip' ? 'left-2.5 right-5' : 'inset-x-0'} ${displayValue ? '' : 'italic opacity-50'}`}
           style={style}
