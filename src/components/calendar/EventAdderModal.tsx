@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useProject } from '../../store';
 import { NonShootDate } from '../../types';
-import { getMarkableDayTypes, getDayType, typeIconComponent } from '../../lib/dayTypes';
+import { getAttachableDayTypes, getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { getNonShootEntryMap, upsertNonShootDate, NON_SHOOT_ALL, resolveElementName } from '../../lib/nonShootHelpers';
 import { getCategoryElements } from '../../lib/elements';
 import { anchoredKeysFor } from '../../lib/elementLinks';
@@ -13,6 +13,7 @@ import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { usePortalTarget } from '../../lib/popoutTarget';
+import { initialViewFor } from './calendarUtils';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import Button from '../Button';
@@ -68,7 +69,7 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
   const entryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
 
   const attachableTypes = useMemo(
-    () => getMarkableDayTypes(project).filter(t => t.attachable !== false),
+    () => getAttachableDayTypes(project),
     [project],
   );
   const [status, setStatus] = useState<string>(statusProp ?? (attachableTypes[0]?.key || 'travel'));
@@ -201,6 +202,7 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
               variant={locked ? 'inline' : 'chrome'}
               multi={locked}
               className={locked ? undefined : 'w-full'}
+              initialView={initialViewFor(dateKeys, activeCalendarVersion?.productionStart)}
             />
             {dateOutOfWindow && (
               <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>

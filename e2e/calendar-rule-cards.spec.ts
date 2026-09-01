@@ -4,11 +4,12 @@ import { openSeededProject, seedLeadCast } from './helpers';
 // Roadmap 65: global (every-day) rules never render a card in Calendar
 // Events mode — their home is the Rules tab (they still fire in the
 // stripboard/day headers via computeSectionViolationMap). Dated rule cards
-// render one card per date with the violation flag on the LEFT and the rule
-// icon on the RIGHT; their context menu is always the per-date
+// render one card per date; a VIOLATED card shows the red FLAG as its icon
+// (left, roadmap 73 — the rule kind is in the hover tooltip), a clean card
+// shows its rule icon; the context menu is always the per-date
 // "Remove from this day".
 
-test('events mode: global rule cards hidden; dated rule card is flag-left / icon-right, per-date menu', async ({ page }) => {
+test('events mode: global rule cards hidden; dated rule card is flag-as-icon-left, per-date menu', async ({ page }) => {
   await openSeededProject(page);
   const cast = await seedLeadCast(page);
   await page.getByRole('button', { name: 'Calendar' }).click();
@@ -53,16 +54,15 @@ test('events mode: global rule cards hidden; dated rule card is flag-left / icon
   const inner = card.locator('div').first();
   await expect(inner).toHaveClass(/bg-red-100/);
 
-  // Violated card: flag on the LEFT (first child), rule icon on the RIGHT.
-  // The icon is wrapped in a trailing <span>, so probe inside it.
+  // Violated card: the red FLAG is its icon (left, first child) — no rule-type
+  // icon, no trailing flag; the rule kind lives in the hover tooltip.
   const iconOrder = await inner.evaluate(el => {
     const kids = Array.from(el.children) as HTMLElement[];
     const first = kids[0]?.classList.contains('lucide-flag') ?? false;
-    const lastWrap = kids[kids.length - 1];
-    const last = !!lastWrap?.querySelector('.lucide-clock');
-    return { first, last };
+    const hasRuleIcon = !!el.querySelector('.lucide-clock');
+    return { first, hasRuleIcon };
   });
-  expect(iconOrder).toEqual({ first: true, last: true });
+  expect(iconOrder).toEqual({ first: true, hasRuleIcon: false });
 
   // Filter: All Rule Types off hides the dated card; back on restores it.
   await page.getByRole('button', { name: 'Filter' }).click();

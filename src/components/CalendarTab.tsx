@@ -42,7 +42,7 @@ import { useEventsDrag } from './calendar/useEventsDrag';
 import { useEventsKeyboard } from './calendar/useEventsKeyboard';
 import { DayTypesTab } from './calendar/DayTypesTab';
 import { PopoutPlaceholder } from './PopoutWindow';
-import { getDayTypes, getMarkableDayTypes, getDayTypeVisual, getDayTypeLabel, typeIconComponent } from '../lib/dayTypes';
+import { getDayTypes, getMarkableDayTypes, getAttachableDayTypes, getDayTypeVisual, getDayTypeLabel, typeIconComponent } from '../lib/dayTypes';
 import { getNonShootEntryMap, hasAnyLists, upsertNonShootDate } from '../lib/nonShootHelpers';
 import { computeDayEvents, removeRuleDate, withRuleDates, DEFAULT_EVENTS_FILTER } from '../lib/events';
 import { describeRule, RULE_TYPE_META, RULE_TYPES } from './rules/ruleMeta';
@@ -306,6 +306,18 @@ export const CalendarTab: React.FC<{
   }, [nonShootDates]);
 
   const nonShootEntryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
+
+  // Add-Events preselect (roadmap 73): the adder's event type defaults to the
+  // day's OWN type when that type can carry attachment cards (markable +
+  // attachable — same gate the adder applies, shared via
+  // getAttachableDayTypes so they can't drift). Non-attachable statuses
+  // (Day Off) and unmarked days keep the adder's first-attachable fallback.
+  const attachableTypeKeys = useMemo(() => new Set(getAttachableDayTypes(project).map(t => t.key)), [project]);
+  const adderStatus = useMemo(() => {
+    if (!adderDate) return undefined;
+    const status = nonShootDateMap.get(adderDate);
+    return status && attachableTypeKeys.has(status) ? status : undefined;
+  }, [adderDate, nonShootDateMap, attachableTypeKeys]);
 
   const handleTravelHoldSave = useCallback((dateKey: string, entry: NonShootDate) => {
     if (!activeCalendarVersion) return;
@@ -1478,6 +1490,7 @@ export const CalendarTab: React.FC<{
       {adderDate && (
         <EventAdderModal
           date={adderDate}
+          status={adderStatus}
           onClose={() => setAdderDate(null)}
         />
       )}

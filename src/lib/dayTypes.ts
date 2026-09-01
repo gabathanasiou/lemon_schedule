@@ -48,6 +48,14 @@ export function getMarkableDayTypes(project: Project): DayTypeDef[] {
   return resolveDayTypes(project.dayTypes).filter(t => t.markable !== false);
 }
 
+/** Types that can carry attachment event cards (markable AND attachable —
+ *  Work is never markable; Day Off is not attachable). One shared gate for
+ *  the event adder's type menu AND callers that preselect the adder's type
+ *  from a day's status — they must not drift. */
+export function getAttachableDayTypes(project: Project): DayTypeDef[] {
+  return getMarkableDayTypes(project).filter(t => t.attachable !== false);
+}
+
 export function getDayTypeDef(defs: DayTypeDef[] | undefined | null, key?: string | null): DayTypeDef | undefined {
   if (!key) return undefined;
   return resolveDayTypes(defs).find(t => t.key === key);
