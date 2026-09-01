@@ -57,6 +57,19 @@ export default function OfflineStatus({
           </div>
         );
       })()}
+      {!readOnly && isCloudProject && (!isSignedIn || needsReauth) && (
+        <div className="bg-amber-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
+          <span className="font-medium">
+            {needsReauth ? 'Session expired - sign in to resume editing' : 'Signed out of Google Drive - editing is disabled'}
+          </span>
+          <button
+            onClick={onSignIn}
+            className="ml-3 px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
+          >
+            Sign in
+          </button>
+        </div>
+      )}
       {showModal && (() => {
         const isAuthIssue = isCloudProject && (!isSignedIn || needsReauth);
         return (

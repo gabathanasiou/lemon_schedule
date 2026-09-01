@@ -3,10 +3,13 @@ import { GoogleOAuthProvider, useGoogleLogin, googleLogout } from '@react-oauth/
 
 const SESSION_KEY = 'lemon_google_signed_in';
 const TOKEN_KEY = 'lemon_google_token';
-// localStorage FLAG only — "this user has signed in before", used to trigger a
-// silent GIS token restore on fresh tabs. The token itself NEVER touches
-// localStorage (security rule: sessionStorage + useRef only); GIS holds the
-// real session (cookies/its own storage) and can mint a new token silently.
+// localStorage FLAG only — "this user has signed in before". Kept as a record
+// (written on login, cleared on logout) but no longer drives anything:
+// restoring a GIS session from it opened Google OAuth popups on fresh tabs for
+// users who were NOT actually signed in, so auto-restore was removed — new tabs
+// restore only from a real sessionStorage token, or the user signs in manually.
+// The token itself NEVER touches localStorage (security rule: sessionStorage +
+// useRef only); GIS holds the real session (cookies/its own storage).
 const SIGNED_IN_FLAG = 'lemon_google_was_signed_in';
 
 export interface GoogleUser {
@@ -51,6 +54,12 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
   const [tokenVersion, setTokenVersion] = useState(0);
   const accessTokenRef = useRef<string | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards so automatic silent refreshes can never stack popups: one in-flight
+  // at a time, and once a silent attempt fails non-fatally (popup blocked /
+  // user cancelled / no session), every later auto attempt no-ops until a real
+  // token is minted or the user signs in with a click.
+  const silentInFlightRef = useRef(false);
+  const silentStoppedRef = useRef(false);
 
   const fetchUserInfo = useCallback(async (token: string) => {
     try {
@@ -69,13 +78,22 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
   }, []);
 
   const doSilentRefresh = useCallback(() => {
+    // Auto attempts must never open a Google OAuth popup: skip if a refresh is
+    // already in flight, or if a previous silent attempt failed non-fatally
+    // (no live session / popup blocked). Only an explicit signIn() (or a fresh
+    // token) resets the stop flag.
+    if (silentInFlightRef.current) return;
+    if (silentStoppedRef.current) return;
     const gis = (window as any).google?.accounts?.oauth2;
     if (!gis) return;
+    silentInFlightRef.current = true;
     const client = gis.initTokenClient({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
       scope: 'https://www.googleapis.com/auth/drive.appdata',
       callback: (response: any) => {
+        silentInFlightRef.current = false;
         if (response.access_token) {
+          silentStoppedRef.current = false;
           accessTokenRef.current = response.access_token;
           sessionStorage.setItem(TOKEN_KEY, response.access_token);
           setIsSignedIn(true);
@@ -88,15 +106,17 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
         }
       },
       error_callback: (error: any) => {
+        silentInFlightRef.current = false;
         console.warn('GIS token client error:', error?.type);
-        // Popup-blocked / user-cancelled errors are NOT proof the session
-        // expired: Safari blocks the fallback popup when the silent refresh
-        // runs without a user gesture (ITP + timer-driven refresh). Treating
-        // those as "expired" locks cloud projects for no reason — the user
-        // just signs in with a click when they need to.
+        // A non-fatal failure means the user has no live Google session (or the
+        // browser blocked the fallback popup) — stop retrying automatically so
+        // repeated 401s / timers can't open a popup storm. The user signs in
+        // with a click when they need to.
         const fatalTypes = ['session_expired', 'access_denied', 'invalid_client', 'invalid_request', 'unauthorized_client', 'unsupported_grant_type'];
         if (error?.type && fatalTypes.includes(error.type)) {
           setNeedsReauth(true);
+        } else {
+          silentStoppedRef.current = true;
         }
       },
     });
@@ -115,6 +135,8 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
   const login = useGoogleLogin({
     scope: 'https://www.googleapis.com/auth/drive.appdata',
     onSuccess: async (tokenResponse) => {
+      silentInFlightRef.current = false;
+      silentStoppedRef.current = false;
       accessTokenRef.current = tokenResponse.access_token;
       setIsSignedIn(true);
       setNeedsReauth(false);
@@ -131,11 +153,16 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
   });
 
   const signIn = useCallback(() => {
+    // Explicit user gesture: always allow the popup, even if a previous
+    // automatic silent refresh failed and stopped the auto attempts.
+    silentStoppedRef.current = false;
     login();
   }, [login]);
 
   const signOut = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    silentInFlightRef.current = false;
+    silentStoppedRef.current = false;
     accessTokenRef.current = null;
     setIsSignedIn(false);
     setUser(null);
@@ -153,13 +180,12 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
       setIsSignedIn(true);
       fetchUserInfo(savedToken);
       scheduleTokenRefresh(savedToken);
-    } else if (localStorage.getItem(SIGNED_IN_FLAG)) {
-      // Fresh tab, user has signed in before: silently restore the GIS session
-      // (GIS persists its own session; the access token stays in sessionStorage,
-      // never localStorage). Two attempts to cover the GIS script load race.
-      setTimeout(() => doSilentRefresh(), 800);
-      setTimeout(() => doSilentRefresh(), 2500);
     }
+    // No auto-restore from the localStorage flag: attempting a GIS silent
+    // refresh for a session that isn't actually there opens Google OAuth
+    // popups on every fresh tab for users who are NOT signed in. New tabs
+    // restore only from a real sessionStorage token above; otherwise the user
+    // signs in manually with a click (File menu / PM footer / banner).
     setIsReady(true);
     return () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
