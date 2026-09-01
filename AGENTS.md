@@ -26,6 +26,7 @@
 
 ## Stack & Storage
 - React 19 + Vite 6 + Tailwind v4 (`@tailwindcss/vite`). Path alias `@/*` → root. Deploy base `/lemon_schedule/`.
+- **Radix pins (roadmap 71)**: keep `@radix-ui/react-dialog` ≥1.1.23 + `@radix-ui/react-dropdown-menu` ≥2.1.24 (single `react-dismissable-layer` ≥1.1.19). Older dismissable-layer (1.1.12) defers TOUCH outside-dismissal to the click, which on iPad left a stacked dialog's body locked at `pointer-events:none` when the top modal closed (the Add-Events Cancel freeze). Never bump one without the other (a partial bump forks the shared dismissable layer and breaks menus inside modals), and never add `.lemon`-seed-specific hardcoded dates to iPad specs.
 - State: Context + `useReducer` with undo/redo (`state.present` = active Project; `state.past/future`).
 - localStorage: index key `lemon_schedule_project_index`, per-project `lemon_schedule_project_v1_{id}`. Cloud projects (Drive) are NOT in localStorage index (filtered on save).
 - Bulk dispatches → wrap in `BATCH_START`/`BATCH_COMMIT` (nestable; outermost commits one undo entry).
