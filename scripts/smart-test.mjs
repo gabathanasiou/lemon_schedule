@@ -38,6 +38,7 @@ const REPORT = [
   'report-smart-scoping', 'report-sun-weather-map', 'report-violations',
   'report-xmlns', 'report-canvas-sampling', 'report-ribbon-samples',
   'report-breakdown-day-gap-look', 'report-table-resize',
+  'report-day-types',
   'print-dialog-dropdowns',
 ];
 const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'ribbon-text-size'];

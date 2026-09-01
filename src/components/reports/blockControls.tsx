@@ -682,10 +682,20 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
+  // Day-list fields (Work/Hold/Travel + dynamic per-type day lists + the Day
+  // Types rollup list): the toolbar's day-format dropdown applies to any block
+  // referencing one. The static base is extended by the `dayList` registry
+  // marker so dynamically-generated per-type lists register automatically.
+  const dayListKeys = useMemo(() => {
+    const set = new Set(DAY_LIST_FIELD_KEYS);
+    for (const f of allFields) if (f.dayList) set.add(f.key);
+    return set;
+  }, [allFields]);
+
   const hasDayList = block.type === 'text'
-    ? [...DAY_LIST_FIELD_KEYS].some(k => (block.text || '').includes(k))
-    : block.type === 'field' ? DAY_LIST_FIELD_KEYS.has(block.field || '')
-    : block.type === 'table' ? (block.columns || []).some(c => DAY_LIST_FIELD_KEYS.has(c.field))
+    ? [...dayListKeys].some(k => (block.text || '').includes(k))
+    : block.type === 'field' ? dayListKeys.has(block.field || '')
+    : block.type === 'table' ? (block.columns || []).some(c => dayListKeys.has(c.field))
     : false;
 
   // Controls group into labelled subsections (eyebrow + rule); blocks with a

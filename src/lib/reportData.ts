@@ -1,4 +1,4 @@
-import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation } from '../types';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { loadCategoryElements, elementMatchId } from './elements';
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
@@ -7,6 +7,7 @@ import { formatDateShort } from './utils';
 import { computeViolationIndex, violationTypeLabel } from './violations';
 import { typeLabelOf } from './locations';
 import { getDayTypes, codeForType } from './dayTypes';
+import { getStatusesWithLists, isElementMarked } from './nonShootHelpers';
 import { getBrowserTimeZone } from './timezones';
 import type { ReportLocation } from './reportWeather';
 
@@ -158,6 +159,26 @@ export interface ReportElementInfo {
   travelDays: number;
   startDate: string | null;
   finishDate: string | null;
+  /** Custom day-type attachment dates: type key → the element's days (status
+   *  OR card — the same `isElementMarked` scan the Element Manager's columns
+   *  use). Non-production dates get `day: -1` (no chrono day) so the
+   *  day-list fields render them as bare dates. Built-in work/hold/travel
+   *  stay on the trio above (deriveDood); custom types surface here. */
+  typeDayLists?: Record<string, { day: number; iso: string }[]>;
+}
+
+/** One day type, as a repeat/table item of the 'dayTypes' collection — the
+ *  "Day Type Breakdown" rollup. `days`/`dayCount` follow the events-count-
+ *  everywhere rule (status + cards); the Work built-in is the production's
+ *  shooting days (Work is the default state, never a stored status). */
+export interface ReportDayTypeInfo {
+  key: string;
+  label: string;
+  color?: string;
+  code: string;       // DOOD letter (codeForType)
+  dayCount: number;
+  days: string[];
+  dayEntries: { day: number; iso: string }[];
 }
 
 /** Production-wide aggregates (group 'Production' — the whole schedule). */
@@ -269,6 +290,7 @@ export function reportItemKey(collection: ReportCollection, item: ReportCollecti
   switch (collection) {
     case 'scenes': return (item as ReportSceneInfo).scene.id;
     case 'days': case 'daysOfCast': return (item as ReportDayInfo).section.index;
+    case 'dayTypes': case 'dayTypesOfElement': return (item as ReportDayTypeInfo).key;
     case 'cast': case 'elements': case 'elementsOfCategory': {
       const el = item as ReportElementInfo;
       return elementMatchId(el, el.category || 'props');
@@ -293,6 +315,7 @@ export function reportItemLabel(collection: ReportCollection, it: ReportCollecti
     case 'violationTypes': return (it as ReportViolationTypeInfo).label;
     case 'locations': case 'locationsOfType': return (it as ReportLocationInfo).name;
     case 'locationTypes': return (it as ReportLocationTypeInfo).label;
+    case 'dayTypes': case 'dayTypesOfElement': return (it as ReportDayTypeInfo).label;
     default: return '';
   }
 }
@@ -342,7 +365,7 @@ export function parentScenesOf(ctx: ReportCtx, parentItem: ReportCollectionItem 
     for (const v of any.violations as RuleViolation[]) for (const id of flaggedIdsOf(v)) ids.add(id);
     return ctx.sceneInfos.filter(si => ids.has(si.scene.id));
   }
-  if (typeof any.key === 'string' && any.label !== undefined) {                 // category
+  if (typeof any.key === 'string' && any.label !== undefined && Array.isArray(any.items)) { // category
     return ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, any.key).length > 0);
   }
   if (typeof any.id !== 'undefined' && typeof any.name !== 'undefined') {       // element / cast member
@@ -385,6 +408,7 @@ export interface ReportCtx {
   sceneInfos: ReportSceneInfo[];
   dayInfos: ReportDayInfo[];
   categoryInfos: ReportCategoryInfo[];
+  dayTypeInfos: ReportDayTypeInfo[];
   castNames: Map<string, string>;
   elementsCache: Map<string, ReportElementInfo[]>;
   crewItems: ReportCrewItem[];
@@ -464,6 +488,36 @@ export function buildReportCtx(
       sceneCount: sceneNums.length,
       firstScene: sceneNums[0] || '',
       lastScene: sceneNums[sceneNums.length - 1] || '',
+    });
+  }
+
+  // Day Type Breakdown rollup — one item per registry type. Work = the
+  // production's shooting days (the default state, never stored); every other
+  // type counts its statused days AND its card days (events count everywhere).
+  const chronoByDate = new Map(dayInfos.map(d => [d.date, d.chronoDay]));
+  const dayEntriesOf = (dates: string[]): { day: number; iso: string }[] =>
+    dates.map(iso => ({ iso, day: chronoByDate.get(iso) ?? -1 }));
+  const nonShootByDate = new Map<string, NonShootDate>((calendarVersion.nonShootDates || []).map(n => [n.date, n]));
+  const dayTypeInfos: ReportDayTypeInfo[] = [];
+  for (const t of getDayTypes(project)) {
+    let days: string[];
+    if (t.key === 'work') {
+      days = dayInfos.map(d => d.date);
+    } else {
+      days = [];
+      for (const [date, entry] of nonShootByDate) {
+        if (entry.status === t.key || getStatusesWithLists(entry).includes(t.key)) days.push(date);
+      }
+      days.sort();
+    }
+    dayTypeInfos.push({
+      key: t.key,
+      label: t.label,
+      color: t.color,
+      code: codeForType(project.dayTypes, t.key),
+      dayCount: days.length,
+      days,
+      dayEntries: dayEntriesOf(days),
     });
   }
 
@@ -557,6 +611,7 @@ export function buildReportCtx(
     sceneInfos,
     dayInfos,
     categoryInfos,
+    dayTypeInfos,
     castNames,
     elementsCache: new Map(),
     crewItems,
@@ -583,18 +638,27 @@ export function getElementsFor(ctx: ReportCtx, category: string): ReportElementI
 function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[] {
   const { project } = ctx;
   const elements = loadCategoryElements(project, category);
-  const stats = computeElementStats(ctx, category, elements);
+  const { totals, typeDayDates } = computeElementStats(ctx, category, elements);
   const matchId = (e: { id: string; name: string }) => elementMatchId(e, category);
   const chronoByDate = new Map(ctx.dayInfos.map(d => [d.date, d.chronoDay]));
   const toDayEntries = (list: string[]) => list
     .map(iso => ({ iso, day: chronoByDate.get(iso) ?? 0 }))
     .filter(e => e.day > 0);
+  // Custom-type dates keep non-production (statused) days — `day: -1` renders
+  // them as bare dates in the day-list fields (formatDayList).
+  const toTypeDayEntries = (list: string[]) => list
+    .map(iso => ({ iso, day: chronoByDate.get(iso) ?? -1 }));
   const out: ReportElementInfo[] = [];
   for (const e of elements) {
     const scenesOf = ctx.sceneInfos.filter(si =>
       ctx.sceneFieldItems(si.scene, category).some(v => v.toLowerCase() === matchId(e).toLowerCase())
     );
-    const t = stats.get(matchId(e));
+    const key = matchId(e);
+    const t = totals.get(key);
+    const typeDayLists: Record<string, { day: number; iso: string }[]> = {};
+    for (const [k, dates] of Object.entries(typeDayDates.get(key) || {})) {
+      typeDayLists[k] = toTypeDayEntries(dates);
+    }
     out.push({
       id: e.id,
       name: category === 'cast' ? ctx.castNames.get(e.id) || e.id : e.name,
@@ -611,6 +675,7 @@ function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[]
       travelDays: t?.travelDays ?? 0,
       startDate: t?.startDate ?? null,
       finishDate: t?.finishDate ?? null,
+      typeDayLists,
     });
   }
   return out;
@@ -620,7 +685,7 @@ function computeElementStats(
   ctx: ReportCtx,
   category: string,
   elements: { id: string; name: string }[],
-): Map<string, DoodTotals> {
+): { totals: Map<string, DoodTotals>; typeDayDates: Map<string, Record<string, string[]>> } {
   const isCast = category === 'cast';
   const matchKey = (e: { id: string; name: string }) => elementMatchId(e, category);
   const idToName = new Map<string, string>();
@@ -640,7 +705,41 @@ function computeElementStats(
     isCast ? undefined : idToName,
     typeCodes,
   );
-  return totals;
+  return { totals, typeDayDates: perElementTypeDayDates(ctx, category, elements, matchKey) };
+}
+
+/**
+ * Per-element day-type attachment dates — the events model (status OR card
+ * per `isElementMarked`, the same scan the Element Manager's day columns and
+ * the element events manager use). Unlike deriveDood's card-on-production-day
+ * cells, this covers statused (non-production) days too — a cast member on a
+ * Travel status day gets that travel date. Keyed by element match key.
+ */
+function perElementTypeDayDates(
+  ctx: ReportCtx,
+  category: string,
+  elements: { id: string; name: string }[],
+  matchKey: (e: { id: string; name: string }) => string,
+): Map<string, Record<string, string[]>> {
+  const out = new Map<string, Record<string, string[]>>();
+  const known = new Set(getDayTypes(ctx.project).map(t => t.key));
+  for (const entry of ctx.calendarVersion.nonShootDates || []) {
+    const active = new Set<string>();
+    if (entry.status && known.has(entry.status)) active.add(entry.status);
+    for (const k of getStatusesWithLists(entry)) if (known.has(k)) active.add(k);
+    if (active.size === 0) continue;
+    for (const e of elements) {
+      const refKey = matchKey(e);
+      for (const k of active) {
+        if (isElementMarked(entry, k, category, refKey)) {
+          let m = out.get(refKey);
+          if (!m) { m = {}; out.set(refKey, m); }
+          (m[k] = m[k] || []).push(entry.date);
+        }
+      }
+    }
+  }
+  return out;
 }
 
 export type ReportCollectionItem =
@@ -651,7 +750,8 @@ export type ReportCollectionItem =
   | ReportCrewItem
   | ReportViolationTypeInfo
   | ReportLocationInfo
-  | ReportLocationTypeInfo;
+  | ReportLocationTypeInfo
+  | ReportDayTypeInfo;
 
 export function resolveCollection(
   ctx: ReportCtx,
@@ -663,6 +763,29 @@ export function resolveCollection(
   switch (collection) {
     case 'scenes': return ctx.sceneInfos;
     case 'days': return ctx.dayInfos;
+    case 'dayTypes': return ctx.dayTypeInfos;
+    case 'dayTypesOfElement': {
+      // The day types THIS element has days in — derived from the parent
+      // element's attachment dates (status OR card; never re-derived).
+      const el = parentItem as ReportElementInfo | undefined;
+      if (!el) return [];
+      const byKey = ctx.dayTypeInfos.reduce<Record<string, ReportDayTypeInfo>>((m, i) => { m[i.key] = i; return m; }, {});
+      const out: ReportDayTypeInfo[] = [];
+      for (const [key, entries] of Object.entries(el.typeDayLists || {})) {
+        if (entries.length === 0) continue;
+        const def = byKey[key];
+        out.push({
+          key,
+          label: def?.label || key,
+          color: def?.color,
+          code: def?.code || key,
+          dayCount: entries.length,
+          days: entries.map(e => e.iso),
+          dayEntries: entries,
+        });
+      }
+      return out;
+    }
     case 'cast': return getElementsFor(ctx, 'cast');
     case 'elements': return getElementsFor(ctx, category || 'props');
     case 'categories': return ctx.categoryInfos;
@@ -765,11 +888,13 @@ export function resolveCollection(
 export const SKIP_EMPTY_TEST: Partial<Record<ReportCollection, (item: ReportCollectionItem) => boolean>> = {
   categories: (c: any) => c.elementCount > 0,
   locationTypes: (t: any) => (t as ReportLocationTypeInfo).count > 0,
+  dayTypes: (t: any) => (t as ReportDayTypeInfo).dayCount > 0,
 };
 
 export const SKIP_EMPTY_LABEL: Partial<Record<ReportCollection, string>> = {
   categories: 'Skip categories with no elements',
   locationTypes: 'Skip types with no locations',
+  dayTypes: 'Skip types with no days',
 };
 
 export function resolveCollectionItems(
@@ -812,6 +937,13 @@ export function resolveCollectionItems(
         case 'violationTypes': {
           const idInSet = (id: string) => sceneSets.every(set => set.some(si => si.scene.id === id));
           items = items.filter((t: any) => t.violations?.some((v: RuleViolation) => flaggedIdsOf(v).some(idInSet)));
+          break;
+        }
+        case 'dayTypes': case 'dayTypesOfElement': {
+          // Keep a type when EVERY ancestor set has a scene on one of its days
+          // ("this element's rehearsal days on this day" — same shape as the
+          // `days` filter, keyed by the item's dates instead of its section).
+          items = items.filter((t: any) => sceneSets.every(set => (t.days as string[] || []).some(d => set.some(si => si.date === d))));
           break;
         }
         default: break; // crew etc. — no scoping rule

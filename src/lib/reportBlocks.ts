@@ -359,6 +359,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   violationTypes: 'Violation Types',
   locations: 'Locations',
   locationTypes: 'Location Types',
+  dayTypes: 'Day Types',
   scenesOfDay: 'Scenes (of this day)',
   scenesOfElement: 'Scenes (of this element)',
   scenesOfCast: 'Scenes (of this cast member)',
@@ -366,9 +367,10 @@ export const COLLECTION_LABELS: Record<string, string> = {
   elementsOfCategory: 'Elements (of this category)',
   elementsOfScene: 'Elements (of this scene)',
   locationsOfType: 'Locations (of this type)',
+  dayTypesOfElement: 'Day Types (of this element)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'violationTypes', 'locations', 'locationTypes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'violationTypes', 'locations', 'locationTypes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
@@ -378,6 +380,7 @@ export function validCollections(parentCollection?: ReportCollection): ReportCol
     if (c === 'elementsOfCategory') return parentCollection === 'categories';
     if (c === 'elementsOfScene') return parentCollection === 'scenes';
     if (c === 'locationsOfType') return parentCollection === 'locationTypes';
+    if (c === 'dayTypesOfElement') return parentCollection === 'elements' || parentCollection === 'cast';
     return true;
   });
 }
@@ -425,6 +428,7 @@ export function isSelfRepeat(
   if (collection === 'locations') return parent === 'locations' || parent === 'locationsOfType';
   // typed parents: repeating the type collection inside itself is nonsense
   if (collection === 'locationTypes') return parent === 'locationTypes';
+  if (collection === 'dayTypes') return parent === 'dayTypes' || parent === 'dayTypesOfElement';
   // Elements submenu: the parent's own category under element/cast-item parents
   if (collection === 'elements') {
     if ((parent === 'elements' || parent === 'elementsOfCategory') && category !== undefined && category === parentCategory) return true;
@@ -438,13 +442,13 @@ export function contextualCollectionsFor(parentCollection?: ReportCollection): R
   const typed = TYPED_PARENT_COLLECTIONS.find(t => t.parent === parentCollection);
   if (typed) return [typed.child];
   if (parentCollection === 'days') return ['scenesOfDay'];
-  if (parentCollection === 'elements') return ['scenesOfElement'];
-  if (parentCollection === 'cast') return ['scenesOfCast', 'daysOfCast'];
+  if (parentCollection === 'elements') return ['scenesOfElement', 'dayTypesOfElement'];
+  if (parentCollection === 'cast') return ['scenesOfCast', 'daysOfCast', 'dayTypesOfElement'];
   if (parentCollection === 'scenes') return ['elementsOfScene'];
   return [];
 }
 
-export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType']);
+export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement']);
 
 /** Collections with NO Lego scene-rule — the "Only … in this …" scope checkbox
  *  is hidden for them and ancestor scoping is a no-op. */
@@ -470,6 +474,7 @@ export function parentNoun(parentCollection?: ReportCollection): string {
     case 'violationTypes': return 'violation type';
     case 'locations': case 'locationsOfType': return 'location';
     case 'locationTypes': return 'location type';
+    case 'dayTypes': case 'dayTypesOfElement': return 'day type';
     default: return 'item';
   }
 }
@@ -510,6 +515,10 @@ export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCol
   if (parentCollection === 'categories') return 'elements';
   if (parentCollection === 'locationTypes') return 'locations';
   if (parentCollection === 'scenes') return 'elements';
+  // Day-type items carry their OWN field scope (label/count/list), unlike the
+  // scene-ish contextual collections — a dayTypesOfElement table iterates
+  // day-type rows, so its columns pick day-type attributes.
+  if (block.collection === 'dayTypesOfElement') return 'dayTypesOfElement';
   const contextual = contextualCollectionsFor(parentCollection);
   if (block.collection && block.collection !== 'scenes' && !contextual.includes(block.collection)) return block.collection;
   return contextual.length > 0 ? 'scenes' : parentCollection;
@@ -534,6 +543,7 @@ export function defaultIdentityField(collection?: ReportCollection): string {
     case 'categories': return 'categoryLabel';
     case 'crew': return 'crewName';
     case 'violationTypes': return 'violationType';
+    case 'dayTypes': case 'dayTypesOfElement': return 'dayTypeLabel';
     default: return 'title';
   }
 }

@@ -3,11 +3,12 @@ import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
 import { parentNoun } from './reportBlocks';
-import { dayTypeLabelForDate } from './dayTypes';
+import { dayTypeLabelForDate, getDayTypes, codeForType, dayTypeForDate } from './dayTypes';
+import { getStatusesWithLists } from './nonShootHelpers';
 import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
-  ReportLocationInfo, ReportLocationTypeInfo, locationsOfItem, pickLocation,
+  ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, locationsOfItem, pickLocation,
 } from './reportData';
 
 // Single field registry for the Reports Designer. Attributes only exist in the
@@ -23,10 +24,14 @@ export interface ReportFieldDef {
   key: string;
   label: string;
   group: string;
-  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart' | 'violationTypes' | 'locations' | 'locationTypes';
+  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart' | 'violationTypes' | 'locations' | 'locationTypes' | 'dayTypes';
   align?: 'left' | 'center' | 'right';
   defaultWidth?: number;
   multiValue?: boolean;  // value is a comma-separated list → per-item affixes apply
+  /** The value is a structured day list ({day, iso}) — the toolbar's day-format
+   *  dropdown applies to fields carrying this marker (dynamic per-type day lists
+   *  register it in addition to the static `DAY_LIST_FIELD_KEYS` base). */
+  dayList?: boolean;
   separator?: boolean;   // render a divider before this field inside its submenu
   /** The value is a link — text blocks and table cells render it as a
    *  clickable anchor. 'url' = the value is the href; 'mailto'/'tel' wrap it
@@ -150,6 +155,8 @@ const DAY_FIELDS: ReportFieldDef[] = [
   { key: 'dayNumber', label: 'Day #', group: 'Days', scope: 'days', align: 'center', defaultWidth: 7, get: (_c, it: ReportDayInfo) => s(it.chronoDay) },
   { key: 'dayLabel', label: 'Day Label', group: 'Days', scope: 'days', defaultWidth: 12, get: (_c, it: ReportDayInfo) => s(it.label) },
   { key: 'dayType', label: 'Day Type', group: 'Days', scope: 'days', defaultWidth: 14, get: (ctx, it: ReportDayInfo) => s(dayTypeLabelForDate(ctx.project, ctx.calendarVersion.nonShootDates, it.date)) },
+  { key: 'dayCode', label: 'Day Type Code', group: 'Days', scope: 'days', align: 'center', defaultWidth: 9, get: (ctx, it: ReportDayInfo) => s(dayCodeForDate(ctx, it.date, it.sceneCount > 0)) },
+  { key: 'dayTypeEvents', label: 'Event Types', group: 'Days', scope: 'days', multiValue: true, defaultWidth: 18, get: (ctx, it: ReportDayInfo) => dayTypeEventsForDate(ctx, it.date) },
   { key: 'dayDate', label: 'Date', group: 'Days', scope: 'days', defaultWidth: 16, separator: true, get: (ctx, it: ReportDayInfo) => formatDateCustom(it.date, dateKey(ctx)) },
   { key: 'dayCallTime', label: 'Call Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.callTime) },
   { key: 'dayEnd', label: 'End Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.endTime) },
@@ -157,6 +164,40 @@ const DAY_FIELDS: ReportFieldDef[] = [
   { key: 'daySceneCount', label: 'Scene Count', group: 'Days', scope: 'days', align: 'center', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.sceneCount) },
   { key: 'dayFirstScene', label: 'First Scene', group: 'Days', scope: 'days', align: 'center', defaultWidth: 8, separator: true, get: (_c, it: ReportDayInfo) => s(it.firstScene) },
   { key: 'dayLastScene', label: 'Last Scene', group: 'Days', scope: 'days', align: 'center', defaultWidth: 8, get: (_c, it: ReportDayInfo) => s(it.lastScene) },
+];
+
+/** The day's DOOD cell letter (deriveDood precedence): the status letter wins,
+ *  a shooting day is Work (`W` — work wins over cards), a non-shooting
+ *  production day falls back to its covering card type's code. */
+function dayCodeForDate(ctx: ReportCtx, date: string, isShooting: boolean): string {
+  const entry = (ctx.calendarVersion.nonShootDates || []).find(n => n.date === date);
+  if (entry?.status) return codeForType(ctx.project.dayTypes, entry.status);
+  if (isShooting) return 'W';
+  const type = dayTypeForDate(ctx.project, ctx.calendarVersion.nonShootDates, date);
+  return type ? codeForType(ctx.project.dayTypes, type.key) : '';
+}
+
+/** ALL types on the day — the status plus every card group, in manager order
+ *  (multi-type days print fully, not just the covering type). */
+function dayTypeEventsForDate(ctx: ReportCtx, date: string): string {
+  const entry = (ctx.calendarVersion.nonShootDates || []).find(n => n.date === date);
+  const keys = new Set<string>();
+  if (entry?.status) keys.add(entry.status);
+  for (const k of getStatusesWithLists(entry)) keys.add(k);
+  return getDayTypes(ctx.project).filter(t => keys.has(t.key)).map(t => t.label).join(', ');
+}
+
+// ---- day types (scope 'dayTypes' — the Day Type Breakdown rollup) -------------
+// One item per registry day type (label/code/color/count/days). `dayTypesOfElement`
+// items share the same shape, so the same registry entries cover both scopes
+// (fieldsForScope maps the child scope onto 'dayTypes').
+
+const DAY_TYPE_FIELDS: ReportFieldDef[] = [
+  { key: 'dayTypeLabel', label: 'Day Type', group: 'Day Types', scope: 'dayTypes', defaultWidth: 14, get: (_c, it: ReportDayTypeInfo) => s(it.label) },
+  { key: 'dayTypeCode', label: 'Code', group: 'Day Types', scope: 'dayTypes', align: 'center', defaultWidth: 6, separator: true, get: (_c, it: ReportDayTypeInfo) => s(it.code) },
+  { key: 'dayTypeColor', label: 'Color', group: 'Day Types', scope: 'dayTypes', defaultWidth: 8, get: (_c, it: ReportDayTypeInfo) => s(it.color || '') },
+  { key: 'dayTypeDayCount', label: 'Total Days', group: 'Day Types', scope: 'dayTypes', align: 'center', defaultWidth: 8, separator: true, get: (_c, it: ReportDayTypeInfo) => s(it.dayCount) },
+  { key: 'dayTypeDays', label: 'Days List', group: 'Day Types', scope: 'dayTypes', multiValue: true, dayList: true, defaultWidth: 24, get: (ctx, it: ReportDayTypeInfo, aux) => formatDayList(it.dayEntries, aux?.dayFormat, dateKey(ctx)) },
 ];
 
 // ---- crew --------------------------------------------------------------------
@@ -307,7 +348,7 @@ function smartScenesOf(ctx: ReportCtx, it: any, scope?: Set<string> | null): Rep
   const within = (list: ReportSceneInfo[]) => (scope && scope.size > 0) ? list.filter(si => scope.has(si.scene.id)) : list;
   if (it.scene) return within([it as ReportSceneInfo]);
   if (typeof it.section?.index === 'number') return within(ctx.sceneInfos.filter(si => si.sectionIndex === it.section.index));
-  if (typeof it.key === 'string' && it.label !== undefined) {
+  if (typeof it.key === 'string' && it.label !== undefined && Array.isArray(it.items)) {
     return within(ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, it.key).length > 0));
   }
   // Element/cast items carry a category or sceneIds — guard both so a
@@ -432,7 +473,7 @@ const SMART_FIELDS: ReportFieldDef[] = [
       if (it.scene) return s(distinctElementsIn(ctx, [it as ReportSceneInfo]));
       const day = smartDayOf(ctx, it);
       if (day) return s(distinctElementsIn(ctx, ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index)));
-      if (typeof it.key === 'string' && it.label !== undefined) {
+      if (typeof it.key === 'string' && it.label !== undefined && Array.isArray(it.items)) {
         const seen = new Set<string>();
         for (const si of smartScenesOf(ctx, it, aux?.sceneScope)) {
           for (const v of ctx.sceneFieldItems(si.scene, it.key)) {
@@ -507,8 +548,43 @@ function buildCategorySceneFields(project: Project): ReportFieldDef[] {
   return out;
 }
 
+/**
+ * Per-type element columns — one `Total {Type} Days` + `{Type} Day List` pair
+ * per CUSTOM day type (work/hold/travel already have the built-in trio; Day
+ * Off and non-attachable types can't carry elements). Gated to types actually
+ * in use (≥1 statused/carded day in the ACTIVE calendar version) so defined-
+ * but-unused types never clutter the pickers — re-marking a day re-adds the
+ * field automatically. Values come from the element's `typeDayLists`
+ * (computeElementStats → isElementMarked, status + cards). Keys are deduped
+ * against every already-registered field so a type slug can never collide.
+ */
+function buildDayTypeElementFields(project: Project, existingKeys: Set<string>): ReportFieldDef[] {
+  const out: ReportFieldDef[] = [];
+  const activeCal = project.calendarVersions?.find(c => c.id === project.activeCalendarVersionId) || project.calendarVersions?.[0];
+  const dates = activeCal?.nonShootDates || [];
+  const inUse = (key: string) => dates.some(n => n.status === key || getStatusesWithLists(n).includes(key));
+  const cap = (k: string) => k.charAt(0).toUpperCase() + k.slice(1);
+  for (const t of getDayTypes(project)) {
+    if (t.key === 'work' || t.key === 'hold' || t.key === 'travel') continue;
+    if (t.attachable === false) continue;
+    if (!inUse(t.key)) continue;
+    const totalKey = `total${cap(t.key)}Days`;
+    const listKey = `${t.key}DayList`;
+    if (existingKeys.has(totalKey) || existingKeys.has(listKey)) continue;
+    out.push({
+      key: totalKey, label: `Total ${t.label} Days`, group: 'Day Types', scope: 'elements', align: 'center', defaultWidth: 9, separator: true,
+      get: (_c, it: ReportElementInfo) => s(it.typeDayLists?.[t.key]?.length || 0),
+    });
+    out.push({
+      key: listKey, label: `${t.label} Day List`, group: 'Day Types', scope: 'elements', multiValue: true, dayList: true, defaultWidth: 24,
+      get: (ctx, it: ReportElementInfo, aux) => formatDayList(it.typeDayLists?.[t.key] || [], aux?.dayFormat, dateKey(ctx)),
+    });
+  }
+  return out;
+}
+
 export function getReportFieldDefs(project: Project): ReportFieldDef[] {
-  return [
+  const base = [
     ...SCENE_FIELDS,
     ...buildCategorySceneFields(project),
     ...ELEMENT_FIELDS,
@@ -517,6 +593,7 @@ export function getReportFieldDefs(project: Project): ReportFieldDef[] {
     ...VIOLATION_TYPE_FIELDS,
     ...DOCUMENT_FIELDS,
     ...DAY_FIELDS,
+    ...DAY_TYPE_FIELDS,
     ...SUN_WEATHER_FIELDS,
     ...LOCATION_FIELDS,
     ...LOCATION_TYPE_FIELDS,
@@ -525,6 +602,8 @@ export function getReportFieldDefs(project: Project): ReportFieldDef[] {
     ...PROJECT_FIELDS,
     ...SMART_FIELDS,
   ];
+  const existing = new Set(base.map(f => f.key));
+  return [...base, ...buildDayTypeElementFields(project, existing)];
 }
 
 /**
@@ -559,7 +638,7 @@ export function getReportFieldMap(project: Project): Record<string, ReportFieldD
 
 /** Scopes whose values come from the resolved collection ITEM (repeat/table
  *  rows) — vs document/project/smart fields that resolve from ctx/aux. */
-export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew', 'locations', 'locationTypes']);
+export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew', 'locations', 'locationTypes', 'dayTypes']);
 
 /**
  * Breakdown attributes (group 'Breakdown', scene-scope) inside a DAY repeater:
@@ -742,6 +821,9 @@ export function fieldsForScope(
   if (scope) {
     if (['scenes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast'].includes(scope)) scopeSet.add('scenes');
     else if (scope === 'elementsOfCategory') scopeSet.add('elements');
+    // dayTypesOfElement items share the day-type item shape — the Day Types
+    // attributes (scope 'dayTypes') belong there too.
+    else if (scope === 'dayTypesOfElement') scopeSet.add('dayTypes');
     else scopeSet.add(scope);
   }
   // Cast members are reached via Elements → Cast (collection 'elements' with
@@ -784,6 +866,7 @@ const FIELD_GROUP_COLORS: Record<string, ChipColor> = {
   'Categories': { text: '#b45309', bg: 'rgba(217, 119, 6, 0.12)' },
   'Document': { text: '#475569', bg: 'rgba(100, 116, 139, 0.12)' },
   'Days': { text: '#c2410c', bg: 'rgba(234, 88, 12, 0.12)' },
+  'Day Types': { text: '#7c3aed', bg: 'rgba(147, 51, 234, 0.12)' },
   'Sun & Weather': { text: '#ca8a04', bg: 'rgba(202, 138, 4, 0.12)' },
   'Location': { text: '#0369a1', bg: 'rgba(14, 165, 233, 0.12)' },
   'Crew': { text: '#4338ca', bg: 'rgba(79, 70, 229, 0.12)' },

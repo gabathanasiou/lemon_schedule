@@ -282,7 +282,9 @@ export const DAY_FORMAT_OPTIONS: { key: DayFormatMode; label: string }[] = [
   { key: 'date', label: 'Date only' },
 ];
 
-/** Renders a structured day list ({day, iso}) per the block's day format + global date format. */
+/** Renders a structured day list ({day, iso}) per the block's day format + global date format.
+ *  Entries with `day <= 0` (non-production/statused days — no chrono day) render
+ *  as bare dates in every mode, never "Day 0". */
 export function formatDayList(
   entries: { day: number; iso: string }[],
   mode?: DayFormatMode | null,
@@ -290,6 +292,7 @@ export function formatDayList(
 ): string {
   if (!entries.length) return '';
   return entries.map(e => {
+    if (e.day <= 0) return formatDateCustom(e.iso, dateKey);
     if (mode === 'dayNum') return `Day ${e.day}`;
     if (mode === 'date') return formatDateCustom(e.iso, dateKey);
     return `Day ${e.day} (${formatDateCustom(e.iso, dateKey)})`;
