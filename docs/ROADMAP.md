@@ -1268,15 +1268,20 @@ Modal, survivor-fade watchdog — the new close animation must compose with all)
 precedent from item 64's `registerOverlayClose` registry; kit-primitive work
 parallels item 56.
 
-## 80. ui-kit Modal — iPad keyboard / visual-viewport rework + install into the app (`[ ]`)
+## 80. ui-kit Modal — iPad keyboard / visual-viewport rework + install into the app (`[x]` Done)
 
-**Requested**: the ui-kit was upgraded (working tree) with a `Modal` rework so
-modals stop jumping when the iPad software keyboard opens/closes; install it in
-the app (bump the pin) and track the upgrade here.
+**Done**: the Modal keyboard/visual-viewport rework landed in the kit (commits
+`4bdc477` "modal iPad keyboard handling + dialog close-fade" → `a3ee7be` "touch
+modals stay put for the keyboard (no push)…", shipped with v0.1.66 and refined
+through v0.1.69) and the app consumes it — pin at `@gabriel/ui-kit#v0.1.69`.
+`src/Modal.tsx` carries the full spec: coarse devices stay CSS-centred (no JS
+pin through the lifecycle), keyboard detection via `visualViewport`/layout
+shrink with the `kbActiveRef` latch (no re-centre during dismissal),
+rAF-coalesced `visualViewport` resize/scroll handling, no `maxHeight` clamp
+while the keyboard is up, `MAX_EDGE` 16→8. Manual iPad check: modal with a text
+field stays centred / header reachable on focus, no "pushed down" jump on blur.
 
-**Facts — the upgrade is UNCOMMITTED** in `~/Documents/Software Apps/ui-kit`
-(main at `fdf29ee` = v0.1.65). Modified files:
-- `src/Modal.tsx` — the keyboard/visual-viewport rework:
+What landed — `src/Modal.tsx` — the keyboard/visual-viewport rework:
   - **Coarse-pointer devices keep the modal CSS-centred** (`left-1/2 top-1/2
     -translate-*` — no explicit `dragPos` pin) through the whole lifecycle; the
     browser keeps it dead-centre across any viewport/keyboard resize and nothing
