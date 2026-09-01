@@ -1201,7 +1201,19 @@ viewport centring); independent of 69/71 (Modal morph races).
 
 **Relations**: closes item 64's "panel model" gap for touch (the kit menu already shares the panel's highlight + positioning); rides the item 69/70/71 iPad work (same kit, same `playwright.ipad.config.ts` territory); distinct from item 77 (app-side `DropdownPanel` sizing).
 
-## 79. ui-kit Modal — dismiss (cancel) or accept the WHOLE modal stack (`[ ]`)
+## 79. ui-kit Modal — dismiss (cancel) or accept the WHOLE modal stack (`[x]` Done)
+
+**Done (user decision — handled manually in the playground, no kit
+`closeStack` primitive)**: the whole-stack dismiss/accept behavior is demoed by
+the playground's `DialogSpawnDemo` (`playground/src/main.tsx`) — a dialog
+spawning another: **Back** closes the nested dialog and reveals the outer one,
+**Cancel** aborts the WHOLE stack (`setNestedOpen(false); setHostOpen(false)`),
+**Save** applies the nested action first, then closes both. The stack close is
+wired manually through the two `open` states (the kit `Modal` supplies the
+FLIP morph + stack fade); no `closeStack`/`useModalStack` kit API and no
+`modal-stack-dismiss.spec.ts`. Per the item's capability-only decision, no app
+flow is rewired. If a bulk cascade-close affordance is ever wanted in the app
+(Link-Manager Cancel, day-modal Done), the kit primitive below is the blueprint.
 
 **Requested**: give the kit `Modal` (and the `Dialog` through it) a first-class
 capability so a **child modal or dialog at any depth** can (1) **dismiss
