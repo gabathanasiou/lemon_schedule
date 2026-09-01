@@ -195,12 +195,6 @@ export const EventCardView: React.FC<{
           <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
           <span>{t?.label || card.status} · {categoryLabel(card.category, project)}</span>
         </div>
-        {card.comment && (
-          <div className="flex items-start gap-1 mt-1 text-[11px] italic text-zinc-100 leading-snug">
-            <MessageSquare className="w-2.5 h-2.5 shrink-0 mt-[2px] text-amber-400" />
-            <span>{card.comment}</span>
-          </div>
-        )}
       </div>
     );
     const inner = (
@@ -212,7 +206,7 @@ export const EventCardView: React.FC<{
       >
         {/* The tooltip anchors to the icon only — hovering the label/comment
             does not pop it. */}
-        <HoverTooltip className="shrink-0 inline-flex mt-[1px]" content={tip}>
+        <HoverTooltip className="shrink-0 inline-flex mt-[1px]" delay={2000} content={tip}>
           <Icon className="w-3 h-3" style={{ color: selected ? sel.color : color }} />
         </HoverTooltip>
         <span className="flex-1 min-w-0">{names}</span>

@@ -14,7 +14,9 @@ export const HoverTooltip: React.FC<{
   content: React.ReactNode;
   children: React.ReactNode;
   className?: string;
-}> = ({ content, children, className }) => {
+  /** Wait this many ms before showing (0 = immediate). */
+  delay?: number;
+}> = ({ content, children, className, delay = 0 }) => {
   const portalTarget = usePortalTarget();
   const currentWindow = useCurrentWindow();
   const [show, setShow] = useState(false);
@@ -22,12 +24,29 @@ export const HoverTooltip: React.FC<{
   const ref = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const [tipOffset, setTipOffset] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updatePos = () => {
     if (!ref.current) return;
     const r = ref.current.getBoundingClientRect();
     setPos({ x: r.left + r.width / 2, y: r.top });
   };
+
+  const onEnter = () => {
+    updatePos();
+    if (delay > 0) {
+      timerRef.current = setTimeout(() => setShow(true), delay);
+    } else {
+      setShow(true);
+    }
+  };
+
+  const onLeave = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setShow(false);
+  };
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   useLayoutEffect(() => {
     if (show && tipRef.current) {
@@ -51,8 +70,8 @@ export const HoverTooltip: React.FC<{
     <div
       ref={ref}
       className={className ?? 'inline-flex'}
-      onMouseEnter={() => { updatePos(); setShow(true); }}
-      onMouseLeave={() => setShow(false)}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
     >
       {children}
       {show && createPortal(
