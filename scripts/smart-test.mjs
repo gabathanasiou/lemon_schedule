@@ -48,6 +48,7 @@ const CAL = ['calendar-travel-hold', 'day-types', 'production-dates', 'calendar-
 const GLIDE = ['glide-breakdown', 'glide-clipboard', 'glide-first-edit'];
 const ELEM = ['element-manager-merge', 'element-manager-day-columns', 'element-events'];
 const CAST = ['cast-single-source'];
+const NEWCAST = ['new-cast-naming'];
 const LINKED = ['linked-elements'];
 const CREW = ['crew-glide', 'crew-manager'];
 const LOC = ['locations', 'location-types'];
@@ -139,6 +140,8 @@ const RULES = [
   { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED, ...SHEET] },
   { g: 'src/lib/paletteOps.ts', s: [...GLIDE, ...ELEM] },
   { g: 'src/lib/elements.ts', s: [...ELEM, ...REPORT] },
+  // new-cast naming modal (shared by stripboard / glide / sheet entity fields)
+  { g: 'src/lib/newCastNaming.tsx', s: [...NEWCAST, ...CAST, ...GLIDE, ...SHEET] },
   // element / cast / crew / locations managers (buffered editor managers)
   { g: 'src/components/ElementManager.tsx', s: [...ELEM, ...LINKED] },
   { g: 'src/lib/elementDayStats.ts', s: ELEM },
@@ -161,6 +164,7 @@ const RULES = [
   { g: 'src/lib/rowBuffer.ts', s: MANAGERS },
   { g: 'src/lib/managerShell.tsx', s: MANAGERS },
   { g: 'src/lib/managerTable.ts', s: MANAGERS },
+  { g: 'src/components/SidebarNav.tsx', s: MANAGERS },
   // import / export
   { g: 'src/lib/import/**', s: IMPORT },
   { g: 'src/components/ImportDialog.tsx', s: IMPORT },

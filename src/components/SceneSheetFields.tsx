@@ -17,7 +17,7 @@ interface SceneSheetFieldsProps {
   inputCls: string;
   blurOnEnter: (e: React.KeyboardEvent) => void;
   setItems: { id: string; name: string }[];
-  locationOptions: string[];
+  locationItems: { id: string; name: string }[];
   breakdownItems: Record<string, { id: string; name: string }[]>;
   allBreakdownCats: string[];
   allBreakdownLabel: Record<string, string>;
@@ -31,7 +31,7 @@ interface SceneSheetFieldsProps {
 /** Header table + category grid of the Scene Sheet (matches the print layout). */
 export default function SceneSheetFields({
   scene, val, update, commitField, commitTextEdits, readOnly, inputCls, blurOnEnter,
-  setItems, locationOptions, breakdownItems, allBreakdownCats, allBreakdownLabel, palette, customCategories, anchoredByCategory, sheetNumber,
+  setItems, locationItems, breakdownItems, allBreakdownCats, allBreakdownLabel, palette, customCategories, anchoredByCategory, sheetNumber,
 }: SceneSheetFieldsProps) {
   return (
     <>
@@ -55,7 +55,7 @@ export default function SceneSheetFields({
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Set</td>
               <td className="px-2.5 py-1.5 border-r border-zinc-300"><EntityDropdown value={val('set')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'set', v.toUpperCase())} items={setItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Set" className="text-xs" anchoredKeys={anchoredByCategory?.['set']} /></td>
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Location</td>
-              <td className="px-2.5 py-1.5"><AutocompleteDropdown value={val('location')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'location', v)} options={locationOptions} normalize={v => v} placeholder="Location" /></td>
+              <td className="px-2.5 py-1.5"><EntityDropdown value={val('location')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'location', v)} items={locationItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Location" className="text-xs" /></td>
             </tr>
             <tr className="border-b border-zinc-300">
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Pages</td>

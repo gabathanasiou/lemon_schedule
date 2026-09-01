@@ -8,7 +8,6 @@ import Button from './Button';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import SceneSheetFields from './SceneSheetFields';
-import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
 import { parsePageCount, formatPageCount, generateUUID, formatDateLong, naturalSortSceneStrings } from '../lib/utils';
 import { sceneStyle, getIntExtOptions, getDayNightOptions, getFallbackStripColors } from '../lib/ribbonUtils';
@@ -16,6 +15,8 @@ import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
+import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
+import { resolvedLocationName } from '../lib/locations';
 import { usePersistState } from '../lib/persist';
 
 const BREAKDOWN_CATS = [
@@ -116,6 +117,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
 
   const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
+  const { queue } = useQueueCastNaming();
 
   // Keep the current scene visible when the view order changes.
   const pendingSceneIdRef = useRef<string | null>(null);
@@ -162,8 +164,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase()),
       );
       for (const item of newItems) {
-        const name = isCast ? (castMembers.find(m => m.id === item)?.name ?? '') : item;
-        dispatch({ type: 'ADD_ELEMENT', payload: { category: field, element: { id: item, name } } });
+        addNewElement(dispatch, queue, field, item);
       }
       const scene = scenes.find(s => s.id === sceneId);
       if (scene) void linkGuard.tryCommitSceneEdit(scene, { [field]: value });
@@ -181,8 +182,27 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     let processed = value;
     if (field === 'scriptDay') processed = value.replace(/[^0-9]/g, '');
     if (field === 'set') processed = value.toUpperCase();
+    if (field === 'location') {
+      const name = value.trim();
+      if (name) {
+        // Entity-dropdown style: typing a brand-new location creates it in the
+        // Locations DB under the "Set" type (falling back to the first type /
+        // "other") so it shows up in the Locations Manager — not just free-text
+        // on the scene.
+        const exists = (project.locations || []).some(l =>
+          resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng).toLowerCase() === name.toLowerCase(),
+        );
+        if (!exists) {
+          const types = project.locationTypes || [];
+          const type = types.some(t => t.key === 'set') ? 'set' : (types[0]?.key ?? 'other');
+          dispatch({ type: 'ADD_LOCATION', payload: { location: { id: generateUUID(), name, type } } });
+        }
+      }
+      dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, location: name } });
+      return;
+    }
     dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, [field]: processed } });
-  }, [dispatch, breakdownElements, castMembers, allBreakdownCats, scenes, linkGuard]);
+  }, [dispatch, breakdownElements, castMembers, allBreakdownCats, scenes, linkGuard, queue, project]);
 
   const commitFieldRef = useRef(commitField);
   commitFieldRef.current = commitField;
@@ -331,11 +351,14 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     return [...sets.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
   }, [scenes, breakdownElements]);
 
-  const locationOptions = useMemo(() => {
+  const locationItems = useMemo(() => {
     const seen = new Set<string>();
-    const out: string[] = [];
-    (project.locations || []).forEach(l => { const t = l.name.trim(); if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t); } });
-    return out.sort((a, b) => a.localeCompare(b));
+    const out: { id: string; name: string }[] = [];
+    (project.locations || []).forEach(l => {
+      const t = resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng).trim();
+      if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push({ id: t, name: t }); }
+    });
+    return out.sort((a, b) => a.name.localeCompare(b.name));
   }, [project.locations]);
 
   const blurOnEnter = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); } };
@@ -471,7 +494,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           inputCls={inputCls}
           blurOnEnter={blurOnEnter}
           setItems={setItems}
-          locationOptions={locationOptions}
+          locationItems={locationItems}
           breakdownItems={breakdownItems}
           allBreakdownCats={allBreakdownCats}
           allBreakdownLabel={allBreakdownLabel}

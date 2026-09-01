@@ -57,6 +57,8 @@ import { useDedupeCellCommit } from '../lib/glideEditGuard';
 import { createBlankScene } from '../lib/sceneFactory';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
+import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
+import { useGlideFill } from '../lib/glideFill';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -193,6 +195,7 @@ export function GlideBreakdownTab({
    *  pencil taps behave like finger taps. */
   const lastPointerRef = useRef<string>('touch');
   const gridContainerRef = useRef<HTMLDivElement>(null);
+  const { width: gridWidth, height: gridHeight } = useGlideFill(gridContainerRef);
   const touchDownPosRef = useRef<{ x: number; y: number } | null>(null);
   const touchDownCellRef = useRef<{ col: number; row: number } | null>(null);
   const lastTouchTapRef = useRef<{ time: number; col: number; row: number } | null>(null);
@@ -374,6 +377,7 @@ export function GlideBreakdownTab({
   const projectRef = useRef(project);
   projectRef.current = project;
   const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
+  const { queue } = useQueueCastNaming();
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
   allBreakdownLabelsRef.current = allBreakdownLabels;
   const gridSelectionRef = useRef(gridSelection);
@@ -398,14 +402,14 @@ export function GlideBreakdownTab({
         v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase())
       );
       for (const item of newItems) {
-        dispatch({ type: 'ADD_ELEMENT', payload: { category: colKey, element: isCast ? { id: item, name: '' } : { id: item, name: item } } });
+        addNewElement(dispatch, queue, colKey, item);
       }
       const scene = currentProject.scenes.find((s: Scene) => s.id === sceneId);
       if (scene) linkGuard.tryCommitSceneEdit(scene, { [colKey]: updates[colKey] });
       return;
     }
     dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, ...updates } });
-  }, [dispatch, allBreakdownCategories, linkGuard]);
+  }, [dispatch, allBreakdownCategories, linkGuard, queue]);
 
   const getSceneValue = useCallback((scene: Scene, colKey: string): string => {
     if (colKey === 'intExt' || colKey === 'dayNight') return (scene as any)[colKey] || '';
@@ -1000,6 +1004,8 @@ export function GlideBreakdownTab({
         <DataEditor
           key={fontVersion}
           ref={gridRef}
+          width={gridWidth}
+          height={gridHeight}
           columns={glideColumns}
           rows={scenes.length + 5}
           getCellContent={getCellContent}

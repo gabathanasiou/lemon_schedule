@@ -10,6 +10,8 @@ export interface SidebarNavRow {
   icon?: React.ElementType;
   dimmed?: boolean;
   italic?: boolean;
+  /** Optional section header shown above the row (e.g. crew department). */
+  group?: string;
 }
 
 interface SidebarNavProps {
@@ -84,12 +86,18 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
       </div>
       <div className="px-3 pb-20">
         <div className="space-y-0.5">
-          {filtered.map(row => {
+          {filtered.map((row, i) => {
             const isActive = row.key === activeKey;
             const Icon = row.icon;
             const actions = renderRowActions?.(row, isActive);
+            const showHeader = row.group && !searching && row.group !== (i > 0 ? filtered[i - 1].group : undefined);
             return (
               <div key={row.key} className="group">
+                {showHeader && (
+                  <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                    {row.group}
+                  </div>
+                )}
                 <button
                   onClick={() => onSelect(row.key)}
                   style={sizes.row}

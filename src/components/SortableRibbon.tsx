@@ -26,6 +26,7 @@ import SortableRowScene from './ribbon/SortableRowScene';
 import { RowRenderCtx } from './ribbon/rowRenderTypes';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
+import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 
 const ENTITY_KEYS = new Set([
   'cast', 'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -93,6 +94,7 @@ const SortableRowContent: React.FC<{
   const isTouchMode = useTouchMode();
 
   const linkGuard = useLinkedEditGuard(elementLinks, customCategories, dispatch);
+  const { queue } = useQueueCastNaming();
 
   // Per-category anchor item keys — Anchor icons in the stripboard's entity
   // dropdown panels (light theme) next to anchored elements.
@@ -141,7 +143,7 @@ const SortableRowContent: React.FC<{
         const items = getFieldItems(key, val);
         for (const item of items) {
           if (!existingNames.has(item.toUpperCase())) {
-            dispatch({ type: 'ADD_ELEMENT', payload: { category: key, element: key === 'cast' ? { id: item, name: '' } : { id: item, name: item } } });
+            addNewElement(dispatch, queue, key, item);
           }
         }
       }

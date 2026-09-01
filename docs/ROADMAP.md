@@ -1766,3 +1766,46 @@ related specs green.
 `EventsFilter` + `filterCard`) — the filter lives in the canonical module, so
 removing the field is a model change there, not a UI hack; touches the
 `calendar-rule-cards.spec.ts` Filter-menu harness (regression only).
+
+## 86. Name new cast members right after adding them through an element dropdown (`[x]` Done)
+
+**Done**: the element-dropdown "add a brand-new cast id" flow no longer leaves the cast member permanently blank. The three surfaces that create cast by typed ID (stripboard cast cell → `SortableRibbon.updateScene`, Glide breakdown → `commitEdit`, Scene Sheet cast field → `commitField`) all route new items through the shared `addNewElement` (`src/lib/newCastNaming.tsx`): non-cast categories unchanged (name = key), cast creates the member BLANK and **queues it for the naming modal** (`NewCastNamingProvider`, mounted in `App.tsx` above the tabs). The modal lists each new id with a name input + a per-entry **undo** (trash) button (dispatch `DELETE_CAST_MEMBER` — removes the member and strips the id from every scene, a true revert of the accidental add). The name inputs are **all-caps live** (input uppercases as you type); Save `UPDATE_CAST_MEMBER`s the names (one `BATCH` = one undo entry); Cancel/Esc leaves them blank (today's behavior). The provider filters the queue against live `castMembers` so a Cmd+Z'd add never proposes naming a member that no longer exists. CastTab's manager "Add" (blank inline spreadsheet row) is deliberately NOT routed — the user names it in place. `e2e/new-cast-naming.spec.ts` covers modal → name → save, per-entry undo, and cancel-leaves-blank via the Scene Sheet harness.
+
+**Requested**: "when adding new casts through the element dropdown currently their name remains blank. instead I want a modal to open giving the user the ability to give names to the newlyly added cast ids. okay ma" — plus "also add a button to undo per new entry in case it was entered in fault."
+
+**Design**:
+1. `src/lib/newCastNaming.tsx` — `NewCastNamingProvider` (uses `useProject()`; queue state + the naming `Modal`), `useQueueCastNaming()` (stable `queue(ids)` callback — safe to call in per-row `SortableRowContent`, never re-renders consumers), and `addNewElement(dispatch, queue, category, item)` — the single cast-creation gate for entity fields.
+2. Call sites swap their `ADD_ELEMENT`-with-`name:''` dispatch for `addNewElement` (sorting/filtering of new items stays in place). No store/reducer changes — undo/redo/persistence untouched; the queue is component state only.
+3. Per-entry undo = `DELETE_CAST_MEMBER` (no trash — a clean revert); Save batches `UPDATE_CAST_MEMBER`. Modal is a kit `Modal` (dark chrome, one hero Save + ghost Cancel, `Trash2` icon buttons per row, TEST_IDS anchors).
+
+**Verify**: lint + `e2e/new-cast-naming.spec.ts` (green) + full suite (core `src/App.tsx` change escalates via the smart-test `ALL` rule). The Cast manager add flow and the `.lemon`/CSV/FDX import flows must NOT trigger the modal (regression: `cast-single-source`, `element-manager-*`).
+
+**Relations**: rides the cast-by-ID model (AGENTS.md §Cast & Entities); the shared `addNewElement` is the same "second copy" the stripboard/glide/sheet entity fields were writing before (now extracted).
+
+## 87. Scene Sheet Location field — create locations into the Locations DB (`[x]` Done)
+
+**Done**: the Scene Sheet's **Location** cell is now a Set-style `EntityDropdown` (single-value, type-to-create) instead of a free-text autocomplete. Committing a brand-new location creates it in the **Locations Manager DB** under the **"Set"** type (falling back to the first type / `other` if `set` was deleted), so it shows up in the manager — not just a string on the scene. Existing DB locations are offered as pickable items. New locations keep the typed case (`SceneSheet.commitField`, `src/components/SceneSheet.tsx`); the dropdown items resolve the manager's display name via the shared `resolvedLocationName` (`src/lib/locations.ts`, extracted from the manager's private helper). `scene.location` stays single-value.
+
+**Requested**: "in the sheet manager, shouldn't the user be able to create new locations 'entity dropdown style' that attach to the scenes (but only one like set. and they enter in the category 'Set')" — clarified to create into the existing Locations Manager DB.
+
+**Also**: the **location type defaults** are now just **Set · Unit Base · Hospital · Police Station**, in that order (`DEFAULT_LOCATION_TYPES`, `src/lib/locations.ts`). LOAD reorders built-ins to DEFAULT order, drops built-ins no longer shipped (Office/Parking/Catering/Other), keeps custom types, and re-keys any location still on a dropped type to the first default so nothing disappears. `e2e/location-types.spec.ts` updated to seed a non-colliding custom type.
+
+## 88. Glide pages — kit Buttons + fill the container width (`[x]` Done)
+
+**Done**:
+- The Crew/Locations glide **Edit / View / Info** dropdown triggers are now the ui-kit `Button` (they were bespoke `<button>`s, which is why they looked different from the Glide Breakdown's) — `src/lib/glideShell.tsx`.
+- glide-data-grid sizes itself to its **content** (summed column widths) when `width`/`height` are omitted, so a sparse grid (few columns) shrank instead of extending across the container. New `useGlideFill` (`src/lib/glideFill.ts`) measures the grid wrapper via `ResizeObserver` and feeds explicit `width`/`height` back to the DataEditor in both `GlideGridShell` and `BreakdownTabGlide`.
+
+**Requested**: "are the edit/view/info buttons ui kit? why are they different from the glide breakdown" + "the glide pages, if small should extend to the container width, now the crew glide can get small".
+
+## 89. Crew glide — flat row order, no auto-grouping by role (`[x]` Done)
+
+**Done**: the Crew Glide no longer groups rows by role. A new `Project.crewOrder` (`string[]` of member ids, backfilled on LOAD) is the single flat display order: new members appended at the bottom (typed in the add-row stay put instead of jumping to the first role's group), changing a row's role no longer moves it, and the manual Sort menu rewrites the order. Maintained in the reducer cases (`caseAddCrewPerson`/`caseDeleteCrewPerson`/`caseRestoreCrewPersonFromTrash`/`caseReorderCrewPerson`/`caseSortCrewBy` — `src/store/actions/reports.ts`); `buildCrewRows` (`src/lib/crewGlideConfig.ts`) renders in `crewOrder`. The Locations Glide was already flat (`buildLocationRows` maps `project.locations` directly) — untouched.
+
+**Requested**: "the 'glides' should not auto sort while i type etc, they may only auto sort manually" → "the normal breakdown is fine. but the locations and crew one auto sort based on category or role. not good."
+
+## 90. Crew Manager — official role ordering + department sections (`[x]` Done)
+
+**Done**: the Crew Manager's **Roles** sidebar now follows the official industry hierarchy and is grouped into **department sections**. New `src/lib/crewCatalog.ts` is the canonical catalog: `CREW_DEPARTMENTS` = **Above the Line** (Producer, Line Producer, Director) then below-the-line departments (Production · Camera · Sound · Art · Wardrobe · Makeup & Hair · Grip & Electric · Locations · Stunts & Special Effects · Casting · Post Production), each in standard call-sheet order. `DEFAULT_CREW_ROLES` derives from it; LOAD reorders existing `crewRoles` via `reorderCrewRoles` (built-ins per catalog order, custom roles appended) — the same normalization pattern as day types. The shared `SidebarNav` gains optional `group` headers (rendered between sections, hidden while the sidebar search filters) and `ManagerShellConfig.categoryGroup` (crew maps role key → department via `crewDepartmentOf`; Element/Locations managers unaffected).
+
+**Requested**: "in the crew manager can you sort the crew categories based on official ordering above the line below and maybe add sections for different departments."

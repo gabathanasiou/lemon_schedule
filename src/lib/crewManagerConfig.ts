@@ -1,5 +1,6 @@
 import type { Project, CrewPerson } from '../types';
 import { generateUUID } from './utils';
+import { crewDepartmentOf } from './crewCatalog';
 import {
   computeManagerDiff,
   type ManagerRow,
@@ -55,6 +56,7 @@ export const crewManagerConfig: ManagerShellConfig = {
   ],
   mergeableFields: ['phone', 'email'],
   categories: project => project.crewRoles || [],
+  categoryGroup: key => crewDepartmentOf(key),
   addCategory(dispatch, label, categories) {
     const trimmed = label.trim();
     if (!trimmed) return null;

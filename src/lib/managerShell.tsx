@@ -71,6 +71,8 @@ export interface ManagerShellConfig {
    *  legitimately distinct records (locations) — no merge dialog, no absorb. */
   canMerge?: boolean;
   categories(project: Project): CrewRole[];
+  /** Optional section header per category key (e.g. crew departments). */
+  categoryGroup?(key: string): string | undefined;
   addCategory(dispatch: (action: any) => void, label: string, categories: CrewRole[]): string | null;
   renameCategory(dispatch: (action: any) => void, key: string, label: string): void;
   deleteCategoryConfirm(category: CrewRole, itemCount: number): { title: string; message: string; suppressKey: string };
@@ -316,7 +318,7 @@ export const DatabaseManagerView: React.FC<{
   doSaveRef.current = save;
 
   const sidebarRows: SidebarNavRow[] = useMemo(() =>
-    categories.map(c => ({ key: c.key, label: c.label, count: countTotal(c.key) })),
+    categories.map(c => ({ key: c.key, label: c.label, count: countTotal(c.key), group: config.categoryGroup?.(c.key) })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [categories, project, rows, categoryKey]
   );

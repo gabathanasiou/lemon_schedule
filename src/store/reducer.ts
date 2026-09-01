@@ -2,7 +2,7 @@ import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectR
 import { generateUUID, normalizePunctuation, makeBlankCalendarVersion } from '../lib/utils';
 import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
-import { DEFAULT_LOCATION_TYPES } from '../lib/locations';
+import { DEFAULT_LOCATION_TYPES, LOCATION_BUILTIN_KEYS } from '../lib/locations';
 import { ensurePinnedDaybreak, ensureAllScenesHaveRows } from './rows';
 import {
   caseUpdateProject, caseAddScene, caseUpdateScene, caseDeleteScene, caseRestoreScene,
@@ -37,7 +37,8 @@ import {
   caseAddLocation, caseUpdateLocation, caseDeleteLocation, caseRestoreLocation, caseSortLocationsBy,
   caseSetReportTextStyles, caseSetDayTypes,
 } from './actions/reports';
-import { DEFAULT_CREW_ROLES, getDefaultReportDesigns } from '../lib/reportTemplates';
+import { getDefaultReportDesigns } from '../lib/reportTemplates';
+import { DEFAULT_CREW_ROLES, reorderCrewRoles } from '../lib/crewCatalog';
 import { DEFAULT_DAY_TYPES, DAY_TYPE_BUILTIN_KEYS } from '../lib/dayTypes';
 import { isMultiValue, getFieldItems } from '../lib/categories';
 
@@ -346,10 +347,34 @@ export function reducer(state: State, action: Action): State {
 
     // Reports Designer + Production Info defaults
     p.productionInfo = p.productionInfo || {};
-    p.crewRoles = p.crewRoles?.length ? p.crewRoles : DEFAULT_CREW_ROLES;
+    // Crew roles: built-ins always exist, in OFFICIAL catalog order (above the
+    // line, then departments); custom roles follow in stored order.
+    p.crewRoles = reorderCrewRoles(p.crewRoles?.length ? p.crewRoles : DEFAULT_CREW_ROLES);
     p.crew = p.crew || {};
+    // Flat crew display order (the crew glide): backfill from the current
+    // per-role arrays (role order) when a project predates the field.
+    if (!p.crewOrder || p.crewOrder.length === 0) {
+      p.crewOrder = (p.crewRoles || []).flatMap(r => (p.crew?.[r.key] || []).map(x => x.id));
+    }
     p.crewTrash = p.crewTrash || [];
-    p.locationTypes = p.locationTypes?.length ? p.locationTypes : DEFAULT_LOCATION_TYPES;
+    // Location types: built-ins always exist in DEFAULT order (Set, Unit Base,
+    // Hospital, Police Station); built-ins no longer shipped are dropped, custom
+    // types follow in stored order. Any location on a dropped built-in type is
+    // re-keyed to the first default so it stays visible in the manager.
+    {
+      const stored = p.locationTypes || [];
+      const builtins = DEFAULT_LOCATION_TYPES
+        .map(d => stored.find(s => s.key === d.key))
+        .filter((d): d is CrewRole => !!d);
+      const missing = DEFAULT_LOCATION_TYPES.filter(d => !stored.some(s => s.key === d.key));
+      const customs = stored.filter(t => !LOCATION_BUILTIN_KEYS.has(t.key));
+      p.locationTypes = [...builtins, ...missing, ...customs];
+      if (p.locations && p.locations.length > 0) {
+        const keys = new Set(p.locationTypes.map(t => t.key));
+        const fallback = p.locationTypes[0]?.key ?? 'other';
+        p.locations = p.locations.map(l => keys.has(l.type) ? l : { ...l, type: fallback });
+      }
+    }
     // Day types: built-ins always exist, in DEFAULT order (work first); custom
     // types follow in stored order. Old projects that predate a built-in get it.
     {

@@ -15,4 +15,12 @@ export const TEST_IDS = {
   nextDayHeader: 'next-day-header',
   /** Ribbon palette drag source button (sets dataTransfer 'text/field'). */
   paletteItem: 'palette-item',
+  /** New-cast naming modal body (name each newly added cast member). */
+  newCastNameModal: 'new-cast-name-modal',
+  /** One pending cast entry inside the naming modal. */
+  newCastNameRow: 'new-cast-name-row',
+  /** Name input of a pending cast entry. */
+  newCastNameInput: 'new-cast-name-input',
+  /** Per-entry undo (remove) button of a pending cast entry. */
+  newCastNameUndo: 'new-cast-name-undo',
 } as const;

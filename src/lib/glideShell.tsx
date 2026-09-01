@@ -30,6 +30,8 @@ import { useGlidePasteInterception } from './glidePasteIntercept';
 import { useGlideColumnWidths } from './glideColumns';
 import { useDedupeCellCommit } from './glideEditGuard';
 import { planGridPaste, type PasteEdit, type PasteColumn, type PasteRange } from './glidePaste';
+import { useGlideFill } from './glideFill';
+import Button from '../components/Button';
 import type { Project } from '../types';
 
 // ---- Generic database "glide" grid shell ------------------------------------
@@ -140,6 +142,11 @@ export const GlideGridShell: React.FC<{
   useEffect(() => {
     gridPortalRef.current = portalTarget ? portalTarget.querySelector('#portal') : document.getElementById('portal');
   }, [portalTarget]);
+
+  // glide sizes to its CONTENT when width/height are omitted — a sparse grid
+  // would shrink instead of filling the container. Measure the wrapper and
+  // hand the size back to the DataEditor explicitly.
+  const { ref: gridSizeRef, width: gridWidth, height: gridHeight } = useGlideFill<HTMLDivElement>();
 
   const [columnWidths, setColumnWidth] = useGlideColumnWidths(`lemon_schedule_glide_${config.widthStorageKey}_cols_${project.id}`);
   const [fontSize, setFontSizeBase] = useSpreadsheetFontSize(IS_COARSE ? 12.5 : undefined);
@@ -521,10 +528,10 @@ export const GlideGridShell: React.FC<{
     <div className="flex items-center justify-end gap-1">
       <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-52" theme="light"
         trigger={
-          <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+          <Button>
             Edit
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-          </button>
+          </Button>
         }
       >
         <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />} disabled={readOnly}>
@@ -538,10 +545,10 @@ export const GlideGridShell: React.FC<{
 
       <DropdownMenu open={viewOpen} onOpenChange={setViewOpen} width="w-44" theme="light"
         trigger={
-          <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+          <Button>
             View
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-          </button>
+          </Button>
         }
       >
         <DropdownItem onClick={() => { setFontSize(fontSize + 1.5); }} keepOpen icon={<ZoomIn className="w-3.5 h-3.5" />}>
@@ -562,10 +569,10 @@ export const GlideGridShell: React.FC<{
 
       <DropdownMenu open={infoOpen} onOpenChange={setInfoOpen} width="w-48" theme="light"
         trigger={
-          <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+          <Button>
             Info
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-          </button>
+          </Button>
         }
       >
         <div className="px-4 py-2.5 text-xs text-zinc-500 space-y-1.5">
@@ -590,10 +597,12 @@ export const GlideGridShell: React.FC<{
       )}
 
       {/* Grid */}
-      <div style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
+      <div ref={gridSizeRef} style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
         <DataEditor
           key={fontVersion}
           ref={gridRef}
+          width={gridWidth}
+          height={gridHeight}
           columns={glideColumns}
           rows={rows.length + SPARE_ROWS}
           getCellContent={getCellContent}

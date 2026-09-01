@@ -73,6 +73,7 @@ import OfflineStatus from './components/OfflineStatus';
 import { PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar } from './components/popout/PopoutFrames';
 import { DayTypesTab } from './components/calendar/DayTypesTab';
 import { requestUnsavedSave } from './lib/unsavedGuard';
+import { NewCastNamingProvider } from './lib/newCastNaming';
 
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity, activeCalendarVersion } = useProject();
@@ -943,7 +944,9 @@ function AppContent() {
 export default function App() {
   return (
     <ProjectProvider>
-      <AppContent />
+      <NewCastNamingProvider>
+        <AppContent />
+      </NewCastNamingProvider>
     </ProjectProvider>
   );
 }

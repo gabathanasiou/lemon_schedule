@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Project, ProjectLocation } from '../types';
 import { generateUUID } from './utils';
-import { resolveTypeKey, typeLabelOf } from './locations';
+import { resolveTypeKey, typeLabelOf, resolvedLocationName as resolvedName } from './locations';
 import { LocationPickerModal } from '../components/location/LocationPickerModal';
 import { type PickedLocation } from './places';
 import DropdownMenu from '../components/DropdownMenu';
@@ -18,24 +18,6 @@ const numOrUndef = (v: string | undefined): number | undefined => {
   if (v == null || v === '') return undefined;
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
-};
-
-/** A location's display identity: name, falling back to address → place → "lat, lng". */
-const resolvedName = (
-  name?: string | null,
-  address?: string | null,
-  place?: string | null,
-  lat?: string | number | null,
-  lng?: string | number | null,
-): string => {
-  const n = (name || '').trim();
-  if (n) return n;
-  const a = (address || '').trim();
-  if (a) return a;
-  const p = (place || '').trim();
-  if (p) return p;
-  if (lat != null && lat !== '' && lng != null && lng !== '') return `${lat}, ${lng}`;
-  return '';
 };
 
 function buildLocationRows(project: Project, type: string): ManagerRow[] {

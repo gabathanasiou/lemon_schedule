@@ -77,7 +77,7 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
   const seed = loadSeedProject();
   const project = JSON.parse(seed.raw);
   project.locationTypes = [
-    { key: 'unitbase', label: 'Unit Base' },
+    { key: 'unitbase', label: 'Unit Base Site' },
     { key: 'studio', label: 'Studio' },
   ];
   project.locations = [
@@ -141,8 +141,8 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
     throw new Error('menu pick did not apply: ' + itemName);
   };;
 
-  await pickMenu('Unit Base');
-  await expect(page.getByRole('button', { name: 'Locations · Unit Base', exact: true })).toBeVisible({ timeout: 3000 });
+  await pickMenu('Unit Base Site');
+  await expect(page.getByRole('button', { name: 'Locations · Unit Base Site', exact: true })).toBeVisible({ timeout: 3000 });
   await expect.poll(() => locCategory(page), { timeout: 5000 }).toBe('unitbase');
 
   await pickMenu('All types');
@@ -152,8 +152,8 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
   // ---- C. delete-type records the human label in trash ----
   await page.getByRole('button', { name: 'Production', exact: true }).click();
   await page.getByRole('button', { name: 'Locations', exact: true }).first().click();
-  await page.getByTitle('Delete type').first().click();
-  await expect(page.getByText('Delete "Unit Base"?', { exact: true })).toBeVisible({ timeout: 3000 });
+  await page.locator('aside button', { hasText: 'Unit Base Site' }).getByTitle('Delete type').click();
+  await expect(page.getByText('Delete "Unit Base Site"?', { exact: true })).toBeVisible({ timeout: 3000 });
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
 
   await expect.poll(() => page.evaluate(() => {
@@ -169,5 +169,5 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
   });
   expect(trash.length).toBe(2);
   expect(trash.every((t: any) => t.type === 'unitbase')).toBe(true);
-  expect(trash.every((t: any) => t.typeLabel === 'Unit Base')).toBe(true); // human label, not the slug
+  expect(trash.every((t: any) => t.typeLabel === 'Unit Base Site')).toBe(true); // human label, not the slug
 });

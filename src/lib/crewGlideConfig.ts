@@ -12,21 +12,31 @@ import {
 } from './glideShell';
 import { resolveRoleKey, parseCrewCSV, commitCrewImport, exportCrewCSV, type CrewCsvImportResult } from './crewGlide';
 
-/** Flattens the crew store (roles × people) into generic glide rows, in catalog order. */
+/** Flattens the crew store into generic glide rows in FLAT display order
+ *  (`project.crewOrder` — insertion order by default, manual sorts rewrite it).
+ *  Rows are NOT grouped by role: editing a role keeps the row in place, and a
+ *  new member typed at the bottom stays at the bottom. */
 function buildCrewRows(project: Project): GlideRow[] {
-  const rows: GlideRow[] = [];
+  const byId = new Map<string, { roleKey: string; person: CrewPerson }>();
   for (const r of project.crewRoles || []) {
-    for (const p of project.crew?.[r.key] || []) {
-      rows.push({
-        key: p.id,
-        categoryKey: r.key,
-        categoryLabel: r.label,
-        role: r.label,
-        name: p.name,
-        phone: p.phone || '',
-        email: p.email || '',
-      });
-    }
+    for (const p of project.crew?.[r.key] || []) byId.set(p.id, { roleKey: r.key, person: p });
+  }
+  const order = project.crewOrder && project.crewOrder.length > 0 ? project.crewOrder : [...byId.keys()];
+  const labelByKey = new Map((project.crewRoles || []).map(r => [r.key, r.label]));
+  const rows: GlideRow[] = [];
+  for (const id of order) {
+    const e = byId.get(id);
+    if (!e) continue;
+    const label = labelByKey.get(e.roleKey) || e.roleKey;
+    rows.push({
+      key: e.person.id,
+      categoryKey: e.roleKey,
+      categoryLabel: label,
+      role: label,
+      name: e.person.name,
+      phone: e.person.phone || '',
+      email: e.person.email || '',
+    });
   }
   return rows;
 }

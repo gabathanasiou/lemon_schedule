@@ -185,7 +185,11 @@ export function caseAddCrewPerson(state: State, action: Action, applyChange: App
   if (action.type !== 'ADD_CREW_PERSON') return state;
   const crew = { ...(state.present.crew || {}) };
   crew[action.payload.role] = [...(crew[action.payload.role] || []), action.payload.person];
-  return applyChange({ ...state.present, crew });
+  return applyChange({
+    ...state.present,
+    crew,
+    crewOrder: [...(state.present.crewOrder || []), action.payload.person.id],
+  });
 }
 
 export function caseUpdateCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
@@ -218,6 +222,7 @@ export function caseDeleteCrewPerson(state: State, action: Action, applyChange: 
   return applyChange({
     ...state.present,
     crew,
+    crewOrder: (state.present.crewOrder || []).filter(id => id !== action.payload.id),
     crewTrash: [...(state.present.crewTrash || []), ...trashItems],
   });
 }
@@ -236,6 +241,7 @@ export function caseRestoreCrewPersonFromTrash(state: State, action: Action, app
     ...state.present,
     crewRoles,
     crew,
+    crewOrder: [...(state.present.crewOrder || []), item.person.id],
     crewTrash: (state.present.crewTrash || []).filter(t => t.person.id !== action.payload),
   });
 }
@@ -254,7 +260,12 @@ export function caseSortCrewBy(state: State, action: Action, applyChange: ApplyC
       const c = cmp(a.label, b.label);
       return direction === 'asc' ? c : -c;
     });
-    return applyChange({ ...state.present, crewRoles });
+    const crew = state.present.crew || {};
+    return applyChange({
+      ...state.present,
+      crewRoles,
+      crewOrder: crewRoles.flatMap(r => (crew[r.key] || []).map(p => p.id)),
+    });
   }
   const crew: Record<string, CrewPerson[]> = {};
   for (const [roleKey, list] of Object.entries(state.present.crew || {})) {
@@ -263,7 +274,11 @@ export function caseSortCrewBy(state: State, action: Action, applyChange: ApplyC
       return direction === 'asc' ? c : -c;
     });
   }
-  return applyChange({ ...state.present, crew });
+  return applyChange({
+    ...state.present,
+    crew,
+    crewOrder: (state.present.crewRoles || []).flatMap(r => (crew[r.key] || []).map(p => p.id)),
+  });
 }
 
 export function caseReorderCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
@@ -276,7 +291,14 @@ export function caseReorderCrewPerson(state: State, action: Action, applyChange:
   const [p] = list.splice(idx, 1);
   list.splice(target, 0, p);
   crew[action.payload.role] = list;
-  return applyChange({ ...state.present, crew });
+  const crewOrder = [...(state.present.crewOrder || [])];
+  const oi = crewOrder.indexOf(action.payload.id);
+  const ot = oi + action.payload.dir;
+  if (oi >= 0 && ot >= 0 && ot < crewOrder.length) {
+    const [m] = crewOrder.splice(oi, 1);
+    crewOrder.splice(ot, 0, m);
+  }
+  return applyChange({ ...state.present, crew, crewOrder });
 }
 
 // ---- location types ----------------------------------------------------------

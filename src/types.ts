@@ -566,6 +566,10 @@ export interface Project {
   productionInfo?: ProductionInfo;
   crewRoles?: CrewRole[];
   crew?: Record<string, CrewPerson[]>;
+  /** Flat display order of crew member ids across all roles — the crew glide
+   *  renders in this order (insertion order by default) instead of grouping by
+   *  role; manual sorts rewrite it. */
+  crewOrder?: string[];
   crewTrash?: CrewTrashItem[];
   locationTypes?: CrewRole[];
   locations?: ProjectLocation[];
