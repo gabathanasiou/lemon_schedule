@@ -1,6 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import pkg from './package.json';
 import {defineConfig} from 'vite';
 
 // Dev-only: injects the hub storage bridge into every page served inside a
@@ -35,6 +36,10 @@ export default defineConfig(() => {
   return {
     base: '/lemon_schedule/',
     plugins: [react(), tailwindcss(), hubStorageBridge()],
+    define: {
+      // Build-time app version for the boot-screen lockup (roadmap 80).
+      __APP_VERSION__: JSON.stringify(pkg.version),
+    },
     cacheDir,
     resolve: {
       alias: {

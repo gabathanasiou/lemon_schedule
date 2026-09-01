@@ -17,7 +17,13 @@
 4. **One source of truth per concern.** Duplicated logic (e.g. the stripboard/copy-paste/context-menu flows) MUST live in one shared module (`src/lib/`, `src/components/*/`) consumed by all views. See the Daybreak/Container models below — they are the canonical answers; do not re-derive them from code.
 5. **Complexity reset.** When a second special case would extend the same abstraction, stop, re-read the requirement, and redesign narrower instead of patching.
 6. **Small focused commits**, imperative mood, one revertible unit each.
-7. **Verify before done.** Every change runs `npm run lint`. **Logic/data/store/behavior changes** run `npx playwright test` (or the `npm run test:smart` subset) — full suite before done/commit, never claim done on a failing suite. **Visual-only changes** (class strings, colors, hover/focus styles, padding/layout — no behavior impact) skip the suite: lint + a manual user check is enough; don't boot e2e for CSS tweaks.
+ 7. **Verify before done.** Every change runs `npm run lint`. **Logic/data/store/behavior changes** run `npx playwright test` (or the `npm run test:smart` subset) — full suite before done/commit, never claim done on a failing suite. **Visual-only changes** (class strings, colors, hover/focus styles, padding/layout — no behavior impact) skip the suite: lint + a manual user check is enough; don't boot e2e for CSS tweaks.
+ 8. **Suggest a version bump when done — be smart, not noisy.** The boot screen shows `v{package.json version}` (build-time `__APP_VERSION__` define — see `docs/ROADMAP.md` item 82). When work wraps, judge whether it's actually worth a bump and say so in ONE short line of the done summary (never bump/tag yourself — release action). Guidelines:
+    - **Signal, not noise.** Don't suggest per commit. Small fixes / refactors / internal changes = no suggestion (or bundle several into "worth a patch when you next release"). A visible feature or a released-behavior fix = suggest.
+    - **Check the current version first.** If `package.json` is already newer than what your change adds (e.g. a release bump landed after the last user-visible change), skip it.
+    - **Batch.** In multi-item work (roadmap items, sessions with several commits), suggest once at a coherent milestone — one bump per user-visible milestone, not one per commit.
+    - **Size honestly.** Patch = fixes/visual-only; minor = new user-facing feature; major = breaking change. Don't inflate, don't undersell; note when a change is still unreleased/flagged/experimental (then no bump is due yet).
+    - **When unsure, just omit** — no bump suggestion beats a wrong one.
 
 ## Explaining to the User (plain language)
 - Talk about features in real terms, not code: "scene 1. GEORGE in the kitchen" or "scene ribbon" not "a SCENE row"; "cast member 1. FISHERMAN" not "cast entity"; "the hold list on Jun 3" not "NonShootDate.lists".

@@ -23,6 +23,7 @@ import PageToolbar from './components/PageToolbar';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from './lib/categories';
 import { getElementsFromScenes } from './store';
 import { ProjectManager } from './components/ProjectManager';
+import ProjectManagerBoot from './components/ProjectManagerBoot';
 import PrintDialog, { PrintOptions } from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
 import DoodDialog, { DoodOptions } from './components/print/DoodDialog';
@@ -647,7 +648,7 @@ function AppContent() {
   }
 
   if (noProject) {
-    return <ProjectManager />;
+    return <ProjectManagerBoot />;
   }
 
   const handleExportJSON = () => {

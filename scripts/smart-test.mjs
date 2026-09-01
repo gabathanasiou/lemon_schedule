@@ -168,6 +168,7 @@ const RULES = [
   { g: 'src/components/Modal.tsx', s: [...MODAL, ...IPAD] },
   { g: 'src/components/TrashModal.tsx', s: TRASH },
   { g: 'src/components/NewProjectModal.tsx', s: TRASH },
+  { g: 'src/components/ProjectManagerBoot.tsx', s: ['seeded-smoke'] },
   { g: 'src/components/ColorField.tsx', s: MODAL },
   { g: 'src/components/KeyboardToggleButton.tsx', s: ['keyboard-mode'] },
   // color rules + shared element pickers (rules tab + colors tab)

@@ -1318,3 +1318,168 @@ the app (bump the pin) and track the upgrade here.
 it introduced); rides items 67/71 (Modal flat chrome, stack morph + fade-recovery
 watchdog must compose with the new keyboard logic); lands via the item-56 kit-bump
 process.
+
+## 81. Reports designer × day types — day-type collections + per-type columns (`[ ]`)
+
+**Requested**: the Calendar's day-event types and manager (the user can create
+MANY custom day types) should plug into the reports designer "like legos" —
+per-type reports (Rehearsal/Travel days, per element, per day) built from
+existing designer pieces — **without bloating the designer** (no dead field per
+type; the insert-attribute picker stays tidy via submenus).
+
+**Investigation (facts)**:
+- **Day-types model** (canonical in AGENTS.md §Day Types & Non-Shoot Status):
+  `project.dayTypes: DayTypeDef[]` — a dynamic registry (4 locked built-ins
+  `work/hold/travel/holiday` + N customs, each label/color/icon/attachable/
+  markable). A day = `status` + event cards (`NonShootDate.lists[statusKey][category]`),
+  so days are **multi-type** ("events count everywhere"). Helpers: `getDayTypes`/
+  `dayTypeForDate`/`codeForType`/`visualForType` (`lib/dayTypes.ts`),
+  `getStatusesWithLists`/`getTypeListGroups` (`lib/nonShootHelpers.ts`), the DOOD
+  engine `deriveDood` (`lib/nonShootStats.ts`).
+- **Existing treatment in reports** (this item surfaces engines, never re-derives):
+  - Per day: `dayType` field (`reportFields.ts:152`) → `dayTypeLabelForDate` — ONE
+    label (collapses multi-type days to status-or-first-card).
+  - Per element: `computeElementStats` (`reportData.ts:619`) already builds
+    `typeCodes` (DOOD letters) and calls `deriveDood` — but only surfaces the
+    built-in `totalWorkDays/Hold/Travel` + `workDayList/holdDayList/travelDayList`.
+    **`DoodTotals.typeDayLists: Record<statusKey, iso[]>` (the custom-type dates)
+    is computed and DROPPED at the reports boundary** — the core gap. Same
+    vocabulary as the Day Types tab / Element Manager columns
+    (`computeElementDayStats.statusCounts`) and the DOOD print.
+- **The designer's lego mechanism for dynamic-N registries = collections**
+  (`categories`/`locationTypes`/`violationTypes` — one palette entry, items
+  resolved at render, `SKIP_EMPTY_*` registry, `scopedToParent` Lego
+  intersection, typed-parent children). The field registry is per-attribute code —
+  a field per type with no usage gate is the bloat trap.
+
+**Design** (user decisions: per-type element columns ARE wanted; Work row in the
+rollup = total shooting days; submenus/sub-sub-menus organize the picker):
+
+1. **Base collection `dayTypes`** — the "Day Type Breakdown" rollup (mirrors
+   `categories`): new `ReportDayTypeInfo {key,label,color,code,dayCount}` in the
+   `ReportCollectionItem` union (`reportData.ts:646`); a `resolveCollection`
+   branch over `getDayTypes(ctx.project)`; `dayCount` = days where the type is
+   the day's **status OR has a card** (`status === key` or `getStatusesWithLists`
+   — the DOOD counting rule, status + cards both count), **except `work` =
+   `ctx.dayInfos.length` (total shooting days — DOOD parity; Work is the default
+   state, never stored as a status)**. Precompute once in `buildReportCtx` (the
+   per-pillar rule, like `categoryInfos`). Register `SKIP_EMPTY_TEST.dayTypes`
+   (`dayCount > 0`, default ON → the automatic "Filters" checkbox + empty hint).
+   Fields (scope `dayTypes`): `dayTypeLabel`, `dayTypeCode` (DOOD letter via
+   `codeForType`), `dayTypeColor`, `dayTypeDayCount`, `dayTypeDays` (date list →
+   register in `DAY_LIST_FIELD_KEYS` for the toolbar day-format dropdown). One
+   table/repeat prints every custom type's totals with zero per-type code.
+2. **Contextual child collection `dayTypesOfElement`** (like `daysOfCast`/
+   `scenesOfElement`) — inside an element/cast repeat: the day types that element
+   has days in. Data already exists: extend `ReportElementInfo` to carry
+   `deriveDood`'s `typeDayLists` (via the existing `toDayEntries` transform).
+   Fields: `dayTypeLabel`, `dayTypeDayCount`, `dayTypeDayList` (per-element dates,
+   `formatDayList` + `aux.dayFormat`; `DAY_LIST_FIELD_KEYS`). **Lego scoping note**:
+   it derives straight from the parent element's `typeDayLists`, so it's inherently
+   parent-scoped — the ancestor intersection already runs through the parent (the
+   `elements` case in `resolveCollectionItems` filters elements by scene sets
+   first). Likely needs NO explicit scoping case — verify, don't assume. Offered
+   under element/cast parents only (`contextualCollectionsFor`).
+3. **Per-day fields (scope `days` — fixed count, no bloat)**: keep `dayType`
+   (back-compat). Add `dayTypeCode` (the day's DOOD cell letter — follow
+   `deriveDood` cell precedence: status letter → `W`/`SW`/`WF` (work wins on a
+   shooting day) → card letter; NOT `dayTypeForDate`) and multi-value
+   `dayTypeEvents` (ALL types on the day — status + `getStatusesWithLists`, in
+   manager order) so multi-type days print fully.
+4. **Per-type element columns (the direct path)**: dynamically generate
+   `total{Type}Days` + `{Type}DayList` fields in `getReportFieldDefs`
+   (mirroring `buildCategorySceneFields`' dynamic category fields) — one pair
+   per **custom** type (built-ins hold/travel already covered by the existing
+   trio; skip keys that collide with the full registry + category keys — dedupe,
+   don't assume slug uniqueness). Values from `computeElementStats`'
+   `typeDayLists` (status + cards, work-wins cell rule intact). **Gate to types
+   actually in use** (≥1 statused/carded day) so defined-but-unused types never
+   appear (re-marking a day auto-re-adds the field — the "without bloating" ask).
+   **Picker organization**: `group: 'Day Types'` on every generated field → they
+   land under ONE "Day Types" submenu automatically (`FieldPicker` buckets by
+   `f.group`, `FieldPicker.tsx:43-48,131`; the palette + token autocomplete +
+   context menu share `fieldsForScope` and group the same way). If the group
+   would exceed ~8-10 rows, add an optional second-level bucket — `ReportFieldDef
+   .submenu?: string` (per-type) rendered as nested `DropdownSubmenu`s (the kit
+   submenus nest — Radix recursive) inside the "Day Types" submenu; update
+   `FieldPicker`/`ReportPalette`/`RichTextEditor` autocomplete together; the
+   palette search stays flat (`searchReportFields` already searches every field).
+   Don't build the nesting speculatively (AGENTS.md rule 3) — flat "Day Types"
+   until the threshold.
+
+**Repeaters & compositions** (all through the existing repeat/table machinery —
+`resolveCollectionItems` is the single resolution path, so canvas/preview/print
+agree with zero per-view code):
+
+| Repeat composition | What it prints |
+|---|---|
+| Top-level `repeat(dayTypes)` | Day Type Breakdown — one item per type: "Rehearsal — 6 days", Travel — 2, Work — 40 |
+| `days` repeat + `dayTypeCode`/`dayTypeEvents` fields | Per-day column: DOOD letter + every type on a multi-type day |
+| `elements` → `dayTypesOfElement` (child) | Per element: "FISHERMAN — Rehearsal 3 days (Jan 4, 5, 9)"; nested in a `days` repeat, the Lego intersection scopes it to that day's scenes |
+| `categories` → `elementsOfCategory` → `dayTypesOfElement` | Per category × element × type |
+| `elements`/`cast` table + per-type columns | `totalRehearsalDays` / `Rehearsal Day List` columns next to Work/Hold/Travel Days |
+
+The base `dayTypes` collection nested under a scoping ancestor (e.g. inside a
+cast repeat) DOES need a scoping case in `resolveCollectionItems` (filter to
+types whose days intersect the ancestor scenes) — same shape as the `days`/
+`categories` cases.
+
+**New-collection wiring checklist** (REPORTS-DESIGNER §Extending +
+`docs/REPORTS-LEGO-CONTEXT.md`): `ReportCollection` union (`types.ts:390`);
+`resolveCollection` branches + `SKIP_EMPTY_*` (`reportData.ts`); `COLLECTION_ORDER`/
+`validCollections`/`contextualCollectionsFor`/`parentCollectionOf`/
+`scopedCollectionLabel`/`defaultIdentityField` (`reportBlocks.ts`); field groups +
+`FIELD_GROUP_COLORS` entry for `'Day Types'` (`reportFields.ts`); table pickers
+derive `tableItemCollection`/`tableFieldScope` automatically via
+`contextualCollectionsFor`.
+
+**Verify**: lint + playwright — seeded project + a custom attachable type
+("Rehearsal") with cast/element cards: `dayTypes` table lists in-use types
+(skip-empty) with correct dayCount (status + cards; Work row = total shoot
+days); `dayTypesOfElement` scopes per element inside a Lego chain (a `days`
+ancestor intersection applies); day table renders `dayTypeCode` (work-wins on a
+shooting day carrying a travel card) + `dayTypeEvents` (multi-type); the per-type
+columns appear only for used types, print the right days, and sit under the one
+"Day Types" submenu (sub-sub-menus when over threshold); day-format dropdown
+applies to the new day-list fields; built-in trio + `dayType` unchanged;
+canvas/preview/print agree. New spec `e2e/report-day-types.spec.ts` + RULES entry
+(extend the REPORT bucket list in `scripts/smart-test.mjs`; `src/lib/report*.ts`
+→ REPORT already covers the code).
+
+**Relations**: rides item 39's day-types registry + items 45/46's events model
+(AGENTS.md §Day Types & Non-Shoot Status); the collection pattern from the
+`categories`/`locationTypes`/`violationTypes` designer work (LEGO context doc);
+submenus ride item 64's kit menu model (nested `DropdownSubmenu`s);
+`ReportPalette`/`RichTextEditor` picker-group updates parallel item 61's
+kit-base conversions.
+
+## 82. Project Manager boot screen — minimal backdrop + app lockup + version (`[x]` Done)
+
+**Done**: when no project is open, App renders `ProjectManagerBoot`
+(`src/components/ProjectManagerBoot.tsx`) instead of a bare `<ProjectManager />`:
+the modal floats on a **flat `bg-zinc-950`** backdrop with a soft lightening ONLY
+at the bottom edge (a `h-56 bg-gradient-to-t from-zinc-900/70 to-transparent`
+band), and the bottom-right shows a whisper lockup — `LEMON
+SCHEDULE` (`text-[10px] uppercase tracking-[0.2em] text-zinc-600`) + `v{version}`
+(`text-zinc-700`). The item-59 one-dim is zeroed only on this screen (`.pm-boot
+.ui-modal-overlay { background: transparent }` in `index.css`, body class toggled
+by the component) so the backdrop reads crisp. **Version is build-time injected**:
+`vite.config.ts` reads `package.json`'s `version` and `define`s `__APP_VERSION__`
+(declared in `vite-env.d.ts`; `tsconfig.json` gained `resolveJsonModule`), exposed
+via `src/lib/appVersion.ts`. Standard bump flow (what people do generally): semver
+in `package.json` + `npm version patch|minor|major` at release time (auto-tags the
+commit); the lockup updates on the next dev-server restart / build. The ProjectManager modal itself is untouched (same dark
+chrome, morph, one-hero footer). **Minimal by decision**: no color, no centered
+glow, no motifs, no animation — DESIGN-LANGUAGE §Boot screen documents the recipe
++ anti-pattern. (The first pass used a full-screen vertical gradient + a centered
+radial glow; the user reverted to flat with bottom-only lightening.)
+Verified visually (desktop boot screen + lockup + dim-zero via the bridge); lint
+clean. Rule 7: visual-only change — no e2e.
+
+**Requested**: the no-project Project Manager sat on flat black-gray. Make the
+background more interesting while keeping the design language, with the app name +
+version bottom-right. User decisions: minimal/subtle (no color, no film motif) and
+build-time version from package.json.
+
+**Relations**: one-screen exception to item 59's one-dim rule (the `.pm-boot` dim-zero);
+rides the item-56 kit-bump process territory (the version define is app-side only).

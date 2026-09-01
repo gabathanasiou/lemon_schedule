@@ -36,6 +36,14 @@ html, body, #root {
   background: transparent !important;
 }
 
+/* Boot screen (no project open — ProjectManagerBoot): the only screen that
+   ZEROES the kit's one-dim (item 59). The ProjectManager modal floats on a
+   painted gradient backdrop, so its overlay dim is removed here and restored
+   for every other modal in the app. */
+.pm-boot .ui-modal-overlay {
+  background: transparent;
+}
+
 /* Stacked app modals (e.g. Day Events → Rule Editor): dialogs portal as
    siblings into the window body, so DOM order = stack order. Any open modal
    with an open modal AFTER it fades to invisible — only the top modal stays

@@ -64,6 +64,26 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
   `node_modules/@gabriel/ui-kit/dist/index.js:539`) because it anchors on light surfaces.
   DropdownMenu (dark) and Dialog (dark) set their own themes (`index.js:174`, `:671`).
 
+### Boot screen (no project open) — minimal backdrop + app lockup (roadmap 82)
+
+When no project is open (`App.tsx` renders `ProjectManagerBoot`), the ProjectManager
+modal floats on a **deep zinc gradient** instead of flat gray. Minimal on purpose —
+no color, no motifs:
+
+- **Backdrop** (`ProjectManagerBoot.tsx`): **flat `bg-zinc-950`** for the whole
+  screen + ONE soft lightening at the **bottom edge only** (a `h-56
+  bg-gradient-to-t from-zinc-900/70 to-transparent` band, `pointer-events-none`).
+  Minimal on purpose — no color, no centered glow, no motifs.
+- **App lockup, bottom-right**: `LEMON SCHEDULE` (`text-[10px] font-semibold uppercase
+  tracking-[0.2em] text-zinc-600`) + `v{APP_VERSION}` (`text-[10px] text-zinc-700`),
+  `pointer-events-none select-none`. Version is build-time injected from `package.json`
+  via Vite `define` (`__APP_VERSION__` → `src/lib/appVersion.ts`).
+- **Dim exception**: the modal's item-59 one-dim is ZEROED on this screen (`.pm-boot
+  .ui-modal-overlay { background: transparent }` in `index.css`, body class toggled by
+  the component) so the backdrop reads crisp. Every other modal keeps the one-dim rule.
+- Anti-pattern: this is a restrained backdrop, not a marketing splash — no brand
+  colors, no decorative motifs, no animation.
+
 ## Canonical class recipes (the exact strings)
 
 ### Dark surfaces & menus
