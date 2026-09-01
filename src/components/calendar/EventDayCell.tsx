@@ -217,7 +217,15 @@ export const EventCardView: React.FC<{
         </HoverTooltip>
         <span className="flex-1 min-w-0">{names}</span>
         {card.comment && (
-          <HoverTooltip className="shrink-0 inline-flex mt-[1px]" content={<div className="max-w-[220px] text-[11px] italic text-zinc-100 leading-snug">{card.comment}</div>}>
+          <HoverTooltip className="shrink-0 inline-flex mt-[1px]" content={
+            <div className="max-w-[220px]">
+              <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-100 mb-0.5">
+                <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-400" />
+                <span>Note</span>
+              </div>
+              <div className="text-[11px] italic text-zinc-100 leading-snug">{card.comment}</div>
+            </div>
+          }>
             <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-500" style={selected ? { color: sel.color } : undefined} />
           </HoverTooltip>
         )}
