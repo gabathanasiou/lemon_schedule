@@ -49,7 +49,7 @@ export const crewManagerConfig: ManagerShellConfig = {
   mergeIntro: 'The following crew members now share a name within this role. Saving will merge each set into a single member and combine their contact details.',
   mergeSummary: 'contacts combined',
   fields: [
-    { key: 'name', label: 'Name', width: 'min-w-44' },
+    { key: 'name', label: 'Name', width: 'min-w-44 max-w-56' },
     { key: 'phone', label: 'Phone', width: 'min-w-36' },
     { key: 'email', label: 'Email', width: 'min-w-[140px]' },
   ],

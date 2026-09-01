@@ -5,6 +5,7 @@ import { generateUUID } from '../../lib/utils';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems, isMultiValue } from '../../lib/categories';
 import { getCategoryElements } from '../../lib/elements';
 import { applyLinkToScenes, isLinkableCategory, anchoredKeysFor } from '../../lib/elementLinks';
+import { CardSection } from '@gabriel/ui-kit';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -80,9 +81,17 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
   }, [project.elementLinks, initialAnchorCategory]);
 
   const [groups, setGroups] = useState<AnchorGroup[]>(groupInit);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [applied, setApplied] = useState<Record<string, number>>({});
   const [appliedAll, setAppliedAll] = useState(false);
+
+  const toggleCollapse = (gid: string) =>
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(gid)) next.delete(gid); else next.add(gid);
+      return next;
+    });
 
   const allCategoryKeys = useMemo(() => {
     const keys: { key: string; isCustom: boolean }[] = [];
@@ -110,6 +119,17 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
   }, [project.categoryLabels, project.customCategories]);
 
   const elementsFor = useCallback((cat: string) => getCategoryElements(project, cat), [project]);
+
+  /** Human label for the anchor in the card header ("1. FISHERMAN" for cast,
+   *  the element name otherwise; falls back to the raw value). */
+  const anchorDisplay = (g: AnchorGroup): string => {
+    if (!g.anchorValue) return '';
+    const elems = elementsFor(g.category);
+    return getFieldItems(g.category, g.anchorValue).map(v => {
+      const e = elems.find(x => g.category === 'cast' ? String(x.id) === v : (x.name || '').toLowerCase() === v.toLowerCase());
+      return e ? (g.category === 'cast' ? `${e.id}. ${e.name}` : e.name) : v;
+    }).join(', ');
+  };
 
   // Per-category sets of item keys that are anchors of a link — Anchor icons
   // in the pickers (incl. elements that are a linked target here but anchor
@@ -260,56 +280,63 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
           const anchorElements = elementsFor(g.category);
           const gComplete = !!g.anchorValue && g.links.some(l => l.linkedCategory && l.linkedValue);
           const appliedCount = applied[g.id];
+          const linkCount = filledLinks(g).length;
+          const anchorLabel = anchorDisplay(g);
           return (
-            <div key={g.id} className="rounded-lg border border-zinc-800 px-3 py-3">
-              <div className="flex gap-2.5">
-                {/* Gutter: anchor icon with a ruler that branches down the
-                    linked list — hierarchy without a text label. */}
-                <div className="flex flex-col items-center shrink-0">
-                  <Link2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                  {g.links.length > 0 && <div className="w-px flex-1 bg-zinc-700/60 my-1 min-h-2" />}
+            <CardSection
+              key={g.id}
+              dataProps={{ 'data-anchor-card': g.id }}
+              icon={<Link2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
+              title={anchorLabel ? <span className="truncate">{anchorLabel}</span> : <span className="text-zinc-500 italic">Unset anchor</span>}
+              count={`${linkCount} link${linkCount === 1 ? '' : 's'}`}
+              collapsed={collapsedGroups.has(g.id)}
+              onToggle={() => toggleCollapse(g.id)}
+              trailing={
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => applyGroup(g.id)}
+                    disabled={!gComplete}
+                    title="Apply to existing scenes: add this card's linked elements to every scene that already contains the anchor"
+                    aria-label="Apply linked elements to existing scenes"
+                    className={`${ACTION_BTN} disabled:opacity-30 disabled:cursor-not-allowed`}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Apply
+                  </button>
+                  <button
+                    onClick={() => removeGroup(g.id)}
+                    title="Remove this anchor and all its links"
+                    aria-label="Remove anchor card"
+                    className={REMOVE_BTN}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              }
+            >
+              <div className="space-y-2 pt-1">
+                <div>
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1.5 block">Anchor</span>
+                  <ElementPickerRow
+                    category={g.category}
+                    elementValue={g.anchorValue}
+                    onCategoryChange={(cat) => patchGroup(g.id, { category: cat, anchorValue: '' })}
+                    onElementChange={(v) => patchGroup(g.id, { anchorValue: v })}
+                    allCategoryKeys={allCategoryKeys}
+                    categoryLabelLookup={categoryLabelLookup}
+                    customCategories={project.customCategories}
+                    items={anchorElements}
+                    mode="single"
+                    openDropdown={openDropdown}
+                    setOpenDropdown={setOpenDropdown}
+                    idPrefix={`a${gi}`}
+                    btnClass={ANCHOR_BTN}
+                    anchoredKeys={anchoredByCategory.get(g.category)}
+                  />
                 </div>
 
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <ElementPickerRow
-                      category={g.category}
-                      elementValue={g.anchorValue}
-                      onCategoryChange={(cat) => patchGroup(g.id, { category: cat, anchorValue: '' })}
-                      onElementChange={(v) => patchGroup(g.id, { anchorValue: v })}
-                      allCategoryKeys={allCategoryKeys}
-                      categoryLabelLookup={categoryLabelLookup}
-                      customCategories={project.customCategories}
-                      items={anchorElements}
-                      mode="single"
-                      openDropdown={openDropdown}
-                      setOpenDropdown={setOpenDropdown}
-                      idPrefix={`a${gi}`}
-                      btnClass={ANCHOR_BTN}
-                      anchoredKeys={anchoredByCategory.get(g.category)}
-                      trailing={
-                        <button
-                          onClick={() => applyGroup(g.id)}
-                          disabled={!gComplete}
-                          title="Apply to existing scenes: add this card's linked elements to every scene that already contains the anchor"
-                          aria-label="Apply linked elements to existing scenes"
-                          className={`${ACTION_BTN} disabled:opacity-30 disabled:cursor-not-allowed`}
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          Apply
-                        </button>
-                      }
-                    />
-                    <button
-                      onClick={() => removeGroup(g.id)}
-                      title="Remove this anchor and all its links"
-                      aria-label="Remove anchor card"
-                      className={REMOVE_BTN}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
+                <div>
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1.5 block">Linked elements</span>
                   {g.links.map((l, li) => {
                     const linkedElements = elementsFor(l.linkedCategory);
                     return (
@@ -337,7 +364,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                     );
                   })}
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mt-2">
                     {unusedCategory(g) !== null && (
                       <button onClick={() => addLink(g.id)} className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
                         <Plus className="w-3.5 h-3.5" />
@@ -352,7 +379,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                   </div>
                 </div>
               </div>
-            </div>
+            </CardSection>
           );
         })}
 

@@ -13,6 +13,7 @@ import DropdownMenu from '../components/DropdownMenu';
 import DropdownItem from '../components/DropdownItem';
 import Button from '../components/Button';
 import { setPendingTab } from './unsavedGuard';
+import { MT_INPUT, MT_HEADER, MT_CELL, MT_ADD, useManagerTableSizes } from './managerTable';
 import type { CrewRole, Project } from '../types';
 
 // ---- Generic buffered database manager --------------------------------------
@@ -80,7 +81,7 @@ export interface ManagerShellConfig {
   sortModes: ManagerSortMode[];
 }
 
-const cellInputCls = 'w-full bg-transparent px-2 py-1 text-xs text-zinc-800 outline-none rounded focus:bg-white focus:ring-1 focus:ring-zinc-400 transition-shadow';
+const cellInputCls = MT_INPUT;
 
 /** Name-keyed buffered diff (mirrors the crew manager's merge semantics):
  *  rows ending on the same name merge into one record; mergeable fields prefer
@@ -194,6 +195,7 @@ export const DatabaseManagerView: React.FC<{
   const isCloud = useIsCloudProject();
   const dialog = useDialog();
   const project = state.present;
+  const sizes = useManagerTableSizes();
 
   const categories = config.categories(project);
 
@@ -333,7 +335,7 @@ export const DatabaseManagerView: React.FC<{
         title={`Rename ${config.categorySingular}`}
         className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'} disabled:opacity-30 disabled:cursor-not-allowed`}
       >
-        <Pencil className="w-3 h-3 text-zinc-400" />
+        <Pencil style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); void deleteCategory(row.key); }}
@@ -341,19 +343,39 @@ export const DatabaseManagerView: React.FC<{
         title={`Delete ${config.categorySingular}`}
         className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} disabled:opacity-30 disabled:cursor-not-allowed`}
       >
-        <Trash2 className="w-3 h-3 text-red-400" />
+        <Trash2 style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-red-400" />
       </button>
     </>
   );
 
-  const renderInput = (key: string, field: string, val: string, onChange: (v: string) => void, placeholder?: string) => {
-    const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
+  const renderInput = (key: string, field: string, val: string, onChange: (v: string) => void, placeholder?: string, wrap = false) => {
+    const handleKey = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
       if (e.key === 'Tab') {
         e.preventDefault();
         buf.focusNext(key, field);
       }
     };
+    // The identity/name field wraps to a second line on long names (auto-sized
+    // textarea, same `field-sizing: content` pattern as the day-modal notes).
+    if (wrap) {
+      return (
+        <textarea
+          ref={el => buf.registerInput(key, field, el)}
+          rows={1}
+          data-manager-name=""
+          value={val}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          onChange={e => onChange(e.target.value.replace(/\n/g, ' '))}
+          onKeyDown={handleKey}
+          onFocus={buf.noteFocusStart}
+          onBlur={buf.noteFocusEnd}
+          style={sizes.input}
+          className={`${cellInputCls} [field-sizing:content] resize-none overflow-hidden leading-snug align-middle`}
+        />
+      );
+    }
     return (
       <input
         ref={el => buf.registerInput(key, field, el)}
@@ -365,6 +387,7 @@ export const DatabaseManagerView: React.FC<{
         onKeyDown={handleKey}
         onFocus={buf.noteFocusStart}
         onBlur={buf.noteFocusEnd}
+        style={sizes.input}
         className={cellInputCls}
       />
     );
@@ -376,8 +399,8 @@ export const DatabaseManagerView: React.FC<{
     buf.sortRows(mode.comparator);
   };
 
-  const defaultInput = (field: ManagerFieldDef, r: ManagerRow, update: (f: string, v: string) => void, ro: boolean) =>
-    renderInput(r.key, field.key, r[field.key] || '', v => update(field.key, v), field.label);
+  const defaultInput = (field: ManagerFieldDef, r: ManagerRow, update: (f: string, v: string) => void, ro: boolean, wrap = false) =>
+    renderInput(r.key, field.key, r[field.key] || '', v => update(field.key, v), field.label, wrap);
 
   const revertButton = hasChanges ? (
     <Button variant="subtle" onClick={doRevert} disabled={readOnly}>
@@ -456,24 +479,24 @@ export const DatabaseManagerView: React.FC<{
                   <thead>
                     <tr className="bg-zinc-50">
                       {config.fields.map((f, fi) => (
-                        <th key={f.key} className={`sticky top-0 ${fi === 0 ? `left-0 z-30 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : 'z-10'} bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider ${f.width || ''}`}>{f.label}</th>
+                        <th key={f.key} style={sizes.header} className={`sticky top-0 ${fi === 0 ? `left-0 z-30 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : 'z-10'} bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left ${f.width || ''}`}>{f.label}</th>
                       ))}
-                      <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center w-12" />
+                      <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 ${MT_HEADER} text-center w-12`} />
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((r, ri) => (
                       <tr key={r.key} className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}>
                         {config.fields.map((f, fi) => (
-                          <td key={f.key} className={`${fi === 0 ? `sticky left-0 z-10 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : ''} px-3 py-1 border-r border-zinc-200`}>
+                          <td key={f.key} style={sizes.cell} className={`${fi === 0 ? `sticky left-0 z-10 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : ''} ${MT_CELL}`}>
                             {f.render
                               ? f.render(r, (field, val) => buf.updateRow(r.key, field, val), readOnly, { project })
-                              : defaultInput(f, r, (field, val) => buf.updateRow(r.key, field, val), readOnly)}
+                              : defaultInput(f, r, (field, val) => buf.updateRow(r.key, field, val), readOnly, fi === 0)}
                           </td>
                         ))}
-                        <td className="px-3 py-1 text-center">
+                        <td style={sizes.cell} className={`${MT_CELL} text-center`}>
                           <button title={`Delete ${config.nounSingular}`} onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
-                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            <Trash2 style={{ width: sizes.icon, height: sizes.icon }} className="text-red-400" />
                           </button>
                         </td>
                       </tr>
@@ -484,7 +507,8 @@ export const DatabaseManagerView: React.FC<{
               <button
                 onClick={buf.addNew}
                 disabled={!category || readOnly}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed"
+                style={sizes.add}
+                className={`${MT_ADD}`}
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{category ? `Add ${category.label}` : `Add ${config.addNoun}`}</span>

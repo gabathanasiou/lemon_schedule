@@ -4,6 +4,7 @@ import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { useDialog } from '../Dialog';
 import { Pencil, Trash2, CalendarDays, Flag, MessageSquare } from 'lucide-react';
 import SidebarNav, { SidebarNavRow } from '../SidebarNav';
+import { useManagerTableSizes } from '../../lib/managerTable';
 import { ProjectRule, RuleViolation, NonShootDate } from '../../types';
 import {
   getDayTypes, getDayType, typeIconComponent, iconForType, DAY_TYPE_BUILTIN_KEYS, DAY_TYPE_BUILTIN_ICONS, slugifyDayType,
@@ -22,6 +23,7 @@ export const DayTypesTab: React.FC = () => {
   const { state, dispatch, readOnly } = useProject();
   const dialog = useDialog();
   const project = state.present;
+  const sizes = useManagerTableSizes();
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { productionSections, sectionDateMap, productionChronoDayMap } = useDaybreakSections();
   const dayTypes = useMemo(() => getDayTypes(project), [project]);
@@ -198,7 +200,7 @@ export const DayTypesTab: React.FC = () => {
           title="Edit"
           className={actionCls(hoverCls)}
         >
-          <Pencil className="w-3 h-3 text-zinc-400" />
+          <Pencil style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
         </span>
         <span
           role="button"
@@ -207,7 +209,7 @@ export const DayTypesTab: React.FC = () => {
           onClick={async (e) => { e.stopPropagation(); if (!readOnly) await remove(row.key); }}
           className={actionCls(active ? 'hover:bg-red-900/50' : 'hover:bg-red-100')}
         >
-          <Trash2 className="w-3 h-3 text-red-400" />
+          <Trash2 style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-red-400" />
         </span>
       </>
     );

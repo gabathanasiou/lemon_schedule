@@ -38,7 +38,7 @@ export interface RowBufferResult<T extends BufferedRow> {
   doRevert: () => void;
   hasChanges: boolean;
   switchScope: (newScope: string) => void;
-  registerInput: (key: string, field: string, el: HTMLInputElement | null) => void;
+  registerInput: (key: string, field: string, el: HTMLInputElement | HTMLTextAreaElement | null) => void;
   focusNext: (key: string, field: string) => void;
   /** Call after the manager's save dispatches committed: snapshots refresh, local history clears. */
   commitSaved: () => void;
@@ -74,7 +74,7 @@ export function useRowBuffer<T extends BufferedRow>(opts: RowBufferOptions<T>): 
   const snapByScope = useRef<Record<string, T[]>>({});
   const undoByScope = useRef<Record<string, T[][]>>({});
   const redoByScope = useRef<Record<string, T[][]>>({});
-  const inputsRef = useRef<Map<string, HTMLInputElement>>(new Map());
+  const inputsRef = useRef<Map<string, HTMLElement>>(new Map());
   // Rows captured when an input gains focus — pushed as ONE undo entry on the
   // first keystroke, discarded on blur without changes (per-operation undo).
   const pendingSnapshotRef = useRef<T[] | null>(null);
@@ -262,9 +262,9 @@ export function useRowBuffer<T extends BufferedRow>(opts: RowBufferOptions<T>): 
     if (scopeKey === scopeRef.current) setRows(next);
   }, []);
 
-  const registerInput = useCallback((key: string, field: string, el: HTMLInputElement | null) => {
+  const registerInput = useCallback((key: string, field: string, el: HTMLInputElement | HTMLTextAreaElement | null) => {
     const id = `${key}-${field}`;
-    if (el) inputsRef.current.set(id, el);
+    if (el) inputsRef.current.set(id, el as HTMLInputElement);
     else inputsRef.current.delete(id);
   }, []);
 

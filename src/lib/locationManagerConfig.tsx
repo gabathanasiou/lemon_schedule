@@ -225,7 +225,7 @@ export const locationManagerConfig: ManagerShellConfig = {
   mergeIntro: 'The following locations now share a name within this type. Saving will merge each set into a single location and combine their details.',
   mergeSummary: 'details combined',
   fields: [
-    { key: 'name', label: 'Name', width: 'min-w-44' },
+    { key: 'name', label: 'Name', width: 'min-w-44 max-w-56' },
     { key: 'address', label: 'Address', width: 'min-w-56', render: addressField },
     { key: 'contactName', label: 'Contact', width: 'min-w-36' },
     { key: 'phone', label: 'Phone', width: 'min-w-32' },

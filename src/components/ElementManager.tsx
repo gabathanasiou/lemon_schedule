@@ -17,6 +17,7 @@ import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal 
 import { MergeRowsModal } from './elements/MergeRowsModal';
 import { LinkManagerModal } from './elements/LinkManagerModal';
 import { ElementEventsModal } from './elements/ElementEventsModal';
+import { MT_INPUT, MT_HEADER, MT_CELL_SMALL, MT_ADD, useManagerTableSizes } from '../lib/managerTable';
 import Button from './Button';
 import SidebarNav, { SidebarNavRow } from './SidebarNav';
 
@@ -45,6 +46,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const isCloud = useIsCloudProject();
   const dialog = useDialog();
   const project = state.present;
+  const sizes = useManagerTableSizes();
 
   const [category, setCategory] = useState(initialCategory || 'cast');
 
@@ -338,15 +340,34 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     }
   }
 
-  const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean, upper?: boolean, centered?: boolean) => {
-    const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
+  const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean, upper?: boolean, centered?: boolean, wrap = false) => {
+    const handleKey = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
       if (e.key === 'Tab') {
         e.preventDefault();
         buf.focusNext(key, field);
       }
     };
-    const transform = (v: string) => numeric ? v.replace(/[^0-9]/g, '') : upper ? v.toUpperCase() : v;
+    const transform = (v: string) => numeric ? v.replace(/[^0-9]/g, '') : upper ? v.toUpperCase() : v.replace(/\n/g, ' ');
+    // The name field wraps to a second line on long names (auto-sized textarea,
+    // same `field-sizing: content` pattern as the day-modal notes).
+    if (wrap) {
+      return (
+        <textarea
+          ref={el => buf.registerInput(key, field, el)}
+          rows={1}
+          data-manager-name=""
+          value={val}
+          readOnly={readOnly}
+          onChange={e => onChange(transform(e.target.value))}
+          onKeyDown={handleKey}
+          onFocus={buf.noteFocusStart}
+          onBlur={buf.noteFocusEnd}
+          style={sizes.input}
+          className={`${MT_INPUT} [field-sizing:content] resize-none overflow-hidden leading-snug align-middle ${centered ? 'text-center' : ''}`}
+        />
+      );
+    }
     return (
       <input
         ref={el => buf.registerInput(key, field, el)}
@@ -357,7 +378,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         onKeyDown={handleKey}
         onFocus={buf.noteFocusStart}
         onBlur={buf.noteFocusEnd}
-        className={`w-full bg-transparent px-2 py-1 text-xs text-zinc-800 outline-none rounded focus:bg-white focus:ring-1 focus:ring-zinc-400 transition-shadow ${centered ? 'text-center' : ''}`}
+        style={sizes.input}
+        className={`${MT_INPUT} ${centered ? 'text-center' : ''}`}
       />
     );
   };
@@ -492,7 +514,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           }}
           className={actionCls(hoverCls)}
         >
-          <Pencil className="w-3 h-3 text-zinc-400" />
+          <Pencil style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
         </span>
         {showHideToggle && !isHidden && (
           <span
@@ -510,7 +532,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             }}
             className={actionCls(hoverCls)}
           >
-            <EyeOff className="w-3 h-3 text-zinc-400" />
+            <EyeOff style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
           </span>
         )}
         {showHideToggle && isHidden && (
@@ -526,7 +548,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             className={actionCls(hoverCls)}
             title="Unhide category"
           >
-            <Eye className="w-3 h-3 text-zinc-400" />
+            <Eye style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
           </span>
         )}
         {showDelete && (
@@ -545,7 +567,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             }}
             className={actionCls(active ? 'hover:bg-red-900/50' : 'hover:bg-red-100')}
           >
-            <Trash2 className="w-3 h-3 text-red-400" />
+            <Trash2 style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-red-400" />
           </span>
         )}
       </>
@@ -586,16 +608,17 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
               <table className="w-full manager-table">
                 <thead>
                   <tr className="bg-zinc-50">
-                    {isCast && <th className={`sticky top-0 left-0 z-30 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>}
-                    <th className={`sticky top-0 ${isCast ? 'left-24' : 'left-0'} z-30 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-[140px] ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14">Occ</th>
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-24">Start Date</th>
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-24">Finish Date</th>
-                    <th className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14">Total Days</th>
+                    {isCast && <th style={sizes.header} className={`sticky top-0 left-0 z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>}
+                    <th style={sizes.header} className={`sticky top-0 ${isCast ? 'left-24' : 'left-0'} z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-[140px] max-w-52 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>Occ</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-24`}>Start Date</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-24`}>Finish Date</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>Total Days</th>
                     {dayTypes.map(t => (
-                      <th key={t.key} title={t.label} className="sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider min-w-14">{t.label}</th>
+                      <th key={t.key} title={t.label} style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>{t.label}</th>
                     ))}
-                    <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center w-10" />
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center w-12`}>Events</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 ${MT_HEADER} text-center w-12`} />
                   </tr>
                 </thead>
                 <tbody>
@@ -604,7 +627,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                       return (
                     <tr key={r.key} className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}>
                       {isCast && (
-                        <td className={`sticky left-0 z-10 px-3 py-1 border-r border-zinc-200 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>
+                        <td style={sizes.cellSmall} className={`sticky left-0 z-10 ${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>
                           <div className="flex items-center gap-1">
                             <div className="flex-1 min-w-0">
                               {renderInput(r.key, 'id', r.id, v => buf.updateRow(r.key, 'id', v), true, false, true)}
@@ -616,30 +639,32 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                               className="p-1 rounded-md shrink-0 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                             >
                               {lockedIds.has(r.key)
-                                ? <Lock className="w-3.5 h-3.5 text-zinc-700 hover:text-red-500" />
-                                : <LockOpen className="w-3.5 h-3.5 text-zinc-400 hover:text-zinc-800" />}
+                                ? <Lock style={{ width: sizes.icon, height: sizes.icon }} className="text-zinc-700 hover:text-red-500" />
+                                : <LockOpen style={{ width: sizes.icon, height: sizes.icon }} className="text-zinc-400 hover:text-zinc-800" />}
                             </button>
                           </div>
                         </td>
                       )}
-                      <td className={`sticky ${isCast ? 'left-24' : 'left-0'} z-10 px-3 py-1 border-r border-zinc-200 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), false, isCast || isSet)}</td>
-                      <td className="px-3 py-1 border-r border-zinc-200 text-center text-[11px] text-zinc-400 font-medium">{r.occ}</td>
-                      <td className="px-3 py-1 border-r border-zinc-200 text-[11px] text-zinc-400">{stats?.startDate ? formatDateShort(stats.startDate) : ''}</td>
-                      <td className="px-3 py-1 border-r border-zinc-200 text-[11px] text-zinc-400">{stats?.finishDate ? formatDateShort(stats.finishDate) : ''}</td>
-                      <td className="px-3 py-1 border-r border-zinc-200 text-center text-[11px] text-zinc-400 font-medium">{stats?.totalDays ?? 0}</td>
+                      <td style={sizes.cellSmall} className={`sticky ${isCast ? 'left-24' : 'left-0'} z-10 ${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), false, isCast || isSet, false, true)}</td>
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-zinc-400 font-medium`}>{r.occ}</td>
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-zinc-400`}>{stats?.startDate ? formatDateShort(stats.startDate) : ''}</td>
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-zinc-400`}>{stats?.finishDate ? formatDateShort(stats.finishDate) : ''}</td>
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-zinc-400 font-medium`}>{stats?.totalDays ?? 0}</td>
                       {dayTypes.map(t => (
-                        <td key={t.key} title={t.label} className="px-3 py-1 border-r border-zinc-200 text-center text-[11px] text-zinc-400 font-medium">{t.key === 'work' ? (stats?.workDays ?? 0) : (stats?.statusCounts[t.key] ?? 0)}</td>
+                        <td key={t.key} title={t.label} style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-zinc-400 font-medium`}>{t.key === 'work' ? (stats?.workDays ?? 0) : (stats?.statusCounts[t.key] ?? 0)}</td>
                       ))}
-                      <td className="px-3 py-1 text-center whitespace-nowrap">
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
                         <button
                           onClick={() => setEventsTarget({ key: r.key, id: r.id, name: r.name })}
                           title={`Events — dates, rules and violations for ${r.name || r.id}`}
-                          className="p-1 rounded-md hover:bg-blue-50 transition-colors opacity-40 hover:opacity-100 align-middle"
+                          className="p-1.5 rounded-md hover:bg-blue-50 transition-colors opacity-40 hover:opacity-100 align-middle"
                         >
-                          <CalendarDays className="w-3.5 h-3.5 text-blue-500" />
+                          <CalendarDays style={{ width: sizes.icon, height: sizes.icon }} className="text-blue-500" />
                         </button>
-                        <button onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed align-middle">
-                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      </td>
+                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
+                        <button onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1.5 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed align-middle">
+                          <Trash2 style={{ width: sizes.icon, height: sizes.icon }} className="text-red-400" />
                         </button>
                       </td>
                     </tr>
@@ -648,7 +673,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                 </tbody>
               </table>
 
-              <button onClick={buf.addNew} disabled={readOnly} className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={buf.addNew} disabled={readOnly} style={sizes.add} className={`${MT_ADD}`}>
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add {getLabel(category, 'element', project.categoryLabels)}</span>
               </button>
