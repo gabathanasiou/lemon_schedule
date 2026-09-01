@@ -609,7 +609,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: 3 } });
           dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: 3 } });
           dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: 3 } });
-          dispatch({ type: 'SET_RIBBON_TEXT_SIZE', payload: { id: activeDesign.id, textSize: 14 } });
+          dispatch({ type: 'SET_RIBBON_TEXT_SIZE', payload: { id: activeDesign.id, textSize: 10 } });
           dispatch({ type: 'BATCH_COMMIT' });
         }}
         readOnly={readOnly}
