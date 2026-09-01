@@ -14,7 +14,6 @@ const BTN_LABEL_DANGER = `${BTN} !text-zinc-300 hover:!bg-red-950/50`;
 const BTN_MOVE = `${BTN} !text-zinc-400 hover:!bg-zinc-700 !disabled:opacity-25`;
 const BTN_CHANGE = `${BTN} !text-zinc-300 hover:!bg-zinc-700`;
 const BTN_ICON = 'rounded !border flex items-center justify-center !disabled:opacity-25 transition-colors';
-const BTN_ICON_NB = 'rounded flex items-center justify-center !disabled:opacity-25 transition-colors';
 const BTN_ICON_ACTIVE = '!bg-blue-900/50 !border-blue-700 !text-blue-300';
 const BTN_ICON_INACTIVE = '!bg-zinc-800 !border-zinc-700 !text-zinc-500 hover:!bg-zinc-700';
 const BTN_X = 'rounded !border !border-zinc-700 !bg-zinc-800 !text-zinc-400 hover:!bg-zinc-700 hover:!text-zinc-200 !disabled:opacity-25 flex items-center justify-center transition-colors';
@@ -252,18 +251,18 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
           );
         })}
         <div className="w-px h-5 bg-zinc-700 mx-0.5" />
-        <div className="inline-flex rounded overflow-hidden border border-zinc-700">
-          {(['truncate', 'wrap', 'none', 'visible'] as const).map((mode, i) => {
+        <div className="inline-flex items-center gap-0.5">
+          {(['truncate', 'wrap', 'none', 'visible'] as const).map(mode => {
             const current = selCell?.cell.truncation === false ? 'none' : selCell?.cell.overflowVisible ? 'visible' : selCell?.cell.wrap ? 'wrap' : 'truncate';
             const active = mode === current;
             const Icon = mode === 'wrap' ? WrapText : mode === 'none' ? X : mode === 'visible' ? Eye : Ellipsis;
             const label = mode === 'wrap' ? 'Wrap' : mode === 'none' ? 'None' : mode === 'visible' ? 'Visible' : 'Truncate';
             return (
               <Tooltip key={mode} content={`Overflow: ${label}`}>
-                <Button theme="dark"
+                <Button theme="dark" variant="tab" active={active}
                   onClick={() => selCell && !active && setOverflow(selId!, mode)}
                   disabled={readOnly || !selCell}
-                  className={`${BTN_ICON_NB} ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-zinc-800 !text-zinc-500 hover:!bg-zinc-700'} ${i < 3 ? '!border-r !border-zinc-700' : ''}`}>
+                  className={`!rounded-md ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-transparent !text-zinc-400 hover:!bg-zinc-800'}`}>
                   <Icon className="w-3 h-3 shrink-0" />
                 </Button>
               </Tooltip>
