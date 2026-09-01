@@ -7,7 +7,10 @@ import { RuleCard } from './rules/RuleCard';
 import { RuleEditorPanel } from './rules/RuleEditorPanel';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import Modal from './Modal';
-import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
+import DropdownDivider from './DropdownDivider';
+import { Plus, Search, Clock4, ChevronRight, ChevronDown, Users } from 'lucide-react';
 
 export const RulesTab: React.FC = () => {
   const { state, dispatch, readOnly } = useProject();
@@ -24,9 +27,22 @@ export const RulesTab: React.FC = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [editingRule, setEditingRule] = useState<ProjectRule | null>(null);
+  const [preseedCast, setPreseedCast] = useState<string | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<RuleType | 'ALL'>('ALL');
   const [collapsedCasts, setCollapsedCasts] = useState<Set<string>>(new Set());
+
+  // The "sections" a rule can be added to = the cast members, in board order.
+  const castSections = useMemo(() => {
+    return [...castMembers].sort((a, b) => {
+      const na = parseInt(a.id, 10), nb = parseInt(b.id, 10);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      if (!isNaN(na)) return -1;
+      if (!isNaN(nb)) return 1;
+      return a.id.localeCompare(b.id);
+    });
+  }, [castMembers]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, ProjectRule[]>();
@@ -38,11 +54,16 @@ export const RulesTab: React.FC = () => {
         const inDesc = describeRule(r).toLowerCase().includes(q);
         if (!inCast && !inDesc) continue;
       }
-      const key = getRuleGroupKey(r);
+      let key = getRuleGroupKey(r);
+      // A rule whose cast isn't a real member (deleted/free-typed) has no
+      // section — it lands under the "Other" divider.
+      if (key !== 'Other' && !castMembers.some(c => c.id === key)) key = 'Other';
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(r);
     }
     return Array.from(groups.entries()).sort(([a], [b]) => {
+      if (a === 'Other') return 1;
+      if (b === 'Other') return -1;
       const na = parseInt(a, 10);
       const nb = parseInt(b, 10);
       if (!isNaN(na) && !isNaN(nb)) return na - nb;
@@ -50,7 +71,7 @@ export const RulesTab: React.FC = () => {
       if (!isNaN(nb)) return 1;
       return a.localeCompare(b);
     });
-  }, [rules, search, typeFilter]);
+  }, [rules, search, typeFilter, castMembers]);
 
   const totalRules = rules.length;
 
@@ -63,9 +84,15 @@ export const RulesTab: React.FC = () => {
     });
   };
 
-  const handleAdd = () => {
+  const openNewRule = (castId?: string) => {
+    setPreseedCast(castId ?? null);
     setEditingRule(null);
     setShowForm(true);
+    setAddMenuOpen(false);
+  };
+
+  const handleAdd = () => {
+    openNewRule();
   };
 
   const handleEdit = (rule: ProjectRule) => {
@@ -98,14 +125,43 @@ export const RulesTab: React.FC = () => {
                   Violations flag red on day headers and scene strips in your schedule.
                 </p>
               </div>
-              <button
-                onClick={handleAdd}
-                disabled={readOnly}
-                className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+              <DropdownMenu
+                open={addMenuOpen}
+                onOpenChange={setAddMenuOpen}
+                width="w-72"
+                theme="light"
+                align="right"
+                contentClassName="max-h-[min(60vh,360px)] overflow-y-auto"
+                trigger={
+                  <button
+                    disabled={readOnly}
+                    className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4" />
+                    New Rule
+                    <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                  </button>
+                }
               >
-                <Plus className="w-4 h-4" />
-                New Rule
-              </button>
+                <DropdownItem onClick={() => openNewRule()} icon={<Plus className="w-3.5 h-3.5" />}>
+                  New Rule…
+                </DropdownItem>
+                <DropdownDivider />
+                <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <Users className="w-3 h-3" />
+                  Add to section
+                </div>
+                {castSections.map(c => (
+                  <DropdownItem key={c.id} onClick={() => openNewRule(c.id)}>
+                    <span className="text-zinc-400 shrink-0 tabular-nums">{c.id}.</span>
+                    <span className="truncate flex-1">{c.name || '?'}</span>
+                  </DropdownItem>
+                ))}
+                <DropdownDivider />
+                <DropdownItem onClick={() => openNewRule()}>
+                  Other…
+                </DropdownItem>
+              </DropdownMenu>
             </div>
 
             {totalRules > 0 && (
@@ -188,24 +244,35 @@ export const RulesTab: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {grouped.map(([castId, castRules]) => {
-                  const isCollapsed = collapsedCasts.has(castId);
+                  const isOther = castId === 'Other';
+                  const isCollapsed = !isOther && collapsedCasts.has(castId);
                   return (
                     <div key={castId}>
-                      <button
-                        onClick={() => toggleCastCollapse(castId)}
-                        className="w-full flex items-center gap-2 mb-1.5 px-1 group"
-                      >
-                        {isCollapsed ? (
-                          <ChevronRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
-                        ) : (
-                          <ChevronDown className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
-                        )}
-                        <span className="font-mono font-bold text-zinc-700 text-sm">{resolveCastName(castId)}</span>
-                        <span className="text-xs text-zinc-500">·</span>
-                        <span className="text-xs text-zinc-500">
-                          {castRules.length} {castRules.length === 1 ? 'rule' : 'rules'}
-                        </span>
-                      </button>
+                      {isOther ? (
+                        <div className="flex items-center gap-2 mt-5 mb-2 px-1">
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Other</span>
+                          <div className="flex-1 h-px bg-zinc-300/80" />
+                          <span className="text-xs text-zinc-500">
+                            {castRules.length} {castRules.length === 1 ? 'rule' : 'rules'}
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => toggleCastCollapse(castId)}
+                          className="w-full flex items-center gap-2 mb-1.5 px-1 group"
+                        >
+                          {isCollapsed ? (
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
+                          )}
+                          <span className="font-mono font-bold text-zinc-700 text-sm">{resolveCastName(castId)}</span>
+                          <span className="text-xs text-zinc-500">·</span>
+                          <span className="text-xs text-zinc-500">
+                            {castRules.length} {castRules.length === 1 ? 'rule' : 'rules'}
+                          </span>
+                        </button>
+                      )}
                       {!isCollapsed && (
                         <div className="space-y-1.5">
                           {castRules.map(rule => (
@@ -238,6 +305,7 @@ export const RulesTab: React.FC = () => {
             <RuleEditorPanel
               bare
               initial={editingRule}
+              preseedCastId={editingRule ? undefined : preseedCast ?? undefined}
               scenes={scenes}
               castMembers={castMembers}
               anchoredKeys={anchoredKeysFor(project.elementLinks, 'cast')}

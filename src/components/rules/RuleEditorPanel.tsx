@@ -38,6 +38,9 @@ export interface RuleEditorPanelProps {
   initial: ProjectRule | null;
   /** New-rule seed: opens as a DATE_RESTRICTION on this date (events UI). */
   preseedDateKey?: string;
+  /** New-rule seed: pre-scopes the rule to a cast section (Rules tab "New
+   *  Rule" dropdown). Ignored when editing. */
+  preseedCastId?: string;
   scenes: Scene[];
   castMembers: CastMember[];
   /** Cast item keys that are element-link anchors — Anchor icons in the picker. */
@@ -54,12 +57,13 @@ export interface RuleEditorPanelProps {
 }
 
 export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
-  initial, preseedDateKey, scenes, castMembers, anchoredKeys, onSave, onDelete, onClose, bare, productionStart,
+  initial, preseedDateKey, preseedCastId, scenes, castMembers, anchoredKeys, onSave, onDelete, onClose, bare, productionStart,
 }) => {
   const [form, setForm] = useState<RuleFormState>(() => {
     if (initial) return formFromRule(initial);
     if (preseedDateKey) return { ...blankRuleForm(), type: 'DATE_RESTRICTION', dates: [preseedDateKey], datesMode: 'specific' };
-    return blankRuleForm();
+    const base = blankRuleForm();
+    return preseedCastId ? { ...base, castIds: [preseedCastId] } : base;
   });
   const [error, setError] = useState('');
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
