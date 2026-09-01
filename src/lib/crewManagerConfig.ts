@@ -1,6 +1,6 @@
-import type { Project, CrewPerson } from '../types';
+import type { Project, CrewPerson, CrewRole } from '../types';
 import { generateUUID } from './utils';
-import { crewDepartmentOf } from './crewCatalog';
+import { crewRoleGroup, CREW_DEPARTMENT_NAMES } from './crewCatalog';
 import {
   computeManagerDiff,
   type ManagerRow,
@@ -56,13 +56,17 @@ export const crewManagerConfig: ManagerShellConfig = {
   ],
   mergeableFields: ['phone', 'email'],
   categories: project => project.crewRoles || [],
-  categoryGroup: key => crewDepartmentOf(key),
-  addCategory(dispatch, label, categories) {
+  categoryGroup: role => crewRoleGroup(role),
+  categoryGroupOptions: CREW_DEPARTMENT_NAMES,
+  addCategory(dispatch, label, categories, department) {
     const trimmed = label.trim();
     if (!trimmed) return null;
     const key = slugifyRole(trimmed);
     if (categories.some(r => r.key === key)) return null;
-    dispatch({ type: 'ADD_CREW_ROLE', payload: { role: { key, label: trimmed } } });
+    const role: CrewRole = { key, label: trimmed };
+    // "Other" (the fallback) isn't stored — missing department groups there.
+    if (department && department !== 'Other') role.department = department;
+    dispatch({ type: 'ADD_CREW_ROLE', payload: { role } });
     return key;
   },
   renameCategory(dispatch, key, label) {

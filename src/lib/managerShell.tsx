@@ -71,9 +71,11 @@ export interface ManagerShellConfig {
    *  legitimately distinct records (locations) — no merge dialog, no absorb. */
   canMerge?: boolean;
   categories(project: Project): CrewRole[];
-  /** Optional section header per category key (e.g. crew departments). */
-  categoryGroup?(key: string): string | undefined;
-  addCategory(dispatch: (action: any) => void, label: string, categories: CrewRole[]): string | null;
+  /** Optional section header per category (e.g. crew departments). */
+  categoryGroup?(category: CrewRole): string | undefined;
+  /** Optional section (department) picker for the add-category modal. */
+  categoryGroupOptions?: string[];
+  addCategory(dispatch: (action: any) => void, label: string, categories: CrewRole[], group?: string): string | null;
   renameCategory(dispatch: (action: any) => void, key: string, label: string): void;
   deleteCategoryConfirm(category: CrewRole, itemCount: number): { title: string; message: string; suppressKey: string };
   deleteCategory(dispatch: (action: any) => void, key: string): void;
@@ -207,6 +209,7 @@ export const DatabaseManagerView: React.FC<{
   });
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryGroup, setNewCategoryGroup] = useState('Other');
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -253,7 +256,7 @@ export const DatabaseManagerView: React.FC<{
   };
 
   const addCategory = (label: string): string | null => {
-    const key = config.addCategory(dispatch, label, categories);
+    const key = config.addCategory(dispatch, label, categories, newCategoryGroup);
     if (key) onCategoryChange?.(key);
     return key;
   };
@@ -318,7 +321,7 @@ export const DatabaseManagerView: React.FC<{
   doSaveRef.current = save;
 
   const sidebarRows: SidebarNavRow[] = useMemo(() =>
-    categories.map(c => ({ key: c.key, label: c.label, count: countTotal(c.key), group: config.categoryGroup?.(c.key) })),
+    categories.map(c => ({ key: c.key, label: c.label, count: countTotal(c.key), group: config.categoryGroup?.(c) })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [categories, project, rows, categoryKey]
   );
@@ -460,7 +463,7 @@ export const DatabaseManagerView: React.FC<{
         rows={sidebarRows}
         activeKey={categoryKey}
         onSelect={switchCategory}
-        onAdd={() => { setNewCategoryName(''); setShowAddCategory(true); }}
+        onAdd={() => { setNewCategoryName(''); setNewCategoryGroup('Other'); setShowAddCategory(true); }}
         addLabel={config.addScopeLabel}
         addDisabled={readOnly}
         renderRowActions={renderRowActions}
@@ -539,6 +542,9 @@ export const DatabaseManagerView: React.FC<{
           onClose={() => setShowAddCategory(false)}
           name={newCategoryName}
           onNameChange={setNewCategoryName}
+          group={newCategoryGroup}
+          groupOptions={config.categoryGroupOptions}
+          onGroupChange={setNewCategoryGroup}
           onSubmit={() => {
             const key = addCategory(newCategoryName);
             setShowAddCategory(false);

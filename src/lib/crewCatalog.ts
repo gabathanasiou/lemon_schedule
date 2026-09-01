@@ -121,6 +121,18 @@ export function crewDepartmentOf(key: string): string | undefined {
   return undefined;
 }
 
+/** The sidebar section a role renders under: built-ins map to their catalog
+ *  department; custom roles use their assigned `department`, falling back to
+ *  the "Other" divider when unassigned. */
+export function crewRoleGroup(role: CrewRole): string {
+  const catalog = crewDepartmentOf(role.key);
+  if (catalog) return catalog;
+  return role.department || 'Other';
+}
+
+/** The department picker options when adding a custom role. */
+export const CREW_DEPARTMENT_NAMES: string[] = CREW_DEPARTMENTS.map(d => d.name);
+
 /** Reorders roles to the official catalog (built-ins per department order,
  *  customs appended in stored order). */
 export function reorderCrewRoles(roles: CrewRole[]): CrewRole[] {

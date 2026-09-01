@@ -1,9 +1,12 @@
-import React from 'react';
-import { Plus, Pencil } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Pencil, ChevronDown } from 'lucide-react';
 import { IconGrid } from './IconGrid';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
+import DropdownMenu from '../DropdownMenu';
+import DropdownItem from '../DropdownItem';
+import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 
 interface CategoryFormProps {
   open: boolean;
@@ -19,9 +22,14 @@ interface CategoryFormProps {
   onMultiValueChange: (v: boolean) => void;
   onSubmit: () => void;
   withValueType: boolean;
+  /** Optional section (department) picker for label modals (crew roles). */
+  group?: string;
+  groupOptions?: string[];
+  onGroupChange?: (v: string) => void;
 }
 
-function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNameChange, catIcon, onIconChange, multiValue, onMultiValueChange, onSubmit, withValueType }: CategoryFormProps) {
+function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNameChange, catIcon, onIconChange, multiValue, onMultiValueChange, onSubmit, withValueType, group, groupOptions, onGroupChange }: CategoryFormProps) {
+  const [groupOpen, setGroupOpen] = useState(false);
   if (!open) return null;
   return (
     <Modal open onClose={onClose} title={title} icon={icon} width="max-w-md"
@@ -45,6 +53,29 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
             placeholder={withValueType ? 'e.g. Firearms, Period Vehicles...' : undefined}
           />
         </div>
+        {groupOptions && groupOptions.length > 0 && (
+          <div>
+            <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Section</label>
+            <DropdownMenu
+              open={groupOpen}
+              onOpenChange={setGroupOpen}
+              width="w-56"
+              theme="dark"
+              trigger={
+                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between mt-1`}>
+                  <span className="truncate">{group || 'Other'}</span>
+                  <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                </button>
+              }
+            >
+              {['Other', ...groupOptions].map(g => (
+                <DropdownItem key={g} onClick={() => { onGroupChange?.(g); setGroupOpen(false); }}>
+                  {g}
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
+          </div>
+        )}
         {withValueType && (
           <>
             <div>

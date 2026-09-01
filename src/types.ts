@@ -339,6 +339,9 @@ export interface CrewRole {
   key: string;
   label: string;
   builtin?: boolean;
+  /** Department section (crew manager sidebar grouping) for custom roles;
+   *  built-ins derive theirs from the crew catalog. Omitted/empty → "Other". */
+  department?: string;
 }
 
 export interface ProjectLocationNearby {
