@@ -184,7 +184,7 @@ alignment:
 **Dependency**: `diff` (jsdiff) for the word-level description diff — the
 standard, tiny, browser-safe. New-dep rule: imported by ≥1 source file.
 
-**Verify**: re-import the seed script (Town) with a few scenes edited,
+**Verify**: re-import the seed script ("IT'S A WONDERFUL LIFE") with a few scenes edited,
 added, removed, one split, one renumbered → only diffs apply; unchanged
 scenes keep ids; schedule + ribbons intact; new scenes in the boneyard;
 removed scenes kept by default; undo restores exactly; filters + expanded
@@ -858,7 +858,9 @@ Verified by `e2e/trash-restore.spec.ts` (sections per kind with counts via bridg
 
 **Relations**: rides the kit `DatePicker` (v0.1.34+ — the `initialView` prop needs a kit bump via item 56's process); `DateField` is a promotion candidate for the same bump path.
 
-## 69. BUG: dropdowns/menus inside modals don't scroll with touch on iPad (`[ ]`)
+## 69. BUG: dropdowns/menus inside modals don't scroll with touch on iPad (`[x]` Done)
+
+**Done** (kit v0.1.64, commit `df524e6`): `useOverlayMorph` gained the **touchmove twin** of the v0.1.52 wheel interceptor — a document-capture `stopImmediatePropagation` for touchmoves whose target is inside the overlay, so react-remove-scroll's bubble-phase listener (Radix Dialog) never cancels the native scroll. Every surface on the hook (app `DropdownPanel`, `SelectDropdown`, `AutocompleteDropdown`, the kit `DropdownMenu`/submenu/context-menu) is now finger-scrollable inside a modal on iPad. Verified by `e2e/ipad-touch-scroll.spec.ts` "entity dropdown inside a modal is touch-scrollable" (webkit iPad, `playwright.ipad.config.ts`).
 
 **Requested**: on iPad, **entity dropdowns and dropdowns inside modals can't be scrolled with a finger** — the panel opens but swiping over the list does nothing (wheel is fine on a Magic Mouse, touch is dead).
 
@@ -875,7 +877,9 @@ Verified by `e2e/trash-restore.spec.ts` (sections per kind with counts via bridg
 
 **Relations**: rides item 58's overlay-morph sweep and the v0.1.52 wheel interceptor; pairs with item 70 (same kit bump — both are overlay/positioning touch bugs); item 72 depends on this landing (its kit-based panel needs touch scroll).
 
-## 70. iPad: modals + dropdowns stay inside the visible viewport — respect the software keyboard (`[ ]`)
+## 70. iPad: modals + dropdowns stay inside the visible viewport — respect the software keyboard (`[x]` Done)
+
+**Done** (kit v0.1.64, commit `df524e6`): the kit `Modal`, `useFixedPosition` and `useSmartPosition` all position/clamp against the **visual viewport** (`window.visualViewport.height`/`offsetTop` — where the iPad keyboard + Safari chrome live) instead of `innerHeight`, and all three subscribe to `visualViewport` `resize`/`scroll` (the keyboard fires resize there, never on `window`). Modals centre into the visible area and re-centre/re-clamp when the keyboard opens/closes; dropdown panels re-measure and stay above the keyboard. Verified by `e2e/ipad-touch-scroll.spec.ts` (PM centres in a mocked 500px-tall visible strip; a modal dropdown re-clamps on a mocked `visualViewport` resize).
 
 **Requested**: two related iPad problems —
 1. The **Project Manager sometimes appears off the viewport centre** (and other modals too).
@@ -897,7 +901,9 @@ Verified by `e2e/trash-restore.spec.ts` (sections per kind with counts via bridg
 
 **Relations**: pairs with item 69 (same kit bump); item 72 depends on this (its kit-based panel needs the keyboard clamp); `useFixedPosition`/`useSmartPosition` are shared with the whole dropdown family.
 
-## 71. BUG: Cancel on the Add Events modal can freeze the day modal (`[ ]`)
+## 71. BUG: Cancel on the Add Events modal can freeze the day modal (`[x]` Done)
+
+**Done** (kit v0.1.64, commit `df524e6`): the stacked-modal survivor's exit-morph now runs a **fade-recovery watchdog** — once the `:has()` stack-fade window has passed, if the survivor is still at `opacity:0` (iOS Safari can leave the composited layer stuck faded after a child unmounts — the reported "previous modal invisible but still there" freeze) it pins the survivor back inline (`opacity:1` wins over the `:has` rule); the next stack-open releases the override so future fades still work. Verified by `e2e/ipad-touch-scroll.spec.ts` "Cancel on the Add Events modal returns to a visible, interactive day modal" (opacity → 1 + on-screen + Done interactive, repeated 6×; the day modal returns at opacity 0 briefly during the 180ms fade, then recovers).
 
 **Requested**: in the Calendar, open a day (day events modal) → **Add Event** → press **Cancel** — sometimes the Add Events modal closes but the **previous day modal never comes back and the app appears frozen**.
 
@@ -914,7 +920,9 @@ Verified by `e2e/trash-restore.spec.ts` (sections per kind with counts via bridg
 
 **Relations**: rides items 58/59's stack morph language; independent of 69/70 (Modal-only) but lands in the same kit bump.
 
-## 72. Addresses-picker autocomplete (`AsyncResultsDropdown`) → ui-kit base (`[ ]`)
+## 72. Addresses-picker autocomplete (`AsyncResultsDropdown`) → ui-kit base (`[x]` Done)
+
+**Done** (`AsyncResultsDropdown.tsx` rebuilt): the location picker's address autocomplete now renders its results in the **shared dark `DropdownPanel`** (the chip-EntityDropdown panel) with a `Loader2` spinner while searching — inheriting the morph, touch/wheel scroll and visual-viewport keyboard clamp (items 69/70) from the kit hooks, with the debounce/sequence-guard/arrows/Enter/Escape API unchanged. Note the deliberate base: the **shared `DropdownPanel`, NOT the kit `DropdownMenu`** — the kit menu's document key-lock consumes typeahead letters and steals focus to the content, which breaks typing in an input-triggered async search. Verified by `locations.spec.ts` + `report-sun-weather-map.spec.ts` + the DESIGN-LANGUAGE primitive-matrix row.
 
 **Requested**: the address autocomplete in the **Attach a location** picker (Locations manager + reports map block) should be built on the ui-kit — styled like the **dark entity dropdown** (chip trigger + dark panel), with the async **loader** kept. It already scrolls, but it's a bespoke parallel dropdown that misses the morph, the keyboard clamp, and the single-highlight contract.
 
@@ -1013,3 +1021,104 @@ restores exactly. Docs: `docs/IMPORT-EXPORT.md` MSD section.
 **Relations**: builds on item 40's `.msd` parser + item 66's CalendarVersion
 axis (its "Import touchpoint" line); the app-side days-off pattern language
 from item 54.
+
+## 75. ItemCard/ItemRow re-arrange on narrow widths — wrap, don't resize (`[ ]`)
+
+**Requested**: the collapsible category cards (`ItemCard`) and their rows
+(`ItemRow`) — the element events manager's day-type sections, the day modal's
+event rows, and the dark rule cards — **look odd on iPad / narrow modals**: the
+"Add note" area and fixed-width cells get clipped instead of re-arranging. The
+user likes the current sizing; the ask is that cards/rows **wrap to a new line
+below a width threshold**, keeping every size identical at normal widths.
+
+**Facts**:
+- `ItemCard` + `ItemRow` (`src/components/cards/`) are already flex — they just
+  never wrap. `ITEM_ROW_CLASS` (`ItemRow.tsx:38`): `flex items-center gap-2`,
+  title cell `w-44 shrink-0` (default; `DayEventsModal` overrides `w-56`), body
+  `flex-1 min-w-0`, trailing `shrink-0`. The body's `min-w-0` absorbs everything,
+  so a row can never overflow → never wraps; the fixed cells (`w-44`/`w-56`, the
+  note input `min-w-60` + `[field-sizing:content]`) then get clipped by the
+  modal's `overflow-hidden` on narrow surfaces (iPad split view, nested
+  `max-w-lg` modals, small windows).
+- `ItemCard` header (`ItemCard.tsx:40`): `flex items-center gap-2 px-3 py-2`
+  with the toggle (`flex-1 min-w-0`, title `truncate`) + `trailing` — on narrow
+  widths the trailing action ("Add Rule") stays on the title line and the title
+  just truncates.
+- Consumers: `ElementEventsModal.tsx:248` (date rows), `DayEventsModal.tsx:291`
+  (element rows), dark `RuleCard` (`RuleCard.tsx:35` — renders as an `ItemRow`,
+  but its title is `flex-1 min-w-0` with an EMPTY body, so it already shrinks).
+- `ItemCard`/`ItemRow` are NOT in the ui-kit yet; they're promotion candidates
+  (the item-56 family) — the wrap-ready layout is the design to ship when they
+  move into the kit.
+
+**Design**:
+1. **`ItemRow` wrap** (`ItemRow.tsx`): row → `flex flex-wrap items-center
+   gap-x-2 gap-y-1`; add an optional `bodyClass` prop on the body wrapper
+   (default `flex-1 min-w-0`). The two event modals pass a shared
+   `flex-1 min-w-[13rem]` (named const) so below that width the note area drops
+   to its own full-width line under the date, the trailing X flowing beside it
+   on line 2 ("Tue, Sep 8" on top, note + ✕ underneath). At normal modal widths
+   the row is byte-for-byte identical (no wrap). `RuleCard` untouched (empty
+   body, flex-1 title — no `bodyClass`).
+2. **`ItemCard` header wrap** (`ItemCard.tsx:40`): `flex-wrap gap-y-1` so a
+   trailing action wraps below the title on very narrow widths instead of the
+   title truncating; sizes unchanged.
+3. **Wire up**: `ElementEventsModal.tsx:248` + `DayEventsModal.tsx:291` pass
+   `bodyClass`. No other file changes.
+4. **ui-kit note**: keep DESIGN-LANGUAGE §Item cards in sync on landing, and
+   when `ItemCard`/`ItemRow` move into `@gabriel/ui-kit` (item 56 path), ship
+   this wrap-ready layout — same Tailwind classes, wrap baked in.
+
+**Verify**: `npm run lint` + manual visual check at iPad portrait (768×1024)
+and ~420px narrow in the element events manager + day events modal — cards and
+date rows wrap (note under date), nothing clipped or resized. Layout-only → no
+e2e (AGENTS.md rule 7); no spec changes (sizes/behavior identical at normal
+widths).
+
+**Relations**: rides items 46/62's `ItemCard`/`ItemRow` extraction; feeds item
+56 (kit promotion — ship the wrap-ready layout); complements item 70 (iPad
+viewport centring); independent of 69/71 (Modal morph races).
+
+## 76. BUG: iPad project import greys out `.lemon` files — picker must accept the same types as desktop (`[ ]`)
+
+**Requested**: importing a project on iPad opens the native Files picker, but `.lemon` files are **greyed out / not selectable** — only `.json` files can be picked. Desktop accepts `.lemon` fine. It must accept the same file types as desktop.
+
+**Facts**:
+- The import file inputs all carry `accept=".lemon,.json,.msd,.sex"` — `ProjectManager.tsx:381` (Import footer button, both local + cloud tabs) and `App.tsx:708` (`newProjectFileRef`, File → Import → "`.msd, .sex, .lemon, .json`"). Identical on desktop and iPad — so this is not a missing-extension bug in our `accept` string.
+- The handlers parse **by file extension**, not by the picker's filter: `App.tsx:438` (`file.name.split('.').pop()` → `parseMsdFile`/`parseSexFile`/JSON), and `ProjectManager.handleImportFile` mirrors it. So broadening the picker filter cannot break parsing — a wrongly-picked file still hits the existing Import Error dialog.
+- `.lemon` exports are `application/json` content with a `.lemon` filename (`utils.ts:163-171` — `new Blob([data], { type: 'application/json' })` + `a.download = '${title}.lemon'`).
+- **Likely root cause (verify in the worker)**: the iOS/iPadOS Files document picker filters by **UTType**, resolving each `accept` extension to a registered UTI. `.json` → `public.json` (known), so JSON files are selectable; `.lemon` (and `.msd`/`.sex`) are **unregistered UTTypes**, so iOS resolves them to a dynamic/incompatible UTI and greys the files out. `.msd`/`.sex` may be equally greyed — the user only noticed `.lemon` because that's what the app exports.
+- Existing iPad e2e infra to reuse: `playwright.ipad.config.ts` (WebKit + `devices['iPad Pro 11']`) and `e2e/ipad-touch-scroll.spec.ts`.
+
+**Design** (narrow fix — picker parity, not parser changes):
+- Investigate how iOS resolves each of `.lemon`/`.msd`/`.sex` before choosing the mechanism:
+  1. **Add the real MIME types to `accept`** — since `.lemon` content is JSON, adding `application/json` may let iOS match by content type where the extension fails (test whether the picker then un-greys `.lemon` files that Safari exported as `application/json`; note the Files app derives the UTI from the **extension**, so content-typed matching may not hold — fall back to 2 if it doesn't).
+  2. **Broaden `accept` on coarse/touch devices** (`IS_COARSE`, `src/lib/device.ts`): drop the extension restriction (`accept="*/*"` or omit) so the Files picker shows everything, and let the existing extension-based parse + error dialog validate. Keeps the desktop filter narrow; iPad sees all files (user decision: "accept the same file types as desktop" — a broader picker with extension validation is the same effective set).
+  3. If a MIME/extension combination that iOS honours is found, keep `accept` uniform across platforms instead of the `IS_COARSE` branch (one source of truth).
+- Keep the two import entry points (ProjectManager footer Import + App File → Import submenu) consistent — any fix applies to both (`ProjectManager.tsx:381` + `App.tsx:708`).
+- Docs: `docs/IMPORT-EXPORT.md` — note the picker-filter/platform behavior (accept lists, extension-based parsing, iOS UTI grey-out).
+
+**Verify**: lint + **webkit iPad** (`playwright.ipad.config.ts`) — a real-ish `.lemon` file can't be auto-picked in headless (native picker is out of reach), so verify via: (a) a probe spec asserting the `accept` attribute on both inputs reflects the chosen mechanism (e.g. `*/*` on iPad / the fixed accept string on desktop); (b) **manual check on a physical iPad**: export a project → reopen Project Manager → Import → the `.lemon` file is selectable, imports, and a non-matching file still shows Import Error; `.json`/`.msd`/`.sex` un-greyed too. Regression: desktop import flows unchanged (`e2e/msd-import.spec.ts`, `sex-import.spec.ts`, seeded-project import).
+
+**Relations**: sibling of the iPad touch/keyboard bugs (items 69–72 — same `playwright.ipad.config.ts` territory); rides the import entry-points from items 40/41; independent of the parse pipeline.
+
+## 77. Dark EntityDropdown panel gets coarse-pointer sizing — inherit the dropdown item scale (`[ ]`)
+
+**Requested**: on mobile (coarse pointer), the **dark entity-dropdown panel** (`EntityDropdown variant="chip"` inside dark modals — Link Manager pickers, day-status/event-type menus, rule-editor cast pickers) should be **resized like the other dropdowns** so the rows are easier to tap. It should inherit the same properties the rest of the dropdown family already has.
+
+**Facts**:
+- Every other dropdown already scales on coarse pointers via `IS_COARSE` (`src/lib/device.ts` → kit):
+  - Kit `DropdownMenu` items: `ITEM_PAD = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs'` (`ui-kit/src/DropdownMenu.tsx:20`).
+  - The **light** app panel: `DD_ITEM_BASE_LIB = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs'` (`src/lib/dropdown.ts:25`) — light `DropdownPanel` rows already grow on touch.
+- The **dark** app panel does NOT: `DropdownPanel.tsx:50` hardcodes its item base for the dark theme — `'flex items-center gap-2 px-3 py-2 text-xs …'` — with **no `IS_COARSE` branch**, so on iPad the Link Manager / day-modal chip picker rows stay at desktop `text-xs` tap size. The `itemCls` dark branches (`:59-62`) only swap colors, never the pad/text scale.
+- The dark chip **trigger** (`DD_CHIP_TRIGGER_CLASS`, `dropdown.ts:14`) is also fixed-size (`px-2.5 py-1.5`); consumers add `text-xs` — no coarse branch either (smaller target to tap open). The user's ask is the panel first; the trigger is a natural same-item candidate.
+- This is the same pattern as item 69/70's touch-sizing work but a different surface — the dark panel is app-side `DropdownPanel`, not the kit menu, so the kit bump work doesn't cover it.
+
+**Design** (one source of truth — rule 1/4):
+- Give the dark item base the same coarse scale as the light one: extract the coarse-aware item padding into the shared `src/lib/dropdown.ts` (e.g. extend `DD_ITEM_BASE_LIB` usage or add a `DD_ITEM_BASE_DARK_LIB = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs'` — same numbers as the light base so both themes scale identically) and consume it in `DropdownPanel.tsx:50`'s dark branch. Decide the exact coarse numbers with the kit menu (`px-4 py-3 text-sm`) in view — the ask is "like the dropdowns", so match the kit item scale for consistency, or keep the light panel's `px-3 py-2` if uniform-with-light wins; pick ONE number set and note it.
+- Optionally (same commit, small): scale the dark chip trigger too (`DD_CHIP_TRIGGER_CLASS` — a coarse branch, and/or the caller-added `text-xs`), since a tiny trigger + big panel is still a hard tap. If it adds churn across call sites, keep it panel-only and note the trigger as the follow-up.
+- Docs: DESIGN-LANGUAGE primitive matrix / EntityDropdown chip-row note — "dark panel rows scale with `IS_COARSE` like the kit menu and light panel."
+
+**Verify**: lint + visual check on iPad (coarse) and desktop — open the Link Manager / a day-modal status picker on a coarse device: dark panel rows render at the coarse size (assert padding/text via the bridge or a probe `IS_COARSE` flag); desktop unchanged (`text-xs`, byte-for-byte); light panel + kit menu scaling untouched. Layout-only → no e2e (AGENTS.md rule 7) unless a probe spec is cheap.
+
+**Relations**: closes the same gap as item 69/70's coarse sizing but app-side (`DropdownPanel`, not the kit); rides `dropdown.ts` (the shared class source); item 50's chip exploration is a different surface (committed-value chips, not sizing).

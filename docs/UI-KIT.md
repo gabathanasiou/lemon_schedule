@@ -13,6 +13,8 @@ Before building any of these by hand again, check the kit first:
 - Touch/pointer detection, touch-first variants → `device.ts` + `useTouchMode()`
 - Popups above the keyboard → `useSmartPosition / useFixedPosition`
 
+**v0.1.64 (iPad touch + keyboard)**: `useOverlayMorph` gained the touchmove twin of the v0.1.52 wheel interceptor — overlays inside modals are finger-scrollable on iPad (react-remove-scroll used to cancel every touchmove outside the dialog content). `useSmartPosition`/`useFixedPosition` and the `Modal` position against the **visual viewport** (`window.visualViewport.height`/`offsetTop`) and re-measure on its resize/scroll — the iOS keyboard lives there (it fires resize on `visualViewport`, never `window`), so modals centre into the visible area and dropdown panels stay above the keyboard. The `Modal` also pins a stacked modal's survivor back to full opacity after the `:has` stack-fade window (iOS Safari can leave it stuck invisible after a child unmounts).
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

@@ -156,6 +156,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; **one `.ui-item-highlighted` row** (pointer hover + arrows, latest wins; the CSS `:hover` fill feeds iOS tap-to-hover but is suppressed while a row is highlighted — kit `tokens.css`, keyed on the kit class not Radix's attr), arrows/typeahead/Esc + the document-level menu key-lock (mini-modal: menu keys stay captured even when focus sits on a canvas); `modal:false`; root content = panel positioning (fixed below the trigger, width-matched, viewport-clamped); submenus keep the Radix popper side-placement; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy) |
 | Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme**; press-point-anchored morph, closes on Esc. Shares the kit menu machinery (highlight/keys/lock) — `ContextMenuSub` = `DropdownSubmenu` |
 | Entity/cast picker in a cell or form | `EntityDropdown` | Modes: `multi` (comma list, click toggles), `single` (search-then-select), `select` (legacy). `items` prop REQUIRED — no context fallback. **Inside modals use `variant="chip"`** (dark chip trigger + dark panel; §EntityDropdown chip version below) — cells/forms keep the light default |
+| Async address/place search | `AsyncResultsDropdown` (`src/components/location/`) | Debounced async results rendered in the **shared dark `DropdownPanel`** (the chip-EntityDropdown panel — morph, touch/wheel scroll, visual-viewport keyboard clamp for free) with a `Loader2` spinner in the trigger while searching; the search input keeps focus (NOT a kit `DropdownMenu`: its document key-lock consumes typeahead letters + steals focus to the content, breaking typing) |
 | Inline cell text edit | `CellInput` | **Commits on blur only, never per keystroke**; Enter=commit, Esc=cancel |
 | Live numeric box (toolbar steppers: ribbon Pad V/H, Edge, Master Size, cell offset) | `LiveNumberInput` (`RibbonToolbar.tsx`) | Free-typed draft while focused (type digits one at a time, delete-to-empty); commit clamps live (preview updates), Enter/blur clamps + finalizes, Escape reverts to the committed value. Never a clamped controlled input — clamping on change snaps the first keystroke |
 | Confirm/prompt/alert | `useDialog().confirm/prompt/alert` | **Renders through the kit Modal (`flat` chrome — no header/footer bars, item 67)**: inherits the zoom/stack morph, the one-dim backdrop and the viewport clamp; Enter ALWAYS triggers the primary action (document-capture, even with focus on the X close button); Esc/outside = cancel |
@@ -262,7 +263,16 @@ selector zeroes the dim on every non-top modal, so exactly one dim layer exists 
 top modal); it fades 220ms WITH the close morph (`ui-modal-overlay-closing`) and stacked swaps are
 instant. The ui-kit confirm/prompt/alert dialogs are Modal instances too (item 67 — flat chrome),
 so they participate in the stack + dim machinery identically: a dialog over a modal dims once (its
-own layer), the modal beneath fades.
+own layer), the modal beneath fades. **Fade-recovery watchdog**: iOS Safari can leave a stacked
+modal's composited layer stuck at `opacity:0` after its child unmounts (the reported "previous
+modal invisible but still there" freeze) — the survivor's exit-morph watchdog pins it back inline
+(`opacity:1`, which wins over the `:has` rule) once the fade window has passed, and the next
+stack-open releases the override so future fades still work.
+
+**Viewport & keyboard** (roadmap 70): modals centre and clamp against the **visual viewport**
+(`window.visualViewport.height`/`offsetTop`) — on iPad the software keyboard and Safari chrome live
+there, not in `innerHeight`. Opening/closing the keyboard re-centres an un-dragged modal into the
+visible area (dragged ones just re-clamp) via a `visualViewport` resize/scroll listener.
 
 Morph: stacked modals **grow out of the modal beneath them** and the survivor **shrinks back from
 the closing modal's box**; **standalone modals zoom in from 94% on open and zoom back out on
@@ -293,6 +303,14 @@ and EntityDropdown/Select/Autocomplete panels out of their trigger — the kit's
 `opacity` repaints one full-opacity frame if the unmount render is deferred) — the box is pinned
 `visibility: hidden` and styles are restored only after the node detaches (menus, `Modal.zoomOut`)
 or on a pinned clone for unmount-driven closes (`cloneOnUnmount`, panels).
+
+**Touch + keyboard inside modals** (roadmap 69/70): overlays are ALWAYS scrollable by touch —
+react-remove-scroll (Radix Dialog) cancels `touchmove` on anything outside the dialog content, so
+`useOverlayMorph` intercepts touchmoves at document capture (stop-propagation, the same trick as the
+v0.1.52 wheel interceptor) and lets native finger scroll proceed. Dropdown panels position/clamp
+against the **visual viewport** and re-measure on `visualViewport` resize/scroll — the iOS keyboard
+fires resize there (never on `window`), so a panel open near the keyboard stays inside the visible
+area instead of extending under it.
 
 Width ladder (verified call sites): `max-w-sm` simple forms (`CustomOrderSortModal`) · `max-w-md`
 single-form (`DayTypeModals.tsx:26`) · `max-w-lg` merge/violations (`ViolationModal`) · `max-w-xl`
