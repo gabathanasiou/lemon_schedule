@@ -1,4 +1,4 @@
-# Performance & Memory Diagnosis — IT'S A WONDERFUL LIFE (146 scenes, 219 rows)
+# Performance & Memory Diagnosis — Town - Jason (175 scenes, 270 rows)
 
 Date: 2026-08-03 · Branch: `diagnosis/perf-memory-leaks`
 
@@ -7,7 +7,7 @@ Date: 2026-08-03 · Branch: `diagnosis/perf-memory-leaks`
 - **Static audit**: every `addEventListener` / `setInterval` / `setTimeout` / `requestAnimationFrame` /
   `ResizeObserver` / module cache in `src/` checked for cleanup and boundedness.
 - **Dynamic harness** (kept in repo): `e2e/perf-diagnosis.spec.ts` +
-  `playwright.perf.config.ts` — runs realistic workflows against the seeded
+  `playwright.perf.config.ts` — runs realistic workflows against the seeded Town
   project, then measures:
   - JS heap **after forced GC** (`HeapProfiler.collectGarbage` + `Performance.getMetrics`)
   - **live DOM** via `document.querySelectorAll('*').length` (the CDP `Nodes`

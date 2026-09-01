@@ -82,5 +82,5 @@ signals `onReady` and only then does `window.print()` fire.
 ## Verify
 
 - `npm run lint` after every change (tsc --noEmit).
-- `npx playwright test` — `seeded-smoke.spec.ts` exercises the designer with the seeded "Town" project; perf harness in `docs/PERF-DIAGNOSIS.md`.
+- `npx playwright test` — `seeded-smoke.spec.ts` exercises the designer with the seeded "IT'S A WONDERFUL LIFE" project; perf harness in `docs/PERF-DIAGNOSIS.md`.
 - Manual: Design → Reports Designer → Print (toolbar) or File → Custom Reports → the modal MUST open first — never a direct print.
