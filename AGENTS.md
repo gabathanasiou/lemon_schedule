@@ -18,13 +18,13 @@
 5. **Complexity reset.** When a second special case would extend the same abstraction, stop, re-read the requirement, and redesign narrower instead of patching.
 6. **Small focused commits**, imperative mood, one revertible unit each.
  7. **Verify before done.** Every change runs `npm run lint`. **Logic/data/store/behavior changes** run `npx playwright test` (or the `npm run test:smart` subset) — full suite before done/commit, never claim done on a failing suite. **Visual-only changes** (class strings, colors, hover/focus styles, padding/layout — no behavior impact) skip the suite: lint + a manual user check is enough; don't boot e2e for CSS tweaks.
- 8. **Suggest a version bump when done — evaluate the change's impact first, be smart, not noisy.** The boot screen shows `v{package.json version}` (build-time `__APP_VERSION__` define — see `docs/ROADMAP.md` item 82). When work wraps, judge the DIFF'S IMPACT (not its size) and, if a bump is due, say so in ONE short line of the done summary (never bump/tag yourself — release action). Judge in three steps:
+ 8. **Bump the version when done — do it, don't suggest.** The boot screen shows `v{package.json version}` (build-time `__APP_VERSION__` define — see `docs/ROADMAP.md` item 82). When work wraps, judge the DIFF'S IMPACT (not its size) and, if a bump is due, bump `package.json` YOURSELF — `npm version patch|minor|major` (auto-tags the release commit; when the working tree is dirty, edit `package.json`'s `version` directly and leave the tag/release commit to the release flow) — and note the new version in ONE short line of the done summary. Judge in three steps:
     - **What changed?** Internal work (refactor, plumbing, docs-only) = no bump. A visible feature or a fix to released behavior = candidate.
     - **Is it released?** The app is pre-1.0 (`0.x`, `private: true`) — the boot-screen number is an internal release marker, not a shipped product version. Unreleased/flagged/experimental work needs NO bump yet; bundle it into the release that ships it.
     - **How big?** Patch (`0.x.y` → `0.x.y+1`) = fixes / visual-only / small increments; minor = a user-visible feature milestone; major = a breaking change. In the 0.x era be CONSERVATIVE — prefer a patch for everyday features and reserve the minor for real milestones; don't inflate a feature into a minor when a patch describes it, and don't undersell a genuinely big milestone either.
-    - **Signal, not noise.** Don't suggest per commit; bundle small fixes/refactors into "worth a patch when you next release". Batch multi-item work into ONE suggestion at a coherent milestone.
+    - **Signal, not noise.** Don't bump per commit; bundle small fixes/refactors into ONE patch when the work wraps. Batch multi-item work into ONE bump at a coherent milestone.
     - **Check the current version first.** If `package.json` is already newer than what your change adds (a release bump landed after the last user-visible change), skip it.
-    - **When unsure, just omit** — no bump suggestion beats a wrong one.
+    - **When unsure, just omit** — no bump beats a wrong one.
 
 ## Explaining to the User (plain language)
 - Talk about features in real terms, not code: "scene 1. GEORGE in the kitchen" or "scene ribbon" not "a SCENE row"; "cast member 1. FISHERMAN" not "cast entity"; "the hold list on Jun 3" not "NonShootDate.lists".
