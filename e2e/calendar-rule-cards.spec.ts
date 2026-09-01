@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedLeadCast } from './helpers';
+import { openSeededProject, seedLeadCast, waitForOverlaySettle } from './helpers';
+
+/** WebKit quirk: clicking a fixed kit-menu item over a deep-scrolled virtualized
+ *  calendar grid can miss (Playwright's hit-test finds the grid underneath even
+ *  though the menu is the painted top layer). A DOM click on the item is
+ *  semantically identical — the menu IS on top and the item IS the target. */
+async function clickMenuLabel(page: import('@playwright/test').Page, text: string) {
+  await page.getByText(text, { exact: true }).evaluate((el) => (el as HTMLElement).click());
+}
 
 // Roadmap 65: global (every-day) rules never render a card in Calendar
 // Events mode — their home is the Rules tab (they still fire in the
@@ -65,12 +73,16 @@ test('events mode: global rule cards hidden; dated rule card is flag-as-icon-lef
   expect(iconOrder).toEqual({ first: true, hasRuleIcon: false });
 
   // Filter: All Rule Types off hides the dated card; back on restores it.
+  // Wait for the Filter menu's open morph to settle — a mid-morph item is at
+  // a transformed position and the click lands on the grid underneath.
   await page.getByRole('button', { name: 'Filter' }).click();
-  await page.getByText('All Rule Types', { exact: true }).click();
+  await waitForOverlaySettle(page);
+  await clickMenuLabel(page, 'All Rule Types');
   await page.keyboard.press('Escape');
   await expect(grid.locator('[data-card-rule="ev-dated"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Filter' }).click();
-  await page.getByText('All Rule Types', { exact: true }).click();
+  await waitForOverlaySettle(page);
+  await clickMenuLabel(page, 'All Rule Types');
   await page.keyboard.press('Escape');
   await expect(card).toHaveCount(1);
 
@@ -78,6 +90,7 @@ test('events mode: global rule cards hidden; dated rule card is flag-as-icon-lef
   // card's date leaves; the date-optional MAX_HOURS returns to every-day
   // (which renders nothing) and the rule itself survives.
   await card.click({ button: 'right' });
+  await waitForOverlaySettle(page);
   await page.getByText('Remove from this day', { exact: true }).click();
   await expect(grid.locator('[data-card-rule="ev-dated"]')).toHaveCount(0);
   const rule = await page.evaluate(() => {

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, waitForOverlaySettle } from './helpers';
 
 /** Date picker open month (roadmap 68): the picker seeds its visible month on
  *  mount from the field's picked date, else the active calendar version's
@@ -39,6 +39,10 @@ function fieldTrigger(page: import('@playwright/test').Page, label: string) {
 
 async function openPicker(page: import('@playwright/test').Page, label: string) {
   await fieldTrigger(page, label).click();
+  // The picker menu morphs open (~220ms) and a previously-Escaped picker can
+  // still be unmounting — wait for overlays to settle so exactly one menu is
+  // open (unfiltered getByRole('menu') would hit a strict-mode violation).
+  await waitForOverlaySettle(page);
   await expect(page.getByRole('menu')).toBeVisible();
 }
 

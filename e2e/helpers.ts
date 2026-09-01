@@ -192,3 +192,42 @@ export async function waitForPersistedProject(page: Page, expr: string, timeout 
     }
   }, expr, { timeout });
 }
+
+/** Waits for overlay/modal morphs (kit `useOverlayMorph` + the Modal FLIP,
+ *  ~220ms trigger-anchored scale+fade) AND the surrounding layout to settle
+ *  before the next interaction. The morph keeps a CLOSING menu/panel mounted
+ *  with `data-state="open"` for its duration, so fast open→close→open
+ *  sequences momentarily see TWO "open" overlays (strict-mode locator
+ *  violations); a mid-morph panel sits at a transformed position and an
+ *  opacity-0 one is invisible to hit-testing, so a click lands on whatever is
+ *  underneath. On iPad a virtualized grid can keep re-rendering UNDER a fixed
+ *  menu, nudging it via the scroll-follow re-measure so the item never reads
+ *  as stable. Polls every open overlay's rect + opacity and returns once they
+ *  hold still for ~150ms — web-first, no fixed sleep. */
+export async function waitForOverlaySettle(page: Page, timeout = 3000) {
+  const started = Date.now();
+  let prev = '';
+  let stableCount = 0;
+  let seen = false;
+  while (Date.now() - started < timeout) {
+    const sig = await page.evaluate(() => {
+      const open = document.querySelectorAll(
+        '[role="menu"][data-state="open"], [data-modal-stack][data-state="open"], .click-outside-ignore',
+      );
+      return Array.from(open).map((el) => {
+        const r = el.getBoundingClientRect();
+        const o = getComputedStyle(el).opacity;
+        return `${Math.round(r.left)}|${Math.round(r.top)}|${Math.round(r.width)}|${Math.round(r.height)}|${o}`;
+      }).join(';');
+    });
+    // Radix portals the content a commit AFTER the trigger click — an empty
+    // sample means the overlay hasn't mounted yet, never a settled state.
+    if (sig !== '') seen = true;
+    if (seen && sig === prev && ++stableCount >= 3) return;
+    if (sig !== prev) {
+      stableCount = 0;
+      prev = sig;
+    }
+    await page.waitForTimeout(50);
+  }
+}

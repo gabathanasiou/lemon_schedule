@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, activeCalendar, seedDayDates } from './helpers';
+import { openSeededProject, activeCalendar, seedDayDates, waitForOverlaySettle } from './helpers';
 
 /** Production Dates Manager (roadmap 54, MMS-style): prep/prod/post window +
  *  weekly days-off in ONE modal — replaces the old START input + Days Off
@@ -37,8 +37,11 @@ async function navTo(page: import('@playwright/test').Page, trigger: string, y: 
     const match = txt?.match(/(January|February|March|April|May|June|July|August|September|October|November|December) \d{4}/);
     if (match?.[0] === target) return;
     const cur = match ? new Date(match[0] + ' 1') : new Date();
-    if (new Date(y, m - 1, 1) > cur) await page.getByRole('button', { name: 'Next month' }).click();
-    else await page.getByRole('button', { name: 'Previous month' }).click();
+    // Scope the month-nav to THIS menu — a previously-closed picker's menu can
+    // still be mounted mid close-morph (data-state="open"), and an unfiltered
+    // "Next month" locator would then hit a strict-mode violation.
+    if (new Date(y, m - 1, 1) > cur) await menu.getByRole('button', { name: 'Next month' }).click();
+    else await menu.getByRole('button', { name: 'Previous month' }).click();
   }
   throw new Error('navTo guard exceeded');
 }
@@ -46,6 +49,9 @@ async function navTo(page: import('@playwright/test').Page, trigger: string, y: 
 /** Clicks a date field by its current trigger label, navigates, picks a day. */
 async function pickDate(page: import('@playwright/test').Page, trigger: string, y: number, m: number, day: number) {
   await page.getByRole('button', { name: trigger, exact: true }).first().click();
+  // Wait for the previous picker's close morph to finish + this one to settle
+  // (only one menu must be open; the morph is ~220ms scale+fade).
+  await waitForOverlaySettle(page);
   await navTo(page, trigger, y, m);
   await page.getByRole('menu', { name: trigger }).getByRole('button', { name: String(day), exact: true }).click();
 }

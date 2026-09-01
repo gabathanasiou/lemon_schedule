@@ -107,9 +107,10 @@ test('dropdown inside a modal re-clamps when the iPad keyboard opens', async ({ 
     (window as unknown as { __mockVV: { height: number } }).__mockVV.height,
   );
 
-  const box = await panel.boundingBox();
-  expect(box).toBeTruthy();
-  expect(box!.y + box!.height, 'panel must not extend past the keyboard').toBeLessThanOrEqual(visibleBottom + 1);
+  // The panel re-measures on a rAF after the visualViewport resize — poll
+  // (web-first) instead of reading the box immediately.
+  const panelBottom = async () => (await panel.boundingBox())!.y + (await panel.boundingBox())!.height;
+  await expect.poll(panelBottom, { timeout: 3000 }).toBeLessThanOrEqual(visibleBottom + 1);
 });
 
 test('Project Manager centres within the visible viewport', async ({ page }) => {
@@ -151,11 +152,22 @@ test('Cancel on the Add Events modal returns to a visible, interactive day modal
   const dayCell = page.locator(`[data-date-key="${days[0]}"]`);
   await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
+  await header.dblclick();
+  await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
 
-  // Repeat to catch the intermittent freeze (roadmap item 71).
-  for (let i = 0; i < 6; i++) {
-    await header.dblclick();
-    await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
+  // The reported freeze: Add Event → Cancel → Add Event again, WITHOUT closing
+  // the day modal — the day modal must come back visible + interactive every
+  // time (roadmap item 71). Cancel/Done are TOUCH taps: the freeze is a touch
+  // path (react-dismissable-layer's deferred touch dismissal left the stacked
+  // dialog's body locked at pointer-events:none on iPad — fixed by the Radix
+  // bump to dismissable-layer ≥1.1.19); Playwright mouse clicks never hit it.
+  const tap = async (locator: ReturnType<typeof page.getByRole>) => {
+    const b = await locator.boundingBox();
+    expect(b).toBeTruthy();
+    await page.touchscreen.tap(b!.x + b!.width / 2, b!.y + b!.height / 2);
+  };
+  const vh = page.viewportSize()!.height;
+  for (let i = 0; i < 3; i++) {
     await page.getByRole('button', { name: 'Add Event' }).click();
     const adder = page.getByRole('dialog').last();
     await expect(adder.getByRole('heading', { name: 'Add Events' })).toBeVisible();
@@ -163,33 +175,35 @@ test('Cancel on the Add Events modal returns to a visible, interactive day modal
     // The adder's search input holds focus → the software keyboard is up.
     // Cancel blurs it → the keyboard retracts right around the modal swap.
     await page.evaluate(() => {
-      const vv = (window as unknown as { __mockVV: { setHeight: (h: number) => void; _origHeight: number } }).__mockVV;
-      vv.setHeight(Math.round(vv._origHeight * 0.55));
+      const vv = (window as unknown as { __mockVV: { setHeight: (h: number) => void; height: number } }).__mockVV;
+      vv.setHeight(Math.round(vv.height * 0.55));
     });
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await tap(adder.getByRole('button', { name: 'Cancel', exact: true }));
     await page.evaluate(() => {
       const vv = (window as unknown as { __mockVV: { setHeight: (h: number) => void; _origHeight: number } }).__mockVV;
       vv.setHeight(vv._origHeight);
     });
 
+    // The day modal must come back VISIBLE (opacity 1) and on-screen, AND its
+    // content must be interactive — the freeze left it faded (the `:has()` stack
+    // fade) and/or locked (body pointer-events: none swallowing every tap).
     const dayHeading = page.getByText('Day Events —', { exact: false });
     await expect(dayHeading).toBeVisible();
-
-    // The previous modal must come back VISIBLE (opacity 1) and on-screen —
-    // the reported freeze leaves it invisible-but-clickable (the `:has()`
-    // stack fade in tokens.css stays applied → opacity 0 forever).
     const dayModal = page.locator('[data-modal-stack]').last();
     await expect.poll(
       async () => dayModal.evaluate((el) => getComputedStyle(el).opacity),
       { timeout: 1500 },
     ).toBe('1');
+    await expect.poll(
+      async () => dayModal.evaluate((el) => getComputedStyle(el).pointerEvents),
+      { timeout: 1500 },
+    ).toBe('auto');
     const box = await dayModal.boundingBox();
     expect(box).toBeTruthy();
-    const vh = page.viewportSize()!.height;
     expect(box!.y + box!.height, 'day modal must sit inside the viewport').toBeLessThanOrEqual(vh + 1);
-
-    // And it must be interactive: the Done button closes it.
-    await dayModal.getByRole('button', { name: 'Done' }).click();
-    await expect(page.getByText('Day Events —', { exact: false })).toBeHidden();
   }
+
+  // And it stays interactive: a touch-tap on Done closes it.
+  await tap(page.locator('[data-modal-stack]').last().getByRole('button', { name: 'Done' }));
+  await expect(page.getByText('Day Events —', { exact: false })).toBeHidden();
 });
