@@ -42,7 +42,7 @@ const REPORT = [
 const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'ribbon-text-size'];
 const SCHED = ['keyboard-mode', 'digit-schedule'];
 const SHEET = ['scene-sheet-order'];
-const CAL = ['calendar-travel-hold', 'day-types', 'production-dates', 'calendar-rule-cards'];
+const CAL = ['calendar-travel-hold', 'day-types', 'production-dates', 'calendar-rule-cards', 'date-picker-initial'];
 const GLIDE = ['glide-breakdown', 'glide-clipboard'];
 const ELEM = ['element-manager-merge', 'element-manager-day-columns', 'element-events'];
 const CAST = ['cast-single-source'];
@@ -119,6 +119,8 @@ const RULES = [
   // calendar + day types
   { g: 'src/components/calendar/**', s: CAL },
   { g: 'src/components/CalendarTab.tsx', s: CAL },
+  { g: 'src/components/DateField.tsx', s: [...CAL, ...RIBBON] },
+  { g: 'src/components/RulesTab.tsx', s: RIBBON },
   { g: 'src/lib/dayTypes.ts', s: CAL },
   { g: 'src/lib/nonShoot*.ts', s: CAL },
   { g: 'src/lib/places.ts', s: CAL },

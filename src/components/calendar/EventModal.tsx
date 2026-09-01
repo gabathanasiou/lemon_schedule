@@ -16,6 +16,7 @@ import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { usePortalTarget } from '../../lib/popoutTarget';
+import { initialViewFor } from './calendarUtils';
 import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import { ChevronDown, Sun, Trash2, MessageSquare } from 'lucide-react';
 
@@ -223,6 +224,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
               onChange={(ds) => setDate(ds[0] || '')}
               placeholder="Pick a date"
               className="w-full"
+              initialView={initialViewFor(date ? [date] : [], activeCalendarVersion?.productionStart)}
             />
             {dateOutOfWindow && (
               <p className={`${CREM_LABEL} text-amber-400 mt-1`}>Outside this production's date range — events still work, but the calendar may not show the day.</p>

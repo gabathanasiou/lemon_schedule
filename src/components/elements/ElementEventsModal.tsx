@@ -402,6 +402,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
               scenes={project.scenes}
               castMembers={project.castMembers || []}
               anchoredKeys={anchoredKeysFor(project.elementLinks, 'cast')}
+              productionStart={activeCalendarVersion?.productionStart}
               onSave={saveRule}
               onDelete={nested.rule && nested.rule.id ? () => {
                 dispatch({ type: 'DELETE_RULE', payload: nested.rule!.id });

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ProjectRule, Scene, CastMember } from '../../types';
 import { getUniqueCastIds } from '../../lib/utils';
 import { usePortalTarget } from '../../lib/popoutTarget';
+import { initialViewFor } from '../calendar/calendarUtils';
 import { EntityDropdown } from '../EntityDropdown';
 import DateField from '../DateField';
 import Checkbox from '../Checkbox';
@@ -47,10 +48,13 @@ export interface RuleEditorPanelProps {
   /** Rendered inside a Modal shell (Rules tab): the Modal provides the title
    *  + close button; the panel renders fields + footer only, no box/header. */
   bare?: boolean;
+  /** Production start (active calendar version) — the date picker's fallback
+   *  month when the rule has no dates yet (roadmap 68). */
+  productionStart?: string;
 }
 
 export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
-  initial, preseedDateKey, scenes, castMembers, anchoredKeys, onSave, onDelete, onClose, bare,
+  initial, preseedDateKey, scenes, castMembers, anchoredKeys, onSave, onDelete, onClose, bare, productionStart,
 }) => {
   const [form, setForm] = useState<RuleFormState>(() => {
     if (initial) return formFromRule(initial);
@@ -226,6 +230,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
               value={form.dates}
               onChange={dates => setForm(f => ({ ...f, dates }))}
               placeholder="Pick dates"
+              initialView={initialViewFor(form.dates, productionStart)}
             />
           )}
         </FieldBox>

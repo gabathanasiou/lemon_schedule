@@ -26,6 +26,9 @@ interface DateFieldProps {
   multi?: boolean;
   /** `chrome` (button → floating panel) or `inline` (calendar always visible). */
   variant?: 'chrome' | 'inline';
+  /** Seed the calendar's visible month on open (roadmap 68) — a picked date,
+   *  else the production start; omitted → the kit falls back to real today. */
+  initialView?: string;
   /** Chrome only: when set, the wrapper + trigger stretch to fill their
    *  column (`flex w-full`, trigger `flex-1 justify-between`) — the event
    *  editor's Date / Event Type row. */
@@ -46,7 +49,7 @@ export function summaryLabel(value: string[], placeholder: string): string {
   return `${shortLabel(sorted[0])}, ${shortLabel(sorted[1])} +${sorted.length - 2}`;
 }
 
-const Picker = ({ value, onChange, multi }: { value: string[]; onChange: (dates: string[]) => void; multi?: boolean }) => (
+const Picker = ({ value, onChange, multi, initialView }: { value: string[]; onChange: (dates: string[]) => void; multi?: boolean; initialView?: string }) => (
   <DatePicker
     selected={value}
     onChange={(ds) => {
@@ -59,10 +62,11 @@ const Picker = ({ value, onChange, multi }: { value: string[]; onChange: (dates:
       }
     }}
     theme="dark"
+    initialView={initialView}
   />
 );
 
-export default function DateField({ value, onChange, placeholder = 'Pick a date', multi, variant = 'chrome', className }: DateFieldProps) {
+export default function DateField({ value, onChange, placeholder = 'Pick a date', multi, variant = 'chrome', initialView, className }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const hasValue = value.length > 0;
   const fullWidth = !!className;
@@ -70,7 +74,7 @@ export default function DateField({ value, onChange, placeholder = 'Pick a date'
   if (variant === 'inline') {
     return (
       <div>
-        <Picker value={value} onChange={onChange} multi={multi} />
+        <Picker value={value} onChange={onChange} multi={multi} initialView={initialView} />
       </div>
     );
   }
@@ -100,6 +104,7 @@ export default function DateField({ value, onChange, placeholder = 'Pick a date'
             if (!multi) setOpen(false);
           }}
           multi={multi}
+          initialView={initialView}
         />
       </DropdownMenu>
     </div>

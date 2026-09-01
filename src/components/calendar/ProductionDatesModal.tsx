@@ -4,7 +4,7 @@ import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import DateField from '../DateField';
-import { toDateKey } from './calendarUtils';
+import { toDateKey, initialViewFor } from './calendarUtils';
 import { addDays, advanceDateCursor, buildNonShootSet } from '../../lib/daybreakUtils';
 import type { NonShootDate } from '../../types';
 import { CalendarDays, Check } from 'lucide-react';
@@ -51,6 +51,7 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
       value={value ? [value] : []}
       onChange={ds => onChange(ds[0] || '')}
       placeholder="Pick a date"
+      initialView={initialViewFor(value ? [value] : [], prodStart)}
     />
   );
 

@@ -459,6 +459,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
             scenes={project.scenes}
             castMembers={project.castMembers || []}
             anchoredKeys={undefined}
+            productionStart={activeCalendarVersion?.productionStart}
             onSave={(rules) => {
               for (const r of rules) {
                 // Multi-ID expansion: the FIRST rule keeps the edited rule's

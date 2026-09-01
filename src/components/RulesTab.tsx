@@ -15,6 +15,7 @@ export const RulesTab: React.FC = () => {
   const rules = project.rules || [];
   const scenes = project.scenes;
   const castMembers = project.castMembers || [];
+  const productionStart = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId)?.productionStart;
 
   const resolveCastName = (castId: string) => {
     const cm = castMembers.find(c => c.id === castId);
@@ -243,6 +244,7 @@ export const RulesTab: React.FC = () => {
               onSave={handleSave}
               onDelete={editingRule ? () => { handleDelete(editingRule); setShowForm(false); setEditingRule(null); } : undefined}
               onClose={() => { setShowForm(false); setEditingRule(null); }}
+              productionStart={productionStart}
             />
           </div>
         </Modal>

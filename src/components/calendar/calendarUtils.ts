@@ -9,6 +9,14 @@ export function toDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/** Initial view date for a date picker's open month (roadmap 68): the field's
+ *  picked date (latest pick), else the production start, else undefined
+ *  (the kit falls back to real today). */
+export function initialViewFor(fieldValue: string[], productionStart?: string): string | undefined {
+  if (fieldValue.length > 0) return fieldValue[fieldValue.length - 1];
+  return productionStart || undefined;
+}
+
 const fullDateCache = new Map<string, string>();
 export function formatFullDate(date: Date): string {
   const key = toDateKey(date);
