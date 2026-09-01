@@ -49,7 +49,7 @@ function formatDateLabel(dateKey: string): string {
 
 /** The day-centric events editor (roadmap 45) — the shared shell item 46
  *  reuses. Every mutation applies IMMEDIATELY (undoable): one collapsible
- *  ItemCard per event type with a row per element (cast as "1. FISHERMAN",
+ *  CardSection per event type with a row per element (cast as "1. FISHERMAN",
  *  whole-category marks as "All <Category>"), row click opens the shared
  *  single-event editor, inline per-element notes, ✕ removes the group.
  *  "+ Add Event" opens the shared adder pre-targeted to this day. The
@@ -108,7 +108,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
   /** Row whose note input is open (inline add/edit — Enter/blur commits). */
   const [noteFor, setNoteFor] = useState<{ status: string; category: string; refKey: string } | null>(null);
 
-  // Rules grouped by type, in the manager's rule-type order — one ItemCard
+  // Rules grouped by type, in the manager's rule-type order — one CardSection
   // per type (the element events manager's rules view, shared).
   const rulesByType = useMemo(() => {
     const map = new Map<string, ProjectRule[]>();

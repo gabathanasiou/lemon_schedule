@@ -91,7 +91,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
     [nonShootDates, identity.refKey, project.rules, violationMap],
   );
 
-  // Rules grouped by type, in the manager's rule-type order — one ItemCard
+  // Rules grouped by type, in the manager's rule-type order — one CardSection
   // per type (the same grouping the day-type cards use for events).
   const rulesByType = useMemo(() => {
     const map = new Map<string, ProjectRule[]>();
