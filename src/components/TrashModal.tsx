@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { RotateCcw, Trash2, Film, Layers, CalendarDays, ShieldAlert, LayoutTemplate, Package, Tags, Palette, UserRound } from 'lucide-react';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
-import { ItemCard } from './cards/ItemCard';
+import { CardSection } from '@gabriel/ui-kit';
 import { useDialog } from './Dialog';
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './rules/ruleMeta';
 import { DEFAULT_CATEGORY_LABELS } from '../store';
@@ -223,7 +223,7 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
           <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>
         ) : (
           sections.map(section => (
-            <ItemCard
+            <CardSection
               key={section.kind}
               title={section.label}
               icon={<span className={section.iconClass}>{section.icon}</span>}
@@ -247,7 +247,7 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
                   </button>
                 </div>
               ))}
-            </ItemCard>
+            </CardSection>
           ))
         )}
       </div>

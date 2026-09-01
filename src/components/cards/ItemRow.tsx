@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 
 /**
- * ItemRow — the interactive row inside an `ItemCard` (element events
+ * ItemRow — the interactive row inside an `CardSection` (element events
  * manager's date rows, extracted as the shared row for grouped lists).
  *
  * The click contract is baked in:
@@ -44,7 +44,7 @@ export interface ItemRowProps {
 
 /** The shared interactive-row recipe (single source — the dark RuleCard row
  *  uses it too): row-wide click opens the editor, hover fill, pointer,
- *  rounded (the rows sit with gaps inside the ItemCard's padded band). Wraps
+ *  rounded (the rows sit with gaps inside the CardSection's padded band). Wraps
  *  (`flex-wrap gap-y-1`) so a narrow row stacks its body below the title. */
 export const ITEM_ROW_CLASS = 'group flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 hover:bg-zinc-800/60 transition-colors cursor-pointer rounded-md';
 

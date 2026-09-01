@@ -18,7 +18,7 @@ import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
 import { RULE_TYPE_META, RULE_TYPES } from '../rules/ruleMeta';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
-import { ItemCard } from '../cards/ItemCard';
+import { CardSection } from '@gabriel/ui-kit';
 import { ItemRow, ITEM_ROW_BODY_WRAP } from '../cards/ItemRow';
 import { CalendarDays, Plus, X, Flag, Clock4 } from 'lucide-react';
 
@@ -231,7 +231,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                 const Icon = typeIconComponent(project.dayTypes, status);
                 const collapsed = collapsedTypes.has(status);
                 return (
-                  <ItemCard
+                  <CardSection
                     key={status}
                     icon={<Icon className="w-3.5 h-3.5 shrink-0" style={def?.color ? { color: def.color } : undefined} />}
                     title={def?.label || status}
@@ -302,7 +302,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                         </ItemRow>
                       );
                     })}
-                  </ItemCard>
+                  </CardSection>
                 );
               })}
             </div>
@@ -356,7 +356,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
               const Icon = meta.icon;
               const collapsed = collapsedRuleTypes.has(type);
               return (
-                <ItemCard
+                <CardSection
                   key={type}
                   icon={<Icon className={`w-3.5 h-3.5 shrink-0 ${meta.chipIcon}`} />}
                   title={meta.label}
@@ -370,7 +370,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                       onEdit={readOnly ? () => {} : () => setNested({ kind: 'rule', rule: r })}
                       onDelete={readOnly ? undefined : () => dispatch({ type: 'DELETE_RULE', payload: r.id })} />
                   ))}
-                </ItemCard>
+                </CardSection>
               );
             })
             )}

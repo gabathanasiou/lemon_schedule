@@ -1505,3 +1505,241 @@ build-time version from package.json.
 
 **Relations**: one-screen exception to item 59's one-dim rule (the `.pm-boot` dim-zero);
 rides the item-56 kit-bump process territory (the version define is app-side only).
+
+## 83. Tabs, mini tabs, File-menu trigger + item-version triggers → kit `Button` (`[ ]`)
+
+**Requested**: make the tabs and mini tabs use the ui-kit **`Button`** — "same as
+the File menu" — and make the File menu's dropdown trigger a kit `Button` too,
+plus the buttons that open the item-version pickers (`ItemManagerDropdown`
+triggers).
+
+**Facts** (current state — what's bespoke vs what already uses the kit):
+- The kit `Button` (`src/components/Button.tsx` = 1-line re-export of
+  `@gabriel/ui-kit` `Button`, `ui-kit/src/Button.tsx`) is the shared toolbar
+  button: `subtle`/`primary`/`danger-ghost`, `theme` light/dark, `cloud` prop
+  (light primary → blue-950), proportional coarse-pointer scaling, open-state
+  hover-hold when used as a Radix menu trigger. **Icon-only nav + status pills
+  stay bespoke** (AGENTS.md §UI Primitives / DESIGN-LANGUAGE §Primitive matrix
+  "Toolbar / action button" row).
+- **File menu trigger — bespoke**: `AppHeader.tsx:94-101` renders the File menu's
+  trigger as a hand-rolled `<button>` (`flex items-center space-x-1.5 … px-3
+  py-1.5 … text-zinc-400 hover:text-white hover:bg-zinc-800`, blue cloud
+  variant) instead of the kit `Button`. It already sits inside the kit
+  `DropdownMenu` (morph, single-highlight, panel positioning — items 58/64), so
+  only the trigger element swaps.
+- **Top tabs — bespoke**: `AppHeader.tsx:192-199` — the Breakdown/Schedule/…
+  tab buttons are hand-rolled `<button>`s. Active pill recipe
+  (`AppHeader.tsx:79-80`): `bg-white text-zinc-900` on the dark zinc/blue
+  header; inactive `text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800`
+  (cloud: `bg-white text-blue-950` / `text-white/70 hover:bg-blue-900/60`).
+- **Mini tabs (`PageToolbar` sub-tabs) — bespoke**: `PageToolbar.tsx:134-153` —
+  the sub-tab buttons (Sheet/Element Manager, Calendar/Day Breakdown, Ribbon
+  Designer/Colors, DOODs/Element Breakdown, Report Designer) are hand-rolled.
+  Recipe (`PageToolbar.tsx:24-48`): active `bg-zinc-950 text-white rounded px-3
+  py-1.5` (light, cloud `bg-blue-950 text-blue-50`); inactive
+  `text-zinc-500 hover:text-zinc-900` (dark theme: `hover:text-zinc-300`).
+- **Item-version triggers — mixed**: the Schedule-version (`ScheduleToolbar.tsx:134-139`),
+  Calendar-version (`CalendarTab.tsx:944-950`) and Ribbon-design
+  (`RibbonTab.tsx:619-624`) pickers ALREADY use `<Button>` (the ribbon-designer
+  recipe: muted label span + `text-zinc-900`/`text-zinc-200` value span + muted
+  chevron — DESIGN-LANGUAGE §Primitive matrix "Version picker" row). Two
+  `ItemManagerDropdown` triggers are still bespoke: the Report Designer's
+  "Editing:" trigger (`ReportDesigner.tsx:702-707`, a plain `<span>` with
+  hover classes) and the reports text-style picker (`blockControls.tsx:419-424`,
+  a hand-rolled `<button>` with its own `w-32 … bg-zinc-800 border border-zinc-700`
+  classes).
+
+**Design wrinkle — the active-tab look vs the kit `active` prop** (decide in the
+worker, don't guess):
+- The kit `Button` `active` prop is a **blue tint** (`bg-blue-900/50! text-white!`
+  dark / `bg-blue-50! text-blue-700!` light) — NOT the app's tab active pill
+  (`bg-zinc-950` light / `bg-white` dark header / `bg-blue-950` cloud). A tab
+  swap onto the bare kit `active` would silently change the tab look.
+- The kit `Button` bakes its padding via inline `style` from `useCoarseSize`
+  (`ui-kit/src/Button.tsx:47,83`) — `px-2.5 py-1` desktop subtle — so passing
+  `px-3 py-1.5` in `className` will NOT take (inline style wins). Recommended:
+  give the kit `Button` a **`variant="tab"`** (or a `tab` boolean) that ships
+  the exact tab recipe (`px-3 py-1.5 text-xs font-semibold` + the active
+  fill/inactive-hover per theme + cloud) as its own baked size/look — one kit
+  bump, one source of truth, both AppHeader top tabs AND PageToolbar mini tabs
+  consume it. Fallback if the worker prefers no kit change: accept the kit
+  `active` blue tint as the new tab look (a deliberate visual change) — flag it
+  in DESIGN-LANGUAGE, don't hand-hack padding overrides.
+- Tabs keep their bespoke chrome after the swap: AppHeader's right-click →
+  pop-out context menu + shift-click pop-out (gated `!IS_COARSE`),
+  PageToolbar's shift-click/context-menu pop-out, the touch drag-scroll/tap
+  replay capture logic (`PageToolbar.tsx:79-119`), and the scroll masks — all
+  behavior must survive; only the `<button>` element/classes swap to the kit.
+- The File-menu trigger swaps to `<Button theme="dark">` (or `theme="blue"` for
+  cloud — check what the kit `blue` theme provides for a button; the header is
+  `bg-blue-950` when cloud) with the existing "File" + `ChevronDown` children.
+  The kit `Button` already keeps its hover look while the menu is open
+  (`data-state="open"` → `open` class), so the trigger gets the pressed feel
+  for free.
+
+**Scope**:
+1. AppHeader File menu trigger → kit `Button`.
+2. AppHeader top tabs → kit `Button` (the `variant="tab"` recipe).
+3. PageToolbar mini tabs → kit `Button` (same recipe, light + dark themes,
+   cloud coloring).
+4. `ReportDesigner.tsx` "Editing:" trigger → kit `Button` (ribbon-designer
+   recipe, dark theme).
+5. `blockControls.tsx` text-style picker trigger → kit `Button` (dark; keep the
+   `w-32` width via `className` — a width utility is fine, it doesn't fight the
+   inline padding).
+6. Docs in the same commit: DESIGN-LANGUAGE §Primitive matrix ("Toolbar / action
+   button" + "Version picker" rows + a new tab row), AGENTS.md UI-primitives
+   bullet if the `variant="tab"` lands.
+
+**Verify**: lint + playwright — every swapped surface still opens/selects/
+pop-outs: File menu opens from the new trigger and keeps the open-state hover,
+top tabs switch + shift-click/right-click pop-out, PageToolbar sub-tabs switch +
+pop-out (Schedule View menu, calendar sub-tabs, designer), version pickers open
+and rename (Schedule/Calendar/Ribbon already green — regression only), Report
+Designer "Editing:" + text-style picker open/rename. Assert the active-tab look
+matches the recipe (not the blue `active` tint). Existing specs touching these
+surfaces (seeded-smoke, schedule/calendar/design tabs) stay green; add a RULES
+entry if a spec maps to `AppHeader.tsx`/`PageToolbar.tsx` (App.tsx → ALL likely
+already covers the tab flows).
+
+**Relations**: rides the kit `Button` (item 56's promotion family — the tab
+variant is a kit extension, one bump, same pattern as items 58/64/67/80); the
+File-menu trigger conversion parallels item 51's kit-`DropdownMenu` recipe
+(trigger = current-order label + `ChevronDown`); closes the remaining bespoke
+`ItemManagerDropdown` triggers (items 66/68's picker work used `<Button>` only
+for the Schedule/Calendar/Ribbon pickers).
+
+## 84. Manager pages — coarse scaling for the grid + category sidebar (`[ ]`)
+
+**Requested**: on iPad (coarse pointer), the **manager pages** — Element
+Manager, Crew Manager, Location Manager (the sidebar-of-categories + table
+managers) — are still desktop-sized: small text, thin rows, tiny tap targets.
+Enable **coarse scaling** for **both the grid (the table) and the category
+selection on the left (the sidebar)**, sized to **match the Glide breakdown**
+(the app's existing coarse reference surface).
+
+**Facts** (current state — no `IS_COARSE` branches in any manager surface):
+- **The Glide reference** (`BreakdownTabGlide.tsx` / `glideShell.tsx`): base
+  font `SS_FONT_SIZE_DEFAULT` = 11 → **12.5 on coarse** (`useSpreadsheetFontSize(IS_COARSE ? 12.5 : undefined)`); `rowHeight` = `Math.round(34 * fontSize / 11)` (34 → **39**), `headerHeight` = `Math.round(36 * fontSize / 11)` (36 → **41**); row markers `width: IS_COARSE ? 72 : 50`; actions column `width: IS_COARSE ? 48 : 36`. `src/lib/device.ts` `IS_COARSE` is the gate every other coarse surface uses.
+- **The grid**:
+  - `managerShell.tsx` (`DatabaseManagerView` — Crew/Location): shared
+    `cellInputCls` = `'w-full bg-transparent px-2 py-1 text-xs …'` (line 83,
+    exported); header cells `px-3 py-2 text-[10px]` (line 459); data cells
+    `px-3 py-1` (line 468); row delete `w-3.5 h-3.5` (line 476); footer "Add"
+    `px-3 py-2 text-xs` (line 487). No coarse branch anywhere.
+  - `ElementManager.tsx`: same pattern — `renderInput` `px-2 py-1 text-xs`
+    (line 360), headers `px-3 py-2 text-[10px]` (lines 589-598), data cells
+    `px-3 py-1 text-[11px]` (lines 626-631), row icons `w-3.5 h-3.5`
+    (lines 619-639), footer "Add" `px-3 py-2 text-xs` (line 651).
+- **The category sidebar** (`SidebarNav.tsx`, shared by BOTH ElementManager and
+  the managerShell DBs): fixed `w-[188px]` aside (line 27); title
+  `text-[10px]` (line 29); rows `px-2 py-1.5 text-xs` (line 41); icons
+  `w-3 h-3` (line 49); counts `text-[10px]` (line 57); add button
+  `px-2 py-1.5 text-xs` (line 70); row-action icons `w-3 h-3`
+  (`managerShell.tsx:336,344`, `ElementManager.tsx:495`). No coarse branch.
+- The buffered managers already get kit `Button`s (Save/Revert/Add/Sort) which
+  scale on their own via the kit — the gap is the table + sidebar chrome.
+- Precedent: the coarse `IS_COARSE` const-branch pattern is everywhere
+  (`projectManagerStyles.ts`, `ColorRuleFormParts.tsx`, `HelpModal.tsx`,
+  `ColorsTab.tsx`, `dropdown.ts`, kit `Button`/menu items, Glide).
+
+**Design** (narrow — match Glide, one source of truth):
+1. **Shared coarse-aware classes** — the table chrome already has a shared
+   seam: `managerShell.tsx` exports `cellInputCls`. Extract the full manager
+   table kit (input cell, header cell, data cell, row icon, footer-add) into a
+   small shared module (e.g. `src/lib/managerTable.ts` — or extend the existing
+   `managerShell.tsx` export block) with `IS_COARSE` branches sized to the Glide
+   ratio (~11px→12.5px, +~14%): inputs `text-xs px-2 py-1` → `text-sm px-3
+   py-2.5` (or `text-[13px]` — final numbers per Glide feel); header
+   `text-[10px] px-3 py-2` → `text-xs px-3 py-3`; data cells
+   `px-3 py-1 text-[11px]` → `px-3 py-2.5 text-sm`; row icons
+   `w-3.5 h-3.5` → `w-4 h-4`; footer add `px-3 py-2 text-xs` → `px-3 py-3
+   text-sm`. Consume in BOTH `managerShell.tsx` AND `ElementManager.tsx` (their
+   header/cell/icon markup is near-identical — rule 1/4, don't fork).
+2. **`SidebarNav` coarse branch** — widen the aside on coarse (`w-[188px]` →
+   e.g. `w-56`) and bump rows: `px-2 py-1.5 text-xs` → `px-3 py-3 text-sm`
+   (match the touch-size bump the kit menu items use — `px-4 py-3 text-sm` is
+   the kit's coarse item scale, DESIGN-LANGUAGE §Item cards / dropdown row);
+   icons `w-3 h-3` → `w-4 h-4`; counts `text-[10px]` → `text-xs`; title
+   `text-[10px]` → `text-xs`; add button + row-action icons scale the same.
+   The `hover-reveal` action affordance and sticky title stay as-is.
+3. **Day-type columns / stat cells** (ElementManager) scale with the shared
+   classes — the per-type `min-w-14` headers and `text-[11px]` stat cells
+   inherit the grid branch (wider headers/rows on coarse, no per-column work).
+4. **Docs**: DESIGN-LANGUAGE §Tables (light managers) + the coarse-sizing note
+   ("manager grid + sidebar scale like the Glide breakdown"), AGENTS.md
+   `managerShell.tsx` note if the shared module moves.
+
+**Verify**: lint + **webkit iPad** (`playwright.ipad.config.ts`) — a probe spec
+(or the existing `ipad-touch-scroll`/`ipad-modal-drag-menu` harness) asserting
+the coarse classes on a manager table + sidebar row: cell input `text-sm`
+padding/tap target, sidebar row height ≥ the desktop row, row/action icons
+scaled. Manual iPad check: Element Manager + Crew Manager + Location Manager
+read comfortably (rows tappable, sidebar rows tappable, grid text legible),
+Glide matches visually. Desktop unchanged (byte-for-byte — branches gate on
+`IS_COARSE`); manager specs (element/crew/location) stay green. Layout-only →
+no new e2e beyond the probe (AGENTS.md rule 7) unless a cheap probe exists.
+
+**Relations**: same coarse `IS_COARSE` language as the Glide (item 0/Glide's
+`useSpreadsheetFontSize`), `projectManagerStyles.ts`, `dropdown.ts` and kit
+`Button`/menu scaling (items 56/77); rides `managerShell.tsx`'s exported
+`cellInputCls` seam; `SidebarNav` is shared by ElementManager + all
+`DatabaseManagerView` DBs — one component, every manager inherits.
+
+## 85. Events-mode Filter menu — remove the "Cast & Elements" toggle (redundant with "All Events") (`[ ]`)
+
+**Requested**: in the Calendar tab's Events-mode **Filter** menu, remove the
+**"Cast & Elements"** option — it's the same thing as the "All Events" toggle
+(the user's words), a redundant control.
+
+**Facts**:
+- The Filter menu (`CalendarTab.tsx:1020-1077`) has three groups: an
+  **"Events"** section ("All Events" master toggle + one row per markable day
+  type), a **"Cast & Elements"** row (lines 1055-1057, icon `Link2`, toggles
+  `eventsFilter.attachments`), and a **"Rules"** section ("All Rule Types" +
+  one row per rule type).
+- `eventsFilter.attachments` gates attachment cards in `filterCard`
+  (`src/lib/events.ts:73`): `!!filter.attachments && (filter.statuses == null
+  || filter.statuses.includes(card.status))`. The `EventsFilter` model
+  (`events.ts:51-65`) carries `attachments: boolean` (+ `flags`, which has no
+  menu row either — separate dead field, out of scope), and the persisted
+  prefs type (`CalendarTab.tsx:115,123`, `lemon_schedule_calendar_view`)
+  stores it. Its ONLY write site is the menu row itself.
+- The user's framing is exact: "All Events" (statuses `null` = everything
+  shows) already covers showing the cast/element attachment cards — a separate
+  "Cast & Elements" switch reads as the same toggle and just adds confusion.
+- No e2e asserts the row directly (`calendar-rule-cards.spec.ts` drives the
+  Filter menu but only for the Rules half; `day-types.spec.ts`'s "attachments"
+  is the day-types manager, unrelated).
+
+**Design** (remove the dead control, don't hide it):
+1. **Delete the menu row** (`CalendarTab.tsx:1054-1057` + its `DropdownDivider`
+   + the now-unused `Link2`/`Check` usage if otherwise unused in that block).
+2. **Remove the `attachments` field from the model** (`events.ts`): drop it
+   from `EventsFilter`, `DEFAULT_EVENTS_FILTER`, and the `filterCard`
+   attachment branch (`:73` → just `filter.statuses == null ||
+   filter.statuses.includes(card.status)`). Update the prefs type
+   (`CalendarTab.tsx:115,123`). **Stale persisted values**: old
+   `lemon_schedule_calendar_view` payloads carrying `attachments: false`
+   simply stop being read — attachments render again (the user's desired
+   behavior; no migration needed, the type just stops destructuring it).
+3. **Verify the `flags` field**: it's in `EventsFilter`/`DEFAULT` but has NO
+   menu row — leave it (out of scope), or if removing `attachments` makes it
+   the only dead field, note it in the commit and leave it for a future
+   cleanup (don't bundle unrelated changes into this item).
+4. Docs: DESIGN-LANGUAGE §Feedback / Calendar events-mode row if it documents
+   the Filter menu contents (check first — likely a one-line note).
+
+**Verify**: lint + playwright — seeded project, Events mode: open the Filter
+menu → the "Cast & Elements" row is gone; attachment cards (cast/element) still
+render with "All Events" on and still hide when their status row is unchecked;
+the Rules section behaves unchanged (`calendar-rule-cards.spec.ts` green — it
+opens the Filter menu, so it regression-covers the menu); a persisted prefs
+value with `attachments: false` from before the change still shows attachment
+cards (probe via the bridge / localStorage). `calendar-events`/`day-types`
+related specs green.
+
+**Relations**: rides item 45/46's events filter model (`src/lib/events.ts`,
+`EventsFilter` + `filterCard`) — the filter lives in the canonical module, so
+removing the field is a model change there, not a UI hack; touches the
+`calendar-rule-cards.spec.ts` Filter-menu harness (regression only).

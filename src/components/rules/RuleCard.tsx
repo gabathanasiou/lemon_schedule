@@ -14,7 +14,7 @@ interface RuleCardProps {
   theme?: 'light' | 'dark';
   /** How many violations this rule has on the day the card is shown for. */
   conflicts?: number;
-  /** Dark row only: drop the type icon + short chip (the per-type ItemCard
+  /** Dark row only: drop the type icon + short chip (the per-type CardSection
    *  header already carries the type signal — the element events manager). */
   compact?: boolean;
   /** Dark row only: trailing delete X — the rest of the row opens the editor
@@ -28,7 +28,7 @@ export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, castMembers, t
   const dark = theme === 'dark';
   const desc = castMembers ? describeRuleDetailed(rule, castMembers) : describeRule(rule);
 
-  // Dark theme = the shared ItemRow (the ItemCard event-row contract): the
+  // Dark theme = the shared ItemRow (the CardSection event-row contract): the
   // whole row opens the editor, the trailing X deletes.
   if (dark) {
     return (

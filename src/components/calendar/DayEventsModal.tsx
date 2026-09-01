@@ -14,7 +14,7 @@ import DropdownDivider from '../DropdownDivider';
 import { RULE_TYPE_META, RULE_TYPES } from '../rules/ruleMeta';
 import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
-import { ItemCard } from '../cards/ItemCard';
+import { CardSection } from '@gabriel/ui-kit';
 import { ItemRow, ITEM_ROW_BODY_WRAP } from '../cards/ItemRow';
 import { removeItemsFrom, setNote, computeDayTypeCards } from '../../lib/events';
 import { ELEMENT_CATEGORIES, getLabel, CAT_ICONS, getCustomIcon } from '../../lib/categories';
@@ -278,7 +278,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                   const Icon = typeIconComponent(project.dayTypes, status);
                   const collapsed = collapsedTypes.has(status);
                   return (
-                    <ItemCard
+                    <CardSection
                       key={status}
                       icon={<Icon className="w-3.5 h-3.5 shrink-0" style={def?.color ? { color: def.color } : undefined} />}
                       title={def?.label || status}
@@ -352,7 +352,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                           ) : null}
                         </ItemRow>
                       ))}
-                    </ItemCard>
+                    </CardSection>
                   );
                 })}
               </div>
@@ -402,7 +402,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                   const meta = RULE_TYPE_META[type];
                   const Icon = meta.icon;
                   return (
-                    <ItemCard
+                    <CardSection
                       key={type}
                       icon={<Icon className={`w-3.5 h-3.5 shrink-0 ${meta.chipIcon}`} />}
                       title={meta.label}
@@ -422,7 +422,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                           onDelete={readOnly ? undefined : () => dispatch({ type: 'DELETE_RULE', payload: r.id })}
                         />
                       ))}
-                    </ItemCard>
+                    </CardSection>
                   );
                 })}
               </div>

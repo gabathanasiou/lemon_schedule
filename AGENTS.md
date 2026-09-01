@@ -18,11 +18,12 @@
 5. **Complexity reset.** When a second special case would extend the same abstraction, stop, re-read the requirement, and redesign narrower instead of patching.
 6. **Small focused commits**, imperative mood, one revertible unit each.
  7. **Verify before done.** Every change runs `npm run lint`. **Logic/data/store/behavior changes** run `npx playwright test` (or the `npm run test:smart` subset) — full suite before done/commit, never claim done on a failing suite. **Visual-only changes** (class strings, colors, hover/focus styles, padding/layout — no behavior impact) skip the suite: lint + a manual user check is enough; don't boot e2e for CSS tweaks.
- 8. **Suggest a version bump when done — be smart, not noisy.** The boot screen shows `v{package.json version}` (build-time `__APP_VERSION__` define — see `docs/ROADMAP.md` item 82). When work wraps, judge whether it's actually worth a bump and say so in ONE short line of the done summary (never bump/tag yourself — release action). Guidelines:
-    - **Signal, not noise.** Don't suggest per commit. Small fixes / refactors / internal changes = no suggestion (or bundle several into "worth a patch when you next release"). A visible feature or a released-behavior fix = suggest.
-    - **Check the current version first.** If `package.json` is already newer than what your change adds (e.g. a release bump landed after the last user-visible change), skip it.
-    - **Batch.** In multi-item work (roadmap items, sessions with several commits), suggest once at a coherent milestone — one bump per user-visible milestone, not one per commit.
-    - **Size honestly.** Patch = fixes/visual-only; minor = new user-facing feature; major = breaking change. Don't inflate, don't undersell; note when a change is still unreleased/flagged/experimental (then no bump is due yet).
+ 8. **Suggest a version bump when done — evaluate the change's impact first, be smart, not noisy.** The boot screen shows `v{package.json version}` (build-time `__APP_VERSION__` define — see `docs/ROADMAP.md` item 82). When work wraps, judge the DIFF'S IMPACT (not its size) and, if a bump is due, say so in ONE short line of the done summary (never bump/tag yourself — release action). Judge in three steps:
+    - **What changed?** Internal work (refactor, plumbing, docs-only) = no bump. A visible feature or a fix to released behavior = candidate.
+    - **Is it released?** The app is pre-1.0 (`0.x`, `private: true`) — the boot-screen number is an internal release marker, not a shipped product version. Unreleased/flagged/experimental work needs NO bump yet; bundle it into the release that ships it.
+    - **How big?** Patch (`0.x.y` → `0.x.y+1`) = fixes / visual-only / small increments; minor = a user-visible feature milestone; major = a breaking change. In the 0.x era be CONSERVATIVE — prefer a patch for everyday features and reserve the minor for real milestones; don't inflate a feature into a minor when a patch describes it, and don't undersell a genuinely big milestone either.
+    - **Signal, not noise.** Don't suggest per commit; bundle small fixes/refactors into "worth a patch when you next release". Batch multi-item work into ONE suggestion at a coherent milestone.
+    - **Check the current version first.** If `package.json` is already newer than what your change adds (a release bump landed after the last user-visible change), skip it.
     - **When unsure, just omit** — no bump suggestion beats a wrong one.
 
 ## Explaining to the User (plain language)
