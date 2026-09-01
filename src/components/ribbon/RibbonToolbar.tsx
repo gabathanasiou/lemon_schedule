@@ -1,8 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ArrowRightLeft, ChevronDown, AlignLeft, AlignCenter, AlignRight, PanelTop, Equal, PanelBottom, WrapText, X, Eye, Ellipsis } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
+import Button from '../Button';
 import { RibbonRow, RibbonCell } from '../../types';
 import { getAlign } from '../../lib/ribbonUtils';
+
+/* Kit `Button` recipes that preserve the toolbar's bespoke look — the `!`
+   overrides beat the kit button's baked size/font-weight/disabled so the
+   toolbar reads exactly as before while being powered by the ui-kit. */
+const BTN = '!h-7 !text-[10px] !font-medium rounded !bg-zinc-800 !border !border-zinc-700 !disabled:opacity-30 flex items-center transition-colors';
+const BTN_LABEL = `${BTN} !px-2.5 !gap-1.5 !text-zinc-300 hover:!bg-zinc-700`;
+const BTN_LABEL_DANGER = `${BTN} !px-2.5 !gap-1.5 !text-zinc-300 hover:!bg-red-950/50`;
+const BTN_MOVE = `${BTN} !px-2 !gap-0.5 !text-zinc-400 hover:!bg-zinc-700 !disabled:opacity-25`;
+const BTN_CHANGE = `${BTN} !px-2.5 !gap-1 !text-zinc-300 hover:!bg-zinc-700`;
+const BTN_ICON = '!h-7 !w-7 rounded !border flex items-center justify-center !disabled:opacity-25 transition-colors';
+const BTN_ICON_NB = '!h-7 !w-7 rounded flex items-center justify-center !disabled:opacity-25 transition-colors';
+const BTN_ICON_ACTIVE = '!bg-blue-900/50 !border-blue-700 !text-blue-300';
+const BTN_ICON_INACTIVE = '!bg-zinc-800 !border-zinc-700 !text-zinc-500 hover:!bg-zinc-700';
+const BTN_X = '!h-6 !w-6 rounded !border !border-zinc-700 !bg-zinc-800 !text-zinc-400 hover:!bg-zinc-700 hover:!text-zinc-200 !disabled:opacity-25 flex items-center justify-center transition-colors';
 
 /**
  * Live number input for toolbar numeric fields. Commits clamped values on
@@ -112,92 +127,92 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
       <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
         <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Structure</span>
         <Tooltip content="Add Column After">
-          <button onClick={() => selCell && onAddColumn(selCell.ci)} disabled={readOnly || !selCell}
-            className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && onAddColumn(selCell.ci)} disabled={readOnly || !selCell}
+            className={BTN_LABEL}>
             <Plus className="w-3 h-3" /> Column
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip content="Delete Column">
-          <button onClick={() => selCell && removeColumn(selCell.ci)} disabled={readOnly || !selCell || numCols <= 1}
-            className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-red-950/50 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && removeColumn(selCell.ci)} disabled={readOnly || !selCell || numCols <= 1}
+            className={BTN_LABEL_DANGER}>
             <Trash2 className="w-3 h-3" /> Column
-          </button>
+          </Button>
         </Tooltip>
         <div className="w-px h-5 bg-zinc-700 mx-0.5" />
         <Tooltip content="Add Row">
-          <button onClick={() => selCell && addRow()} disabled={readOnly || !selCell}
-            className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && addRow()} disabled={readOnly || !selCell}
+            className={BTN_LABEL}>
             <Plus className="w-3 h-3" /> Row
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip content="Delete Row">
-          <button onClick={() => selCell && removeRow(selCell.row.id)} disabled={readOnly || !selCell || rows.length <= 1}
-            className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-red-950/50 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && removeRow(selCell.row.id)} disabled={readOnly || !selCell || rows.length <= 1}
+            className={BTN_LABEL_DANGER}>
             <Trash2 className="w-3 h-3" /> Row
-          </button>
+          </Button>
         </Tooltip>
         <div className="w-px h-5 bg-zinc-700 mx-0.5" />
         <Tooltip content="Move Column Left">
-          <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci - 1)} disabled={readOnly || !selCell || selCell.ci === 0}
-            className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci - 1)} disabled={readOnly || !selCell || selCell.ci === 0}
+            className={BTN_MOVE}>
             <ArrowLeft className="w-2.5 h-2.5" /> Move
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip content="Move Column Right">
-          <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci + 1)} disabled={readOnly || !selCell || (selCell && selCell.ci >= numCols - 1)}
-            className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci + 1)} disabled={readOnly || !selCell || (selCell && selCell.ci >= numCols - 1)}
+            className={BTN_MOVE}>
             <ArrowRight className="w-2.5 h-2.5" /> Move
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip content="Move Row Up">
-          <button onClick={() => selCell && moveRow(selCell.row.id, -1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
-            className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && moveRow(selCell.row.id, -1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
+            className={BTN_MOVE}>
             <ArrowUp className="w-2.5 h-2.5" /> Move
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip content="Move Row Down">
-          <button onClick={() => selCell && moveRow(selCell.row.id, 1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
-            className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && moveRow(selCell.row.id, 1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
+            className={BTN_MOVE}>
             <ArrowDown className="w-2.5 h-2.5" /> Move
-          </button>
+          </Button>
         </Tooltip>
       </div>
       {/* Cell */}
       <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
         <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Cell</span>
         <Tooltip content="Change Field">
-          <button
+          <Button theme="dark"
             onClick={onOpenFieldMenu}
             disabled={readOnly || !selCell}
-            className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
+            className={BTN_CHANGE}>
             <ArrowRightLeft className="w-3 h-3" /> Change
             <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
-          </button>
+          </Button>
         </Tooltip>
         <div className="w-px h-5 bg-zinc-700 mx-0.5" />
         <Tooltip content="Copy field from row above">
-          <button onClick={() => selCell && copyFromAbove(selCell.cell.id)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
-            className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && copyFromAbove(selCell.cell.id)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
+            className={BTN_MOVE}>
             <ArrowDown className="w-2.5 h-2.5" /> Above
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip content="Copy field from row below">
-          <button onClick={() => selCell && copyFromBelow(selCell.cell.id)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
-            className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && copyFromBelow(selCell.cell.id)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
+            className={BTN_MOVE}>
             <ArrowUp className="w-2.5 h-2.5" /> Below
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip content="Copy field from column left">
-          <button onClick={() => selCell && copyFromLeft(selCell.cell.id)} disabled={readOnly || !selCell || selCell.ci <= 0}
-            className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && copyFromLeft(selCell.cell.id)} disabled={readOnly || !selCell || selCell.ci <= 0}
+            className={BTN_MOVE}>
             <ArrowLeft className="w-2.5 h-2.5" /> Left
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip content="Copy field from column right">
-          <button onClick={() => selCell && copyFromRight(selCell.cell.id)} disabled={readOnly || !selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
-            className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+          <Button theme="dark" onClick={() => selCell && copyFromRight(selCell.cell.id)} disabled={readOnly || !selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
+            className={BTN_MOVE}>
             <ArrowRight className="w-2.5 h-2.5" /> Right
-          </button>
+          </Button>
         </Tooltip>
       </div>
       {/* Cell Style */}
@@ -209,14 +224,12 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
           const label = a === 'left' ? 'Align Left' : a === 'center' ? 'Align Center' : 'Align Right';
           return (
             <Tooltip key={a} content={label}>
-              <button
+              <Button theme="dark"
                 onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
                 disabled={readOnly || !selCell}
-                className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                  active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                }`}>
+                className={`${BTN_ICON} ${active ? BTN_ICON_ACTIVE : BTN_ICON_INACTIVE}`}>
                 <Icon className="w-3 h-3" />
-              </button>
+              </Button>
             </Tooltip>
           );
         })}
@@ -229,14 +242,12 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
           const label = va === 'top' ? 'Align Top' : va === 'middle' ? 'Align Middle' : 'Align Bottom';
           return (
             <Tooltip key={va} content={label}>
-              <button
+              <Button theme="dark"
                 onClick={() => selCell && setVerticalAlign(selId!, active && va !== 'middle' ? undefined : va)}
                 disabled={readOnly || !selCell}
-                className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                  active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                }`}>
+                className={`${BTN_ICON} ${active ? BTN_ICON_ACTIVE : BTN_ICON_INACTIVE}`}>
                 <Icon className="w-3 h-3" />
-              </button>
+              </Button>
             </Tooltip>
           );
         })}
@@ -249,14 +260,12 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             const label = mode === 'wrap' ? 'Wrap' : mode === 'none' ? 'None' : mode === 'visible' ? 'Visible' : 'Truncate';
             return (
               <Tooltip key={mode} content={`Overflow: ${label}`}>
-                <button
+                <Button theme="dark"
                   onClick={() => selCell && !active && setOverflow(selId!, mode)}
                   disabled={readOnly || !selCell}
-                  className={`h-7 w-7 flex items-center justify-center disabled:opacity-25 transition-colors ${
-                    active ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'
-                  } ${i < 3 ? 'border-r border-zinc-700' : ''}`}>
+                  className={`${BTN_ICON_NB} ${active ? '!bg-blue-900/50 !text-blue-300' : '!bg-zinc-800 !text-zinc-500 hover:!bg-zinc-700'} ${i < 3 ? '!border-r !border-zinc-700' : ''}`}>
                   <Icon className="w-3 h-3" />
-                </button>
+                </Button>
               </Tooltip>
             );
           })}
@@ -310,14 +319,14 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
         </Tooltip>
         {selCell && (selCell.cell.textSizeOffset !== undefined && selCell.cell.textSizeOffset !== 0) && (
           <Tooltip content="Reset to design master size">
-            <button
+            <Button theme="dark"
               aria-label="Reset to design master size"
               onClick={() => setTextSizeOffset?.(selCell.cell.id, undefined)}
               disabled={readOnly}
-              className="h-6 w-6 rounded border border-zinc-700 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 disabled:opacity-25 flex items-center justify-center transition-colors"
+              className={BTN_X}
             >
               <X className="w-3 h-3" />
-            </button>
+            </Button>
           </Tooltip>
         )}
       </div>
