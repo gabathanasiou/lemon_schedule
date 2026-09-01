@@ -5,7 +5,7 @@ import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -42,7 +42,7 @@ import { useEventsDrag } from './calendar/useEventsDrag';
 import { useEventsKeyboard } from './calendar/useEventsKeyboard';
 import { DayTypesTab } from './calendar/DayTypesTab';
 import { PopoutPlaceholder } from './PopoutWindow';
-import { getDayTypes, getMarkableDayTypes, getAttachableDayTypes, getDayTypeVisual, getDayTypeLabel, typeIconComponent } from '../lib/dayTypes';
+import { getMarkableDayTypes, getAttachableDayTypes, getDayTypeVisual, typeIconComponent } from '../lib/dayTypes';
 import { getNonShootEntryMap, hasAnyLists, upsertNonShootDate } from '../lib/nonShootHelpers';
 import { computeDayEvents, countMovableEvents, removeRuleDate, withRuleDates, DEFAULT_EVENTS_FILTER } from '../lib/events';
 import { describeRule, RULE_TYPE_META, RULE_TYPES } from './rules/ruleMeta';
@@ -51,7 +51,7 @@ import { useCalendarDrag } from './calendar/useCalendarDrag';
 import { SceneCardContent } from './calendar/SceneCard';
 import { BoneyardSidebar, SIDEBAR_COLLAPSED_KEY } from './calendar/BoneyardSidebar';
 import { BoneyardExpandButton } from './BoneyardExpandButton';
-import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, estimateMonthHeight, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
+import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
 const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
 
@@ -180,7 +180,6 @@ export const CalendarTab: React.FC<{
   const [contextMenuDate, setContextMenuDate] = useState<string | null>(null);
   const [contextMenuBodyTarget, setContextMenuBodyTarget] = useState<string | null>(null);
   const [ruleCardMenu, setRuleCardMenu] = useState<{ ruleId: string; dateKey: string; x: number; y: number } | null>(null);
-  const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
@@ -262,7 +261,7 @@ export const CalendarTab: React.FC<{
     viewMode === 'events' ? '[data-event-key]' : '[data-row-id]',
   );
 
-  const sensors = useAppDragSensors(!!(activeTool || ctrlOrCmdHeld || marqueeMode !== 'off'), 3);
+  const sensors = useAppDragSensors(!!(ctrlOrCmdHeld || marqueeMode !== 'off'), 3);
 
   const lastProductionDate = useMemo(() => {
     let lastDate: string | null = null;
@@ -444,17 +443,6 @@ export const CalendarTab: React.FC<{
   }, [(activeVersion?.rows || []), activeDragIds, showBreaks, sectionRowIds]);
 
   boneyardFlatRef.current = boneyardRows.map(r => r.id);
-
-  const handleToggle = useCallback((dateKey: string) => {
-    if (activeTool) {
-      if (activeTool === 'remove') {
-        handleNonShootToggle(dateKey, null);
-      } else {
-        handleNonShootToggle(dateKey, activeTool as string);
-      }
-      return;
-    }
-  }, [handleNonShootToggle, activeTool]);
 
   const sortBoneyard = useCallback((criterion: string, direction: 'asc' | 'desc') => {
     if (!activeVersion) return;
@@ -670,37 +658,28 @@ export const CalendarTab: React.FC<{
       : [(activeVersion?.rows || []).find(r => r.id === activeId)!].filter(Boolean);
   }, [activeId, activeType, activeDragIds, (activeVersion?.rows || [])]);
 
-  const [renderWindow, setRenderWindow] = useState({ start: 0, end: 2 });
-  const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
-
-  const updateRenderWindow = useCallback(() => {
+  // The calendar renders EVERY month block fully (no month-level
+  // virtualization). Month blocks lay out at their natural height, so the
+  // grid auto-sizes whenever strip/card content changes — day rows grow on
+  // add/drop and shrink on cut/remove without any manual re-measure. The old
+  // scroll-driven render window + measured-height placeholders went stale
+  // after mutations ("calendar doesn't refresh to be longer").
+  const viewAnchorRef = useRef(0);
+  const updateViewAnchor = useCallback(() => {
     const el = calendarGridRef.current;
     if (!el) return;
     const monthEls = el.querySelectorAll('[data-cal-month]');
     if (monthEls.length === 0) return;
-    const viewTop = el.scrollTop - el.clientHeight;
-    const viewBottom = el.scrollTop + el.clientHeight * 2;
-    let start = -1;
-    let end = -1;
+    let anchor = viewAnchorRef.current;
     monthEls.forEach((m, i) => {
-      const top = (m as HTMLElement).offsetTop;
-      const bottom = top + (m as HTMLElement).offsetHeight;
-      if (bottom >= viewTop && top <= viewBottom) {
-        if (start === -1) start = i;
-        end = i;
-      }
+      if ((m as HTMLElement).offsetTop <= el.scrollTop + 40) anchor = i;
     });
-    if (start === -1 || end === -1) return;
-    setRenderWindow(prev => (prev.start === start && prev.end === end ? prev : { start, end }));
+    viewAnchorRef.current = anchor;
   }, []);
 
   useEffect(() => {
-    updateRenderWindow();
-  }, [calendarMonths, updateRenderWindow]);
-
-  useEffect(() => {
-    setMeasuredHeights({});
-  }, [sectionDateMap, project.scenes, showBreaks]);
+    updateViewAnchor();
+  }, [calendarMonths, updateViewAnchor]);
 
   const smoothScrollTo = useCallback((targetTop: number) => {
     const el = calendarGridRef.current;
@@ -721,10 +700,6 @@ export const CalendarTab: React.FC<{
 
   const scrollToMonthIndex = useCallback((index: number) => {
     if (index < 0 || index >= calendarMonths.length) return;
-    setRenderWindow({
-      start: Math.max(0, index - 1),
-      end: Math.min(calendarMonths.length - 1, index + 1),
-    });
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const container = calendarGridRef.current;
       if (!container) return;
@@ -736,8 +711,8 @@ export const CalendarTab: React.FC<{
     }));
   }, [calendarMonths, smoothScrollTo]);
 
-  const goPrevMonth = useCallback(() => scrollToMonthIndex(Math.max(0, renderWindow.start - 1)), [scrollToMonthIndex, renderWindow.start]);
-  const goNextMonth = useCallback(() => scrollToMonthIndex(Math.min(calendarMonths.length - 1, renderWindow.end + 1)), [scrollToMonthIndex, renderWindow.end, calendarMonths.length]);
+  const goPrevMonth = useCallback(() => scrollToMonthIndex(Math.max(0, viewAnchorRef.current - 1)), [scrollToMonthIndex]);
+  const goNextMonth = useCallback(() => scrollToMonthIndex(Math.min(calendarMonths.length - 1, viewAnchorRef.current + 1)), [scrollToMonthIndex, calendarMonths.length]);
 
   const goToday = useCallback(() => {
     const now = new Date();
@@ -748,10 +723,7 @@ export const CalendarTab: React.FC<{
       else scrollToMonthIndex(calendarMonths.length - 1);
       return;
     }
-    setRenderWindow({
-      start: Math.max(0, mi - 1),
-      end: Math.min(calendarMonths.length - 1, mi + 1),
-    });
+    scrollToMonthIndex(mi);
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const container = calendarGridRef.current;
       if (!container) return;
@@ -981,12 +953,14 @@ export const CalendarTab: React.FC<{
           setContextMenu(null);
         }}
       >
-        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} collapsed={boneyardCollapsed} onToggleCollapsed={() => setBoneyardCollapsed(v => !v)} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} lockedCriteria={lockedCriteria} onToggleLock={handleToggleLock} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
+        {viewMode === 'strips' && (
+          <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} collapsed={boneyardCollapsed} onToggleCollapsed={() => setBoneyardCollapsed(v => !v)} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} lockedCriteria={lockedCriteria} onToggleLock={handleToggleLock} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
+        )}
         <div data-marquee-tool-only className="flex-1 flex flex-col overflow-hidden">
           <PageToolbar theme="light" justify="between"
             children={
               <div className="flex items-center gap-2">
-                {boneyardCollapsed && (
+                {viewMode === 'strips' && boneyardCollapsed && (
                   <BoneyardExpandButton onClick={() => setBoneyardCollapsed(false)} />
                 )}
                 <button onClick={goPrevMonth} title="Previous month" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
@@ -1017,20 +991,36 @@ export const CalendarTab: React.FC<{
                     </button>
                   ))}
                 </div>
-                {viewMode === 'events' && (
-                  <DropdownMenu
-                    open={filterMenuOpen}
-                    onOpenChange={setFilterMenuOpen}
-                    width="w-56"
-                    theme="light"
-                    trigger={
-                      <Button>
-                        <ListFilter className="w-3.5 h-3.5" />
-                        Filter
-                        <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-                      </Button>
-                    }
-                  >
+                <DropdownMenu
+                  open={filterMenuOpen}
+                  onOpenChange={setFilterMenuOpen}
+                  width="w-56"
+                  theme="light"
+                  trigger={
+                    <Button>
+                      <ListFilter className="w-3.5 h-3.5" />
+                      Filter
+                      <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                    </Button>
+                  }
+                >
+                  {viewMode === 'strips' ? (
+                    <>
+                      <DropdownItem keepOpen onClick={() => updateCal({ showBreaks: !showBreaks })}>
+                        <span className="flex items-center justify-between w-full gap-2">
+                          <span className="flex items-center gap-2"><StickyNote className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> Breaks &amp; Notes</span>
+                          {showBreaks && <Check className="w-3.5 h-3.5 shrink-0" />}
+                        </span>
+                      </DropdownItem>
+                      <DropdownItem keepOpen onClick={() => updateCal({ showConflicts: !showConflicts })}>
+                        <span className="flex items-center justify-between w-full gap-2">
+                          <span className="flex items-center gap-2"><Flag className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> Conflicts</span>
+                          {showConflicts && <Check className="w-3.5 h-3.5 shrink-0" />}
+                        </span>
+                      </DropdownItem>
+                    </>
+                  ) : (
+                    <>
                     <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Events</div>
                     <DropdownItem keepOpen onClick={() => updateCal({ eventsFilter: { ...eventsFilter, statuses: eventsFilter.statuses == null ? [] : null } })} className="font-semibold">
                       <span className="flex items-center justify-between w-full gap-2">All Events{eventsFilter.statuses == null && <Check className="w-3.5 h-3.5 shrink-0" />}</span>
@@ -1069,8 +1059,9 @@ export const CalendarTab: React.FC<{
                         </DropdownItem>
                       );
                     })}
-                  </DropdownMenu>
-                )}
+                    </>
+                  )}
+                </DropdownMenu>
                 <DropdownMenu
                   open={viewMenuOpen}
                   onOpenChange={setViewMenuOpen}
@@ -1098,66 +1089,28 @@ export const CalendarTab: React.FC<{
                       );
                     })}
                   </DropdownSubmenu>
-                  <DropdownDivider />
-                  <button
-                    onClick={() => updateCal({ showBreaks: !showBreaks })}
-                    className="w-full text-left px-3 py-2 rounded flex items-center justify-between gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100"
-                  >
-                    <span className="flex items-center gap-2">
-                      <StickyNote className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                      Breaks &amp; Notes
-                    </span>
-                    {showBreaks ? <Eye className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
-                  </button>
-                  <button
-                    onClick={() => updateCal({ showConflicts: !showConflicts })}
-                    className="w-full text-left px-3 py-2 rounded flex items-center justify-between gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Flag className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                      Conflicts
-                    </span>
-                    {showConflicts ? <Eye className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
-                  </button>
-                  <DropdownDivider />
-                  <button
-                    onClick={() => updateCal({ expandDays: !expandDays })}
-                    className="w-full text-left px-3 py-2 rounded flex items-center justify-between gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Maximize2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                      Expand Day Cells
-                    </span>
-                    {expandDays ? <Maximize2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <Minimize2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
-                  </button>
+                  {viewMode === 'strips' && (
+                    <>
+                    <DropdownDivider />
+                    <DropdownItem keepOpen onClick={() => updateCal({ expandDays: !expandDays })}>
+                      <span className="flex items-center justify-between w-full gap-2">
+                        <span className="flex items-center gap-2"><Maximize2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> Expand Day Cells</span>
+                        {expandDays ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Minimize2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                      </span>
+                    </DropdownItem>
+                    </>
+                  )}
                 </DropdownMenu>
               </div>
             }
           />
-          {viewMode === 'strips' && (
-          <PageToolbar theme="light" justify="start">
-            {[
-              { key: null, label: <Pointer className="w-3 h-3" />, title: 'Select' },
-              { key: 'hold', label: 'H', title: getDayTypeLabel(project, 'hold') || 'Hold' },
-              { key: 'travel', label: 'T', title: getDayTypeLabel(project, 'travel') || 'Travel' },
-              { key: 'holiday', label: 'DO', title: getDayTypeLabel(project, 'holiday') || 'Day Off' },
-              { key: 'remove', label: <Eraser className="w-3 h-3" />, title: 'Erase' },
-            ].map(t => (
-              <button key={t.key || 'none'} type="button"
-                onClick={() => setActiveTool(prev => prev === t.key ? null : t.key)}
-                title={t.title}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${activeTool === t.key ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
-              >{t.label}</button>
-            ))}
-          </PageToolbar>
-          )}
           <div ref={calendarGridRef} data-marquee-container onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]') || (e.target as HTMLElement).closest('[data-event-key]')) return;
             setSelectedRowIds(new Set());
             setViewMenuOpen(false);
             setContextMenuDate(null);
             setContextMenu(null);
-          }} onScroll={() => { updateRenderWindow(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); }} className="flex-1 overflow-y-auto min-h-0 relative overscroll-contain" data-cal-grid style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
+          }} onScroll={() => { updateViewAnchor(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); }} className="flex-1 overflow-y-auto min-h-0 relative overscroll-contain" data-cal-grid style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
             <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50" data-cal-sticky>
               {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
             </div>
@@ -1167,27 +1120,8 @@ export const CalendarTab: React.FC<{
               const trim: MonthTrim | undefined = mi === 0 || mi === calendarMonths.length - 1
                 ? { startKey: mi === 0 ? startDate : undefined, endKey: mi === calendarMonths.length - 1 ? (lastProductionDate ?? undefined) : undefined }
                 : undefined;
-              const inWindow = mi >= renderWindow.start && mi <= renderWindow.end;
-              const cached = measuredHeights[key];
-              const est = estimateMonthHeight(m.year, m.month, trim);
-              if (!inWindow) {
-                return (
-                  <div key={key} data-cal-month className="border-l border-t border-zinc-200 bg-white flex items-center justify-center"
-                    style={{ height: cached ?? est }}>
-                    <span className="text-[11px] font-semibold text-zinc-300">{monthTitle(m.year, m.month)}</span>
-                  </div>
-                );
-              }
               return (
-                <div key={key} data-cal-month
-                  ref={(el) => {
-                    if (!el) return;
-                    const h = el.offsetHeight;
-                    if (h > 0 && measuredHeights[key] !== h) {
-                      setMeasuredHeights(prev => (prev[key] === h ? prev : { ...prev, [key]: h }));
-                    }
-                  }}
-                >
+                <div key={key} data-cal-month>
                   <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-2 py-1 border-l border-t border-r border-zinc-200 bg-zinc-100">
                     {monthTitle(m.year, m.month)}
                   </div>
@@ -1287,7 +1221,6 @@ export const CalendarTab: React.FC<{
                           onEditTravelHold={(dk) => setTravelHoldModal({ dateKey: dk })}
                           sectionIndex={dateSectionIdx ?? undefined}
                           sectionLabel={sectionLabel}
-                          activeTool={activeTool}
                           onContextMenu={(e, dateKey) => {
                             setContextMenuDate(dateKey);
                             setContextMenu({ x: e.clientX, y: e.clientY, rowId: '', containerId: null });
@@ -1296,7 +1229,6 @@ export const CalendarTab: React.FC<{
                           displayField={displayField}
                           violations={violationMap.get(day.dateKey) || []}
                           sceneViolationMap={sceneViolationMap}
-                          onToggle={handleToggle}
                           selectedIds={selectedRowIds}
                           activeDragIds={activeDragIds}
                           onRowClick={handleRowClick}

@@ -1815,3 +1815,62 @@ removing the field is a model change there, not a UI hack; touches the
 **Done**: adding a **custom role** in the Crew Manager now asks which **section (department)** it belongs to — the "Add Role" modal gained a **Section** dropdown (`LabelModal`/`CategoryFormModal` optional `groupOptions`; departments from `CREW_DEPARTMENT_NAMES`). The chosen department is stored on the role (`CrewRole.department`, `CrewRole` type) and grouped under it in the sidebar; **"Other"** (the default) groups the role under an **"Other" section divider**. The sidebar grouping now uses `crewRoleGroup(role)` (`src/lib/crewCatalog.ts`): built-ins map to their catalog department, custom roles to their stored `department` or `Other`. Manager shell gained `categoryGroupOptions` + `categoryGroup(category)` (was key-only) and threads the picked group into `addCategory`.
 
 **Requested**: "when adding custom rules [roles], can you get a drop down to add them to a specific section? if no section then add an 'other' divider."
+
+## 92. Calendar tab batch — height-refresh fix, contextual Filter menu, kit View menu, events-mode polish (`[x]` Done)
+
+**Done** (single agent pass, calendar tab): the calendar now re-sizes to its
+content on every mutation, plus a batch of toolbar/cell cleanups. Verified by
+`e2e/calendar-grow.spec.ts` (events mode: adding cards via the real Add-Events
+modal grows the day cell + the grid live) + the calendar specs (CAL bucket).
+
+1. **Height refresh bug (both modes) — ROOT CAUSE FIXED**: the month-level
+   virtualization (`renderWindow` + `measuredHeights` + `estimateMonthHeight`
+   placeholders) was removed — every month block now renders fully at its
+   natural height, so the grid's scrollable length always tracks the day cells'
+   content and re-lays out on every add/drop/cut (no "swap tabs to rerender").
+   The scroll-driven prev/next-month nav now uses a `viewAnchorRef` (the
+   currently-visible month, updated on scroll) instead of the render window.
+   Dead helpers removed from `calendarUtils.ts` (`estimateMonthHeight`,
+   `monthRowCount`, `monthWeekCount`). The ScheduleTab stripboard keeps its own
+   day-level virtualization (it uses ResizeObserver-based measurement +
+   content-aware spacers — unaffected).
+2. **Events view: no boneyard** — `BoneyardSidebar` (and the collapse
+   `BoneyardExpandButton`) only render in strips mode.
+3. **View menu → ui-kit `DropdownItem`s** — the hand-rolled `<button>` rows are
+   gone. **Expand Day Cells no longer shows its icon twice** (was `Maximize2`
+   on BOTH sides); now a single icon + a Check/`Minimize2` state glyph, gated to
+   strips mode (it has no effect in events mode).
+4. **Filter menu is contextual and exists in BOTH modes** — strips mode:
+   **Breaks & Notes** + **Conflicts** toggles (moved OUT of the View menu);
+   events mode: the existing event-type/rule filters. Same `Filter` button.
+5. **Add-event button always at the bottom of every events-mode day cell** (was
+   empty-days only), **fills the available cell space** (`flex-grow` — a big
+   dashed affordance on light days, natural height under a full stack of cards),
+   no weird narrow-viewport text wrapping (`whitespace-nowrap`), coarse bump.
+6. **Paint toolbar removed from strips mode** — the Select/H/T/DO/Erase tool row
+   was redundant (day statuses are set via the day context menu + the day
+   modal). `activeTool`/`handleToggle` and the `DayCell` `activeTool`/`onToggle`
+   props are deleted with it.
+7. **Events-mode coarse sizing** — `EventCardView` cards + the add button now
+   carry the same `IS_COARSE` tap-target bump the strips-mode `SceneCard` has
+   (`CARD_SZ` in `EventDayCell.tsx`).
+
+**Requested**: (1) no boneyard in Calendar events view; (2) are the View-menu
+items ui-kit, and why does Expand Day Cells show its icon twice; (3) give
+strips mode a Filter menu too (Breaks & Notes + Conflicts) and make the Filter
+button contextual; (4) the add-event button should always sit at the bottom of
+the day cell (and not wrap weirdly on narrow viewports), filling the space;
+(5) in both calendar modes the calendar doesn't refresh to be longer when many
+strips/cards are added — swap tabs to re-render; (6) remove the paint toolbar
+from strips mode (redundant); (7) the events view needs the strips view's
+coarse resizing.
+
+**Follow-up (later, user-flagged)**: the **boneyard button** (`BoneyardExpandButton`
+/ collapse affordance) should move to the ui-kit `Button` in BOTH the Calendar
+tab and the Schedule tab.
+
+**Verify**: lint + `e2e/calendar-grow.spec.ts` (real adder → cards grow the day
+cell + grid) + CAL bucket specs (`calendar-view` updated to the kit-menu
+addressing; `calendar-rule-cards` Filter-menu flow unchanged; travel-hold /
+day-types / production-dates / date-picker-initial). The events-mode add-event
+button + contextual Filter are manual/visual (rule 7).

@@ -42,10 +42,6 @@ export function monthsInRange(startYear: number, startMonth: number, endYear: nu
   return months;
 }
 
-export function monthWeekCount(year: number, month: number): number {
-  return monthRowCount(year, month);
-}
-
 export interface MonthTrim { startKey?: string; endKey?: string; }
 
 function weekStartOf(d: Date): Date {
@@ -94,16 +90,7 @@ function monthGridBounds(year: number, month: number, trim?: MonthTrim): MonthGr
   return { lead, dayStart, dayEnd, trail };
 }
 
-export function monthRowCount(year: number, month: number, trim?: MonthTrim): number {
-  const b = monthGridBounds(year, month, trim);
-  return (b.lead + (b.dayEnd - b.dayStart + 1) + b.trail) / 7;
-}
-
 export const DAY_CELL_HEIGHT = 170;
-
-export function estimateMonthHeight(year: number, month: number, trim?: MonthTrim): number {
-  return monthRowCount(year, month, trim) * DAY_CELL_HEIGHT + 30;
-}
 
 export type MonthSlot = { filler: true; key: string } | { filler: false; key: string; date: Date; dateKey: string; isToday: boolean };
 

@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { openSeededProject, seedTitle, waitForOverlaySettle } from './helpers';
 
-/** WebKit quirk: clicking a fixed kit-menu item over a deep-scrolled virtualized
- *  calendar grid can miss (Playwright's hit-test finds the grid underneath even
- *  though the menu is the painted top layer). A DOM click on the item is
- *  semantically identical — the menu IS on top and the item IS the target. */
+/** WebKit quirk: clicking a fixed kit-menu item over a deep-scrolled calendar
+ *  grid can miss (Playwright's hit-test finds the grid underneath even though
+ *  the menu is the painted top layer). A DOM click on the item is semantically
+ *  identical — the menu IS on top and the item IS the target. */
 async function clickMenuButton(page: import('@playwright/test').Page, name: string) {
-  await page.getByRole('button', { name, exact: true }).evaluate((el) => (el as HTMLElement).click());
+  await page.getByText(name, { exact: true }).evaluate((el) => (el as HTMLElement).click());
 }
 
 /** Calendar View prefs: "Expand Day Cells" (default ON) sizes strips-mode day
@@ -60,7 +60,7 @@ test('calendar view: day cells expand by default; Expand Day Cells toggle restor
   await page.getByRole('button', { name: 'Calendar' }).click();
   await page.getByRole('button', { name: 'View' }).click();
   await waitForOverlaySettle(page);
-  await expect(page.getByRole('button', { name: 'Expand Day Cells' })).toBeVisible();
+  await expect(page.getByText('Expand Day Cells', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('lemon_schedule_calendar_view') || '{}').expandDays);
   expect(persisted).toBe(true);

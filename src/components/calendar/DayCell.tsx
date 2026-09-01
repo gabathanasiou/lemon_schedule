@@ -18,7 +18,6 @@ export const DayCell: React.FC<{
   rows: ScheduleRow[]; scenes: Scene[]; displayField: string;
   violations: RuleViolation[];
   sceneViolationMap: Map<string, RuleViolation[]>;
-  onToggle: (dateKey: string) => void;
   onContextMenu?: (e: React.MouseEvent, dateKey: string) => void;
   nonShootStatus?: string;
   dayTypeVisual?: DayTypeVisual | null;
@@ -26,7 +25,6 @@ export const DayCell: React.FC<{
   onEditTravelHold?: (dateKey: string) => void;
   sectionIndex?: number;
   sectionLabel?: string;
-  activeTool?: string | null;
   selectedIds?: Set<string>;
   activeDragIds?: Set<string>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
@@ -42,7 +40,7 @@ export const DayCell: React.FC<{
   activeDragDay?: number | null;
   dropState?: DayDropState;
   flashColor?: 'a' | 'b';
-}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, dayTypeVisual, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onContextMenu, nonShootStatus, dayTypeVisual, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
   const { readOnly, state } = useProject();
   const project = state.present;
   const { setNodeRef, isOver } = useDroppable({
@@ -53,7 +51,7 @@ export const DayCell: React.FC<{
   const { setNodeRef: setDragRef, attributes: dragAttributes, listeners: dragListeners, isDragging } = useDraggable({
     id: `day-section-${sectionIndex ?? -1}`,
     data: { type: 'DAY', sectionIndex },
-    disabled: !sectionLabel || !!activeTool || readOnly,
+    disabled: !sectionLabel || readOnly,
   });
 
   const { setNodeRef: setEndRef } = useDroppable({
@@ -130,10 +128,9 @@ export const DayCell: React.FC<{
           {...dragListeners}
           {...dragAttributes}
           data-no-longpress
-          onClick={() => activeTool && onToggle(dateKey)}
           onDoubleClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
-          style={{ cursor: sectionLabel && !activeTool ? 'grab' : (activeTool ? 'pointer' : 'default'), opacity: isDragging ? 0.4 : 1, ...headerStyle }}
+          style={{ cursor: sectionLabel ? 'grab' : 'default', opacity: isDragging ? 0.4 : 1, ...headerStyle }}
           className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
         >
           <DayStatusBadges

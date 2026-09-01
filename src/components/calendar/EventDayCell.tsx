@@ -12,6 +12,11 @@ import { ViolationTooltip } from '../ViolationTooltip';
 import { HoverTooltip } from '../HoverTooltip';
 import { isAllKeys, resolveElementName } from '../../lib/nonShootHelpers';
 import { DayStatusBadges } from './DayStatusBadges';
+import { IS_COARSE } from '../../lib/device';
+
+/** Coarse-pointer bump for the event cards — mirrors the strips-mode SceneCard
+ *  scale (same text, taller padding for bigger tap targets). */
+const CARD_SZ = IS_COARSE ? 'px-2 py-1 text-[10px]' : 'px-1.5 py-0.5 text-[10px]';
 
 export interface EventDropZoneProp {
   dateKey: string;
@@ -130,7 +135,7 @@ export const EventDayCell: React.FC<{
         </span>
       </div>
 
-      <div className="flex-1 min-h-0 px-1 pb-1 space-y-0.5 overflow-y-auto overscroll-contain flex flex-col">
+      <div className="flex-1 min-h-0 px-1 space-y-0.5 overflow-y-auto overscroll-contain flex flex-col">
         {cellCards.map(card => (
           <DraggableEventCard key={card.id} card={card} project={project}
             selected={selectedIds.has(card.id)}
@@ -139,15 +144,14 @@ export const EventDayCell: React.FC<{
             onContextMenu={(e) => { if (card.kind === 'rule') { e.preventDefault(); e.stopPropagation(); onCardContextMenu?.(card, e); } }}
           />
         ))}
-        {cellCards.length === 0 && (
-          <button
-            onClick={(e) => { e.stopPropagation(); if (onAddEvent) onAddEvent(dateKey); else onOpenEvents(dateKey); }}
-            className="w-full flex-1 flex items-center justify-center gap-1 rounded border border-dashed border-zinc-300 text-[9px] font-semibold text-zinc-400 hover:text-zinc-600 hover:border-zinc-400 transition-colors"
-            title="Add event"
-          >
-            <Plus className="w-2.5 h-2.5" /> Add event
-          </button>
-        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); if (onAddEvent) onAddEvent(dateKey); else onOpenEvents(dateKey); }}
+          className={`w-full grow flex items-center justify-center gap-1 rounded border border-dashed border-zinc-300 text-[9px] font-semibold text-zinc-400 hover:text-zinc-600 hover:border-zinc-400 transition-colors whitespace-nowrap overflow-hidden ${IS_COARSE ? 'py-1.5' : 'py-1'}`}
+          title="Add event"
+        >
+          <Plus className="w-2.5 h-2.5 shrink-0" />
+          <span className="truncate min-w-0">Add event</span>
+        </button>
       </div>
     </div>
   );
@@ -168,7 +172,7 @@ export const EventCardView: React.FC<{
 }> = ({ card, project, selected, onClick, className = '' }) => {
   const sel = getSelectedStripColors(project?.colorPalette);
   const selStyle = selected ? { background: sel.background, color: sel.color } : undefined;
-  const base = `relative w-full text-left px-1.5 py-0.5 rounded text-[10px] leading-snug select-none ${className}`;
+  const base = `relative w-full text-left rounded leading-snug select-none ${CARD_SZ} ${className}`;
   if (card.kind === 'status') {
     const t = (project.dayTypes || []).find((d: any) => d.key === card.statusKey);
     const color = t?.color || '#52525b';
@@ -202,10 +206,13 @@ export const EventCardView: React.FC<{
         <div className="max-w-[220px]">
           <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-100 mb-0.5">
             <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
-            <span>{t?.label || card.status} — {categoryLabel(card.category, project)}</span>
+            <span>{t?.label || card.status} · {categoryLabel(card.category, project)}</span>
           </div>
           {card.comment && (
-            <div className="text-[11px] text-zinc-100 leading-snug">{card.comment}</div>
+            <div className="flex items-start gap-1 mt-1 text-[11px] italic text-zinc-100 leading-snug">
+              <MessageSquare className="w-2.5 h-2.5 shrink-0 mt-[2px] text-amber-400" />
+              <span>{card.comment}</span>
+            </div>
           )}
         </div>
       }>
