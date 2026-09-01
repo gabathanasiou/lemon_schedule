@@ -144,6 +144,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 - Row markers: `clickable-number`, `startIndex: 1`. Row-click selection doesn't set `current.range` — synthesize from `gridSelection.rows`.
 - Context menu position = `bounds.x + localEventX`, `bounds.y + localEventY`; always `preventDefault()`.
 - `drawCell` for the actions column (red trash icon, preloaded via `new Image()` data URL).
+- **The overlay editor is `React.lazy()`-loaded (a separate PROD chunk) — `void import('@glide-overlay-editor')` at the top of this file preloads it at boot** (roadmap 63): without it the FIRST edit after a fresh page load suspends while the chunk fetches and swallows every keystroke ("MARY" → "Y"; dev can't reproduce). The alias lives in `vite.config.ts` + a tsconfig path. Do NOT remove the preload as "unused" — it's the fix, and Rollup dedupes it onto Glide's own chunk.
 
 ## Print
 - `window.print()` on the main window; App early-returns a full-page `PrintSchedule`; `afterprint` restores UI. `@page { size: landscape; margin: 10mm 8mm; }`; inline `<style>`.

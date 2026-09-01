@@ -720,7 +720,24 @@ The kit `DropdownMenu` (re-export `src/components/DropdownMenu.tsx`) is click-to
 
 **Relations**: builds on items 45/46 (DayEventsModal shell + per-element notes + EventModal/EventAdderModal); rides item 61's `CategoryDropdown` kit base inside the same modal.
 
-## 63. BUG: Glide entity-dropdown cell swallows the first keystroke after a refresh (`[ ]`)
+## 63. BUG: Glide entity-dropdown cell swallows the first keystroke after a refresh (`[x]` Done)
+
+**Done**: root cause was NOT the editor focus path (the item's original
+hypothesis) — Glide's overlay editor is `React.lazy()`-loaded, so in the
+PRODUCTION build it's a separate chunk fetched async on the FIRST editor open
+after a fresh page load (dev can't reproduce — the chunk is part of the dev
+module graph). Every keystroke typed while that chunk is in flight is swallowed:
+the grid re-opens the editor per keystroke with a single-key replace, so only
+the last one survives ("MARY" → "Y"); cloud = slower chunk fetch = always hit.
+**Fix**: preload the chunk at app boot — Vite alias `@glide-overlay-editor`
+(`vite.config.ts`, bypasses Glide's exports map) resolving the same internal
+module Glide lazy()s (Rollup emits ONE chunk) + `void import('@glide-overlay-editor')`
+at the top of `src/components/BreakdownTabGlide.tsx`. Verified by
+`e2e/glide-first-edit.spec.ts` (chunk requested at boot before any editor opens;
+first edit after a fresh load keeps every keystroke; commits via Enter). Known
+residual: the first overlay mount still takes ~80-200ms, so keystrokes typed
+faster than ~4 chars/sec in the very first edit can overwrite — beyond human
+cadence, not the reported bug.
 
 **Requested**: in the Glide breakdown, select a cell that opens an entity dropdown (cast/elements) and start typing — **the first time after a page refresh the first keystroke is missed**. Reported on cloud projects; unknown whether cloud-only.
 
