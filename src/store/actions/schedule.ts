@@ -125,7 +125,7 @@ export function caseSortScenes(state: State, action: Action, applyChange: ApplyC
 export function caseSortScenesBy(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'SORT_SCENES_BY') return state;
   const { key, direction } = action.payload;
-  const numericKeys = new Set(['pageCount', 'pageCountDecimal', 'scriptDay']);
+  const numericKeys = new Set(['pageCount', 'pageCountDecimal']);
   const sorted = [...state.present.scenes].sort((a, b) => {
     const aVal = (a as any)[key] ?? '';
     const bVal = (b as any)[key] ?? '';

@@ -79,7 +79,7 @@ function buildSceneFromRaw(raw: Record<string, string>): Scene {
   const scene: any = createBlankScene({
     sceneNumber: raw.sceneNumber || '',
     pageCount: raw.pageCount || '',
-    scriptDay: (raw.scriptDay || '').replace(/[^0-9]/g, ''),
+    scriptDay: raw.scriptDay || '',
     intExt: raw.intExt || '',
     set: (raw.set || '').toUpperCase(),
     dayNight: raw.dayNight || '',

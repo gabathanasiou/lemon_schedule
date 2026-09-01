@@ -97,6 +97,18 @@ interface EntityDropdownProps {
    *  instead of filling the cell — for spreadsheet overlay editors so long
    *  comma-lists (cast, breakdown categories) stay visible while typing. */
   autoGrow?: boolean;
+  /** Wrap the closed value onto multiple lines (`whitespace-normal`) instead
+   *  of truncating, and stretch the write hitbox to the whole cell: the
+   *  wrapper grows with content (`min-h-[1lh]`, no fixed `h-[1lh]`) and the
+   *  transparent input becomes `absolute inset-0`. Opt-in — the stripboard,
+   *  Glide and modal usages keep the single-line truncated cell. Pass with a
+   *  stretching container (`flex flex-col` + `flex-1`) for the full-box hit. */
+  wrapValue?: boolean;
+  /** Resolve the CLOSED value against `items` the way the chip variant does —
+   *  cast reads "1. FISHERMAN" instead of raw ids, non-cast keeps its names.
+   *  The committed value stays untouched. For cell displays (SceneSheet)
+   *  that want the readable closed form without the chip chrome. */
+  resolveClosed?: boolean;
   /** Called for each committed item segment that has NO matching entry in
    *  `items` — lets callers auto-create new elements (cast → the naming modal
    *  flow). Fires on every commit (pick/Enter/Tab/blur) against the final
@@ -239,7 +251,9 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   variant = 'default',
   anchoredKeys,
   autoGrow = false,
+  wrapValue = false,
   onCreateItem,
+  resolveClosed = false,
 }) => {
   const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
@@ -247,6 +261,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
   const committedRef = useRef(false);
   const syntheticRef = useRef(false);
+  /** Whether the dropdown was open when the editor was last mousedowned —
+   *  focus fires forceOpen() BEFORE click, so `open` in the click handler is
+   *  already true for the click that opened it; capturing at mousedown (which
+   *  precedes focus) is the only reliable "was this the opening click?" test. */
+  const openAtMousedownRef = useRef(open);
   const [keyboardMode] = useKeyboardMode();
   const hwKeyboard = useHardwareKeyboard();
   // Who moved the highlight last — pointer hover or the keyboard arrows. The
@@ -518,10 +537,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   // Chip trigger (closed): resolve values against the passed items so cast
   // reads like the Glide breakdown ("1. FISHERMAN") instead of raw ids. The
-  // underlying committed value stays untouched. NOTE: hooks MUST stay above
-  // the readOnly early return — a conditional hook breaks the hook order.
+  // underlying committed value stays untouched. Also used by cell displays
+  // that opt in via `resolveClosed` (SceneSheet cast). NOTE: hooks MUST stay
+  // above the readOnly early return — a conditional hook breaks the hook order.
   const chipDisplay = useMemo(() => {
-    if (variant !== 'chip' || open || !displayValue) return '';
+    if ((variant !== 'chip' && !resolveClosed) || open || !displayValue) return '';
     return displayValue.split(',').map((segRaw: string) => {
       const seg = segRaw.trim();
       if (!seg) return '';
@@ -533,58 +553,45 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         ? `${item.id}. ${item.name && item.name !== item.id ? item.name : '—'}`
         : (item.name || item.id);
     }).filter(Boolean).join(', ');
-  }, [variant, open, displayValue, items, displayMode]);
+  }, [variant, open, displayValue, items, displayMode, resolveClosed]);
 
   if (readOnly && !open) {
     return <span className={className} onAuxClick={forceOpen}>{value || '?'}</span>;
   }
 
-  return (
-    <div
-      ref={ref}
-      className={
-        variant === 'chip'
-          ? `${DD_CHIP_TRIGGER_CLASS} relative ${className || ''}`
-          : (standalone ? '' : `relative h-[1lh] ${autoGrow ? 'w-max ' : ''}${className || ''}`)
+  // Shared editor handlers — rendered on an <input> by default, a wrapping
+  // <textarea> (wrapValue) so the caret tracks wrapped lines and click-to-
+  // position/selection work in the multi-line cells.
+  const onChangeEditor = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const raw = uppercase ? e.target.value.toUpperCase() : e.target.value;
+    if (mode === 'multi' || mode === 'select') { setVal(raw); } else { setQuery(raw); if (mode === 'single' && !raw.trim()) setLocalIds([]); }
+    setHighlightedIndex(-1);
+    forceOpen();
+  };
+  const onClickEditor = (e: React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    // Clicking an open picker prepares the text SYNCHRONOUSLY (no rAF —
+    // a deferred selection can land between e.g. Cmd+A and the next
+    // keystroke, turning a replace into an append): single (search-then-
+    // select) selects all so typing replaces; multi (comma list) puts
+    // the caret at the end so typing appends a new segment.
+    forceOpen();
+    if (wrapValue) {
+      // Multi-line cell editor: the click that OPENS the editor moves the
+      // caret to the end (ready to type a new segment); once open, the caret
+      // stays where the user clicked so click-to-position/selection work.
+      if (!openAtMousedownRef.current) {
+        const el = e.currentTarget;
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
       }
-      onMouseDown={e => e.stopPropagation()}
-      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}
-      onAuxClick={forceOpen}
-    >
-      <input
-        autoFocus={autoFocusProp}
-        readOnly={IS_COARSE && !hwKeyboard && keyboardMode === 'off'}
-        value={displayValue}
-        onChange={e => {
-          const raw = uppercase ? e.target.value.toUpperCase() : e.target.value;
-          if (mode === 'multi' || mode === 'select') { setVal(raw); } else { setQuery(raw); if (mode === 'single' && !raw.trim()) setLocalIds([]); }
-          setHighlightedIndex(-1);
-          forceOpen();
-        }}
-        onFocus={forceOpen}
-        onClick={(e) => {
-          // Clicking an open picker prepares the text SYNCHRONOUSLY (no rAF —
-          // a deferred selection can land between e.g. Cmd+A and the next
-          // keystroke, turning a replace into an append): single (search-then-
-          // select) selects all so typing replaces; multi (comma list) puts
-          // the caret at the end so typing appends a new segment.
-          forceOpen();
-          const el = e.currentTarget;
-          const len = el.value.length;
-          if (mode === 'single') el.setSelectionRange(0, len);
-          else el.setSelectionRange(len, len);
-        }}
-        onBlur={() => commit()}
-        placeholder={standalone || autoGrow ? placeholder : ''}
-        className={`${DD_INPUT_CLASS(standalone)} ${variant === 'chip' ? 'cursor-pointer pr-5' : ''} ${standalone ? '' : (className || '')} ${(standalone || variant === 'chip' || autoGrow) ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`}
-        style={
-          standalone
-            ? style
-            : autoGrow
-              ? { ...style, color: 'inherit', caretColor: '#2563eb', width: 'auto', fieldSizing: 'content', maxWidth: 400, minWidth: 72 } as React.CSSProperties
-              : { ...style, color: 'transparent', caretColor: '#2563eb' }
-        }
-        onKeyDown={e => {
+      return;
+    }
+    const el = e.currentTarget;
+    const len = el.value.length;
+    if (mode === 'single') el.setSelectionRange(0, len);
+    else el.setSelectionRange(len, len);
+  };
+  const onKeyDownEditor = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') {
             e.preventDefault();
@@ -632,7 +639,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 ? sortAndJoin(val)
                 : (query || (localIds.length > 0 ? localIds[0] : ''));
             if (newVal !== value || forceCommit) { committedRef.current = true; onChange(newVal); }
-            (onTabExit || onExit)?.(ref.current?.querySelector('input') as HTMLInputElement);
+            (onTabExit || onExit)?.(ref.current?.querySelector('input, textarea') as HTMLInputElement);
             setOpen(false);
             setQuery('');
           }
@@ -696,11 +703,68 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
               commit();
             }
           }
-        }}
-      />
+  };
+
+  const editorCls = `${DD_INPUT_CLASS(standalone)} ${variant === 'chip' ? 'cursor-pointer pr-5' : ''} ${standalone ? '' : (className || '')} ${(standalone || variant === 'chip' || autoGrow || wrapValue) ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`;
+  const editorStyle = standalone
+    ? style
+    : autoGrow
+      ? { ...style, color: 'inherit', caretColor: '#2563eb', width: 'auto', fieldSizing: 'content', maxWidth: 400, minWidth: 72 } as React.CSSProperties
+      : { ...style, color: 'transparent', caretColor: '#2563eb' };
+  const editorProps = {
+    autoFocus: autoFocusProp,
+    readOnly: IS_COARSE && !hwKeyboard && keyboardMode === 'off',
+    value: displayValue,
+    onChange: onChangeEditor,
+    onFocus: forceOpen,
+    onMouseDown: () => { openAtMousedownRef.current = open; },
+    onClick: onClickEditor,
+    onBlur: () => commit(),
+    placeholder: standalone || autoGrow ? placeholder : '',
+    onKeyDown: onKeyDownEditor,
+  };
+  const isWrapEditor = wrapValue && !standalone && !autoGrow && variant !== 'chip';
+
+  return (
+    <div
+      ref={ref}
+      className={
+        variant === 'chip'
+          ? `${DD_CHIP_TRIGGER_CLASS} relative ${className || ''}`
+          : (standalone ? '' : `relative ${wrapValue ? 'min-h-[1lh] w-full pb-[1lh]' : 'h-[1lh]'} ${autoGrow ? 'w-max ' : ''}${className || ''}`)
+      }
+      onMouseDown={e => e.stopPropagation()}
+      onClick={wrapValue ? () => {
+        // Full-box write hitbox: the editor (a wrapping textarea) only shows
+        // the caret on the value's first line until it's focused, so a click
+        // on the empty box below the text focuses + opens it.
+        const el = ref.current?.querySelector('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null;
+        if (el && document.activeElement !== el) {
+          forceOpen();
+          const len = el.value.length;
+          el.focus();
+          if (mode === 'single') el.setSelectionRange(0, len);
+          else el.setSelectionRange(len, len);
+        }
+      } : undefined}
+      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}
+      onAuxClick={forceOpen}
+    >
+      {isWrapEditor ? (
+        <textarea
+          {...editorProps}
+          rows={1}
+          className={`${editorCls} absolute inset-0 resize-none overflow-hidden whitespace-pre-wrap break-words leading-relaxed`}
+          style={editorStyle}
+        />
+      ) : (
+        <input {...editorProps} className={editorCls} style={editorStyle} />
+      )}
       {!standalone && !autoGrow && (
         <span
-          className={`absolute inset-y-0 truncate pointer-events-none whitespace-nowrap text-left flex items-center ${variant === 'chip' ? 'left-2.5 right-5' : 'inset-x-0'} ${displayValue ? '' : 'italic opacity-50'}`}
+          className={wrapValue
+            ? `block pointer-events-none text-left whitespace-pre-wrap break-words leading-relaxed ${displayValue ? '' : 'italic opacity-50'}`
+            : `absolute inset-y-0 truncate pointer-events-none whitespace-nowrap text-left flex items-center ${variant === 'chip' ? 'left-2.5 right-5' : 'inset-x-0'} ${displayValue ? '' : 'italic opacity-50'}`}
           style={style}
         >
           {chipDisplay || displayValue || placeholder}

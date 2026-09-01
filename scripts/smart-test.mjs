@@ -43,7 +43,7 @@ const REPORT = [
 ];
 const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'ribbon-text-size'];
 const SCHED = ['keyboard-mode', 'digit-schedule'];
-const SHEET = ['scene-sheet-order'];
+const SHEET = ['scene-sheet-order', 'scene-sheet-cell-layout'];
 const CAL = ['calendar-travel-hold', 'day-types', 'production-dates', 'calendar-rule-cards', 'date-picker-initial', 'calendar-view', 'calendar-grow'];
 const GLIDE = ['glide-breakdown', 'glide-clipboard', 'glide-first-edit'];
 const ELEM = ['element-manager-merge', 'element-manager-day-columns', 'element-events'];

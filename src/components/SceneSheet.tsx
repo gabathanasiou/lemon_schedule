@@ -180,7 +180,6 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       return;
     }
     let processed = value;
-    if (field === 'scriptDay') processed = value.replace(/[^0-9]/g, '');
     if (field === 'set') processed = value.toUpperCase();
     if (field === 'location') {
       const name = value.trim();

@@ -1890,3 +1890,56 @@ button + contextual Filter are manual/visual (rule 7).
 
 **Verify**: lint + designer manual pass (open the cell menu, pick/clear/delete
 a field, edit prefix/suffix/text).
+
+## 94. Reports — empty categories still emit blank pages (`[ ]`)
+
+- `e2e/report-page-breaks.spec.ts` fails on HEAD:
+  - **"items that render nothing produce no page (no blank pages)"** —
+    a repeat/table category with no items should collapse to 1 page but
+    prints 5; the empty category still emits a page.
+  - **"skip-empty opt-out (`skipEmptyCategories: false`)"** — with
+    `skipEmptyCategories: false` the pagination should print one page per
+    type (2 total) but prints 6.
+- Root cause TBD: likely the print paginator's category-iteration decides a
+  page boundary on a category that produced no rendered items, or the
+  skip-empty flag isn't consulted when emitting the per-category page
+  containers (see `src/components/print/` + `reportData` page assembly).
+- Fix so an empty iteration emits no page; keep the opt-out flag's contract
+  (its `false` value iterates empty types — but still as zero-size pages).
+
+**Verify**: `npx playwright test e2e/report-page-breaks.spec.ts` green.
+
+## 95. Scene Sheet entity cells — wrap long values + full-box writing hitbox + auto-grow notes (`[ ]`)
+
+- In the Scene Sheet (`SceneSheetFields`), the closed entity dropdowns (Cast,
+  Set, Location, all category boxes) truncate long values with an ellipsis
+  (`truncate whitespace-nowrap` overlay) and their write hitbox is a single
+  `h-[1lh]` line — a 22-member cast is shown cut, and clicking the box's empty
+  padding does nothing. The Notes/Synopsis textareas are fixed `rows={2}`
+  scroll boxes that don't grow with content.
+- 1. **Wrap, don't truncate**: add an opt-in `wrapValue` prop to
+     `EntityDropdown` that swaps the closed display overlay from
+     `truncate whitespace-nowrap` to `whitespace-normal break-words
+     leading-snug` (top-aligned), so long comma-lists flow onto the lines
+     below the cell.
+  2. **Hitbox = whole container**: `wrapValue` also makes the write target
+     (transparent input) cover the whole cell — wrapper loses `h-[1lh]`
+     (grows with content via `min-h-[1lh]`), input becomes `absolute inset-0
+     w-full h-full`, and the SceneSheet passes `wrapValue` + stretches the
+     box (`flex flex-col` + `flex-1` on the dropdown) so clicking anywhere in
+     the Cast box (min-h-80px) or a category box opens the editor.
+  3. **Auto-grow notes**: Notes/Synopsis textareas move to the
+     `[field-sizing:content] resize-none overflow-hidden` auto-size pattern
+     (same as the manager name cells), starting at `min-h-[2lh]` and growing
+     with content instead of scrolling in a fixed 2-row box.
+- Applies only where `wrapValue` is passed (the Scene Sheet) — stripboard,
+  Glide and modal usages keep the single-line truncating cell behavior.
+- e2e: seed-agnostic `scene-sheet-cell-layout.spec.ts` — set a long cast via
+  the bridge, assert the closed display shows no ellipsis and wraps to >1
+  line; click the box padding and assert the input receives focus; type a
+  multi-line note and assert the textarea grows past 2 rows. RULES:
+  `src/components/SceneSheet*.tsx` already maps to SHEET; add the spec to the
+  `SHEET` bucket.
+
+**Verify**: lint + `scene-sheet-cell-layout.spec.ts` + scene-sheet-order
+regression.

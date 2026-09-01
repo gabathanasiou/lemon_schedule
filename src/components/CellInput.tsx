@@ -18,7 +18,11 @@ export const CellInput: React.FC<{
   prefix?: string,
   noTruncate?: boolean,
   style?: React.CSSProperties,
-}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate, suffix, prefix, noTruncate, style }) => {
+  /** Suppress the edit-mode hover/focus gray fill — for form fields (Scene
+   *  Sheet) that are always editable, where the fill belongs to toggleable
+   *  edit-mode cells (stripboard). */
+  noFill?: boolean,
+}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate, suffix, prefix, noTruncate, style, noFill = false }) => {
   const inputRef = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
   const rawValue = value?.toString() || '';
   const [localVal, setLocalVal] = useState(rawValue);
@@ -151,7 +155,9 @@ export const CellInput: React.FC<{
   
   const activeClass = readOnly 
     ? 'cursor-default pointer-events-none' 
-    : 'cursor-text hover:bg-black/[0.09] focus:bg-black/[0.18]';
+    : noFill
+      ? 'cursor-text'
+      : 'cursor-text hover:bg-black/[0.09] focus:bg-black/[0.18]';
 
   const inputClass = `col-start-1 row-start-1 bg-transparent border-transparent outline-none rounded min-w-0 cell-input ${activeClass} ${className.replace('w-full', '').replace('flex-1', '')}`;
 

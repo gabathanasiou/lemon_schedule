@@ -53,20 +53,20 @@ export default function SceneSheetFields({
             </tr>
             <tr className="border-b border-zinc-300">
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Set</td>
-              <td className="px-2.5 py-1.5 border-r border-zinc-300"><EntityDropdown value={val('set')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'set', v.toUpperCase())} items={setItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Set" className="text-xs" anchoredKeys={anchoredByCategory?.['set']} /></td>
+              <td className="border-r border-zinc-300"><EntityDropdown value={val('set')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'set', v.toUpperCase())} items={setItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Set" className="px-2.5 py-1.5 text-xs" anchoredKeys={anchoredByCategory?.['set']} wrapValue /></td>
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Location</td>
-              <td className="px-2.5 py-1.5"><EntityDropdown value={val('location')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'location', v)} items={locationItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Location" className="text-xs" /></td>
+              <td className=""><EntityDropdown value={val('location')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'location', v)} items={locationItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Location" className="px-2.5 py-1.5 text-xs" wrapValue /></td>
             </tr>
             <tr className="border-b border-zinc-300">
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Pages</td>
-              <td className="px-2.5 py-1.5 border-r border-zinc-300"><CellInput value={val('pageCount')} readOnly={readOnly} onChange={v => { if (!scene) return; if (v === '') { commitField(scene.id, 'pageCount', ''); } else { const d = parsePageCount(v); commitField(scene.id, 'pageCount', formatPageCount(d)); } }} className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent" suffix="pgs" /></td>
+              <td className="px-2.5 py-1.5 border-r border-zinc-300"><CellInput value={val('pageCount')} readOnly={readOnly} noFill onChange={v => { if (!scene) return; if (v === '') { commitField(scene.id, 'pageCount', ''); } else { const d = parsePageCount(v); commitField(scene.id, 'pageCount', formatPageCount(d)); } }} className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent" suffix="pgs" /></td>
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Script Day</td>
-              <td className="px-2.5 py-1.5"><input className={inputCls} value={val('scriptDay')} readOnly={readOnly} onChange={e => update('scriptDay', e.target.value.replace(/[^0-9]/g, ''))} onBlur={commitTextEdits} onKeyDown={blurOnEnter} /></td>
+              <td className="px-2.5 py-1.5"><input className={inputCls} value={val('scriptDay')} readOnly={readOnly} onChange={e => update('scriptDay', e.target.value)} onBlur={commitTextEdits} onKeyDown={blurOnEnter} /></td>
             </tr>
             <tr>
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300 align-top">Synopsis</td>
               <td colSpan={3} className="px-2.5 py-1.5">
-                <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none" rows={2}
+                <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none overflow-hidden leading-snug [field-sizing:content] min-h-[2lh]" rows={1}
                   value={val('description')} readOnly={readOnly} onChange={e => update('description', e.target.value)}
                   onBlur={commitTextEdits}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
@@ -81,16 +81,16 @@ export default function SceneSheetFields({
           {allBreakdownCats.filter(c => c !== 'set').map(cat => (
             <div key={cat} className="bg-white border border-zinc-300 rounded overflow-hidden">
               <div className="bg-zinc-100 px-2.5 py-1.5 border-b border-zinc-300 text-[10px] font-bold text-zinc-700 uppercase leading-tight">{allBreakdownLabel[cat]}</div>
-              <div className={cat === 'cast' ? 'p-1 min-h-[80px]' : 'p-1'}>
+              <div className={cat === 'cast' ? 'min-h-[80px] flex flex-col' : cat === 'notes' ? 'p-1 flex flex-col' : 'flex flex-col'}>
                 {cat === 'notes' ? (
-                  <textarea className="w-full border-0 p-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none" rows={2}
+                  <textarea className="w-full border-0 p-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none overflow-hidden leading-snug [field-sizing:content] min-h-[2lh]" rows={1}
                     value={val('notes')} readOnly={readOnly} onChange={e => update('notes', e.target.value)}
                     onBlur={commitTextEdits}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
                 ) : cat === 'cast' ? (
-                  <EntityDropdown value={val('cast')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="text-xs" displayMode="id" anchoredKeys={anchoredByCategory?.['cast']} renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '?'}</span></>} />
+                  <EntityDropdown value={val('cast')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="flex-1 p-1 text-xs" displayMode="id" anchoredKeys={anchoredByCategory?.['cast']} wrapValue resolveClosed renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '?'}</span></>} />
                 ) : (
-                  <EntityDropdown value={val(cat)} readOnly={readOnly} onChange={v => scene && commitField(scene.id, cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode={isMultiValue(cat, customCategories) ? 'multi' : 'single'} placeholder={allBreakdownLabel[cat]} className="text-xs" anchoredKeys={anchoredByCategory?.[cat]} renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
+                  <EntityDropdown value={val(cat)} readOnly={readOnly} onChange={v => scene && commitField(scene.id, cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode={isMultiValue(cat, customCategories) ? 'multi' : 'single'} placeholder={allBreakdownLabel[cat]} className="flex-1 p-1 text-xs" anchoredKeys={anchoredByCategory?.[cat]} wrapValue renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
                 )}
               </div>
             </div>
