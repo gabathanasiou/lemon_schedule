@@ -7,7 +7,35 @@ import { overlayMorphOptIn } from '../lib/overlayMotion';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
 
-
+/** Case-insensitive fuzzy score for a query against an option:
+ *  substring beats in-order subsequence; the query is split on whitespace and
+ *  EVERY token must match (in order), so "new york" and "los ang" both find
+ *  America/New_York / America/Los_Angeles despite the underscore. -1 = no match. */
+const fuzzyScore = (query: string, option: string): number => {
+  const q = query.trim().toLowerCase();
+  const o = option.toLowerCase();
+  if (!q) return -1;
+  let cursor = 0;
+  let score = 0;
+  for (const tok of q.split(/\s+/)) {
+    if (!tok) continue;
+    const idx = o.indexOf(tok, cursor);
+    if (idx >= 0) {
+      score += 5000 - idx;
+      cursor = idx + tok.length;
+    } else {
+      let i = cursor;
+      for (const ch of tok) {
+        const at = o.indexOf(ch, i);
+        if (at < 0) return -1;
+        i = at + 1;
+      }
+      score += 1000 - i + tok.length;
+      cursor = i;
+    }
+  }
+  return score;
+};
 
 interface AutocompleteDropdownProps {
   value: string;
@@ -25,6 +53,10 @@ interface AutocompleteDropdownProps {
   autoFocus?: boolean;
   /** Show all options without filtering (for short predetermined lists) */
   showAll?: boolean;
+  /** Fuzzy matching (exact > prefix > substring > in-order subsequence) —
+   *  for long lists like timezones where substring-only filtering misses
+   *  partial-word queries ("newyork" still finds America/New_York). */
+  fuzzy?: boolean;
   /** Called when the dropdown is dismissed by clicking outside or committing. Not called on Escape. */
   onExit?: () => void;
   /** Called when Tab is pressed - allows passing movement to Glide's onFinishedEditing */
@@ -48,22 +80,26 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   onExit,
   onTabExit,
   portalTarget,
+  fuzzy = false,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const [keyboardMode] = useKeyboardMode();
   const hwKeyboard = useHardwareKeyboard();
   const [val, setVal] = useState(value);
   const [highlightedIndex, setHighlightedIndex] = useState(() => {
-    const idx = options.findIndex(opt => opt === normalize(value));
+    const idx = options.findIndex(opt => normalize(opt) === normalize(value));
     if (idx >= 0) return idx;
     if (showAll && value) {
-      const partialIdx = options.findIndex(opt => opt.includes(normalize(value)));
+      const partialIdx = options.findIndex(opt => normalize(opt).includes(normalize(value)));
       return partialIdx >= 0 ? partialIdx : 0;
     }
     return 0;
   });
   const ref = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  /** True while the user has typed since the dropdown opened — a click-open
+   *  (no typing yet) shows ALL options, not a pre-filtered query. */
+  const typedRef = useRef(false);
   /* Fixed panels stay INVISIBLE until the positioning rAF flips `ready` —
      the panel must never paint a frame at (0,0) before it is positioned. */
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288, ready: false } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
@@ -93,13 +129,14 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   }, [setContentRef]);
 
   // Escape dismisses ONLY this dropdown — never the enclosing modal.
-  useEscapeCapture(open, () => { setOpen(false); setVal(value); });
+  useEscapeCapture(open, () => { typedRef.current = false; setOpen(false); setVal(value); });
 
   useSmartPosition(ref, positioning === 'relative' && open);
 
   useDropdown(open, ref, () => {
     if (val !== value) onChange(val);
     onExit?.();
+    typedRef.current = false;
     setOpen(false);
     setVal(value);
   }, scrollRef);
@@ -127,12 +164,21 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
     return () => el.removeEventListener('wheel', onWheel);
   }, [open]);
 
-  const filtered = useMemo(
-    () => (showAll || !open || !val ? options : options.filter(opt => opt.includes(normalize(val)))),
-    [options, val, open, normalize, showAll]
-  );
+  const filtered = useMemo(() => {
+    if (showAll || !open || !val || !typedRef.current) return options;
+    const q = normalize(val);
+    if (fuzzy) {
+      return options
+        .map(opt => ({ opt, s: fuzzyScore(q, opt) }))
+        .filter(x => x.s >= 0)
+        .sort((a, b) => b.s - a.s)
+        .map(x => x.opt);
+    }
+    return options.filter(opt => normalize(opt).includes(q));
+  }, [options, val, open, normalize, showAll, fuzzy]);
 
   const commit = (opt: string) => {
+    typedRef.current = false;
     if (opt !== value) onChange(opt);
     onExit?.();
     setOpen(false);
@@ -141,18 +187,18 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   if (readOnly) return <span className={className}>{value || '?'}</span>;
 
   const inputClasses = standalone
-    ? `w-full border border-zinc-300 rounded-md ${IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm'} focus:outline-none focus:ring-2 focus:ring-zinc-900 text-left`
+    ? 'w-full bg-white border border-zinc-300 rounded px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 text-left'
     : 'bg-transparent outline-none uppercase text-inherit w-full text-left';
 
   return (
-    <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
+    <div ref={ref} className={standalone ? 'relative' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
       <input
         autoFocus={autoFocusProp}
         readOnly={IS_COARSE && !hwKeyboard && keyboardMode === 'off'}
         value={open ? val : value}
-        onChange={e => { const typed = normalize(e.target.value); setVal(typed); if (highlightTimer.current) clearTimeout(highlightTimer.current); if (showAll) { highlightTimer.current = setTimeout(() => { const idx = options.findIndex(opt => opt.includes(typed)); setHighlightedIndex(idx >= 0 ? idx : 0); }, 150); } else { setHighlightedIndex(0); } if (!open) { standalone ? setOpen(true) : handleOpen(); } }}
-        onClick={() => { setVal(value); if (!open) { const full = showAll ? options : options.filter(opt => opt.includes(normalize(value))); const idx = full.findIndex(opt => opt === normalize(value)); setHighlightedIndex(idx >= 0 ? idx : 0); standalone ? setOpen(true) : handleOpen(); } }}
-        onFocus={() => { if (!open) { standalone ? setOpen(true) : undefined; } }}
+        onChange={e => { typedRef.current = true; const typed = normalize(e.target.value); setVal(typed); if (highlightTimer.current) clearTimeout(highlightTimer.current); if (showAll) { highlightTimer.current = setTimeout(() => { const idx = options.findIndex(opt => normalize(opt).includes(typed)); setHighlightedIndex(idx >= 0 ? idx : 0); }, 150); } else { setHighlightedIndex(0); } if (!open) { standalone ? setOpen(true) : handleOpen(); } }}
+        onClick={() => { setVal(value); typedRef.current = false; if (!open) { const idx = options.findIndex(opt => normalize(opt) === normalize(value)); setHighlightedIndex(idx >= 0 ? idx : 0); standalone ? setOpen(true) : handleOpen(); } }}
+        onFocus={() => { typedRef.current = false; if (!open) { standalone ? setOpen(true) : undefined; } }}
         placeholder={placeholder}
         className={`${inputClasses} ${standalone ? '' : (className || '')}`}
         onKeyDown={e => {
@@ -170,10 +216,11 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
             const opt = match || normalize(val);
             if (opt !== value) onChange(opt);
             (onTabExit || onExit)?.();
+            typedRef.current = false;
             setOpen(false);
             setVal(value);
           }
-          if (e.key === 'Escape') { setOpen(false); setVal(value); }
+          if (e.key === 'Escape') { typedRef.current = false; setOpen(false); setVal(value); }
         }}
       />
       {open && filtered.length > 0 && (() => {

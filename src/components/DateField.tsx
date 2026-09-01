@@ -33,6 +33,10 @@ interface DateFieldProps {
    *  column (`flex w-full`, trigger `flex-1 justify-between`) — the event
    *  editor's Date / Event Type row. */
   className?: string;
+  /** Chrome only: REPLACES the default dark chip trigger recipe with a custom
+   *  class (e.g. a light form-field look on white pages — the project details
+   *  Production Start matches the adjacent field dropdowns). */
+  triggerClassName?: string;
 }
 
 function shortLabel(dateKey: string): string {
@@ -66,7 +70,7 @@ const Picker = ({ value, onChange, multi, initialView }: { value: string[]; onCh
   />
 );
 
-export default function DateField({ value, onChange, placeholder = 'Pick a date', multi, variant = 'chrome', initialView, className }: DateFieldProps) {
+export default function DateField({ value, onChange, placeholder = 'Pick a date', multi, variant = 'chrome', initialView, className, triggerClassName }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const hasValue = value.length > 0;
   const fullWidth = !!className;
@@ -90,7 +94,7 @@ export default function DateField({ value, onChange, placeholder = 'Pick a date'
           <button
             type="button"
             title={hasValue ? 'Change date' : placeholder}
-            className={`${DD_CHIP_TRIGGER_CLASS} text-xs select-none transition-colors ${fullWidth ? 'flex-1 min-w-0 justify-between' : ''}`}
+            className={`${triggerClassName ?? DD_CHIP_TRIGGER_CLASS} text-xs select-none transition-colors ${fullWidth ? 'flex-1 min-w-0 justify-between' : ''}`}
           >
             <span className="truncate">{summaryLabel(value, placeholder)}</span>
             <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />

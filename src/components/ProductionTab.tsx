@@ -12,6 +12,9 @@ import DropdownDivider from './DropdownDivider';
 import { PopoutPlaceholder } from './PopoutWindow';
 import { ChevronDown, Plus, UserPlus } from 'lucide-react';
 import { CommitInput } from './CommitInput';
+import DateField from './DateField';
+import Button from './Button';
+import { initialViewFor } from './calendar/calendarUtils';
 import { CrewManager } from './CrewManager';
 import { CrewGlideTab } from './CrewGlideTab';
 import { LocationsManager } from './LocationsManager';
@@ -166,12 +169,19 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
               <div className="flex flex-col gap-3">
                 <label className="flex items-center gap-3 text-xs text-zinc-500">
                   <span className="w-40 shrink-0 text-right">Production Start</span>
-                  <CommitInput
-                    value={activeCalendarVersion?.productionStart || ''}
-                    onCommit={v => activeCalendarVersion && dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, productionStart: v } })}
-                    readOnly={readOnly}
-                    placeholder="YYYY-MM-DD"
-                  />
+                  {readOnly ? (
+                    <span className="flex-1 px-2 py-1 text-xs text-zinc-800">{activeCalendarVersion?.productionStart || '—'}</span>
+                  ) : (
+                    <div className="flex-1 min-w-0">
+                      <DateField
+                        value={activeCalendarVersion?.productionStart ? [activeCalendarVersion.productionStart] : []}
+                        onChange={ds => activeCalendarVersion && dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, productionStart: ds[0] || '' } })}
+                        placeholder="Pick a date"
+                        initialView={initialViewFor(activeCalendarVersion?.productionStart ? [activeCalendarVersion.productionStart] : [], activeCalendarVersion?.productionStart)}
+                        triggerClassName="flex w-full items-center justify-between gap-2 rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400"
+                      />
+                    </div>
+                  )}
                 </label>
                 <label className="flex items-center gap-3 text-xs text-zinc-500">
                   <span className="w-40 shrink-0 text-right">Wrap Date</span>
@@ -179,28 +189,42 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
                 </label>
                 <label className="flex items-center gap-3 text-xs text-zinc-500">
                   <span className="w-40 shrink-0 text-right">Report Date Format</span>
-                  <select
-                    className="flex-1 min-w-0 bg-white border border-zinc-300 rounded px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 disabled:opacity-50"
-                    disabled={readOnly}
-                    value={productionInfo.dateFormat || 'short'}
-                    onChange={e => commitInfo({ dateFormat: e.target.value })}
-                  >
-                    {DATE_FORMAT_OPTIONS.map(o => (
-                      <option key={o.key} value={o.key}>{o.label}</option>
-                    ))}
-                  </select>
+                  <div className="flex-1 min-w-0">
+                    <Menu
+                      width="w-48"
+                      trigger={
+                        <button
+                          type="button"
+                          disabled={readOnly}
+                          className="flex w-full items-center justify-between gap-2 rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 disabled:opacity-50"
+                        >
+                          <span className="truncate">{DATE_FORMAT_OPTIONS.find(o => o.key === (productionInfo.dateFormat || 'short'))?.label}</span>
+                          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
+                        </button>
+                      }
+                    >
+                      {DATE_FORMAT_OPTIONS.map(o => (
+                        <DropdownItem key={o.key} onClick={() => commitInfo({ dateFormat: o.key })}>
+                          {o.label}
+                        </DropdownItem>
+                      ))}
+                    </Menu>
+                  </div>
                 </label>
                 <label className="flex items-center gap-3 text-xs text-zinc-500">
                   <span className="w-40 shrink-0 text-right">Timezone</span>
-                  <AutocompleteDropdown
-                    value={productionInfo.timezone || ''}
-                    onChange={v => commitInfo({ timezone: v })}
-                    options={COMMON_TIMEZONES}
-                    normalize={v => v.toLowerCase()}
-                    readOnly={readOnly}
-                    standalone
-                    placeholder={`Browser default (${getBrowserTimeZone()})`}
-                  />
+                  <div className="flex-1 min-w-0">
+                    <AutocompleteDropdown
+                      value={productionInfo.timezone || ''}
+                      onChange={v => commitInfo({ timezone: v })}
+                      options={COMMON_TIMEZONES}
+                      normalize={v => v.toLowerCase()}
+                      readOnly={readOnly}
+                      standalone
+                      fuzzy
+                      placeholder={`Browser default (${getBrowserTimeZone()})`}
+                    />
+                  </div>
                   <span className="text-[10px] text-zinc-400">Sunrise / sunset & weather</span>
                 </label>
               </div>
@@ -221,10 +245,10 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
                       {!readOnly && (
                         <Menu
                           trigger={
-                            <button className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded px-2 py-1">
+                            <Button variant="subtle" type="button" className="gap-1">
                               <UserPlus className="w-3.5 h-3.5" /> Assign
                               <ChevronDown className="w-3 h-3" />
-                            </button>
+                            </Button>
                           }
                         >
                           {candidates.map(a => (
