@@ -3,9 +3,7 @@ import { Users } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import type { DayElementEntry } from '../../../../lib/dayView';
 import { getLabel } from '../../../../lib/categories';
-
-const TH = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-left px-2 py-1.5 whitespace-nowrap';
-const TD = 'px-2 py-1 align-middle';
+import { DAY_ALIGN, DAY_GROUP_ROW, DAY_TABLE, DAY_TABLE_WRAP, DAY_TD, DAY_TH } from '../tableStyles';
 
 const CastElementsSection: React.FC<DaySectionProps> = ({ day, project }) => {
   const categoryLabel = (key: string) => getLabel(key, key, project.categoryLabels);
@@ -19,28 +17,28 @@ const CastElementsSection: React.FC<DaySectionProps> = ({ day, project }) => {
   for (const cat of usedCategories) rows.push({ category: cat, entries: day.elements[cat] || [] });
 
   return (
-    <div className="rounded-lg border border-zinc-200 overflow-x-auto">
-      <table className="w-full border-collapse">
+    <div className={DAY_TABLE_WRAP}>
+      <table className={DAY_TABLE}>
         <thead>
-          <tr className="border-b border-zinc-200 bg-zinc-50">
-            <th className={TH}>Name</th>
-            <th className={`${TH} w-20 text-right`}>Scene</th>
-            <th className={`${TH} w-16 text-right`}>Call</th>
+          <tr className="border-b border-zinc-200">
+            <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Name</th>
+            <th className={`${DAY_TH} ${DAY_ALIGN.right} w-20`}>Scene</th>
+            <th className={`${DAY_TH} ${DAY_ALIGN.right} w-16`}>Call</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(group => (
             <React.Fragment key={group.category}>
-              <tr className="bg-zinc-100/70">
-                <td colSpan={3} className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+              <tr className={DAY_GROUP_ROW}>
+                <td colSpan={3} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                   {categoryLabel(group.category)} <span className="text-zinc-400">({group.entries.length})</span>
                 </td>
               </tr>
               {group.entries.map(entry => (
                 <tr key={`${group.category}-${entry.key}`} className="even:bg-zinc-50/60 hover:bg-zinc-100">
-                  <td className={`${TD} text-xs text-zinc-800`}>{entry.boardId ? `${entry.boardId}. ${entry.name}` : entry.name}</td>
-                  <td className={`${TD} text-xs text-zinc-500 text-right tabular-nums`}>{entry.firstScene}</td>
-                  <td className={`${TD} text-xs text-zinc-800 text-right tabular-nums`}>{entry.firstCallTime || '—'}</td>
+                  <td className={`${DAY_TD} ${DAY_ALIGN.left} text-xs text-zinc-800`}>{entry.boardId ? `${entry.boardId}. ${entry.name}` : entry.name}</td>
+                  <td className={`${DAY_TD} ${DAY_ALIGN.right} text-xs text-zinc-500 tabular-nums`}>{entry.firstScene}</td>
+                  <td className={`${DAY_TD} ${DAY_ALIGN.right} text-xs text-zinc-800 tabular-nums`}>{entry.firstCallTime || '—'}</td>
                 </tr>
               ))}
             </React.Fragment>

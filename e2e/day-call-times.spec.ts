@@ -19,6 +19,13 @@ test.describe('Day call times + crew (roadmap 99)', () => {
       await section.getByRole('button').first().click();
     }
 
+    // Regression: negative relative offsets must borrow cleanly (no "04:-15").
+    const resolved = await section.locator('table').first().locator('tbody input').evaluateAll(
+      ins => ins.map(i => (i as HTMLInputElement).value),
+    );
+    expect(resolved.length).toBeGreaterThan(0);
+    for (const t of resolved) expect(t).toMatch(/^\d{1,2}:\d{2}$/);
+
     // First cast row's On Set cell (last stage column of the call-times table).
     const onSetCell = section.locator('table').first().locator('tbody tr').first().locator('td').last();
     await onSetCell.locator('[data-timefield]').first().click();

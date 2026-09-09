@@ -111,15 +111,12 @@ export function parseTime(timeStr: string): { hour: number; minute: number } {
 }
 
 export function addMinutesToTime(timeStr: string, minutesToAdd: number): string {
-  let { hour, minute } = parseTime(timeStr);
-  minute += minutesToAdd;
-  hour += Math.floor(minute / 60);
-  minute = minute % 60;
-  // Handle wrapping around midnight by keeping it rolling over visually
-  // but if we want to display e.g. "25:30" or "01:30"
-  // Spec says: "call times after midnight should display as e.g. "00:45""
-  const printHour = ((hour % 24) + 24) % 24; // positive modulo
-  return `${String(printHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const { hour, minute } = parseTime(timeStr);
+  // Work in total minutes so NEGATIVE offsets borrow correctly (the old
+  // hour/minute split left a negative minute remainder → "04:-15").
+  let total = hour * 60 + minute + minutesToAdd;
+  total = ((total % 1440) + 1440) % 1440; // positive modulo, wraps at midnight
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
 export function getElapsedString(startStr: string, currentStr: string, accumulatedDays: number = 0): string {

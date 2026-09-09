@@ -8,9 +8,7 @@ import { ELEMENT_CATEGORIES } from '../../../../lib/categories';
 import TimeField from '../../../TimeField';
 import GroupedSelect, { GroupedSelectItem } from '../GroupedSelect';
 import type { ElementCallTimes } from '../../../../types';
-
-const TH = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-left px-2 py-1.5 whitespace-nowrap';
-const TD = 'px-2 py-1 align-middle';
+import { DAY_ALIGN, DAY_TABLE, DAY_TD, DAY_TH } from '../tableStyles';
 
 const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly }) => {
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
@@ -73,14 +71,14 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
               <p className="px-2.5 py-2 text-xs text-zinc-400">No elements.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse" data-calltimes-table>
+                <table className={DAY_TABLE} data-calltimes-table>
                   <thead>
-                    <tr className="border-b border-zinc-200 bg-white">
-                      <th className={`${TH} w-10 text-center`}>ID</th>
-                      <th className={TH}>Character</th>
-                      <th className={`${TH} w-12 text-center`} title="Day state (Start/Work/Finish)">SWF</th>
+                    <tr className="border-b border-zinc-200">
+                      <th className={`${DAY_TH} ${DAY_ALIGN.center} w-10`}>ID</th>
+                      <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Character</th>
+                      <th className={`${DAY_TH} ${DAY_ALIGN.center} w-12`} title="Day state (Start/Work/Finish)">SWF</th>
                       {stageDefs.map(def => (
-                        <th key={def.key} className={`${TH} text-center`} title={def.label}>{def.abbrev || def.label}</th>
+                        <th key={def.key} className={`${DAY_TH} ${DAY_ALIGN.center}`} title={def.label}>{def.abbrev || def.label}</th>
                       ))}
                     </tr>
                   </thead>
@@ -90,20 +88,20 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
                       const chain = computeElementCallChain(settings.stages, stageKeys, entry.firstCallTime, overrides);
                       return (
                         <tr key={entry.key} className="even:bg-zinc-50/60 hover:bg-zinc-100">
-                          <td className={`${TD} text-center text-xs text-zinc-400 tabular-nums`}>{entry.boardId || ''}</td>
-                          <td className={`${TD} text-xs text-zinc-800 whitespace-nowrap max-w-[16rem] truncate`}>{entry.name}</td>
-                          <td className={`${TD} text-center`}>
+                          <td className={`${DAY_TD} ${DAY_ALIGN.center} text-xs text-zinc-400 tabular-nums`}>{entry.boardId || ''}</td>
+                          <td className={`${DAY_TD} ${DAY_ALIGN.left} text-xs text-zinc-800 whitespace-nowrap max-w-[16rem] truncate`}>{entry.name}</td>
+                          <td className={`${DAY_TD} ${DAY_ALIGN.center}`}>
                             <span className={`inline-flex items-center justify-center min-w-[20px] px-1 py-0.5 rounded text-[10px] font-bold ${entry.code === 'W' ? 'bg-zinc-200 text-zinc-700' : 'bg-amber-100 text-amber-700'}`}>{entry.code || '—'}</span>
                           </td>
                           {stageDefs.map(def => (
-                            <td key={def.key} className={`${TD} text-center`}>
+                            <td key={def.key} className={`${DAY_TD} ${DAY_ALIGN.center}`}>
                               <TimeField
                                 value={(overrides?.[def.key as keyof ElementCallTimes] as string | undefined) || ''}
                                 resolvedTime={chain[def.key]?.time}
                                 onChange={raw => setStage(category, entry, def.key, raw)}
                                 onReset={() => setStage(category, entry, def.key, '')}
                                 readOnly={readOnly}
-                                className="w-24 justify-center"
+                                className="w-24 justify-center mx-auto"
                               />
                             </td>
                           ))}

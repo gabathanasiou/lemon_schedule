@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Delete, RotateCcw } from 'lucide-react';
-import { CellInput } from './CellInput';
 import { useTouchMode } from '../lib/useMarquee';
 import { usePortalTarget, useCurrentDocument, useCurrentWindow } from '../lib/popoutTarget';
 
 /**
  * Shared call-time expression input (D11/D19). DISPLAYS the resolved absolute
- * time as plain, readable text; clicking switches to editing the RAW
- * expression (absolute `7:30`/`730`/`7:30am` or relative `-1h`/`+30m`).
- * Desktop = click-to-edit inline; touch = a keypad with `:` `+` `-` `h` `m`.
- * A stored override shows an amber dot + reset.
+ * time as plain, readable text; focusing switches the SAME input to the raw
+ * expression (absolute `7:30`/`730`/`7:30am` or relative `-1h`/`+30m`) and
+ * selects it. Desktop = always-mounted inline input (no mount/caret jump);
+ * touch = a keypad with `:` `+` `-` `h` `m`. A stored override shows an amber
+ * dot + reset.
  */
 export interface TimeFieldProps {
   /** Raw expression (absolute or relative). */
@@ -46,17 +46,27 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   const currentDocument = useCurrentDocument();
   const currentWindow = useCurrentWindow();
 
-  const [editing, setEditing] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState(value);
-  const draftRef = useRef(value);
+  const cancelRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const [open, setOpen] = useState(false);
+  const keypadDraft = useRef(value);
   const openRef = useRef(false);
 
   const hasOverride = !!value;
   const display = resolvedTime || value || '';
 
-  const commit = useCallback(() => {
-    onChange(draftRef.current.trim());
+  useEffect(() => { if (!focused) setDraft(value); }, [value, focused]);
+
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
+
+  // ---- touch keypad ----
+  const commitKeypad = useCallback(() => {
+    onChange(keypadDraft.current.trim());
     setOpen(false);
   }, [onChange]);
 
@@ -79,23 +89,22 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Enter') { e.preventDefault(); commitKeypad(); }
       else if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
-      else if (e.key === 'Backspace') { e.preventDefault(); setDraft(d => d.slice(0, -1)); }
-      else if (/^[0-9:+\-hm]$/i.test(e.key)) { e.preventDefault(); setDraft(d => d + e.key.toLowerCase()); }
+      else if (e.key === 'Backspace') { e.preventDefault(); setDraft(k => { const n = k.slice(0, -1); keypadDraft.current = n; return n; }); }
+      else if (/^[0-9:+\-hm]$/i.test(e.key)) { e.preventDefault(); setDraft(k => { const n = k + e.key.toLowerCase(); keypadDraft.current = n; return n; }); }
     };
     currentWindow.addEventListener('keydown', onKey, true);
     return () => currentWindow.removeEventListener('keydown', onKey, true);
-  }, [open, commit, currentWindow]);
+  }, [open, commitKeypad, currentWindow]);
 
   const openKeypad = () => {
     setDraft(value);
-    draftRef.current = value;
+    keypadDraft.current = value;
     setOpen(true);
   };
-
-  const press = (ch: string) => setDraft(d => { const next = d + ch; draftRef.current = next; return next; });
-  const backspace = () => setDraft(d => { const next = d.slice(0, -1); draftRef.current = next; return next; });
+  const press = (ch: string) => setDraft(k => { const n = k + ch; keypadDraft.current = n; return n; });
+  const backspace = () => setDraft(k => { const n = k.slice(0, -1); keypadDraft.current = n; return n; });
 
   const resetBtn = onReset && hasOverride && !readOnly ? (
     <button
@@ -116,30 +125,33 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   }
 
   if (!isTouch) {
-    if (editing) {
-      return (
-        <div className={`flex items-center gap-1 ${className}`}>
-          <CellInput
-            value={value}
-            onChange={onChange}
-            onBlur={() => setEditing(false)}
-            autoFocus
-            noFill
-          />
-          {resetBtn}
-        </div>
-      );
-    }
     return (
       <div className={`flex items-center gap-1 ${className}`}>
-        <button
-          type="button"
+        <input
+          ref={inputRef}
           data-timefield
-          onClick={() => setEditing(true)}
-          className="min-w-[3.25rem] px-1.5 py-0.5 rounded text-xs text-zinc-800 tabular-nums text-center hover:bg-zinc-100"
-        >
-          {display || <span className="text-zinc-400">{placeholder}</span>}
-        </button>
+          type="text"
+          value={focused ? draft : display}
+          placeholder={display || placeholder}
+          onChange={e => setDraft(e.target.value)}
+          onFocus={e => {
+            setFocused(true);
+            setDraft(value);
+            const el = e.currentTarget;
+            // Select after React swaps the display value for the raw expression.
+            requestAnimationFrame(() => el.select());
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+            else if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; e.currentTarget.blur(); }
+          }}
+          onBlur={() => {
+            if (!cancelRef.current && draft.trim() !== value) onChange(draft.trim());
+            cancelRef.current = false;
+            setFocused(false);
+          }}
+          className="w-full min-w-[3.25rem] px-1.5 py-0.5 rounded bg-transparent text-xs text-zinc-800 tabular-nums text-center outline-none hover:bg-zinc-100 focus:bg-white focus:ring-1 focus:ring-zinc-400"
+        />
         {overrideDot}
         {resetBtn}
       </div>
@@ -162,7 +174,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
         <div
           className="fixed inset-0 z-[10002] bg-black/20"
           style={{ pointerEvents: 'auto' }}
-          onPointerDown={() => commit()}
+          onPointerDown={() => commitKeypad()}
         >
           <div
             className="fixed left-1/2 -translate-x-1/2 bottom-6 w-[280px]"
@@ -192,8 +204,8 @@ export const TimeField: React.FC<TimeFieldProps> = ({
               </div>
               <div className="grid grid-cols-4 gap-2 mt-2">
                 <button className={ACT} onPointerDown={() => press('m')}>M</button>
-                <button className={ACT} onPointerDown={() => { setDraft(''); draftRef.current = ''; }}>Clear</button>
-                <button className={`${CMD} col-span-2`} onPointerDown={commit}>⏎ Enter</button>
+                <button className={ACT} onPointerDown={() => { setDraft(''); keypadDraft.current = ''; }}>Clear</button>
+                <button className={`${CMD} col-span-2`} onPointerDown={commitKeypad}>⏎ Enter</button>
               </div>
             </div>
           </div>

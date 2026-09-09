@@ -4,9 +4,7 @@ import type { DaySectionProps } from '../daySectionTypes';
 import { formatDuration } from '../../../../lib/utils';
 import { getFieldItems } from '../../../../lib/categories';
 import { sceneStyle, getFallbackStripColors } from '../../../../lib/sceneColors';
-
-const TH = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-left px-2 py-1.5 whitespace-nowrap';
-const TD = 'px-2 py-1 align-middle';
+import { DAY_ALIGN, DAY_TABLE, DAY_TABLE_WRAP, DAY_TD, DAY_TH } from '../tableStyles';
 
 const ScenesSection: React.FC<DaySectionProps> = ({ day, project, actions }) => {
   if (day.scenes.length === 0) {
@@ -14,17 +12,17 @@ const ScenesSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
   }
 
   return (
-    <div className="rounded-lg border border-zinc-200 overflow-x-auto">
-      <table className="w-full border-collapse">
+    <div className={DAY_TABLE_WRAP}>
+      <table className={DAY_TABLE}>
         <thead>
-          <tr className="border-b border-zinc-200 bg-zinc-50">
-            <th className={`${TH} w-16`}>Scene</th>
-            <th className={TH}>Set</th>
-            <th className={TH}>Description</th>
-            <th className={TH}>Cast</th>
-            <th className={`${TH} w-12 text-right`}>Pages</th>
-            <th className={`${TH} w-14 text-right`}>Dur</th>
-            <th className={`${TH} w-14 text-right`}>Call</th>
+          <tr className="border-b border-zinc-200">
+            <th className={`${DAY_TH} ${DAY_ALIGN.left} w-16`}>Scene</th>
+            <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Set</th>
+            <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Description</th>
+            <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Cast</th>
+            <th className={`${DAY_TH} ${DAY_ALIGN.right} w-12`}>Pages</th>
+            <th className={`${DAY_TH} ${DAY_ALIGN.right} w-14`}>Dur</th>
+            <th className={`${DAY_TH} ${DAY_ALIGN.right} w-14`}>Call</th>
           </tr>
         </thead>
         <tbody>
@@ -38,17 +36,17 @@ const ScenesSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
                 onClick={() => scene && actions.openScene?.(scene.id)}
                 className="even:bg-zinc-50/60 hover:bg-zinc-100 transition-colors cursor-pointer"
               >
-                <td className={TD}>
+                <td className={`${DAY_TD} ${DAY_ALIGN.left}`}>
                   <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold" style={color}>
                     {scene?.sceneNumber || '—'}
                   </span>
                 </td>
-                <td className={`${TD} text-xs text-zinc-600 whitespace-nowrap`}>{scene?.intExt} {scene?.set || ''}</td>
-                <td className={`${TD} text-xs text-zinc-600 max-w-[26rem] truncate`}>{scene?.description || ''}</td>
-                <td className={`${TD} text-[11px] text-zinc-500 max-w-[18rem] truncate`}>{castIds.join(', ')}</td>
-                <td className={`${TD} text-xs text-zinc-500 text-right whitespace-nowrap`}>{scene?.pageCount || ''}</td>
-                <td className={`${TD} text-xs text-zinc-500 text-right whitespace-nowrap`}>{formatDuration(entry.row.estimatedDuration || 0)}</td>
-                <td className={`${TD} text-xs text-zinc-800 text-right whitespace-nowrap`}>{entry.callTime || '—'}</td>
+                <td className={`${DAY_TD} ${DAY_ALIGN.left} text-xs text-zinc-600 whitespace-nowrap`}>{scene?.intExt} {scene?.set || ''}</td>
+                <td className={`${DAY_TD} ${DAY_ALIGN.left} text-xs text-zinc-600 max-w-[26rem] truncate`}>{scene?.description || ''}</td>
+                <td className={`${DAY_TD} ${DAY_ALIGN.left} text-[11px] text-zinc-500 max-w-[18rem] truncate`}>{castIds.join(', ')}</td>
+                <td className={`${DAY_TD} ${DAY_ALIGN.right} text-xs text-zinc-500 whitespace-nowrap`}>{scene?.pageCount || ''}</td>
+                <td className={`${DAY_TD} ${DAY_ALIGN.right} text-xs text-zinc-500 whitespace-nowrap`}>{formatDuration(entry.row.estimatedDuration || 0)}</td>
+                <td className={`${DAY_TD} ${DAY_ALIGN.right} text-xs text-zinc-800 whitespace-nowrap`}>{entry.callTime || '—'}</td>
               </tr>
             );
           })}
