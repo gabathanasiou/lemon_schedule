@@ -1891,21 +1891,27 @@ button + contextual Filter are manual/visual (rule 7).
 **Verify**: lint + designer manual pass (open the cell menu, pick/clear/delete
 a field, edit prefix/suffix/text).
 
-## 94. Reports — empty categories still emit blank pages (`[ ]`)
+## 94. Reports — empty categories still emit blank pages (`[x]` Done)
 
-- `e2e/report-page-breaks.spec.ts` fails on HEAD:
-  - **"items that render nothing produce no page (no blank pages)"** —
-    a repeat/table category with no items should collapse to 1 page but
-    prints 5; the empty category still emits a page.
-  - **"skip-empty opt-out (`skipEmptyCategories: false`)"** — with
-    `skipEmptyCategories: false` the pagination should print one page per
-    type (2 total) but prints 6.
-- Root cause TBD: likely the print paginator's category-iteration decides a
-  page boundary on a category that produced no rendered items, or the
-  skip-empty flag isn't consulted when emitting the per-category page
-  containers (see `src/components/print/` + `reportData` page assembly).
-- Fix so an empty iteration emits no page; keep the opt-out flag's contract
-  (its `false` value iterates empty types — but still as zero-size pages).
+**Done**: `fillPages` (`useReportPaginator.tsx`) no longer pushes a trailing
+page that holds no content — items that render nothing after the last real
+content leave only zero-height units + no-op breaks behind, so no blank page is
+emitted. The explicit blank page from consecutive TOP-LEVEL pageBreaks is a
+structural page (`items.length === 0`) handled by `computeChunks` before
+`fillPages`, so that behavior is untouched. Verified by
+`npx playwright test e2e/report-page-breaks.spec.ts` (8 passed) + lint.
+
+- **Root cause (corrected)**: the paginator already no-op'd a break at a page
+  start (archived item 32). The real defect was the unconditional
+  `pages.push(cur)` at the end of `fillPages`, which emitted a content-less
+  final page whenever an empty item followed content (probe: `["Filled", ""]`).
+- **The "prints 5 / prints 6" counts were a stale-test artifact**: LOAD re-adds
+  the built-in location types (`DEFAULT_LOCATION_TYPES` — Set, Unit Base,
+  Hospital, Police Station), so patching `project.locationTypes` without them
+  left 6 resolved types, not 2. The specs now list the built-ins and assert one
+  page per NON-empty label (seed-agnostic; the "empty" item's break is a no-op).
+- `skipEmptyCategories: false` contract unchanged: every type iterates; those
+  whose children render nothing simply produce no page.
 
 **Verify**: `npx playwright test e2e/report-page-breaks.spec.ts` green.
 
@@ -1971,3 +1977,185 @@ regression.
   note. Only add to `SHEET`-adjacent specs that exercise the changed surface.
 
 **Verify**: lint + e2e for each surface actually changed.
+
+## 97. Developer/agent API + MCP server for the app (`[ ]`)
+
+**Relations**: extends the debug bridge (AGENTS.md §Agentic Debug Bridge);
+must reuse the canonical `Action` union/reducer — no parallel mutation path.
+
+- **Goal**: expose the app's project data and mutation surface to external
+  developers and AI agents as a supported, versioned contract — not just the
+  internal debug bridge. **Agents must be able to WRITE, not just read** — full
+  parity with what a user can do in the UI.
+- **What exists today (not this)**: `window.__lemonSchedule`
+  (`src/lib/debugBridge.ts`) is an in-page, DEV/`LEMON_AGENT=1`-only read/write
+  window over the store, explicitly "dev tooling, not a product feature"; the
+  repo's `opencode.json` Playwright MCP is browser automation, NOT an app API.
+  There is no stable external contract, no MCP server for the app, no auth, no
+  versioning.
+- **Future-proof by construction (hard requirement)**: the API must be DERIVED
+  from the canonical surfaces, not a hand-maintained endpoint list — so every
+  future feature is exposed automatically and the contract can never drift:
+  - **Writes**: every dispatchable `Action` (the union in `store/reducer.ts`,
+    the SAME one the UI uses) is reachable; adding a new action to the union +
+    `ACTION_TYPES` makes it agent-reachable with no API edits. This is already
+    the debug bridge's contract (AGENTS.md §Agentic Debug Bridge).
+  - **Reads**: project state + computed rows/sections from the canonical
+    selectors (`getRows`/`useDaybreakSections`, `computeRowData`), field/category
+    metadata from the field registry + `ELEMENT_CATEGORIES`, and the reports
+    designer's registry — never re-derive domain models in the API layer.
+  - **MCP tools**: generated/wrapped from the same union + read surface (not
+    one tool hand-written per feature), so a new roadmap feature needs no MCP
+    change either.
+- **Coverage = every persisted feature, by construction.** All 95 action types
+  are one union, so the API reaches everything that stores data: scenes,
+  schedule + calendar versions, **locations** (`ADD_/UPDATE_/DELETE_LOCATION*`),
+  **crew** (`ADD_/UPDATE_/DELETE_CREW_*`), **production management**
+  (`SET_PRODUCTION_INFO`, day types), categories/elements, rules, ribbon/color/
+  report designs, trash restore. The three layers to design for:
+  1. **Persisted data (actions)** — free for every current *and future* feature
+     that routes through the reducer.
+  2. **Derived/read output** (report pagination + field registry, computed rows,
+     DOODs, print payload) — expose the canonical selectors, don't re-derive.
+  3. **Business logic above the reducer** (element-link propagation,
+     `addNewElement`, import commit, cascade deletes) — expose the shared
+     helpers, or agents bypass the rules the UI enforces.
+- **Future custom databases**: covered only if the API is registry/generic-
+  driven (one generic entity surface + the category/DB registry, à la
+  `DatabaseManagerView`), never hand-coded per manager.
+- **Versions & calendars (in practice)**: both axes are fully reachable —
+  schedule versions via `NEW_/SET_ACTIVE_/RENAME_/DELETE_/UPDATE_VERSION` +
+  `UPDATE_ROW`/`RESTORE_VERSION_FROM_TRASH`; calendar versions via
+  `NEW_/SET_ACTIVE_/RENAME_/DELETE_/UPDATE_CALENDAR_VERSION` +
+  `RESTORE_CALENDAR_VERSION_FROM_TRASH`. Two invariants the API must enforce:
+  - calendar-field writes go ONLY through `UPDATE_CALENDAR_VERSION` (never
+    `UPDATE_VERSION` with calendar fields — the single write path), so expose
+    the correct action and don't let agents pick the wrong one;
+  - the two axes are independent — switching the active calendar version
+    recomputes stripboard section dates/call times on purpose, so the read
+    layer should report which calendar version produced `getRows` output.
+- **Gaps beyond the reducer (must also design — the union alone is NOT the
+  whole API)**:
+  - **Project lifecycle** — create/open/delete/rename/duplicate/
+    `importProjectFromData` live in `provider.tsx`, NOT the reducer, and the
+    debug bridge doesn't expose them; without them an agent can only edit the
+    currently-open project. Expose the provider methods too.
+  - **Import/export** — `.lemon` export, CSV/FDX/Fountain append, MSD/SEX
+    new-project (`src/lib/import/`); not actions.
+  - **Derived analytics** — rules violations (`checkAllDays`), DOODs
+    (`deriveDood`), `computeElementDayStats`, report pagination/`reportData`,
+    print payload; expose the canonical functions as reads.
+  - **Cloud vs local + `readOnly`** — cloud projects are filtered out of the
+    localStorage index; Drive/auth is separate. Handle both project sources and
+    refuse writes while `readOnly`.
+  - **Concurrency** — agent + user (or two agents) editing the same project is
+    last-write-wins with no conflict detection today; decide a strategy
+    (serialize / optimistic version check / document the limitation).
+  - **Destructive-op safety** — deletes/empty-trash need explicit intent;
+    undo/`batch` must be first-class affordances.
+  - **Schema introspection/discovery** — agents need action shapes + field
+    names (JSON schema / MCP resources) or they guess.
+  - **Validation parity** — the reducer is permissive; the UI validates (cast
+    uppercasing, day types, entity naming). Mirror that validation or the API
+    can create invalid state.
+  - **API versioning** — contract version + deprecation policy.
+  - **Out of scope (not project data)**: local UI prefs — view mode, cell
+    borders, sheet order, selection cursors.
+- **Scope (agree with the user before implementing)**:
+  - **API surface**: reads (`getProject`, `getVersion`/`getRows`, scenes,
+    calendar versions, entities) + writes (the `Action` union) — typed +
+    versioned.
+  - **MCP server**: tools wrapping that surface so agents can inspect/drive a
+    project; decide transport (stdio vs HTTP), auth, and whether it targets a
+    live app session or a `.lemon` project file.
+- **Security model (dedicated — this is a static browser app, so an API changes
+  the threat model; the debug bridge is DEV/`LEMON_AGENT=1`-gated, a supported
+  API needs stronger)**:
+  - **Exposure surface**: never a public endpoint on the deployed
+    `/lemon_schedule/` site — local-only + explicit opt-in + per-session token,
+    off by default in production.
+  - **Local bridge/companion**: bind `127.0.0.1` only (never `0.0.0.0`);
+    per-session secret handshake; validate `Origin` AND token (WebSockets/HTTP
+    to localhost are reachable by any webpage — origin alone is spoofable);
+    DNS-rebinding protection (`Host` check); CORS restricted to the app origin.
+  - **Secrets**: never expose/log the Google OAuth token/session (AGENTS.md
+    §Security; it stays in `useRef`/sessionStorage); minimal Drive scope; env
+    only; respect `readOnly` (refuse writes offline).
+  - **Authorization + destructive ops**: decide who may call (local user vs
+    third-party) and enforce; human-in-the-loop confirmation for deletes/empty-
+    trash/import-overwrite (MCP recommends a human able to deny tool calls +
+    clear UI when a tool fires); make deletes undoable.
+  - **Prompt injection via project data**: scene names, notes, element labels,
+    imported files are attacker-controllable — treat as untrusted data, never as
+    instructions; mark tool outputs untrusted.
+  - **File access** (file-based transport): use File System Access API
+    user-granted handles, never arbitrary paths (path traversal/symlink); scope
+    to the chosen project file.
+  - **Abuse & audit**: rate-limit calls, cap batch/payload size, audit-log
+    invocations without secrets.
+- **API design best practices** (sources: MCP tools spec, Google AIP-121/122/
+  155/158/162/180):
+  - **Resource-oriented reads, task-oriented writes** — clean nouns + stable IDs
+    to read (`get_project`, `list_scenes`, `list_cast`, `list_versions`), but do
+    NOT expose 95 raw action tools; group writes into a few well-described tools
+    (`edit_scenes`, `edit_schedule`, `manage_entities`, `apply_actions`). MCP:
+    few clear model-legible tools beat a huge flat list.
+  - **One way to do each thing** — no overlapping paths (e.g. calendar writes
+    only via `update_calendar_version`).
+  - **Version the contract** + additive-only back-compat (AIP-180/185);
+    breaking change = new major + deprecation window.
+  - **JSON Schema on every input AND output** (MCP `inputSchema`/`outputSchema`)
+    + **introspection/discovery** so agents don't guess field names.
+  - **Idempotency + request IDs** (AIP-155) for safe retries; destructive ops
+    idempotent.
+  - **Two-tier errors** (MCP): protocol errors vs tool-execution errors
+    (`isError:true`) with actionable, self-correcting messages.
+  - **Atomicity** — batch related writes as one unit (existing
+    `BATCH_START`/`COMMIT` = one undo).
+  - **Concurrency** — revisions/optimistic checks (AIP-162) so agent + user
+    edits don't silently clobber.
+  - **Pagination/filtering/field masks** (AIP-158/157/160) so big reads don't
+    dump megabytes.
+  - **Safety** — validate inputs, access-control, rate-limit, sanitize outputs,
+    never expose tokens, human-in-the-loop confirmation for destructive ops,
+    audit log of invocations.
+- **Reuse, don't fork**: build on `src/lib/debugBridge.ts` read/write helpers +
+  the `Action` union/reducer so there is one source of truth; do not create a
+  second mutation pipeline.
+- **Open questions**: audience (internal agents vs third-party devs),
+  local-only vs hosted, file-based vs live-session, and whether to promote the
+  debug bridge into the supported public API or keep the two separate.
+- **Docs deliverables (required when implemented, not before)**:
+  - **API reference** — generated or hand-written: every resource/tool, input +
+    output schemas, errors, examples. Keep it generated from the schema so it
+    can't drift.
+  - **Maintenance docs** — a `docs/API.md` (or similar) covering architecture,
+    the transport, how to add a new action/tool so it stays auto-exposed, the
+    security model, versioning/deprecation, and the test story.
+  - **README update** — a short "Developer API / MCP" section pointing to the
+    reference + maintenance doc, with setup for the MCP client.
+  - **AGENTS.md** — add the API/MCP invariants to the canonical rules so future
+    workers extend it correctly (replaces "dev tooling only" for the promoted
+    surface).
+  - Update `docs/DESIGN-LANGUAGE.md` only if new shared UI (e.g. consent/confirm
+    surfaces) is introduced.
+- **Implementation shape / effort** (the core is largely reusable):
+  - Already reusable: the reducer is nearly pure (`store/reducer.ts` +
+    `actions/*.ts` only touch `Date.now()` — no `window`/`localStorage`/DOM),
+    so it runs in Node; `storage.ts` isolates the only browser dep
+    (`localStorage`) to load/save; `debugBridge.ts` already does reads/writes/
+    factories/batch/undo/`onAction`; canonical reads + Playwright MCP exist.
+  - Phased: **P0** schema/introspection + generic `apply_actions` + reads over
+    the existing bridge (S) → **P1** resource read tools + friendly write
+    wrappers (M) → **P2** file-based Node MCP reusing the pure reducer + swapped
+    storage (M) **or** live-session companion + WebSocket (L) → **P3** project
+    lifecycle + import/export + derived analytics (M–L) → **P4** validation
+    parity via shared helpers (M) → **P5** docs/tests/versioning (M).
+  - Biggest risks: load/migration pipeline outside the browser (coupling +
+    possible DOM deps in `lib/`), live-session security, concurrency,
+    tool ergonomics across 95 actions, validation drift.
+  - Cheapest path to value: file-based MCP reusing the pure reducer on a
+    `.lemon` file; defer the live-session companion until agents must drive the
+    running UI.
+
+**Verify**: TBD once scope is agreed.

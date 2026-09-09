@@ -14,6 +14,16 @@ import { loadSeedProject, seedProjectScript } from './helpers';
 
 const B = (n: string) => `pb-${n}`;
 
+// LOAD re-adds the built-in location types (DEFAULT_LOCATION_TYPES, reducer.ts)
+// in default order, so a test that replaces `project.locationTypes` must list
+// them all to keep the resolved type list deterministic.
+const BUILTIN_LOCATION_TYPES = [
+  { key: 'set', label: 'Set' },
+  { key: 'unitBase', label: 'Unit Base' },
+  { key: 'hospital', label: 'Hospital' },
+  { key: 'policeStation', label: 'Police Station' },
+];
+
 const text = (id: string, t: string, extra: any = {}): any => ({ id, type: 'text', text: t, ...extra });
 const field = (id: string, f: string, extra: any = {}): any => ({ id, type: 'field', field: f, ...extra });
 const pageBreak = (id: string): any => ({ id, type: 'pageBreak' });
@@ -122,22 +132,28 @@ test('mid-item pageBreak splits the item: content after the break starts a new p
 });
 
 test('items that render nothing produce no page (no blank pages)', async ({ page }) => {
-  // Two location types: one with an EMPTY label (its only child renders null),
-  // one real. skipEmptyCategories is OFF so the empty type iterates — the
-  // empty item's leading break is a no-op, so the print has exactly 1 page.
+  // "Filled" sits on a built-in type; every other type gets an EMPTY label and
+  // its only child hides on empty. skipEmptyCategories is OFF so the empty
+  // types iterate — but each renders nothing, so its pageBreak is a no-op
+  // before the content and leaves no trailing blank page after it.
   await page.addInitScript(seedWithDesign(design('PB Empty Item', [
     repeat('pb-r', 'locationTypes', [
       field('pb-f', 'locationTypeLabel', { emptyBehavior: 'hideBlock' }),
       pageBreak('pb-brk'),
     ], { skipEmptyCategories: false }),
   ]), p => {
-    p.locationTypes = [{ key: 'empty', label: '' }, { key: 'filled', label: 'Filled' }];
-    p.locations = [{ id: 'pb-l1', name: 'Studio A', type: 'filled', address: '', place: '', lat: 0, lng: 0 }];
+    p.locationTypes = BUILTIN_LOCATION_TYPES.map(t => ({ ...t, label: t.key === 'unitBase' ? 'Filled' : '' }));
+    p.locations = [{ id: 'pb-l1', name: 'Studio A', type: 'unitBase', address: '', place: '', lat: 0, lng: 0 }];
   }));
   const pages = await openPrintView(page);
   const texts = await pageTexts(pages);
-  expect(texts.length).toBe(1); // no blank page for the empty type
-  expect(texts[0]).toContain('Filled');
+  // One page per NON-empty label; empty-label items produce no page (and no
+  // trailing blank page after "Filled").
+  const labels: string[] = await page.evaluate(() =>
+    (window as any).__lemonSchedule.getProject().locationTypes.map((t: any) => String(t.label ?? '')));
+  expect(texts.length).toBe(labels.filter(l => l.trim() !== '').length);
+  expect(texts.some(t => t.includes('Filled'))).toBe(true);
+  texts.forEach(t => expect(t.trim()).not.toBe(''));
 });
 
 test('skip-empty: location types without locations are skipped by default; checkbox exists', async ({ page }) => {
@@ -169,17 +185,26 @@ test('skip-empty: location types without locations are skipped by default; check
 });
 
 test('skip-empty opt-out (skipEmptyCategories: false): empty types iterate again', async ({ page }) => {
+  // The built-in types (no locations) plus one type WITH a location and one
+  // without. skipEmptyCategories is OFF, so EVERY type iterates and prints a
+  // page — including the 0-location ones the default would have skipped.
   await page.addInitScript(seedWithDesign(design('PB Skip Empty Off', [
     repeat('pb-r', 'locationTypes', [field('pb-f', 'locationTypeLabel'), pageBreak('pb-brk')], { skipEmptyCategories: false }),
   ]), p => {
-    p.locationTypes = [{ key: 'filled', label: 'Filled' }, { key: 'other', label: 'Other' }];
+    p.locationTypes = [
+      ...BUILTIN_LOCATION_TYPES,
+      { key: 'filled', label: 'Filled' },
+      { key: 'other', label: 'Other' },
+    ];
     p.locations = [{ id: 'pb-l1', name: 'Studio A', type: 'filled', address: '', place: '', lat: 0, lng: 0 }];
   }));
   const pages = await openPrintView(page);
   const texts = await pageTexts(pages);
-  expect(texts.length).toBe(2); // one page per type again
-  expect(texts[0]).toContain('Filled');
-  expect(texts[1]).toContain('Other');
+  const labels: string[] = await page.evaluate(() =>
+    (window as any).__lemonSchedule.getProject().locationTypes.map((t: any) => String(t.label ?? '')));
+  expect(texts.length).toBe(labels.length); // one page per type again
+  expect(texts.join('\n')).toContain('Filled');
+  expect(texts.join('\n')).toContain('Other'); // the type with no locations printed too
 });
 
 test('consecutive TOP-LEVEL pageBreaks still produce an explicit blank page', async ({ page }) => {

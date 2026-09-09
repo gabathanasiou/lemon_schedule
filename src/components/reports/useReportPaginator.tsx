@@ -269,7 +269,11 @@ function fillPages(units: FlatUnit[], budget: number): number[][] {
     cur.push(i);
     if (u.h > 0) curHasContent = true;
   });
-  pages.push(cur);
+  // Drop a trailing page with no content: items that render nothing after the
+  // last real content leave only zero-height units and no-op breaks behind.
+  // The explicit blank page from consecutive TOP-LEVEL pageBreaks is a
+  // structural page (items.length === 0) handled by computeChunks, not here.
+  if (curHasContent) pages.push(cur);
   return pages;
 }
 
