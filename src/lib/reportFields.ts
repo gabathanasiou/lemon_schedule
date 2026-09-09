@@ -8,7 +8,7 @@ import { getStatusesWithLists } from './nonShootHelpers';
 import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportElementCallItem, ReportDepartmentCallItem, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
-  ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel,
+  ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, crewLinkWarningsForReportDay,
 } from './reportData';
 import { getCallTimeSettings } from './callTimes';
 
@@ -125,6 +125,7 @@ const ELEMENT_FIELDS: ReportFieldDef[] = [
   { key: 'totalTravelDays', label: 'Total Travel Days', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.travelDays) },
   { key: 'workStart', label: 'Work Start', group: 'Elements', scope: 'elements', defaultWidth: 12, separator: true, get: (ctx, it: ReportElementInfo) => formatDateCustom(it.startDate || '', dateKey(ctx)) },
   { key: 'workFinish', label: 'Work Finish', group: 'Elements', scope: 'elements', defaultWidth: 12, get: (ctx, it: ReportElementInfo) => formatDateCustom(it.finishDate || '', dateKey(ctx)) },
+  { key: 'linkedCrew', label: 'Linked Crew', group: 'Elements', scope: 'elements', defaultWidth: 22, get: (_c, it: ReportElementInfo) => s(it.linkedCrew || '') },
 ];
 
 // Cast identity only — everything else duplicated the element fields above.
@@ -171,6 +172,7 @@ const DAY_FIELDS: ReportFieldDef[] = [
   { key: 'daySceneCount', label: 'Scene Count', group: 'Days', scope: 'days', align: 'center', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.sceneCount) },
   { key: 'dayFirstScene', label: 'First Scene', group: 'Days', scope: 'days', align: 'center', defaultWidth: 8, separator: true, get: (_c, it: ReportDayInfo) => s(it.firstScene) },
   { key: 'dayLastScene', label: 'Last Scene', group: 'Days', scope: 'days', align: 'center', defaultWidth: 8, get: (_c, it: ReportDayInfo) => s(it.lastScene) },
+  { key: 'dayWarnings', label: 'Warnings', group: 'Days', scope: 'days', multiValue: true, defaultWidth: 26, get: (ctx, it: ReportDayInfo) => crewLinkWarningsForReportDay(ctx, it).map(w => w.message).join('; ') },
 ];
 
 /** The day's DOOD cell letter (deriveDood precedence): the status letter wins,
@@ -215,6 +217,8 @@ const CREW_FIELDS: ReportFieldDef[] = [
   { key: 'phone', label: 'Phone', group: 'Crew', scope: 'crew', defaultWidth: 14, link: true, linkKind: 'tel', get: (_c, it: ReportCrewItem) => s(it.phone) },
   { key: 'email', label: 'Email', group: 'Crew', scope: 'crew', defaultWidth: 20, link: true, linkKind: 'mailto', get: (_c, it: ReportCrewItem) => s(it.email) },
   { key: 'crewCallTime', label: 'Call Time', group: 'Crew', scope: 'crew', align: 'center', defaultWidth: 9, get: (_c, it: ReportCrewItem) => s(it.callTime || '') },
+  { key: 'linkedElements', label: 'Linked Elements', group: 'Crew', scope: 'crew', defaultWidth: 22, get: (_c, it: ReportCrewItem) => s(it.linkedElements || '') },
+  { key: 'crewLinkedCrew', label: 'Linked Crew', group: 'Crew', scope: 'crew', defaultWidth: 22, get: (_c, it: ReportCrewItem) => s(it.linkedCrew || '') },
 ];
 
 // ---- day call times (item 99 contextual collections) -------------------------

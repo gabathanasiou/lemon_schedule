@@ -53,7 +53,9 @@ by `e2e/call-sheet-day.spec.ts` (RULES: `call-sheet-day`).
 - **Depends on** items 98 (day data/locations), 99 (call-time/crew collections) and
   100 (filtered rows/lookups) — all shipped.
 
-## 11. Crew ↔ elements — position↔category + person↔element links (Link-Manager UX) (`[ ]`)
+## 11. Crew ↔ elements — position↔category + person↔element links (Link-Manager UX) (`[x]` Done)
+
+**Done**: `CrewRole.categories` (+ `DEFAULT_ROLE_CATEGORIES`/`resolveRoleCategories` in `lib/crewCatalog.ts`) makes crew rule-bearing — `parentScenesOf`/`ruleBearingAncestor`/`resolveCollectionItems` scope crew by its position's element categories and the item-25 crew exemption is gone. `project.crewLinks` + `lib/crewLinks.ts` (reserved `category: 'crew'` = another person) backs the Crew Manager → **Links** modal (Positions + People tabs, `GroupedSelect` multi-selects) and the Element Manager's per-category **Positions** (`Checklist`) + per-element **Linked crew** views. Report fields crew `linkedElements`/`linkedCrew`, element `linkedCrew`, day `dayWarnings`; the Day Manager Crew section warns when a linked target isn't on the day. Also fixed `GroupedSelect` to render through the flipping `DropdownPanel` (kit menu's `bottom` flip landed off-screen in a modal). Verified by `e2e/crew-links.spec.ts`.
 
 **Two layers, ONE surface — mirror item 44's element links.** Same interaction language as the
 Element Manager → Links manager (`elements/LinkManagerModal.tsx`): grouped anchor cards, the

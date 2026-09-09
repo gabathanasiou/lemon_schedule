@@ -83,6 +83,8 @@ export interface ManagerShellConfig {
   makeBlankRow(): ManagerRow;
   commitPlan(dispatch: (action: any) => void, plan: ManagerSavePlan, categoryKey: string, project: Project): void;
   sortModes: ManagerSortMode[];
+  /** Optional extra header/toolbar actions (roadmap 11: Crew Manager → Links). */
+  renderHeaderActions?: (ctx: { dispatch: (action: any) => void; readOnly: boolean; project: Project }) => React.ReactNode;
 }
 
 const cellInputCls = MT_INPUT;
@@ -425,10 +427,13 @@ export const DatabaseManagerView: React.FC<{
     </Button>
   );
 
+  const headerActions = config.renderHeaderActions?.({ dispatch, readOnly, project });
+
   const headerContent = (
     <>
       {revertButton}
       {saveButton}
+      {headerActions}
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
       <DropdownMenu open={showSortMenu} onOpenChange={setShowSortMenu} width="w-40" theme="light"
         trigger={
@@ -450,6 +455,7 @@ export const DatabaseManagerView: React.FC<{
       <div className="flex items-center gap-1.5">
         {revertButton}
         {saveButton}
+        {headerActions}
         {addButton}
       </div>
     </div>

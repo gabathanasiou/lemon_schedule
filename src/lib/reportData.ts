@@ -1,5 +1,6 @@
 import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, ElementCallTimes } from '../types';
-import { crewDepartmentOf } from './crewCatalog';
+import { crewDepartmentOf, resolveRoleCategories } from './crewCatalog';
+import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, CrewLinkWarning } from './crewLinks';
 import { computeElementCallChain, getCallTimeSettings, resolveCrewCall, resolveCallExpression, ResolvedCall } from './callTimes';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
@@ -201,6 +202,9 @@ export interface ReportElementInfo {
    *  day-list fields render them as bare dates. Built-in work/hold/travel
    *  stay on the trio above (deriveDood); custom types surface here. */
   typeDayLists?: Record<string, { day: number; iso: string }[]>;
+  /** Crew members explicitly linked to this element (roadmap 11) — comma list
+   *  of names. */
+  linkedCrew?: string;
 }
 
 /** One day type, as a repeat/table item of the 'dayTypes' collection — the
@@ -238,6 +242,12 @@ export interface ReportCrewItem {
   email?: string;
   /** Resolved day call time (crewOfDay only — override or department precall). */
   callTime?: string;
+  /** Elements this person is explicitly linked to (roadmap 11) — comma list of
+   *  display names ("1. FISHERMAN"). */
+  linkedElements?: string;
+  /** Crew people this person is explicitly linked to (roadmap 11) — comma list
+   *  of names. */
+  linkedCrew?: string;
 }
 
 /** One element appearing on a day, as a repeat/table item of the contextual
@@ -459,6 +469,12 @@ export function parentScenesOf(ctx: ReportCtx, parentItem: ReportCollectionItem 
   if (typeof any.key === 'string' && any.label !== undefined && Array.isArray(any.items)) { // category
     return ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, any.key).length > 0);
   }
+  if (typeof any.roleKey === 'string') {                                        // crew member (position → categories)
+    const role = (ctx.project.crewRoles || []).find(r => r.key === any.roleKey);
+    const cats = role ? resolveRoleCategories(role) : [];
+    if (cats.length === 0) return [];
+    return ctx.sceneInfos.filter(si => cats.some(cat => ctx.sceneFieldItems(si.scene, cat).length > 0));
+  }
   if (typeof any.id !== 'undefined' && typeof any.name !== 'undefined') {       // element / cast member
     const cat = any.category || 'props';
     const match = elementMatchId(any, cat).toLowerCase();
@@ -677,7 +693,16 @@ export function buildReportCtx(
   for (const role of project.crewRoles || []) {
     const people: CrewPerson[] = project.crew?.[role.key] || [];
     for (const p of people) {
-      crewItems.push({ roleKey: role.key, id: p.id, role: role.label, name: p.name, phone: p.phone, email: p.email });
+      crewItems.push({
+        roleKey: role.key,
+        id: p.id,
+        role: role.label,
+        name: p.name,
+        phone: p.phone,
+        email: p.email,
+        linkedElements: linkedElementLabelsForPerson(project, p.id) || undefined,
+        linkedCrew: linkedCrewNamesForPerson(project, p.id) || undefined,
+      });
     }
   }
 
@@ -791,6 +816,7 @@ function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[]
       startDate: t?.startDate ?? null,
       finishDate: t?.finishDate ?? null,
       typeDayLists,
+      linkedCrew: linkedCrewNamesForElement(project, category, key) || undefined,
     });
   }
   return out;
@@ -1080,14 +1106,38 @@ export function resolveCollection(
 }
 
 /**
+ * Dangling crew-link warnings for one report day (roadmap 11): crew working the
+ * day whose linked target (another crew person or an element) isn't on the day.
+ * Shared by the `dayWarnings` report field and the Day Manager crew section.
+ */
+export function crewLinkWarningsForReportDay(ctx: ReportCtx, day: ReportDayInfo): CrewLinkWarning[] {
+  const crew = resolveCollection(ctx, 'crewOfDay', undefined, day, undefined) as ReportCrewItem[];
+  const dayCrewIds = new Set(crew.map(c => c.id));
+  const present = new Set<string>();
+  for (const si of ctx.sceneInfos.filter(s => s.sectionIndex === day.section.index)) {
+    for (const cat of allCategoryKeysOf(ctx.project)) {
+      for (const v of ctx.sceneFieldItems(si.scene, cat)) present.add(`${cat}|${v.toLowerCase()}`);
+    }
+  }
+  const byId = crewNameMap(ctx.project);
+  return crewLinkWarnings({
+    links: ctx.project.crewLinks,
+    dayCrewIds,
+    crewName: id => byId.get(id),
+    targetLabel: link => targetLabelForLink(ctx.project, link),
+    isElementOnDay: (cat, key) => present.has(`${cat}|${key.toLowerCase()}`),
+  });
+}
+
+/**
  * Block-aware collection resolution: applies the block's own filters for the
  * 'categories' collection (skip-empty — on unless explicitly off — and the
  * excluded list), plus the Lego scoping rule (scopedToParent — on unless
  * explicitly off): the collection is reduced to items that live in EVERY
  * rule-bearing ancestor's scenes (intersection — "this person's scenes on
- * this day"). Crew ancestors have no scene rule and are skipped. Every
- * renderer resolves through here so the designer, preview and page expansion
- * all agree.
+ * this day"). Crew ancestors are rule-bearing through their position→category
+ * mapping (roadmap 11). Every renderer resolves through here so the designer,
+ * preview and page expansion all agree.
  */
 /**
  * "Skip empty" registry — which repeat/table collections can skip items that
@@ -1158,7 +1208,16 @@ export function resolveCollectionItems(
           items = items.filter((t: any) => sceneSets.every(set => (t.days as string[] || []).some(d => set.some(si => si.date === d))));
           break;
         }
-        default: break; // crew etc. — no scoping rule
+        case 'crew': case 'crewOfDay': {
+          // "Only crew in this day": keep a crew member when their position's
+          // categories have a scene in EVERY ancestor set (roadmap 11).
+          items = items.filter((c: any) => {
+            const scenes = parentScenesOf(ctx, c);
+            return scenes.length > 0 && sceneSets.every(set => scenes.some(si => set.some(s => s.scene.id === si.scene.id)));
+          });
+          break;
+        }
+        default: break; // locations etc. — no scoping rule
       }
     }
   }
@@ -1182,13 +1241,15 @@ export function resolveCollectionItems(
   return items;
 }
 
-/** Ancestors with a scoping rule (anything except crew and locations — no
- *  scene data). Element/cast items are distinguished from location items by
+/** Ancestors with a scoping rule (anything except locations — no scene data).
+ *  Crew is rule-bearing through its position→category mapping (roadmap 11);
+ *  element/cast items are distinguished from location items by
  *  `category`/`sceneIds` (locations carry neither). */
 export function ruleBearingAncestor(a: ReportCollectionItem): boolean {
   const any = a as any;
   return !!any.scene
     || typeof any.section?.index === 'number'
+    || typeof any.roleKey === 'string'                                                 // crew member (position → categories)
     || (typeof any.key === 'string' && Array.isArray(any.items))                       // category
     || Array.isArray(any.violations)                                                   // violation type
     || (typeof any.id !== 'undefined' && (typeof any.category === 'string' || Array.isArray(any.sceneIds))); // element / cast member

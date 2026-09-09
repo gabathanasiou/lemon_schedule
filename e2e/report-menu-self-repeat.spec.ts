@@ -69,7 +69,7 @@ test('repeat menu hides scenes under a scenes parent once the child is not over 
   await expect(menu.getByText('Elements (of this scene)', { exact: true })).toBeVisible();
 });
 
-test('repeat menu hides crew under a crew parent and keeps crew labels honest', async ({ page }) => {
+test('repeat menu scopes children under a crew parent and hides self-redundant crew', async ({ page }) => {
   await openSeeded(page);
   await openDesigner(page);
 
@@ -80,21 +80,16 @@ test('repeat menu hides crew under a crew parent and keeps crew labels honest', 
 
   // Nest a repeat inside the Crew repeat.
   await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty').last());
-  
-  // Crew is non-rule-bearing: the child label has no "(of this crew member)"
-  // decoration and its menu does NOT list Crew (self-redundant).
-  await expect(page.getByRole('button', { name: 'Scenes', exact: true })).toBeVisible({ timeout: 3000 });
-  await expect(page.getByText('Scenes (of this crew member)', { exact: true })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Scenes', exact: true }).click();
+  // Crew is rule-bearing (roadmap 11 — position → categories): the child label
+  // is scoped, and the menu still hides Crew (self-redundant under a crew parent).
+  await expect(page.getByRole('button', { name: 'Scenes (of this crew member)', exact: true })).toBeVisible({ timeout: 3000 });
+
+  await page.getByRole('button', { name: 'Scenes (of this crew member)', exact: true }).click();
   const menu = page.locator('.ui-menu');
   await expect(menu.getByText('Crew', { exact: true })).toHaveCount(0);
   await expect(menu.getByText('Days', { exact: true })).toBeVisible();
-  await expect(menu.getByText('Scenes', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
-
-  // No "Only … in this crew member" scope checkbox either.
-  await expect(page.getByText('Only scenes in this crew member', { exact: true })).toHaveCount(0);
 });
 
 test('elements submenu grays the parent own category under a cast parent', async ({ page }) => {

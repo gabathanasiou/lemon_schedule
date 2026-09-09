@@ -53,6 +53,7 @@ const CAST = ['cast-single-source'];
 const NEWCAST = ['new-cast-naming'];
 const LINKED = ['linked-elements'];
 const CREW = ['crew-glide', 'crew-manager'];
+const CREWLINKS = ['crew-links'];
 const LOC = ['locations', 'location-types'];
 const IMPORT = ['msd-import', 'cast-single-source'];
 const PRINT = ['report-pagination', 'report-page-breaks', 'print-dialog-dropdowns'];
@@ -147,7 +148,7 @@ const RULES = [
   // new-cast naming modal (shared by stripboard / glide / sheet entity fields)
   { g: 'src/lib/newCastNaming.tsx', s: [...NEWCAST, ...CAST, ...GLIDE, ...SHEET] },
   // element / cast / crew / locations managers (buffered editor managers)
-  { g: 'src/components/ElementManager.tsx', s: [...ELEM, ...LINKED] },
+  { g: 'src/components/ElementManager.tsx', s: [...ELEM, ...LINKED, ...CREWLINKS] },
   { g: 'src/lib/elementDayStats.ts', s: ELEM },
   { g: 'src/lib/elementEvents.ts', s: ELEM },
   { g: 'src/lib/elementLinks.ts', s: LINKED },
@@ -159,7 +160,8 @@ const RULES = [
   { g: 'src/lib/legacyMigration.ts', s: [...CAST, ...IMPORT] },
   { g: 'src/components/CrewGlideTab.tsx', s: CREW },
   { g: 'src/components/CrewManager.tsx', s: CREW },
-  { g: 'src/lib/crew*.ts', s: CREW },
+  { g: 'src/components/crew/**', s: CREWLINKS },
+  { g: 'src/lib/crew*.ts', s: [...CREW, ...CREWLINKS] },
   { g: 'src/components/Locations*.tsx', s: LOC },
   { g: 'src/lib/location*', s: LOC },
   { g: 'src/lib/locations.ts', s: LOC },
@@ -170,7 +172,7 @@ const RULES = [
   { g: 'src/lib/managerTable.ts', s: MANAGERS },
   { g: 'src/components/SidebarNav.tsx', s: MANAGERS },
   // day manager (roadmap 98) + day times sheet (roadmap 101)
-  { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times', 'day-times-glide', 'call-sheet-day', 'report-grid-blocks'] },
+  { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times', 'day-times-glide', 'call-sheet-day', 'report-grid-blocks', ...CREWLINKS] },
   { g: 'src/components/ProductionTab.tsx', s: ['day-manager', ...MANAGERS] },
   { g: 'src/lib/dayView.ts', s: ['day-manager'] },
   { g: 'src/lib/callTimes.ts', s: ['day-manager', 'day-call-times', 'day-times-glide', 'report-day-calls'] },

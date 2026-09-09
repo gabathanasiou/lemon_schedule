@@ -492,8 +492,9 @@ export function contextualCollectionsFor(parentCollection?: ReportCollection): R
 export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement']);
 
 /** Collections with NO Lego scene-rule — the "Only … in this …" scope checkbox
- *  is hidden for them and ancestor scoping is a no-op. */
-export const NON_SCOPABLE_COLLECTIONS = new Set(['crew', 'crewOfDay', 'locations', 'locationTypes', 'departmentCallsOfDay', 'locationsOfDay']);
+ *  is hidden for them and ancestor scoping is a no-op. Crew is scopable since
+ *  roadmap 11 (position → categories: "only crew in this day"). */
+export const NON_SCOPABLE_COLLECTIONS = new Set(['crewOfDay', 'locations', 'locationTypes', 'departmentCallsOfDay', 'locationsOfDay']);
 
 /**
  * Menu options: BASE collections only — the contextual variants ("Scenes (of
@@ -523,14 +524,13 @@ export function parentNoun(parentCollection?: ReportCollection): string {
 /**
  * Display label for a nested block: surfaces Lego scoping so it's obvious the
  * repeater is scoped to its parent ("Scenes (of this day)", "Categories (of
- * this scene)", …). Already-contextual labels pass through unchanged. Crew
- * parents are exempt (roadmap 25 crew interim until item 11 makes crew
- * rule-bearing): crew has no scene data, so the "(of this crew member)"
- * decoration would be a lie — the label stays plain.
+ * this scene)", …). Already-contextual labels pass through unchanged. Crew is
+ * rule-bearing since roadmap 11 (position → categories), so crew parents are
+ * no longer exempt.
  */
 export function scopedCollectionLabel(effective: string, parentCollection?: ReportCollection, scoped = true): string {
   const base = COLLECTION_LABELS[effective] || effective;
-  if (!parentCollection || !scoped || parentCollection === 'crew' || base.includes('(of this')) return base;
+  if (!parentCollection || !scoped || base.includes('(of this')) return base;
   return `${base} (of this ${parentNoun(parentCollection)})`;
 }
 

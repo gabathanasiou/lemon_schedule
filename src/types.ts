@@ -390,6 +390,24 @@ export interface CrewRole {
   /** Department section (crew manager sidebar grouping) for custom roles;
    *  built-ins derive theirs from the crew catalog. Omitted/empty → "Other". */
   department?: string;
+  /** Element categories this position works with (roadmap 11) — feeds report
+   *  and rule scoping. `undefined` = the catalog default for a built-in role
+   *  (`DEFAULT_ROLE_CATEGORIES`); `[]` = explicitly none. Always resolve via
+   *  `resolveRoleCategories` — never read the raw field. */
+  categories?: string[];
+}
+
+/** Crew person ↔ target link (roadmap 11) — one-way, anchor = the crew person.
+ *  `elementKey` is `elementMatchId` space (cast = Board ID, others = name).
+ *  `category` may be the reserved `CREW_LINK_TARGET` ('crew') to link to
+ *  ANOTHER crew person instead of an element — `elementKey` is then the target
+ *  person id. A parallel model to `ElementLink` (whose sides are category+value
+ *  pairs); never overload `elementLinks`. Helpers in `lib/crewLinks.ts`. */
+export interface CrewLink {
+  id: string;
+  personId: string;
+  category: string;
+  elementKey: string;
 }
 
 export interface ProjectLocationNearby {
@@ -676,6 +694,8 @@ export interface Project {
   dayTypes?: DayTypeDef[];
   /** Element links (anchor-based, one-way) — see lib/elementLinks.ts. */
   elementLinks?: ElementLink[];
+  /** Crew person ↔ element links (roadmap 11) — see lib/crewLinks.ts. */
+  crewLinks?: CrewLink[];
   reportDesigns?: ReportDesign[];
   activeReportId?: string;
   reportTrash?: ReportTrashItem[];

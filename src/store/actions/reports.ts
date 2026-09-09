@@ -161,6 +161,16 @@ export function caseRenameCrewRole(state: State, action: Action, applyChange: Ap
   });
 }
 
+export function caseSetCrewRoleCategories(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'SET_CREW_ROLE_CATEGORIES') return state;
+  return applyChange({
+    ...state.present,
+    crewRoles: (state.present.crewRoles || []).map(r =>
+      r.key === action.payload.key ? { ...r, categories: action.payload.categories } : r
+    ),
+  });
+}
+
 export function caseDeleteCrewRole(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'DELETE_CREW_ROLE') return state;
   const crew = { ...(state.present.crew || {}) };

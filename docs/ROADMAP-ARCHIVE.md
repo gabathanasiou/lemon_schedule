@@ -18,6 +18,7 @@ cross-reference them; never renumber.
 | 7 | Bug: remove the Link block from the report designer | Block palette/registry `src/lib/reportBlocks.ts` |
 | 8 | Bug: Attribute-block links not clickable in print | `fieldValueNode` URL auto-detect (field blocks AND table cells) — `ReportBlockView.tsx` |
 | 9 | Map block location awareness | `pickLocation` seam (`src/lib/reportData.ts`); `LocationChoiceRow` (`blockControls.tsx`) |
+| 11 | Crew ↔ elements — position↔category + person↔element links | `CrewRole.categories` + `resolveRoleCategories` (`src/lib/crewCatalog.ts`); `project.crewLinks` + `src/lib/crewLinks.ts`; Crew Links modal + Element Manager Positions/Linked crew; report fields `linkedElements`/`linkedCrew`/`dayWarnings`; `e2e/crew-links.spec.ts` (supersedes #102) |
 | 12 | Report preview: truncate table rows | `TABLE_PREVIEW_LIMIT` (designer canvas only) — `ReportBlockView.tsx` |
 | 13 | Spacer block preview: label + line thickness options | `spacerThickness` honored by canvas/preview/print — `ReportBlockView.tsx`, `blockControls.tsx` |
 | 14 | Text block editor: don't scale font size | Editor pins 14px base; real `fontSize` only in preview/print — `blockControls.tsx` |

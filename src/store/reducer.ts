@@ -30,7 +30,7 @@ import {
 import {
   caseAddReportDesign, caseUpdateReportDesign, caseUpdateReportPage, caseRenameReportDesign,
   caseSetActiveReport, caseDeleteReportDesign, caseRestoreReportFromTrash,
-  caseSetProductionInfo, caseAddCrewRole, caseRenameCrewRole, caseDeleteCrewRole,
+  caseSetProductionInfo, caseAddCrewRole, caseRenameCrewRole, caseSetCrewRoleCategories, caseDeleteCrewRole,
   caseAddCrewPerson, caseUpdateCrewPerson, caseDeleteCrewPerson, caseReorderCrewPerson,
   caseRestoreCrewPersonFromTrash, caseSortCrewBy,
   caseAddLocationType, caseRenameLocationType, caseDeleteLocationType,
@@ -226,6 +226,7 @@ export type Action =
   | { type: 'SET_REPORT_TEXT_STYLES'; payload: ReportTextStyle[] }
   | { type: 'ADD_CREW_ROLE'; payload: { role: CrewRole } }
   | { type: 'RENAME_CREW_ROLE'; payload: { key: string; label: string } }
+  | { type: 'SET_CREW_ROLE_CATEGORIES'; payload: { key: string; categories?: string[] } }
   | { type: 'DELETE_CREW_ROLE'; payload: string }
   | { type: 'ADD_CREW_PERSON'; payload: { role: string; person: CrewPerson } }
   | { type: 'UPDATE_CREW_PERSON'; payload: { role: string; id: string; updates: Partial<CrewPerson>; toRole?: string } }
@@ -274,7 +275,7 @@ export const ACTION_TYPES = new Set<string>([
   'ADD_REPORT_DESIGN', 'UPDATE_REPORT_DESIGN', 'UPDATE_REPORT_PAGE',
   'RENAME_REPORT_DESIGN', 'SET_ACTIVE_REPORT', 'DELETE_REPORT_DESIGN',
   'RESTORE_REPORT_FROM_TRASH', 'SET_PRODUCTION_INFO', 'SET_REPORT_TEXT_STYLES',
-  'ADD_CREW_ROLE', 'RENAME_CREW_ROLE', 'DELETE_CREW_ROLE',
+  'ADD_CREW_ROLE', 'RENAME_CREW_ROLE', 'SET_CREW_ROLE_CATEGORIES', 'DELETE_CREW_ROLE',
   'ADD_CREW_PERSON', 'UPDATE_CREW_PERSON', 'DELETE_CREW_PERSON',
   'REORDER_CREW_PERSON', 'RESTORE_CREW_PERSON_FROM_TRASH', 'SORT_CREW_BY',
   'ADD_LOCATION_TYPE', 'RENAME_LOCATION_TYPE', 'DELETE_LOCATION_TYPE',
@@ -544,6 +545,7 @@ export function reducer(state: State, action: Action): State {
     case 'SET_REPORT_TEXT_STYLES': return caseSetReportTextStyles(state, action, applyChange);
     case 'ADD_CREW_ROLE': return caseAddCrewRole(state, action, applyChange);
     case 'RENAME_CREW_ROLE': return caseRenameCrewRole(state, action, applyChange);
+    case 'SET_CREW_ROLE_CATEGORIES': return caseSetCrewRoleCategories(state, action, applyChange);
     case 'DELETE_CREW_ROLE': return caseDeleteCrewRole(state, action, applyChange);
     case 'ADD_CREW_PERSON': return caseAddCrewPerson(state, action, applyChange);
     case 'UPDATE_CREW_PERSON': return caseUpdateCrewPerson(state, action, applyChange);

@@ -208,7 +208,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Full-page detail editor | SceneSheet pattern (light page, NOT a modal) | `SceneSheet.tsx` |
 | Multi-select lists | `Checklist` / `RadioList` / `Checkbox` | kit, `data-theme` aware |
 | Call-time / duration input | `TimeField` / `DurationField` | Shared expression parsing + touch keypad; never a raw time input |
-| Grouped selection (locations/crew) | `GroupedSelect` (`production/day/`) | Light kit `DropdownMenu` with group headers; `EntityItem.group` does the same in `DropdownPanel` |
+| Grouped single/multi-select dropdown (locations/crew/categories) | `GroupedSelect` (`production/day/`) | Renders through the shared `DropdownPanel` (group headers + single-highlight), NOT the kit `DropdownMenu` — the panel flips above the trigger when short on space (the kit menu's `bottom`-anchored flip lands off-screen inside a modal's transformed popper wrapper); light/dark themes |
 | Grouped item list (dark modals) | `ItemCard` + `ItemRow` (`src/components/cards/`) | Collapsible group card + interactive row — the element events manager's day-type sections and its Rules section (first migrations). §Item cards below |
 | Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), read-only cells gray + `cursor: default`, editable rows hover-tinted, centered headers, one commit per edit/paste/fill/clear. Header right-click can expose caller menu items via `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut. Day Manager Call Times + Crew; reuse for manager pages |
 

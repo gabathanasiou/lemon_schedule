@@ -60,9 +60,9 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     await expect(page.getByRole('menuitem').first()).toBeVisible();
     await page.keyboard.press('Escape');
 
-    // Multi-select stage dropdown (text trigger) toggles a stage off cast.
+    // Multi-select stage dropdown (GroupedSelect → shared DropdownPanel) toggles a stage off cast.
     await castRow.getByRole('button').first().click();
-    await page.getByRole('menuitem', { name: 'Pickup' }).click();
+    await page.locator('[data-ei]').filter({ hasText: /^Pickup$/ }).click();
     await expect.poll(() => page.evaluate(() => {
       const p = (window as any).__lemonSchedule.getProject();
       return (p.productionInfo?.callTimes?.categoryStages?.cast || []).includes('pickup');

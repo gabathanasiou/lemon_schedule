@@ -111,6 +111,43 @@ export const CREW_DEPARTMENTS: CrewDepartment[] = [
 
 export const DEFAULT_CREW_ROLES: CrewRole[] = CREW_DEPARTMENTS.flatMap(d => d.roles);
 
+/**
+ * Default position → element-category mapping (roadmap 11). A position maps to
+ * the element categories it works with, so crew becomes rule-bearing ("only
+ * crew in this day" / "scenes of this HMU artist" resolve through the elements
+ * they look after). Only roles with an obvious built-in category are listed;
+ * `CrewRole.categories` overrides (and `[]` clears) per project. Note there is
+ * no G&E category in the app, so grip/electric positions default to none —
+ * create a custom category and map it if needed.
+ */
+export const DEFAULT_ROLE_CATEGORIES: Record<string, string[]> = {
+  // Casting / talent
+  castingDirector: ['cast'],
+  // Art
+  productionDesigner: ['artDept'],
+  artDirector: ['artDept'],
+  setDecorator: ['set', 'artDept'],
+  // Wardrobe
+  costumeDesigner: ['wardrobe'],
+  // Makeup & Hair
+  makeup: ['makeup'],
+  hair: ['makeup'],
+  // Sound
+  soundMixer: ['sound'],
+  boomOp: ['sound'],
+  // Stunts & SFX
+  stunts: ['stunts'],
+  specialEffects: ['sfx'],
+  // Post
+  vfxSupervisor: ['vfx'],
+};
+
+/** Resolved element categories for a position — `undefined` = catalog default,
+ *  `[]` = explicitly none. The ONE read path for the mapping. */
+export function resolveRoleCategories(role: CrewRole): string[] {
+  return role.categories ?? DEFAULT_ROLE_CATEGORIES[role.key] ?? [];
+}
+
 export const CREW_BUILTIN_KEYS = new Set(DEFAULT_CREW_ROLES.map(r => r.key));
 
 /** The department section a built-in role belongs to, or undefined for customs. */

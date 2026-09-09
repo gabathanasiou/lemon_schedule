@@ -11,6 +11,8 @@ import {
   type GlideShellConfig,
 } from './glideShell';
 import { resolveRoleKey, parseCrewCSV, commitCrewImport, exportCrewCSV, type CrewCsvImportResult } from './crewGlide';
+import { resolveRoleCategories } from './crewCatalog';
+import { ELEMENT_CATEGORIES, getLabel } from './categories';
 
 /** Flattens the crew store into generic glide rows in FLAT display order
  *  (`project.crewOrder` — insertion order by default, manual sorts rewrite it).
@@ -22,17 +24,23 @@ function buildCrewRows(project: Project): GlideRow[] {
     for (const p of project.crew?.[r.key] || []) byId.set(p.id, { roleKey: r.key, person: p });
   }
   const order = project.crewOrder && project.crewOrder.length > 0 ? project.crewOrder : [...byId.keys()];
-  const labelByKey = new Map((project.crewRoles || []).map(r => [r.key, r.label]));
+  const roleByKey = new Map((project.crewRoles || []).map(r => [r.key, r]));
+  const catLabel = new Map<string, string>([
+    ...ELEMENT_CATEGORIES.map(c => [c.key, getLabel(c.key, c.label, project.categoryLabels)] as [string, string]),
+    ...(project.customCategories || []).map(c => [c.key, c.label] as [string, string]),
+  ]);
   const rows: GlideRow[] = [];
   for (const id of order) {
     const e = byId.get(id);
     if (!e) continue;
-    const label = labelByKey.get(e.roleKey) || e.roleKey;
+    const role = roleByKey.get(e.roleKey);
+    const label = role?.label || e.roleKey;
     rows.push({
       key: e.person.id,
       categoryKey: e.roleKey,
       categoryLabel: label,
       role: label,
+      categories: resolveRoleCategories(role || { key: e.roleKey, label }).map(k => catLabel.get(k) || k).join(', '),
       name: e.person.name,
       phone: e.person.phone || '',
       email: e.person.email || '',
@@ -59,11 +67,25 @@ function commitCrewEdit(dispatch: (action: any) => void, row: GlideRow, colKey: 
     }
     return;
   }
+  if (colKey === 'categories') {
+    const byLabel = new Map<string, string>();
+    for (const c of ELEMENT_CATEGORIES) byLabel.set(getLabel(c.key, c.label, project.categoryLabels).toLowerCase(), c.key);
+    for (const c of project.customCategories || []) byLabel.set(c.label.toLowerCase(), c.key);
+    const keys: string[] = [];
+    for (const part of newVal.split(',').map(x => x.trim()).filter(Boolean)) {
+      const key = byLabel.get(part.toLowerCase())
+        || (ELEMENT_CATEGORIES.some(c => c.key === part) || (project.customCategories || []).some(c => c.key === part) ? part : null);
+      if (key && !keys.includes(key)) keys.push(key);
+    }
+    dispatch({ type: 'SET_CREW_ROLE_CATEGORIES', payload: { key: row.categoryKey, categories: keys } });
+    return;
+  }
   dispatch({ type: 'UPDATE_CREW_PERSON', payload: { role: row.categoryKey, id: row.key, updates: { [colKey]: newVal } } });
 }
 
 /** Creates a new crew person from the add-row cell; role falls back to the first role. */
 function createCrewFromAddRow(dispatch: (action: any) => void, colKey: string, val: string, project: Project) {
+  if (colKey === 'categories') return;
   const categories = crewCategories(project);
   let roleKey: string | null = null;
   let newRoleLabel = '';
@@ -145,6 +167,7 @@ export const crewGlideConfig: GlideShellConfig = {
     { key: 'actions', label: '', width: 36 },
     { key: 'name', label: 'Name', width: 200 },
     { key: 'role', label: 'Role', width: 160, kind: 'category', clearable: false, placeholder: 'Role' },
+    { key: 'categories', label: 'Element Categories', width: 220, placeholder: 'Category, Category' },
     { key: 'phone', label: 'Phone', width: 130, align: 'right' },
     { key: 'email', label: 'Email', width: 220 },
   ],

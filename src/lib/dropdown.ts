@@ -48,7 +48,7 @@ export type CloseRef = { current: (() => void) | null };
 
 export const globalDropdownCloseRef: CloseRef = { current: null };
 
-export function useDropdown(open: boolean, ref: RefObject<HTMLDivElement>, onClose?: () => void, panelRef?: RefObject<HTMLDivElement>) {
+export function useDropdown(open: boolean, ref: RefObject<HTMLElement | null>, onClose?: () => void, panelRef?: RefObject<HTMLElement | null>) {
   const currentDocument = useCurrentDocument();
   useEffect(() => {
     if (open) {
