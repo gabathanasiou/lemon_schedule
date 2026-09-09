@@ -61,7 +61,7 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
         const Icon = iconFor(category);
         const entries = category === 'cast' ? day.cast : (day.elements[category] || []);
         const stageKeys = settings.categoryStages[category] || [];
-        const stageDefs = stageKeys.map(k => settings.stages.find(s => s.key === k)!).filter(Boolean);
+        const stageDefs = settings.stages.filter(s => stageKeys.includes(s.key));
         return (
           <div key={category} className="rounded-lg border border-zinc-200 overflow-hidden">
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">

@@ -78,7 +78,11 @@ export function computeElementCallChain(
   overrides?: ElementCallTimes,
 ): Record<string, ResolvedCall> {
   const byKey = new Map(stages.map(s => [s.key, s]));
-  const ordered = stageKeys.filter(k => byKey.has(k));
+  // Order follows the CONFIGURED stage order (Call Times settings), not the
+  // category's key list — reordering stages there reorders the chain (the last
+  // stage is the anchor).
+  const keySet = new Set(stageKeys);
+  const ordered = stages.filter(s => keySet.has(s.key)).map(s => s.key);
   const out: Record<string, ResolvedCall> = {};
   if (ordered.length === 0) return out;
 
