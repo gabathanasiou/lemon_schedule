@@ -105,6 +105,52 @@ const LocationChoiceRow: React.FC<{
   );
 };
 
+/** "Filter rows" (item 100) — keep items whose field value is in the list. */
+const ItemFilterControl: React.FC<{
+  block: ReportBlock;
+  fields: ReportFieldDef[];
+  disabled?: boolean;
+  onPatch: (patch: Partial<ReportBlock>) => void;
+}> = ({ block, fields, disabled, onPatch }) => {
+  const [open, setOpen] = useState(false);
+  const filter = block.itemFilter;
+  const fieldDef = filter ? fields.find(f => f.key === filter.field) : undefined;
+  return (
+    <div className="flex items-center gap-1.5">
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        theme="dark"
+        width="w-52"
+        trigger={
+          <button type="button" disabled={disabled} className={`w-32 ${TB_PICKER}`}>
+            <span className="truncate">{fieldDef?.label || 'Pick a field'}</span>
+            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          </button>
+        }
+      >
+        {fields.map(f => (
+          <DropdownItem key={f.key} selected={filter?.field === f.key} onClick={() => { onPatch({ itemFilter: { field: f.key, values: filter?.values || [] } }); setOpen(false); }}>
+            {f.label}
+          </DropdownItem>
+        ))}
+      </DropdownMenu>
+      <input
+        className={`${TB_INPUT} w-40`}
+        disabled={disabled || !filter?.field}
+        value={(filter?.values || []).join(', ')}
+        onChange={e => onPatch({ itemFilter: { field: filter!.field, values: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })}
+        placeholder="Values…"
+      />
+      {filter?.field && (
+        <button type="button" disabled={disabled} onClick={() => onPatch({ itemFilter: undefined })} className={TB_BTN_ICON} title="Clear filter">
+          <X className="w-3 h-3" />
+        </button>
+      )}
+    </div>
+  );
+};
+
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
   onDuplicate, onRemove, onMove, compact, trailing, relativeTarget, availableLocations,
@@ -888,11 +934,13 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       ) : null,
     );
     const skipEmpty = block.collection ? SKIP_EMPTY_TEST[block.collection] : undefined;
-    if (skipEmpty) {
+    if (block.collection) {
       push('Filters',
-        <ContentRow key="skipEmpty" label="Skip empty">
-          <Checkbox checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={on => onPatch({ skipEmptyCategories: on })} label={block.collection ? (SKIP_EMPTY_LABEL[block.collection] || 'Skip empty items') : 'Skip empty items'} />
-        </ContentRow>,
+        skipEmpty ? (
+          <ContentRow key="skipEmpty" label="Skip empty">
+            <Checkbox checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={on => onPatch({ skipEmptyCategories: on })} label={block.collection ? (SKIP_EMPTY_LABEL[block.collection] || 'Skip empty items') : 'Skip empty items'} />
+          </ContentRow>
+        ) : null,
         block.collection === 'categories' ? (
           <ContentRow key="exclude" label="Exclude categories">
             <ExcludeCategoriesMenu
@@ -904,6 +952,9 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             />
           </ContentRow>
         ) : null,
+        <ContentRow key="itemFilter" label="Filter rows">
+          <ItemFilterControl block={block} fields={fieldsForScope(allFields, block.collection)} disabled={disabled} onPatch={onPatch} />
+        </ContentRow>,
       );
     }
   }

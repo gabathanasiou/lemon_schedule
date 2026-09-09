@@ -355,6 +355,23 @@ export function reportItemLabel(collection: ReportCollection, it: ReportCollecti
 }
 
 /**
+ * Applies a block's `itemFilter` (item 100) — keep items whose `field` value is
+ * one of `values`. Runs beside `filterItemsByScope` in the repeat/table views so
+ * designer, preview and print agree. `resolveValue` is the field registry's
+ * value getter (kept out of this module to avoid a reportData→reportFields
+ * import cycle).
+ */
+export function applyItemFilter(
+  items: ReportCollectionItem[],
+  filter: ReportBlock['itemFilter'],
+  resolveValue: (item: ReportCollectionItem, field: string) => string,
+): ReportCollectionItem[] {
+  if (!filter || !filter.field || !filter.values || filter.values.length === 0) return items;
+  const set = new Set(filter.values);
+  return items.filter(it => set.has(resolveValue(it, filter.field)));
+}
+
+/**
  * Applies the print scope for `collection`/`category` — only when that scope
  * is explicitly present in the filter (missing scope = include everything).
  * Crew has no stable key — filtered by position in the resolved list.

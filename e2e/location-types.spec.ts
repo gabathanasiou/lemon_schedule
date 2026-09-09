@@ -150,6 +150,8 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
   await expect.poll(() => locCategory(page), { timeout: 5000 }).toBeUndefined();
 
   // ---- C. delete-type records the human label in trash ----
+  // Deselect the block first — its floating chrome can cover the top tabs.
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Production', exact: true }).click();
   await page.getByRole('button', { name: 'Locations', exact: true }).first().click();
   await page.locator('aside button', { hasText: 'Unit Base Site' }).getByTitle('Delete type').click();

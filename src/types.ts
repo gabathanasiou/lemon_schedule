@@ -510,6 +510,9 @@ export interface ReportBlock {
   excludedCategories?: string[]; // for 'categories' — categories to omit
   counterStart?: number;         // 0 or 1 — where the Document Counter starts
   scopedToParent?: boolean;      // nested repeats/tables: only items in the parent's context — on unless explicitly off
+  /** Filter rows to items whose `field` value is one of `values` (item 100).
+   *  Applies to repeats/tables in the shared resolution path. */
+  itemFilter?: { field: string; values: string[] };
   children?: ReportBlock[];
   gap?: number;                  // pt between repeated items
   // relative (next/previous-item context shifter — mini-repeater)

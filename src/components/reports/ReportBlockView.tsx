@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection } from '../../types';
-import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems, resolveRelativeItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
+import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, applyItemFilter, resolveCollectionItems, resolveRelativeItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
 import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor } from '../../lib/reportFields';
 import { getReportBlockBaseStyle, blockGapMargin } from './reportStyle';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
@@ -494,7 +494,8 @@ export const ReportChunkPage: React.FC<{
 
 const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, showKeys, showUnresolved, aux, ancestors, ribbonOverrides, itemRange, partChildren, previewLimit, parentItems, itemIndex }) => {
   const items = resolveCollectionItems(ctx, block.collection, block.category, item, parentCategory, block, ancestors) as ReportCollectionItem[];
-  const filtered = filterItemsByScope(items, block.collection, block.collection === 'elements' ? block.category : undefined, scopeFilter);
+  const scoped = filterItemsByScope(items, block.collection, block.collection === 'elements' ? block.category : undefined, scopeFilter);
+  const filtered = applyItemFilter(scoped, block.itemFilter, (it, field) => String(reportFieldValueByKey(ctx, fieldMap, field, it, aux) ?? ''));
   if (filtered.length === 0) {
     if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block, ctx.project));
     return null;
@@ -652,7 +653,8 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   const items = isPerItem
     ? (item ? [item] : [])
     : (resolveCollectionItems(ctx, itemCollection, itemCollection === 'elements' || itemCollection === 'elementsOfScene' ? block.category : undefined, item, parentCategory, block, ancestors) as ReportCollectionItem[]);
-  const filtered = filterItemsByScope(items, itemCollection, itemCollection === 'elements' ? block.category : undefined, scopeFilter);
+  const scoped = filterItemsByScope(items, itemCollection, itemCollection === 'elements' ? block.category : undefined, scopeFilter);
+  const filtered = applyItemFilter(scoped, block.itemFilter, (it, field) => String(reportFieldValueByKey(ctx, fieldMap, field, it, aux) ?? ''));
 
   const baseStyle = getReportBlockBaseStyle(block, ctx.project);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };
