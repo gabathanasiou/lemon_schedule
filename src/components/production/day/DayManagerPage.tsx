@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Copy, ExternalLink, Flag } from 'lucide-react';
+import { ArrowLeft, Clock, Copy, ExternalLink, Flag, Info } from 'lucide-react';
+import ProductionDetailsModal from './ProductionDetailsModal';
+import CallTimesSettingsModal from './CallTimesSettingsModal';
 import { useProject } from '../../../store';
 import { useDayViews, type DayView } from '../../../lib/dayView';
 import { patchDayMeta } from '../../../lib/dayMeta';
@@ -59,6 +61,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const [adderDate, setAdderDate] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [editCallSheet, setEditCallSheet] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [callTimesOpen, setCallTimesOpen] = useState(false);
 
   const selected = useMemo(() => {
     if (initialDayIndex != null && byIndex.has(initialDayIndex)) return byIndex.get(initialDayIndex)!;
@@ -199,6 +203,22 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
+              onClick={() => setDetailsOpen(true)}
+              title="Project-wide details, dates and key positions"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+            >
+              <Info className="w-3.5 h-3.5" /> Production Details
+            </button>
+            <button
+              type="button"
+              onClick={() => setCallTimesOpen(true)}
+              title="Call-stage settings, category defaults and usual crew"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+            >
+              <Clock className="w-3.5 h-3.5" /> Call Times
+            </button>
+            <button
+              type="button"
               onClick={() => setCopyOpen(true)}
               title="Copy from another day"
               className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
@@ -264,6 +284,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       )}
       {adderDate && <EventAdderModal date={adderDate} onClose={() => setAdderDate(null)} />}
       {copyOpen && <CopyDayModal target={selected} days={days} onClose={() => setCopyOpen(false)} />}
+      {detailsOpen && <ProductionDetailsModal onClose={() => setDetailsOpen(false)} />}
+      {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
     </div>
   );
 };

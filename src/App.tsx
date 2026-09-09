@@ -89,7 +89,7 @@ function AppContent() {
   const [reportsSubTab, setReportsSubTab] = useState<'doods' | 'elementBreakdown'>('doods');
   const [calendarSubTab, setCalendarSubTab] = useState<'calendar' | 'dayTypes'>('calendar');
   const [reportsCategory, setReportsCategory] = useState('cast');
-  const [prodSubTab, setProdSubTab] = useState<ProductionSubTab>('details');
+  const [prodSubTab, setProdSubTab] = useState<ProductionSubTab>('days');
   const [prodCrewRole, setProdCrewRole] = useState<string | null>(null);
   const [prodLocationType, setProdLocationType] = useState<string | null>(null);
   const [dayManagerTarget, setDayManagerTarget] = useState<number | null>(null);
@@ -289,7 +289,7 @@ function AppContent() {
         const nextTab = ['doods', 'elementBreakdown'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setReportsSubTab(nextTab as any);
       } else if (parentId === 'production' && prodSubTab === subTabId) {
-        const nextTab = ['details', 'days', 'callTimes', 'crew'].find(t => t !== subTabId && !newSet.has(t));
+        const nextTab = ['days', 'crew', 'crewGlide', 'locations'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setProdSubTab(nextTab as any);
       } else if (parentId === 'calendar' && calendarSubTab === subTabId) {
         const nextTab = ['calendar', 'dayTypes'].find(t => t !== subTabId && !newSet.has(t));
@@ -863,11 +863,6 @@ function AppContent() {
         </SubTabPopoutFrame>
       )}
 
-      {poppedOutSubTabs.production?.has('details') && popoutSubWindowsRef.current.get('sub_production_details') && (
-        <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Project Details`} win={popoutSubWindowsRef.current.get('sub_production_details')!} onClose={() => closeSubPopout('production', 'details')} tabName="Production" subTabId="details" tabLabel="Project Details" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_production_details']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_production_details: el }))}>
-          <ProductionTab subTab="details" onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} />
-        </SubTabPopoutFrame>
-      )}
       {poppedOutSubTabs.production?.has('crew') && popoutSubWindowsRef.current.get('sub_production_crew') && (
         <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Crew`} win={popoutSubWindowsRef.current.get('sub_production_crew')!} onClose={() => closeSubPopout('production', 'crew')} tabName="Production" subTabId="crew" tabLabel="Crew" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_production_crew']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_production_crew: el }))}>
           <ProductionTab subTab="crew" onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} headerTarget={subHeaderTargets['sub_production_crew']} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} />

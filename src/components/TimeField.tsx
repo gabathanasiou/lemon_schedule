@@ -24,6 +24,8 @@ export interface TimeFieldProps {
   /** Show a reset-to-auto affordance when an override is stored. */
   onReset?: () => void;
   autoFocus?: boolean;
+  /** Dark chrome (the modal surfaces). Default light (the Day Manager page). */
+  theme?: 'light' | 'dark';
 }
 
 const KEY = 'flex items-center justify-center rounded-md text-base font-semibold transition-all cursor-pointer active:scale-90 h-11 min-w-[44px] select-none';
@@ -40,8 +42,10 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   className = '',
   onReset,
   autoFocus,
+  theme = 'light',
 }) => {
   const isTouch = useTouchMode();
+  const dark = theme === 'dark';
   const portalTarget = usePortalTarget();
   const currentDocument = useCurrentDocument();
   const currentWindow = useCurrentWindow();
@@ -112,7 +116,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
       aria-label="Reset to calculated"
       title="Reset to calculated"
       onClick={onReset}
-      className="p-1 rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
+      className={`p-1 rounded transition-colors ${dark ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'}`}
     >
       <RotateCcw className="w-3 h-3" />
     </button>
@@ -121,7 +125,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   const overrideDot = hasOverride ? <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Overridden" /> : null;
 
   if (readOnly) {
-    return <span className={`inline-flex items-center gap-1 text-xs text-zinc-800 tabular-nums ${className}`}>{display || '—'}</span>;
+    return <span className={`inline-flex items-center gap-1 text-xs tabular-nums ${dark ? 'text-zinc-200' : 'text-zinc-800'} ${className}`}>{display || '—'}</span>;
   }
 
   if (!isTouch) {
@@ -150,7 +154,9 @@ export const TimeField: React.FC<TimeFieldProps> = ({
             cancelRef.current = false;
             setFocused(false);
           }}
-          className="w-full min-w-[3.25rem] px-1.5 py-0.5 rounded bg-transparent text-xs text-zinc-800 tabular-nums text-center outline-none cursor-text transition-colors hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 focus:bg-white focus:ring-2 focus:ring-blue-400"
+          className={`w-full min-w-[3.25rem] px-1.5 py-0.5 rounded bg-transparent text-xs tabular-nums text-center outline-none cursor-text transition-colors ${dark
+            ? 'text-zinc-100 hover:bg-zinc-800 hover:ring-1 hover:ring-zinc-700 focus:bg-zinc-800 focus:ring-2 focus:ring-zinc-600'
+            : 'text-zinc-800 hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 focus:bg-white focus:ring-2 focus:ring-blue-400'}`}
         />
         {overrideDot}
         {resetBtn}
@@ -164,7 +170,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
         type="button"
         data-timefield
         onClick={openKeypad}
-        className="flex-1 min-w-0 flex items-center justify-center gap-1 px-2 py-1.5 rounded border border-zinc-300 bg-white text-xs text-zinc-800 tabular-nums hover:bg-zinc-50"
+        className={`flex-1 min-w-0 flex items-center justify-center gap-1 px-2 py-1.5 rounded border text-xs tabular-nums transition-colors ${dark ? 'bg-zinc-950 border-zinc-700 text-zinc-100 hover:bg-zinc-900' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50'}`}
       >
         <span className="truncate">{display || <span className="text-zinc-400">{placeholder}</span>}</span>
         {overrideDot}
