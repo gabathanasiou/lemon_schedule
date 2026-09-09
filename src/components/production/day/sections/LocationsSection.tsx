@@ -43,35 +43,38 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-500 w-28 shrink-0">Master location</span>
-        <GroupedSelect
-          className="flex-1 min-w-0"
-          items={items}
-          mode="single"
-          selectedIds={master ? [master.id] : []}
-          disabled={readOnly}
-          placeholder="No master location"
-          onChange={ids => patchMeta({ locationId: ids[0] })}
-        />
-        {!readOnly && (
-          <button type="button" onClick={() => setPicking(true)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 shrink-0">
-            <Plus className="w-3.5 h-3.5" /> New
-          </button>
-        )}
-      </div>
-
-      <div className="flex items-start gap-2">
-        <span className="text-xs text-zinc-500 w-28 shrink-0 pt-1">Key locations</span>
-        <GroupedSelect
-          className="flex-1 min-w-0"
-          items={items}
-          mode="multi"
-          selectedIds={day.meta.locationIds || []}
-          disabled={readOnly}
-          placeholder="Add key locations…"
-          onChange={ids => patchMeta({ locationIds: ids.length ? ids : undefined })}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Master location</div>
+          <div className="flex items-center gap-1.5">
+            <GroupedSelect
+              className="flex-1 min-w-0"
+              items={items}
+              mode="single"
+              selectedIds={master ? [master.id] : []}
+              disabled={readOnly}
+              placeholder="No master location"
+              onChange={ids => patchMeta({ locationId: ids[0] })}
+            />
+            {!readOnly && (
+              <button type="button" onClick={() => setPicking(true)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 shrink-0">
+                <Plus className="w-3.5 h-3.5" /> New
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Key locations</div>
+          <GroupedSelect
+            className="w-full"
+            items={items}
+            mode="multi"
+            selectedIds={day.meta.locationIds || []}
+            disabled={readOnly}
+            placeholder="Add key locations…"
+            onChange={ids => patchMeta({ locationIds: ids.length ? ids : undefined })}
+          />
+        </div>
       </div>
 
       {(master || day.keyLocations.length > 0) && (
