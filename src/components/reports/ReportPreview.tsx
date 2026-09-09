@@ -1,5 +1,5 @@
 import React from 'react';
-import { ReportDesign } from '../../types';
+import { ReportBlock, ReportDesign } from '../../types';
 import { ReportCtx, ReportScopeFilter } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
 import { ReportChunkPage } from './ReportBlockView';
@@ -22,9 +22,11 @@ interface ReportPreviewProps {
   /** Inline pane mode (Day Manager live preview): light background, no exit
    *  chrome — the host owns the surrounding layout. */
   embedded?: boolean;
+  /** Per-day call-sheet zone content (item 10) — overrides the template zone. */
+  callSheetBlocks?: ReportBlock[];
 }
 
-const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, scopeFilter, onExit, embedded = false }) => {
+const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, scopeFilter, onExit, embedded = false, callSheetBlocks }) => {
   const pages = React.useMemo(() => paginateBlocks(design.blocks || []), [design.blocks]);
   const metrics = REPORT_PAGE_METRICS[design.page];
   const measureRef = React.useRef<HTMLDivElement>(null);
@@ -39,6 +41,7 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
     ctx,
     fieldMap,
     scopeFilter,
+    callSheetBlocks,
     previewLimit: true,
   });
 
@@ -76,6 +79,7 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
                   headerBlocks={design.header}
                   footerBlocks={design.footer}
                   previewLimit
+                  callSheetBlocks={callSheetBlocks}
                 />
               </div>
             ))
@@ -86,7 +90,7 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
             </div>
           )}
       </div>
-      {!measured && <ReportMeasureContainer ref={measureRef} pages={pages} headerBlocks={design.header} footerBlocks={design.footer} headerSkipFirst={design.headerSkipFirst} footerSkipFirst={design.footerSkipFirst} page={design.page} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} previewLimit />}
+      {!measured && <ReportMeasureContainer ref={measureRef} pages={pages} headerBlocks={design.header} footerBlocks={design.footer} headerSkipFirst={design.headerSkipFirst} footerSkipFirst={design.footerSkipFirst} page={design.page} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} previewLimit callSheetBlocks={callSheetBlocks} />}
     </div>
   );
 };

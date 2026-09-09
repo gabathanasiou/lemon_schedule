@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ReportDesign } from '../../types';
+import { ReportBlock, ReportDesign } from '../../types';
 import { useProject } from '../../store';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap } from '../../lib/reportFields';
@@ -18,6 +18,8 @@ export interface DayReportPreviewProps {
   /** Section index of the production day (the reports' `days` item key). */
   sectionIndex: number;
   embedded?: boolean;
+  /** Per-day call-sheet zone content (item 10) — the day's stored blocks. */
+  callSheetBlocks?: ReportBlock[];
   onExit: () => void;
 }
 
@@ -25,7 +27,7 @@ export function dayScopeFilter(sectionIndex: number): ReportScopeFilter {
   return { scopes: [{ collection: 'days', include: [sectionIndex] }] };
 }
 
-const DayReportPreview: React.FC<DayReportPreviewProps> = ({ design, sectionIndex, embedded, onExit }) => {
+const DayReportPreview: React.FC<DayReportPreviewProps> = ({ design, sectionIndex, embedded, callSheetBlocks, onExit }) => {
   const { state } = useProject();
   const project = state.present;
   const ctx = useReportCtx();
@@ -59,6 +61,7 @@ const DayReportPreview: React.FC<DayReportPreviewProps> = ({ design, sectionInde
       ctx={ctx}
       fieldMap={fieldMap}
       scopeFilter={scopeFilter}
+      callSheetBlocks={callSheetBlocks}
       onExit={onExit}
       embedded={embedded}
     />

@@ -45,6 +45,7 @@ interface PaginatorParams {
   scopeFilter?: ReportScopeFilter;
   ribbonOverrides?: Record<string, RibbonPrintOptions>;
   previewLimit?: boolean;
+  callSheetBlocks?: ReportBlock[];
   onReady?: () => void;
 }
 
@@ -478,8 +479,9 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
   scopeFilter?: ReportScopeFilter;
   ribbonOverrides?: Record<string, RibbonPrintOptions>;
   previewLimit?: boolean;
+  callSheetBlocks?: ReportBlock[];
 }>((props, ref) => {
-  const { pages, headerBlocks, footerBlocks, headerSkipFirst, footerSkipFirst, page, ctx, fieldMap, scopeFilter, ribbonOverrides, previewLimit } = props;
+  const { pages, headerBlocks, footerBlocks, headerSkipFirst, footerSkipFirst, page, ctx, fieldMap, scopeFilter, ribbonOverrides, previewLimit, callSheetBlocks } = props;
   const metrics = REPORT_PAGE_METRICS[page];
   return (
     <div ref={ref} aria-hidden data-rm-container="true" style={{ position: 'absolute', left: -99999, top: 0, width: metrics.contentWidth, visibility: 'hidden', pointerEvents: 'none' }}>
@@ -489,7 +491,7 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
             <div className="rm-header-zone" style={{ marginBottom: '8pt' }}>
               {headerBlocks.map((b, i) => (
                 <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id} style={{ marginTop: blockGapMargin(b, i === 0) }}>
-                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
+                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length, callSheetBlocks }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
                 </div>
               ))}
             </div>
@@ -497,7 +499,7 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
           <div className="rm-body">
             {items.map((it, k) => (
               <div key={it.id} className="rm-block" data-rm-kind={it.type === 'repeat' || it.type === 'table' || it.type === 'ribbon' ? it.type : 'block'} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0} style={{ marginTop: blockGapMargin(it, k === 0) }}>
-                <ReportBlockView block={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
+                <ReportBlockView block={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length, callSheetBlocks }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
               </div>
             ))}
           </div>
@@ -505,7 +507,7 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
             <div className="rm-footer-zone" style={{ paddingTop: "8pt" }}>
               {footerBlocks.map((b, i) => (
                 <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id} style={{ marginTop: blockGapMargin(b, i === 0) }}>
-                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
+                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length, callSheetBlocks }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
                 </div>
               ))}
             </div>
@@ -535,6 +537,7 @@ export function useReportPaginator({
   scopeFilter,
   ribbonOverrides,
   previewLimit,
+  callSheetBlocks,
   onReady,
 }: PaginatorParams): { chunks: PageChunk[] | null; measured: boolean } {
   const metrics = REPORT_PAGE_METRICS[page];
@@ -542,7 +545,7 @@ export function useReportPaginator({
   const [measured, setMeasured] = useState(false);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
-  const sig = JSON.stringify([pages, ctx, fieldMap, scopeFilter, ribbonOverrides, headerSkipFirst, footerSkipFirst, previewLimit, page, metrics.contentHeight]);
+  const sig = JSON.stringify([pages, ctx, fieldMap, scopeFilter, ribbonOverrides, headerSkipFirst, footerSkipFirst, previewLimit, callSheetBlocks, page, metrics.contentHeight]);
   const lastSigRef = useRef<string | null>(null);
   const lastChunksRef = useRef<PageChunk[] | null>(null);
 

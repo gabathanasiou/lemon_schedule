@@ -296,24 +296,23 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         );
       }
       case 'callSheetEdit': {
-        // Future Call Sheet Designer: this is the per-day editable region of a
-        // call-sheet template. In the reports designer it's a locked zone —
-        // the designer only accepts drops into repeat/table containers, so no
-        // children can be added here. Children render if the block already has
-        // them (forward-compat for the callsheet designer).
-        const children = block.children || [];
+        // The per-day editable region of a call-sheet template. A host scoped
+        // to one day supplies the day's stored blocks via `aux.callSheetBlocks`
+        // (item 10); otherwise the template children render. The dashed border
+        // is DESIGNER-ONLY (`hint`) — print/preview must look like real paper.
+        const children = aux?.callSheetBlocks ?? block.children ?? [];
         if (children.length === 0) {
           if (hint) {
             return (
               <div style={{ border: '1px dashed #a1a1aa', borderRadius: 6, padding: 10, textAlign: 'center', fontSize: 10, color: '#8f8f8f', fontStyle: 'italic' }}>
-                Call Sheet Edit Zone — per-day content lives here (editable in the Call Sheet Designer)
+                Call Sheet Edit Zone — per-day content lives here (edit in Production → Days)
               </div>
             );
           }
           return null;
         }
         return (
-          <div style={{ border: '1px dashed #a1a1aa', borderRadius: 6, padding: 8 }}>
+          <div style={hint ? { border: '1px dashed #a1a1aa', borderRadius: 6, padding: 8 } : undefined}>
             {children.map(cb => (
               <ReportBlockView
                 key={cb.id}
@@ -448,8 +447,10 @@ export const ReportChunkPage: React.FC<{
   footerBlocks?: ReportBlock[];
   previewLimit?: boolean;
   ribbonOverrides?: Record<string, RibbonPrintOptions>;
-}> = ({ chunk, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1, headerBlocks, footerBlocks, previewLimit, ribbonOverrides }) => {
-  const pageAux: FieldAux = { pageIndex, pageCount };
+  /** Per-day call-sheet zone content (item 10). */
+  callSheetBlocks?: ReportBlock[];
+}> = ({ chunk, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1, headerBlocks, footerBlocks, previewLimit, ribbonOverrides, callSheetBlocks }) => {
+  const pageAux: FieldAux = { pageIndex, pageCount, callSheetBlocks };
   return (
     <div className="report-page-body" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {chunk.header && headerBlocks && headerBlocks.length > 0 && (

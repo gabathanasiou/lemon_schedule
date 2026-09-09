@@ -3,7 +3,7 @@ import { useProject } from '../store';
 import { generateUUID, formatDateShort, DATE_FORMAT_OPTIONS } from '../lib/utils';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { getBrowserTimeZone, COMMON_TIMEZONES } from '../lib/timezones';
-import { CrewPerson } from '../types';
+import { CrewPerson, ReportBlock, ReportDesign } from '../types';
 import PageToolbar from './PageToolbar';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -71,12 +71,11 @@ interface ProductionTabProps {
   dayTarget?: number | null;
   onDayTargetSeen?: () => void;
   onOpenScene?: (sceneId: string) => void;
-  onPrintCallSheet?: (day: DayView) => void;
+  onPrintCallSheet?: (day: DayView, design: ReportDesign, zoneBlocks?: ReportBlock[]) => void;
   onPopOutDay?: (day: DayView) => void;
-  onOpenCallSheet?: (day: DayView) => void;
 }
 
-export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, onOpenScene, onPrintCallSheet, onPopOutDay, onOpenCallSheet }: ProductionTabProps) {
+export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, onOpenScene, onPrintCallSheet, onPopOutDay }: ProductionTabProps) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const dialog = useDialog();
@@ -311,7 +310,6 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
           initialDayIndex={dayTarget}
           onTargetSeen={onDayTargetSeen}
           onOpenScene={onOpenScene}
-          onOpenCallSheet={onOpenCallSheet}
           onPrintCallSheet={onPrintCallSheet}
           onPopOutDay={onPopOutDay}
         />

@@ -5,7 +5,7 @@ import { useCurrentWindow } from '../../lib/popoutTarget';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap } from '../../lib/reportFields';
 import { prepareSunWeatherForCtx } from '../../lib/reportWeather';
-import { ReportDesign, ReportBlock } from '../../types';
+import { ReportDesign, ReportBlock, ReportCollection } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
@@ -33,22 +33,36 @@ function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBloc
   return makeReportBlock((p.type || 'text') as ReportBlock['type']);
 }
 
+/** Zone mode (item 10): edit ONE `callSheetEdit` zone's blocks for a single
+ *  production day. The component edits only `zone.blocks` (never the design)
+ *  and skips the design header/footer chrome. */
+export interface ReportDesignerZone {
+  designId: string;
+  blocks: ReportBlock[];
+  onChange: (blocks: ReportBlock[]) => void;
+  /** Palette field scope when nothing is selected (the zone lives in a `days`
+   *  repeat, so its content is day-scoped). */
+  scope?: ReportCollection;
+}
+
 interface ReportDesignerProps {
   headerTarget?: HTMLElement | null;
   onPrint?: (design: ReportDesign) => void;
+  zone?: ReportDesignerZone;
 }
 
-export default function ReportDesigner({ headerTarget, onPrint }: ReportDesignerProps) {
+export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDesignerProps) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const ctx = useReportCtx();
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
   const currentWin = useCurrentWindow();
   const [viewMode, setViewMode, viewWidth] = useViewMode();
+  const zoneMode = !!zone;
 
-  const activeDesign: ReportDesign | undefined = project.reportDesigns?.find(d => d.id === project.activeReportId) || project.reportDesigns?.[0];
+  const activeDesign: ReportDesign | undefined = project.reportDesigns?.find(d => d.id === (zone?.designId || project.activeReportId)) || project.reportDesigns?.[0];
 
-  const [blocks, setBlocks] = useState<ReportBlock[]>(() => activeDesign?.blocks || []);
+  const [blocks, setBlocks] = useState<ReportBlock[]>(() => (zone?.blocks ? JSON.parse(JSON.stringify(zone.blocks)) : activeDesign?.blocks || []));
   const [headerBlocks, setHeaderBlocks] = useState<ReportBlock[]>(() => activeDesign?.header || []);
   const [footerBlocks, setFooterBlocks] = useState<ReportBlock[]>(() => activeDesign?.footer || []);
   const [skipFirstHeader, setSkipFirstHeader] = useState(() => !!activeDesign?.headerSkipFirst);
@@ -93,6 +107,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   }, [ctx, designId]);
 
   useEffect(() => {
+    if (zoneMode) return;
     setBlocks(activeDesign?.blocks ? JSON.parse(JSON.stringify(activeDesign.blocks)) : []);
     setHeaderBlocks(activeDesign?.header ? JSON.parse(JSON.stringify(activeDesign.header)) : []);
     setFooterBlocks(activeDesign?.footer ? JSON.parse(JSON.stringify(activeDesign.footer)) : []);
@@ -104,7 +119,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   }, [activeDesign?.id]);
 
   useEffect(() => {
-    if (!activeDesign) return;
+    if (zoneMode || !activeDesign) return;
     const fresh = activeDesign.blocks || [];
     const freshHeader = activeDesign.header || [];
     const freshFooter = activeDesign.footer || [];
@@ -147,6 +162,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
     zone === 'header' ? headerRef.current : zone === 'footer' ? footerRef.current : blocksRef.current;
 
   const commitAll = () => {
+    if (zoneMode) { zone!.onChange(blocksRef.current); return; }
     if (!activeDesign) return;
     dispatch({
       type: 'UPDATE_REPORT_DESIGN',
@@ -188,8 +204,10 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const selParentCollection = selId ? parentCollectionOf(allBlocks, selId) : undefined;
   const selParentCategory = selId ? parentCategoryOf(allBlocks, selId) : undefined;
   const insertScope = useMemo(
-    () => (selBlock && (selBlock.type === 'repeat' || selBlock.type === 'table') ? selBlock.collection || null : selParentCollection || null),
-    [selBlock, selParentCollection],
+    () => (selBlock && (selBlock.type === 'repeat' || selBlock.type === 'table')
+      ? selBlock.collection || null
+      : selParentCollection || (zoneMode ? zone!.scope || null : null)),
+    [selBlock, selParentCollection, zoneMode, zone?.scope],
   );
   const insertCategory = useMemo(
     () => (selBlock && (selBlock.type === 'repeat' || selBlock.type === 'table')
@@ -415,7 +433,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
 
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 select-none min-h-0 min-w-0">
-      {headerTarget ? createPortal(headerContent, headerTarget) : <header className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{headerContent}</header>}
+      {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{headerContent}</header>)}
 
       {preview ? (
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} onExit={() => setPreview(false)} />
@@ -453,7 +471,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               readOnly={readOnly}
               showKeys={viewKeys}
               project={project}
-              parentCollection={selParentCollection}
+              parentCollection={zoneMode ? zone!.scope : selParentCollection}
               parentCategory={selParentCategory}
               onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
               viewWidth={viewWidth}

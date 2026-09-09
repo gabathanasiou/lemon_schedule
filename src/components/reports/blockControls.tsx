@@ -1023,6 +1023,16 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
   }
 
+  if (block.type === 'callSheetEdit') {
+    push(null,
+      <ContentRow key="zoneHint">
+        <span className="text-[11px] text-zinc-400 leading-relaxed">
+          Per-day content lives here. Edit the template below; each production day can override it in Production → Days → Call Sheet → Edit.
+        </span>
+      </ContentRow>,
+    );
+  }
+
   // "Show location" — a text/field/map block carrying a Location attribute
   // renders the item's FIRST location by default; when the item has several
   // (future: a day with multiple attached/derived locations), this row picks

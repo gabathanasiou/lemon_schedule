@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Project, ScheduleVersion, CalendarVersion, ReportDesign } from '../../types';
+import { Project, ScheduleVersion, CalendarVersion, ReportBlock, ReportDesign } from '../../types';
 import { buildReportCtx, ReportDaybreakData, ReportScopeFilter, ReportPrintOptions } from '../../lib/reportData';
 import { getReportFieldMap } from '../../lib/reportFields';
 import { ReportChunkPage } from './ReportBlockView';
@@ -16,10 +16,12 @@ interface ReportPrintProps {
   daybreak: ReportDaybreakData;
   scopeFilter?: ReportScopeFilter;
   printOptions?: ReportPrintOptions;
+  /** Per-day call-sheet zone content (item 10). */
+  callSheetBlocks?: ReportBlock[];
   onReady?: () => void;
 }
 
-const ReportPrint: React.FC<ReportPrintProps> = ({ project, version, calendarVersion, design, daybreak, scopeFilter, printOptions, onReady }) => {
+const ReportPrint: React.FC<ReportPrintProps> = ({ project, version, calendarVersion, design, daybreak, scopeFilter, printOptions, callSheetBlocks, onReady }) => {
   const ctx = useMemo(() => buildReportCtx(project, version, calendarVersion, daybreak), [project, version, calendarVersion, daybreak]);
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
   const page = printOptions?.page || design.page;
@@ -38,6 +40,7 @@ const ReportPrint: React.FC<ReportPrintProps> = ({ project, version, calendarVer
     fieldMap,
     scopeFilter,
     ribbonOverrides: printOptions?.ribbonOverrides,
+    callSheetBlocks,
     onReady,
   });
 
@@ -79,13 +82,13 @@ ${BASE_PRINT_RESET}
               <div key={pi} className="report-page" style={pi > 0 ? { pageBreakBefore: 'always', breakBefore: 'page' } : undefined}>
                 {chunk.body.length === 0
                   ? <div style={{ height: 1 }} aria-hidden />
-                  : <ReportChunkPage chunk={chunk} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} pageIndex={pi} pageCount={chunks.length} headerBlocks={design.header} footerBlocks={design.footer} ribbonOverrides={printOptions?.ribbonOverrides} />}
+                  : <ReportChunkPage chunk={chunk} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} pageIndex={pi} pageCount={chunks.length} headerBlocks={design.header} footerBlocks={design.footer} ribbonOverrides={printOptions?.ribbonOverrides} callSheetBlocks={callSheetBlocks} />}
               </div>
             ))}
           </div>
         ) : null}
       </div>
-      {!measured && <ReportMeasureContainer ref={measureRef} pages={pages} headerBlocks={design.header} footerBlocks={design.footer} headerSkipFirst={design.headerSkipFirst} footerSkipFirst={design.footerSkipFirst} page={page} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} ribbonOverrides={printOptions?.ribbonOverrides} previewLimit={false} />}
+      {!measured && <ReportMeasureContainer ref={measureRef} pages={pages} headerBlocks={design.header} footerBlocks={design.footer} headerSkipFirst={design.headerSkipFirst} footerSkipFirst={design.footerSkipFirst} page={page} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} ribbonOverrides={printOptions?.ribbonOverrides} previewLimit={false} callSheetBlocks={callSheetBlocks} />}
     </div>
   );
 };

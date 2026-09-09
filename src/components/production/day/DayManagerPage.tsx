@@ -16,7 +16,9 @@ import { DayEventsModal } from '../../calendar/DayEventsModal';
 import { EventAdderModal } from '../../calendar/EventAdderModal';
 import DayReportPreview from '../../reports/DayReportPreview';
 import CopyDayModal from './CopyDayModal';
-import type { DayMeta, ScheduleRow } from '../../../types';
+import CallSheetEditPage from './CallSheetEditPage';
+import { findCallSheetZone } from '../../../lib/reportBlocks';
+import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../types';
 
 const PREFS_KEY = 'lemon_schedule_day_manager';
 
@@ -44,16 +46,17 @@ export interface DayManagerPageProps {
   initialDayIndex?: number | null;
   onTargetSeen?: () => void;
   onOpenScene?: (sceneId: string) => void;
-  onOpenCallSheet?: (day: DayView) => void;
-  onPrintCallSheet?: (day: DayView) => void;
+  onPrintCallSheet?: (day: DayView, design: ReportDesign, zoneBlocks?: ReportBlock[]) => void;
   onPopOutDay?: (day: DayView) => void;
 }
+
+const templateZoneBlocks = (design: ReportDesign): ReportBlock[] =>
+  findCallSheetZone(design.blocks || [])?.children || [];
 
 const DayManagerPage: React.FC<DayManagerPageProps> = ({
   initialDayIndex,
   onTargetSeen,
   onOpenScene,
-  onOpenCallSheet,
   onPrintCallSheet,
   onPopOutDay,
 }) => {
@@ -68,6 +71,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const [dayMenuOpen, setDayMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [editCallSheet, setEditCallSheet] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const dayListRef = useRef<HTMLDivElement>(null);
 
@@ -136,15 +140,34 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       || designs[0];
   }, [project.reportDesigns, project.activeReportId, prefs.callSheetDesignId]);
 
+  const storedZone = callSheetDesign ? selected?.meta.callSheets?.[callSheetDesign.id] : undefined;
+  const hasZoneOverride = !!storedZone;
+  const zoneBlocks = useMemo(
+    () => (callSheetDesign ? (storedZone ?? templateZoneBlocks(callSheetDesign)) : []),
+    [callSheetDesign, storedZone],
+  );
+
+  const patchZone = useCallback((blocks: ReportBlock[]) => {
+    if (!callSheetDesign) return;
+    patchMeta({ callSheets: { ...(selected?.meta.callSheets || {}), [callSheetDesign.id]: blocks } });
+  }, [callSheetDesign, selected?.meta.callSheets, patchMeta]);
+
+  const resetZone = useCallback(() => {
+    if (!callSheetDesign) return;
+    const next = { ...(selected?.meta.callSheets || {}) };
+    delete next[callSheetDesign.id];
+    patchMeta({ callSheets: Object.keys(next).length ? next : undefined });
+  }, [callSheetDesign, selected?.meta.callSheets, patchMeta]);
+
   const actions: DaySectionActions = useMemo(() => ({
     openScene: onOpenScene,
     openEvents: date => setEventsDate(date),
     addEvents: date => setAdderDate(date),
-    openCallSheet: () => selected && onOpenCallSheet?.(selected),
-    printCallSheet: () => selected && onPrintCallSheet?.(selected),
+    openCallSheet: () => setEditCallSheet(true),
+    printCallSheet: () => selected && callSheetDesign && onPrintCallSheet?.(selected, callSheetDesign, hasZoneOverride ? zoneBlocks : undefined),
     callSheetDesignId: callSheetDesign?.id || '',
     selectCallSheetDesign: id => setPrefs(p => ({ ...p, callSheetDesignId: id })),
-  }), [onOpenScene, onOpenCallSheet, onPrintCallSheet, selected, callSheetDesign?.id, setPrefs]);
+  }), [onOpenScene, onPrintCallSheet, selected, callSheetDesign, setPrefs, hasZoneOverride, zoneBlocks]);
 
   const toggleSection = (id: string) => setPrefs(p => ({
     ...p,
@@ -174,6 +197,24 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   }
 
   const relevantRules = rulesRelevantToDay(project.rules || [], selected.date);
+
+  if (editCallSheet && callSheetDesign) {
+    return (
+      <CallSheetEditPage
+        day={selected}
+        design={callSheetDesign}
+        designs={project.reportDesigns || []}
+        zoneBlocks={zoneBlocks}
+        hasOverride={hasZoneOverride}
+        onChangeZone={patchZone}
+        onReset={resetZone}
+        onSelectDesign={id => setPrefs(p => ({ ...p, callSheetDesignId: id }))}
+        onPrint={() => onPrintCallSheet?.(selected, callSheetDesign, hasZoneOverride ? zoneBlocks : undefined)}
+        onBack={() => setEditCallSheet(false)}
+        readOnly={readOnly}
+      />
+    );
+  }
 
   const sidebar = prefs.sidebarOpen && (
     <aside className="w-52 shrink-0 border-r border-zinc-200 bg-zinc-50 flex flex-col overflow-hidden">
@@ -309,7 +350,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
               }
             >
               <DropdownItem icon={<Copy className="w-3.5 h-3.5" />} onClick={() => { setCopyOpen(true); setMoreOpen(false); }}>Copy from day…</DropdownItem>
-              <DropdownItem icon={<Printer className="w-3.5 h-3.5" />} onClick={() => { onPrintCallSheet?.(selected); setMoreOpen(false); }}>Print call sheet</DropdownItem>
+              <DropdownItem icon={<Printer className="w-3.5 h-3.5" />} onClick={() => { if (callSheetDesign) onPrintCallSheet?.(selected, callSheetDesign, hasZoneOverride ? zoneBlocks : undefined); setMoreOpen(false); }}>Print call sheet</DropdownItem>
               <DropdownItem icon={<ExternalLink className="w-3.5 h-3.5" />} onClick={() => { onPopOutDay?.(selected); setMoreOpen(false); }}>Pop out day</DropdownItem>
             </DropdownMenu>
           </div>
@@ -356,7 +397,13 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
               <button type="button" onClick={() => setPrefs(p => ({ ...p, previewOpen: false }))} className="text-[11px] text-zinc-500 hover:text-zinc-900">Hide</button>
             </div>
             {callSheetDesign ? (
-              <DayReportPreview design={callSheetDesign} sectionIndex={selected.sectionIndex} embedded onExit={() => {}} />
+              <DayReportPreview
+                design={callSheetDesign}
+                sectionIndex={selected.sectionIndex}
+                embedded
+                callSheetBlocks={selected.meta.callSheets?.[callSheetDesign.id]}
+                onExit={() => {}}
+              />
             ) : (
               <div className="flex-1 flex items-center justify-center p-4 text-xs text-zinc-400 text-center">No call-sheet design yet.</div>
             )}

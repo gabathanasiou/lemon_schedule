@@ -146,6 +146,56 @@ function zoneDropHandlers(
   };
 }
 
+/** Empty-container drop target shared by repeat/relative/callSheetEdit: click
+ *  adds a text block, dropping a palette item or an existing block inserts. */
+const EmptyDropZone: React.FC<{
+  blockId: string;
+  label: string;
+  pendingRef: React.MutableRefObject<{ id: string; pos: 'before' | 'after' } | null>;
+  onInsertInto: (id: string, payload: PaletteDropPayload) => void;
+  onMoveInto: (containerId: string, moveId: string) => void;
+  onDuplicateInto: (containerId: string, moveId: string) => void;
+  endDrag: () => void;
+}> = ({ blockId, label, pendingRef, onInsertInto, onMoveInto, onDuplicateInto, endDrag }) => (
+  <div
+    className="repeat-drop-empty"
+    style={{ minHeight: 56, border: '2px dashed #c4c4cc', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+    onClick={e => { e.stopPropagation(); onInsertInto(blockId, { kind: 'block', type: 'text' }); }}
+    onDragOver={e => {
+      if (!e.dataTransfer.types.includes(DROP_MIME)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.setAttribute('data-active', '1');
+      pendingRef.current = { id: blockId, pos: 'after' };
+    }}
+    onDragLeave={e => {
+      const cur = e.currentTarget;
+      if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
+      cur.removeAttribute('data-active');
+      pendingRef.current = null;
+    }}
+    onDrop={e => {
+      if (!e.dataTransfer.types.includes(DROP_MIME)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      let payload: PaletteDropPayload | null = null;
+      try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
+      if (payload) {
+        if (payload.moveId) {
+          if (payload.duplicate) onDuplicateInto(blockId, payload.moveId);
+          else onMoveInto(blockId, payload.moveId);
+        } else {
+          onInsertInto(blockId, payload);
+        }
+      }
+      endDrag();
+    }}
+  >
+    <Plus className="w-3.5 h-3.5 text-zinc-400" />
+    <span className="text-[10px] text-zinc-400 italic">{label}</span>
+  </div>
+);
+
 const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode }) => {
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
@@ -357,12 +407,14 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               />
             )}
 
-            {(b.type === 'repeat' || b.type === 'table' || b.type === 'relative') ? (
+            {(b.type === 'repeat' || b.type === 'table' || b.type === 'relative' || b.type === 'callSheetEdit') ? (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1">
                   {meta.icon}
-                  {b.type === 'relative'
-                    ? `Relative · ${b.relativeOffset ?? 1} ${(b.relativeOffset ?? 1) < 0 ? 'back' : 'ahead'} × ${Math.max(1, b.relativeCount ?? 1)}${relTarget ? ` — ${relTarget}` : ''}`
+                  {b.type === 'callSheetEdit'
+                    ? 'Call Sheet Edit Zone — per-day content'
+                    : b.type === 'relative'
+                    ? `Advance · ${b.relativeOffset ?? 1} ${(b.relativeOffset ?? 1) < 0 ? 'back' : 'ahead'} × ${Math.max(1, b.relativeCount ?? 1)}${relTarget ? ` — ${relTarget}` : ''}`
                     : b.type === 'table'
                       ? `Table: ${scopedCollectionLabel(tableItemCollection(b, parentCollection as ReportCollection | undefined), parentCollection as ReportCollection | undefined, b.scopedToParent !== false)}`
                       : `Repeat: ${scopedCollectionLabel(b.collection || 'scenes', parentCollection as ReportCollection | undefined, b.scopedToParent !== false)}`}
@@ -408,44 +460,20 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                       return renderBlocks(relChildren, depth + 1, parentCollection, childItem, parentCategory, undefined, childItem ? [childItem, ...(ancestors || [])] : undefined, relItems || [], 0);
                     })()}
                   </div>
-                ) : b.type === 'repeat' || b.type === 'relative' ? (
-                  <div
-                    className="repeat-drop-empty"
-                    style={{ minHeight: 56, border: '2px dashed #c4c4cc', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                    onClick={e => { e.stopPropagation(); onInsertInto(b.id, { kind: 'block', type: 'text' }); }}
-                    onDragOver={e => {
-                      if (!isDrag(e)) return;
-                      e.preventDefault();
-                      e.stopPropagation();
-                      e.currentTarget.setAttribute('data-active', '1');
-                      pendingRef.current = { id: b.id, pos: 'after' };
-                    }}
-                    onDragLeave={e => {
-                      const cur = e.currentTarget;
-                      if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
-                      cur.removeAttribute('data-active');
-                      pendingRef.current = null;
-                    }}
-                    onDrop={e => {
-                      if (!isDrag(e)) return;
-                      e.preventDefault();
-                      e.stopPropagation();
-                      let payload: PaletteDropPayload | null = null;
-                      try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
-                      if (payload) {
-                        if (payload.moveId) {
-                          if (payload.duplicate) onDuplicateInto(b.id, payload.moveId);
-                          else onMoveInto(b.id, payload.moveId);
-                        } else {
-                          onInsertInto(b.id, payload);
-                        }
-                      }
-                      endDrag();
-                    }}
-                  >
-                    <Plus className="w-3.5 h-3.5 text-zinc-400" />
-                    <span className="text-[10px] text-zinc-400 italic">Drop inside {b.type === 'relative' ? 'relative' : 'repeat'} (or click to add text)</span>
+                ) : b.type === 'callSheetEdit' && b.children && b.children.length > 0 ? (
+                  <div className="repeat-children" style={{ display: 'flex', flexDirection: 'column' }}>
+                    {renderBlocks(b.children, depth + 1, parentCollection, parentItem, parentCategory, undefined, ancestors)}
                   </div>
+                ) : b.type === 'repeat' || b.type === 'relative' || b.type === 'callSheetEdit' ? (
+                  <EmptyDropZone
+                    blockId={b.id}
+                    label={`Drop inside ${b.type === 'relative' ? 'relative' : b.type === 'callSheetEdit' ? 'call sheet edit zone' : 'repeat'} (or click to add text)`}
+                    pendingRef={pendingRef}
+                    onInsertInto={onInsertInto}
+                    onMoveInto={onMoveInto}
+                    onDuplicateInto={onDuplicateInto}
+                    endDrag={endDrag}
+                  />
                 ) : (
                   <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} />
                 )}

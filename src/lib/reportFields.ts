@@ -1,4 +1,4 @@
-import { Project, ReportCollection, RuleViolation } from '../types';
+import { Project, ReportBlock, ReportCollection, RuleViolation } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
@@ -55,6 +55,9 @@ export interface FieldAux {
   sceneScope?: Set<string> | null; // Lego ancestor intersection — smart fields resolve within it
   locationChoice?: string;         // block-level "Show location" pick: a location TYPE key
   dayDate?: string;                // nearest in-scope DAY's date (location rows inside a day repeat)
+  /** Per-day call-sheet content overriding every `callSheetEdit` zone in the
+   *  design (item 10) — the host supplies the selected day's stored blocks. */
+  callSheetBlocks?: ReportBlock[];
 }
 
 const s = (v: unknown): string => (v == null ? '' : String(v));

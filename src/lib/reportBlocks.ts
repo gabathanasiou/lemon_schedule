@@ -156,10 +156,29 @@ export function insertInto(blocks: ReportBlock[], id: string | null, b: ReportBl
   if (!id) return [...blocks, b];
   const f = findBlock(blocks, id);
   if (!f) return blocks;
-  if (f.block.type === 'repeat' || f.block.type === 'table' || f.block.type === 'relative') {
+  if (f.block.type === 'repeat' || f.block.type === 'table' || f.block.type === 'relative' || f.block.type === 'callSheetEdit') {
     return updateBlock(blocks, id, { children: [...(f.block.children || []), b] });
   }
   return insertSibling(blocks, f, b, f.index + 1);
+}
+
+/** The first `callSheetEdit` zone anywhere in the tree (the per-day editable
+ *  region of a call-sheet template — item 10). */
+export function findCallSheetZone(blocks: ReportBlock[]): ReportBlock | undefined {
+  for (const b of blocks) {
+    if (b.type === 'callSheetEdit') return b;
+    if (b.children?.length) {
+      const hit = findCallSheetZone(b.children);
+      if (hit) return hit;
+    }
+    if (b.type === 'columns' && b.cols) {
+      for (const c of b.cols) {
+        const hit = findCallSheetZone(c.blocks || []);
+        if (hit) return hit;
+      }
+    }
+  }
+  return undefined;
 }
 
 export function removeBlock(blocks: ReportBlock[], id: string): ReportBlock[] {
