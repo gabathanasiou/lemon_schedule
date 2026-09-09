@@ -150,7 +150,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
             cancelRef.current = false;
             setFocused(false);
           }}
-          className="w-full min-w-[3.25rem] px-1.5 py-0.5 rounded bg-transparent text-xs text-zinc-800 tabular-nums text-center outline-none hover:bg-zinc-100 focus:bg-white focus:ring-1 focus:ring-zinc-400"
+          className="w-full min-w-[3.25rem] px-1.5 py-0.5 rounded bg-transparent text-xs text-zinc-800 tabular-nums text-center outline-none cursor-text transition-colors hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 focus:bg-white focus:ring-2 focus:ring-blue-400"
         />
         {overrideDot}
         {resetBtn}
