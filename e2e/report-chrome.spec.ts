@@ -178,3 +178,25 @@ test('columns block: clicking a column shows the chrome; move left/right and del
     await expect(page.locator('.column-chrome')).toHaveCount(0);
   await expect(columnsBlock.locator('.columns-col')).toHaveCount(2);
 });
+
+// Palette UX: blocks are ALWAYS enabled. A block that doesn't fit the current
+// context explains where it can go (dialog) instead of being greyed out.
+test('palette blocks stay enabled; a disallowed drop explains where it can go', async ({ page }) => {
+  await openDesigner(page);
+
+  const palette = page.locator('aside').first();
+  const callTimes = palette.getByRole('button', { name: 'Call Times' });
+  await expect(callTimes).toBeEnabled();
+
+  const before = await page.evaluate(() => (window as any).__lemonSchedule.getProject().reportDesigns.find((d: any) => d.name === 'One-Liner')?.blocks?.length);
+
+  await callTimes.click();
+  await expect(page.getByText('Can’t drop that here')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText('only works inside a Repeat over Days', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'OK' }).click();
+  await expect(page.getByText('Can’t drop that here')).toHaveCount(0);
+
+  // Nothing was inserted.
+  const after = await page.evaluate(() => (window as any).__lemonSchedule.getProject().reportDesigns.find((d: any) => d.name === 'One-Liner')?.blocks?.length);
+  expect(after).toBe(before);
+});

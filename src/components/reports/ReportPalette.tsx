@@ -38,12 +38,11 @@ interface ReportPaletteProps {
   project: Project;
   insertScope: ReportCollection | null;
   insertCategory?: string;
-  insideColumns?: boolean;
   onInsert: (payload: PaletteDropPayload) => void;
   readOnly: boolean;
 }
 
-const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, insertCategory, insideColumns, onInsert, readOnly }) => {
+const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, insertCategory, onInsert, readOnly }) => {
   const [query, setQuery] = useState('');
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
   const fields = useMemo(() => fieldsForScope(allFields, insertScope, insertCategory), [allFields, insertScope, insertCategory]);
@@ -71,14 +70,6 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
     ? BLOCK_ITEMS.filter(i => i.label.toLowerCase().includes(q) || (i.type.type || '').toLowerCase().includes(q))
     : BLOCK_ITEMS;
 
-  const blockAvailable = (item: { type: PaletteDropPayload; label: string }) =>
-    !(item.type.type === 'columns' && insideColumns)
-    // The relative block needs a current item — only inside a repeat/relative
-    // context (roadmap 27).
-    && !(item.type.type === 'relative' && !insertScope)
-    // Day-scoped grids (items 111/112) only make sense inside a days repeat.
-    && !((item.type.type === 'callTimes' || item.type.type === 'crewTable') && insertScope !== 'days');
-
   const startDrag = (e: React.DragEvent, payload: PaletteDropPayload) => {
     e.dataTransfer.setData(DROP_MIME, JSON.stringify(payload));
     e.dataTransfer.effectAllowed = 'copy';
@@ -103,19 +94,18 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
     </button>
   );
 
-  const blockButton = (item: { type: PaletteDropPayload; label: string; icon: React.ReactNode }, unavailable = false) => (
+  // Blocks stay ENABLED in every context — the designer validates the drop and
+  // explains where the block can go when it doesn't fit here (blockAllowedIn).
+  const blockButton = (item: { type: PaletteDropPayload; label: string; icon: React.ReactNode }) => (
     <button
       key={item.label}
-      draggable={!readOnly && !unavailable}
-      onDragStart={unavailable ? undefined : (e => startDrag(e, item.type))}
-      onClick={unavailable ? undefined : (() => !readOnly && onInsert(item.type))}
-      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs transition-colors ${unavailable ? 'text-zinc-600 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 active:bg-zinc-800'}`}
+      draggable={!readOnly}
+      onDragStart={e => startDrag(e, item.type)}
+      onClick={() => !readOnly && onInsert(item.type)}
+      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs transition-colors text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 active:bg-zinc-800"
     >
       {item.icon}
       <span className="truncate">{item.label}</span>
-      {unavailable && (
-        <span className="ml-auto shrink-0 text-[9px] uppercase tracking-wider text-zinc-600">Not available here</span>
-      )}
     </button>
   );
 
@@ -155,7 +145,7 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
         <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-2">Blocks</div>
         {matchedBlocks.length > 0 ? (
           <div className="space-y-0.5">
-            {matchedBlocks.map(item => blockButton(item, !blockAvailable(item)))}
+            {matchedBlocks.map(item => blockButton(item))}
           </div>
         ) : (
           !noResults && <div className="px-1 text-[10px] text-zinc-600 italic">No blocks match.</div>

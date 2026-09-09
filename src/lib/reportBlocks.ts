@@ -661,6 +661,27 @@ export function insideColumnsBlock(blocks: ReportBlock[], id: string): boolean {
   return false;
 }
 
+/** Whether a block type can be placed in the given context. The palette keeps
+ *  EVERY block enabled — a disallowed drop/click explains where the block can
+ *  go (`blockPlacementHint`) instead of silently disabling the palette item. */
+export function blockAllowedIn(type: ReportBlock['type'], insertScope?: ReportCollection | null, insideColumns?: boolean): boolean {
+  // Columns can't nest inside a columns block's column.
+  if (type === 'columns' && insideColumns) return false;
+  // Advance needs a current item — only inside a repeat/relative context.
+  if (type === 'relative' && !insertScope) return false;
+  // Day-scoped grids (items 111/112) only make sense inside a days repeat.
+  if ((type === 'callTimes' || type === 'crewTable') && insertScope !== 'days') return false;
+  return true;
+}
+
+/** Where a disallowed block type is allowed (dialog message). */
+export function blockPlacementHint(type: ReportBlock['type']): string {
+  if (type === 'columns') return 'Columns can’t be nested inside another Columns block — drop it outside the columns.';
+  if (type === 'relative') return 'Advance needs a repeating block — put it inside a Repeat (or another Advance).';
+  if (type === 'callTimes' || type === 'crewTable') return 'This block only works inside a Repeat over Days.';
+  return 'This block isn’t allowed here.';
+}
+
 /**
  * Notion-style wrap: replaces `targetId` with a 2-column columns block
  * containing `[dropped, target]` (side 'left') or `[target, dropped]`

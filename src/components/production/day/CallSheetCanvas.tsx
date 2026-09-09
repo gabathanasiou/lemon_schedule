@@ -99,7 +99,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
   return (
     <SceneHighlightContext.Provider value={highlightScene}>
     <div className="flex-1 flex min-h-0 min-w-0 bg-zinc-950 text-zinc-300 select-none" data-call-sheet-canvas>
-      <ReportPalette project={project} insertScope="days" insideColumns={false} readOnly={!!readOnly} onInsert={payload => {
+      <ReportPalette project={project} insertScope="days" readOnly={!!readOnly} onInsert={payload => {
         const b = (payload as { field?: string }).field
           ? makeReportBlock('text', { text: `{{${(payload as { field?: string }).field}}}` })
           : makeReportBlock((payload.type || 'text') as ReportBlock['type']);

@@ -103,14 +103,19 @@ test.describe('Report grid blocks (items 111/112)', () => {
     const lead = await seedLeadCast(page);
     if (lead.name) await expect(page.getByText(lead.name, { exact: false }).first()).toBeVisible({ timeout: 8000 });
 
-    // Palette gating: at the top level (no day parent) both grid blocks are
-    // unavailable; the day-gated palette entries carry the "Not available here"
-    // marker. Selecting the days repeat makes them available.
+    // Palette UX: the day-gated grid blocks stay ENABLED. At the top level a
+    // click explains they only work inside a days repeat; selecting the days
+    // repeat lets the same click insert.
     const palette = page.locator('aside').first();
-    const callTimesBtn = palette.getByRole('button', { name: /Call Times/ }).first();
-    await expect(callTimesBtn).toContainText('Not available here');
+    const callTimesBtn = palette.getByRole('button', { name: 'Call Times', exact: true }).first();
+    await expect(callTimesBtn).toBeEnabled();
+    await callTimesBtn.click();
+    await expect(page.getByText('Can’t drop that here')).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: 'OK' }).click();
+    await expect(page.getByText('Can’t drop that here')).toHaveCount(0);
     await page.locator('[data-block-id="days"]').click();
-    await expect(callTimesBtn).not.toContainText('Not available here');
+    await palette.getByRole('button', { name: 'Call Times', exact: true }).first().click();
+    await expect(page.getByText('Can’t drop that here')).toHaveCount(0);
   });
 
   test('Call Sheet → Edit edits elementCalls live, one undo entry per op', async ({ page }) => {

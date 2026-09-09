@@ -11,7 +11,7 @@ import {
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock, listOwnerOf,
   insertColumnAt, removeColumnAt, moveColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
-  moveTableColumn, insertTableColumnAt, removeTableColumnAt,
+  moveTableColumn, insertTableColumnAt, removeTableColumnAt, blockAllowedIn, blockPlacementHint,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { useViewMode } from '../../lib/persist';
@@ -25,6 +25,7 @@ import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
 import { Printer, Eye, EyeOff, ChevronDown, Check } from 'lucide-react';
 import Button from '../Button';
+import { useDialog } from '../Dialog';
 
 function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
   // Palette attributes become text blocks with the {{field}} token embedded —
@@ -53,6 +54,7 @@ interface ReportDesignerProps {
 
 export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDesignerProps) {
   const { state, dispatch, readOnly } = useProject();
+  const dialog = useDialog();
   const project = state.present;
   const ctx = useReportCtx();
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
@@ -216,13 +218,27 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     [selBlock, selParentCategory],
   );
 
+  // Palette blocks are always enabled; a disallowed placement explains where
+  // the block CAN go instead of silently disabling the palette item.
+  const guardAllowed = (payload: PaletteDropPayload, scope: ReportCollection | null | undefined, insideColumns: boolean): boolean => {
+    const type: ReportBlock['type'] = payload.field ? 'text' : ((payload.type || 'text') as ReportBlock['type']);
+    if (blockAllowedIn(type, scope, insideColumns)) return true;
+    dialog.alert({ title: 'Can’t drop that here', message: blockPlacementHint(type) });
+    return false;
+  };
+  const guardInsert = (payload: PaletteDropPayload, scope: ReportCollection | null | undefined, insideColumns: boolean, apply: () => void) => {
+    if (guardAllowed(payload, scope, insideColumns)) apply();
+  };
+
   const insertPayload = (payload: PaletteDropPayload, id: string | null = selId) => {
-    const zone = zoneOf(id);
-    const list = listOfZone(zone);
-    const b = payloadToBlock(payload, insertScopeFor(list, id));
-    const next = id ? insertAfter(list, id, b) : [...list, b];
-    commit(next, zone);
-    setSelId(b.id);
+    guardInsert(payload, insertScope, id ? insideColumnsBlock(allBlocks, id) : false, () => {
+      const zone = zoneOf(id);
+      const list = listOfZone(zone);
+      const b = payloadToBlock(payload, insertScopeFor(list, id));
+      const next = id ? insertAfter(list, id, b) : [...list, b];
+      commit(next, zone);
+      setSelId(b.id);
+    });
   };
 
   const insertIntoSelected = () => {
@@ -235,9 +251,12 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   // column of the existing columns block receives the dropped block.
   const insertNewColumn = (columnsId: string, colIndex: number, payload: PaletteDropPayload) => {
     const zone = zoneOf(columnsId);
-    const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), columnsId));
-    commit(insertColumnAt(listOfZone(zone), columnsId, colIndex, b), zone);
-    setSelId(b.id);
+    const list = listOfZone(zone);
+    guardInsert(payload, insertScopeFor(list, columnsId), true, () => {
+      const b = payloadToBlock(payload, insertScopeFor(list, columnsId));
+      commit(insertColumnAt(list, columnsId, colIndex, b), zone);
+      setSelId(b.id);
+    });
   };
   const moveToNewColumn = (moveId: string, columnsId: string, colIndex: number) => {
     const zone = zoneOf(columnsId);
@@ -439,7 +458,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} onExit={() => setPreview(false)} />
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
-          <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} insideColumns={!!selId && insideColumnsBlock(allBlocks, selId)} onInsert={insertPayload} readOnly={readOnly} />
+          <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={readOnly} />
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
             <ReportToolbar
               block={selBlock}
@@ -504,9 +523,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                   setSelId(payload.moveId);
                   return;
                 }
-                const b = payloadToBlock(payload, null);
-                commit([...listOfZone(zone), b], zone);
-                setSelId(b.id);
+                guardInsert(payload, null, false, () => {
+                  const b = payloadToBlock(payload, null);
+                  commit([...listOfZone(zone), b], zone);
+                  setSelId(b.id);
+                });
               }}
               editorMode={editorMode}
               onMoveTableColumn={(tableId, from, to) => {
@@ -514,9 +535,9 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                 commit(moveTableColumn(listOfZone(zone), tableId, from, to), zone);
                 setSelCol(prev => (prev && prev.colsId === tableId ? { colsId: tableId, colIndex: to } : prev));
               }}
-              onInsertAfter={(id, payload) => { const zone = zoneOf(id); const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), id)); commit(id ? insertAfter(listOfZone(zone), id, b) : [...listOfZone(zone), b], zone); setSelId(b.id); }}
-              onInsertBefore={(id, payload) => { const zone = zoneOf(id); const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), id)); commit(id ? insertBefore(listOfZone(zone), id, b) : [b, ...listOfZone(zone)], zone); setSelId(b.id); }}
-              onInsertInto={(id, payload) => { const zone = zoneOf(id); const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), id)); commit(insertInto(listOfZone(zone), id, b), zone); setSelId(b.id); }}
+              onInsertAfter={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertAfter(list, id, b) : [...list, b], zone); setSelId(b.id); }); }}
+              onInsertBefore={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertBefore(list, id, b) : [b, ...list], zone); setSelId(b.id); }); }}
+              onInsertInto={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(insertInto(list, id, b), zone); setSelId(b.id); }); }}
               onMoveInto={(containerId, moveId) => {
                 const zone = zoneOf(containerId);
                 const srcZone = zoneOf(moveId);
@@ -577,6 +598,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                   }
                   return;
                 }
+                if (!payload.moveId && !guardAllowed(payload, insertScopeFor(list, targetId), true)) return;
                 const dropped = payload.moveId
                   ? findBlock(listOfZone(zoneOf(payload.moveId)), payload.moveId)?.block ?? null
                   : payloadToBlock(payload, insertScopeFor(list, targetId));
@@ -589,9 +611,12 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               }}
               onInsertIntoColumn={(columnsId, colIndex, payload) => {
                 const zone = zoneOf(columnsId);
-                const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), columnsId));
-                commit(appendToColumn(listOfZone(zone), columnsId, colIndex, b), zone);
-                setSelId(b.id);
+                const list = listOfZone(zone);
+                guardInsert(payload, insertScopeFor(list, columnsId), true, () => {
+                  const b = payloadToBlock(payload, insertScopeFor(list, columnsId));
+                  commit(appendToColumn(list, columnsId, colIndex, b), zone);
+                  setSelId(b.id);
+                });
               }}
               onMoveIntoColumn={(moveId, columnsId, colIndex) => {
                 const zone = zoneOf(columnsId);
