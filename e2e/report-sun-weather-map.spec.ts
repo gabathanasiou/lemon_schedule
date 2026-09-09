@@ -112,6 +112,13 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
       project.activeReportId = 'swm-test';
       project.productionInfo = { ...(project.productionInfo || {}), email: 'office@example.com', phone: '+44 20 7946 0000' };
       project.crew = { ...(project.crew || {}), productionCoordinator: [{ id: 'crew-pc', name: 'Jane Doe', phone: '+44 20 7946 1111', email: 'jane@example.com' }] };
+      // Item 98: day locations come from the Locations DB + daybreakMeta (the
+      // London stub is gone). Attach the London location as every day's master.
+      project.locations = [{ id: 'loc-london', name: '112 Maryland Street, London E15 1QD', type: 'set', address: '112 Maryland Street', place: '112 Maryland Street, London E15 1QD, United Kingdom', lat: 51.5074, lng: -0.1278 }];
+      for (const v of project.versions || []) {
+        const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned) || v.rows.find((r: any) => r.type === 'DAYBREAK');
+        if (gov) gov.daybreakMeta = { locationId: 'loc-london' };
+      }
       localStorage.setItem('lemon_schedule_project_v1_' + project.id, JSON.stringify(project));
       localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
     }, {

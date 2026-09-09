@@ -12,6 +12,7 @@
 import { Project, ScheduleVersion, CalendarVersion, ReportDesign } from '../types';
 import { ReportCtx, ReportDaybreakData, buildReportCtx, getReportLocation, pickLocation, designLocationsIn, type ReportLocationInfo } from './reportData';
 import { getBrowserTimeZone } from './timezones';
+import { partsFromPlace } from './locations';
 
 export interface ReportLocation {
   lat: number;
@@ -143,27 +144,6 @@ export function reportLocationLinkLabel(loc: ReportLocation): string {
   return reportLocationLabel(loc);
 }
 
-/** Best-effort split of a Nominatim display_name ("…, Westminster, London
- *  SW1A 2JR, United Kingdom") into street/city/postcode. Display-only —
- *  structured parts stored by the picker always win. */
-function partsFromPlace(place: string): Pick<ReportLocation, 'address' | 'city' | 'postcode'> {
-  const segs = place.split(',').map(s => s.trim()).filter(Boolean);
-  if (segs.length < 2) return {};
-  segs.pop(); // country
-  const cityPost = segs.pop() || '';
-  const m = cityPost.match(/\s*([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})$/);
-  const out: Pick<ReportLocation, 'address' | 'city' | 'postcode'> = {};
-  if (m) {
-    out.postcode = m[1];
-    out.city = cityPost.slice(0, cityPost.length - m[1].length).trim();
-  } else if (cityPost) {
-    out.city = cityPost;
-  }
-  const address = segs.join(', ');
-  if (address) out.address = address;
-  return out;
-}
-
 /** Universal https deep links — work in print/PDF (anchors survive the
  *  browser's "Save as PDF" path) and open the app or web page on any device. */
 export function reportLocationLink(kind: MapLinkKind, loc: ReportLocation): string {
@@ -267,22 +247,24 @@ export function reportWeatherDates(ctx: ReportCtx): string[] {
 export async function prepareSunWeatherForCtx(ctx: ReportCtx, design?: ReportDesign): Promise<void> {
   const dates = reportWeatherDates(ctx);
   if (dates.length === 0) return;
-  const seam = getReportLocation(ctx);
-  const hasSeam = !!(seam.place || seam.address) && (seam.lat !== 0 || seam.lng !== 0);
+  // Each day resolves its OWN master/DB-matched location (item 98 seam), plus
+  // every locations-DB entry the design references. Dedupe by coordinates.
+  const dayLocs = ctx.dayInfos.map(d => getReportLocation(ctx, d));
   const extra = design ? designLocationsIn(ctx, design) : [];
-  const batch = extra
-    .filter(l => l.lat != null && l.lng != null)
-    .map(l => ({
-      lat: l.lat as number,
-      lng: l.lng as number,
-      timezone: ctx.project.productionInfo?.timezone || seam.timezone,
-    }));
+  const seen = new Set<string>();
+  const locs = [...dayLocs, ...extra.map(l => ({ lat: l.lat ?? 0, lng: l.lng ?? 0, place: l.place, address: l.address, timezone: ctx.project.productionInfo?.timezone || getBrowserTimeZone() } as ReportLocation))]
+    .filter(l => (l.place || l.address) && (l.lat !== 0 || l.lng !== 0))
+    .filter(l => {
+      const key = `${l.lat},${l.lng}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   await Promise.all([
-    hasSeam ? fetchSunWeatherBatch(seam, dates) : Promise.resolve(),
-    ...batch.map(loc => fetchSunWeatherBatch(loc, dates)),
+    ...locs.map(loc => fetchSunWeatherBatch(loc, dates)),
     // Only reverse-geocode when the location has no place name yet (DB
     // entries carry their own address).
-    hasSeam && !seam.place ? reverseGeocodeAddress(seam.lat, seam.lng) : Promise.resolve(),
+    ...locs.filter(l => !l.place).map(l => reverseGeocodeAddress(l.lat, l.lng)),
   ]);
 }
 

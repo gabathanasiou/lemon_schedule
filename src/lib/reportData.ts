@@ -6,7 +6,7 @@ import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
 import { formatDateShort } from './utils';
 import { computeViolationIndex, violationTypeLabel } from './violations';
-import { typeLabelOf, resolvedLocationName } from './locations';
+import { typeLabelOf, resolvedLocationName, partsFromPlace } from './locations';
 import { getDayTypes, codeForType } from './dayTypes';
 import { getStatusesWithLists, isElementMarked } from './nonShootHelpers';
 import { getBrowserTimeZone } from './timezones';
@@ -30,14 +30,16 @@ export function getReportLocation(ctx: ReportCtx, item?: any): ReportLocation {
   const tz = ctx.project.productionInfo?.timezone || getBrowserTimeZone();
   const locs = ctx.project.locations || [];
   const toReport = (l: ProjectLocation): ReportLocation => {
-    const info = ctx.locationInfos.find(li => li.id === l.id);
+    const parsed = partsFromPlace(l.place || '');
     return {
       lat: Number(l.lat) || 0,
       lng: Number(l.lng) || 0,
       place: (l.place || resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng)) || undefined,
-      address: l.address,
+      address: l.address || parsed.address,
+      city: parsed.city,
+      postcode: parsed.postcode,
+      country: parsed.country,
       timezone: tz,
-      info,
       typeKey: l.type,
     };
   };

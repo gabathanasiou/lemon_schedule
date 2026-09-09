@@ -57,7 +57,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   expect(lastSectionDate).toBeTruthy();
 
   // ---- Day Breakdown sub-tab: built-ins with icons, fully locked (no actions) -----
-  await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Types', exact: true }).click();
   const sidebar = page.locator('aside');
   await expect(sidebar.getByText('Hold', { exact: true })).toBeVisible();
   await expect(sidebar.getByText('Travel', { exact: true })).toBeVisible();
@@ -141,7 +141,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   expect(withLists?.lists?.rehearsal?.cast?.length).toBe(1);
 
   // ---- Day Breakdown sub-tab: usage count + used-on list -------------------------
-  await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Types', exact: true }).click();
   const rehSide = sidebar.getByText('Rehearsal', { exact: true }).locator('..');
   await rehSide.click();
   await expect(rehSide).toContainText('1');
@@ -178,7 +178,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   // ---- Delete the custom type → in-use status falls back to no status ------
   await page.getByRole('banner').getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();
-  await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Types', exact: true }).click();
   const rehRow = sidebar.getByText('Rehearsal', { exact: true }).locator('..');
   await rehRow.locator('svg.lucide-trash-2').click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
@@ -211,7 +211,7 @@ test('day breakdown pane: date rows show event summaries + open the shared day m
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
   const member2 = await seedLeadCast(page);
   await page.getByRole('banner').getByRole('button', { name: 'Calendar', exact: true }).click();
-  await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Types', exact: true }).click();
 
   const sidebar = page.locator('aside');
   const workLabel = await page.evaluate(() => {

@@ -37,6 +37,29 @@ export function typeLabelOf(location: ProjectLocation, types: CrewRole[]): strin
   return types.find(t => t.key === location.type)?.label || location.type;
 }
 
+/** Best-effort split of a Nominatim display_name ("…, Westminster, London
+ *  SW1A 2JR, United Kingdom") into street/city/postcode. Display-only —
+ *  structured parts stored by the picker always win. Shared by the report
+ *  location seam and the map/link label helpers. */
+export function partsFromPlace(place: string): { address?: string; city?: string; postcode?: string; country?: string } {
+  const segs = place.split(',').map(s => s.trim()).filter(Boolean);
+  if (segs.length < 2) return {};
+  const country = segs.pop() || '';
+  const cityPost = segs.pop() || '';
+  const m = cityPost.match(/\s*([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})$/);
+  const out: { address?: string; city?: string; postcode?: string; country?: string } = {};
+  if (m) {
+    out.postcode = m[1];
+    out.city = cityPost.slice(0, cityPost.length - m[1].length).trim();
+  } else if (cityPost) {
+    out.city = cityPost;
+  }
+  const address = segs.join(', ');
+  if (address) out.address = address;
+  if (country) out.country = country;
+  return out;
+}
+
 /** A location's display identity: name, falling back to address → place → pin
  *  ("lat, lng"). Shared by the Locations Manager, the scene-sheet Location
  *  picker and the nearest-facility cells — never re-derived. */
