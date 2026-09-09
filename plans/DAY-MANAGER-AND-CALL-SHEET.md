@@ -1,6 +1,6 @@
 # Day Manager + Call Sheet Editor — Full Plan
 
-**Status:** item **98 shipped**; **99**, **100** + completion of **item 10** remaining.
+**Status:** items **98 shipped**, **99 core shipped** (settings/helper/sections/crew/`crewOfDay`+`dayNotes`; element/department/location collections + row clipboard remain); **100** + completion of **item 10** remaining.
 **Audience:** the implementing agent. This doc is deliberately exhaustive so you do **not**
 re-research. Line numbers were captured while planning (Sep 2026) — if a file has moved,
 search the quoted symbol names, not the numbers.
@@ -477,25 +477,32 @@ clipboard; `e2e/day-manager.spec.ts` + RULES entry.
 
 ### 5.2 Item 99 — Day call-times helper + crew + report collections
 
+**Shipped:** tasks 1, 2, 4 and the settings/sections host; task 5 partially (`crewOfDay` +
+`dayNotes` + stable `ReportCrewItem` keys). **Remaining:** task 3's row context menu /
+multi-select / copy-paste / fill-down; task 5's `elementCallsOfDay` / `departmentCallsOfDay` /
+`locationsOfDay`; task 6 docs beyond what landed.
+
 Tasks:
 1. `productionInfo.callTimes` settings (`CallStageDef[]` + per-category stage defaults) via
-   `SET_PRODUCTION_INFO`; `project.crewTemplate` (usual crew + department precall defaults)
-   via `UPDATE_PROJECT`. Host: Production → `Call Times` sub-tab (Stages / Category
-   defaults / Department precalls / Usual crew template sections).
+   `SET_PRODUCTION_INFO`; `project.crewTemplate` (usual crew + department precall defaults) via
+   `UPDATE_PROJECT`. Host: Production → `Call Times` sub-tab (Stages / Category defaults /
+   Department precalls / Usual crew template sections). **DONE.**
 2. `src/lib/callTimes.ts`: `parseTimeExpression`, stage chain computation, on-set anchor
    from the element's first scene `computedCallTime` (cast by ID, others by name), override
-   detection/reset.
+   detection/reset. **DONE** (`computeElementCallChain`).
 3. `CallTimesSection` (category sub-cards; Cast + Background Actors default; Add category
    via grouped picker; rows = element + `TimeField` cells + note; row context menu,
    multi-select, copy/paste/fill-down; "Calculated from Call Times settings" footer).
+   **Basic editing DONE; row clipboard/fill-down REMAINING.**
 4. Crew: `crewIds` attach (grouped by department), per-person `DayCrewCall` overrides,
-   `departmentPrecalls`; "Use usual crew" + copy-from-day integration.
+   `departmentPrecalls`; "Use usual crew" + copy-from-day integration. **DONE.**
 5. Report collections: `elementCallsOfDay`, `crewOfDay`, `departmentCallsOfDay`,
    `locationsOfDay` + `dayNotes` field; `ReportCrewItem` gains `roleKey` + `id` (stable
    keys); wire through the new-collection checklist (`reportData.ts` resolver, `reportBlocks.ts`
-   labels/order/contextual/identity, `reportFields.ts` scope mapping).
+   labels/order/contextual/identity, `reportFields.ts` scope mapping). **`crewOfDay` + `dayNotes`
+   DONE; the other three REMAIN.**
 6. Docs: AGENTS.md (call-times helper + collections), DESIGN-LANGUAGE (`TimeField`/
-   `DurationField` rows), `docs/REPORTS-DESIGNER.md` (new collections).
+   `DurationField` rows), `docs/REPORTS-DESIGNER.md` (new collections). **DONE for what shipped.**
 
 **Verify**: chain math (on-set → pickup), expression parsing/preview/reset, precalls,
 usual crew, copy-from-day; report tables print the right rows; `e2e/day-call-times.spec.ts`.

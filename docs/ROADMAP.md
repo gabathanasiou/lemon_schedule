@@ -2173,18 +2173,20 @@ weather prefetch). New shared primitives `TimeField`/`DurationField` + `GroupedS
 
 **Relations**: foundation for items 99/100/10. Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.1.
 
-## 99. Day call-times helper + crew + report collections (`[ ]`)
+## 99. Day call-times helper + crew + report collections (`[~]`)
 
 **Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.2 — read it first.**
 
-- Optional 1st-AD helper: on-set anchors to the element's first scene; configurable stages
-  (default Pickup → Arrive → HMUA → Costume → On Set) with default leads; expression boxes
-  (absolute, or `-1h` relative to the next stage); per-category defaults (Cast full chain,
-  Background Actors Arrive + On Set, any category addable).
-- Department precalls, per-person crew call overrides, usual crew template (Production →
-  Call Times), full-roster fallback.
-- New report collections `elementCallsOfDay`/`crewOfDay`/`departmentCallsOfDay`/
-  `locationsOfDay` + `dayNotes`; crew items gain stable keys.
+**Done so far**: `callTimes.ts` chain computation (configurable stages + per-category stage
+sets, absolute/relative overrides, on-set anchor); Production → **Call Times** settings
+(stages / category defaults / department precalls / usual crew); Day Manager **Call Times**
+section (per-category element rows + `TimeField` cells + reset) and **Crew** section
+(attach / per-person overrides / "Use usual crew"); report collection `crewOfDay` (resolved
+day crew + `crewCallTime`), `dayNotes` field, stable `ReportCrewItem` keys;
+`e2e/day-call-times.spec.ts`.
+
+**Remaining**: `CallTimesSection` row context menu / multi-select / copy-paste / fill-down;
+report collections `elementCallsOfDay` / `departmentCallsOfDay` / `locationsOfDay`.
 
 **Relations**: builds on item 98; item 10's crew/element tables depend on it; item 11
 (crew↔element categories) stays separate.
