@@ -161,6 +161,8 @@ const DAY_FIELDS: ReportFieldDef[] = [
   { key: 'dayCallTime', label: 'Call Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.callTime) },
   { key: 'dayEnd', label: 'End Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.endTime) },
   { key: 'dayNotes', label: 'Day Notes', group: 'Days', scope: 'days', defaultWidth: 26, get: (_c, it: ReportDayInfo) => s(it.note || '') },
+  { key: 'dayBreakList', label: 'Break List', group: 'Days', scope: 'days', defaultWidth: 24, get: (_c, it: ReportDayInfo) => (it.breaks || []).filter(b => b.include).map(b => `${b.label}${b.time ? ` ${b.time}` : ''}`).join(', ') },
+  { key: 'dayNoteList', label: 'Note List', group: 'Days', scope: 'days', defaultWidth: 24, get: (_c, it: ReportDayInfo) => (it.notes || []).filter(n => n.include).map(n => `${n.text}${n.time ? ` ${n.time}` : ''}`).join(', ') },
   { key: 'dayTotalPages', label: 'Total Pages', group: 'Days', scope: 'days', align: 'center', defaultWidth: 9, separator: true, get: (_c, it: ReportDayInfo) => formatPageCount(it.totalPages) },
   { key: 'daySceneCount', label: 'Scene Count', group: 'Days', scope: 'days', align: 'center', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.sceneCount) },
   { key: 'dayFirstScene', label: 'First Scene', group: 'Days', scope: 'days', align: 'center', defaultWidth: 8, separator: true, get: (_c, it: ReportDayInfo) => s(it.firstScene) },

@@ -35,6 +35,20 @@ export interface DayElementEntry {
   code: string;
 }
 
+export interface DayBreakEntry {
+  row: ComputedRow;
+  label: string;
+  duration: number;
+  time: string;
+}
+
+export interface DayNoteEntry {
+  row: ComputedRow;
+  text: string;
+  time: string;
+  color?: string;
+}
+
 export interface DayCrewEntry {
   person: CrewPerson;
   role: string;
@@ -65,6 +79,8 @@ export interface DayView {
   status?: string;
   event?: NonShootDate;
   scenes: DaySceneEntry[];
+  breaks: DayBreakEntry[];
+  notes: DayNoteEntry[];
   cast: DayElementEntry[];
   /** category key → elements appearing that day (cast excluded). */
   elements: Record<string, DayElementEntry[]>;
@@ -162,6 +178,18 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
         sceneEntries.push({ row: computed || (row as ComputedRow), scene, callTime: computed?.computedCallTime || '' });
       }
 
+      const breaks: DayBreakEntry[] = [];
+      const notes: DayNoteEntry[] = [];
+      for (const row of s.rows) {
+        const computed = computedById.get(row.id);
+        const time = computed?.computedCallTime || '';
+        if (row.type === 'BREAK') {
+          breaks.push({ row: computed || (row as ComputedRow), label: row.breakLabel || 'Break', duration: row.breakDuration || 0, time });
+        } else if (row.type === 'NOTE') {
+          notes.push({ row: computed || (row as ComputedRow), text: row.noteText || '', time, color: row.noteColor });
+        }
+      }
+
       const seen = new Map<string, DayElementEntry>();
       const cast: DayElementEntry[] = [];
       const elements: Record<string, DayElementEntry[]> = {};
@@ -226,6 +254,8 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
         status: event?.status,
         event,
         scenes: sceneEntries,
+        breaks,
+        notes,
         cast,
         elements,
         sceneLocations,

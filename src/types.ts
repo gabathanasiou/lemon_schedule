@@ -78,6 +78,9 @@ export interface DayMeta {
   elementCalls?: Record<string, Record<string, ElementCallTimes>>;
   /** Report design id → per-day callSheetEdit zone blocks (item 10). */
   callSheets?: Record<string, ReportBlock[]>;
+  /** Break/NOTE row ids ticked for call-sheet inclusion (default: all). */
+  includeBreaks?: string[];
+  includeNotes?: string[];
 }
 
 export interface ScheduleRow {

@@ -43,7 +43,14 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: DayDetailsSection,
     copyable: true,
     copyMode: 'replace',
-    extract: day => (day.meta.note ? { note: day.meta.note } : undefined),
+    extract: day => {
+      const patch = {
+        ...(day.meta.note ? { note: day.meta.note } : {}),
+        ...(day.meta.includeBreaks ? { includeBreaks: day.meta.includeBreaks } : {}),
+        ...(day.meta.includeNotes ? { includeNotes: day.meta.includeNotes } : {}),
+      };
+      return Object.keys(patch).length ? patch : undefined;
+    },
   },
   {
     id: 'locations',
@@ -56,10 +63,13 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: LocationsSection,
     copyable: true,
     copyMode: 'replace',
-    extract: day => ({
-      ...(day.meta.locationId ? { locationId: day.meta.locationId } : {}),
-      ...(day.meta.locationIds && day.meta.locationIds.length ? { locationIds: day.meta.locationIds } : {}),
-    }),
+    extract: day => {
+      const patch = {
+        ...(day.meta.locationId ? { locationId: day.meta.locationId } : {}),
+        ...(day.meta.locationIds && day.meta.locationIds.length ? { locationIds: day.meta.locationIds } : {}),
+      };
+      return Object.keys(patch).length ? patch : undefined;
+    },
   },
   {
     id: 'scenes',
@@ -103,10 +113,13 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: CrewSection,
     copyable: true,
     copyMode: 'replace',
-    extract: day => ({
-      ...(day.meta.crewIds && day.meta.crewIds.length ? { crewIds: day.meta.crewIds } : {}),
-      ...(day.meta.crewCalls && day.meta.crewCalls.length ? { crewCalls: day.meta.crewCalls } : {}),
-    }),
+    extract: day => {
+      const patch = {
+        ...(day.meta.crewIds && day.meta.crewIds.length ? { crewIds: day.meta.crewIds } : {}),
+        ...(day.meta.crewCalls && day.meta.crewCalls.length ? { crewCalls: day.meta.crewCalls } : {}),
+      };
+      return Object.keys(patch).length ? patch : undefined;
+    },
   },
   {
     id: 'events',

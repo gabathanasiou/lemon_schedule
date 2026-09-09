@@ -169,6 +169,9 @@ export interface ReportDayInfo {
   /** Day crew (crew person ids; empty = full roster / usual-crew template). */
   crewIds?: string[];
   crewCalls?: DayCrewCall[];
+  /** The day's breaks/notes with their call-sheet inclusion flag. */
+  breaks?: { label: string; time: string; include: boolean }[];
+  notes?: { text: string; time: string; include: boolean }[];
 }
 
 export interface ReportElementInfo {
@@ -516,6 +519,9 @@ export function buildReportCtx(
     });
   }
 
+  const computedByRowId = new Map<string, ComputedRow>();
+  for (const cr of computedRows) computedByRowId.set(cr.id, cr);
+
   // production days — base call = the daybreak ABOVE the section
   const dayInfos: ReportDayInfo[] = [];
   for (let i = 0; i < sections.length; i++) {
@@ -527,10 +533,19 @@ export function buildReportCtx(
       .filter(Boolean) as string[];
     const gov = sections[i - 1]?.daybreakRow;
     const sceneLocations: string[] = [];
+    const breaks: { label: string; time: string; include: boolean }[] = [];
+    const notes: { text: string; time: string; include: boolean }[] = [];
+    const includeBreaks = gov?.daybreakMeta?.includeBreaks;
+    const includeNotes = gov?.daybreakMeta?.includeNotes;
     for (const r of s.rows) {
-      if (r.type !== 'SCENE' || !r.sceneId) continue;
-      const loc = project.scenes.find(sc => sc.id === r.sceneId)?.location?.trim();
-      if (loc && !sceneLocations.includes(loc)) sceneLocations.push(loc);
+      if (r.type === 'BREAK') {
+        breaks.push({ label: r.breakLabel || 'Break', time: computedByRowId.get(r.id)?.computedCallTime || '', include: !includeBreaks || includeBreaks.includes(r.id) });
+      } else if (r.type === 'NOTE') {
+        notes.push({ text: r.noteText || '', time: computedByRowId.get(r.id)?.computedCallTime || '', include: !includeNotes || includeNotes.includes(r.id) });
+      } else if (r.type === 'SCENE' && r.sceneId) {
+        const loc = project.scenes.find(sc => sc.id === r.sceneId)?.location?.trim();
+        if (loc && !sceneLocations.includes(loc)) sceneLocations.push(loc);
+      }
     }
     dayInfos.push({
       section: s,
@@ -550,6 +565,8 @@ export function buildReportCtx(
       note: gov?.daybreakMeta?.note,
       crewIds: gov?.daybreakMeta?.crewIds,
       crewCalls: gov?.daybreakMeta?.crewCalls,
+      breaks,
+      notes,
     });
   }
 
@@ -662,9 +679,6 @@ export function buildReportCtx(
   };
 
   const { sectionViolations, sceneViolations, totalViolations } = computeViolationIndex(project, sections);
-
-  const computedByRowId = new Map<string, ComputedRow>();
-  for (const cr of computedRows) computedByRowId.set(cr.id, cr);
 
   return {
     project,

@@ -4,6 +4,7 @@ import type { DaySectionProps } from '../daySectionTypes';
 import { formatDateLong } from '../../../../lib/utils';
 import { getDayType } from '../../../../lib/dayTypes';
 import { resolvedLocationName } from '../../../../lib/locations';
+import BreaksNotesSection from './BreaksNotesSection';
 
 const FIELD = 'w-full px-2.5 py-2 bg-white border border-zinc-300 rounded text-xs text-zinc-800 placeholder:text-zinc-400 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400';
 
@@ -16,7 +17,7 @@ const Field: React.FC<{ label: string; span?: boolean; children: React.ReactNode
   </div>
 );
 
-const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, readOnly, project }) => {
+const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow, readOnly, project, dispatch, actions }) => {
   const [note, setNote] = useState(day.meta.note || '');
   useEffect(() => { setNote(day.meta.note || ''); }, [day.meta.note, day.sectionIndex]);
 
@@ -56,6 +57,11 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, readOnly
           className={`${FIELD} mt-1.5 resize-y`}
         />
       </label>
+
+      <div>
+        <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Breaks & notes on the call sheet</div>
+        <BreaksNotesSection day={day} patchMeta={patchMeta} patchRow={patchRow} readOnly={readOnly} project={project} dispatch={dispatch} actions={actions} />
+      </div>
     </div>
   );
 };
