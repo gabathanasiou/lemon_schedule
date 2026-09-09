@@ -26,6 +26,12 @@ export interface DaySectionDef {
   Component: React.ComponentType<DaySectionProps>;
   copyable: boolean;
   copyMode?: 'replace' | 'merge';
+  /** Full-width card (spans both Day Manager columns) vs the narrow 2-column
+   *  band. Wide = the data-dense grids/tables (scenes, call times, crew);
+   *  narrow = the short meta cards. The page lays the narrow sections out as
+   *  a two-column band: the FIRST narrow section on the left, the rest stacked
+   *  on the right (roadmap 105). */
+  wide?: boolean;
   /** The meta patch this section copies (Copy-from-day). Events are handled
    *  by the modal (date-keyed, merged into the calendar version). */
   extract?: (day: DayView) => Partial<DayMeta> | undefined;
@@ -71,6 +77,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     },
   },
   {
+    wide: true,
     id: 'scenes',
     title: 'Scenes',
     icon: <ScenesIcon className="w-3.5 h-3.5" />,
@@ -80,6 +87,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     isEmpty: day => day.scenes.length === 0,
   },
   {
+    wide: true,
     id: 'castElements',
     title: 'Cast & Elements',
     icon: <CastElementsIcon className="w-3.5 h-3.5" />,
@@ -92,6 +100,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     isEmpty: day => day.cast.length === 0 && Object.keys(day.elements).length === 0,
   },
   {
+    wide: true,
     id: 'callTimes',
     title: 'Call Times',
     icon: <CallTimesIcon className="w-3.5 h-3.5" />,
@@ -105,6 +114,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     extract: day => (day.meta.elementCalls && Object.keys(day.meta.elementCalls).length ? { elementCalls: day.meta.elementCalls } : undefined),
   },
   {
+    wide: true,
     id: 'crew',
     title: 'Crew',
     icon: <CrewIcon className="w-3.5 h-3.5" />,

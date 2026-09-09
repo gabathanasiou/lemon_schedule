@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Clock, Copy, ExternalLink, Flag, Info } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Clock, Copy, ExternalLink, Flag, Info } from 'lucide-react';
 import ProductionDetailsModal from './ProductionDetailsModal';
 import CallTimesSettingsModal from './CallTimesSettingsModal';
 import { useProject } from '../../../store';
@@ -146,8 +146,38 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
 
   if (!selected) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50 text-xs text-zinc-400">
-        No production days yet — add day breaks on the stripboard.
+      <div className="flex-1 flex overflow-hidden bg-gray-50" data-day-manager>
+        <div className="flex-1 flex flex-col items-center justify-center gap-5 p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center shadow-sm">
+            <CalendarDays className="w-6 h-6 text-zinc-300" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-zinc-700">No production days yet</p>
+            <p className="text-xs text-zinc-400 mt-1.5 max-w-sm leading-relaxed">
+              Days appear here once you split the stripboard with a day break — open the Schedule tab, add a
+              <span className="text-zinc-500"> Day Break</span> row, and drop scenes below it. Each break becomes a
+              shooting day you can manage here.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDetailsOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-200 bg-white text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 shadow-sm"
+            >
+              <Info className="w-3.5 h-3.5" /> Production Details
+            </button>
+            <button
+              type="button"
+              onClick={() => setCallTimesOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-200 bg-white text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 shadow-sm"
+            >
+              <Clock className="w-3.5 h-3.5" /> Call Times
+            </button>
+          </div>
+        </div>
+        {detailsOpen && <ProductionDetailsModal onClose={() => setDetailsOpen(false)} />}
+        {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
       </div>
     );
   }
@@ -173,6 +203,34 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       />
     );
   }
+
+  const renderSection = (def: (typeof DAY_SECTIONS)[number]) => {
+    const Section = def.Component;
+    const empty = def.isEmpty?.(selected) ?? false;
+    return (
+      <DaySectionCard
+        key={def.id}
+        data-section={def.id}
+        title={def.title}
+        icon={def.icon}
+        summary={def.summary(selected)}
+        collapsed={prefs.collapsed.includes(def.id)}
+        onToggle={() => toggleSection(def.id)}
+      >
+        {empty ? <p className="text-xs text-zinc-400">Nothing here yet.</p> : (
+          <Section
+            day={selected}
+            patchMeta={patchMeta}
+            patchRow={patchRow}
+            readOnly={readOnly}
+            project={project}
+            dispatch={dispatch}
+            actions={actions}
+          />
+        )}
+      </DaySectionCard>
+    );
+  };
 
   const editor = (
     <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
@@ -239,34 +297,24 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
         </div>
       </header>
 
-      <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50 p-4 space-y-3" data-day-sections>
-        {DAY_SECTIONS.map(def => {
-          const Section = def.Component;
-          const empty = def.isEmpty?.(selected) ?? false;
+      <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50 p-4" data-day-sections>
+        {/* Wide (data-dense) sections span both columns; the narrow meta
+            sections render as a two-column band underneath — the first narrow
+            card (Day Details) in the left column, the rest stacked right. */}
+        {DAY_SECTIONS.filter(d => d.wide).length > 0 && (
+          <div className="space-y-3">{DAY_SECTIONS.filter(d => d.wide).map(renderSection)}</div>
+        )}
+        {(() => {
+          const narrow = DAY_SECTIONS.filter(d => !d.wide);
+          if (narrow.length === 0) return null;
+          const [left, ...right] = narrow;
           return (
-            <DaySectionCard
-              key={def.id}
-              data-section={def.id}
-              title={def.title}
-              icon={def.icon}
-              summary={def.summary(selected)}
-              collapsed={prefs.collapsed.includes(def.id)}
-              onToggle={() => toggleSection(def.id)}
-            >
-              {empty ? <p className="text-xs text-zinc-400">Nothing here yet.</p> : (
-                <Section
-                  day={selected}
-                  patchMeta={patchMeta}
-                  patchRow={patchRow}
-                  readOnly={readOnly}
-                  project={project}
-                  dispatch={dispatch}
-                  actions={actions}
-                />
-              )}
-            </DaySectionCard>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+              <div className="min-w-0 space-y-3">{renderSection(left)}</div>
+              <div className="min-w-0 space-y-3">{right.map(renderSection)}</div>
+            </div>
           );
-        })}
+        })()}
       </div>
     </div>
   );
