@@ -33,6 +33,11 @@ export interface DayElementEntry {
   firstCallTime: string;
   /** The element's day-state code (SWF column): status/card code, else `W`. */
   code: string;
+  /** DOOD-style letter for THIS day relative to the schedule: S (first work
+   *  day), W (in the middle), F (last), or combos (SW / WF / SWF) — derived
+   *  from the element's scene-work span across the active stripboard. Empty
+   *  when the element doesn't work this day. */
+  dood: string;
 }
 
 export interface DayBreakEntry {
@@ -161,6 +166,36 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
     const customCategoryKeys = (project.customCategories || []).map(c => c.key);
     const categoryKeys = [...ELEMENT_CATEGORIES.map(c => c.key), ...customCategoryKeys].filter(k => k !== 'cast');
 
+    // Work-date span per element across the SCHEDULE (chronological sections)
+    // — drives the DOOD start/work/finish letter shown for a single day
+    // (roadmap 107). A date counts when the element appears in a scene that
+    // production day.
+    const elemWorkDates = new Map<string, string[]>();
+    for (const s of productionSections) {
+      const wDate = sectionDateMap.get(s.index);
+      if (!wDate) continue;
+      for (const row of s.rows) {
+        if (row.type !== 'SCENE' || !row.sceneId) continue;
+        const scene = project.scenes.find(sc => sc.id === row.sceneId);
+        if (!scene) continue;
+        for (const category of ['cast', ...categoryKeys]) {
+          for (const key of categoryKeysOf(scene, category)) {
+            const mk = `${category}\u0000${key}`;
+            const arr = elemWorkDates.get(mk);
+            if (arr) { if (arr[arr.length - 1] !== wDate) arr.push(wDate); }
+            else elemWorkDates.set(mk, [wDate]);
+          }
+        }
+      }
+    }
+    const doodFor = (date: string, dates?: string[]): string => {
+      if (!date || !dates || dates.length === 0) return '';
+      if (dates.length === 1) return date === dates[0] ? 'SWF' : '';
+      if (date === dates[0]) return 'SW';
+      if (date === dates[dates.length - 1]) return 'WF';
+      return dates.includes(date) ? 'W' : '';
+    };
+
     const out: DayView[] = [];
     for (const s of productionSections) {
       const date = sectionDateMap.get(s.index) || '';
@@ -207,6 +242,7 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
               firstScene: idx + 1,
               firstCallTime: entry.callTime,
               code: elementDayCode(project, event, category, key),
+              dood: doodFor(date, elemWorkDates.get(mapKey)),
             };
             seen.set(mapKey, item);
             if (category === 'cast') cast.push(item);

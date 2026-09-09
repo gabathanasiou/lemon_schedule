@@ -5,7 +5,6 @@ import type { DaySectionProps } from './daySectionTypes';
 import DayDetailsSection, { DayDetailsIcon } from './sections/DayDetailsSection';
 import LocationsSection, { LocationsIcon } from './sections/LocationsSection';
 import ScenesSection, { ScenesIcon } from './sections/ScenesSection';
-import CastElementsSection, { CastElementsIcon } from './sections/CastElementsSection';
 import CallTimesSection, { CallTimesIcon } from './sections/CallTimesSection';
 import CrewSection, { CrewIcon } from './sections/CrewSection';
 import EventsSection, { EventsIcon } from './sections/EventsSection';
@@ -85,19 +84,6 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: ScenesSection,
     copyable: false,
     isEmpty: day => day.scenes.length === 0,
-  },
-  {
-    wide: true,
-    id: 'castElements',
-    title: 'Cast & Elements',
-    icon: <CastElementsIcon className="w-3.5 h-3.5" />,
-    summary: day => {
-      const el = Object.values(day.elements).reduce((n, list) => n + list.length, 0);
-      return `${day.cast.length} cast · ${el} element${el !== 1 ? 's' : ''}`;
-    },
-    Component: CastElementsSection,
-    copyable: false,
-    isEmpty: day => day.cast.length === 0 && Object.keys(day.elements).length === 0,
   },
   {
     wide: true,
