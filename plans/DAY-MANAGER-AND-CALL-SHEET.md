@@ -555,13 +555,15 @@ text and free cells; `e2e/report-filters.spec.ts` + RULES. **Filter half verifie
 (`daybreakMeta.callSheets[designId]`) rendered via `aux.callSheetBlocks` threading; the
 **Call Sheet card is FIRST** in Production → Days; its full-surface **Call Sheet → Edit**
 mode is a **single-page WYSIWYG** (`CallSheetCanvas`) — the whole design on one white
-page filled with that day's real data (read-only) and only the zone editable (palette +
-block chrome), falling back to `ReportDesigner` `zone` mode for non-`days`-repeat shapes;
-custom-rows table mode (`block.custom`/`customRows`, inline RichTextEditor cells with
-`@` tokens in the designer, resolved HTML in preview/print, row-splitting via `.rm-row`
-classes); the Relative block relabeled **Advance** and the built-in Call Sheet template
-rebuilt (scenes / element calls / crew / department calls / locations tables, notes, the
-edit zone, and an Advance +1 block).
+page filled with that day's real data (read-only), with the zone slot hosting the REAL
+reports-designer canvas (`ReportDesignerCanvas` `bare` embed via `CallSheetZoneDesigner`,
+giving palette/canvas drag & drop, drop zones, floating block chrome, column ops and
+right-click menus over the day's zone list), falling back to `ReportDesigner` `zone`
+mode for non-`days`-repeat shapes; custom-rows table mode (`block.custom`/`customRows`,
+inline RichTextEditor cells with `@` tokens in the designer, resolved HTML in
+preview/print, row-splitting via `.rm-row` classes); the Relative block relabeled
+**Advance** and the built-in Call Sheet template rebuilt (scenes / element calls / crew /
+department calls / locations tables, notes, the edit zone, and an Advance +1 block).
 
 **Deviations:** the Relabel kept the block type name `relative` (only the label changed);
 the `callSheetEdit` zone is **LOCKED in the reports designer** (user decision — per-day
