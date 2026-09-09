@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
+import { LiveNumberInput } from './LiveNumberInput';
 import { SceneRibbonColumn, SCENE_RIBBON_DEFAULTS } from '../types';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 
@@ -88,10 +89,12 @@ export function RibbonEditor() {
                     <button onClick={() => moveColumn(col.key, -1)} disabled={idx === 0} className="p-0.5 text-zinc-400 hover:text-zinc-700 disabled:opacity-20">←</button>
                     <button onClick={() => moveColumn(col.key, 1)} disabled={idx === ribbon.length - 1} className="p-0.5 text-zinc-400 hover:text-zinc-700 disabled:opacity-20">→</button>
                   </div>
-                  <input
-                    type="number"
+                  <LiveNumberInput
                     value={col.width}
-                    onChange={e => setWidth(col.key, parseInt(e.target.value) || 30)}
+                    min={6}
+                    max={400}
+                    fallback={30}
+                    onCommit={v => setWidth(col.key, v)}
                     className="w-14 border border-zinc-200 rounded px-1.5 py-0.5 text-[10px] text-right"
                     title="Width (px)"
                   />

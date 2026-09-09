@@ -1,17 +1,20 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ContentRow, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE, buildLookupTokens, LookupTokenItem } from '../../lib/reportFields';
 import { useDaybreakSections } from '../../lib/useDaybreakSections';
-import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
+import { ELEMENT_CATEGORIES, getLabel, getFieldItems } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
+import { codeForType } from '../../lib/dayTypes';
 import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
 import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
 import RichTextEditor, { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import DropdownMenu, { ItemManagerDropdown } from '../DropdownMenu';
 import Button from '../Button';
+import { LiveNumberInput } from '../LiveNumberInput';
+import { GroupedSelect } from '../production/day/GroupedSelect';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
@@ -109,16 +112,61 @@ const LocationChoiceRow: React.FC<{
   );
 };
 
-/** "Filter rows" (item 100) — keep items whose field value is in the list. */
+/** Candidate values for a filter field, or null when the field has no finite
+ *  set (free-text). Discrete-valued fields and the flat scene/multi-value
+ *  fields get a multi-select of REAL values, so filtering is picking instead
+ *  of typing an exact comma string. */
+function filterValueOptions(project: Project, field: string): string[] | null {
+  if (field === 'intExt') return ['INT', 'EXT'];
+  if (field === 'dayNight') return ['DAY', 'NIGHT'];
+  if (field === 'dayTypeLabel') return (project.dayTypes || []).map(t => t.label);
+  if (field === 'dayTypeCode') return (project.dayTypes || []).map(t => codeForType(project.dayTypes, t.key));
+  if (field === 'locationType' || field === 'locationTypeLabel') return (project.locationTypes || []).map(t => t.label);
+  if (field === 'elementCategory') return [...ELEMENT_CATEGORIES.map(c => c.label), ...(project.customCategories || []).map(c => c.label || c.key)];
+  const isCustom = (project.customCategories || []).some(c => c.key === field);
+  const isSceneField = ['set', 'location', 'scriptDay', 'sequence', 'unit'].includes(field);
+  const isCategory = ELEMENT_CATEGORIES.some(c => c.key === field);
+  if (!isSceneField && !isCustom && !isCategory) return null;
+  const vals = new Set<string>();
+  for (const s of project.scenes || []) {
+    for (const it of getFieldItems(field, String((s as any)[field] ?? ''))) {
+      const v = it.trim();
+      if (v) vals.add(v);
+    }
+  }
+  return vals.size > 0 ? [...vals].sort((a, b) => a.localeCompare(b)) : null;
+}
+
+/** "Filter rows" (item 100) — keep items whose field value is in the list.
+ *  Fields with a finite value set (INT/EXT, DAY/NIGHT, sets, cast, …) use a
+ *  multi-select dropdown; free-text fields use a draft box that commits on
+ *  blur/Enter (CellInput semantics — committing per keystroke left one undo
+ *  entry per typed character). */
 const ItemFilterControl: React.FC<{
   block: ReportBlock;
+  project: Project;
   fields: ReportFieldDef[];
   disabled?: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
-}> = ({ block, fields, disabled, onPatch }) => {
+}> = ({ block, project, fields, disabled, onPatch }) => {
   const [open, setOpen] = useState(false);
   const filter = block.itemFilter;
   const fieldDef = filter ? fields.find(f => f.key === filter.field) : undefined;
+  const options = filter?.field ? filterValueOptions(project, filter.field) : null;
+  const valuesKey = (filter?.values || []).join(', ');
+  const [draft, setDraft] = useState(valuesKey);
+  const focused = useRef(false);
+  const canceling = useRef(false);
+  // External change (field pick, undo/redo, clear) syncs the draft; typing does not.
+  useEffect(() => { if (!focused.current) setDraft(valuesKey); }, [valuesKey]);
+
+  const commit = () => {
+    if (!filter?.field) return;
+    const values = draft.split(',').map(s => s.trim()).filter(Boolean);
+    if (values.join(',') === (filter.values || []).join(',')) return;
+    onPatch({ itemFilter: { field: filter.field, values } });
+  };
+
   return (
     <div className="flex items-center gap-1.5">
       <DropdownMenu
@@ -134,18 +182,41 @@ const ItemFilterControl: React.FC<{
         }
       >
         {fields.map(f => (
-          <DropdownItem key={f.key} selected={filter?.field === f.key} onClick={() => { onPatch({ itemFilter: { field: f.key, values: filter?.values || [] } }); setOpen(false); }}>
+          <DropdownItem key={f.key} selected={filter?.field === f.key} onClick={() => { onPatch({ itemFilter: { field: f.key, values: [] } }); setOpen(false); }}>
             {f.label}
           </DropdownItem>
         ))}
       </DropdownMenu>
-      <input
-        className={`${TB_INPUT} w-40`}
-        disabled={disabled || !filter?.field}
-        value={(filter?.values || []).join(', ')}
-        onChange={e => onPatch({ itemFilter: { field: filter!.field, values: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })}
-        placeholder="Values…"
-      />
+      {options && options.length > 0 ? (
+        <GroupedSelect
+          items={options.map(o => ({ id: o, name: o }))}
+          selectedIds={filter?.values || []}
+          onChange={ids => onPatch({ itemFilter: { field: filter!.field, values: ids } })}
+          mode="multi"
+          placeholder="Values…"
+          disabled={disabled}
+          theme="dark"
+          className="w-44"
+        />
+      ) : (
+        <input
+          className={`${TB_INPUT} w-40`}
+          disabled={disabled || !filter?.field}
+          value={draft}
+          onFocus={() => { focused.current = true; }}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={() => {
+            focused.current = false;
+            if (canceling.current) { canceling.current = false; setDraft(valuesKey); return; }
+            commit();
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+            else if (e.key === 'Escape') { canceling.current = true; e.currentTarget.blur(); }
+          }}
+          placeholder="Values…"
+        />
+      )}
       {filter?.field && (
         <button type="button" disabled={disabled} onClick={() => onPatch({ itemFilter: undefined })} className={TB_BTN_ICON} title="Clear filter">
           <X className="w-3 h-3" />
@@ -194,7 +265,7 @@ const GridCategoryMenu: React.FC<{
  *  number input + default (`block.gap ?? 8`, item 116). */
 const GapRow: React.FC<{ label?: string; value: number; disabled?: boolean; onPatch: (patch: Partial<ReportBlock>) => void }> = ({ label = 'Item gap (px)', value, disabled, onPatch }) => (
   <ContentRow label={label}>
-    <input type="number" min={0} max={60} disabled={disabled} className={TB_INPUT + ' w-14'} value={value} onChange={e => onPatch({ gap: Number(e.target.value) || 0 })} />
+    <LiveNumberInput value={value} min={0} max={60} fallback={8} disabled={disabled} className={TB_INPUT + ' w-14'} onCommit={v => onPatch({ gap: v })} />
   </ContentRow>
 );
 
@@ -519,11 +590,13 @@ export const TextStylesModal: React.FC<{
           />
           {sel && (
             <>
-              <input
-                type="number" min={6} max={72}
-                className={`${rowInput} w-14 text-center`}
+              <LiveNumberInput
                 value={sel.fontSize}
-                onChange={e => patch({ fontSize: Math.max(6, Math.min(72, Number(e.target.value) || 10)) })}
+                min={6}
+                max={72}
+                fallback={10}
+                className={`${rowInput} w-14 text-center`}
+                onCommit={v => patch({ fontSize: v })}
                 title="Font size (pt)"
               />
               <button title="Bold" onClick={() => patch({ bold: !sel.bold })} className={`${miniBtn} font-bold ${sel.bold ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>B</button>
@@ -1074,7 +1147,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           </ContentRow>
         ) : null,
         <ContentRow key="itemFilter" label="Filter rows">
-          <ItemFilterControl block={block} fields={fieldsForScope(allFields, block.collection)} disabled={disabled} onPatch={onPatch} />
+          <ItemFilterControl block={block} project={project} fields={fieldsForScope(allFields, block.collection)} disabled={disabled} onPatch={onPatch} />
         </ContentRow>,
       );
     }
@@ -1132,14 +1205,14 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       <ContentRow key="offset" label="Offset">
         <div className="flex items-center gap-1">
           <ToolButton onClick={() => onPatch({ relativeOffset: offset - 1 })} disabled={disabled} title="Previous item" className={TB_BTN}><Minus className="w-3 h-3" /></ToolButton>
-          <input type="number" min={-20} max={20} disabled={disabled} className={TB_INPUT + ' w-12 text-center'} value={offset} onChange={e => onPatch({ relativeOffset: Number(e.target.value) || 1 })} />
+          <LiveNumberInput value={offset} min={-20} max={20} fallback={1} disabled={disabled} className={TB_INPUT + ' w-12 text-center'} onCommit={v => onPatch({ relativeOffset: v })} />
           <ToolButton onClick={() => onPatch({ relativeOffset: offset + 1 })} disabled={disabled} title="Next item" className={TB_BTN}><Plus className="w-3 h-3" /></ToolButton>
         </div>
       </ContentRow>,
       <ContentRow key="count" label="Count">
         <div className="flex items-center gap-1">
           <ToolButton onClick={() => onPatch({ relativeCount: Math.max(1, count - 1) })} disabled={disabled} title="Fewer" className={TB_BTN}><Minus className="w-3 h-3" /></ToolButton>
-          <input type="number" min={1} max={20} disabled={disabled} className={TB_INPUT + ' w-12 text-center'} value={count} onChange={e => onPatch({ relativeCount: Math.max(1, Number(e.target.value) || 1) })} />
+          <LiveNumberInput value={count} min={1} max={20} fallback={1} disabled={disabled} className={TB_INPUT + ' w-12 text-center'} onCommit={v => onPatch({ relativeCount: Math.max(1, v) })} />
           <ToolButton onClick={() => onPatch({ relativeCount: count + 1 })} disabled={disabled} title="More" className={TB_BTN}><Plus className="w-3 h-3" /></ToolButton>
         </div>
       </ContentRow>,
@@ -1171,7 +1244,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     const spacerStyle = block.spacerStyle || 'none';
     push(null,
       <ContentRow key="height" label="Height (px)">
-        <input type="number" min={4} max={200} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.height ?? 16} onChange={e => onPatch({ height: Number(e.target.value) || 16 })} />
+        <LiveNumberInput value={block.height} min={4} max={200} fallback={16} disabled={disabled} className={TB_INPUT + ' w-14'} onCommit={v => onPatch({ height: v })} />
       </ContentRow>,
       <ContentRow key="style" label="Style">
         <Seg
@@ -1187,7 +1260,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       </ContentRow>,
       ...(spacerStyle === 'line' ? [
         <ContentRow key="thickness" label="Thickness (px)">
-          <input type="number" min={1} max={8} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.spacerThickness ?? 1} onChange={e => onPatch({ spacerThickness: Math.min(8, Math.max(1, Number(e.target.value) || 1)) })} />
+          <LiveNumberInput value={block.spacerThickness} min={1} max={8} fallback={1} disabled={disabled} className={TB_INPUT + ' w-14'} onCommit={v => onPatch({ spacerThickness: v })} />
         </ContentRow>,
       ] : []),
     );
@@ -1292,15 +1365,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         )}
       </ContentRow>,
       <ContentRow key="height" label="Height (px)">
-        <input
-          type="number"
-          min={80}
-          max={1200}
-          disabled={disabled}
-          className={TB_INPUT + ' w-14'}
-          value={block.mapHeight ?? 240}
-          onChange={e => onPatch({ mapHeight: Number(e.target.value) || 240 })}
-        />
+        <LiveNumberInput value={block.mapHeight} min={80} max={1200} fallback={240} disabled={disabled} className={TB_INPUT + ' w-14'} onCommit={v => onPatch({ mapHeight: v })} />
       </ContentRow>,
     );
     push('Map',
@@ -1414,14 +1479,14 @@ export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, on
       )}
       <FontMenu value={font} disabled={disabled} onChange={f => onPatch({ fontFamily: f })} />
       <Tooltip content="Font size (pt)">
-        <input
-          type="number"
+        <LiveNumberInput
+          value={block.fontSize}
           min={6}
           max={48}
+          fallback={10}
           disabled={disabled}
           className={TB_NUM}
-          value={block.fontSize ?? 10}
-          onChange={e => onPatch({ fontSize: Math.max(6, Math.min(48, Number(e.target.value) || 10)) })}
+          onCommit={v => onPatch({ fontSize: v })}
         />
       </Tooltip>
       {/* block-level B/I only for field blocks — text blocks use the inline
@@ -1498,26 +1563,26 @@ export const LayoutControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch })
   <>
     <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
     <Tooltip content="Vertical padding (px)">
-      <input
-        type="number"
+      <LiveNumberInput
+        value={block.paddingV}
         min={0}
         max={24}
+        fallback={2}
         readOnly={readOnly}
         className={TB_NUM}
-        value={block.paddingV ?? 2}
-        onChange={e => onPatch({ paddingV: Math.max(0, Math.min(24, Number(e.target.value) || 0)) })}
+        onCommit={v => onPatch({ paddingV: v })}
       />
     </Tooltip>
     <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
     <Tooltip content="Horizontal padding (px)">
-      <input
-        type="number"
+      <LiveNumberInput
+        value={block.paddingH}
         min={0}
         max={24}
+        fallback={4}
         readOnly={readOnly}
         className={TB_NUM}
-        value={block.paddingH ?? 4}
-        onChange={e => onPatch({ paddingH: Math.max(0, Math.min(24, Number(e.target.value) || 0)) })}
+        onCommit={v => onPatch({ paddingH: v })}
       />
     </Tooltip>
   </>

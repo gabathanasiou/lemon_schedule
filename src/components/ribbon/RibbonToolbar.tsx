@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { Plus, Trash2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ArrowRightLeft, ChevronDown, AlignLeft, AlignCenter, AlignRight, PanelTop, Equal, PanelBottom, WrapText, X, Eye, Ellipsis } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
 import Button from '../Button';
+import { LiveNumberInput } from '../LiveNumberInput';
 import { RibbonRow, RibbonCell } from '../../types';
 import { getAlign } from '../../lib/ribbonUtils';
 
@@ -16,60 +17,9 @@ const BTN_CHANGE = `${BTN} !text-zinc-300 hover:!bg-zinc-700`;
 const BTN_X = 'rounded !border !border-zinc-700 !bg-zinc-800 !text-zinc-400 hover:!bg-zinc-700 hover:!text-zinc-200 !disabled:opacity-25 flex items-center justify-center transition-colors';
 
 /**
- * Live number input for toolbar numeric fields. Commits clamped values on
- * every change (live preview), but keeps a free-typed draft while focused so
- * the user can type digits one at a time or clear the box before typing
- * (a clamped controlled input snaps on the first keystroke). Enter/blur
- * clamps + finalizes; Escape reverts to the committed value.
+ * Live number input for toolbar numeric fields — see `src/components/
+ * LiveNumberInput.tsx` (the shared recipe; this file re-exports it).
  */
-function LiveNumberInput({ value, min, max, fallback, onCommit, readOnly, ariaLabel, className }: {
-  value: number | undefined;
-  min: number;
-  max: number;
-  fallback: number;
-  onCommit: (v: number) => void;
-  readOnly: boolean;
-  ariaLabel: string;
-  className?: string;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const focusedRef = useRef(false);
-  useEffect(() => { if (!focusedRef.current) setDraft(null); }, [value]);
-  const display = draft !== null ? draft : String(value ?? fallback);
-  const clamp = (n: number) => Math.max(min, Math.min(max, n));
-  return (
-    <input
-      type="number"
-      aria-label={ariaLabel}
-      value={display}
-      onFocus={() => { focusedRef.current = true; }}
-      onChange={e => {
-        const raw = e.target.value;
-        setDraft(raw);
-        const n = parseInt(raw, 10);
-        if (raw !== '' && !Number.isNaN(n)) onCommit(clamp(n));
-      }}
-      onBlur={() => {
-        focusedRef.current = false;
-        if (draft === null) return;
-        const n = parseInt(draft, 10);
-        if (Number.isNaN(n)) {
-          setDraft(null);
-        } else {
-          onCommit(clamp(n));
-          setDraft(null);
-        }
-      }}
-      onKeyDown={e => {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        if (e.key === 'Escape') { setDraft(null); (e.target as HTMLInputElement).blur(); }
-      }}
-      readOnly={readOnly}
-      className={className}
-    />
-  );
-}
-
 export interface SelCellRef {
   row: RibbonRow;
   ci: number;
