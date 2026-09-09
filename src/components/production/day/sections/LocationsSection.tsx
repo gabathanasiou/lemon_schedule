@@ -67,7 +67,8 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
     <div className="space-y-3">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Master location</div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-0.5">Master location</div>
+          <p className="text-[10px] text-zinc-400 mb-1">Where the crew reports — the day's home base (call sheets + nearby services use it).</p>
           <div className="flex items-center gap-1.5">
             <GroupedSelect
               className="flex-1 min-w-0"
@@ -86,7 +87,8 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
           </div>
         </div>
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Key locations</div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-0.5">Key locations</div>
+          <p className="text-[10px] text-zinc-400 mb-1">Any additional locations worked this day — choose more than one.</p>
           <GroupedSelect
             className="w-full"
             items={items}
