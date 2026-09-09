@@ -4,7 +4,7 @@ import type { ScheduleRow } from '../../../../types';
 import Checkbox from '../../../Checkbox';
 import { CellInput } from '../../../CellInput';
 import DurationField from '../../../DurationField';
-import { DAY_ALIGN, DAY_GROUP_ROW, DAY_TABLE, DAY_TD, DAY_TH } from '../tableStyles';
+import { DAY_ALIGN, DAY_GROUP_ROW, DAY_TABLE, DAY_TABLE_WRAP, DAY_TD, DAY_TH } from '../tableStyles';
 
 /** The day's breaks/notes: tick for call-sheet inclusion, edit label + duration
  *  inline (the computed start time is shown read-only). */
@@ -26,7 +26,7 @@ const BreaksNotesSection: React.FC<DaySectionProps> = ({ day, patchMeta, readOnl
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className={DAY_TABLE_WRAP}>
       <table className={DAY_TABLE}>
         <thead>
           <tr className="border-b border-zinc-200">
