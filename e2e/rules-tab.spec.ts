@@ -12,6 +12,13 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** The rule editor's footer Add Rule button. The modal re-clamps its position
+ *  when the DatePicker grows the content (kit ≥ v0.1.79), so it stays in the
+ *  viewport even with reduced motion (which the e2e config forces). */
+async function clickAddRule(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Add Rule' }).click();
+}
+
 /** The kit DatePicker opens on the current month — step it to the target
  *  month (direction-aware) before clicking a day. */
 async function navPickerTo(page: import('@playwright/test').Page, target: string) {
@@ -71,7 +78,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await page.keyboard.press('Escape');
   await navPickerTo(page, monthLabel);
   await page.getByRole('dialog').getByRole('button', { name: String(day1), exact: true }).click();
-  await page.getByRole('button', { name: 'Add Rule' }).click();
+  await clickAddRule(page);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText(new RegExp(`${esc(display)}: unavailable`)).first()).toBeVisible();
 
@@ -85,7 +92,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await page.keyboard.press('Escape');
   await navPickerTo(page, monthLabel);
   await page.getByRole('dialog').getByRole('button', { name: String(day2), exact: true }).click();
-  await page.getByRole('button', { name: 'Add Rule' }).click();
+  await clickAddRule(page);
   await expect(page.getByText(new RegExp(`${esc(display)}: max 8h`)).first()).toBeVisible();
 
   // TIME_WINDOW window modes (after/before) still render after the toggle refactor
@@ -96,7 +103,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await expect(page.getByText('From', { exact: true })).toBeVisible();
   await pickMember();
   await page.getByRole('dialog').locator('input[type="time"]').first().fill('18:00');
-  await page.getByRole('button', { name: 'Add Rule' }).click();
+  await clickAddRule(page);
   await expect(page.getByText(new RegExp(`${esc(display)}: only after 18:00`)).first()).toBeVisible();
 
   // All three persisted via the bridge
