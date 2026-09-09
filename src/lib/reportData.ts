@@ -1,5 +1,6 @@
-import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, ElementCallTimes } from '../types';
 import { crewDepartmentOf } from './crewCatalog';
+import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, ResolvedCall } from './callTimes';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
@@ -162,6 +163,8 @@ export interface ReportDayInfo {
   lastScene: string;
   /** Master location from `daybreakMeta` (item 98) — the day's report location. */
   locationId?: string;
+  /** Key locations from `daybreakMeta` (item 98), ordered. */
+  locationIds?: string[];
   /** Distinct scene locations (free-text names), for the DB-matched fallback. */
   sceneLocations?: string[];
   /** Day notes / announcements from `daybreakMeta` (item 99 `dayNotes` field). */
@@ -169,6 +172,8 @@ export interface ReportDayInfo {
   /** Day crew (crew person ids; empty = full roster / usual-crew template). */
   crewIds?: string[];
   crewCalls?: DayCrewCall[];
+  /** Per-element call overrides from `daybreakMeta` (item 99 elementCallsOfDay). */
+  elementCalls?: Record<string, Record<string, ElementCallTimes>>;
   /** The day's breaks/notes with their call-sheet inclusion flag. */
   breaks?: { label: string; time: string; include: boolean }[];
   notes?: { text: string; time: string; include: boolean }[];
@@ -232,6 +237,34 @@ export interface ReportCrewItem {
   phone?: string;
   email?: string;
   /** Resolved day call time (crewOfDay only — override or department precall). */
+  callTime?: string;
+}
+
+/** One element appearing on a day, as a repeat/table item of the contextual
+ *  `elementCallsOfDay` collection (item 99). Carries the element's resolved
+ *  call chain (on-set anchored to its first scene, earlier stages walked
+ *  backwards through `computeElementCallChain`). */
+export interface ReportElementCallItem {
+  /** Element key: cast = Board ID, others = name (`elementMatchId`). */
+  id: string;
+  name: string;
+  category: string;
+  /** Cast Board ID (cast only) — the call-sheet ID column. */
+  boardId?: string;
+  /** Day-state code (status/card letter, else `W`). */
+  code: string;
+  /** First scene number the element appears in (the on-set anchor). */
+  firstScene: string;
+  /** stage key → resolved call (override or computed). */
+  callTimes: Record<string, ResolvedCall>;
+}
+
+/** One crew department on a day, as a repeat/table item of the contextual
+ *  `departmentCallsOfDay` collection (item 99). `callTime` is the project
+ *  precall resolved against the day's general call. */
+export interface ReportDepartmentCallItem {
+  key: string;
+  label: string;
   callTime?: string;
 }
 
@@ -332,9 +365,11 @@ export function reportItemKey(collection: ReportCollection, item: ReportCollecti
       return elementMatchId(el, el.category || 'props');
     }
     case 'categories': return (item as ReportCategoryInfo).key;
-    case 'locations': case 'locationsOfType': return (item as ReportLocationInfo).id;
+    case 'locations': case 'locationsOfType': case 'locationsOfDay': return (item as ReportLocationInfo).id;
     case 'locationTypes': return (item as ReportLocationTypeInfo).key;
     case 'crewOfDay': return (item as ReportCrewItem).id;
+    case 'elementCallsOfDay': return (item as ReportElementCallItem).id;
+    case 'departmentCallsOfDay': return (item as ReportDepartmentCallItem).key;
     default: return 0;
   }
 }
@@ -349,8 +384,10 @@ export function reportItemLabel(collection: ReportCollection, it: ReportCollecti
     case 'cast': case 'elements': case 'elementsOfCategory': case 'elementsOfScene': return (it as ReportElementInfo).name;
     case 'categories': return (it as ReportCategoryInfo).label;
     case 'crew': case 'crewOfDay': return `${(it as ReportCrewItem).role}: ${(it as ReportCrewItem).name}`;
+    case 'elementCallsOfDay': return (it as ReportElementCallItem).name;
+    case 'departmentCallsOfDay': return (it as ReportDepartmentCallItem).label;
     case 'violationTypes': return (it as ReportViolationTypeInfo).label;
-    case 'locations': case 'locationsOfType': return (it as ReportLocationInfo).name;
+    case 'locations': case 'locationsOfType': case 'locationsOfDay': return (it as ReportLocationInfo).name;
     case 'locationTypes': return (it as ReportLocationTypeInfo).label;
     case 'dayTypes': case 'dayTypesOfElement': return (it as ReportDayTypeInfo).label;
     default: return '';
@@ -561,10 +598,12 @@ export function buildReportCtx(
       firstScene: sceneNums[0] || '',
       lastScene: sceneNums[sceneNums.length - 1] || '',
       locationId: gov?.daybreakMeta?.locationId,
+      locationIds: gov?.daybreakMeta?.locationIds,
       sceneLocations,
       note: gov?.daybreakMeta?.note,
       crewIds: gov?.daybreakMeta?.crewIds,
       crewCalls: gov?.daybreakMeta?.crewCalls,
+      elementCalls: gov?.daybreakMeta?.elementCalls,
       breaks,
       notes,
     });
@@ -818,10 +857,23 @@ function perElementTypeDayDates(
   return out;
 }
 
+/** The element's day-state code for the call-sheet SWF column: status letter →
+ *  a card type's letter (manager order) → `W` when it works that day. */
+function elementDayCode(ctx: ReportCtx, day: ReportDayInfo | undefined, category: string, key: string): string {
+  const entry = day?.date ? (ctx.calendarVersion.nonShootDates || []).find(n => n.date === day.date) : undefined;
+  if (entry?.status) return codeForType(ctx.project.dayTypes, entry.status);
+  for (const t of getDayTypes(ctx.project)) {
+    if (isElementMarked(entry, t.key, category, key)) return codeForType(ctx.project.dayTypes, t.key);
+  }
+  return 'W';
+}
+
 export type ReportCollectionItem =
   | ReportSceneInfo
   | ReportDayInfo
   | ReportElementInfo
+  | ReportElementCallItem
+  | ReportDepartmentCallItem
   | ReportCategoryInfo
   | ReportCrewItem
   | ReportViolationTypeInfo
@@ -876,8 +928,79 @@ export function resolveCollection(
         .map(c => {
           const dept = crewDepartmentOf(c.roleKey);
           const precall = (dept ? ctx.project.crewTemplate?.departmentPrecalls?.[dept] : undefined);
-          return { ...c, callTime: overrideById.get(c.id) || precall };
+          // Per-person override wins; else the department precall resolved
+          // against the day's general call (relative precalls like -30m).
+          return { ...c, callTime: overrideById.get(c.id) || resolveCallExpression(precall, day.callTime) };
         });
+    }
+    case 'elementCallsOfDay': {
+      const day = parentItem as ReportDayInfo | undefined;
+      if (!day) return [];
+      const settings = getCallTimeSettings(ctx.project);
+      const sceneInfos = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
+      const seen = new Set<string>();
+      const out: ReportElementCallItem[] = [];
+      const categories = ['cast', ...allCategoryKeysOf(ctx.project).filter(k => k !== 'cast')];
+      for (const cat of categories) {
+        const stageKeys = settings.categoryStages[cat] || [];
+        if (stageKeys.length === 0) continue;
+        for (const si of sceneInfos) {
+          for (const raw of ctx.sceneFieldItems(si.scene, cat)) {
+            const match = raw.trim().toLowerCase();
+            if (!match) continue;
+            const el = getElementsFor(ctx, cat).find(e => elementMatchId(e, cat).toLowerCase() === match);
+            if (!el) continue;
+            const key = elementMatchId(el, cat);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const overrides = day.elementCalls?.[cat]?.[key];
+            out.push({
+              id: key,
+              name: el.name,
+              category: cat,
+              boardId: cat === 'cast' ? key : undefined,
+              code: elementDayCode(ctx, day, cat, key),
+              firstScene: si.scene.sceneNumber,
+              callTimes: computeElementCallChain(settings.stages, stageKeys, si.callTime, overrides),
+            });
+          }
+        }
+      }
+      return out;
+    }
+    case 'departmentCallsOfDay': {
+      const day = parentItem as ReportDayInfo | undefined;
+      if (!day) return [];
+      const precalls = ctx.project.crewTemplate?.departmentPrecalls || {};
+      const crew = resolveCollection(ctx, 'crewOfDay', undefined, day, undefined) as ReportCrewItem[];
+      const depts: string[] = [];
+      for (const c of crew) {
+        const dept = crewDepartmentOf(c.roleKey);
+        if (dept && !depts.includes(dept)) depts.push(dept);
+      }
+      for (const dept of Object.keys(precalls)) {
+        if (!depts.includes(dept)) depts.push(dept);
+      }
+      return depts.map(dept => ({ key: dept, label: dept, callTime: resolveCallExpression(precalls[dept], day.callTime) || undefined }));
+    }
+    case 'locationsOfDay': {
+      const day = parentItem as ReportDayInfo | undefined;
+      if (!day) return [];
+      const out: ReportLocationInfo[] = [];
+      const push = (id?: string) => {
+        if (!id) return;
+        const loc = ctx.locationInfos.find(l => l.id === id);
+        if (loc && !out.some(x => x.id === loc.id)) out.push(loc);
+      };
+      push(day.locationId);
+      for (const id of day.locationIds || []) push(id);
+      for (const name of day.sceneLocations || []) {
+        const key = name.trim().toLowerCase();
+        if (!key) continue;
+        const hit = ctx.locationInfos.find(l => (l.name || '').trim().toLowerCase() === key || (l.address || '').trim().toLowerCase() === key);
+        if (hit && !out.some(x => x.id === hit.id)) out.push(hit);
+      }
+      return out;
     }
     case 'locations': {
       // Type filter (block.category) — "only the unit bases" etc.

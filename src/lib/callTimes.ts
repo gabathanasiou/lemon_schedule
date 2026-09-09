@@ -35,6 +35,20 @@ export function isValidTimeExpression(raw: string | undefined | null): boolean {
   return parseTimeExpression(raw).kind !== 'empty';
 }
 
+/**
+ * Resolves a stored call expression against an anchor time (the general call
+ * for department precalls / crew overrides): absolute → the time itself,
+ * relative → anchor + offset, empty/invalid → ''. One source for every
+ * single-expression consumer (crew, departments) so relative values don't leak
+ * into call sheets as raw `-30m` text.
+ */
+export function resolveCallExpression(raw: string | undefined | null, anchor: string): string {
+  const parsed = parseTimeExpression(raw);
+  if (parsed.kind === 'absolute') return parsed.time;
+  if (parsed.kind === 'relative') return addMinutesToTime(anchor, parsed.minutes);
+  return '';
+}
+
 export const DEFAULT_CALL_STAGES: CallStageDef[] = [
   { key: 'pickup', label: 'Pickup', abbrev: 'P', lead: '-1h' },
   { key: 'arrive', label: 'Arrive', abbrev: 'Arr', lead: '-30m' },

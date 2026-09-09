@@ -7,9 +7,10 @@ import { dayTypeLabelForDate, getDayTypes, codeForType, dayTypeForDate } from '.
 import { getStatusesWithLists } from './nonShootHelpers';
 import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
-  ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
+  ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportElementCallItem, ReportDepartmentCallItem, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
   ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, locationsOfItem, pickLocation,
 } from './reportData';
+import { getCallTimeSettings } from './callTimes';
 
 // Single field registry for the Reports Designer. Attributes only exist in the
 // context where they make sense — the palette, token picker and table pickers
@@ -24,7 +25,7 @@ export interface ReportFieldDef {
   key: string;
   label: string;
   group: string;
-  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart' | 'violationTypes' | 'locations' | 'locationTypes' | 'dayTypes';
+  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart' | 'violationTypes' | 'locations' | 'locationTypes' | 'dayTypes' | 'elementCallsOfDay' | 'departmentCallsOfDay';
   align?: 'left' | 'center' | 'right';
   defaultWidth?: number;
   multiValue?: boolean;  // value is a comma-separated list → per-item affixes apply
@@ -212,6 +213,40 @@ const CREW_FIELDS: ReportFieldDef[] = [
   { key: 'email', label: 'Email', group: 'Crew', scope: 'crew', defaultWidth: 20, link: true, linkKind: 'mailto', get: (_c, it: ReportCrewItem) => s(it.email) },
   { key: 'crewCallTime', label: 'Call Time', group: 'Crew', scope: 'crew', align: 'center', defaultWidth: 9, get: (_c, it: ReportCrewItem) => s(it.callTime || '') },
 ];
+
+// ---- day call times (item 99 contextual collections) -------------------------
+// elementCallsOfDay = the elements working a day with their resolved call chain;
+// departmentCallsOfDay = the day's crew departments with the precall resolved
+// against the general call. Stage columns are generated from the project's
+// Call Times settings (same dynamic-fields pattern as the day-type columns).
+
+const ELEMENT_CALL_FIELDS: ReportFieldDef[] = [
+  { key: 'elementCallId', label: 'Cast ID', group: 'Call Times', scope: 'elementCallsOfDay', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementCallItem) => s(it.boardId || '') },
+  { key: 'elementCallName', label: 'Name', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 22, get: (_c, it: ReportElementCallItem) => s(it.name) },
+  { key: 'elementCallCategory', label: 'Category', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 12, get: (_c, it: ReportElementCallItem) => s(it.category) },
+  { key: 'elementCallCode', label: 'SWF', group: 'Call Times', scope: 'elementCallsOfDay', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementCallItem) => s(it.code) },
+  { key: 'elementCallFirstScene', label: 'First Scene', group: 'Call Times', scope: 'elementCallsOfDay', align: 'center', defaultWidth: 8, get: (_c, it: ReportElementCallItem) => s(it.firstScene) },
+];
+
+const DEPARTMENT_CALL_FIELDS: ReportFieldDef[] = [
+  { key: 'departmentLabel', label: 'Department', group: 'Call Times', scope: 'departmentCallsOfDay', defaultWidth: 22, get: (_c, it: ReportDepartmentCallItem) => s(it.label) },
+  { key: 'departmentCallTime', label: 'Call Time', group: 'Call Times', scope: 'departmentCallsOfDay', align: 'center', defaultWidth: 10, get: (_c, it: ReportDepartmentCallItem) => s(it.callTime || '') },
+];
+
+/** One resolved call-time column per configured stage (settings-driven, like
+ *  the day-type element columns) — `call_{stageKey}`. */
+function buildCallStageFields(project: Project, existingKeys: Set<string>): ReportFieldDef[] {
+  const out: ReportFieldDef[] = [];
+  for (const st of getCallTimeSettings(project).stages) {
+    const key = `call_${st.key}`;
+    if (existingKeys.has(key)) continue;
+    out.push({
+      key, label: st.label, group: 'Call Times', scope: 'elementCallsOfDay', align: 'center', defaultWidth: 9,
+      get: (_c, it: ReportElementCallItem) => s(it.callTimes[st.key]?.time || ''),
+    });
+  }
+  return out;
+}
 
 // ---- production & project (static) ------------------------------------------
 // Production dates are DERIVED from the schedule (single source of truth) —
@@ -602,12 +637,14 @@ export function getReportFieldDefs(project: Project): ReportFieldDef[] {
     ...LOCATION_FIELDS,
     ...LOCATION_TYPE_FIELDS,
     ...CREW_FIELDS,
+    ...ELEMENT_CALL_FIELDS,
+    ...DEPARTMENT_CALL_FIELDS,
     ...PRODUCTION_FIELDS,
     ...PROJECT_FIELDS,
     ...SMART_FIELDS,
   ];
   const existing = new Set(base.map(f => f.key));
-  return [...base, ...buildDayTypeElementFields(project, existing)];
+  return [...base, ...buildCallStageFields(project, existing), ...buildDayTypeElementFields(project, existing)];
 }
 
 /**
@@ -642,7 +679,7 @@ export function getReportFieldMap(project: Project): Record<string, ReportFieldD
 
 /** Scopes whose values come from the resolved collection ITEM (repeat/table
  *  rows) — vs document/project/smart fields that resolve from ctx/aux. */
-export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew', 'locations', 'locationTypes', 'dayTypes']);
+export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew', 'locations', 'locationTypes', 'dayTypes', 'elementCallsOfDay', 'departmentCallsOfDay']);
 
 /**
  * Breakdown attributes (group 'Breakdown', scene-scope) inside a DAY repeater:
@@ -829,6 +866,7 @@ export function fieldsForScope(
     // attributes (scope 'dayTypes') belong there too.
     else if (scope === 'dayTypesOfElement') scopeSet.add('dayTypes');
     else if (scope === 'crewOfDay') scopeSet.add('crew');
+    else if (scope === 'locationsOfDay') scopeSet.add('locations');
     else scopeSet.add(scope);
   }
   // Cast members are reached via Elements → Cast (collection 'elements' with

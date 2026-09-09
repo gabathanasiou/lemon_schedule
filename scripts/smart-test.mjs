@@ -38,7 +38,7 @@ const REPORT = [
   'report-smart-scoping', 'report-sun-weather-map', 'report-violations',
   'report-xmlns', 'report-canvas-sampling', 'report-ribbon-samples',
   'report-breakdown-day-gap-look', 'report-table-resize',
-  'report-day-types', 'report-filters',
+  'report-day-types', 'report-filters', 'report-day-calls',
   'print-dialog-dropdowns',
 ];
 const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'ribbon-text-size'];
@@ -171,7 +171,7 @@ const RULES = [
   { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times', 'day-times-glide'] },
   { g: 'src/components/ProductionTab.tsx', s: ['day-manager', ...MANAGERS] },
   { g: 'src/lib/dayView.ts', s: ['day-manager'] },
-  { g: 'src/lib/callTimes.ts', s: ['day-manager', 'day-call-times', 'day-times-glide'] },
+  { g: 'src/lib/callTimes.ts', s: ['day-manager', 'day-call-times', 'day-times-glide', 'report-day-calls'] },
   { g: 'src/components/TimeField.tsx', s: ['day-manager'] },
   { g: 'src/components/DurationField.tsx', s: ['day-manager'] },
   // import / export

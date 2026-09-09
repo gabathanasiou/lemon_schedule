@@ -516,6 +516,7 @@ const COLLECTION_LABELS_LOCAL: Record<string, string> = {
   elements: 'elements', elementsOfCategory: 'elements', elementsOfScene: 'elements',
   categories: 'categories', cast: 'cast', crew: 'crew', violationTypes: 'violation types',
   locations: 'locations', locationsOfType: 'locations', locationTypes: 'location types',
+  crewOfDay: 'crew', elementCallsOfDay: 'element calls', departmentCallsOfDay: 'department calls', locationsOfDay: 'locations',
 };
 
 const PARENT_LABELS: Record<string, string> = {

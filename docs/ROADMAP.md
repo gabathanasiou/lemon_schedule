@@ -2173,24 +2173,20 @@ weather prefetch). New shared primitives `TimeField`/`DurationField` + `GroupedS
 
 **Relations**: foundation for items 99/100/10. Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.1.
 
-## 99. Day call-times helper + crew + report collections (`[~]`)
+## 99. Day call-times helper + crew + report collections (`[x]` Done)
 
-**Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.2 — read it first.**
+**Done**: `callTimes.ts` chain computation (configurable stages + per-category stage sets,
+absolute/relative overrides, on-set anchor) + `resolveCallExpression`; Production → **Call
+Times** settings (stages / category defaults / department precalls / usual crew); Day
+Manager **Call Times** and **Crew** sections (shared inline Glide grids, item 101); report
+collections `crewOfDay` (resolved day crew + `crewCallTime`), `elementCallsOfDay` (resolved
+per-element call chain + dynamic `call_{stage}` columns), `departmentCallsOfDay`,
+`locationsOfDay`, `dayNotes` field, stable `ReportCrewItem` keys. Verified by
+`e2e/day-call-times.spec.ts`, `e2e/day-times-glide.spec.ts` and
+`e2e/report-day-calls.spec.ts` (RULES: `report-day-calls`).
 
-**Done so far**: `callTimes.ts` chain computation (configurable stages + per-category stage
-sets, absolute/relative overrides, on-set anchor); Production → **Call Times** settings
-(stages / category defaults / department precalls / usual crew); Day Manager **Call Times**
-section (per-category element grids) and **Crew** section (attach / per-person overrides /
-"Use usual crew" — both now edited in the shared inline Glide grid, item 101); report
-collection `crewOfDay` (resolved day crew + `crewCallTime`), `dayNotes` field, stable
-`ReportCrewItem` keys; `e2e/day-call-times.spec.ts`.
-
-**Remaining**: report collections `elementCallsOfDay` / `departmentCallsOfDay` /
-`locationsOfDay`. (The row context menu / multi-select / copy-paste / fill-down half landed
-with item 101's inline Glide grid.)
-
-**Relations**: builds on item 98; item 10's crew/element tables depend on it; item 11
-(crew↔element categories) stays separate.
+**Relations**: builds on item 98; item 10's crew/element/location tables depend on it; item
+11 (crew↔element categories) stays separate.
 
 ## 100. Reports designer — filtered rows + item lookups (`[~]`)
 
