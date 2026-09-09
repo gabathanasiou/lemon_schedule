@@ -2285,3 +2285,117 @@ removes it; report field resolves; `e2e/crew-links.spec.ts` (seed-agnostic via t
 
 **Relations**: expands item 11's theme (crew ↔ elements) with a person-level assignment;
 rides item 44's `ElementPickerRow` + `elementLinks.ts` patterns.
+
+## 103. Project Details + Call Times → draggable modals from the Day Manager header (`[ ]`)
+
+**Requested**: the Production tab's **Project Details** and **Call Times** sub-tabs are thin
+single-purpose pages — turn them into draggable ui-kit `Modal`s reachable from the **Day
+Manager** header (the two remaining sub-tabs are removed from `ProductionTab`).
+
+- Extract `ProductionTab.tsx`'s inline `details` body (lines 164-311) into
+  `production/day/ProductionDetailsModal.tsx` (kit `Modal` — draggable by default). Move the
+  `DETAIL_FIELDS`/`KEY_POSITIONS`/`Menu` helpers and the key-position crew logic
+  (`allPeople`/`addPersonToRole`/`movePersonToRole`/`tzOpen`/`commitInfo`) with it; production
+  start/wrap/report-format/timezone stay inside (they read the active calendar version).
+- Convert `production/day/CallTimesSettingsPage.tsx` → `CallTimesSettingsModal.tsx` (kit `Modal`,
+  draggable; same stage/category-defaults/precall/usual-crew form content — the drag-reorder is
+  item 104).
+- Day Manager header (`DayManagerPage.tsx`) gains two compact buttons opening the modals. Day
+  pop-outs render the same page, so they inherit the buttons.
+- Remove `details` + `callTimes` from `ProductionSubTab` (`ProductionTab.tsx`), its `tabs` array
+  + `subTabLabels`, and both JSX branches; `App.tsx` default `prodSubTab` → `'days'`, drop the
+  `details` sub-tab popout frame (`sub_production_details`) and update the popout-close fallback
+  list. (Call Times has no sub-tab popout today.)
+
+**Verify**: modals open/drag/close from the Day Manager header (in the page AND a popped-out
+day); Production tab shows Day Manager / Crew / Crew Glide / Locations / Locations Glide only;
+key-position assignment + dates + call-time settings all still save (bridge). Full plan:
+`plans/DAY-MANAGER-PAGE-REWORK.md`.
+
+## 104. Call Times — drag-to-reorder stages (`[ ]`)
+
+**Requested**: reorder the call-stage priority by **dragging**, not the up/down arrow buttons —
+the dnd-kit sortable pattern already used for drag-reorder lists in the app
+(`CustomOrderSortModal.tsx` / `ColorsTab.tsx`).
+
+- In `CallTimesSettingsModal` (item 103), replace the ArrowUp/ArrowDown buttons with
+  `DndContext` + `SortableContext` (vertical) + `useSortable` rows + `arrayMove` (`PointerSensor`,
+  distance 5). Commit the new order on drag end through the existing `setCallTimes({ stages })`.
+  Last stage keeps its "anchor" marker; the chain order follows configured order
+  (`computeElementCallChain`, `callTimes.ts` — reordering stages reorders the chain).
+
+**Verify**: drag a stage up/down persists (bridge `getProject()`); the anchor (last) stage stays
+last-conceptual (draggable, chain recomputes); `e2e/day-call-times.spec.ts` / day-manager flows
+green; undo restores.
+
+**Relations**: depends on item 103 (the stages editor now lives in the modal).
+
+## 105. Day Manager — two-column layout, rename to "Day Manager", friendlier empty state (`[ ]`)
+
+**Requested**: (1) rename the Production **Days** sub-tab → **Day Manager**; (2) the page is a
+single wasted column — lay it out in two columns with the wide tables full-width and the short
+cards in a two-column band; (3) when there are no days, show a real empty state instead of a bare
+line.
+
+- **Rename**: `ProductionTab.tsx` tab label + `subTabLabels` `'Days'` → `'Day Manager'` (id
+  `days` unchanged).
+- **Layout**: give `DaySectionDef` (`daySectionRegistry.tsx`) a layout hint. Full-width
+  (`wide`): `scenes`, `callTimes`, `crew`. Two-column band: `details` (left column) ·
+  `locations` + `events` + `conflicts` stacked (right column). `DayManagerPage.tsx` renders the
+  grid from the registry; `DaySectionCard` and Copy-from-day preview stay unchanged/reusable.
+- **Empty state**: replace the terse `!selected` branch with an icon + guidance message
+  ("No production days yet — add a day break on the stripboard to start scheduling.").
+
+**Verify**: sections render in the two-column arrangement (wide full-width, short band 1+3);
+collapse, copy modal, day pop-out unaffected; no-days project shows the new empty state.
+
+## 106. Crew — default call time is the day's general call (`[ ]`)
+
+**Requested**: a crew member's call time should **default to the day's call time**; an explicit
+per-person override, or a department precall, wins over that default.
+
+- One canonical resolver in `callTimes.ts`: `resolveCrewCall(override, precall, dayCall)` =
+  override → `resolveCallExpression(precall, dayCall)` → `dayCall`.
+- Use it in the report seam `reportData.ts` `crewOfDay` (`|| day.callTime` fallback) and in the
+  Day Manager **Crew** grid (`CrewSection.tsx` call cell: resolved time shown, muted when it's the
+  plain day default, amber when an explicit override is stored).
+
+**Verify**: crew with no override/precall read the day's general call; override and department
+precall still win (relative precalls resolve against the day call); `e2e/day-call-times.spec.ts`
++ `e2e/report-day-calls.spec.ts` updated.
+
+## 107. Day Manager — merge Cast & Elements into Call Times (DOOD SWF + scene/time) (`[ ]`)
+
+**Requested**: the **Cast & Elements** section is redundant with the **Call Times** grids —
+remove it and make Call Times the single per-category element view. Categories **with** stages
+keep the stage-column grid; categories **without** configured stages still show their elements
+with the DOOD Start/Work/Finish dates + the first scene and its in-scene call time.
+
+- Delete the `castElements` registry entry + `CastElementsSection.tsx`.
+- Extend `CallTimesSection`/`DayTimesGlide`: when a category has no `categoryStages` config,
+  render a read-only fallback grid `ID | Name | Start | Work | Finish | Scene | Call` fed from
+  the DOOD totals (`deriveDood`: `startDate`, `workDays`, `finishDate`) + `DayElementEntry`
+  (`firstScene`, `firstCallTime`, `code`).
+- Section summary/copy unaffected (Cast & Elements was already `copyable: false`).
+
+**Verify**: every present category still shows under Call Times; stage-less categories show
+Start/Work/Finish + scene + call; `e2e/day-manager.spec.ts` / `day-times-glide.spec.ts` updated
+(no more Cast & Elements card).
+
+**Relations**: same visual family as items 103/105 (Day Manager page rework).
+
+## 108. Crew grid — name/role columns proportionally scaled (`[ ]`)
+
+**Requested**: the Crew grid's **Name** and **Role** columns are too wide vs **Call**.
+`InlineGlideTable` scales the `width` props as relative weights to fit the card, so rebalance the
+weights in `CrewSection.tsx` (e.g. Name/Role noticeably narrower, Call given room).
+
+**Verify**: visual-only (rule 7 — lint + manual check, no e2e boot).
+
+## 109. Locations — clearer master vs key-location labels (`[ ]`)
+
+**Requested**: the user finds it unclear how "key locations" attach relative to the day's master
+location. Keep the model (master = one primary picker; key = additional multi-pick — both resolve
+into the Locations DB); add concise hint text under each label in `LocationsSection.tsx`.
+
+**Verify**: visual-only (rule 7).
