@@ -4,6 +4,7 @@ import type { DayView } from '../../../lib/dayView';
 import type { ReportBlock, ReportDesign } from '../../../types';
 import { formatDateShort } from '../../../lib/utils';
 import ReportDesigner from '../../reports/ReportDesigner';
+import CallSheetCanvas, { callSheetDayBlocks } from './CallSheetCanvas';
 import GroupedSelect, { GroupedSelectItem } from './GroupedSelect';
 
 /**
@@ -78,10 +79,21 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           </button>
         </div>
       </header>
-      <ReportDesigner
-        key={`${day.sectionIndex}:${design.id}:${nonce}`}
-        zone={{ designId: design.id, blocks: zoneBlocks, onChange: onChangeZone, scope: 'days' }}
-      />
+      {callSheetDayBlocks(design) ? (
+        <CallSheetCanvas
+          key={`${day.sectionIndex}:${design.id}:${nonce}`}
+          design={design}
+          day={day}
+          zoneBlocks={zoneBlocks}
+          onChangeZone={onChangeZone}
+          readOnly={readOnly}
+        />
+      ) : (
+        <ReportDesigner
+          key={`${day.sectionIndex}:${design.id}:${nonce}`}
+          zone={{ designId: design.id, blocks: zoneBlocks, onChange: onChangeZone, scope: 'days' }}
+        />
+      )}
     </div>
   );
 };

@@ -551,20 +551,24 @@ text and free cells; `e2e/report-filters.spec.ts` + RULES. **Filter half verifie
 ### 5.4 Item 10 — CallSheet Designer completion
 
 **Shipped:** day-scoped preview/print host (DayReportPreview + `handleReportPrint` with
-`callSheetBlocks` + `dayScopeFilter`); `callSheetEdit` zone unlocked in the reports
-designer (insertInto/canvas/context-menu/controls; border hint-only) + per-day storage
+`callSheetBlocks` + `dayScopeFilter`); `callSheetEdit` zone + per-day storage
 (`daybreakMeta.callSheets[designId]`) rendered via `aux.callSheetBlocks` threading; the
-Day Manager's full-surface **Call Sheet → Edit** mode reusing `ReportDesigner` in a new
-`zone` mode (palette scoped to `days`, commits through `zone.onChange`, header chrome
-hidden); custom-rows table mode (`block.custom`/`customRows`, inline RichTextEditor
-cells with `@` tokens in the designer, resolved HTML in preview/print, row-splitting via
-`.rm-row` classes); the Relative block relabeled **Advance** and the built-in Call Sheet
-template rebuilt (scenes / element calls / crew / department calls / locations tables,
-notes, the edit zone, and an Advance +1 block).
+**Call Sheet card is FIRST** in Production → Days; its full-surface **Call Sheet → Edit**
+mode is a **single-page WYSIWYG** (`CallSheetCanvas`) — the whole design on one white
+page filled with that day's real data (read-only) and only the zone editable (palette +
+block chrome), falling back to `ReportDesigner` `zone` mode for non-`days`-repeat shapes;
+custom-rows table mode (`block.custom`/`customRows`, inline RichTextEditor cells with
+`@` tokens in the designer, resolved HTML in preview/print, row-splitting via `.rm-row`
+classes); the Relative block relabeled **Advance** and the built-in Call Sheet template
+rebuilt (scenes / element calls / crew / department calls / locations tables, notes, the
+edit zone, and an Advance +1 block).
 
 **Deviations:** the Relabel kept the block type name `relative` (only the label changed);
-a zone-less Call Sheet design renders per-day content nowhere (the designer must include a
-`callSheetEdit` block — task 6's rebuilt template does; the seed project was not migrated).
+the `callSheetEdit` zone is **LOCKED in the reports designer** (user decision — per-day
+content is authored only in the Day Manager, so designers can't stuff template defaults
+into it); a zone-less Call Sheet design renders per-day content nowhere and its Edit
+falls back to the zone-only editor (the designer must include a `callSheetEdit` block —
+task 6's rebuilt template does; the seed project was not migrated).
 
 Tasks:
 1. Day-scoped preview/print: host around `ReportPreview`/`ReportPrint` with

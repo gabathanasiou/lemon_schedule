@@ -407,13 +407,11 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               />
             )}
 
-            {(b.type === 'repeat' || b.type === 'table' || b.type === 'relative' || b.type === 'callSheetEdit') ? (
+            {(b.type === 'repeat' || b.type === 'table' || b.type === 'relative') ? (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1">
                   {meta.icon}
-                  {b.type === 'callSheetEdit'
-                    ? 'Call Sheet Edit Zone — per-day content'
-                    : b.type === 'relative'
+                  {b.type === 'relative'
                     ? `Advance · ${b.relativeOffset ?? 1} ${(b.relativeOffset ?? 1) < 0 ? 'back' : 'ahead'} × ${Math.max(1, b.relativeCount ?? 1)}${relTarget ? ` — ${relTarget}` : ''}`
                     : b.type === 'table'
                       ? `Table: ${scopedCollectionLabel(tableItemCollection(b, parentCollection as ReportCollection | undefined), parentCollection as ReportCollection | undefined, b.scopedToParent !== false)}`
@@ -460,14 +458,10 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                       return renderBlocks(relChildren, depth + 1, parentCollection, childItem, parentCategory, undefined, childItem ? [childItem, ...(ancestors || [])] : undefined, relItems || [], 0);
                     })()}
                   </div>
-                ) : b.type === 'callSheetEdit' && b.children && b.children.length > 0 ? (
-                  <div className="repeat-children" style={{ display: 'flex', flexDirection: 'column' }}>
-                    {renderBlocks(b.children, depth + 1, parentCollection, parentItem, parentCategory, undefined, ancestors)}
-                  </div>
-                ) : b.type === 'repeat' || b.type === 'relative' || b.type === 'callSheetEdit' ? (
+                ) : b.type === 'repeat' || b.type === 'relative' ? (
                   <EmptyDropZone
                     blockId={b.id}
-                    label={`Drop inside ${b.type === 'relative' ? 'relative' : b.type === 'callSheetEdit' ? 'call sheet edit zone' : 'repeat'} (or click to add text)`}
+                    label={`Drop inside ${b.type === 'relative' ? 'relative' : 'repeat'} (or click to add text)`}
                     pendingRef={pendingRef}
                     onInsertInto={onInsertInto}
                     onMoveInto={onMoveInto}

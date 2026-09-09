@@ -156,7 +156,7 @@ export function insertInto(blocks: ReportBlock[], id: string | null, b: ReportBl
   if (!id) return [...blocks, b];
   const f = findBlock(blocks, id);
   if (!f) return blocks;
-  if (f.block.type === 'repeat' || f.block.type === 'table' || f.block.type === 'relative' || f.block.type === 'callSheetEdit') {
+  if (f.block.type === 'repeat' || f.block.type === 'table' || f.block.type === 'relative') {
     return updateBlock(blocks, id, { children: [...(f.block.children || []), b] });
   }
   return insertSibling(blocks, f, b, f.index + 1);

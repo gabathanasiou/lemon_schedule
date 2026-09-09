@@ -36,6 +36,14 @@ export interface DaySectionDef {
 
 export const DAY_SECTIONS: DaySectionDef[] = [
   {
+    id: 'callSheet',
+    title: 'Call Sheet',
+    icon: <CallSheetIcon className="w-3.5 h-3.5" />,
+    summary: () => 'Live preview',
+    Component: CallSheetSection,
+    copyable: false,
+  },
+  {
     id: 'details',
     title: 'Day Details',
     icon: <DayDetailsIcon className="w-3.5 h-3.5" />,
@@ -142,14 +150,6 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: ConflictsSection,
     copyable: false,
     isEmpty: day => day.violations.length === 0,
-  },
-  {
-    id: 'callSheet',
-    title: 'Call Sheet',
-    icon: <CallSheetIcon className="w-3.5 h-3.5" />,
-    summary: () => 'Live preview',
-    Component: CallSheetSection,
-    copyable: false,
   },
 ];
 

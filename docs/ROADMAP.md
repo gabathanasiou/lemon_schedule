@@ -35,17 +35,19 @@ sheet is the single location surface and this item is closed.**
 
 ## 10. CallSheet Designer (`[x]` Done)
 
-**Done**: `callSheetEdit` block container + zone unlocked in the reports designer
-(`insertInto`/canvas/context-menu/controls, hint-only dashed border); day-scoped
-preview/print host (shared with the Day Manager live pane, item 98) that substitutes the
-day's per-day zone content (`daybreakMeta.callSheets[designId]` →
-`aux.callSheetBlocks` → `ReportPreview`/`ReportPrint`/paginator); full-surface **Call
-Sheet → Edit** mode in Production → Days (`ReportDesigner` `zone` prop — palette scoped
-to days, commits through `zone.onChange`); custom-rows table mode (`block.custom` +
-`customRows`, literal rich-text cells with `@` tokens, designer inline editors);
-Relative block relabeled **Advance** and the built-in Call Sheet template rebuilt
-(scenes / element calls / crew / department calls / locations / notes / edit zone /
-Advance +1). Verified by `e2e/call-sheet-day.spec.ts` (RULES: `call-sheet-day`).
+**Done**: `callSheetEdit` block container (the zone stays **locked** in the reports
+designer — a placeholder you place, with no children; per-day content is authored in the
+Day Manager); day-scoped preview/print host (shared with the Day Manager live pane,
+item 98) that substitutes the day's per-day zone content (`daybreakMeta.callSheets[designId]` →
+`aux.callSheetBlocks` → `ReportPreview`/`ReportPrint`/paginator); **Call Sheet is the
+first card** in Production → Days, and its full-surface **Edit** opens a **single-page
+WYSIWYG** (`CallSheetCanvas`): the whole design on one white page filled with THAT day's
+data, only the zone editable (a design without a `days`-repeat zone falls back to
+`ReportDesigner` zone mode); custom-rows table mode (`block.custom` + `customRows`,
+literal rich-text cells with `@` tokens, designer inline editors); Relative block
+relabeled **Advance** and the built-in Call Sheet template rebuilt (scenes / element
+calls / crew / department calls / locations / notes / edit zone / Advance +1). Verified
+by `e2e/call-sheet-day.spec.ts` (RULES: `call-sheet-day`).
 **Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.4.**
 
 - **Depends on** items 98 (day data/locations), 99 (call-time/crew collections) and

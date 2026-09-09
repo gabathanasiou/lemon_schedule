@@ -100,7 +100,7 @@ collapsible section cards `DaySectionCard` (`bg-white border border-zinc-200 rou
 shadow-sm`; header = chevron + icon + title + live summary). Desktop split: editor left,
 live call-sheet preview right (`w-[46%] max-w-[640px] border-l border-zinc-200`, collapsible
 via a vertical "Call Sheet" tab); iPad/narrow uses the header `Manage | Call Sheet` toggle.
-All overlays (Copy-from-day, events, pickers) are dark per the two-layer rule. The Call Sheet section's **Edit** switches to a full-surface dark mode (roadmap 10/D17) — a `CallSheetEditPage` header (Back · DAY N · design picker · Reset to template · Print) over the reports-designer palette/canvas, scoped to the day's zone content.
+All overlays (Copy-from-day, events, pickers) are dark per the two-layer rule. The **Call Sheet** card is the FIRST section (top of the page — the deliverable comes first). Its **Edit** switches to a full-surface dark mode (roadmap 10/D17): a `CallSheetEditPage` header (Back · DAY N · design picker · Reset to template · Print) over a **single-page WYSIWYG canvas** (`CallSheetCanvas`) — the whole design renders on one white page filled with THAT day's real data (scenes/crew/locations read-only), and only the `callSheetEdit` zone's blocks are selectable/editable via the palette rail + the standard block chrome above the page. A design without a `days`-repeat `callSheetEdit` zone falls back to a zone-only editor.
 
 ## Canonical class recipes (the exact strings)
 
