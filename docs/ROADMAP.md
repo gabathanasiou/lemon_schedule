@@ -2784,7 +2784,9 @@ with `{{tags}}` should render (not raw tags).
 **Relations**: item 10's editor; the location/sun/weather seam is item 98's
 (`getReportLocation`).
 
-## 119. ui-kit `Tooltip` — snappier hide on mouse-leave (`[ ]`)
+## 119. ui-kit `Tooltip` — snappier hide on mouse-leave (`[x]`)
+
+**Done**: kit `Tooltip` leave delay 150ms → 60ms (`ui-kit/src/Tooltip.tsx:36`, released as **v0.1.80**); app bumped `@gabriel/ui-kit#v0.1.80`. Adjacent-trigger travel still covered by the short delay, so no flicker between chrome buttons.
 
 **Requested**: the chrome tooltips (block editor / palette) linger ~150ms after the
 pointer leaves; make the hide feel immediate.
