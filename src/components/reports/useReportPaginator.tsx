@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import { ReportBlock } from '../../types';
 import { ReportCtx, ReportScopeFilter, RibbonPrintOptions } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
-import { BodyChunk, FragmentPartUnit, PageChunk } from '../../lib/reportPagination';
+import { BodyChunk, FragmentPartUnit, PageChunk, splittableKind } from '../../lib/reportPagination';
 import { REPORT_PAGE_METRICS, blockGapMargin } from './reportStyle';
 import { ReportBlockView } from './ReportBlockView';
 
@@ -75,13 +75,6 @@ function marginTopOf(el: HTMLElement): number {
   return parseFloat(getComputedStyle(el).marginTop) || 0;
 }
 
-/** The paginator treats the day-scoped grid blocks as splittable tables (their
- *  `.report-table-cols` rows are flattened between rows). */
-function splittableKind(type: ReportBlock['type']): string {
-  if (type === 'callTimes' || type === 'crewTable') return 'table';
-  return type === 'repeat' || type === 'table' || type === 'ribbon' ? type : 'block';
-}
-
 function wholeUnit(wrapper: HTMLElement, extra: Partial<FlatUnit> = {}): FlatUnit {
   // The wrapper's marginTop is the block's gap (roadmap 33) — read it into
   // gapBefore so page budgets include the spacing between stacked blocks
@@ -134,7 +127,10 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
 
 /** One dissolved repeat item's children: each child block flows independently
  *  (whole children move whole, ribbons split between strips, tables between
- *  rows, nested repeats between items) and a pageBreak child is a hard break. */
+ *  rows, nested repeats between items) and a pageBreak child is a hard break.
+ *  The child's kind comes from `data-rm-kind` (the block type), NEVER from a
+ *  descendant query — a nested repeat contains a table, and matching that table
+ *  would flatten the repeat as one giant table (the overflow bug). */
 function flattenFragChildren(
   fragChildren: HTMLElement[],
   blockEl: HTMLElement,
@@ -149,20 +145,36 @@ function flattenFragChildren(
       units.push({ h: 0, gapBefore: 0, pageStartExtra: 0, el, local: -1, blockEl, fragChild: ci, itemLocal, unitKind: 'break' });
       continue;
     }
-    const ribbonUnits = Array.from(el.querySelectorAll('.rm-ribbon-unit')) as HTMLElement[];
-    if (ribbonUnits.length > 0) {
-      const blockGap = marginTopOf(el);
-      for (const [ri, ru] of ribbonUnits.entries()) {
-        units.push({ h: ru.offsetHeight, gapBefore: ri === 0 ? blockGap : 0, pageStartExtra: 0, el: ru, local: ri, blockEl, fragChild: ci, itemLocal, unitKind: 'ribbon' });
+    const kind = el.getAttribute('data-rm-kind') || 'block';
+    if (kind === 'ribbon') {
+      const ribbonUnits = Array.from(el.querySelectorAll('.rm-ribbon-unit')) as HTMLElement[];
+      if (ribbonUnits.length > 0) {
+        const blockGap = marginTopOf(el);
+        for (const [ri, ru] of ribbonUnits.entries()) {
+          units.push({ h: ru.offsetHeight, gapBefore: ri === 0 ? blockGap : 0, pageStartExtra: 0, el: ru, local: ri, blockEl, fragChild: ci, itemLocal, unitKind: 'ribbon' });
+        }
+        continue;
       }
-      continue;
-    }
-    if (el.querySelector('.report-table-cols')) {
+    } else if (kind === 'table') {
       units.push(...flattenTable(el, blockEl, 'table', ci, itemLocal));
       continue;
-    }
-    if (el.querySelector('.rm-repeat-col')) {
-      units.push(...flattenRepeat(el, blockEl, ci, itemLocal));
+    } else if (kind === 'repeat') {
+      // A nested repeat splits between ITS items — the fragment model is ONE
+      // level deep (`assembleChunks` keys parts by the top item + child), so
+      // recursing into a nested item's children would collide metadata across
+      // top items and overflow. Nested items stay whole (rule 9: an oversized
+      // single item overflows).
+      const col = el.querySelector('.rm-repeat-col') as HTMLElement | null;
+      const items = col ? Array.from(col.children).filter(c => c.classList.contains('rm-item')) as HTMLElement[] : [];
+      if (items.length === 0) {
+        units.push({ ...wholeUnit(el, { blockEl, fragChild: ci, itemLocal, unitKind: 'repeat', local: -1 }) });
+        continue;
+      }
+      const gap = parseFloat(getComputedStyle(col!).rowGap || '') || 8;
+      const blockGap = marginTopOf(el);
+      for (let jj = 0; jj < items.length; jj++) {
+        units.push({ h: items[jj].offsetHeight, gapBefore: jj === 0 ? blockGap : gap, pageStartExtra: 0, el: items[jj], local: jj, blockEl, fragChild: ci, itemLocal, unitKind: 'repeat' });
+      }
       continue;
     }
     units.push({

@@ -11,7 +11,7 @@ import ReportGridBlock from './ReportGridBlock';
 import { ReportLocationLink } from './ReportLocationLink';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
 import { stripRichText, normalizeSpaces } from '../../lib/richText';
-import { PageChunk, FragmentPartUnit } from '../../lib/reportPagination';
+import { PageChunk, FragmentPartUnit, splittableKind } from '../../lib/reportPagination';
 
 // Pure block renderer for reports (designer canvas + print). All data comes
 // from the canonical ReportCtx; items are resolved by the parent repeat.
@@ -412,7 +412,7 @@ const RepeatItemChildren: React.FC<{
         const part = parts ? parts.find(p => p.childIndex === ci) : undefined;
         if (parts && !part) return null;
         return (
-          <div key={cb.id} className="rm-frag-child" style={{ marginTop: blockGapMargin(cb, ci === 0) }}>
+          <div key={cb.id} className="rm-frag-child" data-rm-kind={splittableKind(cb.type)} style={{ marginTop: blockGapMargin(cb, ci === 0) }}>
             <ReportBlockView
               block={cb}
               ctx={ctx}

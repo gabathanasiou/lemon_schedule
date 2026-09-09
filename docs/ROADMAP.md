@@ -2792,3 +2792,31 @@ FormatToolbar) for flicker between adjacent icon buttons.
 
 **Relations**: kit primitive used by the editor chromes (items 56/83); app-side bump
 follows the `@gabriel/ui-kit` tag pattern.
+
+## 120. Reports paginator — nested-path fragment model (split deeply nested repeats) (`[ ]`)
+
+**Problem**: the measured paginator's fragment model is ONE level deep —
+`FragmentPartUnit` keys a part by `(top item, child index)` + one range, so a
+nested repeat splits only between ITS items and those items stay whole. A deep
+chain (`cast → days → scenes → elements`, `days → categories → elements →
+scenes`) therefore has the `(cast, day)` / `(category, element)` item as its
+smallest unit; a single tall item overflows its page (rule 9) and spills into
+extra physical pages. Verified in the QA sweep (roadmap 11-era seed): E4 110 DOM
+pages with 31 overflowing (max 4918px), E7 max 9252px. Shallow chains are fine
+(the 2-level `cast → days → scenes → table` case is fixed — see git history).
+
+**Design**: give `FragmentPartUnit` a nested path (a list of
+`{ childIndex, itemRange? | tableRowRange? | ribbonRange? }`) and make
+`ReportRepeatView`/`ReportTableView`/`ReportRelativeView` render the slice
+recursively, so any depth can dissolve to row/strip granularity. Keep
+`assembleChunks`'s one-flat-list walker but group by path. Do NOT re-derive
+chunking in the views.
+
+**Verify**: lint + a `report-page-breaks`-style stress design with a 4–5 level
+nested repeat; assert every `.report-page`'s content fits (no `scrollHeight`
+overflow) and Chromium `page.pdf()` page count == `.report-page` count.
+Re-run `playwright.ipad.config.ts` report-pagination (WebKit break behavior).
+
+**Relations**: extends items 30/32/94 (measured pagination) and this session's
+nested-repeat misclassification fix; touches `reportPagination.ts` +
+`useReportPaginator.tsx` + `ReportBlockView.tsx` part rendering.

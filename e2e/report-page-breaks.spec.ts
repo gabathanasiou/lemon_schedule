@@ -244,3 +244,56 @@ test('pageBreak inside a columns block: the whole columns block starts a new pag
   expect(colPage).toContain('COL-B');
   expect(colPage).toContain('COL-C');
 });
+
+// Regression: a nested repeat containing a table used to be misclassified as a
+// table by the fragment walker (descendant query), so it never split — the
+// pages overflowed massively and content was clipped. The child's kind now
+// comes from the block type (`data-rm-kind`).
+test('nested repeats containing tables split across pages (no overflow)', async ({ page }) => {
+  await page.addInitScript(seedWithDesign(design('PB Nested Table', [
+    repeat('pb-cast', 'cast', [
+      text('pb-name', '{{castIdName}}'),
+      repeat('pb-days', 'daysOfCast', [
+        text('pb-day', 'Day {{dayNumber}}'),
+        repeat('pb-scenes', 'scenesOfDay', [
+          text('pb-sc', '#{{sceneNumber}}'),
+          {
+            id: 'pb-tbl', type: 'table', collection: 'elementsOfScene', showHeader: true,
+            columns: [
+              { id: 'pb-c1', field: 'elementName', width: 60 },
+              { id: 'pb-c2', field: 'elementCategory', width: 40 },
+            ],
+          },
+        ]),
+      ]),
+    ]),
+  ])));
+  const pages = await openPrintView(page);
+  const texts = await pageTexts(pages);
+  // Thousands of rows must spread over many pages, not a handful of overflowing ones.
+  expect(texts.length).toBeGreaterThan(10);
+  const overflow = await pages.evaluateAll(els => (els as HTMLElement[]).map(el => el.scrollHeight - el.clientHeight));
+  expect(Math.max(...overflow)).toBeLessThanOrEqual(20); // sub-pixel drift only
+  expect(texts.join('\n')).toContain('Day 1');
+});
+
+// Regression: the filter values box committed per keystroke (one undo entry
+// per typed character). It is a draft now — commits once on blur/Enter.
+test('filter values commit on blur (one undo entry), not per keystroke', async ({ page }) => {
+  await page.addInitScript(seedWithDesign(design('PB Filter Draft', [
+    repeat('pb-r', 'crew', [text('pb-t', '{{crewName}}')], { itemFilter: { field: 'role', values: [] } }),
+  ])));
+  await openDesigner(page);
+  await page.locator('.block-card.block-type-repeat').first().click({ position: { x: 3, y: 3 } });
+  const input = page.getByPlaceholder('Values…').first();
+  await expect(input).toBeVisible({ timeout: 5000 });
+  const before = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
+  await input.click();
+  await page.keyboard.type('Producer', { delay: 40 });
+  const mid = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(150);
+  const after = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
+  expect(mid - before).toBe(0);   // typing alone adds no undo entries
+  expect(after - before).toBe(1); // blur commits once
+});

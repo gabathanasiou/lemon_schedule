@@ -44,4 +44,16 @@ export interface PageChunk {
   body: BodyChunk[];
 }
 
+/** The paginator's chunk granularity for a block type: repeat/relative items
+ *  dissolve into their children, tables split between rows, ribbons between
+ *  strips, everything else moves whole. ONE mapping shared by the measure
+ *  container (top-level blocks) AND the fragment walker (nested children), so
+ *  a nested repeat is never mistaken for the table it contains. */
+export function splittableKind(type: ReportBlock['type']): 'repeat' | 'table' | 'ribbon' | 'block' {
+  if (type === 'callTimes' || type === 'crewTable') return 'table';
+  if (type === 'repeat' || type === 'relative') return 'repeat';
+  if (type === 'table' || type === 'ribbon') return type;
+  return 'block';
+}
+
 export { paginateBlocks };

@@ -67,6 +67,11 @@ nesting depth):**
   whole, ribbons split between strips, tables split between rows (header
   repeats), nested repeats split between items (itemRange parts), and a
   pageBreak child splits the item at that position (perItemParts chunks);
+  **the fragment model is ONE level deep** — parts are keyed by
+  `(top item, child index)`, so a nested repeat splits between ITS items and
+  those items stay WHOLE. A deep chain (`cast → days → scenes → elements`) has
+  the `(cast, day)` item as its smallest unit; a single tall item overflows per
+  rule 9. Splitting deeper would need a nested-path fragment model (roadmap 120).
 - tables split between ROWS — the column header REPEATS on continuation chunks;
   custom-rows tables (`block.custom`) render with the same
   `.report-table-cols`/`.rm-row` classes, so they split between rows identically;
