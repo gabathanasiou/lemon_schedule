@@ -2578,3 +2578,180 @@ undo in Call Sheet → Edit).
 
 **Relations**: depends on item 111's seam; rides item 99's `crewOfDay` + item 106's
 resolved crew call.
+
+## 113. Call Sheet editor — stay in Preview across day switches + zone chrome matches the reports designer (`[ ]`)
+
+**Requested**: in Call Sheet → Edit, (1) switching days must **keep you in Preview**
+(today picking another day drops you back to Edit — you should only leave Preview via
+the Preview/Edit button or by leaving the surface); (2) the per-day editable zone is
+**too large and wears bespoke blue chrome** — its look should match the reports
+designer's `callSheetEdit` zone placeholder exactly (plain dashed box, no blue, no
+uppercase label).
+
+**Facts**:
+- `CallSheetEditPage.tsx:77` (DayPicker `onSelect`) and `:91` (design picker) both call
+  `setPreview(false)` — that's the day-change exit. `editorKey` (`:60`) already includes
+  `day.sectionIndex`, so `DayReportPreview` remounts cleanly per day; only the
+  `setPreview(false)` on day change needs to go.
+- Zone chrome lives in `CallSheetCanvas.tsx:89-105`: a sky label
+  (`text-[10px] … text-sky-600`), `rounded-lg border-2 border-dashed border-sky-300 p-2`,
+  an inline `background:#f4f9ff`, and `my-3` spacing. The reports designer renders the
+  SAME block through `ReportBlockView.tsx:306-330` (`callSheetEdit`): `hint` =
+  `1px dashed #a1a1aa`, radius 6, padding 8/10, no label/blue; non-hint (print) = no
+  border. The canvas wrapper should reuse that exact `hint` recipe so the zone reads
+  identically in both surfaces, and drop the extra vertical margin.
+- Keep the real editable designer (`CallSheetZoneDesigner` → `ReportDesignerCanvas`,
+  `bare`) inside the zone — only the wrapper chrome changes.
+
+**Design**: remove `setPreview(false)` from the day-change handler (keep it on design
+change/reset/back); replace the sky wrapper with the shared `callSheetEdit` `hint`
+recipe (extract the `ReportBlockView` style object into a tiny shared helper or reuse
+the exact values) and trim the margins. Print/preview are unaffected (no `hint`).
+
+**Verify**: lint + playwright (`call-sheet-day.spec.ts`) — switch day while in Preview →
+stays in Preview showing the new day's data; zone wrapper style matches the designer
+placeholder (assert no sky classes / dashed zinc); zone blocks still drag/drop/edit;
+print output unchanged. RULES: `production/day/**` already maps to `call-sheet-day`.
+
+**Relations**: item 10's Call Sheet editor; shares the `callSheetEdit` look with the
+reports designer (`ReportBlockView.tsx`).
+
+## 114. Call Sheet designer — design-only "show call times & durations" toggle on ribbon blocks (`[ ]`)
+
+**Requested**: a header button in Call Sheet → Edit that shows/hides **call times and
+durations** in the embedded strip-ribbon blocks while designing — a scheduling aid so
+you can read the times without leaving the call sheet. It is **view-only**: never saved
+to the design/block and never printed.
+
+**Facts**:
+- The ribbon block already renders both: `ReportBlock.ribbonCallTimes`/`ribbonDurations`
+  (`types.ts:556-557`) → `ReportRibbonView` `hiddenFields` + `showCall`/`showDurations`
+  (`ReportRibbonView.tsx:606-621`, overridable via `RibbonPrintOptions`,
+  `reportData.ts:343`). Today they're per-block persisted settings (block controls
+  `blockControls.tsx:730-731`; print dialog `ReportPrintDialog.tsx:102-103`) and DO print.
+- The ask is the opposite of persistence: one designer-header toggle that overrides
+  visibility **only in the Call Sheet editor canvas**, leaving the block fields and the
+  print path untouched.
+
+**Design**: add a toggle to `CallSheetEditPage`'s header (next to Preview, icon button).
+Thread a design-only flag through `CallSheetCanvas` → `ReportBlockView`/`ReportRibbonView`
+as a **view override** — extend the existing `ribbonOverrides?: Record<string,
+RibbonPrintOptions>` seam (or a dedicated `ribbonViewOverride` prop) to force
+`showCallTimes`/`showDurations` on for every ribbon block in the canvas without mutating
+`block.ribbonCallTimes`/`ribbonDurations`. Preview, print and the reports designer keep
+reading the stored block options. No store/dispatch.
+
+**Verify**: lint + playwright — toggle on → ribbon blocks show call-time + duration cells
+in the editor; toggle off → hidden; `getProject()` shows the block fields unchanged;
+print/preview output unaffected. RULES: `production/day/**` → `call-sheet-day`.
+
+**Relations**: rides item 10's editor and the existing `ribbonCallTimes`/`ribbonDurations`
+rendering (items 29/111); must not touch the reports designer or the print dialog.
+
+## 115. Hover tooltip on call-time / element rows — first-scene "mini ribbon" (`[ ]`)
+
+**Requested**: hovering an element row in the call-sheet grids (e.g. "1. GEORGE") shows
+a tooltip with that element's **first scene** — the call time, the scene heading
+(INT./EXT. — SET — DAY/NIGHT) and a short description, laid out like a tiny ribbon.
+Same behavior on **every editable inline Glide table** (Day Manager Call Times/Crew,
+the call-sheet live grids).
+
+**Facts**:
+- The read model already has everything: `DayElementEntry.firstScene` (1-based) +
+  `firstCallTime` (`dayView.ts:31-33`); `day.scenes[firstScene - 1]` yields the
+  `DaySceneEntry` (`.scene` heading fields + `.callTime`). Nothing new to compute.
+- `InlineGlideTable` already tracks the hovered row via `onItemHovered`
+  (`InlineGlideTable.tsx:174-184`, currently only for the row-fill repaint) — the same
+  callback can drive a tooltip, with Glide's cell bounds (`getBoundsForItem`) for
+  positioning. `HoverTooltip` (`src/components/`) is the shared rich-content tooltip
+  (DESIGN-LANGUAGE).
+- Consumers: `DayTimesGlide` (elementCalls rows), `CrewTableGlide` (crew rows) and any
+  future editable inline grid. Content is per-row, so `InlineGlideTable` should take a
+  `rowTooltip?: (row, rowIndex) => ReactNode` prop and let the host supply the day-scene
+  content — never re-implement hover per grid.
+
+**Design**: add `rowTooltip` to `InlineGlideTable`; on `onItemHovered` resolve the row
+and position a `HoverTooltip` at the hovered cell's bounds (flip to stay on-screen).
+Content = a compact strip: heading line (`INT. BEDFORD FALLS — NIGHT`), `CALL 7:45 AM`,
+and the truncated scene description, styled with `sceneStyle` colors so it reads like
+the stripboard ribbon. `DayTimesGlide` builds it from `firstScene`/`firstCallTime` +
+`day.scenes`; `CrewTableGlide` uses the crew member's first scene when present (else just
+the resolved call). Read-only grids get the same tooltip (read-only info).
+
+**Verify**: lint + playwright — hover a cast row in the Day Manager Call Times grid →
+tooltip names the first-scene heading + call time + description; hover a crew row → same;
+tooltip flips at the viewport edge; no tooltip while editing a cell. RULES:
+`InlineGlideTable.tsx` → GLIDE, `production/day/**` → `day-times-glide`/`call-sheet-day`.
+
+**Relations**: rides item 101/111/112 grids (`InlineGlideTable`) + item 98's `DayView`
+read model; tooltip primitive from item 56's `HoverTooltip`.
+
+## 116. Call Times / Crew table blocks — inter-table gap control (match the repeat block) (`[ ]`)
+
+**Requested**: the call-time (and crew) table blocks print their per-category tables
+with **no gap between them**; give them the **same gap control and default the repeat
+block has**, so the tables breathe and the spacing is adjustable.
+
+**Facts**:
+- `ReportGridBlock` (`ReportGridBlock.tsx:57-111`) renders ONE `.report-table-cols`
+  container with a `group` header row per category (`multi`) and no spacing between
+  groups. `ReportBlock.gap` (`types.ts:531`, "pt between repeated items") already exists
+  and is set on `repeat` (`reportBlocks.ts:42`, default 8).
+- The repeat block's control is "Item gap (px)" (`blockControls.tsx:981-983`,
+  `block.gap ?? 8`, min 0 max 60); `callTimes` only exposes Category
+  (`blockControls.tsx:1107-1119`) and `crewTable` has no controls.
+- `block.gap` is read by the repeat renderer (`ReportBlockView.tsx:513,612`) and the
+  paginator's item budget (`useReportPaginator.tsx:194-202`, `data-rm-gap`). For grid
+  blocks the per-row units are measured as `offsetHeight` (margins excluded), so an
+  internal margin is NOT counted into page budgets unless the paginator reads it into
+  `gapBefore` — otherwise a page break can overlap/drop rows.
+
+**Design**:
+- Add the `gap` control to both `callTimes` and `crewTable` in `blockControls.tsx` using
+  the exact repeat recipe (`Item gap (px)`, default 8, min 0 max 60).
+- Apply it in `ReportGridBlock` as the spacing above each category group header after the
+  first (`marginTop: block.gap ?? 8` on the group row, or a spacer row) — default 8
+  matches the repeat item gap / `DEFAULT_BLOCK_GAP`.
+- Mirror it in the paginator: when flattening `.report-table-cols` rows, carry the group
+  row's margin into that unit's `gapBefore` so page budgets include the spacing.
+- Keep it one shared field (`block.gap`) across repeat/table/grid blocks — no new
+  per-type field. The Call Sheet editor's live grid (`InteractiveGridBlock`, one card per
+  category with `space-y-3`) should read the same value for parity.
+
+**Verify**: lint + playwright — set the gap on a callTimes block → print/preview show
+spacing between category tables equal to the value; default 8 when unset; pagination
+never overlaps or drops rows across a page break; the live Call Sheet grid matches.
+RULES: `src/components/reports/**` already maps to the reports bucket. Read
+`docs/REPORT_PRINTING_AND_PAGE_BREAKS.md` first.
+
+**Relations**: reuses the repeat block's `gap` field/control (items 33/111/112); touches
+the measured paginator — the same seam item 33 established.
+
+## 117. Call Sheet editor — crew call-time cells match the element call-time cells (`[ ]`)
+
+**Requested**: in the Call Sheet editor the **crew call-time cells look different**
+from the element (Call Times) call-time cells — make them the same.
+
+**Facts**:
+- Element grids: `DayTimesGlide.getCellContent` (`DayTimesGlide.tsx:102-109`) renders
+  each stage cell with `themeOverride: raw ? { textDark: '#b45309' } : undefined` — a
+  non-overridden resolved time keeps the theme default `textDark` (`#18181b`,
+  `glideTheme.ts:11`); overridden = amber.
+- Crew grid: `CrewTableGlide.getCellContent` (`CrewTableGlide.tsx:61-68`) ALWAYS sets a
+  `themeOverride`, using `{ textDark: '#71717a' }` (gray) when not overridden — so the
+  crew resolved call reads gray next to the element grid's black.
+- Also `InteractiveGridBlock` (`InteractiveGridBlock.tsx:40-66`) wraps each element
+  category table in a `rounded-lg border … bg-white` card with a header, while the crew
+  table renders bare (`:44-48`) — the crew block has no card chrome in the editor.
+
+**Design**: make the crew call cell use the element cell's exact override rule
+(`overridden ? { textDark: '#b45309' } : undefined`) and, if the visible gap is the
+wrapper, give the crew table the same card chrome as the element categories (one shared
+wrapper in `InteractiveGridBlock`). One call-time cell recipe — no per-grid divergence.
+
+**Verify**: lint + manual visual check (style-only, AGENTS.md rule 7) — a crew row's
+non-overridden resolved call renders in the same color as an element stage cell (both
+amber when overridden); crew block chrome matches the element cards.
+
+**Relations**: rides items 101/111/112 (`InlineGlideTable`, `DayTimesGlide`/
+`CrewTableGlide`); style-only.
