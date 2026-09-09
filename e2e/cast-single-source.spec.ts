@@ -171,10 +171,11 @@ test.describe('cast single source of truth (castMembers)', () => {
     await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();
 
-    // The Cast box renders an EntityDropdown; clicking it opens a panel with member items
+    // The Cast box renders an EntityDropdown with `wrapValue` (Scene Sheet) —
+    // the editor is a <textarea>; clicking it opens a panel with member items.
     const castInput = page
       .locator('div.grid > div', { has: page.getByText('Cast', { exact: true }) })
-      .locator('input')
+      .locator('textarea')
       .first();
     await castInput.click();
 

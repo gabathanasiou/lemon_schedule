@@ -60,12 +60,13 @@ async function gotoSheet(page: any, sceneIndex: number) {
   await expect(page.locator('input[class*="w-10"]').first()).toHaveValue(String(sceneIndex + 1), { timeout: 5000 });
 }
 
-/** Full-value replace of the Cast box via select-all + insertText (one input
+/** Full-value replace of the Cast box via select-all + insertText (one textarea
  *  event — EntityDropdown commits on Tab with the sorted value, so a single
- *  deterministic commit per call). */
+ *  deterministic commit per call). The Scene Sheet passes `wrapValue`, so the
+ *  editor is a <textarea>, not an <input>. */
 async function setCast(page: any, value: string) {
   const castBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Cast', { exact: true }) }).first();
-  const castInput = castBox.locator('input').first();
+  const castInput = castBox.locator('textarea').first();
   await castInput.click();
   await page.keyboard.press('Meta+A');
   await page.keyboard.insertText(value);
@@ -352,7 +353,7 @@ test('anchored elements show an anchor icon in pickers (link manager + scene she
   // Scene Sheet cast picker: the anchored cast member carries the icon too.
   await gotoSheet(page, 0);
   const castBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Cast', { exact: true }) }).first();
-  const castInput = castBox.locator('input').first();
+  const castInput = castBox.locator('textarea').first();
   await castInput.click();
   await page.keyboard.type(anchor.name.slice(0, 4));
   const sheetRow = page.getByText(anchor.name, { exact: true }).last();

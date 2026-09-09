@@ -19,11 +19,12 @@ async function gotoSheet(page: import('@playwright/test').Page) {
   await expect(navInput).toHaveValue('1', { timeout: 5000 });
 }
 
-/** Full-value replace of the Cast box via select-all + insertText (one input
- *  event — EntityDropdown commits on Tab with the sorted value). */
+/** Full-value replace of the Cast box via select-all + insertText (one textarea
+ *  event — EntityDropdown commits on Tab with the sorted value). The Scene
+ *  Sheet passes `wrapValue`, so the editor is a <textarea>, not an <input>. */
 async function setCast(page: import('@playwright/test').Page, value: string) {
   const castBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Cast', { exact: true }) }).first();
-  const castInput = castBox.locator('input').first();
+  const castInput = castBox.locator('textarea').first();
   await castInput.click();
   await page.keyboard.press('Meta+A');
   await page.keyboard.insertText(value);
@@ -124,7 +125,7 @@ test.describe('new cast naming modal', () => {
 
     // Add a brand-new prop (name-keyed) — no naming modal either.
     const propsBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Props', { exact: true }) }).first();
-    const propsInput = propsBox.locator('input').first();
+    const propsInput = propsBox.locator('textarea').first();
     await propsInput.click();
     await page.keyboard.press('Meta+A');
     await page.keyboard.insertText('BRAND NEW PROP');
