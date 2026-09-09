@@ -144,7 +144,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
                 } : undefined}
-                className="shrink-0"
+                className={`shrink-0 ${theme === 'dark' && active && !isCloud ? 'bg-white! text-zinc-900!' : ''}`}
               >
                 {tab.label}
               </Button>
