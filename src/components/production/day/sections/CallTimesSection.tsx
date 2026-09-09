@@ -89,7 +89,7 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
                       const overrides = day.meta.elementCalls?.[category]?.[entry.key];
                       const chain = computeElementCallChain(settings.stages, stageKeys, entry.firstCallTime, overrides);
                       return (
-                        <tr key={entry.key} className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50">
+                        <tr key={entry.key} className="even:bg-zinc-50/60 hover:bg-zinc-100">
                           <td className={`${TD} text-center text-xs text-zinc-400 tabular-nums`}>{entry.boardId || ''}</td>
                           <td className={`${TD} text-xs text-zinc-800 whitespace-nowrap max-w-[16rem] truncate`}>{entry.name}</td>
                           <td className={`${TD} text-center`}>

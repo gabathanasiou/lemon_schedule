@@ -20,9 +20,10 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     }
 
     // First cast row's On Set cell (last stage column of the call-times table).
-    const onSet = section.locator('table').first().locator('tbody tr').first().locator('td').last().locator('input').first();
+    const onSetCell = section.locator('table').first().locator('tbody tr').first().locator('td').last();
+    await onSetCell.locator('[data-timefield]').first().click();
+    const onSet = onSetCell.locator('input').first();
     await expect(onSet).toBeVisible({ timeout: 5000 });
-    await onSet.click();
     await onSet.fill('07:00');
     await onSet.press('Enter');
 

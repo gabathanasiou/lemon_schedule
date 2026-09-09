@@ -14,20 +14,20 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
   const types = project.locationTypes || [];
 
   const items: GroupedSelectItem[] = useMemo(() => {
-    const out: GroupedSelectItem[] = locations.map(l => ({
+    // Scene-derived names come FIRST (they're what the day is actually shot
+    // at); picking one creates the Locations-DB entry on the fly. Then the
+    // Locations DB, grouped by type.
+    const dbNames = new Set(locations.map(l => l.name.trim().toLowerCase()));
+    const sceneItems: GroupedSelectItem[] = day.sceneLocations
+      .filter(name => !dbNames.has(name.trim().toLowerCase()))
+      .map(name => ({ id: `scene:${name}`, name }));
+    const dbItems: GroupedSelectItem[] = locations.map(l => ({
       id: l.id,
       name: resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng),
       group: typeLabelOf(l, types),
       hint: l.address && l.address !== l.name ? l.address : undefined,
     }));
-    // Scene-derived names (free text) are pickable without pre-creating a DB
-    // entry — selecting one creates a Locations-DB entry on the fly.
-    const dbNames = new Set(locations.map(l => l.name.trim().toLowerCase()));
-    for (const name of day.sceneLocations) {
-      if (dbNames.has(name.trim().toLowerCase())) continue;
-      out.push({ id: `scene:${name}`, name, group: 'From scenes' });
-    }
-    return out;
+    return [...sceneItems, ...dbItems];
   }, [locations, types, day.sceneLocations]);
 
   /** Maps a picker id to a real Locations-DB id, creating a DB entry for a
@@ -110,15 +110,6 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
         <div className="text-[11px] text-zinc-500 space-y-0.5">
           {nearestHospital && <div>Nearest hospital: <span className="text-zinc-700">{resolvedLocationName(nearestHospital.name, nearestHospital.address, nearestHospital.place, nearestHospital.lat, nearestHospital.lng)}</span></div>}
           {nearestPolice && <div>Nearest police: <span className="text-zinc-700">{resolvedLocationName(nearestPolice.name, nearestPolice.address, nearestPolice.place, nearestPolice.lat, nearestPolice.lng)}</span></div>}
-        </div>
-      )}
-
-      {day.sceneLocations.length > 0 && (
-        <div>
-          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">From scenes</div>
-          <div className="flex flex-wrap gap-1.5">
-            {day.sceneLocations.map(loc => <span key={loc} className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600"><MapPin className="w-3 h-3" />{loc}</span>)}
-          </div>
         </div>
       )}
 

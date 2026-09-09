@@ -37,7 +37,7 @@ const CastElementsSection: React.FC<DaySectionProps> = ({ day, project }) => {
                 </td>
               </tr>
               {group.entries.map(entry => (
-                <tr key={`${group.category}-${entry.key}`} className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50">
+                <tr key={`${group.category}-${entry.key}`} className="even:bg-zinc-50/60 hover:bg-zinc-100">
                   <td className={`${TD} text-xs text-zinc-800`}>{entry.boardId ? `${entry.boardId}. ${entry.name}` : entry.name}</td>
                   <td className={`${TD} text-xs text-zinc-500 text-right tabular-nums`}>{entry.firstScene}</td>
                   <td className={`${TD} text-xs text-zinc-800 text-right tabular-nums`}>{entry.firstCallTime || '—'}</td>

@@ -47,8 +47,8 @@ test.describe('Day Manager (roadmap 98)', () => {
   test('header call time edits the governing daybreak', async ({ page }) => {
     await openDays(page);
 
+    await page.locator('[data-day-manager] header [data-timefield]').first().click();
     const input = page.locator('[data-day-manager] header input').first();
-    await input.click();
     await input.fill('06:15');
     await input.press('Enter');
 

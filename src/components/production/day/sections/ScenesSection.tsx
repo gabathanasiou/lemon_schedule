@@ -36,7 +36,7 @@ const ScenesSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
               <tr
                 key={entry.row.id}
                 onClick={() => scene && actions.openScene?.(scene.id)}
-                className="border-b border-zinc-100 last:border-0 hover:bg-zinc-100 transition-colors cursor-pointer"
+                className="even:bg-zinc-50/60 hover:bg-zinc-100 transition-colors cursor-pointer"
               >
                 <td className={TD}>
                   <span className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold" style={color}>

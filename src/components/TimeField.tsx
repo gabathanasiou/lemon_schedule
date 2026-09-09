@@ -6,12 +6,14 @@ import { useTouchMode } from '../lib/useMarquee';
 import { usePortalTarget, useCurrentDocument, useCurrentWindow } from '../lib/popoutTarget';
 
 /**
- * Shared call-time expression input (D11/D19). Stores the RAW expression
- * (absolute `7:30`/`730`/`7:30am` or relative `-1h`/`-45m`/`+30m`); the caller
- * resolves it to an absolute time and passes `resolvedTime` for display.
- * Desktop = inline `CellInput`; touch = a keypad with `:` `+` `-` `h` `m`.
+ * Shared call-time expression input (D11/D19). DISPLAYS the resolved absolute
+ * time as plain, readable text; clicking switches to editing the RAW
+ * expression (absolute `7:30`/`730`/`7:30am` or relative `-1h`/`+30m`).
+ * Desktop = click-to-edit inline; touch = a keypad with `:` `+` `-` `h` `m`.
+ * A stored override shows an amber dot + reset.
  */
 export interface TimeFieldProps {
+  /** Raw expression (absolute or relative). */
   value?: string;
   onChange: (raw: string) => void;
   /** The absolute time the expression resolves to (caller-computed). */
@@ -34,7 +36,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   onChange,
   resolvedTime,
   readOnly,
-  placeholder = '7:30 or -1h',
+  placeholder = '—',
   className = '',
   onReset,
   autoFocus,
@@ -44,10 +46,14 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   const currentDocument = useCurrentDocument();
   const currentWindow = useCurrentWindow();
 
+  const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const draftRef = useRef(value);
   const openRef = useRef(false);
+
+  const hasOverride = !!value;
+  const display = resolvedTime || value || '';
 
   const commit = useCallback(() => {
     onChange(draftRef.current.trim());
@@ -91,7 +97,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   const press = (ch: string) => setDraft(d => { const next = d + ch; draftRef.current = next; return next; });
   const backspace = () => setDraft(d => { const next = d.slice(0, -1); draftRef.current = next; return next; });
 
-  const resetBtn = onReset && value && !readOnly ? (
+  const resetBtn = onReset && hasOverride && !readOnly ? (
     <button
       type="button"
       aria-label="Reset to calculated"
@@ -103,20 +109,38 @@ export const TimeField: React.FC<TimeFieldProps> = ({
     </button>
   ) : null;
 
+  const overrideDot = hasOverride ? <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Overridden" /> : null;
+
   if (readOnly) {
-    return (
-      <span className={`inline-flex items-center gap-1 ${className}`}>
-        <span>{value || '\u00A0'}</span>
-        {resolvedTime && <span className="text-[10px] text-zinc-400">{resolvedTime}</span>}
-      </span>
-    );
+    return <span className={`inline-flex items-center gap-1 text-xs text-zinc-800 tabular-nums ${className}`}>{display || '—'}</span>;
   }
 
   if (!isTouch) {
+    if (editing) {
+      return (
+        <div className={`flex items-center gap-1 ${className}`}>
+          <CellInput
+            value={value}
+            onChange={onChange}
+            onBlur={() => setEditing(false)}
+            autoFocus
+            noFill
+          />
+          {resetBtn}
+        </div>
+      );
+    }
     return (
       <div className={`flex items-center gap-1 ${className}`}>
-        <CellInput value={value} onChange={onChange} placeholder={placeholder} noFill autoFocus={autoFocus} />
-        {resolvedTime && <span className="text-[10px] text-zinc-400 whitespace-nowrap">{resolvedTime}</span>}
+        <button
+          type="button"
+          data-timefield
+          onClick={() => setEditing(true)}
+          className="min-w-[3.25rem] px-1.5 py-0.5 rounded text-xs text-zinc-800 tabular-nums text-center hover:bg-zinc-100"
+        >
+          {display || <span className="text-zinc-400">{placeholder}</span>}
+        </button>
+        {overrideDot}
         {resetBtn}
       </div>
     );
@@ -126,11 +150,12 @@ export const TimeField: React.FC<TimeFieldProps> = ({
     <div className={`flex items-center gap-1 ${className}`}>
       <button
         type="button"
+        data-timefield
         onClick={openKeypad}
-        className="flex-1 min-w-0 text-left px-2 py-1.5 rounded border border-zinc-300 bg-white text-xs text-zinc-800 hover:bg-zinc-50"
+        className="flex-1 min-w-0 flex items-center justify-center gap-1 px-2 py-1.5 rounded border border-zinc-300 bg-white text-xs text-zinc-800 tabular-nums hover:bg-zinc-50"
       >
-        {value || <span className="text-zinc-400">{placeholder}</span>}
-        {resolvedTime && <span className="ml-1 text-[10px] text-zinc-400">{resolvedTime}</span>}
+        <span className="truncate">{display || <span className="text-zinc-400">{placeholder}</span>}</span>
+        {overrideDot}
       </button>
       {resetBtn}
       {open && createPortal(
