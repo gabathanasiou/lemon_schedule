@@ -33,21 +33,18 @@ no location registry). **The stripboard/glide location columns were DROPPED
 (user decision) — locations are not wired into the stripboard/glide; the scene
 sheet is the single location surface and this item is closed.**
 
-## 10. Future: CallSheet Designer (`[~]`)
+## 10. CallSheet Designer (`[~]`)
 
-- A **CallSheet Designer**: a **variant of the Report Designer** sharing the
-  same code — almost a toggle.
-- Instead of designing reports, you pick a **call sheet template created in
-  the reports designer**, then **edit it individually for every day**.
-- To make per-day editing easy, add a **"call sheet edit block"** in the
-  reports designer: in the call sheet editor you're **only allowed to put or
-  not put things inside that block**; everything else remains static and taken
-  from the template.
-- Block container implemented (`[x]`): new `callSheetEdit` block type
-  (palette + renderer + tree support). The reports designer CANNOT drop
-  blocks into it (drop-zones are type-derived — repeat/table only), so it's a
-  locked zone; the future callsheet designer opts in. Children rendering is
-  forward-compatible.
+**Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.4 — read it first (no re-research).**
+
+- **Done**: `callSheetEdit` block container (palette + renderer + tree support).
+- **Remaining**: day-scoped preview/print (shared host with the Day Manager's live preview
+  pane, item 98); unlock the edit zone + per-day storage
+  (`daybreakMeta.callSheets[designId]`); full-surface edit mode in Production → Days;
+  custom-rows table mode with `@` tokens; relabel the Relative block as Advance and add it
+  to the template; update the built-in Call Sheet template.
+- **Depends on** items 98 (day data/locations), 99 (call-time/crew collections) and
+  100 (filtered rows/lookups).
 
 ## 11. Link crew positions to element categories (`[ ]`)
 
@@ -2159,3 +2156,51 @@ must reuse the canonical `Action` union/reducer — no parallel mutation path.
     running UI.
 
 **Verify**: TBD once scope is agreed.
+
+## 98. Day Manager page — Production → Days (`[ ]`)
+
+**Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.1 — read it first (no re-research).**
+
+- A per-day page (Production sub-tab `Days`, plus a new `Call Times` settings sub-tab):
+  modular section registry over one canonical `DayView`; editable call time/status/notes,
+  master + key locations (fed to call sheets/map/weather — the London stub goes away),
+  scenes, cast/elements, events, conflicts, call sheet.
+- **Live call-sheet preview**: desktop split view / iPad `Manage | Call Sheet` toggle,
+  rendering the actual call-sheet design scoped to the day (shared host with item 10); the
+  day header mirrors the call-sheet top block.
+- Day properties live in `daybreakMeta` on the governing DAYBREAK row (`src/lib/dayMeta.ts`);
+  carry through day drags/clones, warn before a delete discards them, undo restores.
+- Copy-from-day modal, day pop-out windows + shared day clipboard, shared `TimeField`/
+  `DurationField` + grouped `EntityDropdown` primitives.
+- Entry points: calendar day menu, stripboard daybreak double-click, Day Events modal footer.
+
+**Relations**: foundation for items 99/100/10; renames Calendar's "Day Breakdown" → "Day Types".
+
+## 99. Day call-times helper + crew + report collections (`[ ]`)
+
+**Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.2 — read it first.**
+
+- Optional 1st-AD helper: on-set anchors to the element's first scene; configurable stages
+  (default Pickup → Arrive → HMUA → Costume → On Set) with default leads; expression boxes
+  (absolute, or `-1h` relative to the next stage); per-category defaults (Cast full chain,
+  Background Actors Arrive + On Set, any category addable).
+- Department precalls, per-person crew call overrides, usual crew template (Production →
+  Call Times), full-roster fallback.
+- New report collections `elementCallsOfDay`/`crewOfDay`/`departmentCallsOfDay`/
+  `locationsOfDay` + `dayNotes`; crew items gain stable keys.
+
+**Relations**: builds on item 98; item 10's crew/element tables depend on it; item 11
+(crew↔element categories) stays separate.
+
+## 100. Reports designer — filtered rows + item lookups (`[ ]`)
+
+**Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.3 — read it first.**
+
+- Per-block `itemFilter { field, values }` on repeats/tables (one filter step in the shared
+  resolution path) + designer "Filter rows" control — e.g. a Crew table filtered to Line
+  Producer / Production Coordinator / Location Manager with Role/Name/Phone/Email columns.
+- Then lookup tokens: `@` picker → "Reference an item…" → collection → item → attribute,
+  resolvable in text/free-table cells. Key Positions fields stay.
+
+**Relations**: item 10's key-contacts tables depend on the filter half; rides the
+`ReportScope`/`filterItemsByScope` machinery.
