@@ -1,5 +1,8 @@
 import React, { useMemo } from 'react';
-import { ArrowDown, ArrowUp, Clock } from 'lucide-react';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Clock, GripVertical } from 'lucide-react';
 import { useProject } from '../../../store';
 import { getCallTimeSettings } from '../../../lib/callTimes';
 import { CREW_DEPARTMENTS } from '../../../lib/crewCatalog';
@@ -31,6 +34,58 @@ const SectionTitle: React.FC<{ title: string; hint?: string }> = ({ title, hint 
   </div>
 );
 
+/** One draggable call-stage row (roadmap 104) — grip on the left reorders via
+ *  dnd-kit; the fields (label / lead / remove) sit on the rest of the row so
+ *  editing never starts a drag. */
+interface StageRowProps {
+  stage: CallStageDef;
+  index: number;
+  count: number;
+  readOnly?: boolean;
+  onChange: (index: number, patch: Partial<CallStageDef>) => void;
+  onRemove: (index: number) => void;
+}
+
+const StageRow: React.FC<StageRowProps> = ({ stage, index, count, readOnly, onChange, onRemove }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stage.key });
+  const isLast = index === count - 1;
+  const { CREM_TEXT } = ruleModalSizes();
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 30 : undefined }}
+      className={`flex items-center gap-2 rounded border border-zinc-800 bg-zinc-950/60 px-2 py-1 ${isDragging ? 'opacity-80 shadow-lg' : ''}`}
+    >
+      <button
+        type="button"
+        disabled={readOnly}
+        {...attributes}
+        {...listeners}
+        aria-label={`Drag ${stage.label} to reorder`}
+        title="Drag to reorder"
+        className={`shrink-0 text-zinc-600 hover:text-zinc-200 transition-colors ${readOnly ? 'cursor-not-allowed opacity-40' : 'cursor-grab active:cursor-grabbing'}`}
+        style={{ touchAction: 'none' }}
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+      <span className="text-[10px] text-zinc-500 w-4 text-right shrink-0">{index + 1}</span>
+      <CommitInput
+        value={stage.label}
+        onCommit={v => onChange(index, { label: v })}
+        readOnly={readOnly}
+        className={`${INPUT_DARK} flex-1`}
+      />
+      {!isLast ? (
+        <TimeField value={stage.lead || ''} onChange={v => onChange(index, { lead: v || undefined })} readOnly={readOnly} placeholder="-1h" className="w-24 shrink-0" theme="dark" />
+      ) : (
+        <span className={`${CREM_TEXT} text-zinc-500 w-24 shrink-0 text-center`}>anchor</span>
+      )}
+      <button type="button" disabled={readOnly || count <= 1} onClick={() => onRemove(index)} className="text-xs text-zinc-500 hover:text-rose-400 disabled:opacity-30 shrink-0" aria-label={`Remove ${stage.label}`}>✕</button>
+    </div>
+  );
+};
+
 export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
@@ -48,12 +103,15 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
     setCallTimes({ stages: settings.stages.map((s, i) => i === index ? { ...s, ...patch } : s) });
   const removeStage = (index: number) => setCallTimes({ stages: settings.stages.filter((_, i) => i !== index) });
   const addStage = () => setCallTimes({ stages: [...settings.stages, { key: `stage${settings.stages.length + 1}`, label: 'New stage', lead: '-30m' }] });
-  const moveStage = (index: number, delta: number) => {
-    const j = index + delta;
-    if (j < 0 || j >= settings.stages.length) return;
-    const next = [...settings.stages];
-    [next[index], next[j]] = [next[j], next[index]];
-    setCallTimes({ stages: next });
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const onStageDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from = settings.stages.findIndex(s => s.key === active.id);
+    const to = settings.stages.findIndex(s => s.key === over.id);
+    if (from < 0 || to < 0) return;
+    setCallTimes({ stages: arrayMove(settings.stages, from, to) });
   };
 
   const categoryItems: GroupedSelectItem[] = useMemo(() =>
@@ -78,35 +136,25 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
     >
       <div className={sizes.CREM_BODY}>
         <div>
-          <SectionTitle title="Call stages" hint="Ordered earliest → latest; the last stage (On Set) anchors to the element's first scene. A lead is relative to the NEXT stage." />
-          <div className="space-y-1.5">
-            {settings.stages.map((stage, i) => (
-              <div key={stage.key} className="flex items-center gap-2">
-                <div className="flex flex-col">
-                  <button type="button" disabled={readOnly || i === 0} onClick={() => moveStage(i, -1)} aria-label="Move stage earlier" className="text-zinc-500 hover:text-zinc-200 disabled:opacity-20">
-                    <ArrowUp className="w-3 h-3" />
-                  </button>
-                  <button type="button" disabled={readOnly || i === settings.stages.length - 1} onClick={() => moveStage(i, 1)} aria-label="Move stage later" className="text-zinc-500 hover:text-zinc-200 disabled:opacity-20">
-                    <ArrowDown className="w-3 h-3" />
-                  </button>
-                </div>
-                <span className="text-[10px] text-zinc-500 w-4 text-right">{i + 1}</span>
-                <CommitInput
-                  value={stage.label}
-                  onCommit={v => setStage(i, { label: v })}
-                  readOnly={readOnly}
-                  className={`${INPUT_DARK} flex-1`}
-                />
-                {i < settings.stages.length - 1 ? (
-                  <TimeField value={stage.lead || ''} onChange={v => setStage(i, { lead: v || undefined })} readOnly={readOnly} placeholder="-1h" className="w-24" theme="dark" />
-                ) : (
-                  <span className={`${CREM_TEXT} text-zinc-500 w-24 text-center`}>anchor</span>
-                )}
-                <button type="button" disabled={readOnly || settings.stages.length <= 1} onClick={() => removeStage(i)} className="text-xs text-zinc-500 hover:text-rose-400 disabled:opacity-30" aria-label={`Remove ${stage.label}`}>✕</button>
+          <SectionTitle title="Call stages" hint="Drag to reorder earliest → latest; the last stage (On Set) anchors to the element's first scene. A lead is relative to the NEXT stage." />
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onStageDragEnd}>
+            <SortableContext items={settings.stages.map(s => s.key)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-1.5">
+                {settings.stages.map((stage, i) => (
+                  <StageRow
+                    key={stage.key}
+                    stage={stage}
+                    index={i}
+                    count={settings.stages.length}
+                    readOnly={readOnly}
+                    onChange={setStage}
+                    onRemove={removeStage}
+                  />
+                ))}
               </div>
-            ))}
-            <button type="button" disabled={readOnly} onClick={addStage} className="text-xs font-medium text-zinc-400 hover:text-zinc-100">+ Add stage</button>
-          </div>
+            </SortableContext>
+          </DndContext>
+          <button type="button" disabled={readOnly} onClick={addStage} className="text-xs font-medium text-zinc-400 hover:text-zinc-100">+ Add stage</button>
         </div>
 
         <div className="mt-5">
