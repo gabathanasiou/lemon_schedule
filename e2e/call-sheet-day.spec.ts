@@ -2,7 +2,8 @@ import { test, expect, Page } from '@playwright/test';
 import { loadSeedProject, openSeededProject } from './helpers';
 
 // Call Sheet Designer completion (roadmap 10): day-scoped per-day zone editing
-// and rendering.
+// and rendering. The editor is reached from the Days header's "Call Sheet"
+// button; its Preview toggle shows the paginated day report.
 
 async function openDays(page: Page) {
   await openSeededProject(page);
@@ -12,11 +13,7 @@ async function openDays(page: Page) {
 }
 
 async function openCallSheetEdit(page: Page) {
-  const section = page.locator('[data-section="callSheet"]');
-  if (!(await section.locator('button', { hasText: 'Edit' }).count())) {
-    await section.getByRole('button').first().click();
-  }
-  await section.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.locator('[data-day-manager] header').getByRole('button', { name: /Call Sheet/ }).click();
   await expect(page.locator('[data-call-sheet-edit]')).toBeVisible({ timeout: 8000 });
 }
 
@@ -27,6 +24,24 @@ const readPinnedMeta = (page: Page, designId: string) => page.evaluate((id) => {
   const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
   return gov?.daybreakMeta?.callSheets?.[id] || null;
 }, designId);
+
+async function seedWithDesign(page: Page, raw: string, mutate: (project: any) => void) {
+  const project = JSON.parse(raw);
+  mutate(project);
+  await page.addInitScript(({ projectJson, meta }) => {
+    const p = JSON.parse(projectJson);
+    localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
+    localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
+  }, {
+    projectJson: JSON.stringify(project),
+    meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
+  });
+  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
+  await page.getByRole('button', { name: 'Production' }).click();
+  await page.getByRole('button', { name: 'Days', exact: true }).click();
+  await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
+}
 
 test.describe('Call Sheet Designer (roadmap 10)', () => {
   test('per-day zone edit writes daybreakMeta.callSheets and resets to template', async ({ page }) => {
@@ -41,7 +56,8 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     });
     expect(designId).not.toBe('');
 
-    // Add a text block into the zone via the palette → per-day storage.
+    // The zone-less seed design falls back to the zone-mode designer: add a
+    // text block via its palette → per-day storage.
     await page.getByRole('button', { name: 'Text', exact: true }).first().click();
     await expect.poll(async () => {
       const blocks = await readPinnedMeta(page, designId);
@@ -54,92 +70,59 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
   });
 
   test('custom-rows table renders literal cells and resolves tokens', async ({ page }) => {
-    const seed = loadSeedProject();
-    const project = JSON.parse(seed.raw);
-    project.reportDesigns = [{
-      id: 'cs-custom', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
-      blocks: [{
-        id: 'days', type: 'repeat', collection: 'days', children: [{
-          id: 't', type: 'table', custom: true, showHeader: true, collection: 'days',
-          columns: [
-            { id: 'c1', field: '', label: 'TRANSPORT', width: 50, align: 'left' },
-            { id: 'c2', field: '', label: 'TIME', width: 50, align: 'center' },
-          ],
-          customRows: [
-            { id: 'r1', cells: ['Van 1', '07:30'] },
-            { id: 'r2', cells: ['{{title}}', '08:00'] },
-          ],
+    await seedWithDesign(page, loadSeedProject().raw, project => {
+      project.reportDesigns = [{
+        id: 'cs-custom', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
+        blocks: [{
+          id: 'days', type: 'repeat', collection: 'days', children: [{
+            id: 't', type: 'table', custom: true, showHeader: true, collection: 'days',
+            columns: [
+              { id: 'c1', field: '', label: 'TRANSPORT', width: 50, align: 'left' },
+              { id: 'c2', field: '', label: 'TIME', width: 50, align: 'center' },
+            ],
+            customRows: [
+              { id: 'r1', cells: ['Van 1', '07:30'] },
+              { id: 'r2', cells: ['{{title}}', '08:00'] },
+            ],
+          }],
         }],
-      }],
-      header: [], footer: [],
-    }];
-    project.activeReportId = 'cs-custom';
-
-    await page.addInitScript(({ projectJson, meta }) => {
-      const p = JSON.parse(projectJson);
-      localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
-      localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
-    }, {
-      projectJson: JSON.stringify(project),
-      meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
+        header: [], footer: [],
+      }];
+      project.activeReportId = 'cs-custom';
     });
 
-    await page.goto('http://localhost:3001/lemon_schedule/');
-    await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-    await page.getByRole('button', { name: 'Production' }).click();
-    await page.getByRole('button', { name: 'Days', exact: true }).click();
-    await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
-
-    const pane = page.locator('[data-day-callsheet-pane]');
-    await expect(pane.getByText('TRANSPORT', { exact: true }).first()).toBeVisible({ timeout: 8000 });
-    await expect(pane.getByText('Van 1', { exact: true }).first()).toBeVisible({ timeout: 8000 });
-    await expect(pane.getByText('07:30', { exact: true }).first()).toBeVisible({ timeout: 8000 });
-    // {{title}} resolves (token no longer printed raw).
-    await expect(pane.getByText('{{title}}')).toHaveCount(0);
+    await openCallSheetEdit(page);
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    const editor = page.locator('[data-call-sheet-edit]');
+    await expect(editor.getByText('TRANSPORT', { exact: true }).first()).toBeVisible({ timeout: 10000 });
+    await expect(editor.getByText('Van 1', { exact: true }).first()).toBeVisible({ timeout: 10000 });
+    await expect(editor.getByText('07:30', { exact: true }).first()).toBeVisible({ timeout: 10000 });
+    await expect(editor.getByText('{{title}}')).toHaveCount(0);
   });
 
   test('call-sheet edit shows the full day page read-only with an editable zone', async ({ page }) => {
-    const seed = loadSeedProject();
-    const project = JSON.parse(seed.raw);
-    project.reportDesigns = [{
-      id: 'cs-wysiwyg', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
-      blocks: [{
-        id: 'days', type: 'repeat', collection: 'days', children: [
-          { id: 'hdr', type: 'text', text: 'DAY HEADER {{dayNumber}} {{dayDate}}' },
-          { id: 'zone', type: 'callSheetEdit', children: [] },
-        ],
-      }],
-      header: [], footer: [],
-    }];
-    project.activeReportId = 'cs-wysiwyg';
-
-    await page.addInitScript(({ projectJson, meta }) => {
-      const p = JSON.parse(projectJson);
-      localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
-      localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
-    }, {
-      projectJson: JSON.stringify(project),
-      meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
+    await seedWithDesign(page, loadSeedProject().raw, project => {
+      project.reportDesigns = [{
+        id: 'cs-wysiwyg', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
+        blocks: [{
+          id: 'days', type: 'repeat', collection: 'days', children: [
+            { id: 'hdr', type: 'text', text: 'DAY HEADER {{dayNumber}} {{dayDate}}' },
+            { id: 'zone', type: 'callSheetEdit', children: [] },
+          ],
+        }],
+        header: [], footer: [],
+      }];
+      project.activeReportId = 'cs-wysiwyg';
     });
 
-    await page.goto('http://localhost:3001/lemon_schedule/');
-    await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-    await page.getByRole('button', { name: 'Production' }).click();
-    await page.getByRole('button', { name: 'Days', exact: true }).click();
-    await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
+    await openCallSheetEdit(page);
 
-    // Call Sheet is the FIRST card now.
-    const firstCard = page.locator('[data-section]').first();
-    await expect(firstCard).toHaveAttribute('data-section', 'callSheet', { timeout: 8000 });
-
-    // Open Edit → the WYSIWYG page: read-only template resolved for the day.
-    const section = page.locator('[data-section="callSheet"]');
-    await section.getByRole('button', { name: 'Edit', exact: true }).click();
+    // WYSIWYG page: read-only template resolved for the day.
     await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
     await expect(page.getByText(/^DAY HEADER /).first()).toBeVisible({ timeout: 8000 });
     await expect(page.getByText('{{dayNumber}}')).toHaveCount(0);
 
-    // The empty zone is the designer's drop target — click it to add a text block.
+    // The empty zone is the designer's drop target — click it to add a block.
     await page.getByText(/No blocks yet/).click();
     await expect(page.locator('[data-call-sheet-page] [data-block-id]').first()).toBeAttached({ timeout: 8000 });
     await expect.poll(() => page.evaluate(() => {
@@ -171,36 +154,21 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
   });
 
   test('palette drag-and-drop adds a zone block in the page editor', async ({ page }) => {
-    const seed = loadSeedProject();
-    const project = JSON.parse(seed.raw);
-    project.reportDesigns = [{
-      id: 'cs-dnd', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
-      blocks: [{
-        id: 'days', type: 'repeat', collection: 'days', children: [
-          { id: 'hdr', type: 'text', text: 'DAY HEADER {{dayNumber}}' },
-          { id: 'zone', type: 'callSheetEdit', children: [] },
-        ],
-      }],
-      header: [], footer: [],
-    }];
-    project.activeReportId = 'cs-dnd';
-
-    await page.addInitScript(({ projectJson, meta }) => {
-      const p = JSON.parse(projectJson);
-      localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
-      localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
-    }, {
-      projectJson: JSON.stringify(project),
-      meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
+    await seedWithDesign(page, loadSeedProject().raw, project => {
+      project.reportDesigns = [{
+        id: 'cs-dnd', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
+        blocks: [{
+          id: 'days', type: 'repeat', collection: 'days', children: [
+            { id: 'hdr', type: 'text', text: 'DAY HEADER {{dayNumber}}' },
+            { id: 'zone', type: 'callSheetEdit', children: [] },
+          ],
+        }],
+        header: [], footer: [],
+      }];
+      project.activeReportId = 'cs-dnd';
     });
 
-    await page.goto('http://localhost:3001/lemon_schedule/');
-    await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-    await page.getByRole('button', { name: 'Production' }).click();
-    await page.getByRole('button', { name: 'Days', exact: true }).click();
-    await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
-
-    await page.locator('[data-section="callSheet"]').getByRole('button', { name: 'Edit', exact: true }).click();
+    await openCallSheetEdit(page);
     await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
 
     // Drag the palette's Text block onto the empty zone drop target.
@@ -218,37 +186,27 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     }), { timeout: 5000 }).toBe(true);
   });
 
-  test('stored per-day zone content renders in the day-scoped preview', async ({ page }) => {
-    const seed = loadSeedProject();
-    const project = JSON.parse(seed.raw);
-    const design = (project.reportDesigns || []).find((d: any) => /call\s*sheet/i.test(d.name));
-    expect(design, 'seed has a Call Sheet design').toBeTruthy();
-
-    design.blocks = [{
-      id: 'days', type: 'repeat', collection: 'days', children: [
-        { id: 'zone', type: 'callSheetEdit', children: [{ id: 'tpl', type: 'text', text: 'TEMPLATE ZONE' }] },
-      ],
-    }];
-    const version = project.versions.find((v: any) => v.id === project.activeVersionId) || project.versions[0];
-    const pinned = version.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
-    pinned.daybreakMeta = { ...(pinned.daybreakMeta || {}), callSheets: { [design.id]: [{ id: 'day-t', type: 'text', text: 'PER-DAY CONTENT' }] } };
-
-    await page.addInitScript(({ projectJson, meta }) => {
-      const p = JSON.parse(projectJson);
-      localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
-      localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
-    }, {
-      projectJson: JSON.stringify(project),
-      meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
+  test('stored per-day zone content renders in the editor preview', async ({ page }) => {
+    await seedWithDesign(page, loadSeedProject().raw, project => {
+      const design = {
+        id: 'cs-store', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait' as const,
+        blocks: [{
+          id: 'days', type: 'repeat', collection: 'days', children: [
+            { id: 'zone', type: 'callSheetEdit', children: [{ id: 'tpl', type: 'text', text: 'TEMPLATE ZONE' }] },
+          ],
+        }],
+        header: [], footer: [],
+      };
+      project.reportDesigns = [design];
+      project.activeReportId = design.id;
+      const version = project.versions.find((v: any) => v.id === project.activeVersionId) || project.versions[0];
+      const pinned = version.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+      pinned.daybreakMeta = { ...(pinned.daybreakMeta || {}), callSheets: { [design.id]: [{ id: 'day-t', type: 'text', text: 'PER-DAY CONTENT' }] } };
     });
 
-    await page.goto('http://localhost:3001/lemon_schedule/');
-    await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-    await page.getByRole('button', { name: 'Production' }).click();
-    await page.getByRole('button', { name: 'Days', exact: true }).click();
-    await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
-
-    await expect(page.getByText('PER-DAY CONTENT', { exact: false }).first()).toBeVisible({ timeout: 8000 });
-    await expect(page.getByText('TEMPLATE ZONE', { exact: false })).toHaveCount(0);
+    await openCallSheetEdit(page);
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    await expect(page.locator('[data-call-sheet-edit]').getByText('PER-DAY CONTENT', { exact: false }).first()).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('[data-call-sheet-edit]').getByText('TEMPLATE ZONE', { exact: false })).toHaveCount(0);
   });
 });

@@ -1,19 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Eye, EyeOff, Printer, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Printer, RotateCcw } from 'lucide-react';
 import type { DayView } from '../../../lib/dayView';
 import type { ReportBlock, ReportDesign } from '../../../types';
 import ReportDesigner from '../../reports/ReportDesigner';
 import DayReportPreview from '../../reports/DayReportPreview';
 import CallSheetCanvas, { callSheetDayBlocks } from './CallSheetCanvas';
-import DayPicker from './DayPicker';
+import DayNav from './DayNav';
 import GroupedSelect from './GroupedSelect';
 
 /**
  * Full-surface per-day call-sheet editor (item 10, D17): the whole design
  * fills a single white page with that day's data; the zone is edited with the
- * REAL reports-designer canvas. Header (shares the Days page's DayPicker):
- * Days back · day switcher (prev/next + DayPicker) · call-sheet design picker ·
- * Preview/Edit toggle · Reset · Print.
+ * REAL reports-designer canvas. Header (mirrors the Days page): Days back ·
+ * shared `< [DAY ▾] >` nav · call-sheet design picker · Preview/Edit toggle ·
+ * Reset · Print.
  */
 export interface CallSheetEditPageProps {
   day: DayView;
@@ -48,35 +48,31 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
   }, [designs, design]);
   const designItems = useMemo(() => callSheetDesigns.map(d => ({ id: d.id, name: d.name })), [callSheetDesigns]);
 
-  const stepDay = (delta: number) => {
-    const i = days.findIndex(d => d.sectionIndex === day.sectionIndex);
-    const next = days[i + delta];
-    if (next) { onSelectDay(next.sectionIndex); setPreview(false); }
-  };
+  const navOptions = useMemo(
+    () => days.map(d => ({ sectionIndex: d.sectionIndex, chronoDay: d.chronoDay, date: d.date, conflicts: d.violations.length })),
+    [days],
+  );
 
   const editorKey = `${day.sectionIndex}:${design.id}:${nonce}`;
 
   return (
     <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-zinc-950 text-zinc-300" data-call-sheet-edit>
       <header className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">
-        <button type="button" onClick={onBack} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800"
+        >
           <ArrowLeft className="w-3.5 h-3.5" /> Days
         </button>
 
-        <button type="button" onClick={() => stepDay(-1)} aria-label="Previous day" className="p-1 rounded text-zinc-500 hover:bg-zinc-800 hover:text-white">
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <DayPicker
-          className="w-36"
+        <DayNav
           theme="dark"
-          options={days}
+          options={navOptions}
           selectedIndex={day.sectionIndex}
           onSelect={idx => { onSelectDay(idx); setPreview(false); }}
           disabled={readOnly}
         />
-        <button type="button" onClick={() => stepDay(1)} aria-label="Next day" className="p-1 rounded text-zinc-500 hover:bg-zinc-800 hover:text-white">
-          <ChevronRight className="w-4 h-4" />
-        </button>
 
         {designItems.length > 0 && (
           <>

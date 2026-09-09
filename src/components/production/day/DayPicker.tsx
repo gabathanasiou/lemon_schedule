@@ -15,6 +15,8 @@ export interface DayPickerOption {
   sectionIndex: number;
   chronoDay: number;
   date: string;
+  /** Conflict count shown as a red dot in the list (sidebars are gone). */
+  conflicts?: number;
 }
 
 export interface DayPickerProps {
@@ -26,6 +28,9 @@ export interface DayPickerProps {
    *  evenly). */
   className?: string;
   disabled?: boolean;
+  /** Borderless trigger for embedding inside a shared bordered nav group
+   *  (`DayNav`). */
+  bare?: boolean;
 }
 
 function weekStart(date: string): string {
@@ -36,7 +41,7 @@ function weekStart(date: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect, theme = 'light', className = '', disabled }) => {
+const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect, theme = 'light', className = '', disabled, bare }) => {
   const [open, setOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const dark = theme === 'dark';
@@ -60,6 +65,12 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
     w.days.push(o);
   }
 
+  const triggerCls = bare
+    ? `inline-flex items-center gap-2 px-1.5 py-1 text-xs font-bold ${dark ? 'text-zinc-200' : 'text-zinc-800'} disabled:opacity-50 ${className}`
+    : dark
+      ? `flex items-center gap-2 rounded bg-zinc-950 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-900 disabled:opacity-50 ${className}`
+      : `flex items-center gap-2 rounded border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50 ${className}`;
+
   return (
     <DropdownMenu
       open={open}
@@ -71,11 +82,7 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
         <button
           type="button"
           disabled={disabled}
-          className={
-            dark
-              ? `flex items-center gap-2 rounded bg-zinc-950 border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-900 disabled:opacity-50 ${className}`
-              : `flex items-center gap-2 rounded border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-800 shadow-sm hover:bg-zinc-50 disabled:opacity-50 ${className}`
-          }
+          className={triggerCls}
         >
           <span className="font-bold">DAY {selected?.chronoDay ?? '—'}</span>
           <ChevronDown className={`w-3.5 h-3.5 ${dark ? 'text-zinc-500' : 'text-zinc-400'}`} />
@@ -94,6 +101,11 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
                 <DropdownItem
                   selected={d.sectionIndex === selectedIndex}
                   onClick={() => { onSelect(d.sectionIndex); setOpen(false); }}
+                  trailing={d.conflicts ? (
+                    <span className="inline-flex items-center rounded-full bg-red-500 text-white px-1.5 text-[9px] font-bold" title={`${d.conflicts} conflict${d.conflicts !== 1 ? 's' : ''}`}>
+                      {d.conflicts}
+                    </span>
+                  ) : undefined}
                 >
                   DAY {d.chronoDay} · {formatDateShort(d.date)}
                 </DropdownItem>

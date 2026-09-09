@@ -10,7 +10,6 @@ import CallTimesSection, { CallTimesIcon } from './sections/CallTimesSection';
 import CrewSection, { CrewIcon } from './sections/CrewSection';
 import EventsSection, { EventsIcon } from './sections/EventsSection';
 import ConflictsSection, { ConflictsIcon } from './sections/ConflictsSection';
-import CallSheetSection, { CallSheetIcon } from './sections/CallSheetSection';
 
 /**
  * THE list of Day Manager sections (D7). The page, the pop-out and the copy
@@ -35,14 +34,6 @@ export interface DaySectionDef {
 }
 
 export const DAY_SECTIONS: DaySectionDef[] = [
-  {
-    id: 'callSheet',
-    title: 'Call Sheet',
-    icon: <CallSheetIcon className="w-3.5 h-3.5" />,
-    summary: () => 'Live preview',
-    Component: CallSheetSection,
-    copyable: false,
-  },
   {
     id: 'details',
     title: 'Day Details',

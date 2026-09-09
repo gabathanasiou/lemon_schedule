@@ -92,15 +92,7 @@ no color, no motifs:
 
 ### Day Manager page (Production → Days) — light page + live call-sheet pane
 
-The page is a light two-column surface: sidebar `w-64 shrink-0 border-r border-zinc-200
-bg-zinc-50` with week-grouped day rows (active `bg-zinc-900 text-white`, else
-`hover:bg-zinc-200/60`), a sticky header `bg-white border-b border-zinc-200` (status
-picker, `TimeField` call, computed wrap, conflict pill, Copy/Pop-out/Print actions), and
-collapsible section cards `DaySectionCard` (`bg-white border border-zinc-200 rounded-xl
-shadow-sm`; header = chevron + icon + title + live summary). Desktop split: editor left,
-live call-sheet preview right (`w-[46%] max-w-[640px] border-l border-zinc-200`, collapsible
-via a vertical "Call Sheet" tab); iPad/narrow uses the header `Manage | Call Sheet` toggle.
-All overlays (Copy-from-day, events, pickers) are dark per the two-layer rule. The **Call Sheet** card is the FIRST section (top of the page — the deliverable comes first). Its **Edit** switches to a full-surface dark mode (roadmap 10/D17): a `CallSheetEditPage` header (Back · DAY N · design picker · Reset to template · Print) over a **single-page WYSIWYG canvas** (`CallSheetCanvas`) — the whole design renders on one white page filled with THAT day's real data (scenes/crew/locations read-only), and the `callSheetEdit` zone slot embeds the REAL reports-designer canvas (`ReportDesignerCanvas` `bare` + `CallSheetZoneDesigner`): full palette/canvas drag & drop, drop zones, floating block chrome, column ops and right-click menus, all scoped to the day's zone content. A design without a `days`-repeat `callSheetEdit` zone falls back to a zone-only editor.
+The page is a light single-column surface with a minimal header mirroring the call-sheet editor's: a fixed-width **Call Sheet** nav button (top-left, opposite of the editor's **Days** back button) + the shared **`DayNav`** `< [DAY ▾] >` group (`production/day/DayNav.tsx` — prev arrow · `DayPicker` dropdown · next arrow; the dropdown is week-grouped and shows each day's conflict count, so no sidebar day list). The header keeps only a conflict pill and **Copy from day** / **Pop out** buttons. Below it the collapsible section cards (`DaySectionCard`). All overlays (Copy-from-day, events, pickers) are dark per the two-layer rule. The **Call Sheet** surface is its own full-screen editor (next paragraph). The **Call Sheet** card is the FIRST section (top of the page — the deliverable comes first). Its **Edit** switches to a full-surface dark mode (roadmap 10/D17): a `CallSheetEditPage` header (Back · DAY N · design picker · Reset to template · Print) over a **single-page WYSIWYG canvas** (`CallSheetCanvas`) — the whole design renders on one white page filled with THAT day's real data (scenes/crew/locations read-only), and the `callSheetEdit` zone slot embeds the REAL reports-designer canvas (`ReportDesignerCanvas` `bare` + `CallSheetZoneDesigner`): full palette/canvas drag & drop, drop zones, floating block chrome, column ops and right-click menus, all scoped to the day's zone content. A design without a `days`-repeat `callSheetEdit` zone falls back to a zone-only editor.
 
 ## Canonical class recipes (the exact strings)
 

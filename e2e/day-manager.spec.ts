@@ -9,14 +9,10 @@ async function openDays(page: Page) {
   await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
 }
 
-/** Reads the active version's DAYBREAK rows from the bridge. */
-async function daybreakRows(page: Page): Promise<any[]> {
-  return page.evaluate(() => {
-    const b: any = (window as any).__lemonSchedule;
-    const p = b.getProject();
-    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-    return v.rows.filter((r: any) => r.type === 'DAYBREAK');
-  });
+/** Opens the full-surface call-sheet editor via the header button. */
+async function openCallSheet(page: Page) {
+  await page.locator('[data-day-manager] header').getByRole('button', { name: /Call Sheet/ }).click();
+  await expect(page.locator('[data-call-sheet-edit]')).toBeVisible({ timeout: 8000 });
 }
 
 test.describe('Day Manager (roadmap 98)', () => {
@@ -29,7 +25,6 @@ test.describe('Day Manager (roadmap 98)', () => {
     await expect(page.locator('[data-section="castElements"]')).toBeVisible();
     await expect(page.locator('[data-section="events"]')).toBeVisible();
     await expect(page.locator('[data-section="conflicts"]')).toBeVisible();
-    await expect(page.locator('[data-section="callSheet"]')).toBeVisible();
 
     const note = 'Parking behind the diner';
     const ta = page.locator('[data-section="details"] textarea');
@@ -44,33 +39,14 @@ test.describe('Day Manager (roadmap 98)', () => {
     }), { timeout: 5000 }).toBe(true);
   });
 
-  test('header call time edits the governing daybreak', async ({ page }) => {
+  test('header opens the call-sheet editor and its Preview renders the day report', async ({ page }) => {
     await openDays(page);
-
-    await page.locator('[data-day-manager] header [data-timefield]').first().click();
-    const input = page.locator('[data-day-manager] header input').first();
-    await input.fill('06:15');
-    await input.press('Enter');
-
-    await expect.poll(async () => page.evaluate(() => {
-      const b: any = (window as any).__lemonSchedule;
-      const p = b.getProject();
-      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-      // DAY 1's governing daybreak is the pinned anchor.
-      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
-      return gov?.daybreakCallTime || '';
-    }), { timeout: 5000 }).toBe('06:15');
+    await openCallSheet(page);
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    await expect(page.locator('[data-call-sheet-edit] .report-page').first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('call-sheet preview pane renders the real design scoped to the day', async ({ page }) => {
-    await openDays(page);
-    const pane = page.locator('[data-day-callsheet-pane]');
-    if (await pane.count()) {
-      await expect(pane.locator('.report-page').first()).toBeVisible({ timeout: 10000 });
-    }
-  });
-
-  test('master location flows into the call-sheet preview (report seam)', async ({ page }) => {
+  test('master location flows into the call-sheet editor preview (report seam)', async ({ page }) => {
     await openDays(page);
 
     await page.evaluate(() => {
@@ -83,8 +59,9 @@ test.describe('Day Manager (roadmap 98)', () => {
       b.dispatch({ type: 'UPDATE_ROW', payload: { versionId: v.id, rowId: gov.id, updates: { daybreakMeta: { locationId: 'loc-test-stage' } } } });
     });
 
-    const pane = page.locator('[data-day-callsheet-pane]');
-    await expect(pane.getByText('Test Stage 7').first()).toBeVisible({ timeout: 12000 });
+    await openCallSheet(page);
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    await expect(page.locator('[data-call-sheet-edit]').getByText('Test Stage 7').first()).toBeVisible({ timeout: 12000 });
   });
 
   test('copy from day applies the source note in one undo entry', async ({ page }) => {
@@ -102,8 +79,7 @@ test.describe('Day Manager (roadmap 98)', () => {
     // Select DAY 2 via the header day dropdown, then copy from day.
     await page.locator('[data-day-manager] header').getByRole('button', { name: /^DAY \d/ }).first().click();
     await page.getByRole('menuitem', { name: /^DAY 2 / }).click();
-    await page.getByRole('button', { name: 'More day actions' }).click();
-    await page.getByRole('menuitem', { name: 'Copy from day…' }).click();
+    await page.locator('[data-day-manager] header').getByRole('button', { name: /Copy from day/ }).click();
     await page.getByText('Day Details', { exact: true }).last().click();
     await page.getByRole('button', { name: 'Copy to this day' }).click();
 
@@ -141,7 +117,12 @@ test.describe('Day Manager (roadmap 98)', () => {
     await expect(page.getByText('This day has details')).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: 'Cancel' }).click();
 
-    const rows = await daybreakRows(page);
+    const rows = await page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+      return v.rows.filter((r: any) => r.type === 'DAYBREAK');
+    });
     expect(rows.some(r => r.id === withMeta)).toBe(true);
   });
 });
