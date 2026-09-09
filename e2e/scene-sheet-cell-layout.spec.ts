@@ -58,18 +58,23 @@ test.describe('scene sheet entity cell layout (roadmap 95)', () => {
     await expect(display).toContainText(`${firstMember.id}. ${firstMember.name}`);
 
     // 3. Clicking the box's empty bottom area (padding) focuses the textarea
-    //    and opens the picker (whole-box write hitbox).
+    //    and opens the picker (whole-box write hitbox). The long cast makes the
+    //    box taller than the viewport, so scroll it into view first — otherwise
+    //    the bottom-padding click lands off-screen.
+    await castBox(page).scrollIntoViewIfNeeded();
     const boxRect = await castBox(page).boundingBox();
     await page.mouse.click(boxRect!.x + boxRect!.width - 20, boxRect!.y + boxRect!.height - 8);
     await expect(castEditor(page)).toBeFocused();
     await expect(page.locator('.z-\\[10010\\]')).toBeVisible();
 
-    // 4. Click-to-position: clicking mid-text places the caret there, not at
-    //    the end (the textarea's native caret tracking survives the click).
-    await page.keyboard.press('Escape');
-    await expect(page.locator('.z-\\[10010\\]')).toHaveCount(0);
+    // 4. Click-to-position: the click that OPENS the editor parks the caret at
+    //    the end (ready to append a segment); while it is already open, a click
+    //    ON the text positions the caret natively. Click the first line — the
+    //    box is much taller than the raw value (the visible span wraps resolved
+    //    names; the editor holds short ids), so a %-of-height point would land
+    //    in empty space and put the caret at the end.
     const edRect = await castEditor(page).boundingBox();
-    await page.mouse.click(edRect!.x + edRect!.width * 0.25, edRect!.y + edRect!.height * 0.25);
+    await page.mouse.click(edRect!.x + 24, edRect!.y + 10);
     await page.waitForTimeout(50);
     const sel = await castEditor(page).evaluate((el: HTMLTextAreaElement) => ({
       start: el.selectionStart,
