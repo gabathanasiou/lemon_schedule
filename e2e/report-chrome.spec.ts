@@ -84,13 +84,16 @@ test('token autocomplete anchors to the caret and stays inside the window', asyn
   const editor = page.locator('.block-chrome .richtext-editor');
   await editor.click();
   await page.keyboard.press('End');
-  await page.keyboard.type(' @');
+  // The token popup is a kit DropdownMenu (ui-menu) in a z-index 10002 holder,
+  // and the holder is display:none while the query is empty — type a real
+  // query so it renders.
+  await page.keyboard.type(' @sh');
 
-  const popover = page.locator('.ac-token-popover');
+  const popover = page.locator('[style*="z-index: 10002"]');
   await expect(popover).toBeVisible({ timeout: 3000 });
 
   const dump = await page.evaluate(() => {
-    const pop = document.querySelector('.ac-token-popover') as HTMLElement;
+    const pop = document.querySelector('[style*="z-index: 10002"]') as HTMLElement;
     const chrome = document.querySelector('.block-chrome') as HTMLElement;
     const sel = window.getSelection();
     const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
@@ -113,7 +116,8 @@ test('token autocomplete anchors to the caret and stays inside the window', asyn
   expect(dump.chromeTransform).toBe('none');
 
   // keyboard navigation + pick still works, and the caret can move afterwards
-  const count = await popover.locator('button').count();
+  // (the kit popup renders rows as [role="option"], not <button>)
+  const count = await popover.locator('[role="option"]').count();
   expect(count).toBeGreaterThan(1);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
