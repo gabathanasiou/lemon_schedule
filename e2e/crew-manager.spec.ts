@@ -108,8 +108,8 @@ test.describe('Crew Manager', () => {
     await page.getByRole('button', { name: 'Add Member' }).click();
     await page.getByPlaceholder('Name').last().fill('Unsaved Person');
 
-    // Switching to Project Details prompts before leaving
-    await page.getByRole('button', { name: 'Project Details' }).click();
+    // Switching to another sub-tab prompts before leaving
+    await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('Unsaved Changes', { timeout: 5000 });
     await page.getByRole('button', { name: 'Confirm' }).click();
     // Save ran during the prompt -> back to Crew, the member persisted

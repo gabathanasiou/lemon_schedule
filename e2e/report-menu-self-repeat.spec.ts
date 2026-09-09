@@ -24,7 +24,7 @@ test('repeat menu hides self-redundant days under a days parent', async ({ page 
   await page.getByRole('button', { name: 'Repeat', exact: true }).click();
     await page.getByRole('button', { name: 'Scenes', exact: true }).click();
   await page.locator('.ui-menu').getByText('Days', { exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Day Manager', exact: true })).toBeVisible({ timeout: 3000 });
+  await expect(page.getByRole('button', { name: 'Days', exact: true })).toBeVisible({ timeout: 3000 });
 
   // Nest another repeat inside the Days repeat.
   await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-drop-empty').last());
@@ -128,7 +128,7 @@ test('table over menu hides self-redundant collections under a days parent', asy
   await page.getByRole('button', { name: 'Repeat', exact: true }).click();
     await page.getByRole('button', { name: 'Scenes', exact: true }).click();
   await page.locator('.ui-menu').getByText('Days', { exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Day Manager', exact: true })).toBeVisible({ timeout: 3000 });
+  await expect(page.getByRole('button', { name: 'Days', exact: true })).toBeVisible({ timeout: 3000 });
 
   // Nest a table inside the Days repeat.
   await page.getByRole('button', { name: 'Table', exact: true }).dragTo(page.locator('.repeat-drop-empty').last());
