@@ -2229,7 +2229,7 @@ Verified by `e2e/report-filters.spec.ts` + `e2e/report-lookups.spec.ts` (RULES:
 
 **Deviation**: the `@` picker is a flat, query-filtered list (the kit rich-text editor has
 no nested picker) — item · attribute in one step, not the planned three-step
-collection→item→attribute flow.
+collection→item→attribute flow (now item 121).
 
 **Relations**: item 10's key-contacts tables depend on the filter half; rides the
 `ReportScope`/`filterItemsByScope` machinery.
@@ -2829,3 +2829,35 @@ Re-run `playwright.ipad.config.ts` report-pagination (WebKit break behavior).
 **Relations**: extends items 30/32/94 (measured pagination) and this session's
 nested-repeat misclassification fix; touches `reportPagination.ts` +
 `useReportPaginator.tsx` + `ReportBlockView.tsx` part rendering.
+
+## 121. Smart lookup tokens — `@item.attribute` two-stage drill-down in rich-text editors (`[ ]`)
+
+**Request**: in any rich-text token editor (reports designer text blocks /
+free-table cells / headers, Call Sheet zone), typing `@` opens the lookup
+picker. Today it's a flat query-filtered list — item · attribute in ONE step
+(item 100's documented deviation). Users want object-dot-property: type `@` →
+pick/search an item ("Bob") → press `.` → see only THAT item's attributes
+(call time, phone, email, …) → pick one. Should cover every lookup collection
+(cast, crew, days, locations, categories, location types, day types) with fuzzy
+search + category grouping.
+
+**Design**: the token format is already right — `lookup.<collection>.<field>.<encodedItemKey>`
+stays; this is a PICKER feature, not a new data model. Reuse the canonical
+`buildLookupTokens(project, days)` for stage 1 (items grouped by collection,
+stable keys) and `getReportFieldDefs(project)`/`fieldsForScope` for stage 2 —
+the field registry already scopes attributes (a cast member's phone/email/
+call-time vs a location's address), so invalid picks never appear. The kit
+rich-text editor has no nested picker, so this needs a kit change: stage 2 as a
+submenu of the highlighted item, or a second popup stage after the `.`. Keep the
+flat list as a fallback (typing a full `item.attr` query still works) and fire
+the `.` trigger only after a committed item. Insertion stays a single chip whose
+label resolves to the item name (renames don't break the stable key).
+
+**Verify**: e2e in the reports designer + Call Sheet editor — type `@`, pick an
+item, `.`, assert the attribute list is scope-filtered, pick one, assert the
+token resolves/renders (link fields still link); a ui-kit bump + playground
+spec for the nested picker.
+
+**Relations**: extends 100 (the deferred three-step picker) and 19/16 (token
+chips/affixes); touches the ui-kit rich-text editor + `reportFields.ts`
+(`buildLookupTokens`, `fieldsForScope`).
