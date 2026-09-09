@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Copy, ExternalLink, FileText, Flag } from 'lucide-react';
+import { ArrowLeft, Copy, ExternalLink, Flag } from 'lucide-react';
 import { useProject } from '../../../store';
 import { useDayViews, type DayView } from '../../../lib/dayView';
 import { patchDayMeta } from '../../../lib/dayMeta';
@@ -7,7 +7,7 @@ import { rulesRelevantToDay } from '../../../lib/rulesEngine';
 import { IS_COARSE } from '../../../lib/device';
 import { usePersistState } from '../../../lib/persist';
 import DaySectionCard from './DaySectionCard';
-import DayNav from './DayNav';
+import DayPicker from './DayPicker';
 import { DAY_SECTIONS } from './daySectionRegistry';
 import type { DaySectionActions } from './daySectionTypes';
 import { DayEventsModal } from '../../calendar/DayEventsModal';
@@ -34,6 +34,9 @@ export interface DayManagerPageProps {
   onOpenScene?: (sceneId: string) => void;
   onPrintCallSheet?: (day: DayView, design: ReportDesign, zoneBlocks?: ReportBlock[]) => void;
   onPopOutDay?: (day: DayView) => void;
+  /** The call-sheet editor is a full-surface dark mode — report it so the
+   *  host can darken the surrounding sub-tab chrome while it is open. */
+  onChromeModeChange?: (dark: boolean) => void;
 }
 
 const templateZoneBlocks = (design: ReportDesign): ReportBlock[] =>
@@ -45,6 +48,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   onOpenScene,
   onPrintCallSheet,
   onPopOutDay,
+  onChromeModeChange,
 }) => {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
@@ -71,6 +75,13 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   useEffect(() => {
     if (initialDayIndex != null) onTargetSeen?.();
   }, [initialDayIndex, onTargetSeen]);
+
+  // Darken the surrounding sub-tab chrome while the call-sheet editor is open
+  // (and restore it on close / unmount).
+  useEffect(() => {
+    onChromeModeChange?.(editCallSheet);
+    return () => onChromeModeChange?.(false);
+  }, [editCallSheet, onChromeModeChange]);
 
   const navOptions = useMemo(
     () => days.map(d => ({ sectionIndex: d.sectionIndex, chronoDay: d.chronoDay, date: d.date, conflicts: d.violations.length })),
@@ -170,10 +181,10 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             title="Open the call sheet editor for this day"
             className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 disabled:opacity-40"
           >
-            <FileText className="w-3.5 h-3.5" /> Call Sheet <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3.5 h-3.5" /> Call Sheet
           </button>
 
-          <DayNav options={navOptions} selectedIndex={selected.sectionIndex} onSelect={selectDay} theme="light" />
+          <DayPicker theme="light" options={navOptions} selectedIndex={selected.sectionIndex} onSelect={selectDay} />
 
           {selected.violations.length > 0 && (
             <button

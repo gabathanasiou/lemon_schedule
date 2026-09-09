@@ -84,6 +84,11 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
 
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
+  // The Days sub-tab's call-sheet editor is a full-surface DARK mode — its
+  // chrome extends up into the sub-tab bar so the light tabs don't float over
+  // the dark editor.
+  const [daysChromeDark, setDaysChromeDark] = useState(false);
+  const handleDaysChrome = useCallback((dark: boolean) => setDaysChromeDark(dark), []);
 
   // Sub-tab switches/popouts that would unmount the crew manager go through
   // the unsaved-changes guard so the prompt fires before leaving.
@@ -136,7 +141,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
       <PageToolbar
-        theme="light"
+        theme={subTab === 'days' && daysChromeDark ? 'dark' : 'light'}
         tabs={[
           { id: 'details', label: 'Project Details' },
           { id: 'days', label: 'Days' },
@@ -312,6 +317,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
           onOpenScene={onOpenScene}
           onPrintCallSheet={onPrintCallSheet}
           onPopOutDay={onPopOutDay}
+          onChromeModeChange={handleDaysChrome}
         />
       ) : subTab === 'callTimes' ? (
         <CallTimesSettingsPage />

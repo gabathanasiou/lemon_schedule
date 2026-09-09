@@ -5,7 +5,7 @@ import type { ReportBlock, ReportDesign } from '../../../types';
 import ReportDesigner from '../../reports/ReportDesigner';
 import DayReportPreview from '../../reports/DayReportPreview';
 import CallSheetCanvas, { callSheetDayBlocks } from './CallSheetCanvas';
-import DayNav from './DayNav';
+import DayPicker from './DayPicker';
 import GroupedSelect from './GroupedSelect';
 
 /**
@@ -66,7 +66,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           <ArrowLeft className="w-3.5 h-3.5" /> Days
         </button>
 
-        <DayNav
+        <DayPicker
           theme="dark"
           options={navOptions}
           selectedIndex={day.sectionIndex}
