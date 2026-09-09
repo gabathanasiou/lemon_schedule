@@ -29,13 +29,19 @@ export type BodyChunk =
   | { kind: 'ribbon'; block: ReportBlock; unitStart: number; unitEnd: number };
 
 /** A slice of one child of a split repeat-item fragment. No range = the whole
- *  child renders. Exactly one of ribbonRange/tableRowRange/itemRange applies. */
+ *  child renders. Exactly one of ribbonRange/tableRowRange/itemRange applies.
+ *  A nested repeat child carries its own `itemRange` + `itemParts`, so the
+ *  fragment path recurses to ANY depth (a tall nested item dissolves into its
+ *  rows/strips instead of overflowing). */
 export interface FragmentPartUnit {
   childIndex: number;
   ribbonRange?: [number, number];
   tableRowRange?: [number, number];
   repeatTableHeader?: boolean;
+  /** Nested repeat child: item index range rendered, plus per-item parts
+   *  (relative to `itemRange[0]`; a `null` entry = whole item). */
   itemRange?: [number, number];
+  itemParts?: (FragmentPartUnit[] | null)[];
 }
 
 export interface PageChunk {

@@ -49,6 +49,14 @@ interface PaginatorParams {
   onReady?: () => void;
 }
 
+/** One step of a repeat fragment path: the item index at this nesting level
+ *  and (for a child container) which child of it. A WHOLE item ends with a
+ *  childless `{ item }` step. */
+interface FlatStep {
+  item: number;
+  child?: number;
+}
+
 /** DOM-data contract between the measurement container and the walker. */
 interface FlatUnit {
   h: number;
@@ -59,12 +67,11 @@ interface FlatUnit {
   el: HTMLElement;
   local: number;
   blockEl: HTMLElement;
-  /** Dissolved repeat metadata: which child of which repeat item this unit
-   *  belongs to, and the splittable kind of that child. Whole children and
-   *  non-splittable blocks carry `unitKind: 'whole'`; pageBreak markers carry
-   *  `unitKind: 'break'` (h = 0, a hard page boundary). */
-  fragChild?: number;
-  itemLocal?: number;
+  /** Dissolved repeat metadata: the `{ item, child }` path from the top-level
+   *  repeat down to the unit's leaf (undefined for top-level non-repeat
+   *  blocks). `local` is the leaf position (row/strip/nested-item index; -1 =
+   *  table header). A `unitKind: 'break'` unit is a hard page boundary (h=0). */
+  path?: FlatStep[];
   unitKind?: 'whole' | 'ribbon' | 'table' | 'repeat' | 'break';
   /** Unit must START a new page (a pageBreak exists inside an unsplittable
    *  container — the whole container moves to the next page). */
@@ -87,7 +94,7 @@ function wholeUnit(wrapper: HTMLElement, extra: Partial<FlatUnit> = {}): FlatUni
 
 /** Columns-grid table: one unit per row, plus a header unit (local -1) when
  *  showHeader. Continuation rows reserve the repeated header height. */
-function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 'whole', fragChild?: number, itemLocal?: number): FlatUnit[] {
+function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 'whole', path?: FlatStep[]): FlatUnit[] {
   const containers = scope.querySelectorAll('.report-table-cols');
   const first = containers[0] as HTMLElement | undefined;
   // The scope wrapper's marginTop is the block's gap (roadmap 33) — paid
@@ -96,7 +103,7 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
   if (first && first.classList.contains('rm-row')) {
     // rows-matrix: one self-contained grid per row group (label header is
     // inside each group) — no repeated header needed.
-    return Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: i === 0 ? blockGap : 0, pageStartExtra: 0, el: c as HTMLElement, local: i, blockEl, fragChild, itemLocal, unitKind: 'table' }));
+    return Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: i === 0 ? blockGap : 0, pageStartExtra: 0, el: c as HTMLElement, local: i, blockEl, path, unitKind: 'table' }));
   }
   if (first) {
     const headerEl = first.querySelector(':scope > .rm-header') as HTMLElement | null;
@@ -110,39 +117,44 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
       gapBefore: (i === 0 && !headerEl ? blockGap : 0) + marginTopOf(el),
       // A continuation chunk renders the column header again at its top
       // (classic "thead repeats") — reserve that height when a row opens a
-      // page. local -1 marks the header unit (folded into row ranges below).
-      pageStartExtra: headerH > 0 && i > 0 ? headerH : 0,
+      // page. Row 0 does too: if it opens a page its header unit stayed on the
+      // previous page, and `rowRange[0] === 0` still renders the header (an
+      // orphaned header — reserved here so the budget stays honest). local -1
+      // marks the header unit (folded into row ranges below).
+      pageStartExtra: headerH,
       el,
       local: i,
       blockEl,
-      fragChild,
-      itemLocal,
+      path,
       unitKind: 'table',
     }));
-    if (headerEl) units.unshift({ h: headerH, gapBefore: blockGap, pageStartExtra: 0, el: headerEl, local: -1, blockEl, fragChild, itemLocal, unitKind: 'table' } as FlatUnit);
+    if (headerEl) units.unshift({ h: headerH, gapBefore: blockGap, pageStartExtra: 0, el: headerEl, local: -1, blockEl, path, unitKind: 'table' } as FlatUnit);
     return units;
   }
-  return [{ ...wholeUnit(scope, { blockEl, fragChild, itemLocal, unitKind: kind }) } as FlatUnit];
+  return [{ ...wholeUnit(scope, { blockEl, path, unitKind: kind }) } as FlatUnit];
 }
 
-/** One dissolved repeat item's children: each child block flows independently
- *  (whole children move whole, ribbons split between strips, tables between
- *  rows, nested repeats between items) and a pageBreak child is a hard break.
- *  The child's kind comes from `data-rm-kind` (the block type), NEVER from a
- *  descendant query — a nested repeat contains a table, and matching that table
- *  would flatten the repeat as one giant table (the overflow bug). */
+/** One repeat item's children: each child block flows independently (whole
+ *  children move whole, ribbons split between strips, tables between rows,
+ *  nested repeats dissolve RECURSIVELY) and a pageBreak child is a hard break.
+ *  `prefix` is the path to this item's repeat level; every unit gets a path
+ *  step `{ item: itemIndex, child: ci }` so `assembleChunks` can rebuild the
+ *  nested part tree at ANY depth. The child's kind comes from `data-rm-kind`
+ *  (the block type), NEVER from a descendant query — a nested repeat contains
+ *  a table, and matching that table would flatten the repeat as one giant
+ *  table (the overflow bug). */
 function flattenFragChildren(
   fragChildren: HTMLElement[],
   blockEl: HTMLElement,
-  fragChild: number,
-  itemLocal: number,
-  unitKindForWhole: 'whole' | 'repeat',
+  itemIndex: number,
+  prefix: FlatStep[],
 ): FlatUnit[] {
   const units: FlatUnit[] = [];
   for (let ci = 0; ci < fragChildren.length; ci++) {
     const el = fragChildren[ci];
+    const path = [...prefix, { item: itemIndex, child: ci }];
     if (el.querySelector(':scope > [data-rm-pagebreak]')) {
-      units.push({ h: 0, gapBefore: 0, pageStartExtra: 0, el, local: -1, blockEl, fragChild: ci, itemLocal, unitKind: 'break' });
+      units.push({ h: 0, gapBefore: 0, pageStartExtra: 0, el, local: -1, blockEl, path, unitKind: 'break' });
       continue;
     }
     const kind = el.getAttribute('data-rm-kind') || 'block';
@@ -151,34 +163,22 @@ function flattenFragChildren(
       if (ribbonUnits.length > 0) {
         const blockGap = marginTopOf(el);
         for (const [ri, ru] of ribbonUnits.entries()) {
-          units.push({ h: ru.offsetHeight, gapBefore: ri === 0 ? blockGap : 0, pageStartExtra: 0, el: ru, local: ri, blockEl, fragChild: ci, itemLocal, unitKind: 'ribbon' });
+          units.push({ h: ru.offsetHeight, gapBefore: ri === 0 ? blockGap : 0, pageStartExtra: 0, el: ru, local: ri, blockEl, path, unitKind: 'ribbon' });
         }
         continue;
       }
     } else if (kind === 'table') {
-      units.push(...flattenTable(el, blockEl, 'table', ci, itemLocal));
+      units.push(...flattenTable(el, blockEl, 'table', path));
       continue;
     } else if (kind === 'repeat') {
-      // A nested repeat splits between ITS items — the fragment model is ONE
-      // level deep (`assembleChunks` keys parts by the top item + child), so
-      // recursing into a nested item's children would collide metadata across
-      // top items and overflow. Nested items stay whole (rule 9: an oversized
-      // single item overflows).
-      const col = el.querySelector('.rm-repeat-col') as HTMLElement | null;
-      const items = col ? Array.from(col.children).filter(c => c.classList.contains('rm-item')) as HTMLElement[] : [];
-      if (items.length === 0) {
-        units.push({ ...wholeUnit(el, { blockEl, fragChild: ci, itemLocal, unitKind: 'repeat', local: -1 }) });
-        continue;
-      }
-      const gap = parseFloat(getComputedStyle(col!).rowGap || '') || 8;
-      const blockGap = marginTopOf(el);
-      for (let jj = 0; jj < items.length; jj++) {
-        units.push({ h: items[jj].offsetHeight, gapBefore: jj === 0 ? blockGap : gap, pageStartExtra: 0, el: items[jj], local: jj, blockEl, fragChild: ci, itemLocal, unitKind: 'repeat' });
-      }
+      // A nested repeat dissolves into ITS items — and each of those items
+      // dissolves again (flattenRepeatContent recurses), so a tall nested item
+      // splits at row/strip granularity instead of overflowing (roadmap 120).
+      units.push(...flattenRepeatContent(el, blockEl, path));
       continue;
     }
     units.push({
-      ...wholeUnit(el, { blockEl, fragChild: ci, itemLocal, unitKind: unitKindForWhole, local: -1, breakBefore: !!el.querySelector('[data-rm-pagebreak]') }),
+      ...wholeUnit(el, { blockEl, path, unitKind: 'whole', breakBefore: !!el.querySelector('[data-rm-pagebreak]') }),
     });
   }
   return units;
@@ -186,29 +186,29 @@ function flattenFragChildren(
 
 /** Repeat/relative items. When the item has child wrappers (`.rm-frag-child`)
  *  they dissolve into independent units (universal fragment splitting); an
- *  item without children stays one atomic unit. Nested repeats resolve here
- *  too (their items stay atomic — split between ITEMS via itemRange parts). */
-function flattenRepeat(scope: HTMLElement, blockEl: HTMLElement, fragChild?: number, itemLocal?: number): FlatUnit[] {
+ *  item without children stays one atomic unit. `prefix` is the path to this
+ *  repeat's items (empty for a top-level repeat; the parent `{ item, child }`
+ *  step for a nested one). */
+function flattenRepeatContent(scope: HTMLElement, blockEl: HTMLElement, prefix: FlatStep[]): FlatUnit[] {
   const col = scope.querySelector('.rm-repeat-col');
   const items = col ? Array.from(col.children).filter(c => c.classList.contains('rm-item')) as HTMLElement[] : [];
-  if (items.length === 0) return [{ ...wholeUnit(scope, { blockEl, fragChild, itemLocal, unitKind: 'repeat' }) } as FlatUnit];
+  if (items.length === 0) return [{ ...wholeUnit(scope, { blockEl, path: prefix, unitKind: 'repeat' }) } as FlatUnit];
   const gap = parseFloat(getComputedStyle(col).rowGap || '') || 8;
   const once = scope.querySelector('.rm-once') as HTMLElement | null;
   // The scope wrapper's marginTop is the block's gap (roadmap 33) — paid
   // before the repeat's FIRST content unit so it budgets its spacing too.
-  // Fragment-internal calls (fragChild set) read the .rm-frag-child wrapper's
-  // margin, which dissolves items' children already account for individually.
+  // A nested scope reads its own `.rm-frag-child` wrapper margin.
   const blockGap = marginTopOf(scope);
   const units: FlatUnit[] = [];
   for (let ii = 0; ii < items.length; ii++) {
     const itemEl = items[ii];
     const children = Array.from(itemEl.children).filter(c => c.classList.contains('rm-frag-child')) as HTMLElement[];
     if (children.length === 0) {
-      units.push({ h: itemEl.offsetHeight, gapBefore: ii === 0 ? blockGap : gap, pageStartExtra: 0, el: itemEl, local: ii, blockEl, fragChild: fragChild ?? 0, itemLocal: itemLocal ?? ii, unitKind: 'whole' });
+      units.push({ h: itemEl.offsetHeight, gapBefore: ii === 0 ? blockGap : gap, pageStartExtra: 0, el: itemEl, local: 0, blockEl, path: [...prefix, { item: ii }], unitKind: 'whole' });
       continue;
     }
     const start = units.length;
-    units.push(...flattenFragChildren(children, blockEl, fragChild ?? 0, itemLocal ?? ii, 'whole'));
+    units.push(...flattenFragChildren(children, blockEl, ii, prefix));
     // The block gap (first item) / item gap (later items) applies before the
     // item's first CONTENT unit (breaks never consume it).
     const firstContent = units.slice(start).findIndex(u => u.unitKind !== 'break');
@@ -219,7 +219,7 @@ function flattenRepeat(scope: HTMLElement, blockEl: HTMLElement, fragChild?: num
   if (once) {
     const lastUnit = [...units].reverse().find(u => u.unitKind !== 'break');
     if (lastUnit) lastUnit.h += once.offsetHeight + gap;
-    else return [wholeUnit(scope, { blockEl, fragChild, itemLocal, unitKind: 'repeat' })];
+    else return [wholeUnit(scope, { blockEl, path: prefix, unitKind: 'repeat' })];
   }
   return units;
 }
@@ -227,7 +227,7 @@ function flattenRepeat(scope: HTMLElement, blockEl: HTMLElement, fragChild?: num
 function flattenBlock(wrapper: HTMLElement): FlatUnit[] {
   const kind = wrapper.getAttribute('data-rm-kind') || 'block';
   if (kind === 'repeat') {
-    return flattenRepeat(wrapper, wrapper);
+    return flattenRepeatContent(wrapper, wrapper, []);
   }
   if (kind === 'table') {
     return flattenTable(wrapper, wrapper, 'table');
@@ -298,6 +298,98 @@ function fillPages(units: FlatUnit[], budget: number): number[][] {
   return pages;
 }
 
+/** Count non-break units keyed by every path prefix (item and child nodes).
+ *  A node is FULLY present on a page iff its page count equals its total. */
+function countByPrefix(units: FlatUnit[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  const bump = (k: string) => counts.set(k, (counts.get(k) || 0) + 1);
+  for (const u of units) {
+    if (!u.path || u.unitKind === 'break') continue;
+    for (let d = 0; d < u.path.length; d++) {
+      const step = u.path[d];
+      const ik = `${JSON.stringify(u.path.slice(0, d))}#i${step.item}`;
+      bump(ik);
+      if (step.child !== undefined) bump(`${ik}#c${step.child}`);
+    }
+  }
+  return counts;
+}
+
+function nodeFull(key: string, totals: Map<string, number>, present: Map<string, number>): boolean {
+  const t = totals.get(key);
+  return t !== undefined && t > 0 && present.get(key) === t;
+}
+
+/** One child container's fragment: a whole child (`childIndex` only) when every
+ *  unit is present, else a row/strip range, or — for a nested repeat — a nested
+ *  `itemRange` + `itemParts` rebuilt recursively. */
+function buildChildPart(
+  childUnits: FlatUnit[],
+  totals: Map<string, number>,
+  present: Map<string, number>,
+  depth: number,
+  prefix: FlatStep[],
+  item: number,
+  child: number,
+): FragmentPartUnit {
+  const childKey = `${JSON.stringify(prefix)}#i${item}#c${child}`;
+  if (nodeFull(childKey, totals, present)) return { childIndex: child };
+  if (childUnits.some(u => u.path!.length > depth + 1)) {
+    const nested = buildRepeatLevel(childUnits, totals, present, depth + 1, [...prefix, { item, child }]);
+    return { childIndex: child, itemRange: [nested.itemStart, nested.itemEnd], itemParts: nested.perItemParts };
+  }
+  const locals = childUnits.filter(u => u.local >= 0).map(u => u.local);
+  const min = Math.min(...locals);
+  const max = Math.max(...locals);
+  const kind = childUnits[0]?.unitKind || 'whole';
+  if (kind === 'ribbon') return { childIndex: child, ribbonRange: [min, max + 1] };
+  if (kind === 'table') {
+    const hasHeader = childUnits.some(u => u.local === -1);
+    return { childIndex: child, tableRowRange: [min, max + 1], repeatTableHeader: !hasHeader && min > 0 };
+  }
+  return { childIndex: child };
+}
+
+/** Rebuild the nested per-item parts for ONE repeat level present on a page.
+ *  `depth` indexes the path step for this level; `prefix` is the shared path
+ *  prefix (length = depth). A `null` entry = the item renders whole. */
+function buildRepeatLevel(
+  pageUnits: FlatUnit[],
+  totals: Map<string, number>,
+  present: Map<string, number>,
+  depth: number,
+  prefix: FlatStep[],
+): { itemStart: number; itemEnd: number; perItemParts: (FragmentPartUnit[] | null)[] } {
+  const prefixJson = JSON.stringify(prefix);
+  const byItem = new Map<number, FlatUnit[]>();
+  for (const u of pageUnits) {
+    const it = u.path![depth].item;
+    const arr = byItem.get(it);
+    if (arr) arr.push(u); else byItem.set(it, [u]);
+  }
+  const items = [...byItem.keys()].sort((a, b) => a - b);
+  const itemStart = items[0];
+  const itemEnd = items[items.length - 1] + 1;
+  const perItemParts: (FragmentPartUnit[] | null)[] = Array.from({ length: itemEnd - itemStart }, () => null);
+  for (const it of items) {
+    const itemUnits = byItem.get(it)!;
+    if (nodeFull(`${prefixJson}#i${it}`, totals, present)) continue; // whole item
+    const byChild = new Map<number, FlatUnit[]>();
+    for (const u of itemUnits) {
+      const c = u.path![depth].child;
+      if (c === undefined) continue;
+      const arr = byChild.get(c);
+      if (arr) arr.push(u); else byChild.set(c, [u]);
+    }
+    const parts: FragmentPartUnit[] = [];
+    for (const [c, childUnits] of [...byChild.entries()].sort((a, b) => a[0] - b[0])) {
+      parts.push(buildChildPart(childUnits, totals, present, depth, prefix, it, c));
+    }
+    perItemParts[it - itemStart] = parts;
+  }
+  return { itemStart, itemEnd, perItemParts };
+}
+
 function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string, ReportBlock>): BodyChunk[] {
   const out: BodyChunk[] = [];
   let i = 0;
@@ -315,69 +407,20 @@ function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string,
       continue;
     }
     if (kind === 'repeat') {
-      // Dissolved repeat: group the page's units per item, then per child.
-      // A page may hold whole items (part = null) and partial items (parts).
+      // Dissolved repeat: group the page's units by their nested path. A page
+      // may hold whole items (part = null) and partial items (parts) at ANY
+      // depth — a nested repeat child carries its own itemRange + itemParts.
       const pageUnits = page.map(k => flat[k]).filter(u => u.blockEl === blockEl && u.unitKind !== 'break');
-      if (!pageUnits.some(u => u.itemLocal !== undefined)) {
+      if (!pageUnits.some(u => u.path && u.path.length > 0)) {
         // Not dissolved (empty/once-only repeat): the whole block moves as one.
         if (block) out.push({ kind: 'block', block });
         continue;
       }
-      const totals = new Map<string, number>();
-      for (const u of flat) {
-        if (u.blockEl === blockEl && u.itemLocal !== undefined && u.fragChild !== undefined && u.unitKind !== 'break') {
-          const k = `${u.itemLocal}:${u.fragChild}`;
-          totals.set(k, (totals.get(k) || 0) + 1);
-        }
-      }
-      const byItem = new Map<number, Map<number, FlatUnit[]>>();
-      for (const u of pageUnits) {
-        if (u.itemLocal === undefined || u.fragChild === undefined) continue;
-        const item = byItem.get(u.itemLocal) || new Map<number, FlatUnit[]>();
-        const arr = item.get(u.fragChild) || [];
-        arr.push(u);
-        item.set(u.fragChild, arr);
-        byItem.set(u.itemLocal, item);
-      }
-      const locals = [...byItem.keys()].sort((a, b) => a - b);
-      if (locals.length === 0) continue;
-      const itemStart = locals[0];
-      const itemEnd = locals[locals.length - 1] + 1;
-      const perItemParts: (FragmentPartUnit[] | null)[] = Array.from({ length: itemEnd - itemStart }, () => null);
-      for (const [itemLocal, byChild] of byItem) {
-        const parts: FragmentPartUnit[] = [];
-        for (const [ci, units] of [...byChild.entries()].sort((a, b) => a[0] - b[0])) {
-          const total = totals.get(`${itemLocal}:${ci}`);
-          const kind2 = units[0]?.unitKind || 'whole';
-          if (total === undefined || kind2 === 'whole' || units.length === total) {
-            parts.push({ childIndex: ci });
-            continue;
-          }
-          const childLocals = units.filter(u => u.local >= 0).map(u => u.local);
-          const min = Math.min(...childLocals);
-          const max = Math.max(...childLocals);
-          if (kind2 === 'ribbon') {
-            parts.push({ childIndex: ci, ribbonRange: [min, max + 1] });
-          } else if (kind2 === 'repeat') {
-            parts.push({ childIndex: ci, itemRange: [min, max + 1] });
-          } else if (kind2 === 'table') {
-            const hasHeader = units.some(u => u.local === -1);
-            parts.push({ childIndex: ci, tableRowRange: [min, max + 1], repeatTableHeader: !hasHeader && min > 0 });
-          }
-        }
-        // An item is WHOLE only when EVERY one of its non-break children is
-        // fully present on this page — a missing child (split across pages by
-        // a mid-item pageBreak or the budget) makes the item partial, so the
-        // chunk renders only the child parts that landed here.
-        const itemTotals = [...totals.keys()].filter(k => k.startsWith(`${itemLocal}:`));
-        const allPresent = itemTotals.length > 0 && itemTotals.every(k => {
-          const ci = Number(k.slice(k.indexOf(':') + 1));
-          const units = byChild.get(ci);
-          return units !== undefined && units.length === totals.get(k);
-        });
-        perItemParts[itemLocal - itemStart] = allPresent ? null : parts;
-      }
-      if (block) out.push({ kind: 'repeat', block, itemStart, itemEnd, perItemParts });
+      const blockUnits = flat.filter(u => u.blockEl === blockEl);
+      const totals = countByPrefix(blockUnits);
+      const present = countByPrefix(pageUnits);
+      const built = buildRepeatLevel(pageUnits, totals, present, 0, []);
+      if (block) out.push({ kind: 'repeat', block, itemStart: built.itemStart, itemEnd: built.itemEnd, perItemParts: built.perItemParts });
       continue;
     }
     const total = flat.filter(u => u.blockEl === blockEl && u.unitKind !== 'break').length;

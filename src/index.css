@@ -211,7 +211,11 @@ input, textarea, [contenteditable] {
    zeroed for the first child here, and the paginator mirrors it (the opening
    unit never pays its gapBefore). */
 .rm-body > :first-child,
-.report-page-content > :first-child {
+.report-page-content > :first-child,
+/* A split repeat item's continuation renders only its remaining children; the
+   first one must stay flush so the paginator's opening-unit suppression (which
+   never charges the first unit's gapBefore) matches the render. */
+.rm-item > .rm-frag-child:first-child {
   margin-top: 0 !important;
 }
 

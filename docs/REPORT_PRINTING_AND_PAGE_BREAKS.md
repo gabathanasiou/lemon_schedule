@@ -65,13 +65,14 @@ nesting depth):**
 - whole blocks (text/field/link/image/map/columns/spacer) move WHOLE;
 - repeat/relative items DISSOLVE into their children — whole children move
   whole, ribbons split between strips, tables split between rows (header
-  repeats), nested repeats split between items (itemRange parts), and a
-  pageBreak child splits the item at that position (perItemParts chunks);
-  **the fragment model is ONE level deep** — parts are keyed by
-  `(top item, child index)`, so a nested repeat splits between ITS items and
-  those items stay WHOLE. A deep chain (`cast → days → scenes → elements`) has
-  the `(cast, day)` item as its smallest unit; a single tall item overflows per
-  rule 9. Splitting deeper would need a nested-path fragment model (roadmap 120).
+  repeats), and a pageBreak child splits the item at that position
+  (perItemParts chunks). The fragment path RECURSES to any depth: a nested
+  repeat child carries its own `itemRange` + `itemParts`, so a tall
+  `(cast, day)` item dissolves into its `(day, scene)` items and those into
+  their rows/strips — `cast → days → scenes → elements` paginates at
+  row/strip granularity instead of overflowing on one intermediate item
+  (roadmap 120). `assembleChunks` stays ONE flat walker; each unit carries a
+  `{ item, child }` path and the parts tree is rebuilt by grouping on it.
 - tables split between ROWS — the column header REPEATS on continuation chunks;
   custom-rows tables (`block.custom`) render with the same
   `.report-table-cols`/`.rm-row` classes, so they split between rows identically;
@@ -80,11 +81,20 @@ nesting depth):**
 - summary tables (`rm-once`) fold into the last item's final unit and render
   only on the chunk holding the last item WHOLE (no duplication on split pages).
 
+**Opening a continuation page mid-fragment:** the fill never charges the first
+unit's `gapBefore` (the top-level mount margin is CSS-zeroed). Nested fragment
+wrappers are zeroed too (`.rm-item > .rm-frag-child:first-child`), so a split
+item's continuation starts flush and the budget stays honest. A table row that
+opens a page still renders its column header (`rowRange[0] === 0` OR
+`repeatTableHeader`); `pageStartExtra` reserves the header height for row 0 as
+well, covering the orphaned-header case.
+
 **Block gap:** `.rm-block` wrappers carry the block-gap `marginTop`, read into
 `gapBefore` by `wholeUnit` and the first-unit reads
-(`flattenRepeat`/`flattenTable`/ribbon); `.rm-body > :first-child` /
+(`flattenRepeatContent`/`flattenTable`/ribbon); `.rm-body > :first-child` /
 `.report-page-content > :first-child` zero the first block's margin on each
-page. PageBreak markers never consume gap.
+page, and `.rm-item > .rm-frag-child:first-child` zeroes a split item's
+continuation. PageBreak markers never consume gap.
 
 **Canonical geometry:** `REPORT_PAGE_METRICS` (`reportStyle.ts:45`) —
 contentWidth = A4 minus 12mm side margins (697px portrait / 960px landscape);

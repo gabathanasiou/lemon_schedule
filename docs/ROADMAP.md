@@ -2793,7 +2793,16 @@ FormatToolbar) for flicker between adjacent icon buttons.
 **Relations**: kit primitive used by the editor chromes (items 56/83); app-side bump
 follows the `@gabriel/ui-kit` tag pattern.
 
-## 120. Reports paginator — nested-path fragment model (split deeply nested repeats) (`[ ]`)
+## 120. Reports paginator — nested-path fragment model (split deeply nested repeats) (`[x]`)
+
+**Done**: `FragmentPartUnit` gained `itemRange`/`itemParts` (recursive); the
+walker tags every unit with a `{ item, child }` path and `assembleChunks`
+rebuilds the nested parts tree by grouping on it (`buildRepeatLevel`/
+`buildChildPart`/`countByPrefix`, one flat walker kept). Continuation pages zero
+the first rendered `.rm-frag-child` margin and `pageStartExtra` reserves the
+table header for row 0 (orphaned-header case). Verified: `e2e/report-page-breaks`
+deep-nest stress (was 51k px overflow → 0; pdf page count == page-div count) on
+Chrome + iPad WebKit, full suite green.
 
 **Problem**: the measured paginator's fragment model is ONE level deep —
 `FragmentPartUnit` keys a part by `(top item, child index)` + one range, so a

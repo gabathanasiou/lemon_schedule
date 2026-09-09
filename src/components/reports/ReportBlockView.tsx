@@ -434,6 +434,7 @@ const RepeatItemChildren: React.FC<{
               rowRange={part?.tableRowRange}
               repeatTableHeader={part?.repeatTableHeader}
               itemRange={part?.itemRange}
+              partChildren={part?.itemParts}
             />
           </div>
         );

@@ -277,6 +277,48 @@ test('nested repeats containing tables split across pages (no overflow)', async 
   expect(texts.join('\n')).toContain('Day 1');
 });
 
+// Roadmap 120: the fragment model recurses to ANY depth. A tall item at the
+// (cast, day) level used to overflow its page (the nested items stayed whole);
+// now a day dissolves into its scenes, and a scene into its spacer/table, so
+// every page fits. The spacer makes each scene tall enough that a multi-scene
+// day can never fit a page as one unit.
+test('deeply nested repeats dissolve to row/child granularity (no overflow)', async ({ page, browserName }) => {
+  await page.addInitScript(seedWithDesign(design('PB Deep Nest', [
+    repeat('pb-cast', 'cast', [
+      text('pb-name', '{{castIdName}}'),
+      repeat('pb-days', 'daysOfCast', [
+        text('pb-day', 'DAY-{{dayNumber}}'),
+        spacer('pb-daygap', 700),
+        repeat('pb-scenes', 'scenesOfDay', [
+          text('pb-sc', 'SC-{{sceneNumber}}'),
+          spacer('pb-sp', 260),
+          {
+            id: 'pb-tbl', type: 'table', collection: 'elementsOfScene', showHeader: true,
+            columns: [
+              { id: 'pb-c1', field: 'elementName', width: 60 },
+              { id: 'pb-c2', field: 'elementCategory', width: 40 },
+            ],
+          },
+        ]),
+      ]),
+    ]),
+  ])));
+  const pages = await openPrintView(page);
+  const texts = await pageTexts(pages);
+  expect(texts.length).toBeGreaterThan(5);
+  const overflow = await pages.evaluateAll(els => (els as HTMLElement[]).map(el => el.scrollHeight - el.clientHeight));
+  expect(Math.max(...overflow)).toBeLessThanOrEqual(20); // sub-pixel drift only
+  expect(texts.join('\n')).toContain('DAY-1');
+
+  // Chromium: measured pagination == what actually reaches paper.
+  if (browserName === 'chromium') {
+    await page.emulateMedia({ media: 'print' });
+    const pdf = await page.pdf({ format: 'A4', printBackground: true });
+    const pdfPages = (pdf.toString('binary').match(/\/Type\s*\/Page[^s]/g) || []).length;
+    expect(pdfPages).toBe(texts.length);
+  }
+});
+
 // Regression: the filter values box committed per keystroke (one undo entry
 // per typed character). It is a draft now — commits once on blur/Enter.
 test('filter values commit on blur (one undo entry), not per keystroke', async ({ page }) => {
