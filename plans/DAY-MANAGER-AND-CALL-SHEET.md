@@ -1,6 +1,6 @@
 # Day Manager + Call Sheet Editor — Full Plan
 
-**Status:** planned (not started). Roadmap items **98**, **99**, **100** + completion of **item 10**.
+**Status:** item **98 shipped**; **99**, **100** + completion of **item 10** remaining.
 **Audience:** the implementing agent. This doc is deliberately exhaustive so you do **not**
 re-research. Line numbers were captured while planning (Sep 2026) — if a file has moved,
 search the quoted symbol names, not the numbers.
@@ -317,8 +317,9 @@ daybreakMeta?: DayMeta;   // governs the section BELOW this row (same convention
 
 `src/lib/dayMeta.ts` (new, canonical):
 - `daybreakAbove(sections, index)` (consolidates the two ad-hoc copies), `getDayMeta`,
-  `isEmptyDayMeta`, `patchDayMeta(dispatch, versionId, rowId, patch)` (`UPDATE_ROW`),
-  `EMPTY_DAY_META`, `pruneDayMetaRefs(meta, { crewIds, locationIds })` helpers.
+  `isEmptyDayMeta`, `patchDayMeta(dispatch, versionId, row, patch)` (`UPDATE_ROW`; `row`
+  carries id + current meta so the patch merges), `sectionCallTime`, `EMPTY_DAY_META`,
+  `pruneDayMetaRefs(meta, { crewIds, locationIds })` helpers.
 - Stage/lead computation lives in `src/lib/callTimes.ts` (item 99): stage defs from
   settings, `computeElementCallChain(day, elementKey, meta, settings)`, expression parsing
   (`parseTimeExpression`), resolved-vs-override logic.
@@ -331,7 +332,27 @@ Restructure handling:
   `useDialog` confirm when `!isEmptyDayMeta`; extend the bulk-op confirm copy
   (`ScheduleTab.tsx:696-710,1000-1013,899-972`).
 - Prune dangling refs on `DELETE_CREW_PERSON` / `DELETE_LOCATION` (or render unresolved
-  gracefully; choose one and test).
+  gracefully; choose one and test). **Chosen for now:** render gracefully — `pruneDayMetaRefs`
+  is implemented and ready to wire with item 99's crew/location surfaces.
+
+### 4.1.1 Deviations made during item 98 implementation (authoritative)
+
+- `DayMeta` gained `crewCalls?: DayCrewCall[]` (the plan's shape listed `crewIds` but no
+  per-person override home; item 99 needs it).
+- `DayView.daybreakRow` is the **governing** daybreak (above the section), not
+  `SectionInfo.daybreakRow` (which closes the section). Caught by the call-time/copy tests —
+  patching the closing row would write the next day's properties.
+- **Grouped picker**: added `EntityItem.group` + group headers to `DropdownPanel` and built
+  `GroupedSelect` (light kit menu) for the Day Manager. `EntityDropdown` stays the text-cell
+  editor — it is not the right base for a selection picker.
+- **Report seam**: the London stub is deleted. `getReportLocation` resolves master → DB-matched
+  scene location → blank; `partsFromPlace` (moved to `locations.ts`) fills city/postcode/country
+  from the DB `place`; `prepareSunWeatherForCtx` warms every day's own resolved location.
+- **Call-sheet default**: the preview pane defaults to a design named "Call Sheet", then the
+  active design.
+- `CopyDayModal` uses `DaySectionDef.extract` for meta sections and merges events inline;
+  `useDayClipboard` is implemented (module state, cross-window) — the paste UI lands with the
+  richer clipboard flow if needed.
 
 ### 4.2 Modularity — `DayView` + section registry (D7)
 

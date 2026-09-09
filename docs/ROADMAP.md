@@ -2157,24 +2157,21 @@ must reuse the canonical `Action` union/reducer — no parallel mutation path.
 
 **Verify**: TBD once scope is agreed.
 
-## 98. Day Manager page — Production → Days (`[ ]`)
+## 98. Day Manager page — Production → Days (`[x]` Done)
 
-**Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.1 — read it first (no re-research).**
+**Done**: `daybreakMeta` on the governing DAYBREAK row + canonical `src/lib/dayMeta.ts`
+(call-time copies consolidated; drag insert/swap carry the bundle; delete warnings via
+`useDialog` + bulk-op copy); one `DayView` read model (`src/lib/dayView.ts`) consumed by the
+registry-driven Production → **Days** page (`production/day/**`, pure props-in/patch-out
+sections, week sidebar, sticky header with status + `TimeField` call + wrap + conflicts),
+Copy-from-day + `useDayClipboard` + desktop day pop-outs, live day-scoped call-sheet preview
+(shared `ReportPreview` embedded host), master/key locations (Locations DB + inline address
+picker) and the report location seam (`getReportLocation` — London stub removed, per-day
+weather prefetch). New shared primitives `TimeField`/`DurationField` + `GroupedSelect` +
+`EntityItem.group` panel headers. Calendar's "Day Breakdown" → **Day Types**. Verified by
+`e2e/day-manager.spec.ts` (RULES: `day-manager`).
 
-- A per-day page (Production sub-tab `Days`, plus a new `Call Times` settings sub-tab):
-  modular section registry over one canonical `DayView`; editable call time/status/notes,
-  master + key locations (fed to call sheets/map/weather — the London stub goes away),
-  scenes, cast/elements, events, conflicts, call sheet.
-- **Live call-sheet preview**: desktop split view / iPad `Manage | Call Sheet` toggle,
-  rendering the actual call-sheet design scoped to the day (shared host with item 10); the
-  day header mirrors the call-sheet top block.
-- Day properties live in `daybreakMeta` on the governing DAYBREAK row (`src/lib/dayMeta.ts`);
-  carry through day drags/clones, warn before a delete discards them, undo restores.
-- Copy-from-day modal, day pop-out windows + shared day clipboard, shared `TimeField`/
-  `DurationField` + grouped `EntityDropdown` primitives.
-- Entry points: calendar day menu, stripboard daybreak double-click, Day Events modal footer.
-
-**Relations**: foundation for items 99/100/10; renames Calendar's "Day Breakdown" → "Day Types".
+**Relations**: foundation for items 99/100/10. Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.1.
 
 ## 99. Day call-times helper + crew + report collections (`[ ]`)
 

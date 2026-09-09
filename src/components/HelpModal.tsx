@@ -195,6 +195,15 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>CSV</>} action="Import / Export Locations CSV from the Edit menu (headers: Name, Type, Address, Contact, Phone, Email)" />
         </Section>
 
+        <Section title="Day Manager (Production → Days)">
+          <Row keys={<><Kbd>↑</Kbd> <Kbd>↓</Kbd></>} action="Move through the day list" />
+          <Row keys={<>Call field</>} action="Type an absolute time (7:30, 730, 7:30am) or a relative offset (-1h, +30m) — the resolved time shows beside it" />
+          <Row keys={<>Copy from day</>} action="Copy a source day's ticked sections (notes, locations, events) into this day — one undo step" />
+          <Row keys={<>Pop out</>} action="Open this day in a separate window (desktop)" />
+          <Row keys={<>Print call sheet</>} action="Print the day's call sheet using the selected report design" />
+          <Row keys={<>Right-click a day</>} action="Calendar day menu → Open Day Manager (or right-click a stripboard day break)" />
+        </Section>
+
         <Section title="Pop-out Windows">
           <Row keys={<><Kbd>⇧</Kbd> + Double-click</>} action="Open scene sheet in a new window (from stripboard, calendar, or Glide grid)" />
           <Row keys={<><Kbd>⇧</Kbd> + Right-click</>} action={'Context menu shows "Open in New Window" instead of "Open Sheet"'} />

@@ -90,6 +90,18 @@ no color, no motifs:
 - Anti-pattern: this is a restrained backdrop, not a marketing splash — no brand
   colors, no decorative motifs, no animation.
 
+### Day Manager page (Production → Days) — light page + live call-sheet pane
+
+The page is a light two-column surface: sidebar `w-64 shrink-0 border-r border-zinc-200
+bg-zinc-50` with week-grouped day rows (active `bg-zinc-900 text-white`, else
+`hover:bg-zinc-200/60`), a sticky header `bg-white border-b border-zinc-200` (status
+picker, `TimeField` call, computed wrap, conflict pill, Copy/Pop-out/Print actions), and
+collapsible section cards `DaySectionCard` (`bg-white border border-zinc-200 rounded-xl
+shadow-sm`; header = chevron + icon + title + live summary). Desktop split: editor left,
+live call-sheet preview right (`w-[46%] max-w-[640px] border-l border-zinc-200`, collapsible
+via a vertical "Call Sheet" tab); iPad/narrow uses the header `Manage | Call Sheet` toggle.
+All overlays (Copy-from-day, events, pickers) are dark per the two-layer rule.
+
 ## Canonical class recipes (the exact strings)
 
 ### Dark surfaces & menus
@@ -122,6 +134,7 @@ no color, no motifs:
 | Help micro-copy | `text-[10px] text-zinc-600` | `DayTypeModals.tsx:61` |
 | Intro copy | `text-xs text-zinc-400 leading-relaxed` | `LinkManagerModal.tsx:211` |
 | Modal body | `p-6 space-y-5` (single-field forms may use `space-y-4`) | `LinkManagerModal.tsx:210`, `ScheduleModals.tsx:93` |
+| **Time / duration field** | `TimeField` (`src/components/TimeField.tsx`) — raw call-time expression (absolute `7:30`/`730`/`7:30am` or relative `-1h`/`+30m`), live resolved value + optional reset; desktop `CellInput`, touch keypad (`:` `+` `-` `h` `m`). `DurationField` — the extracted `isTouchMode ? DurationKeypad : CellInput` duration recipe. Use for every call-time/duration input (Day Manager header + call times). | `TimeField.tsx`, `DurationField.tsx` |
 | **Date field** | `DateField` (`src/components/DateField.tsx`) — a composition of kit parts (promotion candidate under roadmap 56, same path as `DatePicker` → v0.1.34): **chrome** (default) = a chip trigger (the shared `DD_CHIP_TRIGGER_CLASS` + `ChevronDown`, label = `summaryLabel`) that spawns the kit `DropdownMenu` (dark, `w-64`) hosting the kit `DatePicker` — single mode collapses to the LATEST pick (the kit picker is a toggle, so re-clicking the picked day clears it); passing `className` (e.g. `w-full`) stretches the wrapper + trigger to fill the column (event editor's Date / Event Type row); **inline** = the calendar renders directly (rule editor Dates box — every date visible for multi-pick). **Open month = the relevant month** (roadmap 68): the picker seeds its visible month on mount from the field's picked date, else the production start, else real today (`initialViewFor` in `calendar/calendarUtils.ts`; kit `DatePicker` `initialView` prop, v0.1.63). Used by: EventModal, EventAdderModal (chrome; **inline + multi when element-locked** — the Element Manager add-event flow picks several dates at once), ProductionDatesModal (chrome), RuleEditorPanel (inline) | `DateField.tsx` |
 
 ### Tables (light managers)
@@ -191,6 +204,8 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Full form surface | `Modal` + `ModalFooter` | §Modal anatomy |
 | Full-page detail editor | SceneSheet pattern (light page, NOT a modal) | `SceneSheet.tsx` |
 | Multi-select lists | `Checklist` / `RadioList` / `Checkbox` | kit, `data-theme` aware |
+| Call-time / duration input | `TimeField` / `DurationField` | Shared expression parsing + touch keypad; never a raw time input |
+| Grouped selection (locations/crew) | `GroupedSelect` (`production/day/`) | Light kit `DropdownMenu` with group headers; `EntityItem.group` does the same in `DropdownPanel` |
 | Grouped item list (dark modals) | `ItemCard` + `ItemRow` (`src/components/cards/`) | Collapsible group card + interactive row — the element events manager's day-type sections and its Rules section (first migrations). §Item cards below |
 
 Dropdown **light picker** classes live in `src/lib/dropdown.ts` (panel `bg-white border-zinc-200
