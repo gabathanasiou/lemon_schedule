@@ -8,7 +8,7 @@ import { loadSeedProject, openSeededProject } from './helpers';
 async function openDays(page: Page) {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Days', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
   await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
 }
 
@@ -39,7 +39,7 @@ async function seedWithDesign(page: Page, raw: string, mutate: (project: any) =>
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
   await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Days', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
   await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
 }
 
@@ -148,7 +148,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
       const rows = b.getRows();
       return (rows.sections || []).filter((s: any) => !s.isPinned).length;
     });
-    await page.getByRole('button', { name: /^DAY / }).first().click();
+    await page.getByRole('button', { name: /Select day/ }).first().click();
     await expect(page.getByRole('menuitem').filter({ hasText: /^DAY \d/ })).toHaveCount(dayCount, { timeout: 4000 });
     await page.keyboard.press('Escape');
   });

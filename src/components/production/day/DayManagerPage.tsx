@@ -298,23 +298,26 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       </header>
 
       <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50 p-4" data-day-sections>
-        {/* Wide (data-dense) sections span both columns; the narrow meta
-            sections render as a two-column band underneath — the first narrow
-            card (Day Details) in the left column, the rest stacked right. */}
-        {DAY_SECTIONS.filter(d => d.wide).length > 0 && (
-          <div className="space-y-3">{DAY_SECTIONS.filter(d => d.wide).map(renderSection)}</div>
-        )}
-        {(() => {
-          const narrow = DAY_SECTIONS.filter(d => !d.wide);
-          if (narrow.length === 0) return null;
-          const [left, ...right] = narrow;
-          return (
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-              <div className="min-w-0 space-y-3">{renderSection(left)}</div>
-              <div className="min-w-0 space-y-3">{right.map(renderSection)}</div>
-            </div>
-          );
-        })()}
+        <div className="mx-auto w-full max-w-6xl">
+          {/* The narrow meta sections (Day Details + Locations/Events/Conflicts)
+              render as a two-column band on TOP — Day Details in the left
+              column, the rest stacked right; the wide data-dense sections
+              (scenes, call times, crew) span both columns beneath. */}
+          {(() => {
+            const narrow = DAY_SECTIONS.filter(d => !d.wide);
+            if (narrow.length === 0) return null;
+            const [left, ...right] = narrow;
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                <div className="min-w-0 space-y-3">{renderSection(left)}</div>
+                <div className="min-w-0 space-y-3">{right.map(renderSection)}</div>
+              </div>
+            );
+          })()}
+          {DAY_SECTIONS.filter(d => d.wide).length > 0 && (
+            <div className="mt-3 space-y-3">{DAY_SECTIONS.filter(d => d.wide).map(renderSection)}</div>
+          )}
+        </div>
       </div>
     </div>
   );

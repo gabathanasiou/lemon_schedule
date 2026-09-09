@@ -1,11 +1,11 @@
 import { test, expect, Page } from '@playwright/test';
 import { openSeededProject, seedDayDates } from './helpers';
 
-/** Opens Production → Days and waits for the page shell. */
+/** Opens Production → Day Manager and waits for the page shell. */
 async function openDays(page: Page) {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Days', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
   await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
 }
 
@@ -22,7 +22,7 @@ test.describe('Day Manager (roadmap 98)', () => {
     await expect(page.locator('[data-section="details"]')).toBeVisible();
     await expect(page.locator('[data-section="locations"]')).toBeVisible();
     await expect(page.locator('[data-section="scenes"]')).toBeVisible();
-    await expect(page.locator('[data-section="castElements"]')).toBeVisible();
+    await expect(page.locator('[data-section="callTimes"]')).toBeVisible();
     await expect(page.locator('[data-section="events"]')).toBeVisible();
     await expect(page.locator('[data-section="conflicts"]')).toBeVisible();
 
@@ -77,7 +77,7 @@ test.describe('Day Manager (roadmap 98)', () => {
     });
 
     // Select DAY 2 via the header day dropdown, then copy from day.
-    await page.locator('[data-day-manager] header').getByRole('button', { name: /^DAY \d/ }).first().click();
+    await page.locator('[data-day-manager] header').getByRole('button', { name: /Select day/ }).first().click();
     await page.getByRole('menuitem', { name: /^DAY 2 / }).click();
     await page.locator('[data-day-manager] header').getByRole('button', { name: /Copy from day/ }).click();
     await page.getByText('Day Details', { exact: true }).last().click();

@@ -1,21 +1,83 @@
 import React, { useMemo } from 'react';
 import { Clock } from 'lucide-react';
+import type { GridCell } from '@glideapps/glide-data-grid';
 import type { DaySectionProps } from '../daySectionTypes';
 import { getCallTimeSettings } from '../../../../lib/callTimes';
 import { CAT_ICONS, getCustomIcon, getLabel } from '../../../../lib/categories';
 import type { DayElementEntry } from '../../../../lib/dayView';
 import DayTimesGlide from '../DayTimesGlide';
-import { DAY_ALIGN, DAY_TABLE, DAY_TABLE_WRAP, DAY_TD, DAY_TH } from '../tableStyles';
+import InlineGlideTable, { type InlineGlideColumn } from '../../../InlineGlideTable';
+import { createDayTimesTheme } from '../../../../lib/glideTheme';
+import { textCell } from '../../../../lib/glideCells';
 
 /**
  * Call Times (item 99/101/107): the single per-category element view on a day.
  * Categories WITH configured call stages render one Day Times Glide grid (ID |
- * Character | SWF | <stage columns>) — editable, the same stage chain the
- * call sheet prints. Categories WITHOUT stages still list their elements as a
- * read-only table (ID | Name | SWF | Scene | Call) so no breakdown category
- * disappears (roadmap 107): the SWF cell carries the element's DOOD-style
- * start/work/finish letter for the day, Scene + Call are its first appearance.
+ * Character | SWF | <stage columns>) — editable, the same stage chain the call
+ * sheet prints. Categories WITHOUT stages still list their elements in the SAME
+ * inline-Glide style, read-only (ID | Name | SWF | Scene | Call), so no
+ * breakdown category disappears: the SWF cell carries the element's DOOD-style
+ * start/work/finish letter for the day; Scene + Call are its first appearance.
  */
+const FALLBACK_EDITABLE = new Set<string>();
+
+/** The stage-less fallback — a read-only inline Glide grid (roadmap 107), so
+ *  every category panel reads in the spreadsheet language, never the old HTML
+ *  table. */
+const FallbackElementGrid: React.FC<{ entries: DayElementEntry[] }> = ({ entries }) => {
+  const rows = useMemo(() => entries.map(e => ({
+    key: e.key,
+    id: e.boardId || '',
+    name: e.boardId ? `${e.boardId}. ${e.name}` : e.name,
+    swf: e.dood || '',
+    scene: String(e.firstScene),
+    call: e.firstCallTime || '',
+  })), [entries]);
+
+  const columns: InlineGlideColumn[] = useMemo(() => [
+    { key: 'id', label: 'ID', width: 56, align: 'center' },
+    { key: 'name', label: 'Name', width: 220 },
+    { key: 'swf', label: 'SWF', width: 56, align: 'center' },
+    { key: 'scene', label: 'Scene', width: 70, align: 'center' },
+    { key: 'call', label: 'Call', width: 96, align: 'center' },
+  ], []);
+
+  const getCellContent = (col: InlineGlideColumn, row: Record<string, string>): GridCell => {
+    if (col.key === 'swf') {
+      const code = row.swf;
+      const work = code === 'W';
+      return textCell(code, {
+        readonly: true,
+        allowOverlay: false,
+        align: 'center',
+        cursor: 'default',
+        themeOverride: code
+          ? { bgCell: '#fafafa', textDark: work ? '#047857' : '#3f3f46' }
+          : { bgCell: '#fafafa', textDark: '#a1a1aa' },
+      });
+    }
+    if (col.key === 'call') {
+      return textCell(row.call, { readonly: true, allowOverlay: false, align: 'center', cursor: 'default', themeOverride: { bgCell: '#fafafa', textDark: '#3f3f46' } });
+    }
+    if (col.key === 'scene' || col.key === 'id') {
+      return textCell(row[col.key], { readonly: true, allowOverlay: false, align: 'center', cursor: 'default', themeOverride: { bgCell: '#fafafa', textDark: '#a1a1aa' } });
+    }
+    return textCell(row.name, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { bgCell: '#fafafa' } });
+  };
+
+  return (
+    <InlineGlideTable
+      columns={columns}
+      rows={rows}
+      getCellContent={getCellContent}
+      onCommit={() => {}}
+      editableKeys={FALLBACK_EDITABLE}
+      readOnly
+      createTheme={createDayTimesTheme}
+    />
+  );
+};
+
 const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly }) => {
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
 
@@ -36,13 +98,6 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
   if (presentCategories.length === 0) {
     return <p className="text-xs text-zinc-400">No elements on this day.</p>;
   }
-
-  const entryName = (e: DayElementEntry) => (e.boardId ? `${e.boardId}. ${e.name}` : e.name);
-  const swfTone = (letter: string) => {
-    if (!letter) return '';
-    if (letter.includes('S') || letter.includes('F')) return 'bg-zinc-100 text-zinc-500';
-    return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-  };
 
   return (
     <div className="space-y-4">
@@ -70,34 +125,7 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
                 readOnly={readOnly}
               />
             ) : (
-              <div className={DAY_TABLE_WRAP}>
-                <table className={DAY_TABLE}>
-                  <thead>
-                    <tr className="border-b border-zinc-200">
-                      <th className={`${DAY_TH} ${DAY_ALIGN.left} w-16`}>ID</th>
-                      <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Name</th>
-                      <th className={`${DAY_TH} ${DAY_ALIGN.center} w-16`} title="DOOD: S first work day · W in between · F last · combos">SWF</th>
-                      <th className={`${DAY_TH} ${DAY_ALIGN.right} w-16`}>Scene</th>
-                      <th className={`${DAY_TH} ${DAY_ALIGN.right} w-20`}>Call</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {entries.map(entry => (
-                      <tr key={entry.key} className="even:bg-zinc-50/60">
-                        <td className={`${DAY_TD} ${DAY_ALIGN.left} text-xs text-zinc-400 tabular-nums`}>{entry.boardId || ''}</td>
-                        <td className={`${DAY_TD} ${DAY_ALIGN.left} text-xs text-zinc-800`}>{entryName(entry)}</td>
-                        <td className={`${DAY_TD} ${DAY_ALIGN.center}`}>
-                          <span className={`inline-block min-w-7 px-1 py-0.5 rounded text-[10px] font-semibold text-center tabular-nums ${swfTone(entry.dood)}`}>
-                            {entry.dood || '—'}
-                          </span>
-                        </td>
-                        <td className={`${DAY_TD} ${DAY_ALIGN.right} text-xs text-zinc-500 tabular-nums`}>{entry.firstScene}</td>
-                        <td className={`${DAY_TD} ${DAY_ALIGN.right} text-xs text-zinc-700 tabular-nums`}>{entry.firstCallTime || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <FallbackElementGrid entries={entries} />
             )}
           </div>
         );

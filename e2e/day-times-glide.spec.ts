@@ -12,7 +12,7 @@ import { openSeededProject } from './helpers';
 async function openCallTimes(page: Page) {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Days', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
   await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
 
   const section = page.locator('[data-section="callTimes"]');

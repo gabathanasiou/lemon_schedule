@@ -4,7 +4,7 @@ import { openSeededProject } from './helpers';
 async function openDays(page: Page) {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Days', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
   await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
 }
 
@@ -46,11 +46,11 @@ test.describe('Day call times + crew (roadmap 99)', () => {
       return w > 0 && prev === w;
     }, undefined, { timeout: 5000 });
 
-    // Auto-fit geometry: Name(240) | Role(180) | Call(120), flexing on Role.
+    // Auto-fit geometry: Name(120) | Role(90) | Call(90), flexing on Role.
     const box = (await scroller.boundingBox())!;
     const target = Math.max(120, Math.floor(box.width) - 1);
-    const total = 240 + 180 + 120;
-    const widths = [240, 180, 120].map(w => Math.max(40, Math.floor((w / total) * target)));
+    const total = 120 + 90 + 90;
+    const widths = [120, 90, 90].map(w => Math.max(40, Math.floor((w / total) * target)));
     const sum = widths.reduce((s, w) => s + w, 0);
     widths[1] += target - sum;
     const callX = box.x + widths[0] + widths[1] + widths[2] / 2;
