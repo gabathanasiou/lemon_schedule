@@ -10,7 +10,7 @@
 // Both return weather_code + sunrise/sunset in local time via `timezone=`.
 
 import { Project, ScheduleVersion, CalendarVersion, ReportDesign } from '../types';
-import { ReportCtx, ReportDaybreakData, buildReportCtx, getReportLocation, LONDON_LOCATION, pickLocation, designLocationsIn, type ReportLocationInfo } from './reportData';
+import { ReportCtx, ReportDaybreakData, buildReportCtx, getReportLocation, pickLocation, designLocationsIn, type ReportLocationInfo } from './reportData';
 import { getBrowserTimeZone } from './timezones';
 
 export interface ReportLocation {
@@ -29,9 +29,9 @@ export interface ReportLocation {
 }
 
 // Re-exported from reportData (the single location seam): the day-location
-// stub lives there next to locationsOfItem so both share one home.
+// resolver lives there next to locationsOfItem so both share one home.
 
-export { getReportLocation, LONDON_LOCATION } from './reportData';
+export { getReportLocation } from './reportData';
 
 // ---- reverse geocoding (full address for the map block's location picker) -----
 // Cache keyed `lat|lng`; `null` marks a failed fetch. Same lifecycle as the
@@ -268,6 +268,7 @@ export async function prepareSunWeatherForCtx(ctx: ReportCtx, design?: ReportDes
   const dates = reportWeatherDates(ctx);
   if (dates.length === 0) return;
   const seam = getReportLocation(ctx);
+  const hasSeam = !!(seam.place || seam.address) && (seam.lat !== 0 || seam.lng !== 0);
   const extra = design ? designLocationsIn(ctx, design) : [];
   const batch = extra
     .filter(l => l.lat != null && l.lng != null)
@@ -277,11 +278,11 @@ export async function prepareSunWeatherForCtx(ctx: ReportCtx, design?: ReportDes
       timezone: ctx.project.productionInfo?.timezone || seam.timezone,
     }));
   await Promise.all([
-    fetchSunWeatherBatch(seam, dates),
+    hasSeam ? fetchSunWeatherBatch(seam, dates) : Promise.resolve(),
     ...batch.map(loc => fetchSunWeatherBatch(loc, dates)),
-    // Only reverse-geocode when the location has no place name yet (the
-    // dummy address and future location DB entries carry their own address).
-    seam.place ? Promise.resolve() : reverseGeocodeAddress(seam.lat, seam.lng),
+    // Only reverse-geocode when the location has no place name yet (DB
+    // entries carry their own address).
+    hasSeam && !seam.place ? reverseGeocodeAddress(seam.lat, seam.lng) : Promise.resolve(),
   ]);
 }
 

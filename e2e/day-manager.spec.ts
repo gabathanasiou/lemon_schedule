@@ -69,6 +69,23 @@ test.describe('Day Manager (roadmap 98)', () => {
     }
   });
 
+  test('master location flows into the call-sheet preview (report seam)', async ({ page }) => {
+    await openDays(page);
+
+    await page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+      const loc = { id: 'loc-test-stage', name: 'Test Stage 7', type: 'set', address: '7 Stage Way' };
+      b.dispatch({ type: 'ADD_LOCATION', payload: { location: loc } });
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned) || v.rows.find((r: any) => r.type === 'DAYBREAK');
+      b.dispatch({ type: 'UPDATE_ROW', payload: { versionId: v.id, rowId: gov.id, updates: { daybreakMeta: { locationId: 'loc-test-stage' } } } });
+    });
+
+    const pane = page.locator('[data-day-callsheet-pane]');
+    await expect(pane.getByText('Test Stage 7').first()).toBeVisible({ timeout: 12000 });
+  });
+
   test('deleting a daybreak with details warns first and cancel keeps it', async ({ page }) => {
     await openDays(page);
     const dates = await seedDayDates(page);

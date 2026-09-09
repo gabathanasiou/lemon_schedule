@@ -1,4 +1,4 @@
-import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation } from '../types';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
@@ -6,7 +6,7 @@ import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
 import { formatDateShort } from './utils';
 import { computeViolationIndex, violationTypeLabel } from './violations';
-import { typeLabelOf } from './locations';
+import { typeLabelOf, resolvedLocationName } from './locations';
 import { getDayTypes, codeForType } from './dayTypes';
 import { getStatusesWithLists, isElementMarked } from './nonShootHelpers';
 import { getBrowserTimeZone } from './timezones';
@@ -22,26 +22,38 @@ import type { ReportLocation } from './reportWeather';
 // the Location Manager wiring lands. Single-valued consumers show the FIRST
 // location; multi-location items get a per-block "Show location" picker.
 
-/** Fixed location until the per-day location DB lands — a dummy London
- *  address (placeholder for the real location attachment). */
-export const LONDON_LOCATION: ReportLocation = {
-  lat: 51.5074,
-  lng: -0.1278,
-  place: '112 Maryland Street, London E15 1QD, United Kingdom',
-  address: '112 Maryland Street',
-  city: 'London',
-  postcode: 'E15 1QD',
-  country: 'United Kingdom',
-  timezone: 'Europe/London',
-};
-
-/** The location a report day resolves to. Future location DB: route on the
- *  item (day/scene) here — nothing else in the report pipeline changes. */
-export function getReportLocation(ctx: ReportCtx, _item?: any): ReportLocation {
-  return {
-    ...LONDON_LOCATION,
-    timezone: ctx.project.productionInfo?.timezone || getBrowserTimeZone(),
+/** The location a report day/scene resolves to (item 98 — the London stub is
+ *  gone). Resolution order: the day's master location from `daybreakMeta` →
+ *  the first scene location matched to the Locations DB (by name or address) →
+ *  an empty location (fields render blank rather than a fake address). */
+export function getReportLocation(ctx: ReportCtx, item?: any): ReportLocation {
+  const tz = ctx.project.productionInfo?.timezone || getBrowserTimeZone();
+  const locs = ctx.project.locations || [];
+  const toReport = (l: ProjectLocation): ReportLocation => {
+    const info = ctx.locationInfos.find(li => li.id === l.id);
+    return {
+      lat: Number(l.lat) || 0,
+      lng: Number(l.lng) || 0,
+      place: (l.place || resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng)) || undefined,
+      address: l.address,
+      timezone: tz,
+      info,
+      typeKey: l.type,
+    };
   };
+  const master = item?.locationId ? locs.find(l => l.id === item.locationId) : undefined;
+  if (master) return toReport(master);
+  const names: string[] = item?.sceneLocations
+    || (item?.scene?.location ? [item.scene.location] : []);
+  for (const name of names) {
+    const key = name.trim().toLowerCase();
+    if (!key) continue;
+    const hit = locs.find(l =>
+      (l.name || '').trim().toLowerCase() === key
+      || (l.address || '').trim().toLowerCase() === key);
+    if (hit) return toReport(hit);
+  }
+  return { lat: 0, lng: 0, timezone: tz };
 }
 
 /** True when the item is a locations-DB entry (ReportLocationInfo shape). */
@@ -65,7 +77,10 @@ export function locationsOfItem(ctx: ReportCtx, item: any): ReportLocation[] {
       typeKey: item.type,
     }];
   }
-  return [getReportLocation(ctx, item)];
+  const loc = getReportLocation(ctx, item);
+  // No master/DB-matched location → render nothing (fields show blank) rather
+  // than a placeholder address.
+  return (loc.place || loc.address) ? [loc] : [];
 }
 
 /** The location an item's attribute renders: first by default, else the one
@@ -142,6 +157,10 @@ export interface ReportDayInfo {
   sceneCount: number;
   firstScene: string;
   lastScene: string;
+  /** Master location from `daybreakMeta` (item 98) — the day's report location. */
+  locationId?: string;
+  /** Distinct scene locations (free-text names), for the DB-matched fallback. */
+  sceneLocations?: string[];
 }
 
 export interface ReportElementInfo {
@@ -475,6 +494,13 @@ export function buildReportCtx(
       .filter(r => r.type === 'SCENE' && r.sceneId)
       .map(r => project.scenes.find(sc => sc.id === r.sceneId)?.sceneNumber)
       .filter(Boolean) as string[];
+    const gov = sections[i - 1]?.daybreakRow;
+    const sceneLocations: string[] = [];
+    for (const r of s.rows) {
+      if (r.type !== 'SCENE' || !r.sceneId) continue;
+      const loc = project.scenes.find(sc => sc.id === r.sceneId)?.location?.trim();
+      if (loc && !sceneLocations.includes(loc)) sceneLocations.push(loc);
+    }
     dayInfos.push({
       section: s,
       chronoDay: s.chronoDay,
@@ -488,6 +514,8 @@ export function buildReportCtx(
       sceneCount: sceneNums.length,
       firstScene: sceneNums[0] || '',
       lastScene: sceneNums[sceneNums.length - 1] || '',
+      locationId: gov?.daybreakMeta?.locationId,
+      sceneLocations,
     });
   }
 

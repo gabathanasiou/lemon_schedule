@@ -128,8 +128,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const callSheetDesign = useMemo(() => {
     const designs = project.reportDesigns || [];
     return designs.find(d => d.id === prefs.callSheetDesignId)
-      || designs.find(d => d.id === project.activeReportId)
       || designs.find(d => /call\s*sheet/i.test(d.name))
+      || designs.find(d => d.id === project.activeReportId)
       || designs[0];
   }, [project.reportDesigns, project.activeReportId, prefs.callSheetDesignId]);
 
