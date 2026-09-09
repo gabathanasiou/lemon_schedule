@@ -108,6 +108,10 @@ interface ReportDesignerCanvasProps {
   editorMode: 'floating' | 'toolbar';
   viewWidth?: number | null;
   pageSize?: 'portrait' | 'landscape';
+  /** Bare embed (Call Sheet zone editor, roadmap 10): render ONLY the editable
+   *  block list — no Header/Footer zones, no page-width/scroll wrapper — so the
+   *  same DnD + floating-chrome canvas can sit inside another surface. */
+  bare?: boolean;
 }
 
 type ZoneKind = 'header' | 'body' | 'footer';
@@ -196,7 +200,7 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare }) => {
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
@@ -598,6 +602,39 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
   const selBlock = selId ? findBlock(allBlocks, selId)?.block : null;
   const resizeTarget = selBlock && selBlock.type === 'table' && (selBlock.axis ?? 'columns') === 'columns' && (selBlock.columns || []).length > 0 ? selBlock : null;
 
+  const emptyBodyDrop = (
+    <div
+      className="report-zone-body-empty text-center text-zinc-500 text-sm py-20 border border-dashed border-zinc-400 rounded-lg cursor-pointer"
+      data-zone-list="body"
+      onClick={() => onInsertIntoZone('body', { kind: 'block', type: 'text' })}
+      {...zoneDropHandlers('body', onInsertIntoZone, isDrag, pendingRef, endDrag)}
+    >
+      No blocks yet — click or drag from the palette to build the report.
+    </div>
+  );
+  const bodyBlocks = blocks.length === 0 ? emptyBodyDrop : <div className="flex flex-col">{renderBlocks(blocks, 0)}</div>;
+
+  if (bare) {
+    // Embedded list (Call Sheet zone): same cards / DnD / floating chrome, but
+    // no Header/Footer zones and no page-width scroller — the parent owns the
+    // surface.
+    return (
+      <div
+        ref={containerRef}
+        onClick={() => { onSelect(null); onSelectCol(null); }}
+        onDragEnter={e => { if (isDrag(e)) setDragging(true); }}
+        onDragLeave={e => {
+          const cur = e.currentTarget;
+          if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
+          pendingRef.current = null;
+          clearActiveZones();
+        }}
+      >
+        {bodyBlocks}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -629,18 +666,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
           {headerBlocks.length === 0 && <ZoneEmptyHint />}
           {renderBlocks(headerBlocks, 0)}
         </ReportZone>
-        {blocks.length === 0 ? (
-          <div
-            className="report-zone-body-empty text-center text-zinc-500 text-sm py-20 border border-dashed border-zinc-400 rounded-lg cursor-pointer"
-            data-zone-list="body"
-            onClick={() => onInsertIntoZone('body', { kind: 'block', type: 'text' })}
-            {...zoneDropHandlers('body', onInsertIntoZone, isDrag, pendingRef, endDrag)}
-          >
-            No blocks yet — click or drag from the palette to build the report.
-          </div>
-        ) : (
-          <div className="flex flex-col">{renderBlocks(blocks, 0)}</div>
-        )}
+        {bodyBlocks}
         <ReportZone
           label="Footer"
           hint="Appears at the bottom of every page"

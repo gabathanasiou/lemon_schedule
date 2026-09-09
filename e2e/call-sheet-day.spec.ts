@@ -139,13 +139,61 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(page.getByText(/^DAY HEADER /).first()).toBeVisible({ timeout: 8000 });
     await expect(page.getByText('{{dayNumber}}')).toHaveCount(0);
 
-    // Add a zone block through the page's empty-zone affordance.
-    await page.getByRole('button', { name: /Add a block here/ }).click();
-    await expect(page.locator('[data-zone-block]')).toHaveCount(1, { timeout: 8000 });
+    // The empty zone is the designer's drop target — click it to add a text block.
+    await page.getByText(/No blocks yet/).click();
+    await expect(page.locator('[data-call-sheet-page] [data-block-id]').first()).toBeAttached({ timeout: 8000 });
     await expect.poll(() => page.evaluate(() => {
       const b: any = (window as any).__lemonSchedule;
       const p = b.getProject();
       const d = (p.reportDesigns || []).find((x: any) => x.id === 'cs-wysiwyg');
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+      const blocks = gov?.daybreakMeta?.callSheets?.[d?.id] || [];
+      return Array.isArray(blocks) && blocks.length === 1;
+    }), { timeout: 5000 }).toBe(true);
+  });
+
+  test('palette drag-and-drop adds a zone block in the page editor', async ({ page }) => {
+    const seed = loadSeedProject();
+    const project = JSON.parse(seed.raw);
+    project.reportDesigns = [{
+      id: 'cs-dnd', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
+      blocks: [{
+        id: 'days', type: 'repeat', collection: 'days', children: [
+          { id: 'hdr', type: 'text', text: 'DAY HEADER {{dayNumber}}' },
+          { id: 'zone', type: 'callSheetEdit', children: [] },
+        ],
+      }],
+      header: [], footer: [],
+    }];
+    project.activeReportId = 'cs-dnd';
+
+    await page.addInitScript(({ projectJson, meta }) => {
+      const p = JSON.parse(projectJson);
+      localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
+      localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
+    }, {
+      projectJson: JSON.stringify(project),
+      meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
+    });
+
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
+    await page.getByRole('button', { name: 'Production' }).click();
+    await page.getByRole('button', { name: 'Days', exact: true }).click();
+    await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
+
+    await page.locator('[data-section="callSheet"]').getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
+
+    // Drag the palette's Text block onto the empty zone drop target.
+    await page.getByRole('button', { name: 'Text', exact: true }).first().dragTo(page.getByText(/No blocks yet/));
+
+    await expect(page.locator('[data-call-sheet-page] [data-block-id]').first()).toBeAttached({ timeout: 8000 });
+    await expect.poll(() => page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const d = (p.reportDesigns || []).find((x: any) => x.id === 'cs-dnd');
       const v = p.versions.find((x: any) => x.id === p.activeVersionId);
       const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
       const blocks = gov?.daybreakMeta?.callSheets?.[d?.id] || [];
