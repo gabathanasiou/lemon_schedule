@@ -1,26 +1,31 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Printer, RotateCcw, Sheet } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Eye, EyeOff, Printer, RotateCcw } from 'lucide-react';
 import type { DayView } from '../../../lib/dayView';
 import type { ReportBlock, ReportDesign } from '../../../types';
 import { formatDateShort } from '../../../lib/utils';
 import ReportDesigner from '../../reports/ReportDesigner';
+import DayReportPreview from '../../reports/DayReportPreview';
 import CallSheetCanvas, { callSheetDayBlocks } from './CallSheetCanvas';
-import GroupedSelect, { GroupedSelectItem } from './GroupedSelect';
+import DayPicker from './DayPicker';
+import GroupedSelect from './GroupedSelect';
 
 /**
- * Full-surface per-day call-sheet editor (item 10, D17). Reuses the Reports
- * Designer in ZONE mode: the palette + canvas edit only the `callSheetEdit`
- * zone's blocks, which are stored per day in `daybreakMeta.callSheets[designId]`.
- * The template's zone children are the default until the day overrides them.
+ * Full-surface per-day call-sheet editor (item 10, D17): the whole design
+ * fills a single white page with that day's data; the zone is edited with the
+ * REAL reports-designer canvas. Header (shares the Days page's DayPicker):
+ * Days back · day switcher (prev/next + DayPicker) · call-sheet design picker ·
+ * Preview/Edit toggle · Reset · Print.
  */
 export interface CallSheetEditPageProps {
   day: DayView;
+  days: DayView[];
   design: ReportDesign;
   designs: ReportDesign[];
   zoneBlocks: ReportBlock[];
   onChangeZone: (blocks: ReportBlock[]) => void;
   onReset: () => void;
   onSelectDesign: (id: string) => void;
+  onSelectDay: (sectionIndex: number) => void;
   onPrint: () => void;
   onBack: () => void;
   readOnly?: boolean;
@@ -31,15 +36,26 @@ export interface CallSheetEditPageProps {
 const isCallSheet = (d: ReportDesign) => /call\s*sheet/i.test(d.name);
 
 const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
-  day, design, designs, zoneBlocks, onChangeZone, onReset, onSelectDesign, onPrint, onBack, readOnly, hasOverride,
+  day, days, design, designs, zoneBlocks, onChangeZone, onReset, onSelectDesign, onSelectDay, onPrint, onBack, readOnly, hasOverride,
 }) => {
   const [nonce, setNonce] = useState(0);
+  const [preview, setPreview] = useState(false);
 
-  const items: GroupedSelectItem[] = useMemo(() => designs.map(d => ({
-    id: d.id,
-    name: d.name,
-    group: isCallSheet(d) ? 'Call Sheets' : 'Other Reports',
-  })), [designs]);
+  // Only call-sheet designs can be per-day edited here.
+  const callSheetDesigns = useMemo(() => {
+    const list = designs.filter(isCallSheet);
+    if (!list.some(d => d.id === design.id)) return [design, ...list];
+    return list;
+  }, [designs, design]);
+  const designItems = useMemo(() => callSheetDesigns.map(d => ({ id: d.id, name: d.name })), [callSheetDesigns]);
+
+  const stepDay = (delta: number) => {
+    const i = days.findIndex(d => d.sectionIndex === day.sectionIndex);
+    const next = days[i + delta];
+    if (next) { onSelectDay(next.sectionIndex); setPreview(false); }
+  };
+
+  const editorKey = `${day.sectionIndex}:${design.id}:${nonce}`;
 
   return (
     <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-zinc-950 text-zinc-300" data-call-sheet-edit>
@@ -47,24 +63,51 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         <button type="button" onClick={onBack} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800">
           <ArrowLeft className="w-3.5 h-3.5" /> Days
         </button>
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
-          <Sheet className="w-3.5 h-3.5 text-zinc-500" />
-          DAY {day.chronoDay} · {formatDateShort(day.date)}
-        </span>
-        <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider ml-2">Design</span>
-        <GroupedSelect
-          className="w-56"
-          items={items}
-          mode="single"
-          selectedIds={[design.id]}
+
+        <button type="button" onClick={() => stepDay(-1)} aria-label="Previous day" className="p-1 rounded text-zinc-500 hover:bg-zinc-800 hover:text-white">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <DayPicker
+          className="w-36"
+          theme="dark"
+          options={days}
+          selectedIndex={day.sectionIndex}
+          onSelect={idx => { onSelectDay(idx); setPreview(false); }}
           disabled={readOnly}
-          onChange={ids => { if (ids[0]) onSelectDesign(ids[0]); }}
         />
+        <button type="button" onClick={() => stepDay(1)} aria-label="Next day" className="p-1 rounded text-zinc-500 hover:bg-zinc-800 hover:text-white">
+          <ChevronRight className="w-4 h-4" />
+        </button>
+        <span className="text-xs text-zinc-500">{formatDateShort(day.date)}</span>
+
+        {designItems.length > 0 && (
+          <>
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider ml-2">Design</span>
+            <GroupedSelect
+              className="w-52"
+              theme="dark"
+              items={designItems}
+              mode="single"
+              selectedIds={[design.id]}
+              disabled={readOnly}
+              onChange={ids => { if (ids[0]) { onSelectDesign(ids[0]); setPreview(false); } }}
+            />
+          </>
+        )}
+
         <div className="ml-auto flex items-center gap-1">
           <button
             type="button"
+            onClick={() => setPreview(v => !v)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
+          >
+            {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {preview ? 'Edit' : 'Preview'}
+          </button>
+          <button
+            type="button"
             disabled={readOnly || !hasOverride}
-            onClick={() => { onReset(); setNonce(n => n + 1); }}
+            onClick={() => { onReset(); setNonce(n => n + 1); setPreview(false); }}
             className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30"
             title={hasOverride ? 'Discard this day’s edits and use the template zone' : 'Using the template zone'}
           >
@@ -79,9 +122,18 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           </button>
         </div>
       </header>
-      {callSheetDayBlocks(design) ? (
+
+      {preview ? (
+        <DayReportPreview
+          key={editorKey}
+          design={design}
+          sectionIndex={day.sectionIndex}
+          callSheetBlocks={zoneBlocks}
+          onExit={() => setPreview(false)}
+        />
+      ) : callSheetDayBlocks(design) ? (
         <CallSheetCanvas
-          key={`${day.sectionIndex}:${design.id}:${nonce}`}
+          key={editorKey}
           design={design}
           day={day}
           zoneBlocks={zoneBlocks}
@@ -90,7 +142,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         />
       ) : (
         <ReportDesigner
-          key={`${day.sectionIndex}:${design.id}:${nonce}`}
+          key={editorKey}
           zone={{ designId: design.id, blocks: zoneBlocks, onChange: onChangeZone, scope: 'days' }}
         />
       )}

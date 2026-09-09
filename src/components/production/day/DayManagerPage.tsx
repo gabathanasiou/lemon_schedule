@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Flag, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Printer, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Flag, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Printer, Search } from 'lucide-react';
 import { useProject } from '../../../store';
 import { useDayViews, type DayView } from '../../../lib/dayView';
 import { patchDayMeta } from '../../../lib/dayMeta';
@@ -10,6 +10,7 @@ import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
 import TimeField from '../../TimeField';
 import DaySectionCard from './DaySectionCard';
+import DayPicker from './DayPicker';
 import { DAY_SECTIONS } from './daySectionRegistry';
 import type { DaySectionActions } from './daySectionTypes';
 import { DayEventsModal } from '../../calendar/DayEventsModal';
@@ -68,12 +69,10 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const [eventsDate, setEventsDate] = useState<string | null>(null);
   const [adderDate, setAdderDate] = useState<string | null>(null);
   const [narrowPreview, setNarrowPreview] = useState(false);
-  const [dayMenuOpen, setDayMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [editCallSheet, setEditCallSheet] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-  const dayListRef = useRef<HTMLDivElement>(null);
 
   const selected = useMemo(() => {
     if (initialDayIndex != null && byIndex.has(initialDayIndex)) return byIndex.get(initialDayIndex)!;
@@ -90,16 +89,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   useEffect(() => {
     if (initialDayIndex != null) onTargetSeen?.();
   }, [initialDayIndex, onTargetSeen]);
-
-  // Open the day menu scrolled to the current day (centred, so there's a little
-  // padding above and below) — mirrors the DatePicker's relevant-month open.
-  useEffect(() => {
-    if (!dayMenuOpen) return;
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => {
-      dayListRef.current?.querySelector(`[data-day="${selected.sectionIndex}"]`)?.scrollIntoView({ block: 'center' });
-    }));
-    return () => cancelAnimationFrame(raf);
-  }, [dayMenuOpen]);
 
   const filteredDays = useMemo(() => {
     const q = prefs.search.trim().toLowerCase();
@@ -202,6 +191,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     return (
       <CallSheetEditPage
         day={selected}
+        days={days}
         design={callSheetDesign}
         designs={project.reportDesigns || []}
         zoneBlocks={zoneBlocks}
@@ -209,6 +199,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
         onChangeZone={patchZone}
         onReset={resetZone}
         onSelectDesign={id => setPrefs(p => ({ ...p, callSheetDesignId: id }))}
+        onSelectDay={index => selectDay(index)}
         onPrint={() => onPrintCallSheet?.(selected, callSheetDesign, hasZoneOverride ? zoneBlocks : undefined)}
         onBack={() => setEditCallSheet(false)}
         readOnly={readOnly}
@@ -276,37 +267,11 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             <button type="button" onClick={() => step(1)} aria-label="Next day" className="p-1 rounded text-zinc-500 hover:bg-zinc-100"><ChevronRight className="w-4 h-4" /></button>
           </div>
 
-          <DropdownMenu
-            open={dayMenuOpen}
-            onClose={() => setDayMenuOpen(false)}
-            onOpenChange={setDayMenuOpen}
-            theme="light"
-            width="w-60"
-            trigger={
-              <button type="button" className="flex items-center gap-2 rounded border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-800 shadow-sm hover:bg-zinc-50">
-                <span className="font-bold">DAY {selected.chronoDay}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
-              </button>
-            }
-          >
-            <div ref={dayListRef} className="flex flex-col">
-              {weeks.map(week => (
-                <React.Fragment key={week.key}>
-                  <div className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Week of {formatDateShort(week.key)}</div>
-                  {week.days.map(d => (
-                    <div key={String(d.sectionIndex)} data-day={d.sectionIndex}>
-                      <DropdownItem
-                        selected={d.sectionIndex === selected.sectionIndex}
-                        onClick={() => { selectDay(d.sectionIndex); setDayMenuOpen(false); }}
-                      >
-                        DAY {d.chronoDay} · {formatDateShort(d.date)}
-                      </DropdownItem>
-                    </div>
-                  ))}
-                </React.Fragment>
-              ))}
-            </div>
-          </DropdownMenu>
+          <DayPicker
+            options={filteredDays}
+            selectedIndex={selected.sectionIndex}
+            onSelect={selectDay}
+          />
           <span className="text-xs text-zinc-500">{formatDateShort(selected.date)}</span>
 
           <div className="flex items-center gap-1.5">

@@ -151,6 +151,23 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
       const blocks = gov?.daybreakMeta?.callSheets?.[d?.id] || [];
       return Array.isArray(blocks) && blocks.length === 1;
     }), { timeout: 5000 }).toBe(true);
+
+    // Preview toggles to the paginated day-scoped report and back.
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    await expect(page.locator('[data-call-sheet-edit] .report-page').first()).toBeAttached({ timeout: 8000 });
+    await expect(page.getByText(/^DAY HEADER /).first()).toBeVisible({ timeout: 8000 });
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
+
+    // The day switcher lists every production day (dark dropdown).
+    const dayCount = await page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      const rows = b.getRows();
+      return (rows.sections || []).filter((s: any) => !s.isPinned).length;
+    });
+    await page.getByRole('button', { name: /^DAY / }).first().click();
+    await expect(page.getByRole('menuitem').filter({ hasText: /^DAY \d/ })).toHaveCount(dayCount, { timeout: 4000 });
+    await page.keyboard.press('Escape');
   });
 
   test('palette drag-and-drop adds a zone block in the page editor', async ({ page }) => {

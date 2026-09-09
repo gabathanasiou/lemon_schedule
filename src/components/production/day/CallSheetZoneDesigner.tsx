@@ -78,8 +78,11 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
     viewWidth: null,
     pageSize,
     bare: true,
-    onSelect: setSelId,
-    onSelectCol: setSelCol,
+    // One active selection at a time (like the reports designer): selecting a
+    // block clears the column selection and vice-versa, so exactly ONE chrome
+    // floats over the zone.
+    onSelect: id => { setSelId(id); if (id) setSelCol(null); },
+    onSelectCol: col => { setSelCol(col); if (col) setSelId(null); },
     onPatch: (id: string, patch: Partial<ReportBlock>) => onChange(updateBlock(blocks, id, patch)),
     onInsertAfter: (id: string | null, payload: PaletteDropPayload) => insertAt(id, payload, 'after'),
     onInsertBefore: (id: string | null, payload: PaletteDropPayload) => insertAt(id, payload, 'before'),

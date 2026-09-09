@@ -27,9 +27,12 @@ export interface GroupedSelectProps {
   disabled?: boolean;
   /** Optional row after the items (e.g. "New location…"). */
   footer?: React.ReactNode;
+  /** Dark chrome theme (overlays / the call-sheet editor header). */
+  theme?: 'light' | 'dark';
 }
 
 const TRIGGER_CLS = 'flex w-full items-center justify-between gap-2 rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 disabled:opacity-50';
+const TRIGGER_CLS_DARK = 'flex w-full items-center justify-between gap-2 rounded bg-zinc-950 border border-zinc-700 px-2 py-1 text-xs text-zinc-300 outline-none hover:bg-zinc-900 focus:border-zinc-500 disabled:opacity-50';
 
 export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   items,
@@ -40,7 +43,9 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   className = '',
   disabled,
   footer,
+  theme = 'light',
 }) => {
+  const dark = theme === 'dark';
   const label = (() => {
     const picked = items.filter(i => selectedIds.includes(i.id));
     if (picked.length === 0) return '';
@@ -57,12 +62,12 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
         open={open}
         onClose={() => setOpen(false)}
         onOpenChange={setOpen}
-        theme="light"
+        theme={dark ? 'dark' : 'light'}
         width="w-72"
         trigger={
-          <button type="button" disabled={disabled} className={TRIGGER_CLS}>
-            <span className={`truncate ${label ? '' : 'text-zinc-400'}`}>{label || placeholder}</span>
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
+          <button type="button" disabled={disabled} className={dark ? TRIGGER_CLS_DARK : TRIGGER_CLS}>
+            <span className={`truncate ${label ? '' : dark ? 'text-zinc-500' : 'text-zinc-400'}`}>{label || placeholder}</span>
+            <ChevronDown className={`w-3 h-3 shrink-0 ${dark ? 'text-zinc-500' : 'text-zinc-400'}`} />
           </button>
         }
       >
@@ -72,7 +77,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
           if (item.group) lastGroup = item.group;
           return (
             <React.Fragment key={item.id}>
-              {header && <div className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{header}</div>}
+              {header && <div className={`px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>{header}</div>}
               <DropdownItem
                 selected={selected}
                 keepOpen={mode === 'multi'}
@@ -88,7 +93,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
               >
                 <span className="flex items-center gap-2 min-w-0">
                   <span className="truncate">{item.name}</span>
-                  {item.hint && <span className="text-[10px] text-zinc-400 shrink-0">{item.hint}</span>}
+                  {item.hint && <span className={`text-[10px] shrink-0 ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>{item.hint}</span>}
                 </span>
               </DropdownItem>
             </React.Fragment>
