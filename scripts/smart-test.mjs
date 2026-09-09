@@ -39,6 +39,7 @@ const REPORT = [
   'report-xmlns', 'report-canvas-sampling', 'report-ribbon-samples',
   'report-breakdown-day-gap-look', 'report-table-resize',
   'report-day-types', 'report-filters', 'report-day-calls', 'report-lookups',
+  'call-sheet-day',
   'print-dialog-dropdowns',
 ];
 const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'ribbon-text-size'];
@@ -168,7 +169,7 @@ const RULES = [
   { g: 'src/lib/managerTable.ts', s: MANAGERS },
   { g: 'src/components/SidebarNav.tsx', s: MANAGERS },
   // day manager (roadmap 98) + day times sheet (roadmap 101)
-  { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times', 'day-times-glide'] },
+  { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times', 'day-times-glide', 'call-sheet-day'] },
   { g: 'src/components/ProductionTab.tsx', s: ['day-manager', ...MANAGERS] },
   { g: 'src/lib/dayView.ts', s: ['day-manager'] },
   { g: 'src/lib/callTimes.ts', s: ['day-manager', 'day-call-times', 'day-times-glide', 'report-day-calls'] },

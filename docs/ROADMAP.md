@@ -33,18 +33,23 @@ no location registry). **The stripboard/glide location columns were DROPPED
 (user decision) — locations are not wired into the stripboard/glide; the scene
 sheet is the single location surface and this item is closed.**
 
-## 10. CallSheet Designer (`[~]`)
+## 10. CallSheet Designer (`[x]` Done)
 
-**Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.4 — read it first (no re-research).**
+**Done**: `callSheetEdit` block container + zone unlocked in the reports designer
+(`insertInto`/canvas/context-menu/controls, hint-only dashed border); day-scoped
+preview/print host (shared with the Day Manager live pane, item 98) that substitutes the
+day's per-day zone content (`daybreakMeta.callSheets[designId]` →
+`aux.callSheetBlocks` → `ReportPreview`/`ReportPrint`/paginator); full-surface **Call
+Sheet → Edit** mode in Production → Days (`ReportDesigner` `zone` prop — palette scoped
+to days, commits through `zone.onChange`); custom-rows table mode (`block.custom` +
+`customRows`, literal rich-text cells with `@` tokens, designer inline editors);
+Relative block relabeled **Advance** and the built-in Call Sheet template rebuilt
+(scenes / element calls / crew / department calls / locations / notes / edit zone /
+Advance +1). Verified by `e2e/call-sheet-day.spec.ts` (RULES: `call-sheet-day`).
+**Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.4.**
 
-- **Done**: `callSheetEdit` block container (palette + renderer + tree support).
-- **Remaining**: day-scoped preview/print (shared host with the Day Manager's live preview
-  pane, item 98); unlock the edit zone + per-day storage
-  (`daybreakMeta.callSheets[designId]`); full-surface edit mode in Production → Days;
-  custom-rows table mode with `@` tokens; relabel the Relative block as Advance and add it
-  to the template; update the built-in Call Sheet template.
 - **Depends on** items 98 (day data/locations), 99 (call-time/crew collections) and
-  100 (filtered rows/lookups).
+  100 (filtered rows/lookups) — all shipped.
 
 ## 11. Link crew positions to element categories (`[ ]`)
 

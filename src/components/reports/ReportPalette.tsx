@@ -29,7 +29,7 @@ const BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: React.ReactN
   { type: { kind: 'block', type: 'image' }, label: 'Image', icon: <ImageIcon className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'map' }, label: 'Map', icon: <MapPin className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'callSheetEdit' }, label: 'Call Sheet Edit', icon: <Sheet className="w-3.5 h-3.5" /> },
-  { type: { kind: 'block', type: 'relative' }, label: 'Relative', icon: <SkipForward className="w-3.5 h-3.5" /> },
+  { type: { kind: 'block', type: 'relative' }, label: 'Advance', icon: <SkipForward className="w-3.5 h-3.5" /> },
 ];
 
 interface ReportPaletteProps {

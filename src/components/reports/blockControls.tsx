@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ContentRow, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
-import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS } from '../../lib/reportBlocks';
+import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE, buildLookupTokens, LookupTokenItem } from '../../lib/reportFields';
 import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
@@ -38,7 +38,7 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
   image: { label: 'Image', icon: <ImageIcon className="w-3 h-3" /> },
   map: { label: 'Map', icon: <MapPin className="w-3 h-3" /> },
   callSheetEdit: { label: 'Call Sheet Edit', icon: <Sheet className="w-3 h-3" /> },
-  relative: { label: 'Relative', icon: <SkipForward className="w-3 h-3" /> },
+  relative: { label: 'Advance', icon: <SkipForward className="w-3 h-3" /> },
 };
 
 
@@ -849,7 +849,63 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     }
   }
 
-  if (block.type === 'repeat' || block.type === 'table') {
+  if (block.type === 'table' && block.custom) {
+    const cols = block.columns || [];
+    const rows = block.customRows || [];
+    push(null,
+      <ContentRow key="mode" label="Mode">
+        <Seg
+          value="custom"
+          options={[{ v: 'custom', l: 'Custom rows' }, { v: 'collection', l: 'From collection' }]}
+          onChange={v => { if (v === 'collection') onPatch({ custom: false }); }}
+          disabled={disabled}
+        />
+      </ContentRow>,
+      <ContentRow key="headerBorders" label="Header & borders">
+        <Checkbox checked={block.showHeader !== false} disabled={disabled} onChange={on => onPatch({ showHeader: on })} label="Header row" />
+        <Checkbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
+      </ContentRow>,
+      <ContentRow key="headers" label="Column headers">
+        <div className="flex flex-col gap-1">
+          {cols.map((c, ci) => (
+            <input
+              key={c.id}
+              className={TB_INPUT + ' w-44'}
+              value={c.label ?? ''}
+              placeholder={`Column ${ci + 1}`}
+              disabled={disabled}
+              onChange={e => onPatch({ columns: cols.map((x, i) => (i === ci ? { ...x, label: e.target.value } : x)) })}
+            />
+          ))}
+        </div>
+      </ContentRow>,
+      <ContentRow key="rows" label="Rows">
+        <div className="flex flex-col gap-1">
+          {rows.map((r, ri) => (
+            <div key={r.id} className="flex items-center gap-1">
+              <span className="text-[10px] text-zinc-500 w-4 tabular-nums">{ri + 1}</span>
+              <ToolButton
+                onClick={() => onPatch({ customRows: rows.filter((_, i) => i !== ri) })}
+                disabled={disabled}
+                title="Remove row"
+                className={TB_BTN}
+              >
+                <Trash2 className="w-3 h-3" />
+              </ToolButton>
+            </div>
+          ))}
+          <ToolButton
+            onClick={() => onPatch({ customRows: [...rows, { id: blockId(), cells: cols.map(() => '') }] })}
+            disabled={disabled}
+            title="Add row"
+            className={TB_BTN}
+          >
+            <Plus className="w-3 h-3" /> Add row
+          </ToolButton>
+        </div>
+      </ContentRow>,
+    );
+  } else if (block.type === 'repeat' || block.type === 'table') {
     push(null,
       <ContentRow key="over" label={block.type === 'repeat' ? 'Repeat over' : 'Table over'}>
         {block.type === 'repeat' ? (
@@ -891,6 +947,19 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
     if (block.type === 'table') {
       push('Display',
+        <ContentRow key="mode" label="Mode">
+          <Seg
+            value="collection"
+            options={[{ v: 'custom', l: 'Custom rows' }, { v: 'collection', l: 'From collection' }]}
+            onChange={v => {
+              if (v !== 'custom') return;
+              const cols = block.columns || [];
+              const firstRow = { id: blockId(), cells: cols.map(() => '') };
+              onPatch({ custom: true, customRows: (block.customRows && block.customRows.length > 0) ? block.customRows : [firstRow] });
+            }}
+            disabled={disabled}
+          />
+        </ContentRow>,
         <ContentRow key="axis" label="Axis">
           <Seg
             value={block.axis ?? 'columns'}

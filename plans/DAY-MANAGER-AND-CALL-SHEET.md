@@ -1,6 +1,6 @@
 # Day Manager + Call Sheet Editor — Full Plan
 
-**Status:** items **98 shipped**, **99 core shipped** (settings/helper/sections/crew/`crewOfDay`+`dayNotes`; element/department/location collections remain), **100 filter half shipped** (lookup tokens remain), **101 shipped** (inline Glide grids for call times + crew); completion of **item 10** remaining.
+**Status:** items **98, 99, 100, 101 and 10 all shipped** (this plan is complete). Item 99's remaining report collections (`elementCallsOfDay` / `departmentCallsOfDay` / `locationsOfDay`) landed; item 100's lookup tokens + filtered badge landed; item 10 shipped the zone unlock, per-day storage/editing/rendering, the day-scoped print host, custom-rows tables and the rebuilt Call Sheet template.
 **Audience:** the implementing agent. This doc is deliberately exhaustive so you do **not**
 re-research. Line numbers were captured while planning (Sep 2026) — if a file has moved,
 search the quoted symbol names, not the numbers.
@@ -549,6 +549,22 @@ Tasks:
 text and free cells; `e2e/report-filters.spec.ts` + RULES. **Filter half verified.**
 
 ### 5.4 Item 10 — CallSheet Designer completion
+
+**Shipped:** day-scoped preview/print host (DayReportPreview + `handleReportPrint` with
+`callSheetBlocks` + `dayScopeFilter`); `callSheetEdit` zone unlocked in the reports
+designer (insertInto/canvas/context-menu/controls; border hint-only) + per-day storage
+(`daybreakMeta.callSheets[designId]`) rendered via `aux.callSheetBlocks` threading; the
+Day Manager's full-surface **Call Sheet → Edit** mode reusing `ReportDesigner` in a new
+`zone` mode (palette scoped to `days`, commits through `zone.onChange`, header chrome
+hidden); custom-rows table mode (`block.custom`/`customRows`, inline RichTextEditor
+cells with `@` tokens in the designer, resolved HTML in preview/print, row-splitting via
+`.rm-row` classes); the Relative block relabeled **Advance** and the built-in Call Sheet
+template rebuilt (scenes / element calls / crew / department calls / locations tables,
+notes, the edit zone, and an Advance +1 block).
+
+**Deviations:** the Relabel kept the block type name `relative` (only the label changed);
+a zone-less Call Sheet design renders per-day content nowhere (the designer must include a
+`callSheetEdit` block — task 6's rebuilt template does; the seed project was not migrated).
 
 Tasks:
 1. Day-scoped preview/print: host around `ReportPreview`/`ReportPrint` with

@@ -54,6 +54,12 @@ page is a NO-OP — an item whose content renders nothing never produces a blank
 page (roadmap 32). Unsplittable containers (columns/callSheetEdit) containing a
 marker start the whole container on a new page (`breakBefore`).
 
+**Per-day call-sheet zones:** a day-scoped host (Day Manager preview, day call-
+sheet print) substitutes the template zone children with the day's stored blocks
+(`aux.callSheetBlocks`). The override is part of the paginator's signature
+(`useReportPaginator` `sig`), so switching days re-measures; the template
+children render whenever no override is supplied (multi-day prints).
+
 **Chunk granularity (universal — any block can flow to the next page, at any
 nesting depth):**
 - whole blocks (text/field/link/image/map/columns/spacer) move WHOLE;
@@ -62,6 +68,8 @@ nesting depth):**
   repeats), nested repeats split between items (itemRange parts), and a
   pageBreak child splits the item at that position (perItemParts chunks);
 - tables split between ROWS — the column header REPEATS on continuation chunks;
+  custom-rows tables (`block.custom`) render with the same
+  `.report-table-cols`/`.rm-row` classes, so they split between rows identically;
 - ribbons split between STRIPS, never mid-strip (split day boxes drop the box
   border on fragments — `unitRange` on `ReportRibbonView`);
 - summary tables (`rm-once`) fold into the last item's final unit and render

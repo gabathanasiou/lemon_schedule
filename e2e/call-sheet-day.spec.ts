@@ -53,6 +53,51 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect.poll(async () => (await readPinnedMeta(page, designId)) === null, { timeout: 5000 }).toBe(true);
   });
 
+  test('custom-rows table renders literal cells and resolves tokens', async ({ page }) => {
+    const seed = loadSeedProject();
+    const project = JSON.parse(seed.raw);
+    project.reportDesigns = [{
+      id: 'cs-custom', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
+      blocks: [{
+        id: 'days', type: 'repeat', collection: 'days', children: [{
+          id: 't', type: 'table', custom: true, showHeader: true, collection: 'days',
+          columns: [
+            { id: 'c1', field: '', label: 'TRANSPORT', width: 50, align: 'left' },
+            { id: 'c2', field: '', label: 'TIME', width: 50, align: 'center' },
+          ],
+          customRows: [
+            { id: 'r1', cells: ['Van 1', '07:30'] },
+            { id: 'r2', cells: ['{{title}}', '08:00'] },
+          ],
+        }],
+      }],
+      header: [], footer: [],
+    }];
+    project.activeReportId = 'cs-custom';
+
+    await page.addInitScript(({ projectJson, meta }) => {
+      const p = JSON.parse(projectJson);
+      localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
+      localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
+    }, {
+      projectJson: JSON.stringify(project),
+      meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
+    });
+
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
+    await page.getByRole('button', { name: 'Production' }).click();
+    await page.getByRole('button', { name: 'Days', exact: true }).click();
+    await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
+
+    const pane = page.locator('[data-day-callsheet-pane]');
+    await expect(pane.getByText('TRANSPORT', { exact: true }).first()).toBeVisible({ timeout: 8000 });
+    await expect(pane.getByText('Van 1', { exact: true }).first()).toBeVisible({ timeout: 8000 });
+    await expect(pane.getByText('07:30', { exact: true }).first()).toBeVisible({ timeout: 8000 });
+    // {{title}} resolves (token no longer printed raw).
+    await expect(pane.getByText('{{title}}')).toHaveCount(0);
+  });
+
   test('stored per-day zone content renders in the day-scoped preview', async ({ page }) => {
     const seed = loadSeedProject();
     const project = JSON.parse(seed.raw);
