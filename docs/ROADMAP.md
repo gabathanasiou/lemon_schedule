@@ -2191,15 +2191,17 @@ report collections `elementCallsOfDay` / `departmentCallsOfDay` / `locationsOfDa
 **Relations**: builds on item 98; item 10's crew/element tables depend on it; item 11
 (crew↔element categories) stays separate.
 
-## 100. Reports designer — filtered rows + item lookups (`[ ]`)
+## 100. Reports designer — filtered rows + item lookups (`[~]`)
 
 **Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.3 — read it first.**
 
-- Per-block `itemFilter { field, values }` on repeats/tables (one filter step in the shared
-  resolution path) + designer "Filter rows" control — e.g. a Crew table filtered to Line
-  Producer / Production Coordinator / Location Manager with Role/Name/Phone/Email columns.
-- Then lookup tokens: `@` picker → "Reference an item…" → collection → item → attribute,
-  resolvable in text/free-table cells. Key Positions fields stay.
+**Done so far**: `ReportBlock.itemFilter { field, values }` on repeats/tables + shared
+`applyItemFilter` in the resolution path + designer "Filter rows" control (field picker +
+values); `ReportCrewItem` stable `roleKey`/`id`; Key Positions kept (D16);
+`e2e/report-filters.spec.ts`.
+
+**Remaining**: lookup tokens (`@` picker → "Reference an item…" → collection → item →
+attribute, resolvable in text/free-table cells) and a filtered badge on the canvas.
 
 **Relations**: item 10's key-contacts tables depend on the filter half; rides the
 `ReportScope`/`filterItemsByScope` machinery.

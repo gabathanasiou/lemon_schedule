@@ -1,6 +1,6 @@
 # Day Manager + Call Sheet Editor — Full Plan
 
-**Status:** items **98 shipped**, **99 core shipped** (settings/helper/sections/crew/`crewOfDay`+`dayNotes`; element/department/location collections + row clipboard remain); **100** + completion of **item 10** remaining.
+**Status:** items **98 shipped**, **99 core shipped** (settings/helper/sections/crew/`crewOfDay`+`dayNotes`; element/department/location collections + row clipboard remain), **100 filter half shipped** (lookup tokens remain); completion of **item 10** remaining.
 **Audience:** the implementing agent. This doc is deliberately exhaustive so you do **not**
 re-research. Line numbers were captured while planning (Sep 2026) — if a file has moved,
 search the quoted symbol names, not the numbers.
@@ -509,21 +509,24 @@ usual crew, copy-from-day; report tables print the right rows; `e2e/day-call-tim
 
 ### 5.3 Item 100 — Reports designer: filtered rows + item lookups
 
+**Shipped:** tasks 1 (filter; values are a comma input rather than a distinct-value checklist —
+a follow-up polish), 2, 4. **Remaining:** task 3 (lookup tokens) and the canvas filtered badge.
+
 Tasks:
 1. `ReportBlock.itemFilter?: { field: string; values: string[] }` on repeat/table; one
    filter step beside `filterItemsByScope` (single resolution path so canvas/preview/print
-   agree); designer "Filter rows" control (field picker + distinct-value checklist from the
-   resolved items) + filtered badge.
-2. `ReportCrewItem.roleKey`/`id` (stable keys, shared with item 99).
+   agree); designer "Filter rows" control (field picker + values) + filtered badge.
+   **DONE except the distinct-value checklist + badge.**
+2. `ReportCrewItem.roleKey`/`id` (stable keys, shared with item 99). **DONE.**
 3. Lookup tokens: `@` picker "Reference an item…" → collection → item → attribute; resolver
    finds the item by stable key and returns the field; usable in text/free-table cells and
-   headers.
-4. Keep Key Positions fields (D16); note them as superseded.
+   headers. **REMAINING.**
+4. Keep Key Positions fields (D16); note them as superseded. **DONE (kept).**
 5. Docs: `docs/REPORTS-DESIGNER.md` (filters + lookup tokens), DESIGN-LANGUAGE if a new
-   picker pattern lands.
+   picker pattern lands. **DONE for the filter half.**
 
 **Verify**: filter persists/narrows, empty state, renames survive; lookup token resolves in
-text and free cells; `e2e/report-filters.spec.ts` + RULES.
+text and free cells; `e2e/report-filters.spec.ts` + RULES. **Filter half verified.**
 
 ### 5.4 Item 10 — CallSheet Designer completion
 
