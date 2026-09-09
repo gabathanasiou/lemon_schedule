@@ -208,6 +208,7 @@ const CREW_FIELDS: ReportFieldDef[] = [
   { key: 'crewName', label: 'Name', group: 'Crew', scope: 'crew', defaultWidth: 18, get: (_c, it: ReportCrewItem) => s(it.name) },
   { key: 'phone', label: 'Phone', group: 'Crew', scope: 'crew', defaultWidth: 14, link: true, linkKind: 'tel', get: (_c, it: ReportCrewItem) => s(it.phone) },
   { key: 'email', label: 'Email', group: 'Crew', scope: 'crew', defaultWidth: 20, link: true, linkKind: 'mailto', get: (_c, it: ReportCrewItem) => s(it.email) },
+  { key: 'crewCallTime', label: 'Call Time', group: 'Crew', scope: 'crew', align: 'center', defaultWidth: 9, get: (_c, it: ReportCrewItem) => s(it.callTime || '') },
 ];
 
 // ---- production & project (static) ------------------------------------------
@@ -825,6 +826,7 @@ export function fieldsForScope(
     // dayTypesOfElement items share the day-type item shape — the Day Types
     // attributes (scope 'dayTypes') belong there too.
     else if (scope === 'dayTypesOfElement') scopeSet.add('dayTypes');
+    else if (scope === 'crewOfDay') scopeSet.add('crew');
     else scopeSet.add(scope);
   }
   // Cast members are reached via Elements → Cast (collection 'elements' with

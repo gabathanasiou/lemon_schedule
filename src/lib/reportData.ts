@@ -1,4 +1,5 @@
-import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall } from '../types';
+import { crewDepartmentOf } from './crewCatalog';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
@@ -165,6 +166,9 @@ export interface ReportDayInfo {
   sceneLocations?: string[];
   /** Day notes / announcements from `daybreakMeta` (item 99 `dayNotes` field). */
   note?: string;
+  /** Day crew (crew person ids; empty = full roster / usual-crew template). */
+  crewIds?: string[];
+  crewCalls?: DayCrewCall[];
 }
 
 export interface ReportElementInfo {
@@ -224,6 +228,8 @@ export interface ReportCrewItem {
   name: string;
   phone?: string;
   email?: string;
+  /** Resolved day call time (crewOfDay only — override or department precall). */
+  callTime?: string;
 }
 
 /** One element category, as a repeat/table item of the 'categories' collection. */
@@ -325,6 +331,7 @@ export function reportItemKey(collection: ReportCollection, item: ReportCollecti
     case 'categories': return (item as ReportCategoryInfo).key;
     case 'locations': case 'locationsOfType': return (item as ReportLocationInfo).id;
     case 'locationTypes': return (item as ReportLocationTypeInfo).key;
+    case 'crewOfDay': return (item as ReportCrewItem).id;
     default: return 0;
   }
 }
@@ -338,7 +345,7 @@ export function reportItemLabel(collection: ReportCollection, it: ReportCollecti
     case 'days': case 'daysOfCast': return `Day ${(it as ReportDayInfo).chronoDay} (${formatDateShort((it as ReportDayInfo).date)})`;
     case 'cast': case 'elements': case 'elementsOfCategory': case 'elementsOfScene': return (it as ReportElementInfo).name;
     case 'categories': return (it as ReportCategoryInfo).label;
-    case 'crew': return `${(it as ReportCrewItem).role}: ${(it as ReportCrewItem).name}`;
+    case 'crew': case 'crewOfDay': return `${(it as ReportCrewItem).role}: ${(it as ReportCrewItem).name}`;
     case 'violationTypes': return (it as ReportViolationTypeInfo).label;
     case 'locations': case 'locationsOfType': return (it as ReportLocationInfo).name;
     case 'locationTypes': return (it as ReportLocationTypeInfo).label;
@@ -524,6 +531,8 @@ export function buildReportCtx(
       locationId: gov?.daybreakMeta?.locationId,
       sceneLocations,
       note: gov?.daybreakMeta?.note,
+      crewIds: gov?.daybreakMeta?.crewIds,
+      crewCalls: gov?.daybreakMeta?.crewCalls,
     });
   }
 
@@ -826,6 +835,19 @@ export function resolveCollection(
     case 'elements': return getElementsFor(ctx, category || 'props');
     case 'categories': return ctx.categoryInfos;
     case 'crew': return ctx.crewItems;
+    case 'crewOfDay': {
+      const day = parentItem as ReportDayInfo | undefined;
+      if (!day) return [];
+      const explicit = day.crewIds && day.crewIds.length > 0 ? day.crewIds : (ctx.project.crewTemplate?.crewIds || []);
+      const overrideById = new Map((day.crewCalls || []).map(c => [c.personId, c.callTime]));
+      return ctx.crewItems
+        .filter(c => explicit.length === 0 || explicit.includes(c.id))
+        .map(c => {
+          const dept = crewDepartmentOf(c.roleKey);
+          const precall = (dept ? ctx.project.crewTemplate?.departmentPrecalls?.[dept] : undefined);
+          return { ...c, callTime: overrideById.get(c.id) || precall };
+        });
+    }
     case 'locations': {
       // Type filter (block.category) — "only the unit bases" etc.
       const list = ctx.locationInfos;

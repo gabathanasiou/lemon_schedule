@@ -368,13 +368,15 @@ export const COLLECTION_LABELS: Record<string, string> = {
   elementsOfScene: 'Elements (of this scene)',
   locationsOfType: 'Locations (of this type)',
   dayTypesOfElement: 'Day Types (of this element)',
+  crewOfDay: 'Crew (of this day)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'violationTypes', 'locations', 'locationTypes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'violationTypes', 'locations', 'locationTypes', 'scenesOfDay', 'crewOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
     if (c === 'scenesOfDay') return parentCollection === 'days';
+    if (c === 'crewOfDay') return parentCollection === 'days';
     if (c === 'scenesOfElement') return parentCollection === 'elements' || parentCollection === 'elementsOfCategory';
     if (c === 'scenesOfCast' || c === 'daysOfCast') return parentCollection === 'cast';
     if (c === 'elementsOfCategory') return parentCollection === 'categories';
@@ -441,18 +443,18 @@ export function isSelfRepeat(
 export function contextualCollectionsFor(parentCollection?: ReportCollection): ReportCollection[] {
   const typed = TYPED_PARENT_COLLECTIONS.find(t => t.parent === parentCollection);
   if (typed) return [typed.child];
-  if (parentCollection === 'days') return ['scenesOfDay'];
+  if (parentCollection === 'days') return ['scenesOfDay', 'crewOfDay'];
   if (parentCollection === 'elements') return ['scenesOfElement', 'dayTypesOfElement'];
   if (parentCollection === 'cast') return ['scenesOfCast', 'daysOfCast', 'dayTypesOfElement'];
   if (parentCollection === 'scenes') return ['elementsOfScene'];
   return [];
 }
 
-export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement']);
+export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'crewOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement']);
 
 /** Collections with NO Lego scene-rule — the "Only … in this …" scope checkbox
  *  is hidden for them and ancestor scoping is a no-op. */
-export const NON_SCOPABLE_COLLECTIONS = new Set(['crew', 'locations', 'locationTypes']);
+export const NON_SCOPABLE_COLLECTIONS = new Set(['crew', 'crewOfDay', 'locations', 'locationTypes']);
 
 /**
  * Menu options: BASE collections only — the contextual variants ("Scenes (of
@@ -470,7 +472,7 @@ export function parentNoun(parentCollection?: ReportCollection): string {
     case 'elements': case 'elementsOfCategory': return 'element';
     case 'categories': return 'category';
     case 'cast': return 'cast member';
-    case 'crew': return 'crew member';
+    case 'crew': case 'crewOfDay': return 'crew member';
     case 'violationTypes': return 'violation type';
     case 'locations': case 'locationsOfType': return 'location';
     case 'locationTypes': return 'location type';
@@ -519,6 +521,8 @@ export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCol
   // scene-ish contextual collections — a dayTypesOfElement table iterates
   // day-type rows, so its columns pick day-type attributes.
   if (block.collection === 'dayTypesOfElement') return 'dayTypesOfElement';
+  // Crew (of this day) items carry crew fields + the resolved call time.
+  if (block.collection === 'crewOfDay') return 'crewOfDay';
   const contextual = contextualCollectionsFor(parentCollection);
   if (block.collection && block.collection !== 'scenes' && !contextual.includes(block.collection)) return block.collection;
   return contextual.length > 0 ? 'scenes' : parentCollection;
@@ -541,7 +545,7 @@ export function defaultIdentityField(collection?: ReportCollection): string {
     case 'elementsOfCategory': return 'elementName';
     case 'elementsOfScene': return 'elementName';
     case 'categories': return 'categoryLabel';
-    case 'crew': return 'crewName';
+    case 'crew': case 'crewOfDay': return 'crewName';
     case 'violationTypes': return 'violationType';
     case 'dayTypes': case 'dayTypesOfElement': return 'dayTypeLabel';
     default: return 'title';

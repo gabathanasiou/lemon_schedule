@@ -463,7 +463,7 @@ export interface ProductionInfo {
 export type ReportCollection =
   | 'scenes' | 'days' | 'cast' | 'elements' | 'categories' | 'crew' | 'violationTypes' | 'locations' | 'locationTypes'
   | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory' | 'elementsOfScene' | 'locationsOfType'
-  | 'dayTypes' | 'dayTypesOfElement';
+  | 'dayTypes' | 'dayTypesOfElement' | 'crewOfDay';
 
 export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
 export type RepeatAxis = 'rows' | 'columns';
