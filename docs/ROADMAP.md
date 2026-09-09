@@ -2205,3 +2205,31 @@ attribute, resolvable in text/free-table cells) and a filtered badge on the canv
 
 **Relations**: item 10's key-contacts tables depend on the filter half; rides the
 `ReportScope`/`filterItemsByScope` machinery.
+
+## 101. Day Times Glide — spreadsheet editing of call times (`[ ]`)
+
+**Requested**: edit the Day Manager's call times in a Glide-style sheet so a 1st AD can
+copy/paste and fill times across many elements at once, instead of one cell at a time.
+
+**Reuse the existing Glide machinery** (`BreakdownTabGlide.tsx` + `src/lib/glide*`): the
+canvas already does click-to-edit, range copy/paste (`glidePaste`/`glideCells`), fill-handle
+fill-down/fill-right, and multi-cell selection. Do NOT build a parallel grid.
+
+**Shape**:
+- One sheet per day: rows = elements of a category (Cast first; category picker for the
+  others), columns = `ID | Character | SWF | <stage columns from Call Times settings>`.
+- Cell editor = the shared time-expression parser (`callTimes.parseTimeExpression`): accept
+  `7:30` / `730` / `7:30am` / `-1h` / `+30m`; show the resolved time when not editing.
+- Writes through the SAME `daybreakMeta.elementCalls` path as the Call Times table
+  (`UPDATE_ROW`) so the table, sheet and copy-from-day stay in sync. Bulk ops wrap in
+  `BATCH_START`/`BATCH_COMMIT` (one undo entry).
+- Copy/paste + fill-down operate on the expression strings; pasting an absolute time keeps it
+  absolute, pasting a relative offset keeps it relative.
+- Entry point: a "Edit in sheet" button on the Day Manager's Call Times section (and/or a
+  Production sub-tab). Pop-out friendly.
+
+**Verify**: edit a range, fill down, copy a column, undo restores exactly; the Call Times
+table reflects the same values; `e2e/day-times-glide.spec.ts` (seed-agnostic via the bridge).
+
+**Relations**: builds on item 99's `callTimes.ts` + `daybreakMeta.elementCalls`; rides the
+Glide grid/clipboard infrastructure (items 20/63).
