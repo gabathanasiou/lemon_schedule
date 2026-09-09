@@ -8,6 +8,7 @@ import type { DayElementEntry } from '../../../../lib/dayView';
 import DayTimesGlide from '../DayTimesGlide';
 import InlineGlideTable, { type InlineGlideColumn } from '../../../InlineGlideTable';
 import { createDayTimesTheme } from '../../../../lib/glideTheme';
+import { doodCellStyle, doodCellText } from '../../../../lib/doodCells';
 import { textCell } from '../../../../lib/glideCells';
 
 /**
@@ -44,25 +45,23 @@ const FallbackElementGrid: React.FC<{ entries: DayElementEntry[] }> = ({ entries
 
   const getCellContent = (col: InlineGlideColumn, row: Record<string, string>): GridCell => {
     if (col.key === 'swf') {
-      const code = row.swf;
-      const work = code === 'W';
-      return textCell(code, {
+      const letter = row.swf;
+      return textCell(letter, {
         readonly: true,
         allowOverlay: false,
         align: 'center',
         cursor: 'default',
-        themeOverride: code
-          ? { bgCell: '#fafafa', textDark: work ? '#047857' : '#3f3f46' }
-          : { bgCell: '#fafafa', textDark: '#a1a1aa' },
+        displayData: doodCellText(letter),
+        themeOverride: { textDark: doodCellStyle(letter).fg },
       });
     }
     if (col.key === 'call') {
-      return textCell(row.call, { readonly: true, allowOverlay: false, align: 'center', cursor: 'default', themeOverride: { bgCell: '#fafafa', textDark: '#3f3f46' } });
+      return textCell(row.call, { readonly: true, allowOverlay: false, align: 'center', cursor: 'default', themeOverride: { textDark: '#52525b' } });
     }
     if (col.key === 'scene' || col.key === 'id') {
-      return textCell(row[col.key], { readonly: true, allowOverlay: false, align: 'center', cursor: 'default', themeOverride: { bgCell: '#fafafa', textDark: '#a1a1aa' } });
+      return textCell(row[col.key], { readonly: true, allowOverlay: false, align: 'center', cursor: 'default', themeOverride: { textDark: '#a1a1aa' } });
     }
-    return textCell(row.name, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { bgCell: '#fafafa' } });
+    return textCell(row.name, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
   };
 
   return (
@@ -85,8 +84,12 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
     const cats: string[] = [];
     if (day.cast.length) cats.push('cast');
     for (const k of Object.keys(day.elements)) if ((day.elements[k] || []).length) cats.push(k);
-    return cats;
-  }, [day]);
+    // Categories WITH call stages (the editable grids) sort above the
+    // stage-less DOOD fallback lists — the people with real call times are the
+    // ones you need first.
+    const staged = (c: string) => (settings.categoryStages[c] || []).length > 0;
+    return [...cats.filter(staged), ...cats.filter(c => !staged(c))];
+  }, [day, settings]);
 
   const categoryLabel = (key: string) => getLabel(key, key, project.categoryLabels);
   const iconFor = (key: string) => {

@@ -62,13 +62,13 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
         displayData: row.resolved,
         readonly: !!readOnly,
         align: 'center',
-        themeOverride: overridden ? { textDark: '#b45309' } : { textDark: '#a1a1aa' },
+        themeOverride: overridden ? { textDark: '#b45309' } : { textDark: '#71717a' },
       });
     }
     if (col.key === 'role') {
-      return textCell(row.role, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { bgCell: '#fafafa', textDark: '#71717a' } });
+      return textCell(row.role, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#71717a' } });
     }
-    return textCell(row.name, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { bgCell: '#fafafa' } });
+    return textCell(row.name, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
   }, [readOnly]);
 
   const onCommit = useCallback((edits: InlineGlideEdit[]) => {

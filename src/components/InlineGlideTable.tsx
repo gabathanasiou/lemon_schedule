@@ -155,13 +155,17 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   gridSelectionRef.current = gridSelection;
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col: number } | null>(null);
 
-  // Row hover: tint the hovered row (editable cells only — read-only cells pin
-  // their own bg so they read as inert). Repaint just the two affected rows.
+  // Hover/affordance model: EDITABLE cells get a light-blue fill (they read as
+  // "you can type here") that deepens on the hovered row; READ-ONLY cells stay
+  // on the plain card background with faint text at rest and pick up a subtle
+  // NEUTRAL hover so the whole row still responds — never a gray "disabled"
+  // box, never the blue (which is the editable cue). Fully read-only grids
+  // (stage-less fallbacks) don't tint at all. Repaint just the two affected
+  // rows on hover change.
+  const EDITABLE_BG = '#eff6ff';
+  const EDITABLE_HOVER_BG = '#dbeafe';
+  const READONLY_HOVER_BG = '#f4f4f5';
   const hoveredRowRef = useRef<number | null>(null);
-  const getRowThemeOverride = useCallback(
-    (row: number) => (row === hoveredRowRef.current ? { bgCell: '#f4f4f5', bgCellMedium: '#f4f4f5' } : undefined),
-    [],
-  );
   const onItemHovered = useCallback((args: any) => {
     const loc = args?.location;
     const row = args?.kind === 'cell' && loc && loc[1] >= 0 && loc[1] < rowsRef.current.length ? loc[1] : null;
@@ -178,7 +182,21 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     const colDef = COLUMNS[col];
     const r = rowsRef.current[row];
     if (!colDef || !r) return textCell('', { readonly: true, allowOverlay: false });
-    return getCellContent(colDef, r, row);
+    const cell = getCellContent(colDef, r, row);
+    if (readOnlyRef.current) return cell;
+    const hovered = row === hoveredRowRef.current;
+    const isReadonly = !!(cell as any).readonly;
+    if (!isReadonly) {
+      // Editable: blue rest fill, deeper blue on the hovered row. Preserves
+      // the caller's text colour (e.g. amber overrides).
+      const bg = hovered ? EDITABLE_HOVER_BG : EDITABLE_BG;
+      return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: bg, bgCellMedium: bg } };
+    }
+    if (hovered) {
+      // Read-only: neutral hover only — plain idle, faint text.
+      return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: READONLY_HOVER_BG, bgCellMedium: READONLY_HOVER_BG } };
+    }
+    return cell;
   }, [COLUMNS, getCellContent]);
 
   /** Glide draws header text left-aligned only; repaint centered columns so
@@ -385,7 +403,6 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             rowHeight={rowH}
             headerHeight={headerH}
             drawHeader={drawHeader}
-            getRowThemeOverride={getRowThemeOverride}
             onItemHovered={onItemHovered}
             onCellContextMenu={onCellContextMenu}
             editOnType

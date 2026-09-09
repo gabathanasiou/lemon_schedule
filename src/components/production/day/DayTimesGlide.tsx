@@ -4,6 +4,7 @@ import type { DayElementEntry, DayView } from '../../../lib/dayView';
 import type { DayMeta, Project } from '../../../types';
 import { computeElementCallChain, getCallTimeSettings, setElementCall } from '../../../lib/callTimes';
 import { createDayTimesTheme } from '../../../lib/glideTheme';
+import { doodCellStyle, doodCellText } from '../../../lib/doodCells';
 import { textCell } from '../../../lib/glideCells';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '../../InlineGlideTable';
 
@@ -58,7 +59,10 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
       key: e.key,
       [ID_COL]: e.boardId || '',
       [NAME_COL]: e.name,
-      [SWF_COL]: e.code || '',
+      // The SWF column is the element's DOOD start/work/finish letter for this
+      // day (same vocabulary the stage-less fallback grids use) — NOT the day
+      // status code.
+      [SWF_COL]: e.dood || '',
     };
     const overrides = day.meta.elementCalls?.[category]?.[e.key];
     for (const key of stageKeys) row[key] = (overrides?.[key as keyof typeof overrides] as string | undefined) || '';
@@ -74,23 +78,21 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
 
   const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>, _rowIndex: number): GridCell => {
     if (col.key === ID_COL) {
-      return textCell(row[col.key], { readonly: true, allowOverlay: false, align: 'center', cursor: 'default', themeOverride: { bgCell: '#fafafa', textDark: '#a1a1aa' } });
+      return textCell(row[col.key], { readonly: true, allowOverlay: false, align: 'center', cursor: 'default', themeOverride: { textDark: '#a1a1aa' } });
     }
     if (col.key === SWF_COL) {
-      const code = row[SWF_COL];
-      const isWork = code === 'W';
-      return textCell(code, {
+      const letter = row[SWF_COL];
+      return textCell(letter, {
         readonly: true,
         allowOverlay: false,
         align: 'center',
         cursor: 'default',
-        themeOverride: code
-          ? { bgCell: isWork ? '#e4e4e7' : '#fef3c7', textDark: isWork ? '#3f3f46' : '#b45309' }
-          : { bgCell: '#fafafa' },
+        displayData: doodCellText(letter),
+        themeOverride: { textDark: doodCellStyle(letter).fg },
       });
     }
     if (col.key === NAME_COL) {
-      return textCell(row[col.key], { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { bgCell: '#fafafa' } });
+      return textCell(row[col.key], { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
     }
     const raw = row[col.key] || '';
     const resolved = resolvedByKey.get(row.key)?.[col.key]?.time || '';
