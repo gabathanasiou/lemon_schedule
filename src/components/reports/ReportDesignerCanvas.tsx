@@ -77,6 +77,9 @@ interface ReportDesignerCanvasProps {
   project: Project;
   parentCollection?: ReportCollection;
   parentCategory?: string;
+  /** Root item in scope (Call Sheet zone: the selected day) — lets the embedded
+   *  canvas resolve `{{tokens}}` against it instead of showing raw tags. */
+  rootItem?: any;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
   onSelect: (id: string | null) => void;
   onSelectCol: (sel: ColSel | null) => void;
@@ -200,7 +203,7 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare }) => {
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
@@ -604,15 +607,17 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
 
   const emptyBodyDrop = (
     <div
-      className="report-zone-body-empty text-center text-zinc-500 text-sm py-20 border border-dashed border-zinc-400 rounded-lg cursor-pointer"
+      className={bare
+        ? 'report-zone-body-empty text-center text-zinc-400 text-[10px] italic py-4 cursor-pointer'
+        : 'report-zone-body-empty text-center text-zinc-500 text-sm py-20 border border-dashed border-zinc-400 rounded-lg cursor-pointer'}
       data-zone-list="body"
       onClick={() => onInsertIntoZone('body', { kind: 'block', type: 'text' })}
       {...zoneDropHandlers('body', onInsertIntoZone, isDrag, pendingRef, endDrag)}
     >
-      No blocks yet — click or drag from the palette to build the report.
+      {bare ? 'No blocks yet — click or drag from the palette.' : 'No blocks yet — click or drag from the palette to build the report.'}
     </div>
   );
-  const bodyBlocks = blocks.length === 0 ? emptyBodyDrop : <div className="flex flex-col">{renderBlocks(blocks, 0)}</div>;
+  const bodyBlocks = blocks.length === 0 ? emptyBodyDrop : <div className="flex flex-col">{renderBlocks(blocks, 0, bare ? parentCollection : undefined, bare ? rootItem : undefined)}</div>;
 
   if (bare) {
     // Embedded list (Call Sheet zone): same cards / DnD / floating chrome, but

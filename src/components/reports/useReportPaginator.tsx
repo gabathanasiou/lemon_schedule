@@ -112,8 +112,9 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
     const units = rows.map((el, i): FlatUnit => ({
       h: el.offsetHeight,
       // The block's own gap rides on the FIRST row's gapBefore (a header-less
-      // table) — a header unit below gets it instead.
-      gapBefore: i === 0 && !headerEl ? blockGap : 0,
+      // table) — a header unit below gets it instead. Each row also pays its
+      // own marginTop (grid-block inter-table gap, item 116).
+      gapBefore: (i === 0 && !headerEl ? blockGap : 0) + marginTopOf(el),
       // A continuation chunk renders the column header again at its top
       // (classic "thead repeats") — reserve that height when a row opens a
       // page. local -1 marks the header unit (folded into row ranges below).

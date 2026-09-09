@@ -1,14 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useProject } from '../../../store';
 import { useReportCtx } from '../../../lib/useReportCtx';
 import { getReportFieldMap } from '../../../lib/reportFields';
+import { prepareSunWeatherForCtx } from '../../../lib/reportWeather';
 import type { ReportBlock, ReportDesign, DayMeta } from '../../../types';
-import { makeReportBlock } from '../../../lib/reportBlocks';
-import { REPORT_PAGE_METRICS, REPORT_PAGE_PADDING } from '../../reports/reportStyle';
+import { makeReportBlock, collectRibbonBlocks } from '../../../lib/reportBlocks';
+import type { RibbonPrintOptions } from '../../../lib/reportData';
+import { REPORT_PAGE_METRICS, REPORT_PAGE_PADDING, CALL_SHEET_EDIT_ZONE_STYLE } from '../../reports/reportStyle';
 import { ReportBlockView } from '../../reports/ReportBlockView';
 import ReportPalette from '../../reports/ReportPalette';
 import CallSheetZoneDesigner from './CallSheetZoneDesigner';
 import InteractiveGridBlock from './InteractiveGridBlock';
+import { SceneHighlightContext } from '../../reports/sceneHighlight';
 import type { DayView } from '../../../lib/dayView';
 
 /**
@@ -38,9 +41,12 @@ interface CallSheetCanvasProps {
   /** Header right-click on a live grid → "Edit Call Time Stages…". */
   onEditCallTimesSettings?: () => void;
   readOnly?: boolean;
+  /** Design-time aid (item 114): force call times + durations visible in every
+   *  ribbon block on this canvas. Never saved, never printed. */
+  showRibbonTimes?: boolean;
 }
 
-const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, readOnly }) => {
+const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, readOnly, showRibbonTimes }) => {
   const { state } = useProject();
   const project = state.present;
   const ctx = useReportCtx();
@@ -49,14 +55,49 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
   const dayItem = ctx?.dayInfos.find(d => d.section.index === day.sectionIndex);
   const dayBlocks = useMemo(() => callSheetDayBlocks(design), [design]);
   const metrics = REPORT_PAGE_METRICS[design.page];
+  // Hovered element row's first scene (item 115) → the ribbon's strip highlights.
+  const [highlightScene, setHighlightScene] = useState<string | null>(null);
+
+  // Warm sun/weather for the day's resolved location, then bump a tick so the
+  // (memoized) template blocks re-render with the cached values — without it
+  // the editor shows "—" for weather/sunrise/sunset (the preview warms it too).
+  const [weatherTick, setWeatherTick] = useState(0);
+  useEffect(() => {
+    if (!ctx) return;
+    let alive = true;
+    prepareSunWeatherForCtx(ctx, design)
+      .then(() => { if (alive) setWeatherTick(t => t + 1); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [ctx, design]);
+
+  // Item 114 — view-only ribbon overrides: when the toggle is on, force call
+  // times + durations visible on every ribbon block in the design, preserving
+  // each block's other flags. Off = render the design exactly as stored.
+  const ribbonOverrides = useMemo(() => {
+    if (!showRibbonTimes) return undefined;
+    const map: Record<string, RibbonPrintOptions> = {};
+    for (const b of collectRibbonBlocks([...(design.header || []), ...(design.blocks || []), ...(design.footer || [])])) {
+      map[b.id] = {
+        ribbonId: b.ribbonId,
+        showCallTimes: true,
+        showDurations: true,
+        showNotes: b.ribbonNotes !== false,
+        showBreaks: b.ribbonBreaks === true,
+        showDayBreaks: b.ribbonDayBreaks === true || b.ribbonHeaders === true,
+      };
+    }
+    return map;
+  }, [design, showRibbonTimes]);
 
   const readOnlyView = (b: ReportBlock, i: number, item?: any, parentCollection?: string) => (
-    <div key={b.id} style={{ marginTop: i === 0 ? 0 : 6 }}>
-      <ReportBlockView block={b} ctx={ctx!} fieldMap={fieldMap} item={item} parentCollection={parentCollection as any} />
+    <div key={`${b.id}:${weatherTick}`} style={{ marginTop: i === 0 ? 0 : 6 }}>
+      <ReportBlockView block={b} ctx={ctx!} fieldMap={fieldMap} item={item} parentCollection={parentCollection as any} ribbonOverrides={ribbonOverrides} />
     </div>
   );
 
   return (
+    <SceneHighlightContext.Provider value={highlightScene}>
     <div className="flex-1 flex min-h-0 min-w-0 bg-zinc-950 text-zinc-300 select-none" data-call-sheet-canvas>
       <ReportPalette project={project} insertScope="days" insideColumns={false} readOnly={!!readOnly} onInsert={payload => {
         const b = (payload as { field?: string }).field
@@ -82,25 +123,21 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
                   if (b.type === 'callTimes' || b.type === 'crewTable') {
                     return (
                       <div key={b.id} className="my-3">
-                        <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} />
+                        <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={setHighlightScene} />
                       </div>
                     );
                   }
                   if (b.type === 'callSheetEdit') {
                     return (
-                      <div key={b.id} className="my-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-sky-600 px-1 pb-1">
-                          Call Sheet Zone — editable for this day
-                        </div>
-                        <div className="rounded-lg border-2 border-dashed border-sky-300 p-2" style={{ background: '#f4f9ff' }}>
-                          <CallSheetZoneDesigner
-                            blocks={zoneBlocks}
-                            onChange={onChangeZone}
-                            readOnly={readOnly}
-                            ctx={ctx}
-                            pageSize={design.page}
-                          />
-                        </div>
+                      <div key={b.id} className="my-3" style={CALL_SHEET_EDIT_ZONE_STYLE}>
+                        <CallSheetZoneDesigner
+                          blocks={zoneBlocks}
+                          onChange={onChangeZone}
+                          readOnly={readOnly}
+                          ctx={ctx}
+                          pageSize={design.page}
+                          dayItem={dayItem}
+                        />
                       </div>
                     );
                   }
@@ -113,6 +150,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
         </div>
       </div>
     </div>
+    </SceneHighlightContext.Provider>
   );
 };
 

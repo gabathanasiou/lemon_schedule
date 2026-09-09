@@ -209,4 +209,22 @@ test.describe('Report grid blocks (items 111/112)', () => {
       return calls.length > 0 && calls[0].callTime === '-30m';
     }), { timeout: 5000 }).toBe(true);
   });
+
+  test('Call Times block exposes a Table gap control (item 116)', async ({ page }) => {
+    await seedGrid(page);
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+    await page.locator('[data-block-id="ct"]').click();
+
+    const gap = page.getByText('Table gap (px)', { exact: true }).locator('..').locator('input');
+    await expect(gap).toBeVisible({ timeout: 8000 });
+    await gap.fill('16');
+    await expect.poll(() => page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const d = (p.reportDesigns || []).find((x: any) => x.id === 'grid-test');
+      const ct = (d?.blocks?.[0]?.children || []).find((c: any) => c.id === 'ct');
+      return ct?.gap ?? null;
+    }), { timeout: 5000 }).toBe(16);
+  });
 });

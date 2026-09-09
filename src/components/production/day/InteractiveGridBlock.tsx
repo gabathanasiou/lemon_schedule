@@ -23,9 +23,11 @@ export interface InteractiveGridBlockProps {
   readOnly?: boolean;
   /** Header right-click on a live grid → "Edit Call Time Stages…". */
   onEditCallTimesSettings?: () => void;
+  /** Hovered element row's first scene (item 115) → highlight its strip. */
+  onHighlightScene?: (sceneId: string | null) => void;
 }
 
-const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings }) => {
+const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene }) => {
   const collection = isReportGridCollection(block.collection) ? block.collection : 'elementCallsOfDay';
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
 
@@ -53,13 +55,13 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
   }
 
   return (
-    <div className="space-y-3" data-report-grid="elementCalls">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: block.gap ?? 8 }} data-report-grid="elementCalls">
       {stagedCategories.map(category => (
         <div key={category} className="rounded-lg border border-zinc-200 overflow-hidden bg-white">
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
             <span className="text-[11px] font-semibold text-zinc-700">{getLabel(category, category, project.categoryLabels)}</span>
           </div>
-          <DayTimesGlide day={day} category={category} patchMeta={patchMeta} project={project} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} />
+          <DayTimesGlide day={day} category={category} patchMeta={patchMeta} project={project} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={onHighlightScene} />
         </div>
       ))}
     </div>

@@ -34,6 +34,20 @@ export function paginateBlocks(blocks: ReportBlock[]): ReportBlock[][] {
   return pages.length > 0 ? pages : [current];
 }
 
+/**
+ * Every ribbon block in a design — top-level AND nested (repeat/columns/
+ * callSheetEdit children, header/footer). Print options apply per block id.
+ */
+export function collectRibbonBlocks(list: ReportBlock[] | undefined, out: ReportBlock[] = []): ReportBlock[] {
+  if (!list) return out;
+  for (const b of list) {
+    if (b.type === 'ribbon') out.push(b);
+    if (b.type === 'repeat' || b.type === 'callSheetEdit' || b.type === 'relative') collectRibbonBlocks(b.children, out);
+    if (b.type === 'columns') for (const c of b.cols || []) collectRibbonBlocks(c.blocks, out);
+  }
+  return out;
+}
+
 export function makeReportBlock(type: ReportBlock['type'], partial: Partial<ReportBlock> = {}): ReportBlock {
   const base: ReportBlock = { id: blockId(), type };
   switch (type) {

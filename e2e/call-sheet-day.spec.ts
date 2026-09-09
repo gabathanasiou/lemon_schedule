@@ -240,4 +240,81 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(modal).toBeVisible({ timeout: 5000 });
     await expect(modal.getByRole('button', { name: 'Call stages' })).toBeVisible();
   });
+
+  // ---- items 113-117: editor polish, times toggle, tooltip + strip highlight --
+
+  async function seedEditorDesign(page: Page) {
+    await seedWithDesign(page, loadSeedProject().raw, project => {
+      project.reportDesigns = [{
+        id: 'cs-editor', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
+        blocks: [{
+          id: 'days', type: 'repeat', collection: 'days', children: [
+            { id: 'hdr', type: 'text', text: 'DAY {{dayNumber}} · {{dayDate}}' },
+            { id: 'rib', type: 'ribbon' },
+            { id: 'ct', type: 'callTimes', collection: 'elementCallsOfDay' },
+            { id: 'ctbl', type: 'crewTable', collection: 'crewOfDay' },
+            { id: 'zone', type: 'callSheetEdit', children: [{ id: 'zt', type: 'text', text: 'ZONE {{dayNumber}}' }] },
+          ],
+        }],
+        header: [], footer: [],
+      }];
+      project.activeReportId = 'cs-editor';
+    });
+  }
+
+  test('stays in Preview when switching days (item 113)', async ({ page }) => {
+    await seedEditorDesign(page);
+    await openCallSheetEdit(page);
+
+    const dayCount = await page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      return (b.getRows().sections || []).filter((s: any) => !s.isPinned).length;
+    });
+    test.skip(dayCount < 2, 'needs 2+ production days');
+
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    await expect(page.locator('[data-call-sheet-edit] .report-page').first()).toBeAttached({ timeout: 8000 });
+
+    await page.getByRole('button', { name: /Select day/ }).first().click();
+    await page.getByRole('menuitem').filter({ hasText: /^DAY 2/ }).first().click();
+
+    // Still previewing — the canvas stays gone, the paginated report stays.
+    await expect(page.locator('[data-call-sheet-edit] .report-page').first()).toBeAttached({ timeout: 8000 });
+    await expect(page.locator('[data-call-sheet-page]')).toHaveCount(0);
+  });
+
+  test('Times toggle is on by default and hides ribbon call times when off (item 114)', async ({ page }) => {
+    await seedEditorDesign(page);
+    await openCallSheetEdit(page);
+
+    const strip = page.locator('[data-call-sheet-page] [data-rm-scene]').first();
+    await expect(strip).toBeAttached({ timeout: 8000 });
+    await expect(strip).toContainText(/\d{1,2}:\d{2}/);
+
+    await page.getByRole('button', { name: 'Times', exact: true }).click();
+    await expect(strip).not.toContainText(/\d{1,2}:\d{2}/);
+  });
+
+  test('grid row hover shows the first-scene tooltip and highlights the strip (item 115)', async ({ page }) => {
+    await seedEditorDesign(page);
+    await openCallSheetEdit(page);
+
+    const grid = page.locator('[data-report-grid="elementCalls"] [data-day-times-glide]').first();
+    await expect(grid).toBeAttached({ timeout: 8000 });
+    await grid.scrollIntoViewIfNeeded();
+    const box = (await grid.boundingBox())!;
+    await page.mouse.move(box.x + 100, box.y + 45);
+
+    const tip = page.locator('div.pointer-events-none').filter({ hasText: 'FIRST TURNOVER' }).first();
+    await expect(tip).toBeVisible({ timeout: 4000 });
+    await expect(tip).toContainText(/—/);          // INT. SET — NIGHT heading
+    await expect(page.locator('[data-rm-highlight="1"]')).toHaveCount(1, { timeout: 4000 });
+  });
+
+  test('zone {{tokens}} resolve against the selected day (item 118)', async ({ page }) => {
+    await seedEditorDesign(page);
+    await openCallSheetEdit(page);
+    await expect(page.locator('[data-call-sheet-page]').getByText(/^ZONE \d+/)).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText('ZONE {{dayNumber}}')).toHaveCount(0);
+  });
 });

@@ -21,6 +21,7 @@ import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { clipboardRead, clipboardWrite } from '../lib/utils';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
+import { FloatingTooltip } from './FloatingTooltip';
 
 /**
  * Inline Glide table — a compact, self-sizing spreadsheet embedded in a page
@@ -75,6 +76,12 @@ export interface InlineGlideTableProps {
    *  `ContextMenuItem`s; call `close()` to dismiss the menu. Omit for the
    *  default (cell-only) context menu. */
   headerMenuItems?: (close: () => void) => React.ReactNode;
+  /** Optional per-row hover tooltip (item 115). Content is host-supplied; the
+   *  shared grid owns the hover/positioning. Return `null` to skip a row. */
+  rowTooltip?: (row: Record<string, string>, rowIndex: number) => React.ReactNode;
+  /** Fires with the hovered row index (null when leaving the rows) — lets the
+   *  host drive a cross-surface highlight (Call Sheet scene strips). */
+  onRowHover?: (rowIndex: number | null) => void;
 }
 
 const DEFAULT_ROW_HEIGHT = 28;
@@ -93,6 +100,8 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   baseHeaderHeight = DEFAULT_HEADER_HEIGHT,
   dataAttr,
   headerMenuItems,
+  rowTooltip,
+  onRowHover,
 }) => {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -159,6 +168,31 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col: number; header?: boolean } | null>(null);
+  const [tooltip, setTooltip] = useState<{ row: number } | null>(null);
+  const [tooltipAnchor, setTooltipAnchor] = useState<{ x: number; y: number } | null>(null);
+  const rowTooltipRef = useRef(rowTooltip);
+  rowTooltipRef.current = rowTooltip;
+  const onRowHoverRef = useRef(onRowHover);
+  onRowHoverRef.current = onRowHover;
+
+  // Track the cursor (capture phase, so it beats Glide's canvas handler) and
+  // seed the tooltip there — it then follows the pointer smoothly with no
+  // first-frame jump from the cell anchor.
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const handler = (e: PointerEvent) => { pointerRef.current = { x: e.clientX, y: e.clientY }; };
+    el.addEventListener('pointermove', handler, true);
+    return () => el.removeEventListener('pointermove', handler, true);
+  }, []);
+
+  /** Viewport position of a grid-relative cell rect (fallback for touch taps). */
+  const anchorFor = useCallback((t: { bx: number; by: number; bw: number }) => {
+    const rect = gridSizeRef.current?.getBoundingClientRect();
+    return { x: (rect?.left ?? 0) + t.bx + t.bw / 2, y: (rect?.top ?? 0) + t.by };
+  }, [gridSizeRef]);
 
   // Hover/affordance model: EDITABLE cells get a light-blue fill (they read as
   // "you can type here") that deepens on the hovered row; READ-ONLY cells stay
@@ -177,11 +211,26 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     if (row === hoveredRowRef.current) return;
     const prev = hoveredRowRef.current;
     hoveredRowRef.current = row;
+
+    // Row-hover tooltip (item 115): anchor at the hovered cell, viewport-space.
+    if (rowTooltipRef.current) {
+      if (row == null) {
+        setTooltip(null);
+        setTooltipAnchor(null);
+      } else {
+        const b = args?.bounds;
+        setTooltip({ row });
+        setTooltipAnchor(pointerRef.current ?? anchorFor({ bx: b?.x ?? 0, by: b?.y ?? 0, bw: b?.width ?? 0 }));
+      }
+    }
+
+    onRowHoverRef.current?.(row);
+
     const damage: { cell: Item }[] = [];
     if (prev != null) for (let c = 0; c < COLUMNS.length; c++) damage.push({ cell: [c, prev] });
     if (row != null) for (let c = 0; c < COLUMNS.length; c++) damage.push({ cell: [c, row] });
     if (damage.length) gridRef.current?.updateCells(damage);
-  }, [COLUMNS.length]);
+  }, [COLUMNS.length, anchorFor]);
 
   const getCell = useCallback(([col, row]: Item): GridCell => {
     const colDef = COLUMNS[col];
@@ -390,7 +439,25 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   }
 
   return (
-    <div className="inline-glide-table" {...(dataAttr ? { [dataAttr]: '' } : {})}>
+    <div
+      ref={wrapperRef}
+      className="inline-glide-table"
+      {...(dataAttr ? { [dataAttr]: '' } : {})}
+      onPointerLeave={() => {
+        // Moving onto a floating chrome (block editor / palette) that sits over
+        // the grid must dismiss the tooltip — Glide's canvas never sees that
+        // pointerleave, so clear here.
+        if (tooltip) { setTooltip(null); setTooltipAnchor(null); }
+        const prev = hoveredRowRef.current;
+        if (prev != null) {
+          hoveredRowRef.current = null;
+          const damage: { cell: Item }[] = [];
+          for (let c = 0; c < COLUMNS.length; c++) damage.push({ cell: [c, prev] });
+          gridRef.current?.updateCells(damage);
+          onRowHoverRef.current?.(null);
+        }
+      }}
+    >
       <div ref={gridSizeRef} style={{ touchAction: 'none' }}>
         {/* Auto-fit columns to the card is THIS module's job (COLUMNS above).
             Glide's defaults (min 50 / max 500 per column) would re-clamp our
@@ -457,6 +524,12 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
           </>
         ) : null}
       </ContextMenu>
+
+      {rowTooltip && tooltip && tooltipAnchor && (
+        <FloatingTooltip open anchor={tooltipAnchor}>
+          {rowTooltip(rows[tooltip.row], tooltip.row)}
+        </FloatingTooltip>
+      )}
     </div>
   );
 };

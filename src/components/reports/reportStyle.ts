@@ -64,6 +64,15 @@ export const REPORT_PAGE_METRICS: Record<'portrait' | 'landscape', { width: numb
 
 export const DEFAULT_BLOCK_GAP = 8;
 
+/** Designer-only dashed chrome for the `callSheetEdit` zone (item 10). ONE
+ *  recipe shared by the reports designer (`ReportBlockView`) and the Call Sheet
+ *  editor (`CallSheetCanvas`) so the zone looks identical in both. */
+export const CALL_SHEET_EDIT_ZONE_STYLE: CSSProperties = {
+  border: '1px dashed #a1a1aa',
+  borderRadius: 6,
+  padding: 8,
+};
+
 /** The vertical gap (px) above a block in a stacked list. The first block in
  *  each stack stays flush (clean page top); pageBreak/spacer blocks never get
  *  one. */

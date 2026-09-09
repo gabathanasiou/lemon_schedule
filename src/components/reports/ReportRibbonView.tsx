@@ -5,11 +5,12 @@ import { CellBorders } from '../../lib/persist';
 import { getRibbonCellBaseStyle, ribCellTextSize, getNoteBreakPad, getCellBorderProps, formatCellText, ribbonCellDisplayValue, PREVIEW_SAMPLES } from '../../lib/ribbonUtils';
 import { getMergeLookup } from '../../lib/mergeGroups';
 import {
-  sceneStyle, getDayHeaderColors, getDayFooterColors, getFallbackStripColors,
+  sceneStyle, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getSelectedStripColors,
 } from '../../lib/sceneColors';
 import { formatDuration, formatPageCount } from '../../lib/utils';
 import { formatElapsedCaption, ComputedRow } from '../../lib/daybreakUtils';
 import { RibbonCellText } from '../RibbonCellText';
+import { useHighlightedScene } from './sceneHighlight';
 
 // Ribbon block: renders real scene strips with the chosen RibbonDesign.
 // Reuses the shared ribbon helpers (getRibbonCellBaseStyle, ribbonCellDisplayValue,
@@ -80,6 +81,13 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
   const edge = design.edgePadding ?? 3;
   const ts = design.textSize;
   const style = sceneStyle(it.scene, ctx.project.colorPalette?.sceneColors, getFallbackStripColors(ctx.project.colorPalette), ctx.project.colorPalette?.colorRules);
+  const highlighted = useHighlightedScene();
+  const isHighlighted = !!it.scene && it.scene.id === highlighted;
+  // Hovered grid row (item 115): ring the strip in the palette's SELECTED
+  // strip colour — the same signal the stripboard uses for a selected row —
+  // and fade the OTHER strips so the hovered one reads at a glance.
+  const sel = getSelectedStripColors(ctx.project.colorPalette);
+  const isDimmed = !!highlighted && !isHighlighted;
   const numCols = Math.max(...rows.map(r => r.cells.length));
   const baseWidths = design.colWidths && design.colWidths.length === numCols
     ? design.colWidths
@@ -115,6 +123,8 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
 
   return (
     <div
+      data-rm-scene={it.scene?.id}
+      data-rm-highlight={isHighlighted ? '1' : undefined}
       style={{
         ...style,
         border: '1px solid #000',
@@ -125,6 +135,9 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
         fontSize: ribCellTextSize(ts) ?? 8,
         lineHeight: 1.1,
         fontFamily: 'Helvetica, sans-serif',
+        transition: 'opacity 120ms ease',
+        ...(isHighlighted ? { boxShadow: `inset 0 0 0 3px ${sel.background}`, position: 'relative', zIndex: 1 } : {}),
+        ...(isDimmed ? { opacity: 0.45 } : {}),
       }}
     >
       {rows.flatMap((row, ri) =>

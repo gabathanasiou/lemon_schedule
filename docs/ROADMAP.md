@@ -2579,7 +2579,9 @@ undo in Call Sheet → Edit).
 **Relations**: depends on item 111's seam; rides item 99's `crewOfDay` + item 106's
 resolved crew call.
 
-## 113. Call Sheet editor — stay in Preview across day switches + zone chrome matches the reports designer (`[ ]`)
+## 113. Call Sheet editor — stay in Preview across day switches + zone chrome matches the reports designer (`[x]`)
+
+**Done**: the day picker no longer calls `setPreview(false)` — switching days in Preview keeps you in Preview (`CallSheetEditPage.tsx`); the zone wrapper now uses the shared `CALL_SHEET_EDIT_ZONE_STYLE` (`reportStyle.ts`, `1px dashed #a1a1aa`, radius 6) — same recipe as the reports designer's `callSheetEdit` placeholder, no sky label/fill — with `my-3` spacing restored; the bare canvas empty state is compact (`text-[10px] italic py-4`, no `py-20`) so the zone no longer towers. Verified by `e2e/call-sheet-day.spec.ts` (stays in Preview when switching days).
 
 **Requested**: in Call Sheet → Edit, (1) switching days must **keep you in Preview**
 (today picking another day drops you back to Edit — you should only leave Preview via
@@ -2616,7 +2618,9 @@ print output unchanged. RULES: `production/day/**` already maps to `call-sheet-d
 **Relations**: item 10's Call Sheet editor; shares the `callSheetEdit` look with the
 reports designer (`ReportBlockView.tsx`).
 
-## 114. Call Sheet designer — design-only "show call times & durations" toggle on ribbon blocks (`[ ]`)
+## 114. Call Sheet designer — design-only "show call times & durations" toggle on ribbon blocks (`[x]`)
+
+**Done**: a header **Times** button (`CallSheetEditPage.tsx`, `Clock`, **on by default**, shown only in Edit) forces call times + durations visible in every ribbon block on the editor canvas. `CallSheetCanvas` builds a view-only `ribbonOverrides` map via `collectRibbonBlocks` (moved to `lib/reportBlocks.ts`, shared with `ReportPrintDialog`) — it preserves each block's other flags and never mutates `block.ribbonCallTimes`/`ribbonDurations`, so Preview/print/reports designer are untouched. Verified by `e2e/call-sheet-day.spec.ts` (default on shows times; toggle off hides them).
 
 **Requested**: a header button in Call Sheet → Edit that shows/hides **call times and
 durations** in the embedded strip-ribbon blocks while designing — a scheduling aid so
@@ -2648,7 +2652,9 @@ print/preview output unaffected. RULES: `production/day/**` → `call-sheet-day`
 **Relations**: rides item 10's editor and the existing `ribbonCallTimes`/`ribbonDurations`
 rendering (items 29/111); must not touch the reports designer or the print dialog.
 
-## 115. Hover tooltip on call-time / element rows — first-scene "mini ribbon" (`[ ]`)
+## 115. Hover tooltip on call-time / element rows — first-scene "mini ribbon" (`[x]`)
+
+**Done**: `InlineGlideTable` gained `rowTooltip` + `onRowHover` (and a `pointerleave` dismiss so moving onto a floating chrome closes it). `DayTimesGlide` renders `FirstSceneTooltip` — scene-colored header `{number}. INT. SET — NIGHT`, element name + **category** + amber **OVERRIDE** badge, `FIRST TURNOVER <time>` (label not bold, time bold) and the description. `FloatingTooltip` gained `anchor` (no 0,0 flash) and still follows the cursor. Hovering also highlights the first scene's strip via `SceneHighlightContext` (`reports/sceneHighlight.tsx`): `ReportRibbonView` rings it in the palette's **selected strip colour** (`getSelectedStripColors`) and fades the other strips; `data-rm-scene`/`data-rm-highlight` make it testable. `CrewTableGlide` gets a crew tooltip (name · role · **department** · OVERRIDE/PRECALL). Verified by `e2e/call-sheet-day.spec.ts` (tooltip + highlight).
 
 **Requested**: hovering an element row in the call-sheet grids (e.g. "1. GEORGE") shows
 a tooltip with that element's **first scene** — the call time, the scene heading
@@ -2686,7 +2692,9 @@ tooltip flips at the viewport edge; no tooltip while editing a cell. RULES:
 **Relations**: rides item 101/111/112 grids (`InlineGlideTable`) + item 98's `DayView`
 read model; tooltip primitive from item 56's `HoverTooltip`.
 
-## 116. Call Times / Crew table blocks — inter-table gap control (match the repeat block) (`[ ]`)
+## 116. Call Times / Crew table blocks — inter-table gap control (match the repeat block) (`[x]`)
+
+**Done**: `callTimes` gained a **Table gap (px)** control (shared `GapRow`, same recipe/default as the repeat block's "Item gap", `block.gap ?? 8`). `ReportGridBlock` puts `marginTop: block.gap ?? 8` above each category group header after the first, and the paginator now reads a row's own `marginTop` into `gapBefore` so page budgets include it; `InteractiveGridBlock`'s live grid uses the same gap. (`crewTable` is a single flat group — no gap needed, no control.) Verified by `e2e/report-grid-blocks.spec.ts`.
 
 **Requested**: the call-time (and crew) table blocks print their per-category tables
 with **no gap between them**; give them the **same gap control and default the repeat
@@ -2727,7 +2735,9 @@ RULES: `src/components/reports/**` already maps to the reports bucket. Read
 **Relations**: reuses the repeat block's `gap` field/control (items 33/111/112); touches
 the measured paginator — the same seam item 33 established.
 
-## 117. Call Sheet editor — crew call-time cells match the element call-time cells (`[ ]`)
+## 117. Call Sheet editor — crew call-time cells match the element call-time cells (`[x]`)
+
+**Done**: `CrewTableGlide`'s call cell now uses the element cell's exact override rule (`overridden ? { textDark: '#b45309' } : undefined`) — the resolved crew call renders in the same colour as an element stage cell (amber only when overridden), instead of always-gray. Style-only (lint + manual check).
 
 **Requested**: in the Call Sheet editor the **crew call-time cells look different**
 from the element (Call Times) call-time cells — make them the same.
@@ -2755,3 +2765,38 @@ amber when overridden); crew block chrome matches the element cards.
 
 **Relations**: rides items 101/111/112 (`InlineGlideTable`, `DayTimesGlide`/
 `CrewTableGlide`); style-only.
+
+## 118. Call Sheet editor — live weather/sun + resolved `{{tags}}` in the zone (`[x]`)
+
+**Done**: `CallSheetCanvas` warms the sun/weather cache (`prepareSunWeatherForCtx`, the same call `DayReportPreview`/`ReportDesigner` make) and bumps a tick so the memoized template blocks re-render with real `{{weather}}`/`{{sunrise}}`/`{{sunset}}`/`{{locationName}}` values instead of "—". The `callSheetEdit` zone's `{{tokens}}` now resolve too: `ReportDesignerCanvas` gained an optional `rootItem` (passed as the day from `CallSheetZoneDesigner`/`CallSheetCanvas`) so the embedded bare canvas resolves against the selected day rather than showing raw tags. Verified by `e2e/call-sheet-day.spec.ts` (zone token resolves).
+
+**Requested**: the call-sheet editor should show weather/sunset/etc. **live**, and blocks
+with `{{tags}}` should render (not raw tags).
+
+**Facts**:
+- `CallSheetCanvas` never called `prepareSunWeatherForCtx` — the cache stayed cold, so
+  `sunWeatherFieldValue` returned "—" (`reportWeather.ts:247`, the warmer
+  `DayReportPreview.tsx:40`/`ReportDesigner.tsx:102` already use).
+- The zone designer (`CallSheetZoneDesigner` → `ReportDesignerCanvas` `bare`) rendered
+  `renderBlocks(blocks, 0)` with no root item → day-scoped tokens (`{{dayNumber}}`) had no
+  context and fell back to the raw tag.
+
+**Relations**: item 10's editor; the location/sun/weather seam is item 98's
+(`getReportLocation`).
+
+## 119. ui-kit `Tooltip` — snappier hide on mouse-leave (`[ ]`)
+
+**Requested**: the chrome tooltips (block editor / palette) linger ~150ms after the
+pointer leaves; make the hide feel immediate.
+
+**Facts**: the kit `Tooltip` (`ui-kit/src/Tooltip.tsx:36`) schedules
+`setTimeout(() => setShow(false), 150)` on `onMouseLeave`. The delay exists so moving
+between adjacent triggers doesn't flicker — so it can't be simply zeroed.
+
+**Design** (kit-side, one `@gabriel/ui-kit` bump): shorten the leave delay (e.g. ~60ms)
+and/or cancel it when the pointer enters another tooltip trigger within a small grace
+window (shared hover-intent). Re-verify the chrome toolbars (RibbonToolbar, ReportToolbar,
+FormatToolbar) for flicker between adjacent icon buttons.
+
+**Relations**: kit primitive used by the editor chromes (items 56/83); app-side bump
+follows the `@gabriel/ui-kit` tag pattern.

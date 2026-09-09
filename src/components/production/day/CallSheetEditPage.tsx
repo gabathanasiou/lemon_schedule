@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Eye, EyeOff, Printer, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Clock, Eye, EyeOff, Printer, RotateCcw } from 'lucide-react';
 import type { DayView } from '../../../lib/dayView';
 import type { DayMeta, ReportBlock, ReportDesign } from '../../../types';
 import ReportDesigner from '../../reports/ReportDesigner';
@@ -43,6 +43,9 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
 }) => {
   const [nonce, setNonce] = useState(0);
   const [preview, setPreview] = useState(false);
+  // Design-time aid only: force call times + durations visible in every ribbon
+  // block on the editor canvas. Never saved, never printed (item 114).
+  const [showRibbonTimes, setShowRibbonTimes] = useState(true);
 
   // Only call-sheet designs can be per-day edited here.
   const callSheetDesigns = useMemo(() => {
@@ -74,7 +77,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           theme="dark"
           options={navOptions}
           selectedIndex={day.sectionIndex}
-          onSelect={idx => { onSelectDay(idx); setPreview(false); }}
+          onSelect={idx => { onSelectDay(idx); }}
           disabled={readOnly}
         />
 
@@ -94,6 +97,16 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         )}
 
         <div className="ml-auto flex items-center gap-1">
+          {!preview && (
+            <button
+              type="button"
+              onClick={() => setShowRibbonTimes(v => !v)}
+              title="Show call times & durations in ribbon blocks (preview only — never printed)"
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs hover:bg-zinc-800 ${showRibbonTimes ? 'text-amber-400' : 'text-zinc-400 hover:text-white'}`}
+            >
+              <Clock className="w-3.5 h-3.5" /> Times
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setPreview(v => !v)}
@@ -139,6 +152,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           patchMeta={patchMeta}
           onEditCallTimesSettings={onEditCallTimesSettings}
           readOnly={readOnly}
+          showRibbonTimes={showRibbonTimes}
         />
       ) : (
         <ReportDesigner

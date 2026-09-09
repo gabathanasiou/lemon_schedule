@@ -190,6 +190,14 @@ const GridCategoryMenu: React.FC<{
   );
 };
 
+/** Shared gap control — repeat items and grid-block tables use the same
+ *  number input + default (`block.gap ?? 8`, item 116). */
+const GapRow: React.FC<{ label?: string; value: number; disabled?: boolean; onPatch: (patch: Partial<ReportBlock>) => void }> = ({ label = 'Item gap (px)', value, disabled, onPatch }) => (
+  <ContentRow label={label}>
+    <input type="number" min={0} max={60} disabled={disabled} className={TB_INPUT + ' w-14'} value={value} onChange={e => onPatch({ gap: Number(e.target.value) || 0 })} />
+  </ContentRow>
+);
+
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
   onDuplicate, onRemove, onMove, compact, trailing, relativeTarget, availableLocations,
@@ -978,9 +986,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         )}
       </ContentRow>,
       block.type === 'repeat' ? (
-        <ContentRow key="gap" label="Item gap (px)">
-          <input type="number" min={0} max={60} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.gap ?? 8} onChange={e => onPatch({ gap: Number(e.target.value) || 0 })} />
-        </ContentRow>
+        <GapRow key="gap" value={block.gap ?? 8} disabled={disabled} onPatch={onPatch} />
       ) : null,
     );
     if (block.type === 'table') {
@@ -1115,6 +1121,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           onChange={v => onPatch({ category: v })}
         />
       </ContentRow>,
+      <GapRow key="gap" label="Table gap (px)" value={block.gap ?? 8} disabled={disabled} onPatch={onPatch} />,
     );
   }
 

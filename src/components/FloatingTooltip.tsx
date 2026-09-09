@@ -5,9 +5,17 @@ import { usePortalTarget, useCurrentDocument, useCurrentWindow } from '../lib/po
 interface FloatingTooltipProps {
   open: boolean;
   children: React.ReactNode;
+  /** Optional viewport-coordinate anchor. Seeds the position (and re-seeds on
+   *  change) so a tooltip driven by non-pointer events — e.g. a Glide grid row
+   *  hover — doesn't flash at 0,0 before the first pointermove. */
+  anchor?: { x: number; y: number } | null;
+  /** Follow the pointer (default true). False keeps the tooltip pinned to the
+   *  anchor — used by grid row hovers so it never jumps between the cell and
+   *  the cursor. */
+  followPointer?: boolean;
 }
 
-export const FloatingTooltip: React.FC<FloatingTooltipProps> = ({ open, children }) => {
+export const FloatingTooltip: React.FC<FloatingTooltipProps> = ({ open, children, anchor, followPointer = true }) => {
   const portalTarget = usePortalTarget();
   const currentDocument = useCurrentDocument();
   const currentWindow = useCurrentWindow();
@@ -38,7 +46,7 @@ export const FloatingTooltip: React.FC<FloatingTooltipProps> = ({ open, children
   }, []);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || !followPointer) {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -62,12 +70,19 @@ export const FloatingTooltip: React.FC<FloatingTooltipProps> = ({ open, children
         rafRef.current = null;
       }
     };
-  }, [open, updatePos]);
+  }, [open, updatePos, followPointer]);
 
   useEffect(() => {
     if (open) currentWindow.addEventListener('scroll', updatePos, true);
     return () => currentWindow.removeEventListener('scroll', updatePos, true);
   }, [open, updatePos]);
+
+  // Seed/re-seed from the anchor (grid row hover has no pointermove of its own).
+  useEffect(() => {
+    if (!open || !anchor) return;
+    posRef.current = anchor;
+    updatePos();
+  }, [open, anchor?.x, anchor?.y, updatePos]);
 
   if (!open) return null;
 

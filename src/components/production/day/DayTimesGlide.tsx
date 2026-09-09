@@ -6,9 +6,11 @@ import type { DayMeta, Project } from '../../../types';
 import { computeElementCallChain, getCallTimeSettings, setElementCall } from '../../../lib/callTimes';
 import { createDayTimesTheme } from '../../../lib/glideTheme';
 import { doodCellStyle, doodCellText } from '../../../lib/doodCells';
+import { getLabel } from '../../../lib/categories';
 import { textCell } from '../../../lib/glideCells';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '../../InlineGlideTable';
 import { ContextMenuItem } from '../../ContextMenu';
+import FirstSceneTooltip from './FirstSceneTooltip';
 
 /**
  * Day Times Glide (roadmap 101) — one compact spreadsheet per element category,
@@ -29,6 +31,8 @@ export interface DayTimesGlideProps {
   /** Right-click the grid header → "Edit Call Time Stages…" opens the settings
    *  modal (owned by the Day Manager composition root). */
   onEditCallTimesSettings?: () => void;
+  /** Hovered row's first scene id (item 115) → highlight that strip. */
+  onHighlightScene?: (sceneId: string | null) => void;
 }
 
 interface SheetColumn extends InlineGlideColumn {}
@@ -39,7 +43,7 @@ const ID_COL = 'id';
 const NAME_COL = 'name';
 const SWF_COL = 'swf';
 
-const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings }) => {
+const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings, onHighlightScene }) => {
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
   const stageKeys = useMemo(() => settings.categoryStages[category] || [], [settings, category]);
   const stageDefs = useMemo(
@@ -129,6 +133,26 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
       editableKeys={stageKeySet}
       readOnly={readOnly}
       createTheme={createDayTimesTheme}
+      onRowHover={onHighlightScene ? (i) => {
+        const e = i == null ? null : entries[i];
+        onHighlightScene(e ? (day.scenes[e.firstScene - 1]?.scene?.id ?? null) : null);
+      } : undefined}
+      rowTooltip={(_row, i) => {
+        const e = entries[i];
+        if (!e) return null;
+        const overrides = day.meta.elementCalls?.[category]?.[e.key];
+        return (
+          <FirstSceneTooltip
+            project={project}
+            day={day}
+            firstScene={e.firstScene}
+            callTime={e.firstCallTime}
+            title={e.boardId ? `${e.boardId}. ${e.name}` : e.name}
+            categoryLabel={getLabel(category, category, project.categoryLabels)}
+            overridden={!!overrides && Object.values(overrides).some(Boolean)}
+          />
+        );
+      }}
       headerMenuItems={onEditCallTimesSettings ? close => (
         <ContextMenuItem
           onClick={() => { close(); onEditCallTimesSettings(); }}

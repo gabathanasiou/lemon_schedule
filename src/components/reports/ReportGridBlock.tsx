@@ -31,7 +31,7 @@ interface ReportGridBlockProps {
 }
 
 type FlatRow =
-  | { kind: 'group'; group: ReportGridGroup }
+  | { kind: 'group'; group: ReportGridGroup; gap: number }
   | { kind: 'head'; group: ReportGridGroup }
   | { kind: 'key'; group: ReportGridGroup }
   | { kind: 'data'; group: ReportGridGroup; item: ReportCollectionItem };
@@ -55,9 +55,11 @@ const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap,
   if (groups.length === 0) return null;
 
   const multi = groups.length > 1;
+  const groupGap = block.gap ?? 8;
   const flat: FlatRow[] = [];
+  let groupSeen = 0;
   for (const group of groups) {
-    if (multi) flat.push({ kind: 'group', group });
+    if (multi) { flat.push({ kind: 'group', group, gap: groupSeen === 0 ? 0 : groupGap }); groupSeen += 1; }
     flat.push({ kind: 'head', group });
     if (group.items.length === 0) flat.push({ kind: 'key', group });
     for (const item of group.items) flat.push({ kind: 'data', group, item });
@@ -69,7 +71,7 @@ const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap,
       {shown.map((row, i) => {
         if (row.kind === 'group') {
           return (
-            <div key={`g${i}`} className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <div key={`g${i}`} className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid', marginTop: row.gap }}>
               <div style={{ ...headerStyle, width: '100%', borderRight: border, borderBottom: border }}>{row.group.label}</div>
             </div>
           );

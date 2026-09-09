@@ -26,11 +26,13 @@ interface CallSheetZoneDesignerProps {
   readOnly?: boolean;
   ctx: ReportCtx;
   pageSize?: 'portrait' | 'landscape';
+  /** Selected day in scope — zone `{{tokens}}` resolve against it. */
+  dayItem?: any;
 }
 
 const CONTAINER_TYPES = new Set(['repeat', 'table', 'relative']);
 
-const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, onChange, readOnly, ctx, pageSize }) => {
+const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, onChange, readOnly, ctx, pageSize, dayItem }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
@@ -74,6 +76,7 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
     showKeys: false,
     project,
     parentCollection: zoneScope,
+    rootItem: dayItem,
     onSaveTextStyles: (styles: ReportTextStyle[]) => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles }),
     viewWidth: null,
     pageSize,

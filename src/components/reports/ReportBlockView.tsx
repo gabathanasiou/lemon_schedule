@@ -3,7 +3,7 @@ import { ReportBlock, ReportCollection } from '../../types';
 import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, applyItemFilter, resolveCollectionItems, resolveRelativeItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
 import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor, getReportFieldDefs, buildLookupTokens, LookupTokenItem } from '../../lib/reportFields';
 import RichTextEditor from './RichTextEditor';
-import { getReportBlockBaseStyle, blockGapMargin } from './reportStyle';
+import { getReportBlockBaseStyle, blockGapMargin, CALL_SHEET_EDIT_ZONE_STYLE } from './reportStyle';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
 import { ReportRibbonView } from './ReportRibbonView';
 import { ReportMapView } from './ReportMapView';
@@ -312,7 +312,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         if (children.length === 0) {
           if (hint) {
             return (
-              <div style={{ border: '1px dashed #a1a1aa', borderRadius: 6, padding: 10, textAlign: 'center', fontSize: 10, color: '#8f8f8f', fontStyle: 'italic' }}>
+              <div style={{ ...CALL_SHEET_EDIT_ZONE_STYLE, padding: 10, textAlign: 'center', fontSize: 10, color: '#8f8f8f', fontStyle: 'italic' }}>
                 Call Sheet Edit Zone — per-day content lives here (edit in Production → Days)
               </div>
             );
@@ -320,7 +320,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
           return null;
         }
         return (
-          <div style={hint ? { border: '1px dashed #a1a1aa', borderRadius: 6, padding: 8 } : undefined}>
+          <div style={hint ? CALL_SHEET_EDIT_ZONE_STYLE : undefined}>
             {children.map(cb => (
               <ReportBlockView
                 key={cb.id}

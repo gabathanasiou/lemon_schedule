@@ -45,7 +45,9 @@ const CrewTableGlide: React.FC<CrewTableGlideProps> = ({ day, project, patchMeta
       key: entry.person.id,
       name: entry.person.name,
       role: roleLabel,
+      dept: dept || '',
       isOverride: override ? 'true' : '',
+      isPrecall: !override && precall ? 'true' : '',
       call: override,
       resolved: resolveCrewCall(override, precall, dayCall),
     };
@@ -64,7 +66,7 @@ const CrewTableGlide: React.FC<CrewTableGlideProps> = ({ day, project, patchMeta
         displayData: row.resolved,
         readonly: !!readOnly,
         align: 'center',
-        themeOverride: overridden ? { textDark: '#b45309' } : { textDark: '#71717a' },
+        themeOverride: overridden ? { textDark: '#b45309' } : undefined,
       });
     }
     if (col.key === 'role') {
@@ -93,6 +95,24 @@ const CrewTableGlide: React.FC<CrewTableGlideProps> = ({ day, project, patchMeta
       editableKeys={CALL_KEYS}
       readOnly={readOnly}
       createTheme={createDayTimesTheme}
+      rowTooltip={(_row, i) => {
+        const r = rows[i];
+        if (!r) return null;
+        return (
+          <div className="w-56 rounded overflow-hidden shadow-xl border border-zinc-700 bg-zinc-900 text-white">
+            <div className="px-2 py-1 text-[10px] font-semibold bg-zinc-800 text-zinc-200">{r.name}</div>
+            <div className="px-2.5 py-1.5 space-y-0.5">
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="text-zinc-400">{r.role}</span>
+                {r.dept && <span className="text-zinc-500">· {r.dept}</span>}
+                {r.isOverride === 'true' && <span className="font-semibold text-amber-400">OVERRIDE</span>}
+                {r.isPrecall === 'true' && <span className="font-semibold text-zinc-500">PRECALL</span>}
+              </div>
+              <div className="text-[11px]"><span className="text-zinc-400">CALL </span><span className="font-semibold">{r.resolved || '—'}</span></div>
+            </div>
+          </div>
+        );
+      }}
       headerMenuItems={onEditCallTimesSettings ? close => (
         <ContextMenuItem
           onClick={() => { close(); onEditCallTimesSettings(); }}

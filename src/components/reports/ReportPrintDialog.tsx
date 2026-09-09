@@ -6,7 +6,7 @@ import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { useReportCtx } from '../../lib/useReportCtx';
-import { COLLECTION_LABELS } from '../../lib/reportBlocks';
+import { COLLECTION_LABELS, collectRibbonBlocks } from '../../lib/reportBlocks';
 import { useCellBorders, CellBorders } from '../../lib/persist';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -36,18 +36,6 @@ function scopeFor(block: ReportBlock): { collection: ReportCollection; category?
 
 function itemLabel(collection: ReportCollection, it: any): string {
   return reportItemLabel(collection, it);
-}
-
-/** Every ribbon block in the design — top-level AND nested (repeat/columns/
- *  callSheetEdit children, header/footer). Print options apply per block id. */
-function collectRibbonBlocks(list: ReportBlock[] | undefined, out: ReportBlock[] = []): ReportBlock[] {
-  if (!list) return out;
-  for (const b of list) {
-    if (b.type === 'ribbon') out.push(b);
-    if (b.type === 'repeat' || b.type === 'callSheetEdit' || b.type === 'relative') collectRibbonBlocks(b.children, out);
-    if (b.type === 'columns') for (const c of b.cols || []) collectRibbonBlocks(c.blocks, out);
-  }
-  return out;
 }
 
 interface ReportPrintDialogProps {
