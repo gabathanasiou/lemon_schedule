@@ -5,8 +5,9 @@ import { useDaybreakSections, ComputedRow, SectionInfo, SectionSums } from './us
 import { daybreakAbove, getDayMeta, sectionCallTime } from './dayMeta';
 import { ELEMENT_CATEGORIES, getFieldItems } from './categories';
 import { getCategoryElements, elementMatchId } from './elements';
-import { getNonShootEntryMap } from './nonShootHelpers';
+import { getNonShootEntryMap, isElementMarked } from './nonShootHelpers';
 import { computeSectionViolationMap } from './rulesEngine';
+import { codeForType } from './dayTypes';
 
 /**
  * Canonical read model for ONE production day (D7). The page, the pop-out, the
@@ -25,9 +26,13 @@ export interface DayElementEntry {
   /** Element key: cast = Board ID, others = name (`elementMatchId`). */
   key: string;
   name: string;
+  /** Cast Board ID (cast only) — the call-sheet ID column. */
+  boardId?: string;
   /** 1-based position of the first scene the element appears in. */
   firstScene: number;
   firstCallTime: string;
+  /** The element's day-state code (SWF column): status/card code, else `W`. */
+  code: string;
 }
 
 export interface DayCrewEntry {
@@ -54,6 +59,8 @@ export interface DayView {
   daybreakRow?: ScheduleRow;
   meta: DayMeta;
   callTime: string;
+  /** Earliest computed call time on the day (first call). */
+  firstCall: string;
   wrap: string;
   status?: string;
   event?: NonShootDate;
@@ -82,6 +89,17 @@ function categoryKeysOf(scene: Scene, category: string): string[] {
   const raw = (scene as any)[category];
   if (typeof raw !== 'string') return [];
   return getFieldItems(category, raw);
+}
+
+/** The element's day-state code for the SWF column: a status/card code when
+ *  marked (manager order), else `W` (it appears in a scene that day). */
+function elementDayCode(project: any, event: NonShootDate | undefined, category: string, key: string): string {
+  const defs = project.dayTypes || [];
+  if (event?.status) return codeForType(defs, event.status);
+  for (const t of defs) {
+    if (isElementMarked(event, t.key, category, key)) return codeForType(defs, t.key);
+  }
+  return 'W';
 }
 
 /**
@@ -155,8 +173,10 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
               category,
               key,
               name: resolveName(key, category, project),
+              boardId: category === 'cast' ? key : undefined,
               firstScene: idx + 1,
               firstCallTime: entry.callTime,
+              code: elementDayCode(project, event, category, key),
             };
             seen.set(mapKey, item);
             if (category === 'cast') cast.push(item);
@@ -186,6 +206,9 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
         }
       }
 
+      const callTime = sectionCallTime(sections, s.index);
+      const firstCall = sceneEntries.reduce((min, e) => (e.callTime && (!min || e.callTime < min) ? e.callTime : min), '');
+
       out.push({
         sectionIndex: s.index,
         chronoDay: s.chronoDay,
@@ -195,7 +218,8 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
         // drive this day. `s.daybreakRow` is the closing one.
         daybreakRow: daybreakAbove(sections, s.index) || s.daybreakRow,
         meta,
-        callTime: sectionCallTime(sections, s.index),
+        callTime,
+        firstCall: firstCall || callTime,
         wrap: s.sums.endTime,
         status: event?.status,
         event,

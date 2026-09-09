@@ -13,7 +13,7 @@ const EventsSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
     return (
       <div className="flex items-center justify-between">
         <p className="text-xs text-zinc-400">No events on this day.</p>
-        <button type="button" onClick={() => actions.openEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Add events…</button>
+        <button type="button" onClick={() => actions.addEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Add event…</button>
       </div>
     );
   }
@@ -41,7 +41,8 @@ const EventsSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
           </div>
         );
       })}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3">
+        <button type="button" onClick={() => actions.addEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Add event…</button>
         <button type="button" onClick={() => actions.openEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Manage events…</button>
       </div>
     </div>

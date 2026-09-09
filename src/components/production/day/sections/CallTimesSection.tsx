@@ -9,6 +9,9 @@ import TimeField from '../../../TimeField';
 import GroupedSelect, { GroupedSelectItem } from '../GroupedSelect';
 import type { ElementCallTimes } from '../../../../types';
 
+const TH = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-left px-2 py-1.5 whitespace-nowrap';
+const TD = 'px-2 py-1 align-middle';
+
 const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly }) => {
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
   const [extraCategories, setExtraCategories] = useState<string[]>([]);
@@ -51,46 +54,66 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
     patchMeta({ elementCalls: Object.keys(next).length ? next : undefined });
   };
 
-  const renderRow = (category: string, entry: DayElementEntry) => {
-    const stageKeys = settings.categoryStages[category] || [];
-    const overrides = day.meta.elementCalls?.[category]?.[entry.key];
-    const chain = computeElementCallChain(settings.stages, stageKeys, entry.firstCallTime, overrides);
-    const stageDefs = stageKeys.map(k => settings.stages.find(s => s.key === k)!).filter(Boolean);
-    return (
-      <div key={entry.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5 border-b border-zinc-100 last:border-0">
-        <span className="text-xs text-zinc-800 truncate w-44 shrink-0">{entry.name}</span>
-        {stageDefs.map(def => (
-          <label key={def.key} className="flex items-center gap-1">
-            <span className="text-[10px] text-zinc-400 uppercase tracking-wider">{def.label}</span>
-            <TimeField
-              value={overrides?.[def.key as keyof ElementCallTimes] as string | undefined || ''}
-              resolvedTime={chain[def.key]?.time}
-              onChange={raw => setStage(category, entry, def.key, raw)}
-              onReset={() => setStage(category, entry, def.key, '')}
-              readOnly={readOnly}
-              className="w-28"
-            />
-          </label>
-        ))}
-        <span className="text-[10px] text-zinc-400 ml-auto">from scene {entry.firstScene}</span>
-      </div>
-    );
-  };
-
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {shown.length === 0 && <p className="text-xs text-zinc-400">No elements on this day.</p>}
       {shown.map(category => {
         const Icon = iconFor(category);
         const entries = category === 'cast' ? day.cast : (day.elements[category] || []);
+        const stageKeys = settings.categoryStages[category] || [];
+        const stageDefs = stageKeys.map(k => settings.stages.find(s => s.key === k)!).filter(Boolean);
         return (
           <div key={category} className="rounded-lg border border-zinc-200 overflow-hidden">
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
               <Icon className="w-3.5 h-3.5 text-zinc-500" />
               <span className="text-[11px] font-semibold text-zinc-700">{categoryLabel(category)}</span>
-              <span className="text-[10px] text-zinc-400">{(settings.categoryStages[category] || []).length} stages</span>
+              <span className="text-[10px] text-zinc-400">{entries.length}</span>
             </div>
-            {entries.length === 0 ? <p className="px-2.5 py-2 text-xs text-zinc-400">No elements.</p> : entries.map(e => renderRow(category, e))}
+            {entries.length === 0 ? (
+              <p className="px-2.5 py-2 text-xs text-zinc-400">No elements.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse" data-calltimes-table>
+                  <thead>
+                    <tr className="border-b border-zinc-200 bg-white">
+                      <th className={`${TH} w-10 text-center`}>ID</th>
+                      <th className={TH}>Character</th>
+                      <th className={`${TH} w-12 text-center`} title="Day state (Start/Work/Finish)">SWF</th>
+                      {stageDefs.map(def => (
+                        <th key={def.key} className={`${TH} text-center`} title={def.label}>{def.abbrev || def.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map(entry => {
+                      const overrides = day.meta.elementCalls?.[category]?.[entry.key];
+                      const chain = computeElementCallChain(settings.stages, stageKeys, entry.firstCallTime, overrides);
+                      return (
+                        <tr key={entry.key} className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50">
+                          <td className={`${TD} text-center text-xs text-zinc-400 tabular-nums`}>{entry.boardId || ''}</td>
+                          <td className={`${TD} text-xs text-zinc-800 whitespace-nowrap max-w-[16rem] truncate`}>{entry.name}</td>
+                          <td className={`${TD} text-center`}>
+                            <span className={`inline-flex items-center justify-center min-w-[20px] px-1 py-0.5 rounded text-[10px] font-bold ${entry.code === 'W' ? 'bg-zinc-200 text-zinc-700' : 'bg-amber-100 text-amber-700'}`}>{entry.code || '—'}</span>
+                          </td>
+                          {stageDefs.map(def => (
+                            <td key={def.key} className={`${TD} text-center`}>
+                              <TimeField
+                                value={(overrides?.[def.key as keyof ElementCallTimes] as string | undefined) || ''}
+                                resolvedTime={chain[def.key]?.time}
+                                onChange={raw => setStage(category, entry, def.key, raw)}
+                                onReset={() => setStage(category, entry, def.key, '')}
+                                readOnly={readOnly}
+                                className="w-24 justify-center"
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         );
       })}

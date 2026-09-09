@@ -427,6 +427,8 @@ export interface LocationTrashItem {
 export interface CallStageDef {
   key: string;
   label: string;
+  /** Short column header (P, Arr, HMU, Cost, OnSet). */
+  abbrev?: string;
   /** Default lead expression relative to the NEXT (later) stage: `-1h`, `-45m`. */
   lead?: string;
 }

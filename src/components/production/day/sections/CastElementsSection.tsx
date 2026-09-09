@@ -4,13 +4,8 @@ import type { DaySectionProps } from '../daySectionTypes';
 import type { DayElementEntry } from '../../../../lib/dayView';
 import { getLabel } from '../../../../lib/categories';
 
-const Row: React.FC<{ entry: DayElementEntry }> = ({ entry }) => (
-  <div className="flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-100 transition-colors">
-    <span className="text-xs text-zinc-800 truncate flex-1 min-w-0">{entry.name}</span>
-    <span className="text-[10px] text-zinc-400 shrink-0">Scene {entry.firstScene}</span>
-    <span className="text-xs text-zinc-600 tabular-nums w-12 text-right shrink-0">{entry.firstCallTime || '—'}</span>
-  </div>
-);
+const TH = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider text-left px-2 py-1.5 whitespace-nowrap';
+const TD = 'px-2 py-1 align-middle';
 
 const CastElementsSection: React.FC<DaySectionProps> = ({ day, project }) => {
   const categoryLabel = (key: string) => getLabel(key, key, project.categoryLabels);
@@ -18,20 +13,42 @@ const CastElementsSection: React.FC<DaySectionProps> = ({ day, project }) => {
   if (day.cast.length === 0 && usedCategories.length === 0) {
     return <p className="text-xs text-zinc-400">No cast or elements on this day.</p>;
   }
+
+  const rows: { category: string; entries: DayElementEntry[] }[] = [];
+  if (day.cast.length > 0) rows.push({ category: 'cast', entries: day.cast });
+  for (const cat of usedCategories) rows.push({ category: cat, entries: day.elements[cat] || [] });
+
   return (
-    <div className="space-y-3">
-      {day.cast.length > 0 && (
-        <div>
-          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-2 mb-1">Cast</div>
-          {day.cast.map(e => <Row key={e.key} entry={e} />)}
-        </div>
-      )}
-      {usedCategories.map(cat => (
-        <div key={cat}>
-          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-2 mb-1">{categoryLabel(cat)}</div>
-          {(day.elements[cat] || []).map(e => <Row key={e.key} entry={e} />)}
-        </div>
-      ))}
+    <div className="rounded-lg border border-zinc-200 overflow-x-auto">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="border-b border-zinc-200 bg-zinc-50">
+            <th className={`${TH} w-10 text-center`}>ID</th>
+            <th className={TH}>Name</th>
+            <th className={`${TH} w-20 text-right`}>Scene</th>
+            <th className={`${TH} w-16 text-right`}>Call</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(group => (
+            <React.Fragment key={group.category}>
+              <tr className="bg-zinc-100/70">
+                <td colSpan={4} className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+                  {categoryLabel(group.category)} <span className="text-zinc-400">({group.entries.length})</span>
+                </td>
+              </tr>
+              {group.entries.map(entry => (
+                <tr key={`${group.category}-${entry.key}`} className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50">
+                  <td className={`${TD} text-center text-xs text-zinc-400 tabular-nums`}>{entry.boardId || ''}</td>
+                  <td className={`${TD} text-xs text-zinc-800`}>{entry.name}</td>
+                  <td className={`${TD} text-xs text-zinc-500 text-right tabular-nums`}>{entry.firstScene}</td>
+                  <td className={`${TD} text-xs text-zinc-800 text-right tabular-nums`}>{entry.firstCallTime || '—'}</td>
+                </tr>
+              ))}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

@@ -99,9 +99,11 @@ test.describe('Day Manager (roadmap 98)', () => {
       b.dispatch({ type: 'UPDATE_ROW', payload: { versionId: v.id, rowId: gov.id, updates: { daybreakMeta: { note: 'Copy me over' } } } });
     });
 
-    // Select DAY 2 and copy from day.
-    await page.getByRole('button', { name: /DAY 2/ }).first().click();
-    await page.getByRole('button', { name: 'Copy from day' }).click();
+    // Select DAY 2 via the header day dropdown, then copy from day.
+    await page.locator('[data-day-manager] header').getByRole('button', { name: /^DAY \d/ }).first().click();
+    await page.getByRole('menuitem', { name: /^DAY 2 / }).click();
+    await page.getByRole('button', { name: 'More day actions' }).click();
+    await page.getByRole('menuitem', { name: 'Copy from day…' }).click();
     await page.getByText('Day Details', { exact: true }).last().click();
     await page.getByRole('button', { name: 'Copy to this day' }).click();
 

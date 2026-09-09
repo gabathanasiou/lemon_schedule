@@ -15,12 +15,12 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     const section = page.locator('[data-section="callTimes"]');
     await expect(section).toBeVisible();
     // Expand if collapsed.
-    const body = section.locator('input').first();
-    if (!(await body.count())) {
+    if (!(await section.locator('table').count())) {
       await section.getByRole('button').first().click();
     }
 
-    const onSet = section.locator('label', { hasText: 'On Set' }).first().locator('input').first();
+    // First cast row's On Set cell (last stage column of the call-times table).
+    const onSet = section.locator('table').first().locator('tbody tr').first().locator('td').last().locator('input').first();
     await expect(onSet).toBeVisible({ timeout: 5000 });
     await onSet.click();
     await onSet.fill('07:00');

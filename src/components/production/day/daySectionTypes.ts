@@ -11,6 +11,8 @@ import type { DayView } from '../../../lib/dayView';
 export interface DaySectionActions {
   openScene?: (sceneId: string) => void;
   openEvents?: (date: string) => void;
+  /** Open the Add-Event adder (not the manager) for a date. */
+  addEvents?: (date: string) => void;
   openCallSheet?: () => void;
   printCallSheet?: () => void;
   /** Call-sheet design selection is owned by the composition root so the live

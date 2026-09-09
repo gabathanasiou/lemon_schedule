@@ -36,11 +36,11 @@ export function isValidTimeExpression(raw: string | undefined | null): boolean {
 }
 
 export const DEFAULT_CALL_STAGES: CallStageDef[] = [
-  { key: 'pickup', label: 'Pickup', lead: '-1h' },
-  { key: 'arrive', label: 'Arrive', lead: '-30m' },
-  { key: 'hmua', label: 'HMUA', lead: '-1h' },
-  { key: 'costume', label: 'Costume', lead: '-30m' },
-  { key: 'onSet', label: 'On Set' },
+  { key: 'pickup', label: 'Pickup', abbrev: 'P', lead: '-1h' },
+  { key: 'arrive', label: 'Arrive', abbrev: 'Arr', lead: '-30m' },
+  { key: 'hmua', label: 'HMU', abbrev: 'HMU', lead: '-1h' },
+  { key: 'costume', label: 'Costume', abbrev: 'Cost', lead: '-30m' },
+  { key: 'onSet', label: 'On Set', abbrev: 'OnSet' },
 ];
 
 export const DEFAULT_CATEGORY_STAGES: Record<string, string[]> = {

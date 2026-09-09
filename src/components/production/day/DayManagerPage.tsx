@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Flag, Printer, Search } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Flag, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Printer, Search } from 'lucide-react';
 import { useProject } from '../../../store';
 import { useDayViews, type DayView } from '../../../lib/dayView';
 import { patchDayMeta } from '../../../lib/dayMeta';
@@ -11,11 +11,13 @@ import { usePersistState } from '../../../lib/persist';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
 import DropdownDivider from '../../DropdownDivider';
+import Button from '../../Button';
 import TimeField from '../../TimeField';
 import DaySectionCard from './DaySectionCard';
 import { DAY_SECTIONS } from './daySectionRegistry';
 import type { DaySectionActions } from './daySectionTypes';
 import { DayEventsModal } from '../../calendar/DayEventsModal';
+import { EventAdderModal } from '../../calendar/EventAdderModal';
 import DayReportPreview from '../../reports/DayReportPreview';
 import CopyDayModal from './CopyDayModal';
 import type { DayMeta, ScheduleRow } from '../../../types';
@@ -28,9 +30,10 @@ interface DayManagerPrefs {
   previewOpen: boolean;
   search: string;
   callSheetDesignId: string;
+  sidebarOpen: boolean;
 }
 
-const DEFAULT_PREFS: DayManagerPrefs = { selectedIndex: -1, collapsed: [], previewOpen: true, search: '', callSheetDesignId: '' };
+const DEFAULT_PREFS: DayManagerPrefs = { selectedIndex: -1, collapsed: [], previewOpen: true, search: '', callSheetDesignId: '', sidebarOpen: false };
 
 function weekStart(date: string): string {
   const d = new Date(date + 'T00:00:00');
@@ -64,8 +67,11 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const { days, byIndex } = useDayViews();
   const [prefs, setPrefs] = usePersistState<DayManagerPrefs>(PREFS_KEY, DEFAULT_PREFS);
   const [eventsDate, setEventsDate] = useState<string | null>(null);
+  const [adderDate, setAdderDate] = useState<string | null>(null);
   const [narrowPreview, setNarrowPreview] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [dayMenuOpen, setDayMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -138,6 +144,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const actions: DaySectionActions = useMemo(() => ({
     openScene: onOpenScene,
     openEvents: date => setEventsDate(date),
+    addEvents: date => setAdderDate(date),
     openCallSheet: () => selected && onOpenCallSheet?.(selected),
     printCallSheet: () => selected && onPrintCallSheet?.(selected),
     callSheetDesignId: callSheetDesign?.id || '',
@@ -174,10 +181,10 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const markable = getMarkableDayTypes(project);
   const relevantRules = rulesRelevantToDay(project.rules || [], selected.date);
 
-  const sidebar = (
-    <aside className="w-64 shrink-0 border-r border-zinc-200 bg-zinc-50 flex flex-col overflow-hidden">
-      <div className="p-2 border-b border-zinc-200">
-        <div className="relative">
+  const sidebar = prefs.sidebarOpen && (
+    <aside className="w-52 shrink-0 border-r border-zinc-200 bg-zinc-50 flex flex-col overflow-hidden">
+      <div className="p-2 border-b border-zinc-200 flex items-center gap-1.5">
+        <div className="relative flex-1 min-w-0">
           <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" />
           <input
             value={prefs.search}
@@ -186,6 +193,9 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             className="w-full pl-7 pr-2 py-1.5 text-xs bg-white border border-zinc-300 rounded outline-none focus:border-zinc-500"
           />
         </div>
+        <button type="button" aria-label="Collapse day list" onClick={() => setPrefs(p => ({ ...p, sidebarOpen: false }))} className="p-1 rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200">
+          <PanelLeftClose className="w-4 h-4" />
+        </button>
       </div>
       <div ref={listRef} tabIndex={0} onKeyDown={onListKeyDown} className="flex-1 overflow-y-auto py-1 outline-none">
         {weeks.map(week => (
@@ -198,12 +208,15 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
                   key={d.sectionIndex}
                   type="button"
                   onClick={() => selectDay(d.sectionIndex)}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors ${active ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-200/60 text-zinc-700'}`}
+                  className={`w-full flex items-center gap-1.5 px-3 py-1.5 text-left transition-colors ${active ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-200/60 text-zinc-700'}`}
                 >
-                  <span className="text-xs font-semibold w-12 shrink-0">DAY {d.chronoDay}</span>
+                  <span className="text-xs font-semibold w-11 shrink-0">DAY {d.chronoDay}</span>
                   <span className={`text-[11px] truncate flex-1 min-w-0 ${active ? 'text-zinc-300' : 'text-zinc-500'}`}>{formatDateShort(d.date)}</span>
-                  {d.violations.length > 0 && <Flag className="w-3 h-3 shrink-0 text-red-500" />}
-                  <span className={`text-[10px] shrink-0 ${active ? 'text-zinc-400' : 'text-zinc-400'}`}>{d.scenes.length}sc</span>
+                  {d.violations.length > 0 && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-red-500 text-white px-1.5 text-[10px] font-bold shrink-0" title={`${d.violations.length} conflict(s)`}>
+                      <Flag className="w-2.5 h-2.5" />{d.violations.length}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -216,30 +229,43 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
 
   const editor = (
     <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-      <header className="shrink-0 bg-white border-b border-zinc-200 px-4 py-2.5">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1">
+      <header className="shrink-0 bg-white border-b border-zinc-200 px-3 py-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {!prefs.sidebarOpen && (
+            <button type="button" aria-label="Show day list" onClick={() => setPrefs(p => ({ ...p, sidebarOpen: true }))} className="p-1.5 rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100">
+              <PanelLeftOpen className="w-4 h-4" />
+            </button>
+          )}
+          <div className="flex items-center">
             <button type="button" onClick={() => step(-1)} aria-label="Previous day" className="p-1 rounded text-zinc-500 hover:bg-zinc-100"><ChevronLeft className="w-4 h-4" /></button>
             <button type="button" onClick={() => step(1)} aria-label="Next day" className="p-1 rounded text-zinc-500 hover:bg-zinc-100"><ChevronRight className="w-4 h-4" /></button>
           </div>
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-sm font-bold text-zinc-900">DAY {selected.chronoDay}</h2>
-            <span className="text-xs text-zinc-500">{formatDateShort(selected.date)}</span>
-          </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Call</span>
-            <TimeField
-              value={selected.daybreakRow?.daybreakCallTime || '08:00'}
-              onChange={v => patchRow({ daybreakCallTime: v })}
-              readOnly={readOnly}
-              className="w-32"
-            />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Wrap</span>
-            <span className="text-xs text-zinc-700 tabular-nums">{selected.wrap || '—'}</span>
-          </div>
+          <DropdownMenu
+            open={dayMenuOpen}
+            onClose={() => setDayMenuOpen(false)}
+            onOpenChange={setDayMenuOpen}
+            theme="light"
+            width="w-60"
+            trigger={
+              <button type="button" className="flex items-baseline gap-1.5 rounded px-1.5 py-1 hover:bg-zinc-100">
+                <span className="text-sm font-bold text-zinc-900">DAY {selected.chronoDay}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+              </button>
+            }
+          >
+            {weeks.map(week => (
+              <React.Fragment key={week.key}>
+                <div className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Week of {formatDateShort(week.key)}</div>
+                {week.days.map(d => (
+                  <DropdownItem key={String(d.sectionIndex)} selected={d.sectionIndex === selected.sectionIndex} onClick={() => { selectDay(d.sectionIndex); setDayMenuOpen(false); }}>
+                    DAY {d.chronoDay} · {formatDateShort(d.date)}
+                  </DropdownItem>
+                ))}
+              </React.Fragment>
+            ))}
+          </DropdownMenu>
+          <span className="text-xs text-zinc-500">{formatDateShort(selected.date)}</span>
 
           <DropdownMenu
             open={statusOpen}
@@ -248,10 +274,10 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             theme="light"
             width="w-52"
             trigger={
-              <button type="button" disabled={readOnly} className="inline-flex items-center gap-1.5 rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50">
-                <CalendarDays className="w-3.5 h-3.5 text-zinc-400" />
-                {selected.status ? (markable.find(t => t.key === selected.status)?.label || selected.status) : 'Work (default)'}
-              </button>
+              <Button variant="subtle" disabled={readOnly}>
+                {selected.status ? (markable.find(t => t.key === selected.status)?.label || selected.status) : 'Work'}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
             }
           >
             <DropdownItem selected={!selected.status} onClick={() => { setStatus(selected.date, null); setStatusOpen(false); }}>Work (default)</DropdownItem>
@@ -262,19 +288,50 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             <DropdownItem onClick={() => { setEventsDate(selected.date); setStatusOpen(false); }}>Manage events…</DropdownItem>
           </DropdownMenu>
 
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Call</span>
+            <TimeField
+              value={selected.daybreakRow?.daybreakCallTime || '08:00'}
+              onChange={v => patchRow({ daybreakCallTime: v })}
+              readOnly={readOnly}
+              className="w-28"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Wrap</span>
+            <span className="text-xs text-zinc-700 tabular-nums">{selected.wrap || '—'}</span>
+          </div>
+
           {selected.violations.length > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 text-red-600 px-2 py-0.5 text-[11px] font-medium">
-              <Flag className="w-3 h-3" /> {selected.violations.length}
-            </span>
+            <button
+              type="button"
+              onClick={() => document.querySelector('[data-section="conflicts"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 text-red-600 px-2 py-0.5 text-[11px] font-semibold hover:bg-red-100"
+            >
+              <Flag className="w-3 h-3" /> {selected.violations.length} conflict{selected.violations.length !== 1 ? 's' : ''}
+            </button>
           )}
 
-          <div className="ml-auto flex items-center gap-1.5">
-            <button type="button" onClick={() => setCopyOpen(true)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"><Copy className="w-3.5 h-3.5" /> Copy from day</button>
-            <button type="button" onClick={() => onPopOutDay?.(selected)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"><ExternalLink className="w-3.5 h-3.5" /> Pop out</button>
-            <button type="button" onClick={() => onPrintCallSheet?.(selected)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"><Printer className="w-3.5 h-3.5" /> Print call sheet</button>
-            <button type="button" onClick={() => setNarrowPreview(v => !v)} className="lg:hidden inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900">
+          <div className="ml-auto flex items-center gap-1">
+            <button type="button" onClick={() => setNarrowPreview(v => !v)} className="lg:hidden inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-900">
               <FileText className="w-3.5 h-3.5" /> {narrowPreview ? 'Manage' : 'Call Sheet'}
             </button>
+            <DropdownMenu
+              open={moreOpen}
+              onClose={() => setMoreOpen(false)}
+              onOpenChange={setMoreOpen}
+              theme="light"
+              width="w-52"
+              trigger={
+                <button type="button" aria-label="More day actions" className="p-1.5 rounded text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100">
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+              }
+            >
+              <DropdownItem icon={<Copy className="w-3.5 h-3.5" />} onClick={() => { setCopyOpen(true); setMoreOpen(false); }}>Copy from day…</DropdownItem>
+              <DropdownItem icon={<Printer className="w-3.5 h-3.5" />} onClick={() => { onPrintCallSheet?.(selected); setMoreOpen(false); }}>Print call sheet</DropdownItem>
+              <DropdownItem icon={<ExternalLink className="w-3.5 h-3.5" />} onClick={() => { onPopOutDay?.(selected); setMoreOpen(false); }}>Pop out day</DropdownItem>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -312,8 +369,10 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
 
         {prefs.previewOpen && (
           <div className={`w-[46%] max-w-[640px] shrink-0 border-l border-zinc-200 flex flex-col overflow-hidden bg-zinc-100 ${narrowPreview ? '' : 'hidden lg:flex'}`} data-day-callsheet-pane>
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-200 bg-white">
-              <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Call Sheet preview</span>
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                <FileText className="w-3.5 h-3.5" /> Call Sheet · {callSheetDesign?.name || '—'}
+              </span>
               <button type="button" onClick={() => setPrefs(p => ({ ...p, previewOpen: false }))} className="text-[11px] text-zinc-500 hover:text-zinc-900">Hide</button>
             </div>
             {callSheetDesign ? (
@@ -324,7 +383,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           </div>
         )}
         {!prefs.previewOpen && (
-          <button type="button" onClick={() => setPrefs(p => ({ ...p, previewOpen: true }))} className="hidden lg:flex items-center px-2 border-l border-zinc-200 bg-white text-[11px] text-zinc-500 hover:text-zinc-900" style={{ writingMode: 'vertical-rl' }}>
+          <button type="button" onClick={() => setPrefs(p => ({ ...p, previewOpen: true }))} className="hidden lg:flex items-center gap-1 px-2 border-l border-zinc-200 bg-white text-[11px] text-zinc-500 hover:text-zinc-900" style={{ writingMode: 'vertical-rl' }}>
             Call Sheet
           </button>
         )}
@@ -344,6 +403,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           onClose={() => setEventsDate(null)}
         />
       )}
+      {adderDate && <EventAdderModal date={adderDate} onClose={() => setAdderDate(null)} />}
       {copyOpen && <CopyDayModal target={selected} days={days} onClose={() => setCopyOpen(false)} />}
     </div>
   );

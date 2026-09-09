@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ReportDesign } from '../../types';
 import { useProject } from '../../store';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap } from '../../lib/reportFields';
+import { prepareSunWeatherForCtx } from '../../lib/reportWeather';
 import type { ReportScopeFilter } from '../../lib/reportData';
 import ReportPreview from './ReportPreview';
 
@@ -31,6 +32,18 @@ const DayReportPreview: React.FC<DayReportPreviewProps> = ({ design, sectionInde
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
   const scopeFilter = useMemo(() => dayScopeFilter(sectionIndex), [sectionIndex]);
 
+  // Warm sun/weather for the day's resolved location, then remount the preview
+  // so the cached values render (the fetch is async and the paginator memoizes).
+  const [weatherTick, setWeatherTick] = useState(0);
+  useEffect(() => {
+    if (!ctx) return;
+    let alive = true;
+    prepareSunWeatherForCtx(ctx, design)
+      .then(() => { if (alive) setWeatherTick(t => t + 1); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [ctx, design]);
+
   if (!ctx) {
     return (
       <div className="flex-1 flex items-center justify-center bg-zinc-100 text-xs text-zinc-400">
@@ -41,6 +54,7 @@ const DayReportPreview: React.FC<DayReportPreviewProps> = ({ design, sectionInde
 
   return (
     <ReportPreview
+      key={weatherTick}
       design={design}
       ctx={ctx}
       fieldMap={fieldMap}
