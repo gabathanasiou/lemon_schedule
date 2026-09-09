@@ -339,9 +339,10 @@ it plays the reverse map while the CSS fade restores it (the inline transition c
 animation token cancels stale rAF/timeouts on rapid open/close. **Content-driven size changes** (tab switches,
 async loads — e.g. Project Manager Local↔Cloud) FLIP the box height: a ResizeObserver pins the
 old height, transitions to the new px height, then releases to auto — user drag/resize stays
-instant and mid-morph fires re-anchor afterwards. `prefers-reduced-motion` skips
-all of it. Opt-out: `localStorage lemon_schedule_modal_morph === '0'` — no code change needed to
-disable. **The same motion language covers every overlay** (roadmap 58): dropdown menus grow out
+instant and mid-morph fires re-anchor afterwards. `prefers-reduced-motion` skips the animation —
+but content growth still **re-clamps** the box's top/left to the visible viewport (a no-FLIP
+ResizeObserver, kit ≥ v0.1.79), so a growing modal can't push its footer off-screen. Opt-out:
+`localStorage lemon_schedule_modal_morph === '0'` — no code change needed to disable. **The same motion language covers every overlay** (roadmap 58): dropdown menus grow out
 of their trigger's corner, submenus out of their entry edge, context menus out of the press point,
 and EntityDropdown/Select/Autocomplete panels out of their trigger — the kit's shared
 `overlayMorph.ts` (`useOverlayMorph`, exported via `@gabriel/ui-kit`) replicates the modal zoom
