@@ -1,13 +1,12 @@
 # Known Test Failures — Triage & Fix Plan
 
-**Status:** 11 specs fail on HEAD. Verified **identical with and without** the
-roadmap-94 paginator fix (run the failing specs with the change stashed — same
-11 fail), so they are **not** caused by recent work under test. Full suite:
-`172 passed / 11 failed / 6 skipped`.
+**Status: RESOLVED.** All 11 fixed — full suite **187 passed / 6 skipped /
+0 failed**. Kept as a reference for the recurring drift causes.
 
-**Why this matters:** agents can't tell "my change broke this" from "this was
-already red", so every full-suite run burns tokens on triage. Fix (or skip with
-a reason) before other work.
+They were verified **identical with and without** the roadmap-94 paginator fix
+(run the failing specs with the change stashed — same 11 failed), so none were
+caused by work under test. The fixes were selector/geometry drift (10) plus one
+real kit Modal bug (1).
 
 **Boot/viewport:** specs run Desktop Chrome at **1280×720** (see
 `playwright.config.ts`); a few failures are 720px-height geometry.
@@ -112,39 +111,26 @@ Rule button is unreachable.
 re-center/re-clamp when content grows (only on keyboard show/hide — see the
 `visualViewport` logic in `@gabriel/ui-kit` `Modal`).
 
-**Fix options (pick one; the first is the real fix):**
+**Fix (done):** the kit `Modal` now re-clamps top/left to the visible viewport
+on content growth whenever the animated FLIP path is inactive (reduced motion
+or morph off) — `ui-kit/src/Modal.tsx`, shipped as **kit v0.1.79**. The
+`playwright.config.ts` `reducedMotion: 'reduce'` (and real users with OS
+"Reduce Motion") no longer skip the re-anchor. `rules-tab.spec.ts` reverted to
+a plain click.
 
-1. **Product (preferred):** make the kit `Modal` clamp so
-   `top + height <= visualViewport.height - edge` (or set
-   `maxHeight = calc(100dvh - top - edge)` and make the body `overflow-y:auto`),
-   and re-clamp on content growth (ResizeObserver on the modal content). Needs
-   an `@gabriel/ui-kit` bump + DESIGN-LANGUAGE/UI-KIT note + re-run the
-   playground `modal` specs. File a roadmap item for this.
-2. **Test unblock (interim):** give this spec a taller viewport —
-   `test.use({ viewport: { width: 1280, height: 900 } });` at the top of
-   `rules-tab.spec.ts` — so 677px fits. This hides the UX bug, so pair it with
-   (1) and a `test.fixme`/comment referencing the roadmap item. `click({ force:
-   true })` also passes but is the weakest option (bypasses actionability and
-   hides real breakage).
-
-**Verify:** `npx playwright test e2e/rules-tab.spec.ts` (and the kit playground
-suite if option 1).
+**Verify:** `npx playwright test e2e/rules-tab.spec.ts`.
 
 ---
 
-## Recommended order
+## Resolution
 
-1. **A + B + C** — pure test selector/geometry fixes, low risk, unblocks 10 of
-   11. One commit.
-2. **D** — decide product vs interim. If product, do the kit fix + bump + a
-   roadmap item; if interim, taller viewport + comment + roadmap item so it
-   isn't forgotten.
-3. Re-run the **full suite** (`npx playwright test`) → expect 0 failures. If any
-   remain, they are genuinely new and worth stopping for.
+- A/B/C: test-only selector/geometry fixes (three commits).
+- D: kit `Modal` re-clamp fix, **kit v0.1.79** + app dep bump.
+- Full suite re-run → **0 failed**.
 
-## Verification checklist
+## Takeaway for future runs
 
-- `npm run lint`
-- `npx playwright test e2e/new-cast-naming.spec.ts e2e/linked-elements.spec.ts e2e/cast-single-source.spec.ts e2e/report-chrome.spec.ts e2e/scene-sheet-cell-layout.spec.ts e2e/rules-tab.spec.ts`
-- `npx playwright test` (full) — expect **0 failed** (baseline: 172 passed /
-  11 failed / 6 skipped).
+If the full suite goes red, check whether it is one of these drift patterns
+before assuming a regression: `wrapValue` entity cells are `<textarea>`, kit
+menu/popup rows are `[role="option"]` / `.ui-item` (not `<button>`), and tall
+content needs `scrollIntoViewIfNeeded` before coordinate clicks.
