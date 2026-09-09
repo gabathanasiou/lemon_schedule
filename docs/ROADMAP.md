@@ -2233,3 +2233,33 @@ table reflects the same values; `e2e/day-times-glide.spec.ts` (seed-agnostic via
 
 **Relations**: builds on item 99's `callTimes.ts` + `daybreakMeta.elementCalls`; rides the
 Glide grid/clipboard infrastructure (items 20/63).
+
+## 102. Crew person ↔ element links (`[ ]`)
+
+**Requested**: link a SPECIFIC crew person to a specific cast member or element — e.g. a driver
+→ the director, an HMU artist → a cast member — the way element links already work. Distinct
+from item 11 (crew POSITION ↔ element CATEGORY, which is for report/rule scoping).
+
+**Model**: a flat `project.crewLinks: { id: string; personId: string; category: string;
+elementKey: string }[]` (person ↔ element; `elementKey` via `elementMatchId`, cast = Board ID).
+One-way, anchor = the person. Do NOT overload `elementLinks` (its sides are category+value
+pairs; crew is a person id) — a parallel model keeps both canonical. Derive anchor-of by scan
+(`getCrewLinksForElement` / `getCrewLinksForPerson` in a new `src/lib/crewLinks.ts`, mirroring
+`elementLinks.ts` helpers; never re-derive).
+
+**UI** (both sides, one source of truth):
+- **Crew Manager**: per-person "Linked elements" rows — reuse `rules/ElementPicker.tsx`
+  `ElementPickerRow` (CategoryDropdown + `EntityDropdown variant="chip"`), one row per category
+  (same one-row-per-category rule as the Link Manager).
+- **Element/Cast Manager** (and/or the Link Manager): per-element "Linked crew" — a grouped
+  crew picker (by department/role).
+- Edits dispatch immediately (`UPDATE_PROJECT`), exact-duplicate dedupe.
+
+**Reports / call sheet**: crew items gain `linkedElements`; element items gain `linkedCrew`
+(a new field/collection) so a call sheet can print "Driver: Bob — for Director" rows.
+
+**Verify**: link a person to a cast member from both sides → both surfaces show it; unlink
+removes it; report field resolves; `e2e/crew-links.spec.ts` (seed-agnostic via the bridge).
+
+**Relations**: expands item 11's theme (crew ↔ elements) with a person-level assignment;
+rides item 44's `ElementPickerRow` + `elementLinks.ts` patterns.
