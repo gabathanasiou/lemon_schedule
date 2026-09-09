@@ -358,36 +358,50 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   }
 
   return (
-    <div {...(dataAttr ? { [dataAttr]: '' } : {})}>
+    <div className="inline-glide-table" {...(dataAttr ? { [dataAttr]: '' } : {})}>
       <div ref={gridSizeRef} style={{ touchAction: 'none' }}>
-        <DataEditor
-          ref={gridRef}
-          width={gridWidth}
-          height={contentHeight}
-          columns={glideColumns}
-          rows={rows.length}
-          getCellContent={getCell}
-          onCellsEdited={onCellsEdited}
-          onPaste={handlePaste}
-          getCellsForSelection={true}
-          gridSelection={gridSelection}
-          onGridSelectionChange={setGridSelection}
-          theme={createTheme(fontSize)}
-          rowHeight={rowH}
-          headerHeight={headerH}
-          drawHeader={drawHeader}
-          getRowThemeOverride={getRowThemeOverride}
-          onItemHovered={onItemHovered}
-          onCellContextMenu={onCellContextMenu}
-          editOnType
-          rangeSelect="rect"
-          cellActivationBehavior="double-click"
-          rowSelectionMode="single"
-          fillHandle
-          portalElementRef={gridPortalRef}
-          readonly={!!readOnly}
-          {...({ experimental: { eventTarget: currentDocument } } as any)}
-        />
+        {/* Auto-fit columns to the card is THIS module's job (COLUMNS above).
+            Glide's defaults (min 50 / max 500 per column) would re-clamp our
+            scaled widths — a dominant Name column over 500px gets capped and
+            the columns no longer sum to the card width, painting a blank
+            "extra column" on the right. Pass through our own bounds so the fit
+            is authoritative and the table always fills exactly. Mount the
+            DataEditor only once a width is measured so it never first paints
+            at content width (wrong sizing + phantom scrollbars). */}
+        {gridWidth && gridWidth > 0 ? (
+          <DataEditor
+            ref={gridRef}
+            width={gridWidth}
+            height={contentHeight}
+            columns={glideColumns}
+            rows={rows.length}
+            getCellContent={getCell}
+            onCellsEdited={onCellsEdited}
+            onPaste={handlePaste}
+            getCellsForSelection={true}
+            gridSelection={gridSelection}
+            onGridSelectionChange={setGridSelection}
+            theme={createTheme(fontSize)}
+            rowHeight={rowH}
+            headerHeight={headerH}
+            drawHeader={drawHeader}
+            getRowThemeOverride={getRowThemeOverride}
+            onItemHovered={onItemHovered}
+            onCellContextMenu={onCellContextMenu}
+            editOnType
+            rangeSelect="rect"
+            cellActivationBehavior="double-click"
+            rowSelectionMode="single"
+            fillHandle
+            portalElementRef={gridPortalRef}
+            readonly={!!readOnly}
+            minColumnWidth={1}
+            maxColumnWidth={10000}
+            {...({ experimental: { eventTarget: currentDocument } } as any)}
+          />
+        ) : (
+          <div style={{ height: contentHeight }} />
+        )}
       </div>
 
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>

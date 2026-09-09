@@ -337,6 +337,9 @@ input, textarea, [contenteditable] {
 }
 .columns-row[data-dragging="1"] .columns-col:hover { background: transparent; }
 
-/* Day Times grids size to their content — no scrollbars, no wheel trapping. */
-[data-day-times-glide] .dvn-scroller { overflow: hidden !important; }
-[data-day-times-glide] .dvn-scroller::-webkit-scrollbar { display: none; }
+/* Inline Glide tables (Day Manager Call Times / Crew / category fallbacks)
+   auto-fit columns + height to their card — no scrollbars, no wheel trapping.
+   Native scrollbars would peek in on any sub-pixel/rounding overflow; hide
+   them and clamp the scroller so the grid is exactly its content. */
+.inline-glide-table .dvn-scroller { overflow: hidden !important; }
+.inline-glide-table .dvn-scroller::-webkit-scrollbar { display: none; width: 0; height: 0; }
