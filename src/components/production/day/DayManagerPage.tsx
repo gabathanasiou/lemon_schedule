@@ -3,15 +3,11 @@ import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, F
 import { useProject } from '../../../store';
 import { useDayViews, type DayView } from '../../../lib/dayView';
 import { patchDayMeta } from '../../../lib/dayMeta';
-import { getMarkableDayTypes } from '../../../lib/dayTypes';
 import { rulesRelevantToDay } from '../../../lib/rulesEngine';
-import { upsertNonShootDate } from '../../../lib/nonShootHelpers';
 import { formatDateShort } from '../../../lib/utils';
 import { usePersistState } from '../../../lib/persist';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
-import DropdownDivider from '../../DropdownDivider';
-import Button from '../../Button';
 import TimeField from '../../TimeField';
 import DaySectionCard from './DaySectionCard';
 import { DAY_SECTIONS } from './daySectionRegistry';
@@ -61,7 +57,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   onPrintCallSheet,
   onPopOutDay,
 }) => {
-  const { state, dispatch, readOnly, activeCalendarVersion } = useProject();
+  const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { days, byIndex } = useDayViews();
@@ -69,7 +65,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const [eventsDate, setEventsDate] = useState<string | null>(null);
   const [adderDate, setAdderDate] = useState<string | null>(null);
   const [narrowPreview, setNarrowPreview] = useState(false);
-  const [statusOpen, setStatusOpen] = useState(false);
   const [dayMenuOpen, setDayMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
@@ -133,17 +128,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     dispatch({ type: 'UPDATE_ROW', payload: { versionId: activeVersion.id, rowId: selected.daybreakRow.id, updates } });
   }, [selected?.daybreakRow, activeVersion, dispatch]);
 
-  const setStatus = useCallback((date: string, statusKey: string | null) => {
-    if (!activeCalendarVersion) return;
-    const existing = (activeCalendarVersion.nonShootDates || []).find(n => n.date === date);
-    const next = upsertNonShootDate(activeCalendarVersion.nonShootDates, date, {
-      ...(existing || {}),
-      date,
-      status: statusKey || undefined,
-    });
-    dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, nonShootDates: next } });
-  }, [activeCalendarVersion, dispatch]);
-
   const callSheetDesign = useMemo(() => {
     const designs = project.reportDesigns || [];
     return designs.find(d => d.id === prefs.callSheetDesignId)
@@ -189,7 +173,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     );
   }
 
-  const markable = getMarkableDayTypes(project);
   const relevantRules = rulesRelevantToDay(project.rules || [], selected.date);
 
   const sidebar = prefs.sidebarOpen && (
@@ -284,27 +267,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             </div>
           </DropdownMenu>
           <span className="text-xs text-zinc-500">{formatDateShort(selected.date)}</span>
-
-          <DropdownMenu
-            open={statusOpen}
-            onClose={() => setStatusOpen(false)}
-            onOpenChange={setStatusOpen}
-            theme="light"
-            width="w-52"
-            trigger={
-              <Button variant="subtle" disabled={readOnly}>
-                {selected.status ? (markable.find(t => t.key === selected.status)?.label || selected.status) : 'Work'}
-                <ChevronDown className="w-3 h-3" />
-              </Button>
-            }
-          >
-            <DropdownItem selected={!selected.status} onClick={() => { setStatus(selected.date, null); setStatusOpen(false); }}>Work (default)</DropdownItem>
-            {markable.map(t => (
-              <DropdownItem key={t.key} selected={selected.status === t.key} onClick={() => { setStatus(selected.date, t.key); setStatusOpen(false); }}>{t.label}</DropdownItem>
-            ))}
-            <DropdownDivider />
-            <DropdownItem onClick={() => { setEventsDate(selected.date); setStatusOpen(false); }}>Manage events…</DropdownItem>
-          </DropdownMenu>
 
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Call</span>

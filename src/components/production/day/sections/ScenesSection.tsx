@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Clapperboard } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import { formatDuration } from '../../../../lib/utils';
@@ -9,12 +9,6 @@ const TH = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider tex
 const TD = 'px-2 py-1 align-middle';
 
 const ScenesSection: React.FC<DaySectionProps> = ({ day, project, actions }) => {
-  const castName = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const c of project.castMembers || []) m.set(String(c.id), `${c.id}. ${c.name}`);
-    return m;
-  }, [project.castMembers]);
-
   if (day.scenes.length === 0) {
     return <p className="text-xs text-zinc-400">No scenes scheduled on this day.</p>;
   }
@@ -36,7 +30,7 @@ const ScenesSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
         <tbody>
           {day.scenes.map(entry => {
             const scene = entry.scene;
-            const castNames = getFieldItems('cast', scene?.cast || '').map(id => castName.get(id) || id);
+            const castIds = getFieldItems('cast', scene?.cast || '');
             const color = sceneStyle(scene, project.colorPalette?.sceneColors, getFallbackStripColors(project.colorPalette), project.colorPalette?.colorRules);
             return (
               <tr
@@ -51,7 +45,7 @@ const ScenesSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
                 </td>
                 <td className={`${TD} text-xs text-zinc-600 whitespace-nowrap`}>{scene?.intExt} {scene?.set || ''}</td>
                 <td className={`${TD} text-xs text-zinc-600 max-w-[26rem] truncate`}>{scene?.description || ''}</td>
-                <td className={`${TD} text-[11px] text-zinc-500 max-w-[18rem] truncate`}>{castNames.join(', ')}</td>
+                <td className={`${TD} text-[11px] text-zinc-500 max-w-[18rem] truncate`}>{castIds.join(', ')}</td>
                 <td className={`${TD} text-xs text-zinc-500 text-right whitespace-nowrap`}>{scene?.pageCount || ''}</td>
                 <td className={`${TD} text-xs text-zinc-500 text-right whitespace-nowrap`}>{formatDuration(entry.row.estimatedDuration || 0)}</td>
                 <td className={`${TD} text-xs text-zinc-800 text-right whitespace-nowrap`}>{entry.callTime || '—'}</td>

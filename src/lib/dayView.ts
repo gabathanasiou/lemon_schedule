@@ -78,8 +78,10 @@ export interface DayView {
 
 function resolveName(key: string, category: string, project: any): string {
   if (category === 'cast') {
+    // Plain name — callers format the Board ID prefix themselves (it must not
+    // be duplicated next to the ID column).
     const el = (project.castMembers || []).find((m: any) => m.id === key);
-    return el ? `${el.id}. ${el.name}` : key;
+    return el ? el.name : key;
   }
   const el = getCategoryElements(project, category).find((e: any) => elementMatchId(e, category) === key);
   return el?.name || key;

@@ -13,12 +13,34 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
   const locations = project.locations || [];
   const types = project.locationTypes || [];
 
-  const items: GroupedSelectItem[] = useMemo(() => locations.map(l => ({
-    id: l.id,
-    name: resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng),
-    group: typeLabelOf(l, types),
-    hint: l.address && l.address !== l.name ? l.address : undefined,
-  })), [locations, types]);
+  const items: GroupedSelectItem[] = useMemo(() => {
+    const out: GroupedSelectItem[] = locations.map(l => ({
+      id: l.id,
+      name: resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng),
+      group: typeLabelOf(l, types),
+      hint: l.address && l.address !== l.name ? l.address : undefined,
+    }));
+    // Scene-derived names (free text) are pickable without pre-creating a DB
+    // entry — selecting one creates a Locations-DB entry on the fly.
+    const dbNames = new Set(locations.map(l => l.name.trim().toLowerCase()));
+    for (const name of day.sceneLocations) {
+      if (dbNames.has(name.trim().toLowerCase())) continue;
+      out.push({ id: `scene:${name}`, name, group: 'From scenes' });
+    }
+    return out;
+  }, [locations, types, day.sceneLocations]);
+
+  /** Maps a picker id to a real Locations-DB id, creating a DB entry for a
+   *  scene-derived name. */
+  const resolveLocationId = (id: string): string => {
+    if (!id.startsWith('scene:')) return id;
+    const name = id.slice(6);
+    const existing = locations.find(l => l.name.trim().toLowerCase() === name.trim().toLowerCase());
+    if (existing) return existing.id;
+    const created: ProjectLocation = { id: generateUUID(), name, type: 'set' };
+    dispatch({ type: 'ADD_LOCATION', payload: { location: created } });
+    return created.id;
+  };
 
   const locationOf = (id?: string): ProjectLocation | undefined => locations.find(l => l.id === id);
   const master = day.masterLocation;
@@ -54,7 +76,7 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
               selectedIds={master ? [master.id] : []}
               disabled={readOnly}
               placeholder="No master location"
-              onChange={ids => patchMeta({ locationId: ids[0] })}
+              onChange={ids => patchMeta({ locationId: ids[0] ? resolveLocationId(ids[0]) : undefined })}
             />
             {!readOnly && (
               <button type="button" onClick={() => setPicking(true)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 shrink-0">
@@ -72,7 +94,7 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
             selectedIds={day.meta.locationIds || []}
             disabled={readOnly}
             placeholder="Add key locations…"
-            onChange={ids => patchMeta({ locationIds: ids.length ? ids : undefined })}
+            onChange={ids => patchMeta({ locationIds: ids.length ? ids.map(resolveLocationId) : undefined })}
           />
         </div>
       </div>

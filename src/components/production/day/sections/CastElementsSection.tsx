@@ -23,7 +23,6 @@ const CastElementsSection: React.FC<DaySectionProps> = ({ day, project }) => {
       <table className="w-full border-collapse">
         <thead>
           <tr className="border-b border-zinc-200 bg-zinc-50">
-            <th className={`${TH} w-10 text-center`}>ID</th>
             <th className={TH}>Name</th>
             <th className={`${TH} w-20 text-right`}>Scene</th>
             <th className={`${TH} w-16 text-right`}>Call</th>
@@ -33,14 +32,13 @@ const CastElementsSection: React.FC<DaySectionProps> = ({ day, project }) => {
           {rows.map(group => (
             <React.Fragment key={group.category}>
               <tr className="bg-zinc-100/70">
-                <td colSpan={4} className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+                <td colSpan={3} className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
                   {categoryLabel(group.category)} <span className="text-zinc-400">({group.entries.length})</span>
                 </td>
               </tr>
               {group.entries.map(entry => (
                 <tr key={`${group.category}-${entry.key}`} className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50">
-                  <td className={`${TD} text-center text-xs text-zinc-400 tabular-nums`}>{entry.boardId || ''}</td>
-                  <td className={`${TD} text-xs text-zinc-800`}>{entry.name}</td>
+                  <td className={`${TD} text-xs text-zinc-800`}>{entry.boardId ? `${entry.boardId}. ${entry.name}` : entry.name}</td>
                   <td className={`${TD} text-xs text-zinc-500 text-right tabular-nums`}>{entry.firstScene}</td>
                   <td className={`${TD} text-xs text-zinc-800 text-right tabular-nums`}>{entry.firstCallTime || '—'}</td>
                 </tr>
