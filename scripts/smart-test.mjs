@@ -45,7 +45,7 @@ const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'r
 const SCHED = ['keyboard-mode', 'digit-schedule'];
 const SHEET = ['scene-sheet-order', 'scene-sheet-cell-layout'];
 const CAL = ['calendar-travel-hold', 'day-types', 'production-dates', 'calendar-rule-cards', 'date-picker-initial', 'calendar-view', 'calendar-grow'];
-const GLIDE = ['glide-breakdown', 'glide-clipboard', 'glide-first-edit'];
+const GLIDE = ['glide-breakdown', 'glide-clipboard', 'glide-first-edit', 'day-times-glide'];
 const ELEM = ['element-manager-merge', 'element-manager-day-columns', 'element-events'];
 const CAST = ['cast-single-source'];
 const NEWCAST = ['new-cast-naming'];
@@ -137,6 +137,7 @@ const RULES = [
   { g: 'src/lib/timezones.ts', s: CAL },
   // glide breakdown
   { g: 'src/components/BreakdownTabGlide.tsx', s: [...GLIDE, ...LINKED] },
+  { g: 'src/components/InlineGlideTable.tsx', s: GLIDE },
   { g: 'src/lib/glide*', s: GLIDE },
   { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED, ...SHEET] },
   { g: 'src/lib/paletteOps.ts', s: [...GLIDE, ...ELEM] },
@@ -166,11 +167,11 @@ const RULES = [
   { g: 'src/lib/managerShell.tsx', s: MANAGERS },
   { g: 'src/lib/managerTable.ts', s: MANAGERS },
   { g: 'src/components/SidebarNav.tsx', s: MANAGERS },
-  // day manager (roadmap 98)
-  { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times'] },
+  // day manager (roadmap 98) + day times sheet (roadmap 101)
+  { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times', 'day-times-glide'] },
   { g: 'src/components/ProductionTab.tsx', s: ['day-manager', ...MANAGERS] },
   { g: 'src/lib/dayView.ts', s: ['day-manager'] },
-  { g: 'src/lib/callTimes.ts', s: ['day-manager', 'day-call-times'] },
+  { g: 'src/lib/callTimes.ts', s: ['day-manager', 'day-call-times', 'day-times-glide'] },
   { g: 'src/components/TimeField.tsx', s: ['day-manager'] },
   { g: 'src/components/DurationField.tsx', s: ['day-manager'] },
   // import / export

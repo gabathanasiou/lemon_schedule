@@ -336,3 +336,7 @@ input, textarea, [contenteditable] {
   background: #3b82f6;
 }
 .columns-row[data-dragging="1"] .columns-col:hover { background: transparent; }
+
+/* Day Times grids size to their content — no scrollbars, no wheel trapping. */
+[data-day-times-glide] .dvn-scroller { overflow: hidden !important; }
+[data-day-times-glide] .dvn-scroller::-webkit-scrollbar { display: none; }

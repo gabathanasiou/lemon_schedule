@@ -155,6 +155,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 - Context menu position = `bounds.x + localEventX`, `bounds.y + localEventY`; always `preventDefault()`.
 - `drawCell` for the actions column (red trash icon, preloaded via `new Image()` data URL).
 - **The overlay editor is `React.lazy()`-loaded (a separate PROD chunk) — `void import('@glide-overlay-editor')` at the top of this file preloads it at boot** (roadmap 63): without it the FIRST edit after a fresh page load suspends while the chunk fetches and swallows every keystroke ("MARY" → "Y"; dev can't reproduce). The alias lives in `vite.config.ts` + a tsconfig path. Do NOT remove the preload as "unused" — it's the fix, and Rollup dedupes it onto Glide's own chunk.
+- **`InlineGlideTable`** (`src/components/InlineGlideTable.tsx`) is the shared compact grid for page cards (Day Manager Call Times + Crew): columns auto-fit the card, the grid is content-height with `overflow: hidden` (no scroll), read-only cells pin a gray bg + `cursor: default`, and each edit/paste/fill/clear commits ONCE via `onCommit`. It has the same repaint gotcha — a full-grid `updateCells` effect on `rows`/`COLUMNS` (without it the canvas looks stale until an interaction). Reuse it for manager pages instead of forking a grid.
 
 ## Print
 - `window.print()` on the main window; App early-returns a full-page `PrintSchedule`; `afterprint` restores UI. `@page { size: landscape; margin: 10mm 8mm; }`; inline `<style>`.
@@ -224,4 +225,5 @@ Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collecti
 - `src/components/calendar/` — SceneCard/DayCell/BoneyardSidebar/calendarUtils + hooks (`useCalendarKeyboard`, `useCalendarDrag`)
 - `src/components/ribbon/` — row renderers (`SortableRow*`, `rowRenderTypes` RowRenderCtx), RibbonPalette/Toolbar/DesignerGrid/LivePreview/ContextMenu
 - `src/components/print/` — PrintRowParts (PrintRowCtx), CastListPrint, printLayout, printStyles
+- `src/components/InlineGlideTable.tsx` — shared compact Glide grid for page cards (Day Manager Call Times/Crew); `src/components/production/day/` — DayManagerPage + registry sections + DayTimesGlide (inline-grid adapter)
 - `src/components/{popout,elements,rules}/` + top-level AppHeader/OfflineStatus/ProjectCard/NewProjectModal/ColorRuleCard(+Meta)/projectManagerStyles

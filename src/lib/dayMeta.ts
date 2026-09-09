@@ -1,5 +1,5 @@
 import type { Dispatch } from 'react';
-import type { DayMeta, ScheduleRow } from '../types';
+import type { DayCrewCall, DayMeta, ScheduleRow } from '../types';
 
 /**
  * Canonical owner of `ScheduleRow.daybreakMeta` (D6). Day properties live on
@@ -82,6 +82,33 @@ export function patchDayMeta(
       updates: { daybreakMeta: { ...row.daybreakMeta, ...patch } },
     },
   });
+}
+
+/**
+ * Immutably sets (or clears, when `raw` is blank) one crew person's call-time
+ * override. Returns `undefined` when the list would be empty. The Crew grid's
+ * single write path.
+ */
+export function setCrewCall(
+  crewCalls: DayCrewCall[] | undefined,
+  personId: string,
+  raw: string,
+): DayCrewCall[] | undefined {
+  const calls = [...(crewCalls || [])];
+  const idx = calls.findIndex(c => c.personId === personId);
+  const value = raw.trim();
+  if (idx >= 0) {
+    if (value) calls[idx] = { ...calls[idx], callTime: value };
+    else {
+      const next = { ...calls[idx] };
+      delete next.callTime;
+      if (!next.note) calls.splice(idx, 1);
+      else calls[idx] = next;
+    }
+  } else if (value) {
+    calls.push({ personId, callTime: value });
+  }
+  return calls.length ? calls : undefined;
 }
 
 export interface DayMetaRefSets {

@@ -120,4 +120,31 @@ export function computeElementCallChain(
   return out;
 }
 
+/**
+ * Immutably sets (or clears, when `raw` is blank) one element's override for a
+ * single stage inside a day's `elementCalls` map. Returns `undefined` when the
+ * map would be empty so callers can drop the field entirely. This is the ONE
+ * write path for overrides — the Call Times table and the Day Times sheet both
+ * go through it, so the two surfaces can never drift.
+ */
+export function setElementCall(
+  elementCalls: Record<string, Record<string, ElementCallTimes>> | undefined,
+  category: string,
+  elementKey: string,
+  stageKey: string,
+  raw: string,
+): Record<string, Record<string, ElementCallTimes>> | undefined {
+  const next = { ...(elementCalls || {}) };
+  const catCalls = { ...(next[category] || {}) };
+  const current: ElementCallTimes = { ...(catCalls[elementKey] || {}) };
+  const value = raw.trim();
+  if (value) (current as Record<string, string>)[stageKey] = value;
+  else delete (current as Record<string, string | undefined>)[stageKey];
+  if (Object.keys(current).length > 0) catCalls[elementKey] = current;
+  else delete catCalls[elementKey];
+  if (Object.keys(catCalls).length > 0) next[category] = catCalls;
+  else delete next[category];
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
 export { normalizeTime };

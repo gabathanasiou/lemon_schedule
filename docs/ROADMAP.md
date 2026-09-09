@@ -2180,13 +2180,14 @@ weather prefetch). New shared primitives `TimeField`/`DurationField` + `GroupedS
 **Done so far**: `callTimes.ts` chain computation (configurable stages + per-category stage
 sets, absolute/relative overrides, on-set anchor); Production → **Call Times** settings
 (stages / category defaults / department precalls / usual crew); Day Manager **Call Times**
-section (per-category element rows + `TimeField` cells + reset) and **Crew** section
-(attach / per-person overrides / "Use usual crew"); report collection `crewOfDay` (resolved
-day crew + `crewCallTime`), `dayNotes` field, stable `ReportCrewItem` keys;
-`e2e/day-call-times.spec.ts`.
+section (per-category element grids) and **Crew** section (attach / per-person overrides /
+"Use usual crew" — both now edited in the shared inline Glide grid, item 101); report
+collection `crewOfDay` (resolved day crew + `crewCallTime`), `dayNotes` field, stable
+`ReportCrewItem` keys; `e2e/day-call-times.spec.ts`.
 
-**Remaining**: `CallTimesSection` row context menu / multi-select / copy-paste / fill-down;
-report collections `elementCallsOfDay` / `departmentCallsOfDay` / `locationsOfDay`.
+**Remaining**: report collections `elementCallsOfDay` / `departmentCallsOfDay` /
+`locationsOfDay`. (The row context menu / multi-select / copy-paste / fill-down half landed
+with item 101's inline Glide grid.)
 
 **Relations**: builds on item 98; item 10's crew/element tables depend on it; item 11
 (crew↔element categories) stays separate.
@@ -2206,7 +2207,21 @@ attribute, resolvable in text/free-table cells) and a filtered badge on the canv
 **Relations**: item 10's key-contacts tables depend on the filter half; rides the
 `ReportScope`/`filterItemsByScope` machinery.
 
-## 101. Day Times Glide — spreadsheet editing of call times (`[ ]`)
+## 101. Day Times Glide — spreadsheet editing of call times (`[x]` Done)
+
+**Done**: the Day Manager's **Call Times** card now renders one inline Glide grid per element
+category (Cast first), columns `ID | Character | SWF | <stage columns>`; the **Crew** card
+uses the same grid (`Name | Role | Call`). Both are built on the new shared
+**`InlineGlideTable`** (`src/components/InlineGlideTable.tsx`) — a compact, self-sizing
+spreadsheet: columns auto-fit the card (no horizontal scroll), the grid is exactly as tall as
+its rows (no vertical scroll/wheel trapping, `overflow: hidden`), read-only cells are gray +
+non-editable, editable rows get a hover tint, and overlay editing / multi-cell selection /
+fill-down / copy-cut-paste-clear all commit ONCE per operation (one undo entry). Cells hold
+the raw time expression, show the resolved time, amber when overridden; writes go through
+`setElementCall`/`setCrewCall` (`callTimes.ts`/`dayMeta.ts`) into `daybreakMeta.elementCalls` /
+`crewCalls`. The Glide canvas full-repaint on data/column change is fixed (the "renders after
+right-click" / "doesn't resize when crew changes" bugs). Verified by
+`e2e/day-times-glide.spec.ts` + `e2e/day-call-times.spec.ts` (RULES: `day-times-glide`).
 
 **Requested**: edit the Day Manager's call times in a Glide-style sheet so a 1st AD can
 copy/paste and fill times across many elements at once, instead of one cell at a time.

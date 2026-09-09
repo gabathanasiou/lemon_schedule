@@ -1,6 +1,6 @@
 # Day Manager + Call Sheet Editor — Full Plan
 
-**Status:** items **98 shipped**, **99 core shipped** (settings/helper/sections/crew/`crewOfDay`+`dayNotes`; element/department/location collections + row clipboard remain), **100 filter half shipped** (lookup tokens remain); completion of **item 10** remaining.
+**Status:** items **98 shipped**, **99 core shipped** (settings/helper/sections/crew/`crewOfDay`+`dayNotes`; element/department/location collections remain), **100 filter half shipped** (lookup tokens remain), **101 shipped** (inline Glide grids for call times + crew); completion of **item 10** remaining.
 **Audience:** the implementing agent. This doc is deliberately exhaustive so you do **not**
 re-research. Line numbers were captured while planning (Sep 2026) — if a file has moved,
 search the quoted symbol names, not the numbers.
@@ -477,10 +477,10 @@ clipboard; `e2e/day-manager.spec.ts` + RULES entry.
 
 ### 5.2 Item 99 — Day call-times helper + crew + report collections
 
-**Shipped:** tasks 1, 2, 4 and the settings/sections host; task 5 partially (`crewOfDay` +
-`dayNotes` + stable `ReportCrewItem` keys). **Remaining:** task 3's row context menu /
-multi-select / copy-paste / fill-down; task 5's `elementCallsOfDay` / `departmentCallsOfDay` /
-`locationsOfDay`; task 6 docs beyond what landed.
+**Shipped:** tasks 1, 2, 3, 4 and the settings/sections host (task 3's row clipboard/fill-down
+landed with item 101's inline Glide grids); task 5 partially (`crewOfDay` + `dayNotes` +
+stable `ReportCrewItem` keys). **Remaining:** task 5's `elementCallsOfDay` /
+`departmentCallsOfDay` / `locationsOfDay`; task 6 docs beyond what landed.
 
 Tasks:
 1. `productionInfo.callTimes` settings (`CallStageDef[]` + per-category stage defaults) via
@@ -493,7 +493,8 @@ Tasks:
 3. `CallTimesSection` (category sub-cards; Cast + Background Actors default; Add category
    via grouped picker; rows = element + `TimeField` cells + note; row context menu,
    multi-select, copy/paste/fill-down; "Calculated from Call Times settings" footer).
-   **Basic editing DONE; row clipboard/fill-down REMAINING.**
+   **DONE — the HTML tables were replaced by the item-101 inline Glide grids, which supply the
+   row clipboard/fill-down for free.**
 4. Crew: `crewIds` attach (grouped by department), per-person `DayCrewCall` overrides,
    `departmentPrecalls`; "Use usual crew" + copy-from-day integration. **DONE.**
 5. Report collections: `elementCallsOfDay`, `crewOfDay`, `departmentCallsOfDay`,
@@ -506,6 +507,25 @@ Tasks:
 
 **Verify**: chain math (on-set → pickup), expression parsing/preview/reset, precalls,
 usual crew, copy-from-day; report tables print the right rows; `e2e/day-call-times.spec.ts`.
+
+### 5.2.1 Item 101 deviations (authoritative)
+
+- **Inline, not a sheet page.** The first cut opened the grid as a full-surface mode with a
+  Back button. User feedback: that mode switch is confusing — embed the grid in the Day
+  Manager instead. Now the Call Times card renders one grid per category (Cast first) and the
+  Crew card uses the same grid. No `openCallTimesSheet` action / `sheetCategory` state.
+- **Shared component.** The grid mechanics were extracted to
+  `src/components/InlineGlideTable.tsx` (auto-fit columns, content height, no-scroll, overlay
+  edit / fill / clipboard with one commit per op, centered headers, row hover). Day Times and
+  Crew are thin data/rendering adapters; manager pages can reuse it.
+- **`setElementCall` / `setCrewCall`.** The override write logic was extracted from the
+  sections into `callTimes.ts` / `dayMeta.ts` so the grids and Copy-from-day share one path.
+- **Glide canvas repaint.** The inline grids need the explicit full-grid `updateCells` effect
+  on `rows`/`COLUMNS` change (same gotcha as `BreakdownTabGlide`/`glideShell`); without it the
+  canvas looked stale until an interaction ("right-click renders it" / "doesn't resize when
+  crew changes").
+- **Crew columns** are `Name | Role | Call` (the Precall column was dropped — the precall
+  shows as the muted fallback in the Call cell).
 
 ### 5.3 Item 100 — Reports designer: filtered rows + item lookups
 
@@ -592,7 +612,8 @@ item 100 (filters/lookups). Landing order **98 → 99 → 100 → 10**.
 
 **New**: `src/lib/dayMeta.ts`, `src/lib/dayView.ts`, `src/lib/callTimes.ts`,
 `src/components/TimeField.tsx`, `src/components/DurationField.tsx`,
-`src/components/production/day/**`, `src/lib/useDayClipboard.ts` (or beside the components).
+`src/components/production/day/**`, `src/lib/useDayClipboard.ts` (or beside the components),
+`src/components/InlineGlideTable.tsx` (item 101 — shared compact grid, also used by Crew).
 
 **Modified (likely)**: `src/types.ts`, `src/store/reducer.ts` (only if a new action is
 needed — prefer `UPDATE_ROW`), `src/components/calendar/useCalendarDrag.ts`,

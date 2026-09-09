@@ -1,13 +1,26 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { UsersRound } from 'lucide-react';
+import type { GridCell } from '@glideapps/glide-data-grid';
 import type { DaySectionProps } from '../daySectionTypes';
 import GroupedSelect, { GroupedSelectItem } from '../GroupedSelect';
-import TimeField from '../../../TimeField';
-import type { DayCrewCall } from '../../../../types';
+import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '../../../InlineGlideTable';
+import { createDayTimesTheme } from '../../../../lib/glideTheme';
+import { textCell } from '../../../../lib/glideCells';
+import { setCrewCall } from '../../../../lib/dayMeta';
+
+/**
+ * Crew (item 99/101): attach the day's crew, then set per-person call-time
+ * overrides in the same inline Glide grid the Call Times section uses. A blank
+ * cell falls back to the department precall (shown muted), so the grid reads as
+ * "override or default" at a glance.
+ */
+const CALL_KEYS = new Set(['call']);
 
 const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly }) => {
   const crewRoles = project.crewRoles || [];
   const crew = project.crew || {};
+  const template = project.crewTemplate || {};
+  const explicit = day.meta.crewIds || [];
 
   const items: GroupedSelectItem[] = useMemo(() => {
     const out: GroupedSelectItem[] = [];
@@ -17,26 +30,44 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
     return out;
   }, [crewRoles, crew]);
 
-  const template = project.crewTemplate || {};
-  const explicit = day.meta.crewIds || [];
+  const rows = useMemo(() => day.crew.map(entry => {
+    const roleLabel = crewRoles.find(r => r.key === entry.role)?.label || entry.role;
+    const precall = template.departmentPrecalls?.[roleLabel] || '';
+    const override = day.meta.crewCalls?.find(c => c.personId === entry.person.id)?.callTime || '';
+    return { key: entry.person.id, name: entry.person.name, role: roleLabel, precall, call: override };
+  }), [day.crew, day.meta.crewCalls, crewRoles, template.departmentPrecalls]);
 
-  const setCall = (personId: string, raw: string) => {
-    const calls: DayCrewCall[] = [...(day.meta.crewCalls || [])];
-    const idx = calls.findIndex(c => c.personId === personId);
-    const value = raw.trim();
-    if (idx >= 0) {
-      if (value) calls[idx] = { ...calls[idx], callTime: value };
-      else {
-        const next = { ...calls[idx] };
-        delete next.callTime;
-        if (!next.note) calls.splice(idx, 1);
-        else calls[idx] = next;
-      }
-    } else if (value) {
-      calls.push({ personId, callTime: value });
+  const columns: InlineGlideColumn[] = useMemo(() => [
+    { key: 'name', label: 'Name', width: 240 },
+    { key: 'role', label: 'Role', width: 180 },
+    { key: 'call', label: 'Call', width: 120, align: 'center' },
+  ], []);
+
+  const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>): GridCell => {
+    if (col.key === 'call') {
+      const raw = row.call || '';
+      return textCell(raw, {
+        displayData: raw || row.precall || '',
+        readonly: !!readOnly,
+        align: 'center',
+        themeOverride: raw ? { textDark: '#b45309' } : { textDark: '#a1a1aa' },
+      });
     }
-    patchMeta({ crewCalls: calls.length ? calls : undefined });
-  };
+    if (col.key === 'role') {
+      return textCell(row.role, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { bgCell: '#fafafa', textDark: '#71717a' } });
+    }
+    return textCell(row.name, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { bgCell: '#fafafa' } });
+  }, [readOnly]);
+
+  const onCommit = useCallback((edits: InlineGlideEdit[]) => {
+    let calls = day.meta.crewCalls;
+    for (const edit of edits) {
+      const entry = day.crew[edit.row];
+      if (!entry) continue;
+      calls = setCrewCall(calls, entry.person.id, edit.value);
+    }
+    patchMeta({ crewCalls: calls });
+  }, [day.crew, day.meta.crewCalls, patchMeta]);
 
   return (
     <div className="space-y-3">
@@ -59,26 +90,16 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
       {day.crew.length === 0 ? (
         <p className="text-xs text-zinc-400">No crew attached and no roster yet.</p>
       ) : (
-        <div className="rounded-lg border border-zinc-200 overflow-hidden">
-          {day.crew.map(entry => {
-            const roleLabel = crewRoles.find(r => r.key === entry.role)?.label || entry.role;
-            const precall = template.departmentPrecalls?.[roleLabel];
-            return (
-              <div key={entry.person.id} className="flex items-center gap-2 px-2.5 py-1.5 border-b border-zinc-100 last:border-0">
-                <span className="text-xs text-zinc-800 truncate w-44 shrink-0">{entry.person.name}</span>
-                <span className="text-[10px] text-zinc-400 truncate flex-1">{roleLabel}{precall ? ` · precall ${precall}` : ''}</span>
-                <TimeField
-                  value={day.meta.crewCalls?.find(c => c.personId === entry.person.id)?.callTime || ''}
-                  resolvedTime={entry.callTime}
-                  onChange={raw => setCall(entry.person.id, raw)}
-                  onReset={() => setCall(entry.person.id, '')}
-                  readOnly={readOnly}
-                  placeholder={precall || 'call'}
-                  className="w-28"
-                />
-              </div>
-            );
-          })}
+        <div className="rounded-lg border border-zinc-200 overflow-hidden bg-white" data-crew-calls>
+          <InlineGlideTable
+            columns={columns}
+            rows={rows}
+            getCellContent={getCellContent}
+            onCommit={onCommit}
+            editableKeys={CALL_KEYS}
+            readOnly={readOnly}
+            createTheme={createDayTimesTheme}
+          />
         </div>
       )}
     </div>
