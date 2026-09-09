@@ -53,26 +53,44 @@ by `e2e/call-sheet-day.spec.ts` (RULES: `call-sheet-day`).
 - **Depends on** items 98 (day data/locations), 99 (call-time/crew collections) and
   100 (filtered rows/lookups) — all shipped.
 
-## 11. Link crew positions to element categories (`[ ]`)
+## 11. Crew ↔ elements — position↔category + person↔element links (Link-Manager UX) (`[ ]`)
 
-- Let the user **link a crew position with an element category**: e.g. HMU →
-  Makeup, Grip → G&E, etc.
-- **Ship sensible defaults** for the standard positions/categories (HMU →
-  Makeup, Sound → Sound, etc.) out of the box, still fully editable by the
-  user.
-- The link must be **manageable from both sides**:
-  - **Element Manager**: pick which crew positions are associated with a
-    category.
-  - **Crew Manager**: pick which element categories are associated with a
-    position.
-  - The **Glide Crew tab** must also allow managing the link per crew
-    position.
-- Both sides must stay in sync (one source of truth for the mapping).
-- **Reports designer (when this lands)**: crew must become rule-bearing —
-  `ruleBearingAncestor`/`parentScenesOf` (`lib/reportData.ts:620`, LEGO spec)
-  gain a linked-category scene rule so crew repeats/tables scope for real
-  ("Only crew in this day"), scoped crew labels/checkbox come back, and the
-  interim honest-label special case from item 25 is removed.
+**Two layers, ONE surface — mirror item 44's element links.** Same interaction language as the
+Element Manager → Links manager (`elements/LinkManagerModal.tsx`): grouped anchor cards, the
+shared `rules/ElementPicker.tsx` `ElementPickerRow` (CategoryDropdown + `EntityDropdown
+variant="chip"`, type-to-filter, one row per category), immediate `UPDATE_PROJECT` dispatch,
+exact-duplicate dedupe, and **both-sides** management (edit from either end, one source of
+truth). Build the manager once; both layers render through it.
+
+1. **Position ↔ category** (defaults + report/rule scoping): a crew POSITION maps to element
+   CATEGORIES — HMU → Makeup, Grip → G&E, Sound → Sound. Ship sensible defaults for the standard
+   positions, fully editable. Managed from the **Crew Manager** (per-position category rows) and
+   the **Element Manager** (per-category positions), plus the **Glide Crew tab** per position.
+   Once it lands, crew becomes rule-bearing: `ruleBearingAncestor`/`parentScenesOf`
+   (`lib/reportData.ts`) gain a linked-category scene rule so crew repeats/tables scope for real
+   ("Only crew in this day"), scoped crew labels/checkbox come back, and the interim honest-label
+   special case from item 25 is removed.
+2. **Person ↔ element** (explicit assignment): a SPECIFIC crew person links to a specific cast
+   member/element — driver → the director, HMU artist → a cast member — so a call sheet can print
+   "Driver: Bob — for Director". **Model**: flat `project.crewLinks: { id; personId; category;
+   elementKey }[]` (one-way, anchor = the person; `elementKey` via `elementMatchId`, cast = Board
+   ID). Do NOT overload `elementLinks` (its sides are category+value pairs; crew is a person id) —
+   a parallel model keeps both canonical. Helpers in a new `src/lib/crewLinks.ts`
+   (`getCrewLinksForPerson`/`getCrewLinksForElement`, mirroring `elementLinks.ts`; never re-derive).
+   **UI**: a "Crew Links" manager (Crew Manager → Links) with per-person cards (department/role-
+   grouped person picker + one linked-element row per category) and per-element "Linked crew" in
+   the Element/Cast Manager.
+
+**Reports / call sheet**: crew items gain `linkedElements`; element items gain `linkedCrew` (a new
+field/collection) so call sheets/crew tables can print the assignment; the position→category layer
+feeds scoping.
+
+**Verify**: link a position→category and a person→element from both sides → both surfaces show it;
+unlink removes it; defaults ship; report field resolves; `e2e/crew-links.spec.ts` (seed-agnostic
+via the bridge).
+
+**Relations**: supersedes item 102 (merged here — person-level); rides item 44's Link Manager +
+`ElementPickerRow`, item 90's crew departments, and item 11's own report-scoping follow-up.
 
 ## 17. Report designer iPad-friendly (`[ ]`)
 
@@ -2256,35 +2274,11 @@ table reflects the same values; `e2e/day-times-glide.spec.ts` (seed-agnostic via
 **Relations**: builds on item 99's `callTimes.ts` + `daybreakMeta.elementCalls`; rides the
 Glide grid/clipboard infrastructure (items 20/63).
 
-## 102. Crew person ↔ element links (`[ ]`)
+## 102. Crew person ↔ element links (`[ ]` — MERGED into item 11)
 
-**Requested**: link a SPECIFIC crew person to a specific cast member or element — e.g. a driver
-→ the director, an HMU artist → a cast member — the way element links already work. Distinct
-from item 11 (crew POSITION ↔ element CATEGORY, which is for report/rule scoping).
-
-**Model**: a flat `project.crewLinks: { id: string; personId: string; category: string;
-elementKey: string }[]` (person ↔ element; `elementKey` via `elementMatchId`, cast = Board ID).
-One-way, anchor = the person. Do NOT overload `elementLinks` (its sides are category+value
-pairs; crew is a person id) — a parallel model keeps both canonical. Derive anchor-of by scan
-(`getCrewLinksForElement` / `getCrewLinksForPerson` in a new `src/lib/crewLinks.ts`, mirroring
-`elementLinks.ts` helpers; never re-derive).
-
-**UI** (both sides, one source of truth):
-- **Crew Manager**: per-person "Linked elements" rows — reuse `rules/ElementPicker.tsx`
-  `ElementPickerRow` (CategoryDropdown + `EntityDropdown variant="chip"`), one row per category
-  (same one-row-per-category rule as the Link Manager).
-- **Element/Cast Manager** (and/or the Link Manager): per-element "Linked crew" — a grouped
-  crew picker (by department/role).
-- Edits dispatch immediately (`UPDATE_PROJECT`), exact-duplicate dedupe.
-
-**Reports / call sheet**: crew items gain `linkedElements`; element items gain `linkedCrew`
-(a new field/collection) so a call sheet can print "Driver: Bob — for Director" rows.
-
-**Verify**: link a person to a cast member from both sides → both surfaces show it; unlink
-removes it; report field resolves; `e2e/crew-links.spec.ts` (seed-agnostic via the bridge).
-
-**Relations**: expands item 11's theme (crew ↔ elements) with a person-level assignment;
-rides item 44's `ElementPickerRow` + `elementLinks.ts` patterns.
+**Merged**: this item's person↔element assignment is now the second layer of item 11 (Crew ↔
+elements), so both the position↔category mapping and the person↔element links ship through ONE
+Link-Manager-style surface. Kept here only so the number stays stable; implement item 11.
 
 ## 103. Project Details + Call Times → draggable modals from the Day Manager header (`[x]` Done)
 
