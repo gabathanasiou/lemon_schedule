@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Copy, ExternalLink, Flag, Printer, Search } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Flag, Printer, Search } from 'lucide-react';
 import { useProject } from '../../../store';
 import { useDayViews, type DayView } from '../../../lib/dayView';
 import { patchDayMeta } from '../../../lib/dayMeta';
@@ -17,6 +17,7 @@ import { DAY_SECTIONS } from './daySectionRegistry';
 import type { DaySectionActions } from './daySectionTypes';
 import { DayEventsModal } from '../../calendar/DayEventsModal';
 import DayReportPreview from '../../reports/DayReportPreview';
+import CopyDayModal from './CopyDayModal';
 import type { DayMeta, ScheduleRow } from '../../../types';
 
 const PREFS_KEY = 'lemon_schedule_day_manager';
@@ -65,6 +66,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const [eventsDate, setEventsDate] = useState<string | null>(null);
   const [narrowPreview, setNarrowPreview] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const selected = useMemo(() => {
@@ -267,10 +269,11 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           )}
 
           <div className="ml-auto flex items-center gap-1.5">
+            <button type="button" onClick={() => setCopyOpen(true)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"><Copy className="w-3.5 h-3.5" /> Copy from day</button>
             <button type="button" onClick={() => onPopOutDay?.(selected)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"><ExternalLink className="w-3.5 h-3.5" /> Pop out</button>
             <button type="button" onClick={() => onPrintCallSheet?.(selected)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"><Printer className="w-3.5 h-3.5" /> Print call sheet</button>
             <button type="button" onClick={() => setNarrowPreview(v => !v)} className="lg:hidden inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900">
-              <Copy className="w-3.5 h-3.5" /> {narrowPreview ? 'Manage' : 'Call Sheet'}
+              <FileText className="w-3.5 h-3.5" /> {narrowPreview ? 'Manage' : 'Call Sheet'}
             </button>
           </div>
         </div>
@@ -341,6 +344,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           onClose={() => setEventsDate(null)}
         />
       )}
+      {copyOpen && <CopyDayModal target={selected} days={days} onClose={() => setCopyOpen(false)} />}
     </div>
   );
 };

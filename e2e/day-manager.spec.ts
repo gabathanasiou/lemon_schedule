@@ -56,8 +56,9 @@ test.describe('Day Manager (roadmap 98)', () => {
       const b: any = (window as any).__lemonSchedule;
       const p = b.getProject();
       const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-      const first = v.rows.find((r: any) => r.type === 'DAYBREAK' && !r.pinned);
-      return first?.daybreakCallTime || '';
+      // DAY 1's governing daybreak is the pinned anchor.
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+      return gov?.daybreakCallTime || '';
     }), { timeout: 5000 }).toBe('06:15');
   });
 
@@ -84,6 +85,34 @@ test.describe('Day Manager (roadmap 98)', () => {
 
     const pane = page.locator('[data-day-callsheet-pane]');
     await expect(pane.getByText('Test Stage 7').first()).toBeVisible({ timeout: 12000 });
+  });
+
+  test('copy from day applies the source note in one undo entry', async ({ page }) => {
+    await openDays(page);
+
+    // Note on DAY 1.
+    await page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned) || v.rows.find((r: any) => r.type === 'DAYBREAK');
+      b.dispatch({ type: 'UPDATE_ROW', payload: { versionId: v.id, rowId: gov.id, updates: { daybreakMeta: { note: 'Copy me over' } } } });
+    });
+
+    // Select DAY 2 and copy from day.
+    await page.getByRole('button', { name: /DAY 2/ }).first().click();
+    await page.getByRole('button', { name: 'Copy from day' }).click();
+    await page.getByText('Day Details', { exact: true }).last().click();
+    await page.getByRole('button', { name: 'Copy to this day' }).click();
+
+    // DAY 2's governing daybreak is the first non-pinned break.
+    await expect.poll(async () => page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+      const nonPinned = v.rows.filter((r: any) => r.type === 'DAYBREAK' && !r.pinned);
+      return nonPinned.some((r: any) => r.daybreakMeta?.note === 'Copy me over');
+    }), { timeout: 5000 }).toBe(true);
   });
 
   test('deleting a daybreak with details warns first and cancel keeps it', async ({ page }) => {

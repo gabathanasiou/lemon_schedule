@@ -128,7 +128,8 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
     const out: DayView[] = [];
     for (const s of productionSections) {
       const date = sectionDateMap.get(s.index) || '';
-      const meta = getDayMeta(s.daybreakRow);
+      const governingDaybreak = daybreakAbove(sections, s.index);
+      const meta = getDayMeta(governingDaybreak);
       const event = nonShootByDate.get(date);
 
       const sceneEntries: DaySceneEntry[] = [];
@@ -190,7 +191,9 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
         chronoDay: s.chronoDay,
         date,
         label: s.label,
-        daybreakRow: s.daybreakRow,
+        // The GOVERNING daybreak (above the section) — its call time + meta
+        // drive this day. `s.daybreakRow` is the closing one.
+        daybreakRow: daybreakAbove(sections, s.index) || s.daybreakRow,
         meta,
         callTime: sectionCallTime(sections, s.index),
         wrap: s.sums.endTime,

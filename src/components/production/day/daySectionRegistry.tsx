@@ -1,4 +1,5 @@
 import React from 'react';
+import type { DayMeta } from '../../../types';
 import type { DayView } from '../../../lib/dayView';
 import type { DaySectionProps } from './daySectionTypes';
 import DayDetailsSection, { DayDetailsIcon } from './sections/DayDetailsSection';
@@ -24,6 +25,9 @@ export interface DaySectionDef {
   Component: React.ComponentType<DaySectionProps>;
   copyable: boolean;
   copyMode?: 'replace' | 'merge';
+  /** The meta patch this section copies (Copy-from-day). Events are handled
+   *  by the modal (date-keyed, merged into the calendar version). */
+  extract?: (day: DayView) => Partial<DayMeta> | undefined;
   /** True when the section has no content for this day (drives empty copy). */
   isEmpty?: (day: DayView) => boolean;
 }
@@ -37,6 +41,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: DayDetailsSection,
     copyable: true,
     copyMode: 'replace',
+    extract: day => (day.meta.note ? { note: day.meta.note } : undefined),
   },
   {
     id: 'locations',
@@ -49,6 +54,10 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: LocationsSection,
     copyable: true,
     copyMode: 'replace',
+    extract: day => ({
+      ...(day.meta.locationId ? { locationId: day.meta.locationId } : {}),
+      ...(day.meta.locationIds && day.meta.locationIds.length ? { locationIds: day.meta.locationIds } : {}),
+    }),
   },
   {
     id: 'scenes',
