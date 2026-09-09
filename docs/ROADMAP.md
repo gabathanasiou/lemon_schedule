@@ -2286,7 +2286,9 @@ removes it; report field resolves; `e2e/crew-links.spec.ts` (seed-agnostic via t
 **Relations**: expands item 11's theme (crew ↔ elements) with a person-level assignment;
 rides item 44's `ElementPickerRow` + `elementLinks.ts` patterns.
 
-## 103. Project Details + Call Times → draggable modals from the Day Manager header (`[ ]`)
+## 103. Project Details + Call Times → draggable modals from the Day Manager header (`[x]` Done)
+
+**Done**: Project Details (`ProductionDetailsModal`) + Call Times (`CallTimesSettingsModal`) are draggable kit `Modal`s opened from the Day Manager header (and its empty state); the two Production sub-tabs were removed (`ProductionTab` now Day Manager / Crew / Crew Glide / Locations / Locations Glide; `prodSubTab` defaults to `days`). TimeField gained a `theme` prop for the dark modal surfaces. Day pop-outs share the header.
 
 **Requested**: the Production tab's **Project Details** and **Call Times** sub-tabs are thin
 single-purpose pages — turn them into draggable ui-kit `Modal`s reachable from the **Day
@@ -2309,10 +2311,11 @@ Manager** header (the two remaining sub-tabs are removed from `ProductionTab`).
 
 **Verify**: modals open/drag/close from the Day Manager header (in the page AND a popped-out
 day); Production tab shows Day Manager / Crew / Crew Glide / Locations / Locations Glide only;
-key-position assignment + dates + call-time settings all still save (bridge). Full plan:
-`plans/DAY-MANAGER-PAGE-REWORK.md`.
+key-position assignment + dates + call-time settings all still save (bridge).
 
-## 104. Call Times — drag-to-reorder stages (`[ ]`)
+## 104. Call Times — drag-to-reorder stages (`[x]` Done)
+
+**Done**: the Call Times modal's stage list is drag-to-reorder dnd-kit (`SortableContext` + grip rows), replacing the up/down buttons — commit on drag end through the existing `setCallTimes({ stages })`; chain order follows configured order.
 
 **Requested**: reorder the call-stage priority by **dragging**, not the up/down arrow buttons —
 the dnd-kit sortable pattern already used for drag-reorder lists in the app
@@ -2330,7 +2333,9 @@ green; undo restores.
 
 **Relations**: depends on item 103 (the stages editor now lives in the modal).
 
-## 105. Day Manager — two-column layout, rename to "Day Manager", friendlier empty state (`[ ]`)
+## 105. Day Manager — two-column layout, rename to "Day Manager", friendlier empty state (`[x]` Done)
+
+**Done**: the Production Days sub-tab is renamed **Day Manager**; the page is a two-column layout inside a `max-w-6xl` centered container — the narrow meta band (Day Details left · Locations/Events/Conflicts right, registry `wide` flag) on top, wide grids (Scenes, Call Times, Crew) full-width beneath; friendlier empty state with actions when there are no days.
 
 **Requested**: (1) rename the Production **Days** sub-tab → **Day Manager**; (2) the page is a
 single wasted column — lay it out in two columns with the wide tables full-width and the short
@@ -2349,7 +2354,9 @@ line.
 **Verify**: sections render in the two-column arrangement (wide full-width, short band 1+3);
 collapse, copy modal, day pop-out unaffected; no-days project shows the new empty state.
 
-## 106. Crew — default call time is the day's general call (`[ ]`)
+## 106. Crew — default call time is the day's general call (`[x]` Done)
+
+**Done**: one canonical `resolveCrewCall(override, precall, dayCall)` (`callTimes.ts`) — override wins, else department precall, else the day's general call. Used by the report seam `crewOfDay` AND the Day Manager Crew grid (resolved display; amber only when overridden).
 
 **Requested**: a crew member's call time should **default to the day's call time**; an explicit
 per-person override, or a department precall, wins over that default.
@@ -2364,7 +2371,9 @@ per-person override, or a department precall, wins over that default.
 precall still win (relative precalls resolve against the day call); `e2e/day-call-times.spec.ts`
 + `e2e/report-day-calls.spec.ts` updated.
 
-## 107. Day Manager — merge Cast & Elements into Call Times (DOOD SWF + scene/time) (`[ ]`)
+## 107. Day Manager — merge Cast & Elements into Call Times (DOOD SWF + scene/time) (`[x]` Done)
+
+**Done**: the Cast & Elements section is removed (`CastElementsSection.tsx` deleted). The Day Manager **Call Times** section is now the single per-category element view: categories with configured stages keep the editable stage-chain grids; stage-less categories get the same inline-Glide list (read-only) `ID | Name | SWF | Scene | Call` fed from the new DOOD per-day S/W/F letter (`DayView` `dood`, derived from the element's schedule work-span) + first scene/call time. Staged categories sort to the top.
 
 **Requested**: the **Cast & Elements** section is redundant with the **Call Times** grids —
 remove it and make Call Times the single per-category element view. Categories **with** stages
@@ -2384,7 +2393,9 @@ Start/Work/Finish + scene + call; `e2e/day-manager.spec.ts` / `day-times-glide.s
 
 **Relations**: same visual family as items 103/105 (Day Manager page rework).
 
-## 108. Crew grid — name/role columns proportionally scaled (`[ ]`)
+## 108. Crew grid — name/role columns proportionally scaled (`[x]` Done)
+
+**Done**: the Crew grid column weights rebalanced (Name 120 / Role 90 / Call 90 — `InlineGlideTable` treats widths as relative).
 
 **Requested**: the Crew grid's **Name** and **Role** columns are too wide vs **Call**.
 `InlineGlideTable` scales the `width` props as relative weights to fit the card, so rebalance the
@@ -2392,10 +2403,172 @@ weights in `CrewSection.tsx` (e.g. Name/Role noticeably narrower, Call given roo
 
 **Verify**: visual-only (rule 7 — lint + manual check, no e2e boot).
 
-## 109. Locations — clearer master vs key-location labels (`[ ]`)
+## 109. Locations — clearer master vs key-location labels (`[x]` Done)
+
+**Done**: Locations master vs key-location pickers each got a one-line hint (master = the day's home base; key = additional locations).
 
 **Requested**: the user finds it unclear how "key locations" attach relative to the day's master
 location. Keep the model (master = one primary picker; key = additional multi-pick — both resolve
 into the Locations DB); add concise hint text under each label in `LocationsSection.tsx`.
 
 **Verify**: visual-only (rule 7).
+
+## 110. Call Times modal redesign — tabbed settings, cleaner stage + category-default editors (`[ ]`)
+
+**Requested**: the Call Times modal (`production/day/CallTimesSettingsModal.tsx`,
+opened from the Day Manager header — item 103) is one long unfriendly scroll: the
+four unrelated settings (stages / category defaults / department precalls / usual
+crew) stack in a single body, the stage rows float far apart with no container, the
+category-defaults enable/disable button wall is unreadable, and a category default
+can never be removed. Redesign it around tabs and the design language.
+
+**Tabs** (one concern each, inside the existing draggable kit `Modal`):
+1. **Call stages** — the drag-reorder list (item 104) restyled as a contained table
+   matching the ImportDialog "Board ID Assignment" table (`ImportDialog.tsx:376-410`):
+   bordered container (`rounded-lg border border-zinc-800 overflow-hidden`), header
+   row (`bg-zinc-900 border-b border-zinc-800`, uppercase `text-[10px]`), zebra rows
+   (`bg-zinc-950` / `bg-zinc-900/50`), grip handle trailing. Rows read as one unit
+   instead of floating.
+2. **Category defaults** — per category a **multi-select stage dropdown** (chip
+   trigger + dark `DropdownPanel`, the `EntityDropdown`/`CategoryDropdown` modal
+   pattern) whose trigger shows the selected stage labels as comma text (Pickup,
+   Arrive, HMU, Costume, On Set), replacing the per-stage enable/disable button wall.
+   Each row gets an X to **remove the default**; **Cast is locked — no remove**
+   (canonical staged category, `DEFAULT_CATEGORY_STAGES`). Adding a category keeps
+   the current default-to-`onSet` behavior.
+3. **Department precalls** — the per-department relative-call list (unchanged data).
+4. **Usual crew** — the default day-crew picker (`crewTemplate.crewIds`).
+
+**Facts**:
+- Model unchanged: `productionInfo.callTimes` (`stages`, `categoryStages`) +
+  `project.crewTemplate` (`departmentPrecalls`, `crewIds`); `getCallTimeSettings`
+  merges `DEFAULT_CATEGORY_STAGES` (`cast`, `backgroundActors`); `categoryStages` is
+  a `Record<category, string[]>` written through `setCallTimes({ categoryStages })`
+  (one `SET_PRODUCTION_INFO`). No new action types.
+- Removing a default is already meaningful: item 107 renders a stage-less category as
+  a read-only `ID | Name | SWF | Scene | Call` grid in the Day Manager Call Times
+  section — the row doesn't vanish, it just stops carrying stages.
+- Tab control in a dark modal = DESIGN-LANGUAGE segmented-toggle recipe
+  (`flex border border-zinc-700 rounded p-0.5`; selected `bg-zinc-800 text-white`);
+  dropdowns use the chip trigger (`DD_CHIP_TRIGGER_CLASS`) + dark `DropdownPanel`;
+  grouped lists use `ItemCard`/`ItemRow` where a table isn't the better fit.
+- Read `docs/DESIGN-LANGUAGE.md` before building (two-layer surfaces, one-hero
+  footer, coarse sizing, un-gated hover).
+
+**Design**: split the single body into four tab panes; keep the stage drag machinery
+(`DndContext`/`SortableContext`/`arrayMove`) and every write path exactly as-is —
+a presentation/IA rework, not a model change. Reuse existing
+`TimeField`/`GroupedSelect`/`CommitInput`; add no new primitive. The stage table
+adopts the ImportDialog row recipe (extract shared classes at the second use —
+AGENTS.md rule 1). Category-default dropdown checked rows follow the single-highlight
+rule; the trigger text resolves stage labels, not keys. Footer stays the one-hero
+`Close`.
+
+**Verify**: lint + e2e (extend `e2e/day-call-times.spec.ts`/`e2e/day-manager.spec.ts`,
+seed-agnostic via the debug bridge) — tabs switch and persist state; stage drag
+reorder still commits; toggling stages in a category's dropdown updates
+`categoryStages`; removing a non-cast default drops it (stage-less fallback still
+renders in the Day Manager); the cast row has no remove; department precalls + usual
+crew save. Smart-test RULES: `CallTimesSettingsModal.tsx` → DAY bucket (add if
+missing).
+
+**Relations**: restyles the modal from items 103/104; stage-less fallback from item
+107; rides item 99's `callTimes.ts` model (unchanged); item 102's crew↔element links
+are separate.
+
+## 111. Reports designer — Call Times block (styled table + live editing in the Call Sheet editor) (`[ ]`)
+
+**Requested**: a first-class **Call Times** block in the reports designer. Placed
+inside a `days` repeat it renders that day's call-times table exactly like the Day
+Manager's Call Times grids, printed with the report-designer table styling (plus the
+block's Style/Outline/Padding controls). Pick a **category** and the block shows
+every element of that category for the day (staged categories only — the ones that
+actually carry call times), or **All categories** (cast-first, one table per
+category, mirroring the Day Manager). In the Call Sheet editor (Day Manager → Call
+Sheet → Edit) the block becomes the **live inline Glide grid** — the same
+`InlineGlideTable`/`DayTimesGlide` surface — so call times are editable straight from
+the call-sheet designer. Build it **modularly** so a crew table (item 112) and later
+editable day timings reuse the same seam.
+
+**Facts** (the data + machinery already exist — this is wiring, not a new model):
+- `elementCallsOfDay` (`reportData.ts:936`) resolves one `ReportElementCallItem` per
+  element working the day, cast first, **staged categories only**
+  (`categoryStages[cat].length > 0`), so "only elements with call times" is inherent.
+  The registry already has `elementCallId`/`elementCallName`/`elementCallCategory`/
+  `elementCallCode`/`elementCallFirstScene` + dynamic `call_{stageKey}`
+  (`reportFields.ts:227-247`). A normal table over `elementCallsOfDay` already prints
+  this today — the new block is the first-class, pre-wired, editable-in-place version.
+- Static table recipe to reuse (never re-derive): `ReportBlockView`'s table path —
+  `getReportBlockBaseStyle(block, project)`, `getReportBorder(block.showBorders !==
+  false)`, `cellPad` from `paddingV/H`, and the `.report-table-cols`/`.rm-header`/
+  `.rm-row` classes (`ReportBlockView.tsx:654`, `837`) so the measured paginator
+  splits the table between rows.
+- Block plumbing: `ReportBlock['type']` union (`types.ts:508`), `makeReportBlock`
+  (`reportBlocks.ts:37`), palette `BLOCK_ITEMS` (`ReportPalette.tsx:21`), the view
+  switch (`ReportBlockView.tsx`), and the generic Style/Outline/Padding sections in
+  `blockControls.tsx`.
+- WYSIWYG host: `CallSheetCanvas.tsx` already maps the `days`-repeat children
+  (`callSheetDayBlocks`) and swaps the `callSheetEdit` zone for an editable designer;
+  a `callTimes` block is another template-level child. `DayTimesGlide.tsx` +
+  `patchDayMeta` (`dayMeta.ts`) is the existing interactive writer
+  (`daybreakMeta.elementCalls`).
+
+**Design**:
+- **Block model**: `type: 'callTimes'` + `category?: string` (unset = **All
+  categories**). Reuses the existing style props (`background`/`border`/`fontSize`/
+  `paddingV`/`paddingH`/`showBorders`/`showHeader`). `makeReportBlock('callTimes')`
+  defaults `category` undefined; add a `Clock` palette entry **gated to day context**
+  (offered only inside a `days` repeat, the `relative`/`callSheetEdit` gate pattern);
+  `insertInto` treats it as a leaf (non-container).
+- **Static render** (`ReportBlockView` `case 'callTimes'` → new `ReportCallTimesView`):
+  resolve the enclosing day's `elementCallsOfDay` via `resolveCollectionItems`
+  (canonical resolver — never a parallel item list), filter by `block.category`;
+  render one table per category (cast-first) with fixed columns `ID · Name · SWF ·
+  <stage columns from getCallTimeSettings>`, using the shared table recipe; `hint`
+  (designer) shows the skeleton. "All categories" = the Day Manager's per-category
+  layout; a chosen category = one table.
+- **Controls** (`blockControls.tsx` Content section): the category picker — a dark
+  dropdown (chip-trigger + dark `DropdownPanel`, the modal picker pattern) listing the
+  staged categories present on the day + "All categories". Style/Outline/Padding stay
+  the existing generic sections.
+- **Interactive** (`CallSheetCanvas.tsx`): when a `callTimes` block is a
+  template-level `days`-repeat child, render it as the live grid (reuse `DayTimesGlide`
+  per category, or an "All categories" stack) writing `daybreakMeta.elementCalls`
+  through `patchDayMeta` (one batch per edit op → one undo entry). Blocks placed
+  *inside* the `callSheetEdit` zone stay static — interactivity is a template-level
+  property of the block, not the generic zone designer.
+- **Modularity**: keep the static renderer and the interactive host generic over the
+  collection (`elementCallsOfDay` → elementCalls; item 112 `crewOfDay` → crewCalls),
+  sharing ONE `ReportGridBlock` + `InteractiveGridBlock` seam — no fork. This is also
+  the seam for future editable day timings (breaks/notes) if requested.
+
+**Verify**: lint + playwright (seed-agnostic via the bridge) — place the block in the
+built-in Call Sheet template's `days` repeat; the designer shows the skeleton;
+preview/print render the styled table for the chosen category (and per-category tables
+for All); in Call Sheet → Edit the grid edits `daybreakMeta.elementCalls` (bridge
+read-back) and undo restores; the paginator splits the table between rows; the block
+is offered only inside a `days` repeat. Smart-test RULES: add the new report files to
+the reports/designer bucket.
+
+**Relations**: reuses item 99's `elementCallsOfDay` + `callTimes.ts`; rides item 10's
+Call Sheet editor (`CallSheetCanvas`/`callSheetEdit`) and the item 100 table/filter
+machinery; item 112 (crew table) is the modular sibling; item 110 restyles the Call
+Times settings modal, not this block.
+
+## 112. Reports designer — Crew table block (modular sibling of the Call Times block) (`[ ]`)
+
+**Requested** (user: "later I might want to have a crew table" — parked): the same
+first-class, styled, editable-in-place grid for the day's **crew** —
+`Name | Role | Call` from `crewOfDay`, editable in the Call Sheet editor against
+`daybreakMeta.crewCalls`.
+
+**Design**: reuse item 111's `ReportGridBlock`/`InteractiveGridBlock` seam with
+`collection: 'crewOfDay'` (interactive writes go through `setCrewCall` →
+`daybreakMeta.crewCalls`); a `Users` palette entry, day-gated; no new data model.
+Build only when the user asks (parked).
+
+**Verify**: same shape as item 111 (designer skeleton, styled print table, live edit +
+undo in Call Sheet → Edit).
+
+**Relations**: depends on item 111's seam; rides item 99's `crewOfDay` + item 106's
+resolved crew call.
