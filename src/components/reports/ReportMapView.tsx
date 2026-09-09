@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ReportBlock } from '../../types';
 import { ReportCtx, pickLocation } from '../../lib/reportData';
-import { ReportLocation, reportLocationLinkLabel, reportLocationLink, MapLinkKind } from '../../lib/reportWeather';
+import { ReportLocation, reportLocationLinkLabel, reportLocationLink, hasMapPin, MapLinkKind } from '../../lib/reportWeather';
 import { ReportLocationLink } from './ReportLocationLink';
 import { MapPin } from 'lucide-react';
 
@@ -88,7 +88,10 @@ export const ReportMapView: React.FC<{
       timezone: 'UTC',
     };
   }
-  if (!loc || loc.lat == null || loc.lng == null) {
+  if (!loc || !hasMapPin(loc)) {
+    // The "Add a location…" prompt is a DESIGNER hint — preview/print render
+    // nothing, so an empty day produces no page (and never a stray label).
+    if (!hint) return null;
     return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>Add a location…</div>;
   }
   const position: [number, number] = [loc.lat, loc.lng];

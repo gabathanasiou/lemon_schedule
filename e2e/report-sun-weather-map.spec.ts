@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject } from './helpers';
+import { loadSeedProject, seedProjectScript } from './helpers';
 
 // Sun & Weather fields + Image/Map blocks in the Reports Designer.
 // Network is fully mocked: Open-Meteo (sun/weather), Nominatim (geocoding),
@@ -51,6 +51,62 @@ const BIG_BEN = {
   display_name: 'Big Ben, Bridge Street, Westminster, London SW1A 2JR, United Kingdom',
   address: { house_number: '1', road: 'Bridge Street', city: 'London', postcode: 'SW1A 2JR', country: 'United Kingdom' },
 };
+
+// ---- QA regression helpers (location bugs) ----------------------------------
+
+/** Three deterministic locations: a real pin, an address-only entry (no
+ *  coords) and a completely blank one. Attaches the first two as Day 1/2's
+ *  master locations on every version. */
+function withQaLocations(project: any) {
+  project.locations = [
+    { id: 'qa-pin', name: 'Pinned Stage', type: 'set', address: '1 Pin St', place: '1 Pin St, Culver City, CA', lat: 34.0211, lng: -118.3965 },
+    { id: 'qa-addr', name: 'Address Only', type: 'unitBase', address: '2 Address Rd', place: '', lat: 0, lng: 0 },
+    { id: 'qa-blank', name: 'Blank Loc', type: 'hospital', address: '', place: '', lat: 0, lng: 0 },
+  ];
+  const masters = ['qa-pin', 'qa-addr'];
+  for (const v of project.versions || []) {
+    const breaks = (v.rows || []).filter((r: any) => r.type === 'DAYBREAK');
+    masters.forEach((id, i) => {
+      if (breaks[i]) breaks[i].daybreakMeta = { ...(breaks[i].daybreakMeta || {}), locationId: id };
+    });
+  }
+}
+
+function seedWithDesign(design: any, patch?: (p: any) => void) {
+  const seed = loadSeedProject();
+  const project = JSON.parse(seed.raw);
+  project.reportDesigns = [design, ...(project.reportDesigns || [])];
+  project.activeReportId = design.id;
+  patch?.(project);
+  return seedProjectScript({ raw: JSON.stringify(project) });
+}
+
+async function stubQaNetwork(page: any) {
+  await page.addInitScript(() => { window.print = () => {}; });
+  await page.route('**://api.open-meteo.com/**', route =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) }));
+  await page.route('**://archive-api.open-meteo.com/**', route =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) }));
+  await page.route('**://tile.openstreetmap.org/**', route => route.abort());
+  await page.route('**://nominatim.openstreetmap.org/**', route => route.abort());
+}
+
+async function openQaDesigner(page: any) {
+  await page.goto('http://localhost:3001/lemon_schedule/');
+  const seed = loadSeedProject();
+  await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+}
+
+async function openQaPrintView(page: any) {
+  await page.getByRole('button', { name: 'Print', exact: true }).click();
+  await page.getByRole('button', { name: /Print \/ Save PDF/ }).click();
+  const pages = page.locator('.report-root .report-page');
+  await expect(pages.first()).toBeVisible({ timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector('.report-root')?.getAttribute('data-paginated') === 'true', null, { timeout: 15000 });
+  return pages;
+}
 
 test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
   test('resolves day weather tokens, attaches an image, renders maps and the location picker', async ({ page }) => {
@@ -235,5 +291,123 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     await page.getByRole('button', { name: 'Preview' }).click();
     await expect(page.getByText('Sunrise 05:44', { exact: false }).first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator('a[href="https://example.com"]').first()).toBeAttached();
+  });
+
+  // QA regression: the map's "Add a location…" prompt is a DESIGNER hint. It
+  // used to leak into preview/print, so every location-less day produced a
+  // near-empty page. A location with an address but no coordinates also used
+  // to pin a map at 0,0 (null island).
+  test('map hint stays in the designer; a coords-less day never pins a map at 0,0', async ({ page }) => {
+    await stubQaNetwork(page);
+    const design = {
+      id: 'qa-map', name: 'QA Map', createdAt: Date.now(), page: 'portrait' as const,
+      blocks: [{
+        id: 'qa-r', type: 'repeat', collection: 'days', gap: 4,
+        children: [
+          { id: 'qa-m', type: 'map', mapInheritLocation: true, mapHeight: 80, mapZoom: 12 },
+          { id: 'qa-brk', type: 'pageBreak' },
+        ],
+      }],
+      header: [], footer: [],
+    };
+    await page.addInitScript(seedWithDesign(design, withQaLocations));
+    await openQaDesigner(page);
+
+    const pages = await openQaPrintView(page);
+    // Day 1 (real pin) renders a map; Day 2 (address only, no coords) renders
+    // nothing; every other day has no location → no page.
+    await expect(pages).toHaveCount(1);
+    await expect(pages.first().locator('.leaflet-container')).toHaveCount(1);
+    await expect(page.locator('.report-root')).not.toContainText('Add a location…');
+  });
+
+  test('locations table honors the type filter (matching the repeat)', async ({ page }) => {
+    await stubQaNetwork(page);
+    const design = {
+      id: 'qa-filter', name: 'QA Filter', createdAt: Date.now(), page: 'portrait' as const,
+      blocks: [
+        { id: 'qa-rep', type: 'repeat', collection: 'locations', category: 'set', gap: 4, children: [{ id: 'qa-rf', type: 'field', field: 'locationName' }] },
+        { id: 'qa-tbl', type: 'table', collection: 'locations', category: 'unitBase', showHeader: true, columns: [{ id: 'qa-c', field: 'locationName', width: 100 }] },
+      ],
+      header: [], footer: [],
+    };
+    await page.addInitScript(seedWithDesign(design, withQaLocations));
+    await openQaDesigner(page);
+
+    const pages = await openQaPrintView(page);
+    const text = await pages.first().innerText();
+    expect(text).toContain('Pinned Stage');   // the `set` repeat
+    expect(text).toContain('Address Only');   // the `unitBase` table
+    expect(text).not.toContain('Blank Loc');  // hospital — filtered out of both
+  });
+
+  test('map-link field omits locations with neither a pin nor an address', async ({ page }) => {
+    await stubQaNetwork(page);
+    const design = {
+      id: 'qa-maplink', name: 'QA Map Link', createdAt: Date.now(), page: 'portrait' as const,
+      blocks: [{
+        id: 'qa-tbl', type: 'table', collection: 'locations', showHeader: true,
+        columns: [
+          { id: 'qa-n', field: 'locationName', width: 40 },
+          { id: 'qa-l', field: 'locationMapLink', width: 60 },
+        ],
+      }],
+      header: [], footer: [],
+    };
+    await page.addInitScript(seedWithDesign(design, withQaLocations));
+    await openQaDesigner(page);
+
+    const pages = await openQaPrintView(page);
+    const page1 = pages.first();
+    // Pinned + address-only each get a real link; the blank entry gets none and
+    // no cell ever points at 0,0.
+    await expect(page1.locator('a[href*="0.00000"]')).toHaveCount(0);
+    await expect(page1.locator('a[href^="https://www.google.com/maps"]')).toHaveCount(2);
+    await expect(page1.locator('.rm-row').filter({ hasText: 'Blank Loc' }).locator('a')).toHaveCount(0);
+  });
+
+  test('sun/weather requests stay inside the Open-Meteo forecast/archive windows', async ({ page }) => {
+    const urls: string[] = [];
+    await page.addInitScript(() => { window.print = () => {}; });
+    await page.route('**://api.open-meteo.com/**', route => {
+      urls.push(route.request().url());
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
+    });
+    await page.route('**://archive-api.open-meteo.com/**', route => {
+      urls.push(route.request().url());
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
+    });
+    await page.route('**://tile.openstreetmap.org/**', route => route.abort());
+    await page.route('**://nominatim.openstreetmap.org/**', route => route.abort());
+
+    const design = {
+      id: 'qa-weather', name: 'QA Weather', createdAt: Date.now(), page: 'portrait' as const,
+      blocks: [
+        { id: 'qa-t', type: 'table', collection: 'locations', showHeader: true, columns: [{ id: 'qa-c', field: 'sunrise', width: 100 }] },
+        { id: 'qa-r', type: 'repeat', collection: 'days', gap: 4, children: [{ id: 'qa-f', field: 'sunrise', type: 'field' }] },
+      ],
+      header: [], footer: [],
+    };
+    await page.addInitScript(seedWithDesign(design, withQaLocations));
+    await openQaDesigner(page);
+
+    await expect.poll(() => urls.length, { timeout: 8000 }).toBeGreaterThan(0);
+    await page.waitForTimeout(200);
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const plus = (n: number) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+    for (const u of urls) {
+      const url = new URL(u);
+      const end = url.searchParams.get('end_date') || '';
+      // Archive can't serve the future; forecast maxes out at today+15.
+      if (url.hostname.startsWith('archive')) expect(end <= plus(0)).toBe(true);
+      else expect(end <= plus(15)).toBe(true);
+    }
+    // The data actually resolved (no out-of-range 400 blanking the cache).
+    await expect(page.getByText('05:44', { exact: false }).first()).toBeVisible({ timeout: 8000 });
   });
 });

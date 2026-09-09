@@ -1029,9 +1029,11 @@ export function resolveCollection(
       return out;
     }
     case 'locations': {
-      // Type filter (block.category) — "only the unit bases" etc.
+      // Type filter (block.category) — "only the unit bases" etc. 'props' is
+      // the CollectionMenu's display default for "all types", never a real
+      // location type key, so it must not filter.
       const list = ctx.locationInfos;
-      return category ? list.filter(l => l.type === category) : list;
+      return category && category !== 'props' ? list.filter(l => l.type === category) : list;
     }
     case 'locationTypes': return ctx.locationTypeInfos;
     case 'locationsOfType': {

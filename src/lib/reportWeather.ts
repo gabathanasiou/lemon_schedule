@@ -5,7 +5,7 @@
 // or the browser zone.
 //
 // API: Open-Meteo (free, no key, CORS):
-//  - https://api.open-meteo.com/v1/forecast          — today ± [5d past, 16d ahead]
+//  - https://api.open-meteo.com/v1/forecast          — today ± [5d past, 15d ahead]
 //  - https://archive-api.open-meteo.com/v1/archive   — any past date (ERA5)
 // Both return weather_code + sunrise/sunset in local time via `timezone=`.
 
@@ -27,6 +27,13 @@ export interface ReportLocation {
   info?: ReportLocationInfo;
   /** Type key of the location (DB entries only; the day seam has none yet). */
   typeKey?: string;
+}
+
+/** True when a location has real coordinates to pin a map/link on. Locations
+ *  DB entries store missing coords as 0/0, so both-zero means "no pin" — the
+ *  same convention the weather prefetch uses. */
+export function hasMapPin(loc: ReportLocation): boolean {
+  return Number.isFinite(loc.lat) && Number.isFinite(loc.lng) && (loc.lat !== 0 || loc.lng !== 0);
 }
 
 // Re-exported from reportData (the single location seam): the day-location
@@ -180,12 +187,23 @@ const DAILY_PARAMS = 'weather_code,sunrise,sunset,temperature_2m_max,temperature
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function endpointFor(date: string): string {
+// Open-Meteo's forecast endpoint serves 5 days past → 15 days ahead (16 days
+// ahead 400s and takes the WHOLE batch down). Dates beyond that have no data
+// yet — they're cached as failed instead of requested.
+const FORECAST_PAST_DAYS = 5;
+const FORECAST_FUTURE_DAYS = 15;
+
+/** Endpoint that can serve `date`, or null when no endpoint can yet (too far
+ *  ahead). Only valid ranges are ever requested — a batch spanning the
+ *  forecast/archive boundary with an out-of-range end date used to 400 and
+ *  blank every weather field. */
+function endpointFor(date: string): string | null {
   const today = new Date();
   const d = new Date(`${date}T12:00:00`);
   const days = Math.round((d.getTime() - today.getTime()) / DAY_MS);
-  // forecast window: 5 days past → 16 days ahead
-  return days >= -5 && days <= 16 ? FORECAST_URL : ARCHIVE_URL;
+  if (days >= -FORECAST_PAST_DAYS && days <= FORECAST_FUTURE_DAYS) return FORECAST_URL;
+  if (days < -FORECAST_PAST_DAYS) return ARCHIVE_URL;
+  return null;
 }
 
 function timeOf(iso: string | undefined | null): string {
@@ -223,7 +241,11 @@ export async function fetchSunWeatherBatch(loc: ReportLocation, dates: string[])
   const fresh = dates.filter(d => !cache.has(cacheKey(loc, d)));
   if (fresh.length === 0) return;
   const byEndpoint: Record<string, string[]> = {};
-  for (const d of fresh) (byEndpoint[endpointFor(d)] ||= []).push(d);
+  for (const d of fresh) {
+    const endpoint = endpointFor(d);
+    if (endpoint) (byEndpoint[endpoint] ||= []).push(d);
+    else cache.set(cacheKey(loc, d), null); // beyond the forecast horizon — no data yet
+  }
   await Promise.all(Object.entries(byEndpoint).map(async ([endpoint, ds]) => {
     try {
       await fetchForEndpoint(endpoint, loc, ds);
@@ -253,7 +275,7 @@ export async function prepareSunWeatherForCtx(ctx: ReportCtx, design?: ReportDes
   const extra = design ? designLocationsIn(ctx, design) : [];
   const seen = new Set<string>();
   const locs = [...dayLocs, ...extra.map(l => ({ lat: l.lat ?? 0, lng: l.lng ?? 0, place: l.place, address: l.address, timezone: ctx.project.productionInfo?.timezone || getBrowserTimeZone() } as ReportLocation))]
-    .filter(l => (l.place || l.address) && (l.lat !== 0 || l.lng !== 0))
+    .filter(l => (l.place || l.address) && hasMapPin(l))
     .filter(l => {
       const key = `${l.lat},${l.lng}`;
       if (seen.has(key)) return false;

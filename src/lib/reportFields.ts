@@ -5,7 +5,7 @@ import { escapeHtml, normalizeSpaces } from './richText';
 import { parentNoun } from './reportBlocks';
 import { dayTypeLabelForDate, getDayTypes, codeForType, dayTypeForDate } from './dayTypes';
 import { getStatusesWithLists } from './nonShootHelpers';
-import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, MapLinkKind, type ReportLocation } from './reportWeather';
+import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, hasMapPin, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportElementCallItem, ReportDepartmentCallItem, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
   ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, crewLinkWarningsForReportDay,
@@ -335,8 +335,11 @@ const mapLinkField = (kind: MapLinkKind, key: string, label: string): ReportFiel
     if (loc.info) {
       const { lat, lng } = loc.info;
       if (lat == null || lng == null) return '';
+      // No pin AND no address/place → a link would point at 0,0 (null island).
+      if (!hasMapPin(loc) && !loc.info.place && !loc.info.address) return '';
       return reportLocationLink(kind, { lat, lng, place: loc.info.place, address: loc.info.address, timezone: loc.timezone });
     }
+    if (!hasMapPin(loc) && !loc.address && !loc.place) return '';
     return reportLocationLink(kind, loc);
   },
   linkLabel: (ctx, it) => {

@@ -1262,7 +1262,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     push(null,
       <ContentRow key="loc" label="Location">
         {inherited ? (
-          <span className="text-[10px] text-zinc-400">Comes from the day's location (London)</span>
+          <span className="text-[10px] text-zinc-400">Comes from the day's location</span>
         ) : hasPin ? (
           <>
             <button

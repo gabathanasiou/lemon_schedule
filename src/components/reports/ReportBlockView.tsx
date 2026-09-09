@@ -660,9 +660,14 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
+  // Element tables filter by element category; location tables by location
+  // type (the flat DB's `block.category`). Same key, two registries.
+  const categoryFilter = itemCollection === 'elements' || itemCollection === 'elementsOfScene' || itemCollection === 'locations'
+    ? block.category
+    : undefined;
   const items = isPerItem
     ? (item ? [item] : [])
-    : (resolveCollectionItems(ctx, itemCollection, itemCollection === 'elements' || itemCollection === 'elementsOfScene' ? block.category : undefined, item, parentCategory, block, ancestors) as ReportCollectionItem[]);
+    : (resolveCollectionItems(ctx, itemCollection, categoryFilter, item, parentCategory, block, ancestors) as ReportCollectionItem[]);
   const scoped = filterItemsByScope(items, itemCollection, itemCollection === 'elements' ? block.category : undefined, scopeFilter);
   const filtered = applyItemFilter(scoped, block.itemFilter, (it, field) => String(reportFieldValueByKey(ctx, fieldMap, field, it, aux) ?? ''));
 
