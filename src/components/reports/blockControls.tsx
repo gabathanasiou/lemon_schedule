@@ -265,7 +265,7 @@ const GridCategoryMenu: React.FC<{
  *  number input + default (`block.gap ?? 8`, item 116). */
 const GapRow: React.FC<{ label?: string; value: number; disabled?: boolean; onPatch: (patch: Partial<ReportBlock>) => void }> = ({ label = 'Item gap (px)', value, disabled, onPatch }) => (
   <ContentRow label={label}>
-    <LiveNumberInput value={value} min={0} max={60} fallback={8} disabled={disabled} className={TB_INPUT + ' w-14'} onCommit={v => onPatch({ gap: v })} />
+    <LiveNumberInput value={value} min={0} max={60} fallback={8} disabled={disabled} ariaLabel={label} className={TB_INPUT + ' w-14'} onCommit={v => onPatch({ gap: v })} />
   </ContentRow>
 );
 

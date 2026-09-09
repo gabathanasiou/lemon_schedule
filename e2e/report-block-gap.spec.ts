@@ -100,3 +100,40 @@ test('canvas stays flush; preview applies the 8px block gap to every stack', asy
   expect(colCellMargins.b1).toBe(0);
   expect(colCellMargins.b2).toBe(8);
 });
+
+// Regression: number boxes clamped on every keystroke, so the value could
+// never be deleted (Number('') || fallback snapped it back). They keep a
+// free-typed draft now — clear, retype, commit.
+test('number boxes can be cleared and retyped (item gap)', async ({ page }) => {
+  const seed = loadSeedProject();
+  const project = JSON.parse(seed.raw);
+  project.reportDesigns = [gapDesign(), ...(project.reportDesigns || [])];
+  project.activeReportId = 'bg-test';
+  await openDesignerWithDesign(page, project);
+
+  await page.locator('.block-card.block-type-repeat').first().click({ position: { x: 3, y: 3 } });
+  const input = page.getByLabel('Item gap (px)').first();
+  await expect(input).toBeVisible({ timeout: 5000 });
+  await expect(input).toHaveValue('8');
+
+  // Clear it: the field stays empty while focused (no snap back to 8).
+  await input.click();
+  await input.press('ControlOrMeta+a');
+  await input.press('Backspace');
+  await expect(input).toHaveValue('');
+
+  // Retype and commit → the block's gap updates.
+  await input.type('12');
+  await input.press('Enter');
+  await expect.poll(() => page.evaluate(() => {
+    const b = (window as any).__lemonSchedule;
+    return b.getProject().reportDesigns.find((d: any) => d.id === 'bg-test')?.blocks?.find((x: any) => x.id === 'bg-d1')?.gap;
+  })).toBe(12);
+
+  // Clearing again and leaving the field empty reverts to the committed value.
+  await input.click();
+  await input.press('ControlOrMeta+a');
+  await input.press('Backspace');
+  await input.press('Tab');
+  await expect(input).toHaveValue('12');
+});
