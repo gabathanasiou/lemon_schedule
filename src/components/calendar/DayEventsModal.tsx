@@ -34,6 +34,8 @@ interface DayEventsModalProps {
    *  opens on the Rules tab with the editor ready. */
   initialRule?: ProjectRule | null;
   onClose: () => void;
+  /** Footer shortcut to Production → Days for this date (production days only). */
+  onOpenDayManager?: (dateKey: string) => void;
 }
 
 type NestedModal =
@@ -55,7 +57,7 @@ function formatDateLabel(dateKey: string): string {
  *  "+ Add Event" opens the shared adder pre-targeted to this day. The
  *  day-status picker dispatches immediately too — the footer is just Done.
  *  Read-only Conflicts + date-scoped Rules (per-type cards) complete it. */
-export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violations, rules = [], initialStatus, initialRule, onClose }) => {
+export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violations, rules = [], initialStatus, initialRule, onClose, onOpenDayManager }) => {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const portalTarget = usePortalTarget();
@@ -201,6 +203,11 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
     <Modal open onClose={onClose} title={`Day Events — ${formatDateLabel(dateKey)}`} width="max-w-2xl"
       footer={
         <ModalFooter>
+          {onOpenDayManager && (
+            <ModalFooterButton variant="ghost" onClick={() => { onOpenDayManager(dateKey); onClose(); }}>
+              Open Day Manager
+            </ModalFooterButton>
+          )}
           <ModalFooterButton onClick={onClose}>Done</ModalFooterButton>
         </ModalFooter>
       }

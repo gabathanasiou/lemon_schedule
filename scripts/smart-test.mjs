@@ -166,6 +166,13 @@ const RULES = [
   { g: 'src/lib/managerShell.tsx', s: MANAGERS },
   { g: 'src/lib/managerTable.ts', s: MANAGERS },
   { g: 'src/components/SidebarNav.tsx', s: MANAGERS },
+  // day manager (roadmap 98)
+  { g: 'src/components/production/day/**', s: ['day-manager'] },
+  { g: 'src/components/ProductionTab.tsx', s: ['day-manager', ...MANAGERS] },
+  { g: 'src/lib/dayView.ts', s: ['day-manager'] },
+  { g: 'src/lib/callTimes.ts', s: ['day-manager'] },
+  { g: 'src/components/TimeField.tsx', s: ['day-manager'] },
+  { g: 'src/components/DurationField.tsx', s: ['day-manager'] },
   // import / export
   { g: 'src/lib/import/**', s: IMPORT },
   { g: 'src/components/ImportDialog.tsx', s: IMPORT },

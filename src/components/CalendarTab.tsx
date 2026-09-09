@@ -58,13 +58,15 @@ const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 export const CalendarTab: React.FC<{
   onOpenScene?: (sceneId: string) => void;
   onOpenSceneInPopout?: (sceneId: string) => void;
+  /** Open Production → Days with this production day selected (day context menu). */
+  onOpenDayManager?: (sectionIndex: number) => void;
   subTab?: 'calendar' | 'dayTypes';
   onSubTabChange?: (t: 'calendar' | 'dayTypes') => void;
   poppedOutSubTabs?: Set<string>;
   onToggleSubPopout?: (id: string) => void;
   onCloseSubPopout?: (id: string) => void;
   shiftHeld?: boolean;
-}> = ({ onOpenScene, onOpenSceneInPopout, subTab = 'calendar', onSubTabChange, poppedOutSubTabs = new Set(), onToggleSubPopout, onCloseSubPopout, shiftHeld: poppedShiftHeld = false }) => {
+}> = ({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, subTab = 'calendar', onSubTabChange, poppedOutSubTabs = new Set(), onToggleSubPopout, onCloseSubPopout, shiftHeld: poppedShiftHeld = false }) => {
   const { state, dispatch } = useProject();
   const dialog = useDialog();
   const currentWindow = useCurrentWindow();
@@ -878,7 +880,7 @@ export const CalendarTab: React.FC<{
     <PageToolbar
       tabs={[
         { id: 'calendar', label: 'Calendar' },
-        { id: 'dayTypes', label: 'Day Breakdown' },
+        { id: 'dayTypes', label: 'Day Types' },
       ]}
       activeTab={subTab}
       onChange={(t) => onSubTabChange?.(t as 'calendar' | 'dayTypes')}
@@ -927,7 +929,7 @@ export const CalendarTab: React.FC<{
       }
     />
     {poppedOutSubTabs.has(subTab) ? (
-      <PopoutPlaceholder title={subTab === 'dayTypes' ? 'Day Breakdown' : 'Calendar'} onBringBack={() => onCloseSubPopout?.(subTab)} />
+      <PopoutPlaceholder title={subTab === 'dayTypes' ? 'Day Types' : 'Calendar'} onBringBack={() => onCloseSubPopout?.(subTab)} />
     ) : subTab === 'dayTypes' ? (
       <DayTypesTab />
     ) : (
@@ -1333,6 +1335,9 @@ export const CalendarTab: React.FC<{
               </ContextMenuItem>
             );
           })}
+          {onOpenDayManager && dateSectionMap.has(contextMenuDate) && (
+            <ContextMenuItem onClick={() => { onOpenDayManager(dateSectionMap.get(contextMenuDate)!); setContextMenu(null); setContextMenuDate(null); }} icon={<CalendarDays className="w-3.5 h-3.5" />}>Open Day Manager</ContextMenuItem>
+          )}
           <ContextMenuDivider />
           <ContextMenuItem onClick={() => { setAdderDate(contextMenuDate); setContextMenu(null); setContextMenuDate(null); }} icon={<Plus className="w-3.5 h-3.5" />}>Add Events…</ContextMenuItem>
           <ContextMenuItem onClick={() => { setTravelHoldModal({ dateKey: contextMenuDate }); setContextMenu(null); setContextMenuDate(null); }} icon={<><Plane className="w-3 h-3" /><Pause className="w-3 h-3" /></>}>{viewMode === 'events' ? 'Manage Events…' : 'Manage Travel/Hold…'}</ContextMenuItem>
@@ -1443,6 +1448,7 @@ export const CalendarTab: React.FC<{
           initialStatus={travelHoldModal.status}
           initialRule={travelHoldModal.rule}
           onClose={() => setTravelHoldModal(null)}
+          onOpenDayManager={onOpenDayManager && dateSectionMap.has(travelHoldModal.dateKey) ? () => onOpenDayManager(dateSectionMap.get(travelHoldModal.dateKey)!) : undefined}
         />
       )}
     </DndContext>

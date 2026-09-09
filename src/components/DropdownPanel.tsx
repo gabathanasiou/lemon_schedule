@@ -93,13 +93,22 @@ export default function DropdownPanel({
       {/* scrollbar-custom: always-visible thin scrollbar — with macOS overlay
           scrollbars a tiny panel hides the scroll position entirely. */}
       <div ref={scrollRef} className="overflow-y-auto max-h-72 scrollbar-custom" style={positioning === 'fixed' ? { maxHeight: pos.maxH - 16 } : undefined} onMouseLeave={onHoverLeave}>
-      {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
+      {dropdownItems.length > 0 ? (() => {
+        let lastGroup: string | undefined;
+        return dropdownItems.map((m, idx) => {
         const checked = currentIds.includes(itemKey(m));
         const highlighted = highlightedIndex === idx;
         const isSynthetic = searchQuery && !hasExactMatch && idx === 0;
         const cls = itemCls(checked, highlighted, isSynthetic);
+        const showGroup = !isSynthetic && !!m.group && m.group !== lastGroup;
+        if (!isSynthetic && m.group) lastGroup = m.group;
         return (
           <React.Fragment key={isSynthetic ? '__new__' : m.id}>
+          {showGroup && (
+            <div className={dark ? 'px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500' : 'px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400'}>
+              {m.group}
+            </div>
+          )}
           <button
             data-ei={idx}
             data-checked={checked ? 'true' : undefined}
@@ -122,7 +131,8 @@ export default function DropdownPanel({
           )}
           </React.Fragment>
           );
-      }) : (
+        });
+      })() : (
         <div className={dark ? 'px-2 py-1 text-xs text-zinc-500 text-center' : 'px-2 py-1 text-xs text-zinc-400 text-center'}>No matches</div>
       )}
       </div>

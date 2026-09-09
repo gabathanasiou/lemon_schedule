@@ -41,6 +41,9 @@ import { useKeyboardMode } from '../lib/persist';
 export interface EntityItem {
   id: string;
   name: string;
+  /** Optional group label — the panel renders a header when the group changes
+   *  (crew by department, locations by type, categories by group). */
+  group?: string;
 }
 
 interface EntityDropdownProps {

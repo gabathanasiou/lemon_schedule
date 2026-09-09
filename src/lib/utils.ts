@@ -128,6 +128,34 @@ export function getElapsedString(startStr: string, currentStr: string, accumulat
   return ""; 
 }
 
+/**
+ * Normalizes an absolute time expression to 24h "HH:MM", or null when the
+ * input is not an absolute time (relative offsets, blank). Accepts:
+ *   "7:30", "07:30", "7.30", "730", "0730", "7", "7:30am", "7:30 pm",
+ *   "7a", "7p". Hours 0–23 (am/pm maps 12a→00, 12p→12).
+ * The one canonical normalizer — used by TimeField and the call-times helper.
+ */
+export function normalizeTime(raw: string): string | null {
+  const s = (raw || '').trim().toLowerCase();
+  if (!s) return null;
+  if (s.startsWith('-') || s.startsWith('+')) return null;
+
+  const m = s.match(/^(\d{1,2})(?:[:.]?(\d{2}))?\s*(am|pm|a|p)?$/);
+  if (!m) return null;
+  let hour = parseInt(m[1], 10);
+  const minute = m[2] !== undefined ? parseInt(m[2], 10) : 0;
+  if (Number.isNaN(hour) || minute > 59) return null;
+  const mer = m[3];
+  if (mer) {
+    if (hour < 1 || hour > 12) return null;
+    if (mer.startsWith('p') && hour !== 12) hour += 12;
+    if (mer.startsWith('a') && hour === 12) hour = 0;
+  } else if (hour > 23) {
+    return null;
+  }
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
 // Natural sort for scene strings
 export function naturalSortSceneStrings(a: string, b: string): number {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });

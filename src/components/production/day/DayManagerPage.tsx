@@ -1,0 +1,348 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, Copy, ExternalLink, Flag, Printer, Search } from 'lucide-react';
+import { useProject } from '../../../store';
+import { useDayViews, type DayView } from '../../../lib/dayView';
+import { patchDayMeta } from '../../../lib/dayMeta';
+import { getMarkableDayTypes } from '../../../lib/dayTypes';
+import { rulesRelevantToDay } from '../../../lib/rulesEngine';
+import { upsertNonShootDate } from '../../../lib/nonShootHelpers';
+import { formatDateShort } from '../../../lib/utils';
+import { usePersistState } from '../../../lib/persist';
+import DropdownMenu from '../../DropdownMenu';
+import DropdownItem from '../../DropdownItem';
+import DropdownDivider from '../../DropdownDivider';
+import TimeField from '../../TimeField';
+import DaySectionCard from './DaySectionCard';
+import { DAY_SECTIONS } from './daySectionRegistry';
+import type { DaySectionActions } from './daySectionTypes';
+import { DayEventsModal } from '../../calendar/DayEventsModal';
+import DayReportPreview from '../../reports/DayReportPreview';
+import type { DayMeta, ScheduleRow } from '../../../types';
+
+const PREFS_KEY = 'lemon_schedule_day_manager';
+
+interface DayManagerPrefs {
+  selectedIndex: number;
+  collapsed: string[];
+  previewOpen: boolean;
+  search: string;
+  callSheetDesignId: string;
+}
+
+const DEFAULT_PREFS: DayManagerPrefs = { selectedIndex: -1, collapsed: [], previewOpen: true, search: '', callSheetDesignId: '' };
+
+function weekStart(date: string): string {
+  const d = new Date(date + 'T00:00:00');
+  if (isNaN(d.getTime())) return date;
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  return d.toISOString().slice(0, 10);
+}
+
+export interface DayManagerPageProps {
+  headerTarget?: HTMLElement | null;
+  initialDayIndex?: number | null;
+  onTargetSeen?: () => void;
+  onOpenScene?: (sceneId: string) => void;
+  onOpenCallSheet?: (day: DayView) => void;
+  onPrintCallSheet?: (day: DayView) => void;
+  onPopOutDay?: (day: DayView) => void;
+}
+
+const DayManagerPage: React.FC<DayManagerPageProps> = ({
+  initialDayIndex,
+  onTargetSeen,
+  onOpenScene,
+  onOpenCallSheet,
+  onPrintCallSheet,
+  onPopOutDay,
+}) => {
+  const { state, dispatch, readOnly, activeCalendarVersion } = useProject();
+  const project = state.present;
+  const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const { days, byIndex } = useDayViews();
+  const [prefs, setPrefs] = usePersistState<DayManagerPrefs>(PREFS_KEY, DEFAULT_PREFS);
+  const [eventsDate, setEventsDate] = useState<string | null>(null);
+  const [narrowPreview, setNarrowPreview] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const selected = useMemo(() => {
+    if (initialDayIndex != null && byIndex.has(initialDayIndex)) return byIndex.get(initialDayIndex)!;
+    if (prefs.selectedIndex >= 0 && byIndex.has(prefs.selectedIndex)) return byIndex.get(prefs.selectedIndex)!;
+    return days[0];
+  }, [initialDayIndex, byIndex, prefs.selectedIndex, days]);
+
+  useEffect(() => {
+    if (selected && prefs.selectedIndex !== selected.sectionIndex) {
+      setPrefs(p => ({ ...p, selectedIndex: selected.sectionIndex }));
+    }
+  }, [selected?.sectionIndex]);
+
+  useEffect(() => {
+    if (initialDayIndex != null) onTargetSeen?.();
+  }, [initialDayIndex, onTargetSeen]);
+
+  const filteredDays = useMemo(() => {
+    const q = prefs.search.trim().toLowerCase();
+    if (!q) return days;
+    return days.filter(d =>
+      d.label.toLowerCase().includes(q) ||
+      d.date.includes(q) ||
+      d.scenes.some(s => s.scene?.sceneNumber.toLowerCase().includes(q) || s.scene?.description.toLowerCase().includes(q)),
+    );
+  }, [days, prefs.search]);
+
+  const weeks = useMemo(() => {
+    const groups: { key: string; days: DayView[] }[] = [];
+    for (const d of filteredDays) {
+      const key = weekStart(d.date);
+      let g = groups.find(x => x.key === key);
+      if (!g) { g = { key, days: [] }; groups.push(g); }
+      g.days.push(d);
+    }
+    return groups;
+  }, [filteredDays]);
+
+  const patchMeta = useCallback((patch: Partial<DayMeta>) => {
+    if (!selected?.daybreakRow || !activeVersion) return;
+    patchDayMeta(dispatch, activeVersion.id, selected.daybreakRow, patch);
+  }, [selected?.daybreakRow, activeVersion, dispatch]);
+
+  const patchRow = useCallback((updates: Partial<ScheduleRow>) => {
+    if (!selected?.daybreakRow || !activeVersion) return;
+    dispatch({ type: 'UPDATE_ROW', payload: { versionId: activeVersion.id, rowId: selected.daybreakRow.id, updates } });
+  }, [selected?.daybreakRow, activeVersion, dispatch]);
+
+  const setStatus = useCallback((date: string, statusKey: string | null) => {
+    if (!activeCalendarVersion) return;
+    const existing = (activeCalendarVersion.nonShootDates || []).find(n => n.date === date);
+    const next = upsertNonShootDate(activeCalendarVersion.nonShootDates, date, {
+      ...(existing || {}),
+      date,
+      status: statusKey || undefined,
+    });
+    dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, nonShootDates: next } });
+  }, [activeCalendarVersion, dispatch]);
+
+  const callSheetDesign = useMemo(() => {
+    const designs = project.reportDesigns || [];
+    return designs.find(d => d.id === prefs.callSheetDesignId)
+      || designs.find(d => d.id === project.activeReportId)
+      || designs.find(d => /call\s*sheet/i.test(d.name))
+      || designs[0];
+  }, [project.reportDesigns, project.activeReportId, prefs.callSheetDesignId]);
+
+  const actions: DaySectionActions = useMemo(() => ({
+    openScene: onOpenScene,
+    openEvents: date => setEventsDate(date),
+    openCallSheet: () => selected && onOpenCallSheet?.(selected),
+    printCallSheet: () => selected && onPrintCallSheet?.(selected),
+    callSheetDesignId: callSheetDesign?.id || '',
+    selectCallSheetDesign: id => setPrefs(p => ({ ...p, callSheetDesignId: id })),
+  }), [onOpenScene, onOpenCallSheet, onPrintCallSheet, selected, callSheetDesign?.id, setPrefs]);
+
+  const toggleSection = (id: string) => setPrefs(p => ({
+    ...p,
+    collapsed: p.collapsed.includes(id) ? p.collapsed.filter(x => x !== id) : [...p.collapsed, id],
+  }));
+
+  const selectDay = (index: number) => setPrefs(p => ({ ...p, selectedIndex: index }));
+
+  const step = (delta: number) => {
+    if (!selected) return;
+    const i = days.findIndex(d => d.sectionIndex === selected.sectionIndex);
+    const next = days[i + delta];
+    if (next) selectDay(next.sectionIndex);
+  };
+
+  const onListKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+  };
+
+  if (!selected) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50 text-xs text-zinc-400">
+        No production days yet — add day breaks on the stripboard.
+      </div>
+    );
+  }
+
+  const markable = getMarkableDayTypes(project);
+  const relevantRules = rulesRelevantToDay(project.rules || [], selected.date);
+
+  const sidebar = (
+    <aside className="w-64 shrink-0 border-r border-zinc-200 bg-zinc-50 flex flex-col overflow-hidden">
+      <div className="p-2 border-b border-zinc-200">
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input
+            value={prefs.search}
+            onChange={e => setPrefs(p => ({ ...p, search: e.target.value }))}
+            placeholder="Search days…"
+            className="w-full pl-7 pr-2 py-1.5 text-xs bg-white border border-zinc-300 rounded outline-none focus:border-zinc-500"
+          />
+        </div>
+      </div>
+      <div ref={listRef} tabIndex={0} onKeyDown={onListKeyDown} className="flex-1 overflow-y-auto py-1 outline-none">
+        {weeks.map(week => (
+          <div key={week.key}>
+            <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Week of {formatDateShort(week.key)}</div>
+            {week.days.map(d => {
+              const active = d.sectionIndex === selected.sectionIndex;
+              return (
+                <button
+                  key={d.sectionIndex}
+                  type="button"
+                  onClick={() => selectDay(d.sectionIndex)}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors ${active ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-200/60 text-zinc-700'}`}
+                >
+                  <span className="text-xs font-semibold w-12 shrink-0">DAY {d.chronoDay}</span>
+                  <span className={`text-[11px] truncate flex-1 min-w-0 ${active ? 'text-zinc-300' : 'text-zinc-500'}`}>{formatDateShort(d.date)}</span>
+                  {d.violations.length > 0 && <Flag className="w-3 h-3 shrink-0 text-red-500" />}
+                  <span className={`text-[10px] shrink-0 ${active ? 'text-zinc-400' : 'text-zinc-400'}`}>{d.scenes.length}sc</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+        {filteredDays.length === 0 && <div className="px-3 py-4 text-xs text-zinc-400">No days match.</div>}
+      </div>
+    </aside>
+  );
+
+  const editor = (
+    <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      <header className="shrink-0 bg-white border-b border-zinc-200 px-4 py-2.5">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => step(-1)} aria-label="Previous day" className="p-1 rounded text-zinc-500 hover:bg-zinc-100"><ChevronLeft className="w-4 h-4" /></button>
+            <button type="button" onClick={() => step(1)} aria-label="Next day" className="p-1 rounded text-zinc-500 hover:bg-zinc-100"><ChevronRight className="w-4 h-4" /></button>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-sm font-bold text-zinc-900">DAY {selected.chronoDay}</h2>
+            <span className="text-xs text-zinc-500">{formatDateShort(selected.date)}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Call</span>
+            <TimeField
+              value={selected.daybreakRow?.daybreakCallTime || '08:00'}
+              onChange={v => patchRow({ daybreakCallTime: v })}
+              readOnly={readOnly}
+              className="w-32"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Wrap</span>
+            <span className="text-xs text-zinc-700 tabular-nums">{selected.wrap || '—'}</span>
+          </div>
+
+          <DropdownMenu
+            open={statusOpen}
+            onClose={() => setStatusOpen(false)}
+            onOpenChange={setStatusOpen}
+            theme="light"
+            width="w-52"
+            trigger={
+              <button type="button" disabled={readOnly} className="inline-flex items-center gap-1.5 rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50">
+                <CalendarDays className="w-3.5 h-3.5 text-zinc-400" />
+                {selected.status ? (markable.find(t => t.key === selected.status)?.label || selected.status) : 'Work (default)'}
+              </button>
+            }
+          >
+            <DropdownItem selected={!selected.status} onClick={() => { setStatus(selected.date, null); setStatusOpen(false); }}>Work (default)</DropdownItem>
+            {markable.map(t => (
+              <DropdownItem key={t.key} selected={selected.status === t.key} onClick={() => { setStatus(selected.date, t.key); setStatusOpen(false); }}>{t.label}</DropdownItem>
+            ))}
+            <DropdownDivider />
+            <DropdownItem onClick={() => { setEventsDate(selected.date); setStatusOpen(false); }}>Manage events…</DropdownItem>
+          </DropdownMenu>
+
+          {selected.violations.length > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 text-red-600 px-2 py-0.5 text-[11px] font-medium">
+              <Flag className="w-3 h-3" /> {selected.violations.length}
+            </span>
+          )}
+
+          <div className="ml-auto flex items-center gap-1.5">
+            <button type="button" onClick={() => onPopOutDay?.(selected)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"><ExternalLink className="w-3.5 h-3.5" /> Pop out</button>
+            <button type="button" onClick={() => onPrintCallSheet?.(selected)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"><Printer className="w-3.5 h-3.5" /> Print call sheet</button>
+            <button type="button" onClick={() => setNarrowPreview(v => !v)} className="lg:hidden inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900">
+              <Copy className="w-3.5 h-3.5" /> {narrowPreview ? 'Manage' : 'Call Sheet'}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <div className={`flex-1 min-w-0 overflow-y-auto bg-gray-50 p-4 space-y-3 ${narrowPreview ? 'hidden lg:block' : ''}`} data-day-sections>
+          {DAY_SECTIONS.map(def => {
+            const Section = def.Component;
+            const empty = def.isEmpty?.(selected) ?? false;
+            return (
+              <DaySectionCard
+                key={def.id}
+                data-section={def.id}
+                title={def.title}
+                icon={def.icon}
+                summary={def.summary(selected)}
+                collapsed={prefs.collapsed.includes(def.id)}
+                onToggle={() => toggleSection(def.id)}
+              >
+                {empty ? <p className="text-xs text-zinc-400">Nothing here yet.</p> : (
+                  <Section
+                    day={selected}
+                    patchMeta={patchMeta}
+                    patchRow={patchRow}
+                    readOnly={readOnly}
+                    project={project}
+                    dispatch={dispatch}
+                    actions={actions}
+                  />
+                )}
+              </DaySectionCard>
+            );
+          })}
+        </div>
+
+        {prefs.previewOpen && (
+          <div className={`w-[46%] max-w-[640px] shrink-0 border-l border-zinc-200 flex flex-col overflow-hidden bg-zinc-100 ${narrowPreview ? '' : 'hidden lg:flex'}`} data-day-callsheet-pane>
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-200 bg-white">
+              <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Call Sheet preview</span>
+              <button type="button" onClick={() => setPrefs(p => ({ ...p, previewOpen: false }))} className="text-[11px] text-zinc-500 hover:text-zinc-900">Hide</button>
+            </div>
+            {callSheetDesign ? (
+              <DayReportPreview design={callSheetDesign} sectionIndex={selected.sectionIndex} embedded onExit={() => {}} />
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-4 text-xs text-zinc-400 text-center">No call-sheet design yet.</div>
+            )}
+          </div>
+        )}
+        {!prefs.previewOpen && (
+          <button type="button" onClick={() => setPrefs(p => ({ ...p, previewOpen: true }))} className="hidden lg:flex items-center px-2 border-l border-zinc-200 bg-white text-[11px] text-zinc-500 hover:text-zinc-900" style={{ writingMode: 'vertical-rl' }}>
+            Call Sheet
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex-1 flex overflow-hidden bg-gray-50" data-day-manager>
+      {sidebar}
+      {editor}
+      {eventsDate && (
+        <DayEventsModal
+          dateKey={eventsDate}
+          violations={byIndex.get(selected.sectionIndex)?.violations}
+          rules={relevantRules}
+          onClose={() => setEventsDate(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default DayManagerPage;

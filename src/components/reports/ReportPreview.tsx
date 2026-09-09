@@ -19,9 +19,12 @@ interface ReportPreviewProps {
   fieldMap: Record<string, ReportFieldDef>;
   scopeFilter?: ReportScopeFilter;
   onExit: () => void;
+  /** Inline pane mode (Day Manager live preview): light background, no exit
+   *  chrome — the host owns the surrounding layout. */
+  embedded?: boolean;
 }
 
-const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, scopeFilter, onExit }) => {
+const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, scopeFilter, onExit, embedded = false }) => {
   const pages = React.useMemo(() => paginateBlocks(design.blocks || []), [design.blocks]);
   const metrics = REPORT_PAGE_METRICS[design.page];
   const measureRef = React.useRef<HTMLDivElement>(null);
@@ -40,22 +43,24 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
   });
 
   return (
-    <div className="flex-1 overflow-auto bg-zinc-800 p-8">
-      <div className="sticky top-0 z-20 flex justify-between mb-4 print:hidden">
-        <button
-          onClick={onExit}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white"
-        >
-          <X className="w-3.5 h-3.5" /> Exit Preview
-        </button>
-        <span className="text-xs text-zinc-500">Esc also exits · {chunks ? chunks.length : '…'} page{chunks && chunks.length !== 1 ? 's' : ''} · Print prints this view</span>
-      </div>
+    <div className={embedded ? 'flex-1 overflow-auto bg-zinc-100 p-4' : 'flex-1 overflow-auto bg-zinc-800 p-8'}>
+      {!embedded && (
+        <div className="sticky top-0 z-20 flex justify-between mb-4 print:hidden">
+          <button
+            onClick={onExit}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white"
+          >
+            <X className="w-3.5 h-3.5" /> Exit Preview
+          </button>
+          <span className="text-xs text-zinc-500">Esc also exits · {chunks ? chunks.length : '…'} page{chunks && chunks.length !== 1 ? 's' : ''} · Print prints this view</span>
+        </div>
+      )}
       <div className="flex flex-col items-center gap-6" data-paginated={chunks ? 'true' : 'false'}>
         {chunks
           ? chunks.map((chunk, pi) => (
               <div
                 key={pi}
-                className="report-page mx-auto bg-white shadow-2xl relative"
+                className={`report-page mx-auto bg-white relative ${embedded ? 'shadow-md border border-zinc-200' : 'shadow-2xl'}`}
                 style={{ width: metrics.width, height: metrics.contentHeight + REPORT_PAGE_PADDING.v * 2, padding: `${REPORT_PAGE_PADDING.v}px ${REPORT_PAGE_PADDING.h}px`, display: 'flex', flexDirection: 'column' }}
               >
                 {pi > 0 && (

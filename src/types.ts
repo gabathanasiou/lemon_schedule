@@ -68,8 +68,10 @@ export interface DayMeta {
   locationIds?: string[];
   /** Day notes / announcements (fed to call sheets). */
   note?: string;
-  /** Day crew (Locations DB `crew` ids). Empty/undefined = full roster. */
+  /** Day crew (crew person ids). Empty/undefined = full roster. */
   crewIds?: string[];
+  /** Per-person call overrides / notes for this day (item 99). */
+  crewCalls?: DayCrewCall[];
   /** Department key → call-time expression (absolute or relative). */
   departmentPrecalls?: Record<string, string>;
   /** category → element key → call times (item 99). */

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scissors, ClipboardPaste, StickyNote, Coffee, Sunset, Copy, ExternalLink, Eye, Trash2, CheckSquare, Palette, Send } from 'lucide-react';
+import { Scissors, ClipboardPaste, StickyNote, Coffee, Sunset, Copy, ExternalLink, Eye, Trash2, CheckSquare, Palette, Send, CalendarDays } from 'lucide-react';
 import { ScheduleVersion, ScheduleRow } from '../../types';
 import { getContainerBlock } from '../../lib/containers';
 import { IS_COARSE } from '../../lib/device';
@@ -29,12 +29,16 @@ interface ScheduleContextMenuProps {
   shiftHeld: boolean;
   onOpenScene?: (sceneId: string) => void;
   onOpenSceneInPopout?: (sceneId: string) => void;
+  /** Open Production → Days with this daybreak's section selected. */
+  onOpenDayManager?: (sectionIndex: number) => void;
+  daybreakRowToSection?: Map<string, number>;
 }
 
 export default function ScheduleContextMenu({
   contextMenu, setContextMenu, version, selectedRowIds, setSelectedRowIds, setLastClickedId,
   scrollToRow, containerIdsRef, cutSelected, pasteClipboard, handleContextMenuAction,
   selectNextAfterRemove, dispatch, shiftHeld, onOpenScene, onOpenSceneInPopout,
+  onOpenDayManager, daybreakRowToSection,
 }: ScheduleContextMenuProps) {
   return (
     <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
@@ -146,7 +150,13 @@ export default function ScheduleContextMenu({
                 {row?.type === 'BREAK' && (
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
                 )}
-                {(row?.type === 'NOTE' || row?.type === 'BREAK') && <ContextMenuDivider />}
+                {row?.type === 'DAYBREAK' && onOpenDayManager && !row.pinned && (() => {
+                  const idx = daybreakRowToSection?.get(row.id);
+                  return idx != null ? (
+                    <ContextMenuItem onClick={() => { onOpenDayManager(idx); setContextMenu(null); }} icon={<CalendarDays className="w-3.5 h-3.5" />}>Open Day Manager</ContextMenuItem>
+                  ) : null;
+                })()}
+                {(row?.type === 'NOTE' || row?.type === 'BREAK' || row?.type === 'DAYBREAK') && <ContextMenuDivider />}
             {row && row?.type !== 'DAYBREAK' && getContainerBlock(row) === 'stripboard' && (
                   <ContextMenuItem onClick={() => handleContextMenuAction('boneyard')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
                 )}

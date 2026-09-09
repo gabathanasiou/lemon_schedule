@@ -20,8 +20,10 @@ import { LocationsManager } from './LocationsManager';
 import { LocationsGlideTab } from './LocationsGlideTab';
 import { useDialog } from './Dialog';
 import { requestUnsavedSave } from '../lib/unsavedGuard';
+import DayManagerPage from './production/day/DayManagerPage';
+import type { DayView } from '../lib/dayView';
 
-export type ProductionSubTab = 'details' | 'crew' | 'crewGlide' | 'locations' | 'locationsGlide';
+export type ProductionSubTab = 'details' | 'days' | 'crew' | 'crewGlide' | 'locations' | 'locationsGlide';
 
 const KEY_POSITIONS: { key: string; label: string }[] = [
   { key: 'director', label: 'Director' },
@@ -64,9 +66,16 @@ interface ProductionTabProps {
   onCrewRoleTargetChange?: (role: string | null) => void;
   locationTypeTarget?: string | null;
   onLocationTypeTargetChange?: (type: string | null) => void;
+  /** Pending Day Manager target (section index) from an entry point. */
+  dayTarget?: number | null;
+  onDayTargetSeen?: () => void;
+  onOpenScene?: (sceneId: string) => void;
+  onPrintCallSheet?: (day: DayView) => void;
+  onPopOutDay?: (day: DayView) => void;
+  onOpenCallSheet?: (day: DayView) => void;
 }
 
-export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange }: ProductionTabProps) {
+export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, onOpenScene, onPrintCallSheet, onPopOutDay, onOpenCallSheet }: ProductionTabProps) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const dialog = useDialog();
@@ -122,7 +131,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
     dispatch({ type: 'UPDATE_CREW_PERSON', payload: { role: fromRole, id: person.id, updates: {}, toRole } });
   };
 
-  const subTabLabels: Record<string, string> = { details: 'Project Details', crew: 'Crew', crewGlide: 'Crew Glide', locations: 'Locations', locationsGlide: 'Locations Glide' };
+  const subTabLabels: Record<string, string> = { details: 'Project Details', days: 'Days', crew: 'Crew', crewGlide: 'Crew Glide', locations: 'Locations', locationsGlide: 'Locations Glide' };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
@@ -130,6 +139,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
         theme="light"
         tabs={[
           { id: 'details', label: 'Project Details' },
+          { id: 'days', label: 'Days' },
           { id: 'crew', label: 'Crew' },
           { id: 'crewGlide', label: 'Crew Glide' },
           { id: 'locations', label: 'Locations' },
@@ -293,6 +303,16 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
             </section>
           </div>
         </div>
+      ) : subTab === 'days' ? (
+        <DayManagerPage
+          headerTarget={headerTarget ?? portalTarget}
+          initialDayIndex={dayTarget}
+          onTargetSeen={onDayTargetSeen}
+          onOpenScene={onOpenScene}
+          onOpenCallSheet={onOpenCallSheet}
+          onPrintCallSheet={onPrintCallSheet}
+          onPopOutDay={onPopOutDay}
+        />
       ) : subTab === 'crew' ? (
         <CrewManager headerTarget={headerTarget ?? portalTarget} initialRole={crewRoleTarget} onRoleChange={r => onCrewRoleTargetChange?.(r)} />
       ) : subTab === 'crewGlide' ? (
