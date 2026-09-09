@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Eye, EyeOff, Printer, RotateCcw } from 'lucide-react';
 import type { DayView } from '../../../lib/dayView';
 import type { ReportBlock, ReportDesign } from '../../../types';
-import { formatDateShort } from '../../../lib/utils';
 import ReportDesigner from '../../reports/ReportDesigner';
 import DayReportPreview from '../../reports/DayReportPreview';
 import CallSheetCanvas, { callSheetDayBlocks } from './CallSheetCanvas';
@@ -78,7 +77,6 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         <button type="button" onClick={() => stepDay(1)} aria-label="Next day" className="p-1 rounded text-zinc-500 hover:bg-zinc-800 hover:text-white">
           <ChevronRight className="w-4 h-4" />
         </button>
-        <span className="text-xs text-zinc-500">{formatDateShort(day.date)}</span>
 
         {designItems.length > 0 && (
           <>
