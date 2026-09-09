@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ContentRow, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS } from '../../lib/reportBlocks';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE, buildLookupTokens, LookupTokenItem } from '../../lib/reportFields';
+import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
@@ -527,9 +528,14 @@ const PARENT_LABELS: Record<string, string> = {
   locations: 'location', locationsOfType: 'location', locationTypes: 'location type',
 };
 
-export function useReportControlContext(project: Project, parentCollection?: ReportCollection): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; } {
+export function useReportControlContext(project: Project, parentCollection?: ReportCollection): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; lookupTokens: LookupTokenItem[]; } {
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
   const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection, undefined), [allFields, parentCollection]);
+  const { productionSections } = useDaybreakSections();
+  const lookupTokens = useMemo(
+    () => buildLookupTokens(project, productionSections.map(s => ({ index: s.index, chronoDay: s.chronoDay, date: s.date }))),
+    [project, productionSections],
+  );
   const categoryLabels = useMemo(() => {
     const map: Record<string, string> = {};
     for (const c of ELEMENT_CATEGORIES) map[c.key] = getLabel(c.key, c.label, project.categoryLabels);
@@ -543,7 +549,7 @@ export function useReportControlContext(project: Project, parentCollection?: Rep
     for (const c of project.customCategories || []) { if (!seen.has(c.key)) { seen.add(c.key); keys.push({ key: c.key, isCustom: true }); } }
     return keys;
   }, [project.customCategories]);
-  return { allFields, contextFields, categoryKeys, categoryLabels };
+  return { allFields, contextFields, categoryKeys, categoryLabels, lookupTokens };
 }
 
 // ---- content controls (per block type) ----------------------------------------
@@ -722,7 +728,7 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
 };
 
 export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, editorRef, onSelectionChange, relativeTarget, availableLocations }) => {
-  const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
+  const { allFields, contextFields, categoryKeys, categoryLabels, lookupTokens } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
   const fieldPickerCls = `w-36 ${TB_PICKER}`;
   const [rtActive, setRtActive] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
@@ -798,6 +804,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             placeholder="Type text… type @ to insert an attribute"
             disabled={disabled}
             fields={contextFields}
+            lookupTokens={lookupTokens}
             className="w-96 h-28"
           />
         </div>

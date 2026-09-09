@@ -2188,17 +2188,21 @@ per-element call chain + dynamic `call_{stage}` columns), `departmentCallsOfDay`
 **Relations**: builds on item 98; item 10's crew/element/location tables depend on it; item
 11 (crew↔element categories) stays separate.
 
-## 100. Reports designer — filtered rows + item lookups (`[~]`)
+## 100. Reports designer — filtered rows + item lookups (`[x]` Done)
 
-**Full plan: `plans/DAY-MANAGER-AND-CALL-SHEET.md` §5.3 — read it first.**
-
-**Done so far**: `ReportBlock.itemFilter { field, values }` on repeats/tables + shared
+**Done**: `ReportBlock.itemFilter { field, values }` on repeats/tables + shared
 `applyItemFilter` in the resolution path + designer "Filter rows" control (field picker +
-values); `ReportCrewItem` stable `roleKey`/`id`; Key Positions kept (D16);
-`e2e/report-filters.spec.ts`.
+values) + an amber **Filtered** canvas badge; lookup tokens
+`lookup.<collection>.<field>.<encodedItemKey>` (`composeLookupKey`/`parseLookupKey`,
+`buildLookupTokens`) resolvable in text/free-table cells and headers, with the `@`
+autocomplete's "Reference — {collection}" groups (days/crew/locations/categories/
+locationTypes/dayTypes); `ReportCrewItem` stable `roleKey`/`id`; Key Positions kept (D16).
+Verified by `e2e/report-filters.spec.ts` + `e2e/report-lookups.spec.ts` (RULES:
+`report-lookups`).
 
-**Remaining**: lookup tokens (`@` picker → "Reference an item…" → collection → item →
-attribute, resolvable in text/free-table cells) and a filtered badge on the canvas.
+**Deviation**: the `@` picker is a flat, query-filtered list (the kit rich-text editor has
+no nested picker) — item · attribute in one step, not the planned three-step
+collection→item→attribute flow.
 
 **Relations**: item 10's key-contacts tables depend on the filter half; rides the
 `ReportScope`/`filterItemsByScope` machinery.

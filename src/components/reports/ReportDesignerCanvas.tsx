@@ -19,7 +19,7 @@ import { FloatingChrome } from '../FloatingChrome';
 import { Tooltip } from '../Tooltip';
 import Checkbox from '../Checkbox';
 import type { ReportLocation } from '../../lib/reportWeather';
-import { EyeOff, AlignLeft, AlignCenter, AlignRight, ArrowLeft, ArrowRight, Trash2, Plus, Columns3, GripVertical } from 'lucide-react';
+import { EyeOff, AlignLeft, AlignCenter, AlignRight, ArrowLeft, ArrowRight, Trash2, Plus, Columns3, GripVertical, Filter } from 'lucide-react';
 
 function firstItemOf(ctx: ReportCtx, b: ReportBlock, fieldMap: Record<string, ReportFieldDef>, parentItem: any, parentCategory?: string, ancestors?: any): any {
   const items = resolveCollectionItems(ctx, b.collection, b.category, parentItem, parentCategory, b, ancestors);
@@ -369,6 +369,11 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                   {b.collection === 'elements' ? ` (${b.category || 'props'})` : ''}
                   {b.collection === 'locations' && b.category ? ` (${(project.locationTypes || []).find(t => t.key === b.category)?.label || b.category})` : ''}
                   {b.type === 'table' && (b.axis ?? 'columns') === 'rows' ? ' · rows mode' : ''}
+                  {b.itemFilter && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 px-1.5 py-px text-[9px] font-bold normal-case tracking-normal" title={`Filtered: ${b.itemFilter.field} = ${b.itemFilter.values.join(', ')}`}>
+                      <Filter className="w-2.5 h-2.5" /> Filtered
+                    </span>
+                  )}
                 </div>
                 {resizeTarget && resizeTarget.id === b.id && (
                   <TableResizeBar

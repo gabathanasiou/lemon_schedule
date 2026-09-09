@@ -1,4 +1,4 @@
-import { Project, RuleViolation } from '../types';
+import { Project, ReportCollection, RuleViolation } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
@@ -8,7 +8,7 @@ import { getStatusesWithLists } from './nonShootHelpers';
 import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportElementCallItem, ReportDepartmentCallItem, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
-  ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, locationsOfItem, pickLocation,
+  ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel,
 } from './reportData';
 import { getCallTimeSettings } from './callTimes';
 
@@ -766,6 +766,121 @@ export function composeTokenKey(field: string, prefix: string, suffix: string, s
   return `${field}|${prefix}|${suffix}|${separator}`;
 }
 
+// ---- item lookup tokens (item 100) -------------------------------------------
+// `lookup.<collection>.<field>.<encodedItemKey>` references ONE item's attribute
+// anywhere in the design (text/free-table cells, headers). The `@` picker lists
+// a bounded set of collections; the resolver finds the item by its stable key
+// (`reportItemKey` / crew id) and returns the field through the same registry,
+// so lookup tokens and normal fields can never disagree.
+
+export const LOOKUP_PREFIX = 'lookup.';
+
+export interface LookupTokenItem {
+  key: string;
+  label: string;
+  group: string;
+  collection: string;
+  field: string;
+  itemKey: string;
+}
+
+export function composeLookupKey(collection: string, field: string, itemKey: string): string {
+  return `${LOOKUP_PREFIX}${collection}.${field}.${encodeURIComponent(itemKey)}`;
+}
+
+export function parseLookupKey(raw: string): { collection: string; field: string; itemKey: string } | null {
+  if (!raw.startsWith(LOOKUP_PREFIX)) return null;
+  const parts = raw.split('.');
+  if (parts.length < 4) return null;
+  return { collection: parts[1], field: parts[2], itemKey: decodeURIComponent(parts.slice(3).join('.')) };
+}
+
+/** Stable item key for lookups (crew has no `reportItemKey` case — its id). */
+function lookupItemKey(collection: string, item: ReportCollectionItem): string {
+  if (collection === 'crew') return (item as ReportCrewItem).id;
+  return String(reportItemKey(collection as ReportCollection, item));
+}
+
+interface LookupFieldDef { field: string; label: string; }
+interface LookupSpec { collection: ReportCollection; label: string; fields: LookupFieldDef[]; }
+
+const LOOKUP_SPECS: LookupSpec[] = [
+  { collection: 'days', label: 'Days', fields: [
+    { field: 'dayDate', label: 'Date' }, { field: 'dayCallTime', label: 'Call Time' },
+    { field: 'dayEnd', label: 'End Time' }, { field: 'dayType', label: 'Day Type' }, { field: 'dayNotes', label: 'Notes' },
+  ] },
+  { collection: 'crew', label: 'Crew', fields: [
+    { field: 'role', label: 'Role' }, { field: 'phone', label: 'Phone' }, { field: 'email', label: 'Email' },
+  ] },
+  { collection: 'locations', label: 'Locations', fields: [
+    { field: 'locationName', label: 'Name' }, { field: 'locationAddress', label: 'Address' },
+    { field: 'locationPhone', label: 'Phone' }, { field: 'locationEmail', label: 'Email' },
+  ] },
+  { collection: 'categories', label: 'Categories', fields: [
+    { field: 'categoryLabel', label: 'Name' }, { field: 'categoryElementCount', label: 'Element Count' },
+  ] },
+  { collection: 'locationTypes', label: 'Location Types', fields: [
+    { field: 'locationTypeLabel', label: 'Type' }, { field: 'locationTypeCount', label: 'Location Count' },
+  ] },
+  { collection: 'dayTypes', label: 'Day Types', fields: [
+    { field: 'dayTypeLabel', label: 'Day Type' }, { field: 'dayTypeDayCount', label: 'Total Days' },
+  ] },
+];
+
+/** A lightweight day reference for the picker (avoids needing a full ReportCtx). */
+export interface LookupDayRef { index: number; chronoDay: number; date: string; }
+
+/** Project-derived items for one lookup collection, as `{ key, label }`. */
+function lookupItemsFor(project: Project, collection: ReportCollection, days: LookupDayRef[]): { key: string; label: string }[] {
+  switch (collection) {
+    case 'days':
+      return days.map(d => ({ key: String(d.index), label: `Day ${d.chronoDay} (${formatDateCustom(d.date, project.productionInfo?.dateFormat)})` }));
+    case 'crew': {
+      const out: { key: string; label: string }[] = [];
+      for (const role of project.crewRoles || []) {
+        for (const p of project.crew?.[role.key] || []) out.push({ key: p.id, label: `${p.name} · ${role.label}` });
+      }
+      return out;
+    }
+    case 'locations':
+      return (project.locations || []).map(l => ({ key: l.id, label: l.name }));
+    case 'categories': {
+      const out: { key: string; label: string }[] = [];
+      for (const c of ELEMENT_CATEGORIES) out.push({ key: c.key, label: getLabel(c.key, c.label, project.categoryLabels) });
+      for (const c of project.customCategories || []) out.push({ key: c.key, label: c.label });
+      return out;
+    }
+    case 'locationTypes':
+      return (project.locationTypes || []).map(t => ({ key: t.key, label: t.label }));
+    case 'dayTypes':
+      return getDayTypes(project).map(t => ({ key: t.key, label: t.label }));
+    default:
+      return [];
+  }
+}
+
+/** Builds the lookup suggestion list (bounded: pickable collections × a few
+ *  attributes). `days` comes from the caller's canonical sections. */
+export function buildLookupTokens(project: Project, days: LookupDayRef[]): LookupTokenItem[] {
+  const out: LookupTokenItem[] = [];
+  for (const spec of LOOKUP_SPECS) {
+    for (const item of lookupItemsFor(project, spec.collection, days)) {
+      if (!item.key) continue;
+      for (const f of spec.fields) {
+        out.push({
+          key: composeLookupKey(spec.collection, f.field, item.key),
+          label: `${item.label} · ${f.label}`,
+          group: `Reference — ${spec.label}`,
+          collection: spec.collection,
+          field: f.field,
+          itemKey: item.key,
+        });
+      }
+    }
+  }
+  return out;
+}
+
 export interface TokenResolveOptions {
   /** Designer canvas: render the raw token ({{field}}) when its value is empty
    *  so templates stay visible instead of showing a blank spot. Print/preview
@@ -774,6 +889,13 @@ export interface TokenResolveOptions {
 }
 
 function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, raw: string, item: any, aux?: FieldAux): string {
+  const lookup = parseLookupKey(raw);
+  if (lookup) {
+    const items = resolveCollection(ctx, lookup.collection as ReportCollection, undefined, undefined, undefined);
+    const hit = items.find(it => lookupItemKey(lookup.collection, it) === lookup.itemKey);
+    if (!hit) return '';
+    return fieldValueSafe(fieldMap[lookup.field], ctx, hit, aux);
+  }
   const { field, opts } = parseToken(raw);
   const [base, sub] = field.split('.');
   const def = fieldMap[base];
@@ -822,20 +944,23 @@ export function resolveReportTokensHtml(
     // left on every element so polluted stored text renders clean.
     .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '')
     .replace(TOKEN_RE, (_m, raw: string) => {
+    const lookup = parseLookupKey(raw);
     const { field } = parseToken(raw);
     const value = resolveToken(ctx, fieldMap, raw, item, aux);
+    // Lookup tokens reference an existing field — reuse its group color + link
+    // behavior so a looked-up phone/email still renders as a link.
+    const baseKey = lookup ? lookup.field : field.split('.')[0];
     if (opts?.showUnresolved && !value) {
       // Designer canvas: an empty token renders as a colored tag (background
       // only — the token text inherits the block's typography) so templates
       // stay visible instead of blank spots.
-      const base = field.split('.')[0];
-      const color = fieldMap[base] ? fieldChipColor(fieldMap[base].group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
+      const color = fieldMap[baseKey] ? fieldChipColor(fieldMap[baseKey].group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
       return `<span style="${tokenTagCss(color)}">{{${escapeHtml(raw)}}}</span>`;
     }
     // Link fields (map links, emails, phones) resolve to clickable anchors.
     // Scheme-guarded so token values can't inject javascript: URLs. Key
     // positions' .phone/.email sub-tokens link too.
-    const [baseKey, subKey] = field.split('.');
+    const subKey = lookup ? undefined : field.split('.')[1];
     const def = fieldMap[baseKey];
     let kind: 'url' | 'mailto' | 'tel' | null = null;
     if (subKey === 'phone') kind = 'tel';
