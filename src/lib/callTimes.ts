@@ -49,6 +49,24 @@ export function resolveCallExpression(raw: string | undefined | null, anchor: st
   return '';
 }
 
+/**
+ * One crew call-time resolution for a day: an explicit per-person override
+ * wins, else the department precall, else the day's general call itself
+ * (roadmap 106). Relative expressions resolve against the day call.
+ */
+export function resolveCrewCall(
+  override: string | null | undefined,
+  precall: string | null | undefined,
+  dayCall: string,
+): string {
+  if (override) {
+    const t = resolveCallExpression(override, dayCall);
+    if (t) return t;
+  }
+  const p = resolveCallExpression(precall, dayCall);
+  return p || dayCall;
+}
+
 export const DEFAULT_CALL_STAGES: CallStageDef[] = [
   { key: 'pickup', label: 'Pickup', abbrev: 'P', lead: '-1h' },
   { key: 'arrive', label: 'Arrive', abbrev: 'Arr', lead: '-30m' },

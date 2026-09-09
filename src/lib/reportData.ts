@@ -1,6 +1,6 @@
 import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, ElementCallTimes } from '../types';
 import { crewDepartmentOf } from './crewCatalog';
-import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, ResolvedCall } from './callTimes';
+import { computeElementCallChain, getCallTimeSettings, resolveCrewCall, resolveCallExpression, ResolvedCall } from './callTimes';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
@@ -929,8 +929,8 @@ export function resolveCollection(
           const dept = crewDepartmentOf(c.roleKey);
           const precall = (dept ? ctx.project.crewTemplate?.departmentPrecalls?.[dept] : undefined);
           // Per-person override wins; else the department precall resolved
-          // against the day's general call (relative precalls like -30m).
-          return { ...c, callTime: overrideById.get(c.id) || resolveCallExpression(precall, day.callTime) };
+          // against the day's general call; else the day's general call itself.
+          return { ...c, callTime: resolveCrewCall(overrideById.get(c.id), precall, day.callTime) };
         });
     }
     case 'elementCallsOfDay': {

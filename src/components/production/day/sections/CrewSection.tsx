@@ -7,12 +7,15 @@ import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '
 import { createDayTimesTheme } from '../../../../lib/glideTheme';
 import { textCell } from '../../../../lib/glideCells';
 import { setCrewCall } from '../../../../lib/dayMeta';
+import { resolveCrewCall } from '../../../../lib/callTimes';
+import { crewDepartmentOf } from '../../../../lib/crewCatalog';
 
 /**
- * Crew (item 99/101): attach the day's crew, then set per-person call-time
+ * Crew (item 99/101/106): attach the day's crew, then set per-person call-time
  * overrides in the same inline Glide grid the Call Times section uses. A blank
- * cell falls back to the department precall (shown muted), so the grid reads as
- * "override or default" at a glance.
+ * cell falls back to the department precall, then to the day's general call
+ * (roadmap 106) — the grid reads as "override, precall, or the day call" and
+ * shows the RESOLVED time, amber only when an override is stored.
  */
 const CALL_KEYS = new Set(['call']);
 
@@ -21,6 +24,7 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
   const crew = project.crew || {};
   const template = project.crewTemplate || {};
   const explicit = day.meta.crewIds || [];
+  const dayCall = day.callTime || '';
 
   const items: GroupedSelectItem[] = useMemo(() => {
     const out: GroupedSelectItem[] = [];
@@ -32,25 +36,33 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
 
   const rows = useMemo(() => day.crew.map(entry => {
     const roleLabel = crewRoles.find(r => r.key === entry.role)?.label || entry.role;
-    const precall = template.departmentPrecalls?.[roleLabel] || '';
+    const dept = crewDepartmentOf(entry.role);
+    const precall = dept ? template.departmentPrecalls?.[dept] : '';
     const override = day.meta.crewCalls?.find(c => c.personId === entry.person.id)?.callTime || '';
-    return { key: entry.person.id, name: entry.person.name, role: roleLabel, precall, call: override };
-  }), [day.crew, day.meta.crewCalls, crewRoles, template.departmentPrecalls]);
+    return {
+      key: entry.person.id,
+      name: entry.person.name,
+      role: roleLabel,
+      isOverride: override ? 'true' : '',
+      call: override,
+      resolved: resolveCrewCall(override, precall, dayCall),
+    };
+  }), [day.crew, day.meta.crewCalls, crewRoles, template.departmentPrecalls, dayCall]);
 
   const columns: InlineGlideColumn[] = useMemo(() => [
-    { key: 'name', label: 'Name', width: 240 },
-    { key: 'role', label: 'Role', width: 180 },
-    { key: 'call', label: 'Call', width: 120, align: 'center' },
+    { key: 'name', label: 'Name', width: 120 },
+    { key: 'role', label: 'Role', width: 90 },
+    { key: 'call', label: 'Call', width: 90, align: 'center' },
   ], []);
 
   const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>): GridCell => {
     if (col.key === 'call') {
-      const raw = row.call || '';
-      return textCell(raw, {
-        displayData: raw || row.precall || '',
+      const overridden = row.isOverride === 'true';
+      return textCell(row.call, {
+        displayData: row.resolved,
         readonly: !!readOnly,
         align: 'center',
-        themeOverride: raw ? { textDark: '#b45309' } : { textDark: '#a1a1aa' },
+        themeOverride: overridden ? { textDark: '#b45309' } : { textDark: '#a1a1aa' },
       });
     }
     if (col.key === 'role') {
