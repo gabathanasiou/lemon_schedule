@@ -57,6 +57,9 @@ interface ScheduleModalsProps {
   setAutoDaybreakBreaksAction: (v: 'boneyard' | 'delete') => void;
   executeAutoDaybreak: (mode: 'duration' | 'pages', threshold: number, notesAction: 'boneyard' | 'delete', breaksAction: 'boneyard' | 'delete') => void;
   daybreakCount: number;
+  /** Day breaks carrying day details (locations/crew/call times/notes) —
+   *  the cleanup copy warns that auto-placing discards them. */
+  daybreakDetailCount: number;
   noteCount: number;
   breakCount: number;
   bannerDelete: BannerDeleteState | null;
@@ -75,7 +78,7 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
     autoDaybreakCleanup, setAutoDaybreakCleanup,
     autoDaybreakNotesAction, setAutoDaybreakNotesAction,
     autoDaybreakBreaksAction, setAutoDaybreakBreaksAction, executeAutoDaybreak,
-    daybreakCount, noteCount, breakCount,
+    daybreakCount, daybreakDetailCount, noteCount, breakCount,
     bannerDelete, setBannerDelete, bannerDeleteEntries, bannerDeleteChecked, setBannerDeleteChecked, deleteBanners,
   } = props;
 
@@ -195,6 +198,11 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
                   : <>{summary} found in the stripboard - choose how to handle them.</>
                 }
               </p>
+              {daybreakDetailCount > 0 && (
+                <p className="text-xs text-amber-400 leading-relaxed">
+                  {daybreakDetailCount === 1 ? 'One day has details' : `${daybreakDetailCount} days have details`} (locations, crew, call times or notes) that will be discarded. You can undo this.
+                </p>
+              )}
               {daybreakCount > 0 && (
                 <div className="flex items-center justify-between py-1">
                   <span className="text-xs text-zinc-300">Day Breaks <span className="text-zinc-500">({daybreakCount})</span></span>

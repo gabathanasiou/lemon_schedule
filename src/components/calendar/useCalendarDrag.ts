@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core';
-import { ScheduleRow, ScheduleVersion, NonShootDate } from '../../types';
+import { ScheduleRow, ScheduleVersion, NonShootDate, DayMeta } from '../../types';
 import { isAddModeActive } from '../../lib/useMarquee';
 import { DayDropState, DayBlock, buildDayBlocks, rebuildRowsFromBlocks } from './calendarUtils';
 import { applyNonShootDateMapping } from '../../lib/events';
@@ -179,20 +179,28 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
         insertT = Math.max(1, Math.min(blocks.length, insertT));
         if (sourceIdx === insertT || sourceIdx + 1 === insertT) return;
 
-        // Snapshot each production day's call time (the daybreak above it)
+        // Snapshot each production day's call time + day properties (the
+        // governing daybreak above it) so they travel with the day as it moves.
         const callTimeOfDay = new Map<number, string>();
+        const metaOfDay = new Map<number, DayMeta | undefined>();
         for (let i = 1; i < blocks.length; i++) {
           callTimeOfDay.set(i, blocks[i - 1].daybreakRow?.daybreakCallTime || '08:00');
+          metaOfDay.set(i, blocks[i - 1].daybreakRow?.daybreakMeta);
         }
 
         const moved = blocks.splice(sourceIdx, 1)[0];
         const targetIndex = insertT > sourceIdx ? insertT - 1 : insertT;
         blocks.splice(targetIndex, 0, moved);
 
-        // Rotate call times so every day keeps its own call time as it shifts
+        // Rotate call times + day meta so every day keeps its own as it shifts
         for (let i = 1; i < blocks.length; i++) {
           const gov = blocks[i - 1].daybreakRow;
-          if (gov) gov.daybreakCallTime = callTimeOfDay.get(blocks[i].origIdx) || '08:00';
+          if (gov) {
+            gov.daybreakCallTime = callTimeOfDay.get(blocks[i].origIdx) || '08:00';
+            const meta = metaOfDay.get(blocks[i].origIdx);
+            if (meta) gov.daybreakMeta = meta;
+            else delete gov.daybreakMeta;
+          }
         }
 
         // The same rotation applies to each day's status/cards: a date-to-date
@@ -223,6 +231,9 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
       targetBlock.content = [...sourceBlock.content];
       sourceBlock.content = swapContent;
 
+      // Exchange the days' call times AND day properties. Index 0 is the
+      // pinned section (never a production day) so a swap touching it leaves
+      // the pinned daybreak's meta in place — same edge case as call times.
       if (sourceIdx > 0 && targetIdx > 0) {
         const srcAbove = blocks[sourceIdx - 1].daybreakRow;
         const tgtAbove = blocks[targetIdx - 1].daybreakRow;
@@ -231,6 +242,13 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
           const b = tgtAbove.daybreakCallTime;
           srcAbove.daybreakCallTime = b;
           tgtAbove.daybreakCallTime = a;
+
+          const srcMeta = srcAbove.daybreakMeta;
+          const tgtMeta = tgtAbove.daybreakMeta;
+          if (tgtMeta) srcAbove.daybreakMeta = tgtMeta;
+          else delete srcAbove.daybreakMeta;
+          if (srcMeta) tgtAbove.daybreakMeta = srcMeta;
+          else delete tgtAbove.daybreakMeta;
         }
       }
 

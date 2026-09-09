@@ -44,6 +44,7 @@ import ScheduleContextMenu from './schedule/ScheduleContextMenu';
 import ScheduleModals from './schedule/ScheduleModals';
 import ScheduleOverlays from './schedule/ScheduleOverlays';
 import { computeMiddleInsertIndex, renumberRows } from '../lib/daybreakUtils';
+import { isEmptyDayMeta } from '../lib/dayMeta';
 import { applyChunkVisibility, useChunkResize } from '../lib/virtualChunk';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { useScheduleKeyboard } from './schedule/useScheduleKeyboard';
@@ -697,9 +698,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     if (!activeVersion) return;
     const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK');
     if (!hasDaybreaks) return;
+    const hasDetails = activeVersion.rows.some(r => r.type === 'DAYBREAK' && !r.pinned && !isEmptyDayMeta(r.daybreakMeta));
     const ok = await dialog.confirm({
       title: 'Clear All Day Breaks',
-      message: 'Remove all day break separators from the stripboard?',
+      message: hasDetails
+        ? 'Remove all day break separators from the stripboard? Day details (locations, crew, call times, notes) on those days will be discarded. You can undo this.'
+        : 'Remove all day break separators from the stripboard?',
       danger: true,
     });
     if (!ok) return;
@@ -1004,9 +1008,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
     const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK' && !r.pinned);
     if (hasDaybreaks) {
+      const hasDetails = activeVersion.rows.some(r => r.type === 'DAYBREAK' && !r.pinned && !isEmptyDayMeta(r.daybreakMeta));
       const ok = await dialog.confirm({
         title: 'Sort Strips',
-        message: 'Sorting will remove all day breaks. Continue?',
+        message: hasDetails
+          ? 'Sorting will remove all day breaks and discard their day details. Continue?'
+          : 'Sorting will remove all day breaks. Continue?',
         danger: true,
       });
       if (!ok) return;
@@ -1521,6 +1528,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         setAutoDaybreakBreaksAction={setAutoDaybreakBreaksAction}
         executeAutoDaybreak={executeAutoDaybreak}
         daybreakCount={activeVersion?.rows.filter(r => r.type === 'DAYBREAK' && !r.pinned).length ?? 0}
+        daybreakDetailCount={activeVersion?.rows.filter(r => r.type === 'DAYBREAK' && !r.pinned && !isEmptyDayMeta(r.daybreakMeta)).length ?? 0}
         noteCount={activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'NOTE').length ?? 0}
         breakCount={activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'BREAK').length ?? 0}
         bannerDelete={bannerDelete}

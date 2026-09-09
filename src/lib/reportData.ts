@@ -1,5 +1,6 @@
 import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation } from '../types';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
+import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
@@ -470,7 +471,6 @@ export function buildReportCtx(
   for (let i = 0; i < sections.length; i++) {
     const s = sections[i];
     if (s.isPinned) continue;
-    const above = sections[i - 1]?.daybreakRow;
     const sceneNums = s.rows
       .filter(r => r.type === 'SCENE' && r.sceneId)
       .map(r => project.scenes.find(sc => sc.id === r.sceneId)?.sceneNumber)
@@ -479,7 +479,7 @@ export function buildReportCtx(
       section: s,
       chronoDay: s.chronoDay,
       date: s.date,
-      callTime: above?.daybreakCallTime || s.daybreakRow?.daybreakCallTime || '08:00',
+      callTime: sectionCallTime(sections, i),
       endTime: s.sums.endTime,
       totalPages: s.sums.pages,
       shootMin: s.sums.shoot,

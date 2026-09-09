@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { ScheduleRow, ScheduleVersion } from '../../types';
 import { getContainerBlock, ContainerIds, LastSelectedByContainer } from '../../lib/containers';
+import { isEmptyDayMeta } from '../../lib/dayMeta';
+import { useDialog } from '../Dialog';
 
 export interface ScheduleKeyboardConfig {
   currentWindow: Window;
@@ -34,6 +36,7 @@ export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
     containerIdsRef, flatRowIdsRef, lastSelectedRef, sidebarCollapsedRef, scheduleScrollRef,
     cutSelected, pasteClipboard, selectNextAfterRemove, scrollToRow, existingDays,
   } = config;
+  const dialog = useDialog();
 
   // Escape clears the selection
   useEffect(() => {
@@ -67,7 +70,7 @@ export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
 
   // Navigation: Cmd+A select-all, Backspace/Delete to boneyard, Enter focus, arrows
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    const handler = async (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A') && !textEditingEnabled) {
         const target = e.target as HTMLElement;
         if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
@@ -95,6 +98,19 @@ export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
           return !r?.pinned;
         });
         if (ids.length === 0) return;
+        const daybreaksWithDetails = ids
+          .map(id => mutableRows.find(rr => rr.id === id))
+          .filter((r): r is ScheduleRow => !!r && r.type === 'DAYBREAK' && !isEmptyDayMeta(r.daybreakMeta));
+        if (daybreaksWithDetails.length > 0) {
+          const ok = await dialog.confirm({
+            title: daybreaksWithDetails.length > 1
+              ? `Delete ${daybreaksWithDetails.length} day breaks with details?`
+              : `Delete ${daybreaksWithDetails[0].daybreakLabel || 'day break'}?`,
+            message: 'This day has details (locations, crew, call times or notes). Deleting the day break discards them. You can undo this.',
+            danger: true,
+          });
+          if (!ok) return;
+        }
         const allInBoneyard = ids.every(id => containerIdsRef.current.boneyard.includes(id));
         if (allInBoneyard && ids.some(id => {
           const r = mutableRows.find(rr => rr.id === id);
@@ -252,7 +268,7 @@ export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
     };
     currentWindow.addEventListener('keydown', handler);
     return () => currentWindow.removeEventListener('keydown', handler);
-  }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch, currentWindow, existingDays, scrollToRow]);
+  }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch, currentWindow, existingDays, scrollToRow, dialog]);
 
   // Clear selection when entering text-edit mode
   useEffect(() => {

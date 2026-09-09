@@ -2,8 +2,10 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { ScheduleRow, ScheduleVersion, Project, Scene } from '../types';
 import { generateUUID } from './utils';
 import { renumberRows, insertionOrder } from './daybreakUtils';
+import { isEmptyDayMeta } from './dayMeta';
 import { getMarqueeMode } from './useLongPressMenu';
 import { getNoteBannerColors } from './ribbonUtils';
+import { useDialog } from '../components/Dialog';
 
 interface ContextMenuState {
   x: number;
@@ -46,6 +48,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
   } = config;
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const dialog = useDialog();
 
   const inClipboard = useMemo(
     () => rows.filter(r => r.containerId === -1).length,
@@ -188,7 +191,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     if (clipboardItems.length > 0) scrollToRow(clipboardItems[0].id);
   }, [activeDragIds, textEditingEnabled, activeVersion, rows, dispatch, setSelectedRowIds, scrollToRow]);
 
-  const handleContextMenuAction = useCallback((action: string) => {
+  const handleContextMenuAction = useCallback(async (action: string) => {
     if (!contextMenu || !activeVersion) return;
     const { rowId, containerId } = contextMenu;
     const rowIndex = rows.findIndex(r => r.id === rowId);
@@ -263,6 +266,14 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       return;
     } else if (action === 'delete') {
       if (row.pinned) { setContextMenu(null); return; }
+      if (row.type === 'DAYBREAK' && !isEmptyDayMeta(row.daybreakMeta)) {
+        const ok = await dialog.confirm({
+          title: `Delete ${row.daybreakLabel || 'day break'}?`,
+          message: 'This day has details (locations, crew, call times or notes). Deleting the day break discards them. You can undo this.',
+          danger: true,
+        });
+        if (!ok) { setContextMenu(null); return; }
+      }
       if (row.containerId == null && row.type === 'SCENE') {
         const containerRows = newRows.filter(r => r.containerId != null && r.containerId !== -1);
         const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
@@ -292,7 +303,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       selectNextAfterRemove(new Set([rowId] as string[]));
     }
     setContextMenu(null);
-  }, [contextMenu, activeVersion, rows, project, dispatch, setSelectedRowIds, setFocusedRowId, scrollToRow, setColorPicker, selectNextAfterRemove, setContextMenu]);
+  }, [contextMenu, activeVersion, rows, project, dispatch, setSelectedRowIds, setFocusedRowId, scrollToRow, setColorPicker, selectNextAfterRemove, setContextMenu, dialog]);
 
   const createOnContextMenu = useCallback((options?: {
     prependSelect?: () => void;

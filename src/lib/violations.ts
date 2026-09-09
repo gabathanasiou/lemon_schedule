@@ -1,5 +1,6 @@
 import { Project, RuleViolation } from '../types';
 import { SectionInfo } from './daybreakUtils';
+import { sectionCallTime } from './dayMeta';
 import { checkSection } from './rulesEngine';
 
 // One canonical violation computation for the whole app. The stripboard /
@@ -39,8 +40,7 @@ export function computeViolationIndex(project: Project, sections: SectionInfo[])
     for (let i = 0; i < sections.length; i++) {
       const s = sections[i];
       if (s.isPinned || s.rows.length === 0) continue;
-      const above = sections[i - 1]?.daybreakRow;
-      const baseTime = above?.daybreakCallTime || s.daybreakRow?.daybreakCallTime || '08:00';
+      const baseTime = sectionCallTime(sections, i);
       const v = checkSection(s.rows, s.date, baseTime, rules, project.scenes, castMembers);
       if (v.length === 0) continue;
       sectionViolations.set(s.index, v);

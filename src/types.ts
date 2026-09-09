@@ -38,6 +38,46 @@ export interface Scene {
   artDept: string;
 }
 
+/** Per-element call times (item 99). Absolute (`7:30`) or relative (`-1h`,
+ *  `+30m` — relative to the NEXT stage). Optional 1st-AD helper: only stored
+ *  values are overrides; everything else is computed from settings + schedule. */
+export interface ElementCallTimes {
+  pickup?: string;
+  arrive?: string;
+  hmua?: string;
+  costume?: string;
+  onSet?: string;
+  note?: string;
+}
+
+/** A crew member attached to a specific day, with an optional call-time
+ *  override. The person's stable id references `project.crew`. */
+export interface DayCrewCall {
+  personId: string;
+  callTime?: string;
+  note?: string;
+}
+
+/** Day properties stored on the governing DAYBREAK row (D4). Everything here
+ *  governs the section BELOW the daybreak, matching `daybreakCallTime`.
+ *  Nothing should read these fields raw — go through `src/lib/dayMeta.ts`. */
+export interface DayMeta {
+  /** Master location (Locations DB id). */
+  locationId?: string;
+  /** Key locations (DB ids, ordered). */
+  locationIds?: string[];
+  /** Day notes / announcements (fed to call sheets). */
+  note?: string;
+  /** Day crew (Locations DB `crew` ids). Empty/undefined = full roster. */
+  crewIds?: string[];
+  /** Department key → call-time expression (absolute or relative). */
+  departmentPrecalls?: Record<string, string>;
+  /** category → element key → call times (item 99). */
+  elementCalls?: Record<string, Record<string, ElementCallTimes>>;
+  /** Report design id → per-day callSheetEdit zone blocks (item 10). */
+  callSheets?: Record<string, ReportBlock[]>;
+}
+
 export interface ScheduleRow {
   id: string;
   type: RowType;
@@ -63,6 +103,9 @@ export interface ScheduleRow {
   daybreakLabel?: string;
   daybreakCallTime?: string;
   daybreakDate?: string;
+  /** Day properties; governs the section BELOW this row (same convention as
+   *  `daybreakCallTime`). Access via `src/lib/dayMeta.ts`. */
+  daybreakMeta?: DayMeta;
 
   pinned?: boolean;
 }
