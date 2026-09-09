@@ -2276,12 +2276,6 @@ table reflects the same values; `e2e/day-times-glide.spec.ts` (seed-agnostic via
 **Relations**: builds on item 99's `callTimes.ts` + `daybreakMeta.elementCalls`; rides the
 Glide grid/clipboard infrastructure (items 20/63).
 
-## 102. Crew person ↔ element links (`[ ]` — MERGED into item 11)
-
-**Merged**: this item's person↔element assignment is now the second layer of item 11 (Crew ↔
-elements), so both the position↔category mapping and the person↔element links ship through ONE
-Link-Manager-style surface. Kept here only so the number stays stable; implement item 11.
-
 ## 103. Project Details + Call Times → draggable modals from the Day Manager header (`[x]` Done)
 
 **Done**: Project Details (`ProductionDetailsModal`) + Call Times (`CallTimesSettingsModal`) are draggable kit `Modal`s opened from the Day Manager header (and its empty state); the two Production sub-tabs were removed (`ProductionTab` now Day Manager / Crew / Crew Glide / Locations / Locations Glide; `prodSubTab` defaults to `days`). TimeField gained a `theme` prop for the dark modal surfaces. Day pop-outs share the header.
