@@ -17,9 +17,10 @@ import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 import { SKIP_EMPTY_TEST, SKIP_EMPTY_LABEL } from '../../lib/reportData';
+import { stagedCategoryKeys } from '../../lib/reportGrids';
 import ColorField from '../ColorField';
 import { reportLocationLabel } from '../../lib/reportWeather';
 import type { ReportLocation } from '../../lib/reportWeather';
@@ -39,6 +40,8 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
   map: { label: 'Map', icon: <MapPin className="w-3 h-3" /> },
   callSheetEdit: { label: 'Call Sheet Edit', icon: <Sheet className="w-3 h-3" /> },
   relative: { label: 'Advance', icon: <SkipForward className="w-3 h-3" /> },
+  callTimes: { label: 'Call Times', icon: <Clock className="w-3 h-3" /> },
+  crewTable: { label: 'Crew Table', icon: <Users className="w-3 h-3" /> },
 };
 
 
@@ -149,6 +152,41 @@ const ItemFilterControl: React.FC<{
         </button>
       )}
     </div>
+  );
+};
+
+/** Call Times block (item 111): which staged category's table to render;
+ *  unset = "All categories" (one table per staged category present on the day). */
+const GridCategoryMenu: React.FC<{
+  value?: string;
+  categories: string[];
+  categoryLabels: Record<string, string>;
+  disabled?: boolean;
+  onChange: (value: string | undefined) => void;
+}> = ({ value, categories, categoryLabels, disabled, onChange }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      theme="dark"
+      width="w-56"
+      trigger={
+        <button type="button" disabled={disabled} className={`w-44 ${TB_PICKER}`}>
+          <span className="truncate">{value ? (categoryLabels[value] || value) : 'All categories'}</span>
+          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+        </button>
+      }
+    >
+      <DropdownItem selected={!value} icon={!value ? <Check className="w-3.5 h-3.5" /> : undefined} onClick={() => { onChange(undefined); setOpen(false); }}>
+        All categories
+      </DropdownItem>
+      {categories.map(c => (
+        <DropdownItem key={c} selected={value === c} icon={value === c ? <Check className="w-3.5 h-3.5" /> : undefined} onClick={() => { onChange(c); setOpen(false); }}>
+          {categoryLabels[c] || c}
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
   );
 };
 
@@ -1062,6 +1100,20 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       </ContentRow>,
       <ContentRow key="show" label="Show">
         <RibbonShowToggles block={block} disabled={disabled} onPatch={onPatch} />
+      </ContentRow>,
+    );
+  }
+
+  if (block.type === 'callTimes') {
+    push(null,
+      <ContentRow key="category" label="Category">
+        <GridCategoryMenu
+          value={block.category}
+          categories={stagedCategoryKeys(project)}
+          categoryLabels={categoryLabels}
+          disabled={disabled}
+          onChange={v => onPatch({ category: v })}
+        />
       </ContentRow>,
     );
   }

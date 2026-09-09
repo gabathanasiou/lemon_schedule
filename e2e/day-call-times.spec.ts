@@ -31,6 +31,74 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     await expect(crew.locator('[data-crew-calls] .dvn-scroller').first()).toBeAttached({ timeout: 8000 });
   });
 
+  test('call-times settings modal — tabbed redesign, removable category defaults (roadmap 110)', async ({ page }) => {
+    await openDays(page);
+    await page.getByTitle('Call-stage settings, category defaults and usual crew').click();
+
+    const modal = page.getByRole('dialog').last();
+    await expect(modal).toBeVisible({ timeout: 5000 });
+
+    // Four tabs, one concern each.
+    await expect(modal.getByRole('button', { name: 'Call stages' })).toBeVisible();
+    await expect(modal.getByRole('button', { name: 'Category defaults' })).toBeVisible();
+    await expect(modal.getByRole('button', { name: 'Department precalls' })).toBeVisible();
+    await expect(modal.getByRole('button', { name: 'Usual crew' })).toBeVisible();
+
+    // Stage list is the contained Import-style table (default: 5 stages).
+    await expect(modal.locator('table tbody tr')).toHaveCount(5);
+
+    // Category defaults: cast is locked, Background Actors is removable.
+    await modal.getByRole('button', { name: 'Category defaults' }).click();
+    await expect(modal.getByRole('button', { name: 'Remove Cast default' })).toHaveCount(0);
+    const castRow = modal.locator('[data-call-category="cast"]');
+    const bgRow = modal.locator('[data-call-category="backgroundActors"]');
+    await expect(bgRow).toBeVisible();
+    await expect(bgRow.getByRole('button', { name: /Remove .* default/ })).toHaveCount(1);
+
+    // Add-category picker is the shared kit CategoryDropdown (menu items with icons).
+    await modal.getByRole('button', { name: 'Add category…' }).click();
+    await expect(page.getByRole('menuitem').first()).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // Multi-select stage dropdown (text trigger) toggles a stage off cast.
+    await castRow.getByRole('button').first().click();
+    await page.getByRole('menuitem', { name: 'Pickup' }).click();
+    await expect.poll(() => page.evaluate(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return (p.productionInfo?.callTimes?.categoryStages?.cast || []).includes('pickup');
+    }), { timeout: 4000 }).toBe(false);
+    await page.keyboard.press('Escape');
+
+    // Removing a non-cast default stores an explicit empty list -> the row
+    // disappears (it falls back to the DOOD + first-scene grid on the day).
+    await bgRow.getByRole('button', { name: /Remove .* default/ }).click();
+    await expect.poll(() => page.evaluate(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return (p.productionInfo?.callTimes?.categoryStages?.backgroundActors || ['x']).length;
+    }), { timeout: 4000 }).toBe(0);
+    await expect(bgRow).toHaveCount(0);
+  });
+
+  test('right-click the call-times grid header opens the stages settings modal (roadmap 110)', async ({ page }) => {
+    await openDays(page);
+    const section = await expand(page, 'callTimes', '[data-day-times-glide]');
+    const grid = section.locator('[data-day-times-glide]').first();
+    await expect(grid).toBeVisible({ timeout: 8000 });
+    await grid.scrollIntoViewIfNeeded();
+    const box = (await grid.boundingBox())!;
+    // The grid's header row is the top ~15px of the canvas.
+    await page.mouse.click(box.x + 200, box.y + 15, { button: 'right' });
+
+    const item = page.getByRole('menuitem', { name: 'Edit Call Time Stages…' });
+    await expect(item).toBeVisible({ timeout: 4000 });
+    await item.click();
+
+    const modal = page.getByRole('dialog').last();
+    await expect(modal).toBeVisible({ timeout: 5000 });
+    await expect(modal.getByRole('button', { name: 'Call stages' })).toBeVisible();
+    await expect(modal.getByRole('button', { name: 'Category defaults' })).toBeVisible();
+  });
+
   test('crew call override writes through the shared day-meta path', async ({ page }) => {
     await openDays(page);
     const crew = await expand(page, 'crew', '[data-crew-calls]');

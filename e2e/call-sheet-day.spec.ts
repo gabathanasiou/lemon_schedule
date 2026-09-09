@@ -209,4 +209,35 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(page.locator('[data-call-sheet-edit]').getByText('PER-DAY CONTENT', { exact: false }).first()).toBeVisible({ timeout: 8000 });
     await expect(page.locator('[data-call-sheet-edit]').getByText('TEMPLATE ZONE', { exact: false })).toHaveCount(0);
   });
+
+  test('header right-click on a live call-sheet grid opens the stages settings modal (roadmap 110)', async ({ page }) => {
+    await seedWithDesign(page, loadSeedProject().raw, project => {
+      project.reportDesigns = [{
+        id: 'cs-grids', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
+        blocks: [{
+          id: 'days', type: 'repeat', collection: 'days', children: [
+            { id: 'ct', type: 'callTimes', collection: 'elementCallsOfDay' },
+            { id: 'zone', type: 'callSheetEdit', children: [] },
+          ],
+        }],
+        header: [], footer: [],
+      }];
+      project.activeReportId = 'cs-grids';
+    });
+
+    await openCallSheetEdit(page);
+    const grid = page.locator('[data-call-sheet-page] [data-day-times-glide]').first();
+    await expect(grid).toBeVisible({ timeout: 10000 });
+    await grid.scrollIntoViewIfNeeded();
+    const box = (await grid.boundingBox())!;
+    await page.mouse.click(box.x + 120, box.y + 15, { button: 'right' });
+
+    const item = page.getByRole('menuitem', { name: 'Edit Call Time Stages…' });
+    await expect(item).toBeVisible({ timeout: 4000 });
+    await item.click();
+
+    const modal = page.getByRole('dialog').last();
+    await expect(modal).toBeVisible({ timeout: 5000 });
+    await expect(modal.getByRole('button', { name: 'Call stages' })).toBeVisible();
+  });
 });

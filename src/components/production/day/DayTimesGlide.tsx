@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
+import { Clock } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
 import type { DayElementEntry, DayView } from '../../../lib/dayView';
 import type { DayMeta, Project } from '../../../types';
@@ -7,6 +8,7 @@ import { createDayTimesTheme } from '../../../lib/glideTheme';
 import { doodCellStyle, doodCellText } from '../../../lib/doodCells';
 import { textCell } from '../../../lib/glideCells';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '../../InlineGlideTable';
+import { ContextMenuItem } from '../../ContextMenu';
 
 /**
  * Day Times Glide (roadmap 101) — one compact spreadsheet per element category,
@@ -24,6 +26,9 @@ export interface DayTimesGlideProps {
   patchMeta: (patch: Partial<DayMeta>) => void;
   project: Project;
   readOnly?: boolean;
+  /** Right-click the grid header → "Edit Call Time Stages…" opens the settings
+   *  modal (owned by the Day Manager composition root). */
+  onEditCallTimesSettings?: () => void;
 }
 
 interface SheetColumn extends InlineGlideColumn {}
@@ -34,7 +39,7 @@ const ID_COL = 'id';
 const NAME_COL = 'name';
 const SWF_COL = 'swf';
 
-const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly }) => {
+const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings }) => {
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
   const stageKeys = useMemo(() => settings.categoryStages[category] || [], [settings, category]);
   const stageDefs = useMemo(
@@ -124,6 +129,14 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
       editableKeys={stageKeySet}
       readOnly={readOnly}
       createTheme={createDayTimesTheme}
+      headerMenuItems={onEditCallTimesSettings ? close => (
+        <ContextMenuItem
+          onClick={() => { close(); onEditCallTimesSettings(); }}
+          icon={<Clock className="w-3.5 h-3.5" />}
+        >
+          Edit Call Time Stages…
+        </ContextMenuItem>
+      ) : undefined}
     />
   );
 };

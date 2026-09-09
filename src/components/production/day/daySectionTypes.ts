@@ -15,6 +15,9 @@ export interface DaySectionActions {
   addEvents?: (date: string) => void;
   openCallSheet?: () => void;
   printCallSheet?: () => void;
+  /** Open the Call Times settings modal (stages / category defaults / crew).
+   *  Wired to the Call Times grids' header context menu. */
+  openCallTimesSettings?: () => void;
   /** Call-sheet design selection is owned by the composition root so the live
    *  preview pane and the section's picker stay in sync. */
   callSheetDesignId?: string;

@@ -71,6 +71,10 @@ export interface InlineGlideTableProps {
   baseHeaderHeight?: number;
   /** DOM data attribute for tests/scoping (e.g. `data-day-times-glide`). */
   dataAttr?: string;
+  /** Extra context-menu items shown when the HEADER is right-clicked. Return
+   *  `ContextMenuItem`s; call `close()` to dismiss the menu. Omit for the
+   *  default (cell-only) context menu. */
+  headerMenuItems?: (close: () => void) => React.ReactNode;
 }
 
 const DEFAULT_ROW_HEIGHT = 28;
@@ -88,6 +92,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   baseRowHeight = DEFAULT_ROW_HEIGHT,
   baseHeaderHeight = DEFAULT_HEADER_HEIGHT,
   dataAttr,
+  headerMenuItems,
 }) => {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -153,7 +158,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   });
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col: number; header?: boolean } | null>(null);
 
   // Hover/affordance model: EDITABLE cells get a light-blue fill (they read as
   // "you can type here") that deepens on the hovered row; READ-ONLY cells stay
@@ -369,6 +374,15 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     setContextMenu({ x, y, row, col });
   }, []);
 
+  /** Header right-click → the caller's settings menu (when supplied). */
+  const onHeaderContextMenu = useCallback((col: number, e: any) => {
+    if (!headerMenuItems) return;
+    e.preventDefault?.();
+    const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
+    const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
+    setContextMenu({ x, y, row: -1, col, header: true });
+  }, [headerMenuItems]);
+
   const hasSelection = gridSelection.current?.range !== undefined || gridSelection.rows.length > 0 || gridSelection.columns.length > 0;
 
   if (rows.length === 0 && emptyLabel) {
@@ -405,6 +419,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             drawHeader={drawHeader}
             onItemHovered={onItemHovered}
             onCellContextMenu={onCellContextMenu}
+            onHeaderContextMenu={onHeaderContextMenu}
             editOnType
             rangeSelect="rect"
             cellActivationBehavior="double-click"
@@ -422,7 +437,9 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       </div>
 
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
-        {contextMenu && (
+        {contextMenu && contextMenu.header && headerMenuItems ? (
+          <>{headerMenuItems(() => setContextMenu(null))}</>
+        ) : contextMenu ? (
           <>
             <ContextMenuItem onClick={() => void handleCopy()} icon={<Copy className="w-3.5 h-3.5" />} disabled={!hasSelection}>
               Copy
@@ -438,7 +455,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
               Cut
             </ContextMenuItem>
           </>
-        )}
+        ) : null}
       </ContextMenu>
     </div>
   );

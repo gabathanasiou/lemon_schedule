@@ -4,7 +4,7 @@ import { ReportCollection } from '../../types';
 import { getReportFieldDefs, fieldsForScope, searchReportFields, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { Project } from '../../types';
-import { Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin, Sheet, SkipForward } from 'lucide-react';
+import { Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin, Sheet, SkipForward, Clock, Users } from 'lucide-react';
 
 export interface PaletteDropPayload {
   kind: 'block' | 'field';
@@ -30,6 +30,8 @@ const BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: React.ReactN
   { type: { kind: 'block', type: 'map' }, label: 'Map', icon: <MapPin className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'callSheetEdit' }, label: 'Call Sheet Edit', icon: <Sheet className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'relative' }, label: 'Advance', icon: <SkipForward className="w-3.5 h-3.5" /> },
+  { type: { kind: 'block', type: 'callTimes' }, label: 'Call Times', icon: <Clock className="w-3.5 h-3.5" /> },
+  { type: { kind: 'block', type: 'crewTable' }, label: 'Crew Table', icon: <Users className="w-3.5 h-3.5" /> },
 ];
 
 interface ReportPaletteProps {
@@ -73,7 +75,9 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
     !(item.type.type === 'columns' && insideColumns)
     // The relative block needs a current item — only inside a repeat/relative
     // context (roadmap 27).
-    && !(item.type.type === 'relative' && !insertScope);
+    && !(item.type.type === 'relative' && !insertScope)
+    // Day-scoped grids (items 111/112) only make sense inside a days repeat.
+    && !((item.type.type === 'callTimes' || item.type.type === 'crewTable') && insertScope !== 'days');
 
   const startDrag = (e: React.DragEvent, payload: PaletteDropPayload) => {
     e.dataTransfer.setData(DROP_MIME, JSON.stringify(payload));

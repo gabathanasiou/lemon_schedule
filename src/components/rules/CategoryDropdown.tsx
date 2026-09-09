@@ -25,7 +25,9 @@ export const CategoryDropdown: React.FC<{
   onOpenChange: (o: boolean) => void;
   btnClass: string;
   minWidth?: string;
-}> = ({ value, onChange, allCategoryKeys, categoryLabelLookup, customCategories, disabledKeys, open, onOpenChange, btnClass, minWidth }) => {
+  /** Shown in the trigger when `value` is empty (e.g. an "Add category…" picker). */
+  placeholder?: string;
+}> = ({ value, onChange, allCategoryKeys, categoryLabelLookup, customCategories, disabledKeys, open, onOpenChange, btnClass, minWidth, placeholder }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const activeIndex = allCategoryKeys.findIndex(k => k.key === value);
 
@@ -49,7 +51,7 @@ export const CategoryDropdown: React.FC<{
       contentClassName="z-[10001] max-h-64!"
       trigger={
         <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} ${btnClass} shrink-0 ${minWidth || 'min-w-[120px]'} justify-between cursor-pointer`}>
-          <span className="truncate">{categoryLabelLookup[value] || value}</span>
+          <span className={`truncate ${!value && placeholder ? 'text-zinc-500' : ''}`}>{categoryLabelLookup[value] || value || placeholder || ''}</span>
           <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
         </button>
       }

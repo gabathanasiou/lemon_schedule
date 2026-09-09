@@ -7,6 +7,7 @@ import { getReportBlockBaseStyle, blockGapMargin } from './reportStyle';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
 import { ReportRibbonView } from './ReportRibbonView';
 import { ReportMapView } from './ReportMapView';
+import ReportGridBlock from './ReportGridBlock';
 import { ReportLocationLink } from './ReportLocationLink';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
 import { stripRichText, normalizeSpaces } from '../../lib/richText';
@@ -297,6 +298,10 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
             style={{ ...st, color: '#1d4ed8', textDecoration: 'underline', cursor: 'pointer' }}
           />
         );
+      }
+      case 'callTimes':
+      case 'crewTable': {
+        return <ReportGridBlock block={block} ctx={ctx} fieldMap={fieldMap} dayItem={item} hint={hint} showKeys={showKeys} rowRange={rowRange} />;
       }
       case 'callSheetEdit': {
         // The per-day editable region of a call-sheet template. A host scoped

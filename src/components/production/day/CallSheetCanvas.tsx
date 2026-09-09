@@ -2,12 +2,13 @@ import React, { useMemo } from 'react';
 import { useProject } from '../../../store';
 import { useReportCtx } from '../../../lib/useReportCtx';
 import { getReportFieldMap } from '../../../lib/reportFields';
-import type { ReportBlock, ReportDesign } from '../../../types';
+import type { ReportBlock, ReportDesign, DayMeta } from '../../../types';
 import { makeReportBlock } from '../../../lib/reportBlocks';
 import { REPORT_PAGE_METRICS, REPORT_PAGE_PADDING } from '../../reports/reportStyle';
 import { ReportBlockView } from '../../reports/ReportBlockView';
 import ReportPalette from '../../reports/ReportPalette';
 import CallSheetZoneDesigner from './CallSheetZoneDesigner';
+import InteractiveGridBlock from './InteractiveGridBlock';
 import type { DayView } from '../../../lib/dayView';
 
 /**
@@ -32,10 +33,14 @@ interface CallSheetCanvasProps {
   day: DayView;
   zoneBlocks: ReportBlock[];
   onChangeZone: (blocks: ReportBlock[]) => void;
+  /** Writes day properties for the selected day (`daybreakMeta`). */
+  patchMeta: (patch: Partial<DayMeta>) => void;
+  /** Header right-click on a live grid → "Edit Call Time Stages…". */
+  onEditCallTimesSettings?: () => void;
   readOnly?: boolean;
 }
 
-const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBlocks, onChangeZone, readOnly }) => {
+const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, readOnly }) => {
   const { state } = useProject();
   const project = state.present;
   const ctx = useReportCtx();
@@ -74,6 +79,13 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
                 {(design.header || []).map((b, i) => readOnlyView(b, i))}
                 {(dayBlocks || []).map((b, i) => {
                   if (b.type === 'pageBreak') return null;
+                  if (b.type === 'callTimes' || b.type === 'crewTable') {
+                    return (
+                      <div key={b.id} className="my-3">
+                        <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} />
+                      </div>
+                    );
+                  }
                   if (b.type === 'callSheetEdit') {
                     return (
                       <div key={b.id} className="my-3">

@@ -200,7 +200,7 @@ reference parsers live in `tools/` / `e2e/fixtures/`.
 New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Section>`/`<Row>`/`<Kbd>`; Unicode keys ⌘ ⌥ ⇧ ⌫ ⏎ ⎋ ↹).
 
 ## Reports Designer
-Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation.
+Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation. Day grid blocks (`callTimes`/`crewTable`, items 111/112) share `lib/reportGrids.ts` + `ReportGridBlock`/`InteractiveGridBlock` — never fork the table recipe.
 
 ## Roadmap Work (single agent)
 - **One agent per item, on the current branch, in this tree** — no worktrees, no orchestrator, no parallel workers. Run `/roadmap-item <n>` (or just ask) and the agent works until the item is done.

@@ -2413,7 +2413,9 @@ into the Locations DB); add concise hint text under each label in `LocationsSect
 
 **Verify**: visual-only (rule 7).
 
-## 110. Call Times modal redesign — tabbed settings, cleaner stage + category-default editors (`[ ]`)
+## 110. Call Times modal redesign — tabbed settings, cleaner stage + category-default editors (`[x]` Done)
+
+**Done**: the Call Times modal is now four tabs (Call stages / Category defaults / Department precalls / Usual crew) on the DayEventsModal segmented-toggle recipe. The stage list is a contained ImportDialog-style table — grip on the LEFT, plain transparent stage input (matches the lead field), no amber override dot on leads (`TimeField` gained `hideOverrideDot`) — with drag-reorder intact. Category defaults are per-category multi-select stage dropdowns (text trigger) with a remove X; **cast is locked** (always staged), removing any other category stores an explicit `[]` so it falls back to the item-107 DOOD + first-scene grid and reappears in the add list. Rows show their category icon, and the add picker is the shared kit `CategoryDropdown` (icons, already-configured categories shown disabled; new `placeholder` prop on the picker). **Right-clicking a Call Times grid header** opens a context menu with **Edit Call Time Stages…** (new `headerMenuItems` prop on `InlineGlideTable`; wired through `actions.openCallTimesSettings`). The same menu works on the Day Manager **Crew** grid and the **call-sheet editor's** live grids (`CallSheetCanvas` → `InteractiveGridBlock` → `DayTimesGlide`/`CrewTableGlide`), where the settings modal is also mounted in the call-sheet branch. Verified by the new `e2e/day-call-times.spec.ts` tabbed-modal + header-menu tests and `e2e/call-sheet-day.spec.ts`.
 
 **Requested**: the Call Times modal (`production/day/CallTimesSettingsModal.tsx`,
 opened from the Day Manager header — item 103) is one long unfriendly scroll: the
@@ -2476,7 +2478,9 @@ missing).
 107; rides item 99's `callTimes.ts` model (unchanged); item 102's crew↔element links
 are separate.
 
-## 111. Reports designer — Call Times block (styled table + live editing in the Call Sheet editor) (`[ ]`)
+## 111. Reports designer — Call Times block (styled table + live editing in the Call Sheet editor) (`[x]` Done)
+
+**Done**: new leaf block `type: 'callTimes'` (`collection: 'elementCallsOfDay'`, `category` unset = All categories). Static `ReportGridBlock` renders one fixed-column table per staged category (cast-first) using the shared `.report-table-cols`/`.rm-row` recipe, so the measured paginator splits it between rows; a `Clock` palette entry is gated to a `days` repeat; the Content section's dark category picker lists the staged categories + All categories. In Call Sheet → Edit the template-level block becomes the live `InteractiveGridBlock` (DayTimesGlide per category) writing `daybreakMeta.elementCalls` via `patchDayMeta` (one dispatch per edit op). Built on the shared `lib/reportGrids` read model + `ReportGridBlock`/`InteractiveGridBlock` seam. Verified by `e2e/report-grid-blocks.spec.ts`.
 
 **Requested**: a first-class **Call Times** block in the reports designer. Placed
 inside a `days` repeat it renders that day's call-times table exactly like the Day
@@ -2555,7 +2559,9 @@ Call Sheet editor (`CallSheetCanvas`/`callSheetEdit`) and the item 100 table/fil
 machinery; item 112 (crew table) is the modular sibling; item 110 restyles the Call
 Times settings modal, not this block.
 
-## 112. Reports designer — Crew table block (modular sibling of the Call Times block) (`[ ]`)
+## 112. Reports designer — Crew table block (modular sibling of the Call Times block) (`[x]` Done)
+
+**Done**: `type: 'crewTable'` (`collection: 'crewOfDay'`) reuses item 111's `ReportGridBlock`/`InteractiveGridBlock` seam unchanged — a `Users` palette entry, day-gated; static `Name | Role | Call` table from `crewOfDay`; live `CrewTableGlide` (extracted from the Day Manager Crew section — one write path) editing `daybreakMeta.crewCalls` via `setCrewCall` in Call Sheet → Edit. No new data model. Verified by `e2e/report-grid-blocks.spec.ts`.
 
 **Requested** (user: "later I might want to have a crew table" — parked): the same
 first-class, styled, editable-in-place grid for the day's **crew** —

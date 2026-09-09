@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Eye, EyeOff, Printer, RotateCcw } from 'lucide-react';
 import type { DayView } from '../../../lib/dayView';
-import type { ReportBlock, ReportDesign } from '../../../types';
+import type { DayMeta, ReportBlock, ReportDesign } from '../../../types';
 import ReportDesigner from '../../reports/ReportDesigner';
 import DayReportPreview from '../../reports/DayReportPreview';
 import CallSheetCanvas, { callSheetDayBlocks } from './CallSheetCanvas';
@@ -22,6 +22,10 @@ export interface CallSheetEditPageProps {
   designs: ReportDesign[];
   zoneBlocks: ReportBlock[];
   onChangeZone: (blocks: ReportBlock[]) => void;
+  /** Writes day properties for the selected day (live grid blocks). */
+  patchMeta: (patch: Partial<DayMeta>) => void;
+  /** Header right-click on a live grid → "Edit Call Time Stages…". */
+  onEditCallTimesSettings?: () => void;
   onReset: () => void;
   onSelectDesign: (id: string) => void;
   onSelectDay: (sectionIndex: number) => void;
@@ -35,7 +39,7 @@ export interface CallSheetEditPageProps {
 const isCallSheet = (d: ReportDesign) => /call\s*sheet/i.test(d.name);
 
 const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
-  day, days, design, designs, zoneBlocks, onChangeZone, onReset, onSelectDesign, onSelectDay, onPrint, onBack, readOnly, hasOverride,
+  day, days, design, designs, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, onReset, onSelectDesign, onSelectDay, onPrint, onBack, readOnly, hasOverride,
 }) => {
   const [nonce, setNonce] = useState(0);
   const [preview, setPreview] = useState(false);
@@ -132,6 +136,8 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           day={day}
           zoneBlocks={zoneBlocks}
           onChangeZone={onChangeZone}
+          patchMeta={patchMeta}
+          onEditCallTimesSettings={onEditCallTimesSettings}
           readOnly={readOnly}
         />
       ) : (

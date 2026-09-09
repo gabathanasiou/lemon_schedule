@@ -26,6 +26,9 @@ export interface TimeFieldProps {
   autoFocus?: boolean;
   /** Dark chrome (the modal surfaces). Default light (the Day Manager page). */
   theme?: 'light' | 'dark';
+  /** Hide the amber "overridden" dot. For fields where a non-empty value is
+   *  the configured default rather than an override (e.g. call-stage leads). */
+  hideOverrideDot?: boolean;
 }
 
 const KEY = 'flex items-center justify-center rounded-md text-base font-semibold transition-all cursor-pointer active:scale-90 h-11 min-w-[44px] select-none';
@@ -43,6 +46,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   onReset,
   autoFocus,
   theme = 'light',
+  hideOverrideDot,
 }) => {
   const isTouch = useTouchMode();
   const dark = theme === 'dark';
@@ -122,7 +126,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
     </button>
   ) : null;
 
-  const overrideDot = hasOverride ? <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Overridden" /> : null;
+  const overrideDot = hasOverride && !hideOverrideDot ? <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Overridden" /> : null;
 
   if (readOnly) {
     return <span className={`inline-flex items-center gap-1 text-xs tabular-nums ${dark ? 'text-zinc-200' : 'text-zinc-800'} ${className}`}>{display || '—'}</span>;

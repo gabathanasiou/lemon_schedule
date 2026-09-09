@@ -7,6 +7,7 @@ import { CAT_ICONS, getCustomIcon, getLabel } from '../../../../lib/categories';
 import type { DayElementEntry } from '../../../../lib/dayView';
 import DayTimesGlide from '../DayTimesGlide';
 import InlineGlideTable, { type InlineGlideColumn } from '../../../InlineGlideTable';
+import { ContextMenuItem } from '../../../ContextMenu';
 import { createDayTimesTheme } from '../../../../lib/glideTheme';
 import { doodCellStyle, doodCellText } from '../../../../lib/doodCells';
 import { textCell } from '../../../../lib/glideCells';
@@ -25,7 +26,7 @@ const FALLBACK_EDITABLE = new Set<string>();
 /** The stage-less fallback — a read-only inline Glide grid (roadmap 107), so
  *  every category panel reads in the spreadsheet language, never the old HTML
  *  table. */
-const FallbackElementGrid: React.FC<{ entries: DayElementEntry[] }> = ({ entries }) => {
+const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; onEditCallTimesSettings?: () => void }> = ({ entries, onEditCallTimesSettings }) => {
   const rows = useMemo(() => entries.map(e => ({
     key: e.key,
     id: e.boardId || '',
@@ -73,11 +74,19 @@ const FallbackElementGrid: React.FC<{ entries: DayElementEntry[] }> = ({ entries
       editableKeys={FALLBACK_EDITABLE}
       readOnly
       createTheme={createDayTimesTheme}
+      headerMenuItems={onEditCallTimesSettings ? close => (
+        <ContextMenuItem
+          onClick={() => { close(); onEditCallTimesSettings(); }}
+          icon={<Clock className="w-3.5 h-3.5" />}
+        >
+          Edit Call Time Stages…
+        </ContextMenuItem>
+      ) : undefined}
     />
   );
 };
 
-const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly }) => {
+const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly, actions }) => {
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
 
   const presentCategories = useMemo(() => {
@@ -126,9 +135,10 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
                 patchMeta={patchMeta}
                 project={project}
                 readOnly={readOnly}
+                onEditCallTimesSettings={actions.openCallTimesSettings}
               />
             ) : (
-              <FallbackElementGrid entries={entries} />
+              <FallbackElementGrid entries={entries} onEditCallTimesSettings={actions.openCallTimesSettings} />
             )}
           </div>
         );

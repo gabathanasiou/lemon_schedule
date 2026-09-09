@@ -52,6 +52,10 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
     case 'link': base.text = partial.text ?? 'Open in Maps'; base.url = partial.url ?? '{{locationMapLink}}'; break;
     case 'callSheetEdit': base.children = []; break;
     case 'relative': base.children = []; base.relativeOffset = partial.relativeOffset ?? 1; base.relativeCount = partial.relativeCount ?? 1; break;
+    // Day-scoped grids (items 111/112): fixed-column, editable-in-place tables
+    // over the day call-sheet collections. `collection` is the seam key.
+    case 'callTimes': base.collection = partial.collection ?? 'elementCallsOfDay'; break;
+    case 'crewTable': base.collection = partial.collection ?? 'crewOfDay'; break;
     default: break;
   }
   return { ...base, ...partial, id: base.id, type };

@@ -75,6 +75,13 @@ function marginTopOf(el: HTMLElement): number {
   return parseFloat(getComputedStyle(el).marginTop) || 0;
 }
 
+/** The paginator treats the day-scoped grid blocks as splittable tables (their
+ *  `.report-table-cols` rows are flattened between rows). */
+function splittableKind(type: ReportBlock['type']): string {
+  if (type === 'callTimes' || type === 'crewTable') return 'table';
+  return type === 'repeat' || type === 'table' || type === 'ribbon' ? type : 'block';
+}
+
 function wholeUnit(wrapper: HTMLElement, extra: Partial<FlatUnit> = {}): FlatUnit {
   // The wrapper's marginTop is the block's gap (roadmap 33) — read it into
   // gapBefore so page budgets include the spacing between stacked blocks
@@ -498,7 +505,7 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
           )}
           <div className="rm-body">
             {items.map((it, k) => (
-              <div key={it.id} className="rm-block" data-rm-kind={it.type === 'repeat' || it.type === 'table' || it.type === 'ribbon' ? it.type : 'block'} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0} style={{ marginTop: blockGapMargin(it, k === 0) }}>
+              <div key={it.id} className="rm-block" data-rm-kind={splittableKind(it.type)} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0} style={{ marginTop: blockGapMargin(it, k === 0) }}>
                 <ReportBlockView block={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length, callSheetBlocks }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
               </div>
             ))}

@@ -133,6 +133,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     openScene: onOpenScene,
     openEvents: date => setEventsDate(date),
     addEvents: date => setAdderDate(date),
+    openCallTimesSettings: () => setCallTimesOpen(true),
     callSheetDesignId: callSheetDesign?.id || '',
     selectCallSheetDesign: id => setPrefs(p => ({ ...p, callSheetDesignId: id })),
   }), [onOpenScene, callSheetDesign?.id, setPrefs]);
@@ -186,21 +187,26 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
 
   if (editCallSheet && callSheetDesign) {
     return (
-      <CallSheetEditPage
-        day={selected}
-        days={days}
-        design={callSheetDesign}
-        designs={project.reportDesigns || []}
-        zoneBlocks={zoneBlocks}
-        hasOverride={hasZoneOverride}
-        onChangeZone={patchZone}
-        onReset={resetZone}
-        onSelectDesign={id => setPrefs(p => ({ ...p, callSheetDesignId: id }))}
-        onSelectDay={index => selectDay(index)}
-        onPrint={() => onPrintCallSheet?.(selected, callSheetDesign, hasZoneOverride ? zoneBlocks : undefined)}
-        onBack={() => setEditCallSheet(false)}
-        readOnly={readOnly}
-      />
+      <>
+        <CallSheetEditPage
+          day={selected}
+          days={days}
+          design={callSheetDesign}
+          designs={project.reportDesigns || []}
+          zoneBlocks={zoneBlocks}
+          hasOverride={hasZoneOverride}
+          onChangeZone={patchZone}
+          patchMeta={patchMeta}
+          onEditCallTimesSettings={() => setCallTimesOpen(true)}
+          onReset={resetZone}
+          onSelectDesign={id => setPrefs(p => ({ ...p, callSheetDesignId: id }))}
+          onSelectDay={index => selectDay(index)}
+          onPrint={() => onPrintCallSheet?.(selected, callSheetDesign, hasZoneOverride ? zoneBlocks : undefined)}
+          onBack={() => setEditCallSheet(false)}
+          readOnly={readOnly}
+        />
+        {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
+      </>
     );
   }
 
