@@ -288,7 +288,7 @@ function AppContent() {
         const nextTab = ['doods', 'elementBreakdown'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setReportsSubTab(nextTab as any);
       } else if (parentId === 'production' && prodSubTab === subTabId) {
-        const nextTab = ['details', 'days', 'crew'].find(t => t !== subTabId && !newSet.has(t));
+        const nextTab = ['details', 'days', 'callTimes', 'crew'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setProdSubTab(nextTab as any);
       } else if (parentId === 'calendar' && calendarSubTab === subTabId) {
         const nextTab = ['calendar', 'dayTypes'].find(t => t !== subTabId && !newSet.has(t));

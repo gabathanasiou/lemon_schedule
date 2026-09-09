@@ -422,6 +422,29 @@ export interface LocationTrashItem {
   typeLabel?: string;
 }
 
+/** One call-time stage (item 99). Stages are ordered earliest→latest; the LAST
+ *  stage is the anchor (On Set) computed from the element's first scene. */
+export interface CallStageDef {
+  key: string;
+  label: string;
+  /** Default lead expression relative to the NEXT (later) stage: `-1h`, `-45m`. */
+  lead?: string;
+}
+
+export interface CallTimeSettings {
+  stages: CallStageDef[];
+  /** category key → stage keys that apply (defaults: cast = all,
+   *  backgroundActors = arrive + onSet). */
+  categoryStages: Record<string, string[]>;
+}
+
+/** Project-level usual-crew template (item 99): the fallback day crew and
+ *  department precalls when a day has no explicit `crewIds`. */
+export interface CrewTemplate {
+  crewIds?: string[];
+  departmentPrecalls?: Record<string, string>;
+}
+
 export interface ProductionInfo {
   company?: string;
   studio?: string;
@@ -433,6 +456,8 @@ export interface ProductionInfo {
   wrapDate?: string;   // auto-computed from last section date (read-only display)
   dateFormat?: string; // global report date format (Production tab) — source of truth
   timezone?: string;   // IANA id (e.g. 'Europe/London'); empty = browser default
+  /** Optional 1st-AD call-time helper settings (item 99). */
+  callTimes?: CallTimeSettings;
 }
 
 export type ReportCollection =
@@ -612,6 +637,8 @@ export interface Project {
   colorPalette?: SceneColorPalette;
   // Reports Designer + Production Info
   productionInfo?: ProductionInfo;
+  /** Usual-crew template for the Day Manager's crew section (item 99). */
+  crewTemplate?: CrewTemplate;
   crewRoles?: CrewRole[];
   crew?: Record<string, CrewPerson[]>;
   /** Flat display order of crew member ids across all roles — the crew glide

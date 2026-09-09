@@ -21,9 +21,10 @@ import { LocationsGlideTab } from './LocationsGlideTab';
 import { useDialog } from './Dialog';
 import { requestUnsavedSave } from '../lib/unsavedGuard';
 import DayManagerPage from './production/day/DayManagerPage';
+import CallTimesSettingsPage from './production/day/CallTimesSettingsPage';
 import type { DayView } from '../lib/dayView';
 
-export type ProductionSubTab = 'details' | 'days' | 'crew' | 'crewGlide' | 'locations' | 'locationsGlide';
+export type ProductionSubTab = 'details' | 'days' | 'callTimes' | 'crew' | 'crewGlide' | 'locations' | 'locationsGlide';
 
 const KEY_POSITIONS: { key: string; label: string }[] = [
   { key: 'director', label: 'Director' },
@@ -131,7 +132,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
     dispatch({ type: 'UPDATE_CREW_PERSON', payload: { role: fromRole, id: person.id, updates: {}, toRole } });
   };
 
-  const subTabLabels: Record<string, string> = { details: 'Project Details', days: 'Days', crew: 'Crew', crewGlide: 'Crew Glide', locations: 'Locations', locationsGlide: 'Locations Glide' };
+  const subTabLabels: Record<string, string> = { details: 'Project Details', days: 'Days', callTimes: 'Call Times', crew: 'Crew', crewGlide: 'Crew Glide', locations: 'Locations', locationsGlide: 'Locations Glide' };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
@@ -140,6 +141,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
         tabs={[
           { id: 'details', label: 'Project Details' },
           { id: 'days', label: 'Days' },
+          { id: 'callTimes', label: 'Call Times' },
           { id: 'crew', label: 'Crew' },
           { id: 'crewGlide', label: 'Crew Glide' },
           { id: 'locations', label: 'Locations' },
@@ -313,6 +315,8 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
           onPrintCallSheet={onPrintCallSheet}
           onPopOutDay={onPopOutDay}
         />
+      ) : subTab === 'callTimes' ? (
+        <CallTimesSettingsPage />
       ) : subTab === 'crew' ? (
         <CrewManager headerTarget={headerTarget ?? portalTarget} initialRole={crewRoleTarget} onRoleChange={r => onCrewRoleTargetChange?.(r)} />
       ) : subTab === 'crewGlide' ? (

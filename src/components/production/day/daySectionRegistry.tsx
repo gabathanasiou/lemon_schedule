@@ -6,6 +6,8 @@ import DayDetailsSection, { DayDetailsIcon } from './sections/DayDetailsSection'
 import LocationsSection, { LocationsIcon } from './sections/LocationsSection';
 import ScenesSection, { ScenesIcon } from './sections/ScenesSection';
 import CastElementsSection, { CastElementsIcon } from './sections/CastElementsSection';
+import CallTimesSection, { CallTimesIcon } from './sections/CallTimesSection';
+import CrewSection, { CrewIcon } from './sections/CrewSection';
 import EventsSection, { EventsIcon } from './sections/EventsSection';
 import ConflictsSection, { ConflictsIcon } from './sections/ConflictsSection';
 import CallSheetSection, { CallSheetIcon } from './sections/CallSheetSection';
@@ -79,6 +81,32 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: CastElementsSection,
     copyable: false,
     isEmpty: day => day.cast.length === 0 && Object.keys(day.elements).length === 0,
+  },
+  {
+    id: 'callTimes',
+    title: 'Call Times',
+    icon: <CallTimesIcon className="w-3.5 h-3.5" />,
+    summary: day => {
+      const n = day.meta.elementCalls ? Object.values(day.meta.elementCalls).reduce((s, c) => s + Object.keys(c).length, 0) : 0;
+      return n > 0 ? `${n} override${n !== 1 ? 's' : ''}` : 'Calculated';
+    },
+    Component: CallTimesSection,
+    copyable: true,
+    copyMode: 'replace',
+    extract: day => (day.meta.elementCalls && Object.keys(day.meta.elementCalls).length ? { elementCalls: day.meta.elementCalls } : undefined),
+  },
+  {
+    id: 'crew',
+    title: 'Crew',
+    icon: <CrewIcon className="w-3.5 h-3.5" />,
+    summary: day => day.crew.length > 0 ? `${day.crew.length} crew` : 'Full roster',
+    Component: CrewSection,
+    copyable: true,
+    copyMode: 'replace',
+    extract: day => ({
+      ...(day.meta.crewIds && day.meta.crewIds.length ? { crewIds: day.meta.crewIds } : {}),
+      ...(day.meta.crewCalls && day.meta.crewCalls.length ? { crewCalls: day.meta.crewCalls } : {}),
+    }),
   },
   {
     id: 'events',

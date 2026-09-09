@@ -163,6 +163,8 @@ export interface ReportDayInfo {
   locationId?: string;
   /** Distinct scene locations (free-text names), for the DB-matched fallback. */
   sceneLocations?: string[];
+  /** Day notes / announcements from `daybreakMeta` (item 99 `dayNotes` field). */
+  note?: string;
 }
 
 export interface ReportElementInfo {
@@ -215,6 +217,9 @@ export interface ReportProductionTotals {
 }
 
 export interface ReportCrewItem {
+  /** Stable role key (project.crewRoles) + person id — item 100 filters/lookups. */
+  roleKey: string;
+  id: string;
   role: string;
   name: string;
   phone?: string;
@@ -518,6 +523,7 @@ export function buildReportCtx(
       lastScene: sceneNums[sceneNums.length - 1] || '',
       locationId: gov?.daybreakMeta?.locationId,
       sceneLocations,
+      note: gov?.daybreakMeta?.note,
     });
   }
 
@@ -589,7 +595,7 @@ export function buildReportCtx(
   for (const role of project.crewRoles || []) {
     const people: CrewPerson[] = project.crew?.[role.key] || [];
     for (const p of people) {
-      crewItems.push({ role: role.label, name: p.name, phone: p.phone, email: p.email });
+      crewItems.push({ roleKey: role.key, id: p.id, role: role.label, name: p.name, phone: p.phone, email: p.email });
     }
   }
 
