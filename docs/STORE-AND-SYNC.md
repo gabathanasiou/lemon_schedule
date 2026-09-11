@@ -25,6 +25,16 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
 - localStorage: index key `lemon_schedule_project_index`, per-project
   `lemon_schedule_project_v1_{id}`. Cloud projects (Drive) are NOT in localStorage index (filtered on
   save).
+- **Project entries are `base64(gzip(json))` (roadmap 124)** — the localStorage boundary codec lives
+  in `src/lib/projectCodec.ts` (`serializeProject`/`deserializeProject`, used by
+  `saveProjectToStorage`/`loadProjectFromStorage`). Reads detect plain vs compressed by first char
+  (`{`/`[` = legacy plain JSON, base64 never starts with them) so old entries keep loading; the next
+  save rewrites them compressed. Same detection as the Drive path.
+- **Empty scene element fields are dropped on serialize** (built-in + custom category keys) and
+  rebuilt from `createBlankScene` defaults on load — pure codec boundary, so the in-memory Project and
+  the row memo/immutability contract are untouched. Drive uploads and `.lemon` exports stay plain
+  JSON (`exportProjectFromStorage` decodes first). Preserve `QuotaExceededError` handling
+  (`saveProjectToStorage` is synchronous and throws like `setItem`).
 - Bulk dispatches → wrap in `BATCH_START`/`BATCH_COMMIT` (nestable; outermost commits one undo
   entry).
 

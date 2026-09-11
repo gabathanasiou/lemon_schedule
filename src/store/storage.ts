@@ -1,6 +1,7 @@
 import { Project, ScheduleVersion, TrashItem, VersionTrashItem, CalendarVersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, ReportTrashItem, CrewTrashItem } from '../types';
 import { cid } from '../lib/ribbonUtils';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
+import { serializeProject, deserializeProject } from '../lib/projectCodec';
 
 export const LEGACY_KEY = 'a-little-bit-of-hope-project';
 export const INDEX_KEY = 'lemon_schedule_project_index';
@@ -33,6 +34,13 @@ export interface ProjectMeta {
 
 export function getProjectStorageKey(id: string): string {
   return `${PROJECT_KEY_PREFIX}${id}`;
+}
+
+/** Persist a project to localStorage (compressed + empty element fields
+ *  dropped — roadmap 124). Synchronous, so QuotaExceededError still throws to
+ *  the caller. */
+export function saveProjectToStorage(id: string, project: Project): void {
+  localStorage.setItem(getProjectStorageKey(id), serializeProject(project));
 }
 
 export function loadProjectListFromStorage(): ProjectMeta[] {
@@ -76,7 +84,7 @@ export function loadProjectFromStorage(id: string): Project | null {
   try {
     const stored = localStorage.getItem(getProjectStorageKey(id));
     if (stored) {
-      const parsed = JSON.parse(stored);
+      const parsed: any = deserializeProject(stored);
       if (parsed.scenes && parsed.versions) {
         parsed.versions = parsed.versions.map((v: ScheduleVersion) => ({
           ...v,

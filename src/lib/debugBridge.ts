@@ -9,6 +9,7 @@ import {
 } from '../store/reducer';
 import { computeRowData, buildNonShootSet } from './daybreakUtils';
 import { createBlankScene } from './sceneFactory';
+import { deserializeProject } from './projectCodec';
 import { generateUUID } from './utils';
 import type { Project, Scene, CalendarVersion, CustomCategoryDef } from '../types';
 import type { ProjectMeta } from '../store/storage';
@@ -102,6 +103,7 @@ export interface LemonAgentBridge {
   };
   getSceneValues: () => { columns: string[]; rows: AgentBridgeSceneSnapshot[] };
   diagnostics: () => AgentBridgeConnectivitySnapshot;
+  decodeProject: (raw: string) => Project;
   dispatch: (action: Action) => void;
   undo: () => void;
   redo: () => void;
@@ -182,6 +184,7 @@ function buildBridge(): LemonAgentBridge {
     '  getRows(versionId?)          → computed stripboard rows in order + sections (call times, daybreaks, sums) — dates from the ACTIVE calendar version',
     '  getCalendarVersion()         → active calendar version meta (production window + nonShootDates)',
     '  getSceneValues()             → Glide grid truth: every scene, every column value (canvas is opaque to the DOM)',
+    '  decodeProject(raw)           → decode a persisted localStorage/Drive project string (gzip/base64 OR legacy plain JSON)',
     '  diagnostics()                → connectivity/sync snapshot (probe result, Drive save error, payload size, retries)',
     '  pastCount() / futureCount()  → undo/redo stack depths',
     '',
@@ -282,6 +285,7 @@ function buildBridge(): LemonAgentBridge {
     },
     getRows,
     getSceneValues,
+    decodeProject: (raw: string) => deserializeProject(raw),
     diagnostics: () => deepClone(api().getConnectivity()),
     dispatch,
     undo: () => dispatch({ type: 'UNDO' }),

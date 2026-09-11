@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { CalendarVersion, Scene } from "../types";
+import { deserializeProject } from "./projectCodec";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -199,7 +200,7 @@ export function exportProjectFromStorage(projectId: string, title: string): void
   const key = `lemon_schedule_project_v1_${projectId}`;
   const stored = localStorage.getItem(key);
   if (!stored) return;
-  exportProjectData(stored, title);
+  exportProjectData(JSON.stringify(deserializeProject(stored)), title);
 }
 
 export function getUniqueCastIds(scenes: Scene[]): string[] {

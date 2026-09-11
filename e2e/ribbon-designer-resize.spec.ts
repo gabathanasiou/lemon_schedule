@@ -18,7 +18,7 @@ async function openRibbonDesigner(page: any) {
 async function ribbonColWidths(page: any): Promise<number[]> {
   return page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-    const p = JSON.parse(localStorage.getItem(key)!);
+    const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
     const d = p.ribbonDesigns.find((x: any) => x.id === p.activeRibbonId);
     return d ? d.colWidths : [];
   });

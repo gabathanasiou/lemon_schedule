@@ -75,7 +75,7 @@ async function openDesigner(page: any) {
 async function designWidths(page: any, tableId: string): Promise<number[]> {
   return page.evaluate((id) => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-    const p = JSON.parse(localStorage.getItem(key)!);
+    const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
     const d = p.reportDesigns.find((x: any) => x.id === p.activeReportId);
     const t = d.blocks.find((b: any) => b.id === id);
     return t.columns.map((c: any) => c.width);

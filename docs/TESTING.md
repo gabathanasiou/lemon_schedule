@@ -91,7 +91,10 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
    `toBeVisible` over `waitForTimeout`. Only true interaction pacing (drag settle, canvas
    repaint, morph) may use a timeout, with a comment saying why.
 3. **Debug bridge over DOM/localStorage** for state reads — sync, no debounced-save waits.
-   `waitForPersistedProject` when persistence itself is under test.
+   `waitForPersistedProject` when persistence itself is under test. A persisted project
+   string is `gzip/base64` (roadmap 124) — decode it with
+   `window.__lemonSchedule.decodeProject(raw)`, never `JSON.parse` (legacy plain entries
+   decode too).
 4. **One spec base name per feature**, registered in `scripts/smart-test.mjs` RULES. A spec
    not in the map is an orphan: `npm run lint` fails (see `check-doc-budget.mjs`).
 5. **Never `git checkout` / `git stash` to test a baseline.** Use `npm run test:baseline`

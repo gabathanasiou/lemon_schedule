@@ -12,6 +12,7 @@ import {
   INDEX_KEY,
   ProjectMeta,
   getProjectStorageKey,
+  saveProjectToStorage,
   loadProjectListFromStorage,
   saveProjectListToStorage,
   loadProjectFromStorage,
@@ -289,7 +290,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           if (migrationResult.migrated) {
             setPendingLegacyMigrationNotice(migrationResult);
           }
-          localStorage.setItem(getProjectStorageKey(id), JSON.stringify(migrationResult.project));
+          saveProjectToStorage(id, migrationResult.project);
           localStorage.removeItem(LEGACY_KEY);
           const meta: ProjectMeta = { id, title: migrationResult.project.title || 'Project', lastModified: Date.now(), createdAt: Date.now() };
           saveProjectListToStorage([meta]);
@@ -412,7 +413,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         try {
-          localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(project));
+          saveProjectToStorage(currentProjectId, project);
           setStorageQuotaError(false);
         } catch (e: any) {
           if (e.name === 'QuotaExceededError') {
@@ -530,7 +531,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const meta = projectList.find(p => p.id === currentProjectId);
     if (!meta || meta.driveFileId) return;
     try {
-      localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(state.present));
+      saveProjectToStorage(currentProjectId, state.present);
       setStorageQuotaError(false);
     } catch (e: any) {
       if (e.name === 'QuotaExceededError') setStorageQuotaError(true);
@@ -575,7 +576,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    localStorage.setItem(getProjectStorageKey(id), JSON.stringify(newProject));
+    saveProjectToStorage(id, newProject);
     const meta: ProjectMeta = { id, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
     setProjectList(prev => { const u = [...prev, meta]; saveProjectListToStorage(u); return u; });
     dispatch({ type: 'LOAD', payload: newProject });
@@ -724,7 +725,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const newMeta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now(), driveFileId: newFileId };
       setProjectList(prev => [...prev, newMeta]);
     } else {
-      localStorage.setItem(getProjectStorageKey(newId), JSON.stringify(newProject));
+      saveProjectToStorage(newId, newProject);
       const newMeta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
       setProjectList(prev => { const u = [...prev, newMeta]; saveProjectListToStorage(u); return u; });
     }
@@ -738,7 +739,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (migrationResult.migrated) {
       setPendingLegacyMigrationNotice(migrationResult);
     }
-    localStorage.setItem(getProjectStorageKey(id), JSON.stringify(migrationResult.project));
+    saveProjectToStorage(id, migrationResult.project);
     const meta: ProjectMeta = { id, title: migrationResult.project.title || 'Imported Project', lastModified: Date.now(), createdAt: Date.now() };
     setProjectList(prev => { const u = [...prev, meta]; saveProjectListToStorage(u); return u; });
     dispatch({ type: 'LOAD', payload: migrationResult.project });

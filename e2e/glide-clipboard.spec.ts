@@ -113,7 +113,7 @@ test.describe('Glide Breakdown clipboard', () => {
       try {
         const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
         if (!key) return null;
-        const project = JSON.parse(localStorage.getItem(key)!);
+        const project = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
         const s = project.scenes?.[r];
         return s ? { num: s.sceneNumber, set: s.set, pages: s.pageCount } : null;
       } catch { return null; }

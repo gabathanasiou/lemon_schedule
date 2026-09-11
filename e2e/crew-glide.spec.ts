@@ -8,7 +8,7 @@ const crewState = (page: AnyPage) =>
     try {
       const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
       if (!key) return null;
-      const p = JSON.parse(localStorage.getItem(key)!);
+      const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
       return { crew: p.crew || {}, roles: (p.crewRoles || []).map((r: any) => r.key) };
     } catch { return null; }
   });
@@ -17,7 +17,7 @@ const memberCount = (page: AnyPage) => page.evaluate(() => {
   try {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
     if (!key) return 0;
-    const p = JSON.parse(localStorage.getItem(key)!);
+    const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
     return Object.values(p.crew || {}).reduce((n: number, list: any) => n + list.length, 0);
   } catch { return 0; }
 });

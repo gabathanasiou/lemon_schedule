@@ -11,6 +11,7 @@ export {
   PROJECT_KEY_PREFIX,
   type ProjectMeta,
   getProjectStorageKey,
+  saveProjectToStorage,
   loadProjectListFromStorage,
   saveProjectListToStorage,
   loadProjectFromStorage,

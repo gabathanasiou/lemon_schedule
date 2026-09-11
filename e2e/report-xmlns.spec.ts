@@ -15,7 +15,7 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
   await page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1_'));
     if (!key) return;
-    const p = JSON.parse(localStorage.getItem(key)!);
+    const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
     const d = (p.reportDesigns || []).find((x: any) => x.name === 'Scene Breakdown');
     const walk = (blocks: any[]) => (blocks || []).forEach(b => {
       if (b.type === 'text' && b.text?.includes('Props')) {
@@ -73,7 +73,7 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
     const stored = await page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1_'));
     if (!key) return null;
-    const p = JSON.parse(localStorage.getItem(key)!);
+    const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
     const d = (p.reportDesigns || []).find((x: any) => x.name === 'Scene Breakdown');
     let found: string | null = null;
     const walk = (blocks: any[]) => (blocks || []).forEach(b => {

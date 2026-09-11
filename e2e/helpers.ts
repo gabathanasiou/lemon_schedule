@@ -201,7 +201,8 @@ export async function waitForPersistedProject(page: Page, expr: string, timeout 
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
     if (!key) return false;
     try {
-      const p = JSON.parse(localStorage.getItem(key)!);
+      const raw = localStorage.getItem(key)!;
+      const p = (window as any).__lemonSchedule.decodeProject(raw);
       return new Function('p', `return (${expression})`)(p) === true;
     } catch {
       return false;

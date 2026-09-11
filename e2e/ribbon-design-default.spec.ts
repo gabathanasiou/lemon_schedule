@@ -6,7 +6,7 @@ type Project = any;
 async function getProject(page: import('@playwright/test').Page): Promise<Project> {
   return page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-    return key ? JSON.parse(localStorage.getItem(key)!) : null;
+    return key ? (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!) : null;
   });
 }
 

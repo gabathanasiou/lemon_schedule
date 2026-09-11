@@ -81,6 +81,8 @@ const RULES = [
   { g: 'src/lib/dayMeta.ts', s: 'ALL' },
   { g: 'src/lib/containers.ts', s: 'ALL' },
   { g: 'src/lib/categories.ts', s: 'ALL' },
+  { g: 'src/lib/projectCodec.ts', s: 'ALL' },
+  { g: 'src/lib/utils.ts', s: 'ALL' },
   { g: 'src/lib/ribbonUtils.ts', s: 'ALL' },
   { g: 'src/lib/useDaybreakSections.ts', s: 'ALL' },
   { g: 'src/lib/persistentStorage.ts', s: 'ALL' },

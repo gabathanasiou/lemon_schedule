@@ -52,7 +52,7 @@ test.describe('Apple Pencil in modals', () => {
     const noteId = await page.evaluate(() => {
       const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
       if (!key) return null;
-      const p = JSON.parse(localStorage.getItem(key)!);
+      const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
       const v = Array.isArray(p.versions)
         ? p.versions.find((x: any) => x.id === p.activeVersionId) || p.versions[0]
         : p.versions?.[p.activeVersionId];
@@ -113,7 +113,7 @@ test.describe('Apple Pencil in modals', () => {
     const noteId = await page.evaluate(() => {
       const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
       if (!key) return null;
-      const p = JSON.parse(localStorage.getItem(key)!);
+      const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
       const v = Array.isArray(p.versions)
         ? p.versions.find((x: any) => x.id === p.activeVersionId) || p.versions[0]
         : p.versions?.[p.activeVersionId];

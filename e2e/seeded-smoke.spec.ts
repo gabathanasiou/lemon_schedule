@@ -40,7 +40,7 @@ test.describe('Seeded Project Smoke Tests', () => {
       try {
         const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
         if (!key) return -1;
-        const project = JSON.parse(localStorage.getItem(key)!);
+        const project = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
         return project.scenes?.length || 0;
       } catch { return -1; }
     });

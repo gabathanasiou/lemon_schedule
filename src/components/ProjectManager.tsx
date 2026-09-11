@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { useProject, ProjectMeta, loadProjectFromStorage } from '../store';
+import { useProject, ProjectMeta, loadProjectFromStorage, saveProjectToStorage } from '../store';
 import { Project } from '../types';
 import { exportProjectFromStorage, exportProjectData } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
@@ -299,7 +299,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
           ? await readDriveProject(auth.accessToken!, p.driveFileId)
           : null;
       if (!project) { dialog.alert({ title: 'Error', message: 'Could not load project data.' }); return; }
-      localStorage.setItem(`lemon_schedule_project_v1_${p.id}`, JSON.stringify(project));
+      saveProjectToStorage(p.id, project);
       if (p.driveFileId) {
         await deleteDriveProject(auth.accessToken!, p.driveFileId);
         await removeFromDriveIndex(auth.accessToken!, p.id);

@@ -67,7 +67,7 @@ const design = {
 function locCategory(page: any) {
   return page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-    const p = JSON.parse(localStorage.getItem(key)!);
+    const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
     const d = p.reportDesigns.find((x: any) => x.id === p.activeReportId);
     return d.blocks.find((b: any) => b.id === 'rep-loc').category as string | undefined;
   });
@@ -160,13 +160,13 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
 
   await expect.poll(() => page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-    const p = JSON.parse(localStorage.getItem(key)!);
+    const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
     return (p.locationsTrash || []).length;
   }), { timeout: 5000 }).toBe(2);
 
   const trash = await page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-    const p = JSON.parse(localStorage.getItem(key)!);
+    const p = (window as any).__lemonSchedule.decodeProject(localStorage.getItem(key)!);
     return (p.locationsTrash || []).map((t: any) => ({ type: t.location.type, typeLabel: t.typeLabel }));
   });
   expect(trash.length).toBe(2);

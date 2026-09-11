@@ -37,6 +37,10 @@ roadmap worker session, so it stays lean.
 
 ## 38. Script version diff — accept a new screenplay against the current one (`[ ]`)
 
+**Relations**: depends on **123 Phase 0** (retained `project.scriptDocument` +
+`project.scriptBaseline`) — the diff and its content fingerprint run on the
+real scene body, not the one-line synopsis; do NOT build a parallel body store.
+
 **Requested**: when uploading a newer version of the screenplay, a diff
 viewer / acceptance step before anything changes. Research: Filmustage (same
 domain: breakdown → schedule) ships a compare hub — Scene Diff
@@ -59,7 +63,8 @@ alignment:
 2. **Secondary — heading signature** via `parseSceneHeading` (`intExt` +
    normalized `set` + `dayNight`).
 3. **Tertiary — content/context similarity** (user-requested): a per-scene
-   fingerprint = normalized description tokens + cast characters (via
+   fingerprint = normalized scene-body tokens (action + dialogue, from
+   `project.scriptDocument` — 123 Phase 0) + cast characters (via
    `normalizeCharacterName`) + element items + location; paired by
    token-overlap (Jaccard) score against neighbor candidates — high-score
    pairs match even with no number/heading match (renumbered, retitled
@@ -77,8 +82,10 @@ alignment:
 **Per-scene diff** (vs the current saved scene):
 - Heading fields: `intExt`, `set`, `dayNight`, `pageCount`/`pageCountDecimal`,
   `scriptDay` — simple equality.
-- `description` — **word-level** diff (jsdiff `diffWords`, added/removed
-  highlighting).
+- Scene body — **word-level** diff over the retained `scriptDocument` blocks
+  (action, dialogue, dual dialogue; jsdiff `diffWords`, added/removed
+  highlighting); falls back to the `description` synopsis text when no body is
+  retained.
 - `cast` + every element category (props, wardrobe, …) — **item-set** diff
   (± lists; via `getFieldItems`, never raw `split(',')`).
 - `notes`, `location` — equality.
@@ -87,13 +94,24 @@ alignment:
 
 **Acceptance UI** (new stage in `ImportDialog`, shown when
 `project.scenes.length > 0`):
-- Summary bar: X unchanged · Y modified · Z new · W removed (+ split/merge
-  badges).
-- Filter tabs: All / Modified / New / Removed / Unchanged.
+- **Impact summary** (top): what affects the production — page-count shifts,
+  cast additions, element changes, rule violations.
+- Summary bar: X unchanged · Y modified · Z new · W removed · C conflicts
+  (+ split/merge badges).
+- Filter tabs: All / Needs review (conflicts) / Modified / New / Removed /
+  Unchanged.
+- **Conflicts** (baseline-aware): a conflict is a field whose CURRENT value
+  differs from `project.scriptBaseline` AND the incoming script also changes
+  it — i.e. your in-app edit vs the writer's new value. The row shows current
+  vs incoming and annotates the baseline inline as "was:"; the user chooses
+  keep yours / take the script / merge. Two-way display + baseline warning,
+  NOT a three-column merge UI.
 - Scene rows (script order): scene number + heading + change badges; expand
-  for a **side-by-side per-field diff** (word-level highlights in
-  description, item ± lists for cast/elements, before → after for heading
-  fields). A split/merge row diffs the old scene against each fragment.
+  for a **side-by-side per-field diff** (word-level highlights in the body,
+  item ± lists for cast/elements, before → after for heading fields). A
+  split/merge row diffs the old scene against each fragment.
+- **"Accept all safe"** bulk action accepts every high-confidence
+  unchanged/modified pair so the user only hand-resolves conflicts.
 - **Removed scenes default to KEEP** (user decision): per-scene "remove"
   toggle + "remove all" shortcut — the stripboard/schedule investment is
   untouched by default.
@@ -115,19 +133,27 @@ alignment:
   `ADD_ELEMENT` cast category — cast referenced by ID, names via
   `normalizeCharacterName`); new elements → `ADD_ELEMENT` per category;
   new/updated sets as today.
-- No new action types (all exist: `UPDATE_SCENE`/`ADD_SCENE`/`DELETE_SCENE`
-  + element/category/cast actions).
+- **Script body** — the SAME batch also writes `SET_SCRIPT_DOCUMENT` (the new
+  body becomes current; the previous current becomes `scriptBaseline`), so the
+  diff path stays in sync with the retained body (123 Phase 0) — one pass, one
+  undo entry.
+- No new scene/cast/element action types (all exist: `UPDATE_SCENE`/
+  `ADD_SCENE`/`DELETE_SCENE` + element/category/cast actions); the body uses
+  123's `SET/UPDATE_SCRIPT_DOCUMENT`.
 
-**Dependency**: `diff` (jsdiff) for the word-level description diff — the
-standard, tiny, browser-safe. New-dep rule: imported by ≥1 source file.
+**Dependency**: `diff` (jsdiff) — `diffWords` for the body diff +
+`diffArrays` for the LCS alignment; the standard, tiny, browser-safe lib.
+New-dep rule: imported by ≥1 source file.
 
 **Verify**: re-import the seed script ("IT'S A WONDERFUL LIFE") with a few scenes edited,
-added, removed, one split, one renumbered → only diffs apply; unchanged
-scenes keep ids; schedule + ribbons intact; new scenes in the boneyard;
-removed scenes kept by default; undo restores exactly; filters + expanded
-diffs render; lint + playwright. **Out of scope** (follow-ups): Filmustage-
-style cross-version schedule/budget impact reports, archived-versions hub —
-this item is the import acceptance step only.
+added, removed, one split, one renumbered, and one field hand-edited in-app
+before import (must surface as a conflict with the baseline value shown) →
+only diffs apply; unchanged scenes keep ids; schedule + ribbons intact; new
+scenes in the boneyard; removed scenes kept by default; undo restores exactly;
+filters + expanded diffs render; lint + playwright. **Out of scope**
+(follow-ups): Filmustage-style cross-version schedule/budget impact reports,
+archived-versions hub (full script version history — see 123) — this item is
+the import acceptance step only.
 
 ## 43. Import `.mmx` / `.MMS10` (Movie Magic Screenwriter XML) (`[ ]`)
 
@@ -499,3 +525,114 @@ spec for the nested picker.
 **Relations**: extends 100 (the deferred three-step picker) and 19/16 (token
 chips/affixes); touches the ui-kit rich-text editor + `reportFields.ts`
 (`buildLookupTokens`, `fieldsForScope`).
+
+## 123. Script view in the Breakdown + portable scene-body preview (`[ ]`)
+
+**Relations**: Phase 0 (retained `project.scriptDocument` + `scriptBaseline`)
+is the shared prerequisite **item 38 depends on** — do not build a parallel
+body store. Reuses item 115's `FloatingTooltip` primitive + the
+`InlineGlideTable.rowTooltip` seam (the *mechanism* only — 115's
+`FirstSceneTooltip` is scheduling metadata and stays as-is). One source of
+truth: committed tags are the existing breakdown elements/categories — no
+parallel tagging model. Home is the **Breakdown tab's sub-tab row**
+(`BreakdownTab.tsx:56-59`), NOT a new top-level tab.
+
+**Chain** (import + diff reference each other; no links skipped):
+124 (shrink storage) → 123 Phase 0 (retain body in the EXISTING import pass) →
+38 (body-aware diff + conflicts) → 123 Phases 1-3 (view / tag / preview);
+125 only if 124 falls short. Each references the next; nothing parses or stores
+the script twice.
+
+**Requested**: read the actual screenplay inside Breakdown, highlight passages
+and tag them as breakdown elements, and preview a scene's action/dialogue
+anywhere a scene is referenced. Industry model: StudioBinder (select-and-tag on
+the script, colored by category) + Filmustage Scene Diff (item 38) + Final
+Draft ScriptNotes.
+
+**Blocker found during research**: the screenplay body is NOT retained today.
+`parseFDX` sets `description: ''` and drops action/dialogue (`fdx.ts:116`,
+`169-173`); Fountain folds action into `description` and drops dialogue; the
+uploaded file is discarded. `Scene.description` is a one-line synopsis (seed
+scene 1 = "Voice over prayers for George."). `scriptPageNumbers` is already
+reserved "for future full-FDX render" (`types.ts:12`, `docs/IMPORT-EXPORT.md:33`).
+
+**Phase 0 — retain the screenplay** (prerequisite, shared with item 38)
+- New pure module `src/lib/script/` + `project.scriptDocument`: per-scene ordered
+  element blocks (heading/action/character/dialogue/parenthetical/transition/
+  dual, page breaks, scene number, script page) + title page.
+- `project.scriptBaseline`: the last imported screenplay — the reference for
+  conflict detection and one-step restore (no hash layer; compare current
+  scene fields against the baseline). Replaced on each accepted import; same
+  retention spirit as version trash.
+- Extend `fdx.ts` to keep the paragraph stream it currently drops (`Paragraph
+  Type` is already read); extend `fountain.ts` (fountain-js tokens incl.
+  `dual_dialogue_begin/end` + `dialogue.left/.right` already exist).
+- **Hook the EXISTING import chain — one pass, no parallel pipeline**: the
+  parser emits breakdown data AND the body together; both the plain import
+  (`commitImport`, first upload / new project) and item 38's `commitScriptDiff`
+  write the body in their SAME batch. Never parse the file twice and never add
+  a second import path.
+- Persist + Drive sync; compact tuple-encoded blocks, no duplication of Scene
+  data; optional base64(gzip) for the body in localStorage if quota bites
+  (item 124).
+- New actions `SET_SCRIPT_DOCUMENT` / `UPDATE_SCRIPT_DOCUMENT` (union +
+  `ACTION_TYPES` kept in sync).
+- **Dependency**: `diff` (jsdiff), shared with item 38 — `diffWords` for word
+  diffs, `diffArrays` for ordered alignment.
+
+**Phase 1 — script view**: new **Breakdown sub-tab** ("Script", alongside Sheet /
+Element Manager / Glide Breakdown), pop-out-capable like its siblings. Custom
+React renderer, no new dep (tokens from the existing parsers; layout in CSS) —
+Courier, standard indents, **two-column dual dialogue**, scene numbers, page
+breaks, title page. Scene-linked navigation to/from Sheet + Schedule.
+
+**Phase 2 — highlight-to-tag**: text selection → tag to existing categories via
+`addNewElement`/`EntityDropdown`; category-colored highlights; reuse the
+stripboard context menu. Committed tags are real breakdown elements.
+
+**Phase 3 — portable scene-body preview**: build ONE shared
+`SceneScriptPreview` component on the `FloatingTooltip` primitive, exposed
+through the existing hover seams so any surface can opt in — stripboard, Scene
+Sheet, Glide (`InlineGlideTable.rowTooltip`), Calendar scene cards. Shows the
+scene's action/dialogue. Candidate surfaces are examples; the component is the
+deliverable.
+
+**Sources**: FDX + Fountain/TXT only (PDF/OCR filed separately if wanted).
+**Out of scope**: PDF import, FDX write-back, revision-mark fidelity, full
+version history (content-addressed store — see 125).
+
+**Verify**: golden fixture with dual dialogue; round-trip persistence + Drive
+sync; re-import the seed script; `npm run lint` + `npx playwright test`.
+
+## 125. Storage overhaul — delta pack, normalization only if needed (FUTURE, parked) (`[ ]`)
+
+**Relations**: follow-on to 124 — do NOT start in parallel; only if 124 plus
+real usage still produces large files or quota pressure. This is the deferred
+"archived-versions hub" storage layer referenced by 123.
+
+**Problem, measured**: every `ScheduleVersion` stores a full `rows` array
+(`types.ts:164`), and version trash keeps up to 10 full copies (39% of the seed
+file). Rows are ~155 bytes each, dominated by repeated UUIDs + per-version
+metadata.
+
+**Approach A — delta pack (recommended first; model unchanged)**:
+- Persistence codec: store the project base once + each extra snapshot
+  (versions, trash) as a row-level delta against the previous snapshot (jsdiff
+  `diffArrays` keyed by row id, or content-address identical rows); stack gzip
+  after the delta.
+- Add a `_storageFormat` marker; decode old + new on load; migrate on first
+  save. No reducer/model change → blast radius is a codec + migration tests.
+
+**Approach B — normalize the model (last resort)**:
+- Split row identity (type, sceneId, note/break content) from per-version state
+  (order, container, daybreak call time/meta, description override): a canonical
+  row table + versions as ordered manifests, content-addressed.
+- Breaks the "`ScheduleVersion.rows` is the single source of truth for stripboard
+  order" invariant (AGENTS.md) → large blast radius: reducer, rows computation,
+  drag/drop, daybreak/insert logic, calendar, import, print.
+
+**Decision point**: measure first; build A only when 124 is insufficient, B only
+if A is.
+
+**Verify**: encode/decode round-trip; migration from plain + 124 formats; every
+row-version behavior unchanged; `npm run lint` + `npx playwright test`.
