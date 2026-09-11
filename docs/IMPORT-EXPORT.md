@@ -105,14 +105,20 @@ Status: read this before touching any import/export work.
   day/night words and surfaces an unrecognized INT/EXT prefix RAW; Greek
   `ΕΣΩΤ/ΕΞΩΤ` map to INT/EXT.
 - On import, `collectUnknownHeadingValues` finds unknown values and the UI shows
-  `HeadingValueMapper`: **Add as new** (writes to
+  `HeadingValueMapper` (`src/components/import/`): **New option** (writes to
   `colorPalette.intExtOptions`/`dayNightOptions` — the Colors tab, the source of
-  truth) or **Map to** an existing value (recorded in `project.headingAliases`
-  so re-imports are silent). `applyHeadingMapping` rewrites the parsed scenes;
-  `buildHeadingMappingUpdate` produces the project patch.
-- Plain/append (`ImportDialog`) and update (`ScriptUpdateModal`) prompt; the
-  new-project path (`buildProjectFromImport`) has no prompt step, so it
-  auto-adds unknown values to the Colors options instead of dropping them.
+  truth) or **Replace with** an existing value (recorded in
+  `project.headingAliases`, so a later import of the same value is replaced
+  silently). `applyHeadingMapping` rewrites an `ImportResult` (append/diff);
+  `applyHeadingMappingToProject` rewrites an already-built `Project`
+  (new-project); `buildHeadingMappingUpdate` produces the project patch.
+- **Every entry point prompts**, after parse/review: plain/append
+  (`ImportDialog`, before review), update diff (`ScriptUpdateModal`, at apply
+  time for the values that survive the decisions), and new-project
+  (`buildNewProjectFromFile` returns `{ project, unknown }`; the Project Manager
+  and File menu mount `NewProjectHeadingMapper` over the built project).
+  Nothing silently folds unknown values into the palette. `.lemon`/`.json`
+  (serialized projects) and MSD/SEX never prompt.
 
 ## Common tasks (agent recipes)
 

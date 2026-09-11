@@ -50,6 +50,7 @@ import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageS
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import ScriptUpdateModal from './components/ScriptUpdateModal';
+import NewProjectHeadingMapper from './components/import/NewProjectHeadingMapper';
 import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV, exportSexFile, buildNewProjectFromFile, NEW_PROJECT_ACCEPT } from './lib/import';
 import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib/utils';
 import { formatDriveError } from './lib/googleDriveStorage';
@@ -380,6 +381,7 @@ function AppContent() {
   const [printDialogCategory, setPrintDialogCategory] = useState<string | undefined>(undefined);
   const [pendingImport, setPendingImport] = useState<{ result: ImportResult; fileName: string } | null>(null);
   const [pendingScriptUpdate, setPendingScriptUpdate] = useState<{ result: ImportResult; fileName: string } | null>(null);
+  const [pendingNewProject, setPendingNewProject] = useState<Project | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
   const updateScriptFileRef = useRef<HTMLInputElement>(null);
   const newProjectFileRef = useRef<HTMLInputElement>(null);
@@ -480,7 +482,11 @@ function AppContent() {
     });
     if (!ok) return;
     try {
-      importProjectFromData(await buildNewProjectFromFile(file));
+      const { project, unknown } = await buildNewProjectFromFile(file);
+      // Custom/localized heading values still prompt (roadmap 127) — only the
+      // FDX/Fountain/CSV path ever reports unknowns.
+      if (unknown.intExt.length || unknown.dayNight.length) setPendingNewProject(project);
+      else importProjectFromData(project);
     } catch (err: any) {
       dialog.alert({ title: 'Import Error', message: err?.message || 'Failed to import file' });
     }
@@ -735,6 +741,11 @@ function AppContent() {
       )}
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
       {pendingScriptUpdate && <ScriptUpdateModal result={pendingScriptUpdate.result} fileName={pendingScriptUpdate.fileName} onClose={() => setPendingScriptUpdate(null)} />}
+      <NewProjectHeadingMapper
+        project={pendingNewProject}
+        onCancel={() => setPendingNewProject(null)}
+        onConfirm={(p) => { setPendingNewProject(null); importProjectFromData(p); }}
+      />
       <input ref={importFileRef} type="file" accept={pickerAccept('.csv,.fdx,.fountain,.txt')} onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
       <input ref={updateScriptFileRef} type="file" accept={pickerAccept('.csv,.fdx,.fountain,.txt')} onChange={e => { const f = e.target.files?.[0]; if (f) handleUpdateScriptFile(f); if (updateScriptFileRef.current) updateScriptFileRef.current.value = ''; }} className="hidden" />
       <input ref={newProjectFileRef} type="file" accept={pickerAccept(NEW_PROJECT_ACCEPT)} onChange={handleNewProjectImport} className="hidden" />

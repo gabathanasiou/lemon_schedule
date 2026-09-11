@@ -12,6 +12,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import ProjectCard from './ProjectCard';
 import NewProjectModal from './NewProjectModal';
+import NewProjectHeadingMapper from './import/NewProjectHeadingMapper';
 import { buildNewProjectFromFile, NEW_PROJECT_ACCEPT } from '../lib/import';
 import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
 import { pickerAccept } from '../lib/device';
@@ -65,6 +66,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [activeTab, setActiveTab] = useState<ProjectTab>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [pendingImport, setPendingImport] = useState<Project | null>(null);
   const [parsingSchedule, setParsingSchedule] = useState<string | null>(null);
 
   const [showDebug, setShowDebug] = useState(false);
@@ -156,8 +158,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     }
     setImporting(true);
     try {
-      const project = await buildNewProjectFromFile(file);
-      await importImportedProject(project);
+      const { project, unknown } = await buildNewProjectFromFile(file);
+      // Script imports with custom/localized heading values prompt the mapper
+      // before the project is committed (roadmap 127).
+      if (unknown.intExt.length || unknown.dayNight.length) setPendingImport(project);
+      else await importImportedProject(project);
     } catch (err: any) {
       dialog.alert({ title: 'Import Error', message: err?.message || 'Failed to import file' });
     } finally {
@@ -311,6 +316,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   }, []);
 
   return (
+    <>
     <Modal open closable={!!onClose} onClose={() => onClose?.()} title="Project Manager" icon={<FolderOpen className="w-4 h-4" />} width="max-w-lg"
       footer={
         <ModalFooter>
@@ -602,5 +608,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       </div>
     </div>
     </Modal>
+    <NewProjectHeadingMapper
+      project={pendingImport}
+      onCancel={() => setPendingImport(null)}
+      onConfirm={async (p) => { setPendingImport(null); await importImportedProject(p); }}
+    />
+    </>
   );
 }

@@ -80,4 +80,51 @@ test.describe('new-project import parity (roadmap 126)', () => {
     const project = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
     expect(project.scenes[project.scenes.length - 1].dayNight).toBe('DREAM');
   });
+
+  test('new-project import prompts for custom heading values before committing', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible({ timeout: 8000 });
+
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.getByRole('button', { name: 'Import', exact: true }).click(),
+    ]);
+    await chooser.setFiles(writeFdx('dream-new-project.fdx', FDX_DREAM));
+    await page.getByRole('button', { name: 'Confirm' }).click(); // import-as-new-project
+
+    // The mapper now prompts for the new-project path too (roadmap 127).
+    await expect(page.getByText('Map script headings')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText('DREAM', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: /Import 1 value/ }).click();
+
+    await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
+    const project = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+    expect(project.scenes[0].dayNight).toBe('DREAM');
+    expect(project.colorPalette.dayNightOptions).toContain('DREAM');
+  });
+
+  test('new-project mapping can match a custom value to an existing one', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible({ timeout: 8000 });
+
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.getByRole('button', { name: 'Import', exact: true }).click(),
+    ]);
+    await chooser.setFiles(writeFdx('dream-match.fdx', FDX_DREAM));
+    await page.getByRole('button', { name: 'Confirm' }).click();
+
+    await expect(page.getByText('Map script headings')).toBeVisible({ timeout: 8000 });
+    await page.getByRole('button', { name: 'Replace with' }).click();
+    // Pick NIGHT from the known day/night options.
+    await page.getByRole('button', { name: 'DAY' }).click();
+    await page.getByRole('menuitem', { name: 'NIGHT' }).click();
+    await page.getByRole('button', { name: /Import 1 value/ }).click();
+
+    await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
+    const project = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+    expect(project.scenes[0].dayNight).toBe('NIGHT');
+    expect(project.headingAliases?.dayNight?.DREAM).toBe('NIGHT');
+    expect(project.colorPalette.dayNightOptions).not.toContain('DREAM');
+  });
 });

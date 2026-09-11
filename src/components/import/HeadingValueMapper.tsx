@@ -2,16 +2,17 @@ import React, { useMemo, useState } from 'react';
 import { ChevronDown, Languages } from 'lucide-react';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
-import Button from '../Button';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
+import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import type { HeadingMapping, HeadingValueChoice } from '../../lib/import';
 
 /**
  * Custom/localized heading-value mapping (roadmap 127) — shown when an imported
  * screenplay carries INT/EXT or day/night values the project doesn't know.
- * "Add as new" writes to the Colors tab options; "Map to" records an alias.
- * Built from kit primitives (Modal + Button + DropdownMenu) per DESIGN-LANGUAGE.
+ * "New option" writes to the Colors tab options (the source of truth); "Replace
+ * with" records an alias so later imports replace silently. Built from kit
+ * primitives (Modal + DropdownMenu + the standard segmented toggle).
  */
 
 interface Props {
@@ -20,6 +21,20 @@ interface Props {
   knownDayNight: string[];
   onCancel: () => void;
   onConfirm: (mapping: HeadingMapping) => void;
+}
+
+const SEG_BTN = 'px-3 py-1.5 rounded text-xs font-semibold transition-colors';
+const GROUP_LABEL = 'text-[10px] font-semibold uppercase tracking-wider text-zinc-500';
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className={GROUP_LABEL}>{title}</h3>
+      <div className="rounded-lg border border-zinc-700 bg-zinc-800 divide-y divide-zinc-700/60 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function ValueMenu({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
@@ -33,10 +48,10 @@ function ValueMenu({ value, options, onChange }: { value: string; options: strin
       width="w-44"
       contentClassName="z-[10001]"
       trigger={
-        <Button theme="dark" variant="subtle" className="w-44 justify-between">
+        <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`}>
           <span className="truncate">{value}</span>
-          <ChevronDown className="w-3 h-3 text-zinc-500" />
-        </Button>
+          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+        </button>
       }
     >
       {options.map(opt => (
@@ -48,26 +63,36 @@ function ValueMenu({ value, options, onChange }: { value: string; options: strin
   );
 }
 
-function Row({ label, value, known, choice, onChange }: {
-  label: string;
+function Row({ value, known, choice, onChange }: {
   value: string;
   known: string[];
   choice: HeadingValueChoice;
   onChange: (c: HeadingValueChoice) => void;
 }) {
+  const isMatch = choice.action === 'map';
+  const matchTo = choice.mapTo || known[0];
   return (
-    <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-zinc-700 bg-zinc-800">
-      <span className="text-zinc-100 text-xs font-mono w-24 shrink-0 truncate">{value}</span>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 w-16 shrink-0">{label}</span>
-      <Button theme="dark" variant="subtle" active={choice.action === 'add'} onClick={() => onChange({ action: 'add' })}>
-        Add as new
-      </Button>
-      <Button theme="dark" variant="subtle" active={choice.action === 'map'} onClick={() => onChange({ action: 'map', mapTo: choice.mapTo || known[0] })}>
-        Map to
-      </Button>
-      {choice.action === 'map' && (
-        <ValueMenu value={choice.mapTo || known[0]} options={known} onChange={v => onChange({ action: 'map', mapTo: v })} />
-      )}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+      <div className="min-w-0 flex-1 text-sm font-semibold text-zinc-100 truncate">{value}</div>
+      <div className="flex border border-zinc-700 rounded p-0.5 bg-zinc-950 w-fit" role="group" aria-label={`How to handle ${value}`}>
+        <button
+          type="button"
+          aria-pressed={!isMatch}
+          onClick={() => onChange({ action: 'add' })}
+          className={`${SEG_BTN} ${!isMatch ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+        >
+          New option
+        </button>
+        <button
+          type="button"
+          aria-pressed={isMatch}
+          onClick={() => onChange({ action: 'map', mapTo: matchTo })}
+          className={`${SEG_BTN} ${isMatch ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+        >
+          Replace with
+        </button>
+      </div>
+      {isMatch && <ValueMenu value={matchTo} options={known} onChange={v => onChange({ action: 'map', mapTo: v })} />}
     </div>
   );
 }
@@ -97,23 +122,24 @@ export default function HeadingValueMapper({ unknown, knownIntExt, knownDayNight
     >
       <div className="p-6 space-y-5">
         <p className="text-xs text-zinc-400 leading-relaxed">
-          This script uses heading values the project doesn't know. Add them to your Colors options, or map them to an existing value.
+          This script uses heading values your Colors options don't include yet. For each value
+          below, either add it as a new option, or replace it with one you already use.
         </p>
         {unknown.intExt.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Interior / Exterior</h3>
+          <Section title="Interior / exterior">
             {unknown.intExt.map(v => (
-              <Row key={v} label="INT/EXT" value={v} known={knownIntExt} choice={intExt[v]} onChange={c => setIntExt(prev => ({ ...prev, [v]: c }))} />
+              <Row key={v} value={v} known={knownIntExt}
+                choice={intExt[v]} onChange={c => setIntExt(prev => ({ ...prev, [v]: c }))} />
             ))}
-          </div>
+          </Section>
         )}
         {unknown.dayNight.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Day / Night</h3>
+          <Section title="Day / night">
             {unknown.dayNight.map(v => (
-              <Row key={v} label="Day/Night" value={v} known={knownDayNight} choice={dayNight[v]} onChange={c => setDayNight(prev => ({ ...prev, [v]: c }))} />
+              <Row key={v} value={v} known={knownDayNight}
+                choice={dayNight[v]} onChange={c => setDayNight(prev => ({ ...prev, [v]: c }))} />
             ))}
-          </div>
+          </Section>
         )}
       </div>
     </Modal>

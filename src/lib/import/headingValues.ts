@@ -70,6 +70,36 @@ export interface AppliedHeadingMapping {
   aliases: HeadingAliases;
 }
 
+/** One raw value → canonical, recording a new "added" value or a raw→canonical
+ *  alias. Shared by the ImportResult (append/diff) and Project (new-project)
+ *  mapping paths so the rule lives in exactly one place. */
+function mapHeadingValue(
+  raw: string,
+  table: Record<string, string>,
+  added: string[],
+  choice: Record<string, HeadingValueChoice> | undefined,
+): string {
+  const key = (raw || '').toUpperCase();
+  if (!key) return raw;
+  if (table[key]) return table[key];
+  const c = choice?.[key];
+  if (c?.action === 'map' && c.mapTo) {
+    table[key] = c.mapTo;
+    return c.mapTo;
+  }
+  if (c?.action === 'add') {
+    if (!added.includes(key)) added.push(key);
+    return key;
+  }
+  return raw;
+}
+
+/** Append option values not already present (case-insensitive). */
+function mergeKnownValues(list: string[], extra: string[]): string[] {
+  const set = new Set(list.map(v => v.toUpperCase()));
+  return [...list, ...extra.filter(v => !set.has(v.toUpperCase()))];
+}
+
 /** Rewrite an ImportResult's scene heading values from the project's aliases +
  *  the user's choices. Pure. */
 export function applyHeadingMapping(result: ImportResult, project: Project, mapping: HeadingMapping): AppliedHeadingMapping {
@@ -80,43 +110,55 @@ export function applyHeadingMapping(result: ImportResult, project: Project, mapp
   const addedIntExt: string[] = [];
   const addedDayNight: string[] = [];
 
-  const mapValue = (raw: string, table: Record<string, string>, added: string[], choice: Record<string, HeadingValueChoice> | undefined): string => {
-    const key = (raw || '').toUpperCase();
-    if (!key) return raw;
-    if (table[key]) return table[key];
-    const c = choice?.[key];
-    if (c?.action === 'map' && c.mapTo) {
-      table[key] = c.mapTo;
-      return c.mapTo;
-    }
-    if (c?.action === 'add') {
-      if (!added.includes(key)) added.push(key);
-      return key;
-    }
-    return raw;
-  };
-
   const scenes = result.scenes.map(s => ({
     ...s,
-    intExt: mapValue(s.intExt, aliases.intExt!, addedIntExt, mapping.intExt),
-    dayNight: mapValue(s.dayNight, aliases.dayNight!, addedDayNight, mapping.dayNight),
+    intExt: mapHeadingValue(s.intExt, aliases.intExt!, addedIntExt, mapping.intExt),
+    dayNight: mapHeadingValue(s.dayNight, aliases.dayNight!, addedDayNight, mapping.dayNight),
   }));
 
   return { result: { ...result, scenes }, addedIntExt, addedDayNight, aliases };
 }
 
-/** The project patch that records a mapping: new option values go on the
- *  Colors palette (source of truth); mapped values become aliases. */
-export function buildHeadingMappingUpdate(project: Project, applied: AppliedHeadingMapping): Partial<Project> {
-  const known = (list: string[], extra: string[]) => {
-    const set = new Set(list.map(v => v.toUpperCase()));
-    return [...list, ...extra.filter(v => !set.has(v.toUpperCase()))];
+/** Unknown heading values carried by an already-built project's scenes. */
+export function collectUnknownHeadingValuesOfProject(project: Project): { intExt: string[]; dayNight: string[] } {
+  return collectUnknownFromValues(project.scenes, project);
+}
+
+/** Rewrite an already-built project's scene heading values from its aliases +
+ *  the user's choices, and fold the new options/aliases back in. Pure. The
+ *  new-project import path uses this so it prompts exactly like append/diff. */
+export function applyHeadingMappingToProject(project: Project, mapping: HeadingMapping): Project {
+  const aliases: HeadingAliases = {
+    intExt: { ...(project.headingAliases?.intExt || {}) },
+    dayNight: { ...(project.headingAliases?.dayNight || {}) },
   };
+  const addedIntExt: string[] = [];
+  const addedDayNight: string[] = [];
+
+  const scenes = project.scenes.map(s => ({
+    ...s,
+    intExt: mapHeadingValue(s.intExt, aliases.intExt!, addedIntExt, mapping.intExt),
+    dayNight: mapHeadingValue(s.dayNight, aliases.dayNight!, addedDayNight, mapping.dayNight),
+  }));
+
   const colorPalette = project.colorPalette
     ? {
         ...project.colorPalette,
-        intExtOptions: known(knownIntExtValues(project), applied.addedIntExt),
-        dayNightOptions: known(knownDayNightValues(project), applied.addedDayNight),
+        intExtOptions: mergeKnownValues(knownIntExtValues(project), addedIntExt),
+        dayNightOptions: mergeKnownValues(knownDayNightValues(project), addedDayNight),
+      }
+    : project.colorPalette;
+  return { ...project, scenes, colorPalette, headingAliases: aliases };
+}
+
+/** The project patch that records a mapping: new option values go on the
+ *  Colors palette (source of truth); mapped values become aliases. */
+export function buildHeadingMappingUpdate(project: Project, applied: AppliedHeadingMapping): Partial<Project> {
+  const colorPalette = project.colorPalette
+    ? {
+        ...project.colorPalette,
+        intExtOptions: mergeKnownValues(knownIntExtValues(project), applied.addedIntExt),
+        dayNightOptions: mergeKnownValues(knownDayNightValues(project), applied.addedDayNight),
       }
     : project.colorPalette;
   return { colorPalette, headingAliases: applied.aliases };

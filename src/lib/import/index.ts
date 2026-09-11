@@ -21,7 +21,9 @@ export { buildCastIdMap, firstFreeCastId } from './castIds';
 export {
   collectUnknownHeadingValues,
   collectUnknownFromValues,
+  collectUnknownHeadingValuesOfProject,
   applyHeadingMapping,
+  applyHeadingMappingToProject,
   buildHeadingMappingUpdate,
   knownIntExtValues,
   knownDayNightValues,

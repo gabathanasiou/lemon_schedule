@@ -8,6 +8,7 @@ import { parseFountain } from './fountain';
 import { parseCSV } from './csv';
 import { parseMsdFile } from './msd';
 import { parseSexFile } from './sex';
+import { collectUnknownHeadingValuesOfProject } from './headingValues';
 import type { ImportResult } from './shared';
 
 /**
@@ -35,57 +36,45 @@ export function buildProjectFromImport(result: ImportResult, title: string, file
     existingCastMembers: [],
     projectTitle: title || result.title || fileBase,
   });
-  return addUnknownHeadingOptions(state.present);
+  return state.present;
 }
 
-/** A new project from a script has no prompt step (PM/File new-project build the
- *  Project directly) — fold any unknown INT/EXT or day/night values into the
- *  Colors options so custom/localized values are preserved, never dropped. */
-function addUnknownHeadingOptions(project: Project): Project {
-  const palette = project.colorPalette;
-  if (!palette) return project;
-  const ie = new Set(palette.intExtOptions.map(v => v.toUpperCase()));
-  const dn = new Set(palette.dayNightOptions.map(v => v.toUpperCase()));
-  const addIE: string[] = [];
-  const addDN: string[] = [];
-  for (const s of project.scenes) {
-    const a = (s.intExt || '').toUpperCase();
-    if (a && !ie.has(a)) { ie.add(a); addIE.push(a); }
-    const b = (s.dayNight || '').toUpperCase();
-    if (b && !dn.has(b)) { dn.add(b); addDN.push(b); }
-  }
-  if (addIE.length === 0 && addDN.length === 0) return project;
-  return {
-    ...project,
-    colorPalette: {
-      ...palette,
-      intExtOptions: [...palette.intExtOptions, ...addIE],
-      dayNightOptions: [...palette.dayNightOptions, ...addDN],
-    },
-  };
+/** A parsed new-project import plus any custom/localized heading values the
+ *  fresh project doesn't know yet. The caller prompts with `HeadingValueMapper`
+ *  (mapping via `applyHeadingMappingToProject`) before committing — same flow as
+ *  append/diff, never a silent fold. Project/schedule files carry no prompt. */
+export interface NewProjectImport {
+  project: Project;
+  unknown: { intExt: string[]; dayNight: string[] };
 }
+
+const NO_UNKNOWN = { intExt: [] as string[], dayNight: [] as string[] };
+
+const scriptImport = (project: Project): NewProjectImport => ({
+  project,
+  unknown: collectUnknownHeadingValuesOfProject(project),
+});
 
 /** Parse any supported import file into a Project. Throws on invalid JSON. */
-export async function buildNewProjectFromFile(file: File): Promise<Project> {
+export async function buildNewProjectFromFile(file: File): Promise<NewProjectImport> {
   const ext = file.name.split('.').pop()?.toLowerCase();
   const base = fileBaseTitle(file.name);
 
-  if (ext === 'msd') return parseMsdFile(file, base);
-  if (ext === 'sex') return parseSexFile(file, base);
-  if (ext === 'fdx') return buildProjectFromImport(await parseFDX(file), '', base);
-  if (ext === 'fountain' || ext === 'txt') return buildProjectFromImport(await parseFountain(file), '', base);
+  if (ext === 'msd') return { project: await parseMsdFile(file, base), unknown: NO_UNKNOWN };
+  if (ext === 'sex') return { project: await parseSexFile(file, base), unknown: NO_UNKNOWN };
+  if (ext === 'fdx') return scriptImport(buildProjectFromImport(await parseFDX(file), '', base));
+  if (ext === 'fountain' || ext === 'txt') return scriptImport(buildProjectFromImport(await parseFountain(file), '', base));
 
   const text = await file.text();
   if (ext === 'csv') {
-    const result = await parseCSV(file, [], [], {});
-    return buildProjectFromImport(result, '', base);
+    return scriptImport(buildProjectFromImport(await parseCSV(file, [], [], {}), '', base));
   }
   // .lemon / .json — a serialized Project.
   const data = JSON.parse(text);
   if (!data || typeof data !== 'object' || !('scenes' in data) || !('versions' in data)) {
     throw new Error('Missing scenes or versions.');
   }
-  return data as Project;
+  return { project: data as Project, unknown: NO_UNKNOWN };
 }
 
 /** Extensions the new-project import accepts (PM + File menu, desktop picker). */
