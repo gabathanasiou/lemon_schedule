@@ -71,4 +71,15 @@ describe('commitScriptDiff', () => {
     commitScriptDiff({ ...base, dispatch, result, entries, decisions: ['keep'] });
     expect(actions.map(a => a.type)).toEqual(['BATCH_START', 'SET_SCRIPT_DOCUMENT', 'BATCH_COMMIT']);
   });
+
+  it('applies heading-value mappings to ADDED scenes, not only modified ones', () => {
+    const { actions, dispatch } = collect();
+    const entries = [entry({ status: 'added', newScene: parsed({ sceneNumber: '4', set: 'DREAM ROOM', intExt: 'ΕΣΩΤ', dayNight: 'DREAM' }) })];
+    commitScriptDiff({
+      ...base, dispatch, result, entries, decisions: [],
+      headingValues: { intExt: { 'ΕΣΩΤ': 'INT' }, dayNight: { DREAM: 'NIGHT' } },
+    });
+    const add = actions.find(a => a.type === 'ADD_SCENE');
+    expect(add.payload).toMatchObject({ intExt: 'INT', dayNight: 'NIGHT' });
+  });
 });

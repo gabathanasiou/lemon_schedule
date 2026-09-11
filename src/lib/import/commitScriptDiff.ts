@@ -117,7 +117,7 @@ export function commitScriptDiff({
         dispatch({ type: 'UPDATE_SCENE', payload: patch });
         for (const name of collectImportedSets(entry.newScene)) importedSets.add(name);
       } else if (entry.status === 'added' && decision === 'add' && entry.newScene) {
-        dispatch({ type: 'ADD_SCENE', payload: buildNewScene(entry.newScene, resolvedCastIdMap) });
+        dispatch({ type: 'ADD_SCENE', payload: buildNewScene(mappedScene(entry.newScene), resolvedCastIdMap) });
         for (const name of collectImportedSets(entry.newScene)) importedSets.add(name);
       } else if (entry.status === 'removed' && decision === 'remove' && entry.oldScene) {
         dispatch({ type: 'DELETE_SCENE', payload: entry.oldScene.id });

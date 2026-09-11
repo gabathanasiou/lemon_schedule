@@ -161,4 +161,41 @@ test.describe('script update review (roadmap 38)', () => {
     const project = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
     expect(project.scenes[0].dayNight).toBe('DREAM');
   });
+
+  test('an UNCHANGED scene that already carries a custom day/night still prompts at apply', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    // Scene 1 is byte-for-byte identical to the incoming (retained body matches),
+    // so the diff classifies it UNCHANGED. Scene 2 changes, so there is a real
+    // mutation to apply — which is what enables the Apply button. The prompt must
+    // still surface scene 1's custom DREAM value (roadmap 127 follow-up).
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const document_ = {
+        format: 'fdx',
+        scenes: [{ sceneNumber: '1', blocks: [['heading', 'INT. KITCHEN - DREAM'], ['action', 'Same.']] }],
+      };
+      b.batch(() => {
+        b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: document_ } });
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN', intExt: 'INT', dayNight: 'DREAM', pageCount: '1.0', pageCountDecimal: 1 }) });
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '2', set: 'STREET', intExt: 'EXT', dayNight: 'DAY' }) });
+      });
+    });
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+    await page.getByRole('menuitem', { name: /Update script/ }).click();
+    await page.locator('input[type="file"]').nth(1).setInputFiles(writeFdx('dream-same.fdx', [
+      { n: '1', heading: 'INT. KITCHEN - DREAM', action: 'Same.' },
+      { n: '2', heading: 'EXT. STREET - DAY', action: 'Changed.' },
+    ]));
+    await page.getByRole('dialog').getByText(/Update Script/).waitFor();
+
+    // Only scene 2 is in the review queue; accept it to reach an enabled Apply.
+    await page.keyboard.press('ArrowRight');
+    await page.getByRole('button', { name: /Apply \d+/ }).click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await expect(page.getByText('Map script headings')).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: /Import 1 value/ }).click();
+    await page.waitForFunction(() => ((window as any).__lemonSchedule.getProject().colorPalette?.dayNightOptions || []).includes('DREAM'));
+  });
 });

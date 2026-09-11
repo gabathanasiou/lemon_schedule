@@ -318,14 +318,19 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
     });
     if (!ok) return;
 
-    // Only prompt for custom/localized heading values that actually survive.
-    const appliedScenes: { intExt?: string; dayNight?: string }[] = [];
+    // Prompt for custom/localized heading values in EVERY scene that survives
+    // the update — accepted ("take/add") AND kept ones (their value remains).
+    const finalScenes: { intExt?: string; dayNight?: string }[] = [];
     diff.entries.forEach((e, i) => {
-      const d = decisions[i];
-      const sc = ((e.status === 'modified' && d === 'apply') || (e.status === 'added' && d === 'add')) ? e.newScene : undefined;
-      if (sc) appliedScenes.push(sc);
+      const d = decisions[i] ?? defaultDecision(e);
+      let sc: { intExt?: string; dayNight?: string } | undefined;
+      if (e.status === 'modified') sc = d === 'apply' ? e.newScene : e.oldScene;
+      else if (e.status === 'added') sc = d === 'add' ? e.newScene : undefined;
+      else if (e.status === 'removed') sc = d === 'remove' ? undefined : e.oldScene;
+      else sc = e.oldScene; // unchanged
+      if (sc) finalScenes.push(sc);
     });
-    const unknown = collectUnknownFromValues(appliedScenes, project);
+    const unknown = collectUnknownFromValues(finalScenes, project);
     if (unknown.intExt.length || unknown.dayNight.length) {
       setMappingPrompt(unknown);
       return;
