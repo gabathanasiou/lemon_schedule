@@ -11,8 +11,7 @@ import type { HeadingMapping } from '../lib/import';
 import HeadingValueMapper from './import/HeadingValueMapper';
 import type { DiffDecision, ImportResult, SceneDiffEntry, SceneFieldDiff } from '../lib/import';
 import { scriptSceneBlocks } from '../lib/script';
-import { ScriptBlocksToned, diffScriptBlocks } from './script/ScriptSceneScript';
-import type { TonedBlock } from './script/ScriptSceneScript';
+import { alignScriptBlocks, ScriptBlockLine } from './script/ScriptSceneScript';
 import { CastAssignmentTable, CategoryChecklist } from './import/ImportReviewControls';
 import type { ImportCharacter } from '../lib/import';
 import type { ScriptBlock } from '../types';
@@ -79,24 +78,6 @@ function FieldStrip({ fields, keeps, onToggle }: { fields: SceneFieldDiff[]; kee
           />
         );
       })}
-    </div>
-  );
-}
-
-function Pane({ title, lines, scrollRef, onScroll }: {
-  title: string;
-  lines: TonedBlock[];
-  scrollRef: React.RefObject<HTMLDivElement | null>;
-  onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
-}) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">{title}</div>
-      <div ref={scrollRef} onScroll={onScroll} className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 h-[320px] overflow-y-auto">
-        {lines.length > 0
-          ? <div className="font-mono text-[12.5px] leading-[1.45] text-zinc-200"><ScriptBlocksToned lines={lines} /></div>
-          : <p className="text-zinc-600 text-xs italic">No retained screenplay for this scene.</p>}
-      </div>
     </div>
   );
 }
@@ -196,18 +177,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
     [...result.characters].sort((a, b) => b.scenes.length - a.scenes.length));
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(() => new Set(result.unknownCategories));
 
-  const paneARef = useRef<HTMLDivElement>(null);
-  const paneBRef = useRef<HTMLDivElement>(null);
-  const syncingRef = useRef(false);
-  const syncScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const src = e.currentTarget;
-    const dst = src === paneARef.current ? paneBRef.current : paneARef.current;
-    if (!dst || syncingRef.current) return;
-    syncingRef.current = true;
-    dst.scrollTop = src.scrollTop;
-    dst.scrollLeft = src.scrollLeft;
-    requestAnimationFrame(() => { syncingRef.current = false; });
-  }, []);
+  const diffScrollRef = useRef<HTMLDivElement>(null);
 
   const queue = useMemo(() => changeIndices.filter(i => !decided.has(i)), [changeIndices, decided]);
   const currentIndex = queue[0];
@@ -221,8 +191,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
   }, [view, total, queue.length]);
 
   useEffect(() => {
-    if (paneARef.current) paneARef.current.scrollTop = 0;
-    if (paneBRef.current) paneBRef.current.scrollTop = 0;
+    if (diffScrollRef.current) diffScrollRef.current.scrollTop = 0;
   }, [currentIndex]);
 
   const decide = useCallback((index: number, decision: DiffDecision) => {
@@ -376,18 +345,39 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
     const newValues: HeadingValues = e.newScene ? { intExt: e.newScene.intExt, set: e.newScene.set, dayNight: e.newScene.dayNight } : {};
     const newParts = e.newScene ? headingParts(newValues, e.oldScene || {}, 'incoming') : [];
     const newLines = replaceHeading(e.newScene ? scriptSceneBlocks(result.script, e.newScene.sceneNumber) : [], newParts);
-    const panes = diffScriptBlocks(current.lines, newLines);
+    const rows = alignScriptBlocks(current.lines, newLines);
     // Granular headings: only the changed part(s) are colored (blue = yours,
-    // green = the incoming script's). The rest of the diff stays line-level.
-    const oldHeading = panes.old.find(l => l.type === 'heading');
-    if (oldHeading) { oldHeading.tone = 'same'; oldHeading.parts = current.parts; }
-    const newHeading = panes.new.find(l => l.type === 'heading');
-    if (newHeading) { newHeading.tone = 'same'; newHeading.parts = newParts; }
+    // green = the incoming script's); the heading pair shares one aligned row.
+    for (const r of rows) {
+      if (r.left?.type === 'heading') { r.left.tone = 'same'; r.left.parts = current.parts; }
+      if (r.right?.type === 'heading') { r.right.tone = 'same'; r.right.parts = newParts; }
+    }
+    // Always a two-column "dual window" — an added/removed scene shows its
+    // content in its own half with the other half blank, never full width.
+    const showLeft = e.status !== 'added';
+    const showRight = e.status !== 'removed';
+    const cols = '1fr 1fr';
     return (
       <>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {e.status !== 'added' && <Pane title="Current (your project)" lines={panes.old} scrollRef={paneARef} onScroll={syncScroll} />}
-          {e.status !== 'removed' && <Pane title="Incoming (new script)" lines={panes.new} scrollRef={paneBRef} onScroll={syncScroll} />}
+        <div className="rounded-lg border border-zinc-800 bg-zinc-950 overflow-hidden">
+          <div className="grid border-b border-zinc-800 text-[10px] font-semibold uppercase tracking-wider text-zinc-500" style={{ gridTemplateColumns: cols }}>
+            <div className="truncate px-4 py-2">{showLeft ? 'Current (your project)' : ''}</div>
+            <div className="truncate border-l border-zinc-800 px-4 py-2">{showRight ? 'Incoming (new script)' : ''}</div>
+          </div>
+          <div ref={diffScrollRef} className="h-[320px] overflow-y-auto">
+            {rows.length === 0
+              ? <p className="px-4 py-3 text-zinc-600 text-xs italic">No retained screenplay for this scene.</p>
+              : (
+                <div className="grid font-mono text-[12.5px] leading-[1.45] text-zinc-200" style={{ gridTemplateColumns: cols }}>
+                  {rows.map((r, i) => (
+                    <React.Fragment key={i}>
+                      <div data-review-row={i} data-review-side="left" className="min-w-0 px-4">{showLeft && r.left ? <ScriptBlockLine block={r.left} /> : null}</div>
+                      <div data-review-row={i} data-review-side="right" className="min-w-0 border-l border-zinc-800 px-4">{showRight && r.right ? <ScriptBlockLine block={r.right} /> : null}</div>
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+          </div>
         </div>
         {e.fields.some(f => f.key !== 'body') && (
           <div className="mt-2 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">

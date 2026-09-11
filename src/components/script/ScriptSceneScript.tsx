@@ -1,5 +1,5 @@
 import React from 'react';
-import { diffArrays } from 'diff';
+import { diffArrays, diffWords } from 'diff';
 import type { ScriptBlock, ScriptBlockType, ScriptInline, ScriptScene } from '../../types';
 
 /**
@@ -25,25 +25,27 @@ export interface TonedBlock {
   tone: BlockTone;
   /** Inline bold/italic/underline runs, when the source carried them. */
   runs?: ScriptInline[];
-  /** Heading only: inline segments so a changed set / INT-EXT / day-night can
-   *  be marked individually instead of the whole heading. `user` = your in-app
-   *  edit (blue); `incoming` = the new script changed it (green). */
-  parts?: { text: string; change?: 'user' | 'incoming' }[];
+  /** Intra-line segments: a changed heading (INT-EXT · set · day-night) or a
+   *  word-level body diff. `user` = your in-app edit (blue), `incoming` = the
+   *  new script (green), `removed`/`added` = word-level tokens (red/green). */
+  parts?: { text: string; change?: 'user' | 'incoming' | 'removed' | 'added' }[];
 }
 
+// Diff backgrounds carry the meaning; TEXT STAYS NEUTRAL (never tinted). Line-
+// level and word-level changes share the same intensity (one green, one red).
 const TONE_CLASS_DARK: Record<BlockTone, string> = {
   same: '',
-  added: 'bg-emerald-500/15',
-  removed: 'bg-red-500/15 text-red-300/90 line-through decoration-red-400/60',
+  added: 'bg-emerald-500/25',
+  removed: 'bg-red-500/25 line-through decoration-red-400/60',
   /** Your in-app edit (not the imported baseline) — blue marker. */
-  changed: 'bg-blue-500/15 text-blue-200',
+  changed: 'bg-blue-500/25',
 };
 
 const TONE_CLASS_LIGHT: Record<BlockTone, string> = {
   same: '',
-  added: 'bg-emerald-500/15',
-  removed: 'bg-red-500/10 text-red-700/90 line-through decoration-red-400/60',
-  changed: 'bg-blue-500/10 text-blue-800',
+  added: 'bg-emerald-500/25',
+  removed: 'bg-red-500/25 line-through decoration-red-400/60',
+  changed: 'bg-blue-500/25',
 };
 
 const TONE_CLASSES: Record<ScriptTheme, Record<BlockTone, string>> = {
@@ -51,10 +53,21 @@ const TONE_CLASSES: Record<ScriptTheme, Record<BlockTone, string>> = {
   light: TONE_CLASS_LIGHT,
 };
 
-/** Heading-part change colors per theme (user edit vs incoming script). */
-const PART_CLASSES: Record<ScriptTheme, { user: string; incoming: string }> = {
-  dark: { user: 'text-blue-300 bg-blue-500/20', incoming: 'text-emerald-300 bg-emerald-500/20' },
-  light: { user: 'text-blue-800 bg-blue-500/20', incoming: 'text-emerald-800 bg-emerald-500/20' },
+/** Inline-part colors per theme: heading edits (user/incoming) + word-level
+ *  body diff tokens (removed/added). Backgrounds only — text stays neutral. */
+const PART_CLASSES: Record<ScriptTheme, Record<'user' | 'incoming' | 'removed' | 'added', string>> = {
+  dark: {
+    user: 'bg-blue-500/25',
+    incoming: 'bg-emerald-500/25',
+    removed: 'bg-red-500/25 line-through decoration-red-400/60',
+    added: 'bg-emerald-500/25',
+  },
+  light: {
+    user: 'bg-blue-500/25',
+    incoming: 'bg-emerald-500/25',
+    removed: 'bg-red-500/25 line-through decoration-red-400/60',
+    added: 'bg-emerald-500/25',
+  },
 };
 
 const MARK_CLASSES: Record<ScriptTheme, string> = {
@@ -101,9 +114,20 @@ function InlineRuns({ runs, highlight, theme }: { runs: ScriptInline[]; highligh
 function BlockLine({ type, text, tone, parts, runs, theme, highlight, sceneNumber }: TonedBlock & { theme: ScriptTheme; highlight?: string; sceneNumber?: string }) {
   const toneCls = TONE_CLASSES[theme][tone];
   const partCls = PART_CLASSES[theme];
-  const content = runs && runs.length > 0
+  const partsNode = parts && parts.length > 0
+    ? (
+      <>
+        {parts.map((p, i) => (
+          <span key={i} className={p.change ? `${partCls[p.change]} rounded px-0.5` : ''}>
+            <Highlighted text={p.text} query={highlight} theme={theme} />
+          </span>
+        ))}
+      </>
+    )
+    : null;
+  const content = partsNode ?? (runs && runs.length > 0
     ? <InlineRuns runs={runs} highlight={highlight} theme={theme} />
-    : <Highlighted text={text} query={highlight} theme={theme} />;
+    : <Highlighted text={text} query={highlight} theme={theme} />);
   switch (type) {
     case 'page_break':
       return <div className={`my-2 border-t border-dashed ${theme === 'light' ? 'border-zinc-400' : 'border-zinc-600/60'}`} />;
@@ -113,20 +137,7 @@ function BlockLine({ type, text, tone, parts, runs, theme, highlight, sceneNumbe
           {sceneNumber && (
             <span className={`absolute right-full mr-3 font-normal normal-case ${theme === 'light' ? 'text-zinc-400' : 'text-zinc-500'}`}>{sceneNumber}</span>
           )}
-          {parts
-            ? parts.map((p, i) => (
-                <span
-                  key={i}
-                  className={
-                    p.change === 'user' ? `${partCls.user} rounded px-0.5`
-                      : p.change === 'incoming' ? `${partCls.incoming} rounded px-0.5`
-                        : ''
-                  }
-                >
-                  <Highlighted text={p.text} query={highlight} theme={theme} />
-                </span>
-              ))
-            : content}
+          {content}
         </div>
       );
     case 'character':
@@ -210,30 +221,73 @@ export function ScriptSceneText({ scene, className = '', theme = 'dark', fontCla
   );
 }
 
+/** One aligned review row: the left (current) and/or right (incoming) block at
+ *  the same vertical position (roadmap 128). A side is absent when the block
+ *  was added/removed, so the grid leaves an empty filler cell. */
+export interface AlignedBlockRow {
+  left?: TonedBlock;
+  right?: TonedBlock;
+}
+
+/** Both headings compare equal regardless of text so a changed heading pairs
+ *  into ONE row (its INT/EXT/set/day values are diffed via `parts`, not tone). */
+const reviewBlockEqual = (a: ScriptBlock, b: ScriptBlock): boolean =>
+  a[0] === b[0] && (a[0] === 'heading' ? true : a[1] === b[1] && JSON.stringify(a[2] ?? null) === JSON.stringify(b[2] ?? null));
+
 /**
- * Block-level diff of two retained streams for the update review: the OLD pane
- * shows removed blocks struck through in place; the NEW pane highlights added
- * blocks. Uses `diffArrays` with a tuple comparator (block arrays are never
- * reference-equal across imports).
+ * Block-level diff of two retained streams, returned as **vertically aligned
+ * rows** (roadmap 128) — the update review renders one row per entry so an
+ * insert/delete leaves a blank filler cell instead of drifting the panes.
+ *
+ * A `diffArrays` replacement comes out as a removed run then an added run; like
+ * GitHub's split view / VS Code, we **pair those runs line-by-line** so a 1-for-1
+ * replacement renders side-by-side on one row (not "all removed" then "all
+ * added"), and only the surplus lines of the longer side get a filler cell.
+ * `diffArrays` segments are never reference-equal across imports, hence the
+ * tuple comparator.
  */
-export function diffScriptBlocks(oldBlocks: ScriptBlock[], newBlocks: ScriptBlock[]): { old: TonedBlock[]; new: TonedBlock[] } {
-  const changes = diffArrays(oldBlocks, newBlocks, {
-    comparator: (a, b) => a[0] === b[0] && a[1] === b[1] && JSON.stringify(a[2] ?? null) === JSON.stringify(b[2] ?? null),
-  });
-  const oldLines: TonedBlock[] = [];
-  const newLines: TonedBlock[] = [];
+export function alignScriptBlocks(oldBlocks: ScriptBlock[], newBlocks: ScriptBlock[]): AlignedBlockRow[] {
+  const changes = diffArrays(oldBlocks, newBlocks, { comparator: reviewBlockEqual });
+  const rows: AlignedBlockRow[] = [];
+  let removed: TonedBlock[] = [];
+  let added: TonedBlock[] = [];
+  const flush = () => {
+    const n = Math.max(removed.length, added.length);
+    for (let i = 0; i < n; i++) rows.push({ left: removed[i], right: added[i] });
+    removed = [];
+    added = [];
+  };
   for (const change of changes) {
     const blocks = change.value as ScriptBlock[];
-    if (change.added) {
-      for (const [type, text, runs] of blocks) newLines.push({ type, text, tone: 'added', runs });
-    } else if (change.removed) {
-      for (const [type, text, runs] of blocks) oldLines.push({ type, text, tone: 'removed', runs });
+    if (change.removed) {
+      if (added.length) flush(); // an added run followed by a removed run
+      for (const [type, text, runs] of blocks) removed.push({ type, text, tone: 'removed', runs });
+    } else if (change.added) {
+      for (const [type, text, runs] of blocks) added.push({ type, text, tone: 'added', runs });
     } else {
+      flush();
       for (const [type, text, runs] of blocks) {
-        oldLines.push({ type, text, tone: 'same', runs });
-        newLines.push({ type, text, tone: 'same', runs });
+        rows.push({ left: { type, text, tone: 'same', runs }, right: { type, text, tone: 'same', runs } });
       }
     }
   }
-  return { old: oldLines, new: newLines };
+  flush();
+  // Word-level marking on paired (replaced) lines: the whole block is no longer
+  // tinted/struck — only the changed words are marked (old: strike-through,
+  // new: green), like the IDE inline diff.
+  for (const row of rows) {
+    const { left, right } = row;
+    if (!left || !right || left.type === 'heading' || left.tone === 'same') continue;
+    const parts = diffWords(left.text, right.text);
+    left.parts = parts.filter(c => !c.added).map(c => ({ text: c.value, change: c.removed ? 'removed' as const : undefined }));
+    right.parts = parts.filter(c => !c.removed).map(c => ({ text: c.value, change: c.added ? 'added' as const : undefined }));
+    left.tone = 'same';
+    right.tone = 'same';
+  }
+  return rows;
+}
+
+/** Render a single review line (dark theme) — used by the aligned review grid. */
+export function ScriptBlockLine({ block }: { block: TonedBlock }) {
+  return <BlockLine {...block} theme="dark" />;
 }

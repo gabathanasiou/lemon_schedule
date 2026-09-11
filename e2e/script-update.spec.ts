@@ -227,4 +227,66 @@ test.describe('script update review (roadmap 38)', () => {
     // The Script tab label now shows the newly imported file (the version).
     await expect(page.getByText('lemon-update-tab.fdx')).toBeVisible();
   });
+
+  test('review panes stay vertically aligned across a mid-scene insert (roadmap 128)', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const doc = { format: 'fdx', scenes: [{ sceneNumber: '1', blocks: [
+        ['heading', 'INT. KITCHEN - DAY'],
+        ['action', 'Line A.'],
+        ['action', 'Line B.'],
+      ] }] };
+      b.batch(() => {
+        b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: doc } });
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN', intExt: 'INT', dayNight: 'DAY', description: 'x' }) });
+      });
+    });
+
+    const xml = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="1"><Content>
+<Paragraph Type="Scene Heading" Number="1"><Text>INT. KITCHEN - DAY</Text><SceneProperties Length="1.0"/></Paragraph>
+<Paragraph Type="Action"><Text>Line A2.</Text></Paragraph>
+<Paragraph Type="Action"><Text>Line NEW.</Text></Paragraph>
+<Paragraph Type="Action"><Text>Line B.</Text></Paragraph>
+</Content></FinalDraft>`;
+    const p = path.join(os.tmpdir(), 'lemon-align.fdx');
+    fs.writeFileSync(p, xml);
+
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+    await page.getByRole('menuitem', { name: /Update script/ }).click();
+    await page.locator('input[type="file"]').nth(1).setInputFiles(p);
+    await page.getByRole('dialog').getByText(/Update Script/).waitFor();
+
+    // Rows: 0 heading, 1 A→A2 (paired replacement), 2 Line NEW (incoming-only
+    // filler), 3 B. A 1-for-1 replacement stays side-by-side on ONE row, the
+    // insert leaves an empty left filler, and B lines up across panes.
+    // A 1-for-1 replacement stays side-by-side on ONE row; the insert leaves an
+    // empty left filler; following lines stay aligned across the panes.
+    const rightCell = (text: string) => page.locator('[data-review-side="right"]').filter({ hasText: text }).first();
+    const leftFor = async (rightText: string) => {
+      const idx = await rightCell(rightText).getAttribute('data-review-row');
+      return page.locator(`[data-review-row="${idx}"][data-review-side="left"]`);
+    };
+    const a2Left = await leftFor('Line A2.');
+    await expect(a2Left).toContainText('Line A.');
+    // Only the CHANGED token is struck through (and red-highlighted) — not the
+    // whole block; the new side's changed token is green-highlighted.
+    await expect(a2Left.locator('span.line-through')).toHaveText('A');
+    await expect(a2Left).not.toHaveClass(/line-through/);
+    await expect(rightCell('Line A2.').locator('span.bg-emerald-500\\/25')).toHaveText('A2');
+    const [la2, ra2] = await Promise.all([a2Left.boundingBox(), rightCell('Line A2.').boundingBox()]);
+    expect(la2 && ra2).toBeTruthy();
+    expect(Math.abs(la2!.y - ra2!.y)).toBeLessThanOrEqual(1);
+
+    await expect(await leftFor('Line NEW.')).toBeEmpty();
+
+    const bLeft = page.locator('[data-review-side="left"]').filter({ hasText: 'Line B.' }).first();
+    const bRight = rightCell('Line B.');
+    const [lb, rb] = await Promise.all([bLeft.boundingBox(), bRight.boundingBox()]);
+    expect(lb && rb).toBeTruthy();
+    expect(Math.abs(lb!.y - rb!.y)).toBeLessThanOrEqual(1);
+  });
 });
