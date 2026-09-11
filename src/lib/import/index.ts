@@ -16,6 +16,8 @@ export { parseMsd, parseMsdFile } from './msd';
 export { parseSex, parseSexFile, exportSex, exportSexFile } from './sex';
 export { commitImport } from './commitImport';
 export type { CommitImportParams } from './commitImport';
+export { buildNewProjectFromFile, buildProjectFromImport, fileBaseTitle, NEW_PROJECT_ACCEPT } from './buildProjectFromImport';
+export { buildCastIdMap, firstFreeCastId } from './castIds';
 export { diffScripts, sceneBodyText, sceneToView, parsedToView } from './scriptDiff';
 export type { SceneDiffEntry, SceneFieldDiff, ScriptDiffResult, DiffStatus } from './scriptDiff';
 export { commitScriptDiff, defaultDecision } from './commitScriptDiff';

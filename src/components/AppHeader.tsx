@@ -109,7 +109,7 @@ export default function AppHeader(props: AppHeaderProps) {
                 .fdx, .fountain, .csv, .txt
               </DropdownItem>
               <DropdownItem onClick={() => { setShowFileMenu(false); onImportNewProject(); }}>
-                .msd, .sex, .lemon, .json
+                New project (.lemon, .msd, .sex, scripts)
               </DropdownItem>
               <DropdownItem onClick={() => { setShowFileMenu(false); onUpdateScript(); }}>
                 Update script (diff)…

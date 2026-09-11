@@ -12,7 +12,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import ProjectCard from './ProjectCard';
 import NewProjectModal from './NewProjectModal';
-import { parseMsdFile, parseSexFile } from '../lib/import';
+import { buildNewProjectFromFile, NEW_PROJECT_ACCEPT } from '../lib/import';
 import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
 import { pickerAccept } from '../lib/device';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
@@ -136,49 +136,15 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
 
   const hasProjects = sortedList.length > 0;
 
-  const handleImportJSON = async (file: File) => {
-    setImporting(true);
-    try {
-      const text = await file.text();
-      let data: unknown;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        dialog.alert({ title: 'Invalid File', message: 'Could not read file.' });
-        return;
-      }
-      if (!data || typeof data !== 'object' || !('scenes' in data) || !('versions' in data)) {
-        dialog.alert({ title: 'Invalid File', message: 'Missing scenes or versions.' });
-        return;
-      }
-      await importImportedProject(data as Project);
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const importScheduleFile = async (file: File, ext: 'msd' | 'sex') => {
-    setParsingSchedule(file.name);
-    try {
-      const fallbackTitle = file.name.replace(/\.(msd|sex)$/i, '').trim() || 'Imported Schedule';
-      const project = ext === 'msd'
-        ? await parseMsdFile(file, fallbackTitle)
-        : await parseSexFile(file, fallbackTitle);
-      await importImportedProject(project);
-    } catch (err: any) {
-      dialog.alert({ title: 'Import Error', message: formatDriveError(err, err?.message || 'Failed to parse file') });
-    } finally {
-      setParsingSchedule(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
+  // Import parity (roadmap 126): ONE parser path for every supported file
+  // (projects, schedules AND screenplays). Always creates a new project.
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext === 'msd' || ext === 'sex') {
+    // Screenplays/schedules are destructive-ish (they become the new project);
+    // a serialized .lemon/.json didn't confirm before — keep that.
+    if (ext !== 'lemon' && ext !== 'json') {
       const ok = await dialog.confirm({
         title: 'Import as New Project',
         message: `"${file.name}" will be imported as a NEW project. Continue?`,
@@ -187,9 +153,16 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
-      await importScheduleFile(file, ext);
-    } else {
-      await handleImportJSON(file);
+    }
+    setImporting(true);
+    try {
+      const project = await buildNewProjectFromFile(file);
+      await importImportedProject(project);
+    } catch (err: any) {
+      dialog.alert({ title: 'Import Error', message: err?.message || 'Failed to import file' });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -347,7 +320,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 variant="ghost"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={importing || !!parsingSchedule}
-                title="Import a project (.lemon/.json) or schedule (.msd/.sex) as a new project"
+                title="Import a project, schedule or screenplay as a new project"
               >
                 {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
               </ModalFooterButton>
@@ -363,7 +336,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 variant="ghost"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={importing || !!parsingSchedule}
-                title="Import a project (.lemon/.json) or schedule (.msd/.sex) as a new project"
+                title="Import a project, schedule or screenplay as a new project"
               >
                 {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
               </ModalFooterButton>
@@ -379,7 +352,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               <Cloud className="w-3.5 h-3.5" /> Sign in with Google
             </ModalFooterButton>
           )}
-          <input type="file" accept={pickerAccept('.lemon,.json,.msd,.sex')} ref={fileInputRef} onChange={handleImportFile} className="hidden" />
+          <input type="file" accept={pickerAccept(NEW_PROJECT_ACCEPT)} ref={fileInputRef} onChange={handleImportFile} className="hidden" />
         </ModalFooter>
       }
     >

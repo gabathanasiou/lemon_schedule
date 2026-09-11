@@ -6,7 +6,7 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import Checkbox from './Checkbox';
-import { diffScripts, commitScriptDiff, defaultDecision, parseSceneHeading } from '../lib/import';
+import { diffScripts, commitScriptDiff, defaultDecision, parseSceneHeading, buildCastIdMap, firstFreeCastId } from '../lib/import';
 import type { DiffDecision, ImportResult, SceneDiffEntry, SceneFieldDiff } from '../lib/import';
 import { scriptSceneBlocks } from '../lib/script';
 import { ScriptBlocksToned, diffScriptBlocks } from './script/ScriptSceneScript';
@@ -276,29 +276,27 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
   }, [diff, decisions]);
   const mutationCount = report.updated.length + report.added.length + report.removed.length;
 
-  const startId = useMemo(() => {
-    const ids = new Set((project.castMembers || []).map(c => c.id));
-    let n = 1;
-    while (ids.has(String(n))) n++;
-    return n;
-  }, [project.castMembers]);
+  const startId = useMemo(() => firstFreeCastId(project.castMembers || []), [project.castMembers]);
+  // Reuse existing cast ids by name — a re-import must never duplicate a member.
+  const castAssignments = useMemo(
+    () => buildCastIdMap(castOrder, project.castMembers || []),
+    [castOrder, project.castMembers],
+  );
 
   const apply = useCallback(() => {
-    const castIdMap = new Map<string, string>();
-    castOrder.forEach((ch, i) => castIdMap.set(ch.name, String(startId + i)));
     commitScriptDiff({
       dispatch,
       result,
       entries: diff.entries,
       decisions,
-      castIdMap,
+      castIdMap: castAssignments,
       newCustomCategories: [...selectedCategories],
       existingCastMembers: project.castMembers || [],
       castRenames: diff.castRenames,
       fieldKeeps: diff.entries.map((_, i) => fieldKeeps[i]),
     });
     onClose();
-  }, [dispatch, result, diff, decisions, castOrder, startId, selectedCategories, project.castMembers, onClose, fieldKeeps]);
+  }, [dispatch, result, diff, decisions, castAssignments, selectedCategories, project.castMembers, onClose, fieldKeeps]);
 
   const runApply = useCallback(async () => {
     const parts: string[] = [];
@@ -375,7 +373,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
             selected={selectedCategories}
             onToggle={(key) => setSelectedCategories(prev => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; })}
           />
-          <CastAssignmentTable castOrder={castOrder} onReorder={setCastOrder} startId={startId} />
+          <CastAssignmentTable castOrder={castOrder} onReorder={setCastOrder} startId={startId} ids={castOrder.map(ch => castAssignments.get(ch.name))} />
         </div>
       );
     }

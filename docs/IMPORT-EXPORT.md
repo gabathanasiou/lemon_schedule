@@ -83,6 +83,21 @@ Status: read this before touching any import/export work.
 - Body-aware diff / Script view / highlight-to-tag / preview are items
   **38** and **123 Phases 1–3** — not this section.
 
+## New-project import parity (roadmap 126)
+
+- ONE dispatcher, `buildNewProjectFromFile(file)` (`src/lib/import/buildProjectFromImport.ts`),
+  serves both the Project Manager Import button and the File menu's "New project":
+  `.msd`/`.sex` → new-project parsers; `.lemon`/`.json` → serialized `Project`
+  (migrated by `importProjectFromData`); FDX/Fountain/CSV → parse → build a
+  complete `Project` by replaying `commitImport` through the reducer. Accept list
+  = `NEW_PROJECT_ACCEPT`.
+- The project title defaults to the parsed title, else the filename
+  (`fileBaseTitle`). Same fallback prefills ImportDialog's "Rename Project".
+- **Cast is reused by NAME, never duplicated**: `buildCastIdMap(ordered, existing)`
+  (`castIds.ts`) maps an incoming character whose (uppercased) name already
+  exists to that member's id; only new names get fresh sequential Board IDs.
+  Used by the append flow, the update flow, and `buildProjectFromImport`.
+
 ## Common tasks (agent recipes)
 
 - **Parse CSV/FDX/Fountain** → `parseCSV`/`parseFDX`/`parseFountain` → `ImportResult`.

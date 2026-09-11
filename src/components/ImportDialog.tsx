@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
-import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport } from '../lib/import';
+import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport, buildCastIdMap, firstFreeCastId, fileBaseTitle } from '../lib/import';
 import { Upload, Loader2 } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
@@ -35,17 +35,12 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
   const [fileLabel, setFileLabel] = useState(initialFileName || '');
   const [projectTitle, setProjectTitle] = useState('');
 
-  const existingIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const c of project.castMembers || []) ids.add(c.id);
-    return ids;
-  }, [project.castMembers]);
-
-  const startId = useMemo(() => {
-    let n = 1;
-    while (existingIds.has(String(n))) n++;
-    return n;
-  }, [existingIds]);
+  const startId = useMemo(() => firstFreeCastId(project.castMembers || []), [project.castMembers]);
+  // Reuse existing cast ids by name (never duplicate a member on re-import).
+  const castAssignments = useMemo(
+    () => buildCastIdMap(castOrder, project.castMembers || []),
+    [castOrder, project.castMembers],
+  );
 
   useEffect(() => {
     if (stage === 'select') {
@@ -54,9 +49,10 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
     }
   }, [stage]);
 
-  const prepareParsed = useCallback((parsed: ImportResult) => {
+  const prepareParsed = useCallback((parsed: ImportResult, fileBase: string) => {
     setResult(parsed);
-    setProjectTitle(parsed.title || '');
+    // Default the project name to the script's filename when it has no title.
+    setProjectTitle(parsed.title?.trim() || fileBase);
 
     const taggedKeys = new Set<string>();
     for (const s of parsed.scenes) {
@@ -74,7 +70,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
   }, [project.hiddenCategories]);
 
   useEffect(() => {
-    if (initialResult) prepareParsed(initialResult);
+    if (initialResult) prepareParsed(initialResult, fileBaseTitle(initialFileName || ''));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -95,7 +91,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
         parsed = await parseFountain(file);
       }
 
-      prepareParsed(parsed);
+      prepareParsed(parsed, fileBaseTitle(file.name));
     } catch (e: any) {
       setError(e.message || 'Failed to parse file');
       setStage('select');
@@ -122,13 +118,10 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
     if (!result) return;
     setStage('importing');
 
-    const castIdMap = new Map<string, string>();
-    castOrder.forEach((ch, i) => castIdMap.set(ch.name, String(startId + i)));
-
     commitImport({
       dispatch,
       result,
-      castIdMap,
+      castIdMap: castAssignments,
       newCustomCategories: [...selectedCategories],
       existingCastMembers: project.castMembers || [],
       projectTitle: projectTitle.trim() || undefined,
@@ -136,7 +129,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
     });
 
     onClose();
-  }, [result, castOrder, startId, selectedCategories, selectedHidden, dispatch, project.castMembers, projectTitle, onClose]);
+  }, [result, castAssignments, selectedCategories, selectedHidden, dispatch, project.castMembers, projectTitle, onClose]);
 
   const newCategoryItems = useMemo(
     () => (result?.unknownCategories || []).map(cat => ({ key: cat, label: cat })),
@@ -235,7 +228,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
               }}
             />
 
-            <CastAssignmentTable castOrder={castOrder} onReorder={setCastOrder} startId={startId} />
+            <CastAssignmentTable castOrder={castOrder} onReorder={setCastOrder} startId={startId} ids={castOrder.map(ch => castAssignments.get(ch.name))} />
           </>
         )}
       </div>

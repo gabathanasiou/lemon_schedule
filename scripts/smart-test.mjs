@@ -56,7 +56,7 @@ const LINKED = ['linked-elements'];
 const CREW = ['crew-glide', 'crew-manager'];
 const CREWLINKS = ['crew-links'];
 const LOC = ['locations', 'location-types'];
-const IMPORT = ['msd-import', 'sex-import', 'cast-single-source', 'script-retention', 'script-update'];
+const IMPORT = ['msd-import', 'sex-import', 'cast-single-source', 'script-retention', 'script-update', 'pm-import'];
 const PRINT = ['report-pagination', 'report-page-breaks', 'print-dialog-dropdowns'];
 const MODAL = ['pen-modal', 'keyboard-mode', 'overlay-morph'];
 const TRASH = ['trash-restore'];
@@ -190,6 +190,7 @@ const RULES = [
   { g: 'src/components/script/**', s: IMPORT },
   { g: 'src/components/ImportDialog.tsx', s: IMPORT },
   { g: 'src/components/ScriptUpdateModal.tsx', s: IMPORT },
+  { g: 'src/components/ProjectManager.tsx', s: 'ALL' },
   { g: 'src/components/ImportDialog.tsx', s: IMPORT },
   { g: 'e2e/fixtures/**', s: ['msd-import'] },
   // pointer / keyboard / modals

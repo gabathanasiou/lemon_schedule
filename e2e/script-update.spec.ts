@@ -93,4 +93,41 @@ test.describe('script update review (roadmap 38)', () => {
     await page.getByRole('button', { name: /Import 1 Scenes/ }).click();
     await page.waitForFunction(() => (window as any).__lemonSchedule.getProject().scenes.length === 2);
   });
+
+  test('re-import never duplicates an existing cast member (Board ID reuse)', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    const amyFdx = (action: string) => `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Version="1"><Content>
+<Paragraph Type="Scene Heading" Number="1"><Text>INT. KITCHEN - DAY</Text><SceneProperties Length="1.0"/></Paragraph>
+<Paragraph Type="Character"><Text>AMY</Text></Paragraph>
+<Paragraph Type="Action"><Text>${action}</Text></Paragraph>
+</Content></FinalDraft>`;
+    const p1 = path.join(os.tmpdir(), 'dup-a.fdx'); fs.writeFileSync(p1, amyFdx('First.'));
+    const p2 = path.join(os.tmpdir(), 'dup-b.fdx'); fs.writeFileSync(p2, amyFdx('Second.'));
+
+    // Append AMY.
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+    await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
+    await page.locator('input[type="file"]').first().setInputFiles(p1);
+    await page.getByRole('button', { name: /Import 1 Scenes/ }).click();
+    await page.waitForFunction(() => (window as any).__lemonSchedule.getProject().castMembers?.some((m: any) => m.name === 'AMY'));
+    const amyId = await page.evaluate(() => (window as any).__lemonSchedule.getProject().castMembers.find((m: any) => m.name === 'AMY').id);
+
+    // Update with the SAME character — must reuse the member, not add a duplicate.
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+    await page.getByRole('menuitem', { name: /Update script/ }).click();
+    await page.locator('input[type="file"]').nth(1).setInputFiles(p2);
+    await page.getByRole('dialog').getByText(/Update Script/).waitFor();
+    await page.getByRole('button', { name: 'Accept all' }).click();
+    await page.getByRole('button', { name: /Apply \d+/ }).click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.waitForFunction(() => (window as any).__lemonSchedule.getProject().scriptBaseline);
+
+    const cast = await page.evaluate(() => (window as any).__lemonSchedule.getProject().castMembers);
+    expect(cast.filter((m: any) => m.name === 'AMY')).toHaveLength(1);
+    expect(cast.find((m: any) => m.name === 'AMY').id).toBe(amyId);
+  });
 });

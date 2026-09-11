@@ -6,12 +6,12 @@ import { CSS } from '@dnd-kit/utilities';
 import Checkbox from '../Checkbox';
 import type { ImportCharacter } from '../../lib/import';
 
-function SortableCastRow({ character, index, startId }: { character: ImportCharacter; index: number; startId: number }) {
+function SortableCastRow({ character, index, id }: { character: ImportCharacter; index: number; id: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: character.name });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
     <tr ref={setNodeRef} style={style} className={`border-b border-zinc-800/50 ${index % 2 === 0 ? 'bg-zinc-950' : 'bg-zinc-900/50'}`}>
-      <td className="px-3 py-2 text-zinc-300 text-xs font-mono font-medium w-10">{startId + index}</td>
+      <td className="px-3 py-2 text-zinc-300 text-xs font-mono font-medium w-10">{id}</td>
       <td className="px-3 py-2 text-zinc-200 text-xs font-medium">{character.name}</td>
       <td className="px-3 py-2 text-zinc-500 text-[10px] font-mono">
         {character.scenes.slice(0, 5).join(', ')}{character.scenes.length > 5 ? '...' : ''}
@@ -26,10 +26,11 @@ function SortableCastRow({ character, index, startId }: { character: ImportChara
 }
 
 /** Board ID assignment table — shared by the append-review and script-diff stages. */
-export function CastAssignmentTable({ castOrder, onReorder, startId }: {
+export function CastAssignmentTable({ castOrder, onReorder, startId, ids }: {
   castOrder: ImportCharacter[];
   onReorder: (next: ImportCharacter[]) => void;
   startId: number;
+  ids?: (string | undefined)[];
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const handleDragEnd = (event: DragEndEvent) => {
@@ -58,7 +59,7 @@ export function CastAssignmentTable({ castOrder, onReorder, startId }: {
               </thead>
               <tbody>
                 {castOrder.map((ch, i) => (
-                  <SortableCastRow key={ch.name} character={ch} index={i} startId={startId} />
+                  <SortableCastRow key={ch.name} character={ch} index={i} id={ids?.[i] ?? String(startId + i)} />
                 ))}
               </tbody>
             </table>

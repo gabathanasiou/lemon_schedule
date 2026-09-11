@@ -50,7 +50,7 @@ import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageS
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import ScriptUpdateModal from './components/ScriptUpdateModal';
-import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV, exportSexFile, parseMsdFile, parseSexFile } from './lib/import';
+import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV, exportSexFile, buildNewProjectFromFile, NEW_PROJECT_ACCEPT } from './lib/import';
 import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib/utils';
 import { formatDriveError } from './lib/googleDriveStorage';
 import { SaveIndicator } from './components/SaveIndicator';
@@ -467,8 +467,9 @@ function AppContent() {
   const ctx = useProject();
   const importProjectFromData = ctx.importProjectFromData;
 
-  // File menu "Import as new project" — .msd/.sex/.lemon/.json always create
-  // a brand-new project, so warn before switching.
+  // File menu "Import as new project" — projects AND screenplays
+  // (.msd/.sex/.lemon/.json/fdx/fountain/csv) create a brand-new project, so
+  // warn before switching.
   const handleNewProjectImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (newProjectFileRef.current) newProjectFileRef.current.value = '';
@@ -479,22 +480,7 @@ function AppContent() {
     });
     if (!ok) return;
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      const fallbackTitle = file.name.replace(/\.[^.]+$/, '').trim() || 'Imported Schedule';
-      let project: Project;
-      if (ext === 'msd') {
-        project = await parseMsdFile(file, fallbackTitle);
-      } else if (ext === 'sex') {
-        project = await parseSexFile(file, fallbackTitle);
-      } else {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        if (!data || typeof data !== 'object' || !('scenes' in data) || !('versions' in data)) {
-          throw new Error('Missing scenes or versions.');
-        }
-        project = data as Project;
-      }
-      importProjectFromData(project);
+      importProjectFromData(await buildNewProjectFromFile(file));
     } catch (err: any) {
       dialog.alert({ title: 'Import Error', message: err?.message || 'Failed to import file' });
     }
@@ -751,7 +737,7 @@ function AppContent() {
       {pendingScriptUpdate && <ScriptUpdateModal result={pendingScriptUpdate.result} fileName={pendingScriptUpdate.fileName} onClose={() => setPendingScriptUpdate(null)} />}
       <input ref={importFileRef} type="file" accept={pickerAccept('.csv,.fdx,.fountain,.txt')} onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
       <input ref={updateScriptFileRef} type="file" accept={pickerAccept('.csv,.fdx,.fountain,.txt')} onChange={e => { const f = e.target.files?.[0]; if (f) handleUpdateScriptFile(f); if (updateScriptFileRef.current) updateScriptFileRef.current.value = ''; }} className="hidden" />
-      <input ref={newProjectFileRef} type="file" accept={pickerAccept('.lemon,.json,.msd,.sex')} onChange={handleNewProjectImport} className="hidden" />
+      <input ref={newProjectFileRef} type="file" accept={pickerAccept(NEW_PROJECT_ACCEPT)} onChange={handleNewProjectImport} className="hidden" />
 
       <OfflineStatus
         readOnly={readOnly}

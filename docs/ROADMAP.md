@@ -657,35 +657,6 @@ if A is.
 **Verify**: encode/decode round-trip; migration from plain + 124 formats; every
 row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 
-## 126. Project Manager import parity + filename-derived project name (`[ ]`)
-
-**Relations**: extends 123 (script body import) and 76 (file-picker accept
-lists); same import paths as 38.
-
-**Requested** (two related asks):
-1. **Import parity** — the Project Manager's Import button only accepts
-   `.msd`/`.sex`/`.lemon`/`.json`; it should import everything the File menu
-   does (FDX/Fountain/CSV scripts too) and create a NEW project.
-2. **Auto-name from the file** — importing a script leaves the ImportDialog's
-   "Rename Project" box empty; it should default to the script's filename
-   (extension stripped), the fallback MSD/SEX new-project imports already use.
-
-**Approach**:
-- One shared dispatcher for parser selection + accept list so the PM and the
-  File menu stop carrying two copies (App.tsx `handleNewProjectImport` vs
-  `ProjectManager.handleImportFile`): `.msd`/`.sex` → new-project parsers;
-  `.lemon`/`.json` → JSON `Project`; FDX/Fountain/CSV → parse → build a new
-  project.
-- Default the title from `file.name.replace(/\.[^.]+$/, '')` when the parsed
-  `title` is empty (ImportDialog + PM new-project path).
-
-**Verify**: PM import of an FDX/Fountain/CSV creates a new project named after
-the file; MSD/SEX/`.lemon` unchanged; ImportDialog rename prefilled;
-`npm run lint` + `npx playwright test`.
-
-**Out of scope**: append-into-current from the PM — PM import always creates a
-new project (the File menu's ImportDialog is the append flow).
-
 ## 127. Custom/localized INT-EXT & day-night values on script import (`[ ]`)
 
 **Relations**: extends 123 Phase 0 + 38 (the script import/diff path) and 123

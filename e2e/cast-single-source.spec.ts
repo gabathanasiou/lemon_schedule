@@ -132,7 +132,7 @@ test.describe('cast single source of truth (castMembers)', () => {
 
     await page.goto('http://localhost:3001/lemon_schedule/');
     await page.getByRole('button', { name: 'Import', exact: true }).click({ timeout: 8000 });
-    await page.locator('input[type="file"][accept=".lemon,.json,.msd,.sex"]').setInputFiles(lemonPath);
+    await page.getByRole('dialog').locator('input[type="file"]').last().setInputFiles(lemonPath);
     await waitForPersistedProject(page, '!p.breakdownElements.cast && (p.castMembers || []).length > 0');
     const project = await getProject(page);
     expect(project).toBeTruthy();
