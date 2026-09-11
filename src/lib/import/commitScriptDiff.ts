@@ -40,6 +40,9 @@ export interface CommitScriptDiffParams {
    *  Absent/empty = take every changed field (the default). The screenplay
    *  body is always taken from the new script. */
   fieldKeeps?: (Set<string> | undefined)[];
+  /** Raw → canonical INT-EXT / day-night values (roadmap 127) applied to the
+   *  incoming scene values at commit time. */
+  headingValues?: { intExt?: Record<string, string>; dayNight?: Record<string, string> };
   projectTitle?: string;
   reEnableCategories?: string[];
   existingCustomCategoryKeys?: string[];
@@ -58,6 +61,7 @@ export function commitScriptDiff({
   existingCastMembers,
   castRenames = [],
   fieldKeeps = [],
+  headingValues,
   projectTitle,
   reEnableCategories = [],
   existingCustomCategoryKeys = [],
@@ -85,10 +89,18 @@ export function commitScriptDiff({
     });
 
     const importedSets = new Set<string>();
+    const mappedScene = (ps: import('./shared').ParsedScene): import('./shared').ParsedScene => headingValues
+      ? {
+          ...ps,
+          intExt: headingValues.intExt?.[(ps.intExt || '').toUpperCase()] || ps.intExt,
+          dayNight: headingValues.dayNight?.[(ps.dayNight || '').toUpperCase()] || ps.dayNight,
+        }
+      : ps;
     entries.forEach((entry, index) => {
       const decision = decisions[index] ?? defaultDecision(entry);
       if (entry.status === 'modified' && decision === 'apply' && entry.oldScene && entry.newScene) {
-        const full = buildSceneFields(entry.newScene, resolvedCastIdMap) as Record<string, unknown>;
+        const incoming = mappedScene(entry.newScene);
+        const full = buildSceneFields(incoming, resolvedCastIdMap) as Record<string, unknown>;
         const keep = fieldKeeps[index];
         const patch: Record<string, unknown> = { id: entry.oldScene.id };
         // The number is diffable too — keep yours when unchecking it.

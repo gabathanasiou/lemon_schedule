@@ -2,6 +2,7 @@ import { diffWords } from 'diff';
 import type { Change } from 'diff';
 import type { CustomCategoryDef, Scene, ScriptDocument } from '../../types';
 import { ELEMENT_CATEGORIES, getFieldItems } from '../categories';
+import { formatPageCount } from '../utils';
 import { normalizeSceneNumber, scriptSceneOf } from '../script';
 import type { ParsedScene } from './shared';
 
@@ -255,7 +256,7 @@ function diffPair(a: ScriptSceneView, b: ScriptSceneView): SceneFieldDiff[] {
     if (v) fields.push(v);
   }
   const page = a.pageCountDecimal != null && b.pageCountDecimal != null && a.pageCountDecimal !== b.pageCountDecimal
-    ? compareValue('pageCount', String(a.pageCountDecimal), String(b.pageCountDecimal))
+    ? compareValue('pageCount', formatPageCount(a.pageCountDecimal), formatPageCount(b.pageCountDecimal))
     : null;
   if (page) fields.push(page);
 

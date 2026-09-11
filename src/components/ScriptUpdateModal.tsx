@@ -6,7 +6,9 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import Checkbox from './Checkbox';
-import { diffScripts, commitScriptDiff, defaultDecision, parseSceneHeading, buildCastIdMap, firstFreeCastId } from '../lib/import';
+import { diffScripts, commitScriptDiff, defaultDecision, parseSceneHeading, buildCastIdMap, firstFreeCastId, collectUnknownFromValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues } from '../lib/import';
+import type { HeadingMapping } from '../lib/import';
+import HeadingValueMapper from './import/HeadingValueMapper';
 import type { DiffDecision, ImportResult, SceneDiffEntry, SceneFieldDiff } from '../lib/import';
 import { scriptSceneBlocks } from '../lib/script';
 import { ScriptBlocksToned, diffScriptBlocks } from './script/ScriptSceneScript';
@@ -162,6 +164,9 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
   const { state, dispatch } = useProject();
   const dialog = useDialog();
   const project = state.present;
+  // Custom/localized heading values are mapped at APPLY time, and only for the
+  // odd values that survive the user's decisions (roadmap 127).
+  const [mappingPrompt, setMappingPrompt] = useState<{ intExt: string[]; dayNight: string[] } | null>(null);
 
   const castNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -283,7 +288,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
     [castOrder, project.castMembers],
   );
 
-  const apply = useCallback(() => {
+  const commitNow = useCallback((headingValues?: { intExt?: Record<string, string>; dayNight?: Record<string, string> }) => {
     commitScriptDiff({
       dispatch,
       result,
@@ -294,6 +299,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
       existingCastMembers: project.castMembers || [],
       castRenames: diff.castRenames,
       fieldKeeps: diff.entries.map((_, i) => fieldKeeps[i]),
+      headingValues,
     });
     onClose();
   }, [dispatch, result, diff, decisions, castAssignments, selectedCategories, project.castMembers, onClose, fieldKeeps]);
@@ -310,8 +316,35 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
       message: `This will ${parts.join(', ') || 'change nothing'}. Existing scene ids (and their schedule) are kept. One undo step.`,
       danger: report.removed.length > 0,
     });
-    if (ok) apply();
-  }, [dialog, report, diff.pageDelta, apply]);
+    if (!ok) return;
+
+    // Only prompt for custom/localized heading values that actually survive.
+    const appliedScenes: { intExt?: string; dayNight?: string }[] = [];
+    diff.entries.forEach((e, i) => {
+      const d = decisions[i];
+      const sc = ((e.status === 'modified' && d === 'apply') || (e.status === 'added' && d === 'add')) ? e.newScene : undefined;
+      if (sc) appliedScenes.push(sc);
+    });
+    const unknown = collectUnknownFromValues(appliedScenes, project);
+    if (unknown.intExt.length || unknown.dayNight.length) {
+      setMappingPrompt(unknown);
+      return;
+    }
+    commitNow();
+  }, [dialog, report, diff, decisions, project, commitNow]);
+
+  const confirmHeadingMapping = useCallback((mapping: HeadingMapping) => {
+    const applied = applyHeadingMapping(result, project, mapping);
+    dispatch({ type: 'UPDATE_PROJECT', payload: buildHeadingMappingUpdate(project, applied) });
+    const hv = {
+      intExt: { ...(applied.aliases.intExt || {}) },
+      dayNight: { ...(applied.aliases.dayNight || {}) },
+    };
+    for (const v of applied.addedIntExt) hv.intExt[v] = v;
+    for (const v of applied.addedDayNight) hv.dayNight[v] = v;
+    setMappingPrompt(null);
+    commitNow(hv);
+  }, [result, project, dispatch, commitNow]);
 
   // Keyboard: →/A accept · ←/K keep · ⌫ previous · L toggle (review) · S setup · ⌘⏎ apply.
   useEffect(() => {
@@ -426,6 +459,18 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
       </div>
     );
   };
+
+  if (mappingPrompt) {
+    return (
+      <HeadingValueMapper
+        unknown={mappingPrompt}
+        knownIntExt={knownIntExtValues(project)}
+        knownDayNight={knownDayNightValues(project)}
+        onCancel={onClose}
+        onConfirm={confirmHeadingMapping}
+      />
+    );
+  }
 
   const footer = (
     <ModalFooter>

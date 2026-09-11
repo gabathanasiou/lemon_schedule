@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
-import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport, buildCastIdMap, firstFreeCastId, fileBaseTitle } from '../lib/import';
+import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport, buildCastIdMap, firstFreeCastId, fileBaseTitle, collectUnknownHeadingValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues } from '../lib/import';
+import type { HeadingMapping } from '../lib/import';
+import HeadingValueMapper from './import/HeadingValueMapper';
 import { Upload, Loader2 } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
@@ -23,7 +25,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
   const project = state.present;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [stage, setStage] = useState<'select' | 'parsing' | 'review' | 'importing'>(
+  const [stage, setStage] = useState<'select' | 'parsing' | 'mapping' | 'review' | 'importing'>(
     initialResult ? 'review' : 'select'
   );
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
   const [hiddenWithData, setHiddenWithData] = useState<{ key: string; label: string }[]>([]);
   const [fileLabel, setFileLabel] = useState(initialFileName || '');
   const [projectTitle, setProjectTitle] = useState('');
+  const [pendingMapping, setPendingMapping] = useState<{ parsed: ImportResult; fileBase: string; unknown: { intExt: string[]; dayNight: string[] } } | null>(null);
 
   const startId = useMemo(() => firstFreeCastId(project.castMembers || []), [project.castMembers]);
   // Reuse existing cast ids by name (never duplicate a member on re-import).
@@ -69,8 +72,28 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
     setStage('review');
   }, [project.hiddenCategories]);
 
+  /** Route a parsed result through the heading-value mapper first when the
+   *  script carries unknown/localized INT-EXT or day/night values (127). */
+  const startParsed = useCallback((parsed: ImportResult, fileBase: string) => {
+    const unknown = collectUnknownHeadingValues(parsed, state.present);
+    if (unknown.intExt.length || unknown.dayNight.length) {
+      setPendingMapping({ parsed, fileBase, unknown });
+      setStage('mapping');
+    } else {
+      prepareParsed(parsed, fileBase);
+    }
+  }, [state.present, prepareParsed]);
+
+  const confirmMapping = useCallback((mapping: HeadingMapping) => {
+    if (!pendingMapping) return;
+    const applied = applyHeadingMapping(pendingMapping.parsed, state.present, mapping);
+    dispatch({ type: 'UPDATE_PROJECT', payload: buildHeadingMappingUpdate(state.present, applied) });
+    setPendingMapping(null);
+    prepareParsed(applied.result, pendingMapping.fileBase);
+  }, [pendingMapping, state.present, dispatch, prepareParsed]);
+
   useEffect(() => {
-    if (initialResult) prepareParsed(initialResult, fileBaseTitle(initialFileName || ''));
+    if (initialResult) startParsed(initialResult, fileBaseTitle(initialFileName || ''));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -91,12 +114,12 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
         parsed = await parseFountain(file);
       }
 
-      prepareParsed(parsed, fileBaseTitle(file.name));
+      startParsed(parsed, fileBaseTitle(file.name));
     } catch (e: any) {
       setError(e.message || 'Failed to parse file');
       setStage('select');
     }
-  }, [prepareParsed, project.castMembers, project.customCategories, project.categoryLabels]);
+  }, [startParsed, project.castMembers, project.customCategories, project.categoryLabels]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -135,6 +158,18 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
     () => (result?.unknownCategories || []).map(cat => ({ key: cat, label: cat })),
     [result],
   );
+
+  if (stage === 'mapping' && pendingMapping) {
+    return (
+      <HeadingValueMapper
+        unknown={pendingMapping.unknown}
+        knownIntExt={knownIntExtValues(state.present)}
+        knownDayNight={knownDayNightValues(state.present)}
+        onCancel={onClose}
+        onConfirm={confirmMapping}
+      />
+    );
+  }
 
   const footer = (stage === 'select' || stage === 'review') ? (
     <ModalFooter>

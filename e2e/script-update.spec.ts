@@ -130,4 +130,35 @@ test.describe('script update review (roadmap 38)', () => {
     expect(cast.filter((m: any) => m.name === 'AMY')).toHaveLength(1);
     expect(cast.find((m: any) => m.name === 'AMY').id).toBe(amyId);
   });
+
+  test('a kept custom day/night prompts the mapper AFTER applying (not before the review)', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN', dayNight: 'DAY' }) });
+    });
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+    await page.getByRole('menuitem', { name: /Update script/ }).click();
+    await page.locator('input[type="file"]').nth(1).setInputFiles(writeFdx('dream-update.fdx', [{ n: '1', heading: 'INT. KITCHEN - DREAM', action: 'Dream.' }]));
+    await page.getByRole('dialog').getByText(/Update Script/).waitFor();
+
+    // No mapper during review; the ordinary review is shown first.
+    await expect(page.getByText('Map script headings')).toHaveCount(0);
+    await page.keyboard.press('ArrowRight'); // accept
+    await page.getByRole('button', { name: /Apply \d+/ }).click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+
+    // NOW the mapper appears (the odd value survived the decision).
+    await expect(page.getByText('Map script headings')).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: /Import 1 value/ }).click();
+
+    await page.waitForFunction(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return (p.colorPalette?.dayNightOptions || []).includes('DREAM');
+    });
+    const project = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+    expect(project.scenes[0].dayNight).toBe('DREAM');
+  });
 });

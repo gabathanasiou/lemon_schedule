@@ -19,6 +19,14 @@ function writeFdx(name: string, xml = FDX): string {
   return p;
 }
 
+const FDX_DREAM = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Version="1">
+<Content>
+<Paragraph Type="Scene Heading" Number="1"><Text>INT. KITCHEN - DREAM</Text><SceneProperties Length="1.0"/></Paragraph>
+<Paragraph Type="Action"><Text>Strange things.</Text></Paragraph>
+</Content>
+</FinalDraft>`;
+
 test.describe('new-project import parity (roadmap 126)', () => {
   test('PM Import accepts an FDX screenplay and names the project after the file', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
@@ -47,5 +55,29 @@ test.describe('new-project import parity (roadmap 126)', () => {
     await page.locator('input[type="file"]').first().setInputFiles(writeFdx('untitled-thing.fdx'));
     const rename = page.getByPlaceholder('Leave blank to keep current title');
     await expect(rename).toHaveValue('untitled-thing');
+  });
+
+  test('custom heading values (DREAM) prompt the mapper, then land in the Colors options', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+    await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
+    await page.locator('input[type="file"]').first().setInputFiles(writeFdx('dream.fdx', FDX_DREAM));
+
+    // Mapping dialog appears with the unknown day/night, defaulting to "Add as new".
+    await expect(page.getByText('Map script headings')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText('DREAM', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: /Import 1 value/ }).click();
+
+    // Now the normal review stage; import it.
+    await expect(page.getByRole('button', { name: /Import 1 Scenes/ })).toBeVisible({ timeout: 8000 });
+    await page.getByRole('button', { name: /Import 1 Scenes/ }).click();
+
+    await page.waitForFunction(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return (p.colorPalette?.dayNightOptions || []).includes('DREAM');
+    });
+    const project = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+    expect(project.scenes[project.scenes.length - 1].dayNight).toBe('DREAM');
   });
 });

@@ -98,6 +98,22 @@ Status: read this before touching any import/export work.
   exists to that member's id; only new names get fresh sequential Board IDs.
   Used by the append flow, the update flow, and `buildProjectFromImport`.
 
+## Custom/localized heading values (roadmap 127)
+
+- Scripts carry INT/EXT and day/night values the project doesn't know
+  (localized `ΕΣΩΤ`, custom `DREAM`). `parseSceneHeading` keeps custom trailing
+  day/night words and surfaces an unrecognized INT/EXT prefix RAW; Greek
+  `ΕΣΩΤ/ΕΞΩΤ` map to INT/EXT.
+- On import, `collectUnknownHeadingValues` finds unknown values and the UI shows
+  `HeadingValueMapper`: **Add as new** (writes to
+  `colorPalette.intExtOptions`/`dayNightOptions` — the Colors tab, the source of
+  truth) or **Map to** an existing value (recorded in `project.headingAliases`
+  so re-imports are silent). `applyHeadingMapping` rewrites the parsed scenes;
+  `buildHeadingMappingUpdate` produces the project patch.
+- Plain/append (`ImportDialog`) and update (`ScriptUpdateModal`) prompt; the
+  new-project path (`buildProjectFromImport`) has no prompt step, so it
+  auto-adds unknown values to the Colors options instead of dropping them.
+
 ## Common tasks (agent recipes)
 
 - **Parse CSV/FDX/Fountain** → `parseCSV`/`parseFDX`/`parseFountain` → `ImportResult`.

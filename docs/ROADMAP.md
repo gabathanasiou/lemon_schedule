@@ -657,35 +657,6 @@ if A is.
 **Verify**: encode/decode round-trip; migration from plain + 124 formats; every
 row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 
-## 127. Custom/localized INT-EXT & day-night values on script import (`[ ]`)
-
-**Relations**: extends 123 Phase 0 + 38 (the script import/diff path) and 123
-Phase 1 (screenplay renderer); complements the day-types registry
-(`docs/DAY-TYPES-AND-CALENDAR.md`).
-
-**Requested**: scripts carry values the app doesn't know — localized
-(`ΕΣΩΤ`/`ΕΞΩΤ` for INT/EXT) or custom ("DREAM", "MAGIC HOUR", "DUSK") day/night.
-Import must KEEP them (never silently fold into the set or default to DAY) and
-let the user map them once.
-
-**Approach**:
-- `parseSceneHeading` already keeps a custom trailing day/night word and
-  recognizes localized INT/EXT prefixes; surface the raw value when it isn't in
-  the project's known set (`colorPalette.intExtOptions`/`dayNightOptions`).
-- On import/update, collect unknown INT-EXT/day-night values and show a mapping
-  dialog per value: **add as a new entry** / **replace an existing one** /
-  **map to an existing value** (dropdown). **Add writes to the CENTRAL SOURCE OF
-  TRUTH — `project.colorPalette.intExtOptions` / `dayNightOptions` (the Colors
-  tab)**, NOT a parallel list, so the whole app (colors, rules, diff) picks it
-  up. Persist per project so re-imports don't re-ask; apply the mapped canonical
-  value to the scenes.
-- The diff (38) then compares canonical values (no false "changed").
-- The dialog must be a real `Modal` with explicit buttons (never auto-dismiss
-  on a stray Enter/keystroke).
-
-**Verify**: an FDX with `DREAM` + Greek headings imports, prompts, maps, and a
-re-import doesn't re-ask; the diff highlights only the genuinely changed part.
-
 ## 128. Diff preview — IDE-style aligned split view (filler gaps) (`[ ]`)
 
 **Relations**: enhancement to 38's review modal + 123 Phase 1 screenplay renderer.

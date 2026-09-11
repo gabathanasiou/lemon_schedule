@@ -89,11 +89,14 @@ export function parseSceneHeading(text: string, previousDayNight?: DayNight | 'D
   if (!rest) return null;
 
   const upperPrefix = prefix.toUpperCase();
-  let intExt: IntExt = 'INT';
+  let intExt: IntExt;
   // Greek INT (ΕΣΩΤ/ΕΣΩΤΕΡΙΚΟ) / EXT (ΕΞΩΤ/ΕΞΩΤΕΡΙΚΟ) alongside the English forms.
-  if (upperPrefix === 'EXT' || upperPrefix.startsWith('EXT') || upperPrefix.startsWith('ΕΞΩΤ')) intExt = 'EXT';
+  if (upperPrefix === 'EXT' || upperPrefix.startsWith('EXT') || upperPrefix === 'EST' || upperPrefix.startsWith('ΕΞΩΤ')) intExt = 'EXT';
   else if (upperPrefix.startsWith('ΕΣΩΤ') || upperPrefix === 'INT' || upperPrefix.startsWith('INT.')) intExt = 'INT';
   else if (upperPrefix === 'INT/EXT' || upperPrefix === 'INT-EXT' || upperPrefix === 'I/E' || upperPrefix.includes('/') || upperPrefix.includes('-')) intExt = 'INT/EXT';
+  // Unrecognized prefix (another language) — surface the RAW value so the import
+  // can map it (roadmap 127) instead of silently defaulting to INT.
+  else intExt = upperPrefix || 'INT';
 
   const TIME_WORDS = /\s*[\u2013\u2014\-]+\s*(?:LATE\s+|EARLY\s+|NEXT\s+)?(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|CONTINUOUS|LATER|SAME\s+TIME)\s*[-\u2013\u2014]*\s*$/i;
   // A generic "SET - WORD" suffix: a CUSTOM day/night (DREAM, MAGIC HOUR, …) we

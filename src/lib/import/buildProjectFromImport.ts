@@ -35,7 +35,34 @@ export function buildProjectFromImport(result: ImportResult, title: string, file
     existingCastMembers: [],
     projectTitle: title || result.title || fileBase,
   });
-  return state.present;
+  return addUnknownHeadingOptions(state.present);
+}
+
+/** A new project from a script has no prompt step (PM/File new-project build the
+ *  Project directly) — fold any unknown INT/EXT or day/night values into the
+ *  Colors options so custom/localized values are preserved, never dropped. */
+function addUnknownHeadingOptions(project: Project): Project {
+  const palette = project.colorPalette;
+  if (!palette) return project;
+  const ie = new Set(palette.intExtOptions.map(v => v.toUpperCase()));
+  const dn = new Set(palette.dayNightOptions.map(v => v.toUpperCase()));
+  const addIE: string[] = [];
+  const addDN: string[] = [];
+  for (const s of project.scenes) {
+    const a = (s.intExt || '').toUpperCase();
+    if (a && !ie.has(a)) { ie.add(a); addIE.push(a); }
+    const b = (s.dayNight || '').toUpperCase();
+    if (b && !dn.has(b)) { dn.add(b); addDN.push(b); }
+  }
+  if (addIE.length === 0 && addDN.length === 0) return project;
+  return {
+    ...project,
+    colorPalette: {
+      ...palette,
+      intExtOptions: [...palette.intExtOptions, ...addIE],
+      dayNightOptions: [...palette.dayNightOptions, ...addDN],
+    },
+  };
 }
 
 /** Parse any supported import file into a Project. Throws on invalid JSON. */

@@ -315,6 +315,14 @@ export interface SceneColorPalette {
   fallbackStripText?: string;
 }
 
+/** Raw → canonical heading-value mappings (roadmap 127). Added values live in
+ *  `colorPalette.intExtOptions`/`dayNightOptions` (the Colors tab source of
+ *  truth); this only records values the user MAPS to an existing one. */
+export interface HeadingAliases {
+  intExt?: Record<string, string>;
+  dayNight?: Record<string, string>;
+}
+
 export interface CastMember {
   id: string;
   name: string;
@@ -742,4 +750,6 @@ export interface Project {
   /** The last imported screenplay (roadmap 123 Phase 0): the reference for
    *  item 38 conflict detection and one-step restore. */
   scriptBaseline?: ScriptDocument;
+  /** Custom/localized INT-EXT & day-night value mappings (roadmap 127). */
+  headingAliases?: HeadingAliases;
 }
