@@ -34,7 +34,7 @@ search the quoted symbol names, not the numbers.
 > `scripts/smart-test.mjs`. Update docs (AGENTS.md, DESIGN-LANGUAGE, REPORTS-DESIGNER) in
 > the same commits; flip roadmap `[ ]` → `[x]` with a one-line Done note and refresh
 > `docs/ROADMAP-ARCHIVE.md`. One patch version bump when the milestone wraps (rule 8).
-> Ask blocking questions directly (question tool); ping ntfy first.
+> Ask blocking questions directly (question tool).
 >
 > **Per item, report:** what shipped, tests run, deviations from the plan (and update this
 > doc in the same commit if you deviate).

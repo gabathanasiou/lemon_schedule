@@ -1,8 +1,10 @@
-# Reports Text Block → TipTap Editor (implementation guide)
+# Reports Text Block → TipTap Editor (historical implementation guide)
 
-Branch: `reports/tiptap-editor` (off current `reports/token-editor` HEAD).
-Status: PLAN — for another agent to implement. Read `plans/archive/TOKEN-EDITOR-WIP.md` first for
-context on the hand-rolled implementation being replaced.
+**Status: SHIPPED / HISTORICAL.** The rich-text token editor landed via the ui-kit
+`RichTextEditor` (see `src/components/reports/RichTextEditor.tsx`, an adapter over
+`@gabriel/ui-kit`). This is the planning doc for that work, kept for history. The
+"another agent's parallel WIP" coordination notes below describe a retired workflow — ignore them.
+Superseded hand-rolled notes: `plans/archive/TOKEN-EDITOR-WIP.md`.
 
 ## Goal
 

@@ -1,5 +1,7 @@
 # Performance & Memory Diagnosis — Town - Jason (175 scenes, 270 rows)
 
+Status: **read this before performance/memory work.** Records the measured diagnosis,
+the `@perf` harnesses (`playwright.perf*.config.ts`), and the remaining levers.
 Date: 2026-08-03 · Branch: `diagnosis/perf-memory-leaks`
 
 ## Methodology

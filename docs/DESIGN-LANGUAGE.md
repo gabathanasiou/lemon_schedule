@@ -15,7 +15,7 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 - **New primitive / feedback pattern**: register it in the primitive matrix or feedback taxonomy in
   the same change that adds it.
 - **Single source of truth**: edit this booklet when shared patterns change — never fork the strings
-  into a new file. The `code-reviewer` pass flags design-language drift against this doc.
+  into a new file. Review the diff for design-language drift against this doc.
 
 ## Mental model
 

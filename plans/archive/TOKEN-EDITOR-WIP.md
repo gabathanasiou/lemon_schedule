@@ -2,7 +2,7 @@
 
 > **SUPERSEDED (2026-08-14)**: the hand-rolled contentEditable chip/autocomplete
 > implementation described below was replaced by **TipTap (ProseMirror)** — see
-> `docs/REPORTS-TIPTAP-EDITOR.md`. Storage format is unchanged (`block.text` =
+> `plans/archive/REPORTS-TIPTAP-EDITOR.md`. Storage format is unchanged (`block.text` =
 > sanitized HTML with plain `{{field}}` tokens); `{{` is no longer a trigger
 > (`@` only). The notes below are kept for history.
 

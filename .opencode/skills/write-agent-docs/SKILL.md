@@ -122,19 +122,65 @@ Rule: <the "never store derived data" rule in one line>.
 4. Confirm key claims against `file:line` before finishing. If a line number is
    off by one, the whole doc loses trust.
 
+## Hub vs manual (the two-tier split)
+
+There are two kinds of doc, and mixing them is what makes `AGENTS.md` fat:
+
+| Tier | File | Loaded | Holds | Never holds |
+|---|---|---|---|---|
+| **Hub** | `AGENTS.md` | every session, always | commands, core rules, the canonical one-paragraph model, MUST-NOT invariants, `Read docs/X.md before touching Y` pointers | full subsystem detail, exact class recipes, per-feature APIs |
+| **Manual** | `docs/<subsystem>.md` | on demand (agent reads it when the task touches that area) | the worked examples, full field/API inventory, recipes, gotchas | anything needed to *start* every unrelated task |
+
+The hub is a **system prompt**; manuals are **just-in-time context**. When a hub
+section grows past a short summary + invariants, split the detail into a manual
+and leave behind: (1) a status line naming the manual, (2) a 2–4 line model,
+(3) the MUST-NOT list, (4) the `file:line` pointer to the canonical module. The
+manual opens with the same status line and one-line mental model.
+
+**Line counts lie — measure bytes/tokens too.** A "200-line" hub can be 12k
+tokens if its lines are dense prose. Check both `wc -l` and `wc -c` (roughly
+`bytes / 4` ≈ tokens); the always-loaded hub budget is ~200 lines **and**
+< ~8k tokens. A section of 3 long lines can cost more than 20 short ones.
+
+Beware cross-doc references: when a hub section is renamed, grep
+`docs/*.md` + `docs/ROADMAP*.md` for `§<old heading>` and fix the stale links
+in the same change.
+
+## Prevention (make it deterministic, not just a rule)
+
+Context files are advisory — Claude Code's own docs are explicit: instructions
+shape behavior, but only hooks/checks are enforced. Pair every budget rule with
+a check the agent already runs:
+
+- **Fold the budget into the task's existing verify command.** This repo runs
+  `scripts/check-doc-budget.mjs` from `npm run lint` (standalone:
+  `npm run lint:docs`), so an agent that follows "run lint before done" cannot
+  land a bloated hub. Prefer this to a new command the agent must remember.
+- **Offer a pre-commit gate** for humans/CI (`npm run hooks:install` →
+  `core.hooksPath .githooks`). Hooks are the deterministic layer.
+- **Cap in BOTH lines and bytes** — `bytes / 4 ≈ tokens`; a few dense long lines
+  cost more than many short ones, so a line-only guard misses real bloat.
+- **Tune with headroom, not the exact current size.** A cap at today's size makes
+  every legitimate addition a fight; ~10-20% headroom lets real work through and
+  still blocks regrowth.
+- **When an agent ignores a rule, suspect length first.** If a rule keeps being
+  missed, the hub is probably too long and the rule is lost in the noise — move
+  it to a manual or delete it, rather than adding an "IMPORTANT" prefix.
+
 ## Maintenance (keep docs from growing stale and fat)
 
-- **Budgets** (measure with `wc -l`): `AGENTS.md` ≤ ~200 lines — it is loaded
-  by every agent every session, so it is the most expensive doc; per-feature
-  `docs/*.md` ≤ ~200-400 lines each (read on demand); a roadmap archive is
-  index-only by design.
+- **Budgets** (measure with `wc -l` **and** `wc -c`): `AGENTS.md` ≤ ~200 lines /
+  < ~8k tokens — it is loaded by every agent every session, so it is the most
+  expensive doc; per-feature `docs/*.md` ≤ ~200-400 lines each (read on demand);
+  a roadmap archive is index-only by design.
 - **Compaction step**: every time you edit `AGENTS.md` (or finish a feature
   that adds a section), run the golden-rule sweep — move procedural detail to
   the feature's on-demand doc, replace prose with `file:line` pointers, delete
   superseded lines. Never append-only.
-- **Tombstones**: removed machinery gets ONE line ("REMOVED — see
-  `.opencode/.trash-deprecated/`"), never a kept-outline section.
+- **Tombstones**: removed machinery gets ONE line ("REMOVED — see git history"),
+  never a kept-outline section.
 - **Archive policy**: completed roadmap items collapse to one index line
-  (with a knowledge/code pointer); the narrative lives in git history.
+  (with a knowledge/code pointer); the narrative lives in git history. The
+  add/close procedure is the `manage-roadmap` skill; the same check enforces it.
 - **Prevent regrowth**: new knowledge replaces or relocates — it must never be
   appended to `AGENTS.md` without a compaction trade-off.

@@ -2,8 +2,8 @@
 
 Status: **read this before touching anything in the schedule.** Covers how days are
 defined, how the stripboard orders rows, how call times/dates derive, and the
-invariants that must never be broken. The AGENTS.md "Daybreak Model" section is
-the short version of this file.
+invariants that must never be broken. AGENTS.md §Rows & Sections / §Pinned Daybreak /
+§Call Time Model / §Insert Position Rules are the always-loaded short version of this file.
 
 ## 1. Mental model (3 bullets)
 

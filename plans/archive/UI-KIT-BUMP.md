@@ -1,5 +1,8 @@
 # Handover — ui-kit v0.1.55 release + app integration
 
+**Status: HISTORICAL.** One-off handover for the v0.1.55 bump; the app is now on a
+much later kit line (see `docs/UI-KIT.md` and `package.json`). Kept for process history only.
+
 Written for the next agent session (the previous session was compacted after a
 long ui-kit working session). The kit work is **fully committed** in
 `~/Documents/Software Apps/ui-kit` (working tree clean, `tsc` green, 33/34
