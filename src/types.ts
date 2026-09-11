@@ -38,6 +38,43 @@ export interface Scene {
   artDept: string;
 }
 
+/** Retained screenplay body (roadmap 123 Phase 0). Blocks are compact
+ *  `[type, text]` tuples so the body persists without duplicating Scene data;
+ *  parsers are the single writer. `project.scriptDocument` is the current
+ *  body, `project.scriptBaseline` the last imported one (item 38 conflicts /
+ *  one-step restore). */
+export type ScriptFormat = 'fdx' | 'fountain';
+
+export type ScriptBlockType =
+  | 'heading'
+  | 'action'
+  | 'character'
+  | 'parenthetical'
+  | 'dialogue'
+  /** Dual dialogue columns (Fountain `dual_dialogue` / FDX dual). */
+  | 'dual_left'
+  | 'dual_right'
+  | 'transition'
+  | 'shot'
+  | 'page_break';
+
+export type ScriptBlock = [ScriptBlockType, string];
+
+export interface ScriptScene {
+  sceneNumber: string;
+  /** Script page the scene starts on (FDX <Page> marker), when known. */
+  scriptPage?: string;
+  blocks: ScriptBlock[];
+}
+
+export type ScriptTitlePage = Record<string, string>;
+
+export interface ScriptDocument {
+  format: ScriptFormat;
+  titlePage?: ScriptTitlePage;
+  scenes: ScriptScene[];
+}
+
 /** Per-element call times (item 99). Absolute (`7:30`) or relative (`-1h`,
  *  `+30m` — relative to the NEXT stage). Optional 1st-AD helper: only stored
  *  values are overrides; everything else is computed from settings + schedule. */
@@ -700,4 +737,9 @@ export interface Project {
   activeReportId?: string;
   reportTrash?: ReportTrashItem[];
   reportTextStyles?: ReportTextStyle[];
+  /** Retained screenplay body (roadmap 123 Phase 0) — see ScriptDocument. */
+  scriptDocument?: ScriptDocument;
+  /** The last imported screenplay (roadmap 123 Phase 0): the reference for
+   *  item 38 conflict detection and one-step restore. */
+  scriptBaseline?: ScriptDocument;
 }

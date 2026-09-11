@@ -1,4 +1,4 @@
-import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef } from '../types';
+import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef, ScriptDocument } from '../types';
 import { generateUUID, normalizePunctuation, makeBlankCalendarVersion } from '../lib/utils';
 import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
@@ -41,6 +41,7 @@ import { getDefaultReportDesigns } from '../lib/reportTemplates';
 import { DEFAULT_CREW_ROLES, reorderCrewRoles } from '../lib/crewCatalog';
 import { DEFAULT_DAY_TYPES, DAY_TYPE_BUILTIN_KEYS } from '../lib/dayTypes';
 import { isMultiValue, getFieldItems } from '../lib/categories';
+import { caseSetScriptDocument, caseUpdateScriptDocument } from './actions/script';
 
 export const BUILTIN_SCENE_KEYS = new Set([
   'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'dayNight',
@@ -243,6 +244,8 @@ export type Action =
   | { type: 'RESTORE_LOCATION'; payload: string }
   | { type: 'SORT_LOCATIONS_BY'; payload: { key: 'type' | 'name' | 'address' | 'contactName' | 'phone' | 'email'; direction: 'asc' | 'desc' } }
   | { type: 'SET_DAY_TYPES'; payload: { dayTypes: DayTypeDef[] } }
+  | { type: 'SET_SCRIPT_DOCUMENT'; payload: { document: ScriptDocument; baseline?: ScriptDocument } }
+  | { type: 'UPDATE_SCRIPT_DOCUMENT'; payload: { document: ScriptDocument } }
 
 /**
  * Runtime mirror of the `Action` union above — consumed by the agentic debug
@@ -282,6 +285,7 @@ export const ACTION_TYPES = new Set<string>([
   'ADD_LOCATION', 'UPDATE_LOCATION', 'DELETE_LOCATION', 'RESTORE_LOCATION',
   'SORT_LOCATIONS_BY',
   'SET_DAY_TYPES',
+  'SET_SCRIPT_DOCUMENT', 'UPDATE_SCRIPT_DOCUMENT',
 ]);
 
 export interface State {
@@ -400,6 +404,11 @@ export function reducer(state: State, action: Action): State {
     if (!p.activeReportId || !p.reportDesigns.some(d => d.id === p.activeReportId)) {
       p.activeReportId = p.reportDesigns[0]?.id || '';
     }
+
+    // Retained screenplay body (roadmap 123 Phase 0): a body without a baseline
+    // (partial/older write) treats itself as the baseline so item 38 always has
+    // a reference to diff against.
+    if (p.scriptDocument && !p.scriptBaseline) p.scriptBaseline = p.scriptDocument;
 
     return {
       past: [],
@@ -562,6 +571,8 @@ export function reducer(state: State, action: Action): State {
     case 'RESTORE_LOCATION': return caseRestoreLocation(state, action, applyChange);
     case 'SORT_LOCATIONS_BY': return caseSortLocationsBy(state, action, applyChange);
     case 'SET_DAY_TYPES': return caseSetDayTypes(state, action, applyChange);
+    case 'SET_SCRIPT_DOCUMENT': return caseSetScriptDocument(state, action, applyChange);
+    case 'UPDATE_SCRIPT_DOCUMENT': return caseUpdateScriptDocument(state, action, applyChange);
     default:
       return state;
   }

@@ -526,7 +526,12 @@ spec for the nested picker.
 chips/affixes); touches the ui-kit rich-text editor + `reportFields.ts`
 (`buildLookupTokens`, `fieldsForScope`).
 
-## 123. Script view in the Breakdown + portable scene-body preview (`[ ]`)
+## 123. Script view in the Breakdown + portable scene-body preview (`[~]`)
+
+> **Phase 0 shipped** (retained `project.scriptDocument` / `scriptBaseline`,
+> parsers emit the body in the existing import pass, `SET/UPDATE_SCRIPT_DOCUMENT`,
+> persistence). Phases 1–3 (Script sub-tab view / highlight-to-tag / preview)
+> remain open — see `docs/IMPORT-EXPORT.md` §Script body retention.
 
 **Relations**: Phase 0 (retained `project.scriptDocument` + `scriptBaseline`)
 is the shared prerequisite **item 38 depends on** — do not build a parallel
@@ -549,12 +554,13 @@ anywhere a scene is referenced. Industry model: StudioBinder (select-and-tag on
 the script, colored by category) + Filmustage Scene Diff (item 38) + Final
 Draft ScriptNotes.
 
-**Blocker found during research**: the screenplay body is NOT retained today.
-`parseFDX` sets `description: ''` and drops action/dialogue (`fdx.ts:116`,
-`169-173`); Fountain folds action into `description` and drops dialogue; the
-uploaded file is discarded. `Scene.description` is a one-line synopsis (seed
-scene 1 = "Voice over prayers for George."). `scriptPageNumbers` is already
-reserved "for future full-FDX render" (`types.ts:12`, `docs/IMPORT-EXPORT.md:33`).
+**Blocker (RESOLVED by Phase 0)**: the screenplay body used to be dropped —
+`parseFDX` set `description: ''` and discarded action/dialogue, Fountain folded
+action into `description` and dropped dialogue, and the uploaded file was
+discarded. Phase 0 now retains it (`project.scriptDocument`). `Scene.description`
+stays a one-line synopsis (seed scene 1 = "Voice over prayers for George.").
+`scriptPageNumbers` remains reserved "for future full-FDX render"
+(`types.ts:12`, `docs/IMPORT-EXPORT.md`).
 
 **Phase 0 — retain the screenplay** (prerequisite, shared with item 38)
 - New pure module `src/lib/script/` + `project.scriptDocument`: per-scene ordered
@@ -636,3 +642,32 @@ if A is.
 
 **Verify**: encode/decode round-trip; migration from plain + 124 formats; every
 row-version behavior unchanged; `npm run lint` + `npx playwright test`.
+
+## 126. Project Manager import parity + filename-derived project name (`[ ]`)
+
+**Relations**: extends 123 (script body import) and 76 (file-picker accept
+lists); same import paths as 38.
+
+**Requested** (two related asks):
+1. **Import parity** — the Project Manager's Import button only accepts
+   `.msd`/`.sex`/`.lemon`/`.json`; it should import everything the File menu
+   does (FDX/Fountain/CSV scripts too) and create a NEW project.
+2. **Auto-name from the file** — importing a script leaves the ImportDialog's
+   "Rename Project" box empty; it should default to the script's filename
+   (extension stripped), the fallback MSD/SEX new-project imports already use.
+
+**Approach**:
+- One shared dispatcher for parser selection + accept list so the PM and the
+  File menu stop carrying two copies (App.tsx `handleNewProjectImport` vs
+  `ProjectManager.handleImportFile`): `.msd`/`.sex` → new-project parsers;
+  `.lemon`/`.json` → JSON `Project`; FDX/Fountain/CSV → parse → build a new
+  project.
+- Default the title from `file.name.replace(/\.[^.]+$/, '')` when the parsed
+  `title` is empty (ImportDialog + PM new-project path).
+
+**Verify**: PM import of an FDX/Fountain/CSV creates a new project named after
+the file; MSD/SEX/`.lemon` unchanged; ImportDialog rename prefilled;
+`npm run lint` + `npx playwright test`.
+
+**Out of scope**: append-into-current from the PM — PM import always creates a
+new project (the File menu's ImportDialog is the append flow).

@@ -56,7 +56,7 @@ const LINKED = ['linked-elements'];
 const CREW = ['crew-glide', 'crew-manager'];
 const CREWLINKS = ['crew-links'];
 const LOC = ['locations', 'location-types'];
-const IMPORT = ['msd-import', 'sex-import', 'cast-single-source'];
+const IMPORT = ['msd-import', 'sex-import', 'cast-single-source', 'script-retention'];
 const PRINT = ['report-pagination', 'report-page-breaks', 'print-dialog-dropdowns'];
 const MODAL = ['pen-modal', 'keyboard-mode', 'overlay-morph'];
 const TRASH = ['trash-restore'];
@@ -185,6 +185,7 @@ const RULES = [
   { g: 'src/components/DurationField.tsx', s: ['day-manager'] },
   // import / export
   { g: 'src/lib/import/**', s: IMPORT },
+  { g: 'src/lib/script/**', s: IMPORT },
   { g: 'src/components/ImportDialog.tsx', s: IMPORT },
   { g: 'e2e/fixtures/**', s: ['msd-import'] },
   // pointer / keyboard / modals

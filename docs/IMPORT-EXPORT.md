@@ -57,6 +57,32 @@ Status: read this before touching any import/export work.
   accept it).
 - Reference parser: `tools/sex_probe.py`; golden: `e2e/fixtures/lair-v10.expected.json`.
 
+## Script body retention (roadmap 123 Phase 0)
+
+- The append parsers (FDX / Fountain) retain the **screenplay body** alongside
+  the breakdown data in the SAME pass: `ImportResult.script` (`ScriptDocument`,
+  defined in `src/types.ts`, built via `src/lib/script/`). CSV has no body.
+- `ScriptDocument` = `{ format, titlePage?, scenes: [{ sceneNumber, scriptPage?,
+  blocks }] }`; blocks are compact `[type, text]` tuples
+  (`heading | action | character | parenthetical | dialogue | dual_left |
+  dual_right | transition | shot | page_break`). Scene breakdown fields are NOT
+  duplicated — the body is separate.
+- `parseFDX` maps `Paragraph Type` → blocks (Scene Heading/Character/Action also
+  drive the breakdown; parenthetical/dialogue/transition/shot are body-only) and
+  keeps `<Page>` markers as `page_break` blocks. `parseFountain` maps the
+  fountain-js token stream (incl. `dual_dialogue_begin/end` +
+  `dialogue_begin.dual` → `dual_left`/`dual_right`).
+- `commitImport()` dispatches `SET_SCRIPT_DOCUMENT` in its existing
+  `BATCH_START`/`BATCH_COMMIT` — one undo entry. The reducer makes the new body
+  `scriptDocument` and the previous current `scriptBaseline` (the item 38
+  conflict reference; a body without a baseline treats itself as the baseline
+  on LOAD). `UPDATE_SCRIPT_DOCUMENT` updates the body WITHOUT rotating the
+  baseline (Phase 2 annotations).
+- Persistence/Drive need no special handling: works through the roadmap-124
+  localStorage codec and the Drive upload as part of the Project.
+- Body-aware diff / Script view / highlight-to-tag / preview are items
+  **38** and **123 Phases 1–3** — not this section.
+
 ## Common tasks (agent recipes)
 
 - **Parse CSV/FDX/Fountain** → `parseCSV`/`parseFDX`/`parseFountain` → `ImportResult`.

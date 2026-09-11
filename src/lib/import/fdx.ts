@@ -1,6 +1,18 @@
-import { DayNight } from '../../types';
+import { DayNight, ScriptBlockType, ScriptScene } from '../../types';
 import { parsePageCount } from '../utils';
+import { createScriptDocument, createScriptScene, pushScriptBlock } from '../script';
 import { FDX_CATEGORY_MAP, ImportCharacter, ImportResult, ParsedScene, categoryNameToKey, normalizeCharacterName, parseSceneHeading } from './shared';
+
+/** FDX paragraph Type → retained script body block. `Scene Heading`,
+ *  `Character` and `Action` are handled separately (they also drive the
+ *  breakdown). Dual dialogue has no reliable marker in the paragraph stream we
+ *  read, so FDX dialogue stays single-column (Fountain carries dual explicitly). */
+const SCRIPT_BLOCK_TYPE: Record<string, ScriptBlockType> = {
+  Parenthetical: 'parenthetical',
+  Dialogue: 'dialogue',
+  Transition: 'transition',
+  Shot: 'shot',
+};
 
 function buildFDXTagResolution(doc: Document): {
   tagCategory: Map<string, string>;
@@ -93,6 +105,13 @@ export async function parseFDX(file: File): Promise<ImportResult> {
   const sceneCharacters = new Set<string>();
   const sceneTaggedElements = new Map<string, Set<string>>();
   let lastDayNight: DayNight = 'DAY';
+  const scriptScenes: ScriptScene[] = [];
+  let currentScriptScene: ScriptScene | null = null;
+
+  function startScriptScene(sceneNumber: string, scriptPage?: string) {
+    currentScriptScene = createScriptScene(sceneNumber, scriptPage);
+    scriptScenes.push(currentScriptScene);
+  }
 
   function flushScene() {
     if (!currentSceneNumber) return;
@@ -125,6 +144,7 @@ export async function parseFDX(file: File): Promise<ImportResult> {
     currentScriptPageForScene = undefined;
     sceneCharacters.clear();
     sceneTaggedElements.clear();
+    currentScriptScene = null;
   }
 
   for (const p of paragraphs) {
@@ -142,6 +162,18 @@ export async function parseFDX(file: File): Promise<ImportResult> {
         taggedTexts.push({ tagNumber: tn, text: txt });
       } else {
         textContent += txt;
+      }
+    }
+
+    // FDX embeds <Page Number> at print page breaks; keep the marker as a
+    // page_break block and track the script page of whatever scene follows.
+    if (pType !== 'Scene Heading') {
+      for (const child of Array.from(p.children)) {
+        if (child.tagName === 'Page') {
+          const n = child.getAttribute('Number');
+          if (n) currentScriptPage = n;
+          if (currentScriptScene) pushScriptBlock(currentScriptScene, 'page_break', '');
+        }
       }
     }
 
@@ -163,25 +195,21 @@ export async function parseFDX(file: File): Promise<ImportResult> {
         }
       }
       currentScriptPageForScene = currentScriptPage;
+      startScriptScene(currentSceneNumber, currentScriptPageForScene);
+      pushScriptBlock(currentScriptScene!, 'heading', currentHeading);
     } else if (pType === 'Character') {
       const name = normalizeCharacterName(textContent);
       if (name) sceneCharacters.add(name);
+      if (currentScriptScene) pushScriptBlock(currentScriptScene, 'character', textContent);
     } else if (pType === 'Action') {
       if (scenes.length === 0 && !currentSceneNumber) {
         currentSceneNumber = pNum || String(scenes.length + 1);
         currentHeading = textContent;
+        startScriptScene(currentSceneNumber, currentScriptPage);
       }
-    }
-
-    // print page-break markers (FDX embeds <Page Number> inside paragraphs);
-    // the last one seen is the script page of whatever scene follows
-    if (pType !== 'Scene Heading') {
-      for (const child of Array.from(p.children)) {
-        if (child.tagName === 'Page') {
-          const n = child.getAttribute('Number');
-          if (n) currentScriptPage = n;
-        }
-      }
+      if (currentScriptScene) pushScriptBlock(currentScriptScene, 'action', textContent);
+    } else if (currentScriptScene && SCRIPT_BLOCK_TYPE[pType]) {
+      pushScriptBlock(currentScriptScene, SCRIPT_BLOCK_TYPE[pType], textContent);
     }
 
     for (const tt of taggedTexts) {
@@ -203,5 +231,8 @@ export async function parseFDX(file: File): Promise<ImportResult> {
   const titleEl = doc.querySelector('Content > Title');
   const title = titleEl?.textContent?.trim() || undefined;
 
-  return { title, scenes, characters, unknownCategories: [...unknownCategories] };
+  const script = createScriptDocument('fdx', title ? { title } : undefined);
+  script.scenes = scriptScenes;
+
+  return { title, scenes, characters, unknownCategories: [...unknownCategories], script };
 }

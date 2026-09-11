@@ -1,4 +1,4 @@
-import { IntExt, DayNight } from '../../types';
+import { IntExt, DayNight, ScriptDocument } from '../../types';
 import { normalizePunctuation } from '../utils';
 
 export interface ParsedScene {
@@ -26,6 +26,8 @@ export interface ImportResult {
   scenes: ParsedScene[];
   characters: ImportCharacter[];
   unknownCategories: string[];
+  /** Retained screenplay body (roadmap 123 Phase 0) — absent for CSV. */
+  script?: ScriptDocument;
 }
 
 export const FDX_CATEGORY_MAP: Record<string, string | null> = {

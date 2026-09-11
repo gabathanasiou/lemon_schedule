@@ -145,6 +145,11 @@ export function commitImport({
   for (const name of importedSets) {
     dispatch({ type: 'ADD_ELEMENT', payload: { category: 'set', element: { id: name, name } } });
   }
+  // Retained screenplay body (roadmap 123 Phase 0) — the parser emitted it in
+  // the same pass; the previous current body becomes scriptBaseline (reducer).
+  if (result.script) {
+    dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: result.script } });
+  }
   } finally {
     dispatch({ type: 'BATCH_COMMIT' });
   }

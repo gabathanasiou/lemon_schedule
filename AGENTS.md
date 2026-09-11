@@ -123,7 +123,9 @@ for the `src/lib/import/` barrel). Key gates to remember: append parsers
 CSV/FDX/Fountain → `ImportResult`; **MSD/SEX are NEW-PROJECT-ONLY** (build a
 complete `Project` via `importProjectFromData` — no append, no review stage);
 `commitImport()` batches dispatches into one undo entry; golden fixtures +
-reference parsers live in `tools/` / `e2e/fixtures/`.
+reference parsers live in `tools/` / `e2e/fixtures/`. FDX/Fountain also retain
+the screenplay body (`ImportResult.script` → `project.scriptDocument` /
+`scriptBaseline` via `src/lib/script/` + `SET_SCRIPT_DOCUMENT`; item 123 Phase 0).
 
 ## Pop-out Windows (`PopoutWindow.tsx`)
 - Desktop-only (`!IS_COARSE`): tabs/sub-tabs open in separate windows sharing state via `createPortal` (window opened synchronously in the click handler to dodge popup blockers; `cascadePosition()` tiles).
