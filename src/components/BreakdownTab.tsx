@@ -1,15 +1,16 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { ElementManager } from './ElementManager';
 import { SceneSheet } from './SceneSheet';
+import { ScriptView } from './ScriptView';
 import PageToolbar from './PageToolbar';
 import { GlideBreakdownTab } from './BreakdownTabGlide';
 import { PopoutPlaceholder } from './PopoutWindow';
 import { useDialog } from './Dialog';
 import { requestUnsavedSave } from '../lib/unsavedGuard';
 
-export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: {
-  subTab: 'elements' | 'sheet' | 'glide';
-  onSubTabChange: (t: 'elements' | 'sheet' | 'glide') => void;
+export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, onUpdateScript, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: {
+  subTab: 'elements' | 'sheet' | 'glide' | 'script';
+  onSubTabChange: (t: 'elements' | 'sheet' | 'glide' | 'script') => void;
   savedCat: string;
   onCategoryChange: (c: string) => void;
   savedSheetIdx: number;
@@ -18,6 +19,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   onOpenSchedule?: (sceneId: string) => void;
   onOpenSheetInPopout?: (rowIndex: number) => void;
   onOpenScheduleInPopout?: (sceneId: string) => void;
+  onUpdateScript?: () => void;
   poppedOutSubTabs: Set<string>;
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;
@@ -34,7 +36,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
 
   const subTabLabels: Record<string, string> = {
-    sheet: 'Sheet', elements: 'Element Manager', glide: 'Glide Breakdown',
+    sheet: 'Sheet', script: 'Script', elements: 'Element Manager', glide: 'Glide Breakdown',
   };
 
   // Sub-tab switches/popouts that would unmount the element manager go
@@ -42,7 +44,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const requestSubTabChange = useCallback((id: string) => {
     void requestUnsavedSave(dialog, () => {
       scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0;
-      onSubTabChange(id as 'elements' | 'sheet' | 'glide');
+      onSubTabChange(id as 'elements' | 'sheet' | 'glide' | 'script');
     });
   }, [dialog, subTab, onSubTabChange]);
 
@@ -55,6 +57,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       <PageToolbar
         tabs={[
           { id: 'sheet', label: 'Sheet' },
+          { id: 'script', label: 'Script' },
           { id: 'elements', label: 'Element Manager' },
           { id: 'glide', label: 'Glide Breakdown' },
         ]}
@@ -69,7 +72,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       {poppedOutSubTabs.has(subTab) ? (
         <PopoutPlaceholder title={subTabLabels[subTab]} onBringBack={() => onCloseSubPopout(subTab)} />
       ) : (
-        subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} onOpenScheduleInPopout={onOpenScheduleInPopout} /> : <GlideBreakdownTab onOpenSheet={onOpenSheet} onOpenSheetInPopout={onOpenSheetInPopout} headerTarget={portalTarget} />
+        subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} onOpenScheduleInPopout={onOpenScheduleInPopout} /> : subTab === 'script' ? <ScriptView headerTarget={portalTarget} onOpenSheet={onOpenSheet} onOpenSchedule={onOpenSchedule} onUpdateScript={onUpdateScript} /> : <GlideBreakdownTab onOpenSheet={onOpenSheet} onOpenSheetInPopout={onOpenSheetInPopout} headerTarget={portalTarget} />
       )}
     </div>
   );

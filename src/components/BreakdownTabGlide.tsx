@@ -23,6 +23,7 @@ import { getFieldItems, isMultiValue } from '../lib/categories';
 import { getCategoryElements } from '../lib/elements';
 import DropdownMenu from './DropdownMenu';
 import Button from './Button';
+import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/SceneScriptPane';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import ImportDialog from './ImportDialog';
@@ -300,6 +301,10 @@ export function GlideBreakdownTab({
     columns: CompactSelection.empty(),
     rows: CompactSelection.empty(),
   });
+  const scriptPane = useScriptPanePref('glide');
+  // The pane follows the grid's active cell (first row of the selection).
+  const activeRow = gridSelection.current?.cell?.[1];
+  const activeSceneNumber = activeRow != null && activeRow >= 0 && activeRow < scenes.length ? scenes[activeRow].sceneNumber : undefined;
   const gridRef = useRef<DataEditorRef>(null);
   const portalTarget = usePortalTarget();
   const currentDocument = useCurrentDocument();
@@ -988,11 +993,15 @@ export function GlideBreakdownTab({
           </div>
         </div>
       </DropdownMenu>
+
+      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
+      <ScriptPaneToggle open={scriptPane.open} onToggle={() => scriptPane.setOpen(!scriptPane.open)} />
     </div>
   );
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 w-full">
+    <div className="flex-1 flex h-full min-h-0 w-full">
+    <div className="flex-1 flex flex-col min-h-0 min-w-0">
       {headerTarget ? createPortal(headerContent, headerTarget) : (
         <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
           {headerContent}
@@ -1194,6 +1203,14 @@ export function GlideBreakdownTab({
           />
         </div>
       </Modal>
+    </div>
+      <SceneScriptPane
+        sceneNumber={activeSceneNumber}
+        open={scriptPane.open}
+        onClose={() => scriptPane.setOpen(false)}
+        width={scriptPane.width}
+        onWidthChange={scriptPane.setWidth}
+      />
     </div>
   );
 }

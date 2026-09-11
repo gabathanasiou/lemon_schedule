@@ -33,7 +33,8 @@ roadmap worker session, so it stays lean.
   handles (table columns + columns-block gutters), edge/zone drops, column
   reorder grips. Touch fallbacks: tap-to-add from the palette; pointer-based
   drag shim (`touch-action: none` — the ribbon dragger pattern, item 24) or
-  move-via-controls. Re-run after item 24 lands (shared draggers).
+  move-via-controls. Re-run against item 24's shared draggers (**DONE** —
+  `src/components/columnResize.tsx`) to confirm no regression.
 
 ## 38. Script version diff — accept a new screenplay against the current one (`[~]`)
 
@@ -48,6 +49,8 @@ roadmap worker session, so it stays lean.
 **Relations**: depends on **123 Phase 0** (retained `project.scriptDocument` +
 `project.scriptBaseline`) — the diff and its content fingerprint run on the
 real scene body, not the one-line synopsis; do NOT build a parallel body store.
+**132** makes this item's split/merge tags split-aware and appliable via the cut
+modal — one split engine, never a second.
 
 **Requested**: when uploading a newer version of the screenplay, a diff
 viewer / acceptance step before anything changes. Research: Filmustage (same
@@ -240,12 +243,6 @@ Per item: bump `@gabriel/ui-kit` (`package.json` → `@gabriel/ui-kit#v0.1.x`), 
 DESIGN-LANGUAGE §Primitive matrix + Recipes class strings, update this roadmap + the matrix in the
 same commit. The events-mode day cells, section tabs, and icon-only buttons stay bespoke
 (no kit primitive exists; icon-only is the documented exception).
-
-- Repo branch: `main` (push before ending session).
-- Next session: pick items above in order; re-read `docs/REPORTS-DESIGNER.md`
-  before touching the designer, `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md`
-  before print/pagination work, `docs/IMPORT-EXPORT.md` before import/export
-  work.
 
 ## 93. Ribbon designer — kit ContextMenu/dropdown for the cell menu (`[ ]`)
 
@@ -536,16 +533,19 @@ item, `.`, assert the attribute list is scope-filtered, pick one, assert the
 token resolves/renders (link fields still link); a ui-kit bump + playground
 spec for the nested picker.
 
-**Relations**: extends 100 (the deferred three-step picker) and 19/16 (token
-chips/affixes); touches the ui-kit rich-text editor + `reportFields.ts`
-(`buildLookupTokens`, `fieldsForScope`).
+**Relations**: extends 100 (the deferred three-step picker — **DONE**) and 19/16
+(token chips/affixes — **DONE**); touches the ui-kit rich-text editor +
+`reportFields.ts` (`buildLookupTokens`, `fieldsForScope`).
 
 ## 123. Script view in the Breakdown + portable scene-body preview (`[~]`)
 
 > **Phase 0 shipped** (retained `project.scriptDocument` / `scriptBaseline`,
 > parsers emit the body in the existing import pass, `SET/UPDATE_SCRIPT_DOCUMENT`,
-> persistence). Phases 1–3 (Script sub-tab view / highlight-to-tag / preview)
-> remain open — see `docs/IMPORT-EXPORT.md` §Script body retention.
+> persistence). **Phase 1 shipped** — Script sub-tab (`src/components/ScriptView.tsx`);
+> the shared `ScriptSceneText` renderer gained a light theme; scene-linked nav to
+> Sheet/Schedule; `e2e/script-retention.spec.ts`. **132** now owns the portable
+> pane + cuts. Phases 2–3 (highlight-to-tag / hover preview) remain open — see
+> `docs/IMPORT-EXPORT.md` §Script body retention.
 
 **Relations**: Phase 0 (retained `project.scriptDocument` + `scriptBaseline`)
 is the shared prerequisite **item 38 depends on** — do not build a parallel
@@ -554,13 +554,18 @@ body store. Reuses item 115's `FloatingTooltip` primitive + the
 `FirstSceneTooltip` is scheduling metadata and stays as-is). One source of
 truth: committed tags are the existing breakdown elements/categories — no
 parallel tagging model. Home is the **Breakdown tab's sub-tab row**
-(`BreakdownTab.tsx:56-59`), NOT a new top-level tab.
+(`BreakdownTab.tsx:56-59`), NOT a new top-level tab. **132** owns the ONE
+portable `SceneScriptPreview` / pane component (built on this item's
+`ScriptSceneScript` renderer); 123 Phase 3 wires the hover seams to it — this
+item stays the hover/body-retention foundation (Phase 0 DONE; Phase 1/2
+independent of 132).
 
 **Chain** (import + diff reference each other; no links skipped):
-124 (shrink storage) → 123 Phase 0 (retain body in the EXISTING import pass) →
-38 (body-aware diff + conflicts) → 123 Phases 1-3 (view / tag / preview);
-125 only if 124 falls short. Each references the next; nothing parses or stores
-the script twice.
+124 (shrink storage — **DONE**: `src/lib/projectCodec.ts`) → 123 Phase 0 (retain
+body in the EXISTING import pass — **DONE**) → 38 (body-aware diff + conflicts —
+`[~]`) → 123 Phases 1-3 (view / tag / preview); 125 only if 124 proves
+insufficient. Each references the next; nothing parses or stores the script
+twice.
 
 **Requested**: read the actual screenplay inside Breakdown, highlight passages
 and tag them as breakdown elements, and preview a scene's action/dialogue
@@ -610,12 +615,12 @@ breaks, title page. Scene-linked navigation to/from Sheet + Schedule.
 `addNewElement`/`EntityDropdown`; category-colored highlights; reuse the
 stripboard context menu. Committed tags are real breakdown elements.
 
-**Phase 3 — portable scene-body preview**: build ONE shared
-`SceneScriptPreview` component on the `FloatingTooltip` primitive, exposed
-through the existing hover seams so any surface can opt in — stripboard, Scene
-Sheet, Glide (`InlineGlideTable.rowTooltip`), Calendar scene cards. Shows the
-scene's action/dialogue. Candidate surfaces are examples; the component is the
-deliverable.
+**Phase 3 — portable scene-body preview**: wire the existing hover seams
+(stripboard, Scene Sheet, Glide `InlineGlideTable.rowTooltip`, Calendar scene
+cards) to the ONE shared `SceneScriptPreview` component — **delivered by 132
+Part A** (the persistent `SceneScriptPane` and this hover preview are the same
+component, never two). Shows the scene's action/dialogue. Candidate surfaces are
+examples; the component is 132's deliverable, this phase is the hover wiring.
 
 **Sources**: FDX + Fountain/TXT only (PDF/OCR filed separately if wanted).
 **Out of scope**: PDF import, FDX write-back, revision-mark fidelity, full
@@ -626,9 +631,9 @@ sync; re-import the seed script; `npm run lint` + `npx playwright test`.
 
 ## 125. Storage overhaul — delta pack, normalization only if needed (FUTURE, parked) (`[ ]`)
 
-**Relations**: follow-on to 124 — do NOT start in parallel; only if 124 plus
-real usage still produces large files or quota pressure. This is the deferred
-"archived-versions hub" storage layer referenced by 123.
+**Relations**: follow-on to 124 (**DONE** — `src/lib/projectCodec.ts`); build
+125 only if 124 plus real usage still produces large files or quota pressure.
+This is the deferred "archived-versions hub" storage layer referenced by 123.
 
 **Problem, measured**: every `ScheduleVersion` stores a full `rows` array
 (`types.ts:164`), and version trash keeps up to 10 full copies (39% of the seed
@@ -677,3 +682,144 @@ rules (block-level, not word-level).
 
 **Verify**: append a block mid-scene and delete another → both panes line up;
 golden visual; `npm run lint` + `npx playwright test`.
+
+## 132. Portable script pane, scene cuts/duplicates & split-aware script revisions (`[ ]`)
+
+> **Progress**: read-only slice shipped — **Part A pane** (`SceneScriptPane` +
+> `ScriptPaneToggle` + `useScriptPanePref` in `src/components/script/SceneScriptPane.tsx`;
+> right-docked, collapsible, resizable, Sheet + Glide hosts, follows selection)
+> and the **Part B FDX fix** (tagged `<Text>` runs now retained in the body
+> instead of dropped — `src/lib/import/fdx.ts`), plus **123 Phase 1** (Script
+> sub-tab, `src/components/ScriptView.tsx`). Tagging/annotation spans, the cut +
+> duplicate modals, Split Manager and import reconciliation remain open.
+> **API/agent compatibility is a hard constraint** (see API note + Relations 97).
+
+**Relations**: `depends on` **123 Phase 0** (**DONE** — retained
+`project.scriptDocument` / `scriptBaseline`); `reuses` the existing
+`ScriptSceneScript` renderer (`src/components/script/`) and **delivers the ONE
+portable `SceneScriptPreview` component** that **123 Phase 3** then wires to its
+hover seams (never two components); `overlaps` **123 Phase 2** tagging (reuse
+`addNewElement` / `EntityDropdown` — no second tag model); `extends` **38** —
+Part F is **`blocked by` 38** (in progress `[~]`; never implement in parallel)
+and upgrades its `tagSplitMerge` to split-aware / appliable (one split engine);
+`reuses` **127** `parseSceneHeading` (**DONE**: `src/lib/import/headingValues.ts`)
+and the duplicate base+letter algorithm (`useStripboardContextMenu.ts:243`,
+`BreakdownTabGlide.tsx:605`); `enables` **97** — every script/annotation write is
+a canonical `Action` (see the API note below).
+
+**Requested**: a portable, collapsible/resizable **preview pane** of the real
+scene in screenplay format, live and available in the Glide Breakdown and the
+Sheet tab; select-and-tag elements (and edit/create the set) straight from the
+page; cut a scene at a point into an intelligent `6A`; and make that cut survive
+script revisions (or ask). Industry precedents: Filmustage's read-only script
+panel in the Stripboard, Scene Breaks + Merge-with-next, Duplicate-with-copy-badge,
+and annotation layers; StudioBinder's bulk rename explicitly does NOT rewrite the
+script. Nobody ships an automatic split-aware content merge — that is the
+differentiator, so it is phased and human-in-the-loop.
+
+### Phase P0 — authoring, tagging & deterministic reconciliation
+
+**A. Portable split pane** (`SceneScriptPane`, docks **RIGHT**): toolbar toggle
+in the **Sheet + Glide Breakdown** tabs (pref-persisted); **collapsible** and
+**resizable** (reuse the `useColumnResize`/`ColumnResizeStrip` pointer-dragger —
+never a new dragger); **bottom sheet on coarse/iPad**. Header = live scene number
++ heading, a `PREVIEW` label, `−`/zoom/`+`, close. Body renders via the 123
+renderer; **follows selection both ways**; live from memoized project state.
+Empty states: no retained body → "predates retained scripts" CTA; scene missing
+→ "No script for scene N".
+
+**B. Layered model + tagging + FDX tags**:
+- **Structured** fields (INT/EXT · set · location · day-night) render **live** and
+  edit inline via `useLinkedEditGuard.tryCommitSceneEdit`; **authored prose is
+  preview-only** (text editing stays in the 123 Script sub-tab).
+- Tags are **identity-anchored span annotations**, category-coloured (dotted =
+  recognised-untagged, solid = committed); popover: Edit/rename/create,
+  Change category, Remove, View in Element Manager.
+- **Must-not-miss**: `caseUpdateElement` (`breakdown.ts:156-190`) rename-cascades
+  scene fields BY NAME — annotation refs must be updated in the **same rename
+  batch** (cast is ID-anchored and safe).
+- Rename never rewrites the page: show `Tag: PISTOL · Script: "gun"`, offer an
+  explicit undoable **"Update script text"**, keep the old wording as an **alias**
+  so re-imports still recognise it.
+- **FDX fix**: seed spans from imported `<Text TagNumber>` and stop dropping
+  tagged words from the retained body (`fdx.ts:154-166` — a tagged phrase
+  currently leaves a hole in the script).
+
+**C. Cut → `6A`** (`SceneCutModal`): block-**boundary** cut affordance on hover;
+modal with an editable split point, **auto** (`6 → 6A`) or custom number,
+prefilled **intelligent heading** (`parseSceneHeading`, carry the parent's
+INT/EXT·set·day-night), and **inherit all parent element fields** plus an
+optional **"move tags after the cut"** (via spans). New scene lands in the
+**boneyard** (schedule untouched). **One batch**: body division via
+**`UPDATE_SCRIPT_DOCUMENT`** (baseline NOT rotated — `script.ts:19`) +
+`ADD_SCENE`. **Merge with next** reverses.
+
+**D. Duplicate modal**: unify the three duplicate flows (stripboard / Glide /
+**Scene Sheet `SceneSheet.tsx:290`, which today does not renumber**) through one
+modal: **Split/second scene** (renumber `6A`, copy body) · **Coverage/second
+unit** (same number + "copy" badge, schedule-only, script untouched) · **Not
+care** (plain duplicate, no metadata). Records the relationship.
+
+**E. Split groups + Split Manager**: model `{ original, fragments, cutAnchor }`
+keyed by scene **id** (never number — duplicates/scene-sheet copies share one);
+the `cutAnchor` is **content-based**, not a raw offset, so it survives imports
+and `scriptBaseline` rotation. A Breakdown toolbar modal lists every group
+(`5 → 5 + 5A`) badged **clean / diverged / merged-back / conflict**, with
+**Merge back**, **Move break**, **Renumber**, **Open in pane**, **Resolve**.
+
+**F. Import reconciliation (deterministic, P0)**: on import, detect split groups
+and open an **explicit split review** — "scene 5 was split into 5/5A; the script
+revised scene 5" with per-fragment before→after and **[Apply to both] / [Merge 5A
+back] / [Keep]**. When the script itself splits a scene we hold whole, **suggest
+adopting it** (cut-point previewed) with default **keep** — never auto-create.
+**Number-collision rule**: same number + low body similarity ⇒ a collision
+decision, never an auto-match. Annotation spans **remap through the import block
+alignment** (`diffScriptBlocks`/`diffArrays` the review already computes):
+unchanged blocks carry spans 1:1; changed blocks re-anchor or are **flagged
+orphaned** (count + re-tag) — never silently corrupted.
+
+### Phase P1 — deferred, gated on real usage
+
+Build ONLY if P0's explicit review proves too painful: **automatic 3-way
+projection** of a revision's edits across a cut. Reconstruct base from the
+fragments, diff theirs↔base, project each change across the cut onto the correct
+fragment; **auto-apply only when clean, ask when ambiguous** (straddle / re-split
+/ merge-back). Must be a pure, golden-tested module; **never auto-write at low
+confidence**. The same commit may add writer-side split auto-adoption, same gate.
+
+### API / agent compatibility (hard constraint — item 97)
+
+Every write this item introduces MUST be a dispatchable `Action` (the reducer
+union + `ACTION_TYPES` kept in sync) so the developer/agent API reaches it **by
+construction** — never a parallel mutation path, never out-of-band writes to
+`scriptDocument` or the annotation layer. Concretely, an agent must be able to,
+through the canonical surface: **load / replace a screenplay**
+(`SET_SCRIPT_DOCUMENT`, exists), **tag elements and write descriptions from the
+page** (`UPDATE_SCENE` fields already; the annotation layer needs new
+`ADD_/UPDATE_/REMOVE_SCRIPT_ANNOTATION`-style actions added to the union), and
+**read** the retained body + annotations via the bridge/API reads. The
+annotation model must therefore persist as project data reached through an
+action — not as local/transient view state — or 97's derived API surface can't
+see it and the store drifts. (Same rule for the cut/Split-Manager writes:
+`splitting` scenes uses the existing `ADD_SCENE` / `UPDATE_SCENE` /
+`UPDATE_SCRIPT_DOCUMENT` actions; no new bespoke path.)
+
+**Must-cover edge cases**: no retained body (degrade to the existing review);
+two scenes sharing a number (group by id); `normalizeSceneNumber('5.1') → '51'`
+collision (fix); multi-letter / nonstandard numbering (documented set only);
+mid-dialogue cut (block boundaries only); a tag span straddling the cut; element
+over-inheritance; `elementLinks` anchors across fragments; undo/redo of a cut;
+delete/move a fragment (group cleanup); page-count/eighths division.
+
+**Out of scope**: PDF/OCR import, FDX write-back, `ScriptNote`/revision-colour
+fidelity, auto-adopting a differently-cut writer split, concurrent-edit conflict
+resolution, the archived-versions hub (123/125).
+
+**Verify**: seed-agnostic — pane renders + follows selection in both tabs,
+collapses/resizes, coarse bottom-sheet; rename a prop → highlight survives, prose
+unchanged, text-sync + alias work; FDX import keeps tagged words + seeds spans;
+cut mid-scene → `6A` heading + body split, one undo; each duplicate mode; import
+a revision editing both sides of a split → edits land correctly, a straddling edit
+asks, a collision is flagged; writer `5A`/`5B` suggests adopt (default keep);
+merge-back reverses; `npm run lint` + `npx playwright test`; extend
+`scripts/smart-test.mjs` `RULES` for the new pane/cut/split files.

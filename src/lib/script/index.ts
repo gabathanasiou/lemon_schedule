@@ -50,3 +50,13 @@ export function scriptSceneOf(doc: ScriptDocument | undefined, sceneNumber: stri
   const target = normalizeSceneNumber(sceneNumber);
   return doc.scenes.find(s => normalizeSceneNumber(s.sceneNumber) === target);
 }
+
+/** Display heading "INT. KITCHEN - DAY" from scene field parts (shared by the
+ *  Script sidebar and the preview pane — one formatter, never two). */
+export function formatSceneHeading(intExt: string, set: string, dayNight: string): string {
+  const ie = (intExt || '').trim().replace(/\.$/, '');
+  const s = (set || '').trim();
+  const dn = (dayNight || '').trim();
+  const base = [ie ? `${ie}.` : '', s].filter(Boolean).join(' ');
+  return dn ? `${base} - ${dn}` : base;
+}

@@ -158,11 +158,11 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
     for (const te of textEls) {
       const tn = te.getAttribute('TagNumber');
       const txt = te.textContent || '';
-      if (tn) {
-        taggedTexts.push({ tagNumber: tn, text: txt });
-      } else {
-        textContent += txt;
-      }
+      // Tagged runs are still part of the screenplay prose — retain them in the
+      // body (roadmap 132 Part B) and record the tag separately for the
+      // breakdown element. Never drop tagged words from the page.
+      textContent += txt;
+      if (tn) taggedTexts.push({ tagNumber: tn, text: txt });
     }
 
     // FDX embeds <Page Number> at print page breaks; keep the marker as a

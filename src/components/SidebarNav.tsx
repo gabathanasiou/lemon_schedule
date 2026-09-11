@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
 import { inputCls } from '@gabriel/ui-kit';
 import { MT_TITLE, MT_ROW, useManagerTableSizes } from '../lib/managerTable';
+import { usePaneResize } from '../lib/usePaneResize';
 
 export interface SidebarNavRow {
   key: string;
@@ -23,17 +24,40 @@ interface SidebarNavProps {
   addLabel?: string;
   addDisabled?: boolean;
   renderRowActions?: (row: SidebarNavRow, active: boolean) => React.ReactNode;
+  /** Drag-resizable width (right edge). Off by default so manager sidebars are
+   *  unchanged; the Script view turns it on with a wider default. */
+  resizable?: boolean;
+  /** Controlled width (px) — ignored unless `resizable`. */
+  width?: number;
+  /** Uncontrolled starting width (px). Defaults to the manager sidebar width. */
+  defaultWidth?: number;
+  onWidthChange?: (w: number) => void;
+  /** Let long labels wrap instead of truncating (the Script scene list). */
+  wrapRows?: boolean;
 }
+
+const SIDEBAR_MIN_W = 200;
+const SIDEBAR_MAX_W = 560;
 
 /** Light-theme master-detail sidebar: title, selectable rows with counts, a
  *  category search box (the kit `inputCls` recipe), a collapse-to-rail toggle
  *  and an add button. Coarse-pointer devices scale the rows/icons via the
  *  shared `useManagerTableSizes` — tracking the kit coarseScale knob like the
  *  Glide reference. */
-export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, renderRowActions }: SidebarNavProps) {
+export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, renderRowActions, resizable = true, width, defaultWidth, onWidthChange, wrapRows = false }: SidebarNavProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
   const sizes = useManagerTableSizes();
+  const [innerWidth, setInnerWidth] = useState(defaultWidth ?? sizes.sidebarW);
+  const w = width ?? innerWidth;
+
+  const onResizeDown = usePaneResize({
+    width: w,
+    min: SIDEBAR_MIN_W,
+    max: SIDEBAR_MAX_W,
+    edge: 'right',
+    onChange: nw => { setInnerWidth(nw); onWidthChange?.(nw); },
+  });
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
   const filtered = searching ? rows.filter(r => r.label.toLowerCase().includes(q)) : rows;
@@ -53,7 +77,8 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
   }
 
   return (
-    <aside data-theme="light" style={{ width: sizes.sidebarW }} className="shrink-0 bg-zinc-50 border-r border-zinc-200 overflow-y-auto">
+    <div className="relative flex shrink-0" style={{ width: resizable ? w : sizes.sidebarW, maxWidth: '70%' }}>
+      <aside data-theme="light" className="min-w-0 flex-1 bg-zinc-50 border-r border-zinc-200 overflow-y-auto">
       <div className="sticky top-0 z-10 bg-zinc-50 px-3 pt-3 pb-1.5">
         <div className="flex items-center justify-between gap-2">
           <span style={{ fontSize: sizes.title.fontSize }} className={MT_TITLE}>{title}</span>
@@ -111,7 +136,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
                   }`}
                 >
                   {Icon && <Icon style={{ width: sizes.iconSm, height: sizes.iconSm }} className={`shrink-0 ${isActive ? 'text-white' : row.dimmed ? 'text-zinc-300' : 'text-zinc-400'}`} />}
-                  <span className={`truncate flex-1 ${row.italic ? 'italic' : ''}`}>{row.label}</span>
+                  <span className={`${wrapRows ? 'whitespace-normal break-words' : 'truncate'} flex-1 ${row.italic ? 'italic' : ''}`}>{row.label}</span>
                   {actions && (
                     <span className={`flex items-center gap-0.5 shrink-0 ${row.dimmed ? '' : 'hover-reveal'}`} onClick={e => e.stopPropagation()}>
                       {actions}
@@ -142,6 +167,16 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
           </button>
         )}
       </div>
-    </aside>
+      </aside>
+      {resizable && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={`Resize ${title.toLowerCase()} pane`}
+          onPointerDown={onResizeDown}
+          className="absolute inset-y-0 right-0 z-10 w-1.5 translate-x-1/2 cursor-col-resize touch-none hover:bg-blue-400/40"
+        />
+      )}
+    </div>
   );
 }

@@ -27,4 +27,10 @@ export const TEST_IDS = {
   reportCanvas: 'report-canvas',
   /** The white report page inside the designer canvas. */
   reportPage: 'report-page',
+  /** Script sub-tab root (roadmap 123 Phase 1). */
+  scriptView: 'script-view',
+  /** One scene section inside the Script sub-tab / preview pane. */
+  scriptScene: 'script-scene',
+  /** Portable scene script pane (roadmap 132 Part A). */
+  scriptPane: 'script-pane',
 } as const;

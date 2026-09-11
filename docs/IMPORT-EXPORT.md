@@ -69,9 +69,13 @@ Status: read this before touching any import/export work.
   duplicated — the body is separate.
 - `parseFDX` maps `Paragraph Type` → blocks (Scene Heading/Character/Action also
   drive the breakdown; parenthetical/dialogue/transition/shot are body-only) and
-  keeps `<Page>` markers as `page_break` blocks. `parseFountain` maps the
-  fountain-js token stream (incl. `dual_dialogue_begin/end` +
-  `dialogue_begin.dual` → `dual_left`/`dual_right`).
+  keeps `<Page>` markers as `page_break` blocks. Final Draft tagged runs
+  (`<Text TagNumber>`) resolve to breakdown elements via `TagData` /
+  `FDX_CATEGORY_MAP` **and stay in the body prose** — a tagged word is still
+  screenplay text (regression guard in `e2e/script-retention.spec.ts`), and is
+  the seed for 132's annotation spans. `parseFountain` maps the fountain-js token
+  stream (incl. `dual_dialogue_begin/end` + `dialogue_begin.dual` →
+  `dual_left`/`dual_right`).
 - `commitImport()` dispatches `SET_SCRIPT_DOCUMENT` in its existing
   `BATCH_START`/`BATCH_COMMIT` — one undo entry. The reducer makes the new body
   `scriptDocument` and the previous current `scriptBaseline` (the item 38
@@ -80,8 +84,14 @@ Status: read this before touching any import/export work.
   baseline (Phase 2 annotations).
 - Persistence/Drive need no special handling: works through the roadmap-124
   localStorage codec and the Drive upload as part of the Project.
-- Body-aware diff / Script view / highlight-to-tag / preview are items
-  **38** and **123 Phases 1–3** — not this section.
+- Read surfaces (roadmap 123 Phase 1 / 132 Part A): the Breakdown **Script
+  sub-tab** (`src/components/ScriptView.tsx`) reads the whole body with
+  scene-linked navigation into Sheet/Schedule, and the portable
+  `SceneScriptPane` (`src/components/script/SceneScriptPane.tsx`) previews one
+  scene on the right of Sheet / Glide. Both render through the shared
+  `ScriptSceneText` (light theme) — never a second screenplay renderer.
+- Body-aware diff / highlight-to-tag / hover preview / cuts are items **38** and
+  **123 Phases 2–3** + **132** — not this section.
 
 ## New-project import parity (roadmap 126)
 

@@ -18,6 +18,7 @@ import { anchoredKeysFor } from '../lib/elementLinks';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { resolvedLocationName } from '../lib/locations';
 import { usePersistState } from '../lib/persist';
+import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/SceneScriptPane';
 
 const BREAKDOWN_CATS = [
   'set', 'cast', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -52,6 +53,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const order = orderPrefs.order;
   const setOrder = useCallback((o: BreakdownOrder) => setOrderPrefs({ order: o }), [setOrderPrefs]);
   const [orderMenuOpen, setOrderMenuOpen] = useState(false);
+  const scriptPane = useScriptPanePref('sheet');
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
 
@@ -450,11 +452,14 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={readOnly}>
         <Trash2 className="w-3 h-3" /> Delete
       </Button>
+      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
+      <ScriptPaneToggle open={scriptPane.open} onToggle={() => scriptPane.setOpen(!scriptPane.open)} />
     </>
   ) : null;
 
   return (
-    <div ref={containerRef} className="flex-1 flex flex-col h-full bg-zinc-100 overflow-y-auto" style={{ paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="flex-1 flex h-full min-h-0 w-full">
+    <div ref={containerRef} className="flex-1 flex flex-col h-full min-w-0 bg-zinc-100 overflow-y-auto" style={{ paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
 
       {scene && (() => {
@@ -505,6 +510,14 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
 
         {/* Notes */}
       </div>
+    </div>
+      <SceneScriptPane
+        sceneNumber={scene?.sceneNumber}
+        open={scriptPane.open}
+        onClose={() => scriptPane.setOpen(false)}
+        width={scriptPane.width}
+        onWidthChange={scriptPane.setWidth}
+      />
     </div>
   );
 }

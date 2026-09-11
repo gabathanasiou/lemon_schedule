@@ -29,6 +29,23 @@ const FDX_B = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 </Content>
 </FinalDraft>`;
 
+// A tagged Final Draft run (roadmap 132 Part B): the tagged words belong to the
+// screenplay prose AND resolve to a breakdown element. Regression guard for the
+// old bug that dropped TagNumber text from the retained body.
+const FDX_TAGGED = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="1">
+<Content>
+<Title>THE TAGGED TEST</Title>
+<Paragraph Type="Scene Heading" Number="1"><Text>INT. KITCHEN - DAY</Text><SceneProperties Length="1.0"/></Paragraph>
+<Paragraph Type="Action"><Text>AMY picks up the </Text><Text TagNumber="1">revolver</Text><Text> and leaves.</Text></Paragraph>
+</Content>
+<TagData>
+<TagCategories><TagCategory Id="C1" Name="Props"/></TagCategories>
+<TagDefinitions><TagDefinition Id="D1" CatId="C1" Label="PROP"/></TagDefinitions>
+<Tags><Tag Number="1" DefId="D1"/></Tags>
+</TagData>
+</FinalDraft>`;
+
 function writeFdx(name: string, xml: string): string {
   const p = path.join(os.tmpdir(), name);
   fs.writeFileSync(p, xml);
@@ -102,5 +119,97 @@ test.describe('script body retention (roadmap 123 Phase 0)', () => {
     // The baseline is the PREVIOUS body (the conflict reference for item 38).
     expect(project.scriptBaseline.scenes).toHaveLength(2);
     expect(project.scriptBaseline.scenes[0].blocks[0]).toEqual(['heading', 'INT. KITCHEN - DAY']);
+  });
+
+  test('tagged FDX runs stay in the retained body (roadmap 132 Part B)', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-tagged.fdx', FDX_TAGGED));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 1)");
+
+    const project = await bridgeProject(page);
+    const action = project.scriptDocument.scenes[0].blocks.find((b: any) => b[0] === 'action');
+    // The tagged word is prose — it must NOT vanish from the page.
+    expect(action[1]).toBe('AMY picks up the revolver and leaves.');
+    // …and it still resolves to a breakdown element.
+    expect(project.scenes.some((s: any) => /revolver/i.test(s.props || ''))).toBe(true);
+  });
+});
+
+test.describe('Script sub-tab (roadmap 123 Phase 1)', () => {
+  test('renders the retained screenplay scene by scene', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-view.fdx', FDX_A));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
+
+    await page.getByRole('button', { name: 'Script', exact: true }).click();
+
+    const view = page.getByTestId('script-view');
+    await expect(view).toBeVisible();
+    // The script name/format is shown in the Breakdown toolbar.
+    await expect(page.getByText('THE TEST').first()).toBeVisible();
+    await expect(page.getByText('FDX', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('script-scene')).toHaveCount(2);
+    await expect(view).toContainText('INT. KITCHEN - DAY');
+    await expect(view).toContainText('AMY pours coffee.');
+    await expect(view).toContainText('EXT. STREET - NIGHT');
+  });
+});
+
+test.describe('Scene script pane (roadmap 132 Part A)', () => {
+  test('Sheet defaults open with a script, Glide defaults collapsed; resizes', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-pane.fdx', FDX_A));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
+    const pane = page.getByTestId('script-pane');
+
+    // Sheet: a script exists → the pane defaults OPEN.
+    await page.getByRole('button', { name: 'Sheet', exact: true }).click();
+    await expect(pane).toBeVisible();
+    await page.getByTitle('Hide script pane').first().click();
+    await expect(pane).toHaveCount(0);
+
+    // Glide: defaults COLLAPSED.
+    await page.getByRole('button', { name: 'Glide Breakdown', exact: true }).click();
+    await expect(pane).toHaveCount(0);
+    await page.getByTitle('Show script pane').click();
+    await expect(pane).toBeVisible();
+
+    // Drag-resize (the Glide grid must not hijack the gesture).
+    const before = (await pane.boundingBox())!.width;
+    const handle = pane.getByRole('separator');
+    const hb = (await handle.boundingBox())!;
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hb.x - 100, hb.y + hb.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(async () => (await pane.boundingBox())!.width).toBeGreaterThan(before + 50);
+  });
+});
+
+test.describe('Script viewer tools (roadmap 123 Phase 1)', () => {
+  test('search highlights, set navigator, eighths ruler and update button', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-tools.fdx', FDX_A));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
+    await page.getByRole('button', { name: 'Script', exact: true }).click();
+
+    // Eighths ruler is visible on the right.
+    await expect(page.getByTestId('script-eighths')).toBeVisible();
+
+    // Scene sidebar lists every scene (number · INT/EXT · set) and is clickable.
+    await expect(page.locator('[data-sidebar-row="0"]')).toBeVisible();
+    await expect(page.locator('[data-sidebar-row="1"]')).toBeVisible();
+
+    // Full-text search highlights matches inline + reports the scene count.
+    await page.getByLabel('Search script').fill('coffee');
+    await expect(page.locator('mark')).toHaveCount(1);
+    await expect(page.getByText('1/1')).toBeVisible();
+
+    // "Update script" opens the same file chooser as File ▸ Import ▸ Update.
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.getByRole('button', { name: 'Update script' }).click(),
+    ]);
+    expect(chooser).toBeTruthy();
   });
 });

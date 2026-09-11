@@ -188,6 +188,8 @@ const RULES = [
   { g: 'src/lib/script/**', s: IMPORT },
   { g: 'src/components/import/**', s: IMPORT },
   { g: 'src/components/script/**', s: IMPORT },
+  { g: 'src/components/ScriptView.tsx', s: IMPORT },
+  { g: 'src/components/BreakdownTab.tsx', s: [...GLIDE, ...SHEET, ...ELEM, ...IMPORT] },
   { g: 'src/components/ImportDialog.tsx', s: IMPORT },
   { g: 'src/components/ScriptUpdateModal.tsx', s: IMPORT },
   { g: 'src/components/ProjectManager.tsx', s: 'ALL' },
