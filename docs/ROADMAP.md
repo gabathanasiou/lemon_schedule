@@ -35,7 +35,15 @@ roadmap worker session, so it stays lean.
   drag shim (`touch-action: none` — the ribbon dragger pattern, item 24) or
   move-via-controls. Re-run after item 24 lands (shared draggers).
 
-## 38. Script version diff — accept a new screenplay against the current one (`[ ]`)
+## 38. Script version diff — accept a new screenplay against the current one (`[~]`)
+
+> **Progress**: engine + commit + review modal shipped (`src/lib/import/scriptDiff.ts`,
+> `commitScriptDiff.ts`, `ScriptUpdateModal.tsx`): explicit "Update script…",
+> number→heading→similarity matching + order-aware alignment, scene-level
+> apply/keep/add/skip/remove, per-field keep/take, character-rename detection,
+> one-by-one + list views, page-count-safe partial updates, apply report.
+> Remaining: baseline-aware conflict rows (needs field snapshots on
+> `scriptBaseline`), split/merge e2e, docs.
 
 **Relations**: depends on **123 Phase 0** (retained `project.scriptDocument` +
 `project.scriptBaseline`) — the diff and its content fingerprint run on the
@@ -92,32 +100,38 @@ alignment:
 - **Unchanged** only when number/heading matched AND context similarity ≈ 1;
   a heading-only match with big content drift shows as **Modified**.
 
-**Acceptance UI** (new stage in `ImportDialog`, shown when
-`project.scenes.length > 0`):
-- **Impact summary** (top): what affects the production — page-count shifts,
-  cast additions, element changes, rule violations.
-- Summary bar: X unchanged · Y modified · Z new · W removed · C conflicts
-  (+ split/merge badges).
-- Filter tabs: All / Needs review (conflicts) / Modified / New / Removed /
-  Unchanged.
-- **Conflicts** (baseline-aware): a conflict is a field whose CURRENT value
-  differs from `project.scriptBaseline` AND the incoming script also changes
-  it — i.e. your in-app edit vs the writer's new value. The row shows current
-  vs incoming and annotates the baseline inline as "was:"; the user chooses
-  keep yours / take the script / merge. Two-way display + baseline warning,
-  NOT a three-column merge UI.
-- Scene rows (script order): scene number + heading + change badges; expand
-  for a **side-by-side per-field diff** (word-level highlights in the body,
-  item ± lists for cast/elements, before → after for heading fields). A
-  split/merge row diffs the old scene against each fragment.
-- **"Accept all safe"** bulk action accepts every high-confidence
-  unchanged/modified pair so the user only hand-resolves conflicts.
-- **Removed scenes default to KEEP** (user decision): per-scene "remove"
-  toggle + "remove all" shortcut — the stripboard/schedule investment is
-  untouched by default.
-- Existing review-stage controls stay (new categories, hidden categories
-  with data, cast ID assignment/ordering).
-- Footer: "Update N Scenes" + Cancel.
+**Trigger — EXPLICIT, not automatic** (user decision): File → Import stays the
+plain append flow; a separate **File → Import → "Update script (diff)…"** (and,
+long-term, a **Script sub-tab in Breakdown** — 123 Phase 1) opens the update
+flow. Never auto-diff on a plain import.
+
+**Review UI — a SEPARATE, keyboard-fast modal** (`ScriptUpdateModal`, NOT an
+ImportDialog stage), one change at a time (user decision):
+- The current change renders as **proper screenplay** — current vs incoming —
+  via the SHARED `ScriptSceneScript` renderer (built for 123 Phase 1; never a
+  second renderer): Courier, indents, dual dialogue. Block-level ± highlight
+  (removed blocks shown in place, struck through; added blocks highlighted);
+  item ± lists for cast/elements; before → after for heading fields. A
+  split/merge change diffs the old scene against each fragment.
+- The queue **clears one by one**: Update/Take (`→`/`U`) or Keep (`←`/`K`)
+  (Add/Skip for a new scene, Keep/Remove for a removed one) removes the change
+  and instantly shows the next. Progress "Change 3 of 12"; the final change
+  flows into a one-line impact summary (page-count shifts, cast/element adds,
+  split/merge) + "Apply N changes".
+- **Conflicts** (baseline-aware): a field whose CURRENT value differs from
+  `project.scriptBaseline` AND the incoming script also changes it — i.e. your
+  in-app edit vs the writer's new value. Annotate the baseline inline as
+  "was:" and offer keep yours / take the script. (Deferred until the baseline
+  carries field snapshots — see Notes.)
+- **Removed scenes default to KEEP** — the stripboard/schedule investment is
+  untouched unless the user opts in.
+- Existing review controls stay (new categories, hidden categories with data,
+  cast ID assignment/ordering) as a final step before Apply.
+- Footer: "Apply N changes" + Cancel.
+
+**Notes**: the baseline conflict comparison needs per-scene field snapshots
+(Phase 0 currently retains the body only) — extend `scriptBaseline` or catch
+up here before shipping the conflict row.
 
 **Commit** — one undo entry (`BATCH_START`/`BATCH_COMMIT`; extend/parallel
 `commitImport` with a `commitScriptDiff`):
@@ -671,3 +685,32 @@ the file; MSD/SEX/`.lemon` unchanged; ImportDialog rename prefilled;
 
 **Out of scope**: append-into-current from the PM — PM import always creates a
 new project (the File menu's ImportDialog is the append flow).
+
+## 127. Custom/localized INT-EXT & day-night values on script import (`[ ]`)
+
+**Relations**: extends 123 Phase 0 + 38 (the script import/diff path) and 123
+Phase 1 (screenplay renderer); complements the day-types registry
+(`docs/DAY-TYPES-AND-CALENDAR.md`).
+
+**Requested**: scripts carry values the app doesn't know — localized
+(`ΕΣΩΤ`/`ΕΞΩΤ` for INT/EXT) or custom ("DREAM", "MAGIC HOUR", "DUSK") day/night.
+Import must KEEP them (never silently fold into the set or default to DAY) and
+let the user map them once.
+
+**Approach**:
+- `parseSceneHeading` already keeps a custom trailing day/night word and
+  recognizes localized INT/EXT prefixes; surface the raw value when it isn't in
+  the project's known set (`colorPalette.intExtOptions`/`dayNightOptions`).
+- On import/update, collect unknown INT-EXT/day-night values and show a mapping
+  dialog per value: **add as a new entry** / **replace an existing one** /
+  **map to an existing value** (dropdown). **Add writes to the CENTRAL SOURCE OF
+  TRUTH — `project.colorPalette.intExtOptions` / `dayNightOptions` (the Colors
+  tab)**, NOT a parallel list, so the whole app (colors, rules, diff) picks it
+  up. Persist per project so re-imports don't re-ask; apply the mapped canonical
+  value to the scenes.
+- The diff (38) then compares canonical values (no false "changed").
+- The dialog must be a real `Modal` with explicit buttons (never auto-dismiss
+  on a stray Enter/keystroke).
+
+**Verify**: an FDX with `DREAM` + Greek headings imports, prompts, maps, and a
+re-import doesn't re-ask; the diff highlights only the genuinely changed part.

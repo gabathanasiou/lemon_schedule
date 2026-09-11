@@ -42,6 +42,7 @@
     "@tiptap/suggestion": "^3.30.1",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
+    "diff": "^9.0.0",
     "fountain-js": "^1.2.4",
     "leaflet": "^1.9.4",
     "lodash": "^4.18.1",

@@ -49,6 +49,7 @@ import TrashModal from './components/TrashModal';
 import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
+import ScriptUpdateModal from './components/ScriptUpdateModal';
 import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV, exportSexFile, parseMsdFile, parseSexFile } from './lib/import';
 import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib/utils';
 import { formatDriveError } from './lib/googleDriveStorage';
@@ -378,25 +379,33 @@ function AppContent() {
   const [showElementBreakdownDialog, setShowElementBreakdownDialog] = useState(false);
   const [printDialogCategory, setPrintDialogCategory] = useState<string | undefined>(undefined);
   const [pendingImport, setPendingImport] = useState<{ result: ImportResult; fileName: string } | null>(null);
+  const [pendingScriptUpdate, setPendingScriptUpdate] = useState<{ result: ImportResult; fileName: string } | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+  const updateScriptFileRef = useRef<HTMLInputElement>(null);
   const newProjectFileRef = useRef<HTMLInputElement>(null);
+
+  const parseAppendableFile = useCallback(async (file: File): Promise<ImportResult> => {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === 'fdx') return parseFDX(file);
+    if (ext === 'csv') return parseCSV(file, state.present.castMembers || [], state.present.customCategories || [], state.present.categoryLabels || {});
+    return parseFountain(file);
+  }, [state.present.castMembers, state.present.customCategories, state.present.categoryLabels]);
 
   const handleImportFile = useCallback(async (file: File) => {
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      let result: ImportResult;
-      if (ext === 'fdx') {
-        result = await parseFDX(file);
-      } else if (ext === 'csv') {
-        result = await parseCSV(file, state.present.castMembers || [], state.present.customCategories || [], state.present.categoryLabels || {});
-      } else {
-        result = await parseFountain(file);
-      }
-      setPendingImport({ result, fileName: file.name });
+      setPendingImport({ result: await parseAppendableFile(file), fileName: file.name });
     } catch (e: any) {
       dialog.alert({ title: 'Import Error', message: formatDriveError(e, e?.message || 'Failed to parse file') });
     }
-  }, [dialog, state.present.castMembers, state.present.customCategories, state.present.categoryLabels]);
+  }, [dialog, parseAppendableFile]);
+
+  const handleUpdateScriptFile = useCallback(async (file: File) => {
+    try {
+      setPendingScriptUpdate({ result: await parseAppendableFile(file), fileName: file.name });
+    } catch (e: any) {
+      dialog.alert({ title: 'Update Error', message: formatDriveError(e, e?.message || 'Failed to parse file') });
+    }
+  }, [dialog, parseAppendableFile]);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [subHeaderTargets, setSubHeaderTargets] = useState<Record<string, HTMLElement | null>>({});
@@ -739,7 +748,9 @@ function AppContent() {
         />
       )}
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
+      {pendingScriptUpdate && <ScriptUpdateModal result={pendingScriptUpdate.result} fileName={pendingScriptUpdate.fileName} onClose={() => setPendingScriptUpdate(null)} />}
       <input ref={importFileRef} type="file" accept={pickerAccept('.csv,.fdx,.fountain,.txt')} onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
+      <input ref={updateScriptFileRef} type="file" accept={pickerAccept('.csv,.fdx,.fountain,.txt')} onChange={e => { const f = e.target.files?.[0]; if (f) handleUpdateScriptFile(f); if (updateScriptFileRef.current) updateScriptFileRef.current.value = ''; }} className="hidden" />
       <input ref={newProjectFileRef} type="file" accept={pickerAccept('.lemon,.json,.msd,.sex')} onChange={handleNewProjectImport} className="hidden" />
 
       <OfflineStatus
@@ -766,6 +777,7 @@ function AppContent() {
         onOpenProjectManager={() => setShowProjectManager(true)}
         onImportClick={() => importFileRef.current?.click()}
         onImportNewProject={() => newProjectFileRef.current?.click()}
+        onUpdateScript={() => updateScriptFileRef.current?.click()}
         onExportCSV={handleExportCSV}
         onExportJSON={handleExportJSON}
         onExportSex={handleExportSex}

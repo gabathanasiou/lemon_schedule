@@ -35,13 +35,14 @@ function writeFdx(name: string, xml: string): string {
   return p;
 }
 
-async function importFile(page: import('@playwright/test').Page, filePath: string, sceneCount: number) {
+async function importFile(page: import('@playwright/test').Page, filePath: string) {
   await page.getByRole('button', { name: 'File' }).click();
   await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
   await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
   await page.locator('input[type="file"]').first().setInputFiles(filePath);
-  await expect(page.getByRole('button', { name: new RegExp(`Import ${sceneCount} Scenes`) })).toBeVisible({ timeout: 8000 });
-  await page.getByRole('button', { name: new RegExp(`Import ${sceneCount} Scenes`) }).click();
+  const submit = page.getByRole('button', { name: /(?:Import|Update) \d+ Scenes/ });
+  await expect(submit).toBeVisible({ timeout: 8000 });
+  await submit.click();
 }
 
 const bridgeProject = (page: import('@playwright/test').Page): Promise<Project> =>
@@ -50,7 +51,7 @@ const bridgeProject = (page: import('@playwright/test').Page): Promise<Project> 
 test.describe('script body retention (roadmap 123 Phase 0)', () => {
   test('FDX import retains the screenplay body + baseline, persists, and undoes as one batch', async ({ page }) => {
     await openSeededProject(page);
-    await importFile(page, writeFdx('lemon-script-a.fdx', FDX_A), 2);
+    await importFile(page, writeFdx('lemon-script-a.fdx', FDX_A));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
 
     // Persisted (round-tripped through the compressed localStorage codec).
@@ -90,10 +91,10 @@ test.describe('script body retention (roadmap 123 Phase 0)', () => {
 
   test('a second import rotates the previous body into the baseline', async ({ page }) => {
     await openSeededProject(page);
-    await importFile(page, writeFdx('lemon-script-a2.fdx', FDX_A), 2);
+    await importFile(page, writeFdx('lemon-script-a2.fdx', FDX_A));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
 
-    await importFile(page, writeFdx('lemon-script-b.fdx', FDX_B), 1);
+    await importFile(page, writeFdx('lemon-script-b.fdx', FDX_B));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 1)");
 
     const project = await bridgeProject(page);

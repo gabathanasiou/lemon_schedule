@@ -6,7 +6,6 @@ import type {
   ScriptScene,
   ScriptTitlePage,
 } from '../../types';
-
 /**
  * Screenplay body retention (roadmap 123 Phase 0).
  *
@@ -31,4 +30,23 @@ export function createScriptScene(sceneNumber: string, scriptPage?: string): Scr
 
 export function pushScriptBlock(scene: ScriptScene, type: ScriptBlockType, text: string): void {
   scene.blocks.push([type, text] as ScriptBlock);
+}
+
+/** Normalize a scene number for matching/body lookup (`1A` vs `1a`, leading zeros). */
+export function normalizeSceneNumber(n: string): string {
+  return n.trim().toUpperCase().replace(/^0+(?=\d)/, '').replace(/[^A-Z0-9]/g, '');
+}
+
+/** The retained block stream for a scene number, or [] when absent. */
+export function scriptSceneBlocks(doc: ScriptDocument | undefined, sceneNumber: string): ScriptBlock[] {
+  if (!doc) return [];
+  const target = normalizeSceneNumber(sceneNumber);
+  return doc.scenes.find(s => normalizeSceneNumber(s.sceneNumber) === target)?.blocks ?? [];
+}
+
+/** The retained ScriptScene for a scene number (renderer input). */
+export function scriptSceneOf(doc: ScriptDocument | undefined, sceneNumber: string): ScriptScene | undefined {
+  if (!doc) return undefined;
+  const target = normalizeSceneNumber(sceneNumber);
+  return doc.scenes.find(s => normalizeSceneNumber(s.sceneNumber) === target);
 }

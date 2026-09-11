@@ -262,10 +262,10 @@ test.describe('cast single source of truth (castMembers)', () => {
     expect(scene1.cast.toLowerCase()).not.toContain('amy');
     expect(project.breakdownElements.cast).toBeUndefined();
     // script page numbers from FDX <Page> break markers (scene 2 starts on p.2).
-    // FDX import APPENDS scenes, so the imported ones are the last '1'/'2'.
+    // Existing projects take the road-map-38 in-place diff, so scenes 1/2 are the
+    // (updated) seed scenes and scene 2 picks up the incoming page marker.
     const scene2 = [...project.scenes].reverse().find((s: any) => s.sceneNumber === '2');
     expect(scene2.scriptPageNumbers).toBe('2');
-    expect(scene1.scriptPageNumbers).toBeUndefined();
   });
 
   test('modals & prints: DOODs dialog, rule cards and printed cast list all read castMembers', async ({ page }) => {

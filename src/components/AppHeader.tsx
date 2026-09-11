@@ -32,6 +32,7 @@ interface AppHeaderProps {
   onOpenProjectManager: () => void;
   onImportClick: () => void;
   onImportNewProject: () => void;
+  onUpdateScript: () => void;
   onExportCSV: () => void;
   onExportJSON: () => void;
   onExportSex: () => void;
@@ -52,7 +53,7 @@ export default function AppHeader(props: AppHeaderProps) {
   const project = state.present;
   const {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
-    onOpenProjectManager, onImportClick, onImportNewProject, onExportCSV, onExportJSON, onExportSex,
+    onOpenProjectManager, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
     onShowTrash, driveCtx, closeProject, createProject,
   } = props;
@@ -109,6 +110,9 @@ export default function AppHeader(props: AppHeaderProps) {
               </DropdownItem>
               <DropdownItem onClick={() => { setShowFileMenu(false); onImportNewProject(); }}>
                 .msd, .sex, .lemon, .json
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); onUpdateScript(); }}>
+                Update script (diff)…
               </DropdownItem>
             </DropdownSubmenu>
             <DropdownDivider />

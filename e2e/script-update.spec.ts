@@ -1,0 +1,96 @@
+import { test, expect } from '@playwright/test';
+import { ensureProject } from './helpers';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+type Project = any;
+
+const bridgeProject = (page: import('@playwright/test').Page): Promise<Project> =>
+  page.evaluate(() => (window as any).__lemonSchedule.getProject());
+
+function writeFdx(name: string, scenes: { n: string; heading: string; action?: string }[]): string {
+  const paragraphs = scenes.map(s => [
+    `<Paragraph Type="Scene Heading" Number="${s.n}"><Text>${s.heading}</Text><SceneProperties Length="1.0"/></Paragraph>`,
+    s.action ? `<Paragraph Type="Action"><Text>${s.action}</Text></Paragraph>` : '',
+  ].join('')).join('');
+  const p = path.join(os.tmpdir(), name);
+  fs.writeFileSync(p, `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="1"><Content>${paragraphs}</Content></FinalDraft>`);
+  return p;
+}
+
+async function openUpdateModal(page: import('@playwright/test').Page, filePath: string) {
+  await page.getByRole('button', { name: 'File' }).click();
+  await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+  await page.getByRole('menuitem', { name: /Update script/ }).click();
+  await page.locator('input[type="file"]').nth(1).setInputFiles(filePath);
+  await expect(page.getByRole('dialog').getByText(/Update Script/)).toBeVisible({ timeout: 8000 });
+}
+
+test.describe('script update review (roadmap 38)', () => {
+  test('explicit Update script… reviews changes one by one and applies in place', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    // A tiny 2-scene project so the review queue is short and deterministic.
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      b.batch(() => {
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN', intExt: 'INT', dayNight: 'DAY', description: 'Old kitchen' }) });
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '2', set: 'STREET', intExt: 'EXT', dayNight: 'NIGHT' }) });
+      });
+    });
+    const before = await bridgeProject(page);
+    const scene1Id = before.scenes.find((s: any) => s.sceneNumber === '1').id;
+    const scene2Id = before.scenes.find((s: any) => s.sceneNumber === '2').id;
+
+    // Incoming: scene 1 modified, scene 2 dropped (→ removed), scene 3 new.
+    await openUpdateModal(page, writeFdx('lemon-update.fdx', [
+      { n: '1', heading: 'INT. KITCHEN - DAY', action: 'New kitchen action.' },
+      { n: '3', heading: 'EXT. FIELD - DAY', action: 'A new scene.' },
+    ]));
+
+    // One-by-one keyboard review: →/A accepts, ←/K keeps, ⌫ goes back.
+    await expect(page.getByText('0 / 3')).toBeVisible();
+    await page.keyboard.press('ArrowRight'); // change 1
+    await expect(page.getByText('1 / 3')).toBeVisible();
+    await page.keyboard.press('ArrowRight'); // change 2
+    await expect(page.getByText('2 / 3')).toBeVisible();
+    await page.keyboard.press('ArrowRight'); // change 3
+    await expect(page.getByText('3 / 3')).toBeVisible();
+    // Review auto-advances to the final confirmation list; Apply shows a warning.
+    await expect(page.getByText(/to apply/)).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: /Apply \d+/ }).click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+
+    await page.waitForFunction(() => {
+      const b = (window as any).__lemonSchedule;
+      const nums = b.getProject().scenes.map((s: any) => s.sceneNumber).sort();
+      return nums.length === 2 && nums[0] === '1' && nums[1] === '3';
+    });
+    const after = await bridgeProject(page);
+    const s1 = after.scenes.find((s: any) => s.sceneNumber === '1');
+    expect(s1.id).toBe(scene1Id);          // updated in place, id preserved
+    expect(after.scenes.find((s: any) => s.sceneNumber === '2')).toBeUndefined(); // removed (accepted)
+    // The retained body was replaced and the previous body became the baseline.
+    expect(after.scriptDocument.scenes.map((s: any) => s.sceneNumber)).toEqual(['1', '3']);
+    expect(after.scriptBaseline).toBeTruthy();
+  });
+
+  test('plain Import still appends (no diff) even on a project with scenes', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN' }) });
+    });
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+    await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
+    await page.locator('input[type="file"]').first().setInputFiles(writeFdx('lemon-append.fdx', [{ n: '1', heading: 'INT. OTHER - DAY' }]));
+    // Append flow shows the "... Import N Scenes" button, not the diff modal.
+    await expect(page.getByRole('button', { name: /Import 1 Scenes/ })).toBeVisible({ timeout: 8000 });
+    await page.getByRole('button', { name: /Import 1 Scenes/ }).click();
+    await page.waitForFunction(() => (window as any).__lemonSchedule.getProject().scenes.length === 2);
+  });
+});
