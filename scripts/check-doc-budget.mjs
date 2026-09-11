@@ -186,6 +186,28 @@ if (fragileTotal) {
   );
 }
 
+// Suite-size ratchet: e2e is the expensive layer — growth must be deliberate.
+// When this trips, do ONE of: merge the new cases into an existing spec; move
+// pure logic down to a unit test (`npm run test:unit`); or consciously raise a
+// cap here with a one-line reason. Never just append a spec.
+const E2E_SPEC_CAP = 70;
+const E2E_TEST_CAP = 260;
+const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
+const e2eTestCount = e2eSpecFiles.reduce(
+  (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,
+  0,
+);
+console.log(
+  'E2E suite: %d specs / %d tests (caps %d / %d).',
+  e2eSpecFiles.length, e2eTestCount, E2E_SPEC_CAP, E2E_TEST_CAP,
+);
+if (e2eSpecFiles.length > E2E_SPEC_CAP || e2eTestCount > E2E_TEST_CAP) {
+  errors.push(
+    `e2e suite grew past its cap (${e2eSpecFiles.length}/${E2E_SPEC_CAP} specs, ${e2eTestCount}/${E2E_TEST_CAP} tests) — ` +
+      `merge into an existing spec, move pure logic to a unit test, or raise the cap consciously (see docs/TESTING.md).`,
+  );
+}
+
 if (warnings.length) {
   console.log(`\nWarnings (non-blocking):`);
   for (const w of warnings) console.log(`  - ${w}`);

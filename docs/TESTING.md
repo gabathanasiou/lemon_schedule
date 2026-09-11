@@ -133,11 +133,27 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 
 ## Adding a spec
 
-- Put real regression coverage in the spec; use `<Spec> seed …` helpers already shared
-  (`openSeededProject`, bridge getters). Keep it under ~300 lines — split by concern.
-- Register its base name in the matching bucket in `scripts/smart-test.mjs` and, if it guards
-  a new module, add a RULES entry mapping that module → the spec (or `ALL` if it's core).
-- `npm run lint` must pass (doc/roadmap/e2e hygiene); run the spec + canaries before done.
+Adding is **deliberate, not automatic** — e2e is the expensive layer, so the suite is **capped**
+(enforced by `npm run lint`): **≤ 70 specs / ≤ 260 tests** (`scripts/check-doc-budget.mjs`).
+More features means more tests; unbounded growth means a prune. When a new case is needed, in
+order of preference:
+
+1. **Extend an existing spec** in the same area — don't create a near-duplicate file.
+2. **Push the logic down to a unit test** (`npm run test:unit`) — a missed edge case usually
+   belongs there, not in the browser.
+3. **Merge** two tiny single-test specs for the same surface into one.
+4. Only if the behavior is genuinely new and UI-wired: add the spec, then **prune something or
+   consciously raise the cap** in `scripts/check-doc-budget.mjs` with a one-line reason.
+
+Never test the same behavior at two layers (unit + e2e). Retire a spec when its behavior is gone
+(git keeps it); quarantine chronic flake rather than silently deleting coverage.
+
+Mechanics for any new spec:
+
+- Use the shared seed helpers (`openSeededProject`, bridge getters). Keep it under ~300 lines.
+- Register its base name in the matching bucket in `scripts/smart-test.mjs` (orphan specs fail lint)
+  and, if it guards a new module, add a RULES entry mapping that module → the spec (or `ALL` for core).
+- `npm run lint` must pass; run the spec + canaries before done.
 
 ## Verification
 
