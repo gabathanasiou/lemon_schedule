@@ -23,6 +23,22 @@ describe('parseSceneHeading', () => {
     expect(parseSceneHeading('INT. Corridor - WING B')).toMatchObject({ set: 'CORRIDOR - WING B' });
   });
 
+  it('recognizes multi-word custom day/night values without eating set qualifiers', () => {
+    expect(parseSceneHeading('INT. KITCHEN - MAGIC HOUR')).toMatchObject({ set: 'KITCHEN', dayNight: 'MAGIC HOUR' });
+    expect(parseSceneHeading('EXT. BEACH - LATER THAT NIGHT')).toMatchObject({ dayNight: 'LATER THAT NIGHT' });
+    expect(parseSceneHeading('INT. ROOM - DINNER TIME')).toMatchObject({ dayNight: 'DINNER TIME' });
+    // A set qualifier with no time token stays in the set.
+    expect(parseSceneHeading('INT. HOUSE - LIVING ROOM')).toMatchObject({ set: 'HOUSE - LIVING ROOM' });
+    expect(parseSceneHeading('INT. HOSPITAL - DAY ROOM')).toMatchObject({ set: 'HOSPITAL - DAY ROOM' });
+  });
+
+  it('recognizes multi-word values already known to the project', () => {
+    const known = new Set(['GHOST LIGHT']);
+    expect(parseSceneHeading('INT. ATTIC - GHOST LIGHT', undefined, known)).toMatchObject({ set: 'ATTIC', dayNight: 'GHOST LIGHT' });
+    // Without the project knowing it, the phrase stays part of the set.
+    expect(parseSceneHeading('INT. ATTIC - GHOST LIGHT')).toMatchObject({ set: 'ATTIC - GHOST LIGHT' });
+  });
+
   it('recognizes localized (Greek) INT/EXT and day/night', () => {
     expect(parseSceneHeading('ΕΣΩΤ. ΚΟΥΖΙΝΑ - ΝΥΧΤΑ')).toMatchObject({ intExt: 'INT', set: 'ΚΟΥΖΙΝΑ', dayNight: 'ΝΥΧΤΑ' });
     expect(parseSceneHeading('ΕΞΩΤ. ΔΡΟΜΟΣ - ΜΕΡΑ')).toMatchObject({ intExt: 'EXT' });

@@ -85,14 +85,15 @@ Status: read this before touching any import/export work.
 
 ## New-project import parity (roadmap 126)
 
-- ONE dispatcher, `buildNewProjectFromFile(file)` (`src/lib/import/buildProjectFromImport.ts`),
+- ONE dispatcher, `parseNewProjectFile(file)` (`src/lib/import/buildProjectFromImport.ts`),
   serves both the Project Manager Import button and the File menu's "New project":
-  `.msd`/`.sex` → new-project parsers; `.lemon`/`.json` → serialized `Project`
-  (migrated by `importProjectFromData`); FDX/Fountain/CSV → parse → build a
-  complete `Project` by replaying `commitImport` through the reducer. Accept list
-  = `NEW_PROJECT_ACCEPT`.
+  `.msd`/`.sex`/`.lemon`/`.json` return a ready `Project`; FDX/Fountain/CSV return
+  a parsed `ImportResult` that the shared `ImportDialog` reviews (rename, cast
+  Board IDs, categories, heading mapping) in `mode="new-project"`, then
+  `buildProjectFromImport` builds the project by replaying `commitImport` through
+  the reducer. Accept list = `NEW_PROJECT_ACCEPT`.
 - The project title defaults to the parsed title, else the filename
-  (`fileBaseTitle`). Same fallback prefills ImportDialog's "Rename Project".
+  (`fileBaseTitle`). Same fallback prefills the review's "Rename Project".
 - **Cast is reused by NAME, never duplicated**: `buildCastIdMap(ordered, existing)`
   (`castIds.ts`) maps an incoming character whose (uppercased) name already
   exists to that member's id; only new names get fresh sequential Board IDs.
@@ -101,24 +102,27 @@ Status: read this before touching any import/export work.
 ## Custom/localized heading values (roadmap 127)
 
 - Scripts carry INT/EXT and day/night values the project doesn't know
-  (localized `ΕΣΩΤ`, custom `DREAM`). `parseSceneHeading` keeps custom trailing
-  day/night words and surfaces an unrecognized INT/EXT prefix RAW; Greek
-  `ΕΣΩΤ/ΕΞΩΤ` map to INT/EXT.
+  (localized `ΕΣΩΤ`, custom `DREAM`). `parseSceneHeading` surfaces an unrecognized
+  INT/EXT prefix RAW and Greek `ΕΣΩΤ/ΕΞΩΤ` map to INT/EXT. Custom day/night is the
+  tail after the last dash when it is a single word (`DREAM`, `ΝΥΧΤΑ`), a curated
+  multi-word phrase (`MAGIC HOUR`, `LATER THAT NIGHT`), a short tail carrying a
+  strong time token (`HOUR`/`TIME`/`LATER`/`DAWN`/…), or a value the project
+  already knows via `knownDayNightPhrases(project)` (palette options + alias
+  keys, threaded into `parseFDX`/`parseFountain`). Set qualifiers like
+  `WING B`/`LIVING ROOM`/`DAY ROOM` stay in the set.
 - On import, `collectUnknownHeadingValues` finds unknown values and the UI shows
   `HeadingValueMapper` (`src/components/import/`): **New option** (writes to
   `colorPalette.intExtOptions`/`dayNightOptions` — the Colors tab, the source of
   truth) or **Replace with** an existing value (recorded in
   `project.headingAliases`, so a later import of the same value is replaced
-  silently). `applyHeadingMapping` rewrites an `ImportResult` (append/diff);
-  `applyHeadingMappingToProject` rewrites an already-built `Project`
-  (new-project); `buildHeadingMappingUpdate` produces the project patch.
+  silently). `applyHeadingMapping` rewrites the `ImportResult`;
+  `buildHeadingMappingUpdate` produces the project patch.
 - **Every entry point prompts**, after parse/review: plain/append
   (`ImportDialog`, before review), update diff (`ScriptUpdateModal`, at apply
-  time for the values that survive the decisions), and new-project
-  (`buildNewProjectFromFile` returns `{ project, unknown }`; the Project Manager
-  and File menu mount `NewProjectHeadingMapper` over the built project).
-  Nothing silently folds unknown values into the palette. `.lemon`/`.json`
-  (serialized projects) and MSD/SEX never prompt.
+  time for the values that survive the decisions), and new-project (`ImportDialog`
+  `mode="new-project"`, between parsing and the review). Nothing silently folds
+  unknown values into the palette. `.lemon`/`.json` (serialized projects) and
+  MSD/SEX never prompt.
 
 ## Common tasks (agent recipes)
 

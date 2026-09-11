@@ -27,6 +27,14 @@ const FDX_DREAM = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 </Content>
 </FinalDraft>`;
 
+const FDX_MAGIC = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Version="1">
+<Content>
+<Paragraph Type="Scene Heading" Number="1"><Text>INT. KITCHEN - MAGIC HOUR</Text><SceneProperties Length="1.0"/></Paragraph>
+<Paragraph Type="Action"><Text>Golden light.</Text></Paragraph>
+</Content>
+</FinalDraft>`;
+
 test.describe('new-project import parity (roadmap 126)', () => {
   test('PM Import accepts an FDX screenplay and names the project after the file', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
@@ -38,6 +46,10 @@ test.describe('new-project import parity (roadmap 126)', () => {
     ]);
     await chooser.setFiles(writeFdx('my-great-script.fdx'));
     await page.getByRole('button', { name: 'Confirm' }).click(); // import-as-new-project
+
+    // Scripts land in the shared review (rename + cast Board IDs) first.
+    await expect(page.getByPlaceholder('Leave blank to keep current title')).toHaveValue('my-great-script');
+    await page.getByRole('button', { name: 'Create Project' }).click();
 
     await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
     const project = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
@@ -81,6 +93,27 @@ test.describe('new-project import parity (roadmap 126)', () => {
     expect(project.scenes[project.scenes.length - 1].dayNight).toBe('DREAM');
   });
 
+  test('multi-word custom day/night (MAGIC HOUR) is detected and prompts', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+    await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
+    await page.locator('input[type="file"]').first().setInputFiles(writeFdx('magic.fdx', FDX_MAGIC));
+
+    await expect(page.getByText('Map script headings')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText('MAGIC HOUR', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: /Import 1 value/ }).click();
+    await page.getByRole('button', { name: /Import 1 Scenes/ }).click();
+
+    await page.waitForFunction(() => ((window as any).__lemonSchedule.getProject().colorPalette?.dayNightOptions || []).includes('MAGIC HOUR'));
+    const scene = await page.evaluate(() => {
+      const s = (window as any).__lemonSchedule.getProject().scenes;
+      return s[s.length - 1];
+    });
+    expect(scene.dayNight).toBe('MAGIC HOUR');
+    expect(scene.set).toBe('KITCHEN');
+  });
+
   test('new-project import prompts for custom heading values before committing', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
     await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible({ timeout: 8000 });
@@ -97,6 +130,8 @@ test.describe('new-project import parity (roadmap 126)', () => {
     await expect(page.getByText('DREAM', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: /Import 1 value/ }).click();
 
+    // Then the shared review, then the project is created.
+    await page.getByRole('button', { name: 'Create Project' }).click();
     await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
     const project = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
     expect(project.scenes[0].dayNight).toBe('DREAM');
@@ -120,6 +155,7 @@ test.describe('new-project import parity (roadmap 126)', () => {
     await page.getByRole('button', { name: 'DAY' }).click();
     await page.getByRole('menuitem', { name: 'NIGHT' }).click();
     await page.getByRole('button', { name: /Import 1 value/ }).click();
+    await page.getByRole('button', { name: 'Create Project' }).click();
 
     await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
     const project = await page.evaluate(() => (window as any).__lemonSchedule.getProject());

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
-import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport, buildCastIdMap, firstFreeCastId, fileBaseTitle, collectUnknownHeadingValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues } from '../lib/import';
-import type { HeadingMapping } from '../lib/import';
+import { useProject, DEFAULT_CATEGORY_LABELS, makeBlankProject } from '../store';
+import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport, buildProjectFromImport, buildCastIdMap, firstFreeCastId, fileBaseTitle, collectUnknownHeadingValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues, knownDayNightPhrases } from '../lib/import';
+import type { HeadingMapping, AppliedHeadingMapping } from '../lib/import';
 import HeadingValueMapper from './import/HeadingValueMapper';
 import { Upload, Loader2 } from 'lucide-react';
 import Modal from './Modal';
@@ -9,20 +9,31 @@ import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { pickerAccept } from '../lib/device';
 import { CastAssignmentTable, CategoryChecklist, RenameProjectField } from './import/ImportReviewControls';
+import type { Project } from '../types';
 
 interface ImportDialogProps {
   initialResult?: ImportResult;
   initialFileName?: string;
   onClose: () => void;
   fileFilter?: string;
+  /** `append` (default) adds the reviewed scenes to the open project;
+   *  `new-project` builds a brand-new project from them (roadmap 129/131). */
+  mode?: 'append' | 'new-project';
+  /** new-project mode: receives the finished Project (the caller loads it). */
+  onCreateProject?: (project: Project) => void | Promise<void>;
 }
 
-/** Plain **append** import: every parsed scene becomes a new scene (fresh ids,
- *  boneyard). Updating an existing screenplay in place is the separate
- *  `ScriptUpdateModal` (roadmap 38) — never this flow. */
-export default function ImportDialog({ initialResult, initialFileName, onClose, fileFilter }: ImportDialogProps) {
+/** Plain import review. **Append** mode adds every parsed scene to the open
+ *  project (fresh ids, boneyard) — updating in place is the separate
+ *  `ScriptUpdateModal` (roadmap 38). **New-project** mode runs the SAME review
+ *  (rename, cast Board IDs, categories) but builds a fresh project instead. */
+export default function ImportDialog({ initialResult, initialFileName, onClose, fileFilter, mode = 'append', onCreateProject }: ImportDialogProps) {
   const { state, dispatch } = useProject();
   const project = state.present;
+  // New-project imports review against a blank project (default Colors options,
+  // Board IDs from 1, no existing cast/hidden categories).
+  const blankBase = useMemo(() => makeBlankProject(), []);
+  const base = mode === 'new-project' ? blankBase : project;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [stage, setStage] = useState<'select' | 'parsing' | 'mapping' | 'review' | 'importing'>(
@@ -37,12 +48,13 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
   const [fileLabel, setFileLabel] = useState(initialFileName || '');
   const [projectTitle, setProjectTitle] = useState('');
   const [pendingMapping, setPendingMapping] = useState<{ parsed: ImportResult; fileBase: string; unknown: { intExt: string[]; dayNight: string[] } } | null>(null);
+  const [appliedMapping, setAppliedMapping] = useState<AppliedHeadingMapping | null>(null);
 
-  const startId = useMemo(() => firstFreeCastId(project.castMembers || []), [project.castMembers]);
+  const startId = useMemo(() => firstFreeCastId(base.castMembers || []), [base.castMembers]);
   // Reuse existing cast ids by name (never duplicate a member on re-import).
   const castAssignments = useMemo(
-    () => buildCastIdMap(castOrder, project.castMembers || []),
-    [castOrder, project.castMembers],
+    () => buildCastIdMap(castOrder, base.castMembers || []),
+    [castOrder, base.castMembers],
   );
 
   useEffect(() => {
@@ -62,7 +74,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
       for (const k of Object.keys(s.taggedElements)) taggedKeys.add(k);
     }
     const hiddenItems: { key: string; label: string }[] = [];
-    for (const hk of project.hiddenCategories || []) {
+    for (const hk of base.hiddenCategories || []) {
       if (taggedKeys.has(hk)) hiddenItems.push({ key: hk, label: DEFAULT_CATEGORY_LABELS[hk] || hk });
     }
     setHiddenWithData(hiddenItems);
@@ -70,27 +82,32 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
     setCastOrder([...parsed.characters].sort((a, b) => b.scenes.length - a.scenes.length));
     setSelectedCategories(new Set(parsed.unknownCategories));
     setStage('review');
-  }, [project.hiddenCategories]);
+  }, [base.hiddenCategories]);
 
   /** Route a parsed result through the heading-value mapper first when the
    *  script carries unknown/localized INT-EXT or day/night values (127). */
   const startParsed = useCallback((parsed: ImportResult, fileBase: string) => {
-    const unknown = collectUnknownHeadingValues(parsed, state.present);
+    const unknown = collectUnknownHeadingValues(parsed, base);
     if (unknown.intExt.length || unknown.dayNight.length) {
       setPendingMapping({ parsed, fileBase, unknown });
       setStage('mapping');
     } else {
       prepareParsed(parsed, fileBase);
     }
-  }, [state.present, prepareParsed]);
+  }, [base, prepareParsed]);
 
   const confirmMapping = useCallback((mapping: HeadingMapping) => {
     if (!pendingMapping) return;
-    const applied = applyHeadingMapping(pendingMapping.parsed, state.present, mapping);
-    dispatch({ type: 'UPDATE_PROJECT', payload: buildHeadingMappingUpdate(state.present, applied) });
+    const applied = applyHeadingMapping(pendingMapping.parsed, base, mapping);
+    setAppliedMapping(applied);
+    // Append updates the open project's Colors options + aliases; new-project
+    // carries them into the built project instead (never touches the open one).
+    if (mode === 'append') {
+      dispatch({ type: 'UPDATE_PROJECT', payload: buildHeadingMappingUpdate(base, applied) });
+    }
     setPendingMapping(null);
     prepareParsed(applied.result, pendingMapping.fileBase);
-  }, [pendingMapping, state.present, dispatch, prepareParsed]);
+  }, [pendingMapping, base, mode, dispatch, prepareParsed]);
 
   useEffect(() => {
     if (initialResult) startParsed(initialResult, fileBaseTitle(initialFileName || ''));
@@ -107,11 +124,11 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
       const ext = file.name.split('.').pop()?.toLowerCase();
 
       if (ext === 'fdx') {
-        parsed = await parseFDX(file);
+        parsed = await parseFDX(file, knownDayNightPhrases(base));
       } else if (ext === 'csv') {
-        parsed = await parseCSV(file, project.castMembers || [], project.customCategories || [], project.categoryLabels || {});
+        parsed = await parseCSV(file, base.castMembers || [], base.customCategories || [], base.categoryLabels || {});
       } else {
-        parsed = await parseFountain(file);
+        parsed = await parseFountain(file, knownDayNightPhrases(base));
       }
 
       startParsed(parsed, fileBaseTitle(file.name));
@@ -119,7 +136,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
       setError(e.message || 'Failed to parse file');
       setStage('select');
     }
-  }, [startParsed, project.castMembers, project.customCategories, project.categoryLabels]);
+  }, [startParsed, base]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -141,18 +158,27 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
     if (!result) return;
     setStage('importing');
 
-    commitImport({
-      dispatch,
-      result,
-      castIdMap: castAssignments,
-      newCustomCategories: [...selectedCategories],
-      existingCastMembers: project.castMembers || [],
-      projectTitle: projectTitle.trim() || undefined,
-      reEnableCategories: [...selectedHidden],
-    });
+    if (mode === 'new-project') {
+      let built = buildProjectFromImport(result, projectTitle.trim(), fileBaseTitle(initialFileName || fileLabel), {
+        castIdMap: castAssignments,
+        newCustomCategories: [...selectedCategories],
+      });
+      if (appliedMapping) built = { ...built, ...buildHeadingMappingUpdate(base, appliedMapping) };
+      void onCreateProject?.(built);
+    } else {
+      commitImport({
+        dispatch,
+        result,
+        castIdMap: castAssignments,
+        newCustomCategories: [...selectedCategories],
+        existingCastMembers: project.castMembers || [],
+        projectTitle: projectTitle.trim() || undefined,
+        reEnableCategories: [...selectedHidden],
+      });
+    }
 
     onClose();
-  }, [result, castAssignments, selectedCategories, selectedHidden, dispatch, project.castMembers, projectTitle, onClose]);
+  }, [result, mode, castAssignments, selectedCategories, selectedHidden, dispatch, project.castMembers, projectTitle, base, appliedMapping, onCreateProject, initialFileName, fileLabel, onClose]);
 
   const newCategoryItems = useMemo(
     () => (result?.unknownCategories || []).map(cat => ({ key: cat, label: cat })),
@@ -163,28 +189,36 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
     return (
       <HeadingValueMapper
         unknown={pendingMapping.unknown}
-        knownIntExt={knownIntExtValues(state.present)}
-        knownDayNight={knownDayNightValues(state.present)}
+        knownIntExt={knownIntExtValues(base)}
+        knownDayNight={knownDayNightValues(base)}
         onCancel={onClose}
         onConfirm={confirmMapping}
       />
     );
   }
 
+  const isNewProject = mode === 'new-project';
   const footer = (stage === 'select' || stage === 'review') ? (
     <ModalFooter>
       <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
       {stage === 'review' && (
         <ModalFooterButton onClick={handleImport}>
           <Upload className="w-3.5 h-3.5" />
-          Import {result?.scenes.length || 0} Scenes
+          {isNewProject ? 'Create Project' : `Import ${result?.scenes.length || 0} Scenes`}
         </ModalFooterButton>
       )}
     </ModalFooter>
   ) : undefined;
 
   return (
-    <Modal open onClose={onClose} title={fileFilter === '.csv' ? 'Import CSV' : 'Import Screenplay / CSV'} icon={<Upload className="w-4 h-4" />} width="max-w-2xl" footer={footer}>
+    <Modal
+      open
+      onClose={onClose}
+      title={isNewProject ? 'New Project from Script' : fileFilter === '.csv' ? 'Import CSV' : 'Import Screenplay / CSV'}
+      icon={<Upload className="w-4 h-4" />}
+      width="max-w-2xl"
+      footer={footer}
+    >
       <div className="px-5 py-4 space-y-4">
         {stage === 'select' && (
           <>

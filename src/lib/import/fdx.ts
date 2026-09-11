@@ -79,7 +79,7 @@ function resolveTagElement(
   return { categoryKey: mappedKey, elementName };
 }
 
-export async function parseFDX(file: File): Promise<ImportResult> {
+export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Promise<ImportResult> {
   const text = await file.text();
   const parser = new DOMParser();
   const doc = parser.parseFromString(text, 'application/xml');
@@ -119,7 +119,7 @@ export async function parseFDX(file: File): Promise<ImportResult> {
       if (!characterMap.has(ch)) characterMap.set(ch, new Set());
       characterMap.get(ch)!.add(scenes.length);
     }
-    const heading = parseSceneHeading(currentHeading, lastDayNight);
+    const heading = parseSceneHeading(currentHeading, lastDayNight, knownDayNight);
     const tagged: Record<string, string[]> = {};
     for (const [key, items] of sceneTaggedElements) tagged[key] = [...items];
     const dn = heading?.dayNight || lastDayNight;

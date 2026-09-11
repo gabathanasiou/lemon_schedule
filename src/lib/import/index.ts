@@ -16,17 +16,17 @@ export { parseMsd, parseMsdFile } from './msd';
 export { parseSex, parseSexFile, exportSex, exportSexFile } from './sex';
 export { commitImport } from './commitImport';
 export type { CommitImportParams } from './commitImport';
-export { buildNewProjectFromFile, buildProjectFromImport, fileBaseTitle, NEW_PROJECT_ACCEPT } from './buildProjectFromImport';
+export { parseNewProjectFile, buildProjectFromImport, fileBaseTitle, NEW_PROJECT_ACCEPT } from './buildProjectFromImport';
+export type { NewProjectFile } from './buildProjectFromImport';
 export { buildCastIdMap, firstFreeCastId } from './castIds';
 export {
   collectUnknownHeadingValues,
   collectUnknownFromValues,
-  collectUnknownHeadingValuesOfProject,
   applyHeadingMapping,
-  applyHeadingMappingToProject,
   buildHeadingMappingUpdate,
   knownIntExtValues,
   knownDayNightValues,
+  knownDayNightPhrases,
 } from './headingValues';
 export type { HeadingMapping, HeadingValueChoice, AppliedHeadingMapping } from './headingValues';
 export { diffScripts, sceneBodyText, sceneToView, parsedToView } from './scriptDiff';

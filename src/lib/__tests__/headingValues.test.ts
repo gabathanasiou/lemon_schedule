@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { collectUnknownHeadingValues, collectUnknownHeadingValuesOfProject, applyHeadingMapping, applyHeadingMappingToProject, buildHeadingMappingUpdate } from '../import/headingValues';
+import { collectUnknownHeadingValues, applyHeadingMapping, buildHeadingMappingUpdate, knownDayNightPhrases } from '../import/headingValues';
 import type { ImportResult, ParsedScene } from '../import/shared';
-import type { Project, Scene } from '../../types';
+import type { Project } from '../../types';
 
 function project(over: Partial<Project> = {}): Project {
   return {
@@ -26,12 +26,6 @@ const parsed = (over: Partial<ParsedScene>): ParsedScene => ({
 });
 
 const result = (scenes: ParsedScene[]): ImportResult => ({ scenes, characters: [], unknownCategories: [] });
-
-const scene = (over: Partial<Scene>): Scene => ({
-  id: 'x', sceneNumber: '1', intExt: 'INT', set: 'ROOM', dayNight: 'DAY',
-  pageCount: '0', pageCountDecimal: 0, description: '', cast: '', notes: '', location: '',
-  ...over,
-} as Scene);
 
 describe('heading value mapping (roadmap 127)', () => {
   it('collects values the project does not know (and ignores aliased ones)', () => {
@@ -63,17 +57,19 @@ describe('heading value mapping (roadmap 127)', () => {
     expect(update.colorPalette?.dayNightOptions).toContain('DREAM');
   });
 
-  it('collects and maps unknown values on an already-built project (new-project path)', () => {
-    const p = project({ scenes: [scene({ dayNight: 'DREAM' })] });
-    expect(collectUnknownHeadingValuesOfProject(p).dayNight).toEqual(['DREAM']);
-
-    const mapped = applyHeadingMappingToProject(p, { intExt: {}, dayNight: { DREAM: { action: 'map', mapTo: 'NIGHT' } } });
-    expect(mapped.scenes[0].dayNight).toBe('NIGHT');
-    expect(mapped.headingAliases?.dayNight).toEqual({ DREAM: 'NIGHT' });
-    expect(mapped.colorPalette?.dayNightOptions).not.toContain('DREAM');
-
-    const added = applyHeadingMappingToProject(p, { intExt: {}, dayNight: { DREAM: { action: 'add' } } });
-    expect(added.scenes[0].dayNight).toBe('DREAM');
-    expect(added.colorPalette?.dayNightOptions).toContain('DREAM');
+  it('known day/night phrases include palette options and alias keys', () => {
+    const p = project({
+      colorPalette: {
+        intExtOptions: ['INT'], dayNightOptions: ['DAY', 'MAGIC HOUR'],
+        sceneColors: [], selectedStripBg: '#fff', selectedStripText: '#000',
+        dayHeaderBg: '#000', dayHeaderText: '#fff', dayFooterBg: '#fff', dayFooterText: '#000',
+        noteBg: '#fff', noteText: '#000',
+      },
+      headingAliases: { dayNight: { DREAM: 'NIGHT' } },
+    });
+    const known = knownDayNightPhrases(p);
+    expect(known.has('MAGIC HOUR')).toBe(true);
+    expect(known.has('DREAM')).toBe(true);
+    expect(known.has('DAY')).toBe(true);
   });
 });

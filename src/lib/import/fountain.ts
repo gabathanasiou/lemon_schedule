@@ -13,7 +13,7 @@ const SCRIPT_BLOCK_TYPE: Record<string, ScriptBlockType> = {
   lyrics: 'action',
 };
 
-export async function parseFountain(file: File): Promise<ImportResult> {
+export async function parseFountain(file: File, knownDayNight?: Iterable<string>): Promise<ImportResult> {
   const text = await file.text();
   const fountain = new Fountain();
   const result = fountain.parse(text, true);
@@ -39,7 +39,7 @@ export async function parseFountain(file: File): Promise<ImportResult> {
   function flushFountainScene() {
     if (!currentHeading && descriptionLines.length === 0 && sceneCharacters.size === 0) return;
     const sceneNumber = currentSceneNumber || String(scenes.length + 1);
-    const heading = parseSceneHeading(currentHeading, lastDayNight);
+    const heading = parseSceneHeading(currentHeading, lastDayNight, knownDayNight);
     const dn = heading?.dayNight || lastDayNight;
     lastDayNight = dn;
     scenes.push({

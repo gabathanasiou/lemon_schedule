@@ -35,6 +35,16 @@ export function knownDayNightValues(project: Project): string[] {
   return opts && opts.length ? opts : DEFAULT_DAY_NIGHT;
 }
 
+/** Uppercased day/night phrases the project already knows (palette options +
+ *  alias keys) — fed into the parser so a multi-word value the user has already
+ *  accepted re-splits on later imports. */
+export function knownDayNightPhrases(project: Project): Set<string> {
+  return new Set([
+    ...knownDayNightValues(project),
+    ...Object.keys(project.headingAliases?.dayNight || {}),
+  ].map(v => v.toUpperCase()));
+}
+
 /** Values in the incoming screenplay not known to the project and not already
  *  aliased — the ones to prompt for. */
 export function collectUnknownHeadingValues(result: ImportResult, project: Project): { intExt: string[]; dayNight: string[] } {
@@ -117,38 +127,6 @@ export function applyHeadingMapping(result: ImportResult, project: Project, mapp
   }));
 
   return { result: { ...result, scenes }, addedIntExt, addedDayNight, aliases };
-}
-
-/** Unknown heading values carried by an already-built project's scenes. */
-export function collectUnknownHeadingValuesOfProject(project: Project): { intExt: string[]; dayNight: string[] } {
-  return collectUnknownFromValues(project.scenes, project);
-}
-
-/** Rewrite an already-built project's scene heading values from its aliases +
- *  the user's choices, and fold the new options/aliases back in. Pure. The
- *  new-project import path uses this so it prompts exactly like append/diff. */
-export function applyHeadingMappingToProject(project: Project, mapping: HeadingMapping): Project {
-  const aliases: HeadingAliases = {
-    intExt: { ...(project.headingAliases?.intExt || {}) },
-    dayNight: { ...(project.headingAliases?.dayNight || {}) },
-  };
-  const addedIntExt: string[] = [];
-  const addedDayNight: string[] = [];
-
-  const scenes = project.scenes.map(s => ({
-    ...s,
-    intExt: mapHeadingValue(s.intExt, aliases.intExt!, addedIntExt, mapping.intExt),
-    dayNight: mapHeadingValue(s.dayNight, aliases.dayNight!, addedDayNight, mapping.dayNight),
-  }));
-
-  const colorPalette = project.colorPalette
-    ? {
-        ...project.colorPalette,
-        intExtOptions: mergeKnownValues(knownIntExtValues(project), addedIntExt),
-        dayNightOptions: mergeKnownValues(knownDayNightValues(project), addedDayNight),
-      }
-    : project.colorPalette;
-  return { ...project, scenes, colorPalette, headingAliases: aliases };
 }
 
 /** The project patch that records a mapping: new option values go on the
