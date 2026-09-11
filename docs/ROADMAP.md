@@ -823,3 +823,28 @@ a revision editing both sides of a split → edits land correctly, a straddling 
 asks, a collision is flagged; writer `5A`/`5B` suggests adopt (default keep);
 merge-back reverses; `npm run lint` + `npx playwright test`; extend
 `scripts/smart-test.mjs` `RULES` for the new pane/cut/split files.
+
+## 133. Standalone script-diff app (+ PDF screenplay import) (`[ ]`)
+
+**Relations**: extracts/reuses **38**'s diff engine (`src/lib/import/scriptDiff.ts`),
+**128**'s aligned review UI (`ScriptUpdateModal` + `alignScriptBlocks`) and **123
+Phase 0**'s retained body model — do NOT fork a second diff. New prerequisite:
+**PDF screenplay parsing** (PDF import is explicitly out of scope for 123/38
+today). Vision + detail: `docs/SCRIPT-DIFF-APP.md`.
+
+**Idea (note to self)**: the script diff turned out really good — spin it out as
+a **standalone tool**: load ANY two scripts (FDX/Fountain, ideally PDF) and read
+the diffs side by side, with no film/project attached. Either a separate
+app/site, or a project-less mode in this app.
+
+**Blocker**: **PDF screenplay import** — PDFs carry no semantic structure, so it
+needs text extraction + screenplay-format heuristics (scene headings, dialogue,
+page eighths, dual dialogue, revision marks). Hard and error-prone; treat as its
+own research spike (OCR of scanned/image PDFs is a further step). Nothing here
+is schedule-committed.
+
+**Reuse**: `ScriptDocument` / `ScriptBlock` + `diffScripts` matching + the 128
+aligned renderer are format-agnostic once a parser emits a `ScriptDocument`, so
+the standalone tool is essentially "two `ScriptDocument`s → the 128 view" behind
+a thin shell. Ship only if it's genuinely low-effort on top of the existing
+pieces; otherwise park.

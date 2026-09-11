@@ -118,7 +118,7 @@ function BlockLine({ type, text, tone, parts, runs, theme, highlight, sceneNumbe
     ? (
       <>
         {parts.map((p, i) => (
-          <span key={i} className={p.change ? `${partCls[p.change]} rounded px-0.5` : ''}>
+          <span key={i} data-change={p.change} className={p.change ? `${partCls[p.change]} rounded px-0.5` : ''}>
             <Highlighted text={p.text} query={highlight} theme={theme} />
           </span>
         ))}
@@ -234,6 +234,10 @@ export interface AlignedBlockRow {
 const reviewBlockEqual = (a: ScriptBlock, b: ScriptBlock): boolean =>
   a[0] === b[0] && (a[0] === 'heading' ? true : a[1] === b[1] && JSON.stringify(a[2] ?? null) === JSON.stringify(b[2] ?? null));
 
+/** A paired block at/above this similarity gets word-level marks; below it the
+ *  block reads better as a whole-line replacement (red left / green right). */
+export const WORD_DIFF_MIN_SIMILARITY = 0.5;
+
 /**
  * Block-level diff of two retained streams, returned as **vertically aligned
  * rows** (roadmap 128) — the update review renders one row per entry so an
@@ -272,13 +276,20 @@ export function alignScriptBlocks(oldBlocks: ScriptBlock[], newBlocks: ScriptBlo
     }
   }
   flush();
-  // Word-level marking on paired (replaced) lines: the whole block is no longer
-  // tinted/struck — only the changed words are marked (old: strike-through,
-  // new: green), like the IDE inline diff.
+  // Word-level marking on paired (replaced) lines ONLY when the block is mostly
+  // unchanged; a mostly-rewritten block stays whole-line (red left / green
+  // right) instead of a scatter of changed tokens — like IDE split diffs.
   for (const row of rows) {
     const { left, right } = row;
     if (!left || !right || left.type === 'heading' || left.tone === 'same') continue;
     const parts = diffWords(left.text, right.text);
+    let unchanged = 0;
+    let changed = 0;
+    for (const c of parts) {
+      if (c.added || c.removed) changed += c.count ?? 0;
+      else unchanged += c.count ?? 0;
+    }
+    if (unchanged + changed === 0 || unchanged / (unchanged + changed) < WORD_DIFF_MIN_SIMILARITY) continue;
     left.parts = parts.filter(c => !c.added).map(c => ({ text: c.value, change: c.removed ? 'removed' as const : undefined }));
     right.parts = parts.filter(c => !c.removed).map(c => ({ text: c.value, change: c.added ? 'added' as const : undefined }));
     left.tone = 'same';

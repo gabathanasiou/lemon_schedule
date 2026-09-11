@@ -237,6 +237,7 @@ test.describe('script update review (roadmap 38)', () => {
         ['heading', 'INT. KITCHEN - DAY'],
         ['action', 'Line A.'],
         ['action', 'Line B.'],
+        ['action', 'The quick brown fox jumps over the lazy dog.'],
       ] }] };
       b.batch(() => {
         b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: doc } });
@@ -250,6 +251,7 @@ test.describe('script update review (roadmap 38)', () => {
 <Paragraph Type="Action"><Text>Line A2.</Text></Paragraph>
 <Paragraph Type="Action"><Text>Line NEW.</Text></Paragraph>
 <Paragraph Type="Action"><Text>Line B.</Text></Paragraph>
+<Paragraph Type="Action"><Text>A completely different ending line.</Text></Paragraph>
 </Content></FinalDraft>`;
     const p = path.join(os.tmpdir(), 'lemon-align.fdx');
     fs.writeFileSync(p, xml);
@@ -274,9 +276,9 @@ test.describe('script update review (roadmap 38)', () => {
     await expect(a2Left).toContainText('Line A.');
     // Only the CHANGED token is struck through (and red-highlighted) — not the
     // whole block; the new side's changed token is green-highlighted.
-    await expect(a2Left.locator('span.line-through')).toHaveText('A');
+    await expect(a2Left.locator('[data-change="removed"]')).toHaveText('A');
     await expect(a2Left).not.toHaveClass(/line-through/);
-    await expect(rightCell('Line A2.').locator('span.bg-emerald-500\\/25')).toHaveText('A2');
+    await expect(rightCell('Line A2.').locator('[data-change="added"]')).toHaveText('A2');
     const [la2, ra2] = await Promise.all([a2Left.boundingBox(), rightCell('Line A2.').boundingBox()]);
     expect(la2 && ra2).toBeTruthy();
     expect(Math.abs(la2!.y - ra2!.y)).toBeLessThanOrEqual(1);
@@ -288,5 +290,15 @@ test.describe('script update review (roadmap 38)', () => {
     const [lb, rb] = await Promise.all([bLeft.boundingBox(), bRight.boundingBox()]);
     expect(lb && rb).toBeTruthy();
     expect(Math.abs(lb!.y - rb!.y)).toBeLessThanOrEqual(1);
+
+    // A mostly-rewritten block is a whole-line replacement (no word marks):
+    // red/struck on the left, green on the right.
+    const bigRight = rightCell('A completely different ending line.');
+    const bigRow = await bigRight.getAttribute('data-review-row');
+    const bigLeft = page.locator(`[data-review-row="${bigRow}"][data-review-side="left"]`);
+    await expect(bigLeft).toHaveAttribute('data-tone', 'removed');
+    await expect(bigRight).toHaveAttribute('data-tone', 'added');
+    await expect(bigLeft.locator('[data-change]')).toHaveCount(0);
+    await expect(bigRight.locator('[data-change]')).toHaveCount(0);
   });
 });

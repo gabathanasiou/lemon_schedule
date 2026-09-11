@@ -371,8 +371,8 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
                 <div className="grid font-mono text-[12.5px] leading-[1.45] text-zinc-200" style={{ gridTemplateColumns: cols }}>
                   {rows.map((r, i) => (
                     <React.Fragment key={i}>
-                      <div data-review-row={i} data-review-side="left" className="min-w-0 px-4">{showLeft && r.left ? <ScriptBlockLine block={r.left} /> : null}</div>
-                      <div data-review-row={i} data-review-side="right" className="min-w-0 border-l border-zinc-800 px-4">{showRight && r.right ? <ScriptBlockLine block={r.right} /> : null}</div>
+                      <div data-review-row={i} data-review-side="left" data-tone={r.left?.tone ?? ''} className="min-w-0 px-4">{showLeft && r.left ? <ScriptBlockLine block={r.left} /> : null}</div>
+                      <div data-review-row={i} data-review-side="right" data-tone={r.right?.tone ?? ''} className="min-w-0 border-l border-zinc-800 px-4">{showRight && r.right ? <ScriptBlockLine block={r.right} /> : null}</div>
                     </React.Fragment>
                   ))}
                 </div>
