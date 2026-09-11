@@ -31,7 +31,7 @@ const FirstSceneTooltip: React.FC<FirstSceneTooltipProps> = ({ project, day, fir
     : undefined;
 
   return (
-    <div className="w-64 rounded overflow-hidden shadow-xl border border-zinc-700 bg-zinc-900 text-white">
+    <div data-testid="first-scene-tooltip" className="w-64 rounded overflow-hidden shadow-xl border border-zinc-700 bg-zinc-900 text-white">
       {scene && (
         <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide" style={{ background: style?.background, color: style?.color }}>
           {scene.sceneNumber ? `${scene.sceneNumber}. ` : ''}{[scene.intExt, scene.set].filter(Boolean).join('. ')}{scene.dayNight ? ` — ${scene.dayNight}` : ''}

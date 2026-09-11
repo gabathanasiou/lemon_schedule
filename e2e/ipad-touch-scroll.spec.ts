@@ -47,7 +47,7 @@ async function openDayModalWithAdder(page: Page) {
   expect(days.length).toBeGreaterThan(0);
   const dayCell = page.locator(`[data-date-key="${days[0]}"]`);
   await expect(dayCell).toBeVisible();
-  const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
+  const header = dayCell.locator('[data-day-header]').first();
   await header.dblclick();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Add Event' }).click();
@@ -151,7 +151,7 @@ test('Cancel on the Add Events modal returns to a visible, interactive day modal
   expect(days.length).toBeGreaterThan(0);
   const dayCell = page.locator(`[data-date-key="${days[0]}"]`);
   await expect(dayCell).toBeVisible();
-  const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
+  const header = dayCell.locator('[data-day-header]').first();
   await header.dblclick();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
 

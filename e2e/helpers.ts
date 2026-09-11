@@ -2,6 +2,11 @@ import { Page, expect } from '@playwright/test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** Committed seed fixture — makes the suite hermetic (CI + any machine).
+ *  A demo project ("IT'S A WONDERFUL LIFE"); specs are seed-agnostic. */
+const FIXTURE_SEED = fileURLToPath(new URL('./fixtures/seed.lemon', import.meta.url));
 
 /** App boot anchor: the top-tab header only renders once the Project Manager
  *  closes and a project is loaded — a web-first replacement for sleep-boot. */
@@ -22,15 +27,16 @@ export async function ensureProject(page: Page) {
 }
 
 /**
- * Reads the "IT'S A WONDERFUL LIFE" demo project (.lemon = JSON export) from
- * disk. The file lives outside the repo (Downloads), so tests get real data to
- * exercise the schedule/calendar/glide views without committing the file.
- * Cached per mtime — one read + parse per suite run, not per test.
+ * Reads the seed project (.lemon = JSON export). Source priority: an explicit
+ * `LEMON_SEED_PATH` override → the committed `e2e/fixtures/seed.lemon` (the
+ * default, so local runs and CI share the SAME data) → a legacy copy in
+ * `~/Downloads`. Cached per mtime (one read + parse per suite run, not per test).
  */
 let seedCache: { raw: string; data: any; mtimeMs: number } | null = null;
 export function loadSeedProject(): { raw: string; data: any } {
   const candidates = [
     process.env.LEMON_SEED_PATH,
+    FIXTURE_SEED,
     path.join(os.homedir(), 'Downloads', "IT'S A WONDERFUL LIFE.lemon"),
   ];
   for (const c of candidates) {
@@ -196,7 +202,6 @@ export async function waitForPersistedProject(page: Page, expr: string, timeout 
     if (!key) return false;
     try {
       const p = JSON.parse(localStorage.getItem(key)!);
-      // eslint-disable-next-line no-new-func
       return new Function('p', `return (${expression})`)(p) === true;
     } catch {
       return false;

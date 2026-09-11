@@ -43,8 +43,7 @@ test.describe('print dialog dropdowns → ui-kit base (roadmap 60)', () => {
     await expect(dialog).toBeVisible();
 
     // Ribbon Layout picker.
-    const ribbonRow = page.locator('span').filter({ hasText: 'Ribbon Layout' }).first().locator('..');
-    const ribbonTrigger = ribbonRow.getByRole('button').first();
+    const ribbonTrigger = page.locator('[data-print-picker="ribbon-layout"]').first();
     const trace = morphMidSamples(page);
     await ribbonTrigger.click();
     await expect(page.locator(MENU).last()).toBeAttached();
@@ -60,8 +59,7 @@ test.describe('print dialog dropdowns → ui-kit base (roadmap 60)', () => {
     await expect(page.locator(MENU)).toHaveCount(0);
 
     // Page Size picker (Portrait / Landscape / Full Width).
-    const sizeRow = page.locator('span').filter({ hasText: 'Page Size' }).first().locator('..');
-    const sizeTrigger = sizeRow.getByRole('button').first();
+    const sizeTrigger = page.locator('[data-print-picker="page-size"]').first();
     await sizeTrigger.click();
     await expect(page.locator(MENU).last()).toBeAttached();
     const landscape = page.locator(MENU).last().locator('[role="menuitem"]').filter({ hasText: 'Landscape' });
@@ -76,8 +74,7 @@ test.describe('print dialog dropdowns → ui-kit base (roadmap 60)', () => {
     const dialog = page.getByRole('dialog').filter({ hasText: 'Element Breakdown' });
     await expect(dialog).toBeVisible();
 
-    const catRow = page.locator('label').filter({ hasText: /^Category$/ }).locator('..');
-    const trigger = catRow.getByRole('button').first();
+    const trigger = page.locator('[data-print-picker="category"]').first();
     const before = (await trigger.textContent())?.trim() ?? '';
     const trace = morphMidSamples(page);
     await trigger.click();
@@ -98,8 +95,7 @@ test.describe('print dialog dropdowns → ui-kit base (roadmap 60)', () => {
     const dialog = page.getByRole('dialog').filter({ hasText: 'Day Out of Days' });
     await expect(dialog).toBeVisible();
 
-    const catRow = page.locator('label').filter({ hasText: /^Category$/ }).locator('..');
-    const trigger = catRow.getByRole('button').first();
+    const trigger = page.locator('[data-print-picker="category"]').first();
     const before = (await trigger.textContent())?.trim() ?? '';
     const trace = morphMidSamples(page);
     await trigger.click();

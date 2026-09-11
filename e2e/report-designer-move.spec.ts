@@ -51,7 +51,7 @@ test('reports designer view toggle switches canvas width (portrait/landscape/ful
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
   
-  const sheet = page.locator('div[style*="rgb(228, 228, 231)"]').first();
+  const sheet = page.getByTestId('report-page');
   const w0 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
 
   await page.getByRole('button', { name: /View:/ }).click();
@@ -60,7 +60,7 @@ test('reports designer view toggle switches canvas width (portrait/landscape/ful
   expect(w1).toBe(1060);
   expect(w1).toBeGreaterThan(w0);
 
-  const canvas = page.locator('div.flex-1.overflow-auto.p-8');
+  const canvas = page.getByTestId('report-canvas');
   const maxScroll = await canvas.evaluate(el => el.scrollWidth - el.clientWidth);
   expect(maxScroll).toBeGreaterThan(0);
   await canvas.evaluate(el => { el.scrollLeft = 50; });

@@ -109,10 +109,10 @@ test('elements submenu grays the parent own category under a cast parent', async
   // parent's own category ("cast of this cast member") and must be grayed.
   await page.getByRole('button', { name: 'Scenes (of this element)', exact: true }).click();
   await page.locator('.ui-menu').getByText('Elements', { exact: true }).click();
-  const castItem = page.locator('.ui-menu').getByText('Cast', { exact: true }).locator('..');
+  const castItem = page.locator('.ui-menu .ui-item').filter({ hasText: /^Cast$/ });
   await expect(castItem).toBeVisible({ timeout: 3000 });
   await expect(castItem).toHaveClass(/opacity-30/);
-  const propsItem = page.locator('.ui-menu').getByText('Props', { exact: true }).locator('..');
+  const propsItem = page.locator('.ui-menu .ui-item').filter({ hasText: /^Props$/ });
   await expect(propsItem).not.toHaveClass(/opacity-30/);
 });
 

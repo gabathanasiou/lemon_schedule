@@ -52,7 +52,7 @@ async function openDayModal(page: Page) {
   expect(days.length).toBeGreaterThan(0);
   const dayCell = page.locator(`[data-date-key="${days[0]}"]`);
   await expect(dayCell).toBeVisible();
-  const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
+  const header = dayCell.locator('[data-day-header]').first();
   await header.dblclick();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
   return page.locator('[data-modal-stack]').last();

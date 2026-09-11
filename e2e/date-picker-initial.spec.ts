@@ -31,7 +31,7 @@ async function setCalendarVersion(page: import('@playwright/test').Page, patch: 
 function fieldTrigger(page: import('@playwright/test').Page, label: string) {
   return page
     .getByRole('dialog')
-    .locator('div.flex.items-center.justify-between.py-1')
+    .locator('[data-date-row]')
     .filter({ has: page.getByText(label, { exact: true }) })
     .getByRole('button')
     .first();

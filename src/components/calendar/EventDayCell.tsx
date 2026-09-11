@@ -113,6 +113,7 @@ export const EventDayCell: React.FC<{
           onOpenEvents(dateKey);
         }}
         style={{ cursor: hasEvents && !readOnly ? 'grab' : 'default', opacity: isDragging ? 0.4 : 1, ...headerStyle }}
+        data-day-header
         className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
       >
         <DayStatusBadges
@@ -243,6 +244,7 @@ export const EventCardView: React.FC<{
       }>
         <div
           onClick={onClick}
+          data-violated={card.violated || undefined}
           className={`${base} flex items-center gap-1 ${card.violated ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-700'}`}
           style={selStyle}
         >

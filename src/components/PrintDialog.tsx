@@ -161,7 +161,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   width="min-w-[180px]!"
                   contentClassName="z-[10001] max-h-72!"
                   trigger={
-                    <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+                    <button type="button" data-print-picker="ribbon-layout" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                       <span className="tabular-nums truncate max-w-[120px]">{settings.selectedRibbonId ? (ribbonDesigns.find(d => d.id === settings.selectedRibbonId)?.name || 'Unknown') : (ribbonDesigns[0]?.name || 'Unknown')}</span>
                       <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
                     </button>
@@ -189,7 +189,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   width="min-w-[180px]!"
                   contentClassName="z-[10001]"
                   trigger={
-                    <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+                    <button type="button" data-print-picker="page-size" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                       <span className="tabular-nums">{viewMode === 'portrait' ? 'Portrait' : viewMode === 'landscape' ? 'Landscape' : 'Full'}</span>
                       <ChevronDown className="w-3 h-3 text-zinc-500" />
                     </button>

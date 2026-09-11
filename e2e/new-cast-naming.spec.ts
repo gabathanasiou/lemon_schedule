@@ -11,7 +11,7 @@ import { openSeededProject } from './helpers';
 async function gotoSheet(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
   await page.getByRole('button', { name: 'Sheet', exact: true }).click();
-  const navInput = page.locator('input[class*="w-10"]').first();
+  const navInput = page.getByLabel('Sheet number').first();
   await navInput.click();
   await page.keyboard.press('Meta+A');
   await page.keyboard.type('1');
@@ -23,7 +23,7 @@ async function gotoSheet(page: import('@playwright/test').Page) {
  *  event — EntityDropdown commits on Tab with the sorted value). The Scene
  *  Sheet passes `wrapValue`, so the editor is a <textarea>, not an <input>. */
 async function setCast(page: import('@playwright/test').Page, value: string) {
-  const castBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Cast', { exact: true }) }).first();
+  const castBox = page.locator('[data-scene-field="cast"]').first();
   const castInput = castBox.locator('textarea').first();
   await castInput.click();
   await page.keyboard.press('Meta+A');
@@ -124,7 +124,7 @@ test.describe('new cast naming modal', () => {
     await expect(modal(page)).toBeHidden({ timeout: 3000 });
 
     // Add a brand-new prop (name-keyed) — no naming modal either.
-    const propsBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Props', { exact: true }) }).first();
+    const propsBox = page.locator('[data-scene-field="props"]').first();
     const propsInput = propsBox.locator('textarea').first();
     await propsInput.click();
     await page.keyboard.press('Meta+A');

@@ -89,13 +89,13 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
   project.activeReportId = design.id;
 
   const weatherRequests: string[] = [];
-  await page.route('**://api.open-meteo.com/**', route => {
+  await page.route('**://api.open-meteo.com/**', async route => {
     weatherRequests.push(route.request().url());
-    route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
   });
-  await page.route('**://archive-api.open-meteo.com/**', route => {
+  await page.route('**://archive-api.open-meteo.com/**', async route => {
     weatherRequests.push(route.request().url());
-    route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
   });
   await page.route('**://tile.openstreetmap.org/**', route => route.abort());
   await page.route('**://nominatim.openstreetmap.org/**', route => route.abort());

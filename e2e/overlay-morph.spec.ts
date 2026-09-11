@@ -189,11 +189,11 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
     // INT/EXT SelectDropdown mounts with autoFocus and opens itself.
     const intCell = page.locator('[data-ribbon-field="intExt"]').first();
     await intCell.click();
-    const panel = page.locator('[data-row-id] div[style*="position: fixed"]').first();
+    const panel = page.locator('[data-row-id] [data-overlay-panel]').first();
     await expect(panel).toBeAttached();
     await expect(panel).toBeVisible(); // visibility gate flipped once positioned
 
-    const samples = (await traceMorph(page, '[data-row-id] div[style*="position: fixed"]'))!;
+    const samples = (await traceMorph(page, '[data-row-id] [data-overlay-panel]'))!;
     const mids = midMorph(samples);
     expect(mids.length).toBeGreaterThan(0); // open morph (grew out of the cell)
     expect(mids.some(s => {
@@ -206,14 +206,14 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
     const closeSamples = await trace;
     expect(closeSamples).not.toBeNull();
     expect(midMorph(closeSamples!).length).toBeGreaterThan(0); // reverse morph, not a snap
-    await expect(page.locator('[data-row-id] div[style*="position: fixed"]')).toHaveCount(0);
+    await expect(page.locator('[data-row-id] [data-overlay-panel]')).toHaveCount(0);
   });
 
   test('Scene Sheet INT/EXT field (AutocompleteDropdown) morphs open and closes', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();
-    const navInput = page.locator('input[class*="w-10"]').first();
+    const navInput = page.getByLabel('Sheet number').first();
     await navInput.click();
     await page.keyboard.press('Meta+A');
     await page.keyboard.type('1');
@@ -221,10 +221,10 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
 
     const intField = page.locator('tr', { hasText: 'Int/Ext' }).locator('input').first();
     await intField.click();
-    const panel = page.locator('div.absolute.top-full').last();
+    const panel = page.locator('[data-overlay-panel]').last();
     await expect(panel).toBeAttached();
 
-    const samples = (await traceMorph(page, 'div.absolute.top-full'))!;
+    const samples = (await traceMorph(page, '[data-overlay-panel]'))!;
     const mids = midMorph(samples);
     expect(mids.length).toBeGreaterThan(0);
     expect(mids.some(s => {
@@ -237,7 +237,7 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
     const closeSamples = await trace;
     expect(closeSamples).not.toBeNull();
     expect(midMorph(closeSamples!).length).toBeGreaterThan(0); // reverse morph on the clone
-    await expect(page.locator('div.absolute.top-full')).toHaveCount(0);
+    await expect(page.locator('[data-overlay-panel]')).toHaveCount(0);
   });
 
   test('prefers-reduced-motion: menus snap open/close instantly', async ({ page }) => {

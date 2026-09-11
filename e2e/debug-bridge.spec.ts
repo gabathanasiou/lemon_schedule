@@ -165,7 +165,6 @@ test.describe('Agentic Debug Bridge', () => {
     });
 
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(800);
 
     await expect(page.getByTestId('stripboard-day').first()).toBeAttached({ timeout: 5000 });
     await expect(page.getByTestId('daybreak-row').first()).toBeAttached();

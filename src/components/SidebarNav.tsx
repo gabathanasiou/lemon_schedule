@@ -99,6 +99,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
                   </div>
                 )}
                 <button
+                  data-sidebar-row={row.key}
                   onClick={() => onSelect(row.key)}
                   style={sizes.row}
                   className={`${MT_ROW} ${

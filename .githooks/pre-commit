@@ -1,0 +1,10 @@
+#!/bin/sh
+# Agent-doc budget gate. Opt-in: `npm run hooks:install` sets core.hooksPath.
+# Skipped gracefully if node is unavailable.
+command -v node >/dev/null 2>&1 || exit 0
+node scripts/check-doc-budget.mjs || {
+  echo ""
+  echo "Commit blocked: AGENTS.md is over budget. Move detail to docs/*.md"
+  echo "(summary + invariants + pointer) — see the write-agent-docs skill."
+  exit 1
+}

@@ -174,7 +174,7 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
               { label: 'Production Start', value: prodStart, set: setProdStart },
               { label: 'Post End', value: postEnd, set: setPostEnd },
             ].map(f => (
-              <div key={f.label} className="flex items-center justify-between py-1">
+              <div key={f.label} data-date-row={f.label} className="flex items-center justify-between py-1">
                 <span className={`${CREM_LABEL} text-zinc-300`}>{f.label}</span>
                 {dateField(f.value, f.set)}
               </div>

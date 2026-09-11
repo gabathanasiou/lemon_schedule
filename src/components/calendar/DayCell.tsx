@@ -132,6 +132,7 @@ export const DayCell: React.FC<{
           onClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
           style={{ cursor: sectionLabel ? 'grab' : 'default', opacity: isDragging ? 0.4 : 1, ...headerStyle }}
+          data-day-header
           className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
         >
           <DayStatusBadges

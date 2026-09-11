@@ -281,7 +281,7 @@ test('a generated day off cycled through another status stays generated (sticky 
   }, prodStart);
   const cell = page.locator(`[data-date-key="${DAY}"]`);
   await expect(cell).toBeVisible();
-  const header = cell.locator('[class*="flex items-center justify-between"]').first();
+  const header = cell.locator('[data-day-header]').first();
   const dialog = page.getByRole('dialog');
 
   // Day Off → Travel via the day modal (rebuilds the entry on save). The

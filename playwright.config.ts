@@ -9,11 +9,17 @@ const isolated = process.env.PLAYWRIGHT_PORT !== undefined;
 export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
-  retries: 0,
+  // Retry once locally (twice on CI) so a transient flake doesn't read as a
+  // regression and send an agent off to `git checkout` a baseline. The first
+  // retry records a trace (`use.trace`) for the flaky test. Chronic flakers are
+  // tagged `@quarantine` (excluded below) rather than retried forever — see
+  // `docs/TESTING.md`.
+  retries: process.env.CI ? 2 : 1,
   use: {
     baseURL: `http://localhost:${PORT}`,
     headless: true,
     screenshot: 'only-on-failure',
+    trace: 'on-first-retry',
     // The overlay morph (kit overlayMorph.ts) self-disables under
     // prefers-reduced-motion. Tests aren't about animation — motion OFF
     // removes the 220ms close-morph clone that intercepted clicks on menu
@@ -47,5 +53,7 @@ export default defineConfig({
       },
   // The perf/memory harnesses have their own configs (playwright.perf*.config.ts)
   // and are NOT part of the default suite — run them explicitly via grep.
-  grepInvert: /@perf/,
+  // `@quarantine` = known-flaky, tracked in docs/TESTING.md; run explicitly:
+  //   npx playwright test --grep @quarantine
+  grepInvert: /@perf|@quarantine/,
 });

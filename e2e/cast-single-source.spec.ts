@@ -174,7 +174,7 @@ test.describe('cast single source of truth (castMembers)', () => {
     // The Cast box renders an EntityDropdown with `wrapValue` (Scene Sheet) —
     // the editor is a <textarea>; clicking it opens a panel with member items.
     const castInput = page
-      .locator('div.grid > div', { has: page.getByText('Cast', { exact: true }) })
+      .locator('[data-scene-field="cast"]')
       .locator('textarea')
       .first();
     await castInput.click();

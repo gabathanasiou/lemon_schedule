@@ -33,6 +33,7 @@ const E2E = join(ROOT, 'e2e');
 // ---- Spec buckets (base names under e2e/, no extension) ----
 const REPORT = [
   'report-chrome', 'report-designer-move', 'report-editor-polish',
+  'rich-text-editor',
   'report-menu-self-repeat', 'report-page-breaks', 'report-pagination',
   'report-block-gap', 'report-chip-affix', 'report-smart-counts',
   'report-smart-scoping', 'report-sun-weather-map', 'report-violations',
@@ -43,7 +44,7 @@ const REPORT = [
   'call-sheet-day',
   'print-dialog-dropdowns',
 ];
-const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'ribbon-text-size'];
+const RIBBON = [...REPORT, 'ribbon-design-default', 'ribbon-designer-resize', 'ribbon-text-size', 'rules-tab'];
 const SCHED = ['keyboard-mode', 'digit-schedule'];
 const SHEET = ['scene-sheet-order', 'scene-sheet-cell-layout'];
 const CAL = ['calendar-travel-hold', 'day-types', 'production-dates', 'calendar-rule-cards', 'date-picker-initial', 'calendar-view', 'calendar-grow'];
@@ -55,9 +56,9 @@ const LINKED = ['linked-elements'];
 const CREW = ['crew-glide', 'crew-manager'];
 const CREWLINKS = ['crew-links'];
 const LOC = ['locations', 'location-types'];
-const IMPORT = ['msd-import', 'cast-single-source'];
+const IMPORT = ['msd-import', 'sex-import', 'cast-single-source'];
 const PRINT = ['report-pagination', 'report-page-breaks', 'print-dialog-dropdowns'];
-const MODAL = ['pen-modal', 'keyboard-mode'];
+const MODAL = ['pen-modal', 'keyboard-mode', 'overlay-morph'];
 const TRASH = ['trash-restore'];
 /* iPad touch/keyboard/viewport specs (roadmap 69-71). Gated to the webkit iPad
    project (`test.skip` in the spec), so running them via smart-test's default
@@ -72,6 +73,8 @@ const CANARY = ['seeded-smoke', 'debug-bridge'];
 const RULES = [
   // tooling changes don't touch the app
   { g: 'scripts/**', s: [] },
+  // unit tests (vitest) don't affect the e2e selection
+  { g: 'src/**/*.test.ts', s: [] },
   // core / shared — full suite
   { g: 'src/store/**', s: 'ALL' },
   { g: 'src/lib/daybreakUtils.ts', s: 'ALL' },

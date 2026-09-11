@@ -52,12 +52,12 @@ async function gotoSheet(page: any, sceneIndex: number) {
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
   await page.getByRole('button', { name: 'Sheet', exact: true }).click();
   // The Scene Sheet's nav input lives in the top header (header-portal mode).
-  const navInput = page.locator('input[class*="w-10"]').first();
+  const navInput = page.getByLabel('Sheet number').first();
   await navInput.click();
   await page.keyboard.press('Meta+A');
   await page.keyboard.type(String(sceneIndex + 1));
   await page.keyboard.press('Enter');
-  await expect(page.locator('input[class*="w-10"]').first()).toHaveValue(String(sceneIndex + 1), { timeout: 5000 });
+  await expect(page.getByLabel('Sheet number').first()).toHaveValue(String(sceneIndex + 1), { timeout: 5000 });
 }
 
 /** Full-value replace of the Cast box via select-all + insertText (one textarea
@@ -65,7 +65,7 @@ async function gotoSheet(page: any, sceneIndex: number) {
  *  deterministic commit per call). The Scene Sheet passes `wrapValue`, so the
  *  editor is a <textarea>, not an <input>. */
 async function setCast(page: any, value: string) {
-  const castBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Cast', { exact: true }) }).first();
+  const castBox = page.locator('[data-scene-field="cast"]').first();
   const castInput = castBox.locator('textarea').first();
   await castInput.click();
   await page.keyboard.press('Meta+A');
@@ -352,7 +352,7 @@ test('anchored elements show an anchor icon in pickers (link manager + scene she
 
   // Scene Sheet cast picker: the anchored cast member carries the icon too.
   await gotoSheet(page, 0);
-  const castBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Cast', { exact: true }) }).first();
+  const castBox = page.locator('[data-scene-field="cast"]').first();
   const castInput = castBox.locator('textarea').first();
   await castInput.click();
   await page.keyboard.type(anchor.name.slice(0, 4));

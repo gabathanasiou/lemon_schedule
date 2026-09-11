@@ -24,7 +24,7 @@ type PState = {
 function bridge<T>(page: import('@playwright/test').Page, fn: string): Promise<T> {
   return page.evaluate((body) => {
     const b: any = (window as any).__lemonSchedule;
-    // eslint-disable-next-line no-new-func
+     
     return new Function('b', `return (${body})`)(b);
   }, fn);
 }

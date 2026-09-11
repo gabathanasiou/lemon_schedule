@@ -18,6 +18,7 @@ import { FieldPicker } from './FieldPicker';
 import { FloatingChrome } from '../FloatingChrome';
 import { Tooltip } from '../Tooltip';
 import Checkbox from '../Checkbox';
+import { TEST_IDS } from '../../lib/testIds';
 import type { ReportLocation } from '../../lib/reportWeather';
 import { EyeOff, AlignLeft, AlignCenter, AlignRight, ArrowLeft, ArrowRight, Trash2, Plus, Columns3, GripVertical, Filter } from 'lucide-react';
 
@@ -643,6 +644,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
   return (
     <div
       ref={containerRef}
+      data-testid={TEST_IDS.reportCanvas}
       className="flex-1 overflow-auto p-8"
       onClick={() => { onSelect(null); onSelectCol(null); }}
       onDragEnter={e => { if (isDrag(e)) setDragging(true); }}
@@ -653,7 +655,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
         clearActiveZones();
       }}
     >
-      <div className="mx-auto" style={{ width: viewWidth ? `${viewWidth}px` : '100%', minHeight: '80vh', background: '#e4e4e7', borderRadius: 10, padding: 28 }}>
+      <div data-testid={TEST_IDS.reportPage} className="mx-auto" style={{ width: viewWidth ? `${viewWidth}px` : '100%', minHeight: '80vh', background: '#e4e4e7', borderRadius: 10, padding: 28 }}>
         <ReportZone
           label="Header"
           hint="Appears at the top of every page"

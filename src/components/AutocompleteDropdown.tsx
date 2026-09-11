@@ -233,6 +233,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
         const panel = (
          <div
           ref={setPanelRef}
+          data-overlay-panel
           className={
             positioning === 'fixed'
               ? 'click-outside-ignore z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[160px]'

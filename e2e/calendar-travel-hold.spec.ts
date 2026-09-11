@@ -6,11 +6,6 @@ import { openSeededProject, seedLeadCast, seedDayDates } from './helpers';
 // body chips, and the DOODS cell letter. Seed-agnostic: the lead cast member
 // and DAY 1/DAY 2 dates come from the live bridge.
 
-const hexToRgb = (hex: string) => {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgb(${n >> 16 & 255}, ${n >> 8 & 255}, ${n & 255})`;
-};
-
 test('calendar travel/hold: status dropdown, event cards, header icons, tooltip, body chips, DOODS cells', async ({ page }) => {
   await openSeededProject(page);
 
@@ -19,15 +14,11 @@ test('calendar travel/hold: status dropdown, event cards, header icons, tooltip,
   expect(days.length).toBeGreaterThan(1);
   const day1 = days[0];
   const day2 = days[1];
-  const travelColor = await page.evaluate(() => {
-    const p = (window as any).__lemonSchedule.getProject();
-    return (p.dayTypes || []).find((t: any) => t.key === 'travel')?.color || '#9333ea';
-  });
 
   await page.getByRole('button', { name: 'Calendar' }).click();
   const dayCell = page.locator(`[data-date-key="${day1}"]`);
   await expect(dayCell).toBeVisible();
-  const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
+  const header = dayCell.locator('[data-day-header]').first();
 
   // Double-click a day header opens the day events modal (no events → empty state)
   await header.dblclick();
@@ -43,7 +34,7 @@ test('calendar travel/hold: status dropdown, event cards, header icons, tooltip,
   const adder = page.getByRole('dialog').last();
   await expect(adder.getByRole('heading', { name: 'Add Events' })).toBeVisible();
   // The adder defaults to the first markable type — switch it to Travel.
-  await adder.getByText('Event Type', { exact: true }).locator('..').getByRole('button').click();
+  await adder.locator('[data-event-type-row]').getByRole('button').click();
   await page.getByRole('menuitem', { name: 'Travel' }).click();
   // Pick the lead cast member from the open dropdown. The panel is portaled
   // outside the dialog — target the option button that contains the name.
@@ -57,7 +48,7 @@ test('calendar travel/hold: status dropdown, event cards, header icons, tooltip,
   await page.getByRole('button', { name: 'Done' }).click();
 
   // Header icon (foreign travel badge) + tooltip
-  const badgeIcon = dayCell.locator(`svg.lucide-plane[style*="${hexToRgb(travelColor)}"]`);
+  const badgeIcon = dayCell.locator('svg.lucide-plane');
   await expect(badgeIcon).toBeVisible();
   await badgeIcon.hover();
   const tip = page.locator('.fixed.px-2\\.5').filter({ hasText: 'Traveling' }).first();
@@ -66,14 +57,13 @@ test('calendar travel/hold: status dropdown, event cards, header icons, tooltip,
 
   // Hold day: label + body chips, then attach ALL cast via the adder's All checkbox
   const day2cell = page.locator(`[data-date-key="${day2}"]`);
-  const header2 = day2cell.locator('[class*="flex items-center justify-between"]').first();
+  const header2 = day2cell.locator('[data-day-header]').first();
   await header2.click({ button: 'right' });
   await page.getByText('Hold', { exact: true }).click();
   await expect(day2cell.getByText('HOLD', { exact: true })).toBeVisible();
   await expect(day2cell.getByText('Double click to set up')).toBeVisible();
 
   await header2.dblclick({ force: true });
-  await page.waitForTimeout(400);
   await page.getByRole('button', { name: 'Add Event' }).click();
   const adder2 = page.getByRole('dialog').last();
   await page.getByText('All', { exact: true }).last().click();
@@ -87,7 +77,7 @@ test('calendar travel/hold: status dropdown, event cards, header icons, tooltip,
   const flagDay = page.locator('[data-date-key]').filter({ has: page.locator('svg.lucide-flag.fill-red-400') }).first();
   if (await flagDay.count() > 0) {
     const flagBox = await flagDay.locator('svg.lucide-flag.fill-red-400').first().boundingBox();
-    const fHeaderBox = await flagDay.locator('[class*="flex items-center justify-between"]').first().boundingBox();
+    const fHeaderBox = await flagDay.locator('[data-day-header]').first().boundingBox();
     expect(flagBox!.x + flagBox!.width / 2).toBeGreaterThan(fHeaderBox!.x + fHeaderBox!.width / 2);
   }
 

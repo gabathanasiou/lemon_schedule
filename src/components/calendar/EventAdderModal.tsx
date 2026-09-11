@@ -212,7 +212,7 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
           </div>
 
             {/* Event type */}
-            <div>
+            <div data-event-type-row>
               <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
                 <Clock4 className={`${XSZ} text-zinc-500`} />
                 Event Type

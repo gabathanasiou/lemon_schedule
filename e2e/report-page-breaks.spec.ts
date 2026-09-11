@@ -334,7 +334,9 @@ test('filter values commit on blur (one undo entry), not per keystroke', async (
   await page.keyboard.type('Producer', { delay: 40 });
   const mid = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
   await page.keyboard.press('Tab');
-  await page.waitForTimeout(150);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__lemonSchedule.pastCount()), { timeout: 2000 })
+    .toBe(before + 1);
   const after = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
   expect(mid - before).toBe(0);   // typing alone adds no undo entries
   expect(after - before).toBe(1); // blur commits once

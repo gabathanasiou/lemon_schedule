@@ -221,7 +221,7 @@ test.describe('Report grid blocks (items 111/112)', () => {
     await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
     await page.locator('[data-block-id="ct"]').click();
 
-    const gap = page.getByText('Table gap (px)', { exact: true }).locator('..').locator('input');
+    const gap = page.getByLabel('Table gap (px)');
     await expect(gap).toBeVisible({ timeout: 8000 });
     await gap.fill('16');
     await expect.poll(() => page.evaluate(() => {

@@ -10,7 +10,7 @@ const project = (page: import('@playwright/test').Page) =>
   page.evaluate(() => (window as any).__lemonSchedule.getProject());
 
 const castBox = (page: import('@playwright/test').Page) =>
-  page.locator('div.min-h-\\[80px\\]').filter({ has: page.locator('textarea') }).first();
+  page.locator('[data-scene-field="cast"]').first();
 
 const castEditor = (page: import('@playwright/test').Page) => castBox(page).locator('textarea').first();
 
@@ -18,7 +18,7 @@ const castDisplay = (page: import('@playwright/test').Page) =>
   castBox(page).locator('span.whitespace-pre-wrap').first();
 
 const notesBox = (page: import('@playwright/test').Page) =>
-  page.locator('div.rounded').filter({ hasText: 'NOTES' }).filter({ has: page.locator('textarea') }).first();
+  page.locator('[data-scene-field="notes"]').first();
 
 test.describe('scene sheet entity cell layout (roadmap 95)', () => {
   test('long values wrap in the closed display and the whole box is the write hitbox', async ({ page }) => {

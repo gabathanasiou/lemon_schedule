@@ -138,6 +138,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
       {open && (
         <div
           ref={setPanelRef}
+          data-overlay-panel
           className={
             positioning === 'fixed'
               ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[120px]'

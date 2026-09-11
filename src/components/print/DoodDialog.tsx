@@ -236,6 +236,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
             trigger={
               <button
                 type="button"
+                data-print-picker="category"
                 className={`${DD_CHIP_TRIGGER_CLASS} text-xs w-full justify-between cursor-pointer px-3 py-2`}
               >
                 <span>{categoryLabel}</span>

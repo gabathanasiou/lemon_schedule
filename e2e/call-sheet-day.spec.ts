@@ -305,7 +305,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     const box = (await grid.boundingBox())!;
     await page.mouse.move(box.x + 100, box.y + 45);
 
-    const tip = page.locator('div.pointer-events-none').filter({ hasText: 'FIRST TURNOVER' }).first();
+    const tip = page.getByTestId('first-scene-tooltip').first();
     await expect(tip).toBeVisible({ timeout: 4000 });
     await expect(tip).toContainText(/—/);          // INT. SET — NIGHT heading
     await expect(page.locator('[data-rm-highlight="1"]')).toHaveCount(1, { timeout: 4000 });

@@ -64,14 +64,14 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await expect(sidebar.getByText('Day Off', { exact: true })).toBeVisible();
   await expect(sidebar.getByText(WORK, { exact: true })).toBeVisible();
   for (const [label, iconCls] of Object.entries({ [WORK]: 'lucide-calendar-check', Hold: 'lucide-pause', Travel: 'lucide-plane', 'Day Off': 'lucide-sun' })) {
-    const row = sidebar.locator('button:has-text("' + label + '")').locator('..');
+    const row = sidebar.locator('button[data-sidebar-row]').filter({ hasText: label });
     await expect(row.locator('svg.' + iconCls).first()).toBeVisible();
     // Built-ins are fully locked: no edit, no delete.
     await expect(row.locator('svg.lucide-pencil')).toHaveCount(0);
     await expect(row.locator('svg.lucide-trash-2')).toHaveCount(0);
   }
   // Work is first, and its count = the schedule's production days.
-  const prodRow = sidebar.getByText(WORK, { exact: true }).locator('..');
+  const prodRow = sidebar.locator('button[data-sidebar-row]').filter({ hasText: WORK });
   // The first category row (the sidebar's collapse toggle is an icon-only button).
   const prodFirst = await sidebar.locator('button').filter({ hasText: /\S/ }).first().evaluate(el => el.textContent || '');
   expect(prodFirst).toContain(WORK);
@@ -108,7 +108,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await page.locator('[data-cal-grid]').evaluate(el => { el.scrollTop = el.scrollHeight; });
   const dayCell = page.locator(`[data-date-key="${lastSectionDate}"]`);
   await expect(dayCell).toBeVisible();
-  const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
+  const header = dayCell.locator('[data-day-header]').first();
   await header.click({ button: 'right' });
   await expect(page.getByText(WORK, { exact: true })).toHaveCount(0);
   await page.getByText('Rehearsal', { exact: true }).click();
@@ -142,7 +142,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
 
   // ---- Day Breakdown sub-tab: usage count + used-on list -------------------------
   await page.getByRole('button', { name: 'Day Types', exact: true }).click();
-  const rehSide = sidebar.getByText('Rehearsal', { exact: true }).locator('..');
+  const rehSide = sidebar.locator('button[data-sidebar-row]').filter({ hasText: 'Rehearsal' });
   await rehSide.click();
   await expect(rehSide).toContainText('1');
   await expect(page.getByText(lastSectionDate, { exact: false }).first()).toBeVisible();
@@ -179,7 +179,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await page.getByRole('banner').getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.getByRole('button', { name: 'Day Types', exact: true }).click();
-  const rehRow = sidebar.getByText('Rehearsal', { exact: true }).locator('..');
+  const rehRow = sidebar.locator('button[data-sidebar-row]').filter({ hasText: 'Rehearsal' });
   await rehRow.locator('svg.lucide-trash-2').click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
 
@@ -248,7 +248,7 @@ test('day breakdown pane: date rows show event summaries + open the shared day m
   await dlg.getByRole('button', { name: 'Add Event' }).click();
   const adder = page.getByRole('dialog').last();
   // The adder preselects the day's status (Day Off) — switch it to Hold.
-  await adder.getByText('Event Type', { exact: true }).locator('..').getByRole('button').click();
+  await adder.locator('[data-event-type-row]').getByRole('button').click();
   await page.getByRole('menuitem', { name: 'Hold' }).click();
   await adder.locator('input').first().click();
   await page.locator('.click-outside-ignore button', { has: page.getByText(member2.name, { exact: true }) }).first().click();

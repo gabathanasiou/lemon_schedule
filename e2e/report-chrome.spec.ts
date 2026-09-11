@@ -89,11 +89,11 @@ test('token autocomplete anchors to the caret and stays inside the window', asyn
   // query so it renders.
   await page.keyboard.type(' @sh');
 
-  const popover = page.locator('[style*="z-index: 10002"]');
+  const popover = page.locator('.ui-menu');
   await expect(popover).toBeVisible({ timeout: 3000 });
 
   const dump = await page.evaluate(() => {
-    const pop = document.querySelector('[style*="z-index: 10002"]') as HTMLElement;
+    const pop = document.querySelector('.ui-menu') as HTMLElement;
     const chrome = document.querySelector('.block-chrome') as HTMLElement;
     const sel = window.getSelection();
     const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;

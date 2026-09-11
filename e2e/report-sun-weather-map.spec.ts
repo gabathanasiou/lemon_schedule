@@ -83,10 +83,10 @@ function seedWithDesign(design: any, patch?: (p: any) => void) {
 
 async function stubQaNetwork(page: any) {
   await page.addInitScript(() => { window.print = () => {}; });
-  await page.route('**://api.open-meteo.com/**', route =>
-    route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) }));
-  await page.route('**://archive-api.open-meteo.com/**', route =>
-    route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) }));
+  await page.route('**://api.open-meteo.com/**', async route =>
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) }));
+  await page.route('**://archive-api.open-meteo.com/**', async route =>
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) }));
   await page.route('**://tile.openstreetmap.org/**', route => route.abort());
   await page.route('**://nominatim.openstreetmap.org/**', route => route.abort());
 }
@@ -148,18 +148,18 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
       header: [], footer: [],
     };
 
-    await page.route('**://api.open-meteo.com/**', route => {
-      route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
+    await page.route('**://api.open-meteo.com/**', async route => {
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
     });
-    await page.route('**://archive-api.open-meteo.com/**', route => {
-      route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
+    await page.route('**://archive-api.open-meteo.com/**', async route => {
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
     });
     await page.route('**://tile.openstreetmap.org/**', route => route.abort());
-    await page.route('**://nominatim.openstreetmap.org/search**', route => {
-      route.fulfill({ contentType: 'application/json', body: JSON.stringify([BIG_BEN]) });
+    await page.route('**://nominatim.openstreetmap.org/search**', async route => {
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify([BIG_BEN]) });
     });
-    await page.route('**://nominatim.openstreetmap.org/reverse**', route => {
-      route.fulfill({ contentType: 'application/json', body: JSON.stringify(BIG_BEN) });
+    await page.route('**://nominatim.openstreetmap.org/reverse**', async route => {
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify(BIG_BEN) });
     });
 
     await page.addInitScript(({ projectJson, meta, designJson }) => {
@@ -369,13 +369,13 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
   test('sun/weather requests stay inside the Open-Meteo forecast/archive windows', async ({ page }) => {
     const urls: string[] = [];
     await page.addInitScript(() => { window.print = () => {}; });
-    await page.route('**://api.open-meteo.com/**', route => {
+    await page.route('**://api.open-meteo.com/**', async route => {
       urls.push(route.request().url());
-      route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
     });
-    await page.route('**://archive-api.open-meteo.com/**', route => {
+    await page.route('**://archive-api.open-meteo.com/**', async route => {
       urls.push(route.request().url());
-      route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) });
     });
     await page.route('**://tile.openstreetmap.org/**', route => route.abort());
     await page.route('**://nominatim.openstreetmap.org/**', route => route.abort());

@@ -8,8 +8,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && node scripts/check-doc-budget.mjs && eslint e2e",
+    "lint:docs": "node scripts/check-doc-budget.mjs",
+    "lint:tests": "eslint e2e",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "hooks:uninstall": "git config --unset core.hooksPath",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
     "test:smart": "node scripts/smart-test.mjs",
+    "test:baseline": "node scripts/test-baseline.mjs",
     "test:full": "npx playwright test"
   },
   "dependencies": {
@@ -63,10 +70,13 @@
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
+    "eslint": "^10.10.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "typescript-eslint": "^8.70.0",
+    "vite": "^6.2.3",
+    "vitest": "^5.0.0"
   },
   "allowScripts": {
     "github:gabathanasiou/ui-kit#187329e6d395647e43f3433a9aa780ee77635d3d": true,
