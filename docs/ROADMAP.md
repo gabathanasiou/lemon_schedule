@@ -714,3 +714,24 @@ let the user map them once.
 
 **Verify**: an FDX with `DREAM` + Greek headings imports, prompts, maps, and a
 re-import doesn't re-ask; the diff highlights only the genuinely changed part.
+
+## 128. Diff preview — IDE-style aligned split view (filler gaps) (`[ ]`)
+
+**Relations**: enhancement to 38's review modal + 123 Phase 1 screenplay renderer.
+
+**Requested**: the split diff (Current vs Incoming) should stay vertically
+aligned like IDEs / GitHub / VS Code split diffs. Today the two panes are
+independent `overflow` scrollers of different heights, so an inserted/removed
+block makes everything below drift and the diff is hard to read. IDEs insert
+blank **filler rows** on the shorter side so a change lines up across panes.
+
+**Approach**: derive an aligned row model ONCE from the `diffArrays` segments
+(equal / added / removed) → `rows: { left?: TonedBlock; right?: TonedBlock }[]`
+(the shorter side gets an empty filler cell). Render the shared screenplay line
+component into the correct pane per row (one scroll container per pane is fine;
+or a single grid with two columns + row alignment). Sync-scroll already exists
+in `ScriptUpdateModal`. Study GitHub/VS Code split-diff alignment for the filler
+rules (block-level, not word-level).
+
+**Verify**: append a block mid-scene and delete another → both panes line up;
+golden visual; `npm run lint` + `npx playwright test`.
