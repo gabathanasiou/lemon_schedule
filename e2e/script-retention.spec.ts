@@ -46,6 +46,16 @@ const FDX_TAGGED = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 </TagData>
 </FinalDraft>`;
 
+// Final Draft inline styles on <Text> runs (roadmap 132 Part B): bold/italic/
+// underline must survive import and render in the preview.
+const FDX_STYLED = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="1">
+<Content>
+<Paragraph Type="Scene Heading" Number="1"><Text>INT. ROOM - DAY</Text><SceneProperties Length="1.0"/></Paragraph>
+<Paragraph Type="Action"><Text>He </Text><Text Style="Italic">runs</Text><Text> and </Text><Text Style="Bold">slams</Text><Text> the </Text><Text Style="Underline">door</Text><Text>.</Text></Paragraph>
+</Content>
+</FinalDraft>`;
+
 function writeFdx(name: string, xml: string): string {
   const p = path.join(os.tmpdir(), name);
   fs.writeFileSync(p, xml);
@@ -145,13 +155,26 @@ test.describe('Script sub-tab (roadmap 123 Phase 1)', () => {
 
     const view = page.getByTestId('script-view');
     await expect(view).toBeVisible();
-    // The script name/format is shown in the Breakdown toolbar.
+    // The script name + imported file (version) is shown in the toolbar.
     await expect(page.getByText('THE TEST').first()).toBeVisible();
-    await expect(page.getByText('FDX', { exact: true })).toBeVisible();
+    await expect(page.getByText('lemon-script-view.fdx')).toBeVisible();
     await expect(page.getByTestId('script-scene')).toHaveCount(2);
     await expect(view).toContainText('INT. KITCHEN - DAY');
     await expect(view).toContainText('AMY pours coffee.');
     await expect(view).toContainText('EXT. STREET - NIGHT');
+  });
+
+  test('renders Final Draft bold/italic/underline runs', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-styled.fdx', FDX_STYLED));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 1)");
+
+    await page.getByRole('button', { name: 'Script', exact: true }).click();
+
+    const view = page.getByTestId('script-view');
+    await expect(view.locator('strong')).toHaveText('slams');
+    await expect(view.locator('em')).toHaveText('runs');
+    await expect(view.locator('u')).toHaveText('door');
   });
 });
 

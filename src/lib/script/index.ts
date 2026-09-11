@@ -3,6 +3,7 @@ import type {
   ScriptBlockType,
   ScriptDocument,
   ScriptFormat,
+  ScriptInline,
   ScriptScene,
   ScriptTitlePage,
 } from '../../types';
@@ -28,8 +29,32 @@ export function createScriptScene(sceneNumber: string, scriptPage?: string): Scr
   return scene;
 }
 
-export function pushScriptBlock(scene: ScriptScene, type: ScriptBlockType, text: string): void {
-  scene.blocks.push([type, text] as ScriptBlock);
+export function pushScriptBlock(scene: ScriptScene, type: ScriptBlockType, text: string, runs?: ScriptInline[]): void {
+  scene.blocks.push(runs && runs.length > 0 ? [type, text, runs] : [type, text]);
+}
+
+/** Parse Fountain-style inline emphasis (`***bolditalic***`, `**bold**`,
+ *  `*italic*`, `_underline_`) into styled runs. Returns undefined when the text
+ *  carries no markup so plain blocks stay compact `[type, text]`. */
+export function parseInlineMarkup(text: string): ScriptInline[] | undefined {
+  if (!text || !/[*_]/.test(text)) return undefined;
+  const re = /(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|_([^_]+)_)/g;
+  const runs: ScriptInline[] = [];
+  let last = 0;
+  let matched = false;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    matched = true;
+    if (m.index > last) runs.push({ text: text.slice(last, m.index) });
+    if (m[2] !== undefined) runs.push({ text: m[2], bold: true, italic: true });
+    else if (m[3] !== undefined) runs.push({ text: m[3], bold: true });
+    else if (m[4] !== undefined) runs.push({ text: m[4], italic: true });
+    else if (m[5] !== undefined) runs.push({ text: m[5], underline: true });
+    last = m.index + m[0].length;
+  }
+  if (!matched) return undefined;
+  if (last < text.length) runs.push({ text: text.slice(last) });
+  return runs;
 }
 
 /** Normalize a scene number for matching/body lookup (`1A` vs `1a`, leading zeros). */

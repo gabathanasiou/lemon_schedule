@@ -48,8 +48,9 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   const project = state.present;
   const doc = project.scriptDocument;
   const projectScenes = project.scenes;
-  const scriptName = doc?.titlePage?.title?.trim() || project.title || 'Untitled script';
-  const formatLabel = doc ? doc.format.toUpperCase() : '';
+  // One label: the imported script file (its "version"), falling back to the
+  // screenplay title / project name. Refreshes on every import/update.
+  const scriptLabel = doc?.name?.trim() || doc?.titlePage?.title?.trim() || project.title || 'Untitled script';
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -189,12 +190,9 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   const header = headerTarget ? createPortal(
     <>
       {doc && doc.scenes.length > 0 && (
-        <span className="hidden min-w-0 items-center gap-1.5 md:flex" title={scriptName}>
+        <span className="hidden min-w-0 items-center gap-1.5 md:flex" title={scriptLabel}>
           <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-          <span className="max-w-[14rem] truncate text-[11px] font-semibold text-zinc-600">{scriptName}</span>
-          {formatLabel && (
-            <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-400">{formatLabel}</span>
-          )}
+          <span className="max-w-[20rem] truncate text-[11px] font-semibold text-zinc-600">{scriptLabel}</span>
         </span>
       )}
       {onUpdateScript && (

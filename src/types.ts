@@ -58,7 +58,18 @@ export type ScriptBlockType =
   | 'shot'
   | 'page_break';
 
-export type ScriptBlock = [ScriptBlockType, string];
+/** Inline formatting run within a screenplay block. Blocks stay compact
+ *  `[type, text]`; the optional third element carries styled runs only when the
+ *  source had inline bold/italic/underline (FDX `<Text Style>` / Fountain
+ *  `**bold**` `*italic*` `_underline_`). `text` is always the full plain text. */
+export interface ScriptInline {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+}
+
+export type ScriptBlock = [ScriptBlockType, string, ScriptInline[]?];
 
 export interface ScriptScene {
   sceneNumber: string;
@@ -71,6 +82,9 @@ export type ScriptTitlePage = Record<string, string>;
 
 export interface ScriptDocument {
   format: ScriptFormat;
+  /** Imported file name — the visible "which script version" marker in the
+   *  Script tab; refreshed on every import/update. */
+  name?: string;
   titlePage?: ScriptTitlePage;
   scenes: ScriptScene[];
 }

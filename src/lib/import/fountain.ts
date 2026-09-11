@@ -1,6 +1,6 @@
 import { Fountain } from 'fountain-js';
 import { DayNight, ScriptBlockType, ScriptScene, ScriptTitlePage } from '../../types';
-import { createScriptDocument, createScriptScene, pushScriptBlock } from '../script';
+import { createScriptDocument, createScriptScene, parseInlineMarkup, pushScriptBlock } from '../script';
 import { ImportCharacter, ImportResult, ParsedScene, normalizeCharacterName, parseSceneHeading } from './shared';
 
 /** Fountain token `type` → retained script body block. `scene_heading`,
@@ -34,6 +34,12 @@ export async function parseFountain(file: File, knownDayNight?: Iterable<string>
   function ensureScriptScene(): ScriptScene {
     if (!currentScriptScene) currentScriptScene = createScriptScene(currentSceneNumber);
     return currentScriptScene;
+  }
+
+  /** Fountain keeps inline markup in `token.text` (`*italic*`, `**bold**`,
+   *  `_underline_`) — parse it into styled runs for the retained body. */
+  function pushText(scene: ScriptScene, type: ScriptBlockType, text: string) {
+    pushScriptBlock(scene, type, text, parseInlineMarkup(text));
   }
 
   function flushFountainScene() {
@@ -77,14 +83,14 @@ export async function parseFountain(file: File, knownDayNight?: Iterable<string>
       currentHeading = token.text || '';
       currentSceneNumber = (token as any).scene_number || '';
       currentScriptScene = createScriptScene(currentSceneNumber);
-      pushScriptBlock(currentScriptScene, 'heading', currentHeading);
+      pushText(currentScriptScene, 'heading', currentHeading);
     } else if (token.type === 'character') {
       const name = normalizeCharacterName(token.text || '');
       if (name && !/^(INT|EXT|EST|I\/E|INT\.?\/EXT|INT[-\u2013\u2014]EXT)[.\s]/i.test(name)) sceneCharacters.add(name);
-      pushScriptBlock(ensureScriptScene(), 'character', token.text || '');
+      pushText(ensureScriptScene(), 'character', token.text || '');
     } else if (token.type === 'action') {
       descriptionLines.push((token.text || '').trim());
-      pushScriptBlock(ensureScriptScene(), 'action', (token.text || '').trim());
+      pushText(ensureScriptScene(), 'action', (token.text || '').trim());
     } else if (token.type === 'dialogue_begin') {
       currentDual = token.dual === 'left' || token.dual === 'right' ? token.dual : null;
     } else if (token.type === 'dialogue_end' || token.type === 'dual_dialogue_end') {
@@ -92,11 +98,11 @@ export async function parseFountain(file: File, knownDayNight?: Iterable<string>
     } else if (token.type === 'dialogue') {
       const blockType: ScriptBlockType =
         currentDual === 'left' ? 'dual_left' : currentDual === 'right' ? 'dual_right' : 'dialogue';
-      pushScriptBlock(ensureScriptScene(), blockType, token.text || '');
+      pushText(ensureScriptScene(), blockType, token.text || '');
     } else if (token.type === 'page_break') {
       pushScriptBlock(ensureScriptScene(), 'page_break', '');
     } else if (SCRIPT_BLOCK_TYPE[token.type]) {
-      pushScriptBlock(ensureScriptScene(), SCRIPT_BLOCK_TYPE[token.type], (token.text || '').trim());
+      pushText(ensureScriptScene(), SCRIPT_BLOCK_TYPE[token.type], (token.text || '').trim());
     }
   }
 
@@ -108,6 +114,7 @@ export async function parseFountain(file: File, knownDayNight?: Iterable<string>
   }
 
   const script = createScriptDocument('fountain', titlePage);
+  script.name = file.name;
   script.scenes = scriptScenes;
 
   return { title: result.title || undefined, scenes, characters, unknownCategories: [], script };

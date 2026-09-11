@@ -1,4 +1,4 @@
-import { DayNight, ScriptBlockType, ScriptScene } from '../../types';
+import { DayNight, ScriptBlockType, ScriptInline, ScriptScene } from '../../types';
 import { parsePageCount } from '../utils';
 import { createScriptDocument, createScriptScene, pushScriptBlock } from '../script';
 import { FDX_CATEGORY_MAP, ImportCharacter, ImportResult, ParsedScene, categoryNameToKey, normalizeCharacterName, parseSceneHeading } from './shared';
@@ -154,16 +154,31 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
     const textEls = p.querySelectorAll(':scope > Text');
     let textContent = '';
     const taggedTexts: { tagNumber: string; text: string }[] = [];
+    // Inline runs (FDX `Style` on each <Text> run) — retained so the preview can
+    // render bold/italic/underline (roadmap 132 Part B).
+    const inlineRuns: ScriptInline[] = [];
+    let anyStyle = false;
 
     for (const te of textEls) {
       const tn = te.getAttribute('TagNumber');
       const txt = te.textContent || '';
-      // Tagged runs are still part of the screenplay prose — retain them in the
-      // body (roadmap 132 Part B) and record the tag separately for the
-      // breakdown element. Never drop tagged words from the page.
       textContent += txt;
       if (tn) taggedTexts.push({ tagNumber: tn, text: txt });
+      const style = te.getAttribute('Style') || '';
+      const bold = /bold/i.test(style);
+      const italic = /italic/i.test(style);
+      const underline = /underline/i.test(style);
+      if (bold || italic || underline) anyStyle = true;
+      if (txt) {
+        inlineRuns.push({
+          text: txt,
+          ...(bold ? { bold: true } : {}),
+          ...(italic ? { italic: true } : {}),
+          ...(underline ? { underline: true } : {}),
+        });
+      }
     }
+    const blockRuns = anyStyle ? inlineRuns : undefined;
 
     // FDX embeds <Page Number> at print page breaks; keep the marker as a
     // page_break block and track the script page of whatever scene follows.
@@ -196,20 +211,20 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
       }
       currentScriptPageForScene = currentScriptPage;
       startScriptScene(currentSceneNumber, currentScriptPageForScene);
-      pushScriptBlock(currentScriptScene!, 'heading', currentHeading);
+      pushScriptBlock(currentScriptScene!, 'heading', currentHeading, blockRuns);
     } else if (pType === 'Character') {
       const name = normalizeCharacterName(textContent);
       if (name) sceneCharacters.add(name);
-      if (currentScriptScene) pushScriptBlock(currentScriptScene, 'character', textContent);
+      if (currentScriptScene) pushScriptBlock(currentScriptScene, 'character', textContent, blockRuns);
     } else if (pType === 'Action') {
       if (scenes.length === 0 && !currentSceneNumber) {
         currentSceneNumber = pNum || String(scenes.length + 1);
         currentHeading = textContent;
         startScriptScene(currentSceneNumber, currentScriptPage);
       }
-      if (currentScriptScene) pushScriptBlock(currentScriptScene, 'action', textContent);
+      if (currentScriptScene) pushScriptBlock(currentScriptScene, 'action', textContent, blockRuns);
     } else if (currentScriptScene && SCRIPT_BLOCK_TYPE[pType]) {
-      pushScriptBlock(currentScriptScene, SCRIPT_BLOCK_TYPE[pType], textContent);
+      pushScriptBlock(currentScriptScene, SCRIPT_BLOCK_TYPE[pType], textContent, blockRuns);
     }
 
     for (const tt of taggedTexts) {
@@ -232,6 +247,7 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
   const title = titleEl?.textContent?.trim() || undefined;
 
   const script = createScriptDocument('fdx', title ? { title } : undefined);
+  script.name = file.name;
   script.scenes = scriptScenes;
 
   return { title, scenes, characters, unknownCategories: [...unknownCategories], script };

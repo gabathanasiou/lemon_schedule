@@ -198,4 +198,33 @@ test.describe('script update review (roadmap 38)', () => {
     await page.getByRole('button', { name: /Import 1 value/ }).click();
     await page.waitForFunction(() => ((window as any).__lemonSchedule.getProject().colorPalette?.dayNightOptions || []).includes('DREAM'));
   });
+
+  test('the Script tab Update button opens the same review and refreshes the version', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      b.batch(() => {
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN', intExt: 'INT', dayNight: 'DAY', description: 'Old kitchen' }) });
+      });
+    });
+    await page.getByRole('button', { name: 'Script', exact: true }).click();
+
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.getByRole('button', { name: 'Update script' }).click(),
+    ]);
+    await chooser.setFiles(writeFdx('lemon-update-tab.fdx', [
+      { n: '1', heading: 'INT. KITCHEN - DAY', action: 'New kitchen action.' },
+    ]));
+    await page.getByRole('dialog').getByText(/Update Script/).waitFor();
+
+    await page.keyboard.press('ArrowRight');
+    await page.getByRole('button', { name: /Apply \d+/ }).click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.waitForFunction(() => (window as any).__lemonSchedule.getProject().scriptDocument?.scenes.length === 1);
+
+    // The Script tab label now shows the newly imported file (the version).
+    await expect(page.getByText('lemon-update-tab.fdx')).toBeVisible();
+  });
 });

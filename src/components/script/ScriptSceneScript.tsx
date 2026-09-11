@@ -1,6 +1,6 @@
 import React from 'react';
 import { diffArrays } from 'diff';
-import type { ScriptBlock, ScriptBlockType, ScriptScene } from '../../types';
+import type { ScriptBlock, ScriptBlockType, ScriptInline, ScriptScene } from '../../types';
 
 /**
  * Screenplay renderer (roadmap 123 Phase 1, reused by 38's update review) —
@@ -23,6 +23,8 @@ export interface TonedBlock {
   type: ScriptBlockType;
   text: string;
   tone: BlockTone;
+  /** Inline bold/italic/underline runs, when the source carried them. */
+  runs?: ScriptInline[];
   /** Heading only: inline segments so a changed set / INT-EXT / day-night can
    *  be marked individually instead of the whole heading. `user` = your in-app
    *  edit (blue); `incoming` = the new script changed it (green). */
@@ -80,10 +82,28 @@ function Highlighted({ text, query, theme }: { text: string; query?: string; the
   );
 }
 
-function BlockLine({ type, text, tone, parts, theme, highlight, sceneNumber }: TonedBlock & { theme: ScriptTheme; highlight?: string; sceneNumber?: string }) {
+/** Render styled inline runs (bold/italic/underline), preserving search
+ *  highlights inside each run. */
+function InlineRuns({ runs, highlight, theme }: { runs: ScriptInline[]; highlight?: string; theme: ScriptTheme }) {
+  return (
+    <>
+      {runs.map((r, i) => {
+        let node: React.ReactNode = <Highlighted text={r.text} query={highlight} theme={theme} />;
+        if (r.underline) node = <u>{node}</u>;
+        if (r.italic) node = <em>{node}</em>;
+        if (r.bold) node = <strong>{node}</strong>;
+        return <React.Fragment key={i}>{node}</React.Fragment>;
+      })}
+    </>
+  );
+}
+
+function BlockLine({ type, text, tone, parts, runs, theme, highlight, sceneNumber }: TonedBlock & { theme: ScriptTheme; highlight?: string; sceneNumber?: string }) {
   const toneCls = TONE_CLASSES[theme][tone];
   const partCls = PART_CLASSES[theme];
-  const content = <Highlighted text={text} query={highlight} theme={theme} />;
+  const content = runs && runs.length > 0
+    ? <InlineRuns runs={runs} highlight={highlight} theme={theme} />
+    : <Highlighted text={text} query={highlight} theme={theme} />;
   switch (type) {
     case 'page_break':
       return <div className={`my-2 border-t border-dashed ${theme === 'light' ? 'border-zinc-400' : 'border-zinc-600/60'}`} />;
@@ -167,7 +187,7 @@ export function ScriptBlocksToned({ lines, theme = 'dark', highlight, sceneNumbe
 }
 
 const sameTone = (blocks: ScriptBlock[]): TonedBlock[] =>
-  blocks.map(([type, text]) => ({ type, text, tone: 'same' as const }));
+  blocks.map(([type, text, runs]) => ({ type, text, tone: 'same' as const, runs }));
 
 export function ScriptBlocks({ blocks, theme = 'dark', highlight, sceneNumber }: { blocks: ScriptBlock[]; theme?: ScriptTheme; highlight?: string; sceneNumber?: string }) {
   return <ScriptBlocksToned lines={sameTone(blocks)} theme={theme} highlight={highlight} sceneNumber={sceneNumber} />;
@@ -184,7 +204,7 @@ export function ScriptSceneText({ scene, className = '', theme = 'dark', fontCla
   sceneNumber?: string;
 }) {
   return (
-    <div className={`font-mono ${fontClass} ${theme === 'light' ? 'text-zinc-950' : 'text-zinc-200'} ${className}`}>
+    <div className={`font-mono ${fontClass} ${theme === 'light' ? 'font-medium text-zinc-950' : 'text-zinc-200'} ${className}`}>
       <ScriptBlocks blocks={scene.blocks} theme={theme} highlight={highlight} sceneNumber={sceneNumber} />
     </div>
   );
@@ -198,20 +218,20 @@ export function ScriptSceneText({ scene, className = '', theme = 'dark', fontCla
  */
 export function diffScriptBlocks(oldBlocks: ScriptBlock[], newBlocks: ScriptBlock[]): { old: TonedBlock[]; new: TonedBlock[] } {
   const changes = diffArrays(oldBlocks, newBlocks, {
-    comparator: (a, b) => a[0] === b[0] && a[1] === b[1],
+    comparator: (a, b) => a[0] === b[0] && a[1] === b[1] && JSON.stringify(a[2] ?? null) === JSON.stringify(b[2] ?? null),
   });
   const oldLines: TonedBlock[] = [];
   const newLines: TonedBlock[] = [];
   for (const change of changes) {
     const blocks = change.value as ScriptBlock[];
     if (change.added) {
-      for (const [type, text] of blocks) newLines.push({ type, text, tone: 'added' });
+      for (const [type, text, runs] of blocks) newLines.push({ type, text, tone: 'added', runs });
     } else if (change.removed) {
-      for (const [type, text] of blocks) oldLines.push({ type, text, tone: 'removed' });
+      for (const [type, text, runs] of blocks) oldLines.push({ type, text, tone: 'removed', runs });
     } else {
-      for (const [type, text] of blocks) {
-        oldLines.push({ type, text, tone: 'same' });
-        newLines.push({ type, text, tone: 'same' });
+      for (const [type, text, runs] of blocks) {
+        oldLines.push({ type, text, tone: 'same', runs });
+        newLines.push({ type, text, tone: 'same', runs });
       }
     }
   }

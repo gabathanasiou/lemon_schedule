@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createScriptDocument, createScriptScene, pushScriptBlock } from '../script';
+import { createScriptDocument, createScriptScene, pushScriptBlock, parseInlineMarkup } from '../script';
 import { parseFountain } from '../import/fountain';
 
 const file = (text: string, name = 'test.fountain') => new File([text], name);
@@ -103,5 +103,33 @@ describe('parseFountain retains the screenplay body', () => {
     const result = await parseFountain(file(src));
     expect(result.scenes).toHaveLength(2);
     expect(result.characters.map(c => c.name).sort()).toEqual(['AMY', 'BOB']);
+  });
+});
+
+describe('inline formatting retention (roadmap 132 Part B)', () => {
+  it('parses Fountain emphasis into styled runs (plain text when none)', () => {
+    expect(parseInlineMarkup('plain text')).toBeUndefined();
+    expect(parseInlineMarkup('He *runs* fast')).toEqual([
+      { text: 'He ' },
+      { text: 'runs', italic: true },
+      { text: ' fast' },
+    ]);
+    expect(parseInlineMarkup('**bold** _under_ ***both***')).toEqual([
+      { text: 'bold', bold: true },
+      { text: ' ' },
+      { text: 'under', underline: true },
+      { text: ' ' },
+      { text: 'both', bold: true, italic: true },
+    ]);
+  });
+
+  it('retains styled runs for Fountain action + dialogue', async () => {
+    const result = await parseFountain(file('INT. ROOM - DAY\n\nHe *runs* fast.\n\nJANE\n**Stop** now.\n'));
+    const blocks = result.script!.scenes[0].blocks;
+    const action = blocks.find(b => b[0] === 'action')!;
+    expect(action[1]).toBe('He *runs* fast.');
+    expect(action[2]).toEqual([{ text: 'He ' }, { text: 'runs', italic: true }, { text: ' fast.' }]);
+    const dialogue = blocks.find(b => b[0] === 'dialogue')!;
+    expect(dialogue[2]).toEqual([{ text: 'Stop', bold: true }, { text: ' now.' }]);
   });
 });
