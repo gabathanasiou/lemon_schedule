@@ -229,10 +229,12 @@ export interface AlignedBlockRow {
   right?: TonedBlock;
 }
 
-/** Both headings compare equal regardless of text so a changed heading pairs
- *  into ONE row (its INT/EXT/set/day values are diffed via `parts`, not tone). */
+/** Tuple comparator for review diffs. Notably it does NOT force headings equal:
+ *  a changed heading is a normal removed+added run and the pairing below puts it
+ *  on one aligned row — forcing it equal made jsdiff emit only the NEW text for
+ *  both panes. */
 const reviewBlockEqual = (a: ScriptBlock, b: ScriptBlock): boolean =>
-  a[0] === b[0] && (a[0] === 'heading' ? true : a[1] === b[1] && JSON.stringify(a[2] ?? null) === JSON.stringify(b[2] ?? null));
+  a[0] === b[0] && a[1] === b[1] && JSON.stringify(a[2] ?? null) === JSON.stringify(b[2] ?? null);
 
 /** A paired block at/above this similarity gets word-level marks; below it the
  *  block reads better as a whole-line replacement (red left / green right). */

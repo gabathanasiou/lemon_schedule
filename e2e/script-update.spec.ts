@@ -52,13 +52,22 @@ test.describe('script update review (roadmap 38)', () => {
 
     // One-by-one keyboard review: →/A accepts, ←/K keeps, ⌫ goes back.
     await expect(page.getByText('0 / 3')).toBeVisible();
-    await page.keyboard.press('ArrowRight'); // change 1
+    await page.keyboard.press('ArrowRight'); // → take change 1
     await expect(page.getByText('1 / 3')).toBeVisible();
-    await page.keyboard.press('ArrowRight'); // change 2
+    await page.keyboard.press('Escape'); // Esc keeps change 2 (modal stays open)
     await expect(page.getByText('2 / 3')).toBeVisible();
-    await page.keyboard.press('ArrowRight'); // change 3
+    await page.keyboard.press('ArrowLeft'); // ← back to change 2
+    await expect(page.getByText('1 / 3')).toBeVisible();
+    await page.keyboard.press('ArrowRight'); // → take change 2
+    await expect(page.getByText('2 / 3')).toBeVisible();
+    await page.keyboard.press('ArrowRight'); // → take change 3
     await expect(page.getByText('3 / 3')).toBeVisible();
     // Review auto-advances to the final confirmation list; Apply shows a warning.
+    await expect(page.getByText(/to apply/)).toBeVisible({ timeout: 5000 });
+    // Back on the confirmation list re-opens the last change (undoes it).
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expect(page.getByText('2 / 3')).toBeVisible();
+    await page.getByRole('button', { name: /Accept all/ }).click();
     await expect(page.getByText(/to apply/)).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: /Apply \d+/ }).click();
     await page.getByRole('button', { name: 'Confirm' }).click();
@@ -262,6 +271,10 @@ test.describe('script update review (roadmap 38)', () => {
     await page.locator('input[type="file"]').nth(1).setInputFiles(p);
     await page.getByRole('dialog').getByText(/Update Script/).waitFor();
 
+    // The panes are labelled with the actual file names.
+    await expect(page.getByRole('dialog').getByText('lemon-align.fdx', { exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog').getByText('Current script', { exact: true })).toBeVisible();
+
     // Rows: 0 heading, 1 A→A2 (paired replacement), 2 Line NEW (incoming-only
     // filler), 3 B. A 1-for-1 replacement stays side-by-side on ONE row, the
     // insert leaves an empty left filler, and B lines up across panes.
@@ -300,5 +313,31 @@ test.describe('script update review (roadmap 38)', () => {
     await expect(bigRight).toHaveAttribute('data-tone', 'added');
     await expect(bigLeft.locator('[data-change]')).toHaveCount(0);
     await expect(bigRight.locator('[data-change]')).toHaveCount(0);
+  });
+
+  test('heading diff: granular parts vs whole-line when all of it is new', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const doc = { format: 'fdx', scenes: [{ sceneNumber: '1', blocks: [['heading', 'INT. KITCHEN - DAY'], ['action', 'Same.']] }] };
+      b.batch(() => {
+        b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: doc } });
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN', intExt: 'INT', dayNight: 'DAY', description: 'x' }) });
+      });
+    });
+
+    // Only the SET changed → granular: red left, green right.
+    await openUpdateModal(page, writeFdx('lemon-heading-set.fdx', [{ n: '1', heading: 'INT. BEDROOM - DAY', action: 'Same.' }]));
+    await expect(page.locator('[data-change="removed"]')).toHaveText('KITCHEN');
+    await expect(page.locator('[data-change="added"]')).toHaveText('BEDROOM');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+
+    // The WHOLE heading is new → treated as a line: red/struck left, green right,
+    // no granular parts.
+    await openUpdateModal(page, writeFdx('lemon-heading-all.fdx', [{ n: '1', heading: 'EXT. STREET - NIGHT', action: 'Same.' }]));
+    await expect(page.locator('[data-review-side="left"][data-tone="removed"]').first()).toContainText('KITCHEN');
+    await expect(page.locator('[data-review-side="right"][data-tone="added"]').first()).toContainText('STREET');
+    await expect(page.locator('[data-change]')).toHaveCount(0);
   });
 });

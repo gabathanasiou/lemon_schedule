@@ -1,17 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, FileText, List } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, FileText, List } from 'lucide-react';
 import { useProject } from '../store';
 import { useDialog } from './Dialog';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import Checkbox from './Checkbox';
-import { diffScripts, commitScriptDiff, defaultDecision, parseSceneHeading, buildCastIdMap, firstFreeCastId, collectUnknownFromValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues } from '../lib/import';
+import { diffScripts, commitScriptDiff, defaultDecision, buildCastIdMap, firstFreeCastId, collectUnknownFromValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues } from '../lib/import';
 import type { HeadingMapping } from '../lib/import';
 import HeadingValueMapper from './import/HeadingValueMapper';
 import type { DiffDecision, ImportResult, SceneDiffEntry, SceneFieldDiff } from '../lib/import';
 import { scriptSceneBlocks } from '../lib/script';
-import { alignScriptBlocks, ScriptBlockLine } from './script/ScriptSceneScript';
+import { alignScriptBlocks, ScriptBlockLine, WORD_DIFF_MIN_SIMILARITY } from './script/ScriptSceneScript';
 import { CastAssignmentTable, CategoryChecklist } from './import/ImportReviewControls';
 import type { ImportCharacter } from '../lib/import';
 import type { ScriptBlock } from '../types';
@@ -38,8 +38,12 @@ const STATUS_STYLE: Record<string, string> = {
 
 type View = 'review' | 'confirm' | 'setup';
 
-function Kbd({ children }: { children: React.ReactNode }) {
-  return <kbd className="ml-1 px-1 rounded border border-zinc-600 bg-zinc-800 text-[9px] text-zinc-300 font-mono leading-tight">{children}</kbd>;
+function Kbd({ children, icon: Icon }: { children?: React.ReactNode; icon?: React.ElementType }) {
+  return (
+    <kbd className="ml-1 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded border border-zinc-500 bg-zinc-700 px-1 font-mono text-[10px] leading-none text-zinc-100">
+      {Icon ? <Icon className="h-3 w-3" /> : children}
+    </kbd>
+  );
 }
 
 function FieldStrip({ fields, keeps, onToggle }: { fields: SceneFieldDiff[]; keeps?: Set<string>; onToggle?: (key: string) => void }) {
@@ -102,14 +106,14 @@ function DecisionButtons({ status, decision, onDecide }: { status: string; decis
   );
 }
 
-type HeadingPart = { text: string; change?: 'user' | 'incoming' };
+type HeadingPart = { text: string; change?: 'user' | 'incoming' | 'removed' | 'added' };
 type HeadingValues = { intExt?: string; set?: string; dayNight?: string };
 
 const normHeading = (t?: string) => (t || '').toUpperCase().replace(/[^A-Z0-9\u0370-\u03ff]/g, '');
 
 /** Split a heading into diffable parts (INT/EXT · dot · set · day/night), each
  *  marked when it differs from `base` — so only the changed piece is colored. */
-function headingParts(values: HeadingValues, base: HeadingValues, change: 'user' | 'incoming'): HeadingPart[] {
+function headingParts(values: HeadingValues, base: HeadingValues, change: 'user' | 'incoming' | 'removed' | 'added'): HeadingPart[] {
   const parts: HeadingPart[] = [];
   if (values.intExt) parts.push({ text: values.intExt, change: normHeading(values.intExt) !== normHeading(base.intExt) ? change : undefined });
   parts.push({ text: '. ' });
@@ -128,17 +132,6 @@ function replaceHeading(blocks: ScriptBlock[], parts: HeadingPart[]): ScriptBloc
   if (idx >= 0) copy[idx] = ['heading', text];
   else copy.unshift(['heading', text]);
   return copy;
-}
-
-/** Current-scene screenplay lines: the retained body with the heading swapped
- *  for the CURRENT scene fields (so in-app INT/EXT/set/day-night edits show). */
-function currentSceneLines(entry: SceneDiffEntry, doc: import('../types').ScriptDocument | undefined): { lines: ScriptBlock[]; parts: HeadingPart[] } {
-  const blocks = entry.oldScene ? scriptSceneBlocks(doc, entry.oldScene.sceneNumber) : [];
-  const s = entry.oldScene;
-  if (!s) return { lines: blocks, parts: [] };
-  const baseline = parseSceneHeading(blocks.find(b => b[0] === 'heading')?.[1] || '') || {};
-  const parts = headingParts(s, baseline, 'user');
-  return { lines: replaceHeading(blocks, parts), parts };
 }
 
 export default function ScriptUpdateModal({ result, fileName, onClose }: { result: ImportResult; fileName: string; onClose: () => void }) {
@@ -320,49 +313,79 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
     commitNow(hv);
   }, [result, project, dispatch, commitNow]);
 
-  // Keyboard: →/A accept · ←/K keep · ⌫ previous · L toggle (review) · S setup · ⌘⏎ apply.
+  // Keyboard: →/A take · ←/⌫ back · Esc/K keep · L accept all · S setup · ⌘⏎ apply.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') return;
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
         if (view !== 'setup' && mutationCount > 0) runApply();
+        return;
+      }
+      if (e.key === 'Escape') {
+        // Esc KEEPS the current change — capture-phase + stopPropagation so the
+        // modal's own Esc-to-close never fires.
+        if (view === 'review' && entry) {
+          e.preventDefault();
+          e.stopPropagation();
+          decideCurrent(OPTIONS[entry.status].keep.decision);
+        }
         return;
       }
       if (e.key.toLowerCase() === 's' && view !== 'setup') { e.preventDefault(); setView('setup'); return; }
       if (e.key.toLowerCase() === 'l' && view === 'review' && entry) { e.preventDefault(); acceptAllRemaining(); return; }
       if (view !== 'review' || !entry) return;
       if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'a') { e.preventDefault(); decideCurrent(OPTIONS[entry.status].accept.decision); }
-      else if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'k') { e.preventDefault(); decideCurrent(OPTIONS[entry.status].keep.decision); }
-      else if ((e.key === 'Backspace' || e.key.toLowerCase() === 'b') && history.length > 0) { e.preventDefault(); goBack(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'Backspace' || e.key.toLowerCase() === 'b') { if (history.length > 0) { e.preventDefault(); goBack(); } }
+      else if (e.key.toLowerCase() === 'k') { e.preventDefault(); decideCurrent(OPTIONS[entry.status].keep.decision); }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [entry, view, decideCurrent, goBack, history.length, mutationCount, runApply, acceptAllRemaining]);
 
   const renderPanes = (e: SceneDiffEntry, index: number) => {
-    const current = currentSceneLines(e, project.scriptDocument);
+    const currentValues: HeadingValues = e.oldScene ? { intExt: e.oldScene.intExt, set: e.oldScene.set, dayNight: e.oldScene.dayNight } : {};
     const newValues: HeadingValues = e.newScene ? { intExt: e.newScene.intExt, set: e.newScene.set, dayNight: e.newScene.dayNight } : {};
-    const newParts = e.newScene ? headingParts(newValues, e.oldScene || {}, 'incoming') : [];
+    // Heading diff is CURRENT vs INCOMING: a changed piece is red on the left and
+    // green on the right (never only one side).
+    const currentParts = headingParts(currentValues, newValues, 'removed');
+    const newParts = headingParts(newValues, currentValues, 'added');
+    const currentLines = replaceHeading(e.oldScene ? scriptSceneBlocks(project.scriptDocument, e.oldScene.sceneNumber) : [], currentParts);
     const newLines = replaceHeading(e.newScene ? scriptSceneBlocks(result.script, e.newScene.sceneNumber) : [], newParts);
-    const rows = alignScriptBlocks(current.lines, newLines);
-    // Granular headings: only the changed part(s) are colored (blue = yours,
-    // green = the incoming script's); the heading pair shares one aligned row.
+    const rows = alignScriptBlocks(currentLines, newLines);
+    // Treat the heading as a line too: granular red/green when only part of it
+    // changed, but the WHOLE heading red/green when most/all of it is new.
+    const headingKeys = ['intExt', 'set', 'dayNight'] as const;
+    const present = headingKeys.filter(k => normHeading(currentValues[k]) || normHeading(newValues[k]));
+    const changedKeys = present.filter(k => normHeading(currentValues[k]) !== normHeading(newValues[k]));
+    const headingSim = present.length > 0 ? (present.length - changedKeys.length) / present.length : 1;
+    const wholeHeading = changedKeys.length > 0 && headingSim < WORD_DIFF_MIN_SIMILARITY;
     for (const r of rows) {
-      if (r.left?.type === 'heading') { r.left.tone = 'same'; r.left.parts = current.parts; }
-      if (r.right?.type === 'heading') { r.right.tone = 'same'; r.right.parts = newParts; }
+      if (r.left?.type === 'heading') {
+        r.left.tone = wholeHeading ? 'removed' : 'same';
+        if (!wholeHeading) r.left.parts = currentParts;
+      }
+      if (r.right?.type === 'heading') {
+        r.right.tone = wholeHeading ? 'added' : 'same';
+        if (!wholeHeading) r.right.parts = newParts;
+      }
     }
     // Always a two-column "dual window" — an added/removed scene shows its
-    // content in its own half with the other half blank, never full width.
+    // content in its own half; the empty half keeps its file name but is faded.
     const showLeft = e.status !== 'added';
     const showRight = e.status !== 'removed';
+    const leftName = project.scriptDocument?.name || 'Current script';
+    const rightName = fileName || 'Incoming script';
     const cols = '1fr 1fr';
     return (
       <>
         <div className="rounded-lg border border-zinc-800 bg-zinc-950 overflow-hidden">
           <div className="grid border-b border-zinc-800 text-[10px] font-semibold uppercase tracking-wider text-zinc-500" style={{ gridTemplateColumns: cols }}>
-            <div className="truncate px-4 py-2">{showLeft ? 'Current (your project)' : ''}</div>
-            <div className="truncate border-l border-zinc-800 px-4 py-2">{showRight ? 'Incoming (new script)' : ''}</div>
+            <div className={`truncate px-4 py-2 ${showLeft ? '' : 'opacity-40'}`} title={leftName}>
+              {leftName}
+            </div>
+            <div className={`truncate border-l border-zinc-800 px-4 py-2 ${showRight ? '' : 'opacity-40'}`} title={rightName}>
+              {rightName}
+            </div>
           </div>
           <div ref={diffScrollRef} className="h-[320px] overflow-y-auto">
             {rows.length === 0
@@ -371,8 +394,8 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
                 <div className="grid font-mono text-[12.5px] leading-[1.45] text-zinc-200" style={{ gridTemplateColumns: cols }}>
                   {rows.map((r, i) => (
                     <React.Fragment key={i}>
-                      <div data-review-row={i} data-review-side="left" data-tone={r.left?.tone ?? ''} className="min-w-0 px-4">{showLeft && r.left ? <ScriptBlockLine block={r.left} /> : null}</div>
-                      <div data-review-row={i} data-review-side="right" data-tone={r.right?.tone ?? ''} className="min-w-0 border-l border-zinc-800 px-4">{showRight && r.right ? <ScriptBlockLine block={r.right} /> : null}</div>
+                      <div data-review-row={i} data-review-side="left" data-tone={r.left?.tone ?? ''} className={`min-w-0 px-4 ${showLeft ? '' : 'bg-zinc-900/40'}`}>{showLeft && r.left ? <ScriptBlockLine block={r.left} /> : null}</div>
+                      <div data-review-row={i} data-review-side="right" data-tone={r.right?.tone ?? ''} className={`min-w-0 border-l border-zinc-800 px-4 ${showRight ? '' : 'bg-zinc-900/40'}`}>{showRight && r.right ? <ScriptBlockLine block={r.right} /> : null}</div>
                     </React.Fragment>
                   ))}
                 </div>
@@ -470,9 +493,9 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
   const footer = (
     <ModalFooter>
       <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
-      {view === 'confirm' && (
-        <ModalFooterButton variant="ghost" onClick={() => setView('review')}>
-          <ArrowLeft className="w-3.5 h-3.5" /> Back
+      {view === 'confirm' && history.length > 0 && (
+        <ModalFooterButton variant="ghost" onClick={goBack}>
+          <ArrowLeft className="w-3.5 h-3.5" /> Back<Kbd icon={ArrowLeft} />
         </ModalFooterButton>
       )}
       {view === 'review' && entry && (
@@ -510,20 +533,20 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
             <div className="flex items-center gap-2">
               {history.length > 0 && (
                 <ModalFooterButton variant="ghost" onClick={goBack}>
-                  <ArrowLeft className="w-3.5 h-3.5" /> Previous<Kbd>⌫</Kbd>
+                  <ArrowLeft className="w-3.5 h-3.5" /> Previous<Kbd icon={ArrowLeft} />
                 </ModalFooterButton>
               )}
               <ModalFooterButton variant="ghost" onClick={() => setView('setup')}>Setup…<Kbd>S</Kbd></ModalFooterButton>
             </div>
             <div className="flex items-center gap-2">
               <ModalFooterButton variant="ghost" onClick={() => decideCurrent(OPTIONS[entry.status].keep.decision)}>
-                {OPTIONS[entry.status].keep.label}<Kbd>←</Kbd>
+                {OPTIONS[entry.status].keep.label}<Kbd>Esc</Kbd>
               </ModalFooterButton>
               <ModalFooterButton
                 variant={entry.status === 'removed' ? 'danger-solid' : 'hero'}
                 onClick={() => decideCurrent(OPTIONS[entry.status].accept.decision)}
               >
-                {OPTIONS[entry.status].accept.label}<Kbd>→</Kbd>
+                {OPTIONS[entry.status].accept.label}<Kbd icon={ArrowRight} />
               </ModalFooterButton>
             </div>
           </div>
