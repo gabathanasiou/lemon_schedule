@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { buildNonShootSet, computeRowData } from '../daybreakUtils';
-import { buildReportCtx, resolveCollection, type ReportCtx } from '../reportData';
+import {
+  buildReportCtx,
+  resolveCollection,
+  resolveCollectionItems,
+  ancestorSceneScope,
+  type ReportCtx,
+} from '../reportData';
 
 // Resolver-level coverage for the day-scoped report collections, built from the
 // committed hermetic seed via the SAME pure pipeline the app uses
@@ -100,5 +106,55 @@ describe('resolveCollection — day-scoped call-sheet collections', () => {
     // Always an array; each crew item carries a resolved call time.
     expect(Array.isArray(crew)).toBe(true);
     expect(crew.every(c => typeof c.callTime === 'string')).toBe(true);
+  });
+});
+
+describe('resolveCollectionItems — day-scoped categories', () => {
+  const ctx = buildCtx(seedProject());
+
+  it('returns every category at the top level', () => {
+    const all = resolveCollectionItems(ctx, 'categories', undefined, undefined, undefined);
+    expect(all.length).toBeGreaterThan(0);
+  });
+
+  it('scopes categories to the ones actually used in the ancestor day', () => {
+    const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+    const day = days[0];
+    const scoped = resolveCollectionItems(ctx, 'categories', undefined, day, undefined, {} as any, [day]) as any[];
+    const all = resolveCollectionItems(ctx, 'categories', undefined, undefined, undefined) as any[];
+    expect(scoped.length).toBeGreaterThan(0);
+    expect(scoped.length).toBeLessThanOrEqual(all.length);
+    const dayScenes = resolveCollection(ctx, 'scenesOfDay', undefined, day) as any[];
+    for (const category of scoped) {
+      const used = dayScenes.some(si => ctx.sceneFieldItems(si.scene, category.key).length > 0);
+      expect(used).toBe(true);
+    }
+  });
+});
+
+describe('ancestorSceneScope', () => {
+  const ctx = buildCtx(seedProject());
+
+  it('is null without ancestors (no scoping)', () => {
+    expect(ancestorSceneScope(ctx, undefined)).toBeNull();
+    expect(ancestorSceneScope(ctx, [])).toBeNull();
+  });
+
+  it('is exactly the ancestor day\'s scene ids', () => {
+    const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+    const day = days[0];
+    const scope = ancestorSceneScope(ctx, [day])!;
+    const expected = resolveCollection(ctx, 'scenesOfDay', undefined, day).map((s: any) => s.scene.id);
+    expect([...scope].sort()).toEqual([...expected].sort());
+  });
+
+  it('intersects nested ancestors (day + category ⊂ day)', () => {
+    const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+    const day = days[0];
+    const dayIds = ancestorSceneScope(ctx, [day])!;
+    const category = (resolveCollectionItems(ctx, 'categories', undefined, day, undefined, {} as any, [day]) as any[])[0];
+    const nested = ancestorSceneScope(ctx, [day, category])!;
+    expect(nested.size).toBeLessThanOrEqual(dayIds.size);
+    for (const id of nested) expect(dayIds.has(id)).toBe(true);
   });
 });

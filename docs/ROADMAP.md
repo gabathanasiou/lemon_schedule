@@ -514,11 +514,11 @@ tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→s
   pure `lib/` builder before it can be unit-tested (`crewCatalog`/trash are done).
 - Remaining reducer cases: version/element/category trash channels beyond scenes,
   `BATCH`/undo contract (`debug-bridge` #2–#3 stay e2e as the bridge's API proof).
-- Day-scoped **categories** scoping (`resolveCollectionItems` + ancestors) so
-  `report-smart-counts` can drop its inline logic duplication; `report-lookups` token
-  resolution (`reportFields`) — both are the last MIXED single-test report specs worth
-  converting. NOTE: `computeRowData` is already pure, so no `useDaybreakSections`
-  extraction is needed (the resolver tests build ctx directly from it).
+- `report-lookups` token resolution (`reportFields`) — the last MIXED single-test
+  report spec worth converting. (Day-scoped `categories` scoping via
+  `resolveCollectionItems` + `ancestorSceneScope` is now unit-covered in
+  `reportResolve.test.ts`; `computeRowData` is already pure, so no
+  `useDaybreakSections` extraction is needed.)
 - Extraction first (logic is hook/component-bound): `digit-schedule`
   (`useScheduleKeyboard`), `production-dates` days-off materialization.
 
