@@ -4,6 +4,7 @@ import ScriptTagMenu, { type ScriptTagMenuState } from './ScriptTagMenu';
 import { useProject } from '../../store';
 import { annotationColor } from '../../lib/scriptAnnotations';
 import { annotationCategoryLabel, annotationElementName, attachedRanges, commitTag, detachTag, suggestionRanges, type TagExisting } from '../../lib/scriptTagging';
+import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
 import { normalizeSceneNumber } from '../../lib/script';
 import { usePersistState } from '../../lib/persist';
 import { TEST_IDS } from '../../lib/testIds';
@@ -239,13 +240,27 @@ export function ScriptTagOverlay({ tagging, project }: { tagging: ScriptTaggingA
     const a = hovered.annotation;
     const name = annotationElementName(project, a);
     const diverged = name.trim().toUpperCase() !== a.text.trim().toUpperCase();
-    return (
-      <div data-testid={TEST_IDS.scriptTagBadge} className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/95 px-2.5 py-1.5 text-[11px] text-zinc-200 shadow-2xl backdrop-blur-md">
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: annotationColor(a.category) }} />
+    const custom = (project.customCategories || []).find(c => c.key === a.category);
+    const Icon = custom ? getCustomIcon(custom.icon || 'Tag') : (CAT_ICONS[a.category] || null);
+    const detail = (
+      <span className="flex items-center gap-1.5">
+        {Icon && <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: annotationColor(a.category) }} />}
         <span className="font-semibold">{annotationCategoryLabel(project, a.category)}</span>
         <span className="text-zinc-500">·</span>
         <span>{name}</span>
         {diverged && <span className="text-zinc-400">script: “{a.text}”</span>}
+      </span>
+    );
+    return (
+      <div data-testid={TEST_IDS.scriptTagBadge} className="rounded-lg border border-zinc-800 bg-zinc-950/95 px-2.5 py-1.5 text-[11px] text-zinc-200 shadow-2xl backdrop-blur-md">
+        {a.recognized
+          ? (
+            <span className="flex flex-col gap-0.5">
+              <span className="font-semibold text-amber-400">Maybe:</span>
+              {detail}
+            </span>
+          )
+          : detail}
       </div>
     );
   })();
