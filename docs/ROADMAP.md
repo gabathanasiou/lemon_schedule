@@ -504,6 +504,7 @@ writes, dangling-ref prune) and `sceneDuplicates.test.ts` (coverage/plain/split 
 `crewCatalog.test.ts` (role→category resolution, department grouping, catalog reorder)
 and `sceneTrash.test.ts` (ADD_SCENE row invariant + scene trash delete/restore/empty);
 `reportFields.test.ts` (token/lookup composition + parse round-trips, item affixes);
+`trashChannels.test.ts` (version + element trash delete/restore, cast permanent-delete);
 day-scoped `categories` scoping + `ancestorSceneScope` in `reportResolve.test.ts`;
 `docs/TESTING.md` pyramid section corrected (it still claimed "no unit runner"), and the
 manual-verification policy (visually-checkable changes get NO e2e — hand the user a
@@ -512,8 +513,8 @@ Suite runs now print total wall time via `scripts/pw-duration-reporter.mjs`; wor
 tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→saturates CPU).
 
 **Next (ranked, lowest extraction cost first)**:
-- Reducer cases: version/element/category trash channels beyond scenes, `BATCH`/undo
-  contract (`debug-bridge` #2–#3 stay e2e as the bridge's API proof).
+- Reducer cases: custom-category trash channel, `BATCH`/undo contract (`debug-bridge`
+  #2–#3 stay e2e as the bridge's API proof).
 - Extraction first (logic is hook/component-bound): `dayView` (assembly inside
   `useDayViews`), `digit-schedule` (`useScheduleKeyboard`), `production-dates` days-off
   materialization (`ProductionDatesModal`).
