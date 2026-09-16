@@ -1,5 +1,6 @@
 import { Project, ScheduleVersion, ScheduleRow } from '../types';
 import { generateUUID } from './utils';
+import { crewPeopleById } from './dayCrew';
 
 export interface LegacyMigrationResult {
   project: Project;
@@ -157,6 +158,63 @@ function migrateLegacyVersion(v: ScheduleVersion): ScheduleVersion {
   delete (v as any).legacy;
 
   return { ...v, rows: newRows };
+}
+
+/**
+ * Item 146: convert legacy person-keyed day crew (`crewIds`/`crewCalls`) and the
+ * usual-crew template (`crewTemplate.crewIds`) into slot lists
+ * (`crewSlots` / `crewTemplate.slots`). Idempotent; returns true when anything
+ * changed. Runs on local load AND cloud reads — the notice-free companion to
+ * `migrateLegacyProject` (crew migration is not a "legacy project" event).
+ */
+export function migrateCrewSlots(project: Project): boolean {
+  let changed = false;
+  const byId = crewPeopleById(project);
+
+  for (const v of project.versions || []) {
+    for (const row of v.rows || []) {
+      const meta = row.daybreakMeta;
+      if (!meta) continue;
+      const hasLegacy = !!(meta.crewIds?.length || meta.crewCalls?.length);
+      if (meta.crewSlots) {
+        // Already materialized — just drop any legacy leftovers.
+        if (hasLegacy) {
+          delete meta.crewIds;
+          delete meta.crewCalls;
+          changed = true;
+        }
+        continue;
+      }
+      if (!hasLegacy) continue;
+      const ids = meta.crewIds && meta.crewIds.length > 0 ? meta.crewIds : [...byId.keys()];
+      const callById = new Map((meta.crewCalls || []).map(c => [c.personId, c.callTime]));
+      const slots = ids.flatMap(pid => {
+        const entry = byId.get(pid);
+        if (!entry) return [];
+        const call = callById.get(pid);
+        return [{ id: generateUUID(), role: entry.roleKey, personId: pid, ...(call ? { callTime: call } : {}) }];
+      });
+      if (slots.length > 0) meta.crewSlots = slots;
+      delete meta.crewIds;
+      delete meta.crewCalls;
+      changed = true;
+    }
+  }
+
+  const template = project.crewTemplate;
+  if (template?.crewIds) {
+    if (!template.slots) {
+      const slots = template.crewIds.flatMap(pid => {
+        const entry = byId.get(pid);
+        return entry ? [{ id: generateUUID(), role: entry.roleKey, personId: pid }] : [];
+      });
+      if (slots.length > 0) template.slots = slots;
+    }
+    delete template.crewIds;
+    changed = true;
+  }
+
+  return changed;
 }
 
 export function migrateLegacyProject(project: Project): LegacyMigrationResult {

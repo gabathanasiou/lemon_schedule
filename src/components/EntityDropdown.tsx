@@ -341,6 +341,15 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     }
   }, [open]);
 
+  // Spreadsheet cell editor (defaultOpen/autoFocus): select the current value
+  // on open so typing REPLACES it (the single-select contract, like Set cells).
+  useEffect(() => {
+    if (!open || mode !== 'single' || wrapValue || variant === 'chip') return;
+    const el = ref.current?.querySelector('input') as HTMLInputElement | null;
+    if (!el || document.activeElement !== el) return;
+    el.setSelectionRange(0, el.value.length);
+  }, [open, mode, wrapValue, variant]);
+
   useLayoutEffect(() => {
     if (highlightedIndex < 0 || !panelRef.current) return;
     const btn = panelRef.current.querySelector(`[data-ei="${highlightedIndex}"]`) as HTMLElement;

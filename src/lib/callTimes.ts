@@ -50,21 +50,23 @@ export function resolveCallExpression(raw: string | undefined | null, anchor: st
 }
 
 /**
- * One crew call-time resolution for a day: an explicit per-person override
- * wins, else the department precall, else the day's general call itself
- * (roadmap 106). Relative expressions resolve against the day call.
+ * One crew slot's call time for a day (item 146). The chain is:
+ *   day call → department pre-call resolves against it = DEPARTMENT call
+ *            → the slot override resolves against the department call.
+ * A missing / invalid department pre-call leaves the day call as the anchor;
+ * an explicit `noCall` is handled by the caller (`resolveSlotCall`).
  */
 export function resolveCrewCall(
   override: string | null | undefined,
   precall: string | null | undefined,
   dayCall: string,
 ): string {
+  const deptCall = resolveCallExpression(precall, dayCall) || dayCall;
   if (override) {
-    const t = resolveCallExpression(override, dayCall);
+    const t = resolveCallExpression(override, deptCall);
     if (t) return t;
   }
-  const p = resolveCallExpression(precall, dayCall);
-  return p || dayCall;
+  return deptCall;
 }
 
 export const DEFAULT_CALL_STAGES: CallStageDef[] = [

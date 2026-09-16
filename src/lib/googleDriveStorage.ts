@@ -1,6 +1,7 @@
 import type { ProjectMeta } from '../store';
 import type { Project } from '../types';
 import { pruneVersionTrash, pruneCalendarVersionTrash } from '../store/storage';
+import { migrateCrewSlots } from './legacyMigration';
 
 export function getDriveErrorStatus(err: unknown): number | null {
   const msg = err instanceof Error ? err.message : String(err ?? '');
@@ -279,6 +280,8 @@ export async function readDriveProject(
   if (Array.isArray(project.calendarVersionTrash)) {
     project.calendarVersionTrash = pruneCalendarVersionTrash(project.calendarVersionTrash);
   }
+  // Item 146: person-keyed crew → slot lists, same as local loads.
+  migrateCrewSlots(project);
   return project;
 }
 

@@ -104,14 +104,19 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     id: 'crew',
     title: 'Crew',
     icon: <CrewIcon className="w-3.5 h-3.5" />,
-    summary: day => day.crew.length > 0 ? `${day.crew.length} crew` : 'Full roster',
+    summary: day => {
+      const n = day.crew.length;
+      const depts = day.crewGroups.filter(g => !g.excluded && g.slots.some(s => s.personId)).length;
+      return n > 0 ? `${n} crew · ${depts} dept${depts !== 1 ? 's' : ''}` : 'Template';
+    },
     Component: CrewSection,
     copyable: true,
     copyMode: 'replace',
     extract: day => {
       const patch = {
-        ...(day.meta.crewIds && day.meta.crewIds.length ? { crewIds: day.meta.crewIds } : {}),
-        ...(day.meta.crewCalls && day.meta.crewCalls.length ? { crewCalls: day.meta.crewCalls } : {}),
+        ...(day.meta.crewSlots ? { crewSlots: day.meta.crewSlots } : {}),
+        ...(day.meta.excludedCrewDepts ? { excludedCrewDepts: day.meta.excludedCrewDepts } : {}),
+        ...(day.meta.departmentPrecalls ? { departmentPrecalls: day.meta.departmentPrecalls } : {}),
       };
       return Object.keys(patch).length ? patch : undefined;
     },

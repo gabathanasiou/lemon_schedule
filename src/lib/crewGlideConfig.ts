@@ -1,3 +1,4 @@
+import React from 'react';
 import type { Item } from '@glideapps/glide-data-grid';
 import type { Project, CrewPerson } from '../types';
 import { generateUUID } from './utils';
@@ -13,6 +14,19 @@ import {
 import { resolveRoleKey, parseCrewCSV, commitCrewImport, exportCrewCSV, type CrewCsvImportResult } from './crewGlide';
 import { resolveRoleCategories } from './crewCatalog';
 import { ELEMENT_CATEGORIES, getLabel } from './categories';
+import { CrewLinksButton } from '../components/crew/CrewLinksButton';
+
+/** Item 147 — every attachable element category (built-ins + customs) as the
+ *  `Element Categories` column's multi-select options. Attach-only. */
+function elementCategoryItems(project: Project): { id: string; name: string }[] {
+  return [
+    ...ELEMENT_CATEGORIES.map(c => {
+      const label = getLabel(c.key, c.label, project.categoryLabels);
+      return { id: label, name: label };
+    }),
+    ...(project.customCategories || []).map(c => ({ id: c.label, name: c.label })),
+  ];
+}
 
 /** Flattens the crew store into generic glide rows in FLAT display order
  *  (`project.crewOrder` — insertion order by default, manual sorts rewrite it).
@@ -167,7 +181,7 @@ export const crewGlideConfig: GlideShellConfig = {
     { key: 'actions', label: '', width: 36 },
     { key: 'name', label: 'Name', width: 200 },
     { key: 'role', label: 'Role', width: 160, kind: 'category', clearable: false, placeholder: 'Role' },
-    { key: 'categories', label: 'Element Categories', width: 220, placeholder: 'Category, Category', multiValue: true },
+    { key: 'categories', label: 'Element Categories', width: 220, placeholder: 'Category, Category', multiValue: true, entityItems: elementCategoryItems },
     { key: 'phone', label: 'Phone', width: 130, align: 'right' },
     { key: 'email', label: 'Email', width: 220 },
   ],
@@ -202,4 +216,5 @@ export const crewGlideConfig: GlideShellConfig = {
     exportNoun: 'Crew',
     goToManager: row => `Go to Crew Manager → ${row.categoryLabel}`,
   },
+  renderHeaderActions: ({ readOnly }) => React.createElement(CrewLinksButton, { readOnly }),
 };

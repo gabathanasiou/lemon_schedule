@@ -156,10 +156,31 @@ export interface ElementCallTimes {
 }
 
 /** A crew member attached to a specific day, with an optional call-time
- *  override. The person's stable id references `project.crew`. */
+ *  override. The person's stable id references `project.crew`.
+ *  @deprecated item 146 — superseded by {@link DayCrewSlot}; kept only so the
+ *  migration can read old saves. New writes go to `DayMeta.crewSlots`. */
 export interface DayCrewCall {
   personId: string;
   callTime?: string;
+  note?: string;
+}
+
+/** One crew slot on a day (or in the project crew template) — a role with an
+ *  optional assigned person and an optional call override. The call travels
+ *  with the SLOT, not the person, so switching the assigned person keeps it.
+ *  The ONE owner of the read/write helpers is `src/lib/dayCrew.ts`. */
+export interface DayCrewSlot {
+  id: string;
+  /** Crew role key (`project.crewRoles`). */
+  role: string;
+  /** Assigned crew person id; undefined = unfilled slot. */
+  personId?: string;
+  /** Call override (absolute `7:30` or relative `-1h`), anchored on the
+   *  DEPARTMENT call (the dept pre-call resolved against the day call). */
+  callTime?: string;
+  /** Explicitly no call — wins over the department / day call (blank box). */
+  noCall?: boolean;
+  /** Optional free note carried to the call sheet. */
   note?: string;
 }
 
@@ -173,10 +194,18 @@ export interface DayMeta {
   locationIds?: string[];
   /** Day notes / announcements (fed to call sheets). */
   note?: string;
-  /** Day crew (crew person ids). Empty/undefined = full roster. */
+  /** Day crew (crew person ids). Empty/undefined = full roster.
+   *  @deprecated item 146 — superseded by `crewSlots`. */
   crewIds?: string[];
-  /** Per-person call overrides / notes for this day (item 99). */
+  /** Per-person call overrides / notes for this day (item 99).
+   *  @deprecated item 146 — superseded by `crewSlots`. */
   crewCalls?: DayCrewCall[];
+  /** Item 146: the day's crew roster as department/role slots. Undefined =
+   *  inherit the project crew template (which itself derives from the roster
+   *  when unset). */
+  crewSlots?: DayCrewSlot[];
+  /** Item 146: departments excluded from this day's call sheet. */
+  excludedCrewDepts?: string[];
   /** Department key → call-time expression (absolute or relative). */
   departmentPrecalls?: Record<string, string>;
   /** category → element key → call times (item 99). */
@@ -574,10 +603,17 @@ export interface CallTimeSettings {
   categoryStages: Record<string, string[]>;
 }
 
-/** Project-level usual-crew template (item 99): the fallback day crew and
- *  department precalls when a day has no explicit `crewIds`. */
+/** Project-level crew template (item 99, rebuilt by item 146): the default
+ *  day arrangement. `slots` is the full department/role/person arrangement
+ *  every day inherits until it is customized; `departmentPrecalls` are the
+ *  project default department anchors; `excludedCrewDepts` are whole
+ *  departments omitted from every call sheet by default. When `slots` is
+ *  unset it derives from the roster (one slot per role, first person). */
 export interface CrewTemplate {
+  /** @deprecated item 146 — superseded by `slots`. */
   crewIds?: string[];
+  slots?: DayCrewSlot[];
+  excludedCrewDepts?: string[];
   departmentPrecalls?: Record<string, string>;
 }
 

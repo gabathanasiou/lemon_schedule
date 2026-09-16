@@ -55,6 +55,10 @@ export interface GlideColumnDef {
   /** Comma-list column: a range fill replaces each row's whole list, so it
    *  confirms first (roadmap 144). */
   multiValue?: boolean;
+  /** Item 147 — when present, the column edits as a multi-select entity
+   *  dropdown over these items (labels); the committed value stays the
+   *  comma-joined label list. */
+  entityItems?: (project: Project) => { id: string; name: string }[];
 }
 
 /** A flat grid row. `categoryKey`/`categoryLabel` anchor the category column
@@ -117,6 +121,8 @@ export interface GlideShellConfig {
     exportNoun: string;
     goToManager(row: GlideRow): string;
   };
+  /** Optional extra header actions (item 148 — Crew Glide → Links). */
+  renderHeaderActions?: (ctx: { dispatch: (action: any) => void; readOnly: boolean; project: Project }) => React.ReactNode;
 }
 
 const SPARE_ROWS = 5;
@@ -205,10 +211,14 @@ export const GlideGridShell: React.FC<{
     for (const c of config.columnDefs) {
       if (c.kind === 'category') {
         editors[c.key] = { kind: 'entity', mode: 'single', displayMode: 'name', items: categoryItems, placeholder: c.placeholder || c.label, keepAlphabetical: true };
+      } else if (c.entityItems) {
+        // Item 147 — multi-select autocomplete (e.g. a crew role's element
+        // categories). Committed value = the comma-joined label list.
+        editors[c.key] = { kind: 'entity', mode: 'multi', displayMode: 'name', items: c.entityItems(project), placeholder: c.placeholder || c.label };
       }
     }
     return editors;
-  }, [config.columnDefs, categoryItems]);
+  }, [config.columnDefs, categoryItems, project]);
 
   const provideEditor = useMemo(() => createGlideCellEditor({
     readOnlyRef,
@@ -558,9 +568,11 @@ export const GlideGridShell: React.FC<{
   const [infoOpen, setInfoOpen] = useState(false);
 
   const infoCounts = useMemo(() => config.labels.infoCounts(rows, project), [config, rows, project]);
+  const headerActions = config.renderHeaderActions?.({ dispatch, readOnly, project });
 
   const headerContent = (
     <div className="flex items-center justify-end gap-1">
+      {headerActions}
       <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-52" theme="light"
         trigger={
           <Button>

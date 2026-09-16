@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateLegacyCastMirror, migrateLegacyProject } from '../legacyMigration';
+import { migrateLegacyCastMirror, migrateLegacyProject, migrateCrewSlots } from '../legacyMigration';
 
 /** Minimal cast-bearing project shape (the functions only touch these fields). */
 function castProject(castMembers: any[], mirror: any): any {
@@ -95,5 +95,44 @@ describe('migrateLegacyProject', () => {
     const result = migrateLegacyProject(project);
     expect(result.migrated).toBe(false);
     expect(result.versionCount).toBe(0);
+  });
+});
+
+describe('migrateCrewSlots', () => {
+  function crewProject(): any {
+    return {
+      crewRoles: [{ key: 'secondAC', label: '2nd AC' }],
+      crew: { secondAC: [{ id: 'bob', name: 'Bob' }] },
+      versions: [{
+        id: 'v1', name: 'v01', createdAt: 0, updatedAt: 0,
+        rows: [{
+          id: 'db1', type: 'DAYBREAK', containerId: 1, order: 0,
+          daybreakMeta: { crewIds: ['bob'], crewCalls: [{ personId: 'bob', callTime: '-1h' }] },
+        }],
+      }],
+    };
+  }
+
+  it('materializes legacy day crew into slots and drops the legacy fields', () => {
+    const p = crewProject();
+    expect(migrateCrewSlots(p)).toBe(true);
+    const meta = p.versions[0].rows[0].daybreakMeta;
+    expect(meta.crewIds).toBeUndefined();
+    expect(meta.crewCalls).toBeUndefined();
+    expect(meta.crewSlots).toHaveLength(1);
+    expect(meta.crewSlots[0]).toMatchObject({ role: 'secondAC', personId: 'bob', callTime: '-1h' });
+  });
+
+  it('converts the usual-crew template', () => {
+    const p: any = { ...crewProject(), crewTemplate: { crewIds: ['bob'] } };
+    expect(migrateCrewSlots(p)).toBe(true);
+    expect(p.crewTemplate.crewIds).toBeUndefined();
+    expect(p.crewTemplate.slots[0]).toMatchObject({ role: 'secondAC', personId: 'bob' });
+  });
+
+  it('is idempotent', () => {
+    const p = crewProject();
+    expect(migrateCrewSlots(p)).toBe(true);
+    expect(migrateCrewSlots(p)).toBe(false);
   });
 });

@@ -108,7 +108,7 @@ test.describe('Report grid blocks (items 111/112)', () => {
     if (stage) await expect(preview.getByText(stage, { exact: true }).first()).toBeVisible({ timeout: 8000 });
   });
 
-  test('crew table block renders and edits crewCalls in Call Sheet → Edit', async ({ page }) => {
+  test('crew table block renders and edits crew slot calls in Call Sheet → Edit', async ({ page }) => {
     await seedGrid(page);
     await gotoDayManager(page);
     await openCallSheetEdit(page);
@@ -134,11 +134,11 @@ test.describe('Report grid blocks (items 111/112)', () => {
     }, undefined, { timeout: 5000 });
 
     const box = (await scroller.boundingBox())!;
-    // Name 120 · Role 90 · Call 90 → the Call column center.
-    const total = 300;
+    // Name 140 · Role 110 · Call 90 → the Call column center.
+    const total = 340;
     const target = Math.max(120, Math.floor(box.width) - 1);
-    const nameW = Math.max(40, Math.floor((120 / total) * target));
-    const roleW = Math.max(40, Math.floor((90 / total) * target));
+    const nameW = Math.max(40, Math.floor((140 / total) * target));
+    const roleW = Math.max(40, Math.floor((110 / total) * target));
     const callW = Math.max(40, target - nameW - roleW);
     const x = box.x + nameW + roleW + callW / 2;
     const y = box.y + 30 + 14;
@@ -156,8 +156,8 @@ test.describe('Report grid blocks (items 111/112)', () => {
       const p = b.getProject();
       const v = p.versions.find((x: any) => x.id === p.activeVersionId);
       const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
-      const calls = gov?.daybreakMeta?.crewCalls || [];
-      return calls.length > 0 && calls[0].callTime === '-30m';
+      const slots = gov?.daybreakMeta?.crewSlots || [];
+      return slots.some((s: any) => s.callTime === '-30m');
     }), { timeout: 5000 }).toBe(true);
   });
 

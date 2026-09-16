@@ -1,29 +1,41 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { AlertTriangle, UsersRound } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
-import GroupedSelect, { GroupedSelectItem } from '../GroupedSelect';
-import CrewTableGlide from '../CrewTableGlide';
+import CrewRosterEditor from '../CrewRosterEditor';
+import { excludedDeptsForDay, slotsForDay } from '../../../../lib/dayCrew';
 import { crewLinkWarnings, crewNameMap, targetLabelForLink } from '../../../../lib/crewLinks';
+import Button from '../../../Button';
 
 /**
- * Crew (item 99/101/106): attach the day's crew, then set per-person call-time
- * overrides in the same inline Glide grid the Call Times section uses. The grid
- * itself is `CrewTableGlide` — the shared surface the call-sheet Crew Table
- * report block also renders (item 112).
+ * Crew (item 146): the day's crew roster as department blocks — one slot per
+ * role, a person dropdown, a call box that survives switching the person, a
+ * department include toggle and pre-call anchor, and Add role / Add crew
+ * member. Writes `daybreakMeta.crewSlots` / `excludedCrewDepts` /
+ * `departmentPrecalls`; the effective list derives from the project template
+ * until the day is customized.
  */
 const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly, actions }) => {
-  const crewRoles = project.crewRoles || [];
-  const crew = project.crew || {};
   const template = project.crewTemplate || {};
-  const explicit = day.meta.crewIds || [];
 
-  const items: GroupedSelectItem[] = useMemo(() => {
-    const out: GroupedSelectItem[] = [];
-    for (const role of crewRoles) {
-      for (const p of crew[role.key] || []) out.push({ id: p.id, name: p.name, group: role.label });
-    }
-    return out;
-  }, [crewRoles, crew]);
+  const slots = useMemo(() => day.meta.crewSlots ?? slotsForDay(project, day.meta), [day.meta, project]);
+  const excluded = useMemo(() => excludedDeptsForDay(project, day.meta), [day.meta, project]);
+  const effectivePrecalls = useMemo(
+    () => ({ ...(template.departmentPrecalls || {}), ...(day.meta.departmentPrecalls || {}) }),
+    [template.departmentPrecalls, day.meta.departmentPrecalls],
+  );
+
+  const setDeptPrecall = useCallback((dept: string, expr: string) => {
+    const next = { ...(day.meta.departmentPrecalls || {}) };
+    const value = expr.trim();
+    if (value) next[dept] = value; else delete next[dept];
+    patchMeta({ departmentPrecalls: Object.keys(next).length ? next : undefined });
+  }, [day.meta.departmentPrecalls, patchMeta]);
+
+  const applyTemplate = useCallback(() => {
+    patchMeta({ crewSlots: undefined, excludedCrewDepts: undefined, departmentPrecalls: undefined });
+  }, [patchMeta]);
+
+  const hasCustomization = !!(day.meta.crewSlots || day.meta.excludedCrewDepts || day.meta.departmentPrecalls);
 
   const warnings = useMemo(() => {
     const dayCrewIds = new Set(day.crew.map(c => c.person.id));
@@ -41,20 +53,15 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
   }, [day, project]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-crew-section data-crew-calls>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-500 w-24 shrink-0">Day crew</span>
-        <GroupedSelect
-          className="flex-1 min-w-0"
-          items={items}
-          mode="multi"
-          selectedIds={explicit}
-          disabled={readOnly}
-          placeholder="Full roster"
-          onChange={ids => patchMeta({ crewIds: ids.length ? ids : undefined })}
-        />
-        {!readOnly && template.crewIds && template.crewIds.length > 0 && (
-          <button type="button" onClick={() => patchMeta({ crewIds: template.crewIds })} className="text-xs font-medium text-zinc-600 hover:text-zinc-900 shrink-0">Use usual crew</button>
+        <span className="text-xs text-zinc-500 flex-1">
+          {day.crew.length > 0 ? `${day.crew.length} crew across ${day.crewGroups.filter(g => !g.excluded).length} departments` : 'No crew assigned'}
+        </span>
+        {!readOnly && hasCustomization && (
+          <Button variant="subtle" onClick={applyTemplate} title="Reset this day to the project crew template">
+            Apply template
+          </Button>
         )}
       </div>
 
@@ -69,13 +76,21 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
         </div>
       )}
 
-      {day.crew.length === 0 ? (
-        <p className="text-xs text-zinc-400">No crew attached and no roster yet.</p>
-      ) : (
-        <div className="rounded-lg border border-zinc-200 overflow-hidden bg-white" data-crew-calls>
-          <CrewTableGlide day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={actions.openCallTimesSettings} />
-        </div>
-      )}
+      <CrewRosterEditor
+        dataAttr="data-crew-roster"
+        slots={slots}
+        excludedDepts={excluded}
+        effectivePrecalls={effectivePrecalls}
+        templatePrecalls={template.departmentPrecalls || {}}
+        dayCall={day.callTime}
+        project={project}
+        readOnly={readOnly}
+        onSlotsChange={next => patchMeta({ crewSlots: next })}
+        onExcludedChange={next => patchMeta({ excludedCrewDepts: next.length ? next : undefined })}
+        onDeptPrecallChange={setDeptPrecall}
+        onAddCrewMember={() => actions.openAddCrewMember?.()}
+        onCreatePerson={(role, name, slotId) => actions.openAddCrewMember?.({ role, name, slotId })}
+      />
     </div>
   );
 };

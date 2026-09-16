@@ -1,7 +1,8 @@
-import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, ElementCallTimes } from '../types';
-import { crewDepartmentOf, resolveRoleCategories } from './crewCatalog';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, ElementCallTimes } from '../types';
+import { resolveRoleCategories } from './crewCatalog';
 import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, CrewLinkWarning } from './crewLinks';
-import { computeElementCallChain, getCallTimeSettings, resolveCrewCall, resolveCallExpression, ResolvedCall } from './callTimes';
+import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, ResolvedCall } from './callTimes';
+import { crewPeopleById, departmentOfRole, groupSlotsByDept, resolveSlotCall, slotsForDay } from './dayCrew';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
@@ -170,9 +171,17 @@ export interface ReportDayInfo {
   sceneLocations?: string[];
   /** Day notes / announcements from `daybreakMeta` (item 99 `dayNotes` field). */
   note?: string;
-  /** Day crew (crew person ids; empty = full roster / usual-crew template). */
+  /** Day crew (crew person ids; empty = full roster / usual-crew template).
+   *  @deprecated item 146 — superseded by `crewSlots`. */
   crewIds?: string[];
+  /** @deprecated item 146 — superseded by `crewSlots`. */
   crewCalls?: DayCrewCall[];
+  /** Item 146 — the day's crew roster as slots (undefined = inherit template). */
+  crewSlots?: DayCrewSlot[];
+  /** Item 146 — departments excluded from this day's call sheet. */
+  excludedCrewDepts?: string[];
+  /** Item 146 — day-level department pre-call overrides. */
+  departmentPrecalls?: Record<string, string>;
   /** Per-element call overrides from `daybreakMeta` (item 99 elementCallsOfDay). */
   elementCalls?: Record<string, Record<string, ElementCallTimes>>;
   /** The day's breaks/notes with their call-sheet inclusion flag. */
@@ -242,6 +251,8 @@ export interface ReportCrewItem {
   email?: string;
   /** Resolved day call time (crewOfDay only — override or department precall). */
   callTime?: string;
+  /** Department (crewOfDay only, item 146) — for department-grouped tables. */
+  department?: string;
   /** Elements this person is explicitly linked to (roadmap 11) — comma list of
    *  display names ("1. FISHERMAN"). */
   linkedElements?: string;
@@ -619,6 +630,9 @@ export function buildReportCtx(
       note: gov?.daybreakMeta?.note,
       crewIds: gov?.daybreakMeta?.crewIds,
       crewCalls: gov?.daybreakMeta?.crewCalls,
+      crewSlots: gov?.daybreakMeta?.crewSlots,
+      excludedCrewDepts: gov?.daybreakMeta?.excludedCrewDepts,
+      departmentPrecalls: gov?.daybreakMeta?.departmentPrecalls,
       elementCalls: gov?.daybreakMeta?.elementCalls,
       breaks,
       notes,
@@ -962,17 +976,40 @@ export function resolveCollection(
     case 'crewOfDay': {
       const day = parentItem as ReportDayInfo | undefined;
       if (!day) return [];
-      const explicit = day.crewIds && day.crewIds.length > 0 ? day.crewIds : (ctx.project.crewTemplate?.crewIds || []);
-      const overrideById = new Map((day.crewCalls || []).map(c => [c.personId, c.callTime]));
-      return ctx.crewItems
-        .filter(c => explicit.length === 0 || explicit.includes(c.id))
-        .map(c => {
-          const dept = crewDepartmentOf(c.roleKey);
-          const precall = (dept ? ctx.project.crewTemplate?.departmentPrecalls?.[dept] : undefined);
-          // Per-person override wins; else the department precall resolved
-          // against the day's general call; else the day's general call itself.
-          return { ...c, callTime: resolveCrewCall(overrideById.get(c.id), precall, day.callTime) };
-        });
+      const meta: DayMeta = {
+        crewSlots: day.crewSlots,
+        excludedCrewDepts: day.excludedCrewDepts,
+        departmentPrecalls: day.departmentPrecalls,
+        crewIds: day.crewIds,
+        crewCalls: day.crewCalls,
+      };
+      const groups = groupSlotsByDept(ctx.project, meta, slotsForDay(ctx.project, meta), day.callTime);
+      const byPerson = new Map(ctx.crewItems.map(c => [c.id, c]));
+      const byId = crewPeopleById(ctx.project);
+      const out: ReportCrewItem[] = [];
+      for (const group of groups) {
+        if (group.excluded) continue;
+        for (const slot of group.slots) {
+          if (!slot.personId) continue;
+          const entry = byId.get(slot.personId);
+          if (!entry) continue;
+          const base = byPerson.get(slot.personId);
+          out.push({
+            roleKey: slot.role,
+            id: slot.personId,
+            role: base?.role || slot.role,
+            name: entry.person.name,
+            phone: base?.phone ?? entry.person.phone,
+            email: base?.email ?? entry.person.email,
+            department: group.dept,
+            linkedElements: base?.linkedElements,
+            linkedCrew: base?.linkedCrew,
+            // Slot override anchored on the department call (item 146).
+            callTime: resolveSlotCall(slot, group.precall, day.callTime),
+          });
+        }
+      }
+      return out;
     }
     case 'elementCallsOfDay': {
       const day = parentItem as ReportDayInfo | undefined;
@@ -1012,17 +1049,21 @@ export function resolveCollection(
     case 'departmentCallsOfDay': {
       const day = parentItem as ReportDayInfo | undefined;
       if (!day) return [];
-      const precalls = ctx.project.crewTemplate?.departmentPrecalls || {};
+      const templatePrecalls = ctx.project.crewTemplate?.departmentPrecalls || {};
+      const dayPrecalls = day.departmentPrecalls || {};
       const crew = resolveCollection(ctx, 'crewOfDay', undefined, day, undefined) as ReportCrewItem[];
       const depts: string[] = [];
       for (const c of crew) {
-        const dept = crewDepartmentOf(c.roleKey);
+        const dept = c.department || departmentOfRole(ctx.project, c.roleKey);
         if (dept && !depts.includes(dept)) depts.push(dept);
       }
-      for (const dept of Object.keys(precalls)) {
+      for (const dept of Object.keys({ ...templatePrecalls, ...dayPrecalls })) {
         if (!depts.includes(dept)) depts.push(dept);
       }
-      return depts.map(dept => ({ key: dept, label: dept, callTime: resolveCallExpression(precalls[dept], day.callTime) || undefined }));
+      return depts.map(dept => {
+        const expr = dayPrecalls[dept] ?? templatePrecalls[dept] ?? '';
+        return { key: dept, label: dept, callTime: resolveCallExpression(expr, day.callTime) || undefined };
+      });
     }
     case 'locationsOfDay': {
       const day = parentItem as ReportDayInfo | undefined;

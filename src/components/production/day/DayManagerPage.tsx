@@ -5,6 +5,7 @@ import CallTimesSettingsModal from './CallTimesSettingsModal';
 import { useProject } from '../../../store';
 import { useDayViews, type DayView } from '../../../lib/dayView';
 import { patchDayMeta } from '../../../lib/dayMeta';
+import { assignSlotPerson, slotsForDay } from '../../../lib/dayCrew';
 import { rulesRelevantToDay } from '../../../lib/rulesEngine';
 import { IS_COARSE } from '../../../lib/device';
 import { usePersistState } from '../../../lib/persist';
@@ -16,6 +17,7 @@ import { DayEventsModal } from '../../calendar/DayEventsModal';
 import { EventAdderModal } from '../../calendar/EventAdderModal';
 import CopyDayModal from './CopyDayModal';
 import CallSheetEditPage from './CallSheetEditPage';
+import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
 import { findCallSheetZone } from '../../../lib/reportBlocks';
 import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../types';
 
@@ -63,6 +65,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const [editCallSheet, setEditCallSheet] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [callTimesOpen, setCallTimesOpen] = useState(false);
+  // null = closed; object = open (optionally with role/name/slot prefilled).
+  const [addCrew, setAddCrew] = useState<{ role?: string; name?: string; slotId?: string } | null>(null);
 
   const selected = useMemo(() => {
     if (initialDayIndex != null && byIndex.has(initialDayIndex)) return byIndex.get(initialDayIndex)!;
@@ -134,6 +138,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     openEvents: date => setEventsDate(date),
     addEvents: date => setAdderDate(date),
     openCallTimesSettings: () => setCallTimesOpen(true),
+    openAddCrewMember: opts => setAddCrew(opts ?? {}),
     callSheetDesignId: callSheetDesign?.id || '',
     selectCallSheetDesign: id => setPrefs(p => ({ ...p, callSheetDesignId: id })),
   }), [onOpenScene, callSheetDesign?.id, setPrefs]);
@@ -343,6 +348,18 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       {copyOpen && <CopyDayModal target={selected} days={days} onClose={() => setCopyOpen(false)} />}
       {detailsOpen && <ProductionDetailsModal onClose={() => setDetailsOpen(false)} />}
       {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
+      {addCrew && (
+        <AddCrewMemberModal
+          defaultRole={addCrew.role}
+          defaultName={addCrew.name}
+          onClose={() => setAddCrew(null)}
+          onCreated={personId => {
+            if (!addCrew.slotId || !selected?.daybreakRow) return;
+            const slots = selected.meta.crewSlots ?? slotsForDay(project, selected.meta);
+            patchMeta({ crewSlots: assignSlotPerson(slots, addCrew.slotId, personId) });
+          }}
+        />
+      )}
     </div>
   );
 };

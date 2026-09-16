@@ -29,7 +29,7 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     await expect(modal.getByRole('button', { name: 'Call stages' })).toBeVisible();
     await expect(modal.getByRole('button', { name: 'Category defaults' })).toBeVisible();
     await expect(modal.getByRole('button', { name: 'Department precalls' })).toBeVisible();
-    await expect(modal.getByRole('button', { name: 'Usual crew' })).toBeVisible();
+    await expect(modal.getByRole('button', { name: 'Crew template' })).toBeVisible();
 
     // Stage list is the contained Import-style table (default: 5 stages).
     await expect(modal.locator('table tbody tr')).toHaveCount(5);
@@ -88,12 +88,12 @@ test.describe('Day call times + crew (roadmap 99)', () => {
 
   test('crew call override writes through the shared day-meta path', async ({ page }) => {
     await openDayManager(page);
-    const crew = await expand(page, 'crew', '[data-crew-calls]');
-    const scroller = crew.locator('[data-crew-calls] .dvn-scroller');
+    const crew = await expand(page, 'crew', '[data-crew-roster-glide]');
+    const scroller = crew.locator('[data-crew-roster-glide] .dvn-scroller').first();
     await expect(scroller).toBeAttached({ timeout: 8000 });
     await crew.scrollIntoViewIfNeeded();
     await page.waitForFunction(() => {
-      const el = document.querySelector('[data-crew-calls] .dvn-scroller') as HTMLElement | null;
+      const el = document.querySelector('[data-crew-roster-glide] .dvn-scroller') as HTMLElement | null;
       if (!el) return false;
       const w = el.clientWidth;
       const prev = (window as any).__crewGridWidth;
@@ -101,11 +101,12 @@ test.describe('Day call times + crew (roadmap 99)', () => {
       return w > 0 && prev === w;
     }, undefined, { timeout: 5000 });
 
-    // Auto-fit geometry: Name(120) | Role(90) | Call(90), flexing on Role.
+    // Auto-fit geometry: Role(150) | Person(170) | Call(90) + delete(34),
+    // flexing on Person.
     const box = (await scroller.boundingBox())!;
-    const target = Math.max(120, Math.floor(box.width) - 1);
-    const total = 120 + 90 + 90;
-    const widths = [120, 90, 90].map(w => Math.max(40, Math.floor((w / total) * target)));
+    const target = Math.max(120, Math.floor(box.width) - 1) - 34;
+    const total = 150 + 170 + 90;
+    const widths = [150, 170, 90].map(w => Math.max(40, Math.floor((w / total) * target)));
     const sum = widths.reduce((s, w) => s + w, 0);
     widths[1] += target - sum;
     const callX = box.x + widths[0] + widths[1] + widths[2] / 2;
@@ -124,7 +125,7 @@ test.describe('Day call times + crew (roadmap 99)', () => {
       const p = b.getProject();
       const v = p.versions.find((x: any) => x.id === p.activeVersionId);
       const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
-      return (gov?.daybreakMeta?.crewCalls || []).some((c: any) => c.callTime === '07:30');
+      return (gov?.daybreakMeta?.crewSlots || []).some((s: any) => s.callTime === '07:30');
     }), { timeout: 5000 }).toBe(true);
   });
 });

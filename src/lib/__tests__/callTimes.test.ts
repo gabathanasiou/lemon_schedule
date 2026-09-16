@@ -50,8 +50,10 @@ describe('resolveCallExpression', () => {
 });
 
 describe('resolveCrewCall', () => {
-  it('override wins over precall and day call', () => {
-    expect(resolveCrewCall('-30m', '-15m', '08:00')).toBe('07:30');
+  it('override anchors on the department call (precall resolved on the day call)', () => {
+    // day 08:00 → dept -15m = 07:45 → override -30m = 07:15
+    expect(resolveCrewCall('-30m', '-15m', '08:00')).toBe('07:15');
+    expect(resolveCrewCall('07:00', '-15m', '08:00')).toBe('07:00');
   });
   it('falls back to the department precall', () => {
     expect(resolveCrewCall(null, '-15m', '08:00')).toBe('07:45');

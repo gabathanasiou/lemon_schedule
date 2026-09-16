@@ -8,6 +8,7 @@ import { getCategoryElements, elementMatchId } from './elements';
 import { getNonShootEntryMap, isElementMarked } from './nonShootHelpers';
 import { computeSectionViolationMap } from './rulesEngine';
 import { codeForType } from './dayTypes';
+import { groupSlotsByDept, resolveSlotCall, slotsForDay, type DayCrewGroup } from './dayCrew';
 
 /**
  * Canonical read model for ONE production day (D7). The page, the pop-out, the
@@ -56,10 +57,18 @@ export interface DayNoteEntry {
 
 export interface DayCrewEntry {
   person: CrewPerson;
+  /** Crew role key. */
   role: string;
-  /** Explicit per-day call override (falls back to the element chain). */
+  /** Stable slot id (item 146) — the call lives on the SLOT, not the person. */
+  slotId: string;
+  dept: string;
+  /** Stored call override expression, if any. */
   callTime?: string;
+  /** Explicitly no call (blank on the call sheet). */
+  noCall?: boolean;
   note?: string;
+  /** The resolved call (override anchored on the dept call, else the dept call). */
+  resolvedCall: string;
 }
 
 export interface DayLocationRef {
@@ -92,7 +101,10 @@ export interface DayView {
   sceneLocations: string[];
   masterLocation?: ProjectLocation;
   keyLocations: ProjectLocation[];
+  /** Item 146 — assigned, non-excluded slots (flat). */
   crew: DayCrewEntry[];
+  /** Item 146 — every slot grouped by department (editor + call sheet). */
+  crewGroups: DayCrewGroup[];
   violations: RuleViolation[];
   sums: SectionSums;
 }
@@ -149,6 +161,8 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
   const castMembers = project.castMembers || [];
   const crewRoles = project.crewRoles || [];
   const crewMap = project.crew || {};
+  const crewPersonById = new Map<string, CrewPerson>();
+  for (const role of crewRoles) for (const person of crewMap[role.key] || []) crewPersonById.set(person.id, person);
   const locations = project.locations || [];
   const locationById = new Map(locations.map(l => [l.id, l]));
 
@@ -258,19 +272,29 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
     const masterLocation = meta.locationId ? locationById.get(meta.locationId) : undefined;
     const keyLocations = (meta.locationIds || []).map(id => locationById.get(id)).filter(Boolean) as ProjectLocation[];
 
+    const callTime = sectionCallTime(sections, s.index);
+
+    const crewGroups = groupSlotsByDept(project, meta, slotsForDay(project, meta), callTime);
     const crew: DayCrewEntry[] = [];
-    const explicitIds = meta.crewIds && meta.crewIds.length > 0 ? meta.crewIds : null;
-    const overrideById = new Map<string, { callTime?: string; note?: string }>();
-    for (const c of (meta.crewCalls || [])) overrideById.set(c.personId, { callTime: c.callTime, note: c.note });
-    for (const role of crewRoles) {
-      for (const person of crewMap[role.key] || []) {
-        if (explicitIds && !explicitIds.includes(person.id)) continue;
-        const override = overrideById.get(person.id);
-        crew.push({ person, role: role.key, callTime: override?.callTime, note: override?.note });
+    for (const group of crewGroups) {
+      if (group.excluded) continue;
+      for (const slot of group.slots) {
+        if (!slot.personId) continue;
+        const person = crewPersonById.get(slot.personId);
+        if (!person) continue;
+        crew.push({
+          person,
+          role: slot.role,
+          slotId: slot.id,
+          dept: group.dept,
+          callTime: slot.callTime,
+          noCall: slot.noCall,
+          note: slot.note,
+          resolvedCall: resolveSlotCall(slot, group.precall, callTime),
+        });
       }
     }
 
-    const callTime = sectionCallTime(sections, s.index);
     const firstCall = sceneEntries.reduce((min, e) => (e.callTime && (!min || e.callTime < min) ? e.callTime : min), '');
 
     out.push({
@@ -296,6 +320,7 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
       masterLocation,
       keyLocations,
       crew,
+      crewGroups,
       violations: violationMap.get(date) || [],
       sums: sectionSums.get(s.index) || s.sums,
     });

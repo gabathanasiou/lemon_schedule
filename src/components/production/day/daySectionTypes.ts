@@ -18,6 +18,9 @@ export interface DaySectionActions {
   /** Open the Call Times settings modal (stages / category defaults / crew).
    *  Wired to the Call Times grids' header context menu. */
   openCallTimesSettings?: () => void;
+  /** Open the shared Add Crew Member modal (item 146). Optionally preselect a
+   *  role / name, and a slot to assign the created person into. */
+  openAddCrewMember?: (opts?: { role?: string; name?: string; slotId?: string }) => void;
   /** Call-sheet design selection is owned by the composition root so the live
    *  preview pane and the section's picker stay in sync. */
   callSheetDesignId?: string;

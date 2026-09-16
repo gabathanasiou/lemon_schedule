@@ -6,10 +6,13 @@ import { Clock, GripVertical, Plus, X } from 'lucide-react';
 import { useProject } from '../../../store';
 import { getCallTimeSettings } from '../../../lib/callTimes';
 import { CREW_DEPARTMENTS } from '../../../lib/crewCatalog';
+import { buildDefaultSlots, templateSlots } from '../../../lib/dayCrew';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../../lib/categories';
 import type { CallStageDef, CallTimeSettings, CrewTemplate } from '../../../types';
 import TimeField from '../../TimeField';
 import GroupedSelect, { GroupedSelectItem } from './GroupedSelect';
+import CrewRosterEditor from './CrewRosterEditor';
+import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
 import { CategoryDropdown } from '../../rules/CategoryDropdown';
 import Modal, { ModalFooter } from '../../Modal';
 import ModalFooterButton from '../../ModalFooterButton';
@@ -40,7 +43,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'stages', label: 'Call stages' },
   { key: 'categories', label: 'Category defaults' },
   { key: 'precalls', label: 'Department precalls' },
-  { key: 'crew', label: 'Usual crew' },
+  { key: 'crew', label: 'Crew template' },
 ];
 
 const Hint: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -131,6 +134,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
   const template = project.crewTemplate || {};
   const [tab, setTab] = useState<TabKey>('stages');
   const [catOpen, setCatOpen] = useState(false);
+  const [addCrewRole, setAddCrewRole] = useState<string | null | undefined>(undefined);
 
   const setCallTimes = (patch: Partial<CallTimeSettings>) =>
     dispatch({ type: 'SET_PRODUCTION_INFO', payload: { callTimes: { ...settings, ...patch } } });
@@ -208,15 +212,13 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
     setCategoryStages(category, anchor ? [anchor] : []);
   };
 
-  const crewRoles = project.crewRoles || [];
-  const crew = project.crew || {};
-  const crewItems: GroupedSelectItem[] = useMemo(() => {
-    const out: GroupedSelectItem[] = [];
-    for (const role of crewRoles) for (const p of crew[role.key] || []) out.push({ id: p.id, name: p.name, group: role.label });
-    return out;
-  }, [crewRoles, crew]);
+  const templateSlotsList = useMemo(
+    () => templateSlots(project) ?? buildDefaultSlots(project),
+    [project],
+  );
 
   return (
+    <>
     <Modal open onClose={onClose} title="Call Times" icon={<Clock className="w-4 h-4" />} width="max-w-2xl"
       footer={
         <ModalFooter>
@@ -366,20 +368,34 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
 
         {tab === 'crew' && (
           <div className="space-y-3">
-            <Hint>The default day crew when a day has no explicit list.</Hint>
-            <GroupedSelect
-              theme="dark"
-              items={crewItems}
-              mode="multi"
-              selectedIds={template.crewIds || []}
-              disabled={readOnly}
-              placeholder="Full roster"
-              onChange={ids => setTemplate({ crewIds: ids.length ? ids : undefined })}
+            <Hint>The default crew arrangement every day inherits until it is customized. Roles default to one slot each (first person); add more slots or a whole department toggle per day.</Hint>
+            <CrewRosterEditor
+              dataAttr="data-crew-template-editor"
+              slots={templateSlotsList}
+              excludedDepts={template.excludedCrewDepts || []}
+              effectivePrecalls={template.departmentPrecalls || {}}
+              templatePrecalls={template.departmentPrecalls || {}}
+              dayCall=""
+              project={project}
+              readOnly={readOnly}
+              onSlotsChange={slots => setTemplate({ slots })}
+              onExcludedChange={depts => setTemplate({ excludedCrewDepts: depts.length ? depts : undefined })}
+              onDeptPrecallChange={(dept, expr) => {
+                const next = { ...(template.departmentPrecalls || {}) };
+                const value = expr.trim();
+                if (value) next[dept] = value; else delete next[dept];
+                setTemplate({ departmentPrecalls: Object.keys(next).length ? next : undefined });
+              }}
+              onAddCrewMember={role => setAddCrewRole(role ?? null)}
             />
           </div>
         )}
       </div>
     </Modal>
+    {addCrewRole !== undefined && (
+      <AddCrewMemberModal defaultRole={addCrewRole ?? undefined} onClose={() => setAddCrewRole(undefined)} />
+    )}
+    </>
   );
 };
 

@@ -53,6 +53,8 @@ export function isEmptyDayMeta(meta?: DayMeta | null): boolean {
   if (meta.locationIds && meta.locationIds.length > 0) return false;
   if (meta.note && meta.note.trim()) return false;
   if (meta.crewIds && meta.crewIds.length > 0) return false;
+  if (meta.crewSlots && meta.crewSlots.length > 0) return false;
+  if (meta.excludedCrewDepts && meta.excludedCrewDepts.length > 0) return false;
   if (meta.departmentPrecalls && Object.keys(meta.departmentPrecalls).length > 0) return false;
   if (meta.elementCalls) {
     for (const category of Object.keys(meta.elementCalls)) {
@@ -125,6 +127,18 @@ export function pruneDayMetaRefs(meta: DayMeta, valid: DayMetaRefSets): DayMeta 
   if (meta.crewIds && valid.crewIds) {
     const kept = meta.crewIds.filter(id => valid.crewIds!.has(id));
     if (kept.length !== meta.crewIds.length) next = { ...next, crewIds: kept };
+  }
+  if (meta.crewSlots && valid.crewIds) {
+    let changed = false;
+    const slots = meta.crewSlots.map(slot => {
+      if (slot.personId && !valid.crewIds!.has(slot.personId)) {
+        changed = true;
+        const { personId: _dropped, ...rest } = slot;
+        return rest;
+      }
+      return slot;
+    });
+    if (changed) next = { ...next, crewSlots: slots };
   }
   if (meta.locationId && valid.locationIds && !valid.locationIds.has(meta.locationId)) {
     const { locationId: _dropped, ...rest } = next;

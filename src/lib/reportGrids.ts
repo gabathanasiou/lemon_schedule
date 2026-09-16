@@ -92,7 +92,23 @@ export function resolveReportGridGroups(
   if (!dayItem) return [];
   if (collection === 'crewOfDay') {
     const items = resolveCollectionItems(ctx, 'crewOfDay', undefined, dayItem, undefined) as ReportCrewItem[];
-    return [{ category: '', label: 'Crew', items, columns: crewColumns(fieldMap) }];
+    // Item 146 — group by department (department-wise order from the resolver).
+    const order: string[] = [];
+    const byDept = new Map<string, ReportCrewItem[]>();
+    for (const it of items) {
+      const dept = it.department || 'Crew';
+      if (!byDept.has(dept)) {
+        byDept.set(dept, []);
+        order.push(dept);
+      }
+      byDept.get(dept)!.push(it);
+    }
+    return order.map(dept => ({
+      category: '',
+      label: dept,
+      items: byDept.get(dept)!,
+      columns: crewColumns(fieldMap),
+    }));
   }
   const all = resolveCollectionItems(ctx, 'elementCallsOfDay', undefined, dayItem, undefined) as ReportElementCallItem[];
   const filtered = category ? all.filter(it => it.category === category) : all;

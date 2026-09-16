@@ -18,6 +18,7 @@ import { useGlideFill } from '../lib/glideFill';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { expandRangeFill, planGridPaste, type PasteEdit } from '../lib/glidePaste';
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
+import { createGlideCellEditor, type GlideColumnEditor } from '../lib/glideEditor';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { clipboardRead, clipboardWrite } from '../lib/utils';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
@@ -53,6 +54,14 @@ export interface InlineGlideEdit {
   value: string;
 }
 
+/** One trailing per-row action (drawn as a glyph in the actions column). */
+export interface InlineGlideRowAction {
+  key: string;
+  title: string;
+  icon: 'plus' | 'trash';
+  onClick: () => void;
+}
+
 export interface InlineGlideTableProps {
   columns: InlineGlideColumn[];
   /** Flat row objects keyed by column key. */
@@ -82,10 +91,20 @@ export interface InlineGlideTableProps {
   /** Fires with the hovered row index (null when leaving the rows) — lets the
    *  host drive a cross-surface highlight (Call Sheet scene strips). */
   onRowHover?: (rowIndex: number | null) => void;
+  /** Optional inline dropdown editors per column key. */
+  editors?: Record<string, GlideColumnEditor>;
+  /** Optional per-(row,column) editor — wins over `editors`. Use when the
+   *  editor's options depend on the row (e.g. a crew slot's person list). */
+  getEditor?: (row: number, colKey: string) => GlideColumnEditor | undefined | null;
+  /** Optional trailing actions column: shows each row's action glyphs and
+   *  dispatches the one clicked. */
+  rowActions?: (rowIndex: number) => InlineGlideRowAction[];
 }
 
 const DEFAULT_ROW_HEIGHT = 28;
 const DEFAULT_HEADER_HEIGHT = 30;
+/** Synthetic trailing row-actions column (key `actions` — skipped by copy/cut). */
+const ACTIONS_COLUMN: InlineGlideColumn = { key: 'actions', label: '', width: 34 };
 
 export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   columns,
@@ -102,6 +121,9 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   headerMenuItems,
   rowTooltip,
   onRowHover,
+  editors,
+  getEditor,
+  rowActions,
 }) => {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -119,8 +141,10 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
 
   const COLUMNS = useMemo(() => {
     const total = columns.reduce((s, c) => s + c.width, 0);
-    if (!gridWidth || gridWidth <= 0 || total <= 0) return columns;
-    const target = Math.max(120, Math.floor(gridWidth) - 1);
+    if (!gridWidth || gridWidth <= 0 || total <= 0) {
+      return rowActions ? [...columns, ACTIONS_COLUMN] : columns;
+    }
+    const target = Math.max(120, Math.floor(gridWidth) - 1) - (rowActions ? ACTIONS_COLUMN.width : 0);
     const flexIdx = Math.min(1, columns.length - 1);
     const widths = columns.map(c => Math.max(40, Math.floor((c.width / total) * target)));
     let sum = widths.reduce((s, w) => s + w, 0);
@@ -129,8 +153,10 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       sum = widths.reduce((s, w) => s + w, 0);
       if (sum < target) widths[flexIdx] += target - sum;
     }
-    return columns.map((c, i) => ({ ...c, width: widths[i] }));
-  }, [columns, gridWidth]);
+    const out = columns.map((c, i) => ({ ...c, width: widths[i] }));
+    if (rowActions) out.push(ACTIONS_COLUMN);
+    return out;
+  }, [columns, gridWidth, rowActions]);
 
   const glideColumns: GridColumn[] = useMemo(
     () => COLUMNS.map(c => ({ title: c.label.toUpperCase(), width: c.width })),
@@ -160,7 +186,38 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     gridPortalRef.current = portalTarget ? portalTarget.querySelector('#portal') : document.getElementById('portal');
   }, [portalTarget]);
 
+  // Optional inline dropdown editors (crew slot person/call). Column offset 0:
+  // this grid has no row-marker column, so Glide's reported col IS the data col.
+  const provideEditor = useMemo(
+    () => (editors || getEditor)
+      ? createGlideCellEditor({
+          readOnlyRef,
+          columns: COLUMNS,
+          getValue: (row, colKey) => String(rowsRef.current[row]?.[colKey] ?? ''),
+          editors,
+          getEditor,
+          portalRef: gridPortalRef,
+          columnOffset: 0,
+        })
+      : undefined,
+    [COLUMNS, editors, getEditor],
+  );
+
   const gridRef = useRef<DataEditorRef>(null);
+  // Row-action glyphs (drawn on the canvas — Glide cells can't host React).
+  const trashImg = useRef<HTMLImageElement | null>(null);
+  const plusImg = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    if (!rowActions) return;
+    const trashSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+    const plusSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3f3f46" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+    const t = new Image();
+    t.src = 'data:image/svg+xml;base64,' + btoa(trashSvg);
+    trashImg.current = t;
+    const p = new Image();
+    p.src = 'data:image/svg+xml;base64,' + btoa(plusSvg);
+    plusImg.current = p;
+  }, [rowActions]);
   const [gridSelection, setGridSelection] = useState<GridSelection>({
     columns: CompactSelection.empty(),
     rows: CompactSelection.empty(),
@@ -236,6 +293,16 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     const colDef = COLUMNS[col];
     const r = rowsRef.current[row];
     if (!colDef || !r) return textCell('', { readonly: true, allowOverlay: false });
+    if (colDef.key === 'actions') {
+      // Synthetic row-delete cell: readonly, pointer, neutral hover.
+      const hovered = row === hoveredRowRef.current;
+      return textCell('', {
+        readonly: true,
+        allowOverlay: false,
+        cursor: 'pointer',
+        themeOverride: hovered ? { bgCell: READONLY_HOVER_BG } : undefined,
+      });
+    }
     const cell = getCellContent(colDef, r, row);
     if (readOnlyRef.current) return cell;
     const hovered = row === hoveredRowRef.current;
@@ -269,6 +336,39 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     ctx.fillText(column.title, rect.x + rect.width / 2, rect.y + rect.height / 2);
     ctx.restore();
   }, [COLUMNS]);
+
+  /** Draw each row's action glyphs on the synthetic actions column. */
+  const drawCell = useCallback((args: any, drawContent: () => void) => {
+    drawContent();
+    const colDef = COLUMNS[args.col];
+    if (!colDef || colDef.key !== 'actions') return;
+    if (args.row >= rowsRef.current.length) return;
+    const actions = rowActions?.(args.row);
+    if (!actions || actions.length === 0) return;
+    const { ctx, rect } = args;
+    const slot = rect.width / actions.length;
+    const size = Math.min(13, slot - 4, rect.height - 4);
+    actions.forEach((action, i) => {
+      const img = action.icon === 'plus' ? plusImg.current : trashImg.current;
+      if (!img || !img.complete) return;
+      const cx = rect.x + slot * i + slot / 2;
+      ctx.drawImage(img, cx - size / 2, rect.y + (rect.height - size) / 2, size, size);
+    });
+  }, [COLUMNS, rowActions]);
+
+  /** Row-action click (hit-tests the glyph within the synthetic column). */
+  const onCellClicked = useCallback((cell: Item, event: any) => {
+    if (!rowActions) return;
+    if (COLUMNS[cell[0]]?.key !== 'actions') return;
+    const row = cell[1];
+    if (row < 0 || row >= rowsRef.current.length) return;
+    const actions = rowActions(row);
+    if (!actions || actions.length === 0) return;
+    const width = event?.bounds?.width ?? 0;
+    const localX = event?.localEventX ?? 0;
+    const idx = width > 0 ? Math.min(actions.length - 1, Math.max(0, Math.floor(localX / (width / actions.length)))) : 0;
+    actions[idx]?.onClick();
+  }, [COLUMNS, rowActions]);
 
   /** Applies a set of edits as ONE commit — a whole paste/fill/clear is one
    *  undo entry for the caller. */
@@ -491,6 +591,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             getCellContent={getCell}
             onCellsEdited={onCellsEdited}
             onPaste={handlePaste}
+            provideEditor={provideEditor}
             getCellsForSelection={true}
             gridSelection={gridSelection}
             onGridSelectionChange={setGridSelection}
@@ -498,6 +599,8 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             rowHeight={rowH}
             headerHeight={headerH}
             drawHeader={drawHeader}
+            drawCell={rowActions ? drawCell : undefined}
+            onCellClicked={rowActions ? onCellClicked : undefined}
             onItemHovered={onItemHovered}
             onCellContextMenu={onCellContextMenu}
             onHeaderContextMenu={onHeaderContextMenu}

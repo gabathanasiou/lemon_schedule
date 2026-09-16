@@ -629,3 +629,105 @@ stays; the ship path to everyone moves here). `depends on` 97 stage 1.
 - **Verify**: packaged app launches UI + helper; a real MCP client creates,
   edits and undoes a project end-to-end; helper is unreachable from non-app
   origins; project data survives app restart.
+
+## 146. Crew per day — department-slot roster, template + Add Crew Member modal (`[ ]`, big)
+
+**Request**: rebuild the Day Manager's crew management. Crew is grouped by
+department (catalog order + "Other"); each department shows one slot per role
+(deduped, auto-filled from the roster), a person dropdown, a static call box
+that survives switching the person, an include/exclude toggle, and a
+department pre-call anchor. A project-level **crew template** (full
+arrangement) replaces "Usual crew"; "Apply template" / "Copy from day" restore
+a day. A shared **Add Crew Member modal** (name/phone/email + role) replaces
+the Crew Manager's inline blank row.
+
+**Call chain**: day call → dept pre-call resolves against the day call = dept
+call → slot override resolves against the dept call; `noCall` wins over
+everything. Replaces `resolveCrewCall` (a semantic change: existing relative
+overrides previously anchored on the day call).
+
+**Model**: `DayCrewSlot { id, role, personId?, callTime?, noCall?, note? }`.
+`DayMeta.crewSlots` + repurposed (currently dead) `DayMeta.departmentPrecalls`
+(day override) + `DayMeta.excludedCrewDepts`. `CrewTemplate` becomes a full
+arrangement (`slots`, `excludedCrewDepts`, keeps `departmentPrecalls`), always
+present (auto-derived from the roster when unset). One owner
+`src/lib/dayCrew.ts` (`slotsForDay`, `groupSlotsByDept`, `resolveSlotCall`,
+pure mutations).
+
+**Phases** (each shippable): 1) model + migration + `dayCrew.ts` + read path
+(`dayView`, `reportData.crewOfDay`/`departmentCallsOfDay`, `reportGrids`);
+2) shared `CrewRosterEditor` built on `InlineGlideTable` (per-department
+table: Role · Person dropdown · Call, dept header include+pre-call, "+ Add
+role") hosted by the Day Crew section and the Call Times "Crew template" tab;
+3) `AddCrewMemberModal` + `ManagerShellConfig.addModal` + entry points (Crew
+Manager, a day slot, the template editor); 4) call-sheet crew table grouped by
+department + docs.
+
+**Non-negotiables**: `daybreakMeta` on the governing DAYBREAK; one write path
+per concern; sections stay props-in/patch-out; use `InlineGlideTable` (not a
+bespoke row list); migration runs on local load (`storage.ts`) AND
+`readDriveProject`; `slotsForDay` derives defensively if unmigrated (no crew
+data loss).
+
+**Verify**: `npm run lint`; Vitest for the anchor chain (`dayCrew`), migration,
+defaults/noCall; targeted e2e for slot persistence, person-swap-keeps-call,
+dept exclude, template apply, Add-modal role correctness; the rest is rule-7
+manual (numbered hand-off).
+
+**Relations**: supersedes the "Usual crew" concept (item 99) and the flat/
+person-keyed `crewCalls` write path (items 101/106/112); touches 111/112 grids;
+related to **142** (Day workspace) and **148** (crew glide Links).
+
+## 147. Crew Glide — Element Categories multi-select autocomplete (`[ ]`)
+
+**Request**: the crew glide's "Element Categories" column is a plain text box;
+it should be a multi-select autocomplete over every available element category
+(built-ins + customs), attach-only (creating categories stays in the Element
+Manager).
+
+**Approach**: add an optional `entityItems?` to `GlideColumnDef`
+(`src/lib/glideShell.tsx`) — when present the shell builds the existing
+`{ kind: 'entity', mode: 'multi' }` editor (`src/lib/glideEditor.tsx`, no new
+primitive). Set it on the `categories` column in `src/lib/crewGlideConfig.ts`
+from `ELEMENT_CATEGORIES` (labels via `getLabel`) + `project.customCategories`
+in registry order. The commit path (`commitCrewEdit` →
+`SET_CREW_ROLE_CATEGORIES`) already resolves labels → keys; unchanged.
+
+**Verify**: rule-7 manual — picker lists built-ins + customs, multi-attach
+works, roles persist the right keys; extend the label↔key unit coverage if
+missing.
+
+## 148. Crew Glide — Links action in the header (`[ ]`)
+
+**Request**: the crew glide's header should expose the Crew Links action (the
+same `CrewLinksButton` the Crew Manager header shows).
+
+**Approach**: add an optional `renderHeaderActions?: (ctx: { dispatch;
+readOnly; project }) => ReactNode` to `GlideShellConfig`
+(`src/lib/glideShell.tsx`, mirrors `ManagerShellConfig`), rendered inside
+`headerContent`; set it in `src/lib/crewGlideConfig.ts` to `CrewLinksButton`.
+Generic shell hook, so the Location Glide can opt in later (not in scope).
+
+**Verify**: rule-7 manual — the button opens the Crew Links modal.
+
+**Relations**: item 11 (crew links), 146 (crew work).
+
+## 149. Glide overlay entity dropdown — Shift key remounts/clears the editor (`[ ]`)
+
+**Bug**: in a `createGlideCellEditor` entity/enum overlay (e.g. the Day Manager
+crew **Person** cell), holding and releasing **Shift** remounts the editor and
+discards in-progress typing — the field snaps back to the seeded value.
+
+**Repro**: Day Manager → Crew → double-click a Person cell → type `ZZ` → press
+and release Shift → the cell reverts to the current person (selection reset to
+select-all).
+
+**Why it's filed, not fixed**: `createGlideCellEditor` was refactored to cache
+one editor component per column (`src/lib/glideEditor.tsx`) precisely to stop
+remounts, but the reset persists — so the remount comes from Glide's overlay
+lifecycle on a modifier keydown/keyup, not the component identity. Needs a dig
+into Glide's `DataEditor` overlay behaviour (or intercepting the Shift key
+before the grid).
+
+**Relations**: surfaced while building **146**; touches `InlineGlideTable` +
+`createGlideCellEditor`.
