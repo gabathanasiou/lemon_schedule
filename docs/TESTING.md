@@ -56,12 +56,34 @@ without anyone noticing. Concretely, add one when:
 
 Do **not** add a test when:
 
+- **The user can confirm it by looking.** This is the most common mistake: adding a
+  Playwright spec for something a glance catches — a new item in a dropdown/menu/palette/
+  toolbar, renamed labels/copy, an icon, a color/spacing tweak, a fixed-list order, "the
+  panel opens". Writing a browser test for that is pure cost (slower suite, more flake,
+  another thing to maintain). **STOP and hand the user a numbered manual check instead**
+  (§Manual verification).
 - It asserts **implementation detail** (a CSS class, internal state shape) rather than
   user-visible behavior — it will break on every refactor and teach nothing.
 - It **duplicates** an existing spec's coverage (extend the existing test instead).
 - It's a **one-off probe** for an investigation. That's a scratch file, not a spec —
   delete it, don't commit it (the retired `probe-*`/`edit-toggle-*` specs are the cautionary tale).
 - It can only "pass" by sleeping (`waitForTimeout`) — make it deterministic or don't add it.
+
+## Manual verification (the user has eyes)
+
+When a change is visually verifiable, **do not write a test — ask the user to verify it.**
+End the task with a short, numbered check (exact clicks + expected result), and keep it
+copy-pasteable. Example:
+
+> **Please verify manually (~30s):**
+> 1. Open Production → Day Manager → the ⋯ menu.
+> 2. Confirm "Import DOODs" sits above "Export DOODs".
+> 3. Click it — the file picker opens.
+
+Automate **only** when a silent break is plausible — i.e. the user *couldn't* tell from
+looking: data loss, a wrong computed value, persistence/round-trip, cross-surface
+propagation (one edit must appear on another surface), or geometry that only fails at
+scale. If in doubt, prefer the manual hand-off.
 
 ## Selector strategy (keeps tests from drifting)
 
