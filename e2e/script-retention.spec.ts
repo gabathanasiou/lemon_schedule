@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openSeededProject, waitForPersistedProject } from './helpers';
+import { TEST_IDS } from '../src/lib/testIds';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -220,12 +221,19 @@ test.describe('script tagging — selection menu (roadmap 136)', () => {
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
     await page.getByRole('button', { name: 'Script', exact: true }).click();
 
-    // Select "coffee" in the action block — the category menu opens.
+    // Select "coffee" in the action block — the category menu opens. (Walk text
+    // nodes: attached elements are highlighted as inline spans.)
     await page.evaluate(() => {
       const block = Array.from(document.querySelectorAll('[data-script-block]'))
         .find(b => (b.textContent || '').includes('coffee')) as HTMLElement | undefined;
       if (!block) throw new Error('action block not found');
-      const node = block.firstChild as Text;
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let node: Text | null = null;
+      let n: Node | null;
+      while ((n = walker.nextNode())) {
+        if ((n.textContent || '').includes('coffee')) { node = n as Text; break; }
+      }
+      if (!node) throw new Error('coffee text node not found');
       const idx = node.textContent!.indexOf('coffee');
       const range = document.createRange();
       range.setStart(node, idx);
@@ -269,43 +277,33 @@ test.describe('script tagging — selection menu (roadmap 136)', () => {
     await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveCount(0);
   });
 
-  test('a recognised FDX tag commits through the menu; the Suggestions toggle gates derived spans', async ({ page }) => {
+  test('an imported FDX tag is already attached → solid; removing it falls back to a gated suggestion', async ({ page }) => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-tagged-menu.fdx', FDX_TAGGED));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptAnnotations && p.scriptAnnotations.length === 1)");
     await page.getByRole('button', { name: 'Script', exact: true }).click();
 
-    // Recognised (dotted) imported tag — committing via the same menu makes it solid.
-    const recognised = page.locator('[data-annotation-recognized="1"]');
-    await expect(recognised).toHaveText('revolver');
-    await recognised.click();
-    await page.getByRole('menuitem', { name: 'Props' }).click();
-    await page.waitForFunction(() => {
-      const a = (window as any).__lemonSchedule.getProject().scriptAnnotations?.[0];
-      return a && !a.recognized;
-    });
+    // The imported element is attached to the scene, so it shows SOLID (not wavy).
+    await expect(page.locator('[data-annotation-recognized="1"]')).toHaveCount(0);
+    const solid = page.locator('[data-annotation-id^="attached:"]').filter({ hasText: 'revolver' });
+    await expect(solid).toHaveText('revolver');
 
-    // Seed a known element + a body that mentions it → an ephemeral suggestion.
-    await page.evaluate(() => {
-      const b = (window as any).__lemonSchedule;
-      const p = b.getProject();
-      const scene = p.scenes[0];
-      b.dispatch({ type: 'ADD_ELEMENT', payload: { category: 'props', element: { id: 'ZORB', name: 'ZORB' } } });
-      b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: { format: 'fdx', scenes: [
-        { sceneNumber: scene.sceneNumber, blocks: [['heading', 'INT. X - DAY'], ['action', 'The ZORB is here.']] },
-      ] } } });
-    });
-
+    // Remove detaches it from the scene; the element stays in the manager, so it
+    // immediately reappears as a (wavy) suggestion.
+    await solid.click();
+    await page.getByRole('menuitem', { name: 'Remove' }).click();
+    await page.waitForFunction(() => !(window as any).__lemonSchedule.getProject().scriptAnnotations?.length);
     const suggestion = page.locator('[data-annotation-recognized="1"]');
-    await expect(suggestion).toHaveText('ZORB');
-    // The suggestion is computed, never persisted.
+    await expect(suggestion).toHaveText('revolver');
+    // Suggestions are computed, never persisted.
     expect((await bridgeProject(page)).scriptAnnotations?.some((a: any) => a.id.startsWith('suggest:'))).toBeFalsy();
 
-    // Toggle Suggestions off hides every non-committed span; on shows them again.
-    await page.getByRole('button', { name: 'Suggestions' }).click();
+    // The Suggestions toggle (View menu) gates the non-committed span.
+    await page.getByRole('button', { name: 'View' }).click();
+    await page.getByRole('menuitem', { name: 'Suggestions' }).click();
     await expect(page.locator('[data-annotation-recognized="1"]')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Suggestions' }).click();
-    await expect(page.locator('[data-annotation-recognized="1"]')).toHaveText('ZORB');
+    await page.getByRole('menuitem', { name: 'Suggestions' }).click();
+    await expect(page.locator('[data-annotation-recognized="1"]')).toHaveText('revolver');
   });
 });
 
@@ -389,10 +387,14 @@ test.describe('scene cut (roadmap 132 Part C)', () => {
     const parent = [...before.scenes].reverse().find((s: any) => s.sceneNumber === parentNumber);
     const bodyBefore = before.scriptDocument.scenes.length;
 
-    await firstSection.hover();
-    await firstSection.getByRole('button', { name: 'Cut' }).click();
-    await expect(page.getByTestId('scene-cut-modal')).toBeVisible();
-    await page.getByRole('button', { name: 'Cut scene' }).click();
+    // Razor tool: Cut ▸ Cut scenes, then click a paragraph boundary in the page.
+    await page.getByTestId(TEST_IDS.scriptCutToggle).click();
+    await page.getByRole('menuitem', { name: 'Cut scenes' }).click();
+    const cutBlock = firstSection.locator('[data-script-block]').nth(1);
+    const cutBox = (await cutBlock.boundingBox())!;
+    await page.mouse.move(cutBox.x + cutBox.width / 2, cutBox.y + cutBox.height / 2);
+    await expect(page.getByTestId(TEST_IDS.scriptCutLine)).toBeVisible();
+    await page.mouse.click(cutBox.x + cutBox.width / 2, cutBox.y + cutBox.height / 2);
 
     await page.waitForFunction((n) => (window as any).__lemonSchedule.getProject().scenes.length === n + 1, before.scenes.length);
     const after = await bridgeProject(page);
@@ -412,12 +414,10 @@ test.describe('scene cut (roadmap 132 Part C)', () => {
     expect(undone.scenes.length).toBe(before.scenes.length);
     expect(undone.scriptDocument.scenes.length).toBe(bodyBefore);
 
-    // Redo, then "Merge with next" reverses it (confirm dialog + one batch).
+    // Redo, then the junction's Merge handle reverses it (one undo step).
     await page.evaluate(() => (window as any).__lemonSchedule.redo());
     await expect.poll(async () => (await bridgeProject(page)).scenes.length).toBe(before.scenes.length + 1);
-    await firstSection.hover();
-    await firstSection.getByRole('button', { name: 'Merge' }).click();
-    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.getByTestId(TEST_IDS.scriptCutHandle).first().getByRole('button', { name: 'Merge' }).click();
     await expect.poll(async () => (await bridgeProject(page)).scenes.length).toBe(before.scenes.length);
     const merged = await bridgeProject(page);
     expect(merged.scriptDocument.scenes.length).toBe(bodyBefore);
@@ -431,14 +431,19 @@ test.describe('split manager (roadmap 132 Part E)', () => {
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
     await page.getByRole('button', { name: 'Script', exact: true }).click();
 
-    const firstSection = page.getByTestId('script-scene').first();
+    const firstSection = page.getByTestId(TEST_IDS.scriptScene).first();
     const bodyBefore = (await bridgeProject(page)).scriptDocument.scenes.length;
-    await firstSection.hover();
-    await firstSection.getByRole('button', { name: 'Cut' }).click();
-    await page.getByRole('button', { name: 'Cut scene' }).click();
+    // Razor tool: Cut ▸ Cut scenes, then click a paragraph boundary to split.
+    await page.getByTestId(TEST_IDS.scriptCutToggle).click();
+    await page.getByRole('menuitem', { name: 'Cut scenes' }).click();
+    const cutBlock = firstSection.locator('[data-script-block]').nth(1);
+    const cutBox = (await cutBlock.boundingBox())!;
+    await page.mouse.move(cutBox.x + cutBox.width / 2, cutBox.y + cutBox.height / 2);
+    await page.mouse.click(cutBox.x + cutBox.width / 2, cutBox.y + cutBox.height / 2);
     await expect.poll(async () => (await bridgeProject(page)).scenes.some((s: any) => s.duplicateKind === 'split')).toBe(true);
 
-    await page.getByRole('button', { name: 'Split Manager' }).click();
+    await page.getByTestId(TEST_IDS.scriptCutToggle).click();
+    await page.getByRole('menuitem', { name: 'Split Manager…' }).click();
     const modal = page.getByTestId('split-manager-modal');
     await expect(modal).toBeVisible();
     await expect(modal).toContainText('→');
@@ -531,10 +536,11 @@ test.describe('Script viewer tools (roadmap 123 Phase 1)', () => {
     await expect(page.locator('mark')).toHaveCount(1);
     await expect(page.getByText('1/1')).toBeVisible();
 
-    // "Update script" opens the same file chooser as File ▸ Import ▸ Update.
+    // The script menu's "Update script…" opens the file chooser.
+    await page.getByTestId(TEST_IDS.scriptMenuTrigger).click();
     const [chooser] = await Promise.all([
       page.waitForEvent('filechooser'),
-      page.getByRole('button', { name: 'Update script' }).click(),
+      page.getByRole('menuitem', { name: /Update script/ }).click(),
     ]);
     expect(chooser).toBeTruthy();
   });

@@ -363,7 +363,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
           theme="light"
           width="w-64"
           trigger={
-            <Button variant="subtle" type="button" title={scriptLabel}>
+            <Button variant="subtle" type="button" title={scriptLabel} data-testid={TEST_IDS.scriptMenuTrigger}>
               <FileText className="w-3.5 h-3.5" />
               <span className="max-w-[16rem] truncate">{scriptLabel}</span>
               <ChevronDown className="w-3 h-3.5 text-zinc-400" />

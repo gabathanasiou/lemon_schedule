@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { ensureProject } from './helpers';
+import { TEST_IDS } from '../src/lib/testIds';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -215,13 +216,18 @@ test.describe('script update review (roadmap 38)', () => {
       const b = (window as any).__lemonSchedule;
       b.batch(() => {
         b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN', intExt: 'INT', dayNight: 'DAY', description: 'Old kitchen' }) });
+        // The Script tab's script menu (Update script…) only renders with a body.
+        b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: { format: 'fdx', scenes: [
+          { sceneNumber: '1', blocks: [['heading', 'INT. KITCHEN - DAY'], ['action', 'Old kitchen action.']] },
+        ] } } });
       });
     });
     await page.getByRole('button', { name: 'Script', exact: true }).click();
 
+    await page.getByTestId(TEST_IDS.scriptMenuTrigger).click();
     const [chooser] = await Promise.all([
       page.waitForEvent('filechooser'),
-      page.getByRole('button', { name: 'Update script' }).click(),
+      page.getByRole('menuitem', { name: /Update script/ }).click(),
     ]);
     await chooser.setFiles(writeFdx('lemon-update-tab.fdx', [
       { n: '1', heading: 'INT. KITCHEN - DAY', action: 'New kitchen action.' },

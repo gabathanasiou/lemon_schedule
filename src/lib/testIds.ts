@@ -46,6 +46,7 @@ export const TEST_IDS = {
   /** Script-map integrity audit modal body (roadmap 135). */
   scriptIntegrityModal: 'script-integrity-modal',
   /** Toolbar razor (cut) tool toggle in the Breakdown toolbar. */
+  scriptMenuTrigger: 'script-menu-trigger',
   scriptCutToggle: 'script-cut-toggle',
   /** Desktop razor bar following the pointer over the script. */
   scriptCutLine: 'script-cut-line',
