@@ -23,6 +23,69 @@ const memberCount = (page: AnyPage) => page.evaluate(() => {
 });
 
 test.describe('Crew Glide', () => {
+  test('range fill writes one value down the selected Name rows in one undo (roadmap 139)', async ({ page }) => {
+    await openSeededProject(page);
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      b.dispatch({ type: 'UPDATE_PROJECT', payload: { crew: {} } });
+    });
+    await expect.poll(() => memberCount(page)).toBe(0);
+
+    await page.getByRole('button', { name: 'Production', exact: true }).click();
+    await page.getByRole('button', { name: 'Crew Glide', exact: true }).click();
+
+    const isCoarse = () => page.evaluate(() => window.matchMedia('(pointer: coarse)').matches);
+    test.skip(await isCoarse(), 'range-fill drag is a desktop (mouse) interaction');
+
+    // Name column: row marker 50 + actions → its centre (desktop font 11 → header 36, row 34).
+    const namePoint = async (row: number) => {
+      const sr = await page.locator('.dvn-scroller').boundingBox();
+      const size = await page.evaluate(() => {
+        const v = parseFloat(localStorage.getItem('lemon_schedule_glide_font_size') || '');
+        return Number.isFinite(v) ? v : 11;
+      });
+      const headerH = Math.round((36 * size) / 11);
+      const rowH = Math.round((34 * size) / 11);
+      const actionsW = Math.round((36 * size) / 11);
+      const nameW = Math.round((200 * size) / 11);
+      return { x: sr!.x + 50 + actionsW + nameW / 2, y: sr!.y + headerH + row * rowH + rowH / 2 };
+    };
+    const addMember = async (row: number, text: string) => {
+      const p = await namePoint(row);
+      await page.mouse.dblclick(p.x, p.y);
+      const input = page.locator('#portal textarea, #portal input').first();
+      await expect(input).toBeAttached({ timeout: 4000 });
+      await input.fill(text);
+      await input.press('Enter');
+    };
+
+    await addMember(0, 'A One');
+    await addMember(1, 'B Two');
+    await addMember(2, 'C Three');
+    await expect.poll(() => memberCount(page), { timeout: 8000 }).toBe(3);
+    const before = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
+
+    // Drag a 3-row range down the Name column, then overwrite with one value.
+    const a = await namePoint(0);
+    const c = await namePoint(2);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(c.x, c.y, { steps: 8 });
+    await page.mouse.up();
+    await page.keyboard.type('X');
+    const input = page.locator('#portal textarea, #portal input').first();
+    await expect(input).toBeAttached({ timeout: 4000 });
+    await input.fill('X');
+    await input.press('Enter');
+
+    await expect.poll(async () => {
+      const s: any = await crewState(page);
+      return s!.crew[s!.roles[0]].map((p: any) => p.name);
+    }, { timeout: 8000 }).toEqual(['X', 'X', 'X']);
+    // The whole spread is ONE undo entry.
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(before + 1);
+  });
+
   test('add via add-row, create roles in cells, sort, go-to-manager, CSV round trip', async ({ page }) => {
     await openSeededProject(page);
 

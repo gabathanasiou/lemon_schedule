@@ -16,7 +16,7 @@ import { IS_COARSE } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { useGlideFill } from '../lib/glideFill';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
-import { planGridPaste, type PasteEdit } from '../lib/glidePaste';
+import { expandRangeFill, planGridPaste, type PasteEdit } from '../lib/glidePaste';
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { clipboardRead, clipboardWrite } from '../lib/utils';
@@ -283,31 +283,6 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     if (out.length > 0) onCommit(out);
   }, [editableKeys, onCommit]);
 
-  const onCellsEdited = useCallback((edits: readonly { location: Item; value: EditableGridCell }[]) => {
-    if (readOnlyRef.current) return false;
-    applyEdits(edits.map(e => ({
-      row: e.location[1],
-      colKey: COLUMNS[e.location[0]]?.key || '',
-      val: e.value.kind === GridCellKind.Text ? e.value.data : '',
-    })));
-    return true;
-  }, [COLUMNS, applyEdits]);
-
-  const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]) => {
-    if (readOnlyRef.current) return false;
-    const plan = planGridPaste<null>(
-      target,
-      values,
-      rowsRef.current.length,
-      COLUMNS,
-      gridSelectionRef.current?.current?.range,
-      () => null,
-    );
-    applyEdits(plan.editRows);
-    // Returning false stops Glide from also applying the paste itself.
-    return false;
-  }, [COLUMNS, applyEdits]);
-
   const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null => {
     const sel = gridSelectionRef.current;
     if (sel?.current?.range) return sel.current.range;
@@ -323,6 +298,45 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     }
     return null;
   }, [rows.length, COLUMNS.length]);
+
+  const onCellsEdited = useCallback((edits: readonly { location: Item; value: EditableGridCell }[]) => {
+    if (readOnlyRef.current) return false;
+    // Range fill (roadmap 139): a single edit committed while a multi-cell
+    // selection is active writes that value to every writable cell in the
+    // selection — ONE commit / undo entry. Paste arrives as many edits, so it
+    // is never expanded here (fill-handle copies the same value anyway).
+    if (edits.length === 1 && edits[0].value.kind === GridCellKind.Text) {
+      const range = getEffectiveRange();
+      if (range && range.width * range.height > 1) {
+        const spread = expandRangeFill(range, COLUMNS, edits[0].value.data);
+        if (spread.length > 1) {
+          applyEdits(spread);
+          return true;
+        }
+      }
+    }
+    applyEdits(edits.map(e => ({
+      row: e.location[1],
+      colKey: COLUMNS[e.location[0]]?.key || '',
+      val: e.value.kind === GridCellKind.Text ? e.value.data : '',
+    })));
+    return true;
+  }, [COLUMNS, applyEdits, getEffectiveRange]);
+
+  const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]) => {
+    if (readOnlyRef.current) return false;
+    const plan = planGridPaste<null>(
+      target,
+      values,
+      rowsRef.current.length,
+      COLUMNS,
+      gridSelectionRef.current?.current?.range,
+      () => null,
+    );
+    applyEdits(plan.editRows);
+    // Returning false stops Glide from also applying the paste itself.
+    return false;
+  }, [COLUMNS, applyEdits]);
 
   const handleCopy = useCallback(async () => {
     const range = getEffectiveRange();

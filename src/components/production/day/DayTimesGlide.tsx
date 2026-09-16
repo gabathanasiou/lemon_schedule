@@ -7,7 +7,7 @@ import { computeElementCallChain, getCallTimeSettings, setElementCall } from '..
 import { createDayTimesTheme } from '../../../lib/glideTheme';
 import { doodCellStyle, doodCellText } from '../../../lib/doodCells';
 import { getLabel } from '../../../lib/categories';
-import { textCell } from '../../../lib/glideCells';
+import { isSeededNoop, seededTextCell, textCell } from '../../../lib/glideCells';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '../../InlineGlideTable';
 import { ContextMenuItem } from '../../ContextMenu';
 import FirstSceneTooltip from './FirstSceneTooltip';
@@ -50,6 +50,10 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
     () => settings.stages.filter(s => stageKeys.includes(s.key)),
     [settings.stages, stageKeys],
   );
+  const stageDefByKey = useMemo(() => new Map(stageDefs.map(d => [d.key, d])), [stageDefs]);
+  // The LAST configured stage is the chain anchor (On Set) — its default is
+  // the first-scene call, not a lead expression.
+  const anchorKey = stageDefs.length > 0 ? stageDefs[stageDefs.length - 1].key : '';
 
   const entries: DayElementEntry[] = category === 'cast' ? day.cast : (day.elements[category] || []);
   const stageKeySet = useMemo(() => new Set(stageKeys), [stageKeys]);
@@ -105,23 +109,37 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
     }
     const raw = row[col.key] || '';
     const resolved = resolvedByKey.get(row.key)?.[col.key]?.time || '';
-    return textCell(raw, {
+    // No override stored → seed the editor with the DEFAULT expression (the
+    // stage lead, e.g. `-1h`) when there is one, else the resolved time, fully
+    // selected (roadmap 141) — so editing a computed cell shows what produced
+    // the time, and typing replaces it instead of starting blank.
+    const lead = resolved && col.key !== anchorKey ? (stageDefByKey.get(col.key)?.lead || '') : '';
+    return seededTextCell(raw || lead || resolved, {
       displayData: resolved,
       readonly: !!readOnly,
       align: 'center',
       themeOverride: raw ? { textDark: '#b45309' } : undefined,
     });
-  }, [resolvedByKey, readOnly]);
+  }, [resolvedByKey, readOnly, anchorKey, stageDefByKey]);
 
   const onCommit = useCallback((edits: InlineGlideEdit[]) => {
     let calls = day.meta.elementCalls;
+    let changed = false;
     for (const edit of edits) {
       const entry = entries[edit.row];
       if (!entry) continue;
+      const prior = ((day.meta.elementCalls?.[category]?.[entry.key] || {}) as Record<string, string>)[edit.colKey] || '';
+      const resolved = resolvedByKey.get(entry.key)?.[edit.colKey]?.time || '';
+      const lead = resolved && edit.colKey !== anchorKey ? (stageDefByKey.get(edit.colKey)?.lead || '') : '';
+      // The editor seeds with the default expression / resolved time when
+      // nothing is stored — an unchanged commit (Enter/blur) must NOT pin a
+      // spurious override.
+      if (isSeededNoop(prior, prior || lead || resolved, edit.value)) continue;
       calls = setElementCall(calls, category, entry.key, edit.colKey, edit.value);
+      changed = true;
     }
-    patchMeta({ elementCalls: calls });
-  }, [day.meta.elementCalls, entries, category, patchMeta]);
+    if (changed) patchMeta({ elementCalls: calls });
+  }, [day.meta.elementCalls, entries, category, resolvedByKey, anchorKey, stageDefByKey, patchMeta]);
 
   return (
     <InlineGlideTable

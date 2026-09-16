@@ -141,6 +141,18 @@ same commit. The events-mode day cells, section tabs, and icon-only buttons stay
 **Relations**: extends the debug bridge (AGENTS.md §Agentic Debug Bridge);
 must reuse the canonical `Action` union/reducer — no parallel mutation path.
 
+**Progress (stage 1 — live bridge, shipped)**: `tools/mcp/` (MCP stdio server +
+loopback WS helper, Origin/Host checks, proxy-on-busy) + `src/lib/agentBridgeClient.ts` /
+`useAgentBridge.ts` + **File → Connect agent bridge**. Reads (`get_project`,
+`list_scenes`, `get_schedule`, `list_entities`, `get_versions`, `get_schema`) and
+writes (`apply_actions` atomic batch, `make_scene`, `undo`/`redo`) route through the
+debug bridge; tool schemas/entity shapes are DERIVED from `reducer.ts`/`types.ts`
+(`tools/mcp/actionSchema.mjs`). Blocked: `LOAD`/`EMPTY_TRASH`; read-only refused.
+Docs: `docs/API.md`. Remaining for the full item: friendly write wrappers
+(`edit_scenes`/`manage_entities`), pairing token + destructive-op confirmation +
+audit/rate limits (security P1), project lifecycle / import-export / derived
+analytics (P3), validation parity (P4), contract versioning (P5).
+
 - **Goal**: expose the app's project data and mutation surface to external
   developers and AI agents as a supported, versioned contract — not just the
   internal debug bridge. **Agents must be able to WRITE, not just read** — full
@@ -149,8 +161,8 @@ must reuse the canonical `Action` union/reducer — no parallel mutation path.
   (`src/lib/debugBridge.ts`) is an in-page, DEV/`LEMON_AGENT=1`-only read/write
   window over the store, explicitly "dev tooling, not a product feature"; the
   repo's `opencode.json` Playwright MCP is browser automation, NOT an app API.
-  There is no stable external contract, no MCP server for the app, no auth, no
-  versioning.
+  Stage 1 now adds a local MCP server over that bridge (see Progress above);
+  there is still no versioned public contract, auth or compatibility policy.
 - **Future-proof by construction (hard requirement)**: the API must be DERIVED
   from the canonical surfaces, not a hand-maintained endpoint list — so every
   future feature is exposed automatically and the contract can never drift:
@@ -424,3 +436,172 @@ known-element matching in **136** ships the same value cheaply; AI needs
 accuracy, consent and cost decisions first.
 
 **Verify**: TBD when unparked.
+
+## 140. Reports designer — rich-text table title (top-left, opt-in) (`[ ]`)
+
+**Request**: table-shaped blocks get an optional title rendered top-left
+ABOVE the block in designer, preview and print. Off by default; when on it
+starts as the block's auto label (`scopedCollectionLabel` / `tableOverLabel`
+— e.g. "Scenes", "Crew Table") and the user can type anything, including
+`{{field}}` tokens and `@` item lookups. No title when the block renders
+nothing.
+
+**Blocks**: `table` (columns/rows + custom rows), `callTimes`, `crewTable` —
+NOT repeat/relative.
+
+**Approach**:
+- New optional `ReportBlock` props (no migration): `title?: string`
+  (rich-text HTML + tokens), `showTitle?: boolean`, `titleRepeat?: boolean`
+  (repeat on every pagination fragment; default off = first fragment only).
+- One small shared title renderer used by `ReportTableView`
+  (`ReportBlockView.tsx:660`) and `ReportGridBlock`; an empty `title` falls
+  back to the block's auto label. Left-aligned, above the table header,
+  inheriting `getReportBlockBaseStyle`.
+- Reuse the existing token recipe — do NOT build a new editor/parser:
+  designer (`hint`) edits via `RichTextEditor` + `fields`/`lookupTokens`
+  (the `CustomCellEditor` recipe, `ReportBlockView.tsx:762`); preview/print
+  resolve via `resolveReportTokensHtml(ctx, fieldMap, block.title, item, aux)`
+  (`ReportBlockView.tsx:836`).
+- Emptiness: the title lives INSIDE the existing `null` return path, so
+  preview/print omit it when the collection is empty; the designer skeleton
+  still shows it.
+- Pagination: tables dissolve into row fragments — render the title with the
+  first fragment, and (with `titleRepeat`) on each continuing fragment,
+  mirroring `repeatTableHeader`/`rowRange` in `ReportChunkPage`. The title
+  must count toward the measured page budget.
+- Controls in `blockControls.tsx` Content: table branch (`:1027-1113`) and
+  `callTimes` branch (`:1186`) — token-capable "Title" field, "Show title"
+  checkbox, "Repeat on each page" checkbox (shown only when enabled).
+- Docs: `docs/REPORTS-DESIGNER.md` (props + recipe); `docs/DESIGN-LANGUAGE.md`
+  only if a new control recipe appears.
+
+**Verify**: visual (AGENTS.md rule 7) — manual: title shows in
+designer/preview/print, blank → auto label, off → gone, empty collection → no
+title, `{{field}}`/`@` resolves, forced page split honors the repeat toggle.
+Add a targeted `report-page-breaks` case ONLY if the title turns out to be
+duplicated/dropped/miscounted across fragments.
+
+**Relations**: 111/112 (grid blocks), 100 (same chrome header), 121 (`@` token
+picker); read `docs/REPORTS-DESIGNER.md` first.
+
+## 142. Unified Day workspace — the Call Sheet becomes the Day Manager (`[ ]`, big)
+
+**Request**: merge the Day Manager and the Call Sheet editor. Production →
+Days lands on the day's call sheet as the main view; the day's data panels
+(details, locations, events, conflicts, breaks, crew, scenes, call times) live
+in a rail inside the same workspace; the block palette appears ONLY in layout
+mode; inputable values (day note, general call, master location, breaks) are
+editable where they render; empty states are CTAs ("No crew on this day" →
+Add crew…).
+
+**Why**: the two surfaces are one job split by surface — the light Day Manager
+edits data, the dark full-surface editor edits the artifact, and the user
+shuttles (`DayManagerPage.tsx:188-211` page swap; the editor can only write
+the zone + call-times/crew grid overrides). Split by INTENT instead: **fill
+the day** vs **shape the sheet**.
+
+```
+FILL (default)                           LAYOUT (toggle, or click a block)
+┌───────────────────────────────┐        ┌───────────────────────────────┐
+│ ‹ DAY 12 › ·Work· ⚠2          │        │ ‹ DAY 12 › [Design▾][Reset]   │
+│            [Print] [Layout]   │        │            [Print] [Layout ●] │
+├────────┬──────────────────────┤        ├───────────────────────┬───────┤
+│▾Details│  ┌────────────────┐  │        │ white page + drop     │BLOCKS │
+│ ▸Loc.  │  │  CALL SHEET    │  │        │ zones; block chrome   │ Text… │
+│ ▸Events│  │  live data,    │  │        │ when selected         │ATTRS  │
+│ ▸Crew  │  │  editable      │  │        │ (rail collapsed)      │ Day…  │
+└────────┴──────────────────────┘        └───────────────────────┴───────┘
+```
+
+**Design**:
+- **One host, sheet main.** `DayManagerPage` stops page-swapping: shared
+  header + data rail + the existing `CallSheetCanvas` as the main pane (reuse
+  it, `InteractiveGridBlock` and the zone designer untouched — one canvas).
+  The light sections page goes away as a separate screen; its panels become
+  the rail.
+- **One header**: `< DAY N >` picker (week-grouped, conflict badges), date +
+  type, Copy from day, Production details, Call Times settings, Pop out,
+  Print, and a **Layout** toggle. Design picker / Reset / Times move inside
+  Layout (they change the template, not the day); Preview stays a view toggle.
+- **Data rail**: the existing `DAY_SECTIONS` registry components rendered
+  compactly (accordion / icon rail, one-or-two panels open, persisted) —
+  props-in/patch-out unchanged, no fork. Narrow/iPad: drawer/bottom sheet,
+  never two squeezed panes.
+- **Two intents, never mixed.** Fill: rail + in-place edits, NO palette,
+  chrome or drop zones. Shape (`Layout` toggle, or click a zone block → enters
+  Layout with it selected): design picker + palette + block chrome + drop
+  zones + Reset; enforce `blockAllowedIn` in the zone designer (today only the
+  full designer guards it, `ReportDesigner.tsx:223-231`).
+- **In-place editing v1 (minimal mapped set)**: day note, general call,
+  master location, breaks — click the rendered value on the sheet, edit with
+  the existing primitive (`TimeField`/`CellInput`/`EntityDropdown`) through a
+  small field→writer map (existing `patchMeta`/`patchRow` writers) — not
+  per-field hacks. Call-times/crew grids stay editable as today.
+- **Empty states are CTAs**: Crew → `Add crew…` (grouped picker + "Use usual
+  crew", reuse `GroupedSelect`); Locations → `Set master location…`; Events →
+  `Add event…`; Call Times → `Set up call stages…`; Scenes → open in Schedule.
+- **Cross-highlight rail↔sheet**: scene hover already highlights strips (item
+  115); extend to crew/scenes/call-times selections; the conflict pill jumps
+  to the Conflicts panel.
+
+**Phases** (each independently shippable): 1) host merge (workspace layout,
+one header, delete the page-swap branch); 2) layout mode (palette/chrome/drop
+gating + click-block entry + `blockAllowedIn` guard); 3) CTA empty states;
+4) in-place editing (mapped set + field→writer map); 5) polish/docs (persisted
+rail/layout prefs, HelpModal, `docs/DESIGN-LANGUAGE.md` +
+`docs/REPORTS-DESIGNER.md` zone section; `docs/DAY-WORKSPACE.md` only if the
+surface earns a manual).
+
+**Non-negotiables**: one canvas (no fork); one write path (`daybreakMeta` on
+the governing DAYBREAK; `patchDayMeta`/`UPDATE_ROW`); sections stay
+props-in/patch-out; zone content stays per-day per-design; print/preview
+output unchanged; `readOnly` respected.
+
+**Open at implementation**: single white canvas vs paginated page stack as the
+default pane; rail side and default collapse; iPad control shape
+(`Fill | Sheet | Layout`).
+
+**Verify**: `e2e/day-manager.spec.ts` + `e2e/call-sheet-day.spec.ts` stay
+green; new e2e: palette hidden in Fill / visible in Layout, a CTA adds crew
+through the picker, zone edits still persist per day; manual iPad pass.
+
+**Relations**: builds on 98/99/101/110-118 (all DONE), supersedes D21's
+`Manage | Call Sheet` toggle and the removed `CallSheetSection`; touches
+111/112 grids and 113/114 call-sheet chrome; related to 140/141.
+
+## 143. Reports designer — cast/element tables ordered by Board ID (`[ ]`)
+
+**Request**: tables (and element blocks) that iterate cast should list rows by
+**Board ID** — the cast id behind the "1. GEORGE" display and the call-sheet ID
+column — not scene-appearance order. Non-cast element categories should have a
+predictable order too (by name, numeric-aware) unless a category board id
+applies.
+
+**Why it isn't already**: the order is incidental to `loadCategoryElements`
+(`src/lib/elements.ts:31`) — cast = first-scene-appearance order, then the
+remaining `project.castMembers` in stored order. `buildElementsFor`
+(`src/lib/reportData.ts:778-823`) wraps that into `ReportElementInfo[]`, and
+`resolveCollection` (`reportData.ts:943-944`) serves it to repeats AND tables,
+so today's table order is whatever scene order produced.
+
+**Approach**:
+- Add a cast `boardId` to `ReportElementInfo` (`elementMatchId(e, 'cast')` is
+  the id; `boardId` is currently only populated on `elementCallsOfDay` items,
+  `reportData.ts:987`) and sort the cast collection by it.
+- Use a natural compare (`naturalSortSceneStrings`, `src/lib/utils.ts:158`) so
+  1, 2, 10 order correctly (not 1, 10, 2); blank ids sort last.
+- Element categories: `localeCompare(..., { numeric: true })` on the name —
+  confirm whether any category has a board id worth ordering by first.
+- Sort in the SHARED collection (`getElementsFor`/`buildElementsFor`) so
+  tables, repeats and future surfaces agree — do NOT fork a table-only order.
+  `EntityDropdown`/pickers keep their own order.
+- A user-facing sort control, if wanted later, layers on this canonical order —
+  out of scope here.
+
+**Verify**: unit (`reportData`/`elements`): numeric + letter board ids order
+naturally, blank last, order stable; visual check of a cast table in
+designer/preview/print. Fixed-list ordering = manual per rule 7 (no e2e) unless
+a silent wrong-order regression proves one is worth it.
+
+**Relations**: touches 140 (table title) and the 100/81 collection pipeline;
+read `docs/REPORTS-DESIGNER.md`.

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ensureProject } from './helpers';
+import { ensureProject, openSeededProject } from './helpers';
 
 test.describe('Glide Breakdown Tab', () => {
   test.beforeEach(async ({ page }) => {
@@ -75,6 +75,42 @@ test.describe('Glide Breakdown Tab', () => {
     await page.getByRole('button', { name: /Add Scene/ }).click();
 
     await expect.poll(() => page.evaluate(sceneCount), { timeout: 5000 }).toBe(initialState.sceneCount + 1);
+  });
+
+  test('range fill: editing one cell writes the value down the selected column (roadmap 139)', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Glide Breakdown' }).click();
+    const scroller = page.locator('.dvn-scroller');
+    await expect(scroller).toBeAttached({ timeout: 5000 });
+    const sr = await scroller.boundingBox();
+    expect(sr).not.toBeNull();
+
+    // Script Day column: row marker 50 + actions 36 + sceneNumber 60 +
+    // pageCount 80 = 226, width 80 → centre 266. Desktop font 11 → header 36, row 34.
+    const scriptDayX = sr!.x + 226 + 40;
+    const headerH = 36;
+    const rowH = 34;
+    const y0 = sr!.y + headerH + rowH / 2;
+    const y2 = sr!.y + headerH + rowH * 2 + rowH / 2;
+
+    // Drag a 3-row range down the column.
+    await page.mouse.move(scriptDayX, y0);
+    await page.mouse.down();
+    await page.mouse.move(scriptDayX, y2, { steps: 8 });
+    await page.mouse.up();
+
+    // Type over the anchored cell; committing fills the whole selection.
+    await page.keyboard.type('5');
+    const input = page.locator('#portal textarea, #portal input').first();
+    await expect(input).toBeAttached({ timeout: 4000 });
+    await input.fill('5');
+    await input.press('Enter');
+
+    await expect.poll(() => page.evaluate(() =>
+      (window as any).__lemonSchedule.getProject().scenes.slice(0, 3).map((s: any) => s.scriptDay),
+    ), { timeout: 5000 }).toEqual(['5', '5', '5']);
+    // One undo entry for the whole spread.
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(1);
   });
 
   test('edits a cell via double-click and commits to store', async ({ page }) => {

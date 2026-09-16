@@ -38,3 +38,21 @@ auto-repaint.
 - Optional `rowTooltip`/`onRowHover` drive the Call Sheet editor's first-scene hover tooltip +
   ribbon strip highlight (`SceneHighlightContext`, `reports/sceneHighlight.tsx`); the tooltip follows
   the cursor and dismisses on `pointerleave` (floating chromes).
+- **Computed cells seed the editor** (roadmap 141). Glide's text editor seeds from the cell's raw
+  `data`, never `displayData` — so a cell whose value is COMPUTED used to open blank. Use
+  `seededTextCell(seed, { displayData })` (`src/lib/glideCells.ts`): it puts the seed in `data` and
+  sets `selectionRange` so the overlay opens with it fully selected (type replaces it). Seed order =
+  stored override → the DEFAULT expression that produced the value (a stage `lead` like `-1h`, a
+  department precall like `-30m`) → the resolved time (`DayTimesGlide` / `CrewTableGlide`). Guard the
+  commit with `isSeededNoop(prior, seed, value)` before writing an override, or Enter/blur on an
+  unchanged cell pins a spurious override.
+- **Range fill** (roadmap 139): committing a single edit while a multi-cell selection is active writes
+  that value to every writable cell in the selection as ONE commit. `expandRangeFill`
+  (`src/lib/glidePaste.ts`) builds the edits; `InlineGlideTable.onCellsEdited` expands them and
+  `editableKeys` is the compatibility filter (read-only IDs / names / `actions` are skipped). The
+  two whole-grid engines fill only the EDITED COLUMN (their columns are heterogeneous) and exempt
+  entity/category columns: `BreakdownTabGlide.onCellEdited` also exempts scene numbers, and
+  `GlideGridShell` (`src/lib/glideShell.tsx` — Crew Glide / Locations Glide) exempts `kind:'category'`
+  columns and the add row. Both wrap the per-row `commitEdit` calls in
+  `BATCH_START`/`BATCH_COMMIT`. Paste arrives as many edits and is never expanded; the fill handle
+  copies the same value, so its outcome is unchanged.

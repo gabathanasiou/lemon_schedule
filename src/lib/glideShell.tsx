@@ -287,8 +287,26 @@ export const GlideGridShell: React.FC<{
       createFromAddRow(colDef.key, newValue.data);
       return;
     }
+    // Range fill (roadmap 139): a single edit committed while a multi-cell
+    // selection is active writes that value down the selection's rows in the
+    // SAME column — flat DBs mix column kinds, so a value never crosses them.
+    // Category columns (role/type) and the add row are exempt; one batch = one
+    // undo entry.
+    const range = gridSelectionRef.current?.current?.range;
+    if (colDef.kind !== 'category' && range && range.height > 1 && col >= range.x && col < range.x + range.width) {
+      const fillRows: number[] = [];
+      for (let r = range.y; r < range.y + range.height; r++) {
+        if (r < rowsRef.current.length) fillRows.push(r);
+      }
+      if (fillRows.length > 1) {
+        dispatch({ type: 'BATCH_START' });
+        for (const r of fillRows) commitEdit(r, colDef.key, newValue.data);
+        dispatch({ type: 'BATCH_COMMIT' });
+        return;
+      }
+    }
     commitEdit(row, colDef.key, newValue.data);
-  }, [COLUMNS, commitEdit, createFromAddRow, dedupeCellCommit]);
+  }, [COLUMNS, commitEdit, createFromAddRow, dedupeCellCommit, dispatch]);
 
   const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]) => {
     if (readOnlyRef.current) return;

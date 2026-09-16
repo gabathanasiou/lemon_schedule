@@ -62,6 +62,7 @@ import { anchoredKeysFor } from '../lib/elementLinks';
 import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { useGlideFill } from '../lib/glideFill';
+import { isWarningSuppressed, suppressWarningFor24h } from '../lib/warnings';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -511,9 +512,27 @@ export function GlideBreakdownTab({
     if (!colDef || colDef.key === 'actions') return;
     if (newValue.kind === GridCellKind.Text) {
       if (colDef.key === 'sceneNumber') { trySetSceneNumber(scene, newValue.data); return; }
+      // Range fill (roadmap 139): a single edit committed while a multi-cell
+      // selection is active writes that value down the selection's rows in the
+      // SAME column — the scenes grid's columns are heterogeneous, so a value
+      // never crosses kinds. Entity columns and scene numbers are exempt; one
+      // batch = one undo entry.
+      const range = gridSelectionRef.current?.current?.range;
+      if (!isEntityCol(colDef.key) && range && range.height > 1 && col >= range.x && col < range.x + range.width) {
+        const fillRows: number[] = [];
+        for (let r = range.y; r < range.y + range.height; r++) {
+          if (r < scenesRef.current.length) fillRows.push(r);
+        }
+        if (fillRows.length > 1) {
+          dispatch({ type: 'BATCH_START' });
+          for (const r of fillRows) commitEdit(scenesRef.current[r].id, colDef.key, newValue.data);
+          dispatch({ type: 'BATCH_COMMIT' });
+          return;
+        }
+      }
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit, trySetSceneNumber]);
+  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit, trySetSceneNumber, isEntityCol]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const anchoredByCategory = new Map<string, Set<string>>();
@@ -834,8 +853,8 @@ export function GlideBreakdownTab({
       if (readOnlyRef.current || getMarqueeMode() === 'tool') return;
       const scene = scenesRef.current[row];
       if (!scene) return;
-      const suppressedUntil = localStorage.getItem('lemon_schedule_suppress_delete_warning');
-      if (suppressedUntil && Date.now() < parseInt(suppressedUntil, 10)) {
+      const suppressed = isWarningSuppressed('lemon_schedule_suppress_delete_warning');
+      if (suppressed) {
         deleteScene(scene.id);
       } else {
         setDeleteConfirm({ sceneId: scene.id, sceneNumber: scene.sceneNumber || String(row + 1) });
@@ -1179,7 +1198,7 @@ export function GlideBreakdownTab({
                   for (const id of ids) deleteScene(id);
                   if (ids.length > 1) dispatch({ type: 'BATCH_COMMIT' });
                   if (suppressDeleteWarning) {
-                    localStorage.setItem('lemon_schedule_suppress_delete_warning', String(Date.now() + 86400000));
+                    suppressWarningFor24h('lemon_schedule_suppress_delete_warning');
                   }
                   setDeleteConfirm(null);
                   setSuppressDeleteWarning(false);

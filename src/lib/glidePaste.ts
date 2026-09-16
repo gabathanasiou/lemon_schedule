@@ -75,6 +75,31 @@ export function planGridPaste<R>(
   return { editRows, newRows };
 }
 
+/**
+ * Range-fill planner (roadmap 139): a single edit committed while a multi-cell
+ * selection is active writes the same raw value to every selected cell.
+ * `onlyColumn` restricts the spread to one column — used by grids whose columns
+ * are heterogeneous (the scenes glide), so a value never crosses kinds.
+ * Writable filtering stays in the caller (`applyEdits` / the commit path).
+ */
+export function expandRangeFill(
+  range: PasteRange,
+  columns: PasteColumn[],
+  value: string,
+  onlyColumn?: number,
+): PasteEdit[] {
+  const out: PasteEdit[] = [];
+  const fromCol = onlyColumn !== undefined ? onlyColumn : range.x;
+  const toCol = onlyColumn !== undefined ? onlyColumn + 1 : range.x + range.width;
+  for (let r = range.y; r < range.y + range.height; r++) {
+    for (let c = fromCol; c < toCol; c++) {
+      const key = columns[c]?.key;
+      if (key && key !== 'actions') out.push({ row: r, colKey: key, val: value });
+    }
+  }
+  return out;
+}
+
 function buildSceneFromRaw(raw: Record<string, string>): Scene {
   const scene: any = createBlankScene({
     sceneNumber: raw.sceneNumber || '',

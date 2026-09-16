@@ -6,7 +6,7 @@ import type { DayView } from '../../../lib/dayView';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '../../InlineGlideTable';
 import { ContextMenuItem } from '../../ContextMenu';
 import { createDayTimesTheme } from '../../../lib/glideTheme';
-import { textCell } from '../../../lib/glideCells';
+import { isSeededNoop, seededTextCell, textCell } from '../../../lib/glideCells';
 import { setCrewCall } from '../../../lib/dayMeta';
 import { resolveCrewCall } from '../../../lib/callTimes';
 import { crewDepartmentOf } from '../../../lib/crewCatalog';
@@ -49,6 +49,7 @@ const CrewTableGlide: React.FC<CrewTableGlideProps> = ({ day, project, patchMeta
       isOverride: override ? 'true' : '',
       isPrecall: !override && precall ? 'true' : '',
       call: override,
+      precall: precall || '',
       resolved: resolveCrewCall(override, precall, dayCall),
     };
   }), [day.crew, day.meta.crewCalls, crewRoles, template.departmentPrecalls, dayCall]);
@@ -62,7 +63,10 @@ const CrewTableGlide: React.FC<CrewTableGlideProps> = ({ day, project, patchMeta
   const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>): GridCell => {
     if (col.key === 'call') {
       const overridden = row.isOverride === 'true';
-      return textCell(row.call, {
+      // No override stored → seed the editor with the DEFAULT expression (the
+      // department precall) when there is one, else the resolved call, fully
+      // selected (roadmap 141), so editing shows what produced the call.
+      return seededTextCell(row.call || row.precall || row.resolved, {
         displayData: row.resolved,
         readonly: !!readOnly,
         align: 'center',
@@ -77,13 +81,21 @@ const CrewTableGlide: React.FC<CrewTableGlideProps> = ({ day, project, patchMeta
 
   const onCommit = useCallback((edits: InlineGlideEdit[]) => {
     let calls = day.meta.crewCalls;
+    let changed = false;
     for (const edit of edits) {
       const entry = day.crew[edit.row];
       if (!entry) continue;
+      const row = rows[edit.row];
+      const prior = row?.call || '';
+      const resolved = row?.resolved || '';
+      // The editor seeds with the precall / resolved call when no override is
+      // stored — an unchanged commit (Enter/blur) must NOT pin a spurious override.
+      if (isSeededNoop(prior, prior || row?.precall || resolved, edit.value)) continue;
       calls = setCrewCall(calls, entry.person.id, edit.value);
+      changed = true;
     }
-    patchMeta({ crewCalls: calls });
-  }, [day.crew, day.meta.crewCalls, patchMeta]);
+    if (changed) patchMeta({ crewCalls: calls });
+  }, [day.crew, day.meta.crewCalls, rows, patchMeta]);
 
   return (
     <InlineGlideTable

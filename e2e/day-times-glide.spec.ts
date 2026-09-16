@@ -24,6 +24,31 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     expect(box.sh).toBeLessThanOrEqual(box.ch);
   });
 
+  test('editor seeds the default expression / resolved time, fully selected; Enter stores no override (roadmap 141)', async ({ page }) => {
+    await openCallTimes(page);
+    const cast = await day1Cast(page);
+    expect(cast.length).toBeGreaterThan(0);
+    expect(await callsFor(page, cast[0])).toBeNull();
+
+    const cell = await stageCellPoint(page, 0, 0);
+    await page.mouse.dblclick(cell.x, cell.y);
+    const ta = page.locator('#portal textarea').first();
+    await expect(ta).toBeAttached({ timeout: 4000 });
+
+    // The overlay opens with the whole seed selected — not blank, so typing
+    // replaces it instead of requiring a retype. A non-anchor stage seeds with
+    // its default lead expression (`-1h`), an anchor/override with a time.
+    await expect.poll(() => ta.evaluate((el: HTMLTextAreaElement) =>
+      el.value.length > 0 && el.selectionStart === 0 && el.selectionEnd === el.value.length,
+    ), { timeout: 4000 }).toBe(true);
+    expect(await ta.inputValue()).toMatch(/^(\d{1,2}:\d{2}|[+-]\d+(?:h|m))$/);
+
+    // Enter without typing must NOT pin a spurious override (or an undo entry).
+    await ta.press('Enter');
+    await expect.poll(() => callsFor(page, cast[0]), { timeout: 4000 }).toBeNull();
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(0);
+  });
+
   test('edits a cell, pastes a block, and each op is one undo entry', async ({ page }) => {
     await openCallTimes(page);
     const cast = await day1Cast(page);
@@ -47,10 +72,10 @@ test.describe('Day Times Glide (roadmap 101)', () => {
       await page.mouse.click(first.x, first.y);
       await page.evaluate(() => {
         const dt = new DataTransfer();
-        dt.setData('text/plain', '08:00\t-30m\n07:30\t-1h');
+        dt.setData('text/plain', '08:00\t-45m\n07:30\t-1h');
         document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
       });
-      await expect.poll(() => callsFor(page, cast[0]), { timeout: 5000 }).toEqual({ pickup: '08:00', arrive: '-30m' });
+      await expect.poll(() => callsFor(page, cast[0]), { timeout: 5000 }).toEqual({ pickup: '08:00', arrive: '-45m' });
       await expect.poll(() => callsFor(page, cast[1]), { timeout: 5000 }).toEqual({ pickup: '07:30', arrive: '-1h' });
       // One undo entry for the whole paste.
       expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(2);
@@ -63,6 +88,33 @@ test.describe('Day Times Glide (roadmap 101)', () => {
 
     // The Call Times card summary reflects the surviving override.
     await expect(page.locator('[data-section="callTimes"]')).toContainText('1 override');
+  });
+
+  test('editing one cell writes the value across the selected range in one undo (roadmap 139)', async ({ page }) => {
+    await openCallTimes(page);
+    const cast = await day1Cast(page);
+    test.skip(cast.length < 3, 'seed day needs at least 3 cast for a range fill');
+
+    // Drag a 3-row range down the first stage column.
+    const a = await stageCellPoint(page, 0, 0);
+    const b = await stageCellPoint(page, 2, 0);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 8 });
+    await page.mouse.up();
+
+    // Type over the anchored cell; committing spreads to the whole selection.
+    await page.keyboard.type('06:00');
+    const ta = page.locator('#portal textarea').first();
+    await expect(ta).toBeAttached({ timeout: 4000 });
+    await ta.fill('06:00');
+    await ta.press('Enter');
+
+    await expect.poll(() => callsFor(page, cast[0]), { timeout: 5000 }).toEqual({ pickup: '06:00' });
+    await expect.poll(() => callsFor(page, cast[1]), { timeout: 5000 }).toEqual({ pickup: '06:00' });
+    await expect.poll(() => callsFor(page, cast[2]), { timeout: 5000 }).toEqual({ pickup: '06:00' });
+    // The whole spread is ONE undo entry.
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(1);
   });
 
   test('fill-down copies an expression across rows in one undo entry', async ({ page }) => {
