@@ -12,7 +12,6 @@ async function openRibbonDesigner(page: any) {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Ribbon Designer', exact: true }).click();
-  await page.waitForTimeout(800);
 }
 
 async function ribbonColWidths(page: any): Promise<number[]> {
@@ -64,7 +63,6 @@ test('ribbon designer: resize tabs drag a boundary with MIN_PCT clamps and commi
   expect(mid[1]).toBeCloseTo(2.5, 1); // MIN_PCT clamp
 
   await page.mouse.up();
-  await page.waitForTimeout(300);
 
   // COMMIT: the design's colWidths updated (poll the debounced save)
   const after = await waitForWidthCommit(page, before);

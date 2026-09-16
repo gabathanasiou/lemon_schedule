@@ -179,7 +179,6 @@ test.describe('Glide Breakdown clipboard', () => {
     await openGlide(page);
     await tapRowMarker(page, 0);
     await page.getByText('Copy', { exact: true }).last().click();
-    await page.waitForTimeout(500);
     await tapRowMarker(page, 1);
     await page.getByText('Paste', { exact: true }).last().click();
     const src = await sceneData(page, 0);

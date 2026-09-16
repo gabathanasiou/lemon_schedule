@@ -105,7 +105,6 @@ test.describe('Crew Glide', () => {
       const g = await gridGeo();
       await tapAt(g.x + g.colX(1), g.y + g.headerH / 2, 'right');
             await page.getByText('Sort A to Z', { exact: true }).click();
-      await page.waitForTimeout(700);
     }
     // Grip now holds Alice + the empty add-row member (empty sorts last)
     await expect.poll(async () => {
@@ -128,7 +127,6 @@ test.describe('Crew Glide', () => {
             const item = page.getByText('Go to Crew Manager → Grip', { exact: true });
       await expect(item).toBeVisible();
       await item.click();
-      await page.waitForTimeout(700);
     }
     // Lands on the Crew manager with the Grip role selected
     await expect(page.getByText('Roles', { exact: true })).toBeVisible();

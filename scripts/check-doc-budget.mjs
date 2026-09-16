@@ -145,7 +145,7 @@ if (orphanSpecs.length) {
 // Anti-regrowth ratchet: `waitForTimeout` is legitimate canvas/drag pacing, but
 // it is also the #1 flake source. Hold the non-@perf count at/below the
 // baseline — a new wait must be paid for by removing one (use expect.poll).
-const E2E_WAIT_BASELINE = 30;
+const E2E_WAIT_BASELINE = 23;
 let waitCount = 0;
 for (const f of readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'))) {
   const body = read(`e2e/${f}`);
