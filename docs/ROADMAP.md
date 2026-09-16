@@ -517,7 +517,9 @@ tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→s
 tests it). Report logic and the pure/reducer layer are already covered.
 - DONE `digit-schedule` — `src/lib/digitSchedule.ts` (`targetDaybreaks`/`scheduleRowsToDay`);
   `ScheduleTab` now calls it; `digitSchedule.test.ts`.
-- `production-dates` — days-off materialization inside `ProductionDatesModal`.
+- DONE `production-dates` — `src/lib/daysOffSync.ts` (`computeDaysOffSync`/`monBased`);
+  `ProductionDatesModal` calls it; `daysOffSync.test.ts`. `toDateKey` moved to
+  `lib/utils` (re-exported from `calendarUtils`).
 - `dayView` — assembly inside `useDayViews` (`src/lib/dayView.ts`).
 
 **Blocked**: `parseMsd` uses `DOMParser`, so its golden test stays e2e unless a jsdom

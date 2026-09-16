@@ -170,6 +170,14 @@ export function generateUUID(): string {
   });
 }
 
+/** Local-date ISO key (`YYYY-MM-DD`) — the calendar's date identity. */
+export function toDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 /** A fresh blank calendar version (item 66): production window unset except
  *  `productionStart` = today (mirrors `makeBlankProject`'s seeded version).
  *  `id` lets callers pin the id (NEW_CALENDAR_VERSION must match the id the

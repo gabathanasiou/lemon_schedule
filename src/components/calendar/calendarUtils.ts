@@ -1,13 +1,11 @@
 import { ScheduleRow } from '../../types';
+import { toDateKey } from '../../lib/utils';
+
+// Re-exported so existing calendar importers keep working; the ONE
+// implementation lives in lib/utils.
+export { toDateKey };
 
 export const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-
-export function toDateKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 /** Initial view date for a date picker's open month (roadmap 68): the field's
  *  picked date (latest pick), else the production start, else undefined

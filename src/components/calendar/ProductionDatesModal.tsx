@@ -4,18 +4,11 @@ import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import DateField from '../DateField';
-import { toDateKey, initialViewFor } from './calendarUtils';
-import { addDays, advanceDateCursor, buildNonShootSet } from '../../lib/daybreakUtils';
-import type { NonShootDate } from '../../types';
+import { initialViewFor } from './calendarUtils';
+import { computeDaysOffSync } from '../../lib/daysOffSync';
 import { CalendarDays, Check } from 'lucide-react';
 
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-
-/** Mon-based weekday (0=Mon..6=Sun) of an ISO date key. */
-const monBased = (key: string): number => {
-  const js = new Date(key + 'T00:00:00').getDay();
-  return js === 0 ? 6 : js - 1;
-};
 
 /** Production Dates manager (roadmap 54, MMS-style): prep start, production
  *  start and post end dates + the weekly days-off pattern. The calendar range
@@ -60,79 +53,32 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
     (activeVersion?.rows || []).filter(r => r.containerId === 1 && r.type === 'DAYBREAK' && !r.pinned).length;
 
   /** Syncs the weekly days-off across the schedule's span (prep start → the
-   *  last scheduled day, post end only when later):
-   *  - pattern weekdays without any entry get a `holiday` status (marked
-   *    `pattern: true`);
-   *  - pattern-created Day Off statuses on weekdays NO LONGER in the pattern
-   *    are removed (cards/notes on those days survive, the status is stripped);
-   *  - everything else — hand-made statuses, event cards, notes — is kept.
-   *  Returns { added, removed }. */
+   *  last scheduled day, post end only when later). Pure math lives in
+   *  `lib/daysOffSync`; this owns the dispatch + the note copy. */
   const applyDaysOff = (): { added: number; removed: number } => {
     if (!activeCalendarVersion) return { added: 0, removed: 0 };
-    const from = prepStart || prodStart;
-    if (!from) { setApplyNote('Set at least a production (or prep) start date first.'); return { added: 0, removed: 0 }; }
-    const fromDate = new Date(from + 'T00:00:00');
-    if (isNaN(fromDate.getTime())) { setApplyNote('Invalid start date.'); return { added: 0, removed: 0 }; }
+    const result = computeDaysOffSync({
+      prepStart,
+      productionStart: prodStart,
+      postEnd,
+      daysOff,
+      current: activeCalendarVersion.nonShootDates || [],
+      productionDayCount: productionDayCount(),
+    });
+    if (result.kind === 'no-start') { setApplyNote('Set at least a production (or prep) start date first.'); return { added: 0, removed: 0 }; }
+    if (result.kind === 'invalid-start') { setApplyNote('Invalid start date.'); return { added: 0, removed: 0 }; }
+    if (result.kind === 'no-change') { setApplyNote('No new days off to add — pattern days already have a status.'); return { added: 0, removed: 0 }; }
 
-    const nonShootSet = buildNonShootSet(activeCalendarVersion.nonShootDates);
-    const skip = (d: string) => nonShootSet.has(d) || daysOff.has(monBased(d));
-
-    // Walk the same date cursor the stripboard uses: land N production days
-    // from the production anchor, skipping statuses + pattern days.
-    const anchor = prodStart || from;
-    let cursor = anchor;
-    for (let i = 0; i < productionDayCount(); i++) {
-      cursor = advanceDateCursor(cursor, skip);
-      cursor = addDays(cursor, 1);
-    }
-    const lastShoot = addDays(cursor, -1);
-
-    let to = lastShoot;
-    if (postEnd && !isNaN(new Date(postEnd + 'T00:00:00').getTime()) && postEnd > to) to = postEnd;
-    const toDate = new Date(to + 'T00:00:00');
-
-    const current = activeCalendarVersion.nonShootDates || [];
-    const existing = new Map(current.map(n => [n.date, n]));
-    const added: NonShootDate[] = [];
-    const walk = new Date(fromDate);
-    while (walk <= toDate) {
-      const key = toDateKey(walk);
-      if (daysOff.has(monBased(key)) && !existing.has(key)) {
-        added.push({ date: key, status: 'holiday', pattern: true });
-      }
-      walk.setDate(walk.getDate() + 1);
-    }
-
-    // Remove pattern-created holidays on weekdays that left the pattern. The
-    // pattern is a global version property, so this is not span-bounded. If
-    // the day carries cards/notes, keep the entry with the status stripped.
-    let removed = 0;
-    const retained: NonShootDate[] = [];
-    for (const n of current) {
-      if (n.status === 'holiday' && n.pattern && !daysOff.has(monBased(n.date))) {
-        removed++;
-        const hasContent = (n.lists && Object.keys(n.lists).length > 0) ||
-          (n.comments && Object.keys(n.comments).length > 0);
-        if (hasContent) retained.push({ ...n, status: undefined, pattern: undefined });
-        continue;
-      }
-      retained.push(n);
-    }
-
-    if (added.length === 0 && removed === 0) {
-      setApplyNote('No new days off to add — pattern days already have a status.');
-      return { added: 0, removed: 0 };
-    }
-    dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, nonShootDates: [...retained, ...added] } });
+    dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: activeCalendarVersion.id, nonShootDates: result.nonShootDates } });
     const parts: string[] = [];
-    if (added.length > 0) {
-      parts.push(`Marked ${added.length} day${added.length === 1 ? '' : 's'} off (${added[0].date} – ${added[added.length - 1].date})`);
+    if (result.added.length > 0) {
+      parts.push(`Marked ${result.added.length} day${result.added.length === 1 ? '' : 's'} off (${result.added[0].date} – ${result.added[result.added.length - 1].date})`);
     }
-    if (removed > 0) {
-      parts.push(`removed ${removed} day${removed === 1 ? '' : 's'} (weekday unchecked)`);
+    if (result.removed > 0) {
+      parts.push(`removed ${result.removed} day${result.removed === 1 ? '' : 's'} (weekday unchecked)`);
     }
     setApplyNote(`${parts.join('; ')}.`);
-    return { added: added.length, removed };
+    return { added: result.added.length, removed: result.removed };
   };
 
   const handleSave = () => {
