@@ -58,6 +58,10 @@ import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib
 import { formatDriveError } from './lib/googleDriveStorage';
 import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
+import { useAgentBridge } from './lib/useAgentBridge';
+import { AGENT_BRIDGE_HELP_SUPPRESS_KEY } from './lib/agentBridgeClient';
+import { isWarningSuppressed, suppressWarningFor24h } from './lib/warnings';
+import AgentBridgeHelpModal from './components/AgentBridgeHelpModal';
 import { Download, Printer, Plus, ChevronDown, Undo2, Redo2, FolderOpen, HardDrive, FileUp, WifiOff, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose, Loader2 } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import DayManagerPage from './components/production/day/DayManagerPage';
@@ -87,6 +91,7 @@ import { SceneScriptPreviewProvider } from './components/script/SceneScriptPrevi
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity, activeCalendarVersion } = useProject();
   const dialog = useDialog();
+  const agentBridge = useAgentBridge();
   const [activeTab, setActiveTab] = useState<AppTabId>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons' | 'designer'>('ribbons');
   const [brSubTab, setBrSubTab] = useState<'elements' | 'sheet' | 'glide' | 'script'>('glide');
@@ -103,8 +108,10 @@ function AppContent() {
   const [scheduleScrollTop, setScheduleScrollTop] = useState(0);
   const [showOfflineModal, setShowOfflineModal] = useState(false);
   const [showRestoredBanner, setShowRestoredBanner] = useState(false);
+  const [showAgentBridgeHelp, setShowAgentBridgeHelp] = useState(false);
   const [poppedOutTabs, setPoppedOutTabs] = useState<Set<string>>(new Set());
   const popoutWindowsRef = useRef<Map<string, Window>>(new Map());
+  const agentBridgeErrorShownRef = useRef(false);
 
   const togglePopout = (tabId: string) => {
     setPoppedOutTabs(prev => {
@@ -470,6 +477,21 @@ function AppContent() {
   const noProject = currentProjectId === null;
   const isCloudProject = !!projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
+  // Surface agent-bridge failures as a dialog (once per failure episode) — the
+  // File menu only shows the status dot. Skipped on the project-manager boot
+  // screen (the bridge only matters with a project open).
+  useEffect(() => {
+    if (noProject || !agentBridge.enabled || agentBridge.status !== 'error' || !agentBridge.error) {
+      if (!agentBridge.enabled || agentBridge.status === 'connected') {
+        agentBridgeErrorShownRef.current = false;
+      }
+      return;
+    }
+    if (agentBridgeErrorShownRef.current) return;
+    agentBridgeErrorShownRef.current = true;
+    void dialog.alert({ title: 'Agent bridge', message: agentBridge.error });
+  }, [noProject, agentBridge.enabled, agentBridge.status, agentBridge.error, dialog]);
+
   const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800';
   const activeTabClass = isCloudProject ? 'bg-white text-blue-950' : 'bg-white text-zinc-900';
 
@@ -720,6 +742,18 @@ function AppContent() {
     exportSexFile(project, state.present?.title || 'schedule');
   };
 
+  const handleToggleAgentBridge = () => {
+    if (agentBridge.enabled) {
+      agentBridge.disable();
+      return;
+    }
+    if (isWarningSuppressed(AGENT_BRIDGE_HELP_SUPPRESS_KEY)) {
+      agentBridge.enable();
+      return;
+    }
+    setShowAgentBridgeHelp(true);
+  };
+
   return (
     <LongPressMenuProvider
       targetSelector="[data-row-id], [data-marquee-container]"
@@ -731,6 +765,17 @@ function AppContent() {
     <div className="h-screen bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden">
       {showProjectManager && (
         <ProjectManager onClose={() => setShowProjectManager(false)} />
+      )}
+
+      {showAgentBridgeHelp && (
+        <AgentBridgeHelpModal
+          onClose={() => setShowAgentBridgeHelp(false)}
+          onConfirm={(remember) => {
+            if (remember) suppressWarningFor24h(AGENT_BRIDGE_HELP_SUPPRESS_KEY);
+            setShowAgentBridgeHelp(false);
+            agentBridge.enable();
+          }}
+        />
       )}
 
       {showPrintDialog && <PrintDialog onPrint={(opts) => { setShowPrintDialog(false); setPrintOptions(opts); }} onClose={() => setShowPrintDialog(false)} />}
@@ -797,6 +842,8 @@ function AppContent() {
         onPrintReport={(design) => setCustomReportPrint(design)}
         onShowTrash={() => setShowTrash(true)}
         onShowIntegrity={() => setShowIntegrity(true)}
+        agentBridge={agentBridge}
+        onToggleAgentBridge={handleToggleAgentBridge}
         driveCtx={driveCtx}
         closeProject={closeProject}
         createProject={async (title) => { await createProject(title); }}

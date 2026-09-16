@@ -77,10 +77,29 @@ No backend, no database — data lives in your browser's localStorage. Sign in w
 | `npm run build` | Production build |
 | `npm run preview` | Preview the production build |
 | `npx playwright test` | E2E suite (auto-starts dev server on 3001) |
+| `npm run mcp` | Local MCP helper for AI agents (see below) |
+| `npm run mcp:install` | Register the MCP server with installed AI clients |
 
 ## E2E Testing
 
 The Playwright suite includes smoke tests that load a real production project ("IT'S A WONDERFUL LIFE") from `~/Downloads/IT'S A WONDERFUL LIFE.lemon` (override with `LEMON_SEED_PATH`) to exercise the stripboard, calendar, glide breakdown, ribbon designer, and print flow with real data. Specs resolve their data from the debug bridge, so the seed file can be re-exported from the app at any time without breaking the suite.
+
+## Developer API / MCP
+
+An AI agent can read and edit the project open in the app through a local MCP
+server (roadmap 97). It is loopback-only and off by default; enabling
+**File → Connect agent bridge** is the consent.
+
+- Register the server: `npm run mcp:install` (detects opencode, Codex/ChatGPT,
+  Claude Desktop, Cursor; `--dry-run` to preview). opencode already has it in
+  `opencode.json`; other clients: `"command": "node", "args": ["tools/mcp/lemon-mcp.mjs"]`.
+- Open a project and click **File → Connect agent bridge** (a short how-to shows
+  the first time), then let the agent call tools like `get_project`,
+  `get_schedule`, `get_schema`, `apply_actions`.
+- Writes go through the same reducer the UI uses (undoable); `LOAD` and
+  `EMPTY_TRASH` stay UI-only.
+
+Full details: [`docs/API.md`](docs/API.md).
 
 ## Data & Storage
 

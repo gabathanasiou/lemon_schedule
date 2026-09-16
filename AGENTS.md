@@ -150,6 +150,9 @@ the screenplay body (`ImportResult.script` → `project.scriptDocument` /
 - **Stable anchors:** `TEST_IDS` (`src/lib/testIds.ts`) — stripboard-day, daybreak-row, section-footer, next-day-header, palette-item; `#boneyard_rows_container` id exists. Prefer role/label/text queries first.
 - **Proven by** `e2e/debug-bridge.spec.ts` (inject → mutate → verify → batch → undo/redo). `help()` on the bridge self-documents the full API.
 
+### Local MCP bridge (roadmap 97, stage 1)
+`tools/mcp/` exposes the open project to MCP clients (opencode / Claude Desktop) over a loopback WebSocket: the app connects OUT via `src/lib/agentBridgeClient.ts` + `useAgentBridge.ts` when the user enables **File → Connect agent bridge** (the toggle is the consent); `tools/mcp/lemon-mcp.mjs` listens on `127.0.0.1:3939`, checks Origin+Host, speaks MCP over stdio, and proxies to a second instance if the port is taken. Tools = reads (`get_project`, `list_scenes`, `get_schedule`, `list_entities`, `get_versions`, `get_schema`) + writes (`apply_actions` atomic batch, `make_scene`, `undo`/`redo`) — all routed through the debug bridge above. Schemas are DERIVED (`tools/mcp/actionSchema.mjs` parses `reducer.ts` + `types.ts`) — never hand-maintain one tool per action. Blocked over WS: `LOAD`, `EMPTY_TRASH`; writes refused when `diagnostics().readOnly`; no `eval`, no token. Read `docs/API.md` before changing the surface.
+
 ## Help Modal
 New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Section>`/`<Row>`/`<Kbd>`; Unicode keys ⌘ ⌥ ⇧ ⌫ ⏎ ⎋ ↹).
 

@@ -41,6 +41,7 @@ export interface AgentBridgeConnectivitySnapshot {
   needsReauth: boolean;
   projectIsCloud: boolean;
   navigatorOnLine: boolean;
+  readOnly: boolean;
 }
 
 interface AgentBridgeApi {
@@ -143,21 +144,38 @@ function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
-let installed: { api: AgentBridgeApi; listeners: Set<(action: Action) => void> } | null = null;
+let installed: {
+  api: AgentBridgeApi;
+  listeners: Set<(action: Action) => void>;
+  bridge: LemonAgentBridge;
+} | null = null;
 
 /**
  * Called by ProjectProvider once on mount. Replaces any previous bridge and
  * returns an uninstall function (production/dev-mode remount safe).
+ *
+ * The bridge object is ALWAYS installed in-module so the local WebSocket agent
+ * bridge client (src/lib/agentBridgeClient.ts) can reach it on any build —
+ * `window.__lemonSchedule` stays gated (DEV or LEMON_AGENT=1) as before.
  */
 export function installAgentBridge(api: AgentBridgeApi): () => void {
-  if (!isAgentModeEnabled()) return () => {};
-  installed = { api, listeners: new Set() };
   const bridge: LemonAgentBridge = buildBridge();
-  window.__lemonSchedule = bridge;
+  installed = { api, listeners: new Set(), bridge };
+  const exposeOnWindow = isAgentModeEnabled();
+  if (exposeOnWindow) window.__lemonSchedule = bridge;
   return () => {
-    if (window.__lemonSchedule === bridge) delete window.__lemonSchedule;
+    if (exposeOnWindow && window.__lemonSchedule === bridge) delete window.__lemonSchedule;
     if (installed?.api === api) installed = null;
   };
+}
+
+/**
+ * Internal accessor for the installed bridge (never null while the provider is
+ * mounted). Consumed by the agent bridge WS client; NOT a window global unless
+ * the agent-mode gate is on.
+ */
+export function getAgentBridge(): LemonAgentBridge | null {
+  return installed?.bridge ?? null;
 }
 
 /** Called by ProjectProvider after every dispatch (bridge no-ops when uninstalled). */
@@ -188,7 +206,7 @@ function buildBridge(): LemonAgentBridge {
     '  getCalendarVersion()         → active calendar version meta (production window + nonShootDates)',
     '  getSceneValues()             → Glide grid truth: every scene, every column value (canvas is opaque to the DOM)',
     '  decodeProject(raw)           → decode a persisted localStorage/Drive project string (gzip/base64 OR legacy plain JSON)',
-    '  diagnostics()                → connectivity/sync snapshot (probe result, Drive save error, payload size, retries)',
+    '  diagnostics()                → connectivity/sync snapshot (probe result, Drive save error, payload size, retries, readOnly)',
     '  auditScript()                → project↔scriptDocument integrity report (duplicate numbers, orphan/dangling bodies, missing rows)',
     '  pastCount() / futureCount()  → undo/redo stack depths',
     '',

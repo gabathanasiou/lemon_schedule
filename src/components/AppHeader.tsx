@@ -11,6 +11,7 @@ import DropdownSubmenu from './DropdownSubmenu';
 import Button from './Button';
 import { SaveIndicator } from './SaveIndicator';
 import { useUnsavedGuardState, performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
+import type { AgentBridgeStatus } from '../lib/agentBridgeClient';
 
 export type AppTabId = 'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'production' | 'reports';
 
@@ -42,6 +43,8 @@ interface AppHeaderProps {
   onPrintReport: (design: ReportDesign) => void;
   onShowTrash: () => void;
   onShowIntegrity: () => void;
+  agentBridge: { enabled: boolean; status: AgentBridgeStatus };
+  onToggleAgentBridge: () => void;
   driveCtx: GoogleAuthContextValue;
   closeProject: () => void;
   createProject: (title?: string) => Promise<void>;
@@ -56,9 +59,8 @@ export default function AppHeader(props: AppHeaderProps) {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
     onOpenProjectManager, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
-    onShowTrash, onShowIntegrity, driveCtx, closeProject, createProject,
+    onShowTrash, onShowIntegrity, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject,
   } = props;
-
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [tabScrollMask, setTabScrollMask] = useState('none');
@@ -82,6 +84,17 @@ export default function AppHeader(props: AppHeaderProps) {
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
   const tabButtons: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'reports'];
+
+  const agentBridgeLabel =
+    agentBridge.status === 'connected' ? 'Agent bridge: connected'
+    : agentBridge.status === 'connecting' ? 'Agent bridge: connecting…'
+    : agentBridge.status === 'error' ? 'Agent bridge: helper not running'
+    : 'Connect agent bridge';
+  const agentBridgeDot =
+    agentBridge.status === 'connected' ? 'bg-emerald-400'
+    : agentBridge.status === 'connecting' ? 'bg-amber-400 animate-pulse'
+    : agentBridge.status === 'error' ? 'bg-red-500'
+    : 'bg-zinc-600';
 
   return (
     <header className={`flex items-center ${isCloudProject ? 'bg-blue-950' : 'bg-zinc-950'} text-zinc-300 px-4 py-2 select-none print:hidden`}>
@@ -166,6 +179,14 @@ export default function AppHeader(props: AppHeaderProps) {
             </DropdownItem>
             <DropdownItem onClick={() => { setShowFileMenu(false); onShowTrash(); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
               Trash...
+            </DropdownItem>
+            <DropdownDivider />
+            <DropdownItem
+              keepOpen
+              onClick={onToggleAgentBridge}
+              icon={<span className={`inline-block w-2 h-2 rounded-full ${agentBridgeDot}`} />}
+            >
+              {agentBridgeLabel}
             </DropdownItem>
           </DropdownMenu>
           <SaveIndicator isCloudProject={isCloudProject} />

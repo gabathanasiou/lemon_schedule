@@ -5,6 +5,11 @@
       "type": "local",
       "command": ["npx", "@playwright/mcp@latest"],
       "environment": {}
+    },
+    "lemon": {
+      "type": "local",
+      "command": ["node", "tools/mcp/lemon-mcp.mjs"],
+      "environment": {}
     }
   }
 }
