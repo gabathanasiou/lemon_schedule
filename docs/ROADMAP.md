@@ -463,9 +463,11 @@ row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 > counted in the review), same-number/low-similarity pairs flagged `collision`
 > (default keep), and the review shows a split-group notice. **123 Phase 3
 > shipped** via `SceneScriptPreviewProvider` (shared hover preview, wired on
-> Calendar scene cards; item 123 closed). **Remaining**: the interactive
-> per-group Apply-to-both / Merge-back / Keep review (the notice points at the
-> Split Manager instead).
+> Calendar scene cards; item 123 closed). **Remaining script work (order)**:
+> **136** (tagging overhaul — selection→category menu + import-span unification +
+> suggestions) → **E** Renumber / Move break / Resolve → **F** interactive
+> Apply-to-both / Merge-back / Keep review. **137** (AI) parked; **135** integrity
+> audit; **43** / **133** blocked.
 > **API/agent compatibility is a hard constraint** (see API note + Relations 97).
 
 **Relations**: `depends on` **123 Phase 0** (**DONE** — retained
@@ -640,3 +642,73 @@ surface an agent API should expose).
 **Verify**: runs over the Lair V17 fixture (duplicate `40`) → reports it;
 repair renumbers both project scene and body in one undo; clean files report
 "no issues".
+
+## 136. Script tagging overhaul — selection → category menu, import-span unification, suggestions (`[ ]`)
+
+**Requested**: replace the tag **picker modal** with the industry-standard
+"highlight → click category" flow (StudioBinder / Final Draft / Movie Magic
+model). The highlighted text BECOMES the element — never a picker into existing
+elements. Imported FDX tags and auto-suggestions must render and behave
+IDENTICALLY (one dotted→solid pipeline). Follow-up to the **132 Part B**
+tagging foundation (the picker felt wrong) — narrative in git history.
+
+**Relations**: `supersedes` the `ScriptTagModal` picker built under **123
+Phase 2 / 132 Part B**; `depends on` the `ScriptAnnotation` model + canonical
+`ADD/UPDATE/REMOVE_SCRIPT_ANNOTATION` actions; `reuses` kit `ContextMenu` /
+`FloatingTooltip`; `extends` **132 F** (import remap); `enables` **137**.
+
+**Ground rules (user decisions)**:
+- Selection → context menu of ALL element categories (built-ins + custom,
+  icons). NO Location / Script Day. NO EntityDropdown / existing-element picker.
+- Click a category → `name = selection.trim().toUpperCase()`; ensure the element
+  (non-cast `ADD_ELEMENT {id:name,name}`; cast reuse-by-name else new id via
+  `firstFreeCastId` — no naming modal); **append/replace the scene field**
+  (`isMultiValue`); `ADD_SCRIPT_ANNOTATION` (`elementKey=name`, `text=selection`,
+  committed). Re-tagging the exact range CHANGES its category, never stacks.
+- Span = category colour; **hover** → `FloatingTooltip` badge
+  `Category · ELEMENT` (+ `script: "…"` only on rename divergence); **click** →
+  same menu, current category checked + Remove (moving a category re-points the
+  annotation and swaps the scene-field attachment).
+- ONE undo batch per action.
+
+**Steps**:
+1. `src/lib/scriptTagging.ts` (new, pure): `planTagCommit(project, sceneId,
+   category, text)` → `{ elementKey, sceneFieldValue, annotation }`;
+   `commitTag(dispatch, project, target, category, text)`; `suggestionRanges(
+   project, scene)`.
+2. `ScriptTagMenu` (new) — kit `ContextMenu` at the selection rect; one
+   `ContextMenuItem` per category; the click-a-tag path adds a divider + Remove.
+3. `ScriptView`: drop the floating "Tag" button + `tagModal`; hover badge; a
+   **Suggestions** toggle (persisted `usePersistState`, kit `Button active`) in
+   the Script header portal controlling every NON-committed span.
+4. Renderer: derived suggestions as dotted `ranges` (ephemeral — computed in the
+   view, not persisted; skip overlaps with committed tags) alongside stored
+   annotations; committed solid; FDX `recognized` spans show while the toggle is
+   on and commit on click.
+5. Import unification: FDX tags already seed `recognized` (**132 B**) — route
+   them through the same menu/commit path. **SEX/MSD have NO retained body → no
+   spans (scene fields only)**; document.
+6. Delete `ScriptTagModal.tsx`; replace the old tagging e2e; unit-test the pure
+   helpers (`planTagCommit`, `suggestionRanges`).
+7. Docs: `IMPORT-EXPORT.md` §Script body retention; add the selection-menu
+   pattern to `DESIGN-LANGUAGE.md` if it becomes shared.
+
+**Verify**: select "bulbs" → Props → `scene.props` gains BULBS, element exists,
+span solid + category colour, hover badge; change category; remove; FDX tag
+dotted → click → solid; the Suggestions toggle shows/hides non-committed spans;
+a cast cue suggests + commits; SEX import stays scene-field-only; `npm run lint`
++ `npx playwright test`.
+
+## 137. AI script-breakdown suggestions (Filmustage-style) (`[ ]`, FUTURE, parked)
+
+**Relations**: `depends on` **136** (the dotted→solid suggestion pipeline + the
+category menu) and **97** (agent/API + prompt-injection/untrusted-data rules);
+`related to` **43**/**41** (import tags).
+
+**Idea**: an opt-in pass that proposes elements (props / wardrobe / vehicles /
+VFX / …) per scene from the screenplay body, surfaced as recognized spans/rows
+for human confirm — NEVER auto-commit. Parked because the deterministic
+known-element matching in **136** ships the same value cheaply; AI needs
+accuracy, consent and cost decisions first.
+
+**Verify**: TBD when unparked.
