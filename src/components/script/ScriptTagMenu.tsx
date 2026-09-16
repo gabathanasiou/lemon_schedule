@@ -23,9 +23,12 @@ export interface ScriptTagMenuState {
   y: number;
   target: ScriptTagTarget;
   existing?: ScriptAnnotation;
-  /** For an ephemeral auto-suggestion: the category to highlight (and mark with
-   *  a symbol). Enter commits it — the selection is already there. */
-  suggested?: string;
+  /** An attached-derived span (solid highlight from an existing scene
+   *  attachment). Remove detaches the element from the scene. */
+  derived?: ScriptAnnotation;
+  /** The ephemeral auto-suggestion that opened the menu: highlights (and marks
+   *  with a symbol) its category; Enter commits it. */
+  suggestion?: ScriptAnnotation;
   /** Distinguishes a menu opened by a click on a tag from one opened by a text
    *  selection, so the deferred selection handler never clobbers it. */
   source: 'selection' | 'annotation';
@@ -39,8 +42,9 @@ export default function ScriptTagMenu({ menu, project, onCommit, onRemove, onClo
   onClose: () => void;
 }) {
   const categories = tagCategories(project);
-  const current = menu?.existing?.category;
-  const suggested = menu?.suggested;
+  const anchor = menu?.existing || menu?.derived;
+  const current = anchor?.category;
+  const suggested = menu?.suggestion?.category;
   const highlightKey = suggested || current;
   const highlightIndex = highlightKey ? categories.findIndex(c => c.key === highlightKey) : undefined;
   return (
@@ -88,8 +92,8 @@ export default function ScriptTagMenu({ menu, project, onCommit, onRemove, onClo
           </DropdownItem>
         );
       })}
-      {menu?.existing && <DropdownDivider />}
-      {menu?.existing && (
+      {anchor && <DropdownDivider />}
+      {anchor && (
         <DropdownItem variant="danger" icon={<Trash2 className="w-3.5 h-3.5 shrink-0" />} onClick={onRemove}>
           Remove
         </DropdownItem>

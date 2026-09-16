@@ -6,16 +6,17 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import Checkbox from './Checkbox';
-import { diffScripts, commitScriptDiff, defaultDecision, buildCastIdMap, firstFreeCastId, collectUnknownFromValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues, remapAnnotations } from '../lib/import';
-import type { HeadingMapping } from '../lib/import';
+import Button from './Button';
+import { diffScripts, commitScriptDiff, defaultDecision, buildCastIdMap, firstFreeCastId, collectUnknownFromValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues, remapAnnotations, reconcileSplitBodies } from '../lib/import';
+import type { HeadingMapping, SplitAction } from '../lib/import';
 import HeadingValueMapper from './import/HeadingValueMapper';
 import type { DiffDecision, ImportResult, SceneDiffEntry, SceneFieldDiff } from '../lib/import';
-import { normalizeSceneNumber, scriptSceneBlocks } from '../lib/script';
-import { splitGroups } from '../lib/splitGroups';
+import { normalizeSceneNumber, scriptSceneBlocks, scriptSceneOf } from '../lib/script';
+import { splitGroups, type SplitGroup } from '../lib/splitGroups';
 import { alignScriptBlocks, ScriptBlockLine, WORD_DIFF_MIN_SIMILARITY } from './script/ScriptSceneScript';
 import { CastAssignmentTable, CategoryChecklist } from './import/ImportReviewControls';
 import type { ImportCharacter } from '../lib/import';
-import type { ScriptBlock } from '../types';
+import type { ScriptBlock, ScriptDocument } from '../types';
 
 /**
  * Script update review (roadmap 38) — a SEPARATE, keyboard-fast modal.
@@ -112,6 +113,50 @@ function DecisionButtons({ status, decision, onDecide }: { status: string; decis
   );
 }
 
+const SPLIT_ACTION_LABEL: Record<SplitAction, string> = {
+  'apply-both': 'Apply to both',
+  'merge-back': 'Merge back',
+  keep: 'Keep',
+};
+
+/** Split-group reconciliation card (roadmap 132 Part F): a revision touched a
+ *  locally cut scene, so the reviewer chooses how the cut survives. */
+function SplitReconcileCard({ group, local, incoming, action, onAction }: {
+  group: SplitGroup;
+  local: ScriptDocument | undefined;
+  incoming: ScriptDocument | undefined;
+  action: SplitAction;
+  onAction: (a: SplitAction) => void;
+}) {
+  const fragLabels = group.fragments.map(f => f.sceneNumber).join(' + ');
+  const blocks = (doc: ScriptDocument | undefined, n: string) => scriptSceneOf(doc, n)?.blocks.length ?? 0;
+  const hasIncoming = (n: string) => !!scriptSceneOf(incoming, n);
+  return (
+    <div className="rounded-lg border border-purple-800 bg-purple-900/30 px-3 py-2 text-[11px] text-purple-200 space-y-2">
+      <div>
+        Scene {group.original.sceneNumber} was split into {group.original.sceneNumber} + {fragLabels}; the script revised it.
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-purple-300/80">
+        <span>
+          {group.original.sceneNumber}: {blocks(local, group.original.sceneNumber)} → {hasIncoming(group.original.sceneNumber) ? blocks(incoming, group.original.sceneNumber) : '—'} lines
+        </span>
+        {group.fragments.map(f => (
+          <span key={f.id}>
+            {f.sceneNumber}: {action === 'merge-back' ? 'merged back' : action === 'apply-both' ? 're-split' : 'kept'}
+          </span>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {(['apply-both', 'merge-back', 'keep'] as const).map(a => (
+          <Button key={a} theme="dark" variant="subtle" type="button" active={action === a} onClick={() => onAction(a)}>
+            {a === 'merge-back' ? `Merge ${fragLabels} back` : SPLIT_ACTION_LABEL[a]}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type HeadingPart = { text: string; change?: 'user' | 'incoming' | 'removed' | 'added' };
 type HeadingValues = { intExt?: string; set?: string; dayNight?: string };
 
@@ -172,10 +217,10 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
   const [history, setHistory] = useState<number[]>([]);
   const [view, setView] = useState<View>(changeIndices.length ? 'review' : 'confirm');
   const [fieldKeeps, setFieldKeeps] = useState<Record<number, Set<string>>>({});
+  /** Per-copy-group action for a revision that touches a local cut (Part F). */
+  const [splitActions, setSplitActions] = useState<Record<string, SplitAction>>({});
 
-  // Tags survive the body replacement by re-anchoring through the block
-  // alignment (roadmap 132 Part F); unresolved wording is reported orphaned.
-  const remapped = useMemo(() => {
+  const sceneNumberRemap = useMemo(() => {
     const bySceneId = new Map<string, { oldNumber: string; newNumber: string }>();
     diff.entries.forEach((e, i) => {
       if (!e.oldScene) return;
@@ -185,8 +230,24 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
       const newNumber = keptNumber ? e.oldScene.sceneNumber : (e.newScene?.sceneNumber ?? e.oldScene.sceneNumber);
       bySceneId.set(e.oldScene.id, { oldNumber: e.oldScene.sceneNumber, newNumber });
     });
-    return remapAnnotations(project.scriptAnnotations || [], project.scriptDocument, result.script, bySceneId);
-  }, [diff, decisions, fieldKeeps, project.scriptAnnotations, project.scriptDocument, result.script]);
+    return bySceneId;
+  }, [diff, decisions, fieldKeeps]);
+
+  // Tags survive the body replacement by re-anchoring through the block
+  // alignment (roadmap 132 Part F); unresolved wording is reported orphaned.
+  const remapped = useMemo(
+    () => remapAnnotations(project.scriptAnnotations || [], project.scriptDocument, result.script, sceneNumberRemap),
+    [project.scriptAnnotations, project.scriptDocument, result.script, sceneNumberRemap],
+  );
+
+  // Split groups touched by this revision (roadmap 132 Part F) — the reviewer
+  // chooses whether the cut is re-split, merged back or kept.
+  const splitNotice = useMemo(() => {
+    const changedNumbers = new Set(diff.entries.filter(e => e.status !== 'unchanged').map(e => normalizeSceneNumber(e.sceneNumber)));
+    return splitGroups(project.scenes).filter(g =>
+      changedNumbers.has(normalizeSceneNumber(g.original.sceneNumber)) ||
+      g.fragments.some(f => changedNumbers.has(normalizeSceneNumber(f.sceneNumber))));
+  }, [diff, project.scenes]);
 
   const [castOrder, setCastOrder] = useState<ImportCharacter[]>(() =>
     [...result.characters].sort((a, b) => b.scenes.length - a.scenes.length));
@@ -273,21 +334,41 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
   );
 
   const commitNow = useCallback((headingValues?: { intExt?: Record<string, string>; dayNight?: Record<string, string> }) => {
+    // Reconcile local cuts with the revision (roadmap 132 Part F): the reviewer's
+    // per-group action transforms the incoming body before it becomes current,
+    // and forces the group's diff decisions (keep an ignored cut, remove a
+    // merged-back fragment).
+    const actions = new Map<string, SplitAction>();
+    for (const g of splitNotice) {
+      const action = splitActions[g.original.id];
+      if (action) actions.set(g.original.id, action);
+    }
+    const recon = reconcileSplitBodies(project, result.script, actions);
+    const effectiveResult = recon.doc ? { ...result, script: recon.doc } : result;
+    const finalAnnotations = recon.doc && recon.doc !== result.script
+      ? remapAnnotations(project.scriptAnnotations || [], project.scriptDocument, recon.doc, sceneNumberRemap).annotations
+      : remapped.annotations;
+    const effectiveDecisions = decisions.map((d, i) => {
+      const oldId = diff.entries[i].oldScene?.id;
+      if (oldId && recon.forceKeep.has(oldId)) return 'keep' as DiffDecision;
+      if (oldId && recon.forceRemove.has(oldId)) return 'remove' as DiffDecision;
+      return d;
+    });
     commitScriptDiff({
       dispatch,
-      result,
+      result: effectiveResult,
       entries: diff.entries,
-      decisions,
+      decisions: effectiveDecisions,
       castIdMap: castAssignments,
       newCustomCategories: [...selectedCategories],
       existingCastMembers: project.castMembers || [],
       castRenames: diff.castRenames,
       fieldKeeps: diff.entries.map((_, i) => fieldKeeps[i]),
-      finalAnnotations: remapped.annotations,
+      finalAnnotations,
       headingValues,
     });
     onClose();
-  }, [dispatch, result, diff, decisions, castAssignments, selectedCategories, project.castMembers, onClose, fieldKeeps, remapped.annotations]);
+  }, [dispatch, result, diff, decisions, castAssignments, selectedCategories, project, onClose, fieldKeeps, remapped.annotations, splitNotice, splitActions, sceneNumberRemap]);
 
   const runApply = useCallback(async () => {
     const parts: string[] = [];
@@ -437,15 +518,6 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
 
   const changed = useMemo(() => diff.entries.map((e, i) => ({ e, i })).filter(({ e }) => e.status !== 'unchanged'), [diff]);
 
-  // Split groups touched by this revision (roadmap 132 Part F) — the reviewer is
-  // told the scene was cut locally so applying the script isn't a surprise.
-  const splitNotice = useMemo(() => {
-    const changedNumbers = new Set(diff.entries.filter(e => e.status !== 'unchanged').map(e => normalizeSceneNumber(e.sceneNumber)));
-    return splitGroups(project.scenes).filter(g =>
-      changedNumbers.has(normalizeSceneNumber(g.original.sceneNumber)) ||
-      g.fragments.some(f => changedNumbers.has(normalizeSceneNumber(f.sceneNumber))));
-  }, [diff, project.scenes]);
-
   const body = () => {
     if (view === 'setup') {
       return (
@@ -472,6 +544,16 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
             {diff.castRenames.length > 0 && <span className="text-zinc-400">rename {diff.castRenames.map(r => `${r.from}→${r.to}`).join(', ')}</span>}
             {report.orphaned > 0 && <span className="text-zinc-400">{report.orphaned} tag{report.orphaned === 1 ? '' : 's'} orphaned</span>}
           </div>
+          {splitNotice.map(g => (
+            <SplitReconcileCard
+              key={g.original.id}
+              group={g}
+              local={project.scriptDocument}
+              incoming={result.script}
+              action={splitActions[g.original.id] || 'keep'}
+              onAction={a => setSplitActions(prev => ({ ...prev, [g.original.id]: a }))}
+            />
+          ))}
           <div className="rounded-lg border border-zinc-800 overflow-hidden divide-y divide-zinc-800/70 max-h-[440px] overflow-y-auto">
             {changed.map(({ e, i }) => (
               <div key={`${e.status}-${e.sceneNumber}-${i}`} className="bg-zinc-950">
@@ -509,9 +591,14 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
           {entry.collision && <span className="text-[11px] text-amber-300">possible collision — same number, different scene</span>}
         </div>
         {splitNotice.map(g => (
-          <div key={g.original.id} className="rounded-lg border border-purple-800 bg-purple-900/30 px-3 py-2 text-[11px] text-purple-200">
-            Scene {g.original.sceneNumber} was split into {[g.original.sceneNumber, ...g.fragments.map(f => f.sceneNumber)].join(' + ')}; the script revised it. Merge back from the Split Manager if the cut is no longer wanted.
-          </div>
+          <SplitReconcileCard
+            key={g.original.id}
+            group={g}
+            local={project.scriptDocument}
+            incoming={result.script}
+            action={splitActions[g.original.id] || 'keep'}
+            onAction={a => setSplitActions(prev => ({ ...prev, [g.original.id]: a }))}
+          />
         ))}
         {renderPanes(entry, currentIndex!)}
       </div>

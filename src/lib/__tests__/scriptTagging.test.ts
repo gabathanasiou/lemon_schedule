@@ -154,11 +154,16 @@ describe('suggestionRanges', () => {
     expect(sug[0]).toMatchObject({ text: 'GUN', category: 'props', elementKey: 'GUN' });
   });
 
-  it('suggests a character name from the body even when it is not cast yet', () => {
-    const p = project({ scriptDocument: doc([['heading', 'INT. X - DAY'], ['character', 'GEORGE'], ['dialogue', 'Hi.']]) });
+  it('strips cue parentheticals so the suggestion covers the name only', () => {
+    const p = project({ castMembers: [{ id: '2', name: 'AMY' }], scriptDocument: doc([['heading', 'INT. X - DAY'], ['character', 'AMY (O.S.)'], ['dialogue', 'Hi.']]) });
     const sug = suggestionRanges(p, p.scenes[0]);
     expect(sug).toHaveLength(1);
-    expect(sug[0]).toMatchObject({ text: 'GEORGE', category: 'cast', elementKey: 'GEORGE' });
+    expect(sug[0]).toMatchObject({ start: 0, end: 3, text: 'AMY', category: 'cast', elementKey: '2' });
+  });
+
+  it('does not suggest a cue whose name is not in the cast database', () => {
+    const p = project({ scriptDocument: doc([['heading', 'INT. X - DAY'], ['character', 'GEORGE'], ['dialogue', 'Hi.']]) });
+    expect(suggestionRanges(p, p.scenes[0])).toHaveLength(0);
   });
 
   it('never suggests sets, nor numeric-only names', () => {

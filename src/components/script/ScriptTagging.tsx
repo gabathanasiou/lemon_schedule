@@ -3,7 +3,7 @@ import { FloatingTooltip } from '../FloatingTooltip';
 import ScriptTagMenu, { type ScriptTagMenuState } from './ScriptTagMenu';
 import { useProject } from '../../store';
 import { annotationColor } from '../../lib/scriptAnnotations';
-import { annotationCategoryLabel, annotationElementName, commitTag, suggestionRanges } from '../../lib/scriptTagging';
+import { annotationCategoryLabel, annotationElementName, attachedRanges, commitTag, detachTag, suggestionRanges, type TagExisting } from '../../lib/scriptTagging';
 import { normalizeSceneNumber } from '../../lib/script';
 import { usePersistState } from '../../lib/persist';
 import { TEST_IDS } from '../../lib/testIds';
@@ -78,23 +78,35 @@ export function useScriptTagging(): ScriptTaggingApi {
     return map;
   }, [projectScenes]);
 
-  const suggestions = useMemo(() => {
-    if (!showSuggestions || !project.scriptDocument) return [];
-    const out: ScriptAnnotation[] = [];
+  // Derived spans: attached elements (solid, always) + suggestions (wavy, gated).
+  const derived = useMemo(() => {
+    if (!project.scriptDocument) return { attached: [] as ScriptAnnotation[], suggestions: [] as ScriptAnnotation[] };
+    const attached: ScriptAnnotation[] = [];
+    const suggestions: ScriptAnnotation[] = [];
     for (const s of project.scriptDocument.scenes) {
       const live = sceneByIdentity.get(normalizeSceneNumber(s.sceneNumber));
       if (!live) continue;
-      out.push(...suggestionRanges(project, projectScenes[live.index]));
+      const scene = projectScenes[live.index];
+      const sceneAttached = attachedRanges(project, scene);
+      attached.push(...sceneAttached);
+      if (showSuggestions) suggestions.push(...suggestionRanges(project, scene, sceneAttached));
     }
-    return out;
+    return { attached, suggestions };
   }, [showSuggestions, project, sceneByIdentity, projectScenes]);
 
   const annotations = useMemo(() => {
     const stored = project.scriptAnnotations || [];
+    // Priority per range: stored committed → attached (solid) → recognized seeds
+    // and suggestions (wavy, toggle-gated).
     const committed = stored.filter(a => !a.recognized);
-    const nonCommitted = showSuggestions ? stored.filter(a => a.recognized) : [];
-    return [...committed, ...nonCommitted, ...(showSuggestions ? suggestions : [])];
-  }, [project.scriptAnnotations, showSuggestions, suggestions]);
+    const recognized = showSuggestions ? stored.filter(a => a.recognized) : [];
+    return [
+      ...committed,
+      ...derived.attached,
+      ...recognized,
+      ...(showSuggestions ? derived.suggestions : []),
+    ];
+  }, [project.scriptAnnotations, showSuggestions, derived]);
 
   const handleSelectionEnd = useCallback(() => {
     window.setTimeout(() => {
@@ -119,14 +131,23 @@ export function useScriptTagging(): ScriptTaggingApi {
       while (end > start && /\s/.test(body[end - 1])) end--;
       if (end <= start) return;
       const text = body.slice(start, end);
-      const existing = (project.scriptAnnotations || []).find(
-        a => a.sceneId === sceneId && a.blockIndex === blockIndex && a.start === start && a.end === end,
-      );
+      const exact = (a: ScriptAnnotation) => a.sceneId === sceneId && a.blockIndex === blockIndex && a.start === start && a.end === end;
+      const existing = (project.scriptAnnotations || []).find(exact);
+      const derivedMatch = existing ? undefined : derived.attached.find(exact);
+      const suggestionMatch = existing || derivedMatch ? undefined : derived.suggestions.find(exact);
       selectionRangeRef.current = range.cloneRange();
       const rect = range.getBoundingClientRect();
-      setTagMenu({ x: rect.left, y: rect.bottom, target: { sceneId, blockIndex, start, end, text }, existing, source: 'selection' });
+      setTagMenu({
+        x: rect.left,
+        y: rect.bottom,
+        target: { sceneId, blockIndex, start, end, text },
+        existing,
+        derived: derivedMatch,
+        suggestion: suggestionMatch,
+        source: 'selection',
+      });
     }, 0);
-  }, [readOnly, project.scriptAnnotations]);
+  }, [readOnly, project.scriptAnnotations, derived]);
 
   // Keep the native selection highlighted while the selection menu is open:
   // the kit menu focuses its search input on open, which clears the browser
@@ -162,12 +183,15 @@ export function useScriptTagging(): ScriptTaggingApi {
     setHovered(null);
     selectionRangeRef.current = null;
     const existing = (project.scriptAnnotations || []).find(a => a.id === annotation.id);
+    const isAttached = annotation.id.startsWith('attached:');
+    const isSuggestion = annotation.id.startsWith('suggest:');
     setTagMenu({
       x: event?.clientX ?? 0,
       y: event?.clientY ?? 0,
       target: { sceneId: annotation.sceneId, blockIndex: annotation.blockIndex, start: annotation.start, end: annotation.end, text: annotation.text },
       existing,
-      suggested: existing ? undefined : annotation.category,
+      derived: !existing && isAttached ? annotation : undefined,
+      suggestion: !existing && !isAttached && isSuggestion ? annotation : undefined,
       source: 'annotation',
     });
   }, [readOnly, project.scriptAnnotations]);
@@ -179,16 +203,26 @@ export function useScriptTagging(): ScriptTaggingApi {
 
   const onCommit = useCallback((category: string) => {
     if (!tagMenu || readOnly) return;
-    const { target, existing } = tagMenu;
-    commitTag(dispatch, project, target, category, existing);
+    const { target, existing, derived, suggestion } = tagMenu;
+    // Reuse the anchored element (stored annotation, attached span or
+    // suggestion); a fresh selection becomes a new element from its text.
+    const previous: TagExisting | undefined = existing
+      ? { category: existing.category, elementKey: existing.elementKey, id: existing.id }
+      : derived
+        ? { category: derived.category, elementKey: derived.elementKey }
+        : suggestion
+          ? { category: suggestion.category, elementKey: suggestion.elementKey }
+          : undefined;
+    commitTag(dispatch, project, target, category, previous);
     setTagMenu(null);
   }, [tagMenu, readOnly, dispatch, project]);
 
   const onRemove = useCallback(() => {
     if (!tagMenu) return;
-    if (tagMenu.existing && !readOnly) dispatch({ type: 'REMOVE_SCRIPT_ANNOTATION', payload: tagMenu.existing.id });
+    const anchor = tagMenu.existing || tagMenu.derived;
+    if (anchor && !readOnly) detachTag(dispatch, project, tagMenu.target.sceneId, anchor.category, anchor.elementKey);
     setTagMenu(null);
-  }, [tagMenu, readOnly, dispatch]);
+  }, [tagMenu, readOnly, dispatch, project]);
 
   const closeMenu = useCallback(() => setTagMenu(null), []);
 

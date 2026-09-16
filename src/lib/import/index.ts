@@ -35,4 +35,6 @@ export { commitScriptDiff, defaultDecision } from './commitScriptDiff';
 export type { CommitScriptDiffParams, DiffDecision } from './commitScriptDiff';
 export { remapAnnotations } from './annotationRemap';
 export type { AnnotationRemapResult, SceneNumberRemap } from './annotationRemap';
+export { reconcileSplitBodies } from './reconcileSplits';
+export type { SplitAction, ReconcileResult } from './reconcileSplits';
 export { exportBreakdownCSV } from './exportCsv';

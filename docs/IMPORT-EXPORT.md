@@ -102,33 +102,39 @@ Status: read this before touching any import/export work.
   `caseUpdateElement` batch — a name-keyed tag must never dangle); the shared
   `ScriptSceneScript` renders them (dotted = recognised, solid = committed).
 - **Tagging is a selection → category menu (roadmap 136), not a picker.**
-  Selecting text in the Script sub-tab opens a kit `ContextMenu` of every
-  element category (built-ins + custom); the highlight BECOMES the element
+  Selecting text in the Script sub-tab or the scene preview pane opens a
+  **searchable** kit `DropdownMenu` (`ScriptTagMenu`) of every element category
+  (built-ins + custom); the highlight BECOMES the element
   (`name = selection.trim().toUpperCase()` — no existing-element picker, no
-  Location/Script Day). `src/lib/scriptTagging.ts` is the one planner:
+  Location/Script Day). `src/lib/scriptTagging.ts` is the one writer:
   `planTagCommit` resolves the element key (cast reused by name else
   `firstFreeCastId`; others name-keyed), the `scenePatch` and the annotation;
-  `commitTag` applies it as ONE undo batch. Re-tagging an exact range CHANGES
-  the category (the scene-field attachment swaps, never stacks) and a remove
-  clears the tag. `suggestionRanges` derives **ephemeral** spans — character
-  NAMES read from the screenplay body (`character` cues are suggested as cast
-  even when not cast yet, matched to a member by name) plus whole-word matches
-  of existing element names in action/dialogue. Sets are never suggested, and
-  numeric-only/blank names are skipped (no Board-ID noise). Suggestions are
-  computed in the view and never persisted; the Script header's persisted
-  **Suggestions** toggle gates every non-committed span (suggestions +
-  recognised FDX seeds). Clicking a suggestion opens the same menu scrolled to
-  the suggested category with a ⭐ marker; Enter commits it. All spans commit
-  through the same menu (`ScriptTagMenu`, a searchable kit `DropdownMenu`).
-  FDX `<Text TagNumber>` runs emit
-  `ScriptAnnotationSeed`s (`ImportResult.annotations`, `parseFDX`) which
-  `commitImport` resolves to the freshly-created scenes and writes as
-  `recognized: true`. **Replacing the body drops the old body's positional
-  tags** (`caseSetScriptDocument`), then re-seeds. The hover badge shows the
-  divergence (`Category · ELEMENT · script: "gun"`) but the old picker's
-  explicit **"Update script text"** rewrite retired with `ScriptTagModal` in
-  136 — `elementAliases` is still applied by `parseFDX` on re-import for
-  projects that recorded one.
+  `commitTag` then tags **every occurrence of that element in the scene** in ONE
+  undo batch (accept "Bob" once → all five Bobs), and `detachTag` removes the
+  element from the scene field + deletes its annotations in one batch. The
+  observable spans are two derivations over (scene fields × body):
+  - **Attached (solid, always shown, never persisted)** — `attachedRanges`:
+    an element already attached to the scene whose name appears in the body
+    (cast also matches a whole `character` cue with `(O.S.)/(V.O.)/(CONT'D)…`
+    stripped). Because FDX import attaches its tags, imported tags render solid
+    too. Remove detaches the element from the scene; it stays in the element
+    manager, so it instantly falls back to a suggestion.
+  - **Suggested (wavy underline, ephemeral)** — `suggestionRanges`: existing
+    element names that appear in the body but are NOT attached (cast from the
+    cast database, non-cast from the element manager). `set` categories and
+    numeric-only/blank names are skipped. Computed in the view, never persisted;
+    the Script header's persisted **Suggestions** toggle gates these (and
+    recognised seeds). Clicking one opens the menu scrolled to its category with
+    a ⭐ marker; Enter commits it.
+  Tags are un-gated by the `Suggestions` toggle once attached/committed. FDX
+  `<Text TagNumber>` runs emit `ScriptAnnotationSeed`s
+  (`ImportResult.annotations`, `parseFDX`) which `commitImport` resolves to the
+  freshly-created scenes and writes as `recognized: true`. **Replacing the body
+  drops the old body's positional tags** (`caseSetScriptDocument`), then
+  re-seeds. The hover badge shows the divergence (`Category · ELEMENT · script:
+  "gun"`) but the old picker's explicit **"Update script text"** rewrite retired
+  with `ScriptTagModal` in 136 — `elementAliases` is still applied by `parseFDX`
+  on re-import for projects that recorded one.
 - **SEX / MSD have no retained body** (new-project-only, breakdown only), so
   they have no spans at all — their element data lives only in the scene
   fields. Only FDX / Fountain can seed recognised annotation spans.
@@ -140,7 +146,13 @@ Status: read this before touching any import/export work.
   drops the old body's positional anchors) and seeds recognised spans on added
   scenes. Same-number pairs with near-zero content overlap are flagged
   **`collision`** (`COLLISION_SIMILARITY`), default to **keep**, and the review
-  shows a split-group notice when the revised scene belongs to a local cut.
+  shows a **split reconciliation card** when the revised scene belongs to a local
+  cut. `src/lib/import/reconcileSplits.ts` (`reconcileSplitBodies`) transforms
+  the incoming body per the reviewer's action: **Apply to both** re-splits the
+  revised whole scene at each fragment's content `cutAnchor` (the cut survives),
+  **Merge back** drops the fragments (→ Trash, forced `remove`), **Keep**
+  restores the local bodies (forced `keep`) so the revision is ignored for that
+  group. An anchor missing from the revision falls back to Keep.
 - **Scene cut / merge (roadmap 132 Part C)**: `src/lib/scriptSceneOps.ts`
   `commitSceneCut` splits a scene's retained blocks at a boundary into a new
   lettered scene (inherits the parent's element fields, lands in the boneyard,
