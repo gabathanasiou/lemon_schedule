@@ -265,6 +265,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         needsReauth: authStateRef.current.needsReauth,
         projectIsCloud: !!projectListRef.current.find(p => p.id === currentProjectIdRef.current)?.driveFileId,
         navigatorOnLine: navigator.onLine,
+        readOnly: !connStateRef.current.realOnline,
       }),
     });
     return uninstall;
