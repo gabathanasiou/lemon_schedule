@@ -503,6 +503,8 @@ the committed seed via the pure `computeRowData` → `buildReportCtx` pipeline);
 writes, dangling-ref prune) and `sceneDuplicates.test.ts` (coverage/plain/split modes);
 `crewCatalog.test.ts` (role→category resolution, department grouping, catalog reorder)
 and `sceneTrash.test.ts` (ADD_SCENE row invariant + scene trash delete/restore/empty);
+`reportFields.test.ts` (token/lookup composition + parse round-trips, item affixes);
+day-scoped `categories` scoping + `ancestorSceneScope` in `reportResolve.test.ts`;
 `docs/TESTING.md` pyramid section corrected (it still claimed "no unit runner"), and the
 manual-verification policy (visually-checkable changes get NO e2e — hand the user a
 numbered check) added to AGENTS.md rule 7.
@@ -510,17 +512,13 @@ Suite runs now print total wall time via `scripts/pw-duration-reporter.mjs`; wor
 tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→saturates CPU).
 
 **Next (ranked, lowest extraction cost first)**:
-- `dayView` read model needs its assembly pulled out of the `useDayViews` hook into a
-  pure `lib/` builder before it can be unit-tested (`crewCatalog`/trash are done).
-- Remaining reducer cases: version/element/category trash channels beyond scenes,
-  `BATCH`/undo contract (`debug-bridge` #2–#3 stay e2e as the bridge's API proof).
-- `report-lookups` token resolution (`reportFields`) — the last MIXED single-test
-  report spec worth converting. (Day-scoped `categories` scoping via
-  `resolveCollectionItems` + `ancestorSceneScope` is now unit-covered in
-  `reportResolve.test.ts`; `computeRowData` is already pure, so no
-  `useDaybreakSections` extraction is needed.)
-- Extraction first (logic is hook/component-bound): `digit-schedule`
-  (`useScheduleKeyboard`), `production-dates` days-off materialization.
+- Reducer cases: version/element/category trash channels beyond scenes, `BATCH`/undo
+  contract (`debug-bridge` #2–#3 stay e2e as the bridge's API proof).
+- Extraction first (logic is hook/component-bound): `dayView` (assembly inside
+  `useDayViews`), `digit-schedule` (`useScheduleKeyboard`), `production-dates` days-off
+  materialization (`ProductionDatesModal`).
+- Report logic is covered (resolveCollections, day-scoped categories, token/lookup
+  helpers); the remaining report specs are rendering wiring.
 
 **Blocked**: `parseMsd` uses `DOMParser`, so its golden test stays e2e unless a jsdom
 environment is added — decide before converting `msd-import`.
