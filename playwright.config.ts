@@ -37,15 +37,16 @@ export default defineConfig({
     },
   },
   // Parallelism — each worker is a full Chromium, so N workers pins ~N cores
-  // for the whole run and spins the fans. Measured on a 10-core box:
-  //   4 → quiet-ish   ·   5 → ~71s   ·   7 → ~77s   ·   8 → ~62s   ·   10 → saturates
-  // Default is deliberately LOW (4) to keep the laptop cool; raise it for speed
-  // when you don't mind the heat: `PLAYWRIGHT_WORKERS=7 npx playwright test`.
-  // (Timing-sensitive morph/canvas specs can also flake under heavy contention —
-  // see docs/TESTING.md.) The duration reporter prints the total at the end.
+  // for the whole run. 5 (Playwright's cores/2 on a 10-core Mac) is the proven
+  // baseline: roughly half the cores, no fan spin. 7+ pins most of the CPU and
+  // ramps the fans; 8 is a bit faster (~62s) if you don't mind the heat. Raise
+  // deliberately: `PLAYWRIGHT_WORKERS=8 npx playwright test`. Explicit cap (not
+  // undefined) so a big machine can't silently oversubscribe. Timing-sensitive
+  // morph/canvas specs can flake under heavy contention — see docs/TESTING.md.
+  // The duration reporter prints the total at the end.
   workers: process.env.PLAYWRIGHT_WORKERS
     ? Number(process.env.PLAYWRIGHT_WORKERS)
-    : Math.min(4, availableParallelism()),
+    : Math.min(5, availableParallelism()),
   reporter: [['list'], ['./scripts/pw-duration-reporter.mjs']],
   // Tests run against the PRODUCTION build (vite build is ~4s): boots and page
   // loads are far faster than the dev server (no per-module transforms, no

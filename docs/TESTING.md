@@ -106,11 +106,11 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
   `retries: 1` locally / `2` on CI, `trace: 'on-first-retry'`, `grepInvert: /@perf|@quarantine/`.
   `PLAYWRIGHT_PORT=<n>` isolates the server (owned, no reuse); `PLAYWRIGHT_DEV=1` runs the dev server.
 - **Parallelism**: each worker is a full Chromium, so N workers pins ~N cores and spins
-  the laptop fans. The config defaults to a cool **4 workers** (clamped to the core
-  count); raise it only when you want speed over a quiet machine —
-  `PLAYWRIGHT_WORKERS=7 npx playwright test`. Measured on a 10-core box: 5 → ~71s,
-  7 → ~77s, 8 → ~62s; 10 saturates the CPU for no real gain and raises flake risk
-  (morph/canvas specs under contention).
+  the laptop fans. The config defaults to **5 workers** (clamped to the core count) —
+  the proven baseline. 7+ pins most of the CPU and ramps the fans; 8 is a bit faster
+  (~62s) when you don't mind the heat. Raise deliberately:
+  `PLAYWRIGHT_WORKERS=8 npx playwright test`. Heavy contention also raises flake risk
+  (morph/canvas specs).
 - **Duration**: a custom reporter (`scripts/pw-duration-reporter.mjs`) prints
   `[timing] N tests in Xs across W worker(s)` on the final line, so runs are comparable.
 - **`npm run test:smart`** selects only specs your diff can affect (RULES map), plus the
