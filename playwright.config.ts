@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import { availableParallelism } from 'node:os';
 
 // Set PLAYWRIGHT_PORT to force an isolated port (default 3001). When
 // overridden the server is OWNED (no reuse) so a run never silently tests
@@ -35,6 +36,17 @@ export default defineConfig({
       origins: [{ origin: `http://localhost:${PORT}`, localStorage: [{ name: 'LEMON_AGENT', value: '1' }] }],
     },
   },
+  // Parallelism — measured on a 10-core box:
+  //   5 → ~71s   ·   8 → ~62s   ·   10 → CPU-saturating, no real gain
+  // Default 7 (clamped to the core count, so a small CI box isn't
+  // oversubscribed) — the measured speed/CPU sweet spot. Override with
+  // PLAYWRIGHT_WORKERS. Timing-sensitive morph/canvas specs can fail under
+  // heavy contention (see docs/TESTING.md). The duration reporter prints the
+  // total elapsed on the final line.
+  workers: process.env.PLAYWRIGHT_WORKERS
+    ? Number(process.env.PLAYWRIGHT_WORKERS)
+    : Math.min(7, availableParallelism()),
+  reporter: [['list'], ['./scripts/pw-duration-reporter.mjs']],
   // Tests run against the PRODUCTION build (vite build is ~4s): boots and page
   // loads are far faster than the dev server (no per-module transforms, no
   // HMR). To run against the dev server instead: PLAYWRIGHT_DEV=1.
