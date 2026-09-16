@@ -132,9 +132,8 @@ Status: read this before touching any import/export work.
   freshly-created scenes and writes as `recognized: true`. **Replacing the body
   drops the old body's positional tags** (`caseSetScriptDocument`), then
   re-seeds. The hover badge shows the divergence (`Category · ELEMENT · script:
-  "gun"`) but the old picker's explicit **"Update script text"** rewrite retired
-  with `ScriptTagModal` in 136 — `elementAliases` is still applied by `parseFDX`
-  on re-import for projects that recorded one.
+  "gun"`); the old picker's explicit **"Update script text"** rewrite (and its
+  `elementAliases` field) retired with `ScriptTagModal` in 136.
 - **SEX / MSD have no retained body** (new-project-only, breakdown only), so
   they have no spans at all — their element data lives only in the scene
   fields. Only FDX / Fountain can seed recognised annotation spans.

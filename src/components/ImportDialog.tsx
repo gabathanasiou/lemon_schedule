@@ -124,7 +124,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
       const ext = file.name.split('.').pop()?.toLowerCase();
 
       if (ext === 'fdx') {
-        parsed = await parseFDX(file, knownDayNightPhrases(base), base.elementAliases);
+        parsed = await parseFDX(file, knownDayNightPhrases(base));
       } else if (ext === 'csv') {
         parsed = await parseCSV(file, base.castMembers || [], base.customCategories || [], base.categoryLabels || {});
       } else {

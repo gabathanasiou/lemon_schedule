@@ -825,11 +825,6 @@ export interface Project {
   /** Identity-anchored tags on the retained screenplay body (roadmap 123
    *  Phase 2 / 132 Part B). See `ScriptAnnotation`. */
   scriptAnnotations?: ScriptAnnotation[];
-  /** Element aliases (roadmap 132 Part B): category → lowercased screenplay
-   *  wording → canonical element name. Recorded by "Update script text" so a
-   *  later import still recognises the element even though the page was
-   *  rewritten. Non-cast only (cast is id-keyed and not tag-resolved). */
-  elementAliases?: Record<string, Record<string, string>>;
   /** Custom/localized INT-EXT & day-night value mappings (roadmap 127). */
   headingAliases?: HeadingAliases;
 }
