@@ -19,6 +19,7 @@ import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { resolvedLocationName } from '../lib/locations';
 import { usePersistState } from '../lib/persist';
 import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/SceneScriptPane';
+import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 
 const BREAKDOWN_CATS = [
   'set', 'cast', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -119,6 +120,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
 
   const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
+  const { trySetSceneNumber, modal: sceneNumberCollisionModal } = useSceneNumberCollisionGuard(dispatch, scenes);
   const { queue } = useQueueCastNaming();
 
   // Keep the current scene visible when the view order changes.
@@ -172,6 +174,11 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       if (scene) void linkGuard.tryCommitSceneEdit(scene, { [field]: value });
       return;
     }
+    if (field === 'sceneNumber') {
+      const target = scenes.find(s => s.id === sceneId);
+      if (target) trySetSceneNumber(target, value);
+      return;
+    }
     if (field === 'pageCount') {
       if (value === '') {
         dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, pageCount: '', pageCountDecimal: 0 } });
@@ -203,7 +210,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       return;
     }
     dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, [field]: processed } });
-  }, [dispatch, breakdownElements, castMembers, allBreakdownCats, scenes, linkGuard, queue, project]);
+  }, [dispatch, breakdownElements, castMembers, allBreakdownCats, scenes, linkGuard, queue, project, trySetSceneNumber]);
 
   const commitFieldRef = useRef(commitField);
   commitFieldRef.current = commitField;
@@ -518,6 +525,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         width={scriptPane.width}
         onWidthChange={scriptPane.setWidth}
       />
+      {sceneNumberCollisionModal}
     </div>
   );
 }

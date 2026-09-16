@@ -848,3 +848,22 @@ aligned renderer are format-agnostic once a parser emits a `ScriptDocument`, so
 the standalone tool is essentially "two `ScriptDocument`s → the 128 view" behind
 a thin shell. Ship only if it's genuinely low-effort on top of the existing
 pieces; otherwise park.
+
+## 135. Project script-map integrity audit + repair (`[ ]`)
+
+**Problem**: a `.lemon` can carry a stale/corrupt script map (a real file has two
+scenes numbered `40` → one script body shadowed). The app has no way to detect or
+repair it, and `97`'s "validation parity" only covers *new* API writes.
+
+**Idea**: a read-only audit (bridge + a Reports/Diagnostics surface) that lists
+project↔`scriptDocument` mismatches — duplicate normalized numbers (project AND
+body), project scenes with no body, bodies with no scene, scene→row invariant
+breaks — with an explicit, undoable repair (renumber collision to `40A` etc.,
+prune orphan bodies) so a corrupted file is recoverable without hand-editing JSON.
+
+**Relations**: `related to` **134** (prevention) and **97** (same integrity
+surface an agent API should expose).
+
+**Verify**: runs over the Lair V17 fixture (duplicate `40`) → reports it;
+repair renumbers both project scene and body in one undo; clean files report
+"no issues".

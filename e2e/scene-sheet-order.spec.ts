@@ -143,4 +143,43 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     const pref = await page.evaluate(() => JSON.parse(localStorage.getItem('lemon_schedule_breakdown_order') || '{}').order);
     expect(pref).toBe('sceneNumber');
   });
+
+  test('a duplicate scene number warns and offers a swap (roadmap 134)', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Sheet' }).click();
+
+    // The script body attaches by scene number, so a duplicate would make both
+    // scenes show one body. Seed-agnostic: collide the shown scene with any
+    // other scene that has a different number.
+    const p0 = await project(page);
+    const shown = p0.scenes[0];
+    const other = p0.scenes.find((s: any) => s.id !== shown.id && s.sceneNumber !== shown.sceneNumber);
+    expect(other).toBeTruthy();
+    const shownNo = String(shown.sceneNumber);
+    const otherNo = String(other.sceneNumber);
+    await expect(sceneNoInput(page)).toHaveValue(shownNo);
+
+    // Collision → warning, no change; Cancel keeps the original number.
+    await sceneNoInput(page).fill(otherNo);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Scene number already used')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(sceneNoInput(page)).toHaveValue(shownNo);
+    expect((await project(page)).scenes.find((s: any) => s.id === shown.id)?.sceneNumber).toBe(shown.sceneNumber);
+
+    // Swap exchanges both numbers in ONE undo step.
+    const pastBefore = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
+    await sceneNoInput(page).fill(otherNo);
+    await page.keyboard.press('Enter');
+    await page.getByRole('dialog').getByRole('button', { name: 'Swap numbers' }).click();
+    await expect.poll(async () => {
+      const p = await project(page);
+      return [
+        p.scenes.find((s: any) => s.id === shown.id)?.sceneNumber,
+        p.scenes.find((s: any) => s.id === other.id)?.sceneNumber,
+      ];
+    }).toEqual([otherNo, shownNo]);
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(pastBefore + 1);
+  });
 });

@@ -133,6 +133,7 @@ const RULES = [
   { g: 'src/lib/useStripboardContextMenu.ts', s: SCHED },
   { g: 'src/lib/virtualChunk.ts', s: SCHED },
   { g: 'src/lib/sceneFactory.ts', s: [...SCHED, ...GLIDE] },
+  { g: 'src/lib/sceneNumbering.ts', s: [...SHEET, ...GLIDE] },
   { g: 'src/lib/useLongPressMenu.tsx', s: [...SCHED, ...CAL] },
   // calendar + day types
   { g: 'src/components/calendar/**', s: CAL },
@@ -148,6 +149,7 @@ const RULES = [
   { g: 'src/components/InlineGlideTable.tsx', s: GLIDE },
   { g: 'src/lib/glide*', s: GLIDE },
   { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED, ...SHEET] },
+  { g: 'src/components/SceneNumberCollisionGuard.tsx', s: [...SHEET, ...GLIDE] },
   { g: 'src/lib/paletteOps.ts', s: [...GLIDE, ...ELEM] },
   { g: 'src/lib/elements.ts', s: [...ELEM, ...REPORT] },
   // new-cast naming modal (shared by stripboard / glide / sheet entity fields)

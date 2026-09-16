@@ -89,7 +89,23 @@ Status: read this before touching any import/export work.
   scene-linked navigation into Sheet/Schedule, and the portable
   `SceneScriptPane` (`src/components/script/SceneScriptPane.tsx`) previews one
   scene on the right of Sheet / Glide. Both render through the shared
-  `ScriptSceneText` (light theme) — never a second screenplay renderer.
+  `ScriptSceneText` (light theme) — never a second screenplay renderer. The
+  sub-tab lists scenes in **screenplay order** — the retained
+  `scriptDocument.scenes` order, exactly as written — so scene numbers never
+  reorder it (a writer's moved scene keeps its place and its number).
+- **Scene numbers are the script key**: a scene resolves its body by normalized
+  number (`scriptSceneOf` / `scriptSceneBlocks`, `src/lib/script/index.ts`;
+  `ScriptView` maps number → card). Two scenes on one number silently share a
+  body, so direct number edits are guarded by a warn + **swap** prompt
+  (`src/lib/sceneNumbering.ts` + `src/components/SceneNumberCollisionGuard.tsx`,
+  wired into Glide / Scene Sheet; roadmap 134). Deliberate duplicates (132's
+  coverage/second-unit same-number copies) are out of scope; auditing/repairing
+  an already-collided file is roadmap 135.
+- **Update script (diff) add/remove**: accepted new scenes go to the **boneyard**
+  (`ADD_SCENE`, schedule untouched), confirmed removals go to **Trash**
+  (`DELETE_SCENE`, restorable — rows removed in every version); both default to
+  keep, and one `BATCH_START`/`BATCH_COMMIT` makes the whole accept one undo step
+  (`src/lib/import/commitScriptDiff.ts`).
 - Body-aware diff / highlight-to-tag / hover preview / cuts are items **38** and
   **123 Phases 2–3** + **132** — not this section.
 

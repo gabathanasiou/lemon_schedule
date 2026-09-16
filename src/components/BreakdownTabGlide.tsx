@@ -58,6 +58,7 @@ import { useDedupeCellCommit } from '../lib/glideEditGuard';
 import { createBlankScene } from '../lib/sceneFactory';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
+import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { useGlideFill } from '../lib/glideFill';
 
@@ -382,6 +383,7 @@ export function GlideBreakdownTab({
   const projectRef = useRef(project);
   projectRef.current = project;
   const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
+  const { trySetSceneNumber, modal: sceneNumberCollisionModal } = useSceneNumberCollisionGuard(dispatch, scenes);
   const { queue } = useQueueCastNaming();
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
   allBreakdownLabelsRef.current = allBreakdownLabels;
@@ -506,9 +508,10 @@ export function GlideBreakdownTab({
     const colDef = COLUMNS[col];
     if (!colDef || colDef.key === 'actions') return;
     if (newValue.kind === GridCellKind.Text) {
+      if (colDef.key === 'sceneNumber') { trySetSceneNumber(scene, newValue.data); return; }
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit]);
+  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit, trySetSceneNumber]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const anchoredByCategory = new Map<string, Set<string>>();
@@ -1203,6 +1206,7 @@ export function GlideBreakdownTab({
           />
         </div>
       </Modal>
+      {sceneNumberCollisionModal}
     </div>
       <SceneScriptPane
         sceneNumber={activeSceneNumber}
