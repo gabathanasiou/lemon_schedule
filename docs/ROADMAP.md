@@ -497,14 +497,15 @@ made **hermetic** (it read a machine-local `~/Downloads/Report 11.report` — wo
 on CI); `reportResolve.test.ts` (day-scoped resolver: `days`/`scenesOfDay`,
 `elementCallsOfDay`, `departmentCallsOfDay`, `locationsOfDay`, `crewOfDay` — built from
 the committed seed via the pure `computeRowData` → `buildReportCtx` pipeline);
+`sceneNumbering.test.ts` (collision detection + lettered child numbering) and
+`elementDayStats.test.ts` (per-element work/status/total days, `totalDays = workDays +
+Σ statusCounts`);
 `docs/TESTING.md` pyramid section corrected (it still claimed "no unit runner").
 Suite runs now print total wall time via `scripts/pw-duration-reporter.mjs`; workers are
 tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→saturates CPU).
 
 **Next (ranked, lowest extraction cost first)**:
-- Pure modules with no Vitest yet → new cases: `rulesEngine`, `sceneNumbering`,
-  `elementDayStats`, `crewLinks`, `dayMeta`/`dayView`, `reportData.resolveCollection`
-  (fixtures already committed).
+- Pure modules with no Vitest yet → new cases: `dayMeta`/`dayView`, `sceneDuplicates`.
 - Reducer-level cases still additive (the reducer is importable; `debug-bridge` #2–#3
   stay e2e as the bridge's API proof): `caseAddScene` row invariant, `BATCH`/undo
   contract, trash reducer cases (`trash-restore`).
