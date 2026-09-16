@@ -10,6 +10,11 @@ const isolated = process.env.PLAYWRIGHT_PORT !== undefined;
 export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
+  // Distribute tests WITHIN a file across workers too — specs are independent
+  // (fresh context per test, no module state); the 5 order-dependent specs opt
+  // out via `test.describe.configure({ mode: 'serial' })`. Better load
+  // balancing = shorter wall time at the same worker/CPU count.
+  fullyParallel: true,
   // Retry once locally (twice on CI) so a transient flake doesn't read as a
   // regression and send an agent off to `git checkout` a baseline. The first
   // retry records a trace (`use.trace`) for the flaky test. Chronic flakers are

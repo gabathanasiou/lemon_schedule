@@ -108,9 +108,13 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 - **Parallelism**: each worker is a full Chromium, so N workers pins ~N cores and spins
   the laptop fans. The config defaults to **5 workers** (clamped to the core count) —
   the proven baseline. 7+ pins most of the CPU and ramps the fans; 8 is a bit faster
-  (~62s) when you don't mind the heat. Raise deliberately:
+  when you don't mind the heat. Raise deliberately:
   `PLAYWRIGHT_WORKERS=8 npx playwright test`. Heavy contention also raises flake risk
   (morph/canvas specs).
+- **`fullyParallel: true`** — tests run in parallel across workers even within one spec
+  file (fresh context per test; the few order-dependent specs opt out with
+  `test.describe.configure({ mode: 'serial' })`). Better load balancing, ~12% shorter
+  wall time at the same worker count.
 - **Duration**: a custom reporter (`scripts/pw-duration-reporter.mjs`) prints
   `[timing] N tests in Xs across W worker(s)` on the final line, so runs are comparable.
 - **`npm run test:smart`** selects only specs your diff can affect (RULES map), plus the
