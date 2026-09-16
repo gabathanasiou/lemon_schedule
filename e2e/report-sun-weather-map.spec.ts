@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, seedProjectScript } from './helpers';
+import { loadSeedProject, openSeededReportsDesigner, openReportPrintView } from './helpers';
 
 // Sun & Weather fields + Image/Map blocks in the Reports Designer.
 // Network is fully mocked: Open-Meteo (sun/weather), Nominatim (geocoding),
@@ -72,13 +72,13 @@ function withQaLocations(project: any) {
   }
 }
 
-function seedWithDesign(design: any, patch?: (p: any) => void) {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [design, ...(project.reportDesigns || [])];
-  project.activeReportId = design.id;
-  patch?.(project);
-  return seedProjectScript({ raw: JSON.stringify(project) });
+/** Installs the QA design (+ location patch) on the seed. */
+function withDesign(design: any, patch?: (p: any) => void) {
+  return (project: any) => {
+    project.reportDesigns = [design, ...(project.reportDesigns || [])];
+    project.activeReportId = design.id;
+    patch?.(project);
+  };
 }
 
 async function stubQaNetwork(page: any) {
@@ -89,23 +89,6 @@ async function stubQaNetwork(page: any) {
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(mockWeatherBody(route.request().url())) }));
   await page.route('**://tile.openstreetmap.org/**', route => route.abort());
   await page.route('**://nominatim.openstreetmap.org/**', route => route.abort());
-}
-
-async function openQaDesigner(page: any) {
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  const seed = loadSeedProject();
-  await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-}
-
-async function openQaPrintView(page: any) {
-  await page.getByRole('button', { name: 'Print', exact: true }).click();
-  await page.getByRole('button', { name: /Print \/ Save PDF/ }).click();
-  const pages = page.locator('.report-root .report-page');
-  await expect(pages.first()).toBeVisible({ timeout: 15000 });
-  await page.waitForFunction(() => document.querySelector('.report-root')?.getAttribute('data-paginated') === 'true', null, { timeout: 15000 });
-  return pages;
 }
 
 test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
@@ -310,10 +293,9 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
       }],
       header: [], footer: [],
     };
-    await page.addInitScript(seedWithDesign(design, withQaLocations));
-    await openQaDesigner(page);
+    await openSeededReportsDesigner(page, withDesign(design, withQaLocations));
 
-    const pages = await openQaPrintView(page);
+    const pages = await openReportPrintView(page);
     // Day 1 (real pin) renders a map; Day 2 (address only, no coords) renders
     // nothing; every other day has no location → no page.
     await expect(pages).toHaveCount(1);
@@ -331,10 +313,9 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
       ],
       header: [], footer: [],
     };
-    await page.addInitScript(seedWithDesign(design, withQaLocations));
-    await openQaDesigner(page);
+    await openSeededReportsDesigner(page, withDesign(design, withQaLocations));
 
-    const pages = await openQaPrintView(page);
+    const pages = await openReportPrintView(page);
     const text = await pages.first().innerText();
     expect(text).toContain('Pinned Stage');   // the `set` repeat
     expect(text).toContain('Address Only');   // the `unitBase` table
@@ -354,10 +335,9 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
       }],
       header: [], footer: [],
     };
-    await page.addInitScript(seedWithDesign(design, withQaLocations));
-    await openQaDesigner(page);
+    await openSeededReportsDesigner(page, withDesign(design, withQaLocations));
 
-    const pages = await openQaPrintView(page);
+    const pages = await openReportPrintView(page);
     const page1 = pages.first();
     // Pinned + address-only each get a real link; the blank entry gets none and
     // no cell ever points at 0,0.
@@ -388,8 +368,7 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
       ],
       header: [], footer: [],
     };
-    await page.addInitScript(seedWithDesign(design, withQaLocations));
-    await openQaDesigner(page);
+    await openSeededReportsDesigner(page, withDesign(design, withQaLocations));
 
     await expect.poll(() => urls.length, { timeout: 8000 }).toBeGreaterThan(0);
     await page.waitForTimeout(200);

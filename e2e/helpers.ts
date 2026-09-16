@@ -98,7 +98,8 @@ export function seedTitle(): string {
   return loadSeedProject().data.title;
 }
 
-const escRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Escape a string for use inside a `RegExp` (locator text filters, etc.). */
+export const escRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** A manager grid's NAME cell holding the given value. Manager name cells are
  *  auto-wrapping textareas (`data-manager-name`) so long names wrap to two
@@ -109,13 +110,44 @@ export function nameCell(page: Page, value: string) {
   return page.locator('textarea[data-manager-name]').filter({ hasText: new RegExp(`^${escRegExp(value)}$`) }).first();
 }
 
-/** Seeds the demo project and opens it from the Project Manager screen. */
-export async function openSeededProject(page: Page) {
-  const seed = loadSeedProject();
-  await page.addInitScript(seedProjectScript(seed));
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  const card = page.getByText(seed.data.title, { exact: true }).first();
-  await card.click({ timeout: 8000 });
+/** The app under test (prod-preview `vite preview` on :3001 by default). */
+export const APP_URL = `http://localhost:${process.env.PLAYWRIGHT_PORT || '3001'}`;
+
+/** Seeds a full project object into localStorage before the app boots. */
+export async function seedProject(page: Page, project: any) {
+  const meta = JSON.stringify({
+    id: project.id,
+    title: project.title,
+    lastModified: Date.now(),
+    createdAt: Date.now(),
+  });
+  const projectJson = JSON.stringify(project);
+  await page.addInitScript(({ projectJson, meta }) => {
+    const p = JSON.parse(projectJson);
+    localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
+    localStorage.setItem('lemon_schedule_project_index', JSON.stringify([JSON.parse(meta)]));
+  }, { projectJson, meta });
+}
+
+/**
+ * Seeds the demo project and opens it from the Project Manager screen.
+ * Pass `mutate` to patch a copy of the seed (add a report design, point an
+ * active id at a new block, …) before it is written — replaces the per-spec
+ * `seedWithDesign` / `seedProject` copy-paste.
+ */
+export async function openSeededProject(page: Page, mutate?: (project: any) => void) {
+  if (mutate) {
+    const project = JSON.parse(loadSeedProject().raw);
+    mutate(project);
+    await seedProject(page, project);
+    await page.goto(`${APP_URL}/lemon_schedule/`);
+    await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
+  } else {
+    const seed = loadSeedProject();
+    await page.addInitScript(seedProjectScript(seed));
+    await page.goto(`${APP_URL}/lemon_schedule/`);
+    await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
+  }
   await expect(APP_BOOT_ANCHOR(page)).toBeVisible({ timeout: 10000 });
 }
 
@@ -247,4 +279,225 @@ export async function waitForOverlaySettle(page: Page, timeout = 3000) {
     }
     await page.waitForTimeout(50);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Shared navigation + data helpers. Extracted so specs don't each re-invent
+// the Design→Reports-Designer / Production→Day-Manager routes, the print-view
+// stub, and the raw bridge reads.
+// ---------------------------------------------------------------------------
+
+/** Opens Reports Designer (Design tab → Reports Designer sub-tab). Assumes a
+ *  project is already open (use {@link openSeededReportsDesigner} to seed too). */
+export async function openReportsDesigner(page: Page) {
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+}
+
+/** Seeds the demo project, opens it, and lands in Reports Designer. Pass
+ *  `stubPrint` for specs that render the print view (blocks the weather/geocode
+ *  fetches that otherwise dangle headless). */
+export async function openSeededReportsDesigner(
+  page: Page,
+  mutate?: (project: any) => void,
+  opts: { stubPrint?: boolean } = {},
+) {
+  if (opts.stubPrint) await stubPrintNetwork(page);
+  await openSeededProject(page, mutate);
+  await openReportsDesigner(page);
+}
+
+/** Selects a report design by name from the "Editing: …" picker. */
+export async function selectReportDesign(page: Page, name: string) {
+  await page.getByText(/^Editing: /).click();
+  await page.getByRole('menuitem', { name }).click();
+}
+
+/** Stubs `window.print` and fails the sun/weather + geocode fetches (they
+ *  dangle headless and block handleReportPrint's print-view handoff). */
+export async function stubPrintNetwork(page: Page) {
+  await page.addInitScript(() => {
+    window.print = () => {};
+    const realFetch = window.fetch.bind(window);
+    window.fetch = (input: any, init?: any) => {
+      const url = String(typeof input === 'string' ? input : input?.url || input);
+      if (url.includes('open-meteo') || url.includes('nominatim')) return Promise.reject(new Error('blocked for test'));
+      return realFetch(input as any, init as any);
+    };
+  });
+}
+
+/** From Reports Designer: Print → Print / Save PDF, then waits for the
+ *  paginated `.report-page` divs. Returns the page locator. */
+export async function openReportPrintView(page: Page, minPages = 1) {
+  await page.getByRole('button', { name: 'Print', exact: true }).click();
+  await page.getByRole('button', { name: /Print \/ Save PDF/ }).click();
+  const pages = page.locator('.report-root .report-page');
+  await expect(pages.first()).toBeVisible({ timeout: 15000 });
+  await page.waitForFunction(
+    (n) => document.querySelectorAll('.report-root .report-page').length >= n
+      && document.querySelector('.report-root')?.getAttribute('data-paginated') === 'true',
+    minPages,
+    { timeout: 15000 },
+  );
+  return pages;
+}
+
+/** Seeds the project (optionally mutating it) and opens Production → Day
+ *  Manager, waiting for the page shell. */
+export async function openDayManager(page: Page, mutate?: (project: any) => void) {
+  await openSeededProject(page, mutate);
+  await page.getByRole('button', { name: 'Production' }).click();
+  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
+  await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
+}
+
+/** Opens the full-surface call-sheet editor from the Day Manager header. */
+export async function openCallSheetEdit(page: Page) {
+  await page.locator('[data-day-manager] header').getByRole('button', { name: /Call Sheet/ }).click();
+  await expect(page.locator('[data-call-sheet-edit]')).toBeVisible({ timeout: 8000 });
+}
+
+/** Expands a collapsible Day Manager section and returns it. */
+export async function expandDaySection(page: Page, sectionId: string, probe: string) {
+  const section = page.locator(`[data-section="${sectionId}"]`);
+  if (!(await section.locator(probe).count())) await section.getByRole('button').first().click();
+  return section;
+}
+
+/** Opens Day Manager, expands the Call Times grid, and waits for it to settle. */
+export async function openCallTimesSection(page: Page) {
+  await openDayManager(page);
+  await expandDaySection(page, 'callTimes', '[data-day-times-glide]');
+  const grid = page.locator('[data-day-times-glide]').first();
+  await expect(grid).toBeVisible({ timeout: 8000 });
+  await expect(grid.locator('.dvn-scroller').first()).toBeAttached({ timeout: 8000 });
+  await grid.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => {
+    const el = document.querySelector('[data-day-times-glide] .dvn-scroller') as HTMLElement | null;
+    if (!el) return false;
+    const w = el.clientWidth;
+    const prev = (window as any).__dtgWidth;
+    (window as any).__dtgWidth = w;
+    return w > 0 && prev === w;
+  }, undefined, { timeout: 5000 });
+}
+
+/** The live project straight from the store (sync post-dispatch) — prefer
+ *  over decoding localStorage, which waits on the debounced save. */
+export async function bridgeProject(page: Page): Promise<any> {
+  return page.evaluate(() => (window as any).__lemonSchedule?.getProject());
+}
+
+/** Runs a plain-JS expression against the debug bridge `b` in the page. */
+export async function bridgeEval<T = any>(page: Page, expr: string): Promise<T> {
+  return page.evaluate((body) => {
+    const b: any = (window as any).__lemonSchedule;
+    return new Function('b', `return (${body})`)(b);
+  }, expr) as Promise<T>;
+}
+
+/** Day 1's cast ids in first-appearance order (the sheet's row order). */
+export async function day1CastIds(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const b: any = (window as any).__lemonSchedule;
+    const rows = b.getRows();
+    const p = b.getProject();
+    const sceneIdByRow = new Map(
+      (rows.rows || []).filter((r: any) => r.type === 'SCENE' && r.sceneId).map((r: any) => [r.id, r.sceneId]),
+    );
+    const sec = (rows.sections || []).filter((s: any) => !s.isPinned)[0];
+    const out: string[] = [];
+    for (const rid of sec?.rows || []) {
+      const sc = p.scenes.find((x: any) => x.id === sceneIdByRow.get(rid));
+      if (!sc) continue;
+      for (const id of String(sc.cast || '').split(',').map((x: string) => x.trim()).filter(Boolean)) {
+        if (!out.includes(id)) out.push(id);
+      }
+    }
+    return out;
+  });
+}
+
+/** The pinned daybreak's stored `elementCalls.cast[id]` override, or null. */
+export async function callsFor(page: Page, castId: string) {
+  return page.evaluate((id) => {
+    const b: any = (window as any).__lemonSchedule;
+    const p = b.getProject();
+    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+    const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+    return gov?.daybreakMeta?.elementCalls?.cast?.[id] || null;
+  }, castId);
+}
+
+/** First stage column label from the project's call-time settings. */
+export async function firstStageLabel(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const b: any = (window as any).__lemonSchedule;
+    const p = b.getProject();
+    const s = p.productionInfo?.callTimes;
+    const stages = (s?.stages?.length ? s.stages : [
+      { key: 'pickup', label: 'Pickup' }, { key: 'arrive', label: 'Arrive' },
+      { key: 'hmua', label: 'HMU' }, { key: 'costume', label: 'Costume' }, { key: 'onSet', label: 'On Set' },
+    ]);
+    return stages[0]?.label || '';
+  });
+}
+
+const STAGE_BASE_WIDTHS = [48, 220, 48, 88, 88, 88, 88, 88];
+
+/** Center of a stage cell in a day-times Glide grid. Mirrors the component's
+ *  fit-to-card column math (desktop defaults: 11px font → 30px header, 28px
+ *  rows). `scope` narrows to one grid (defaults to the first on the page). */
+export async function stageCellPoint(
+  page: Page,
+  row: number,
+  stageIndex: number,
+  scope?: import('@playwright/test').Locator,
+) {
+  const base = (scope || page).locator('[data-day-times-glide] .dvn-scroller').first();
+  const box = (await base.boundingBox())!;
+  const target = Math.max(120, Math.floor(box.width) - 1);
+  const total = STAGE_BASE_WIDTHS.reduce((s, w) => s + w, 0);
+  const widths = STAGE_BASE_WIDTHS.map(w => Math.max(40, Math.floor((w / total) * target)));
+  const sum = widths.reduce((s, w) => s + w, 0);
+  widths[1] += target - sum;
+  const before = widths[0] + widths[1] + widths[2];
+  const rowH = 28;
+  const headerH = 30;
+  return {
+    x: box.x + before + stageIndex * widths[3] + widths[3] / 2,
+    y: box.y + headerH + row * rowH + rowH / 2,
+    stageW: widths[3],
+    rowH,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Import flow helpers (File → Import → screenplay file → picker).
+// ---------------------------------------------------------------------------
+
+/** Writes `contents` to a temp file and returns its path. */
+export function writeTempFile(name: string, contents: string): string {
+  const p = path.join(os.tmpdir(), name);
+  fs.writeFileSync(p, contents);
+  return p;
+}
+
+/** Opens the APPEND screenplay import picker (File → Import → .fdx/.fountain/.csv)
+ *  and attaches `filePath`. The review dialog is left for the caller to drive. */
+export async function importFileViaMenu(page: Page, filePath: string) {
+  await page.getByRole('button', { name: 'File' }).click();
+  await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+  await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
+  await page.locator('input[type="file"]').first().setInputFiles(filePath);
+}
+
+/** Opens the "Update script…" review modal with `filePath` and waits for it. */
+export async function openUpdateScriptModal(page: Page, filePath: string) {
+  await page.getByRole('button', { name: 'File' }).click();
+  await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+  await page.getByRole('menuitem', { name: /Update script/ }).click();
+  await page.locator('input[type="file"]').nth(1).setInputFiles(filePath);
+  await expect(page.getByRole('dialog').getByText(/Update Script/)).toBeVisible({ timeout: 8000 });
 }

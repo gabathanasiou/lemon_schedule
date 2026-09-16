@@ -1,24 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, seedProjectScript } from './helpers';
-
-const BASE = process.env.PW_BASE_URL || 'http://localhost:3001';
-
-async function openDesigner(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
-
-async function openSeeded(page: import('@playwright/test').Page) {
-  const seed = loadSeedProject();
-  await page.addInitScript(seedProjectScript(seed));
-  await page.goto(`${BASE}/lemon_schedule/`);
-  const card = page.getByText(seed.data.title, { exact: true }).first();
-  await card.click({ timeout: 8000 });
-  }
+import { openReportsDesigner, openSeededProject } from './helpers';
 
 test('repeat menu hides self-redundant days under a days parent', async ({ page }) => {
-  await openSeeded(page);
-  await openDesigner(page);
+  await openSeededProject(page);
+  await openReportsDesigner(page);
 
   // Top-level repeat, switch it to over Days.
   await page.getByRole('button', { name: 'Repeat', exact: true }).click();
@@ -44,8 +29,8 @@ test('repeat menu hides self-redundant days under a days parent', async ({ page 
 });
 
 test('repeat menu hides scenes under a scenes parent once the child is not over scenes', async ({ page }) => {
-  await openSeeded(page);
-  await openDesigner(page);
+  await openSeededProject(page);
+  await openReportsDesigner(page);
 
   // Top-level repeat defaults to Scenes — this is the parent.
   await page.getByRole('button', { name: 'Repeat', exact: true }).click();
@@ -70,8 +55,8 @@ test('repeat menu hides scenes under a scenes parent once the child is not over 
 });
 
 test('repeat menu scopes children under a crew parent and hides self-redundant crew', async ({ page }) => {
-  await openSeeded(page);
-  await openDesigner(page);
+  await openSeededProject(page);
+  await openReportsDesigner(page);
 
   await page.getByRole('button', { name: 'Repeat', exact: true }).click();
     await page.getByRole('button', { name: 'Scenes', exact: true }).click();
@@ -93,8 +78,8 @@ test('repeat menu scopes children under a crew parent and hides self-redundant c
 });
 
 test('elements submenu grays the parent own category under a cast parent', async ({ page }) => {
-  await openSeeded(page);
-  await openDesigner(page);
+  await openSeededProject(page);
+  await openReportsDesigner(page);
 
   await page.getByRole('button', { name: 'Repeat', exact: true }).click();
     await page.getByRole('button', { name: 'Scenes', exact: true }).click();
@@ -117,8 +102,8 @@ test('elements submenu grays the parent own category under a cast parent', async
 });
 
 test('table over menu hides self-redundant collections under a days parent', async ({ page }) => {
-  await openSeeded(page);
-  await openDesigner(page);
+  await openSeededProject(page);
+  await openReportsDesigner(page);
 
   await page.getByRole('button', { name: 'Repeat', exact: true }).click();
     await page.getByRole('button', { name: 'Scenes', exact: true }).click();

@@ -1,38 +1,68 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject } from './helpers';
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
+import { openSeededReportsDesigner } from './helpers';
+
+// cast → days → scenes chain: a `shootTime` field inside a scenes repeat scoped
+// under a day must resolve the SCENE's duration, not the day total. The design
+// is inline so the spec is hermetic (the previous version read a machine-local
+// `~/Downloads/Report 11.report`, so it could not run on CI).
+
+const DESIGN = {
+  id: 'rep11',
+  name: 'Report 11',
+  page: 'portrait' as const,
+  createdAt: Date.now(),
+  header: [],
+  footer: [],
+  blocks: [
+    {
+      id: 'bmsrbjyuz23',
+      type: 'repeat',
+      collection: 'elements',
+      category: 'cast',
+      gap: 8,
+      children: [
+        { id: 'bmsreb6hw1', type: 'field', field: 'elementName', bold: true },
+        {
+          id: 'bmsreaeuh1',
+          type: 'repeat',
+          collection: 'days',
+          gap: 8,
+          children: [
+            { id: 'bmsredhoe2', type: 'field', field: 'dayLabel', bold: true },
+            {
+              id: 'bmsrebvhf3',
+              type: 'repeat',
+              collection: 'scenes',
+              gap: 8,
+              children: [
+                {
+                  id: 'bmsree9et4',
+                  type: 'columns',
+                  cols: [
+                    { id: 'bmsree9et5', width: 50, blocks: [{ id: 'bmsrec5ck1', type: 'field', field: 'sceneNumber' }] },
+                    { id: 'bmsree9et6', width: 50, blocks: [{ id: 'bmsree9et3', type: 'field', field: 'shootTime' }] },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
 
 test('cast → days → scenes chain: smart Shoot Time resolves per scene', async ({ page }) => {
-  const seed = loadSeedProject();
-  const report = JSON.parse(fs.readFileSync(path.join(os.homedir(), 'Downloads', 'Report 11.report'), 'utf8'));
-
-  await page.addInitScript(({ projectJson, meta, design }) => {
-    const project = JSON.parse(projectJson);
-    project.reportDesigns = [design];
-    project.activeReportId = design.id;
-    localStorage.setItem('lemon_schedule_project_v1_' + project.id, JSON.stringify(project));
-    localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
-  }, {
-    projectJson: JSON.stringify(JSON.parse(seed.raw)),
-    meta: { id: seed.data.id, title: seed.data.title, lastModified: Date.now(), createdAt: Date.now() },
-    design: { ...report, id: 'rep11', createdAt: Date.now() },
+  await openSeededReportsDesigner(page, (project) => {
+    project.reportDesigns = [DESIGN];
+    project.activeReportId = DESIGN.id;
   });
 
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
-  
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  
   await page.getByRole('button', { name: 'Preview' }).click();
-  
+
   const body = await page.evaluate(() => document.body.innerText);
-  const perScene = body.includes('30m');
-  const dayTotal = body.includes('9h 30m');
-  expect(perScene).toBe(true);
-  expect(dayTotal).toBe(false);
-  expect(perScene).toBe(true);
-  expect(dayTotal).toBe(false);
+  // Per-scene shoot times render (e.g. "30m"); the per-DAY total must NOT leak
+  // into a scene row.
+  expect(body).toContain('30m');
+  expect(body).not.toContain('9h 30m');
 });

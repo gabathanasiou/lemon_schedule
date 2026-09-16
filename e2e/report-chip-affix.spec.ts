@@ -1,14 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
-
-async function openDesigner(page: any) {
-  await openSeededProject(page);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
+import { openSeededReportsDesigner } from './helpers';
 
 test('chip affix editor: list-only section in the properties panel, no popover', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   // switch to the Scene Breakdown design (its repeat contains a Cast: {{cast}}
   // text block — a multi-value chip in scenes scope)

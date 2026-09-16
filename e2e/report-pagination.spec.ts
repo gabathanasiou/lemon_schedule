@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, seedProjectScript } from './helpers';
+import { openSeededReportsDesigner, openReportPrintView } from './helpers';
 
 // Measured pagination spec. Runs on every project in the config (Desktop
 // Chrome + iPad WebKit via playwright.ipad.config.ts) so both engines must
@@ -52,51 +52,16 @@ function paginationTestDesign() {
   };
 }
 
-function seedWithDesignScript() {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [paginationTestDesign(), ...(project.reportDesigns || [])];
-  project.activeReportId = paginationTestDesign().id;
-  return seedProjectScript({ raw: JSON.stringify(project) });
-}
-
-async function openDesigner(page: any) {
-  await page.addInitScript(() => {
-    window.print = () => {};
-    // Fail the sun/weather + geocode fetches immediately — handleReportPrint
-    // awaits them before opening the print view and they dangle headless.
-    const realFetch = window.fetch.bind(window);
-    window.fetch = (input: any, init?: any) => {
-      const url = String(typeof input === 'string' ? input : input?.url || input);
-      if (url.includes('open-meteo') || url.includes('nominatim')) return Promise.reject(new Error('blocked for test'));
-      return realFetch(input as any, init as any);
-    };
-  });
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  const seed = loadSeedProject();
-  const card = page.getByText(seed.data.title, { exact: true }).first();
-  await card.click({ timeout: 8000 });
-    await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
-
-async function openPrintView(page: any) {
-  await openDesigner(page);
-  // The designer's Print button opens the print-options dialog (custom report
-  // print); confirm it to launch the print view.
-  await page.getByRole('button', { name: 'Print', exact: true }).click();
-  await page.getByRole('button', { name: /Print \/ Save PDF/ }).click();
-  // ReportPrint renders, measures, then renders `.report-page` divs.
-  const pages = page.locator('.report-root .report-page');
-  await expect(pages.first()).toBeVisible({ timeout: 15000 });
-  await page.waitForFunction(() => document.querySelectorAll('.report-root .report-page').length >= 2, null, { timeout: 15000 });
-  return page.locator('.report-root .report-page');
+/** Installs the pagination test design on the seed. */
+function withPaginationDesign(project: any) {
+  const design = paginationTestDesign();
+  project.reportDesigns = [design, ...(project.reportDesigns || [])];
+  project.activeReportId = design.id;
 }
 
 test('report print: header/footer repeat, table header repeats, no page overflows', async ({ page, browserName }) => {
-  await page.addInitScript(seedWithDesignScript());
-  
-  const pages = await openPrintView(page);
+  await openSeededReportsDesigner(page, withPaginationDesign, { stubPrint: true });
+  const pages = await openReportPrintView(page, 2);
 
   const count = await pages.count();
   expect(count).toBeGreaterThanOrEqual(2);
@@ -162,9 +127,7 @@ test('report print: header/footer repeat, table header repeats, no page overflow
 });
 
 test('report preview: same pagination, header/footer per card, exit works', async ({ page }) => {
-  await page.addInitScript(seedWithDesignScript());
-  
-  await openDesigner(page);
+  await openSeededReportsDesigner(page, withPaginationDesign, { stubPrint: true });
 
   await page.getByRole('button', { name: 'Preview' }).click();
   const cards = page.locator('.report-page');

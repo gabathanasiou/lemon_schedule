@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, seedProjectScript } from './helpers';
+import { openSeededReportsDesigner } from './helpers';
 
 // Roadmap 33 verification: every block gets a vertical gap in the PREVIEW and
 // PRINT (matching the repeat item gap, 8px) while the designer CANVAS stays
@@ -38,29 +38,14 @@ function gapDesign() {
   };
 }
 
-async function openDesignerWithDesign(page: any, project: any) {
-  await page.addInitScript(seedProjectScript({ raw: JSON.stringify(project) }));
-  await page.addInitScript(() => {
-    window.print = () => {};
-    const realFetch = window.fetch.bind(window);
-    window.fetch = (input: any, init?: any) => {
-      const url = String(typeof input === 'string' ? input : input?.url || input);
-      if (url.includes('open-meteo') || url.includes('nominatim')) return Promise.reject(new Error('blocked for test'));
-      return realFetch(input as any, init as any);
-    };
-  });
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-    await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
-
-test('canvas stays flush; preview applies the 8px block gap to every stack', async ({ page }) => {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
+/** Installs the block-gap test design on the seed. */
+function withGapDesign(project: any) {
   project.reportDesigns = [gapDesign(), ...(project.reportDesigns || [])];
   project.activeReportId = 'bg-test';
-  await openDesignerWithDesign(page, project);
+}
+
+test('canvas stays flush; preview applies the 8px block gap to every stack', async ({ page }) => {
+  await openSeededReportsDesigner(page, withGapDesign, { stubPrint: true });
 
   // ---- canvas: stacked block cards are FLUSH (no gap in the composer) ----
   const cardGaps = await page.$$eval('.block-card', (cards) =>
@@ -105,11 +90,7 @@ test('canvas stays flush; preview applies the 8px block gap to every stack', asy
 // never be deleted (Number('') || fallback snapped it back). They keep a
 // free-typed draft now — clear, retype, commit.
 test('number boxes can be cleared and retyped (item gap)', async ({ page }) => {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [gapDesign(), ...(project.reportDesigns || [])];
-  project.activeReportId = 'bg-test';
-  await openDesignerWithDesign(page, project);
+  await openSeededReportsDesigner(page, withGapDesign, { stubPrint: true });
 
   await page.locator('.block-card.block-type-repeat').first().click({ position: { x: 3, y: 3 } });
   const input = page.getByLabel('Item gap (px)').first();

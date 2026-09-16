@@ -1,14 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedTitle } from './helpers';
-
-async function openDesigner(page: any) {
-  await openSeededProject(page);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
+import { openSeededReportsDesigner, seedTitle } from './helpers';
 
 async function openTitleChrome(page: any) {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
   const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
@@ -20,7 +14,7 @@ async function openTitleChrome(page: any) {
 /** Inserts a fresh text block into the (empty) header zone — a block with no
  *  style and no direct formatting, so the format toggles are fully free. */
 async function insertFreshTextBlock(page: any) {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
   const headerZone = page.locator('.report-zone[data-zone-list="header"]');
   await expect(headerZone).toBeVisible({ timeout: 5000 });
   await headerZone.getByText('Empty — click or drag palette items here').click();

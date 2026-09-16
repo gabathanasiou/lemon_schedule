@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, seedProjectScript } from './helpers';
+import { loadSeedProject, openSeededReportsDesigner } from './helpers';
 
 // Roadmap 22/28 verification:
 //  - 22: Breakdown attributes (cast, props, …) are pickable inside DAY
@@ -85,34 +85,17 @@ function dayBreakdowns(seed: any) {
   }));
 }
 
-async function openDesignerWithDesign(page: any, project: any) {
-  await page.addInitScript(seedProjectScript({ raw: JSON.stringify(project) }));
-  // Stub window.print (headless fires afterprint synchronously, the print view
-  // stays mounted) and fail sun/weather + geocode fetches (they dangle
-  // headless before the print view renders).
-  await page.addInitScript(() => {
-    window.print = () => {};
-    const realFetch = window.fetch.bind(window);
-    window.fetch = (input: any, init?: any) => {
-      const url = String(typeof input === 'string' ? input : input?.url || input);
-      if (url.includes('open-meteo') || url.includes('nominatim')) return Promise.reject(new Error('blocked for test'));
-      return realFetch(input as any, init as any);
-    };
-  });
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-    await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
+/** Installs the gap-breakdown-look test design on the seed. */
+function withGapBreakdownDesign(project: any) {
+  const design = gapBreakdownLookDesign();
+  project.reportDesigns = [design, ...(project.reportDesigns || [])];
+  project.activeReportId = design.id;
+}
 
 test('days repeat resolves Breakdown attributes per-day; palette offers the Breakdown group', async ({ page }) => {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [gapBreakdownLookDesign(), ...(project.reportDesigns || [])];
-  project.activeReportId = gapBreakdownLookDesign().id;
-  await openDesignerWithDesign(page, project);
+  await openSeededReportsDesigner(page, withGapBreakdownDesign, { stubPrint: true });
 
-  const days = dayBreakdowns(project);
+  const days = dayBreakdowns(JSON.parse(loadSeedProject().raw));
   const first = days[0];
   const second = days[1];
   expect(first.cast).not.toBe('');
@@ -151,13 +134,9 @@ test('days repeat resolves Breakdown attributes per-day; palette offers the Brea
 });
 
 test('preview renders a different Breakdown union for every day', async ({ page }) => {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [gapBreakdownLookDesign(), ...(project.reportDesigns || [])];
-  project.activeReportId = gapBreakdownLookDesign().id;
-  await openDesignerWithDesign(page, project);
+  await openSeededReportsDesigner(page, withGapBreakdownDesign, { stubPrint: true });
 
-  const days = dayBreakdowns(project);
+  const days = dayBreakdowns(JSON.parse(loadSeedProject().raw));
 
   await page.getByRole('button', { name: 'Preview' }).click();
   await expect(page.locator('.report-page').first()).toBeVisible({ timeout: 15000 });
@@ -171,11 +150,7 @@ test('preview renders a different Breakdown union for every day', async ({ page 
 });
 
 test('bordered cells with background render with auto text color (canvas + preview)', async ({ page }) => {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [gapBreakdownLookDesign(), ...(project.reportDesigns || [])];
-  project.activeReportId = gapBreakdownLookDesign().id;
-  await openDesignerWithDesign(page, project);
+  await openSeededReportsDesigner(page, withGapBreakdownDesign, { stubPrint: true });
 
   const styleOf = (id: string) =>
     page.locator(`[data-block-id="${id}"] .report-text-block`).evaluate(el => {

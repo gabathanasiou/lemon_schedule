@@ -1,14 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedTitle } from './helpers';
-
-async function openDesigner(page: any) {
-  await openSeededProject(page);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
+import { openSeededReportsDesigner, seedTitle } from './helpers';
 
 test('block chrome stays fully inside the viewport, also after scrolling', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
@@ -43,7 +37,7 @@ test('block chrome stays fully inside the viewport, also after scrolling', async
 });
 
 test('table column chrome stays inside the viewport and anchors to its column', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   const table = page.locator('.report-table-cols').first();
   await expect(table).toBeVisible({ timeout: 5000 });
@@ -75,7 +69,7 @@ test('table column chrome stays inside the viewport and anchors to its column', 
 });
 
 test('token autocomplete anchors to the caret and stays inside the window', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
@@ -127,7 +121,7 @@ test('token autocomplete anchors to the caret and stays inside the window', asyn
 });
 
 test('columns block: clicking a column shows the chrome; move left/right and delete work', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   // add a Columns block from the palette
   await page.getByRole('button', { name: 'Columns' }).click();
@@ -182,7 +176,7 @@ test('columns block: clicking a column shows the chrome; move left/right and del
 // Palette UX: blocks are ALWAYS enabled. A block that doesn't fit the current
 // context explains where it can go (dialog) instead of being greyed out.
 test('palette blocks stay enabled; a disallowed drop explains where it can go', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   const palette = page.locator('aside').first();
   const callTimes = palette.getByRole('button', { name: 'Call Times' });

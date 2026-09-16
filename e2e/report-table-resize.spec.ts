@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, seedProjectScript, waitForPersistedProject } from './helpers';
+import { openSeededReportsDesigner, waitForPersistedProject } from './helpers';
 
 // Table column-width resize (roadmap items 23 + 24). The resize bar is now the
 // shared ribbon-style dragger (src/components/columnResize.tsx). Verifies:
@@ -54,22 +54,12 @@ function resizeTestDesign() {
   };
 }
 
-function seedWithDesignScript() {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [resizeTestDesign(), ...(project.reportDesigns || [])];
-  project.activeReportId = resizeTestDesign().id;
-  return seedProjectScript({ raw: JSON.stringify(project) });
+/** Installs the resize test design on the seed. */
+function withResizeDesign(project: any) {
+  const design = resizeTestDesign();
+  project.reportDesigns = [design, ...(project.reportDesigns || [])];
+  project.activeReportId = design.id;
 }
-
-async function openDesigner(page: any) {
-  await page.addInitScript(seedWithDesignScript());
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  const seed = loadSeedProject();
-  await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
-    await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
 
 /** Reads the test table's column widths from the active design. */
 async function designWidths(page: any, tableId: string): Promise<number[]> {
@@ -83,7 +73,7 @@ async function designWidths(page: any, tableId: string): Promise<number[]> {
 }
 
 test('table resize: multi-row table — header + all rows track live, commit lands, unchanged columns keep widths', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page, withResizeDesign);
 
   // the multi-row scenes table is the first table on the canvas. The canvas
   // truncates tables at TABLE_PREVIEW_LIMIT (6) rows + a "+N more" bar
@@ -143,7 +133,7 @@ test('table resize: multi-row table — header + all rows track live, commit lan
 });
 
 test('table resize: single-row (skeleton) table works too', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page, withResizeDesign);
 
   // the second table (empty category) renders the hint skeleton — 1 data row.
   // Locate it by block id: the truncated scenes table above it ALSO emits a

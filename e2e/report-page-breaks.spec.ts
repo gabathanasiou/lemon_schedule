@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, seedProjectScript } from './helpers';
+import { openSeededReportsDesigner, openReportPrintView } from './helpers';
 
 // Universal page-break semantics (roadmap 30 + 32). A `pageBreak` block adds a
 // page break AT ITS POSITION in the render — top level, or nested in
@@ -34,43 +34,14 @@ function design(name: string = 'Page Breaks Test', blocks: any[]): any {
   return { id: 'pb-test-design', name, createdAt: Date.now(), page: 'portrait', blocks };
 }
 
-function seedWithDesign(design: any, patch?: (project: any) => void) {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [design, ...(project.reportDesigns || [])];
-  project.activeReportId = design.id;
-  patch?.(project);
-  return seedProjectScript({ raw: JSON.stringify(project) });
-}
-
-async function openDesigner(page: any) {
-  await page.addInitScript(() => {
-    window.print = () => {};
-    // Fail the sun/weather + geocode fetches immediately — handleReportPrint
-    // awaits them before opening the print view and they dangle headless.
-    const realFetch = window.fetch.bind(window);
-    window.fetch = (input: any, init?: any) => {
-      const url = String(typeof input === 'string' ? input : input?.url || input);
-      if (url.includes('open-meteo') || url.includes('nominatim')) return Promise.reject(new Error('blocked for test'));
-      return realFetch(input as any, init as any);
-    };
-  });
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  const seed = loadSeedProject();
-  const card = page.getByText(seed.data.title, { exact: true }).first();
-  await card.click({ timeout: 8000 });
-    await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
-
-async function openPrintView(page: any) {
-  await openDesigner(page);
-  await page.getByRole('button', { name: 'Print', exact: true }).click();
-  await page.getByRole('button', { name: /Print \/ Save PDF/ }).click();
-  const pages = page.locator('.report-root .report-page');
-  await expect(pages.first()).toBeVisible({ timeout: 15000 });
-  await page.waitForFunction(() => document.querySelector('.report-root')?.getAttribute('data-paginated') === 'true', null, { timeout: 15000 });
-  return pages;
+/** Installs this spec's design on the seed (drop the seed design + activate
+ *  the test one). Passed to {@link openSeededReportsDesigner}. */
+function withDesign(design: any, patch?: (project: any) => void) {
+  return (project: any) => {
+    project.reportDesigns = [design, ...(project.reportDesigns || [])];
+    project.activeReportId = design.id;
+    patch?.(project);
+  };
 }
 
 /** Production day count straight from the store's debug bridge (the
@@ -87,12 +58,11 @@ async function pageTexts(pages: any): Promise<string[]> {
 }
 
 test('repeat with a trailing pageBreak per item: one page per item, no trailing blank', async ({ page }) => {
-  await page.addInitScript(seedWithDesign(design('PB Call Sheet', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Call Sheet', [
     repeat('pb-r', 'days', [text('pb-d', 'DAY {{dayNumber}} — {{dayDate}}'), pageBreak('pb-brk')]),
-  ])));
-  await openDesigner(page);
+  ])), { stubPrint: true });
   const n = await productionDayCount(page);
-  const pages = await openPrintView(page);
+  const pages = await openReportPrintView(page);
   const texts = await pageTexts(pages);
   expect(n).toBeGreaterThan(1);
   expect(texts.length).toBe(n); // one page per production day
@@ -100,27 +70,26 @@ test('repeat with a trailing pageBreak per item: one page per item, no trailing 
 });
 
 test('repeat WITHOUT pageBreaks: items fill pages contiguously — never one page per item', async ({ page }) => {
-  await page.addInitScript(seedWithDesign(design('PB No Breaks', [
+  await openSeededReportsDesigner(page, withDesign(design('PB No Breaks', [
     repeat('pb-r', 'days', [text('pb-a', 'D{{dayNumber}}'), text('pb-b', 'X{{dayNumber}}')]),
-  ])));
-  const pages = await openPrintView(page);
+  ])), { stubPrint: true });
+  const pages = await openReportPrintView(page);
   const texts = await pageTexts(pages);
   // 64 small rows ≈ 2–3 pages — but never 32 (the old "auto page break" bug).
   expect(texts.length).toBeLessThan(6);
 });
 
 test('mid-item pageBreak splits the item: content after the break starts a new page', async ({ page }) => {
-  await page.addInitScript(seedWithDesign(design('PB Mid Split', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Mid Split', [
     repeat('pb-r', 'days', [
       spacer('pb-sp', 740),
       text('pb-a', '[[A{{dayNumber}}]]'),
       pageBreak('pb-brk'),
       text('pb-b', '[[B{{dayNumber}}]]'),
     ]),
-  ])));
-  await openDesigner(page);
+  ])), { stubPrint: true });
   const n = await productionDayCount(page);
-  const pages = await openPrintView(page);
+  const pages = await openReportPrintView(page);
   const texts = await pageTexts(pages);
   expect(texts.length).toBeGreaterThanOrEqual(2);
   for (let i = 1; i <= n; i++) {
@@ -136,7 +105,7 @@ test('items that render nothing produce no page (no blank pages)', async ({ page
   // its only child hides on empty. skipEmptyCategories is OFF so the empty
   // types iterate — but each renders nothing, so its pageBreak is a no-op
   // before the content and leaves no trailing blank page after it.
-  await page.addInitScript(seedWithDesign(design('PB Empty Item', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Empty Item', [
     repeat('pb-r', 'locationTypes', [
       field('pb-f', 'locationTypeLabel', { emptyBehavior: 'hideBlock' }),
       pageBreak('pb-brk'),
@@ -144,8 +113,8 @@ test('items that render nothing produce no page (no blank pages)', async ({ page
   ]), p => {
     p.locationTypes = BUILTIN_LOCATION_TYPES.map(t => ({ ...t, label: t.key === 'unitBase' ? 'Filled' : '' }));
     p.locations = [{ id: 'pb-l1', name: 'Studio A', type: 'unitBase', address: '', place: '', lat: 0, lng: 0 }];
-  }));
-  const pages = await openPrintView(page);
+  }), { stubPrint: true });
+  const pages = await openReportPrintView(page);
   const texts = await pageTexts(pages);
   // One page per NON-empty label; empty-label items produce no page (and no
   // trailing blank page after "Filled").
@@ -157,17 +126,16 @@ test('items that render nothing produce no page (no blank pages)', async ({ page
 });
 
 test('skip-empty: location types without locations are skipped by default; checkbox exists', async ({ page }) => {
-  await page.addInitScript(seedWithDesign(design('PB Skip Empty', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Skip Empty', [
     repeat('pb-r', 'locationTypes', [field('pb-f', 'locationTypeLabel'), pageBreak('pb-brk')]),
   ]), p => {
     p.locationTypes = [{ key: 'filled', label: 'Filled' }, { key: 'other', label: 'Other' }];
     p.locations = [{ id: 'pb-l1', name: 'Studio A', type: 'filled', address: '', place: '', lat: 0, lng: 0 }];
-  }));
+  }), { stubPrint: true });
 
   // The block chrome's Filters section exposes the shared skip-empty checkbox
   // for location types (mirroring the categories one). Click the repeat card's
   // own corner — a center click lands on the field child inside it.
-  await openDesigner(page);
   const repeatCard = page.locator('.block-card.block-type-repeat').first();
   await repeatCard.click({ position: { x: 3, y: 3 } });
   await expect(page.getByText('Skip types with no locations', { exact: true })).toBeVisible({ timeout: 5000 });
@@ -188,7 +156,7 @@ test('skip-empty opt-out (skipEmptyCategories: false): empty types iterate again
   // The built-in types (no locations) plus one type WITH a location and one
   // without. skipEmptyCategories is OFF, so EVERY type iterates and prints a
   // page — including the 0-location ones the default would have skipped.
-  await page.addInitScript(seedWithDesign(design('PB Skip Empty Off', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Skip Empty Off', [
     repeat('pb-r', 'locationTypes', [field('pb-f', 'locationTypeLabel'), pageBreak('pb-brk')], { skipEmptyCategories: false }),
   ]), p => {
     p.locationTypes = [
@@ -197,8 +165,8 @@ test('skip-empty opt-out (skipEmptyCategories: false): empty types iterate again
       { key: 'other', label: 'Other' },
     ];
     p.locations = [{ id: 'pb-l1', name: 'Studio A', type: 'filled', address: '', place: '', lat: 0, lng: 0 }];
-  }));
-  const pages = await openPrintView(page);
+  }), { stubPrint: true });
+  const pages = await openReportPrintView(page);
   const texts = await pageTexts(pages);
   const labels: string[] = await page.evaluate(() =>
     (window as any).__lemonSchedule.getProject().locationTypes.map((t: any) => String(t.label ?? '')));
@@ -208,13 +176,13 @@ test('skip-empty opt-out (skipEmptyCategories: false): empty types iterate again
 });
 
 test('consecutive TOP-LEVEL pageBreaks still produce an explicit blank page', async ({ page }) => {
-  await page.addInitScript(seedWithDesign(design('PB Blank Top', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Blank Top', [
     text('pb-t1', 'TOP1'),
     pageBreak('pb-b1'),
     pageBreak('pb-b2'),
     text('pb-t2', 'TOP2'),
-  ])));
-  const pages = await openPrintView(page);
+  ])), { stubPrint: true });
+  const pages = await openReportPrintView(page);
   const texts = await pageTexts(pages);
   expect(texts.length).toBe(3);
   expect(texts[0]).toContain('TOP1');
@@ -223,7 +191,7 @@ test('consecutive TOP-LEVEL pageBreaks still produce an explicit blank page', as
 });
 
 test('pageBreak inside a columns block: the whole columns block starts a new page', async ({ page }) => {
-  await page.addInitScript(seedWithDesign(design('PB Columns', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Columns', [
     text('pb-pre', 'PRE'),
     {
       id: 'pb-col',
@@ -233,8 +201,8 @@ test('pageBreak inside a columns block: the whole columns block starts a new pag
         { id: 'pb-c2', width: 1, blocks: [text('pb-cc', 'COL-C')] },
       ],
     },
-  ])));
-  const pages = await openPrintView(page);
+  ])), { stubPrint: true });
+  const pages = await openReportPrintView(page);
   const texts = await pageTexts(pages);
   expect(texts.length).toBe(2); // PRE page, then the whole columns block
   expect(texts[0]).toContain('PRE');
@@ -250,7 +218,7 @@ test('pageBreak inside a columns block: the whole columns block starts a new pag
 // pages overflowed massively and content was clipped. The child's kind now
 // comes from the block type (`data-rm-kind`).
 test('nested repeats containing tables split across pages (no overflow)', async ({ page }) => {
-  await page.addInitScript(seedWithDesign(design('PB Nested Table', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Nested Table', [
     repeat('pb-cast', 'cast', [
       text('pb-name', '{{castIdName}}'),
       repeat('pb-days', 'daysOfCast', [
@@ -267,8 +235,8 @@ test('nested repeats containing tables split across pages (no overflow)', async 
         ]),
       ]),
     ]),
-  ])));
-  const pages = await openPrintView(page);
+  ])), { stubPrint: true });
+  const pages = await openReportPrintView(page);
   const texts = await pageTexts(pages);
   // Thousands of rows must spread over many pages, not a handful of overflowing ones.
   expect(texts.length).toBeGreaterThan(10);
@@ -283,7 +251,7 @@ test('nested repeats containing tables split across pages (no overflow)', async 
 // every page fits. The spacer makes each scene tall enough that a multi-scene
 // day can never fit a page as one unit.
 test('deeply nested repeats dissolve to row/child granularity (no overflow)', async ({ page, browserName }) => {
-  await page.addInitScript(seedWithDesign(design('PB Deep Nest', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Deep Nest', [
     repeat('pb-cast', 'cast', [
       text('pb-name', '{{castIdName}}'),
       repeat('pb-days', 'daysOfCast', [
@@ -302,8 +270,8 @@ test('deeply nested repeats dissolve to row/child granularity (no overflow)', as
         ]),
       ]),
     ]),
-  ])));
-  const pages = await openPrintView(page);
+  ])), { stubPrint: true });
+  const pages = await openReportPrintView(page);
   const texts = await pageTexts(pages);
   expect(texts.length).toBeGreaterThan(5);
   const overflow = await pages.evaluateAll(els => (els as HTMLElement[]).map(el => el.scrollHeight - el.clientHeight));
@@ -322,10 +290,9 @@ test('deeply nested repeats dissolve to row/child granularity (no overflow)', as
 // Regression: the filter values box committed per keystroke (one undo entry
 // per typed character). It is a draft now — commits once on blur/Enter.
 test('filter values commit on blur (one undo entry), not per keystroke', async ({ page }) => {
-  await page.addInitScript(seedWithDesign(design('PB Filter Draft', [
+  await openSeededReportsDesigner(page, withDesign(design('PB Filter Draft', [
     repeat('pb-r', 'crew', [text('pb-t', '{{crewName}}')], { itemFilter: { field: 'role', values: [] } }),
-  ])));
-  await openDesigner(page);
+  ])), { stubPrint: true });
   await page.locator('.block-card.block-type-repeat').first().click({ position: { x: 3, y: 3 } });
   const input = page.getByPlaceholder('Values…').first();
   await expect(input).toBeVisible({ timeout: 5000 });

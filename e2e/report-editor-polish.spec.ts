@@ -1,14 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedTitle } from './helpers';
-
-async function openDesigner(page: any) {
-  await openSeededProject(page);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  }
+import { openSeededReportsDesigner, seedTitle } from './helpers';
 
 test('palette search finds out-of-scope attributes and marks them unavailable', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   const search = page.getByPlaceholder('Search blocks & attributes…');
   await expect(search).toBeVisible({ timeout: 5000 });
@@ -28,7 +22,7 @@ test('palette search finds out-of-scope attributes and marks them unavailable', 
 });
 
 test('floating block editor shows per-type controls on selection', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   // the one-liner title text block
   const title = page.getByText(`${seedTitle()} — One-Liner`).first();
@@ -60,7 +54,7 @@ async function countColumns(page: any, table: any): Promise<number> {
 }
 
 test('text styles: applying a heading style overrides direct formatting', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
@@ -86,7 +80,7 @@ test('text styles: applying a heading style overrides direct formatting', async 
 });
 
 test('status bar: deselect clears selection; editor switches between chrome and toolbar', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
@@ -115,7 +109,7 @@ test('status bar: deselect clears selection; editor switches between chrome and 
 });
 
 test('table columns edit on the canvas: select, insert, reorder', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   const table = page.locator('.report-table-cols').first();
   await expect(table).toBeVisible({ timeout: 5000 });
@@ -144,7 +138,7 @@ test('table columns edit on the canvas: select, insert, reorder', async ({ page 
 });
 
 test('drag-reorder moves a table column via the header grip', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   const table = page.locator('.report-table-cols').first();
   await expect(table).toBeVisible({ timeout: 5000 });
@@ -170,7 +164,7 @@ test('drag-reorder moves a table column via the header grip', async ({ page }) =
 });
 
 test('header/footer zones: footer repeats in preview, skip first page hides it', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   // footer zone is visible with the template page-number block
   const footerZone = page.locator('.report-zone[data-zone-list="footer"]');
@@ -190,7 +184,7 @@ test('header/footer zones: footer repeats in preview, skip first page hides it',
 });
 
 test('clicking an empty zone inserts a text block into it', async ({ page }) => {
-  await openDesigner(page);
+  await openSeededReportsDesigner(page);
 
   // seeded default header is empty
   const headerZone = page.locator('.report-zone[data-zone-list="header"]');
