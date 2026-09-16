@@ -47,8 +47,8 @@ export default function DropdownPanel({
   searchQuery, hasExactMatch, renderItem, defaultRenderer,
   onItemClick, onItemHover, onHoverLeave, commitHint, onCommit, portalTarget, dark = false, anchorRef,
 }: DropdownPanelProps) {
-  const ITEM_BASE = dark ? `flex items-center gap-2 ${DD_ITEM_BASE_DARK_LIB} rounded transition-colors cursor-pointer select-none whitespace-nowrap w-full text-left` : DD_ITEM_BASE;
-  const LIGHT_BASE = `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2`;
+  const ITEM_BASE = dark ? `scroll-my-4 flex items-center gap-2 ${DD_ITEM_BASE_DARK_LIB} rounded transition-colors cursor-pointer select-none whitespace-nowrap w-full text-left` : `scroll-my-4 ${DD_ITEM_BASE}`;
+  const LIGHT_BASE = `scroll-my-4 w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2`;
   // SINGLE-highlight rule (both themes): NO CSS hover fills — the one active
   // row is `highlightedIndex`, which pointer hover (onMouseEnter →
   // onItemHover) and the keyboard arrows both write; the latest interaction

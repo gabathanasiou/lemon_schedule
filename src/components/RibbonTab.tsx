@@ -757,7 +757,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         contextPos={contextPos}
         setContextPos={setContextPos}
         selCell={selCell}
-        setSelId={setSelId}
         allFields={allFields}
         customCategories={project.customCategories}
         assign={assign}

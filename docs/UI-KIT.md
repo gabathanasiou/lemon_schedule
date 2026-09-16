@@ -17,6 +17,10 @@ Before building any of these by hand again, check the kit first:
 
 **v0.1.65 (touch dismissal parity)**: `DropdownMenu` gained a document-**capture** `pointerdown` listener (popout-aware) that dismisses a **touch** pointerdown outside the menu content/trigger/open-submenus — matching the app `DropdownPanel` model (roadmap 78). Why: the app's Radix (`react-dismissable-layer` 1.1.12) defers TOUCH outside-dismissal to the `click` event, so a **modal drag** (pointerdown + move + up, no click) left the menu open on iPad; mouse/pen already dismissed immediately. Gated on `pointerType === 'touch'` so it never double-dismisses with Radix's own mouse/pen handling. **The real fix (roadmap 71)**: the app bumped `@radix-ui/react-dialog` → 1.1.23 + `@radix-ui/react-dropdown-menu` → 2.1.24 TOGETHER (single `react-dismissable-layer` 1.1.19, touch dismisses on pointerdown — no deferral), which also fixed the stacked-modal "Cancel freezes the day modal" bug. Never bump one without the other — a partial bump forks the shared dismissable-layer and breaks menu-inside-modal stacking (the app's `package-lock` must stay on ≥1.1.23/2.1.24; see AGENTS.md "Radix pins").
 
+**v0.1.81 (ContextMenu theme)**: `ContextMenu` gained a `theme?: DropdownTheme` prop (default `'light'`) — it now sets `DropdownThemeContext` + `data-theme` from it, mirroring `DropdownMenu`. Pass `theme="dark"` when the menu opens over dark chrome (the ribbon designer cell menu); light-anchored menus (tabs / Glide / PageToolbar) keep the default.
+
+**v0.1.82 (menu scroll breathing room)**: menu items carry `scroll-margin-block: 16px` (`.ui-item` in `ui-kit.css` + `scroll-my-4` on `ItemManagerDropdown` rows) so the open-scroll-to-highlighted/selected/active row (`scrollIntoView({block:'nearest'})`) leaves a gap at the panel edge instead of pinning the row flush — the surrounding rows stay visible. The app's `DropdownPanel` items mirror it with `scroll-my-4`.
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)
