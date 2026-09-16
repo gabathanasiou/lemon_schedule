@@ -542,9 +542,10 @@ row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 > `CategoryDropdown` + `EntityDropdown` + `addNewElement`), and an element
 > rename cascades annotation refs in the same `caseUpdateElement` batch
 > (`src/lib/scriptAnnotations.ts`); FDX `<Text TagNumber>` runs seed recognised
-> (dotted) spans on import (`ScriptAnnotationSeed` → `commitImport`).
-> **Remaining Part B**: the alias + explicit "Update script text" flow.
-> Cuts/duplicate/Split Manager/import reconciliation remain open.
+> (dotted) spans on import (`ScriptAnnotationSeed` → `commitImport`); the
+> divergence view + undoable **"Update script text"** records `elementAliases`
+> (applied by `parseFDX` on re-import) — **Part B complete**. Cuts/duplicate/
+> Split Manager/import reconciliation remain open.
 > **API/agent compatibility is a hard constraint** (see API note + Relations 97).
 
 **Relations**: `depends on` **123 Phase 0** (**DONE** — retained

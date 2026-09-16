@@ -259,6 +259,22 @@ test.describe('script tagging (roadmap 123 Phase 2 / 132 Part B)', () => {
     }));
     expect((await bridgeProject(page)).scriptAnnotations[0].elementKey).toBe('PISTOL');
 
+    // The page still says "coffee"; the editor shows the divergence and offers
+    // the explicit rewrite (which records the old wording as an alias).
+    await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveText('coffee');
+    await page.locator(`[data-annotation-id="${saved.id}"]`).click();
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText('Script: “coffee”');
+    await page.getByRole('button', { name: 'Update script text' }).click();
+    await page.waitForFunction(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return p.scriptAnnotations?.[0]?.text === 'PISTOL' && p.elementAliases?.props?.coffee === 'PISTOL';
+    });
+    const updated = await bridgeProject(page);
+    const actionBlock = updated.scriptDocument.scenes.find((s: any) => s.sceneNumber === '1').blocks.find((b: any) => b[0] === 'action');
+    expect(actionBlock[1]).toContain('PISTOL');
+    await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveText('PISTOL');
+
     // Clicking the tag opens the editor; Remove clears it.
     await page.locator(`[data-annotation-id="${saved.id}"]`).click();
     await expect(modal).toBeVisible();

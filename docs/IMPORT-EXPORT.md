@@ -105,8 +105,11 @@ Status: read this before touching any import/export work.
   TagNumber>` runs emit `ScriptAnnotationSeed`s (`ImportResult.annotations`,
   `parseFDX`) which `commitImport` resolves to the freshly-created scenes and
   writes as `recognized: true`. **Replacing the body drops the old body's
-  positional tags** (`caseSetScriptDocument`), then re-seeds — the alias/"Update
-  script text" flow and Part-F remap remain open.
+  positional tags** (`caseSetScriptDocument`), then re-seeds. The tag editor
+  shows the divergence (`Tag: PISTOL · Script: "gun"`) and an explicit,
+  undoable **"Update script text"** rewrites the page + records the old wording
+  in `project.elementAliases`; `parseFDX` applies those aliases on re-import so
+  the element is still recognised. Part-F remap remains open.
 - Persistence/Drive need no special handling: works through the roadmap-124
   localStorage codec and the Drive upload as part of the Project.
 - Read surfaces (roadmap 123 Phase 1 / 132 Part A): the Breakdown **Script

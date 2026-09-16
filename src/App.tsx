@@ -388,10 +388,10 @@ function AppContent() {
 
   const parseAppendableFile = useCallback(async (file: File): Promise<ImportResult> => {
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext === 'fdx') return parseFDX(file, knownDayNightPhrases(state.present));
+    if (ext === 'fdx') return parseFDX(file, knownDayNightPhrases(state.present), state.present.elementAliases);
     if (ext === 'csv') return parseCSV(file, state.present.castMembers || [], state.present.customCategories || [], state.present.categoryLabels || {});
     return parseFountain(file, knownDayNightPhrases(state.present));
-  }, [state.present.castMembers, state.present.customCategories, state.present.categoryLabels]);
+  }, [state.present.castMembers, state.present.customCategories, state.present.categoryLabels, state.present.elementAliases]);
 
   const handleImportFile = useCallback(async (file: File) => {
     try {

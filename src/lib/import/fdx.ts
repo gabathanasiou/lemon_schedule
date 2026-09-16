@@ -56,6 +56,7 @@ function resolveTagElement(
   elementText: string,
   maps: { tagCategory: Map<string, string>; tagDefLabel: Map<string, string>; tagToDef: Map<string, string> },
   unknownCategories: Set<string>,
+  elementAliases?: Record<string, Record<string, string>>,
 ): { categoryKey: string | null; elementName: string } | null {
   const defId = maps.tagToDef.get(tagNumber);
   if (!defId) return null;
@@ -64,22 +65,23 @@ function resolveTagElement(
   const catName = maps.tagCategory.get(catId);
   if (!catName) return null;
 
+  const alias = (categoryKey: string, name: string) => elementAliases?.[categoryKey]?.[name.toLowerCase()] || name;
   const mappedKey = FDX_CATEGORY_MAP[catName];
   if (mappedKey === undefined || mappedKey === null) {
     unknownCategories.add(catName);
     const provisionalKey = categoryNameToKey(catName);
     const label = maps.tagDefLabel.get(defId) || '';
     const elementName = elementText.trim() || label;
-    return { categoryKey: provisionalKey, elementName };
+    return { categoryKey: provisionalKey, elementName: alias(provisionalKey, elementName) };
   }
 
   const label = maps.tagDefLabel.get(defId) || '';
   const elementName = elementText.trim() || label;
 
-  return { categoryKey: mappedKey, elementName };
+  return { categoryKey: mappedKey, elementName: alias(mappedKey, elementName) };
 }
 
-export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Promise<ImportResult> {
+export async function parseFDX(file: File, knownDayNight?: Iterable<string>, elementAliases?: Record<string, Record<string, string>>): Promise<ImportResult> {
   const text = await file.text();
   const parser = new DOMParser();
   const doc = parser.parseFromString(text, 'application/xml');
@@ -237,7 +239,7 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
     }
 
     for (const tt of taggedTexts) {
-      const resolved = resolveTagElement(tt.tagNumber, tt.text, { tagCategory, tagDefLabel, tagToDef }, unknownCategories);
+      const resolved = resolveTagElement(tt.tagNumber, tt.text, { tagCategory, tagDefLabel, tagToDef }, unknownCategories, elementAliases);
       if (resolved && resolved.categoryKey) {
         if (!sceneTaggedElements.has(resolved.categoryKey)) sceneTaggedElements.set(resolved.categoryKey, new Set());
         sceneTaggedElements.get(resolved.categoryKey)!.add(resolved.elementName);
