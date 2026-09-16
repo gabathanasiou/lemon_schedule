@@ -25,6 +25,15 @@ export const AGENT_BRIDGE_PROTOCOL_VERSION = 1;
 
 export type AgentBridgeStatus = 'off' | 'connecting' | 'connected' | 'error';
 
+/** The bridge is a local developer feature for now (roadmap 145 ships it as a
+ *  desktop app) — only offer it when the app itself runs on loopback, so
+ *  visitors to the hosted site never see a dead menu item. */
+export function isAgentBridgeAvailable(): boolean {
+  if (typeof window === 'undefined' || !window.location) return false;
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1';
+}
+
 /** Actions the bridge refuses: LOAD replaces the project + clears history,
  *  EMPTY_TRASH is irreversible. Both stay UI-only. */
 export const AGENT_BRIDGE_BLOCKED_ACTIONS = new Set(['LOAD', 'EMPTY_TRASH']);

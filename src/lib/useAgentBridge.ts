@@ -6,6 +6,7 @@ import {
   buildAgentBridgeHello,
   createAgentBridgeProtocol,
   createAgentBridgeRequestHandler,
+  isAgentBridgeAvailable,
   type AgentBridgeStatus,
 } from './agentBridgeClient';
 import { getAgentBridge } from './debugBridge';
@@ -23,6 +24,8 @@ export interface UseAgentBridgeResult {
   status: AgentBridgeStatus;
   /** Human-readable reason the last attempt failed (null while connected). */
   error: string | null;
+  /** False on the hosted site — the feature is local-only for now (roadmap 145). */
+  available: boolean;
   enable: () => void;
   disable: () => void;
 }
@@ -33,14 +36,15 @@ export interface UseAgentBridgeResult {
  * enabled it keeps a WebSocket to the helper alive, reconnecting every 2s.
  */
 export function useAgentBridge(): UseAgentBridgeResult {
-  const [enabled, setEnabled] = useState(readEnabled);
+  const available = isAgentBridgeAvailable();
+  const [enabled, setEnabled] = useState(() => available && readEnabled());
   const [status, setStatus] = useState<AgentBridgeStatus>('off');
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !available) {
       setStatus('off');
       setError(null);
       return;
@@ -139,9 +143,10 @@ export function useAgentBridge(): UseAgentBridgeResult {
         }
       }
     };
-  }, [enabled]);
+  }, [enabled, available]);
 
   const enable = useCallback(() => {
+    if (!isAgentBridgeAvailable()) return;
     setError(null);
     setEnabled(true);
     try {
@@ -160,5 +165,5 @@ export function useAgentBridge(): UseAgentBridgeResult {
     }
   }, []);
 
-  return { enabled, status, error, enable, disable };
+  return { enabled, status, error, available, enable, disable };
 }

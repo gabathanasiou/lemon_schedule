@@ -481,7 +481,13 @@ function AppContent() {
   // File menu only shows the status dot. Skipped on the project-manager boot
   // screen (the bridge only matters with a project open).
   useEffect(() => {
-    if (noProject || !agentBridge.enabled || agentBridge.status !== 'error' || !agentBridge.error) {
+    if (
+      noProject ||
+      !agentBridge.available ||
+      !agentBridge.enabled ||
+      agentBridge.status !== 'error' ||
+      !agentBridge.error
+    ) {
       if (!agentBridge.enabled || agentBridge.status === 'connected') {
         agentBridgeErrorShownRef.current = false;
       }
@@ -490,7 +496,7 @@ function AppContent() {
     if (agentBridgeErrorShownRef.current) return;
     agentBridgeErrorShownRef.current = true;
     void dialog.alert({ title: 'Agent bridge', message: agentBridge.error });
-  }, [noProject, agentBridge.enabled, agentBridge.status, agentBridge.error, dialog]);
+  }, [noProject, agentBridge.available, agentBridge.enabled, agentBridge.status, agentBridge.error, dialog]);
 
   const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800';
   const activeTabClass = isCloudProject ? 'bg-white text-blue-950' : 'bg-white text-zinc-900';
@@ -743,6 +749,7 @@ function AppContent() {
   };
 
   const handleToggleAgentBridge = () => {
+    if (!agentBridge.available) return;
     if (agentBridge.enabled) {
       agentBridge.disable();
       return;

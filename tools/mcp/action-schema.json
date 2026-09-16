@@ -1,0 +1,1168 @@
+{
+  "version": 1,
+  "actions": [
+    {
+      "type": "LOAD",
+      "payload": "Project"
+    },
+    {
+      "type": "UNDO",
+      "payload": null
+    },
+    {
+      "type": "REDO",
+      "payload": null
+    },
+    {
+      "type": "BATCH_START",
+      "payload": null
+    },
+    {
+      "type": "BATCH_COMMIT",
+      "payload": null
+    },
+    {
+      "type": "UPDATE_PROJECT",
+      "payload": "Partial<Project>"
+    },
+    {
+      "type": "ADD_SCENE",
+      "payload": "Scene"
+    },
+    {
+      "type": "UPDATE_SCENE",
+      "payload": "Partial<Scene> & { id: string }"
+    },
+    {
+      "type": "DELETE_SCENE",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_SCENE",
+      "payload": "string"
+    },
+    {
+      "type": "EMPTY_TRASH",
+      "payload": null
+    },
+    {
+      "type": "RESTORE_VERSION_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "SORT_SCENES",
+      "payload": null
+    },
+    {
+      "type": "SORT_SCENES_BY",
+      "payload": "{ key: string, direction: 'asc' | 'desc' }"
+    },
+    {
+      "type": "INSERT_SCENE_AT",
+      "payload": "{ index: number; scene: Scene }"
+    },
+    {
+      "type": "UPDATE_VERSION",
+      "payload": "Partial<ScheduleVersion> & { id: string }"
+    },
+    {
+      "type": "UPDATE_ROW",
+      "payload": "{ versionId: string; rowId: string; updates: Partial<ScheduleRow> }"
+    },
+    {
+      "type": "NEW_VERSION",
+      "payload": "{ name: string, cloneFromId?: string | null, id?: string }"
+    },
+    {
+      "type": "DELETE_VERSION",
+      "payload": "string"
+    },
+    {
+      "type": "RENAME_VERSION",
+      "payload": "{ id: string, name: string }"
+    },
+    {
+      "type": "SET_ACTIVE_VERSION",
+      "payload": "string"
+    },
+    {
+      "type": "UPDATE_CALENDAR_VERSION",
+      "payload": "Partial<CalendarVersion> & { id: string }"
+    },
+    {
+      "type": "NEW_CALENDAR_VERSION",
+      "payload": "{ name: string, cloneFromId?: string | null, id?: string }"
+    },
+    {
+      "type": "DELETE_CALENDAR_VERSION",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_CALENDAR_VERSION_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "RENAME_CALENDAR_VERSION",
+      "payload": "{ id: string, name: string }"
+    },
+    {
+      "type": "SET_ACTIVE_CALENDAR_VERSION",
+      "payload": "string"
+    },
+    {
+      "type": "IMPORT_SCENES",
+      "payload": "Scene[]"
+    },
+    {
+      "type": "ADD_RULE",
+      "payload": "ProjectRule"
+    },
+    {
+      "type": "UPDATE_RULE",
+      "payload": "ProjectRule"
+    },
+    {
+      "type": "DELETE_RULE",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_RULE_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "ADD_CAST_MEMBER",
+      "payload": "CastMember"
+    },
+    {
+      "type": "UPDATE_CAST_MEMBER",
+      "payload": "CastMember"
+    },
+    {
+      "type": "DELETE_CAST_MEMBER",
+      "payload": "string"
+    },
+    {
+      "type": "ADD_CUSTOM_CATEGORY",
+      "payload": "CustomCategoryDef"
+    },
+    {
+      "type": "UPDATE_CUSTOM_CATEGORY",
+      "payload": "{ key: string } & Partial<Omit<CustomCategoryDef, 'key'>>"
+    },
+    {
+      "type": "RENAME_CUSTOM_CATEGORY",
+      "payload": "{ key: string; label: string }"
+    },
+    {
+      "type": "DELETE_CUSTOM_CATEGORY",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_CATEGORY_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "HIDE_CATEGORY",
+      "payload": "string"
+    },
+    {
+      "type": "SHOW_CATEGORY",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_HIDDEN_CATEGORY",
+      "payload": "string"
+    },
+    {
+      "type": "SET_CATEGORY_LABEL",
+      "payload": "{ key: string; label: string }"
+    },
+    {
+      "type": "TOGGLE_ELEMENT_LOCK",
+      "payload": "{ category: string; id: string }"
+    },
+    {
+      "type": "ADD_ELEMENT",
+      "payload": "{ category: string; element: { id: string; name: string } }"
+    },
+    {
+      "type": "UPDATE_ELEMENT",
+      "payload": "{ category: string; id: string; updates: { id?: string; name?: string } }"
+    },
+    {
+      "type": "DELETE_ELEMENT",
+      "payload": "{ category: string; id: string }"
+    },
+    {
+      "type": "MERGE_ELEMENTS",
+      "payload": "{ category: string; renames: { oldName: string; newName: string }[]; removes: { id: string; name: string; toTrash: boolean }[]; adds: { id: string; name: string }[] }"
+    },
+    {
+      "type": "RESTORE_ELEMENT_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "UPDATE_SCENE_RIBBON",
+      "payload": "SceneRibbonColumn[]"
+    },
+    {
+      "type": "ADD_RIBBON_DESIGN",
+      "payload": "{ name: string; cloneFromId?: string; rows?: RibbonRow[]; colWidths?: number[]; cellPaddingV?: number; cellPaddingH?: number; edgePadding?: number; textSize?: number; id?: string }"
+    },
+    {
+      "type": "UPDATE_RIBBON_DESIGN",
+      "payload": "{ id: string; rows: RibbonRow[]; colWidths: number[] }"
+    },
+    {
+      "type": "DELETE_RIBBON_DESIGN",
+      "payload": "string"
+    },
+    {
+      "type": "RENAME_RIBBON_DESIGN",
+      "payload": "{ id: string; name: string }"
+    },
+    {
+      "type": "SET_ACTIVE_RIBBON",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_RIBBON_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "SET_RIBBON_CELL_PADDING_V",
+      "payload": "{ id: string; cellPaddingV: number }"
+    },
+    {
+      "type": "SET_RIBBON_CELL_PADDING_H",
+      "payload": "{ id: string; cellPaddingH: number }"
+    },
+    {
+      "type": "SET_RIBBON_EDGE_PADDING",
+      "payload": "{ id: string; edgePadding: number }"
+    },
+    {
+      "type": "SET_RIBBON_TEXT_SIZE",
+      "payload": "{ id: string; textSize: number }"
+    },
+    {
+      "type": "SET_COLOR_PALETTE",
+      "payload": "SceneColorPalette"
+    },
+    {
+      "type": "ADD_COLOR_RULE",
+      "payload": "ColorRule"
+    },
+    {
+      "type": "UPDATE_COLOR_RULE",
+      "payload": "ColorRule"
+    },
+    {
+      "type": "DELETE_COLOR_RULE",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_COLOR_RULE_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "REORDER_COLOR_RULES",
+      "payload": "ColorRule[]"
+    },
+    {
+      "type": "ADD_REPORT_DESIGN",
+      "payload": "{ name: string; cloneFromId?: string; blocks?: ReportBlock[]; page?: 'portrait' | 'landscape'; id?: string; header?: ReportBlock[]; footer?: ReportBlock[]; headerSkipFirst?: boolean; footerSkipFirst?: boolean }"
+    },
+    {
+      "type": "UPDATE_REPORT_DESIGN",
+      "payload": "{ id: string; blocks?: ReportBlock[]; header?: ReportBlock[]; footer?: ReportBlock[]; headerSkipFirst?: boolean; footerSkipFirst?: boolean }"
+    },
+    {
+      "type": "UPDATE_REPORT_PAGE",
+      "payload": "{ id: string; page: 'portrait' | 'landscape' }"
+    },
+    {
+      "type": "RENAME_REPORT_DESIGN",
+      "payload": "{ id: string; name: string }"
+    },
+    {
+      "type": "SET_ACTIVE_REPORT",
+      "payload": "string"
+    },
+    {
+      "type": "DELETE_REPORT_DESIGN",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_REPORT_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "SET_PRODUCTION_INFO",
+      "payload": "Partial<ProductionInfo>"
+    },
+    {
+      "type": "SET_REPORT_TEXT_STYLES",
+      "payload": "ReportTextStyle[]"
+    },
+    {
+      "type": "ADD_CREW_ROLE",
+      "payload": "{ role: CrewRole }"
+    },
+    {
+      "type": "RENAME_CREW_ROLE",
+      "payload": "{ key: string; label: string }"
+    },
+    {
+      "type": "SET_CREW_ROLE_CATEGORIES",
+      "payload": "{ key: string; categories?: string[] }"
+    },
+    {
+      "type": "DELETE_CREW_ROLE",
+      "payload": "string"
+    },
+    {
+      "type": "ADD_CREW_PERSON",
+      "payload": "{ role: string; person: CrewPerson }"
+    },
+    {
+      "type": "UPDATE_CREW_PERSON",
+      "payload": "{ role: string; id: string; updates: Partial<CrewPerson>; toRole?: string }"
+    },
+    {
+      "type": "DELETE_CREW_PERSON",
+      "payload": "{ role: string; id: string }"
+    },
+    {
+      "type": "REORDER_CREW_PERSON",
+      "payload": "{ role: string; id: string; dir: -1 | 1 }"
+    },
+    {
+      "type": "RESTORE_CREW_PERSON_FROM_TRASH",
+      "payload": "string"
+    },
+    {
+      "type": "SORT_CREW_BY",
+      "payload": "{ key: 'role' | 'name' | 'phone' | 'email'; direction: 'asc' | 'desc' }"
+    },
+    {
+      "type": "ADD_LOCATION_TYPE",
+      "payload": "{ type: CrewRole }"
+    },
+    {
+      "type": "RENAME_LOCATION_TYPE",
+      "payload": "{ key: string; label: string }"
+    },
+    {
+      "type": "DELETE_LOCATION_TYPE",
+      "payload": "string"
+    },
+    {
+      "type": "ADD_LOCATION",
+      "payload": "{ location: ProjectLocation }"
+    },
+    {
+      "type": "UPDATE_LOCATION",
+      "payload": "{ id: string; updates: Partial<ProjectLocation> }"
+    },
+    {
+      "type": "DELETE_LOCATION",
+      "payload": "string"
+    },
+    {
+      "type": "RESTORE_LOCATION",
+      "payload": "string"
+    },
+    {
+      "type": "SORT_LOCATIONS_BY",
+      "payload": "{ key: 'type' | 'name' | 'address' | 'contactName' | 'phone' | 'email'; direction: 'asc' | 'desc' }"
+    },
+    {
+      "type": "SET_DAY_TYPES",
+      "payload": "{ dayTypes: DayTypeDef[] }"
+    },
+    {
+      "type": "SET_SCRIPT_DOCUMENT",
+      "payload": "{ document: ScriptDocument; baseline?: ScriptDocument }"
+    },
+    {
+      "type": "UPDATE_SCRIPT_DOCUMENT",
+      "payload": "{ document: ScriptDocument }"
+    },
+    {
+      "type": "ADD_SCRIPT_ANNOTATION",
+      "payload": "{ annotation: ScriptAnnotation }"
+    },
+    {
+      "type": "UPDATE_SCRIPT_ANNOTATION",
+      "payload": "{ id: string; updates: Partial<ScriptAnnotation> }"
+    },
+    {
+      "type": "REMOVE_SCRIPT_ANNOTATION",
+      "payload": "string"
+    }
+  ],
+  "entities": {
+    "Scene": {
+      "name": "Scene",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "ghostOf",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "duplicateOf",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "duplicateKind",
+          "optional": true,
+          "type": "'split' | 'coverage'"
+        },
+        {
+          "name": "cutAnchor",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "sceneNumber",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "sheetNumber",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "scriptPageNumbers",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "pageCount",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "pageCountDecimal",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "scriptDay",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "intExt",
+          "optional": false,
+          "type": "IntExt"
+        },
+        {
+          "name": "set",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "location",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "dayNight",
+          "optional": false,
+          "type": "DayNight"
+        },
+        {
+          "name": "description",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "cast",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "notes",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "backgroundActors",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "stunts",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "vehicles",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "props",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "wardrobe",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "makeup",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "sfx",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "vfx",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "sound",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "music",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "animalsAndWranglers",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "weapons",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "greenery",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "artDept",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "ScheduleRow": {
+      "name": "ScheduleRow",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "RowType"
+        },
+        {
+          "name": "containerId",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "order",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sceneId",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "estimatedDuration",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "descriptionOverride",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "breakLabel",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "breakDuration",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "isTimed",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "noteText",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "noteColor",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "noteTextColor",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "daybreakLabel",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "daybreakCallTime",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "daybreakDate",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "daybreakMeta",
+          "optional": true,
+          "type": "DayMeta"
+        },
+        {
+          "name": "pinned",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ScheduleVersion": {
+      "name": "ScheduleVersion",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "createdAt",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "updatedAt",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "rows",
+          "optional": false,
+          "type": "ScheduleRow[]"
+        },
+        {
+          "name": "legacy",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "CalendarVersion": {
+      "name": "CalendarVersion",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "createdAt",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "updatedAt",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "nonShootDates",
+          "optional": true,
+          "type": "NonShootDate[]"
+        },
+        {
+          "name": "productionStart",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "prepStart",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "postEnd",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "weeklyDaysOff",
+          "optional": true,
+          "type": "number[]"
+        }
+      ]
+    },
+    "CastMember": {
+      "name": "CastMember",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "ProjectElement": {
+      "name": "ProjectElement",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "CustomCategoryDef": {
+      "name": "CustomCategoryDef",
+      "fields": [
+        {
+          "name": "key",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "label",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "icon",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "multiValue",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "CrewRole": {
+      "name": "CrewRole",
+      "fields": [
+        {
+          "name": "key",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "label",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "builtin",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "department",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "categories",
+          "optional": true,
+          "type": "string[]"
+        }
+      ]
+    },
+    "CrewPerson": {
+      "name": "CrewPerson",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "phone",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "ProjectLocation": {
+      "name": "ProjectLocation",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "address",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "place",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "lat",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "lng",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "contactName",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "phone",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "notes",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "nearby",
+          "optional": true,
+          "type": "ProjectLocationNearby"
+        }
+      ]
+    },
+    "DayTypeDef": {
+      "name": "DayTypeDef",
+      "fields": [
+        {
+          "name": "key",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "label",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "color",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "icon",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "attachable",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "markable",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "builtin",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "NonShootDate": {
+      "name": "NonShootDate",
+      "fields": [
+        {
+          "name": "date",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "pattern",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "lists",
+          "optional": true,
+          "type": "Record<string, Record<string, string[]>>"
+        },
+        {
+          "name": "comments",
+          "optional": true,
+          "type": "Record<string, Record<string, Record<string, string>>>"
+        }
+      ]
+    },
+    "RibbonDesign": {
+      "name": "RibbonDesign",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "colWidths",
+          "optional": false,
+          "type": "number[]"
+        },
+        {
+          "name": "rows",
+          "optional": false,
+          "type": "RibbonRow[]"
+        },
+        {
+          "name": "createdAt",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "cellPaddingV",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "cellPaddingH",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "edgePadding",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "textSize",
+          "optional": true,
+          "type": "number"
+        }
+      ]
+    },
+    "ColorRule": {
+      "name": "ColorRule",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "enabled",
+          "optional": false,
+          "type": "boolean"
+        },
+        {
+          "name": "conditions",
+          "optional": false,
+          "type": "ColorRuleCondition[]"
+        },
+        {
+          "name": "override",
+          "optional": false,
+          "type": "ColorOverride"
+        }
+      ]
+    },
+    "ProductionInfo": {
+      "name": "ProductionInfo",
+      "fields": [
+        {
+          "name": "company",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "studio",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "productionOffice",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "address",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "phone",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "startDate",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "wrapDate",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "dateFormat",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "timezone",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "callTimes",
+          "optional": true,
+          "type": "CallTimeSettings"
+        }
+      ]
+    },
+    "ScriptDocument": {
+      "name": "ScriptDocument",
+      "fields": [
+        {
+          "name": "format",
+          "optional": false,
+          "type": "ScriptFormat"
+        },
+        {
+          "name": "name",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "titlePage",
+          "optional": true,
+          "type": "ScriptTitlePage"
+        },
+        {
+          "name": "scenes",
+          "optional": false,
+          "type": "ScriptScene[]"
+        }
+      ]
+    }
+  },
+  "consistency": {
+    "unionCount": 100,
+    "mirrorCount": 100,
+    "missingInMirror": [],
+    "extraInMirror": []
+  }
+}

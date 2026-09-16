@@ -33,7 +33,6 @@ const ALLOWED_ORIGINS = new Set([
   'http://127.0.0.1:4173',
   `http://localhost:${PORT}`,
   `http://127.0.0.1:${PORT}`,
-  'https://gabathanasiou.github.io',
 ]);
 
 const log = (...parts) => process.stderr.write(`[lemon-mcp] ${parts.join(' ')}\n`);

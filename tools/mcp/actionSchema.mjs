@@ -122,26 +122,41 @@ function compareUnionAndMirror(unionTypes, mirror) {
 
 let cache = null;
 
-/** Full derived schema; cached briefly so tool calls don't re-parse per call. */
+/** Committed snapshot shipped by the npm package (installed packages have no
+ *  `src/` to parse). Regenerate with `npm run mcp:schema`; the unit test keeps
+ *  it in sync with the source. */
+export const ACTION_SCHEMA_JSON_PATH = path.join(HERE, 'action-schema.json');
+
+/** Full derived schema; cached briefly so tool calls don't re-parse per call.
+ *  Parses the repo sources when present, otherwise loads the committed JSON. */
 export function buildSchema({ root = REPO_ROOT, force = false } = {}) {
   if (cache && !force && Date.now() - cache.at < CACHE_TTL_MS) return cache.value;
-  const reducerSf = parseSource(fs.readFileSync(path.join(root, 'src/store/reducer.ts'), 'utf8'), 'reducer.ts');
-  const typesSf = parseSource(fs.readFileSync(path.join(root, 'src/types.ts'), 'utf8'), 'types.ts');
-  const actions = parseActionUnion(reducerSf).map((a) => ({
-    type: a.type,
-    payload: a.payloadType,
-  }));
-  const entities = {};
-  for (const name of ENTITY_NAMES) {
-    const entity = parseEntity(typesSf, name);
-    if (entity) entities[name] = entity;
+  const reducerPath = path.join(root, 'src/store/reducer.ts');
+  const typesPath = path.join(root, 'src/types.ts');
+  let value;
+  if (fs.existsSync(reducerPath) && fs.existsSync(typesPath)) {
+    const reducerSf = parseSource(fs.readFileSync(reducerPath, 'utf8'), 'reducer.ts');
+    const typesSf = parseSource(fs.readFileSync(typesPath, 'utf8'), 'types.ts');
+    const actions = parseActionUnion(reducerSf).map((a) => ({
+      type: a.type,
+      payload: a.payloadType,
+    }));
+    const entities = {};
+    for (const name of ENTITY_NAMES) {
+      const entity = parseEntity(typesSf, name);
+      if (entity) entities[name] = entity;
+    }
+    value = {
+      version: 1,
+      actions,
+      entities,
+      consistency: compareUnionAndMirror(actions.map((a) => a.type), parseActionTypesMirror(reducerSf)),
+    };
+  } else if (fs.existsSync(ACTION_SCHEMA_JSON_PATH)) {
+    value = JSON.parse(fs.readFileSync(ACTION_SCHEMA_JSON_PATH, 'utf8'));
+  } else {
+    throw new Error('Cannot derive the action schema: no src/ sources and no action-schema.json.');
   }
-  const value = {
-    version: 1,
-    actions,
-    entities,
-    consistency: compareUnionAndMirror(actions.map((a) => a.type), parseActionTypesMirror(reducerSf)),
-  };
   cache = { at: Date.now(), value };
   return value;
 }

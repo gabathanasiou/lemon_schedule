@@ -87,12 +87,12 @@ The Playwright suite includes smoke tests that load a real production project ("
 ## Developer API / MCP
 
 An AI agent can read and edit the project open in the app through a local MCP
-server (roadmap 97). It is loopback-only and off by default; enabling
-**File → Connect agent bridge** is the consent.
+server (roadmap 97). It is loopback-only, off by default, and — for now —
+**only offered when the app runs on localhost** (roadmap 145 will ship it as a
+desktop app that hosts the UI + MCP server together).
 
 - Register the server: `npm run mcp:install` (detects opencode, Codex/ChatGPT,
-  Claude Desktop, Cursor; `--dry-run` to preview). opencode already has it in
-  `opencode.json`; other clients: `"command": "node", "args": ["tools/mcp/lemon-mcp.mjs"]`.
+  Claude Desktop, Cursor; `--dry-run` to preview).
 - Open a project and click **File → Connect agent bridge** (a short how-to shows
   the first time), then let the agent call tools like `get_project`,
   `get_schedule`, `get_schema`, `apply_actions`.

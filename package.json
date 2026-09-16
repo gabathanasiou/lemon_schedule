@@ -20,7 +20,8 @@
     "test:baseline": "node scripts/test-baseline.mjs",
     "test:full": "npx playwright test",
     "mcp": "node tools/mcp/lemon-mcp.mjs",
-    "mcp:install": "node tools/mcp/install.mjs"
+    "mcp:install": "node tools/mcp/install.mjs",
+    "mcp:schema": "node tools/mcp/gen-schema.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

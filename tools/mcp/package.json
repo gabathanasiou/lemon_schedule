@@ -1,0 +1,37 @@
+{
+  "name": "lemon-schedule-mcp",
+  "version": "1.0.0",
+  "description": "Local MCP bridge for the Lemon Schedule web app — lets an AI agent read and edit the project open in your browser.",
+  "type": "module",
+  "bin": {
+    "lemon-schedule-mcp": "./lemon-mcp.mjs"
+  },
+  "files": [
+    "lemon-mcp.mjs",
+    "tools.mjs",
+    "actionSchema.mjs",
+    "action-schema.json",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "ws": "^8.21.3"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "lemon-schedule",
+    "film",
+    "scheduling",
+    "breakdown"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabathanasiou/lemon_schedule.git",
+    "directory": "tools/mcp"
+  }
+}

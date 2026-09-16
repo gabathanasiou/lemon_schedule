@@ -43,7 +43,7 @@ interface AppHeaderProps {
   onPrintReport: (design: ReportDesign) => void;
   onShowTrash: () => void;
   onShowIntegrity: () => void;
-  agentBridge: { enabled: boolean; status: AgentBridgeStatus };
+  agentBridge: { enabled: boolean; status: AgentBridgeStatus; available: boolean };
   onToggleAgentBridge: () => void;
   driveCtx: GoogleAuthContextValue;
   closeProject: () => void;
@@ -181,13 +181,15 @@ export default function AppHeader(props: AppHeaderProps) {
               Trash...
             </DropdownItem>
             <DropdownDivider />
-            <DropdownItem
-              keepOpen
-              onClick={onToggleAgentBridge}
-              icon={<span className={`inline-block w-2 h-2 rounded-full ${agentBridgeDot}`} />}
-            >
-              {agentBridgeLabel}
-            </DropdownItem>
+            {agentBridge.available && (
+              <DropdownItem
+                keepOpen
+                onClick={onToggleAgentBridge}
+                icon={<span className={`inline-block w-2 h-2 rounded-full ${agentBridgeDot}`} />}
+              >
+                {agentBridgeLabel}
+              </DropdownItem>
+            )}
           </DropdownMenu>
           <SaveIndicator isCloudProject={isCloudProject} />
           {editingTitle ? (

@@ -152,6 +152,11 @@ Docs: `docs/API.md`. Remaining for the full item: friendly write wrappers
 (`edit_scenes`/`manage_entities`), pairing token + destructive-op confirmation +
 audit/rate limits (security P1), project lifecycle / import-export / derived
 analytics (P3), validation parity (P4), contract versioning (P5).
+Stage 1 is **local-only for now**: the app offers the toggle only when it runs on
+loopback (`isAgentBridgeAvailable`), the helper allowlists no hosted origin, and
+the npm package under `tools/mcp/` is prepared but unpublished. Shipping the
+feature to everyone = the desktop app (**item 145**); a hosted remote MCP would
+require a backend and is not planned.
 
 - **Goal**: expose the app's project data and mutation surface to external
   developers and AI agents as a supported, versioned contract — not just the
@@ -605,3 +610,31 @@ a silent wrong-order regression proves one is worth it.
 
 **Relations**: touches 140 (table title) and the 100/81 collection pipeline;
 read `docs/REPORTS-DESIGNER.md`.
+
+## 145. Desktop app (Tauri) hosting the web UI + local MCP server (`[ ]`)
+
+**Relations**: `supersedes` the distribution half of **97** (the live MCP bridge
+stays; the ship path to everyone moves here). `depends on` 97 stage 1.
+
+- **Goal**: one downloadable macOS/Windows app that renders the existing web UI
+  and hosts the MCP server on `127.0.0.1` in the same process — agent editing
+  for any user, no Node/npx, no config editing, data never leaving the machine.
+  This is the **Figma Dev Mode** model (the desktop app runs the MCP server on
+  localhost; clients connect to it). Chosen over a hosted remote MCP (needs a
+  backend / accounts) and a hosted relay (needs auth, sessions, uptime).
+- **Approach**:
+  - Wrap the built `dist/` in Tauri (system webview, small binary); keep the web
+    build + `/lemon_schedule/` base unchanged so both targets share one source.
+  - Run the existing `tools/mcp/` helper as the app's sidecar: it already speaks
+    stdio MCP + loopback WS, and the app already connects out — no bridge rewrite.
+  - Drop the loopback gate in the desktop shell (`isAgentBridgeAvailable`) so the
+    toggle shows for every user; first-run writes/copies the MCP client config.
+  - Add the security work item 97 deferred: per-session pairing token +
+    destructive-op confirmation + an audit log, since the helper ships to
+    non-developers now.
+- **Open questions**: signing/notarization + auto-update channel; desktop-only vs
+  desktop + hosted site; macOS first vs both; where project files live (app
+  storage vs user-chosen `.lemon` folder).
+- **Verify**: packaged app launches UI + helper; a real MCP client creates,
+  edits and undoes a project end-to-end; helper is unreachable from non-app
+  origins; project data survives app restart.

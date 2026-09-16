@@ -34,11 +34,12 @@ MCP client ──stdio──▶ tools/mcp/lemon-mcp.mjs ──WebSocket──▶
 
 1. `npm install` (dev deps `@modelcontextprotocol/sdk`, `ws`).
 2. Register the server:
-   - **One command (recommended):** `npm run mcp:install` — detects opencode,
+   - **Published package (works anywhere, no clone):** add
+     `npx -y lemon-schedule-mcp` as an MCP server in your client.
+   - **From this repo:** `npm run mcp:install` — detects opencode,
      Codex / ChatGPT desktop, Claude Desktop and Cursor, and merges the config
-     for each (backing up every changed file as `<file>.bak`). Flags:
-     `--dry-run`, `--all` (create configs for clients not installed),
-     `--only=<ids>`.
+     (backing up every changed file as `<file>.bak`). Flags: `--dry-run`,
+     `--all` (create configs for clients not installed), `--only=<ids>`.
    - **Manual:** add it in the client's own config. opencode uses the repo's
      `opencode.json`; others take:
      ```json
@@ -102,10 +103,15 @@ Whitelisted app methods: `getProject`, `getProjectList`, `getCurrentProjectId`,
 
 **Deferred (roadmap 97 P1+):** per-session pairing token, human-in-the-loop
 confirmation for destructive ops, audit log, rate/size limits beyond the batch
-cap, validation parity with UI flows (cast naming, cascades). Note that the
-deployed GitHub Pages origin works per spec (loopback is not mixed content), but
-Chrome's Local Network Access may prompt once and Safari is untested — the
-guaranteed path is `npm run dev`.
+cap, validation parity with UI flows (cast naming, cascades).
+
+**Local-only for now (roadmap 145):** the toggle is offered only when the app
+runs on loopback (`isAgentBridgeAvailable()` in `agentBridgeClient.ts`), and the
+helper's origin allowlist has no hosted origin — visitors to the deployed site
+never see a dead menu item, and a hosted copy cannot reach a local helper. The
+intended way to ship this to everyone is a desktop app that hosts the web UI and
+this MCP server in one process (item 145). The npm package under `tools/mcp/`
+is prepared for power users but is not published yet.
 
 ## Adding features
 
@@ -116,6 +122,22 @@ guaranteed path is `npm run dev`.
   domain logic.
 - Prefer the generic path; add a task-shaped wrapper only when it needs a
   multi-action sequence or validation the reducer doesn't do.
+
+## Distribution (roadmap 145)
+
+The feature is **local-only** right now: the app shows the toggle only on
+loopback, and the helper accepts only localhost origins.
+
+- **Interim (power users):** the helper at `tools/mcp/` is also packaged as a
+  standalone npm package (`lemon-schedule-mcp`) — `tools/mcp/package.json` +
+  `tools/mcp/action-schema.json`, the derived snapshot the installed package
+  reads (it has no `src/` to parse). Regenerate the snapshot after touching the
+  `Action` union or core entity interfaces with `npm run mcp:schema`; the unit
+  test fails if it drifts. Publishing is deferred until the desktop path lands.
+- **Ship path (planned):** a desktop app (Tauri/Electron) that renders the web
+  UI and hosts this MCP server on `127.0.0.1` in one process — the Figma Dev
+  Mode model. One download, no Node, data stays local, toggle shown to every
+  user. See roadmap **145**.
 
 ## Tests
 

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { buildSchema, parseActionUnion, parseActionTypesMirror, parseSource } from '../../../tools/mcp/actionSchema.mjs';
+import fs from 'node:fs';
+import {
+  ACTION_SCHEMA_JSON_PATH,
+  buildSchema,
+  parseActionUnion,
+  parseActionTypesMirror,
+  parseSource,
+} from '../../../tools/mcp/actionSchema.mjs';
 
 const schema = buildSchema();
 
@@ -32,5 +39,11 @@ describe('action schema (derived from source)', () => {
       { type: 'B', payloadType: null },
     ]);
     expect(parseActionTypesMirror(sf)).toEqual(['A']);
+  });
+
+  it('keeps the committed snapshot (shipped by the npm package) in sync', () => {
+    const committed = JSON.parse(fs.readFileSync(ACTION_SCHEMA_JSON_PATH, 'utf8'));
+    const fresh = buildSchema({ force: true });
+    expect(committed).toEqual(fresh);
   });
 });

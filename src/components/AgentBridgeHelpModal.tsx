@@ -13,9 +13,9 @@ const STEPS: { title: string; body: React.ReactNode }[] = [
     title: 'Keep your AI client open',
     body: (
       <>
-        It talks to the app through the lemon MCP server. If that isn’t set up yet, run{' '}
-        <code className="text-zinc-200">npm run mcp:install</code> once in the project — it
-        registers every AI client it finds.
+        It talks to the app through the lemon MCP server. Run{' '}
+        <code className="text-zinc-200">npm run mcp:install</code> once in the repo to register it
+        with the AI clients on this machine.
       </>
     ),
   },
