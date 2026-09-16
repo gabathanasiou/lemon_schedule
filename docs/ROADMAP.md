@@ -462,8 +462,11 @@ pieces; otherwise park.
 ## 137. AI script-breakdown suggestions (Filmustage-style) (`[ ]`, FUTURE, parked)
 
 **Relations**: `depends on` **136** (the dotted→solid suggestion pipeline + the
-category menu) and **97** (agent/API + prompt-injection/untrusted-data rules);
-`related to` **43**/**41** (import tags).
+category menu) and **97 P0+P2 only** — the intended unblock is the cheap slice
+(JSON schema/introspection + generic `apply_actions` + reads, then the file-based
+Node MCP reusing the pure reducer on a `.lemon`), NOT the full item's live-session
+companion/auth/versioning; prompt-injection/untrusted-data rules still apply when
+project data reaches a model. `related to` **43**/**41** (import tags).
 
 **Idea**: an opt-in pass that proposes elements (props / wardrobe / vehicles /
 VFX / …) per scene from the screenplay body, surfaced as recognized spans/rows
