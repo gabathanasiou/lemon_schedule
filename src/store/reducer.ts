@@ -1,4 +1,4 @@
-import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef, ScriptDocument } from '../types';
+import { Project, Scene, ScheduleVersion, CalendarVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef, ScriptDocument, ScriptAnnotation } from '../types';
 import { generateUUID, normalizePunctuation, makeBlankCalendarVersion } from '../lib/utils';
 import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
@@ -41,7 +41,11 @@ import { getDefaultReportDesigns } from '../lib/reportTemplates';
 import { DEFAULT_CREW_ROLES, reorderCrewRoles } from '../lib/crewCatalog';
 import { DEFAULT_DAY_TYPES, DAY_TYPE_BUILTIN_KEYS } from '../lib/dayTypes';
 import { isMultiValue, getFieldItems } from '../lib/categories';
-import { caseSetScriptDocument, caseUpdateScriptDocument } from './actions/script';
+import {
+  caseSetScriptDocument, caseUpdateScriptDocument,
+  caseAddScriptAnnotation, caseUpdateScriptAnnotation, caseRemoveScriptAnnotation,
+} from './actions/script';
+import { snapshotSceneFields } from '../lib/script';
 
 export const BUILTIN_SCENE_KEYS = new Set([
   'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'dayNight',
@@ -246,6 +250,9 @@ export type Action =
   | { type: 'SET_DAY_TYPES'; payload: { dayTypes: DayTypeDef[] } }
   | { type: 'SET_SCRIPT_DOCUMENT'; payload: { document: ScriptDocument; baseline?: ScriptDocument } }
   | { type: 'UPDATE_SCRIPT_DOCUMENT'; payload: { document: ScriptDocument } }
+  | { type: 'ADD_SCRIPT_ANNOTATION'; payload: { annotation: ScriptAnnotation } }
+  | { type: 'UPDATE_SCRIPT_ANNOTATION'; payload: { id: string; updates: Partial<ScriptAnnotation> } }
+  | { type: 'REMOVE_SCRIPT_ANNOTATION'; payload: string }
 
 /**
  * Runtime mirror of the `Action` union above — consumed by the agentic debug
@@ -286,6 +293,7 @@ export const ACTION_TYPES = new Set<string>([
   'SORT_LOCATIONS_BY',
   'SET_DAY_TYPES',
   'SET_SCRIPT_DOCUMENT', 'UPDATE_SCRIPT_DOCUMENT',
+  'ADD_SCRIPT_ANNOTATION', 'UPDATE_SCRIPT_ANNOTATION', 'REMOVE_SCRIPT_ANNOTATION',
 ]);
 
 export interface State {
@@ -409,6 +417,10 @@ export function reducer(state: State, action: Action): State {
     // (partial/older write) treats itself as the baseline so item 38 always has
     // a reference to diff against.
     if (p.scriptDocument && !p.scriptBaseline) p.scriptBaseline = p.scriptDocument;
+    // Field conflict reference (roadmap 38): projects that predate the snapshot
+    // adopt the loaded scenes as the baseline, so edits made from now on are
+    // still detectable (the pre-load history is unknowable).
+    if (p.scriptDocument && !p.scriptBaselineFields) p.scriptBaselineFields = snapshotSceneFields(p.scenes);
 
     return {
       past: [],
@@ -573,6 +585,9 @@ export function reducer(state: State, action: Action): State {
     case 'SET_DAY_TYPES': return caseSetDayTypes(state, action, applyChange);
     case 'SET_SCRIPT_DOCUMENT': return caseSetScriptDocument(state, action, applyChange);
     case 'UPDATE_SCRIPT_DOCUMENT': return caseUpdateScriptDocument(state, action, applyChange);
+    case 'ADD_SCRIPT_ANNOTATION': return caseAddScriptAnnotation(state, action, applyChange);
+    case 'UPDATE_SCRIPT_ANNOTATION': return caseUpdateScriptAnnotation(state, action, applyChange);
+    case 'REMOVE_SCRIPT_ANNOTATION': return caseRemoveScriptAnnotation(state, action, applyChange);
     default:
       return state;
   }

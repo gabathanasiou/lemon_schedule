@@ -315,6 +315,114 @@ test.describe('script update review (roadmap 38)', () => {
     await expect(bigRight.locator('[data-change]')).toHaveCount(0);
   });
 
+  test('review panes keep a deleted line as an aligned filler row (roadmap 128)', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const doc = { format: 'fdx', scenes: [{ sceneNumber: '1', blocks: [
+        ['heading', 'INT. KITCHEN - DAY'],
+        ['action', 'Line A.'],
+        ['action', 'Line DROP.'],
+        ['action', 'Line B.'],
+      ] }] };
+      b.batch(() => {
+        b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: doc } });
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN', intExt: 'INT', dayNight: 'DAY', description: 'x' }) });
+      });
+    });
+
+    // Incoming drops "Line DROP." — that row gets a left block and an empty
+    // right filler cell, and "Line B." stays vertically aligned across panes.
+    const xml = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="1"><Content>
+<Paragraph Type="Scene Heading" Number="1"><Text>INT. KITCHEN - DAY</Text><SceneProperties Length="1.0"/></Paragraph>
+<Paragraph Type="Action"><Text>Line A.</Text></Paragraph>
+<Paragraph Type="Action"><Text>Line B.</Text></Paragraph>
+</Content></FinalDraft>`;
+    const p = path.join(os.tmpdir(), 'lemon-align-delete.fdx');
+    fs.writeFileSync(p, xml);
+    await openUpdateModal(page, p);
+
+    const dropLeft = page.locator('[data-review-side="left"]').filter({ hasText: 'Line DROP.' }).first();
+    await expect(dropLeft).toHaveAttribute('data-tone', 'removed');
+    const dropRow = await dropLeft.getAttribute('data-review-row');
+    await expect(page.locator(`[data-review-row="${dropRow}"][data-review-side="right"]`)).toBeEmpty();
+
+    const bLeft = page.locator('[data-review-side="left"]').filter({ hasText: 'Line B.' }).first();
+    const bRight = page.locator('[data-review-side="right"]').filter({ hasText: 'Line B.' }).first();
+    const [lb, rb] = await Promise.all([bLeft.boundingBox(), bRight.boundingBox()]);
+    expect(lb && rb).toBeTruthy();
+    expect(Math.abs(lb!.y - rb!.y)).toBeLessThanOrEqual(1);
+  });
+
+  test('split and merge fragments are badged in the review (roadmap 38)', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    // Baseline: scene 5 whole.
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const doc = { format: 'fdx', scenes: [{ sceneNumber: '5', blocks: [
+        ['heading', 'INT. BANK - DAY'], ['action', 'The bank runs. George cheers wildly.'],
+      ] }] };
+      b.batch(() => {
+        b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: doc } });
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '5', set: 'BANK', intExt: 'INT', dayNight: 'DAY' }) });
+      });
+    });
+
+    // Split: 5 → 5 + 5A. Accept the modified 5, then the added fragment badges.
+    await openUpdateModal(page, writeFdx('lemon-split.fdx', [
+      { n: '5', heading: 'INT. BANK - DAY', action: 'The bank runs.' },
+      { n: '5A', heading: 'INT. BANK - DAY', action: 'George cheers wildly at the bank.' },
+    ]));
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByText('split of 5')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel' }).click();
+
+    // Merge: 5 + 5A → 5. The removed fragment badges as merged into the pair.
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const doc = { format: 'fdx', scenes: [
+        { sceneNumber: '5', blocks: [['heading', 'INT. BANK - DAY'], ['action', 'The bank runs.']] },
+        { sceneNumber: '5A', blocks: [['heading', 'INT. BANK - DAY'], ['action', 'George cheers wildly at the bank.']] },
+      ] };
+      b.batch(() => {
+        b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: doc } });
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '5A', set: 'BANK', intExt: 'INT', dayNight: 'DAY' }) });
+      });
+    });
+    await openUpdateModal(page, writeFdx('lemon-merge.fdx', [
+      { n: '5', heading: 'INT. BANK - DAY', action: 'The bank runs. George cheers wildly at the bank.' },
+    ]));
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByText('merged into 5')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel' }).click();
+  });
+
+  test('surfaces an in-app field edit as a conflict with the imported value (roadmap 38)', async ({ page }) => {
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      b.batch(() => {
+        b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '1', set: 'KITCHEN', intExt: 'INT', dayNight: 'DAY', description: 'x' }) });
+        // The last import establishes the field baseline = KITCHEN.
+        b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: { format: 'fdx', scenes: [{ sceneNumber: '1', blocks: [['heading', 'INT. KITCHEN - DAY'], ['action', 'x']] }] } } });
+      });
+      // The user then edits the set in-app (baseline stays KITCHEN).
+      const id = b.getProject().scenes.find((s: any) => s.sceneNumber === '1').id;
+      b.dispatch({ type: 'UPDATE_SCENE', payload: { id, set: 'BEDROOM' } });
+    });
+
+    // Incoming script changes the same field the user edited → conflict.
+    await openUpdateModal(page, writeFdx('lemon-conflict.fdx', [
+      { n: '1', heading: 'INT. SCHOOL - DAY', action: 'New.' },
+    ]));
+
+    await expect(page.getByText(/your edit · was: KITCHEN/)).toBeVisible();
+  });
+
   test('heading diff: granular parts vs whole-line when all of it is new', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
     await ensureProject(page);

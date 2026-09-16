@@ -36,142 +36,6 @@ roadmap worker session, so it stays lean.
   move-via-controls. Re-run against item 24's shared draggers (**DONE** —
   `src/components/columnResize.tsx`) to confirm no regression.
 
-## 38. Script version diff — accept a new screenplay against the current one (`[~]`)
-
-> **Progress**: engine + commit + review modal shipped (`src/lib/import/scriptDiff.ts`,
-> `commitScriptDiff.ts`, `ScriptUpdateModal.tsx`): explicit "Update script…",
-> number→heading→similarity matching + order-aware alignment, scene-level
-> apply/keep/add/skip/remove, per-field keep/take, character-rename detection,
-> one-by-one + list views, page-count-safe partial updates, apply report.
-> Remaining: baseline-aware conflict rows (needs field snapshots on
-> `scriptBaseline`), split/merge e2e, docs.
-
-**Relations**: depends on **123 Phase 0** (retained `project.scriptDocument` +
-`project.scriptBaseline`) — the diff and its content fingerprint run on the
-real scene body, not the one-line synopsis; do NOT build a parallel body store.
-**132** makes this item's split/merge tags split-aware and appliable via the cut
-modal — one split engine, never a second.
-
-**Requested**: when uploading a newer version of the screenplay, a diff
-viewer / acceptance step before anything changes. Research: Filmustage (same
-domain: breakdown → schedule) ships a compare hub — Scene Diff
-(side-by-side content diff, filter by Modified/Removed), Tags Diff
-(added/removed/changed grouped by category), impact summary. Industry
-consensus: match scenes by scene number, diff per field; `diff` (jsdiff,
-Myers algorithm, word/line level) is the standard JS lib.
-
-**Problem**: `ImportDialog` appends every parsed scene as a brand-new scene
-(fresh UUIDs in `commitImport`) — re-uploading a revised script duplicates
-all scenes and orphans the schedule. When the project already has scenes,
-the import must **diff and update in place** instead of append.
-
-**Matching** (new pure module `src/lib/import/scriptDiff.ts`,
-unit-testable, no store/UI deps) — three escalating signals + order-aware
-alignment:
-
-1. **Primary — normalized scene number** (`1` vs `1A`; tolerate
-   renumber/prefix drift).
-2. **Secondary — heading signature** via `parseSceneHeading` (`intExt` +
-   normalized `set` + `dayNight`).
-3. **Tertiary — content/context similarity** (user-requested): a per-scene
-   fingerprint = normalized scene-body tokens (action + dialogue, from
-   `project.scriptDocument` — 123 Phase 0) + cast characters (via
-   `normalizeCharacterName`) + element items + location; paired by
-   token-overlap (Jaccard) score against neighbor candidates — high-score
-   pairs match even with no number/heading match (renumbered, retitled
-   heading, broken heading).
-4. **Order-aware alignment**: the pass is an **LCS alignment over the
-   ordered scene lists** keyed by the signals above — an inserted scene
-   mid-list never cascades wrong matches onto the scenes after it (classic
-   ordered-diff pitfall). **Added / Removed** come from the alignment gaps,
-   not per-scene lookups.
-5. **Suspected split/merge tags**: one old scene splitting into two new
-   (or two merging into one) scores high against the same counterpart
-   twice — badge "Scene 8 split into 8A/8B" instead of a confusing
-   "modified + added" pair (same scoring data, cheap).
-
-**Per-scene diff** (vs the current saved scene):
-- Heading fields: `intExt`, `set`, `dayNight`, `pageCount`/`pageCountDecimal`,
-  `scriptDay` — simple equality.
-- Scene body — **word-level** diff over the retained `scriptDocument` blocks
-  (action, dialogue, dual dialogue; jsdiff `diffWords`, added/removed
-  highlighting); falls back to the `description` synopsis text when no body is
-  retained.
-- `cast` + every element category (props, wardrobe, …) — **item-set** diff
-  (± lists; via `getFieldItems`, never raw `split(',')`).
-- `notes`, `location` — equality.
-- **Unchanged** only when number/heading matched AND context similarity ≈ 1;
-  a heading-only match with big content drift shows as **Modified**.
-
-**Trigger — EXPLICIT, not automatic** (user decision): File → Import stays the
-plain append flow; a separate **File → Import → "Update script (diff)…"** (and,
-long-term, a **Script sub-tab in Breakdown** — 123 Phase 1) opens the update
-flow. Never auto-diff on a plain import.
-
-**Review UI — a SEPARATE, keyboard-fast modal** (`ScriptUpdateModal`, NOT an
-ImportDialog stage), one change at a time (user decision):
-- The current change renders as **proper screenplay** — current vs incoming —
-  via the SHARED `ScriptSceneScript` renderer (built for 123 Phase 1; never a
-  second renderer): Courier, indents, dual dialogue. Block-level ± highlight
-  (removed blocks shown in place, struck through; added blocks highlighted);
-  item ± lists for cast/elements; before → after for heading fields. A
-  split/merge change diffs the old scene against each fragment.
-- The queue **clears one by one**: Update/Take (`→`/`U`) or Keep (`←`/`K`)
-  (Add/Skip for a new scene, Keep/Remove for a removed one) removes the change
-  and instantly shows the next. Progress "Change 3 of 12"; the final change
-  flows into a one-line impact summary (page-count shifts, cast/element adds,
-  split/merge) + "Apply N changes".
-- **Conflicts** (baseline-aware): a field whose CURRENT value differs from
-  `project.scriptBaseline` AND the incoming script also changes it — i.e. your
-  in-app edit vs the writer's new value. Annotate the baseline inline as
-  "was:" and offer keep yours / take the script. (Deferred until the baseline
-  carries field snapshots — see Notes.)
-- **Removed scenes default to KEEP** — the stripboard/schedule investment is
-  untouched unless the user opts in.
-- Existing review controls stay (new categories, hidden categories with data,
-  cast ID assignment/ordering) as a final step before Apply.
-- Footer: "Apply N changes" + Cancel.
-
-**Notes**: the baseline conflict comparison needs per-scene field snapshots
-(Phase 0 currently retains the body only) — extend `scriptBaseline` or catch
-up here before shipping the conflict row.
-
-**Commit** — one undo entry (`BATCH_START`/`BATCH_COMMIT`; extend/parallel
-`commitImport` with a `commitScriptDiff`):
-- Matched + accepted → `UPDATE_SCENE` patches **in place, ids preserved**
-  (stripboard rows, day assignments, call times, ribbons survive;
-  `caseUpdateScene` re-parses `pageCount` on patch).
-- Added → `ADD_SCENE` — lands **in the boneyard** (`containerId: null`,
-  `maxBoneyardOrder + 1`, schedule.ts:24-31 — user decision: new scenes
-  never shift the stripboard; user restores them where they belong).
-- Confirmed-removed → `DELETE_SCENE` (scene→row invariant: rows removed in
-  every version; copy goes to trash, restorable).
-- New cast → existing `castIdMap` flow (`ADD_CAST_MEMBER` +
-  `ADD_ELEMENT` cast category — cast referenced by ID, names via
-  `normalizeCharacterName`); new elements → `ADD_ELEMENT` per category;
-  new/updated sets as today.
-- **Script body** — the SAME batch also writes `SET_SCRIPT_DOCUMENT` (the new
-  body becomes current; the previous current becomes `scriptBaseline`), so the
-  diff path stays in sync with the retained body (123 Phase 0) — one pass, one
-  undo entry.
-- No new scene/cast/element action types (all exist: `UPDATE_SCENE`/
-  `ADD_SCENE`/`DELETE_SCENE` + element/category/cast actions); the body uses
-  123's `SET/UPDATE_SCRIPT_DOCUMENT`.
-
-**Dependency**: `diff` (jsdiff) — `diffWords` for the body diff +
-`diffArrays` for the LCS alignment; the standard, tiny, browser-safe lib.
-New-dep rule: imported by ≥1 source file.
-
-**Verify**: re-import the seed script ("IT'S A WONDERFUL LIFE") with a few scenes edited,
-added, removed, one split, one renumbered, and one field hand-edited in-app
-before import (must surface as a conflict with the baseline value shown) →
-only diffs apply; unchanged scenes keep ids; schedule + ribbons intact; new
-scenes in the boneyard; removed scenes kept by default; undo restores exactly;
-filters + expanded diffs render; lint + playwright. **Out of scope**
-(follow-ups): Filmustage-style cross-version schedule/budget impact reports,
-archived-versions hub (full script version history — see 123) — this item is
-the import acceptance step only.
-
 ## 43. Import `.mmx` / `.MMS10` (Movie Magic Screenwriter XML) (`[ ]`)
 
 **Requested**: someday — optional import path for EP's Screenwriter XML interchange (`.mmx`, rebadged `.MMS10` for MMS 10's "Import Script"). Producers would arrive with scripts/tagged breakdowns exported from Movie Magic Screenwriter, Filmustage, Shamel Studio or StoryboardCanvas.
@@ -543,8 +407,11 @@ spec for the nested picker.
 > parsers emit the body in the existing import pass, `SET/UPDATE_SCRIPT_DOCUMENT`,
 > persistence). **Phase 1 shipped** — Script sub-tab (`src/components/ScriptView.tsx`);
 > the shared `ScriptSceneText` renderer gained a light theme; scene-linked nav to
-> Sheet/Schedule; `e2e/script-retention.spec.ts`. **132** now owns the portable
-> pane + cuts. Phases 2–3 (highlight-to-tag / hover preview) remain open — see
+> Sheet/Schedule; `e2e/script-retention.spec.ts`. **Phase 2 shipped** (with 132
+> Part B): identity-anchored tags (`ScriptAnnotation` + `ADD/UPDATE/REMOVE_
+> SCRIPT_ANNOTATION`) render category-coloured, select-to-tag editor in the
+> Script sub-tab. **Phase 3 (hover preview) remains open** — the pane exists
+> (132 Part A); only the hover seams are unwired. See
 > `docs/IMPORT-EXPORT.md` §Script body retention.
 
 **Relations**: Phase 0 (retained `project.scriptDocument` + `scriptBaseline`)
@@ -662,36 +529,21 @@ if A is.
 **Verify**: encode/decode round-trip; migration from plain + 124 formats; every
 row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 
-## 128. Diff preview — IDE-style aligned split view (filler gaps) (`[ ]`)
-
-**Relations**: enhancement to 38's review modal + 123 Phase 1 screenplay renderer.
-
-**Requested**: the split diff (Current vs Incoming) should stay vertically
-aligned like IDEs / GitHub / VS Code split diffs. Today the two panes are
-independent `overflow` scrollers of different heights, so an inserted/removed
-block makes everything below drift and the diff is hard to read. IDEs insert
-blank **filler rows** on the shorter side so a change lines up across panes.
-
-**Approach**: derive an aligned row model ONCE from the `diffArrays` segments
-(equal / added / removed) → `rows: { left?: TonedBlock; right?: TonedBlock }[]`
-(the shorter side gets an empty filler cell). Render the shared screenplay line
-component into the correct pane per row (one scroll container per pane is fine;
-or a single grid with two columns + row alignment). Sync-scroll already exists
-in `ScriptUpdateModal`. Study GitHub/VS Code split-diff alignment for the filler
-rules (block-level, not word-level).
-
-**Verify**: append a block mid-scene and delete another → both panes line up;
-golden visual; `npm run lint` + `npx playwright test`.
-
 ## 132. Portable script pane, scene cuts/duplicates & split-aware script revisions (`[ ]`)
 
-> **Progress**: read-only slice shipped — **Part A pane** (`SceneScriptPane` +
-> `ScriptPaneToggle` + `useScriptPanePref` in `src/components/script/SceneScriptPane.tsx`;
-> right-docked, collapsible, resizable, Sheet + Glide hosts, follows selection)
-> and the **Part B FDX fix** (tagged `<Text>` runs now retained in the body
-> instead of dropped — `src/lib/import/fdx.ts`), plus **123 Phase 1** (Script
-> sub-tab, `src/components/ScriptView.tsx`). Tagging/annotation spans, the cut +
-> duplicate modals, Split Manager and import reconciliation remain open.
+> **Progress**: **Part A pane** shipped (`SceneScriptPane` + `ScriptPaneToggle`
+> + `useScriptPanePref`; right-docked, collapsible, resizable, Sheet + Glide
+> hosts, follows selection) and the **Part B FDX fix** (tagged `<Text>` runs
+> retained in the body) — plus **123 Phase 1** (Script sub-tab). **Part B
+> foundation shipped**: identity-anchored tags (`ScriptAnnotation` +
+> `project.scriptAnnotations` + canonical `ADD/UPDATE/REMOVE_SCRIPT_ANNOTATION`)
+> render category-coloured (dotted = recognised / solid = committed), tag from a
+> text selection in the Script sub-tab (`ScriptTagModal` reusing
+> `CategoryDropdown` + `EntityDropdown` + `addNewElement`), and an element
+> rename cascades annotation refs in the same `caseUpdateElement` batch
+> (`src/lib/scriptAnnotations.ts`). **Remaining Part B**: seed recognised spans
+> from imported `<Text TagNumber>`, and the alias + explicit "Update script
+> text" flow. Cuts/duplicate/Split Manager/import reconciliation remain open.
 > **API/agent compatibility is a hard constraint** (see API note + Relations 97).
 
 **Relations**: `depends on` **123 Phase 0** (**DONE** — retained
@@ -699,9 +551,10 @@ golden visual; `npm run lint` + `npx playwright test`.
 `ScriptSceneScript` renderer (`src/components/script/`) and **delivers the ONE
 portable `SceneScriptPreview` component** that **123 Phase 3** then wires to its
 hover seams (never two components); `overlaps` **123 Phase 2** tagging (reuse
-`addNewElement` / `EntityDropdown` — no second tag model); `extends` **38** —
-Part F is **`blocked by` 38** (in progress `[~]`; never implement in parallel)
-and upgrades its `tagSplitMerge` to split-aware / appliable (one split engine);
+`addNewElement` / `EntityDropdown` — no second tag model); `extends` **38**
+(**DONE** — Part F now builds on the shipped `commitScriptDiff`/`scriptDiff`
+engine) and upgrades its `tagSplitMerge` to split-aware / appliable (one split
+engine);
 `reuses` **127** `parseSceneHeading` (**DONE**: `src/lib/import/headingValues.ts`)
 and the duplicate base+letter algorithm (`useStripboardContextMenu.ts:243`,
 `BreakdownTabGlide.tsx:605`); `enables` **97** — every script/annotation write is

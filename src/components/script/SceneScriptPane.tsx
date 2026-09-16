@@ -122,7 +122,7 @@ export function SceneScriptPane({ sceneNumber, open, onClose, width, onWidthChan
         </div>
         <div ref={bodyRef} className="flex-1 overflow-auto px-4 py-3 select-text">
           {scene
-            ? <ScriptSceneText scene={scene} theme="light" />
+            ? <ScriptSceneText scene={scene} theme="light" annotations={state.present.scriptAnnotations} sceneId={liveScene?.id} />
             : <p className="text-xs italic text-zinc-400">No script retained for this scene.</p>}
         </div>
       </div>

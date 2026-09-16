@@ -1,6 +1,6 @@
 import { diffWords } from 'diff';
 import type { Change } from 'diff';
-import type { CustomCategoryDef, Scene, ScriptDocument } from '../../types';
+import type { CustomCategoryDef, Scene, SceneFieldSnapshot, ScriptDocument } from '../../types';
 import { ELEMENT_CATEGORIES, getFieldItems } from '../categories';
 import { formatPageCount } from '../utils';
 import { normalizeSceneNumber, scriptSceneOf } from '../script';
@@ -51,6 +51,12 @@ export interface SceneFieldDiff {
   added: string[];
   removed: string[];
   wordChanges?: Change[];
+  /** Value at the last accepted import (roadmap 38), present only when it
+   *  differs from `before` — i.e. the user hand-edited this field since that
+   *  import. The review shows it as "was: …" so taking the script is explicit. */
+  baseline?: string;
+  /** True when `baseline` is present (an in-app edit vs the incoming change). */
+  conflict?: boolean;
 }
 
 export interface SceneDiffEntry {
@@ -245,7 +251,74 @@ function compareBody(before: string, after: string): SceneFieldDiff | null {
   return { key: 'body', kind: 'body', before, after, added: [], removed: [], wordChanges };
 }
 
-function diffPair(a: ScriptSceneView, b: ScriptSceneView): SceneFieldDiff[] {
+/** Build a comparable view from a stored baseline field snapshot, so a live
+ *  scene and its "last imported" reference use the SAME comparison logic. */
+function snapshotToView(snap: SceneFieldSnapshot, castNameById: Map<string, string>, customCategories: CustomCategoryDef[]): ScriptSceneView {
+  const categoryKeys = [
+    ...ELEMENT_CATEGORIES.map(c => c.key),
+    ...customCategories.map(c => c.key),
+  ];
+  const elements: Record<string, string[]> = {};
+  for (const key of categoryKeys) {
+    if (IGNORED_CATEGORIES.has(key)) continue;
+    const items = getFieldItems(key, snap.fields[key] || '');
+    if (items.length) elements[key] = items;
+  }
+  const cast = getFieldItems('cast', snap.fields.cast || '').map(id => castNameById.get(id) || id);
+  return buildView({
+    sceneNumber: snap.sceneNumber,
+    intExt: snap.fields.intExt || '',
+    set: snap.fields.set || '',
+    dayNight: snap.fields.dayNight || '',
+    pageCountDecimal: snap.pageCountDecimal,
+    scriptDay: snap.fields.scriptDay || '',
+    location: snap.fields.location || '',
+    notes: snap.fields.notes || '',
+    description: snap.fields.description || '',
+    cast,
+    elements,
+    bodyText: '',
+  });
+}
+
+function baselineValueFor(key: string, base: ScriptSceneView): string {
+  if (key === 'pageCount') return base.pageCountDecimal != null ? formatPageCount(base.pageCountDecimal) : '';
+  if (key === 'cast') return base.cast.join(', ');
+  if (base.elements[key]) return base.elements[key].join(', ');
+  return (base as any)[key] ?? '';
+}
+
+function baselineItemsFor(key: string, base: ScriptSceneView): string[] {
+  if (key === 'cast') return base.cast;
+  return base.elements[key] || [];
+}
+
+/** Mark a changed field when the CURRENT value already differs from the last
+ *  imported value — the user edited it in-app, and the incoming script also
+ *  changes it. `baseline` carries the "was: …" value (roadmap 38). */
+function annotateConflicts(fields: SceneFieldDiff[], current: ScriptSceneView, base: ScriptSceneView | undefined): void {
+  if (!base) return;
+  for (const f of fields) {
+    if (f.kind === 'body') continue;
+    if (f.kind === 'value') {
+      const was = baselineValueFor(f.key, base);
+      if (normalizeValue(f.key, was) !== normalizeValue(f.key, f.before)) {
+        f.baseline = was;
+        f.conflict = true;
+      }
+    } else {
+      const was = baselineItemsFor(f.key, base);
+      const now = f.key === 'cast' ? current.cast : (current.elements[f.key] || []);
+      const { added, removed } = diffItems(was, now);
+      if (added.length || removed.length) {
+        f.baseline = was.join(', ');
+        f.conflict = true;
+      }
+    }
+  }
+}
+
+function diffPair(a: ScriptSceneView, b: ScriptSceneView, baseline?: ScriptSceneView): SceneFieldDiff[] {
   const fields: SceneFieldDiff[] = [];
   // The scene number is diffable too (a renumbered-but-matched scene).
   if (normalizeSceneNumber(a.sceneNumber) !== normalizeSceneNumber(b.sceneNumber)) {
@@ -272,6 +345,7 @@ function diffPair(a: ScriptSceneView, b: ScriptSceneView): SceneFieldDiff[] {
   const body = compareBody(a.bodyText, b.bodyText);
   if (body) fields.push(body);
 
+  annotateConflicts(fields, a, baseline);
   return fields;
 }
 
@@ -283,11 +357,18 @@ export function diffScripts(
     customCategories?: CustomCategoryDef[];
     oldBody?: ScriptDocument;
     newBody?: ScriptDocument;
+    /** Scene-field snapshot from the last accepted import (roadmap 38) — marks
+     *  fields the user edited in-app before the incoming script changes them. */
+    baselineScenes?: SceneFieldSnapshot[];
   },
 ): ScriptDiffResult {
   const customCategories = opts.customCategories || [];
   const oldViews = oldScenes.map(s => sceneToView(s, opts.castNameById, customCategories, sceneBodyText(opts.oldBody, s.sceneNumber)));
   const newViews = newScenes.map(s => parsedToView(s, customCategories, sceneBodyText(opts.newBody, s.sceneNumber)));
+  const baselineViews = new Map<string, ScriptSceneView>();
+  for (const snap of opts.baselineScenes || []) {
+    baselineViews.set(normalizeSceneNumber(snap.sceneNumber), snapshotToView(snap, opts.castNameById, customCategories));
+  }
 
   const m = oldViews.length;
   const n = newViews.length;
@@ -306,7 +387,7 @@ export function diffScripts(
     if (i > 0 && j > 0) {
       const s = matchScore(oldViews[i - 1], newViews[j - 1]);
       if (s > 0 && dp[i][j] === dp[i - 1][j - 1] + s) {
-        entries.push(buildPair(oldViews[i - 1], newViews[j - 1], oldScenes[i - 1], newScenes[j - 1], s));
+        entries.push(buildPair(oldViews[i - 1], newViews[j - 1], oldScenes[i - 1], newScenes[j - 1], s, baselineViews.get(normalizeSceneNumber(oldScenes[i - 1].sceneNumber))));
         i--; j--;
         continue;
       }
@@ -322,7 +403,7 @@ export function diffScripts(
       continue;
     }
     if (i > 0 && j > 0) {
-      entries.push(buildPair(oldViews[i - 1], newViews[j - 1], oldScenes[i - 1], newScenes[j - 1], 0));
+      entries.push(buildPair(oldViews[i - 1], newViews[j - 1], oldScenes[i - 1], newScenes[j - 1], 0, baselineViews.get(normalizeSceneNumber(oldScenes[i - 1].sceneNumber))));
       i--; j--;
     } else if (i > 0) {
       entries.push(buildRemoved(oldViews[i - 1], oldScenes[i - 1]));
@@ -403,8 +484,8 @@ function setJaccard(a: Set<string>, b: Set<string>): number {
   return inter / (a.size + b.size - inter);
 }
 
-function buildPair(a: ScriptSceneView, b: ScriptSceneView, oldScene: Scene, newScene: ParsedScene, score: number): SceneDiffEntry {
-  const fields = diffPair(a, b);
+function buildPair(a: ScriptSceneView, b: ScriptSceneView, oldScene: Scene, newScene: ParsedScene, score: number, baseline?: ScriptSceneView): SceneDiffEntry {
+  const fields = diffPair(a, b, baseline);
   return {
     status: fields.length === 0 ? 'unchanged' : 'modified',
     sceneNumber: b.sceneNumber,

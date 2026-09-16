@@ -191,7 +191,9 @@ if (fragileTotal) {
 // pure logic down to a unit test (`npm run test:unit`); or consciously raise a
 // cap here with a one-line reason. Never just append a spec.
 const E2E_SPEC_CAP = 70;
-const E2E_TEST_CAP = 260;
+// 260 → 263: roadmap 38 script-diff acceptance (split/merge badges + in-app
+// edit conflict) — behavior needs real DOM/file-chooser coverage, not unit-only.
+const E2E_TEST_CAP = 263;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

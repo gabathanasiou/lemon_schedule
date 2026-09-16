@@ -76,6 +76,11 @@ function FieldStrip({ fields, keeps, onToggle }: { fields: SceneFieldDiff[]; kee
                     <span className="text-emerald-300/90">{f.after || '—'}</span>
                   </span>
                 )}
+                {f.conflict && (
+                  <span className="text-[9px] text-blue-300" title="You edited this after the last import">
+                    your edit · was: {f.baseline || '—'}
+                  </span>
+                )}
                 {onToggle && <span className="text-[9px] text-zinc-600">{keep ? 'keep mine' : 'take script'}</span>}
               </span>
             }
@@ -153,7 +158,8 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
     customCategories: project.customCategories || [],
     oldBody: project.scriptDocument,
     newBody: result.script,
-  }), [project.scenes, project.customCategories, project.scriptDocument, castNameById, result]);
+    baselineScenes: project.scriptBaselineFields,
+  }), [project.scenes, project.customCategories, project.scriptDocument, project.scriptBaselineFields, castNameById, result]);
 
   const changeIndices = useMemo(
     () => diff.entries.map((e, i) => (e.status === 'unchanged' ? -1 : i)).filter(i => i >= 0),

@@ -33,4 +33,8 @@ export const TEST_IDS = {
   scriptScene: 'script-scene',
   /** Portable scene script pane (roadmap 132 Part A). */
   scriptPane: 'script-pane',
+  /** Floating "Tag" affordance shown over a script selection (roadmap 123 Ph2). */
+  scriptTagFloating: 'script-tag-floating',
+  /** Tag editor modal body (create/edit an annotation, roadmap 132 Part B). */
+  scriptTagModal: 'script-tag-modal',
 } as const;

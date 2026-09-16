@@ -80,6 +80,36 @@ export interface ScriptScene {
 
 export type ScriptTitlePage = Record<string, string>;
 
+/** A tag on a span of a scene's retained screenplay body (roadmap 123 Phase 2 /
+ *  132 Part B). The span is identity-anchored: `sceneId` survives renumbering,
+ *  `blockIndex` + character offsets locate the text, and `text` keeps the exact
+ *  wording for the "Script: …" display and future re-anchoring. `elementKey`
+ *  follows the domain rule — cast is id-keyed, every other category name-keyed.
+ *  `recognized` marks a span seen in an imported FDX tag but not yet committed
+ *  (rendered dotted until committed). */
+export interface ScriptAnnotation {
+  id: string;
+  sceneId: string;
+  blockIndex: number;
+  start: number;
+  end: number;
+  text: string;
+  category: string;
+  elementKey: string;
+  recognized?: boolean;
+}
+
+/** A scene's diffable field values captured at the last accepted script import
+ *  (roadmap 38 conflict reference). `diffScripts` compares it against the live
+ *  scene so an in-app edit is flagged ("was: …") before an incoming screenplay
+ *  overwrites it. Only string fields + the page count are kept — never the id
+ *  (matched scenes keep their identity; a rename must not read as a change). */
+export interface SceneFieldSnapshot {
+  sceneNumber: string;
+  fields: Record<string, string>;
+  pageCountDecimal?: number;
+}
+
 export interface ScriptDocument {
   format: ScriptFormat;
   /** Imported file name — the visible "which script version" marker in the
@@ -764,6 +794,13 @@ export interface Project {
   /** The last imported screenplay (roadmap 123 Phase 0): the reference for
    *  item 38 conflict detection and one-step restore. */
   scriptBaseline?: ScriptDocument;
+  /** Scene field values as of the last accepted script import (roadmap 38) —
+   *  the conflict reference for fields (the body's own baseline is
+   *  `scriptBaseline`). See `SceneFieldSnapshot`. */
+  scriptBaselineFields?: SceneFieldSnapshot[];
+  /** Identity-anchored tags on the retained screenplay body (roadmap 123
+   *  Phase 2 / 132 Part B). See `ScriptAnnotation`. */
+  scriptAnnotations?: ScriptAnnotation[];
   /** Custom/localized INT-EXT & day-night value mappings (roadmap 127). */
   headingAliases?: HeadingAliases;
 }

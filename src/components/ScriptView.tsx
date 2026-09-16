@@ -1,14 +1,35 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronUp, ExternalLink, FileText, Ruler, Search, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, FileText, Ruler, Search, Tag as TagIcon, Upload } from 'lucide-react';
 import { useProject } from '../store';
 import { ScriptSceneText } from './script/ScriptSceneScript';
 import { EighthsRuler } from './script/EighthsRuler';
+import ScriptTagModal, { type ScriptTagTarget } from './script/ScriptTagModal';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
 import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
 import { usePersistState } from '../lib/persist';
 import { TEST_IDS } from '../lib/testIds';
-import type { ScriptScene } from '../types';
+import type { ScriptAnnotation, ScriptScene } from '../types';
+
+/** The taggable block element enclosing a selection endpoint. */
+function closestScriptBlock(node: Node | null): HTMLElement | null {
+  const el = node instanceof HTMLElement ? node : node?.parentElement ?? null;
+  return (el?.closest('[data-script-block]') as HTMLElement | null) ?? null;
+}
+
+/** Character offset of `(node, offset)` within `root`, skipping the inline
+ *  scene-number label (it renders inside the heading block but isn't body). */
+function offsetWithinBlock(root: HTMLElement, node: Node, offset: number): number {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let total = 0;
+  let n: Node | null;
+  while ((n = walker.nextNode())) {
+    if (n.parentElement?.closest('[data-scene-number-label]')) continue;
+    if (n === node) return total + offset;
+    total += (n.textContent || '').length;
+  }
+  return total;
+}
 
 const READ_FONT_CLASS = 'text-[15px] leading-[1.7]';
 /** Must match READ_FONT_CLASS (15px × 1.7) — drives the eighths ruler scale. */
@@ -63,6 +84,42 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   const [contentHeight, setContentHeight] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [sidebarPref, setSidebarPref] = usePersistState('lemon_schedule_script_sidebar', { width: 320 });
+
+  const scriptAnnotations = project.scriptAnnotations;
+  const [tagModal, setTagModal] = useState<{ target: ScriptTagTarget; annotation?: ScriptAnnotation } | null>(null);
+  const [pendingTag, setPendingTag] = useState<{ target: ScriptTagTarget; top: number; left: number } | null>(null);
+
+  // Selection → a floating Tag affordance (roadmap 123 Phase 2). Deferred so the
+  // browser has committed the selection before we read it.
+  const handleSelectionEnd = useCallback(() => {
+    window.setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) { setPendingTag(null); return; }
+      const range = sel.getRangeAt(0);
+      const startBlock = closestScriptBlock(range.startContainer);
+      const endBlock = closestScriptBlock(range.endContainer);
+      if (!startBlock || startBlock !== endBlock) { setPendingTag(null); return; }
+      const sceneId = startBlock.getAttribute('data-script-scene') || '';
+      const blockIndex = Number(startBlock.getAttribute('data-script-block'));
+      if (!sceneId || Number.isNaN(blockIndex)) { setPendingTag(null); return; }
+      const start = offsetWithinBlock(startBlock, range.startContainer, range.startOffset);
+      const end = offsetWithinBlock(startBlock, range.endContainer, range.endOffset);
+      const text = (sel.toString() || '').trim();
+      if (end <= start || !text) { setPendingTag(null); return; }
+      const rect = range.getBoundingClientRect();
+      setPendingTag({ target: { sceneId, blockIndex, start, end, text }, top: rect.top, left: rect.left + rect.width / 2 });
+    }, 0);
+  }, []);
+
+  const openTagModal = useCallback(() => {
+    setTagModal(prev => (prev || !pendingTag ? prev : { target: pendingTag.target }));
+    setPendingTag(null);
+  }, [pendingTag]);
+
+  const openAnnotation = useCallback((a: ScriptAnnotation) => {
+    setPendingTag(null);
+    setTagModal({ target: { sceneId: a.sceneId, blockIndex: a.blockIndex, start: a.start, end: a.end, text: a.text }, annotation: a });
+  }, []);
 
   // Script scene number → the live Scene it belongs to (for sets / navigation).
   const sceneByIdentity = useMemo(() => {
@@ -165,6 +222,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   }, [activeIndex]);
 
   const handleScroll = useCallback(() => {
+    setPendingTag(null);
     if (activeRaf.current == null) {
       activeRaf.current = requestAnimationFrame(() => { activeRaf.current = null; updateActive(); });
     }
@@ -270,7 +328,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
         width={sidebarPref.width}
         onWidthChange={w => setSidebarPref({ width: w })}
       />
-      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto">
+      <div ref={scrollRef} onScroll={handleScroll} onMouseUp={handleSelectionEnd} onKeyUp={handleSelectionEnd} className="flex-1 overflow-auto">
           <div className="mx-auto flex w-fit items-start px-6 py-6">
           <div ref={pageRef} className="w-[8.5in] max-w-full border border-zinc-200 bg-white px-14 py-12 shadow-sm select-text">
             {doc.titlePage?.title && (
@@ -305,7 +363,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                       )}
                     </div>
                   )}
-                  <ScriptSceneText scene={scene} theme="light" fontClass={READ_FONT_CLASS} highlight={q} sceneNumber={scene.sceneNumber} />
+                  <ScriptSceneText scene={scene} theme="light" fontClass={READ_FONT_CLASS} highlight={q} sceneNumber={scene.sceneNumber} annotations={scriptAnnotations} sceneId={match?.id} onAnnotationClick={openAnnotation} />
                 </section>
               );
             })}
@@ -313,6 +371,22 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
           {showEighths && <EighthsRuler contentHeight={contentHeight} lineHeight={READ_LINE_HEIGHT} />}
         </div>
       </div>
+      {pendingTag && createPortal(
+        <button
+          type="button"
+          data-testid={TEST_IDS.scriptTagFloating}
+          onMouseDown={e => e.preventDefault()}
+          onClick={openTagModal}
+          style={{ position: 'fixed', top: pendingTag.top, left: pendingTag.left, transform: 'translate(-50%, -130%)', zIndex: 60 }}
+          className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white shadow-lg hover:bg-zinc-700"
+        >
+          <TagIcon className="h-3 w-3" /> Tag
+        </button>,
+        document.body,
+      )}
+      {tagModal && (
+        <ScriptTagModal target={tagModal.target} annotation={tagModal.annotation} onClose={() => setTagModal(null)} />
+      )}
     </div>
   );
 }

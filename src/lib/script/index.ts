@@ -1,4 +1,6 @@
 import type {
+  Scene,
+  SceneFieldSnapshot,
   ScriptBlock,
   ScriptBlockType,
   ScriptDocument,
@@ -74,6 +76,25 @@ export function scriptSceneOf(doc: ScriptDocument | undefined, sceneNumber: stri
   if (!doc) return undefined;
   const target = normalizeSceneNumber(sceneNumber);
   return doc.scenes.find(s => normalizeSceneNumber(s.sceneNumber) === target);
+}
+
+/** Fields that identify a scene or restate another field — never part of the
+ *  item-38 conflict snapshot (the page count is kept separately). */
+const SNAPSHOT_SKIP = new Set(['id', 'sceneNumber', 'pageCount', 'scriptPageNumbers', 'sheetNumber', 'ghostOf']);
+
+/** Snapshot every scene's diffable field values (roadmap 38 conflict
+ *  reference). Called by the reducer when a script import becomes current, so
+ *  the next update can tell an in-app edit from the writer's new value. */
+export function snapshotSceneFields(scenes: Scene[]): SceneFieldSnapshot[] {
+  return scenes.map(scene => {
+    const fields: Record<string, string> = {};
+    for (const [key, value] of Object.entries(scene)) {
+      if (typeof value === 'string' && !SNAPSHOT_SKIP.has(key)) fields[key] = value;
+    }
+    const snap: SceneFieldSnapshot = { sceneNumber: scene.sceneNumber, fields };
+    if (scene.pageCountDecimal != null) snap.pageCountDecimal = scene.pageCountDecimal;
+    return snap;
+  });
 }
 
 /** Display heading "INT. KITCHEN - DAY" from scene field parts (shared by the

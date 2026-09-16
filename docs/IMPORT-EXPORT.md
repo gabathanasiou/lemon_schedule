@@ -82,6 +82,28 @@ Status: read this before touching any import/export work.
   conflict reference; a body without a baseline treats itself as the baseline
   on LOAD). `UPDATE_SCRIPT_DOCUMENT` updates the body WITHOUT rotating the
   baseline (Phase 2 annotations).
+- **Field conflicts (roadmap 38)**: alongside the body baseline the reducer
+  captures `project.scriptBaselineFields` (`SceneFieldSnapshot[]`,
+  `snapshotSceneFields` in `src/lib/script/index.ts`) from the just-updated
+  scenes on every `SET_SCRIPT_DOCUMENT` (backfilled on LOAD for older projects).
+  `diffScripts` compares it against the live scene: a changed field whose
+  CURRENT value already differs from the snapshot is a conflict — the review
+  shows `your edit · was: …` (`ScriptUpdateModal`) so taking the incoming script
+  is explicit, never a silent overwrite of an in-app edit. Only string fields +
+  the page count are stored; the id is never compared (matched scenes keep
+  identity).
+- **Screenplay tags (roadmap 123 Phase 2 / 132 Part B)**: `project.scriptAnnotations`
+  (`ScriptAnnotation`) are identity-anchored span tags on the retained body —
+  `sceneId` + `blockIndex` + character offsets + the exact `text`; `elementKey`
+  is a cast id or an element name (domain rule). Every write is a canonical
+  `ADD_/UPDATE_/REMOVE_SCRIPT_ANNOTATION` action (item 97 reaches them by
+  construction). `src/lib/scriptAnnotations.ts` owns the colour, block-span
+  segmentation and the element-rename cascade (run in the SAME
+  `caseUpdateElement` batch — a name-keyed tag must never dangle); the shared
+  `ScriptSceneScript` renders them (dotted = recognised, solid = committed) and
+  `ScriptTagModal` (Script sub-tab selection) is the editor. Seeding recognised
+  spans from imported `<Text TagNumber>` and the alias/"Update script text" flow
+  remain open.
 - Persistence/Drive need no special handling: works through the roadmap-124
   localStorage codec and the Drive upload as part of the Project.
 - Read surfaces (roadmap 123 Phase 1 / 132 Part A): the Breakdown **Script
@@ -106,8 +128,8 @@ Status: read this before touching any import/export work.
   (`DELETE_SCENE`, restorable — rows removed in every version); both default to
   keep, and one `BATCH_START`/`BATCH_COMMIT` makes the whole accept one undo step
   (`src/lib/import/commitScriptDiff.ts`).
-- Body-aware diff / highlight-to-tag / hover preview / cuts are items **38** and
-  **123 Phases 2–3** + **132** — not this section.
+- Highlight-to-tag / hover preview / cuts are **123 Phases 2–3** + **132** — not
+  this section (item 38's body-aware diff + conflict review is done).
 
 ## New-project import parity (roadmap 126)
 

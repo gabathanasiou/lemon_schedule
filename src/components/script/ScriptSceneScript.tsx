@@ -1,6 +1,8 @@
 import React from 'react';
 import { diffArrays, diffWords } from 'diff';
-import type { ScriptBlock, ScriptBlockType, ScriptInline, ScriptScene } from '../../types';
+import type { ScriptAnnotation, ScriptBlock, ScriptBlockType, ScriptInline, ScriptScene } from '../../types';
+import { annotationColor, rangesForBlock, segmentsFor } from '../../lib/scriptAnnotations';
+import type { AnnotationRange } from '../../lib/scriptAnnotations';
 
 /**
  * Screenplay renderer (roadmap 123 Phase 1, reused by 38's update review) —
@@ -29,6 +31,12 @@ export interface TonedBlock {
    *  word-level body diff. `user` = your in-app edit (blue), `incoming` = the
    *  new script (green), `removed`/`added` = word-level tokens (red/green). */
   parts?: { text: string; change?: 'user' | 'incoming' | 'removed' | 'added' }[];
+  /** Tag spans on this block (roadmap 123 Phase 2) — rendered as coloured
+   *  highlights; absent in the diff review. */
+  ranges?: AnnotationRange[];
+  /** Set when this block is taggable, so a selection can resolve its offsets. */
+  sceneId?: string;
+  blockIndex?: number;
 }
 
 // Diff backgrounds carry the meaning; TEXT STAYS NEUTRAL (never tinted). Line-
@@ -111,7 +119,63 @@ function InlineRuns({ runs, highlight, theme }: { runs: ScriptInline[]; highligh
   );
 }
 
-function BlockLine({ type, text, tone, parts, runs, theme, highlight, sceneNumber }: TonedBlock & { theme: ScriptTheme; highlight?: string; sceneNumber?: string }) {
+/** Render a block's text with tag spans layered over the plain text / inline
+ *  runs, preserving bold/italic/underline and search highlights inside them
+ *  (roadmap 123 Phase 2). */
+function AnnotatedText({ text, runs, ranges, theme, highlight, onAnnotationClick }: {
+  text: string;
+  runs?: ScriptInline[];
+  ranges: AnnotationRange[];
+  theme: ScriptTheme;
+  highlight?: string;
+  onAnnotationClick?: (annotation: ScriptAnnotation) => void;
+}) {
+  const pieces: ScriptInline[] = runs && runs.length > 0 ? runs : [{ text }];
+  let offset = 0;
+  return (
+    <>
+      {pieces.map((run, ri) => {
+        const runStart = offset;
+        offset += run.text.length;
+        const shifted = ranges.map(r => ({ start: r.start - runStart, end: r.end - runStart, annotation: r.annotation }));
+        let node: React.ReactNode = (
+          <>
+            {segmentsFor(run.text, shifted).map((s, si) => {
+              const inner = <Highlighted text={s.text} query={highlight} theme={theme} />;
+              if (!s.annotation) return <React.Fragment key={si}>{inner}</React.Fragment>;
+              const color = annotationColor(s.annotation.category);
+              return (
+                <span
+                  key={si}
+                  data-annotation-id={s.annotation.id}
+                  data-annotation-recognized={s.annotation.recognized ? '1' : undefined}
+                  role={onAnnotationClick ? 'button' : undefined}
+                  tabIndex={onAnnotationClick ? 0 : undefined}
+                  onClick={onAnnotationClick ? (e) => { e.stopPropagation(); onAnnotationClick(s.annotation!); } : undefined}
+                  className={`rounded-[2px] ${onAnnotationClick ? 'cursor-pointer' : ''}`}
+                  style={{ backgroundColor: `${color}26`, borderBottom: `2px ${s.annotation.recognized ? 'dotted' : 'solid'} ${color}` }}
+                >
+                  {inner}
+                </span>
+              );
+            })}
+          </>
+        );
+        if (run.underline) node = <u>{node}</u>;
+        if (run.italic) node = <em>{node}</em>;
+        if (run.bold) node = <strong>{node}</strong>;
+        return <React.Fragment key={ri}>{node}</React.Fragment>;
+      })}
+    </>
+  );
+}
+
+function BlockLine({ type, text, tone, parts, runs, ranges, sceneId, blockIndex, theme, highlight, sceneNumber, onAnnotationClick }: TonedBlock & {
+  theme: ScriptTheme;
+  highlight?: string;
+  sceneNumber?: string;
+  onAnnotationClick?: (annotation: ScriptAnnotation) => void;
+}) {
   const toneCls = TONE_CLASSES[theme][tone];
   const partCls = PART_CLASSES[theme];
   const partsNode = parts && parts.length > 0
@@ -125,36 +189,41 @@ function BlockLine({ type, text, tone, parts, runs, theme, highlight, sceneNumbe
       </>
     )
     : null;
-  const content = partsNode ?? (runs && runs.length > 0
-    ? <InlineRuns runs={runs} highlight={highlight} theme={theme} />
-    : <Highlighted text={text} query={highlight} theme={theme} />);
+  const content = partsNode ?? (ranges && ranges.length > 0
+    ? <AnnotatedText text={text} runs={runs} ranges={ranges} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} />
+    : (runs && runs.length > 0
+      ? <InlineRuns runs={runs} highlight={highlight} theme={theme} />
+      : <Highlighted text={text} query={highlight} theme={theme} />));
+  const attrs = blockIndex != null
+    ? { 'data-script-block': String(blockIndex), 'data-script-scene': sceneId }
+    : {};
   switch (type) {
     case 'page_break':
-      return <div className={`my-2 border-t border-dashed ${theme === 'light' ? 'border-zinc-400' : 'border-zinc-600/60'}`} />;
+      return <div {...attrs} className={`my-2 border-t border-dashed ${theme === 'light' ? 'border-zinc-400' : 'border-zinc-600/60'}`} />;
     case 'heading':
       return (
-        <div className={`relative mt-4 font-bold uppercase tracking-wide ${toneCls}`}>
+        <div {...attrs} className={`relative mt-4 font-bold uppercase tracking-wide ${toneCls}`}>
           {sceneNumber && (
-            <span className={`absolute right-full mr-3 font-normal normal-case ${theme === 'light' ? 'text-zinc-400' : 'text-zinc-500'}`}>{sceneNumber}</span>
+            <span data-scene-number-label className={`absolute right-full mr-3 font-normal normal-case ${theme === 'light' ? 'text-zinc-400' : 'text-zinc-500'}`}>{sceneNumber}</span>
           )}
           {content}
         </div>
       );
     case 'character':
-      return <div className={`mt-3 pl-[36%] uppercase ${toneCls}`}>{content}</div>;
+      return <div {...attrs} className={`mt-3 pl-[36%] uppercase ${toneCls}`}>{content}</div>;
     case 'parenthetical':
-      return <div className={`pl-[30%] pr-[26%] italic ${toneCls}`}>{content}</div>;
+      return <div {...attrs} className={`pl-[30%] pr-[26%] italic ${toneCls}`}>{content}</div>;
     case 'dialogue':
     case 'dual_left':
     case 'dual_right':
-      return <div className={`pl-[22%] pr-[26%] ${toneCls}`}>{content}</div>;
+      return <div {...attrs} className={`pl-[22%] pr-[26%] ${toneCls}`}>{content}</div>;
     case 'transition':
-      return <div className={`mt-3 text-right uppercase ${toneCls}`}>{content}</div>;
+      return <div {...attrs} className={`mt-3 text-right uppercase ${toneCls}`}>{content}</div>;
     case 'shot':
-      return <div className={`mt-3 uppercase ${toneCls}`}>{content}</div>;
+      return <div {...attrs} className={`mt-3 uppercase ${toneCls}`}>{content}</div>;
     case 'action':
     default:
-      return <div className={`mt-2 ${toneCls}`}>{content}</div>;
+      return <div {...attrs} className={`mt-2 ${toneCls}`}>{content}</div>;
   }
 }
 
@@ -162,7 +231,7 @@ const DUAL_RUN_TYPES = new Set<ScriptBlockType>(['character', 'parenthetical', '
 
 /** Split a run of dual blocks into left/right columns at the character cue
  *  immediately before the first `dual_right`. */
-function DualColumns({ run, theme, highlight }: { run: TonedBlock[]; theme: ScriptTheme; highlight?: string }) {
+function DualColumns({ run, theme, highlight, onAnnotationClick }: { run: TonedBlock[]; theme: ScriptTheme; highlight?: string; onAnnotationClick?: (annotation: ScriptAnnotation) => void }) {
   const rightIdx = run.findIndex(b => b.type === 'dual_right');
   let splitAt = rightIdx === -1 ? run.length : rightIdx;
   if (rightIdx > 0) {
@@ -174,13 +243,13 @@ function DualColumns({ run, theme, highlight }: { run: TonedBlock[]; theme: Scri
   const right = splitAt === -1 ? [] : run.slice(splitAt);
   return (
     <div className="grid grid-cols-2 gap-x-6 mt-1">
-      <div>{left.map((b, i) => <BlockLine key={i} {...b} theme={theme} highlight={highlight} />)}</div>
-      <div>{right.map((b, i) => <BlockLine key={i} {...b} theme={theme} highlight={highlight} />)}</div>
+      <div>{left.map((b, i) => <BlockLine key={i} {...b} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} />)}</div>
+      <div>{right.map((b, i) => <BlockLine key={i} {...b} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} />)}</div>
     </div>
   );
 }
 
-export function ScriptBlocksToned({ lines, theme = 'dark', highlight, sceneNumber }: { lines: TonedBlock[]; theme?: ScriptTheme; highlight?: string; sceneNumber?: string }) {
+export function ScriptBlocksToned({ lines, theme = 'dark', highlight, sceneNumber, onAnnotationClick }: { lines: TonedBlock[]; theme?: ScriptTheme; highlight?: string; sceneNumber?: string; onAnnotationClick?: (annotation: ScriptAnnotation) => void }) {
   const out: React.ReactNode[] = [];
   let i = 0;
   while (i < lines.length) {
@@ -188,9 +257,9 @@ export function ScriptBlocksToned({ lines, theme = 'dark', highlight, sceneNumbe
     if (block.type === 'dual_left' || block.type === 'dual_right') {
       const run: TonedBlock[] = [];
       while (i < lines.length && DUAL_RUN_TYPES.has(lines[i].type)) { run.push(lines[i]); i++; }
-      out.push(<DualColumns key={`dual-${i}`} run={run} theme={theme} highlight={highlight} />);
+      out.push(<DualColumns key={`dual-${i}`} run={run} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} />);
     } else {
-      out.push(<BlockLine key={i} {...block} theme={theme} highlight={highlight} sceneNumber={block.type === 'heading' ? sceneNumber : undefined} />);
+      out.push(<BlockLine key={i} {...block} theme={theme} highlight={highlight} sceneNumber={block.type === 'heading' ? sceneNumber : undefined} onAnnotationClick={onAnnotationClick} />);
       i++;
     }
   }
@@ -200,11 +269,27 @@ export function ScriptBlocksToned({ lines, theme = 'dark', highlight, sceneNumbe
 const sameTone = (blocks: ScriptBlock[]): TonedBlock[] =>
   blocks.map(([type, text, runs]) => ({ type, text, tone: 'same' as const, runs }));
 
-export function ScriptBlocks({ blocks, theme = 'dark', highlight, sceneNumber }: { blocks: ScriptBlock[]; theme?: ScriptTheme; highlight?: string; sceneNumber?: string }) {
-  return <ScriptBlocksToned lines={sameTone(blocks)} theme={theme} highlight={highlight} sceneNumber={sceneNumber} />;
+export function ScriptBlocks({ blocks, theme = 'dark', highlight, sceneNumber, annotations, sceneId, onAnnotationClick }: {
+  blocks: ScriptBlock[];
+  theme?: ScriptTheme;
+  highlight?: string;
+  sceneNumber?: string;
+  /** Tag spans for this scene (already filtered to it). */
+  annotations?: ScriptAnnotation[];
+  /** Live scene id the blocks belong to — keys the tag spans + selection. */
+  sceneId?: string;
+  onAnnotationClick?: (annotation: ScriptAnnotation) => void;
+}) {
+  const lines = sameTone(blocks).map((b, i) => ({
+    ...b,
+    ranges: rangesForBlock(annotations, sceneId, i),
+    sceneId,
+    blockIndex: i,
+  }));
+  return <ScriptBlocksToned lines={lines} theme={theme} highlight={highlight} sceneNumber={sceneNumber} onAnnotationClick={onAnnotationClick} />;
 }
 
-export function ScriptSceneText({ scene, className = '', theme = 'dark', fontClass = 'text-[12.5px] leading-[1.45]', highlight, sceneNumber }: {
+export function ScriptSceneText({ scene, className = '', theme = 'dark', fontClass = 'text-[12.5px] leading-[1.45]', highlight, sceneNumber, annotations, sceneId, onAnnotationClick }: {
   scene: ScriptScene;
   className?: string;
   theme?: ScriptTheme;
@@ -213,10 +298,14 @@ export function ScriptSceneText({ scene, className = '', theme = 'dark', fontCla
   highlight?: string;
   /** Rendered inline on the scene heading (Final-Draft-style). */
   sceneNumber?: string;
+  /** Tag spans (roadmap 123 Phase 2) + the live scene id they anchor to. */
+  annotations?: ScriptAnnotation[];
+  sceneId?: string;
+  onAnnotationClick?: (annotation: ScriptAnnotation) => void;
 }) {
   return (
     <div className={`font-mono ${fontClass} ${theme === 'light' ? 'font-medium text-zinc-950' : 'text-zinc-200'} ${className}`}>
-      <ScriptBlocks blocks={scene.blocks} theme={theme} highlight={highlight} sceneNumber={sceneNumber} />
+      <ScriptBlocks blocks={scene.blocks} theme={theme} highlight={highlight} sceneNumber={sceneNumber} annotations={annotations} sceneId={sceneId} onAnnotationClick={onAnnotationClick} />
     </div>
   );
 }

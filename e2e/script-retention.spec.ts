@@ -209,6 +209,61 @@ test.describe('Scene script pane (roadmap 132 Part A)', () => {
   });
 });
 
+test.describe('script tagging (roadmap 123 Phase 2 / 132 Part B)', () => {
+  test('tags a phrase, cascades an element rename, and removes the tag', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-tag.fdx', FDX_A));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
+    await page.getByRole('button', { name: 'Script', exact: true }).click();
+
+    // Select the word "coffee" in the action block and raise the Tag affordance.
+    await page.evaluate(() => {
+      const block = Array.from(document.querySelectorAll('[data-script-block]'))
+        .find(b => (b.textContent || '').includes('coffee')) as HTMLElement | undefined;
+      if (!block) throw new Error('action block not found');
+      const node = block.firstChild as Text;
+      const idx = node.textContent!.indexOf('coffee');
+      const range = document.createRange();
+      range.setStart(node, idx);
+      range.setEnd(node, idx + 'coffee'.length);
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      block.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+
+    await page.getByTestId('script-tag-floating').click();
+    const modal = page.getByTestId('script-tag-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText('coffee');
+
+    // Create a new prop for the phrase (routes through addNewElement).
+    const input = modal.locator('input').first();
+    await input.click();
+    await input.fill('COFFEE');
+    await input.press('Enter');
+    await page.getByRole('button', { name: 'Tag', exact: true }).click();
+
+    await waitForPersistedProject(page, "(p.scriptAnnotations && p.scriptAnnotations.length === 1)");
+    const saved = (await bridgeProject(page)).scriptAnnotations[0];
+    expect(saved).toMatchObject({ category: 'props', elementKey: 'COFFEE', text: 'coffee' });
+    await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveText('coffee');
+
+    // Renaming the prop cascades to the annotation (roadmap 132 Part B).
+    await page.evaluate(() => (window as any).__lemonSchedule.dispatch({
+      type: 'UPDATE_ELEMENT', payload: { category: 'props', id: 'COFFEE', updates: { name: 'PISTOL' } },
+    }));
+    expect((await bridgeProject(page)).scriptAnnotations[0].elementKey).toBe('PISTOL');
+
+    // Clicking the tag opens the editor; Remove clears it.
+    await page.locator(`[data-annotation-id="${saved.id}"]`).click();
+    await expect(modal).toBeVisible();
+    await page.getByRole('button', { name: 'Remove' }).click();
+    await page.waitForFunction(() => !(window as any).__lemonSchedule.getProject().scriptAnnotations?.length);
+    await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveCount(0);
+  });
+});
+
 test.describe('Script viewer tools (roadmap 123 Phase 1)', () => {
   test('search highlights, set navigator, eighths ruler and update button', async ({ page }) => {
     await openSeededProject(page);

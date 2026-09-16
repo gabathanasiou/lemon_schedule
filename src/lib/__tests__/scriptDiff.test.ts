@@ -128,6 +128,42 @@ describe('diffScripts', () => {
     expect(props?.removed).toEqual(['ROPE']);
   });
 
+  it('flags a field the user edited since the last import when the script changes it (roadmap 38)', () => {
+    // Baseline (last import) = CLINIC; user edited it to KITCHEN in-app; the new
+    // script says SCHOOL. That is a conflict, not a silent take.
+    const oldScenes = [scene({ sceneNumber: '1', set: 'KITCHEN' })];
+    const newScenes = [parsed({ sceneNumber: '1', set: 'SCHOOL' })];
+    const result = diffScripts(oldScenes, newScenes, {
+      ...opts(),
+      baselineScenes: [{ sceneNumber: '1', fields: { intExt: 'INT', set: 'CLINIC', dayNight: 'DAY' } }],
+    });
+    const set = result.entries[0].fields.find(f => f.key === 'set');
+    expect(set).toMatchObject({ before: 'KITCHEN', after: 'SCHOOL', baseline: 'CLINIC', conflict: true });
+  });
+
+  it('does NOT flag a field the user left at the imported value', () => {
+    const oldScenes = [scene({ sceneNumber: '1', set: 'CLINIC' })];
+    const newScenes = [parsed({ sceneNumber: '1', set: 'SCHOOL' })];
+    const result = diffScripts(oldScenes, newScenes, {
+      ...opts(),
+      baselineScenes: [{ sceneNumber: '1', fields: { intExt: 'INT', set: 'CLINIC', dayNight: 'DAY' } }],
+    });
+    const set = result.entries[0].fields.find(f => f.key === 'set');
+    expect(set?.conflict).toBeUndefined();
+    expect(set?.baseline).toBeUndefined();
+  });
+
+  it('flags an element the user added in-app', () => {
+    const oldScenes = [scene({ sceneNumber: '1', props: 'KNIFE, ROPE' })];
+    const newScenes = [parsed({ sceneNumber: '1', taggedElements: { props: ['KNIFE', 'LAMP'] } })];
+    const result = diffScripts(oldScenes, newScenes, {
+      ...opts(),
+      baselineScenes: [{ sceneNumber: '1', fields: { props: 'KNIFE' } }],
+    });
+    const props = result.entries[0].fields.find(f => f.key === 'props');
+    expect(props).toMatchObject({ baseline: 'KNIFE', conflict: true });
+  });
+
   it('flags a split: an added high-similarity fragment of a matched scene', () => {
     const oldBody = script({ '8': ['The bank runs. George cheers wildly.'] });
     const newBody = script({

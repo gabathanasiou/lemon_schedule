@@ -3,6 +3,7 @@ import { getSceneFieldValue } from '../reducer';
 import type { Action, State } from '../reducer';
 import { generateUUID } from '../../lib/utils';
 import { getFieldItems, isMultiValue } from '../../lib/categories';
+import { cascadeAnnotationRename } from '../../lib/scriptAnnotations';
 import type { RuleTrashItem, ElementTrashItem, CategoryTrashItem } from '../../types';
 
 export type ApplyChange = (p: Project) => State;
@@ -190,9 +191,20 @@ export function caseUpdateElement(state: State, action: Action, applyChange: App
     }
   }
 
+  // Screenplay tags point at the element (cast by id, others by name) — a
+  // rename/id-change must update them in the SAME batch or they dangle
+  // (roadmap 132 Part B; name-keyed only, cast ids are stable on rename).
+  let newAnnotations = state.present.scriptAnnotations;
+  if (isCast) {
+    if (updates.id && updates.id !== id) newAnnotations = cascadeAnnotationRename(newAnnotations, category, String(id), String(updates.id));
+  } else if (updates.name && updates.name !== old.name) {
+    newAnnotations = cascadeAnnotationRename(newAnnotations, category, old.name, updates.name);
+  }
+
   return applyChange({
     ...state.present,
     scenes: newScenes,
+    scriptAnnotations: newAnnotations,
     breakdownElements: isCast
       ? state.present.breakdownElements
       : { ...state.present.breakdownElements, [category]: newList },
