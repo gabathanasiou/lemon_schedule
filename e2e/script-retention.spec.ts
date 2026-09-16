@@ -213,14 +213,14 @@ test.describe('Scene script pane (roadmap 132 Part A)', () => {
   });
 });
 
-test.describe('script tagging (roadmap 123 Phase 2 / 132 Part B)', () => {
-  test('tags a phrase, cascades an element rename, and removes the tag', async ({ page }) => {
+test.describe('script tagging — selection menu (roadmap 136)', () => {
+  test('highlight → Props writes the scene field and tags the span; hover badge; change category; remove', async ({ page }) => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-tag.fdx', FDX_A));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
     await page.getByRole('button', { name: 'Script', exact: true }).click();
 
-    // Select the word "coffee" in the action block and raise the Tag affordance.
+    // Select "coffee" in the action block — the category menu opens.
     await page.evaluate(() => {
       const block = Array.from(document.querySelectorAll('[data-script-block]'))
         .find(b => (b.textContent || '').includes('coffee')) as HTMLElement | undefined;
@@ -236,51 +236,73 @@ test.describe('script tagging (roadmap 123 Phase 2 / 132 Part B)', () => {
       block.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     });
 
-    await page.getByTestId('script-tag-floating').click();
-    const modal = page.getByTestId('script-tag-modal');
-    await expect(modal).toBeVisible();
-    await expect(modal).toContainText('coffee');
-
-    // Create a new prop for the phrase (routes through addNewElement).
-    const input = modal.locator('input').first();
-    await input.click();
-    await input.fill('COFFEE');
-    await input.press('Enter');
-    await page.getByRole('button', { name: 'Tag', exact: true }).click();
-
+    await page.getByRole('menuitem', { name: 'Props' }).click();
     await waitForPersistedProject(page, "(p.scriptAnnotations && p.scriptAnnotations.length === 1)");
     const saved = (await bridgeProject(page)).scriptAnnotations[0];
     expect(saved).toMatchObject({ category: 'props', elementKey: 'COFFEE', text: 'coffee' });
-    await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveText('coffee');
+    // The highlight became the element AND the scene field.
+    const taggedScene = (await bridgeProject(page)).scenes.find((s: any) => s.id === saved.sceneId);
+    expect(taggedScene.props).toContain('COFFEE');
 
-    // Renaming the prop cascades to the annotation (roadmap 132 Part B).
-    await page.evaluate(() => (window as any).__lemonSchedule.dispatch({
-      type: 'UPDATE_ELEMENT', payload: { category: 'props', id: 'COFFEE', updates: { name: 'PISTOL' } },
-    }));
-    expect((await bridgeProject(page)).scriptAnnotations[0].elementKey).toBe('PISTOL');
+    const span = page.locator(`[data-annotation-id="${saved.id}"]`);
+    await expect(span).toHaveText('coffee');
+    // Hover badge: category · element.
+    await span.hover();
+    await expect(page.getByTestId('script-tag-badge')).toContainText('Props');
+    await expect(page.getByTestId('script-tag-badge')).toContainText('COFFEE');
 
-    // The page still says "coffee"; the editor shows the divergence and offers
-    // the explicit rewrite (which records the old wording as an alias).
-    await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveText('coffee');
-    await page.locator(`[data-annotation-id="${saved.id}"]`).click();
-    await expect(modal).toBeVisible();
-    await expect(modal).toContainText('Script: “coffee”');
-    await page.getByRole('button', { name: 'Update script text' }).click();
-    await page.waitForFunction(() => {
-      const p = (window as any).__lemonSchedule.getProject();
-      return p.scriptAnnotations?.[0]?.text === 'PISTOL' && p.elementAliases?.props?.coffee === 'PISTOL';
-    });
-    const updated = await bridgeProject(page);
-    const actionBlock = updated.scriptDocument.scenes.find((s: any) => s.sceneNumber === '1').blocks.find((b: any) => b[0] === 'action');
-    expect(actionBlock[1]).toContain('PISTOL');
-    await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveText('PISTOL');
+    // Change category: the scene-field attachment swaps, never stacks.
+    await span.click();
+    await page.getByRole('menuitem', { name: 'Wardrobe' }).click();
+    await page.waitForFunction(() => (window as any).__lemonSchedule.getProject().scriptAnnotations?.[0]?.category === 'wardrobe');
+    const swapped = (await bridgeProject(page)).scenes.find((s: any) => s.id === saved.sceneId);
+    expect(swapped.props).not.toContain('COFFEE');
+    expect(swapped.wardrobe).toContain('COFFEE');
 
-    // Clicking the tag opens the editor; Remove clears it.
-    await page.locator(`[data-annotation-id="${saved.id}"]`).click();
-    await expect(modal).toBeVisible();
-    await page.getByRole('button', { name: 'Remove' }).click();
+    // Remove.
+    await span.click();
+    await page.getByRole('menuitem', { name: 'Remove' }).click();
     await page.waitForFunction(() => !(window as any).__lemonSchedule.getProject().scriptAnnotations?.length);
     await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveCount(0);
+  });
+
+  test('a recognised FDX tag commits through the menu; the Suggestions toggle gates derived spans', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-tagged-menu.fdx', FDX_TAGGED));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptAnnotations && p.scriptAnnotations.length === 1)");
+    await page.getByRole('button', { name: 'Script', exact: true }).click();
+
+    // Recognised (dotted) imported tag — committing via the same menu makes it solid.
+    const recognised = page.locator('[data-annotation-recognized="1"]');
+    await expect(recognised).toHaveText('revolver');
+    await recognised.click();
+    await page.getByRole('menuitem', { name: 'Props' }).click();
+    await page.waitForFunction(() => {
+      const a = (window as any).__lemonSchedule.getProject().scriptAnnotations?.[0];
+      return a && !a.recognized;
+    });
+
+    // Seed a known element + a body that mentions it → an ephemeral suggestion.
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const scene = p.scenes[0];
+      b.dispatch({ type: 'ADD_ELEMENT', payload: { category: 'props', element: { id: 'ZORB', name: 'ZORB' } } });
+      b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: { format: 'fdx', scenes: [
+        { sceneNumber: scene.sceneNumber, blocks: [['heading', 'INT. X - DAY'], ['action', 'The ZORB is here.']] },
+      ] } } });
+    });
+
+    const suggestion = page.locator('[data-annotation-recognized="1"]');
+    await expect(suggestion).toHaveText('ZORB');
+    // The suggestion is computed, never persisted.
+    expect((await bridgeProject(page)).scriptAnnotations?.some((a: any) => a.id.startsWith('suggest:'))).toBeFalsy();
+
+    // Toggle Suggestions off hides every non-committed span; on shows them again.
+    await page.getByRole('button', { name: 'Suggestions' }).click();
+    await expect(page.locator('[data-annotation-recognized="1"]')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Suggestions' }).click();
+    await expect(page.locator('[data-annotation-recognized="1"]')).toHaveText('ZORB');
   });
 });
 

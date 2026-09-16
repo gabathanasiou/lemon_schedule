@@ -194,7 +194,9 @@ const E2E_SPEC_CAP = 70;
 // 260 → 267: roadmap 38 script-diff acceptance (split/merge badges + in-app edit
 // conflict), 132 Part D duplicate modes and Part F tag remap — behavior needs
 // real DOM/file-chooser coverage, not unit-only.
-const E2E_TEST_CAP = 267;
+// 267 → 268: roadmap 136 tagging overhaul (selection→category menu + FDX commit
+// + the Suggestions toggle) needs a second spec case; the old picker e2e is gone.
+const E2E_TEST_CAP = 268;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

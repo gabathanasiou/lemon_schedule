@@ -122,13 +122,14 @@ function InlineRuns({ runs, highlight, theme }: { runs: ScriptInline[]; highligh
 /** Render a block's text with tag spans layered over the plain text / inline
  *  runs, preserving bold/italic/underline and search highlights inside them
  *  (roadmap 123 Phase 2). */
-function AnnotatedText({ text, runs, ranges, theme, highlight, onAnnotationClick }: {
+function AnnotatedText({ text, runs, ranges, theme, highlight, onAnnotationClick, onAnnotationHover }: {
   text: string;
   runs?: ScriptInline[];
   ranges: AnnotationRange[];
   theme: ScriptTheme;
   highlight?: string;
-  onAnnotationClick?: (annotation: ScriptAnnotation) => void;
+  onAnnotationClick?: (annotation: ScriptAnnotation, event?: React.MouseEvent) => void;
+  onAnnotationHover?: (annotation: ScriptAnnotation | null, event?: React.MouseEvent) => void;
 }) {
   const pieces: ScriptInline[] = runs && runs.length > 0 ? runs : [{ text }];
   let offset = 0;
@@ -151,7 +152,9 @@ function AnnotatedText({ text, runs, ranges, theme, highlight, onAnnotationClick
                   data-annotation-recognized={s.annotation.recognized ? '1' : undefined}
                   role={onAnnotationClick ? 'button' : undefined}
                   tabIndex={onAnnotationClick ? 0 : undefined}
-                  onClick={onAnnotationClick ? (e) => { e.stopPropagation(); onAnnotationClick(s.annotation!); } : undefined}
+                  onClick={onAnnotationClick ? (e) => { e.stopPropagation(); onAnnotationClick(s.annotation!, e); } : undefined}
+                  onMouseEnter={onAnnotationHover ? (e) => onAnnotationHover(s.annotation!, e) : undefined}
+                  onMouseLeave={onAnnotationHover ? () => onAnnotationHover(null) : undefined}
                   className={`rounded-[2px] ${onAnnotationClick ? 'cursor-pointer' : ''}`}
                   style={{ backgroundColor: `${color}26`, borderBottom: `2px ${s.annotation.recognized ? 'dotted' : 'solid'} ${color}` }}
                 >
@@ -170,11 +173,12 @@ function AnnotatedText({ text, runs, ranges, theme, highlight, onAnnotationClick
   );
 }
 
-function BlockLine({ type, text, tone, parts, runs, ranges, sceneId, blockIndex, theme, highlight, sceneNumber, onAnnotationClick }: TonedBlock & {
+function BlockLine({ type, text, tone, parts, runs, ranges, sceneId, blockIndex, theme, highlight, sceneNumber, onAnnotationClick, onAnnotationHover }: TonedBlock & {
   theme: ScriptTheme;
   highlight?: string;
   sceneNumber?: string;
-  onAnnotationClick?: (annotation: ScriptAnnotation) => void;
+  onAnnotationClick?: (annotation: ScriptAnnotation, event?: React.MouseEvent) => void;
+  onAnnotationHover?: (annotation: ScriptAnnotation | null, event?: React.MouseEvent) => void;
 }) {
   const toneCls = TONE_CLASSES[theme][tone];
   const partCls = PART_CLASSES[theme];
@@ -190,7 +194,7 @@ function BlockLine({ type, text, tone, parts, runs, ranges, sceneId, blockIndex,
     )
     : null;
   const content = partsNode ?? (ranges && ranges.length > 0
-    ? <AnnotatedText text={text} runs={runs} ranges={ranges} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} />
+    ? <AnnotatedText text={text} runs={runs} ranges={ranges} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} onAnnotationHover={onAnnotationHover} />
     : (runs && runs.length > 0
       ? <InlineRuns runs={runs} highlight={highlight} theme={theme} />
       : <Highlighted text={text} query={highlight} theme={theme} />));
@@ -231,7 +235,7 @@ const DUAL_RUN_TYPES = new Set<ScriptBlockType>(['character', 'parenthetical', '
 
 /** Split a run of dual blocks into left/right columns at the character cue
  *  immediately before the first `dual_right`. */
-function DualColumns({ run, theme, highlight, onAnnotationClick }: { run: TonedBlock[]; theme: ScriptTheme; highlight?: string; onAnnotationClick?: (annotation: ScriptAnnotation) => void }) {
+function DualColumns({ run, theme, highlight, onAnnotationClick, onAnnotationHover }: { run: TonedBlock[]; theme: ScriptTheme; highlight?: string; onAnnotationClick?: (annotation: ScriptAnnotation, event?: React.MouseEvent) => void; onAnnotationHover?: (annotation: ScriptAnnotation | null, event?: React.MouseEvent) => void }) {
   const rightIdx = run.findIndex(b => b.type === 'dual_right');
   let splitAt = rightIdx === -1 ? run.length : rightIdx;
   if (rightIdx > 0) {
@@ -243,13 +247,13 @@ function DualColumns({ run, theme, highlight, onAnnotationClick }: { run: TonedB
   const right = splitAt === -1 ? [] : run.slice(splitAt);
   return (
     <div className="grid grid-cols-2 gap-x-6 mt-1">
-      <div>{left.map((b, i) => <BlockLine key={i} {...b} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} />)}</div>
-      <div>{right.map((b, i) => <BlockLine key={i} {...b} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} />)}</div>
+      <div>{left.map((b, i) => <BlockLine key={i} {...b} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} onAnnotationHover={onAnnotationHover} />)}</div>
+      <div>{right.map((b, i) => <BlockLine key={i} {...b} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} onAnnotationHover={onAnnotationHover} />)}</div>
     </div>
   );
 }
 
-export function ScriptBlocksToned({ lines, theme = 'dark', highlight, sceneNumber, onAnnotationClick }: { lines: TonedBlock[]; theme?: ScriptTheme; highlight?: string; sceneNumber?: string; onAnnotationClick?: (annotation: ScriptAnnotation) => void }) {
+export function ScriptBlocksToned({ lines, theme = 'dark', highlight, sceneNumber, onAnnotationClick, onAnnotationHover }: { lines: TonedBlock[]; theme?: ScriptTheme; highlight?: string; sceneNumber?: string; onAnnotationClick?: (annotation: ScriptAnnotation, event?: React.MouseEvent) => void; onAnnotationHover?: (annotation: ScriptAnnotation | null, event?: React.MouseEvent) => void }) {
   const out: React.ReactNode[] = [];
   let i = 0;
   while (i < lines.length) {
@@ -257,9 +261,9 @@ export function ScriptBlocksToned({ lines, theme = 'dark', highlight, sceneNumbe
     if (block.type === 'dual_left' || block.type === 'dual_right') {
       const run: TonedBlock[] = [];
       while (i < lines.length && DUAL_RUN_TYPES.has(lines[i].type)) { run.push(lines[i]); i++; }
-      out.push(<DualColumns key={`dual-${i}`} run={run} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} />);
+      out.push(<DualColumns key={`dual-${i}`} run={run} theme={theme} highlight={highlight} onAnnotationClick={onAnnotationClick} onAnnotationHover={onAnnotationHover} />);
     } else {
-      out.push(<BlockLine key={i} {...block} theme={theme} highlight={highlight} sceneNumber={block.type === 'heading' ? sceneNumber : undefined} onAnnotationClick={onAnnotationClick} />);
+      out.push(<BlockLine key={i} {...block} theme={theme} highlight={highlight} sceneNumber={block.type === 'heading' ? sceneNumber : undefined} onAnnotationClick={onAnnotationClick} onAnnotationHover={onAnnotationHover} />);
       i++;
     }
   }
@@ -269,7 +273,7 @@ export function ScriptBlocksToned({ lines, theme = 'dark', highlight, sceneNumbe
 const sameTone = (blocks: ScriptBlock[]): TonedBlock[] =>
   blocks.map(([type, text, runs]) => ({ type, text, tone: 'same' as const, runs }));
 
-export function ScriptBlocks({ blocks, theme = 'dark', highlight, sceneNumber, annotations, sceneId, onAnnotationClick }: {
+export function ScriptBlocks({ blocks, theme = 'dark', highlight, sceneNumber, annotations, sceneId, onAnnotationClick, onAnnotationHover }: {
   blocks: ScriptBlock[];
   theme?: ScriptTheme;
   highlight?: string;
@@ -278,7 +282,8 @@ export function ScriptBlocks({ blocks, theme = 'dark', highlight, sceneNumber, a
   annotations?: ScriptAnnotation[];
   /** Live scene id the blocks belong to — keys the tag spans + selection. */
   sceneId?: string;
-  onAnnotationClick?: (annotation: ScriptAnnotation) => void;
+  onAnnotationClick?: (annotation: ScriptAnnotation, event?: React.MouseEvent) => void;
+  onAnnotationHover?: (annotation: ScriptAnnotation | null, event?: React.MouseEvent) => void;
 }) {
   const lines = sameTone(blocks).map((b, i) => ({
     ...b,
@@ -286,10 +291,10 @@ export function ScriptBlocks({ blocks, theme = 'dark', highlight, sceneNumber, a
     sceneId,
     blockIndex: i,
   }));
-  return <ScriptBlocksToned lines={lines} theme={theme} highlight={highlight} sceneNumber={sceneNumber} onAnnotationClick={onAnnotationClick} />;
+  return <ScriptBlocksToned lines={lines} theme={theme} highlight={highlight} sceneNumber={sceneNumber} onAnnotationClick={onAnnotationClick} onAnnotationHover={onAnnotationHover} />;
 }
 
-export function ScriptSceneText({ scene, className = '', theme = 'dark', fontClass = 'text-[12.5px] leading-[1.45]', highlight, sceneNumber, annotations, sceneId, onAnnotationClick }: {
+export function ScriptSceneText({ scene, className = '', theme = 'dark', fontClass = 'text-[12.5px] leading-[1.45]', highlight, sceneNumber, annotations, sceneId, onAnnotationClick, onAnnotationHover }: {
   scene: ScriptScene;
   className?: string;
   theme?: ScriptTheme;
@@ -301,11 +306,12 @@ export function ScriptSceneText({ scene, className = '', theme = 'dark', fontCla
   /** Tag spans (roadmap 123 Phase 2) + the live scene id they anchor to. */
   annotations?: ScriptAnnotation[];
   sceneId?: string;
-  onAnnotationClick?: (annotation: ScriptAnnotation) => void;
+  onAnnotationClick?: (annotation: ScriptAnnotation, event?: React.MouseEvent) => void;
+  onAnnotationHover?: (annotation: ScriptAnnotation | null, event?: React.MouseEvent) => void;
 }) {
   return (
     <div className={`font-mono ${fontClass} ${theme === 'light' ? 'font-medium text-zinc-950' : 'text-zinc-200'} ${className}`}>
-      <ScriptBlocks blocks={scene.blocks} theme={theme} highlight={highlight} sceneNumber={sceneNumber} annotations={annotations} sceneId={sceneId} onAnnotationClick={onAnnotationClick} />
+      <ScriptBlocks blocks={scene.blocks} theme={theme} highlight={highlight} sceneNumber={sceneNumber} annotations={annotations} sceneId={sceneId} onAnnotationClick={onAnnotationClick} onAnnotationHover={onAnnotationHover} />
     </div>
   );
 }

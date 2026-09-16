@@ -1,15 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronUp, ExternalLink, FileText, Ruler, Scissors, Search, Tag as TagIcon, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, FileText, Ruler, Scissors, Search, Sparkles, Upload } from 'lucide-react';
 import { useProject } from '../store';
 import { ScriptSceneText } from './script/ScriptSceneScript';
 import { EighthsRuler } from './script/EighthsRuler';
-import ScriptTagModal, { type ScriptTagTarget } from './script/ScriptTagModal';
+import ScriptTagMenu, { type ScriptTagMenuState } from './script/ScriptTagMenu';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
 import Button from './Button';
+import { FloatingTooltip } from './FloatingTooltip';
 import { useDialog } from './Dialog';
 import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
 import { mergeSceneWithNext } from '../lib/scriptSceneOps';
+import { annotationColor } from '../lib/scriptAnnotations';
+import {
+  commitTag,
+  suggestionRanges,
+  annotationElementName,
+  annotationCategoryLabel,
+  type ScriptTagTarget,
+} from '../lib/scriptTagging';
 import { usePersistState } from '../lib/persist';
 import { TEST_IDS } from '../lib/testIds';
 import type { ScriptAnnotation, ScriptScene } from '../types';
@@ -18,6 +27,19 @@ import type { ScriptAnnotation, ScriptScene } from '../types';
 function closestScriptBlock(node: Node | null): HTMLElement | null {
   const el = node instanceof HTMLElement ? node : node?.parentElement ?? null;
   return (el?.closest('[data-script-block]') as HTMLElement | null) ?? null;
+}
+
+/** The plain body text of a block, skipping the inline scene-number label (it
+ *  renders inside the heading block but isn't body). */
+function blockTextOf(root: HTMLElement): string {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let text = '';
+  let n: Node | null;
+  while ((n = walker.nextNode())) {
+    if (n.parentElement?.closest('[data-scene-number-label]')) continue;
+    text += n.textContent || '';
+  }
+  return text;
 }
 
 /** Character offset of `(node, offset)` within `root`, skipping the inline
@@ -61,6 +83,11 @@ function setFromHeading(scene: ScriptScene): string {
  * with inline highlights, an eighths ruler, scroll memory and scene-linked jumps
  * into Sheet / Schedule. Rendering is the shared `ScriptSceneText` (light theme)
  * — never a second screenplay renderer.
+ *
+ * Tagging (roadmap 136): select text → a kit `ContextMenu` of every element
+ * category; the highlight BECOMES the element. Committed tags are solid and
+ * category-coloured; the Suggestions toggle shows ephemeral derived spans
+ * (cast cues / known element names) and imported recognised tags as dotted.
  */
 export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdateScript, onCutScene }: {
   headerTarget?: HTMLElement | null;
@@ -69,7 +96,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   onUpdateScript?: () => void;
   onCutScene?: (sceneId: string) => void;
 }) {
-  const { state, dispatch } = useProject();
+  const { state, dispatch, readOnly } = useProject();
   const dialog = useDialog();
   const project = state.present;
   const doc = project.scriptDocument;
@@ -86,45 +113,78 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   const [query, setQuery] = useState('');
   const [matchPos, setMatchPos] = useState(0);
   const [showEighths, setShowEighths] = useState(true);
+  const [showSuggestions, setShowSuggestions] = usePersistState('lemon_schedule_script_suggestions', true);
   const [contentHeight, setContentHeight] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [sidebarPref, setSidebarPref] = usePersistState('lemon_schedule_script_sidebar', { width: 320 });
 
-  const scriptAnnotations = project.scriptAnnotations;
-  const [tagModal, setTagModal] = useState<{ target: ScriptTagTarget; annotation?: ScriptAnnotation } | null>(null);
-  const [pendingTag, setPendingTag] = useState<{ target: ScriptTagTarget; top: number; left: number } | null>(null);
+  const [tagMenu, setTagMenu] = useState<ScriptTagMenuState | null>(null);
+  const [hovered, setHovered] = useState<{ annotation: ScriptAnnotation; x: number; y: number } | null>(null);
 
-  // Selection → a floating Tag affordance (roadmap 123 Phase 2). Deferred so the
-  // browser has committed the selection before we read it.
+  // A text selection opens the category menu. Deferred so the browser has
+  // committed the selection before we read it.
   const handleSelectionEnd = useCallback(() => {
     window.setTimeout(() => {
+      if (readOnly) return;
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || sel.rangeCount === 0) { setPendingTag(null); return; }
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+        // Never clobber a menu opened by a click on a tag (its click fires
+        // after this mouseup).
+        setTagMenu(prev => (prev && prev.source === 'annotation' ? prev : null));
+        return;
+      }
       const range = sel.getRangeAt(0);
       const startBlock = closestScriptBlock(range.startContainer);
       const endBlock = closestScriptBlock(range.endContainer);
-      if (!startBlock || startBlock !== endBlock) { setPendingTag(null); return; }
+      if (!startBlock || startBlock !== endBlock) return;
       const sceneId = startBlock.getAttribute('data-script-scene') || '';
       const blockIndex = Number(startBlock.getAttribute('data-script-block'));
-      if (!sceneId || Number.isNaN(blockIndex)) { setPendingTag(null); return; }
-      const start = offsetWithinBlock(startBlock, range.startContainer, range.startOffset);
-      const end = offsetWithinBlock(startBlock, range.endContainer, range.endOffset);
-      const text = (sel.toString() || '').trim();
-      if (end <= start || !text) { setPendingTag(null); return; }
+      if (!sceneId || Number.isNaN(blockIndex)) return;
+      const body = blockTextOf(startBlock);
+      let start = offsetWithinBlock(startBlock, range.startContainer, range.startOffset);
+      let end = offsetWithinBlock(startBlock, range.endContainer, range.endOffset);
+      while (start < end && /\s/.test(body[start])) start++;
+      while (end > start && /\s/.test(body[end - 1])) end--;
+      if (end <= start) return;
+      const text = body.slice(start, end);
+      const existing = (project.scriptAnnotations || []).find(
+        a => a.sceneId === sceneId && a.blockIndex === blockIndex && a.start === start && a.end === end,
+      );
       const rect = range.getBoundingClientRect();
-      setPendingTag({ target: { sceneId, blockIndex, start, end, text }, top: rect.top, left: rect.left + rect.width / 2 });
+      setTagMenu({ x: rect.left, y: rect.bottom, target: { sceneId, blockIndex, start, end, text }, existing, source: 'selection' });
     }, 0);
+  }, [readOnly, project.scriptAnnotations]);
+
+  const openAnnotation = useCallback((annotation: ScriptAnnotation, event?: React.MouseEvent) => {
+    if (readOnly) return;
+    setHovered(null);
+    const existing = (project.scriptAnnotations || []).find(a => a.id === annotation.id);
+    setTagMenu({
+      x: event?.clientX ?? 0,
+      y: event?.clientY ?? 0,
+      target: { sceneId: annotation.sceneId, blockIndex: annotation.blockIndex, start: annotation.start, end: annotation.end, text: annotation.text },
+      existing,
+      source: 'annotation',
+    });
+  }, [readOnly, project.scriptAnnotations]);
+
+  const handleAnnotationHover = useCallback((annotation: ScriptAnnotation | null, event?: React.MouseEvent) => {
+    if (!annotation) { setHovered(null); return; }
+    setHovered({ annotation, x: event?.clientX ?? 0, y: event?.clientY ?? 0 });
   }, []);
 
-  const openTagModal = useCallback(() => {
-    setTagModal(prev => (prev || !pendingTag ? prev : { target: pendingTag.target }));
-    setPendingTag(null);
-  }, [pendingTag]);
+  const commitCategory = useCallback((category: string) => {
+    if (!tagMenu || readOnly) return;
+    const { target, existing } = tagMenu;
+    commitTag(dispatch, project, target as ScriptTagTarget, category, existing);
+    setTagMenu(null);
+  }, [tagMenu, readOnly, dispatch, project]);
 
-  const openAnnotation = useCallback((a: ScriptAnnotation) => {
-    setPendingTag(null);
-    setTagModal({ target: { sceneId: a.sceneId, blockIndex: a.blockIndex, start: a.start, end: a.end, text: a.text }, annotation: a });
-  }, []);
+  const removeTag = useCallback(() => {
+    if (!tagMenu) return;
+    if (tagMenu.existing && !readOnly) dispatch({ type: 'REMOVE_SCRIPT_ANNOTATION', payload: tagMenu.existing.id });
+    setTagMenu(null);
+  }, [tagMenu, readOnly, dispatch]);
 
   const mergeNext = useCallback((sceneId: string) => {
     void dialog.confirm({
@@ -140,6 +200,27 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     projectScenes.forEach((s, index) => map.set(normalizeSceneNumber(s.sceneNumber), { id: s.id, index }));
     return map;
   }, [projectScenes]);
+
+  // Ephemeral, toggle-gated derived suggestions (never persisted).
+  const suggestions = useMemo(() => {
+    if (!showSuggestions || !doc) return [];
+    const out: ScriptAnnotation[] = [];
+    for (const s of doc.scenes) {
+      const live = sceneByIdentity.get(normalizeSceneNumber(s.sceneNumber));
+      if (!live) continue;
+      out.push(...suggestionRanges(project, projectScenes[live.index]));
+    }
+    return out;
+  }, [showSuggestions, doc, sceneByIdentity, project, projectScenes]);
+
+  // Committed (solid) + non-committed (dotted) spans, gated by the toggle.
+  const visibleAnnotations = useMemo(() => {
+    const stored = project.scriptAnnotations || [];
+    const committed = stored.filter(a => !a.recognized);
+    const nonCommitted = showSuggestions ? stored.filter(a => a.recognized && !a.id.startsWith('suggest:')) : [];
+    const derived = showSuggestions ? suggestions : [];
+    return [...committed, ...nonCommitted, ...derived];
+  }, [project.scriptAnnotations, showSuggestions, suggestions]);
 
   // Sidebar rows: every scene in order — number · INT/EXT · set (flat list).
   const navRows: SidebarNavRow[] = useMemo(() => {
@@ -235,7 +316,8 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   }, [activeIndex]);
 
   const handleScroll = useCallback(() => {
-    setPendingTag(null);
+    setHovered(null);
+    setTagMenu(prev => (prev?.source === 'selection' ? null : prev));
     if (activeRaf.current == null) {
       activeRaf.current = requestAnimationFrame(() => { activeRaf.current = null; updateActive(); });
     }
@@ -257,6 +339,21 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     ro.observe(el);
     return () => ro.disconnect();
   }, [doc, showEighths]);
+
+  const hoverBadge = hovered && (() => {
+    const a = hovered.annotation;
+    const name = annotationElementName(project, a);
+    const diverged = name.trim().toUpperCase() !== a.text.trim().toUpperCase();
+    return (
+      <div data-testid={TEST_IDS.scriptTagBadge} className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/95 px-2.5 py-1.5 text-[11px] text-zinc-200 shadow-2xl backdrop-blur-md">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: annotationColor(a.category) }} />
+        <span className="font-semibold">{annotationCategoryLabel(project, a.category)}</span>
+        <span className="text-zinc-500">·</span>
+        <span>{name}</span>
+        {diverged && <span className="text-zinc-400">script: “{a.text}”</span>}
+      </div>
+    );
+  })();
 
   const header = headerTarget ? createPortal(
     <>
@@ -297,6 +394,16 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
               <ChevronDown className="h-3.5 w-3.5" />
             </button>
           </div>
+          <Button
+            variant="subtle"
+            type="button"
+            active={showSuggestions}
+            aria-pressed={showSuggestions}
+            onClick={() => setShowSuggestions(v => !v)}
+            title={showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
+          >
+            <Sparkles className="w-3.5 h-3.5" /> Suggestions
+          </Button>
           <button
             type="button"
             onClick={() => setShowEighths(v => !v)}
@@ -384,7 +491,17 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                       )}
                     </div>
                   )}
-                  <ScriptSceneText scene={scene} theme="light" fontClass={READ_FONT_CLASS} highlight={q} sceneNumber={scene.sceneNumber} annotations={scriptAnnotations} sceneId={match?.id} onAnnotationClick={openAnnotation} />
+                  <ScriptSceneText
+                    scene={scene}
+                    theme="light"
+                    fontClass={READ_FONT_CLASS}
+                    highlight={q}
+                    sceneNumber={scene.sceneNumber}
+                    annotations={visibleAnnotations}
+                    sceneId={match?.id}
+                    onAnnotationClick={openAnnotation}
+                    onAnnotationHover={handleAnnotationHover}
+                  />
                 </section>
               );
             })}
@@ -392,23 +509,16 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
           {showEighths && <EighthsRuler contentHeight={contentHeight} lineHeight={READ_LINE_HEIGHT} />}
         </div>
       </div>
-      {pendingTag && createPortal(
-        <Button
-          variant="primary"
-          type="button"
-          data-testid={TEST_IDS.scriptTagFloating}
-          onMouseDown={e => e.preventDefault()}
-          onClick={openTagModal}
-          style={{ position: 'fixed', top: pendingTag.top, left: pendingTag.left, transform: 'translate(-50%, -130%)', zIndex: 60 }}
-          className="shadow-lg"
-        >
-          <TagIcon className="w-3.5 h-3.5" /> Tag
-        </Button>,
-        document.body,
-      )}
-      {tagModal && (
-        <ScriptTagModal target={tagModal.target} annotation={tagModal.annotation} onClose={() => setTagModal(null)} />
-      )}
+      <ScriptTagMenu
+        menu={tagMenu}
+        project={project}
+        onCommit={commitCategory}
+        onRemove={removeTag}
+        onClose={() => setTagMenu(null)}
+      />
+      <FloatingTooltip open={!!hovered && !tagMenu} anchor={hovered ? { x: hovered.x, y: hovered.y } : null}>
+        {hoverBadge}
+      </FloatingTooltip>
     </div>
   );
 }

@@ -188,6 +188,10 @@ const RULES = [
   // import / export
   { g: 'src/lib/import/**', s: IMPORT },
   { g: 'src/lib/script/**', s: IMPORT },
+  { g: 'src/lib/scriptTagging.ts', s: IMPORT },
+  { g: 'src/lib/scriptAnnotations.ts', s: IMPORT },
+  { g: 'src/lib/scriptSceneOps.ts', s: IMPORT },
+  { g: 'src/lib/splitGroups.ts', s: IMPORT },
   { g: 'src/components/import/**', s: IMPORT },
   { g: 'src/components/script/**', s: IMPORT },
   { g: 'src/components/ScriptView.tsx', s: IMPORT },

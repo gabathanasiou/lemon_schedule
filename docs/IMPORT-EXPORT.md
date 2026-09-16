@@ -92,24 +92,41 @@ Status: read this before touching any import/export work.
   is explicit, never a silent overwrite of an in-app edit. Only string fields +
   the page count are stored; the id is never compared (matched scenes keep
   identity).
-- **Screenplay tags (roadmap 123 Phase 2 / 132 Part B)**: `project.scriptAnnotations`
+- **Screenplay tags (roadmap 123 Phase 2 / 132 Part B / 136)**: `project.scriptAnnotations`
   (`ScriptAnnotation`) are identity-anchored span tags on the retained body —
   `sceneId` + `blockIndex` + character offsets + the exact `text`; `elementKey`
   is a cast id or an element name (domain rule). Every write is a canonical
   `ADD_/UPDATE_/REMOVE_SCRIPT_ANNOTATION` action (item 97 reaches them by
-  construction). `src/lib/scriptAnnotations.ts` owns the colour, block-span
+  construction). `src/lib/scriptAnnotations.ts` owns the colour and block-span
   segmentation and the element-rename cascade (run in the SAME
   `caseUpdateElement` batch — a name-keyed tag must never dangle); the shared
-  `ScriptSceneScript` renders them (dotted = recognised, solid = committed) and
-  `ScriptTagModal` (Script sub-tab selection) is the editor. FDX `<Text
-  TagNumber>` runs emit `ScriptAnnotationSeed`s (`ImportResult.annotations`,
-  `parseFDX`) which `commitImport` resolves to the freshly-created scenes and
-  writes as `recognized: true`. **Replacing the body drops the old body's
-  positional tags** (`caseSetScriptDocument`), then re-seeds. The tag editor
-  shows the divergence (`Tag: PISTOL · Script: "gun"`) and an explicit,
-  undoable **"Update script text"** rewrites the page + records the old wording
-  in `project.elementAliases`; `parseFDX` applies those aliases on re-import so
-  the element is still recognised.
+  `ScriptSceneScript` renders them (dotted = recognised, solid = committed).
+- **Tagging is a selection → category menu (roadmap 136), not a picker.**
+  Selecting text in the Script sub-tab opens a kit `ContextMenu` of every
+  element category (built-ins + custom); the highlight BECOMES the element
+  (`name = selection.trim().toUpperCase()` — no existing-element picker, no
+  Location/Script Day). `src/lib/scriptTagging.ts` is the one planner:
+  `planTagCommit` resolves the element key (cast reused by name else
+  `firstFreeCastId`; others name-keyed), the `scenePatch` and the annotation;
+  `commitTag` applies it as ONE undo batch. Re-tagging an exact range CHANGES
+  the category (the scene-field attachment swaps, never stacks) and a remove
+  clears the tag. `suggestionRanges` derives **ephemeral** dotted spans (cast
+  cues from `character` blocks + whole-word matches of existing element names
+  in action/dialogue) that are computed in the view and never persisted; the
+  Script header's persisted **Suggestions** toggle gates every non-committed
+  span (suggestions + recognised FDX seeds). All spans commit through the same
+  menu (`ScriptTagMenu`). FDX `<Text TagNumber>` runs emit
+  `ScriptAnnotationSeed`s (`ImportResult.annotations`, `parseFDX`) which
+  `commitImport` resolves to the freshly-created scenes and writes as
+  `recognized: true`. **Replacing the body drops the old body's positional
+  tags** (`caseSetScriptDocument`), then re-seeds. The hover badge shows the
+  divergence (`Category · ELEMENT · script: "gun"`) but the old picker's
+  explicit **"Update script text"** rewrite retired with `ScriptTagModal` in
+  136 — `elementAliases` is still applied by `parseFDX` on re-import for
+  projects that recorded one.
+- **SEX / MSD have no retained body** (new-project-only, breakdown only), so
+  they have no spans at all — their element data lives only in the scene
+  fields. Only FDX / Fountain can seed recognised annotation spans.
 - **Import reconciliation (roadmap 132 Part F)**: `src/lib/import/annotationRemap.ts`
   re-anchors tags through a revision — unchanged blocks carry spans 1:1, a
   changed block re-anchors by its stored `text`, and wording that vanished is
