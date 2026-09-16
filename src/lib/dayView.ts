@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useProject } from '../store';
-import { CrewPerson, DayMeta, NonShootDate, ProjectLocation, RuleViolation, ScheduleRow, Scene } from '../types';
+import { CalendarVersion, CrewPerson, DayMeta, NonShootDate, Project, ProjectLocation, RuleViolation, ScheduleRow, Scene } from '../types';
 import { useDaybreakSections, ComputedRow, SectionInfo, SectionSums } from './useDaybreakSections';
 import { daybreakAbove, getDayMeta, sectionCallTime } from './dayMeta';
 import { ELEMENT_CATEGORIES, getFieldItems } from './categories';
@@ -125,185 +125,197 @@ function elementDayCode(project: any, event: NonShootDate | undefined, category:
   return 'W';
 }
 
+/** The already-computed stripboard inputs {@link buildDayViews} needs. */
+export interface DayViewInputs {
+  project: Project;
+  sections: SectionInfo[];
+  productionSections: SectionInfo[];
+  sectionDateMap: Map<number, string>;
+  computedRows: ComputedRow[];
+  sectionSums: Map<number, SectionSums>;
+  calendarVersion?: CalendarVersion;
+}
+
 /**
- * Assembles every production day once. Memoized on the canonical inputs
- * (`useDaybreakSections` + project data), so selecting a day is a map lookup.
+ * Pure assembly of every production day once — the whole computation behind
+ * {@link useDayViews}, reachable without React so it can be unit-tested from
+ * the seed's computed sections. The hook memoizes this on its inputs.
  */
+export function buildDayViews(input: DayViewInputs): DayView[] {
+  const { project, sections, productionSections, sectionDateMap, computedRows, sectionSums, calendarVersion } = input;
+  const nonShootByDate = getNonShootEntryMap(calendarVersion?.nonShootDates);
+  const computedById = new Map<string, ComputedRow>();
+  for (const r of computedRows) computedById.set(r.id, r);
+  const castMembers = project.castMembers || [];
+  const crewRoles = project.crewRoles || [];
+  const crewMap = project.crew || {};
+  const locations = project.locations || [];
+  const locationById = new Map(locations.map(l => [l.id, l]));
+
+  const violationMap = computeSectionViolationMap(
+    calendarVersion ? (project.versions.find(v => v.id === project.activeVersionId)?.rows || []) : [],
+    sections,
+    sectionDateMap,
+    project.rules || [],
+    project.scenes,
+    castMembers,
+  );
+
+  const customCategoryKeys = (project.customCategories || []).map(c => c.key);
+  const categoryKeys = [...ELEMENT_CATEGORIES.map(c => c.key), ...customCategoryKeys].filter(k => k !== 'cast');
+
+  // Work-date span per element across the SCHEDULE (chronological sections)
+  // — drives the DOOD start/work/finish letter shown for a single day
+  // (roadmap 107). A date counts when the element appears in a scene that
+  // production day.
+  const elemWorkDates = new Map<string, string[]>();
+  for (const s of productionSections) {
+    const wDate = sectionDateMap.get(s.index);
+    if (!wDate) continue;
+    for (const row of s.rows) {
+      if (row.type !== 'SCENE' || !row.sceneId) continue;
+      const scene = project.scenes.find(sc => sc.id === row.sceneId);
+      if (!scene) continue;
+      for (const category of ['cast', ...categoryKeys]) {
+        for (const key of categoryKeysOf(scene, category)) {
+          const mk = `${category}\u0000${key}`;
+          const arr = elemWorkDates.get(mk);
+          if (arr) { if (arr[arr.length - 1] !== wDate) arr.push(wDate); }
+          else elemWorkDates.set(mk, [wDate]);
+        }
+      }
+    }
+  }
+  const doodFor = (date: string, dates?: string[]): string => {
+    if (!date || !dates || dates.length === 0) return '';
+    if (dates.length === 1) return date === dates[0] ? 'SWF' : '';
+    if (date === dates[0]) return 'SW';
+    if (date === dates[dates.length - 1]) return 'WF';
+    return dates.includes(date) ? 'W' : '';
+  };
+
+  const out: DayView[] = [];
+  for (const s of productionSections) {
+    const date = sectionDateMap.get(s.index) || '';
+    const governingDaybreak = daybreakAbove(sections, s.index);
+    const meta = getDayMeta(governingDaybreak);
+    const event = nonShootByDate.get(date);
+
+    const sceneEntries: DaySceneEntry[] = [];
+    let sceneNo = 0;
+    for (const row of s.rows) {
+      if (row.type !== 'SCENE' || !row.sceneId) continue;
+      sceneNo++;
+      const scene = project.scenes.find(sc => sc.id === row.sceneId);
+      const computed = computedById.get(row.id);
+      sceneEntries.push({ row: computed || (row as ComputedRow), scene, callTime: computed?.computedCallTime || '' });
+    }
+
+    const breaks: DayBreakEntry[] = [];
+    const notes: DayNoteEntry[] = [];
+    for (const row of s.rows) {
+      const computed = computedById.get(row.id);
+      const time = computed?.computedCallTime || '';
+      if (row.type === 'BREAK') {
+        breaks.push({ row: computed || (row as ComputedRow), label: row.breakLabel || 'Break', duration: row.breakDuration || 0, time });
+      } else if (row.type === 'NOTE') {
+        notes.push({ row: computed || (row as ComputedRow), text: row.noteText || '', time, color: row.noteColor });
+      }
+    }
+
+    const seen = new Map<string, DayElementEntry>();
+    const cast: DayElementEntry[] = [];
+    const elements: Record<string, DayElementEntry[]> = {};
+    sceneEntries.forEach((entry, idx) => {
+      if (!entry.scene) return;
+      for (const category of ['cast', ...categoryKeys]) {
+        for (const key of categoryKeysOf(entry.scene, category)) {
+          const mapKey = `${category}\u0000${key}`;
+          if (seen.has(mapKey)) continue;
+          const item: DayElementEntry = {
+            category,
+            key,
+            name: resolveName(key, category, project),
+            boardId: category === 'cast' ? key : undefined,
+            firstScene: idx + 1,
+            firstCallTime: entry.callTime,
+            code: elementDayCode(project, event, category, key),
+            dood: doodFor(date, elemWorkDates.get(mapKey)),
+          };
+          seen.set(mapKey, item);
+          if (category === 'cast') cast.push(item);
+          else (elements[category] ||= []).push(item);
+        }
+      }
+    });
+
+    const sceneLocations: string[] = [];
+    for (const entry of sceneEntries) {
+      const loc = entry.scene?.location?.trim();
+      if (loc && !sceneLocations.includes(loc)) sceneLocations.push(loc);
+    }
+
+    const masterLocation = meta.locationId ? locationById.get(meta.locationId) : undefined;
+    const keyLocations = (meta.locationIds || []).map(id => locationById.get(id)).filter(Boolean) as ProjectLocation[];
+
+    const crew: DayCrewEntry[] = [];
+    const explicitIds = meta.crewIds && meta.crewIds.length > 0 ? meta.crewIds : null;
+    const overrideById = new Map<string, { callTime?: string; note?: string }>();
+    for (const c of (meta.crewCalls || [])) overrideById.set(c.personId, { callTime: c.callTime, note: c.note });
+    for (const role of crewRoles) {
+      for (const person of crewMap[role.key] || []) {
+        if (explicitIds && !explicitIds.includes(person.id)) continue;
+        const override = overrideById.get(person.id);
+        crew.push({ person, role: role.key, callTime: override?.callTime, note: override?.note });
+      }
+    }
+
+    const callTime = sectionCallTime(sections, s.index);
+    const firstCall = sceneEntries.reduce((min, e) => (e.callTime && (!min || e.callTime < min) ? e.callTime : min), '');
+
+    out.push({
+      sectionIndex: s.index,
+      chronoDay: s.chronoDay,
+      date,
+      label: s.label,
+      // The GOVERNING daybreak (above the section) — its call time + meta
+      // drive this day. `s.daybreakRow` is the closing one.
+      daybreakRow: daybreakAbove(sections, s.index) || s.daybreakRow,
+      meta,
+      callTime,
+      firstCall: firstCall || callTime,
+      wrap: s.sums.endTime,
+      status: event?.status,
+      event,
+      scenes: sceneEntries,
+      breaks,
+      notes,
+      cast,
+      elements,
+      sceneLocations,
+      masterLocation,
+      keyLocations,
+      crew,
+      violations: violationMap.get(date) || [],
+      sums: sectionSums.get(s.index) || s.sums,
+    });
+  }
+  return out;
+}
+
+/** Memoized React consumer of {@link buildDayViews}: the Day Manager page, its
+ *  pop-out and the Copy-from-day modal all read from here. */
 export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> } {
   const { state } = useProject();
   const project = state.present;
-  const {
-    sections,
-    productionSections,
-    sectionDateMap,
-    nonShootSet,
-    computedRows,
-    sectionSums,
-  } = useDaybreakSections();
-
+  const { sections, productionSections, sectionDateMap, computedRows, sectionSums } = useDaybreakSections();
   const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId);
   const nonShootDates = activeCalendarVersion?.nonShootDates;
 
-  const days = useMemo(() => {
-    const computedById = new Map<string, ComputedRow>();
-    for (const r of computedRows) computedById.set(r.id, r);
-    const nonShootByDate = getNonShootEntryMap(nonShootDates);
-    const castMembers = project.castMembers || [];
-    const crewRoles = project.crewRoles || [];
-    const crewMap = project.crew || {};
-    const locations = project.locations || [];
-    const locationById = new Map(locations.map(l => [l.id, l]));
-
-    const violationMap = computeSectionViolationMap(
-      activeCalendarVersion ? (project.versions.find(v => v.id === project.activeVersionId)?.rows || []) : [],
-      sections,
-      sectionDateMap,
-      project.rules || [],
-      project.scenes,
-      castMembers,
-    );
-
-    const customCategoryKeys = (project.customCategories || []).map(c => c.key);
-    const categoryKeys = [...ELEMENT_CATEGORIES.map(c => c.key), ...customCategoryKeys].filter(k => k !== 'cast');
-
-    // Work-date span per element across the SCHEDULE (chronological sections)
-    // — drives the DOOD start/work/finish letter shown for a single day
-    // (roadmap 107). A date counts when the element appears in a scene that
-    // production day.
-    const elemWorkDates = new Map<string, string[]>();
-    for (const s of productionSections) {
-      const wDate = sectionDateMap.get(s.index);
-      if (!wDate) continue;
-      for (const row of s.rows) {
-        if (row.type !== 'SCENE' || !row.sceneId) continue;
-        const scene = project.scenes.find(sc => sc.id === row.sceneId);
-        if (!scene) continue;
-        for (const category of ['cast', ...categoryKeys]) {
-          for (const key of categoryKeysOf(scene, category)) {
-            const mk = `${category}\u0000${key}`;
-            const arr = elemWorkDates.get(mk);
-            if (arr) { if (arr[arr.length - 1] !== wDate) arr.push(wDate); }
-            else elemWorkDates.set(mk, [wDate]);
-          }
-        }
-      }
-    }
-    const doodFor = (date: string, dates?: string[]): string => {
-      if (!date || !dates || dates.length === 0) return '';
-      if (dates.length === 1) return date === dates[0] ? 'SWF' : '';
-      if (date === dates[0]) return 'SW';
-      if (date === dates[dates.length - 1]) return 'WF';
-      return dates.includes(date) ? 'W' : '';
-    };
-
-    const out: DayView[] = [];
-    for (const s of productionSections) {
-      const date = sectionDateMap.get(s.index) || '';
-      const governingDaybreak = daybreakAbove(sections, s.index);
-      const meta = getDayMeta(governingDaybreak);
-      const event = nonShootByDate.get(date);
-
-      const sceneEntries: DaySceneEntry[] = [];
-      let sceneNo = 0;
-      for (const row of s.rows) {
-        if (row.type !== 'SCENE' || !row.sceneId) continue;
-        sceneNo++;
-        const scene = project.scenes.find(sc => sc.id === row.sceneId);
-        const computed = computedById.get(row.id);
-        sceneEntries.push({ row: computed || (row as ComputedRow), scene, callTime: computed?.computedCallTime || '' });
-      }
-
-      const breaks: DayBreakEntry[] = [];
-      const notes: DayNoteEntry[] = [];
-      for (const row of s.rows) {
-        const computed = computedById.get(row.id);
-        const time = computed?.computedCallTime || '';
-        if (row.type === 'BREAK') {
-          breaks.push({ row: computed || (row as ComputedRow), label: row.breakLabel || 'Break', duration: row.breakDuration || 0, time });
-        } else if (row.type === 'NOTE') {
-          notes.push({ row: computed || (row as ComputedRow), text: row.noteText || '', time, color: row.noteColor });
-        }
-      }
-
-      const seen = new Map<string, DayElementEntry>();
-      const cast: DayElementEntry[] = [];
-      const elements: Record<string, DayElementEntry[]> = {};
-      sceneEntries.forEach((entry, idx) => {
-        if (!entry.scene) return;
-        for (const category of ['cast', ...categoryKeys]) {
-          for (const key of categoryKeysOf(entry.scene, category)) {
-            const mapKey = `${category}\u0000${key}`;
-            if (seen.has(mapKey)) continue;
-            const item: DayElementEntry = {
-              category,
-              key,
-              name: resolveName(key, category, project),
-              boardId: category === 'cast' ? key : undefined,
-              firstScene: idx + 1,
-              firstCallTime: entry.callTime,
-              code: elementDayCode(project, event, category, key),
-              dood: doodFor(date, elemWorkDates.get(mapKey)),
-            };
-            seen.set(mapKey, item);
-            if (category === 'cast') cast.push(item);
-            else (elements[category] ||= []).push(item);
-          }
-        }
-      });
-
-      const sceneLocations: string[] = [];
-      for (const entry of sceneEntries) {
-        const loc = entry.scene?.location?.trim();
-        if (loc && !sceneLocations.includes(loc)) sceneLocations.push(loc);
-      }
-
-      const masterLocation = meta.locationId ? locationById.get(meta.locationId) : undefined;
-      const keyLocations = (meta.locationIds || []).map(id => locationById.get(id)).filter(Boolean) as ProjectLocation[];
-
-      const crew: DayCrewEntry[] = [];
-      const explicitIds = meta.crewIds && meta.crewIds.length > 0 ? meta.crewIds : null;
-      const overrideById = new Map<string, { callTime?: string; note?: string }>();
-      for (const c of (meta.crewCalls || [])) overrideById.set(c.personId, { callTime: c.callTime, note: c.note });
-      for (const role of crewRoles) {
-        for (const person of crewMap[role.key] || []) {
-          if (explicitIds && !explicitIds.includes(person.id)) continue;
-          const override = overrideById.get(person.id);
-          crew.push({ person, role: role.key, callTime: override?.callTime, note: override?.note });
-        }
-      }
-
-      const callTime = sectionCallTime(sections, s.index);
-      const firstCall = sceneEntries.reduce((min, e) => (e.callTime && (!min || e.callTime < min) ? e.callTime : min), '');
-
-      out.push({
-        sectionIndex: s.index,
-        chronoDay: s.chronoDay,
-        date,
-        label: s.label,
-        // The GOVERNING daybreak (above the section) — its call time + meta
-        // drive this day. `s.daybreakRow` is the closing one.
-        daybreakRow: daybreakAbove(sections, s.index) || s.daybreakRow,
-        meta,
-        callTime,
-        firstCall: firstCall || callTime,
-        wrap: s.sums.endTime,
-        status: event?.status,
-        event,
-        scenes: sceneEntries,
-        breaks,
-        notes,
-        cast,
-        elements,
-        sceneLocations,
-        masterLocation,
-        keyLocations,
-        crew,
-        violations: violationMap.get(date) || [],
-        sums: sectionSums.get(s.index) || s.sums,
-      });
-    }
-    return out;
-  }, [productionSections, sections, sectionDateMap, computedRows, sectionSums, nonShootDates, project, activeCalendarVersion]);
+  const days = useMemo(
+    () => buildDayViews({ project, sections, productionSections, sectionDateMap, computedRows, sectionSums, calendarVersion: activeCalendarVersion }),
+    [productionSections, sections, sectionDateMap, computedRows, sectionSums, nonShootDates, project, activeCalendarVersion],
+  );
 
   const byIndex = useMemo(() => new Map(days.map(d => [d.sectionIndex, d])), [days]);
   return { days, byIndex };
