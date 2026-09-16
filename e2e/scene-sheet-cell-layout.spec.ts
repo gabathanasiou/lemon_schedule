@@ -6,9 +6,6 @@ import { openSeededProject } from './helpers';
 // hitbox (a textarea covers the box, so click-to-position/selection work), the
 // closed cast display resolves to "1. NAME", and Notes/Synopsis auto-grow.
 
-const project = (page: import('@playwright/test').Page) =>
-  page.evaluate(() => (window as any).__lemonSchedule.getProject());
-
 const castBox = (page: import('@playwright/test').Page) =>
   page.locator('[data-scene-field="cast"]').first();
 
