@@ -178,9 +178,17 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
       sel.addRange(range);
     };
     restore();
+    // The kit's searchable menu auto-focuses its search input (which clears the
+    // document selection), so re-apply on each focus change while it is open.
+    const onFocusIn = () => restore();
+    document.addEventListener('focusin', onFocusIn);
     const raf = requestAnimationFrame(restore);
     const settle = window.setTimeout(restore, 60);
-    return () => { cancelAnimationFrame(raf); clearTimeout(settle); };
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(settle);
+      document.removeEventListener('focusin', onFocusIn);
+    };
   }, [tagMenu]);
 
   const openAnnotation = useCallback((annotation: ScriptAnnotation, event?: React.MouseEvent) => {
