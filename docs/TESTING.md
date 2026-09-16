@@ -102,6 +102,10 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 
 ## Harness facts
 
+- **CI**: `.github/workflows/test.yml` runs `npm run lint` + `npm run test:unit` +
+  `npx playwright test` on every push to `main` and every PR (Chromium only; failed
+  runs upload `test-results/` traces). `deploy.yml` only builds/deploys — it does NOT
+  test, so CI is the gate.
 - `playwright.config.ts`: prod-preview webServer on :3001, `reducedMotion: 'reduce'`,
   `retries: 1` locally / `2` on CI, `trace: 'on-first-retry'`, `grepInvert: /@perf|@quarantine/`.
   `PLAYWRIGHT_PORT=<n>` isolates the server (owned, no reuse); `PLAYWRIGHT_DEV=1` runs the dev server.
