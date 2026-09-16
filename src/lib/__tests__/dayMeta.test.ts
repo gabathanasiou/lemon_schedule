@@ -54,7 +54,7 @@ describe('getDayMeta / isEmptyDayMeta', () => {
     expect(isEmptyDayMeta({ crewIds: ['p1'] })).toBe(false);
     expect(isEmptyDayMeta({ departmentPrecalls: { Camera: '-30m' } })).toBe(false);
     expect(isEmptyDayMeta({ elementCalls: { cast: { '1': { arrive: '07:00' } } } })).toBe(false);
-    expect(isEmptyDayMeta({ callSheets: { design: [{ id: 'b' }] } })).toBe(false);
+    expect(isEmptyDayMeta({ callSheets: { design: [{ id: 'b', type: 'text', text: 'x' }] } } as any)).toBe(false);
   });
 });
 
