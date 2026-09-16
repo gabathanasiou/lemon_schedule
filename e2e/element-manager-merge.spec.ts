@@ -1,13 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, nameCell } from './helpers';
+import { openSeededProject, nameCell, bridgeProject } from './helpers';
 
 type Project = any;
 
-/** The live project straight from the store (sync post-dispatch) — faster and
- *  more correct than waiting for the debounced localStorage save. */
-async function getProject(page: import('@playwright/test').Page): Promise<Project> {
-  return page.evaluate(() => (window as any).__lemonSchedule?.getProject());
-}
+const getProject = bridgeProject;
 
 async function openElementManagerCategory(page: import('@playwright/test').Page, category: string) {
   await openSeededProject(page);

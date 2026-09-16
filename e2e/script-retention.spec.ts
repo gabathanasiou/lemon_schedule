@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, waitForPersistedProject } from './helpers';
+import { openSeededProject, waitForPersistedProject, writeTempFile as writeFdx, importScenesViaMenu as importFile, bridgeProject } from './helpers';
 import { TEST_IDS } from '../src/lib/testIds';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
-type Project = any;
 
 const FDX_A = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <FinalDraft DocumentType="Script" Template="No" Version="1">
@@ -57,24 +55,6 @@ const FDX_STYLED = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 </Content>
 </FinalDraft>`;
 
-function writeFdx(name: string, xml: string): string {
-  const p = path.join(os.tmpdir(), name);
-  fs.writeFileSync(p, xml);
-  return p;
-}
-
-async function importFile(page: import('@playwright/test').Page, filePath: string) {
-  await page.getByRole('button', { name: 'File' }).click();
-  await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
-  await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
-  await page.locator('input[type="file"]').first().setInputFiles(filePath);
-  const submit = page.getByRole('button', { name: /(?:Import|Update) \d+ Scenes/ });
-  await expect(submit).toBeVisible({ timeout: 8000 });
-  await submit.click();
-}
-
-const bridgeProject = (page: import('@playwright/test').Page): Promise<Project> =>
-  page.evaluate(() => (window as any).__lemonSchedule.getProject());
 
 test.describe('script body retention (roadmap 123 Phase 0)', () => {
   test('FDX import retains the screenplay body + baseline, persists, and undoes as one batch', async ({ page }) => {

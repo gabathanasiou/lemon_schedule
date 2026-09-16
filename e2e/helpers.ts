@@ -499,6 +499,15 @@ export async function importFileViaMenu(page: Page, filePath: string) {
   await page.locator('input[type="file"]').first().setInputFiles(filePath);
 }
 
+/** File ▸ Import ▸ screenplay → picker, then confirm the "Import/Update N
+ *  Scenes" review dialog. */
+export async function importScenesViaMenu(page: Page, filePath: string) {
+  await importFileViaMenu(page, filePath);
+  const submit = page.getByRole('button', { name: /(?:Import|Update) \d+ Scenes/ });
+  await expect(submit).toBeVisible({ timeout: 8000 });
+  await submit.click();
+}
+
 /** Opens the "Update script…" review modal with `filePath` and waits for it. */
 export async function openUpdateScriptModal(page: Page, filePath: string) {
   await page.getByRole('button', { name: 'File' }).click();

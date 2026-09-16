@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, loadSeedProject, waitForPersistedProject, nameCell } from './helpers';
+import { openSeededProject, loadSeedProject, waitForPersistedProject, nameCell, importScenesViaMenu } from './helpers';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -59,15 +59,6 @@ async function openElementManagerCast(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
   await page.getByRole('button', { name: 'Element Manager' }).click();
   await page.locator('aside').getByRole('button', { name: /Cast/ }).click();
-}
-
-async function importFile(page: import('@playwright/test').Page, filePath: string, sceneCount: number) {
-  await page.getByRole('button', { name: 'File' }).click();
-  await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
-  await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
-  await page.locator('input[type="file"]').first().setInputFiles(filePath);
-  await expect(page.getByRole('button', { name: new RegExp(`Import ${sceneCount} Scenes`) })).toBeVisible({ timeout: 8000 });
-  await page.getByRole('button', { name: new RegExp(`Import ${sceneCount} Scenes`) }).click();
 }
 
 test.describe('cast single source of truth (castMembers)', () => {
@@ -154,7 +145,7 @@ test.describe('cast single source of truth (castMembers)', () => {
     fs.writeFileSync(csvPath, csv);
 
     await openSeededProject(page);
-    await importFile(page, csvPath, 2);
+    await importScenesViaMenu(page, csvPath);
     await waitForPersistedProject(page, "(p.castMembers || []).some(m => m.name === 'AMY')");
 
     const project = await getProject(page);
@@ -194,7 +185,7 @@ test.describe('cast single source of truth (castMembers)', () => {
     fs.writeFileSync(fdxPath, fdx);
 
     await openSeededProject(page);
-    await importFile(page, fdxPath, 2);
+    await importScenesViaMenu(page, fdxPath);
     await waitForPersistedProject(page, "(p.castMembers || []).some(m => m.name === 'AMY')");
 
     const project = await getProject(page);

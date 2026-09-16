@@ -1,13 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedTitle } from './helpers';
+import { openSeededProject, seedTitle, bridgeProject } from './helpers';
 
 // Scene sheet view order (roadmap 51): the sheet navigates by Sheet order
 // (default), Scene Number order, or the current stripboard order. The order
 // is a view-only preference — project.scenes is never reordered; the Sheet #
 // column always shows the TRUE sheet number (array index + 1).
-
-const project = (page: import('@playwright/test').Page) =>
-  page.evaluate(() => (window as any).__lemonSchedule.getProject());
 
 const sheetMarker = (page: import('@playwright/test').Page) =>
   page.locator('table tr').first().locator('td,th').nth(1).textContent();
@@ -19,7 +16,7 @@ const sheetJumpInput = (page: import('@playwright/test').Page) =>
   page.getByLabel('Sheet number');
 
 const stripboardSceneIds = async (page: import('@playwright/test').Page) => {
-  const p = await project(page);
+  const p = await bridgeProject(page);
   const v = p.versions.find((x: any) => x.id === p.activeVersionId);
   return v.rows
     .filter((r: any) => r.type === 'SCENE' && r.containerId !== null)
@@ -37,7 +34,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Sheet' }).click();
 
-    const p0 = await project(page);
+    const p0 = await bridgeProject(page);
     const firstScene = p0.scenes[0];
 
     // Default: Sheet order — sheet # = array index + 1, scene no = its number.
@@ -68,7 +65,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     await sheetJumpInput(page).fill(String(p0.scenes.length));
     await page.keyboard.press('Enter');
     await expect.poll(async () => {
-      const p = await project(page);
+      const p = await bridgeProject(page);
       const v = p.versions.find((x: any) => x.id === p.activeVersionId);
       const boardIds = v.rows.filter((r: any) => r.type === 'SCENE' && r.containerId !== null).map((r: any) => r.sceneId);
       const onBoard = new Set(boardIds);
@@ -90,7 +87,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     // Jump to a mid-sheet scene, then switch to Stripboard order — the SAME
     // scene must stay visible. (Seed-agnostic: resolve the scene at that sheet
     // position from the project rather than assuming its number.)
-    const p0 = await project(page);
+    const p0 = await bridgeProject(page);
     const midIdx = Math.min(33, p0.scenes.length - 2);
     const midScene = p0.scenes[midIdx];
     await sheetJumpInput(page).fill(String(midIdx + 1));
@@ -98,7 +95,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     await expect(sceneNoInput(page)).toHaveValue(String(midScene.sceneNumber));
 
     const sceneIdAt = async () => {
-      const p = await project(page);
+      const p = await bridgeProject(page);
       const no = await sceneNoInput(page).inputValue();
       return p.scenes.find((s: any) => s.sceneNumber === no)?.id;
     };
@@ -116,16 +113,16 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     await sceneNoInput(page).fill('999');
     await page.keyboard.press('Enter');
     await expect.poll(async () => {
-      const p = await project(page);
+      const p = await bridgeProject(page);
       return p.scenes.find((s: any) => s.id === prevId)?.sceneNumber;
     }).toBe('999');
     // The sheet-order scene is untouched.
-    expect((await project(page)).scenes.find((s: any) => s.id === beforeId)?.sceneNumber).toBe(String(midScene.sceneNumber));
+    expect((await bridgeProject(page)).scenes.find((s: any) => s.id === beforeId)?.sceneNumber).toBe(String(midScene.sceneNumber));
 
     // Undo restores the edit (bridge-driven, one undo entry).
     await page.evaluate(() => (window as any).__lemonSchedule.undo());
     await expect.poll(async () => {
-      const p = await project(page);
+      const p = await bridgeProject(page);
       return p.scenes.find((s: any) => s.id === prevId)?.sceneNumber;
     }).not.toBe('999');
   });
@@ -151,7 +148,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     // The script body attaches by scene number, so a duplicate would make both
     // scenes show one body. Seed-agnostic: collide the shown scene with any
     // other scene that has a different number.
-    const p0 = await project(page);
+    const p0 = await bridgeProject(page);
     const shown = p0.scenes[0];
     const other = p0.scenes.find((s: any) => s.id !== shown.id && s.sceneNumber !== shown.sceneNumber);
     expect(other).toBeTruthy();
@@ -166,7 +163,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     await expect(dialog.getByText('Scene number already used')).toBeVisible();
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await expect(sceneNoInput(page)).toHaveValue(shownNo);
-    expect((await project(page)).scenes.find((s: any) => s.id === shown.id)?.sceneNumber).toBe(shown.sceneNumber);
+    expect((await bridgeProject(page)).scenes.find((s: any) => s.id === shown.id)?.sceneNumber).toBe(shown.sceneNumber);
 
     // Swap exchanges both numbers in ONE undo step.
     const pastBefore = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
@@ -174,7 +171,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     await page.keyboard.press('Enter');
     await page.getByRole('dialog').getByRole('button', { name: 'Swap numbers' }).click();
     await expect.poll(async () => {
-      const p = await project(page);
+      const p = await bridgeProject(page);
       return [
         p.scenes.find((s: any) => s.id === shown.id)?.sceneNumber,
         p.scenes.find((s: any) => s.id === other.id)?.sceneNumber,

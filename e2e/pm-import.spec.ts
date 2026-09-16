@@ -1,8 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
+import { openSeededProject, writeTempFile as writeFdx } from './helpers';
 
 const FDX = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <FinalDraft DocumentType="Script" Version="1">
@@ -12,12 +9,6 @@ const FDX = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Paragraph Type="Action"><Text>AMY waits.</Text></Paragraph>
 </Content>
 </FinalDraft>`;
-
-function writeFdx(name: string, xml = FDX): string {
-  const p = path.join(os.tmpdir(), name);
-  fs.writeFileSync(p, xml);
-  return p;
-}
 
 const FDX_DREAM = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <FinalDraft DocumentType="Script" Version="1">
@@ -44,7 +35,7 @@ test.describe('new-project import parity (roadmap 126)', () => {
       page.waitForEvent('filechooser'),
       page.getByRole('button', { name: 'Import', exact: true }).click(),
     ]);
-    await chooser.setFiles(writeFdx('my-great-script.fdx'));
+    await chooser.setFiles(writeFdx('my-great-script.fdx', FDX));
     await page.getByRole('button', { name: 'Confirm' }).click(); // import-as-new-project
 
     // Scripts land in the shared review (rename + cast Board IDs) first.
@@ -64,7 +55,7 @@ test.describe('new-project import parity (roadmap 126)', () => {
     await page.getByRole('button', { name: 'File' }).click();
     await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
     await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
-    await page.locator('input[type="file"]').first().setInputFiles(writeFdx('untitled-thing.fdx'));
+    await page.locator('input[type="file"]').first().setInputFiles(writeFdx('untitled-thing.fdx', FDX));
     const rename = page.getByPlaceholder('Leave blank to keep current title');
     await expect(rename).toHaveValue('untitled-thing');
   });

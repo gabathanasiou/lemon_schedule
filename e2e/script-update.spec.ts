@@ -1,14 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { ensureProject } from './helpers';
+import { ensureProject, bridgeProject, openUpdateScriptModal } from './helpers';
 import { TEST_IDS } from '../src/lib/testIds';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
-type Project = any;
-
-const bridgeProject = (page: import('@playwright/test').Page): Promise<Project> =>
-  page.evaluate(() => (window as any).__lemonSchedule.getProject());
 
 function writeFdx(name: string, scenes: { n: string; heading: string; action?: string }[]): string {
   const paragraphs = scenes.map(s => [
@@ -19,14 +14,6 @@ function writeFdx(name: string, scenes: { n: string; heading: string; action?: s
   fs.writeFileSync(p, `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <FinalDraft DocumentType="Script" Template="No" Version="1"><Content>${paragraphs}</Content></FinalDraft>`);
   return p;
-}
-
-async function openUpdateModal(page: import('@playwright/test').Page, filePath: string) {
-  await page.getByRole('button', { name: 'File' }).click();
-  await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
-  await page.getByRole('menuitem', { name: /Update script/ }).click();
-  await page.locator('input[type="file"]').nth(1).setInputFiles(filePath);
-  await expect(page.getByRole('dialog').getByText(/Update Script/)).toBeVisible({ timeout: 8000 });
 }
 
 test.describe('script update review (roadmap 38)', () => {
@@ -46,7 +33,7 @@ test.describe('script update review (roadmap 38)', () => {
     const scene2Id = before.scenes.find((s: any) => s.sceneNumber === '2').id;
 
     // Incoming: scene 1 modified, scene 2 dropped (→ removed), scene 3 new.
-    await openUpdateModal(page, writeFdx('lemon-update.fdx', [
+    await openUpdateScriptModal(page, writeFdx('lemon-update.fdx', [
       { n: '1', heading: 'INT. KITCHEN - DAY', action: 'New kitchen action.' },
       { n: '3', heading: 'EXT. FIELD - DAY', action: 'A new scene.' },
     ]));
@@ -348,7 +335,7 @@ test.describe('script update review (roadmap 38)', () => {
 </Content></FinalDraft>`;
     const p = path.join(os.tmpdir(), 'lemon-align-delete.fdx');
     fs.writeFileSync(p, xml);
-    await openUpdateModal(page, p);
+    await openUpdateScriptModal(page, p);
 
     const dropLeft = page.locator('[data-review-side="left"]').filter({ hasText: 'Line DROP.' }).first();
     await expect(dropLeft).toHaveAttribute('data-tone', 'removed');
@@ -378,7 +365,7 @@ test.describe('script update review (roadmap 38)', () => {
     });
 
     // Split: 5 → 5 + 5A. Accept the modified 5, then the added fragment badges.
-    await openUpdateModal(page, writeFdx('lemon-split.fdx', [
+    await openUpdateScriptModal(page, writeFdx('lemon-split.fdx', [
       { n: '5', heading: 'INT. BANK - DAY', action: 'The bank runs.' },
       { n: '5A', heading: 'INT. BANK - DAY', action: 'George cheers wildly at the bank.' },
     ]));
@@ -398,7 +385,7 @@ test.describe('script update review (roadmap 38)', () => {
         b.dispatch({ type: 'ADD_SCENE', payload: b.makeBlankScene({ sceneNumber: '5A', set: 'BANK', intExt: 'INT', dayNight: 'DAY' }) });
       });
     });
-    await openUpdateModal(page, writeFdx('lemon-merge.fdx', [
+    await openUpdateScriptModal(page, writeFdx('lemon-merge.fdx', [
       { n: '5', heading: 'INT. BANK - DAY', action: 'The bank runs. George cheers wildly at the bank.' },
     ]));
     await page.keyboard.press('ArrowRight');
@@ -422,7 +409,7 @@ test.describe('script update review (roadmap 38)', () => {
     });
 
     // Incoming script changes the same field the user edited → conflict.
-    await openUpdateModal(page, writeFdx('lemon-conflict.fdx', [
+    await openUpdateScriptModal(page, writeFdx('lemon-conflict.fdx', [
       { n: '1', heading: 'INT. SCHOOL - DAY', action: 'New.' },
     ]));
 
@@ -442,14 +429,14 @@ test.describe('script update review (roadmap 38)', () => {
     });
 
     // Only the SET changed → granular: red left, green right.
-    await openUpdateModal(page, writeFdx('lemon-heading-set.fdx', [{ n: '1', heading: 'INT. BEDROOM - DAY', action: 'Same.' }]));
+    await openUpdateScriptModal(page, writeFdx('lemon-heading-set.fdx', [{ n: '1', heading: 'INT. BEDROOM - DAY', action: 'Same.' }]));
     await expect(page.locator('[data-change="removed"]')).toHaveText('KITCHEN');
     await expect(page.locator('[data-change="added"]')).toHaveText('BEDROOM');
     await page.getByRole('button', { name: 'Cancel' }).click();
 
     // The WHOLE heading is new → treated as a line: red/struck left, green right,
     // no granular parts.
-    await openUpdateModal(page, writeFdx('lemon-heading-all.fdx', [{ n: '1', heading: 'EXT. STREET - NIGHT', action: 'Same.' }]));
+    await openUpdateScriptModal(page, writeFdx('lemon-heading-all.fdx', [{ n: '1', heading: 'EXT. STREET - NIGHT', action: 'Same.' }]));
     await expect(page.locator('[data-review-side="left"][data-tone="removed"]').first()).toContainText('KITCHEN');
     await expect(page.locator('[data-review-side="right"][data-tone="added"]').first()).toContainText('STREET');
     await expect(page.locator('[data-change]')).toHaveCount(0);
