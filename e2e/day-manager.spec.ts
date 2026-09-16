@@ -1,23 +1,9 @@
-import { test, expect, Page } from '@playwright/test';
-import { openSeededProject, seedDayDates } from './helpers';
-
-/** Opens Production → Day Manager and waits for the page shell. */
-async function openDays(page: Page) {
-  await openSeededProject(page);
-  await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
-  await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
-}
-
-/** Opens the full-surface call-sheet editor via the header button. */
-async function openCallSheet(page: Page) {
-  await page.locator('[data-day-manager] header').getByRole('button', { name: /Call Sheet/ }).click();
-  await expect(page.locator('[data-call-sheet-edit]')).toBeVisible({ timeout: 8000 });
-}
+import { test, expect } from '@playwright/test';
+import { openDayManager, openCallSheetEdit, seedDayDates } from './helpers';
 
 test.describe('Day Manager (roadmap 98)', () => {
   test('renders the sections and persists day notes on the governing daybreak', async ({ page }) => {
-    await openDays(page);
+    await openDayManager(page);
 
     await expect(page.locator('[data-section="details"]')).toBeVisible();
     await expect(page.locator('[data-section="locations"]')).toBeVisible();
@@ -40,14 +26,14 @@ test.describe('Day Manager (roadmap 98)', () => {
   });
 
   test('header opens the call-sheet editor and its Preview renders the day report', async ({ page }) => {
-    await openDays(page);
-    await openCallSheet(page);
+    await openDayManager(page);
+    await openCallSheetEdit(page);
     await page.getByRole('button', { name: 'Preview', exact: true }).click();
     await expect(page.locator('[data-call-sheet-edit] .report-page').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('master location flows into the call-sheet editor preview (report seam)', async ({ page }) => {
-    await openDays(page);
+    await openDayManager(page);
 
     await page.evaluate(() => {
       const b: any = (window as any).__lemonSchedule;
@@ -59,13 +45,13 @@ test.describe('Day Manager (roadmap 98)', () => {
       b.dispatch({ type: 'UPDATE_ROW', payload: { versionId: v.id, rowId: gov.id, updates: { daybreakMeta: { locationId: 'loc-test-stage' } } } });
     });
 
-    await openCallSheet(page);
+    await openCallSheetEdit(page);
     await page.getByRole('button', { name: 'Preview', exact: true }).click();
     await expect(page.locator('[data-call-sheet-edit]').getByText('Test Stage 7').first()).toBeVisible({ timeout: 12000 });
   });
 
   test('copy from day applies the source note in one undo entry', async ({ page }) => {
-    await openDays(page);
+    await openDayManager(page);
 
     // Note on DAY 1.
     await page.evaluate(() => {
@@ -94,7 +80,7 @@ test.describe('Day Manager (roadmap 98)', () => {
   });
 
   test('deleting a daybreak with details warns first and cancel keeps it', async ({ page }) => {
-    await openDays(page);
+    await openDayManager(page);
     const dates = await seedDayDates(page);
     expect(dates.length).toBeGreaterThan(1);
 

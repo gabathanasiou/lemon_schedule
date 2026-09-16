@@ -343,13 +343,19 @@ export async function openReportPrintView(page: Page, minPages = 1) {
   return pages;
 }
 
+/** Navigates Production → Day Manager from an already-open project and waits
+ *  for the page shell (use when the spec seeded its own custom project). */
+export async function gotoDayManager(page: Page) {
+  await page.getByRole('button', { name: 'Production' }).click();
+  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
+  await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
+}
+
 /** Seeds the project (optionally mutating it) and opens Production → Day
  *  Manager, waiting for the page shell. */
 export async function openDayManager(page: Page, mutate?: (project: any) => void) {
   await openSeededProject(page, mutate);
-  await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
-  await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
+  await gotoDayManager(page);
 }
 
 /** Opens the full-surface call-sheet editor from the Day Manager header. */

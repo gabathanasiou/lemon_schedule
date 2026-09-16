@@ -1,22 +1,9 @@
-import { test, expect, Page } from '@playwright/test';
-import { openSeededProject } from './helpers';
-
-async function openDays(page: Page) {
-  await openSeededProject(page);
-  await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
-  await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
-}
-
-const expand = async (page: Page, sectionId: string, probe: string) => {
-  const section = page.locator(`[data-section="${sectionId}"]`);
-  if (!(await section.locator(probe).count())) await section.getByRole('button').first().click();
-  return section;
-};
+import { test, expect } from '@playwright/test';
+import { openDayManager, expandDaySection as expand } from './helpers';
 
 test.describe('Day call times + crew (roadmap 99)', () => {
   test('call-times and crew sections render inline Glide grids sized to content', async ({ page }) => {
-    await openDays(page);
+    await openDayManager(page);
 
     const callTimes = await expand(page, 'callTimes', '[data-day-times-glide]');
     const ctGrid = callTimes.locator('[data-day-times-glide]').first();
@@ -32,7 +19,7 @@ test.describe('Day call times + crew (roadmap 99)', () => {
   });
 
   test('call-times settings modal — tabbed redesign, removable category defaults (roadmap 110)', async ({ page }) => {
-    await openDays(page);
+    await openDayManager(page);
     await page.getByTitle('Call-stage settings, category defaults and usual crew').click();
 
     const modal = page.getByRole('dialog').last();
@@ -80,7 +67,7 @@ test.describe('Day call times + crew (roadmap 99)', () => {
   });
 
   test('right-click the call-times grid header opens the stages settings modal (roadmap 110)', async ({ page }) => {
-    await openDays(page);
+    await openDayManager(page);
     const section = await expand(page, 'callTimes', '[data-day-times-glide]');
     const grid = section.locator('[data-day-times-glide]').first();
     await expect(grid).toBeVisible({ timeout: 8000 });
@@ -100,7 +87,7 @@ test.describe('Day call times + crew (roadmap 99)', () => {
   });
 
   test('crew call override writes through the shared day-meta path', async ({ page }) => {
-    await openDays(page);
+    await openDayManager(page);
     const crew = await expand(page, 'crew', '[data-crew-calls]');
     const scroller = crew.locator('[data-crew-calls] .dvn-scroller');
     await expect(scroller).toBeAttached({ timeout: 8000 });

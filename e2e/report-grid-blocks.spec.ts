@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { loadSeedProject, openSeededProject, seedLeadCast } from './helpers';
+import { openSeededProject, seedLeadCast, gotoDayManager, openCallSheetEdit, firstStageLabel, callsFor, stageCellPoint } from './helpers';
 
 // Reports designer — items 111/112: the day-scoped Call Times grid block and
 // its crew sibling. Static print table in the designer/preview, live inline
@@ -21,70 +21,14 @@ const design = {
   header: [], footer: [],
 };
 
+/** The call-sheet page's first element grid (scope for the shared cell math). */
+const callSheetGrid = (page: Page) => page.locator('[data-report-grid="elementCalls"]');
+
 async function seedGrid(page: Page) {
-  const project = JSON.parse(loadSeedProject().raw);
-  project.reportDesigns = [design];
-  project.activeReportId = design.id;
-  await page.addInitScript(({ projectJson, meta }) => {
-    const p = JSON.parse(projectJson);
-    localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
-    localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
-  }, {
-    projectJson: JSON.stringify(project),
-    meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
+  await openSeededProject(page, (project) => {
+    project.reportDesigns = [design];
+    project.activeReportId = design.id;
   });
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-}
-
-async function openCallSheetEdit(page: Page) {
-  await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
-  await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
-  await page.locator('[data-day-manager] header').getByRole('button', { name: /Call Sheet/ }).click();
-  await expect(page.locator('[data-call-sheet-edit]')).toBeVisible({ timeout: 8000 });
-}
-
-/** First stage column header from the project's call-time settings. */
-const firstStageLabel = (page: Page) =>
-  page.evaluate(() => {
-    const b: any = (window as any).__lemonSchedule;
-    const p = b.getProject();
-    const s = p.productionInfo?.callTimes;
-    const stages = (s?.stages?.length ? s.stages : [
-      { key: 'pickup', label: 'Pickup' }, { key: 'arrive', label: 'Arrive' },
-      { key: 'hmua', label: 'HMU' }, { key: 'costume', label: 'Costume' }, { key: 'onSet', label: 'On Set' },
-    ]);
-    return stages[0]?.label || '';
-  });
-
-const callsFor = (page: Page, castId: string) =>
-  page.evaluate((id) => {
-    const b: any = (window as any).__lemonSchedule;
-    const p = b.getProject();
-    const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-    const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
-    return gov?.daybreakMeta?.elementCalls?.cast?.[id] || null;
-  }, castId);
-
-/** Center of a stage cell in the call-sheet page's first element grid. Mirrors
- *  DayTimesGlide's fit-to-card column math (ID 48 · Name 220 · SWF 48 · stages 88). */
-async function stageCellPoint(page: Page, row: number, stageIndex: number) {
-  const scroller = page.locator('[data-report-grid="elementCalls"] [data-day-times-glide] .dvn-scroller').first();
-  const box = (await scroller.boundingBox())!;
-  const BASE_WIDTHS = [48, 220, 48, 88, 88, 88, 88, 88];
-  const target = Math.max(120, Math.floor(box.width) - 1);
-  const total = BASE_WIDTHS.reduce((s, w) => s + w, 0);
-  const widths = BASE_WIDTHS.map(w => Math.max(40, Math.floor((w / total) * target)));
-  const sum = widths.reduce((s, w) => s + w, 0);
-  widths[1] += target - sum;
-  const before = widths[0] + widths[1] + widths[2];
-  const rowH = 28;
-  const headerH = 30;
-  return {
-    x: box.x + before + stageIndex * widths[3] + widths[3] / 2,
-    y: box.y + headerH + row * rowH + rowH / 2,
-  };
 }
 
 test.describe('Report grid blocks (items 111/112)', () => {
@@ -120,6 +64,7 @@ test.describe('Report grid blocks (items 111/112)', () => {
 
   test('Call Sheet → Edit edits elementCalls live, one undo entry per op', async ({ page }) => {
     await seedGrid(page);
+    await gotoDayManager(page);
     await openCallSheetEdit(page);
 
     const grid = page.locator('[data-report-grid="elementCalls"]');
@@ -139,7 +84,7 @@ test.describe('Report grid blocks (items 111/112)', () => {
     expect(lead.id).not.toBe('');
 
     const before = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
-    const pt = await stageCellPoint(page, 0, 0);
+    const pt = await stageCellPoint(page, 0, 0, callSheetGrid(page));
     await page.mouse.dblclick(pt.x, pt.y);
     const ta = page.locator('#portal textarea').first();
     await expect(ta).toBeAttached({ timeout: 4000 });
@@ -165,6 +110,7 @@ test.describe('Report grid blocks (items 111/112)', () => {
 
   test('crew table block renders and edits crewCalls in Call Sheet → Edit', async ({ page }) => {
     await seedGrid(page);
+    await gotoDayManager(page);
     await openCallSheetEdit(page);
 
     const grid = page.locator('[data-report-grid="crew"] [data-crew-table-glide]');

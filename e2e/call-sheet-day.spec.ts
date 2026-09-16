@@ -1,21 +1,9 @@
 import { test, expect, Page } from '@playwright/test';
-import { loadSeedProject, openSeededProject } from './helpers';
+import { openDayManager, openCallSheetEdit } from './helpers';
 
 // Call Sheet Designer completion (roadmap 10): day-scoped per-day zone editing
 // and rendering. The editor is reached from the Days header's "Call Sheet"
 // button; its Preview toggle shows the paginated day report.
-
-async function openDays(page: Page) {
-  await openSeededProject(page);
-  await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
-  await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
-}
-
-async function openCallSheetEdit(page: Page) {
-  await page.locator('[data-day-manager] header').getByRole('button', { name: /Call Sheet/ }).click();
-  await expect(page.locator('[data-call-sheet-edit]')).toBeVisible({ timeout: 8000 });
-}
 
 const readPinnedMeta = (page: Page, designId: string) => page.evaluate((id) => {
   const b: any = (window as any).__lemonSchedule;
@@ -25,27 +13,9 @@ const readPinnedMeta = (page: Page, designId: string) => page.evaluate((id) => {
   return gov?.daybreakMeta?.callSheets?.[id] || null;
 }, designId);
 
-async function seedWithDesign(page: Page, raw: string, mutate: (project: any) => void) {
-  const project = JSON.parse(raw);
-  mutate(project);
-  await page.addInitScript(({ projectJson, meta }) => {
-    const p = JSON.parse(projectJson);
-    localStorage.setItem('lemon_schedule_project_v1_' + p.id, JSON.stringify(p));
-    localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
-  }, {
-    projectJson: JSON.stringify(project),
-    meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
-  });
-  await page.goto('http://localhost:3001/lemon_schedule/');
-  await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.getByRole('button', { name: 'Production' }).click();
-  await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
-  await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
-}
-
 test.describe('Call Sheet Designer (roadmap 10)', () => {
   test('per-day zone edit writes daybreakMeta.callSheets and resets to template', async ({ page }) => {
-    await openDays(page);
+    await openDayManager(page);
     await openCallSheetEdit(page);
 
     const designId = await page.evaluate(() => {
@@ -70,7 +40,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
   });
 
   test('custom-rows table renders literal cells and resolves tokens', async ({ page }) => {
-    await seedWithDesign(page, loadSeedProject().raw, project => {
+    await openDayManager(page, project => {
       project.reportDesigns = [{
         id: 'cs-custom', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
         blocks: [{
@@ -101,7 +71,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
   });
 
   test('call-sheet edit shows the full day page read-only with an editable zone', async ({ page }) => {
-    await seedWithDesign(page, loadSeedProject().raw, project => {
+    await openDayManager(page, project => {
       project.reportDesigns = [{
         id: 'cs-wysiwyg', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
         blocks: [{
@@ -154,7 +124,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
   });
 
   test('palette drag-and-drop adds a zone block in the page editor', async ({ page }) => {
-    await seedWithDesign(page, loadSeedProject().raw, project => {
+    await openDayManager(page, project => {
       project.reportDesigns = [{
         id: 'cs-dnd', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
         blocks: [{
@@ -187,7 +157,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
   });
 
   test('stored per-day zone content renders in the editor preview', async ({ page }) => {
-    await seedWithDesign(page, loadSeedProject().raw, project => {
+    await openDayManager(page, project => {
       const design = {
         id: 'cs-store', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait' as const,
         blocks: [{
@@ -211,7 +181,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
   });
 
   test('header right-click on a live call-sheet grid opens the stages settings modal (roadmap 110)', async ({ page }) => {
-    await seedWithDesign(page, loadSeedProject().raw, project => {
+    await openDayManager(page, project => {
       project.reportDesigns = [{
         id: 'cs-grids', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
         blocks: [{
@@ -244,7 +214,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
   // ---- items 113-117: editor polish, times toggle, tooltip + strip highlight --
 
   async function seedEditorDesign(page: Page) {
-    await seedWithDesign(page, loadSeedProject().raw, project => {
+    await openDayManager(page, project => {
       project.reportDesigns = [{
         id: 'cs-editor', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
         blocks: [{
