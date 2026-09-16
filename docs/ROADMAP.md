@@ -459,25 +459,6 @@ the standalone tool is essentially "two `ScriptDocument`s → the 128 view" behi
 a thin shell. Ship only if it's genuinely low-effort on top of the existing
 pieces; otherwise park.
 
-## 135. Project script-map integrity audit + repair (`[ ]`)
-
-**Problem**: a `.lemon` can carry a stale/corrupt script map (a real file has two
-scenes numbered `40` → one script body shadowed). The app has no way to detect or
-repair it, and `97`'s "validation parity" only covers *new* API writes.
-
-**Idea**: a read-only audit (bridge + a Reports/Diagnostics surface) that lists
-project↔`scriptDocument` mismatches — duplicate normalized numbers (project AND
-body), project scenes with no body, bodies with no scene, scene→row invariant
-breaks — with an explicit, undoable repair (renumber collision to `40A` etc.,
-prune orphan bodies) so a corrupted file is recoverable without hand-editing JSON.
-
-**Relations**: `related to` **134** (prevention) and **97** (same integrity
-surface an agent API should expose).
-
-**Verify**: runs over the Lair V17 fixture (duplicate `40`) → reports it;
-repair renumbers both project scene and body in one undo; clean files report
-"no issues".
-
 ## 137. AI script-breakdown suggestions (Filmustage-style) (`[ ]`, FUTURE, parked)
 
 **Relations**: `depends on` **136** (the dotted→solid suggestion pipeline + the
@@ -491,3 +472,52 @@ known-element matching in **136** ships the same value cheaply; AI needs
 accuracy, consent and cost decisions first.
 
 **Verify**: TBD when unparked.
+
+## 138. Test-pyramid rebalance (move logic down to Vitest) (`[~]`)
+
+**Problem**: `e2e/` runs 70 specs / 264 tests against a prod build, but most specs
+boot a browser only to `dispatch` + inspect state via `window.__lemonSchedule`. The
+Vitest layer exists (`npm run test:unit`, `src/**/__tests__/*.test.ts`, node env) but
+is thin (18 files). Per `docs/TESTING.md`, logic that needs no browser belongs in a
+unit test, with ONE e2e case proving the wiring.
+
+**Approach**: classify each test PURE (bridge-only) / BRIDGE (store assertions via
+minimal UI) / BROWSER (canvas geometry, print/pagination, overlay morph, iPad/pen,
+focus/CSS). Convert PURE logic to Vitest and DELETE the e2e case — never cover one
+behaviour at two layers.
+
+**Done (phase 1)**: `src/lib/__tests__/legacyMigration.test.ts` (retired
+`cast-single-source` ×3); `sexImport.test.ts` (parse golden + `exportSex` round-trip;
+retired `sex-import` ×1); `crewLinks.test.ts` and `rulesEngine.test.ts` (logic pinned
+below the e2e wiring test); `elementMerge.test.ts` (reducer-level MERGE_ELEMENTS
+semantics via `makeBlankProject`-free State; retired 6 `element-manager-merge` UI
+cases); `reportData.test.ts` (pure resolver helpers: `reportItemKey`/`reportItemLabel`,
+`applyItemFilter`, `filterItemsByScope`, `flaggedIdsOf`); `report-smart-scoping.spec.ts`
+made **hermetic** (it read a machine-local `~/Downloads/Report 11.report` — would fail
+on CI); `reportResolve.test.ts` (day-scoped resolver: `days`/`scenesOfDay`,
+`elementCallsOfDay`, `departmentCallsOfDay`, `locationsOfDay`, `crewOfDay` — built from
+the committed seed via the pure `computeRowData` → `buildReportCtx` pipeline);
+`docs/TESTING.md` pyramid section corrected (it still claimed "no unit runner").
+Suite runs now print total wall time via `scripts/pw-duration-reporter.mjs`; workers are
+tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→saturates CPU).
+
+**Next (ranked, lowest extraction cost first)**:
+- Pure modules with no Vitest yet → new cases: `rulesEngine`, `sceneNumbering`,
+  `elementDayStats`, `crewLinks`, `dayMeta`/`dayView`, `reportData.resolveCollection`
+  (fixtures already committed).
+- Reducer-level cases still additive (the reducer is importable; `debug-bridge` #2–#3
+  stay e2e as the bridge's API proof): `caseAddScene` row invariant, `BATCH`/undo
+  contract, trash reducer cases (`trash-restore`).
+- Day-scoped **categories** scoping (`resolveCollectionItems` + ancestors) so
+  `report-smart-counts` can drop its inline logic duplication; `report-lookups` token
+  resolution (`reportFields`) — both are the last MIXED single-test report specs worth
+  converting. NOTE: `computeRowData` is already pure, so no `useDaybreakSections`
+  extraction is needed (the resolver tests build ctx directly from it).
+- Extraction first (logic is hook/component-bound): `digit-schedule`
+  (`useScheduleKeyboard`), `production-dates` days-off materialization.
+
+**Blocked**: `parseMsd` uses `DOMParser`, so its golden test stays e2e unless a jsdom
+environment is added — decide before converting `msd-import`.
+
+**Verify**: `npm run test:unit` grows and e2e drops without losing browser-bound
+coverage; `npm run lint` + full `npx playwright test` pass.
