@@ -134,7 +134,7 @@ test.describe('script body retention (roadmap 123 Phase 0)', () => {
   test('tagged FDX runs stay in the retained body (roadmap 132 Part B)', async ({ page }) => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-tagged.fdx', FDX_TAGGED));
-    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 1)");
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 1 && p.scriptAnnotations && p.scriptAnnotations.length === 1)");
 
     const project = await bridgeProject(page);
     const action = project.scriptDocument.scenes[0].blocks.find((b: any) => b[0] === 'action');
@@ -142,6 +142,10 @@ test.describe('script body retention (roadmap 123 Phase 0)', () => {
     expect(action[1]).toBe('AMY picks up the revolver and leaves.');
     // …and it still resolves to a breakdown element.
     expect(project.scenes.some((s: any) => /revolver/i.test(s.props || ''))).toBe(true);
+    // …and seeds a RECOGNISED (dotted) tag span anchored to the phrase.
+    const ann = project.scriptAnnotations[0];
+    expect(ann).toMatchObject({ text: 'revolver', category: 'props', elementKey: 'revolver', recognized: true, blockIndex: 1 });
+    expect(ann.sceneId).toBeTruthy();
   });
 });
 

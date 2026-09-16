@@ -541,9 +541,10 @@ row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 > text selection in the Script sub-tab (`ScriptTagModal` reusing
 > `CategoryDropdown` + `EntityDropdown` + `addNewElement`), and an element
 > rename cascades annotation refs in the same `caseUpdateElement` batch
-> (`src/lib/scriptAnnotations.ts`). **Remaining Part B**: seed recognised spans
-> from imported `<Text TagNumber>`, and the alias + explicit "Update script
-> text" flow. Cuts/duplicate/Split Manager/import reconciliation remain open.
+> (`src/lib/scriptAnnotations.ts`); FDX `<Text TagNumber>` runs seed recognised
+> (dotted) spans on import (`ScriptAnnotationSeed` → `commitImport`).
+> **Remaining Part B**: the alias + explicit "Update script text" flow.
+> Cuts/duplicate/Split Manager/import reconciliation remain open.
 > **API/agent compatibility is a hard constraint** (see API note + Relations 97).
 
 **Relations**: `depends on` **123 Phase 0** (**DONE** — retained

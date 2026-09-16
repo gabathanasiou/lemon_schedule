@@ -101,9 +101,12 @@ Status: read this before touching any import/export work.
   segmentation and the element-rename cascade (run in the SAME
   `caseUpdateElement` batch — a name-keyed tag must never dangle); the shared
   `ScriptSceneScript` renders them (dotted = recognised, solid = committed) and
-  `ScriptTagModal` (Script sub-tab selection) is the editor. Seeding recognised
-  spans from imported `<Text TagNumber>` and the alias/"Update script text" flow
-  remain open.
+  `ScriptTagModal` (Script sub-tab selection) is the editor. FDX `<Text
+  TagNumber>` runs emit `ScriptAnnotationSeed`s (`ImportResult.annotations`,
+  `parseFDX`) which `commitImport` resolves to the freshly-created scenes and
+  writes as `recognized: true`. **Replacing the body drops the old body's
+  positional tags** (`caseSetScriptDocument`), then re-seeds — the alias/"Update
+  script text" flow and Part-F remap remain open.
 - Persistence/Drive need no special handling: works through the roadmap-124
   localStorage codec and the Drive upload as part of the Project.
 - Read surfaces (roadmap 123 Phase 1 / 132 Part A): the Breakdown **Script

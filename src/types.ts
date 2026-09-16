@@ -99,6 +99,20 @@ export interface ScriptAnnotation {
   recognized?: boolean;
 }
 
+/** A recognised tag emitted by an import parser (roadmap 132 Part B): the same
+ *  span data as `ScriptAnnotation` but keyed by scene NUMBER (no live scene id
+ *  yet). `commitImport` resolves it to a scene and writes a `ScriptAnnotation`
+ *  with `recognized: true` (rendered dotted until committed). */
+export interface ScriptAnnotationSeed {
+  sceneNumber: string;
+  blockIndex: number;
+  start: number;
+  end: number;
+  text: string;
+  category: string;
+  elementKey: string;
+}
+
 /** A scene's diffable field values captured at the last accepted script import
  *  (roadmap 38 conflict reference). `diffScripts` compares it against the live
  *  scene so an in-app edit is flagged ("was: …") before an incoming screenplay

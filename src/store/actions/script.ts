@@ -8,7 +8,11 @@ export type ApplyChange = (p: Project) => State;
  *  body becomes current, the previous current becomes the baseline (item 38's
  *  conflict reference). `baseline` overrides when the caller already knows it.
  *  The scene-field snapshot is captured from the just-updated scenes, so the
- *  NEXT update can tell an in-app edit from the writer's new value. */
+ *  NEXT update can tell an in-app edit from the writer's new value.
+ *
+ *  Tags are POSITIONALLY anchored to the old body, so replacing the body drops
+ *  them — the import then re-seeds recognised spans (roadmap 132 Part B).
+ *  Part F will remap/reconcile annotations through the import instead. */
 export function caseSetScriptDocument(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'SET_SCRIPT_DOCUMENT') return state;
   const previous = state.present.scriptDocument;
@@ -17,6 +21,7 @@ export function caseSetScriptDocument(state: State, action: Action, applyChange:
     scriptDocument: action.payload.document,
     scriptBaseline: action.payload.baseline ?? previous ?? action.payload.document,
     scriptBaselineFields: snapshotSceneFields(state.present.scenes),
+    scriptAnnotations: [],
   });
 }
 

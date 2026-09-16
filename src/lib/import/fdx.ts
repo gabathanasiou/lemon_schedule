@@ -1,4 +1,4 @@
-import { DayNight, ScriptBlockType, ScriptInline, ScriptScene } from '../../types';
+import { DayNight, ScriptAnnotationSeed, ScriptBlockType, ScriptInline, ScriptScene } from '../../types';
 import { parsePageCount } from '../utils';
 import { createScriptDocument, createScriptScene, pushScriptBlock } from '../script';
 import { FDX_CATEGORY_MAP, ImportCharacter, ImportResult, ParsedScene, categoryNameToKey, normalizeCharacterName, parseSceneHeading } from './shared';
@@ -106,6 +106,7 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
   const sceneTaggedElements = new Map<string, Set<string>>();
   let lastDayNight: DayNight = 'DAY';
   const scriptScenes: ScriptScene[] = [];
+  const annotations: ScriptAnnotationSeed[] = [];
   let currentScriptScene: ScriptScene | null = null;
 
   function startScriptScene(sceneNumber: string, scriptPage?: string) {
@@ -153,17 +154,23 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
 
     const textEls = p.querySelectorAll(':scope > Text');
     let textContent = '';
-    const taggedTexts: { tagNumber: string; text: string }[] = [];
+    // Tagged runs carry their character offsets within the block's full text so
+    // a `ScriptAnnotationSeed` can anchor the span (roadmap 132 Part B).
+    const taggedTexts: { tagNumber: string; text: string; start: number; end: number }[] = [];
     // Inline runs (FDX `Style` on each <Text> run) — retained so the preview can
     // render bold/italic/underline (roadmap 132 Part B).
     const inlineRuns: ScriptInline[] = [];
     let anyStyle = false;
+    let cursor = 0;
+    // Whether this paragraph pushed a body block (its index is blocks.length-1).
+    let pushedBlock = false;
 
     for (const te of textEls) {
       const tn = te.getAttribute('TagNumber');
       const txt = te.textContent || '';
       textContent += txt;
-      if (tn) taggedTexts.push({ tagNumber: tn, text: txt });
+      if (tn) taggedTexts.push({ tagNumber: tn, text: txt, start: cursor, end: cursor + txt.length });
+      cursor += txt.length;
       const style = te.getAttribute('Style') || '';
       const bold = /bold/i.test(style);
       const italic = /italic/i.test(style);
@@ -212,19 +219,21 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
       currentScriptPageForScene = currentScriptPage;
       startScriptScene(currentSceneNumber, currentScriptPageForScene);
       pushScriptBlock(currentScriptScene!, 'heading', currentHeading, blockRuns);
+      pushedBlock = true;
     } else if (pType === 'Character') {
       const name = normalizeCharacterName(textContent);
       if (name) sceneCharacters.add(name);
-      if (currentScriptScene) pushScriptBlock(currentScriptScene, 'character', textContent, blockRuns);
+      if (currentScriptScene) { pushScriptBlock(currentScriptScene, 'character', textContent, blockRuns); pushedBlock = true; }
     } else if (pType === 'Action') {
       if (scenes.length === 0 && !currentSceneNumber) {
         currentSceneNumber = pNum || String(scenes.length + 1);
         currentHeading = textContent;
         startScriptScene(currentSceneNumber, currentScriptPage);
       }
-      if (currentScriptScene) pushScriptBlock(currentScriptScene, 'action', textContent, blockRuns);
+      if (currentScriptScene) { pushScriptBlock(currentScriptScene, 'action', textContent, blockRuns); pushedBlock = true; }
     } else if (currentScriptScene && SCRIPT_BLOCK_TYPE[pType]) {
       pushScriptBlock(currentScriptScene, SCRIPT_BLOCK_TYPE[pType], textContent, blockRuns);
+      pushedBlock = true;
     }
 
     for (const tt of taggedTexts) {
@@ -232,6 +241,21 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
       if (resolved && resolved.categoryKey) {
         if (!sceneTaggedElements.has(resolved.categoryKey)) sceneTaggedElements.set(resolved.categoryKey, new Set());
         sceneTaggedElements.get(resolved.categoryKey)!.add(resolved.elementName);
+        // Recognised span (roadmap 132 Part B) — trimmed to the tagged phrase.
+        const phrase = tt.text.trim();
+        if (pushedBlock && currentScriptScene && phrase) {
+          const lead = tt.text.length - tt.text.trimStart().length;
+          const trail = tt.text.length - tt.text.trimEnd().length;
+          annotations.push({
+            sceneNumber: currentSceneNumber,
+            blockIndex: currentScriptScene.blocks.length - 1,
+            start: tt.start + lead,
+            end: tt.end - trail,
+            text: phrase,
+            category: resolved.categoryKey,
+            elementKey: resolved.elementName,
+          });
+        }
       }
     }
   }
@@ -250,5 +274,5 @@ export async function parseFDX(file: File, knownDayNight?: Iterable<string>): Pr
   script.name = file.name;
   script.scenes = scriptScenes;
 
-  return { title, scenes, characters, unknownCategories: [...unknownCategories], script };
+  return { title, scenes, characters, unknownCategories: [...unknownCategories], script, annotations };
 }

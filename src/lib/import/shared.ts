@@ -1,4 +1,4 @@
-import { IntExt, DayNight, ScriptDocument } from '../../types';
+import { IntExt, DayNight, ScriptAnnotationSeed, ScriptDocument } from '../../types';
 import { normalizePunctuation } from '../utils';
 
 export interface ParsedScene {
@@ -28,6 +28,9 @@ export interface ImportResult {
   unknownCategories: string[];
   /** Retained screenplay body (roadmap 123 Phase 0) — absent for CSV. */
   script?: ScriptDocument;
+  /** Recognised tags seen in the imported body (roadmap 132 Part B) — FDX
+   *  `<Text TagNumber>` runs, resolved and position-anchored; absent for CSV. */
+  annotations?: ScriptAnnotationSeed[];
 }
 
 export const FDX_CATEGORY_MAP: Record<string, string | null> = {
