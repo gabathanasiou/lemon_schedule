@@ -117,6 +117,13 @@ Status: read this before touching any import/export work.
   bodies, delete the next scene to Trash). Both are ONE `BATCH_START`/`COMMIT`;
   the body uses `UPDATE_SCRIPT_DOCUMENT` (baseline NOT rotated). UI:
   `SceneCutModal` + the Script sub-tab hover Cut/Merge.
+- **Duplicate modes (roadmap 132 Part D)**: ONE modal (`SceneDuplicateModal`,
+  mounted by `SceneDuplicateProvider`, opened via `useSceneDuplicate()`) serves
+  the stripboard context menu / Glide / Scene Sheet: **Split** (renumber + copy
+  the body), **Coverage** (same number, schedule-only, "copy" badge), **Not
+  care** (renumber, no metadata). `buildSceneDuplicate` (`src/lib/sceneDuplicates.ts`)
+  is the one builder; `Scene.duplicateOf`/`duplicateKind` record the
+  relationship (input to the Split Manager, E).
 - Persistence/Drive need no special handling: works through the roadmap-124
   localStorage codec and the Drive upload as part of the Project.
 - Read surfaces (roadmap 123 Phase 1 / 132 Part A): the Breakdown **Script

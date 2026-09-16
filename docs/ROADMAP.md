@@ -547,8 +547,11 @@ row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 > (applied by `parseFDX` on re-import) — **Part B complete**. **Part C complete**
 > (cut at a block boundary → lettered boneyard scene + tags move; merge-with-next
 > reverses; one batch — `src/lib/scriptSceneOps.ts`, `SceneCutModal`, Script
-> sub-tab hover). Duplicate-unify (D) / Split Manager (E) / import reconciliation
-> (F) remain open.
+> sub-tab hover). **Part D complete** — ONE duplicate modal
+> (`SceneDuplicateProvider`/`useSceneDuplicate` + `SceneDuplicateModal`,
+> `buildSceneDuplicate`) serves stripboard/Glide/Scene Sheet with Split /
+> Coverage (copy badge) / Not care; `Scene.duplicateOf`/`duplicateKind` record the
+> relationship. Split Manager (E) / import reconciliation (F) remain open.
 > **API/agent compatibility is a hard constraint** (see API note + Relations 97).
 
 **Relations**: `depends on` **123 Phase 0** (**DONE** — retained

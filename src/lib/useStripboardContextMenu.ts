@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { ScheduleRow, ScheduleVersion, Project, Scene } from '../types';
+import { ScheduleRow, ScheduleVersion, Project } from '../types';
 import { generateUUID } from './utils';
-import { nextLetterSceneNumber } from './sceneNumbering';
 import { renumberRows, insertionOrder } from './daybreakUtils';
+import { useSceneDuplicate } from './sceneDuplicate';
 import { isEmptyDayMeta } from './dayMeta';
 import { getMarqueeMode } from './useLongPressMenu';
 import { getNoteBannerColors } from './ribbonUtils';
@@ -50,6 +50,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const dialog = useDialog();
+  const sceneDuplicate = useSceneDuplicate();
 
   const inClipboard = useMemo(
     () => rows.filter(r => r.containerId === -1).length,
@@ -238,16 +239,33 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       newRows.push({ id: newId, type: 'DAYBREAK', containerId, order: row.order + 0.5, daybreakLabel: 'DAYBREAK', daybreakCallTime: '08:00' });
       newRowIds.push(newId);
     } else if (action === 'duplicate' && row.type === 'SCENE') {
-      const newId = generateUUID();
-      const newRow: ScheduleRow = { ...row, id: newId, order: row.order + 0.5 };
+      // Route the scene duplicate through the shared modal (roadmap 132 Part D);
+      // the row insert happens on confirm, inside the modal's undo batch.
       const originalScene = project.scenes.find(s => s.id === row.sceneId);
       if (originalScene) {
-        const newScene: Scene = { ...originalScene, id: generateUUID(), sceneNumber: nextLetterSceneNumber(project.scenes, originalScene.sceneNumber) };
-        newRow.sceneId = newScene.id;
-        dispatch({ type: 'ADD_SCENE', payload: newScene });
+        setContextMenu(null);
+        sceneDuplicate.request({
+          scene: originalScene,
+          onConfirm: (newScene) => {
+            const newId = generateUUID();
+            const newRow: ScheduleRow = { ...row, id: newId, order: row.order + 0.5, sceneId: newScene.id };
+            const next = renumberRows(
+              [...rows, newRow].sort((a, b) => {
+                if (a.containerId === null && b.containerId !== null) return 1;
+                if (a.containerId !== null && b.containerId === null) return -1;
+                if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
+                return a.order - b.order;
+              }),
+            );
+            dispatch({ type: 'ADD_SCENE', payload: newScene });
+            dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: next } });
+            setSelectedRowIds(new Set([newId]));
+            setFocusedRowId(newId);
+            scrollToRow(newId);
+          },
+        });
+        return;
       }
-      newRows.push(newRow);
-      newRowIds.push(newId);
     } else if ((action === 'duplicate' || action === 'duplicate_note' || action === 'duplicate_break' || (enableDaybreaks && action === 'duplicate_daybreak')) && (row.type === 'NOTE' || row.type === 'BREAK' || (enableDaybreaks && row.type === 'DAYBREAK'))) {
       const newId = generateUUID();
       newRows.push({ ...row, id: newId, order: row.order + 0.5 });
@@ -295,7 +313,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       selectNextAfterRemove(new Set([rowId] as string[]));
     }
     setContextMenu(null);
-  }, [contextMenu, activeVersion, rows, project, dispatch, setSelectedRowIds, setFocusedRowId, scrollToRow, setColorPicker, selectNextAfterRemove, setContextMenu, dialog]);
+  }, [contextMenu, activeVersion, rows, project, dispatch, setSelectedRowIds, setFocusedRowId, scrollToRow, setColorPicker, selectNextAfterRemove, setContextMenu, dialog, sceneDuplicate]);
 
   const createOnContextMenu = useCallback((options?: {
     prependSelect?: () => void;

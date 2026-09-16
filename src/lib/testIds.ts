@@ -39,4 +39,6 @@ export const TEST_IDS = {
   scriptTagModal: 'script-tag-modal',
   /** Scene cut modal body (roadmap 132 Part C). */
   sceneCutModal: 'scene-cut-modal',
+  /** Shared scene duplicate modal body (roadmap 132 Part D). */
+  sceneDuplicateModal: 'scene-duplicate-modal',
 } as const;

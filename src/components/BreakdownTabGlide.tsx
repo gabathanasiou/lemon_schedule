@@ -14,7 +14,7 @@ import '@glideapps/glide-data-grid/dist/index.css';
 import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store';
 import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount, clipboardWrite, clipboardRead } from '../lib/utils';
-import { nextLetterSceneNumber } from '../lib/sceneNumbering';
+import { useSceneDuplicate } from '../lib/sceneDuplicate';
 import {
   Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, ArrowUp, Eye, Square, CheckSquare,
   ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search, Download, ExternalLink,
@@ -99,6 +99,7 @@ export function GlideBreakdownTab({
   headerTarget?: HTMLElement | null;
 }) {
   const { state, dispatch, readOnly } = useProject();
+  const { request: requestSceneDuplicate } = useSceneDuplicate();
   const isCloud = useIsCloudProject();
   const project = state.present;
   const scenes = project.scenes;
@@ -614,9 +615,10 @@ export function GlideBreakdownTab({
   const duplicateSceneAt = useCallback((index: number) => {
     const original = scenes[index];
     if (!original) return;
-    const duplicate: Scene = { ...original, id: generateUUID(), sceneNumber: nextLetterSceneNumber(scenes, original.sceneNumber) };
-    dispatch({ type: 'INSERT_SCENE_AT', payload: { index: index + 1, scene: duplicate } });
-  }, [dispatch, scenes]);
+    requestSceneDuplicate({ scene: original, onConfirm: (duplicate) => {
+      dispatch({ type: 'INSERT_SCENE_AT', payload: { index: index + 1, scene: duplicate } });
+    } });
+  }, [dispatch, scenes, requestSceneDuplicate]);
 
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });

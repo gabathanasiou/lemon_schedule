@@ -5,6 +5,12 @@ export type RowType = 'SCENE' | 'BREAK' | 'NOTE' | 'DAYBREAK';
 export interface Scene {
   id: string;
   ghostOf?: string;
+  /** Parent scene this was duplicated from (roadmap 132 Part D) — records the
+   *  relationship for the copy badge / Split Manager (E). */
+  duplicateOf?: string;
+  /** How it was duplicated: `split` (renumbered + body copied), `coverage`
+   *  (same number, schedule-only, "copy" badge), or absent (plain duplicate). */
+  duplicateKind?: 'split' | 'coverage';
   sceneNumber: string;
   /** MMS sheet number (BreakdownSheetMgr order by number = script order;
    *  the glide breakdown positions match it). */

@@ -80,6 +80,7 @@ import { PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar } from './compone
 import { DayTypesTab } from './components/calendar/DayTypesTab';
 import { requestUnsavedSave } from './lib/unsavedGuard';
 import { NewCastNamingProvider } from './lib/newCastNaming';
+import { SceneDuplicateProvider } from './lib/sceneDuplicate';
 
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity, activeCalendarVersion } = useProject();
@@ -1005,7 +1006,9 @@ export default function App() {
   return (
     <ProjectProvider>
       <NewCastNamingProvider>
-        <AppContent />
+        <SceneDuplicateProvider>
+          <AppContent />
+        </SceneDuplicateProvider>
       </NewCastNamingProvider>
     </ProjectProvider>
   );

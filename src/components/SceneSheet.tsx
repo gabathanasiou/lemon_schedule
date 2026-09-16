@@ -16,6 +16,7 @@ import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
+import { useSceneDuplicate } from '../lib/sceneDuplicate';
 import { resolvedLocationName } from '../lib/locations';
 import { usePersistState } from '../lib/persist';
 import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/SceneScriptPane';
@@ -44,6 +45,7 @@ const ORDER_LABELS: Record<BreakdownOrder, string> = {
 
 export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule, onOpenScheduleInPopout }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void; onOpenScheduleInPopout?: (sceneId: string) => void }) {
   const { state, dispatch, readOnly } = useProject();
+  const { request: requestSceneDuplicate } = useSceneDuplicate();
   const isCloud = useIsCloudProject();
   const project = state.present;
   const scenes = project.scenes;
@@ -296,14 +298,15 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const duplicateScene = useCallback(() => {
     if (!scene) return;
     commitTextEdits();
-    const dup: Scene = { ...scene, id: generateUUID() };
-    dispatch({ type: 'INSERT_SCENE_AT', payload: { index: scenes.indexOf(scene) + 1, scene: dup } });
-    const newIdx = Math.max(0, orderedScenes.findIndex(s => s.id === dup.id));
-    setIndex(newIdx);
-    setSheetInput(String(newIdx + 1));
-    lastReportedIndexRef.current = newIdx;
-    onIndexChange?.(newIdx);
-  }, [scene, scenes, orderedScenes, dispatch, onIndexChange, commitTextEdits]);
+    requestSceneDuplicate({ scene, onConfirm: (dup) => {
+      dispatch({ type: 'INSERT_SCENE_AT', payload: { index: scenes.indexOf(scene) + 1, scene: dup } });
+      const newIdx = Math.max(0, orderedScenes.findIndex(s => s.id === dup.id));
+      setIndex(newIdx);
+      setSheetInput(String(newIdx + 1));
+      lastReportedIndexRef.current = newIdx;
+      onIndexChange?.(newIdx);
+    } });
+  }, [scene, scenes, orderedScenes, dispatch, onIndexChange, commitTextEdits, requestSceneDuplicate]);
 
   const deleteCurrentScene = useCallback(() => {
     if (!scene) return;
@@ -399,6 +402,9 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           <span className="text-zinc-400">Sheet</span>
           <input type="text" aria-label="Sheet number" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-12 text-center border border-zinc-200 rounded-md px-1 py-0.5 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
           <span className="text-zinc-400">of {scenes.length}</span>
+          {scene?.duplicateKind === 'coverage' && (
+            <span className="ml-1 rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-700" title="Coverage / second unit — same number, schedule-only copy">Copy</span>
+          )}
         </div>
         <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
         <div className="w-px h-5 bg-zinc-200 mx-1" />

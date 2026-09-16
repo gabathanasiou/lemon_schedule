@@ -333,6 +333,43 @@ test.describe('scene cut (roadmap 132 Part C)', () => {
   });
 });
 
+test.describe('scene duplicate modes (roadmap 132 Part D)', () => {
+  test('the shared modal covers coverage (same number + badge) and split (renumber + body copy)', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-dup.fdx', FDX_A));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
+    await page.getByRole('button', { name: 'Sheet', exact: true }).click();
+
+    const before = await bridgeProject(page);
+    const currentId = await page.evaluate(() => (window as any).__lemonSchedule.getProject().scenes[0].id);
+    const parent = before.scenes.find((s: any) => s.id === currentId);
+
+    // Coverage: same number, schedule-only, "copy" badge.
+    await page.getByRole('button', { name: 'Duplicate', exact: true }).first().click();
+    const dlg = page.getByRole('dialog');
+    await expect(dlg.getByTestId('scene-duplicate-modal')).toBeVisible();
+    await dlg.getByText('Coverage / second unit').click();
+    await dlg.getByRole('button', { name: 'Duplicate' }).click();
+    await expect.poll(async () => (await bridgeProject(page)).scenes.some((s: any) => s.duplicateKind === 'coverage')).toBe(true);
+    const coverage = (await bridgeProject(page)).scenes.find((s: any) => s.duplicateKind === 'coverage');
+    expect(coverage.sceneNumber).toBe(parent.sceneNumber);
+    expect(coverage.duplicateOf).toBe(parent.id);
+
+    // Split: renumbered + body copied.
+    const bodyBefore = (await bridgeProject(page)).scriptDocument.scenes.length;
+    await page.getByRole('button', { name: 'Duplicate', exact: true }).first().click();
+    await page.getByRole('dialog').getByText('Split / second scene').click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Duplicate' }).click();
+    await expect.poll(async () => (await bridgeProject(page)).scenes.some((s: any) => s.duplicateKind === 'split')).toBe(true);
+    const split = (await bridgeProject(page)).scenes.find((s: any) => s.duplicateKind === 'split');
+    const base = parent.sceneNumber.replace(/[A-Z]+$/i, '');
+    expect(split.sceneNumber).toMatch(new RegExp(`^${base}[A-Z]$`));
+    const after = await bridgeProject(page);
+    expect(after.scriptDocument.scenes.length).toBe(bodyBefore + 1);
+    expect(after.scriptDocument.scenes.some((s: any) => s.sceneNumber === split.sceneNumber)).toBe(true);
+  });
+});
+
 test.describe('Script viewer tools (roadmap 123 Phase 1)', () => {
   test('search highlights, set navigator, eighths ruler and update button', async ({ page }) => {
     await openSeededProject(page);
