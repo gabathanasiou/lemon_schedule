@@ -7,7 +7,7 @@ import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
-import { formatDateShort } from './utils';
+import { formatDateShort, naturalSortSceneStrings } from './utils';
 import { computeViolationIndex, violationTypeLabel } from './violations';
 import { typeLabelOf, resolvedLocationName, partsFromPlace } from './locations';
 import { getDayTypes, codeForType } from './dayTypes';
@@ -775,9 +775,24 @@ export function getElementsFor(ctx: ReportCtx, category: string): ReportElementI
   return out;
 }
 
+/** Canonical report order for an element collection — cast by Board ID (the
+ *  cast id behind "1. GEORGE"), every other category by name (numeric-aware);
+ *  blank keys sort last. Shared by every surface that iterates elements
+ *  (tables, repeats); `EntityDropdown`/pickers keep their own order. */
+export function sortReportElements<T extends { id: string; name: string }>(elements: T[], category: string): T[] {
+  const keyOf = (e: T) => elementMatchId(e, category) || '';
+  return [...elements].sort((a, b) => {
+    const av = keyOf(a);
+    const bv = keyOf(b);
+    if (!av) return bv ? 1 : 0;
+    if (!bv) return -1;
+    return naturalSortSceneStrings(av, bv);
+  });
+}
+
 function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[] {
   const { project } = ctx;
-  const elements = loadCategoryElements(project, category);
+  const elements = sortReportElements(loadCategoryElements(project, category), category);
   const { totals, typeDayDates } = computeElementStats(ctx, category, elements);
   const matchId = (e: { id: string; name: string }) => elementMatchId(e, category);
   const chronoByDate = new Map(ctx.dayInfos.map(d => [d.date, d.chronoDay]));

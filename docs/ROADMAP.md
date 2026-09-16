@@ -574,43 +574,6 @@ through the picker, zone edits still persist per day; manual iPad pass.
 `Manage | Call Sheet` toggle and the removed `CallSheetSection`; touches
 111/112 grids and 113/114 call-sheet chrome; related to 140/141.
 
-## 143. Reports designer — cast/element tables ordered by Board ID (`[ ]`)
-
-**Request**: tables (and element blocks) that iterate cast should list rows by
-**Board ID** — the cast id behind the "1. GEORGE" display and the call-sheet ID
-column — not scene-appearance order. Non-cast element categories should have a
-predictable order too (by name, numeric-aware) unless a category board id
-applies.
-
-**Why it isn't already**: the order is incidental to `loadCategoryElements`
-(`src/lib/elements.ts:31`) — cast = first-scene-appearance order, then the
-remaining `project.castMembers` in stored order. `buildElementsFor`
-(`src/lib/reportData.ts:778-823`) wraps that into `ReportElementInfo[]`, and
-`resolveCollection` (`reportData.ts:943-944`) serves it to repeats AND tables,
-so today's table order is whatever scene order produced.
-
-**Approach**:
-- Add a cast `boardId` to `ReportElementInfo` (`elementMatchId(e, 'cast')` is
-  the id; `boardId` is currently only populated on `elementCallsOfDay` items,
-  `reportData.ts:987`) and sort the cast collection by it.
-- Use a natural compare (`naturalSortSceneStrings`, `src/lib/utils.ts:158`) so
-  1, 2, 10 order correctly (not 1, 10, 2); blank ids sort last.
-- Element categories: `localeCompare(..., { numeric: true })` on the name —
-  confirm whether any category has a board id worth ordering by first.
-- Sort in the SHARED collection (`getElementsFor`/`buildElementsFor`) so
-  tables, repeats and future surfaces agree — do NOT fork a table-only order.
-  `EntityDropdown`/pickers keep their own order.
-- A user-facing sort control, if wanted later, layers on this canonical order —
-  out of scope here.
-
-**Verify**: unit (`reportData`/`elements`): numeric + letter board ids order
-naturally, blank last, order stable; visual check of a cast table in
-designer/preview/print. Fixed-list ordering = manual per rule 7 (no e2e) unless
-a silent wrong-order regression proves one is worth it.
-
-**Relations**: touches 140 (table title) and the 100/81 collection pipeline;
-read `docs/REPORTS-DESIGNER.md`.
-
 ## 145. Desktop app (Tauri) hosting the web UI + local MCP server (`[ ]`)
 
 **Relations**: `supersedes` the distribution half of **97** (the live MCP bridge

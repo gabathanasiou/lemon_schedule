@@ -5,6 +5,7 @@ import {
   applyItemFilter,
   filterItemsByScope,
   flaggedIdsOf,
+  sortReportElements,
   todayIso,
 } from '../reportData';
 
@@ -69,6 +70,31 @@ describe('flaggedIdsOf', () => {
     expect(flaggedIdsOf({ sceneIds: ['a', 'b'] } as any)).toEqual(['a', 'b']);
     expect(flaggedIdsOf({ sceneId: 'x' } as any)).toEqual(['x']);
     expect(flaggedIdsOf({} as any)).toEqual([]);
+  });
+});
+
+describe('sortReportElements', () => {
+  const el = (id: string, name: string) => ({ id, name });
+
+  it('orders cast by Board ID, numeric-aware', () => {
+    const items = [el('10', 'TEN'), el('2', 'TWO'), el('1', 'ONE')];
+    expect(sortReportElements(items, 'cast').map(e => e.id)).toEqual(['1', '2', '10']);
+  });
+
+  it('orders non-cast categories by name, numeric-aware', () => {
+    const items = [el('a', 'Prop 10'), el('b', 'prop 2'), el('c', 'Apple')];
+    expect(sortReportElements(items, 'props').map(e => e.name)).toEqual(['Apple', 'prop 2', 'Prop 10']);
+  });
+
+  it('sorts blank keys last', () => {
+    const items = [el('', ''), el('3', 'C'), el('1', 'A')];
+    expect(sortReportElements(items, 'cast').map(e => e.id)).toEqual(['1', '3', '']);
+  });
+
+  it('does not mutate the input array', () => {
+    const items = [el('2', 'B'), el('1', 'A')];
+    sortReportElements(items, 'cast');
+    expect(items.map(e => e.id)).toEqual(['2', '1']);
   });
 });
 
