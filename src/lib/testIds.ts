@@ -37,4 +37,6 @@ export const TEST_IDS = {
   scriptTagFloating: 'script-tag-floating',
   /** Tag editor modal body (create/edit an annotation, roadmap 132 Part B). */
   scriptTagModal: 'script-tag-modal',
+  /** Scene cut modal body (roadmap 132 Part C). */
+  sceneCutModal: 'scene-cut-modal',
 } as const;

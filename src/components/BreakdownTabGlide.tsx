@@ -14,6 +14,7 @@ import '@glideapps/glide-data-grid/dist/index.css';
 import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store';
 import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount, clipboardWrite, clipboardRead } from '../lib/utils';
+import { nextLetterSceneNumber } from '../lib/sceneNumbering';
 import {
   Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, ArrowUp, Eye, Square, CheckSquare,
   ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search, Download, ExternalLink,
@@ -613,12 +614,7 @@ export function GlideBreakdownTab({
   const duplicateSceneAt = useCallback((index: number) => {
     const original = scenes[index];
     if (!original) return;
-    const duplicate: Scene = { ...original, id: generateUUID() };
-    const base = original.sceneNumber.replace(/[A-Z]+$/, '');
-    const used = scenes.filter(s => s.sceneNumber.match(new RegExp('^' + base + '[A-Z]$'))).map(s => s.sceneNumber.slice(-1));
-    let letter = 'A';
-    for (let c = 65; c <= 90; c++) { if (!used.includes(String.fromCharCode(c))) { letter = String.fromCharCode(c); break; } }
-    duplicate.sceneNumber = base + letter;
+    const duplicate: Scene = { ...original, id: generateUUID(), sceneNumber: nextLetterSceneNumber(scenes, original.sceneNumber) };
     dispatch({ type: 'INSERT_SCENE_AT', payload: { index: index + 1, scene: duplicate } });
   }, [dispatch, scenes]);
 

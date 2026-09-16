@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronUp, ExternalLink, FileText, Ruler, Search, Tag as TagIcon, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, FileText, Ruler, Scissors, Search, Tag as TagIcon, Upload } from 'lucide-react';
 import { useProject } from '../store';
 import { ScriptSceneText } from './script/ScriptSceneScript';
 import { EighthsRuler } from './script/EighthsRuler';
 import ScriptTagModal, { type ScriptTagTarget } from './script/ScriptTagModal';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
+import { useDialog } from './Dialog';
 import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
+import { mergeSceneWithNext } from '../lib/scriptSceneOps';
 import { usePersistState } from '../lib/persist';
 import { TEST_IDS } from '../lib/testIds';
 import type { ScriptAnnotation, ScriptScene } from '../types';
@@ -59,13 +61,15 @@ function setFromHeading(scene: ScriptScene): string {
  * into Sheet / Schedule. Rendering is the shared `ScriptSceneText` (light theme)
  * — never a second screenplay renderer.
  */
-export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdateScript }: {
+export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdateScript, onCutScene }: {
   headerTarget?: HTMLElement | null;
   onOpenSheet?: (rowIndex: number) => void;
   onOpenSchedule?: (sceneId: string) => void;
   onUpdateScript?: () => void;
+  onCutScene?: (sceneId: string) => void;
 }) {
-  const { state } = useProject();
+  const { state, dispatch } = useProject();
+  const dialog = useDialog();
   const project = state.present;
   const doc = project.scriptDocument;
   const projectScenes = project.scenes;
@@ -120,6 +124,14 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     setPendingTag(null);
     setTagModal({ target: { sceneId: a.sceneId, blockIndex: a.blockIndex, start: a.start, end: a.end, text: a.text }, annotation: a });
   }, []);
+
+  const mergeNext = useCallback((sceneId: string) => {
+    void dialog.confirm({
+      title: 'Merge with next scene?',
+      message: 'The next scene’s script joins this one and that scene is removed (to Trash, restorable). One undo step.',
+      danger: true,
+    }).then(ok => { if (ok) mergeSceneWithNext(dispatch, project, sceneId); });
+  }, [dialog, dispatch, project]);
 
   // Script scene number → the live Scene it belongs to (for sets / navigation).
   const sceneByIdentity = useMemo(() => {
@@ -338,6 +350,11 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
             )}
             {doc.scenes.map((scene, i) => {
               const match = sceneByIdentity.get(normalizeSceneNumber(scene.sceneNumber));
+              const nextDoc = doc.scenes[i + 1];
+              const base = scene.sceneNumber.replace(/[A-Z]+$/i, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const isFragment = !!nextDoc
+                && new RegExp(`^${base}[A-Z]$`, 'i').test(nextDoc.sceneNumber)
+                && !!sceneByIdentity.get(normalizeSceneNumber(nextDoc.sceneNumber));
               return (
                 <section
                   key={`${scene.sceneNumber}-${i}`}
@@ -347,8 +364,20 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                   id={`script-scene-${i}`}
                   className="group relative scroll-mt-4 pb-6"
                 >
-                  {match && (onOpenSchedule || onOpenSheet) && (
+                  {match && (onOpenSchedule || onOpenSheet || onCutScene || isFragment) && (
                     <div className="hover-reveal absolute right-0 top-3 z-10 flex items-center gap-1 rounded bg-white/90">
+                      {onCutScene && (
+                        <button type="button" onClick={() => onCutScene(match.id)} title="Cut this scene…"
+                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">
+                          <Scissors className="h-3 w-3" /> Cut
+                        </button>
+                      )}
+                      {isFragment && (
+                        <button type="button" onClick={() => mergeNext(match.id)} title="Merge the next scene into this one"
+                          className="rounded px-1 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">
+                          Merge
+                        </button>
+                      )}
                       {onOpenSchedule && (
                         <button type="button" onClick={() => onOpenSchedule(match.id)} title="Open in Schedule"
                           className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">

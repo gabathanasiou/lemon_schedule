@@ -110,6 +110,13 @@ Status: read this before touching any import/export work.
   undoable **"Update script text"** rewrites the page + records the old wording
   in `project.elementAliases`; `parseFDX` applies those aliases on re-import so
   the element is still recognised. Part-F remap remains open.
+- **Scene cut / merge (roadmap 132 Part C)**: `src/lib/scriptSceneOps.ts`
+  `commitSceneCut` splits a scene's retained blocks at a boundary into a new
+  lettered scene (inherits the parent's element fields, lands in the boneyard,
+  tags optionally move), and `mergeSceneWithNext` reverses it (concatenate the
+  bodies, delete the next scene to Trash). Both are ONE `BATCH_START`/`COMMIT`;
+  the body uses `UPDATE_SCRIPT_DOCUMENT` (baseline NOT rotated). UI:
+  `SceneCutModal` + the Script sub-tab hover Cut/Merge.
 - Persistence/Drive need no special handling: works through the roadmap-124
   localStorage codec and the Drive upload as part of the Project.
 - Read surfaces (roadmap 123 Phase 1 / 132 Part A): the Breakdown **Script

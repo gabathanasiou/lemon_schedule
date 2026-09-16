@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { ScheduleRow, ScheduleVersion, Project, Scene } from '../types';
 import { generateUUID } from './utils';
+import { nextLetterSceneNumber } from './sceneNumbering';
 import { renumberRows, insertionOrder } from './daybreakUtils';
 import { isEmptyDayMeta } from './dayMeta';
 import { getMarqueeMode } from './useLongPressMenu';
@@ -241,16 +242,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       const newRow: ScheduleRow = { ...row, id: newId, order: row.order + 0.5 };
       const originalScene = project.scenes.find(s => s.id === row.sceneId);
       if (originalScene) {
-        const baseNumber = originalScene.sceneNumber.replace(/[A-Z]+$/, '');
-        const existingLetters = project.scenes
-          .filter(s => s.sceneNumber.match(new RegExp('^' + baseNumber + '[A-Z]$')))
-          .map(s => s.sceneNumber.slice(-1));
-        let nextLetter = 'A';
-        for (let code = 65; code <= 90; code++) {
-          const letter = String.fromCharCode(code);
-          if (!existingLetters.includes(letter)) { nextLetter = letter; break; }
-        }
-        const newScene: Scene = { ...originalScene, id: generateUUID(), sceneNumber: baseNumber + nextLetter };
+        const newScene: Scene = { ...originalScene, id: generateUUID(), sceneNumber: nextLetterSceneNumber(project.scenes, originalScene.sceneNumber) };
         newRow.sceneId = newScene.id;
         dispatch({ type: 'ADD_SCENE', payload: newScene });
       }

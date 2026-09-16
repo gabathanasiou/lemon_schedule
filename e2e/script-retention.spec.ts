@@ -284,6 +284,55 @@ test.describe('script tagging (roadmap 123 Phase 2 / 132 Part B)', () => {
   });
 });
 
+test.describe('scene cut (roadmap 132 Part C)', () => {
+  test('cuts a scene at a block boundary into a lettered boneyard scene, one undo', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-cut.fdx', FDX_A));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
+    await page.getByRole('button', { name: 'Script', exact: true }).click();
+
+    const firstSection = page.getByTestId('script-scene').first();
+    const parentNumber = (await firstSection.getAttribute('data-scene-number'))!;
+    const before = await bridgeProject(page);
+    // ScriptView maps a doc scene number to the LAST live scene with that number.
+    const parent = [...before.scenes].reverse().find((s: any) => s.sceneNumber === parentNumber);
+    const bodyBefore = before.scriptDocument.scenes.length;
+
+    await firstSection.hover();
+    await firstSection.getByRole('button', { name: 'Cut' }).click();
+    await expect(page.getByTestId('scene-cut-modal')).toBeVisible();
+    await page.getByRole('button', { name: 'Cut scene' }).click();
+
+    await page.waitForFunction((n) => (window as any).__lemonSchedule.getProject().scenes.length === n + 1, before.scenes.length);
+    const after = await bridgeProject(page);
+    const newScene = after.scenes.find((s: any) => !before.scenes.some((b: any) => b.id === s.id));
+    const base = parentNumber.replace(/[A-Z]+$/i, '');
+    expect(newScene.sceneNumber).toMatch(new RegExp(`^${base}[A-Z]$`));
+    expect(newScene.cast).toBe(parent.cast); // inherits the parent's element fields
+
+    // The body gained a scene (with a heading) right after the parent.
+    expect(after.scriptDocument.scenes.length).toBe(bodyBefore + 1);
+    const newBodyScene = after.scriptDocument.scenes.find((s: any) => s.sceneNumber === newScene.sceneNumber);
+    expect(newBodyScene.blocks[0][0]).toBe('heading');
+
+    // One undo reverses the whole cut (body + scene).
+    await page.evaluate(() => (window as any).__lemonSchedule.undo());
+    const undone = await bridgeProject(page);
+    expect(undone.scenes.length).toBe(before.scenes.length);
+    expect(undone.scriptDocument.scenes.length).toBe(bodyBefore);
+
+    // Redo, then "Merge with next" reverses it (confirm dialog + one batch).
+    await page.evaluate(() => (window as any).__lemonSchedule.redo());
+    await expect.poll(async () => (await bridgeProject(page)).scenes.length).toBe(before.scenes.length + 1);
+    await firstSection.hover();
+    await firstSection.getByRole('button', { name: 'Merge' }).click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await expect.poll(async () => (await bridgeProject(page)).scenes.length).toBe(before.scenes.length);
+    const merged = await bridgeProject(page);
+    expect(merged.scriptDocument.scenes.length).toBe(bodyBefore);
+  });
+});
+
 test.describe('Script viewer tools (roadmap 123 Phase 1)', () => {
   test('search highlights, set navigator, eighths ruler and update button', async ({ page }) => {
     await openSeededProject(page);

@@ -544,8 +544,11 @@ row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 > (`src/lib/scriptAnnotations.ts`); FDX `<Text TagNumber>` runs seed recognised
 > (dotted) spans on import (`ScriptAnnotationSeed` → `commitImport`); the
 > divergence view + undoable **"Update script text"** records `elementAliases`
-> (applied by `parseFDX` on re-import) — **Part B complete**. Cuts/duplicate/
-> Split Manager/import reconciliation remain open.
+> (applied by `parseFDX` on re-import) — **Part B complete**. **Part C complete**
+> (cut at a block boundary → lettered boneyard scene + tags move; merge-with-next
+> reverses; one batch — `src/lib/scriptSceneOps.ts`, `SceneCutModal`, Script
+> sub-tab hover). Duplicate-unify (D) / Split Manager (E) / import reconciliation
+> (F) remain open.
 > **API/agent compatibility is a hard constraint** (see API note + Relations 97).
 
 **Relations**: `depends on` **123 Phase 0** (**DONE** — retained
