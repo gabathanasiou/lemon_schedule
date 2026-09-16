@@ -41,4 +41,6 @@ export const TEST_IDS = {
   sceneDuplicateModal: 'scene-duplicate-modal',
   /** Split Manager modal body (roadmap 132 Part E). */
   splitManagerModal: 'split-manager-modal',
+  /** Move-break modal body (roadmap 132 Part E). */
+  splitBreakModal: 'split-break-modal',
 } as const;

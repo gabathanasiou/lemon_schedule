@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Trash2 } from 'lucide-react';
+import { Check, Sparkles, Trash2 } from 'lucide-react';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
@@ -23,6 +23,9 @@ export interface ScriptTagMenuState {
   y: number;
   target: ScriptTagTarget;
   existing?: ScriptAnnotation;
+  /** For an ephemeral auto-suggestion: the category to highlight (and mark with
+   *  a symbol). Enter commits it — the selection is already there. */
+  suggested?: string;
   /** Distinguishes a menu opened by a click on a tag from one opened by a text
    *  selection, so the deferred selection handler never clobbers it. */
   source: 'selection' | 'annotation';
@@ -37,6 +40,9 @@ export default function ScriptTagMenu({ menu, project, onCommit, onRemove, onClo
 }) {
   const categories = tagCategories(project);
   const current = menu?.existing?.category;
+  const suggested = menu?.suggested;
+  const highlightKey = suggested || current;
+  const highlightIndex = highlightKey ? categories.findIndex(c => c.key === highlightKey) : undefined;
   return (
     <DropdownMenu
       open={!!menu}
@@ -46,6 +52,7 @@ export default function ScriptTagMenu({ menu, project, onCommit, onRemove, onClo
       searchable
       searchPlaceholder="Search categories…"
       contentClassName="z-[10001]"
+      initialHighlightIndex={highlightIndex != null && highlightIndex >= 0 ? highlightIndex : undefined}
       trigger={
         <span
           aria-hidden
@@ -59,12 +66,22 @@ export default function ScriptTagMenu({ menu, project, onCommit, onRemove, onClo
           ? getCustomIcon(category.icon || 'Tag')
           : (CAT_ICONS[category.key] || null);
         const selected = category.key === current;
+        const isSuggested = category.key === suggested;
         return (
           <DropdownItem
             key={category.key}
             selected={selected}
             icon={Icon ? <Icon className="w-3.5 h-3.5 shrink-0" /> : undefined}
-            trailing={selected ? <Check className="w-3 h-3 shrink-0" /> : undefined}
+            trailing={(selected || isSuggested) ? (
+              <span className="flex items-center gap-1">
+                {isSuggested && (
+                  <span title="Suggested" aria-label="Suggested">
+                    <Sparkles className="w-3 h-3 shrink-0 text-amber-500" />
+                  </span>
+                )}
+                {selected && <Check className="w-3 h-3 shrink-0" />}
+              </span>
+            ) : undefined}
             onClick={() => onCommit(category.key)}
           >
             {category.label}

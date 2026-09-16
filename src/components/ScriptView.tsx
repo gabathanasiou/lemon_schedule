@@ -4,57 +4,15 @@ import { ChevronDown, ChevronUp, ExternalLink, FileText, Ruler, Scissors, Search
 import { useProject } from '../store';
 import { ScriptSceneText } from './script/ScriptSceneScript';
 import { EighthsRuler } from './script/EighthsRuler';
-import ScriptTagMenu, { type ScriptTagMenuState } from './script/ScriptTagMenu';
+import { ScriptTagOverlay, useScriptTagging } from './script/ScriptTagging';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
 import Button from './Button';
-import { FloatingTooltip } from './FloatingTooltip';
 import { useDialog } from './Dialog';
 import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
 import { mergeSceneWithNext } from '../lib/scriptSceneOps';
-import { annotationColor } from '../lib/scriptAnnotations';
-import {
-  commitTag,
-  suggestionRanges,
-  annotationElementName,
-  annotationCategoryLabel,
-  type ScriptTagTarget,
-} from '../lib/scriptTagging';
 import { usePersistState } from '../lib/persist';
 import { TEST_IDS } from '../lib/testIds';
-import type { ScriptAnnotation, ScriptScene } from '../types';
-
-/** The taggable block element enclosing a selection endpoint. */
-function closestScriptBlock(node: Node | null): HTMLElement | null {
-  const el = node instanceof HTMLElement ? node : node?.parentElement ?? null;
-  return (el?.closest('[data-script-block]') as HTMLElement | null) ?? null;
-}
-
-/** The plain body text of a block, skipping the inline scene-number label (it
- *  renders inside the heading block but isn't body). */
-function blockTextOf(root: HTMLElement): string {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let text = '';
-  let n: Node | null;
-  while ((n = walker.nextNode())) {
-    if (n.parentElement?.closest('[data-scene-number-label]')) continue;
-    text += n.textContent || '';
-  }
-  return text;
-}
-
-/** Character offset of `(node, offset)` within `root`, skipping the inline
- *  scene-number label (it renders inside the heading block but isn't body). */
-function offsetWithinBlock(root: HTMLElement, node: Node, offset: number): number {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let total = 0;
-  let n: Node | null;
-  while ((n = walker.nextNode())) {
-    if (n.parentElement?.closest('[data-scene-number-label]')) continue;
-    if (n === node) return total + offset;
-    total += (n.textContent || '').length;
-  }
-  return total;
-}
+import type { ScriptScene } from '../types';
 
 const READ_FONT_CLASS = 'text-[15px] leading-[1.7]';
 /** Must match READ_FONT_CLASS (15px × 1.7) — drives the eighths ruler scale. */
@@ -84,10 +42,9 @@ function setFromHeading(scene: ScriptScene): string {
  * into Sheet / Schedule. Rendering is the shared `ScriptSceneText` (light theme)
  * — never a second screenplay renderer.
  *
- * Tagging (roadmap 136): select text → a kit `ContextMenu` of every element
- * category; the highlight BECOMES the element. Committed tags are solid and
- * category-coloured; the Suggestions toggle shows ephemeral derived spans
- * (cast cues / known element names) and imported recognised tags as dotted.
+ * Tagging (roadmap 136): select text → a category menu; the highlight BECOMES
+ * the element. Committed tags are solid; the Suggestions toggle shows ephemeral
+ * derived spans (cast cues / known element names) as lighter highlights.
  */
 export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdateScript, onCutScene }: {
   headerTarget?: HTMLElement | null;
@@ -96,11 +53,12 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   onUpdateScript?: () => void;
   onCutScene?: (sceneId: string) => void;
 }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch } = useProject();
   const dialog = useDialog();
   const project = state.present;
   const doc = project.scriptDocument;
   const projectScenes = project.scenes;
+  const tagging = useScriptTagging();
   // One label: the imported script file (its "version"), falling back to the
   // screenplay title / project name. Refreshes on every import/update.
   const scriptLabel = doc?.name?.trim() || doc?.titlePage?.title?.trim() || project.title || 'Untitled script';
@@ -113,115 +71,9 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   const [query, setQuery] = useState('');
   const [matchPos, setMatchPos] = useState(0);
   const [showEighths, setShowEighths] = useState(true);
-  const [showSuggestions, setShowSuggestions] = usePersistState('lemon_schedule_script_suggestions', true);
   const [contentHeight, setContentHeight] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [sidebarPref, setSidebarPref] = usePersistState('lemon_schedule_script_sidebar', { width: 320 });
-
-  const [tagMenu, setTagMenu] = useState<ScriptTagMenuState | null>(null);
-  const [hovered, setHovered] = useState<{ annotation: ScriptAnnotation; x: number; y: number } | null>(null);
-  /** The native selection range to keep highlighted while the menu is open. */
-  const selectionRangeRef = useRef<Range | null>(null);
-
-  // A text selection opens the category menu. Deferred so the browser has
-  // committed the selection before we read it.
-  const handleSelectionEnd = useCallback(() => {
-    window.setTimeout(() => {
-      if (readOnly) return;
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-        selectionRangeRef.current = null;
-        // Never clobber a menu opened by a click on a tag (its click fires
-        // after this mouseup).
-        setTagMenu(prev => (prev && prev.source === 'annotation' ? prev : null));
-        return;
-      }
-      const range = sel.getRangeAt(0);
-      const startBlock = closestScriptBlock(range.startContainer);
-      const endBlock = closestScriptBlock(range.endContainer);
-      if (!startBlock || startBlock !== endBlock) return;
-      const sceneId = startBlock.getAttribute('data-script-scene') || '';
-      const blockIndex = Number(startBlock.getAttribute('data-script-block'));
-      if (!sceneId || Number.isNaN(blockIndex)) return;
-      const body = blockTextOf(startBlock);
-      let start = offsetWithinBlock(startBlock, range.startContainer, range.startOffset);
-      let end = offsetWithinBlock(startBlock, range.endContainer, range.endOffset);
-      while (start < end && /\s/.test(body[start])) start++;
-      while (end > start && /\s/.test(body[end - 1])) end--;
-      if (end <= start) return;
-      const text = body.slice(start, end);
-      const existing = (project.scriptAnnotations || []).find(
-        a => a.sceneId === sceneId && a.blockIndex === blockIndex && a.start === start && a.end === end,
-      );
-      selectionRangeRef.current = range.cloneRange();
-      const rect = range.getBoundingClientRect();
-      setTagMenu({ x: rect.left, y: rect.bottom, target: { sceneId, blockIndex, start, end, text }, existing, source: 'selection' });
-    }, 0);
-  }, [readOnly, project.scriptAnnotations]);
-
-  // Keep the native selection highlighted while the selection menu is open:
-  // Radix focuses its menu content on open, which clears the browser selection.
-  // Re-apply the saved range after the menu mounts (and once more after the
-  // focus handling settles), then drop it when the menu closes.
-  useEffect(() => {
-    if (!tagMenu) {
-      window.getSelection()?.removeAllRanges();
-      return;
-    }
-    if (tagMenu.source !== 'selection') return;
-    const restore = () => {
-      const range = selectionRangeRef.current;
-      if (!range) return;
-      const sel = window.getSelection();
-      if (!sel) return;
-      sel.removeAllRanges();
-      sel.addRange(range);
-    };
-    restore();
-    // The kit's searchable menu auto-focuses its search input (which clears the
-    // document selection), so re-apply on each focus change while it is open.
-    const onFocusIn = () => restore();
-    document.addEventListener('focusin', onFocusIn);
-    const raf = requestAnimationFrame(restore);
-    const settle = window.setTimeout(restore, 60);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(settle);
-      document.removeEventListener('focusin', onFocusIn);
-    };
-  }, [tagMenu]);
-
-  const openAnnotation = useCallback((annotation: ScriptAnnotation, event?: React.MouseEvent) => {
-    if (readOnly) return;
-    setHovered(null);
-    selectionRangeRef.current = null;
-    const existing = (project.scriptAnnotations || []).find(a => a.id === annotation.id);
-    setTagMenu({
-      x: event?.clientX ?? 0,
-      y: event?.clientY ?? 0,
-      target: { sceneId: annotation.sceneId, blockIndex: annotation.blockIndex, start: annotation.start, end: annotation.end, text: annotation.text },
-      existing,
-      source: 'annotation',
-    });
-  }, [readOnly, project.scriptAnnotations]);
-
-  const handleAnnotationHover = useCallback((annotation: ScriptAnnotation | null, event?: React.MouseEvent) => {
-    if (!annotation) { setHovered(null); return; }
-    setHovered({ annotation, x: event?.clientX ?? 0, y: event?.clientY ?? 0 });
-  }, []);
-
-  const commitCategory = useCallback((category: string) => {
-    if (!tagMenu || readOnly) return;
-    const { target, existing } = tagMenu;
-    commitTag(dispatch, project, target as ScriptTagTarget, category, existing);
-    setTagMenu(null);
-  }, [tagMenu, readOnly, dispatch, project]);
-
-  const removeTag = useCallback(() => {
-    if (!tagMenu) return;
-    if (tagMenu.existing && !readOnly) dispatch({ type: 'REMOVE_SCRIPT_ANNOTATION', payload: tagMenu.existing.id });
-    setTagMenu(null);
-  }, [tagMenu, readOnly, dispatch]);
 
   const mergeNext = useCallback((sceneId: string) => {
     void dialog.confirm({
@@ -237,27 +89,6 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     projectScenes.forEach((s, index) => map.set(normalizeSceneNumber(s.sceneNumber), { id: s.id, index }));
     return map;
   }, [projectScenes]);
-
-  // Ephemeral, toggle-gated derived suggestions (never persisted).
-  const suggestions = useMemo(() => {
-    if (!showSuggestions || !doc) return [];
-    const out: ScriptAnnotation[] = [];
-    for (const s of doc.scenes) {
-      const live = sceneByIdentity.get(normalizeSceneNumber(s.sceneNumber));
-      if (!live) continue;
-      out.push(...suggestionRanges(project, projectScenes[live.index]));
-    }
-    return out;
-  }, [showSuggestions, doc, sceneByIdentity, project, projectScenes]);
-
-  // Committed (solid) + non-committed (dotted) spans, gated by the toggle.
-  const visibleAnnotations = useMemo(() => {
-    const stored = project.scriptAnnotations || [];
-    const committed = stored.filter(a => !a.recognized);
-    const nonCommitted = showSuggestions ? stored.filter(a => a.recognized && !a.id.startsWith('suggest:')) : [];
-    const derived = showSuggestions ? suggestions : [];
-    return [...committed, ...nonCommitted, ...derived];
-  }, [project.scriptAnnotations, showSuggestions, suggestions]);
 
   // Sidebar rows: every scene in order — number · INT/EXT · set (flat list).
   const navRows: SidebarNavRow[] = useMemo(() => {
@@ -353,8 +184,8 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   }, [activeIndex]);
 
   const handleScroll = useCallback(() => {
-    setHovered(null);
-    setTagMenu(prev => (prev?.source === 'selection' ? null : prev));
+    tagging.handleAnnotationHover(null);
+    tagging.closeMenu();
     if (activeRaf.current == null) {
       activeRaf.current = requestAnimationFrame(() => { activeRaf.current = null; updateActive(); });
     }
@@ -364,7 +195,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
       const el = scrollRef.current;
       if (el) { try { localStorage.setItem(SCROLL_KEY, String(el.scrollTop)); } catch { /* ignore */ } }
     }, 150);
-  }, [updateActive]);
+  }, [updateActive, tagging]);
 
   // Measure the page so the eighths ruler scales to the real content.
   useEffect(() => {
@@ -376,21 +207,6 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     ro.observe(el);
     return () => ro.disconnect();
   }, [doc, showEighths]);
-
-  const hoverBadge = hovered && (() => {
-    const a = hovered.annotation;
-    const name = annotationElementName(project, a);
-    const diverged = name.trim().toUpperCase() !== a.text.trim().toUpperCase();
-    return (
-      <div data-testid={TEST_IDS.scriptTagBadge} className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/95 px-2.5 py-1.5 text-[11px] text-zinc-200 shadow-2xl backdrop-blur-md">
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: annotationColor(a.category) }} />
-        <span className="font-semibold">{annotationCategoryLabel(project, a.category)}</span>
-        <span className="text-zinc-500">·</span>
-        <span>{name}</span>
-        {diverged && <span className="text-zinc-400">script: “{a.text}”</span>}
-      </div>
-    );
-  })();
 
   const header = headerTarget ? createPortal(
     <>
@@ -434,10 +250,10 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
           <Button
             variant="subtle"
             type="button"
-            active={showSuggestions}
-            aria-pressed={showSuggestions}
-            onClick={() => setShowSuggestions(v => !v)}
-            title={showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
+            active={tagging.showSuggestions}
+            aria-pressed={tagging.showSuggestions}
+            onClick={() => tagging.setShowSuggestions(v => !v)}
+            title={tagging.showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
           >
             <Sparkles className="w-3.5 h-3.5" /> Suggestions
           </Button>
@@ -480,7 +296,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
         width={sidebarPref.width}
         onWidthChange={w => setSidebarPref({ width: w })}
       />
-      <div ref={scrollRef} onScroll={handleScroll} onMouseUp={handleSelectionEnd} onKeyUp={handleSelectionEnd} className="flex-1 overflow-auto">
+      <div ref={scrollRef} onScroll={handleScroll} onMouseUp={tagging.handleSelectionEnd} onKeyUp={tagging.handleSelectionEnd} className="flex-1 overflow-auto">
           <div className="mx-auto flex w-fit items-start px-6 py-6">
           <div ref={pageRef} className="w-[8.5in] max-w-full border border-zinc-200 bg-white px-14 py-12 shadow-sm select-text">
             {doc.titlePage?.title && (
@@ -534,10 +350,10 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                     fontClass={READ_FONT_CLASS}
                     highlight={q}
                     sceneNumber={scene.sceneNumber}
-                    annotations={visibleAnnotations}
+                    annotations={tagging.annotations}
                     sceneId={match?.id}
-                    onAnnotationClick={openAnnotation}
-                    onAnnotationHover={handleAnnotationHover}
+                    onAnnotationClick={tagging.openAnnotation}
+                    onAnnotationHover={tagging.handleAnnotationHover}
                   />
                 </section>
               );
@@ -546,16 +362,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
           {showEighths && <EighthsRuler contentHeight={contentHeight} lineHeight={READ_LINE_HEIGHT} />}
         </div>
       </div>
-      <ScriptTagMenu
-        menu={tagMenu}
-        project={project}
-        onCommit={commitCategory}
-        onRemove={removeTag}
-        onClose={() => setTagMenu(null)}
-      />
-      <FloatingTooltip open={!!hovered && !tagMenu} anchor={hovered ? { x: hovered.x, y: hovered.y } : null}>
-        {hoverBadge}
-      </FloatingTooltip>
+      <ScriptTagOverlay tagging={tagging} project={project} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { PanelRight, X } from 'lucide-react';
 import { useProject, useIsCloudProject } from '../../store';
 import { ScriptSceneText } from './ScriptSceneScript';
+import { ScriptTagOverlay, useScriptTagging } from './ScriptTagging';
 import { scriptSceneOf, normalizeSceneNumber, formatSceneHeading } from '../../lib/script';
 import { usePersistState } from '../../lib/persist';
 import { usePaneResize } from '../../lib/usePaneResize';
@@ -66,7 +67,9 @@ export function SceneScriptPane({ sceneNumber, open, onClose, width, onWidthChan
   onWidthChange: (w: number) => void;
 }) {
   const { state } = useProject();
-  const doc = state.present.scriptDocument;
+  const project = state.present;
+  const doc = project.scriptDocument;
+  const tagging = useScriptTagging();
   const scene = sceneNumber ? scriptSceneOf(doc, sceneNumber) : undefined;
   const liveScene = sceneNumber
     ? state.present.scenes.find(s => normalizeSceneNumber(s.sceneNumber) === normalizeSceneNumber(sceneNumber))
@@ -120,12 +123,27 @@ export function SceneScriptPane({ sceneNumber, open, onClose, width, onWidthChan
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
-        <div ref={bodyRef} className="flex-1 overflow-auto px-4 py-3 select-text">
+        <div
+          ref={bodyRef}
+          onMouseUp={tagging.handleSelectionEnd}
+          onKeyUp={tagging.handleSelectionEnd}
+          className="flex-1 overflow-auto px-4 py-3 select-text"
+        >
           {scene
-            ? <ScriptSceneText scene={scene} theme="light" annotations={state.present.scriptAnnotations} sceneId={liveScene?.id} />
+            ? (
+              <ScriptSceneText
+                scene={scene}
+                theme="light"
+                annotations={tagging.annotations}
+                sceneId={liveScene?.id}
+                onAnnotationClick={tagging.openAnnotation}
+                onAnnotationHover={tagging.handleAnnotationHover}
+              />
+            )
             : <p className="text-xs italic text-zinc-400">No script retained for this scene.</p>}
         </div>
       </div>
+      <ScriptTagOverlay tagging={tagging} project={project} />
     </div>
   );
 }

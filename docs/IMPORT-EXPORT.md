@@ -110,12 +110,17 @@ Status: read this before touching any import/export work.
   `firstFreeCastId`; others name-keyed), the `scenePatch` and the annotation;
   `commitTag` applies it as ONE undo batch. Re-tagging an exact range CHANGES
   the category (the scene-field attachment swaps, never stacks) and a remove
-  clears the tag. `suggestionRanges` derives **ephemeral** dotted spans (cast
-  cues from `character` blocks + whole-word matches of existing element names
-  in action/dialogue) that are computed in the view and never persisted; the
-  Script header's persisted **Suggestions** toggle gates every non-committed
-  span (suggestions + recognised FDX seeds). All spans commit through the same
-  menu (`ScriptTagMenu`). FDX `<Text TagNumber>` runs emit
+  clears the tag. `suggestionRanges` derives **ephemeral** spans — character
+  NAMES read from the screenplay body (`character` cues are suggested as cast
+  even when not cast yet, matched to a member by name) plus whole-word matches
+  of existing element names in action/dialogue. Sets are never suggested, and
+  numeric-only/blank names are skipped (no Board-ID noise). Suggestions are
+  computed in the view and never persisted; the Script header's persisted
+  **Suggestions** toggle gates every non-committed span (suggestions +
+  recognised FDX seeds). Clicking a suggestion opens the same menu scrolled to
+  the suggested category with a ⭐ marker; Enter commits it. All spans commit
+  through the same menu (`ScriptTagMenu`, a searchable kit `DropdownMenu`).
+  FDX `<Text TagNumber>` runs emit
   `ScriptAnnotationSeed`s (`ImportResult.annotations`, `parseFDX`) which
   `commitImport` resolves to the freshly-created scenes and writes as
   `recognized: true`. **Replacing the body drops the old body's positional
@@ -153,9 +158,14 @@ Status: read this before touching any import/export work.
 - **Split Manager (roadmap 132 Part E)**: `src/lib/splitGroups.ts` derives groups
   from `duplicateOf`/`duplicateKind:'split'` (keyed by scene ID, content
   `cutAnchor`); `SplitManagerModal` lists them with a clean/diverged badge and
-  Merge back (`mergeSplitGroup` concatenates the fragments' bodies, deletes them
-  to Trash and re-anchors their tags) + Open. Renumber / Move break / Resolve
-  remain.
+  Open / **Renumber** / **Move break** / **Resolve** / **Merge back**. Merge
+  back (`mergeSplitGroup`) concatenates the fragments' bodies, deletes them to
+  Trash and re-anchors their tags. Renumber normalizes the group's numbers
+  (`5`, `5A`, `5B`) AND the retained bodies' `sceneNumber`s in one batch.
+  Move break (`SplitBreakModal`) re-partitions the concatenated stream and
+  carries tag spans by absolute position across the cut. Resolve rebuilds a
+  missing member body (heading-only) and re-anchors a tag whose stored span
+  drifted off the wording. All are ONE undo batch.
 - Persistence/Drive need no special handling: works through the roadmap-124
   localStorage codec and the Drive upload as part of the Project.
 - Read surfaces (roadmap 123 Phase 1 / 132 Part A): the Breakdown **Script

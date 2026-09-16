@@ -156,7 +156,7 @@ function AnnotatedText({ text, runs, ranges, theme, highlight, onAnnotationClick
                   onMouseEnter={onAnnotationHover ? (e) => onAnnotationHover(s.annotation!, e) : undefined}
                   onMouseLeave={onAnnotationHover ? () => onAnnotationHover(null) : undefined}
                   className={`rounded-[2px] ${onAnnotationClick ? 'cursor-pointer' : ''}`}
-                  style={{ backgroundColor: `${color}26`, borderBottom: `2px ${s.annotation.recognized ? 'dotted' : 'solid'} ${color}` }}
+                  style={{ backgroundColor: `${color}${s.annotation.recognized ? '1f' : '33'}` }}
                 >
                   {inner}
                 </span>

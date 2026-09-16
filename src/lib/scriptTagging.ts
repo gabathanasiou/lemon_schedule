@@ -232,9 +232,17 @@ function suggestionAnnotation(
   };
 }
 
+/** Names that are really a number (Board-ID artifacts) — never suggested. */
+const isNumericName = (s: string) => /^[\d\s.]+$/.test(s);
+
 /**
- * Ephemeral tag suggestions for a live scene (roadmap 136) — cast cues from
- * `character` blocks plus matches of existing element names in action/dialogue.
+ * Ephemeral tag suggestions for a live scene (roadmap 136). Two passes:
+ *  1. **Character names from the body** — every `character` cue is suggested as
+ *     a cast tag (matched to an existing member by name, else the cue name
+ *     itself). This reads the screenplay, not just the breakdown.
+ *  2. **Known element names** — whole-word matches of existing element names in
+ *     action/dialogue. Sets are NOT suggested (locations carry that job) and
+ *     numeric-only names are skipped.
  * Computed in the view and never persisted; ranges overlapping a stored tag are
  * skipped so a suggestion never stacks on an existing annotation.
  */
@@ -247,20 +255,20 @@ export function suggestionRanges(project: Project, scene: Scene): ScriptAnnotati
   const castByName = new Map<string, CastMember>();
   for (const m of cast) {
     const n = (m.name || '').trim().toUpperCase();
-    if (n) castByName.set(n, m);
+    if (n && !isNumericName(n)) castByName.set(n, m);
   }
 
   const candidates: { key: string; category: string }[] = [];
   for (const c of ELEMENT_CATEGORIES) {
-    if (c.key === 'cast') continue;
+    if (c.key === 'cast' || c.key === 'set') continue;
     for (const e of getCategoryElements(project, c.key)) {
       const name = (e.name || '').trim();
-      if (name) candidates.push({ key: name, category: c.key });
+      if (name && !isNumericName(name)) candidates.push({ key: name, category: c.key });
     }
   }
   for (const m of cast) {
     const name = (m.name || '').trim();
-    if (name) candidates.push({ key: m.id, category: 'cast' });
+    if (name && !isNumericName(name)) candidates.push({ key: m.id, category: 'cast' });
   }
 
   const out: ScriptAnnotation[] = [];
@@ -273,12 +281,12 @@ export function suggestionRanges(project: Project, scene: Scene): ScriptAnnotati
     if (!text) return;
     if (type === 'character') {
       const trimmed = text.trim();
+      if (!trimmed || isNumericName(trimmed)) return;
       const member = castByName.get(trimmed.toUpperCase());
-      if (!member) return;
       const start = text.indexOf(trimmed);
       const end = start + trimmed.length;
       if (claimed(blockIndex, start, end)) return;
-      const sug = suggestionAnnotation(blockIndex, start, end, text.slice(start, end), 'cast', member.id);
+      const sug = suggestionAnnotation(blockIndex, start, end, text.slice(start, end), 'cast', member ? member.id : trimmed.toUpperCase());
       sug.sceneId = scene.id;
       out.push(sug);
       return;

@@ -87,6 +87,13 @@ const numberBase = (n: string) => n.replace(/[A-Z]+$/i, '') || n;
 
 const letterAt = (i: number) => String.fromCharCode(65 + ((i - 1) % 26));
 
+/** The normalized numbers a group SHOULD have (`5`, `5A`, `5B`) — the Split
+ *  Manager's Renumber target, original first. */
+export function splitGroupRenumberTargets(group: SplitGroup): string[] {
+  const base = numberBase(group.original.sceneNumber);
+  return [base, ...group.fragments.map((_, i) => `${base}${letterAt(i + 1)}`)];
+}
+
 /**
  * Normalize a group's scene numbers: the original keeps its base number and the
  * fragments get the next letters in order (`5`, `5A`, `5B`). The retained

@@ -154,6 +154,22 @@ describe('suggestionRanges', () => {
     expect(sug[0]).toMatchObject({ text: 'GUN', category: 'props', elementKey: 'GUN' });
   });
 
+  it('suggests a character name from the body even when it is not cast yet', () => {
+    const p = project({ scriptDocument: doc([['heading', 'INT. X - DAY'], ['character', 'GEORGE'], ['dialogue', 'Hi.']]) });
+    const sug = suggestionRanges(p, p.scenes[0]);
+    expect(sug).toHaveLength(1);
+    expect(sug[0]).toMatchObject({ text: 'GEORGE', category: 'cast', elementKey: 'GEORGE' });
+  });
+
+  it('never suggests sets, nor numeric-only names', () => {
+    const p = project({
+      castMembers: [{ id: '1', name: '1' }],
+      breakdownElements: { set: [{ id: 'KITCHEN', name: 'KITCHEN' }], props: [{ id: '1', name: '1' }] },
+      scriptDocument: doc([['heading', 'INT. X - DAY'], ['action', 'The KITCHEN is dark and 1 is here.']]),
+    });
+    expect(suggestionRanges(p, p.scenes[0])).toHaveLength(0);
+  });
+
   it('skips ranges already covered by a stored annotation', () => {
     const gunAnn = ann({ id: 'real', sceneId: 's1', blockIndex: 1, start: 4, end: 7, text: 'GUN', category: 'props', elementKey: 'GUN' });
     const p = project({

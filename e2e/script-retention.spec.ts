@@ -444,6 +444,30 @@ test.describe('split manager (roadmap 132 Part E)', () => {
     await expect(modal).toContainText('→');
     await expect(modal.getByText('clean', { exact: true })).toBeVisible();
 
+    // Renumber is a no-op on an already-normalized group.
+    await expect(modal.getByRole('button', { name: /Renumber/ })).toBeDisabled();
+    await expect(modal.getByRole('button', { name: /Resolve/ })).toBeEnabled();
+
+    // Move the break one block later: the original keeps more of the body.
+    const bodyInfo = await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const split = p.scenes.find((s: any) => s.duplicateKind === 'split');
+      const parent = p.scenes.find((s: any) => s.id === split.duplicateOf);
+      const blocksOf = (n: string) => p.scriptDocument.scenes.find((s: any) => s.sceneNumber === n)?.blocks.length ?? 0;
+      return { parentNumber: parent.sceneNumber, before: blocksOf(parent.sceneNumber) };
+    });
+    await modal.getByRole('button', { name: /Move break/ }).click();
+    const breakModal = page.getByTestId('split-break-modal');
+    await expect(breakModal).toBeVisible();
+    await breakModal.getByRole('button', { name: /Later/ }).click();
+    await page.getByRole('button', { name: 'Move break' }).last().click();
+    await expect(breakModal).toHaveCount(0);
+    await expect.poll(async () => page.evaluate((n: string) => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return p.scriptDocument.scenes.find((s: any) => s.sceneNumber === n)?.blocks.length ?? 0;
+    }, bodyInfo.parentNumber)).toBe(bodyInfo.before + 1);
+
     await modal.getByRole('button', { name: /Merge back/ }).click();
     await page.getByRole('button', { name: 'Confirm' }).click();
     await expect.poll(async () => (await bridgeProject(page)).scenes.some((s: any) => s.duplicateKind === 'split')).toBe(false);
