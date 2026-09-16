@@ -504,7 +504,8 @@ writes, dangling-ref prune) and `sceneDuplicates.test.ts` (coverage/plain/split 
 `crewCatalog.test.ts` (role→category resolution, department grouping, catalog reorder)
 and `sceneTrash.test.ts` (ADD_SCENE row invariant + scene trash delete/restore/empty);
 `reportFields.test.ts` (token/lookup composition + parse round-trips, item affixes);
-`trashChannels.test.ts` (version + element trash delete/restore, cast permanent-delete);
+`trashChannels.test.ts` (version + element + custom-category trash delete/restore, cast
+permanent-delete);
 day-scoped `categories` scoping + `ancestorSceneScope` in `reportResolve.test.ts`;
 `docs/TESTING.md` pyramid section corrected (it still claimed "no unit runner"), and the
 manual-verification policy (visually-checkable changes get NO e2e — hand the user a
@@ -512,14 +513,14 @@ numbered check) added to AGENTS.md rule 7.
 Suite runs now print total wall time via `scripts/pw-duration-reporter.mjs`; workers are
 tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→saturates CPU).
 
-**Next (ranked, lowest extraction cost first)**:
-- Reducer cases: custom-category trash channel, `BATCH`/undo contract (`debug-bridge`
-  #2–#3 stay e2e as the bridge's API proof).
-- Extraction first (logic is hook/component-bound): `dayView` (assembly inside
-  `useDayViews`), `digit-schedule` (`useScheduleKeyboard`), `production-dates` days-off
-  materialization (`ProductionDatesModal`).
-- Report logic is covered (resolveCollections, day-scoped categories, token/lookup
-  helpers); the remaining report specs are rendering wiring.
+**Next — extraction only** (app-code changes; sign-off needed). All the pure/reducer
+logic is now unit-covered; what's left is trapped inside hooks/components and must be
+pulled into `src/lib/` first (single source of truth), THEN handed a unit test:
+- `dayView` — assembly inside `useDayViews` (`src/lib/dayView.ts`).
+- `digit-schedule` — day-target math inside `useScheduleKeyboard`.
+- `production-dates` — days-off materialization inside `ProductionDatesModal`.
+Report logic is covered (resolveCollections, day-scoped categories, token/lookup
+helpers); the remaining report specs are rendering wiring.
 
 **Blocked**: `parseMsd` uses `DOMParser`, so its golden test stays e2e unless a jsdom
 environment is added — decide before converting `msd-import`.

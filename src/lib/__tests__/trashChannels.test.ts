@@ -78,3 +78,30 @@ describe('cast delete', () => {
     expect((s.present.elementsTrash || []).some(t => t.category === 'cast')).toBe(false);
   });
 });
+
+describe('custom-category trash', () => {
+  it('delete captures scene values + elements; restore brings the category back', () => {
+    const scene = createBlankScene({ sceneNumber: '1' });
+    let s = run(init(),
+      { type: 'ADD_CUSTOM_CATEGORY', payload: { key: 'zzz', label: 'ZZZ', multiValue: true } as any },
+      { type: 'ADD_SCENE', payload: scene },
+      { type: 'UPDATE_SCENE', payload: { id: scene.id, zzz: 'x' } as any },
+      { type: 'ADD_ELEMENT', payload: { category: 'zzz', element: { id: 'x', name: 'x' } } },
+    );
+    expect((s.present.scenes.find(x => x.id === scene.id) as any).zzz).toBe('x');
+
+    s = run(s, { type: 'DELETE_CUSTOM_CATEGORY', payload: 'zzz' });
+    expect(s.present.customCategories.some(c => c.key === 'zzz')).toBe(false);
+    expect((s.present.scenes.find(x => x.id === scene.id) as any).zzz).toBeUndefined();
+    expect(s.present.breakdownElements.zzz).toBeUndefined();
+    const item = s.present.categoryTrash.find(t => t.category.key === 'zzz')!;
+    expect(item.sceneValues[scene.id]).toBe('x');
+    expect(item.elements.some(e => e.id === 'x')).toBe(true);
+
+    s = run(s, { type: 'RESTORE_CATEGORY_FROM_TRASH', payload: 'zzz' });
+    expect(s.present.customCategories.some(c => c.key === 'zzz')).toBe(true);
+    expect((s.present.scenes.find(x => x.id === scene.id) as any).zzz).toBe('x');
+    expect((s.present.breakdownElements.zzz || []).some(e => e.id === 'x')).toBe(true);
+    expect(s.present.categoryTrash.some(t => t.category.key === 'zzz')).toBe(false);
+  });
+});
