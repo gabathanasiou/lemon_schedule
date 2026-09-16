@@ -164,6 +164,13 @@ describe('diffScripts', () => {
     expect(props).toMatchObject({ baseline: 'KNIFE', conflict: true });
   });
 
+  it('flags a same-number pair with no content overlap as a possible collision (roadmap 132 Part F)', () => {
+    const oldScenes = [scene({ sceneNumber: '5', set: 'BANK' })];
+    const newScenes = [parsed({ sceneNumber: '5', set: 'SPACESHIP' })];
+    const result = diffScripts(oldScenes, newScenes, opts(script({ '5': ['The bank runs.'] }), script({ '5': ['A starship warps away.'] })));
+    expect(result.entries[0].collision).toBe(true);
+  });
+
   it('flags a split: an added high-similarity fragment of a matched scene', () => {
     const oldBody = script({ '8': ['The bank runs. George cheers wildly.'] });
     const newBody = script({

@@ -33,4 +33,6 @@ export { diffScripts, sceneBodyText, sceneToView, parsedToView } from './scriptD
 export type { SceneDiffEntry, SceneFieldDiff, ScriptDiffResult, DiffStatus } from './scriptDiff';
 export { commitScriptDiff, defaultDecision } from './commitScriptDiff';
 export type { CommitScriptDiffParams, DiffDecision } from './commitScriptDiff';
+export { remapAnnotations } from './annotationRemap';
+export type { AnnotationRemapResult, SceneNumberRemap } from './annotationRemap';
 export { exportBreakdownCSV } from './exportCsv';

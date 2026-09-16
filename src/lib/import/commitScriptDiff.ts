@@ -1,7 +1,9 @@
-import { CastMember } from '../../types';
+import { CastMember, ScriptAnnotation } from '../../types';
 import { ImportResult } from './shared';
 import { buildNewScene, buildSceneFields } from './sceneFields';
 import { emitImportSetup, collectImportedSets } from './commitShared';
+import { normalizeSceneNumber } from '../script';
+import { generateUUID } from '../utils';
 import type { SceneDiffEntry } from './scriptDiff';
 
 /**
@@ -16,6 +18,8 @@ import type { SceneDiffEntry } from './scriptDiff';
 export type DiffDecision = 'apply' | 'keep' | 'add' | 'skip' | 'remove';
 
 export function defaultDecision(entry: SceneDiffEntry): DiffDecision {
+  // A probable collision (same number, no content overlap) is never auto-applied.
+  if (entry.collision) return 'keep';
   switch (entry.status) {
     case 'modified': return 'apply';
     case 'added': return 'add';
@@ -43,6 +47,10 @@ export interface CommitScriptDiffParams {
   /** Raw → canonical INT-EXT / day-night values (roadmap 127) applied to the
    *  incoming scene values at commit time. */
   headingValues?: { intExt?: Record<string, string>; dayNight?: Record<string, string> };
+  /** Tags re-anchored through the body replacement (roadmap 132 Part F); the
+   *  modal computes these from the block alignment. Written AFTER the SET (which
+   *  drops the old body's positional tags). */
+  finalAnnotations?: ScriptAnnotation[];
   projectTitle?: string;
   reEnableCategories?: string[];
   existingCustomCategoryKeys?: string[];
@@ -65,7 +73,9 @@ export function commitScriptDiff({
   projectTitle,
   reEnableCategories = [],
   existingCustomCategoryKeys = [],
+  finalAnnotations = [],
 }: CommitScriptDiffParams): void {
+  const addedSceneIdByNumber = new Map<string, string>();
   dispatch({ type: 'BATCH_START' });
   try {
     if (projectTitle) {
@@ -117,7 +127,9 @@ export function commitScriptDiff({
         dispatch({ type: 'UPDATE_SCENE', payload: patch });
         for (const name of collectImportedSets(entry.newScene)) importedSets.add(name);
       } else if (entry.status === 'added' && decision === 'add' && entry.newScene) {
-        dispatch({ type: 'ADD_SCENE', payload: buildNewScene(mappedScene(entry.newScene), resolvedCastIdMap) });
+        const scene = buildNewScene(mappedScene(entry.newScene), resolvedCastIdMap);
+        addedSceneIdByNumber.set(normalizeSceneNumber(entry.newScene.sceneNumber), scene.id);
+        dispatch({ type: 'ADD_SCENE', payload: scene });
         for (const name of collectImportedSets(entry.newScene)) importedSets.add(name);
       } else if (entry.status === 'removed' && decision === 'remove' && entry.oldScene) {
         dispatch({ type: 'DELETE_SCENE', payload: entry.oldScene.id });
@@ -128,6 +140,31 @@ export function commitScriptDiff({
     }
     if (result.script) {
       dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: result.script } });
+    }
+    // Tags re-anchored through the body replacement (roadmap 132 Part F) …
+    for (const annotation of finalAnnotations) {
+      dispatch({ type: 'ADD_SCRIPT_ANNOTATION', payload: { annotation } });
+    }
+    // … and recognised spans seeded on newly-added scenes (no old body to remap).
+    for (const seed of result.annotations || []) {
+      const sceneId = addedSceneIdByNumber.get(normalizeSceneNumber(seed.sceneNumber));
+      if (!sceneId) continue;
+      dispatch({
+        type: 'ADD_SCRIPT_ANNOTATION',
+        payload: {
+          annotation: {
+            id: generateUUID(),
+            sceneId,
+            blockIndex: seed.blockIndex,
+            start: seed.start,
+            end: seed.end,
+            text: seed.text,
+            category: seed.category,
+            elementKey: seed.elementKey,
+            recognized: true,
+          },
+        },
+      });
     }
   } finally {
     dispatch({ type: 'BATCH_COMMIT' });

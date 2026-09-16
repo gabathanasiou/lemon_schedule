@@ -554,7 +554,11 @@ row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 > relationship. **Part E shipped (lean)** — split groups (`src/lib/splitGroups.ts`)
 > + `SplitManagerModal` list cut groups with a clean/diverged badge and Merge back
 > (`mergeSplitGroup`) / Open; Renumber / Move break / Resolve remain. **Part F
-> (import reconciliation) remains open.**
+> shipped** — `annotationRemap` re-anchors tags through a revision (orphans
+> counted in the review), same-number/low-similarity pairs flagged `collision`
+> (default keep), and the review shows a split-group notice. **Remaining**: the
+> interactive per-group Apply-to-both / Merge-back / Keep review (the notice
+> points at the Split Manager instead).
 > **API/agent compatibility is a hard constraint** (see API note + Relations 97).
 
 **Relations**: `depends on` **123 Phase 0** (**DONE** — retained

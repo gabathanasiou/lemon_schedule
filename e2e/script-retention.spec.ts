@@ -284,6 +284,52 @@ test.describe('script tagging (roadmap 123 Phase 2 / 132 Part B)', () => {
   });
 });
 
+test.describe('annotation remap on update (roadmap 132 Part F)', () => {
+  test('a tag re-anchors through a revised body instead of being lost', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-remap.fdx', FDX_A));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
+
+    // Seed a tag on "coffee" in scene 1's action block (10..16).
+    const sceneId = await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const live = [...p.scenes].reverse().find((s: any) => s.sceneNumber === '1');
+      b.dispatch({ type: 'ADD_SCRIPT_ANNOTATION', payload: { annotation: {
+        id: 'ann-coffee', sceneId: live.id, blockIndex: 1, start: 10, end: 16, text: 'coffee', category: 'props', elementKey: 'COFFEE',
+      } } });
+      return live.id;
+    });
+
+    // Update: the action is rewritten but keeps "coffee" (now at 17..23).
+    await page.getByRole('button', { name: 'File' }).click();
+    await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+    await page.getByRole('menuitem', { name: /Update script/ }).click();
+    const revised = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="1"><Content>
+<Paragraph Type="Scene Heading" Number="1"><Text>INT. KITCHEN - DAY</Text><SceneProperties Length="1.0"/></Paragraph>
+<Paragraph Type="Action"><Text>AMY slowly pours coffee.</Text></Paragraph>
+<Paragraph Type="Scene Heading" Number="2"><Text>EXT. STREET - NIGHT</Text><SceneProperties Length="1.0"/></Paragraph>
+<Paragraph Type="Action"><Text>BOB watches.</Text></Paragraph>
+<Paragraph Type="Transition"><Text>CUT TO:</Text></Paragraph>
+</Content></FinalDraft>`;
+    const p = path.join(os.tmpdir(), 'lemon-script-remap-rev.fdx');
+    fs.writeFileSync(p, revised);
+    await page.locator('input[type="file"]').nth(1).setInputFiles(p);
+    await page.getByRole('dialog').getByText(/Update Script/).waitFor();
+    await page.getByRole('button', { name: /Accept all/ }).click();
+    await page.getByRole('button', { name: /Apply \d+/ }).click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+
+    await page.waitForFunction(() => {
+      const a = (window as any).__lemonSchedule.getProject().scriptAnnotations?.[0];
+      return a && a.start === 17 && a.end === 23;
+    });
+    const saved = (await bridgeProject(page)).scriptAnnotations[0];
+    expect(saved).toMatchObject({ id: 'ann-coffee', sceneId, text: 'coffee', blockIndex: 1, start: 17, end: 23 });
+  });
+});
+
 test.describe('scene cut (roadmap 132 Part C)', () => {
   test('cuts a scene at a block boundary into a lettered boneyard scene, one undo', async ({ page }) => {
     await openSeededProject(page);

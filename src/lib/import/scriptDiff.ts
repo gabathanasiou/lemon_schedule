@@ -71,6 +71,9 @@ export interface SceneDiffEntry {
   splitOf?: string;
   /** Removed scene that appears to have merged into this paired scene number. */
   mergedInto?: string;
+  /** Same scene NUMBER but very low content similarity (roadmap 132 Part F) —
+   *  a likely collision, never an auto-match; defaults to keep. */
+  collision?: boolean;
 }
 
 export interface ScriptDiffResult {
@@ -85,6 +88,10 @@ export interface ScriptDiffResult {
 
 /** Below this Jaccard similarity a number/heading-less pair is not matched. */
 export const MATCH_SIMILARITY_THRESHOLD = 0.5;
+
+/** Same-number pairs below this similarity are flagged a probable collision
+ *  (roadmap 132 Part F) — never silently auto-applied. */
+export const COLLISION_SIMILARITY = 0.2;
 
 function normalizeSet(s: string): string {
   return s.toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -486,13 +493,17 @@ function setJaccard(a: Set<string>, b: Set<string>): number {
 
 function buildPair(a: ScriptSceneView, b: ScriptSceneView, oldScene: Scene, newScene: ParsedScene, score: number, baseline?: ScriptSceneView): SceneDiffEntry {
   const fields = diffPair(a, b, baseline);
+  const sim = similarity(a, b);
+  // Number match with near-zero content overlap = probable collision.
+  const collision = score === 3 && sim < COLLISION_SIMILARITY && (a.bodyText.length > 0 || b.bodyText.length > 0);
   return {
     status: fields.length === 0 ? 'unchanged' : 'modified',
     sceneNumber: b.sceneNumber,
     oldScene,
     newScene,
     fields,
-    similarity: score >= 2 ? 1 : similarity(a, b),
+    similarity: score >= 2 ? 1 : sim,
+    collision: collision || undefined,
   };
 }
 

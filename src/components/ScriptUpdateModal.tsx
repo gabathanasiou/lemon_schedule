@@ -6,11 +6,12 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import Checkbox from './Checkbox';
-import { diffScripts, commitScriptDiff, defaultDecision, buildCastIdMap, firstFreeCastId, collectUnknownFromValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues } from '../lib/import';
+import { diffScripts, commitScriptDiff, defaultDecision, buildCastIdMap, firstFreeCastId, collectUnknownFromValues, applyHeadingMapping, buildHeadingMappingUpdate, knownIntExtValues, knownDayNightValues, remapAnnotations } from '../lib/import';
 import type { HeadingMapping } from '../lib/import';
 import HeadingValueMapper from './import/HeadingValueMapper';
 import type { DiffDecision, ImportResult, SceneDiffEntry, SceneFieldDiff } from '../lib/import';
-import { scriptSceneBlocks } from '../lib/script';
+import { normalizeSceneNumber, scriptSceneBlocks } from '../lib/script';
+import { splitGroups } from '../lib/splitGroups';
 import { alignScriptBlocks, ScriptBlockLine, WORD_DIFF_MIN_SIMILARITY } from './script/ScriptSceneScript';
 import { CastAssignmentTable, CategoryChecklist } from './import/ImportReviewControls';
 import type { ImportCharacter } from '../lib/import';
@@ -172,6 +173,21 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
   const [view, setView] = useState<View>(changeIndices.length ? 'review' : 'confirm');
   const [fieldKeeps, setFieldKeeps] = useState<Record<number, Set<string>>>({});
 
+  // Tags survive the body replacement by re-anchoring through the block
+  // alignment (roadmap 132 Part F); unresolved wording is reported orphaned.
+  const remapped = useMemo(() => {
+    const bySceneId = new Map<string, { oldNumber: string; newNumber: string }>();
+    diff.entries.forEach((e, i) => {
+      if (!e.oldScene) return;
+      const d = decisions[i] ?? defaultDecision(e);
+      if (e.status === 'removed' && d === 'remove') return; // deleted → orphan
+      const keptNumber = e.status === 'modified' && fieldKeeps[i]?.has('sceneNumber');
+      const newNumber = keptNumber ? e.oldScene.sceneNumber : (e.newScene?.sceneNumber ?? e.oldScene.sceneNumber);
+      bySceneId.set(e.oldScene.id, { oldNumber: e.oldScene.sceneNumber, newNumber });
+    });
+    return remapAnnotations(project.scriptAnnotations || [], project.scriptDocument, result.script, bySceneId);
+  }, [diff, decisions, fieldKeeps, project.scriptAnnotations, project.scriptDocument, result.script]);
+
   const [castOrder, setCastOrder] = useState<ImportCharacter[]>(() =>
     [...result.characters].sort((a, b) => b.scenes.length - a.scenes.length));
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(() => new Set(result.unknownCategories));
@@ -245,8 +261,8 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
       else if (e.status === 'added' && d === 'add') added.push(e.sceneNumber);
       else if (e.status === 'removed' && d === 'remove') removed.push(e.sceneNumber);
     });
-    return { updated, added, removed, renames: diff.castRenames };
-  }, [diff, decisions]);
+    return { updated, added, removed, renames: diff.castRenames, orphaned: remapped.orphaned };
+  }, [diff, decisions, remapped.orphaned]);
   const mutationCount = report.updated.length + report.added.length + report.removed.length;
 
   const startId = useMemo(() => firstFreeCastId(project.castMembers || []), [project.castMembers]);
@@ -267,10 +283,11 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
       existingCastMembers: project.castMembers || [],
       castRenames: diff.castRenames,
       fieldKeeps: diff.entries.map((_, i) => fieldKeeps[i]),
+      finalAnnotations: remapped.annotations,
       headingValues,
     });
     onClose();
-  }, [dispatch, result, diff, decisions, castAssignments, selectedCategories, project.castMembers, onClose, fieldKeeps]);
+  }, [dispatch, result, diff, decisions, castAssignments, selectedCategories, project.castMembers, onClose, fieldKeeps, remapped.annotations]);
 
   const runApply = useCallback(async () => {
     const parts: string[] = [];
@@ -278,6 +295,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
     if (report.added.length) parts.push(`add ${report.added.length} new scene${report.added.length === 1 ? '' : 's'} to the boneyard`);
     if (report.removed.length) parts.push(`remove ${report.removed.length} scene${report.removed.length === 1 ? '' : 's'} (to Trash, restorable)`);
     if (report.renames.length) parts.push(`rename ${report.renames.map(r => `${r.from} → ${r.to}`).join(', ')}`);
+    if (report.orphaned) parts.push(`orphan ${report.orphaned} tag${report.orphaned === 1 ? '' : 's'} (wording gone)`);
     if (diff.pageDelta !== 0) parts.push(`page count ${diff.pageDelta > 0 ? '+' : ''}${diff.pageDelta}`);
     const ok = await dialog.confirm({
       title: 'Update the script?',
@@ -419,6 +437,15 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
 
   const changed = useMemo(() => diff.entries.map((e, i) => ({ e, i })).filter(({ e }) => e.status !== 'unchanged'), [diff]);
 
+  // Split groups touched by this revision (roadmap 132 Part F) — the reviewer is
+  // told the scene was cut locally so applying the script isn't a surprise.
+  const splitNotice = useMemo(() => {
+    const changedNumbers = new Set(diff.entries.filter(e => e.status !== 'unchanged').map(e => normalizeSceneNumber(e.sceneNumber)));
+    return splitGroups(project.scenes).filter(g =>
+      changedNumbers.has(normalizeSceneNumber(g.original.sceneNumber)) ||
+      g.fragments.some(f => changedNumbers.has(normalizeSceneNumber(f.sceneNumber))));
+  }, [diff, project.scenes]);
+
   const body = () => {
     if (view === 'setup') {
       return (
@@ -443,6 +470,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
             <span className="text-zinc-400">{diff.summary.unchanged} unchanged (hidden)</span>
             {diff.pageDelta !== 0 && <span className="text-zinc-400">page count {diff.pageDelta > 0 ? '+' : ''}{diff.pageDelta}</span>}
             {diff.castRenames.length > 0 && <span className="text-zinc-400">rename {diff.castRenames.map(r => `${r.from}→${r.to}`).join(', ')}</span>}
+            {report.orphaned > 0 && <span className="text-zinc-400">{report.orphaned} tag{report.orphaned === 1 ? '' : 's'} orphaned</span>}
           </div>
           <div className="rounded-lg border border-zinc-800 overflow-hidden divide-y divide-zinc-800/70 max-h-[440px] overflow-y-auto">
             {changed.map(({ e, i }) => (
@@ -478,7 +506,13 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
           <span className="text-zinc-200 text-sm font-mono">{entry.sceneNumber}</span>
           {entry.splitOf && <span className="text-[11px] text-purple-300">split of {entry.splitOf}</span>}
           {entry.mergedInto && <span className="text-[11px] text-purple-300">merged into {entry.mergedInto}</span>}
+          {entry.collision && <span className="text-[11px] text-amber-300">possible collision — same number, different scene</span>}
         </div>
+        {splitNotice.map(g => (
+          <div key={g.original.id} className="rounded-lg border border-purple-800 bg-purple-900/30 px-3 py-2 text-[11px] text-purple-200">
+            Scene {g.original.sceneNumber} was split into {[g.original.sceneNumber, ...g.fragments.map(f => f.sceneNumber)].join(' + ')}; the script revised it. Merge back from the Split Manager if the cut is no longer wanted.
+          </div>
+        ))}
         {renderPanes(entry, currentIndex!)}
       </div>
     );

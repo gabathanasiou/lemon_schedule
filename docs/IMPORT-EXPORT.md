@@ -109,7 +109,16 @@ Status: read this before touching any import/export work.
   shows the divergence (`Tag: PISTOL · Script: "gun"`) and an explicit,
   undoable **"Update script text"** rewrites the page + records the old wording
   in `project.elementAliases`; `parseFDX` applies those aliases on re-import so
-  the element is still recognised. Part-F remap remains open.
+  the element is still recognised.
+- **Import reconciliation (roadmap 132 Part F)**: `src/lib/import/annotationRemap.ts`
+  re-anchors tags through a revision — unchanged blocks carry spans 1:1, a
+  changed block re-anchors by its stored `text`, and wording that vanished is
+  counted **orphaned** (surfaced in the review's impact summary; never silently
+  shifted). `commitScriptDiff` writes the re-anchored tags after the SET (which
+  drops the old body's positional anchors) and seeds recognised spans on added
+  scenes. Same-number pairs with near-zero content overlap are flagged
+  **`collision`** (`COLLISION_SIMILARITY`), default to **keep**, and the review
+  shows a split-group notice when the revised scene belongs to a local cut.
 - **Scene cut / merge (roadmap 132 Part C)**: `src/lib/scriptSceneOps.ts`
   `commitSceneCut` splits a scene's retained blocks at a boundary into a new
   lettered scene (inherits the parent's element fields, lands in the boneyard,

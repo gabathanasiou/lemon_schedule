@@ -30,6 +30,10 @@ describe('defaultDecision', () => {
     expect(defaultDecision(entry({ status: 'removed' }))).toBe('keep');
     expect(defaultDecision(entry({ status: 'unchanged' }))).toBe('skip');
   });
+
+  it('keeps a probable-collision entry instead of auto-applying', () => {
+    expect(defaultDecision(entry({ status: 'modified', collision: true }))).toBe('keep');
+  });
 });
 
 describe('commitScriptDiff', () => {
