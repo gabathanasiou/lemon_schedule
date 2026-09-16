@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { Scissors } from 'lucide-react';
 import { ElementManager } from './ElementManager';
 import { SceneSheet } from './SceneSheet';
 import { ScriptView } from './ScriptView';
@@ -9,6 +10,7 @@ import { GlideBreakdownTab } from './BreakdownTabGlide';
 import { PopoutPlaceholder } from './PopoutWindow';
 import { useDialog } from './Dialog';
 import { requestUnsavedSave } from '../lib/unsavedGuard';
+import { TEST_IDS } from '../lib/testIds';
 
 export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, onUpdateScript, onCutScene, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: {
   subTab: 'elements' | 'sheet' | 'glide' | 'script';
@@ -22,7 +24,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   onOpenSheetInPopout?: (rowIndex: number) => void;
   onOpenScheduleInPopout?: (sceneId: string) => void;
   onUpdateScript?: () => void;
-  onCutScene?: (sceneId: string) => void;
+  onCutScene?: (sceneId: string, splitIndex?: number) => void;
   poppedOutSubTabs: Set<string>;
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;
@@ -38,6 +40,10 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
   const [splitManagerOpen, setSplitManagerOpen] = useState(false);
+  const [cutMode, setCutMode] = useState(false);
+  // The razor only makes sense on the script canvas — leave the tool when the
+  // sub-tab changes.
+  useEffect(() => { if (subTab !== 'script') setCutMode(false); }, [subTab]);
 
   const subTabLabels: Record<string, string> = {
     sheet: 'Sheet', script: 'Script', elements: 'Element Manager', glide: 'Glide Breakdown',
@@ -71,6 +77,19 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         shiftHeld={shiftHeld}
         rightContent={
           <div className="flex items-center gap-2">
+            {subTab === 'script' && (
+              <Button
+                variant="subtle"
+                type="button"
+                active={cutMode}
+                aria-pressed={cutMode}
+                data-testid={TEST_IDS.scriptCutToggle}
+                onClick={() => setCutMode(v => !v)}
+                title="Cut tool — click the script to split a scene (⌥-click for options)"
+              >
+                <Scissors className="w-3.5 h-3.5" /> Cut
+              </Button>
+            )}
             <Button variant="subtle" type="button" onClick={() => setSplitManagerOpen(true)} title="Manage split scenes">
               Split Manager
             </Button>
@@ -81,7 +100,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       {poppedOutSubTabs.has(subTab) ? (
         <PopoutPlaceholder title={subTabLabels[subTab]} onBringBack={() => onCloseSubPopout(subTab)} />
       ) : (
-        subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} onOpenScheduleInPopout={onOpenScheduleInPopout} /> : subTab === 'script' ? <ScriptView headerTarget={portalTarget} onOpenSheet={onOpenSheet} onOpenSchedule={onOpenSchedule} onUpdateScript={onUpdateScript} onCutScene={onCutScene} /> : <GlideBreakdownTab onOpenSheet={onOpenSheet} onOpenSheetInPopout={onOpenSheetInPopout} headerTarget={portalTarget} />
+        subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} onOpenScheduleInPopout={onOpenScheduleInPopout} /> : subTab === 'script' ? <ScriptView headerTarget={portalTarget} onOpenSheet={onOpenSheet} onOpenSchedule={onOpenSchedule} onUpdateScript={onUpdateScript} onCutScene={onCutScene} cutMode={cutMode} onCutModeChange={setCutMode} /> : <GlideBreakdownTab onOpenSheet={onOpenSheet} onOpenSheetInPopout={onOpenSheetInPopout} headerTarget={portalTarget} />
       )}
       {splitManagerOpen && <SplitManagerModal onOpen={onOpenSchedule} onClose={() => setSplitManagerOpen(false)} />}
     </div>

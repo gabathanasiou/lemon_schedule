@@ -1,11 +1,66 @@
 import type { Action } from '../store/reducer';
-import type { Project, Scene, ScriptBlock } from '../types';
-import { normalizeSceneNumber, scriptSceneOf } from './script';
+import type { Project, Scene, ScriptBlock, ScriptScene } from '../types';
+import { formatSceneHeading, normalizeSceneNumber, scriptSceneOf } from './script';
+import { nextLetterSceneNumber } from './sceneNumbering';
+import { generateUUID } from './utils';
 
 /**
  * Scene-body operations that combine the retained screenplay with the scene
  * list (roadmap 132 Part C). Each writes ONE undo batch.
  */
+
+/** Clamp a razor split index to a valid paragraph gap (`1 … blocks-1`). */
+export function clampSplitIndex(blockCount: number, splitIndex: number): number {
+  return Math.min(Math.max(1, splitIndex), blockCount - 1);
+}
+
+/**
+ * Build the lettered child a cut creates from its parent's defaults (the razor
+ * tool + mobile bar; `SceneCutModal` overrides the number/heading afterwards).
+ * Inherits the parent's element fields, resets page count, records the cut
+ * relationship + content anchor.
+ */
+export function buildCutScene(scenes: Scene[], live: Scene, docScene: ScriptScene, splitIndex: number): Scene {
+  const k = clampSplitIndex(docScene.blocks.length, splitIndex);
+  const set = (live.set || '').trim().toUpperCase();
+  return {
+    ...live,
+    id: generateUUID(),
+    sceneNumber: nextLetterSceneNumber(scenes, live.sceneNumber),
+    intExt: live.intExt,
+    set,
+    dayNight: live.dayNight,
+    pageCount: '0',
+    pageCountDecimal: 0,
+    duplicateOf: live.id,
+    duplicateKind: 'split',
+    cutAnchor: docScene.blocks.slice(k).find(b => b[0] !== 'page_break')?.[1] ?? '',
+  };
+}
+
+/** Split a live scene at a paragraph gap using the default cut (razor / one tap). */
+export function cutSceneAt(
+  dispatch: (a: Action) => void,
+  project: Project,
+  liveSceneId: string,
+  splitIndex: number,
+): boolean {
+  const live = project.scenes.find(s => s.id === liveSceneId);
+  const docScene = live ? scriptSceneOf(project.scriptDocument, live.sceneNumber) : undefined;
+  if (!live || !docScene || docScene.blocks.length < 2) return false;
+  const k = clampSplitIndex(docScene.blocks.length, splitIndex);
+  const newScene = buildCutScene(project.scenes, live, docScene, k);
+  return commitSceneCut({
+    dispatch,
+    project,
+    parentId: live.id,
+    parentNumber: live.sceneNumber,
+    newScene,
+    splitIndex: k,
+    headingText: formatSceneHeading(newScene.intExt, newScene.set, newScene.dayNight),
+    moveTags: true,
+  });
+}
 
 /** Cut a scene's body at block boundary `splitIndex` into `newScene` (already
  *  built with id + inherited fields) and land it in the boneyard. */

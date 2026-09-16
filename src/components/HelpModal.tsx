@@ -105,6 +105,14 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>⏎</Kbd></>} action="Add a scene at the end of the grid" />
         </Section>
 
+        <Section title="Script — Cut tool">
+          <Row keys={<><Kbd>✂</Kbd> Cut</>} action="Breakdown toolbar (Script tab): turn on the razor. The pointer becomes scissors and a cut bar snaps to the nearest paragraph — Esc exits" />
+          <Row keys={<>Click</>} action="Split the scene at the cut bar (one undo step; the new lettered scene lands in the boneyard)" />
+          <Row keys={<><Kbd>⌥</Kbd> + Click</>} action="Open the cut dialog for a custom number / heading / move-tags" />
+          <Row keys={<>iPad: drag the bar</>} action="Move the break up/down, then tap Cut (⋯ for the cut dialog)" />
+          <Row keys={<>Hover a cut</>} action="Merge the two split scenes back together (one undo step)" />
+        </Section>
+
         <Section title="Reports Designer (text blocks)">
           <Row keys={<>Type <Kbd>@</Kbd></>} action="Insert an attribute at the caret — opens the attribute picker (type to filter, ↑/↓ to move, ⏎ to insert)" />
           <Row keys={<>Click a tag</>} action="Select it — ⌫ deletes it, typing replaces it, Bold/Italic apply to it" />

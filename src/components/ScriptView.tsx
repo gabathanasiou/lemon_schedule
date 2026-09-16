@@ -1,18 +1,37 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronUp, ExternalLink, FileText, Ruler, Scissors, Search, Sparkles, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, FileText, MoreHorizontal, Ruler, Scissors, Search, Sparkles, Upload, X } from 'lucide-react';
 import { useProject } from '../store';
 import { ScriptSceneText } from './script/ScriptSceneScript';
 import { EighthsRuler } from './script/EighthsRuler';
 import { ScriptTagOverlay, useScriptTagging } from './script/ScriptTagging';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
 import Button from './Button';
-import { useDialog } from './Dialog';
 import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
-import { mergeSceneWithNext } from '../lib/scriptSceneOps';
+import { cutSceneAt, mergeSceneWithNext } from '../lib/scriptSceneOps';
+import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
 import { TEST_IDS } from '../lib/testIds';
 import type { ScriptScene } from '../types';
+
+/** A razor-cut junction between two split scenes — hover reveals Merge. */
+function CutHandle({ label, onMerge, disabled }: { label: string; onMerge: () => void; disabled?: boolean }) {
+  return (
+    <div data-testid={TEST_IDS.scriptCutHandle} className="group relative z-10 -my-1 flex h-7 items-center justify-center">
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-zinc-300" />
+      <Button
+        variant="subtle"
+        type="button"
+        disabled={disabled}
+        onClick={() => onMerge()}
+        title={`Merge ${label} back together (one undo step)`}
+        className="hover-reveal relative bg-white shadow-sm"
+      >
+        <Scissors className="w-3.5 h-3.5 rotate-90" /> Merge
+      </Button>
+    </div>
+  );
+}
 
 const READ_FONT_CLASS = 'text-[15px] leading-[1.7]';
 /** Must match READ_FONT_CLASS (15px × 1.7) — drives the eighths ruler scale. */
@@ -25,6 +44,12 @@ const headingText = (scene: ScriptScene) => scene.blocks.find(b => b[0] === 'hea
 function intExtFromHeading(scene: ScriptScene): string {
   const m = headingText(scene).match(/^\s*(INT\.?\/EXT|INT\.?|EXT\.?|I\/E)/i);
   return m ? m[1].replace(/\./g, '').toUpperCase() : '';
+}
+
+/** Short snippet of the paragraph a razor break sits after (touch bar label). */
+function cutSnippet(scene: ScriptScene | undefined, blockIndex: number): string {
+  const text = (scene?.blocks[blockIndex - 1]?.[1] || '').trim();
+  return text.length > 28 ? `${text.slice(0, 28)}…` : (text || '—');
 }
 
 /** Best-effort set name from a retained scene heading ("INT. KITCHEN - DAY"). */
@@ -46,15 +71,17 @@ function setFromHeading(scene: ScriptScene): string {
  * the element. Committed tags are solid; the Suggestions toggle shows ephemeral
  * derived spans (cast cues / known element names) as lighter highlights.
  */
-export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdateScript, onCutScene }: {
+export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdateScript, onCutScene, cutMode, onCutModeChange }: {
   headerTarget?: HTMLElement | null;
   onOpenSheet?: (rowIndex: number) => void;
   onOpenSchedule?: (sceneId: string) => void;
   onUpdateScript?: () => void;
-  onCutScene?: (sceneId: string) => void;
+  onCutScene?: (sceneId: string, splitIndex?: number) => void;
+  /** Razor tool active (toolbar toggle in BreakdownTab). */
+  cutMode?: boolean;
+  onCutModeChange?: (v: boolean) => void;
 }) {
-  const { state, dispatch } = useProject();
-  const dialog = useDialog();
+  const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const doc = project.scriptDocument;
   const projectScenes = project.scenes;
@@ -75,13 +102,17 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   const [activeIndex, setActiveIndex] = useState(0);
   const [sidebarPref, setSidebarPref] = usePersistState('lemon_schedule_script_sidebar', { width: 320 });
 
-  const mergeNext = useCallback((sceneId: string) => {
-    void dialog.confirm({
-      title: 'Merge with next scene?',
-      message: 'The next scene’s script joins this one and that scene is removed (to Trash, restorable). One undo step.',
-      danger: true,
-    }).then(ok => { if (ok) mergeSceneWithNext(dispatch, project, sceneId); });
-  }, [dialog, dispatch, project]);
+  const [razor, setRazor] = useState<{ sceneIndex: number; blockIndex: number; top: number } | null>(null);
+  const [touchBar, setTouchBar] = useState<{ sceneIndex: number; blockIndex: number; top: number } | null>(null);
+  const draggingRef = useRef(false);
+
+  const cutActive = !!cutMode;
+
+  /** Merge a cut back (the junction handle). Instant + undoable, fragment → Trash. */
+  const mergeCut = useCallback((sceneId: string) => {
+    if (readOnly) return;
+    mergeSceneWithNext(dispatch, project, sceneId);
+  }, [readOnly, dispatch, project]);
 
   // Script scene number → the live Scene it belongs to (for sets / navigation).
   const sceneByIdentity = useMemo(() => {
@@ -89,6 +120,115 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     projectScenes.forEach((s, index) => map.set(normalizeSceneNumber(s.sceneNumber), { id: s.id, index }));
     return map;
   }, [projectScenes]);
+
+  // ---- Razor cut tool (Premiere-style) ----
+  /** Paragraph-gap boundaries for a scene section. `y` is the MIDPOINT of the
+   *  gap between the two paragraphs (viewport coords), so the razor sits
+   *  centered in the whitespace rather than on a block edge. */
+  const sectionBoundaries = useCallback((sceneIndex: number): { k: number; y: number }[] => {
+    const el = sectionRefs.current.get(sceneIndex);
+    if (!el) return [];
+    const blocks = Array.from(el.querySelectorAll<HTMLElement>('[data-script-block]'));
+    const out: { k: number; y: number }[] = [];
+    for (let k = 1; k < blocks.length; k++) {
+      const curr = blocks[k].getBoundingClientRect();
+      const prev = blocks[k - 1].getBoundingClientRect();
+      out.push({ k, y: curr.top >= prev.bottom ? (prev.bottom + curr.top) / 2 : curr.top });
+    }
+    return out;
+  }, []);
+
+  const nearestBoundary = useCallback((sceneIndex: number, clientY: number): { k: number; y: number } | null => {
+    const bs = sectionBoundaries(sceneIndex);
+    if (bs.length === 0) return null;
+    let best = bs[0];
+    for (const b of bs) if (Math.abs(b.y - clientY) < Math.abs(best.y - clientY)) best = b;
+    return best;
+  }, [sectionBoundaries]);
+
+  const sectionIndexAt = useCallback((clientY: number): number | null => {
+    for (const [i, el] of sectionRefs.current) {
+      const r = el.getBoundingClientRect();
+      if (clientY >= r.top && clientY <= r.bottom) return i;
+    }
+    return null;
+  }, []);
+
+  const liveSceneForDocIndex = useCallback((sceneIndex: number) => {
+    const scene = doc?.scenes[sceneIndex];
+    if (!scene) return undefined;
+    const live = sceneByIdentity.get(normalizeSceneNumber(scene.sceneNumber));
+    return live ? projectScenes[live.index] : undefined;
+  }, [doc, sceneByIdentity, projectScenes]);
+
+  const performCut = useCallback((sceneIndex: number, blockIndex: number, options?: boolean) => {
+    const live = liveSceneForDocIndex(sceneIndex);
+    if (!live || readOnly) return;
+    if (options) { onCutScene?.(live.id, blockIndex); return; }
+    if (cutSceneAt(dispatch, project, live.id, blockIndex)) onCutModeChange?.(false);
+  }, [liveSceneForDocIndex, readOnly, onCutScene, dispatch, project, onCutModeChange]);
+
+  /** Top of the page's padding box in viewport coords (absolute-position origin). */
+  const pageOriginTop = useCallback(() => {
+    const el = pageRef.current;
+    return el ? el.getBoundingClientRect().top + el.clientTop : 0;
+  }, []);
+
+  const handleRazorMove = useCallback((e: React.MouseEvent) => {
+    const section = (e.target as HTMLElement).closest('[data-scene-index]') as HTMLElement | null;
+    const sceneIndex = section ? Number(section.getAttribute('data-scene-index')) : NaN;
+    if (Number.isNaN(sceneIndex)) { setRazor(null); return; }
+    const b = nearestBoundary(sceneIndex, e.clientY);
+    if (!b) { setRazor(null); return; }
+    setRazor({ sceneIndex, blockIndex: b.k, top: b.y - pageOriginTop() });
+  }, [nearestBoundary]);
+
+  const handleRazorClick = useCallback((e: React.MouseEvent) => {
+    if (!razor) return;
+    e.preventDefault();
+    performCut(razor.sceneIndex, razor.blockIndex, e.altKey);
+    if (e.altKey) onCutModeChange?.(false);
+  }, [razor, performCut, onCutModeChange]);
+
+  // Touch: a persistent draggable razor bar (no hover/cursor on iPad).
+  const initTouchBar = useCallback(() => {
+    const el = scrollRef.current;
+    const center = el ? el.getBoundingClientRect().top + el.clientHeight / 2 : window.innerHeight / 2;
+    let idx = sectionIndexAt(center);
+    if (idx == null) {
+      let best: number | null = null;
+      let bestD = Infinity;
+      for (const [i, node] of sectionRefs.current) {
+        const r = node.getBoundingClientRect();
+        const d = Math.abs((r.top + r.bottom) / 2 - center);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      idx = best;
+    }
+    if (idx == null) return;
+    const b = nearestBoundary(idx, center);
+    if (!b) return;
+    setTouchBar({ sceneIndex: idx, blockIndex: b.k, top: b.y - pageOriginTop() });
+  }, [sectionIndexAt, nearestBoundary]);
+
+  const updateTouchFromPointer = useCallback((clientY: number) => {
+    const idx = sectionIndexAt(clientY);
+    if (idx == null) return;
+    const b = nearestBoundary(idx, clientY);
+    if (b) setTouchBar({ sceneIndex: idx, blockIndex: b.k, top: b.y - pageOriginTop() });
+  }, [sectionIndexAt, nearestBoundary]);
+
+  useEffect(() => {
+    if (cutMode && IS_COARSE) initTouchBar();
+    if (!cutMode) { setRazor(null); setTouchBar(null); }
+  }, [cutMode, initTouchBar]);
+
+  useEffect(() => {
+    if (!cutMode) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCutModeChange?.(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [cutMode, onCutModeChange]);
 
   // Sidebar rows: every scene in order — number · INT/EXT · set (flat list).
   const navRows: SidebarNavRow[] = useMemo(() => {
@@ -296,9 +436,21 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
         width={sidebarPref.width}
         onWidthChange={w => setSidebarPref({ width: w })}
       />
-      <div ref={scrollRef} onScroll={handleScroll} onMouseUp={tagging.handleSelectionEnd} onKeyUp={tagging.handleSelectionEnd} className="flex-1 overflow-auto">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        onMouseUp={cutActive ? undefined : tagging.handleSelectionEnd}
+        onKeyUp={cutActive ? undefined : tagging.handleSelectionEnd}
+        className="flex-1 overflow-auto"
+      >
           <div className="mx-auto flex w-fit items-start px-6 py-6">
-          <div ref={pageRef} className="w-[8.5in] max-w-full border border-zinc-200 bg-white px-14 py-12 shadow-sm select-text">
+          <div
+            ref={pageRef}
+            onMouseMove={cutActive && !IS_COARSE ? handleRazorMove : undefined}
+            onMouseLeave={cutActive && !IS_COARSE ? () => setRazor(null) : undefined}
+            onClick={cutActive && !IS_COARSE ? handleRazorClick : undefined}
+            className={`relative w-[8.5in] max-w-full border border-zinc-200 bg-white px-14 py-12 shadow-sm ${cutActive ? 'script-razor select-none' : 'select-text'}`}
+          >
             {doc.titlePage?.title && (
               <div className="mb-12 text-center font-mono uppercase tracking-widest text-zinc-900">
                 <div className="text-lg font-bold">{doc.titlePage.title}</div>
@@ -306,58 +458,106 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
             )}
             {doc.scenes.map((scene, i) => {
               const match = sceneByIdentity.get(normalizeSceneNumber(scene.sceneNumber));
-              const nextDoc = doc.scenes[i + 1];
-              const base = scene.sceneNumber.replace(/[A-Z]+$/i, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-              const isFragment = !!nextDoc
-                && new RegExp(`^${base}[A-Z]$`, 'i').test(nextDoc.sceneNumber)
-                && !!sceneByIdentity.get(normalizeSceneNumber(nextDoc.sceneNumber));
+              const currentLive = match ? projectScenes[match.index] : undefined;
+              const prevDoc = doc.scenes[i - 1];
+              const prevMatch = prevDoc ? sceneByIdentity.get(normalizeSceneNumber(prevDoc.sceneNumber)) : undefined;
+              const prevLive = prevMatch ? projectScenes[prevMatch.index] : undefined;
+              const isCutHere = !!currentLive && currentLive.duplicateKind === 'split'
+                && !!prevLive && currentLive.duplicateOf === prevLive.id;
               return (
-                <section
-                  key={`${scene.sceneNumber}-${i}`}
-                  ref={el => { if (el) sectionRefs.current.set(i, el); else sectionRefs.current.delete(i); }}
-                  data-testid={TEST_IDS.scriptScene}
-                  data-scene-number={scene.sceneNumber}
-                  id={`script-scene-${i}`}
-                  className="group relative scroll-mt-4 pb-6"
-                >
-                  {match && (onOpenSchedule || onOpenSheet || onCutScene || isFragment) && (
-                    <div className="hover-reveal absolute right-0 top-3 z-10 flex items-center gap-1 rounded bg-white/90">
-                      {onCutScene && (
-                        <Button variant="subtle" type="button" onClick={() => onCutScene(match.id)} title="Cut this scene…">
-                          <Scissors className="w-3.5 h-3.5" /> Cut
-                        </Button>
-                      )}
-                      {isFragment && (
-                        <Button variant="subtle" type="button" onClick={() => mergeNext(match.id)} title="Merge the next scene into this one">
-                          Merge
-                        </Button>
-                      )}
-                      {onOpenSchedule && (
-                        <Button variant="subtle" type="button" onClick={() => onOpenSchedule(match.id)} title="Open in Schedule">
-                          <ExternalLink className="w-3.5 h-3.5" /> Schedule
-                        </Button>
-                      )}
-                      {onOpenSheet && (
-                        <Button variant="subtle" type="button" onClick={() => onOpenSheet(match.index)} title="Open in Sheet">
-                          Sheet
-                        </Button>
-                      )}
-                    </div>
+                <React.Fragment key={`${scene.sceneNumber}-${i}`}>
+                  {isCutHere && prevLive && (
+                    <CutHandle
+                      label={`${prevLive.sceneNumber} / ${scene.sceneNumber}`}
+                      onMerge={() => mergeCut(prevLive.id)}
+                      disabled={readOnly}
+                    />
                   )}
-                  <ScriptSceneText
-                    scene={scene}
-                    theme="light"
-                    fontClass={READ_FONT_CLASS}
-                    highlight={q}
-                    sceneNumber={scene.sceneNumber}
-                    annotations={tagging.annotations}
-                    sceneId={match?.id}
-                    onAnnotationClick={tagging.openAnnotation}
-                    onAnnotationHover={tagging.handleAnnotationHover}
-                  />
-                </section>
+                  <section
+                    ref={el => { if (el) sectionRefs.current.set(i, el); else sectionRefs.current.delete(i); }}
+                    data-testid={TEST_IDS.scriptScene}
+                    data-scene-number={scene.sceneNumber}
+                    data-scene-index={i}
+                    id={`script-scene-${i}`}
+                    className="group relative scroll-mt-4 pb-6"
+                  >
+                    {!cutActive && match && (onOpenSchedule || onOpenSheet) && (
+                      <div className="hover-reveal absolute right-0 top-3 z-10 flex items-center gap-1 rounded bg-white/90">
+                        {onOpenSchedule && (
+                          <Button variant="subtle" type="button" onClick={() => onOpenSchedule(match.id)} title="Open in Schedule">
+                            <ExternalLink className="w-3.5 h-3.5" /> Schedule
+                          </Button>
+                        )}
+                        {onOpenSheet && (
+                          <Button variant="subtle" type="button" onClick={() => onOpenSheet(match.index)} title="Open in Sheet">
+                            Sheet
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    <ScriptSceneText
+                      scene={scene}
+                      theme="light"
+                      fontClass={READ_FONT_CLASS}
+                      highlight={q}
+                      sceneNumber={scene.sceneNumber}
+                      annotations={tagging.annotations}
+                      sceneId={match?.id}
+                      onAnnotationClick={tagging.openAnnotation}
+                      onAnnotationHover={tagging.handleAnnotationHover}
+                    />
+                  </section>
+                </React.Fragment>
               );
             })}
+            {cutActive && !IS_COARSE && razor && (
+              <div
+                data-testid={TEST_IDS.scriptCutLine}
+                className="pointer-events-none absolute -left-3 -right-3 z-30 flex -translate-y-1/2 items-center"
+                style={{ top: razor.top }}
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded bg-blue-600 text-white shadow-md">
+                  <Scissors className="w-3 h-3" />
+                </span>
+                <span className="h-0.5 flex-1 bg-blue-500" />
+              </div>
+            )}
+            {cutActive && IS_COARSE && touchBar && (
+              <div
+                data-testid={TEST_IDS.scriptCutBar}
+                className="absolute -left-3 -right-3 z-30 flex -translate-y-1/2 items-center"
+                style={{ top: touchBar.top }}
+              >
+                <span className="h-0.5 flex-1 bg-blue-500" />
+                <div
+                  className="flex touch-none items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/95 px-1.5 py-1 shadow-2xl backdrop-blur-md"
+                  onPointerDown={e => { draggingRef.current = true; e.currentTarget.setPointerCapture(e.pointerId); }}
+                  onPointerMove={e => { if (draggingRef.current) updateTouchFromPointer(e.clientY); }}
+                  onPointerUp={() => { draggingRef.current = false; }}
+                  onPointerCancel={() => { draggingRef.current = false; }}
+                >
+                  <Button variant="subtle" theme="dark" type="button" title="Cancel cut" onClick={() => onCutModeChange?.(false)}>
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                  <span className="px-1 text-[11px] font-semibold text-zinc-300">
+                    Break before “{cutSnippet(doc.scenes[touchBar.sceneIndex], touchBar.blockIndex)}”
+                  </span>
+                  <Button data-testid={TEST_IDS.scriptCutButton} variant="primary" theme="dark" type="button" onClick={() => performCut(touchBar.sceneIndex, touchBar.blockIndex)}>
+                    Cut
+                  </Button>
+                  <Button
+                    variant="subtle"
+                    theme="dark"
+                    type="button"
+                    title="Cut with options…"
+                    onClick={() => { performCut(touchBar.sceneIndex, touchBar.blockIndex, true); onCutModeChange?.(false); }}
+                  >
+                    <MoreHorizontal className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+                <span className="h-0.5 flex-1 bg-blue-500" />
+              </div>
+            )}
           </div>
           {showEighths && <EighthsRuler contentHeight={contentHeight} lineHeight={READ_LINE_HEIGHT} />}
         </div>

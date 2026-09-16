@@ -157,8 +157,17 @@ Status: read this before touching any import/export work.
   lettered scene (inherits the parent's element fields, lands in the boneyard,
   tags optionally move), and `mergeSceneWithNext` reverses it (concatenate the
   bodies, delete the next scene to Trash). Both are ONE `BATCH_START`/`COMMIT`;
-  the body uses `UPDATE_SCRIPT_DOCUMENT` (baseline NOT rotated). UI:
-  `SceneCutModal` + the Script sub-tab hover Cut/Merge.
+  the body uses `UPDATE_SCRIPT_DOCUMENT` (baseline NOT rotated). Defaults come
+  from one builder, `buildCutScene` (`nextLetterSceneNumber`, inherited heading +
+  element fields, content `cutAnchor`); `cutSceneAt` is the one-tap cut.
+  **UI (razor)**: the Breakdown toolbar's **Cut** toggle (Script sub-tab only)
+  turns on a Premiere-style razor — a cut bar snaps to paragraph gaps and a click
+  splits instantly (one-shot; `⌥`-click opens `SceneCutModal` at that boundary
+  for a custom number/heading). On touch the bar is persistent: drag it up/down,
+  then tap **Cut** (⋯ opens the modal). `SceneCutModal` survives only as the
+  options path. Every split junction shows a hoverable **Merge** handle
+  (`mergeSceneWithNext`, instant + undoable); the per-scene Cut/Merge hover
+  buttons are gone.
 - **Duplicate modes (roadmap 132 Part D)**: ONE modal (`SceneDuplicateModal`,
   mounted by `SceneDuplicateProvider`, opened via `useSceneDuplicate()`) serves
   the stripboard context menu / Glide / Scene Sheet: **Split** (renumber + copy

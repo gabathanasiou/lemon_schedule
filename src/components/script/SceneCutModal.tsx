@@ -6,11 +6,10 @@ import ModalFooterButton from '../ModalFooterButton';
 import RadioList from '../RadioList';
 import Checkbox from '../Checkbox';
 import { formatSceneHeading, scriptSceneOf } from '../../lib/script';
-import { commitSceneCut } from '../../lib/scriptSceneOps';
+import { buildCutScene, clampSplitIndex, commitSceneCut } from '../../lib/scriptSceneOps';
 import { nextLetterSceneNumber } from '../../lib/sceneNumbering';
-import { generateUUID } from '../../lib/utils';
 import { TEST_IDS } from '../../lib/testIds';
-import type { Scene, ScriptBlock } from '../../types';
+import type { ScriptBlock } from '../../types';
 
 const FIELD_LABEL = 'mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500';
 const FIELD_INPUT = 'w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500';
@@ -22,7 +21,7 @@ const FIELD_INPUT = 'w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded
  * `UPDATE_SCRIPT_DOCUMENT` (body split; baseline NOT rotated) + `ADD_SCENE`
  * (+ tag re-anchoring when "move tags" is on) — a single undo step.
  */
-export default function SceneCutModal({ sceneId, onClose }: { sceneId: string; onClose: () => void }) {
+export default function SceneCutModal({ sceneId, initialSplitIndex, onClose }: { sceneId: string; initialSplitIndex?: number; onClose: () => void }) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const live = project.scenes.find(s => s.id === sceneId);
@@ -31,7 +30,10 @@ export default function SceneCutModal({ sceneId, onClose }: { sceneId: string; o
   const blocks = docScene?.blocks || [];
 
   const defaultNumber = useMemo(() => (live ? nextLetterSceneNumber(project.scenes, live.sceneNumber) : ''), [live, project.scenes]);
-  const [splitIndex, setSplitIndex] = useState(Math.min(1, Math.max(0, blocks.length - 1)));
+  const [splitIndex, setSplitIndex] = useState(() => {
+    if (blocks.length < 2) return 1;
+    return initialSplitIndex != null ? clampSplitIndex(blocks.length, initialSplitIndex) : Math.min(1, blocks.length - 1);
+  });
   const [newNumber, setNewNumber] = useState(defaultNumber);
   const [intExt, setIntExt] = useState(live?.intExt || 'INT');
   const [set, setSet] = useState(live?.set || '');
@@ -42,22 +44,10 @@ export default function SceneCutModal({ sceneId, onClose }: { sceneId: string; o
 
   const confirm = () => {
     if (!live || !doc || !docScene || readOnly) return;
-    const k = Math.min(Math.max(1, splitIndex), blocks.length - 1);
+    const k = clampSplitIndex(blocks.length, splitIndex);
     const number = newNumber.trim() || defaultNumber;
     const upperSet = set.trim().toUpperCase();
-    const newScene: Scene = {
-      ...live,
-      id: generateUUID(),
-      sceneNumber: number,
-      intExt,
-      set: upperSet,
-      dayNight,
-      pageCount: '0',
-      pageCountDecimal: 0,
-      duplicateOf: live.id,
-      duplicateKind: 'split',
-      cutAnchor: blocks.slice(k).find(b => b[0] !== 'page_break')?.[1] ?? '',
-    };
+    const newScene = { ...buildCutScene(project.scenes, live, docScene, k), sceneNumber: number, intExt, set: upperSet, dayNight };
     commitSceneCut({
       dispatch,
       project,

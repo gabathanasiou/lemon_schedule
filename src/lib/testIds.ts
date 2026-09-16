@@ -45,4 +45,13 @@ export const TEST_IDS = {
   splitBreakModal: 'split-break-modal',
   /** Script-map integrity audit modal body (roadmap 135). */
   scriptIntegrityModal: 'script-integrity-modal',
+  /** Toolbar razor (cut) tool toggle in the Breakdown toolbar. */
+  scriptCutToggle: 'script-cut-toggle',
+  /** Desktop razor bar following the pointer over the script. */
+  scriptCutLine: 'script-cut-line',
+  /** Touch razor bar (draggable) + its Cut button. */
+  scriptCutBar: 'script-cut-bar',
+  scriptCutButton: 'script-cut-button',
+  /** Hoverable junction between two split scenes (reveals Merge). */
+  scriptCutHandle: 'script-cut-handle',
 } as const;
