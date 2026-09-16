@@ -101,6 +101,12 @@ export function seedTitle(): string {
 /** Escape a string for use inside a `RegExp` (locator text filters, etc.). */
 export const escRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** Clicks a kit menu/popover row by its exact text via a deferred native click
+ *  (the row is often a non-button element the role locator can't reach). */
+export async function clickMenuText(page: Page, text: string) {
+  await page.getByText(text, { exact: true }).evaluate((el) => (el as HTMLElement).click());
+}
+
 /** A manager grid's NAME cell holding the given value. Manager name cells are
  *  auto-wrapping textareas (`data-manager-name`) so long names wrap to two
  *  lines — `input[value=…]` no longer matches them. Matches the value EXACTLY

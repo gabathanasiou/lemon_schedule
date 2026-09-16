@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { APP_BOOT_ANCHOR, waitForPersistedProject } from './helpers';
+import { APP_BOOT_ANCHOR, waitForPersistedProject, bridgeEval as bridge } from './helpers';
 
 const FIXTURE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const FIXTURE = path.join(FIXTURE_PATH, 'lair-v10.sex');
@@ -20,14 +20,6 @@ type PState = {
     activeVersionId: string;
   };
 };
-
-function bridge<T>(page: import('@playwright/test').Page, fn: string): Promise<T> {
-  return page.evaluate((body) => {
-    const b: any = (window as any).__lemonSchedule;
-     
-    return new Function('b', `return (${body})`)(b);
-  }, fn);
-}
 
 async function importFixture(page: import('@playwright/test').Page, fixturePath: string) {
   const chooserPromise = page.waitForEvent('filechooser');

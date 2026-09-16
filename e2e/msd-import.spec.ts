@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { APP_BOOT_ANCHOR } from './helpers';
+import { APP_BOOT_ANCHOR, bridgeEval as bridge } from './helpers';
 
 const FIXTURE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const FIXTURE = path.join(FIXTURE_PATH, 'wonderful-life.msd');
@@ -30,14 +30,6 @@ type PState = {
     calendarVersions?: any[];
   };
 };
-
-function bridge<T>(page: import('@playwright/test').Page, fn: string): Promise<T> {
-  return page.evaluate((body) => {
-    const b: any = (window as any).__lemonSchedule;
-     
-    return new Function('b', `return (${body})`)(b);
-  }, fn);
-}
 
 function goldenStripLabels(version: any): string[] {
   return version.rows

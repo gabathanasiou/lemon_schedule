@@ -1,14 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedTitle, waitForOverlaySettle } from './helpers';
+import { openSeededProject, seedTitle, waitForOverlaySettle, clickMenuText } from './helpers';
 
 /** WebKit quirk: clicking a fixed kit-menu item over a deep-scrolled calendar
  *  grid can miss (Playwright's hit-test finds the grid underneath even though
  *  the menu is the painted top layer). A DOM click on the item is semantically
  *  identical — the menu IS on top and the item IS the target. */
-async function clickMenuButton(page: import('@playwright/test').Page, name: string) {
-  await page.getByText(name, { exact: true }).evaluate((el) => (el as HTMLElement).click());
-}
-
 /** Calendar View prefs: "Expand Day Cells" (default ON) sizes strips-mode day
  *  cells to their content; turning it off returns the fixed 170px rows. */
 test('calendar view: day cells expand by default; Expand Day Cells toggle restores fixed height', async ({ page }) => {
@@ -44,14 +40,14 @@ test('calendar view: day cells expand by default; Expand Day Cells toggle restor
   // The menu morphs open (~220ms) — a mid-morph item is at a transformed
   // position and the click can land on whatever is underneath it.
   await waitForOverlaySettle(page);
-  await clickMenuButton(page, 'Expand Day Cells');
+  await clickMenuText(page, 'Expand Day Cells');
   await page.keyboard.press('Escape');
   await expect.poll(height).toBe(170);
 
   // Toggle back on: expands again, and the pref persisted.
   await page.getByRole('button', { name: 'View' }).click();
   await waitForOverlaySettle(page);
-  await clickMenuButton(page, 'Expand Day Cells');
+  await clickMenuText(page, 'Expand Day Cells');
   await page.keyboard.press('Escape');
   await expect.poll(height).toBeGreaterThan(170);
 

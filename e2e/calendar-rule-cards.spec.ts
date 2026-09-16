@@ -1,14 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedLeadCast, waitForOverlaySettle } from './helpers';
+import { openSeededProject, seedLeadCast, waitForOverlaySettle, clickMenuText } from './helpers';
 
 /** WebKit quirk: clicking a fixed kit-menu item over a deep-scrolled virtualized
  *  calendar grid can miss (Playwright's hit-test finds the grid underneath even
  *  though the menu is the painted top layer). A DOM click on the item is
  *  semantically identical — the menu IS on top and the item IS the target. */
-async function clickMenuLabel(page: import('@playwright/test').Page, text: string) {
-  await page.getByText(text, { exact: true }).evaluate((el) => (el as HTMLElement).click());
-}
-
 // Roadmap 65: global (every-day) rules never render a card in Calendar
 // Events mode — their home is the Rules tab (they still fire in the
 // stripboard/day headers via computeSectionViolationMap). Dated rule cards
@@ -77,12 +73,12 @@ test('events mode: global rule cards hidden; dated rule card is flag-as-icon-lef
   // a transformed position and the click lands on the grid underneath.
   await page.getByRole('button', { name: 'Filter' }).click();
   await waitForOverlaySettle(page);
-  await clickMenuLabel(page, 'All Rule Types');
+  await clickMenuText(page, 'All Rule Types');
   await page.keyboard.press('Escape');
   await expect(grid.locator('[data-card-rule="ev-dated"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Filter' }).click();
   await waitForOverlaySettle(page);
-  await clickMenuLabel(page, 'All Rule Types');
+  await clickMenuText(page, 'All Rule Types');
   await page.keyboard.press('Escape');
   await expect(card).toHaveCount(1);
 
