@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, Trash2, Undo2, Redo2 } from 'lucide-react';
+import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Undo2, Redo2 } from 'lucide-react';
 import { useProject } from '../store';
 import { useDialog } from './Dialog';
 import { IS_COARSE } from '../lib/device';
@@ -41,6 +41,7 @@ interface AppHeaderProps {
   onPrintBreakdownSheet: () => void;
   onPrintReport: (design: ReportDesign) => void;
   onShowTrash: () => void;
+  onShowIntegrity: () => void;
   driveCtx: GoogleAuthContextValue;
   closeProject: () => void;
   createProject: (title?: string) => Promise<void>;
@@ -55,7 +56,7 @@ export default function AppHeader(props: AppHeaderProps) {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
     onOpenProjectManager, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
-    onShowTrash, driveCtx, closeProject, createProject,
+    onShowTrash, onShowIntegrity, driveCtx, closeProject, createProject,
   } = props;
 
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -160,6 +161,9 @@ export default function AppHeader(props: AppHeaderProps) {
               </DropdownItem>
             )}
             <DropdownDivider />
+            <DropdownItem onClick={() => { setShowFileMenu(false); onShowIntegrity(); }} icon={<ShieldCheck className="w-3.5 h-3.5" />}>
+              Script integrity...
+            </DropdownItem>
             <DropdownItem onClick={() => { setShowFileMenu(false); onShowTrash(); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
               Trash...
             </DropdownItem>

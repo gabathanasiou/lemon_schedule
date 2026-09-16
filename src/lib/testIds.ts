@@ -43,4 +43,6 @@ export const TEST_IDS = {
   splitManagerModal: 'split-manager-modal',
   /** Move-break modal body (roadmap 132 Part E). */
   splitBreakModal: 'split-break-modal',
+  /** Script-map integrity audit modal body (roadmap 135). */
+  scriptIntegrityModal: 'script-integrity-modal',
 } as const;

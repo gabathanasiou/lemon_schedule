@@ -10,6 +10,7 @@ import {
 import { computeRowData, buildNonShootSet } from './daybreakUtils';
 import { createBlankScene } from './sceneFactory';
 import { deserializeProject } from './projectCodec';
+import { auditScriptMap, repairScriptMap, type RepairResult, type ScriptIntegrityReport } from './scriptIntegrity';
 import { generateUUID } from './utils';
 import type { Project, Scene, CalendarVersion, CustomCategoryDef } from '../types';
 import type { ProjectMeta } from '../store/storage';
@@ -104,6 +105,8 @@ export interface LemonAgentBridge {
   getSceneValues: () => { columns: string[]; rows: AgentBridgeSceneSnapshot[] };
   diagnostics: () => AgentBridgeConnectivitySnapshot;
   decodeProject: (raw: string) => Project;
+  auditScript: () => ScriptIntegrityReport;
+  repairScript: () => RepairResult;
   dispatch: (action: Action) => void;
   undo: () => void;
   redo: () => void;
@@ -186,10 +189,12 @@ function buildBridge(): LemonAgentBridge {
     '  getSceneValues()             → Glide grid truth: every scene, every column value (canvas is opaque to the DOM)',
     '  decodeProject(raw)           → decode a persisted localStorage/Drive project string (gzip/base64 OR legacy plain JSON)',
     '  diagnostics()                → connectivity/sync snapshot (probe result, Drive save error, payload size, retries)',
+    '  auditScript()                → project↔scriptDocument integrity report (duplicate numbers, orphan/dangling bodies, missing rows)',
     '  pastCount() / futureCount()  → undo/redo stack depths',
     '',
     'Writes (same Action union the UI uses; see src/store/reducer.ts — ~95 types):',
     '  dispatch(action)             → apply any store action; throws with a helpful prefix on invalid/shape errors',
+    '  repairScript()               → repair the script map (renumber/prune/rows) in ONE batch; returns counts',
     '  batch(fn)                    → wrap multiple dispatches in BATCH_START/BATCH_COMMIT (one undo entry)',
     '  undo() / redo()              → step the history stacks (NOTE: LOAD resets history)',
     '',
@@ -287,6 +292,8 @@ function buildBridge(): LemonAgentBridge {
     getSceneValues,
     decodeProject: (raw: string) => deserializeProject(raw),
     diagnostics: () => deepClone(api().getConnectivity()),
+    auditScript: () => deepClone(auditScriptMap(api().getProject())),
+    repairScript: () => repairScriptMap(dispatch, api().getProject()),
     dispatch,
     undo: () => dispatch({ type: 'UNDO' }),
     redo: () => dispatch({ type: 'REDO' }),

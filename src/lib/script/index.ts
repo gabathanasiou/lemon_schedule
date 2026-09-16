@@ -59,9 +59,16 @@ export function parseInlineMarkup(text: string): ScriptInline[] | undefined {
   return runs;
 }
 
-/** Normalize a scene number for matching/body lookup (`1A` vs `1a`, leading zeros). */
+/** Normalize a scene number for matching/body lookup (`1A` vs `1a`, leading
+ *  zeros). Non-alphanumeric runs collapse to `-` so `5.1` no longer collides
+ *  with `51` (roadmap 132 must-cover / 135). */
 export function normalizeSceneNumber(n: string): string {
-  return n.trim().toUpperCase().replace(/^0+(?=\d)/, '').replace(/[^A-Z0-9]/g, '');
+  return n
+    .trim()
+    .toUpperCase()
+    .replace(/^0+(?=\d)/, '')
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 /** The retained block stream for a scene number, or [] when absent. */

@@ -47,6 +47,7 @@ import Modal from './components/Modal';
 import { ModalFooter } from './components/Modal';
 import ModalFooterButton from './components/ModalFooterButton';
 import TrashModal from './components/TrashModal';
+import ScriptIntegrityModal from './components/ScriptIntegrityModal';
 import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
@@ -361,6 +362,7 @@ function AppContent() {
     setShowElementBreakdownDialog(false);
     setPrintDialogCategory(undefined);
     setShowTrash(false);
+    setShowIntegrity(false);
     setShowRestoreModal(null);
     setPendingImport(null);
     setPrintOptions(null);
@@ -428,6 +430,7 @@ function AppContent() {
   const [reportPrintReady, setReportPrintReady] = useState(false);
   const [customReportPrint, setCustomReportPrint] = useState<ReportDesign | null>(null);
   const [showTrash, setShowTrash] = useState(false);
+  const [showIntegrity, setShowIntegrity] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const driveCtx = useGoogleAuth();
   const topTabContainerRef = useRef<HTMLDivElement>(null);
@@ -792,6 +795,7 @@ function AppContent() {
         onPrintBreakdownSheet={() => setShowBreakdownSheetDialog(true)}
         onPrintReport={(design) => setCustomReportPrint(design)}
         onShowTrash={() => setShowTrash(true)}
+        onShowIntegrity={() => setShowIntegrity(true)}
         driveCtx={driveCtx}
         closeProject={closeProject}
         createProject={async (title) => { await createProject(title); }}
@@ -940,6 +944,7 @@ function AppContent() {
       </main>
 
       <TrashModal open={showTrash} onClose={() => setShowTrash(false)} project={project} dispatch={dispatch} />
+      {showIntegrity && <ScriptIntegrityModal onClose={() => setShowIntegrity(false)} />}
 
       {showRestoreModal && (
         <Modal open onClose={() => setShowRestoreModal(null)} title="Restore from Folder" icon={<HardDrive className="w-4 h-4" />} width="max-w-xl"
