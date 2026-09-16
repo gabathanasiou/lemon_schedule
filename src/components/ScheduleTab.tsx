@@ -44,7 +44,8 @@ import ScheduleToolbar from './schedule/ScheduleToolbar';
 import ScheduleContextMenu from './schedule/ScheduleContextMenu';
 import ScheduleModals from './schedule/ScheduleModals';
 import ScheduleOverlays from './schedule/ScheduleOverlays';
-import { computeMiddleInsertIndex, renumberRows } from '../lib/daybreakUtils';
+import { computeMiddleInsertIndex } from '../lib/daybreakUtils';
+import { autoDaybreaks, deleteAllDaybreaks } from '../lib/scheduleOps';
 import { isEmptyDayMeta } from '../lib/dayMeta';
 import { applyChunkVisibility, useChunkResize } from '../lib/virtualChunk';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
@@ -709,7 +710,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
     });
     if (!ok) return;
     dispatch({ type: 'BATCH_START' });
-    const newRows = renumberRows(activeVersion.rows.filter(r => r.type !== 'DAYBREAK' || r.pinned));
+    const newRows = deleteAllDaybreaks(activeVersion.rows);
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     dispatch({ type: 'BATCH_COMMIT' });
   };
@@ -903,76 +904,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
 
   const executeAutoDaybreak = (mode: 'duration' | 'pages', threshold: number, notesAction: 'boneyard' | 'delete', breaksAction: 'boneyard' | 'delete') => {
     if (!activeVersion) return;
-
+    const rows = autoDaybreaks(activeVersion.rows, project.scenes, { mode, threshold, notesAction, breaksAction }, generateUUID);
     dispatch({ type: 'BATCH_START' });
-
-    let rows = [...activeVersion.rows];
-    rows = rows.filter(r => r.type !== 'DAYBREAK' || r.pinned);
-
-    const notesToProcess = rows.filter(r => r.containerId !== null && r.type === 'NOTE');
-    const breaksToProcess = rows.filter(r => r.containerId !== null && r.type === 'BREAK');
-
-    if (notesAction === 'boneyard') {
-      rows = rows.map(r => notesToProcess.find(n => n.id === r.id) ? { ...r, containerId: null } : r);
-    } else {
-      rows = rows.filter(r => !notesToProcess.find(n => n.id === r.id));
-    }
-    if (breaksAction === 'boneyard') {
-      rows = rows.map(r => breaksToProcess.find(b => b.id === r.id) ? { ...r, containerId: null } : r);
-    } else {
-      rows = rows.filter(r => !breaksToProcess.find(b => b.id === r.id));
-    }
-
-    const pinnedRows = rows.filter(r => r.pinned);
-
-    const scheduled = rows.filter(r => r.containerId !== null && r.type !== 'DAYBREAK');
-    const boneyard = rows.filter(r => r.containerId === null && r.type !== 'DAYBREAK');
-
-    scheduled.sort((a, b) => {
-      if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
-      return a.order - b.order;
-    });
-
-    const result: typeof rows = [];
-    let accumulator = 0;
-
-    for (const row of scheduled) {
-      const scene = row.sceneId ? project.scenes.find(s => s.id === row.sceneId) : null;
-      const rowValue = mode === 'duration'
-        ? (row.estimatedDuration || 0)
-        : (scene?.pageCountDecimal || 0);
-
-      if (accumulator > 0 && accumulator + rowValue > threshold) {
-        result.push({
-          id: generateUUID(),
-          type: 'DAYBREAK' as const,
-          containerId: row.containerId,
-          order: 0,
-          daybreakLabel: 'DAYBREAK',
-          daybreakCallTime: '08:00',
-        });
-        accumulator = 0;
-      }
-
-      accumulator += rowValue;
-      result.push(row);
-    }
-
-    if (result.length > 0) {
-      result.push({
-        id: generateUUID(),
-        type: 'DAYBREAK' as const,
-        containerId: result[result.length - 1].containerId,
-        order: 0,
-        daybreakLabel: 'DAYBREAK',
-        daybreakCallTime: '08:00',
-      });
-    }
-
-    const combined = [...pinnedRows, ...result, ...boneyard];
-    combined.forEach((r, i) => r.order = i);
-
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows } });
     dispatch({ type: 'BATCH_COMMIT' });
   };
 

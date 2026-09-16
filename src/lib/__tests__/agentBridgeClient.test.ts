@@ -24,6 +24,7 @@ function fakeBridge(overrides: Partial<LemonAgentBridge> = {}) {
     getCalendarVersion: () => null,
     getRows: () => ({ rows: [], sections: [] }) as never,
     getSceneValues: () => ({ columns: [], rows: [] }),
+    getSceneScript: () => null,
     diagnostics: () => ({ readOnly: false }) as never,
     decodeProject: () => ({}) as never,
     auditScript: () => ({}) as never,
@@ -79,6 +80,21 @@ describe('applyActionsToBridge', () => {
     const actions = Array.from({ length: AGENT_BRIDGE_MAX_ACTIONS + 1 }, () => ({ type: 'UNDO' })) as Action[];
     expect(() => applyActionsToBridge(bridge, actions)).toThrow(/Too many actions/);
   });
+
+  it('auto-registers new scene element values as Element Manager entries', () => {
+    const { bridge, dispatch } = fakeBridge({
+      getProject: () =>
+        ({ title: 'T', breakdownElements: { props: [{ id: 'GUN', name: 'GUN' }] }, customCategories: [] }) as never,
+    });
+    const result = applyActionsToBridge(bridge, [
+      { type: 'UPDATE_SCENE', payload: { id: 's1', props: 'GUN, STATUE', wardrobe: 'RUBBER SOLES' } },
+    ] as Action[]);
+    expect(result).toEqual({ applied: 1, elementsRegistered: 2 });
+    const types = dispatch.mock.calls.map((c) => c[0].type);
+    expect(types).toEqual(['BATCH_START', 'ADD_ELEMENT', 'ADD_ELEMENT', 'UPDATE_SCENE', 'BATCH_COMMIT']);
+    const adds = dispatch.mock.calls.map((c) => c[0]).filter((a) => a.type === 'ADD_ELEMENT');
+    expect(adds.map((a) => a.payload.element.name).sort()).toEqual(['RUBBER SOLES', 'STATUE']);
+  });
 });
 
 describe('createAgentBridgeRequestHandler', () => {
@@ -91,10 +107,32 @@ describe('createAgentBridgeRequestHandler', () => {
     expect(await handle('applyActions', { actions: [{ type: 'UNDO' }], atomic: false })).toEqual({ applied: 1 });
   });
 
+  it('passes the scene number through getSceneScript', async () => {
+    const getSceneScript = vi.fn(() => ({ sceneNumber: '23A' }) as never);
+    const { bridge } = fakeBridge({ getSceneScript });
+    const handle = createAgentBridgeRequestHandler(bridge);
+    expect(await handle('getSceneScript', { sceneNumber: '23A' })).toEqual({ sceneNumber: '23A' });
+    expect(getSceneScript).toHaveBeenCalledWith('23A');
+  });
+
   it('rejects unknown methods', async () => {
     const { bridge } = fakeBridge();
     const handle = createAgentBridgeRequestHandler(bridge);
     await expect(handle('eval')).rejects.toThrow(/Unknown bridge method/);
+  });
+
+  it('routes schedule ops and refuses them on read-only projects', async () => {
+    const moveRows = vi.fn(() => ({ applied: true, versionId: 'v1', rowCount: 3 }));
+    const { bridge } = fakeBridge({ moveRows });
+    const handle = createAgentBridgeRequestHandler(bridge);
+    await expect(handle('moveRows', { rowIds: ['a'], toContainer: 'boneyard' }))
+      .resolves.toEqual({ applied: true, versionId: 'v1', rowCount: 3 });
+    expect(moveRows).toHaveBeenCalledWith({ rowIds: ['a'], toContainer: 'boneyard' });
+
+    const readOnly = fakeBridge({ diagnostics: () => ({ readOnly: true }) as never });
+    const roHandle = createAgentBridgeRequestHandler(readOnly.bridge);
+    await expect(roHandle('deleteAllDaybreaks', {})).rejects.toThrow(/read-only/);
+    await expect(roHandle('sortRows', { criteria: [{ key: 'set' }] })).rejects.toThrow(/read-only/);
   });
 });
 

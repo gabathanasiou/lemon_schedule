@@ -33,6 +33,13 @@ export const ENTITY_NAMES = [
   'ColorRule',
   'ProductionInfo',
   'ScriptDocument',
+  'ReportDesign',
+  'ReportBlock',
+  'ReportTextStyle',
+  'ReportTableColumn',
+  'ReportColumn',
+  'ReportCustomRow',
+  'ReportTableRow',
 ];
 
 const CACHE_TTL_MS = 2000;

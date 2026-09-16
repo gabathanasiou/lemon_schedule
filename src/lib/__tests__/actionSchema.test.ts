@@ -32,6 +32,16 @@ describe('action schema (derived from source)', () => {
     expect(cast).toEqual(['id', 'name']);
   });
 
+  it('exposes the Reports Designer entities', () => {
+    const block = schema.entities.ReportBlock.fields.map((f: { name: string }) => f.name);
+    expect(block).toContain('type');
+    expect(block).toContain('collection');
+    expect(block).toContain('children');
+    const design = schema.entities.ReportDesign.fields.map((f: { name: string }) => f.name);
+    expect(design).toContain('blocks');
+    expect(design).toContain('page');
+  });
+
   it('parser helpers read the union + mirror directly', () => {
     const sf = parseSource("export type Action = { type: 'A'; payload: string } | { type: 'B' };\nexport const ACTION_TYPES = new Set<string>(['A']);");
     expect(parseActionUnion(sf)).toEqual([

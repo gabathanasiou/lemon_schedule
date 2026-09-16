@@ -1157,6 +1157,541 @@
           "type": "ScriptScene[]"
         }
       ]
+    },
+    "ReportDesign": {
+      "name": "ReportDesign",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "createdAt",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "page",
+          "optional": false,
+          "type": "'portrait' | 'landscape'"
+        },
+        {
+          "name": "blocks",
+          "optional": false,
+          "type": "ReportBlock[]"
+        },
+        {
+          "name": "header",
+          "optional": true,
+          "type": "ReportBlock[]"
+        },
+        {
+          "name": "footer",
+          "optional": true,
+          "type": "ReportBlock[]"
+        },
+        {
+          "name": "headerSkipFirst",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "footerSkipFirst",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ReportBlock": {
+      "name": "ReportBlock",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative' | 'callTimes' | 'crewTable'"
+        },
+        {
+          "name": "text",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "url",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "field",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "prefix",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "suffix",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "itemPrefix",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "itemSuffix",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "itemSeparator",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "dayFormat",
+          "optional": true,
+          "type": "'dayNumDate' | 'dayNum' | 'date'"
+        },
+        {
+          "name": "emptyBehavior",
+          "optional": true,
+          "type": "EmptyBehavior"
+        },
+        {
+          "name": "collection",
+          "optional": true,
+          "type": "ReportCollection"
+        },
+        {
+          "name": "category",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "skipEmptyCategories",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "excludedCategories",
+          "optional": true,
+          "type": "string[]"
+        },
+        {
+          "name": "counterStart",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "scopedToParent",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "itemFilter",
+          "optional": true,
+          "type": "{ field: string; values: string[] }"
+        },
+        {
+          "name": "children",
+          "optional": true,
+          "type": "ReportBlock[]"
+        },
+        {
+          "name": "gap",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "relativeOffset",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "relativeCount",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "locationChoice",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "repeatAxis",
+          "optional": true,
+          "type": "RepeatAxis"
+        },
+        {
+          "name": "colWidths",
+          "optional": true,
+          "type": "number[]"
+        },
+        {
+          "name": "tableRows",
+          "optional": true,
+          "type": "ReportTableRow[]"
+        },
+        {
+          "name": "custom",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "customRows",
+          "optional": true,
+          "type": "ReportCustomRow[]"
+        },
+        {
+          "name": "showHeader",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "showBorders",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "skipEmptyRows",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "headerField",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "axis",
+          "optional": true,
+          "type": "'columns' | 'rows'"
+        },
+        {
+          "name": "columns",
+          "optional": true,
+          "type": "ReportTableColumn[]"
+        },
+        {
+          "name": "cols",
+          "optional": true,
+          "type": "ReportColumn[]"
+        },
+        {
+          "name": "ribbonId",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "ribbonCallTimes",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "ribbonDurations",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "ribbonNotes",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "ribbonBreaks",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "ribbonDayBreaks",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "ribbonHeaders",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "fontFamily",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "fontSize",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "bold",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "italic",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "align",
+          "optional": true,
+          "type": "'left' | 'center' | 'right'"
+        },
+        {
+          "name": "paddingV",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "paddingH",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "textStyle",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "background",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "border",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "height",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "spacerStyle",
+          "optional": true,
+          "type": "'none' | 'black' | 'line' | 'dotted'"
+        },
+        {
+          "name": "spacerThickness",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "imageDataUrl",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "imageHeight",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "imageFit",
+          "optional": true,
+          "type": "'contain' | 'cover' | 'fill'"
+        },
+        {
+          "name": "mapLat",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "mapLng",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "mapPlace",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "mapAddress",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "mapCity",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "mapPostcode",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "mapCountry",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "mapHeight",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "mapZoom",
+          "optional": true,
+          "type": "number"
+        },
+        {
+          "name": "mapOpenLink",
+          "optional": true,
+          "type": "'none' | 'google' | 'apple' | 'citymapper'"
+        },
+        {
+          "name": "mapInheritLocation",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ReportTextStyle": {
+      "name": "ReportTextStyle",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "fontSize",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "fontFamily",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "bold",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "italic",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ReportTableColumn": {
+      "name": "ReportTableColumn",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "field",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "width",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "align",
+          "optional": true,
+          "type": "'left' | 'center' | 'right'"
+        },
+        {
+          "name": "bold",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "italic",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "skipEmpty",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "label",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "ReportColumn": {
+      "name": "ReportColumn",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "width",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "blocks",
+          "optional": false,
+          "type": "ReportBlock[]"
+        }
+      ]
+    },
+    "ReportCustomRow": {
+      "name": "ReportCustomRow",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "cells",
+          "optional": false,
+          "type": "string[]"
+        }
+      ]
+    },
+    "ReportTableRow": {
+      "name": "ReportTableRow",
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "cells",
+          "optional": false,
+          "type": "{ id: string; field: string; align?: 'left' | 'center' | 'right' }[]"
+        }
+      ]
     }
   },
   "consistency": {

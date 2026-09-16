@@ -13,7 +13,16 @@
  *   history-resetting actions (LOAD, EMPTY_TRASH).
  */
 import { ACTION_TYPES, type Action } from '../store/reducer';
-import type { LemonAgentBridge } from './debugBridge';
+import { collectElementRegistrations } from './elementRegistration';
+import type {
+  LemonAgentBridge,
+  AgentBridgeAutoDaybreaksParams,
+  AgentBridgeDeleteAllDaybreaksParams,
+  AgentBridgeMoveRowsParams,
+  AgentBridgeInsertRowParams,
+  AgentBridgeReorderRowsParams,
+  AgentBridgeSortRowsParams,
+} from './debugBridge';
 
 export const AGENT_BRIDGE_URL = 'ws://127.0.0.1:3939/?role=app';
 export const AGENT_BRIDGE_ENABLED_KEY = 'lemon_agent_bridge_enabled';
@@ -63,6 +72,12 @@ function asActionList(actions: unknown): Action[] {
   return actions as Action[];
 }
 
+function assertWritable(bridge: LemonAgentBridge): void {
+  if (bridge.diagnostics().readOnly) {
+    throw new AgentBridgeError('The project is read-only (offline cloud project); writes are refused.');
+  }
+}
+
 /**
  * Validate + dispatch a batch. `atomic` (default) wraps it in one undo entry.
  * Refuses read-only projects (offline cloud) before mutating anything.
@@ -71,18 +86,25 @@ export function applyActionsToBridge(
   bridge: LemonAgentBridge,
   actions: unknown,
   atomic = true,
-): { applied: number } {
+): { applied: number; elementsRegistered?: number } {
   const list = asActionList(actions);
-  if (bridge.diagnostics().readOnly) {
-    throw new AgentBridgeError('The project is read-only (offline cloud project); writes are refused.');
-  }
+  assertWritable(bridge);
+  // Mirror the UI's entity-dropdown flow: new scene element values become
+  // Element Manager entries automatically (cast excluded — ID-keyed).
+  const registrations = collectElementRegistrations(bridge.getProject(), list).map((r) => ({
+    type: 'ADD_ELEMENT' as const,
+    payload: r,
+  }));
   if (atomic) bridge.dispatch({ type: 'BATCH_START' });
   try {
+    for (const action of registrations) bridge.dispatch(action);
     for (const action of list) bridge.dispatch(action);
   } finally {
     if (atomic) bridge.dispatch({ type: 'BATCH_COMMIT' });
   }
-  return { applied: list.length };
+  return registrations.length > 0
+    ? { applied: list.length, elementsRegistered: registrations.length }
+    : { applied: list.length };
 }
 
 /**
@@ -106,8 +128,25 @@ export function createAgentBridgeRequestHandler(
         return bridge.getRows((params as { versionId?: string } | undefined)?.versionId ?? null);
       case 'getSceneValues':
         return bridge.getSceneValues();
+      case 'getSceneScript':
+        return bridge.getSceneScript((params as { sceneNumber?: string } | undefined)?.sceneNumber ?? '');
       case 'getCalendarVersion':
         return bridge.getCalendarVersion();
+      case 'getDays':
+        return bridge.getDays((params as { versionId?: string } | undefined)?.versionId ?? null);
+      case 'getDay':
+        return bridge.getDay((params ?? {}) as Parameters<LemonAgentBridge['getDay']>[0]);
+      case 'getViolations':
+        return bridge.getViolations((params as { versionId?: string } | undefined)?.versionId ?? null);
+      case 'getElementStats':
+        return bridge.getElementStats((params as { category?: string } | undefined)?.category ?? '');
+      case 'auditScript':
+        return bridge.auditScript();
+      case 'repairScript':
+        assertWritable(bridge);
+        return bridge.repairScript();
+      case 'historyDepth':
+        return bridge.historyDepth();
       case 'diagnostics':
         return bridge.diagnostics();
       case 'applyActions': {
@@ -116,6 +155,30 @@ export function createAgentBridgeRequestHandler(
       }
       case 'makeScene':
         return bridge.makeBlankScene((params as { partial?: Record<string, unknown> } | undefined)?.partial);
+      case 'getReportRegistry':
+        return bridge.getReportRegistry();
+      case 'getReportDesign':
+        return bridge.getReportDesign((params as { reportId?: string } | undefined)?.reportId ?? '');
+      case 'makeReportBlock':
+        return bridge.makeReportBlock((params ?? {}) as Parameters<LemonAgentBridge['makeReportBlock']>[0]);
+      case 'autoDaybreaks':
+        assertWritable(bridge);
+        return bridge.autoDaybreaks((params ?? {}) as AgentBridgeAutoDaybreaksParams);
+      case 'deleteAllDaybreaks':
+        assertWritable(bridge);
+        return bridge.deleteAllDaybreaks((params ?? {}) as AgentBridgeDeleteAllDaybreaksParams);
+      case 'moveRows':
+        assertWritable(bridge);
+        return bridge.moveRows((params ?? {}) as AgentBridgeMoveRowsParams);
+      case 'insertRow':
+        assertWritable(bridge);
+        return bridge.insertRow((params ?? {}) as AgentBridgeInsertRowParams);
+      case 'reorderRows':
+        assertWritable(bridge);
+        return bridge.reorderRows((params ?? {}) as AgentBridgeReorderRowsParams);
+      case 'sortRows':
+        assertWritable(bridge);
+        return bridge.sortRows((params ?? {}) as AgentBridgeSortRowsParams);
       case 'undo':
         bridge.undo();
         return { ok: true };

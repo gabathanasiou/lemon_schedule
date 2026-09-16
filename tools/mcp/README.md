@@ -40,12 +40,14 @@ Nothing leaves your machine: the app connects *out* to this helper on
 
 ## Tools
 
-Reads: `get_project`, `list_scenes`, `get_schedule`, `list_entities`,
-`get_versions`, `get_schema`, `get_bridge_status`.
+Reads: `get_project`, `list_scenes`, `get_scene_script`, `get_schedule`,
+`list_entities`, `get_versions`, `get_schema`, `get_bridge_status`.
 Writes: `apply_actions` (atomic batch → one undo entry), `make_scene`, `undo`,
 `redo`.
 
-`get_schema` returns every store action + core entity shape, derived from the
+`get_scene_script` returns ONE scene's breakdown row plus its retained
+screenplay body (matched by scene number) — use it instead of pulling the whole
+script. `get_schema` returns every store action + core entity shape, derived from the
 app source, so agents never guess field names. `LOAD` and `EMPTY_TRASH` are
 refused; writes are refused while the project is read-only (offline cloud).
 

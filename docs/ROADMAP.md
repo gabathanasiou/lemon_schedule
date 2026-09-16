@@ -144,7 +144,9 @@ must reuse the canonical `Action` union/reducer — no parallel mutation path.
 **Progress (stage 1 — live bridge, shipped)**: `tools/mcp/` (MCP stdio server +
 loopback WS helper, Origin/Host checks, proxy-on-busy) + `src/lib/agentBridgeClient.ts` /
 `useAgentBridge.ts` + **File → Connect agent bridge**. Reads (`get_project`,
-`list_scenes`, `get_schedule`, `list_entities`, `get_versions`, `get_schema`) and
+`list_scenes`, `get_schedule`, `list_entities`, `get_versions`, `get_schema`,
+`get_scene_script` — one scene's breakdown + retained screenplay body, so agents
+never need the whole script) and
 writes (`apply_actions` atomic batch, `make_scene`, `undo`/`redo`) route through the
 debug bridge; tool schemas/entity shapes are DERIVED from `reducer.ts`/`types.ts`
 (`tools/mcp/actionSchema.mjs`). Blocked: `LOAD`/`EMPTY_TRASH`; read-only refused.
@@ -152,6 +154,32 @@ Docs: `docs/API.md`. Remaining for the full item: friendly write wrappers
 (`edit_scenes`/`manage_entities`), pairing token + destructive-op confirmation +
 audit/rate limits (security P1), project lifecycle / import-export / derived
 analytics (P3), validation parity (P4), contract versioning (P5).
+
+**Progress (stage 2 — schedule-op wrappers, shipped)**: the first task-shaped
+write tools, backed by ONE shared pure module `src/lib/scheduleOps.ts` (also
+consumed by `ScheduleTab`, so agent + UI share the ordering/day-break logic):
+`move_row` (within/between stripboard + boneyard), `reorder_rows`,
+`sort_rows` (hierarchical criteria — set → day/night → INT/EXT),
+`auto_daybreaks`, `delete_all_daybreaks`, `add_row` (NOTE/BREAK/DAYBREAK).
+Comparators moved to `src/lib/sortCriteria.ts` (re-exported by `SortDropdown`).
+Retiming stays on the generic `UPDATE_ROW` path by design.
+
+**Progress (stage 2b — Reports Designer surface, shipped)**: `get_report_registry`
+(collections + field registry + block types, derived from `reportBlocks.ts`/
+`reportFields.ts`), `get_report_design` (one full tree; seeded templates incl.
+Call Sheet are the intended clone source), `make_report_block` factory, and
+`list_entities` kind `reports`. Report entities (`ReportDesign`/`ReportBlock`/
+`ReportTextStyle`/…) added to the derived schema (`ENTITY_NAMES`), snapshot
+regenerated. Agents can now clone the seeded Call Sheet and customise it via
+`ADD_REPORT_DESIGN`/`UPDATE_REPORT_DESIGN`.
+
+**Progress (stage 2c — day, analytics & script reads, shipped)**: canonical
+read-only computes exposed so agents see what the UI sees — `get_days` /
+`get_day` (`buildDayViews`, the Day Manager model), `get_violations`
+(`computeViolationIndex`), `get_element_stats` (`computeElementDayStats`),
+plus `audit_script` / `repair_script` whitelisted and undo depth in
+`get_bridge_status`. Project lifecycle / import-export remain out (the bridge
+binds to the open project).
 Stage 1 is **local-only for now**: the app offers the toggle only when it runs on
 loopback (`isAgentBridgeAvailable`), the helper allowlists no hosted origin, and
 the npm package under `tools/mcp/` is prepared but unpublished. Shipping the

@@ -48,8 +48,15 @@ export function collectRibbonBlocks(list: ReportBlock[] | undefined, out: Report
   return out;
 }
 
-export function makeReportBlock(type: ReportBlock['type'], partial: Partial<ReportBlock> = {}): ReportBlock {
-  const base: ReportBlock = { id: blockId(), type };
+/** Every block type the designer can create (the palette vocabulary). Mirrors
+ *  the `ReportBlock['type']` union — one runtime list for callers that need to
+ *  enumerate it (the agent/MCP registry read). */
+export const REPORT_BLOCK_TYPES: ReportBlock['type'][] = [
+  'text', 'field', 'repeat', 'table', 'columns', 'ribbon', 'pageBreak', 'spacer',
+  'image', 'map', 'link', 'callSheetEdit', 'relative', 'callTimes', 'crewTable',
+];
+
+export function makeReportBlock(type: ReportBlock['type'], partial: Partial<ReportBlock> = {}): ReportBlock {  const base: ReportBlock = { id: blockId(), type };
   switch (type) {
     case 'text': base.text = partial.text ?? ''; break;
     case 'field': base.field = partial.field ?? undefined; break;
