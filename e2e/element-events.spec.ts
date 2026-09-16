@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedLeadCast, seedElement, seedDayDates, nameCell, escRegExp as esc } from './helpers';
+import { openSeededProject, seedLeadCast, seedElement, seedDayDates, nameCell, escRegExp as esc, MONTHS } from './helpers';
 
 // Element Manager Events (roadmap item 46): the per-row Events button opens
 // the element events manager — one collapsible card per day type with only
@@ -9,9 +9,6 @@ import { openSeededProject, seedLeadCast, seedElement, seedDayDates, nameCell, e
 // Travel column drops when the travel card is removed. State is asserted
 // through the debug bridge. Seed-agnostic: the member, a wardrobe element and
 // the production-day dates are resolved from the live bridge.
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-  'August', 'September', 'October', 'November', 'December'];
-
 test('element manager events: type cards, add/remove, violations, rules, count columns', async ({ page }) => {
   await openSeededProject(page);
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedLeadCast, escRegExp as esc } from './helpers';
+import { openSeededProject, seedLeadCast, escRegExp as esc, MONTHS } from './helpers';
 
 /** Rules tab (roadmap 46: shared RuleEditorPanel in a dark ui-kit Modal).
  *  Regression guard: DATE_RESTRICTION must always show the date picker —
@@ -7,9 +7,6 @@ import { openSeededProject, seedLeadCast, escRegExp as esc } from './helpers';
  *  (no "every day" state). MAX_HOURS/TIME_WINDOW keep the every-day toggle.
  *  Seed-agnostic: two production dates from the active calendar window drive
  *  the DatePicker picks and the persisted assertions. */
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-  'August', 'September', 'October', 'November', 'December'];
-
 /** The rule editor's footer Add Rule button. The modal re-clamps its position
  *  when the DatePicker grows the content (kit ≥ v0.1.79), so it stays in the
  *  viewport even with reduced motion (which the e2e config forces). */

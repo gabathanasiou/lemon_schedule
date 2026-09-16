@@ -395,6 +395,27 @@ export async function openCallTimesSection(page: Page) {
   }, undefined, { timeout: 5000 });
 }
 
+/** Month names — shared by the date-picker specs for trigger labels. */
+export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+  'August', 'September', 'October', 'November', 'December'];
+
+/** Opens Calendar → Production Dates (the header tab; `.first()` because the
+ *  Calendar sub-tab duplicates the name) and waits for the modal heading. */
+export async function openProdDates(page: Page) {
+  await page.getByRole('button', { name: 'Calendar' }).first().click();
+  await page.getByRole('button', { name: 'Production Dates' }).click();
+  await expect(page.getByRole('heading', { name: 'Production Dates' })).toBeVisible();
+}
+
+/** Types a cast value into the Scene Sheet's cast cell and commits it. */
+export async function setCast(page: Page, value: string) {
+  const castInput = page.locator('[data-scene-field="cast"]').first().locator('textarea').first();
+  await castInput.click();
+  await page.keyboard.press('Meta+A');
+  await page.keyboard.insertText(value);
+  await page.keyboard.press('Tab');
+}
+
 /** The live project straight from the store (sync post-dispatch) — prefer
  *  over decoding localStorage, which waits on the debounced save. */
 export async function bridgeProject(page: Page): Promise<any> {

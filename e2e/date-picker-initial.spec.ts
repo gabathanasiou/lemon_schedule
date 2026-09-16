@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, waitForOverlaySettle } from './helpers';
+import { openSeededProject, waitForOverlaySettle, MONTHS, openProdDates } from './helpers';
 
 /** Date picker open month (roadmap 68): the picker seeds its visible month on
  *  mount from the field's picked date, else the active calendar version's
@@ -7,16 +7,7 @@ import { openSeededProject, waitForOverlaySettle } from './helpers';
  *  modal (one surface, all three cases): each of the three date rows opens
  *  its DateField chrome panel (kit DropdownMenu + kit DatePicker). */
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-  'August', 'September', 'October', 'November', 'December'];
 const monthLabel = (y: number, m: number) => `${MONTHS[m - 1]} ${y}`;
-
-async function openProdDates(page: import('@playwright/test').Page) {
-  // .first() = the header tab (the Calendar sub-tab duplicates the name)
-  await page.getByRole('button', { name: 'Calendar' }).first().click();
-  await page.getByRole('button', { name: 'Production Dates' }).click();
-  await expect(page.getByRole('heading', { name: 'Production Dates' })).toBeVisible();
-}
 
 async function setCalendarVersion(page: import('@playwright/test').Page, patch: Record<string, string>) {
   await page.evaluate((p) => {

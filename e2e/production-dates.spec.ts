@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, activeCalendar, seedDayDates, waitForOverlaySettle } from './helpers';
+import { openSeededProject, activeCalendar, seedDayDates, waitForOverlaySettle, MONTHS, openProdDates } from './helpers';
 
 /** Production Dates Manager (roadmap 54, MMS-style): prep/prod/post window +
  *  weekly days-off in ONE modal — replaces the old START input + Days Off
@@ -9,16 +9,6 @@ import { openSeededProject, activeCalendar, seedDayDates, waitForOverlaySettle }
  *  unchecking a weekday removes ONLY those pattern-created statuses —
  *  hand-made statuses and event cards always survive. All dates are derived
  *  from the seed's active calendar version (seed-agnostic). */
-
-async function openProdDates(page: import('@playwright/test').Page) {
-  // .first() = the header tab (the Calendar sub-tab duplicates the name)
-  await page.getByRole('button', { name: 'Calendar' }).first().click();
-  await page.getByRole('button', { name: 'Production Dates' }).click();
-  await expect(page.getByRole('heading', { name: 'Production Dates' })).toBeVisible();
-}
-
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-  'August', 'September', 'October', 'November', 'December'];
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

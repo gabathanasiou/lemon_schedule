@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedLeadCast } from './helpers';
+import { openSeededProject, seedLeadCast, setCast } from './helpers';
 
 // Roadmap 44 — linked elements: one-way anchor-based links. Adding the
 // anchor to a scene (any write path — Scene Sheet here) adds its linked
@@ -64,15 +64,6 @@ async function gotoSheet(page: any, sceneIndex: number) {
  *  event — EntityDropdown commits on Tab with the sorted value, so a single
  *  deterministic commit per call). The Scene Sheet passes `wrapValue`, so the
  *  editor is a <textarea>, not an <input>. */
-async function setCast(page: any, value: string) {
-  const castBox = page.locator('[data-scene-field="cast"]').first();
-  const castInput = castBox.locator('textarea').first();
-  await castInput.click();
-  await page.keyboard.press('Meta+A');
-  await page.keyboard.insertText(value);
-  await page.keyboard.press('Tab');
-}
-
 async function sceneCast(page: any, id: string) {
   return page.evaluate((sceneId) => {
     const b = (window as any).__lemonSchedule;

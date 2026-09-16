@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, setCast } from './helpers';
 
 // Roadmap 86 — naming new cast members right after they're added through an
 // element dropdown. The Scene Sheet cast field is the deterministic harness
@@ -22,15 +22,6 @@ async function gotoSheet(page: import('@playwright/test').Page) {
 /** Full-value replace of the Cast box via select-all + insertText (one textarea
  *  event — EntityDropdown commits on Tab with the sorted value). The Scene
  *  Sheet passes `wrapValue`, so the editor is a <textarea>, not an <input>. */
-async function setCast(page: import('@playwright/test').Page, value: string) {
-  const castBox = page.locator('[data-scene-field="cast"]').first();
-  const castInput = castBox.locator('textarea').first();
-  await castInput.click();
-  await page.keyboard.press('Meta+A');
-  await page.keyboard.insertText(value);
-  await page.keyboard.press('Tab');
-}
-
 /** A cast id the seed is guaranteed not to have (max numeric id + 1). */
 async function nextCastId(page: import('@playwright/test').Page): Promise<string> {
   return page.evaluate(() => {
