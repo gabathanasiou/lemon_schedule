@@ -14,22 +14,33 @@ Status: **read this before writing, changing, retiring, or debugging e2e tests.*
 3. **A red run is not proof of a regression.** Answer "was it me?" from the smart-test
    selection + a baseline run — never by `git checkout` (which destroys uncommitted work).
 
-## Test sizes & the pyramid (why we're e2e-heavy, and what to do)
+## Test sizes & the pyramid
 
 The industry model (Google's *test pyramid*, ~70% unit / 20% integration / 10% e2e)
-exists because feedback must be **fast, reliable, and failure-isolating**. This repo is
-currently a near-inverted pyramid — **100% e2e**, no unit runner — so every logic bug is
-diagnosed through a browser. That is the biggest testing gap.
+exists because feedback must be **fast, reliable, and failure-isolating**. This repo has
+all three layers, but e2e is still over-weighted — every logic bug pays a browser boot.
 
 | Size | Here | Use it for | Cost |
 |---|---|---|---|
-| **Small / unit** | ❌ none | Pure logic: `daybreakUtils`, `callTimes`, `reportBlocks`, `elementLinks`, `nonShootStats`, `crewCatalog`, affix/token parsing | ~ms, hermetic, pins the edge cases |
-| **Medium / integration** | e2e specs (single surface) | One surface + its state: a day-manager section, a report block, links propagation | seconds |
-| **Large / e2e** | canaries + cross-surface flows | Boot, persistence round-trip, full drag/save flows | tens of seconds, flaky-prone |
+| **Small / unit** | Vitest — `npm run test:unit`, `src/**/__tests__/*.test.ts`, node env | Pure logic: `daybreakUtils`, `callTimes`, `reportBlocks`, `elementLinks`, `rulesEngine`, `legacyMigration`, import parsers (`parseSex`), `sceneNumbering`, … | ~ms, hermetic, pins edge cases |
+| **Medium / integration** | e2e specs driven by the debug bridge (`dispatch` → assert state, minimal DOM) | One surface + its state: a day-manager section, a report block, links propagation | seconds |
+| **Large / e2e** | canaries + cross-surface flows + real browser behaviour | Boot, persistence round-trip, drag/Glide canvas, print pagination, overlay morph, iPad/pen, focus/CSS | tens of seconds, flaky-prone |
 
 **Rule of thumb:** if a bug can be reproduced without a browser, it belongs in a unit
-test — then keep ONE e2e test proving the feature is wired end-to-end. Don't let e2e be
-the only net under pure logic.
+test; then keep ONE e2e test proving the feature is wired end-to-end. Never assert the
+same behaviour at both layers — when you move a case down, **retire the e2e case**.
+
+**Rebalancing (ongoing).** `e2e/` is capped, so moving logic down is how the suite grows
+sustainably. A test is a conversion candidate when it only dispatches + inspects state
+via `window.__lemonSchedule`; the browser boot is pure overhead. Before converting,
+check the logic lives in an importable `src/lib/` module (not buried in a hook/component
+— extracting it is the real work); then write the Vitest case and delete the e2e case.
+Browser-bound behaviour (canvas geometry, print/pagination, overlay morph, iPad/pen,
+focus/CSS) stays in `e2e/`.
+
+**Browser-only APIs block node unit tests.** `parseMsd` uses `DOMParser`, so its golden
+test stays e2e (or needs a jsdom environment). `parseSex`/`exportSex` are pure and are
+unit-tested against the same fixtures.
 
 ## When to add a test (rubric)
 
@@ -72,6 +83,12 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 - `playwright.config.ts`: prod-preview webServer on :3001, `reducedMotion: 'reduce'`,
   `retries: 1` locally / `2` on CI, `trace: 'on-first-retry'`, `grepInvert: /@perf|@quarantine/`.
   `PLAYWRIGHT_PORT=<n>` isolates the server (owned, no reuse); `PLAYWRIGHT_DEV=1` runs the dev server.
+- **Parallelism**: the config defaults to **7 workers** (clamped to the core count).
+  Measured on a 10-core box: 5 workers → ~71s, 8 → ~62s; 10 saturates the CPU for no real
+  gain and raises flake risk (morph/canvas specs under contention). Tune with
+  `PLAYWRIGHT_WORKERS=<n>`; don't crank it for a small gain.
+- **Duration**: a custom reporter (`scripts/pw-duration-reporter.mjs`) prints
+  `[timing] N tests in Xs across W worker(s)` on the final line, so runs are comparable.
 - **`npm run test:smart`** selects only specs your diff can affect (RULES map), plus the
   canaries and the last run's failures. `ALL`-marked core files force the full suite.
   `--list` prints the selection; `--full` runs everything; `npm run test:full` = full suite.
@@ -137,7 +154,7 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 ## Adding a spec
 
 Adding is **deliberate, not automatic** — e2e is the expensive layer, so the suite is **capped**
-(enforced by `npm run lint`): **≤ 70 specs / ≤ 260 tests** (`scripts/check-doc-budget.mjs`).
+(enforced by `npm run lint`): **≤ 70 specs / ≤ 268 tests** (`scripts/check-doc-budget.mjs`).
 More features means more tests; unbounded growth means a prune. When a new case is needed, in
 order of preference:
 

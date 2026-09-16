@@ -13,7 +13,6 @@ const memberBy = (id: string) => seedCast().find((m: any) => String(m.id) === St
 const m1 = () => seedCast()[0];
 const m2 = () => seedCast()[1] || m1();
 const m4 = () => memberBy('4') || m1();
-const castCount = () => seedCast().length;
 
 async function getProject(page: import('@playwright/test').Page): Promise<Project> {
   return page.evaluate(() => {
@@ -73,57 +72,6 @@ async function importFile(page: import('@playwright/test').Page, filePath: strin
 
 test.describe('cast single source of truth (castMembers)', () => {
   test.describe.configure({ mode: 'serial' });
-
-  test('legacy projects are migrated: breakdownElements.cast is stripped on load', async ({ page }) => {
-    await openSeededProject(page);
-
-    // Wait for the persisted (normalized) state: mirror stripped, castMembers kept
-    await waitForPersistedProject(page, `!p.breakdownElements.cast && (p.castMembers || []).length === ${castCount()}`);
-    await expect.poll(async () => {
-      const p = await getProject(page);
-      return p ? (p.castMembers || []).length : 0;
-    }, { timeout: 8000 }).toBe(castCount());
-
-    const project = await getProject(page);
-    expect(project.breakdownElements.cast).toBeUndefined();
-  });
-
-  test('legacy cast conversion: names are recovered from the mirror when castMembers is missing', async ({ page }) => {
-    // Worst case: the project only carries cast in the legacy mirror
-    const legacy = makeLegacyCastProject({ dropCastMembers: true, extraMirrorMembers: [{ id: '99', name: 'EXTRA MAN' }] });
-    await seedLegacyProject(page, legacy);
-
-    await expect.poll(async () => {
-      const p = await getProject(page);
-      return p ? (p.castMembers || []).length : 0;
-    }, { timeout: 8000 }).toBe(castCount() + 1);
-
-    const project = await getProject(page);
-    expect(project.breakdownElements.cast).toBeUndefined();
-    const names = (project.castMembers || []).map((m: any) => m.name);
-    expect(names).toContain(m1().name);
-    expect(names).toContain(m2().name);
-    expect(names).toContain('EXTRA MAN');
-    // scene references by id still resolve (id 4 is a real member in the mirror)
-    expect(project.scenes.some((s: any) => String(s.cast || '').split(',').map((x: string) => x.trim()).includes(String(m4().id)))).toBe(true);
-  });
-
-  test('legacy cast conversion: castMembers wins on name conflicts, mirror fills gaps', async ({ page }) => {
-    // castMembers exists but diverged from the mirror: id 1 renamed, id 99 only in the mirror
-    const legacy = makeLegacyCastProject({ conflictName: `${m1().name} II`, extraMirrorMembers: [{ id: '99', name: 'EXTRA MAN' }] });
-    await seedLegacyProject(page, legacy);
-
-    await expect.poll(async () => {
-      const p = await getProject(page);
-      return p ? (p.castMembers || []).length : 0;
-    }, { timeout: 8000 }).toBe(castCount() + 1);
-
-    const project = await getProject(page);
-    const byId = new Map((project.castMembers || []).map((m: any) => [String(m.id), m.name]));
-    expect(byId.get(String(m1().id))).toBe(`${m1().name} II`);
-    expect(byId.get('99')).toBe('EXTRA MAN');
-    expect(project.breakdownElements.cast).toBeUndefined();
-  });
 
   test('legacy cast conversion: .lemon import via Project Manager recovers cast names', async ({ page }) => {
     const legacy = makeLegacyCastProject({ dropCastMembers: true });
