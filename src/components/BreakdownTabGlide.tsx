@@ -32,6 +32,7 @@ import { exportBreakdownCSV, parseCSV } from '../lib/import';
 import type { ImportResult } from '../lib/import';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
+import { useDialog } from './Dialog';
 import Checkbox from './Checkbox';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from '../lib/persist';
 import { IS_COARSE, useHardwareKeyboard, isTouchLike } from '../lib/device';
@@ -479,6 +480,7 @@ export function GlideBreakdownTab({
   }, []);
 
   const dedupeCellCommit = useDedupeCellCommit();
+  const dialog = useDialog();
 
   const onCellEdited = useCallback(([col, row]: Item, newValue: EditableGridCell) => {
     if (row === scenesRef.current.length) {
@@ -512,27 +514,42 @@ export function GlideBreakdownTab({
     if (!colDef || colDef.key === 'actions') return;
     if (newValue.kind === GridCellKind.Text) {
       if (colDef.key === 'sceneNumber') { trySetSceneNumber(scene, newValue.data); return; }
-      // Range fill (roadmap 139): a single edit committed while a multi-cell
-      // selection is active writes that value down the selection's rows in the
-      // SAME column — the scenes grid's columns are heterogeneous, so a value
-      // never crosses kinds. Entity columns and scene numbers are exempt; one
-      // batch = one undo entry.
+      // Range fill (roadmap 139/144): a single edit committed while a multi-cell
+      // selection is active writes that value down the SAME column — VERTICAL
+      // only. The columns are different kinds, so an entity value (Set, Cast, a
+      // category) never leaks sideways into I/E or Description.
       const range = gridSelectionRef.current?.current?.range;
-      if (!isEntityCol(colDef.key) && range && range.height > 1 && col >= range.x && col < range.x + range.width) {
+      if (range && range.height > 1 && col >= range.x && col < range.x + range.width) {
         const fillRows: number[] = [];
         for (let r = range.y; r < range.y + range.height; r++) {
           if (r < scenesRef.current.length) fillRows.push(r);
         }
         if (fillRows.length > 1) {
-          dispatch({ type: 'BATCH_START' });
-          for (const r of fillRows) commitEdit(scenesRef.current[r].id, colDef.key, newValue.data);
-          dispatch({ type: 'BATCH_COMMIT' });
+          const run = () => {
+            dispatch({ type: 'BATCH_START' });
+            for (const r of fillRows) commitEdit(scenesRef.current[r].id, colDef.key, newValue.data);
+            dispatch({ type: 'BATCH_COMMIT' });
+          };
+          // A multi-value column (a comma list per scene) replaces every
+          // selected scene's list — confirm before nuking them. Cancel keeps the
+          // edit on just the cell you changed.
+          const isMulti = (colDef.key === 'cast' || allBreakdownCategories.includes(colDef.key))
+            && isMultiValue(colDef.key, project.customCategories);
+          if (isMulti) {
+            void dialog.confirm({
+              title: `Replace ${colDef.label} in ${fillRows.length} scenes?`,
+              message: `This replaces the existing ${colDef.label} in ${fillRows.length} scenes with “${newValue.data}”.`,
+              danger: true,
+            }).then(ok => { if (ok) run(); else commitEdit(scene.id, colDef.key, newValue.data); });
+          } else {
+            run();
+          }
           return;
         }
       }
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit, trySetSceneNumber, isEntityCol]);
+  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const anchoredByCategory = new Map<string, Set<string>>();

@@ -46,13 +46,19 @@ auto-repaint.
   department precall like `-30m`) → the resolved time (`DayTimesGlide` / `CrewTableGlide`). Guard the
   commit with `isSeededNoop(prior, seed, value)` before writing an override, or Enter/blur on an
   unchanged cell pins a spurious override.
-- **Range fill** (roadmap 139): committing a single edit while a multi-cell selection is active writes
-  that value to every writable cell in the selection as ONE commit. `expandRangeFill`
-  (`src/lib/glidePaste.ts`) builds the edits; `InlineGlideTable.onCellsEdited` expands them and
-  `editableKeys` is the compatibility filter (read-only IDs / names / `actions` are skipped). The
-  two whole-grid engines fill only the EDITED COLUMN (their columns are heterogeneous) and exempt
-  entity/category columns: `BreakdownTabGlide.onCellEdited` also exempts scene numbers, and
-  `GlideGridShell` (`src/lib/glideShell.tsx` — Crew Glide / Locations Glide) exempts `kind:'category'`
-  columns and the add row. Both wrap the per-row `commitEdit` calls in
-  `BATCH_START`/`BATCH_COMMIT`. Paste arrives as many edits and is never expanded; the fill handle
-  copies the same value, so its outcome is unchanged.
+- **Range fill** (roadmap 139/144): committing a single edit while a multi-cell selection is active
+  writes that value as ONE commit. `expandRangeFill` (`src/lib/glidePaste.ts`) builds the edits;
+  `InlineGlideTable.onCellsEdited` expands them across the selection and `editableKeys` is the
+  compatibility filter (read-only IDs / names / `actions` skipped). The two whole-grid engines fill
+  only the EDITED COLUMN — VERTICAL, never sideways — because their columns are different kinds, so
+  an entity value (Set, Cast, Role, a category) can never leak into I/E or Phone:
+  `BreakdownTabGlide.onCellEdited` (also exempts scene numbers) and `GlideGridShell`
+  (`src/lib/glideShell.tsx` — Crew Glide / Locations Glide, also exempts the add row). Both wrap the
+  per-row `commitEdit` calls in `BATCH_START`/`BATCH_COMMIT`; new elements/categories/roles dedupe,
+  so filling a brand-new value creates ONE item (and one cast-naming modal).
+- **Multi-value confirm** (roadmap 144): a comma-list column (`isMultiValue(...)` in the scenes grid;
+  a `multiValue` flag on the shell column — crew *Element Categories*) REPLACES every selected row's
+  whole list, so a >1-row spread opens `useDialog().confirm` first (`danger`, no suppress): Confirm
+  runs the batch, Cancel keeps the edit on just the edited cell. Single-value entity columns
+  (Set / I/E / D/N, Role, Type) fill directly. Paste is NOT confirmed (a 2D block is fuzzier) — the
+  fill handle copies the same value, so its outcome is unchanged.

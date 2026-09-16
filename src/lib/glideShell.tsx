@@ -20,6 +20,7 @@ import DropdownItem from '../components/DropdownItem';
 import DropdownDivider from '../components/DropdownDivider';
 import Modal, { ModalFooter } from '../components/Modal';
 import ModalFooterButton from '../components/ModalFooterButton';
+import { useDialog } from '../components/Dialog';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from './persist';
 import { IS_COARSE, useHardwareKeyboard, isTouchLike } from './device';
 import { createGlideTheme } from './glideTheme';
@@ -51,6 +52,9 @@ export interface GlideColumnDef {
   /** false disables Clear for the column (category columns are required). */
   clearable?: boolean;
   placeholder?: string;
+  /** Comma-list column: a range fill replaces each row's whole list, so it
+   *  confirms first (roadmap 144). */
+  multiValue?: boolean;
 }
 
 /** A flat grid row. `categoryKey`/`categoryLabel` anchor the category column
@@ -276,6 +280,7 @@ export const GlideGridShell: React.FC<{
   }, [config, dispatch]);
 
   const dedupeCellCommit = useDedupeCellCommit();
+  const dialog = useDialog();
 
   const onCellEdited = useCallback(([col, row]: Item, newValue: EditableGridCell) => {
     const colDef = COLUMNS[col];
@@ -287,26 +292,38 @@ export const GlideGridShell: React.FC<{
       createFromAddRow(colDef.key, newValue.data);
       return;
     }
-    // Range fill (roadmap 139): a single edit committed while a multi-cell
-    // selection is active writes that value down the selection's rows in the
-    // SAME column — flat DBs mix column kinds, so a value never crosses them.
-    // Category columns (role/type) and the add row are exempt; one batch = one
-    // undo entry.
+    // Range fill (roadmap 139/144): a single edit committed while a multi-cell
+    // selection is active writes that value down the SAME column — VERTICAL
+    // only, since flat DBs mix column kinds (a Role never leaks into Phone).
+    // The add row is exempt; one batch = one undo entry.
     const range = gridSelectionRef.current?.current?.range;
-    if (colDef.kind !== 'category' && range && range.height > 1 && col >= range.x && col < range.x + range.width) {
+    if (range && range.height > 1 && col >= range.x && col < range.x + range.width) {
       const fillRows: number[] = [];
       for (let r = range.y; r < range.y + range.height; r++) {
         if (r < rowsRef.current.length) fillRows.push(r);
       }
       if (fillRows.length > 1) {
-        dispatch({ type: 'BATCH_START' });
-        for (const r of fillRows) commitEdit(r, colDef.key, newValue.data);
-        dispatch({ type: 'BATCH_COMMIT' });
+        const run = () => {
+          dispatch({ type: 'BATCH_START' });
+          for (const r of fillRows) commitEdit(r, colDef.key, newValue.data);
+          dispatch({ type: 'BATCH_COMMIT' });
+        };
+        // A comma-list column replaces every selected row's list — confirm
+        // before nuking them. Cancel keeps the edit on just the edited row.
+        if (colDef.multiValue) {
+          void dialog.confirm({
+            title: `Replace ${colDef.label} in ${fillRows.length} rows?`,
+            message: `This replaces the existing ${colDef.label} in ${fillRows.length} rows with “${newValue.data}”.`,
+            danger: true,
+          }).then(ok => { if (ok) run(); else commitEdit(row, colDef.key, newValue.data); });
+        } else {
+          run();
+        }
         return;
       }
     }
     commitEdit(row, colDef.key, newValue.data);
-  }, [COLUMNS, commitEdit, createFromAddRow, dedupeCellCommit, dispatch]);
+  }, [COLUMNS, commitEdit, createFromAddRow, dedupeCellCommit, dispatch, dialog]);
 
   const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]) => {
     if (readOnlyRef.current) return;

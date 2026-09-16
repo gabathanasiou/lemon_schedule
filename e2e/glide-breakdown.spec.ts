@@ -113,6 +113,95 @@ test.describe('Glide Breakdown Tab', () => {
     expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(1);
   });
 
+  test('range fill: a single-value entity column (Set) fills vertically with no confirm (roadmap 144)', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Glide Breakdown' }).click();
+    const scroller = page.locator('.dvn-scroller');
+    await expect(scroller).toBeAttached({ timeout: 5000 });
+    const sr = await scroller.boundingBox();
+    expect(sr).not.toBeNull();
+
+    // Set column: row marker 50 + actions 36 + sceneNumber 60 + pageCount 80 +
+    // scriptDay 80 + intExt 80 = left 386, width 180 → centre 476.
+    const setX = sr!.x + 386 + 90;
+    const headerH = 36;
+    const rowH = 34;
+    const y0 = sr!.y + headerH + rowH / 2;
+    const y2 = sr!.y + headerH + rowH * 2 + rowH / 2;
+
+    await page.mouse.move(setX, y0);
+    await page.mouse.down();
+    await page.mouse.move(setX, y2, { steps: 8 });
+    await page.mouse.up();
+    // Double-click opens the Set entity dropdown directly (no typing needed).
+    await page.mouse.dblclick(setX, y0);
+    const input = page.locator('#portal input').first();
+    await expect(input).toBeAttached({ timeout: 4000 });
+    await input.fill('MARS');
+    await page.keyboard.press('Enter');
+
+    // No confirm for a single-value column; all 3 rows fill.
+    await expect.poll(() => page.evaluate(() =>
+      (window as any).__lemonSchedule.getProject().scenes.slice(0, 3).map((s: any) => s.set),
+    ), { timeout: 5000 }).toEqual(['MARS', 'MARS', 'MARS']);
+  });
+
+  test('range fill: a multi-value column (Cast) confirms before replacing the lists (roadmap 144)', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Glide Breakdown' }).click();
+    const scroller = page.locator('.dvn-scroller');
+    await expect(scroller).toBeAttached({ timeout: 5000 });
+    const sr = await scroller.boundingBox();
+    expect(sr).not.toBeNull();
+
+    // Cast column: 956 → 1076, centre 1016 (the grid is wider than the viewport,
+    // but scrollLeft is 0 so the near-left columns are on screen).
+    const castX = sr!.x + 956 + 60;
+    const headerH = 36;
+    const rowH = 34;
+    const y0 = sr!.y + headerH + rowH / 2;
+    const y2 = sr!.y + headerH + rowH * 2 + rowH / 2;
+    const castOf = () => page.evaluate(() =>
+      (window as any).__lemonSchedule.getProject().scenes.slice(0, 3).map((s: any) => s.cast),
+    );
+    const original = await castOf();
+
+    const selectAndEdit = async () => {
+      await page.mouse.move(castX, y0);
+      await page.mouse.down();
+      await page.mouse.move(castX, y2, { steps: 8 });
+      await page.mouse.up();
+      // Double-click opens the Cast multi dropdown; fill it and commit.
+      await page.mouse.dblclick(castX, y0);
+      const input = page.locator('#portal input').first();
+      await expect(input).toBeAttached({ timeout: 4000 });
+      await input.fill('MARY');
+      await page.keyboard.press('Enter');
+      await expect(input).toHaveCount(0, { timeout: 4000 });
+    };
+    const confirmBtn = page.locator('[data-modal-confirm]');
+    const cancelBtn = page.getByRole('button', { name: 'Cancel', exact: true });
+
+    // Cancel: only the edited cell changes; the other rows keep their lists.
+    await selectAndEdit();
+    await expect(confirmBtn).toBeVisible({ timeout: 4000 });
+    await cancelBtn.click();
+    await expect(confirmBtn).toHaveCount(0, { timeout: 4000 });
+    const afterCancel = await castOf();
+    expect(afterCancel[1]).toBe(original[1]);
+    expect(afterCancel[2]).toBe(original[2]);
+    expect(afterCancel[0]).not.toBe(original[0]);
+
+    // Confirm: all three rows take the value as ONE undo entry.
+    const before = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
+    await selectAndEdit();
+    await expect(confirmBtn).toBeVisible({ timeout: 4000 });
+    await confirmBtn.click();
+    await expect(confirmBtn).toHaveCount(0, { timeout: 4000 });
+    await expect.poll(castOf, { timeout: 5000 }).toEqual([afterCancel[0], afterCancel[0], afterCancel[0]]);
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(before + 1);
+  });
+
   test('edits a cell via double-click and commits to store', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
     await ensureProject(page);
