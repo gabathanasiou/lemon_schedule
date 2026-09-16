@@ -7,5 +7,14 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // Coverage is a guide for where the next unit test pays off — scoped to
+    // `src/lib` because `src/components` is browser-bound and covered by e2e.
+    // Run: `npm run test:unit:coverage`.
+    coverage: {
+      provider: 'v8',
+      include: ['src/lib/**/*.ts'],
+      exclude: ['src/lib/**/__tests__/**', 'src/lib/**/*.test.ts'],
+      reporter: ['text-summary', 'text'],
+    },
   },
 });

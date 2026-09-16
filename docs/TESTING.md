@@ -22,7 +22,7 @@ all three layers, but e2e is still over-weighted — every logic bug pays a brow
 
 | Size | Here | Use it for | Cost |
 |---|---|---|---|
-| **Small / unit** | Vitest — `npm run test:unit`, `src/**/__tests__/*.test.ts`, node env | Pure logic: `daybreakUtils`, `callTimes`, `reportBlocks`, `elementLinks`, `rulesEngine`, `legacyMigration`, import parsers (`parseSex`), `sceneNumbering`, … | ~ms, hermetic, pins edge cases |
+| **Small / unit** | Vitest — `npm run test:unit`, `src/**/__tests__/*.test.ts`, node env; coverage guide `npm run test:unit:coverage` (scoped to `src/lib/`) | Pure logic: `daybreakUtils`, `callTimes`, `reportBlocks`, `elementLinks`, `rulesEngine`, `legacyMigration`, import parsers (`parseSex`), `sceneNumbering`, … | ~ms, hermetic, pins edge cases |
 | **Medium / integration** | e2e specs driven by the debug bridge (`dispatch` → assert state, minimal DOM) | One surface + its state: a day-manager section, a report block, links propagation | seconds |
 | **Large / e2e** | canaries + cross-surface flows + real browser behaviour | Boot, persistence round-trip, drag/Glide canvas, print pagination, overlay morph, iPad/pen, focus/CSS | tens of seconds, flaky-prone |
 
