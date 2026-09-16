@@ -284,6 +284,26 @@ test.describe('script tagging (roadmap 123 Phase 2 / 132 Part B)', () => {
   });
 });
 
+test.describe('scene script hover preview (roadmap 123 Phase 3)', () => {
+  test('hovering a scheduled scene card shows its action', async ({ page }) => {
+    await openSeededProject(page);
+    const info = await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId) || p.versions[0];
+      const row = v.rows.find((r: any) => r.type === 'SCENE' && r.containerId != null && r.containerId !== -1);
+      const scene = p.scenes.find((s: any) => s.id === row.sceneId);
+      b.dispatch({ type: 'SET_SCRIPT_DOCUMENT', payload: { document: { format: 'fdx', scenes: [
+        { sceneNumber: scene.sceneNumber, blocks: [['heading', 'INT. X - DAY'], ['action', 'HOVER PREVIEW LINE.']] },
+      ] } } });
+      return { rowId: row.id };
+    });
+    await page.getByRole('button', { name: 'Calendar', exact: true }).click();
+    await page.locator(`[data-row-id="${info.rowId}"]`).first().hover();
+    await expect(page.getByText('HOVER PREVIEW LINE.')).toBeVisible();
+  });
+});
+
 test.describe('annotation remap on update (roadmap 132 Part F)', () => {
   test('a tag re-anchors through a revised body instead of being lost', async ({ page }) => {
     await openSeededProject(page);

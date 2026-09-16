@@ -3,6 +3,7 @@ import { useProject } from '../../store';
 import { ScheduleRow, Scene, RuleViolation } from '../../types';
 import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayFooterColors } from '../../lib/ribbonUtils';
 import { IS_COARSE } from '../../lib/device';
+import { useSceneScriptPreview } from '../script/SceneScriptPreview';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Flag } from 'lucide-react';
@@ -54,6 +55,7 @@ export const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displ
 
 export const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string, shiftKey?: boolean) => void; onContextMenu?: (e: React.MouseEvent) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, onToggle, onDoubleClick, onContextMenu }) => {
   const { state, readOnly } = useProject();
+  const preview = useSceneScriptPreview();
   const sel = getSelectedStripColors(state.present.colorPalette);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: row.id,
@@ -69,6 +71,8 @@ export const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
   };
     return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
+      onPointerEnter={() => { if (!IS_COARSE && scene && !isDragging) preview.show(scene); }}
+      onPointerLeave={() => preview.hide()}
       onClick={(e) => onToggle?.(row.id, e)}
       onDoubleClick={(e) => { e.preventDefault(); onDoubleClick?.(row.id, e.shiftKey); }}
       onContextMenu={(e) => { if (onContextMenu) { e.preventDefault(); e.stopPropagation(); onContextMenu(e); } }}

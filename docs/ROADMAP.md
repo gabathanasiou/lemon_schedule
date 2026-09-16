@@ -401,101 +401,6 @@ spec for the nested picker.
 (token chips/affixes — **DONE**); touches the ui-kit rich-text editor +
 `reportFields.ts` (`buildLookupTokens`, `fieldsForScope`).
 
-## 123. Script view in the Breakdown + portable scene-body preview (`[~]`)
-
-> **Phase 0 shipped** (retained `project.scriptDocument` / `scriptBaseline`,
-> parsers emit the body in the existing import pass, `SET/UPDATE_SCRIPT_DOCUMENT`,
-> persistence). **Phase 1 shipped** — Script sub-tab (`src/components/ScriptView.tsx`);
-> the shared `ScriptSceneText` renderer gained a light theme; scene-linked nav to
-> Sheet/Schedule; `e2e/script-retention.spec.ts`. **Phase 2 shipped** (with 132
-> Part B): identity-anchored tags (`ScriptAnnotation` + `ADD/UPDATE/REMOVE_
-> SCRIPT_ANNOTATION`) render category-coloured, select-to-tag editor in the
-> Script sub-tab. **Phase 3 (hover preview) remains open** — the pane exists
-> (132 Part A); only the hover seams are unwired. See
-> `docs/IMPORT-EXPORT.md` §Script body retention.
-
-**Relations**: Phase 0 (retained `project.scriptDocument` + `scriptBaseline`)
-is the shared prerequisite **item 38 depends on** — do not build a parallel
-body store. Reuses item 115's `FloatingTooltip` primitive + the
-`InlineGlideTable.rowTooltip` seam (the *mechanism* only — 115's
-`FirstSceneTooltip` is scheduling metadata and stays as-is). One source of
-truth: committed tags are the existing breakdown elements/categories — no
-parallel tagging model. Home is the **Breakdown tab's sub-tab row**
-(`BreakdownTab.tsx:56-59`), NOT a new top-level tab. **132** owns the ONE
-portable `SceneScriptPreview` / pane component (built on this item's
-`ScriptSceneScript` renderer); 123 Phase 3 wires the hover seams to it — this
-item stays the hover/body-retention foundation (Phase 0 DONE; Phase 1/2
-independent of 132).
-
-**Chain** (import + diff reference each other; no links skipped):
-124 (shrink storage — **DONE**: `src/lib/projectCodec.ts`) → 123 Phase 0 (retain
-body in the EXISTING import pass — **DONE**) → 38 (body-aware diff + conflicts —
-`[~]`) → 123 Phases 1-3 (view / tag / preview); 125 only if 124 proves
-insufficient. Each references the next; nothing parses or stores the script
-twice.
-
-**Requested**: read the actual screenplay inside Breakdown, highlight passages
-and tag them as breakdown elements, and preview a scene's action/dialogue
-anywhere a scene is referenced. Industry model: StudioBinder (select-and-tag on
-the script, colored by category) + Filmustage Scene Diff (item 38) + Final
-Draft ScriptNotes.
-
-**Blocker (RESOLVED by Phase 0)**: the screenplay body used to be dropped —
-`parseFDX` set `description: ''` and discarded action/dialogue, Fountain folded
-action into `description` and dropped dialogue, and the uploaded file was
-discarded. Phase 0 now retains it (`project.scriptDocument`). `Scene.description`
-stays a one-line synopsis (seed scene 1 = "Voice over prayers for George.").
-`scriptPageNumbers` remains reserved "for future full-FDX render"
-(`types.ts:12`, `docs/IMPORT-EXPORT.md`).
-
-**Phase 0 — retain the screenplay** (prerequisite, shared with item 38)
-- New pure module `src/lib/script/` + `project.scriptDocument`: per-scene ordered
-  element blocks (heading/action/character/dialogue/parenthetical/transition/
-  dual, page breaks, scene number, script page) + title page.
-- `project.scriptBaseline`: the last imported screenplay — the reference for
-  conflict detection and one-step restore (no hash layer; compare current
-  scene fields against the baseline). Replaced on each accepted import; same
-  retention spirit as version trash.
-- Extend `fdx.ts` to keep the paragraph stream it currently drops (`Paragraph
-  Type` is already read); extend `fountain.ts` (fountain-js tokens incl.
-  `dual_dialogue_begin/end` + `dialogue.left/.right` already exist).
-- **Hook the EXISTING import chain — one pass, no parallel pipeline**: the
-  parser emits breakdown data AND the body together; both the plain import
-  (`commitImport`, first upload / new project) and item 38's `commitScriptDiff`
-  write the body in their SAME batch. Never parse the file twice and never add
-  a second import path.
-- Persist + Drive sync; compact tuple-encoded blocks, no duplication of Scene
-  data; optional base64(gzip) for the body in localStorage if quota bites
-  (item 124).
-- New actions `SET_SCRIPT_DOCUMENT` / `UPDATE_SCRIPT_DOCUMENT` (union +
-  `ACTION_TYPES` kept in sync).
-- **Dependency**: `diff` (jsdiff), shared with item 38 — `diffWords` for word
-  diffs, `diffArrays` for ordered alignment.
-
-**Phase 1 — script view**: new **Breakdown sub-tab** ("Script", alongside Sheet /
-Element Manager / Glide Breakdown), pop-out-capable like its siblings. Custom
-React renderer, no new dep (tokens from the existing parsers; layout in CSS) —
-Courier, standard indents, **two-column dual dialogue**, scene numbers, page
-breaks, title page. Scene-linked navigation to/from Sheet + Schedule.
-
-**Phase 2 — highlight-to-tag**: text selection → tag to existing categories via
-`addNewElement`/`EntityDropdown`; category-colored highlights; reuse the
-stripboard context menu. Committed tags are real breakdown elements.
-
-**Phase 3 — portable scene-body preview**: wire the existing hover seams
-(stripboard, Scene Sheet, Glide `InlineGlideTable.rowTooltip`, Calendar scene
-cards) to the ONE shared `SceneScriptPreview` component — **delivered by 132
-Part A** (the persistent `SceneScriptPane` and this hover preview are the same
-component, never two). Shows the scene's action/dialogue. Candidate surfaces are
-examples; the component is 132's deliverable, this phase is the hover wiring.
-
-**Sources**: FDX + Fountain/TXT only (PDF/OCR filed separately if wanted).
-**Out of scope**: PDF import, FDX write-back, revision-mark fidelity, full
-version history (content-addressed store — see 125).
-
-**Verify**: golden fixture with dual dialogue; round-trip persistence + Drive
-sync; re-import the seed script; `npm run lint` + `npx playwright test`.
-
 ## 125. Storage overhaul — delta pack, normalization only if needed (FUTURE, parked) (`[ ]`)
 
 **Relations**: follow-on to 124 (**DONE** — `src/lib/projectCodec.ts`); build
@@ -556,23 +461,23 @@ row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 > (`mergeSplitGroup`) / Open; Renumber / Move break / Resolve remain. **Part F
 > shipped** — `annotationRemap` re-anchors tags through a revision (orphans
 > counted in the review), same-number/low-similarity pairs flagged `collision`
-> (default keep), and the review shows a split-group notice. **Remaining**: the
-> interactive per-group Apply-to-both / Merge-back / Keep review (the notice
-> points at the Split Manager instead).
+> (default keep), and the review shows a split-group notice. **123 Phase 3
+> shipped** via `SceneScriptPreviewProvider` (shared hover preview, wired on
+> Calendar scene cards; item 123 closed). **Remaining**: the interactive
+> per-group Apply-to-both / Merge-back / Keep review (the notice points at the
+> Split Manager instead).
 > **API/agent compatibility is a hard constraint** (see API note + Relations 97).
 
 **Relations**: `depends on` **123 Phase 0** (**DONE** — retained
 `project.scriptDocument` / `scriptBaseline`); `reuses` the existing
 `ScriptSceneScript` renderer (`src/components/script/`) and **delivers the ONE
-portable `SceneScriptPreview` component** that **123 Phase 3** then wires to its
-hover seams (never two components); `overlaps` **123 Phase 2** tagging (reuse
-`addNewElement` / `EntityDropdown` — no second tag model); `extends` **38**
-(**DONE** — Part F now builds on the shipped `commitScriptDiff`/`scriptDiff`
-engine) and upgrades its `tagSplitMerge` to split-aware / appliable (one split
-engine);
+portable `SceneScriptPreview` component** (`SceneScriptPreviewProvider`, now the
+shared hover preview — item 123 closed); `overlaps` **123 Phase 2** tagging
+(reuse `addNewElement` / `EntityDropdown` — no second tag model); `extends` **38**
+(**DONE** — Part F builds on the shipped `commitScriptDiff`/`scriptDiff` engine)
+and upgrades its `tagSplitMerge` to split-aware / appliable (one split engine);
 `reuses` **127** `parseSceneHeading` (**DONE**: `src/lib/import/headingValues.ts`)
-and the duplicate base+letter algorithm (`useStripboardContextMenu.ts:243`,
-`BreakdownTabGlide.tsx:605`); `enables` **97** — every script/annotation write is
+and the shared `nextLetterSceneNumber` (`src/lib/sceneNumbering.ts`); `enables` **97** — every script/annotation write is
 a canonical `Action` (see the API note below).
 
 **Requested**: a portable, collapsible/resizable **preview pane** of the real

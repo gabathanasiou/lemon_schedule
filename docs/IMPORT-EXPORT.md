@@ -145,8 +145,10 @@ Status: read this before touching any import/export work.
   sub-tab** (`src/components/ScriptView.tsx`) reads the whole body with
   scene-linked navigation into Sheet/Schedule, and the portable
   `SceneScriptPane` (`src/components/script/SceneScriptPane.tsx`) previews one
-  scene on the right of Sheet / Glide. Both render through the shared
-  `ScriptSceneText` (light theme) — never a second screenplay renderer. The
+  scene on the right of Sheet / Glide, plus a **hover preview**
+  (`SceneScriptPreviewProvider`, roadmap 123 Phase 3; e.g. Calendar scene cards).
+  All render through the shared `ScriptSceneText` — never a second screenplay
+  renderer. The
   sub-tab lists scenes in **screenplay order** — the retained
   `scriptDocument.scenes` order, exactly as written — so scene numbers never
   reorder it (a writer's moved scene keeps its place and its number).
