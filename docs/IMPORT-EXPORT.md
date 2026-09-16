@@ -124,6 +124,12 @@ Status: read this before touching any import/export work.
   care** (renumber, no metadata). `buildSceneDuplicate` (`src/lib/sceneDuplicates.ts`)
   is the one builder; `Scene.duplicateOf`/`duplicateKind` record the
   relationship (input to the Split Manager, E).
+- **Split Manager (roadmap 132 Part E)**: `src/lib/splitGroups.ts` derives groups
+  from `duplicateOf`/`duplicateKind:'split'` (keyed by scene ID, content
+  `cutAnchor`); `SplitManagerModal` lists them with a clean/diverged badge and
+  Merge back (`mergeSplitGroup` concatenates the fragments' bodies, deletes them
+  to Trash and re-anchors their tags) + Open. Renumber / Move break / Resolve
+  remain.
 - Persistence/Drive need no special handling: works through the roadmap-124
   localStorage codec and the Drive upload as part of the Project.
 - Read surfaces (roadmap 123 Phase 1 / 132 Part A): the Breakdown **Script

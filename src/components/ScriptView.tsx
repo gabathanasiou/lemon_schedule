@@ -6,6 +6,7 @@ import { ScriptSceneText } from './script/ScriptSceneScript';
 import { EighthsRuler } from './script/EighthsRuler';
 import ScriptTagModal, { type ScriptTagTarget } from './script/ScriptTagModal';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
+import Button from './Button';
 import { useDialog } from './Dialog';
 import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
 import { mergeSceneWithNext } from '../lib/scriptSceneOps';
@@ -266,14 +267,9 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
         </span>
       )}
       {onUpdateScript && (
-        <button
-          type="button"
-          onClick={onUpdateScript}
-          title="Upload a revised screenplay and review the changes"
-          className="inline-flex items-center gap-1 rounded border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-        >
-          <Upload className="h-3 w-3" /> Update script
-        </button>
+        <Button variant="subtle" type="button" onClick={onUpdateScript} title="Upload a revised screenplay and review the changes">
+          <Upload className="w-3.5 h-3.5" /> Update script
+        </Button>
       )}
       {doc && doc.scenes.length > 0 && (
         <>
@@ -367,28 +363,24 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                   {match && (onOpenSchedule || onOpenSheet || onCutScene || isFragment) && (
                     <div className="hover-reveal absolute right-0 top-3 z-10 flex items-center gap-1 rounded bg-white/90">
                       {onCutScene && (
-                        <button type="button" onClick={() => onCutScene(match.id)} title="Cut this scene…"
-                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">
-                          <Scissors className="h-3 w-3" /> Cut
-                        </button>
+                        <Button variant="subtle" type="button" onClick={() => onCutScene(match.id)} title="Cut this scene…">
+                          <Scissors className="w-3.5 h-3.5" /> Cut
+                        </Button>
                       )}
                       {isFragment && (
-                        <button type="button" onClick={() => mergeNext(match.id)} title="Merge the next scene into this one"
-                          className="rounded px-1 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">
+                        <Button variant="subtle" type="button" onClick={() => mergeNext(match.id)} title="Merge the next scene into this one">
                           Merge
-                        </button>
+                        </Button>
                       )}
                       {onOpenSchedule && (
-                        <button type="button" onClick={() => onOpenSchedule(match.id)} title="Open in Schedule"
-                          className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">
-                          <ExternalLink className="h-3 w-3" /> Schedule
-                        </button>
+                        <Button variant="subtle" type="button" onClick={() => onOpenSchedule(match.id)} title="Open in Schedule">
+                          <ExternalLink className="w-3.5 h-3.5" /> Schedule
+                        </Button>
                       )}
                       {onOpenSheet && (
-                        <button type="button" onClick={() => onOpenSheet(match.index)} title="Open in Sheet"
-                          className="rounded px-1 py-0.5 text-[10px] text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">
+                        <Button variant="subtle" type="button" onClick={() => onOpenSheet(match.index)} title="Open in Sheet">
                           Sheet
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -401,16 +393,17 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
         </div>
       </div>
       {pendingTag && createPortal(
-        <button
+        <Button
+          variant="primary"
           type="button"
           data-testid={TEST_IDS.scriptTagFloating}
           onMouseDown={e => e.preventDefault()}
           onClick={openTagModal}
           style={{ position: 'fixed', top: pendingTag.top, left: pendingTag.left, transform: 'translate(-50%, -130%)', zIndex: 60 }}
-          className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white shadow-lg hover:bg-zinc-700"
+          className="shadow-lg"
         >
-          <TagIcon className="h-3 w-3" /> Tag
-        </button>,
+          <TagIcon className="w-3.5 h-3.5" /> Tag
+        </Button>,
         document.body,
       )}
       {tagModal && (

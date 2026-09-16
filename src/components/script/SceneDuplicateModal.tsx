@@ -3,6 +3,7 @@ import { Copy } from 'lucide-react';
 import { useProject } from '../../store';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
+import RadioList from '../RadioList';
 import { buildSceneDuplicate, type DuplicateMode } from '../../lib/sceneDuplicates';
 import { nextLetterSceneNumber } from '../../lib/sceneNumbering';
 import { scriptSceneOf } from '../../lib/script';
@@ -62,20 +63,25 @@ export default function SceneDuplicateModal({ scene, onConfirm, onClose }: {
         </ModalFooter>
       }
     >
-      <div className="space-y-2 p-5" data-testid={TEST_IDS.sceneDuplicateModal}>
-        {MODES.map(m => (
-          <label key={m.mode} className={`flex cursor-pointer items-start gap-2 rounded border px-2 py-1.5 ${mode === m.mode ? 'border-zinc-400 bg-zinc-50' : 'border-zinc-200 hover:bg-zinc-50'}`}>
-            <input type="radio" name="dup-mode" className="mt-0.5" checked={mode === m.mode} onChange={() => setMode(m.mode)} />
-            <span className="min-w-0">
-              <span className="block text-xs font-medium text-zinc-800">{m.label}</span>
-              <span className="block text-[11px] text-zinc-500">{m.hint}</span>
-            </span>
-          </label>
-        ))}
+      <div className="space-y-5 p-6" data-testid={TEST_IDS.sceneDuplicateModal}>
+        <RadioList
+          theme="dark"
+          value={mode}
+          onChange={id => setMode(id as DuplicateMode)}
+          items={MODES.map(m => ({
+            id: m.mode,
+            label: (
+              <span className="block">
+                <span className="block text-xs font-medium text-zinc-200">{m.label}</span>
+                <span className="mt-0.5 block text-[11px] text-zinc-500">{m.hint}</span>
+              </span>
+            ),
+          }))}
+        />
         {mode !== 'coverage' && (
-          <label className="block text-xs">
-            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">New number</span>
-            <input value={number} onChange={e => setNumber(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-xs" />
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">New number</span>
+            <input value={number} onChange={e => setNumber(e.target.value)} className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 outline-none focus:border-zinc-500" />
           </label>
         )}
       </div>

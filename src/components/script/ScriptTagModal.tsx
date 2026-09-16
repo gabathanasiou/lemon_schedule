@@ -3,6 +3,7 @@ import { Tag as TagIcon, Trash2 } from 'lucide-react';
 import { useProject } from '../../store';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
+import Button from '../Button';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { EntityDropdown } from '../EntityDropdown';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
@@ -157,19 +158,14 @@ export default function ScriptTagModal({ target, annotation, onClose }: {
         </ModalFooter>
       }
     >
-      <div className="space-y-3 p-5" data-testid={TEST_IDS.scriptTagModal}>
-        <blockquote className="border-l-2 border-amber-400 pl-3 font-mono text-xs text-zinc-700">{target.text}</blockquote>
+      <div className="space-y-5 p-6" data-testid={TEST_IDS.scriptTagModal}>
+        <blockquote className="border-l-2 border-amber-400 pl-3 font-mono text-xs text-zinc-300">{target.text}</blockquote>
         {annotation && divergent && (
-          <div className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+          <div className="flex items-center gap-2 rounded-lg border border-amber-800 bg-amber-900/30 px-3 py-2 text-[11px] text-amber-200">
             <span className="min-w-0 truncate">Tag: <b>{elementName}</b> · Script: “{annotation.text}”</span>
-            <button
-              type="button"
-              onClick={updateScriptText}
-              disabled={readOnly}
-              className="ml-auto shrink-0 rounded border border-amber-300 px-1.5 py-0.5 text-[10px] font-medium hover:bg-amber-100 disabled:opacity-40"
-            >
+            <Button variant="subtle" theme="dark" type="button" onClick={updateScriptText} disabled={readOnly} className="ml-auto shrink-0">
               Update script text
-            </button>
+            </Button>
           </div>
         )}
         <div className="flex items-center gap-2">
@@ -200,7 +196,7 @@ export default function ScriptTagModal({ target, annotation, onClose }: {
               : undefined}
           />
         </div>
-        <p className="text-[11px] text-zinc-500">A tag links this phrase to a breakdown element. It does not change the scene fields.</p>
+        <p className="text-[10px] text-zinc-600">A tag links this phrase to a breakdown element. It does not change the scene fields.</p>
       </div>
     </Modal>
   );

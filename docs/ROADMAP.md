@@ -551,7 +551,10 @@ row-version behavior unchanged; `npm run lint` + `npx playwright test`.
 > (`SceneDuplicateProvider`/`useSceneDuplicate` + `SceneDuplicateModal`,
 > `buildSceneDuplicate`) serves stripboard/Glide/Scene Sheet with Split /
 > Coverage (copy badge) / Not care; `Scene.duplicateOf`/`duplicateKind` record the
-> relationship. Split Manager (E) / import reconciliation (F) remain open.
+> relationship. **Part E shipped (lean)** — split groups (`src/lib/splitGroups.ts`)
+> + `SplitManagerModal` list cut groups with a clean/diverged badge and Merge back
+> (`mergeSplitGroup`) / Open; Renumber / Move break / Resolve remain. **Part F
+> (import reconciliation) remains open.**
 > **API/agent compatibility is a hard constraint** (see API note + Relations 97).
 
 **Relations**: `depends on` **123 Phase 0** (**DONE** — retained

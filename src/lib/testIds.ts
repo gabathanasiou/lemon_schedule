@@ -41,4 +41,6 @@ export const TEST_IDS = {
   sceneCutModal: 'scene-cut-modal',
   /** Shared scene duplicate modal body (roadmap 132 Part D). */
   sceneDuplicateModal: 'scene-duplicate-modal',
+  /** Split Manager modal body (roadmap 132 Part E). */
+  splitManagerModal: 'split-manager-modal',
 } as const;

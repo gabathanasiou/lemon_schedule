@@ -11,6 +11,10 @@ export interface Scene {
   /** How it was duplicated: `split` (renumbered + body copied), `coverage`
    *  (same number, schedule-only, "copy" badge), or absent (plain duplicate). */
   duplicateKind?: 'split' | 'coverage';
+  /** Content anchor of a CUT fragment (roadmap 132 Part E): the first non-empty
+   *  tail block text. Content-based (never a raw offset) so it survives imports
+   *  and `scriptBaseline` rotation. */
+  cutAnchor?: string;
   sceneNumber: string;
   /** MMS sheet number (BreakdownSheetMgr order by number = script order;
    *  the glide breakdown positions match it). */

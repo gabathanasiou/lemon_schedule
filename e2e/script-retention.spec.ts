@@ -333,6 +333,33 @@ test.describe('scene cut (roadmap 132 Part C)', () => {
   });
 });
 
+test.describe('split manager (roadmap 132 Part E)', () => {
+  test('lists a cut group and merges it back', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-splitmgr.fdx', FDX_A));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
+    await page.getByRole('button', { name: 'Script', exact: true }).click();
+
+    const firstSection = page.getByTestId('script-scene').first();
+    const bodyBefore = (await bridgeProject(page)).scriptDocument.scenes.length;
+    await firstSection.hover();
+    await firstSection.getByRole('button', { name: 'Cut' }).click();
+    await page.getByRole('button', { name: 'Cut scene' }).click();
+    await expect.poll(async () => (await bridgeProject(page)).scenes.some((s: any) => s.duplicateKind === 'split')).toBe(true);
+
+    await page.getByRole('button', { name: 'Split Manager' }).click();
+    const modal = page.getByTestId('split-manager-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText('→');
+    await expect(modal.getByText('clean', { exact: true })).toBeVisible();
+
+    await modal.getByRole('button', { name: /Merge back/ }).click();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await expect.poll(async () => (await bridgeProject(page)).scenes.some((s: any) => s.duplicateKind === 'split')).toBe(false);
+    expect((await bridgeProject(page)).scriptDocument.scenes.length).toBe(bodyBefore);
+  });
+});
+
 test.describe('scene duplicate modes (roadmap 132 Part D)', () => {
   test('the shared modal covers coverage (same number + badge) and split (renumber + body copy)', async ({ page }) => {
     await openSeededProject(page);
@@ -349,7 +376,7 @@ test.describe('scene duplicate modes (roadmap 132 Part D)', () => {
     const dlg = page.getByRole('dialog');
     await expect(dlg.getByTestId('scene-duplicate-modal')).toBeVisible();
     await dlg.getByText('Coverage / second unit').click();
-    await dlg.getByRole('button', { name: 'Duplicate' }).click();
+    await dlg.getByRole('button', { name: 'Duplicate', exact: true }).click();
     await expect.poll(async () => (await bridgeProject(page)).scenes.some((s: any) => s.duplicateKind === 'coverage')).toBe(true);
     const coverage = (await bridgeProject(page)).scenes.find((s: any) => s.duplicateKind === 'coverage');
     expect(coverage.sceneNumber).toBe(parent.sceneNumber);
@@ -359,7 +386,7 @@ test.describe('scene duplicate modes (roadmap 132 Part D)', () => {
     const bodyBefore = (await bridgeProject(page)).scriptDocument.scenes.length;
     await page.getByRole('button', { name: 'Duplicate', exact: true }).first().click();
     await page.getByRole('dialog').getByText('Split / second scene').click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Duplicate' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Duplicate', exact: true }).click();
     await expect.poll(async () => (await bridgeProject(page)).scenes.some((s: any) => s.duplicateKind === 'split')).toBe(true);
     const split = (await bridgeProject(page)).scenes.find((s: any) => s.duplicateKind === 'split');
     const base = parent.sceneNumber.replace(/[A-Z]+$/i, '');

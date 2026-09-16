@@ -3,6 +3,7 @@ import { Scissors } from 'lucide-react';
 import { useProject } from '../../store';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
+import RadioList from '../RadioList';
 import Checkbox from '../Checkbox';
 import { formatSceneHeading, scriptSceneOf } from '../../lib/script';
 import { commitSceneCut } from '../../lib/scriptSceneOps';
@@ -10,6 +11,9 @@ import { nextLetterSceneNumber } from '../../lib/sceneNumbering';
 import { generateUUID } from '../../lib/utils';
 import { TEST_IDS } from '../../lib/testIds';
 import type { Scene, ScriptBlock } from '../../types';
+
+const FIELD_LABEL = 'mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500';
+const FIELD_INPUT = 'w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500';
 
 /**
  * Cut a scene at a block boundary into a new lettered scene (roadmap 132
@@ -50,6 +54,9 @@ export default function SceneCutModal({ sceneId, onClose }: { sceneId: string; o
       dayNight,
       pageCount: '0',
       pageCountDecimal: 0,
+      duplicateOf: live.id,
+      duplicateKind: 'split',
+      cutAnchor: blocks.slice(k).find(b => b[0] !== 'page_break')?.[1] ?? '',
     };
     commitSceneCut({
       dispatch,
@@ -80,47 +87,45 @@ export default function SceneCutModal({ sceneId, onClose }: { sceneId: string; o
         </ModalFooter>
       }
     >
-      <div className="space-y-4 p-5" data-testid={TEST_IDS.sceneCutModal}>
+      <div className="space-y-5 p-6" data-testid={TEST_IDS.sceneCutModal}>
         {!canCut ? (
-          <p className="text-xs text-zinc-500">This scene has no retained script body to cut (or the project is read-only).</p>
+          <p className="text-xs text-zinc-400">This scene has no retained script body to cut (or the project is read-only).</p>
         ) : (
           <>
-            <div>
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Cut before</p>
-              <div className="max-h-44 space-y-0.5 overflow-y-auto rounded border border-zinc-200 p-1">
-                {blocks.slice(1).map((b, i) => {
-                  const k = i + 1;
-                  return (
-                    <label key={k} className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs ${splitIndex === k ? 'bg-zinc-100' : 'hover:bg-zinc-50'}`}>
-                      <input type="radio" name="cut-point" checked={splitIndex === k} onChange={() => setSplitIndex(k)} />
-                      <span className="truncate text-zinc-700"><span className="uppercase text-zinc-400">{b[0]}</span> {blockLabel(b)}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
+            <RadioList
+              theme="dark"
+              title="Cut before"
+              maxHeight={176}
+              value={splitIndex}
+              onChange={id => setSplitIndex(Number(id))}
+              items={blocks.slice(1).map((b, i) => ({
+                id: i + 1,
+                leading: <span className="text-[10px] uppercase text-zinc-500">{b[0]}</span>,
+                label: <span className="block truncate font-mono">{blockLabel(b)}</span>,
+              }))}
+            />
 
             <div className="grid grid-cols-2 gap-3">
-              <label className="text-xs">
-                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">New number</span>
-                <input value={newNumber} onChange={e => setNewNumber(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-xs" />
+              <label>
+                <span className={FIELD_LABEL}>New number</span>
+                <input value={newNumber} onChange={e => setNewNumber(e.target.value)} className={FIELD_INPUT} />
               </label>
-              <label className="text-xs">
-                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">INT/EXT</span>
-                <input value={intExt} onChange={e => setIntExt(e.target.value.toUpperCase())} className="w-full rounded border border-zinc-300 px-2 py-1 text-xs" />
+              <label>
+                <span className={FIELD_LABEL}>INT/EXT</span>
+                <input value={intExt} onChange={e => setIntExt(e.target.value.toUpperCase())} className={FIELD_INPUT} />
               </label>
-              <label className="text-xs">
-                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Set</span>
-                <input value={set} onChange={e => setSet(e.target.value)} className="w-full rounded border border-zinc-300 px-2 py-1 text-xs" />
+              <label>
+                <span className={FIELD_LABEL}>Set</span>
+                <input value={set} onChange={e => setSet(e.target.value)} className={FIELD_INPUT} />
               </label>
-              <label className="text-xs">
-                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Day / night</span>
-                <input value={dayNight} onChange={e => setDayNight(e.target.value.toUpperCase())} className="w-full rounded border border-zinc-300 px-2 py-1 text-xs" />
+              <label>
+                <span className={FIELD_LABEL}>Day / night</span>
+                <input value={dayNight} onChange={e => setDayNight(e.target.value.toUpperCase())} className={FIELD_INPUT} />
               </label>
             </div>
 
-            <Checkbox variant="plain" checked={moveTags} onChange={setMoveTags} label={<span className="text-xs text-zinc-700">Move tags after the cut to the new scene</span>} />
-            <p className="text-[11px] text-zinc-500">The new scene inherits the parent's elements and lands in the boneyard — your schedule is untouched. One undo step.</p>
+            <Checkbox variant="plain" checked={moveTags} onChange={setMoveTags} label={<span className="text-xs text-zinc-300">Move tags after the cut to the new scene</span>} />
+            <p className="text-[10px] text-zinc-600">The new scene inherits the parent's elements and lands in the boneyard — your schedule is untouched. One undo step.</p>
           </>
         )}
       </div>
