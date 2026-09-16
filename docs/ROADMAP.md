@@ -513,14 +513,12 @@ numbered check) added to AGENTS.md rule 7.
 Suite runs now print total wall time via `scripts/pw-duration-reporter.mjs`; workers are
 tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→saturates CPU).
 
-**Next — extraction only** (app-code changes; sign-off needed). All the pure/reducer
-logic is now unit-covered; what's left is trapped inside hooks/components and must be
-pulled into `src/lib/` first (single source of truth), THEN handed a unit test:
-- `dayView` — assembly inside `useDayViews` (`src/lib/dayView.ts`).
-- `digit-schedule` — day-target math inside `useScheduleKeyboard`.
+**Extraction jobs** (app-code changes; each pulls logic into `src/lib/` first, then unit
+tests it). Report logic and the pure/reducer layer are already covered.
+- DONE `digit-schedule` — `src/lib/digitSchedule.ts` (`targetDaybreaks`/`scheduleRowsToDay`);
+  `ScheduleTab` now calls it; `digitSchedule.test.ts`.
 - `production-dates` — days-off materialization inside `ProductionDatesModal`.
-Report logic is covered (resolveCollections, day-scoped categories, token/lookup
-helpers); the remaining report specs are rendering wiring.
+- `dayView` — assembly inside `useDayViews` (`src/lib/dayView.ts`).
 
 **Blocked**: `parseMsd` uses `DOMParser`, so its golden test stays e2e unless a jsdom
 environment is added — decide before converting `msd-import`.

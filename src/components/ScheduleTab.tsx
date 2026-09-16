@@ -10,6 +10,7 @@ import { CellInput } from './CellInput';
 import { BoneyardBlock, COLLAPSED_KEY } from './BoneyardBlock';
 import { SortableRibbon } from './SortableRibbon';
 import { generateUUID, formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
+import { targetDaybreaks, scheduleRowsToDay } from '../lib/digitSchedule';
 import { getNoteBannerColors } from '../lib/ribbonUtils';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
@@ -1159,39 +1160,17 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const digitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const digitDataRef = useRef({ versionId: '', rowIds: [] as string[], rows: [] as ScheduleRow[], buffer: '' });
   const daybreakOrderRef = useRef<ScheduleRow[]>([]);
-  daybreakOrderRef.current = (activeVersion?.rows || []).filter(r => r.type === 'DAYBREAK' && r.containerId != null).sort((a, b) => {
-    if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
-    return a.order - b.order;
-  });
+  daybreakOrderRef.current = targetDaybreaks(activeVersion?.rows || []);
   const BUFFER_MS = 350;
 
   const commitDigits = useCallback(() => {
     const data = digitDataRef.current;
     if (!data.buffer) return;
-    const daybreaks = daybreakOrderRef.current.filter(d => !d.pinned);
-    if (daybreaks.length === 0) {
-      setDigitBuffer('');
-      digitDataRef.current.buffer = '';
-      return;
-    }
-    const dayNum = parseInt(data.buffer, 10);
-    if (dayNum < 1 || dayNum > daybreaks.length) {
-      setDigitBuffer('');
-      digitDataRef.current.buffer = '';
-      return;
-    }
-    const targetDaybreak = daybreaks[dayNum - 1];
-    const newRows = data.rows.map(r => {
-      if (data.rowIds.includes(r.id)) {
-        return { ...r, containerId: 1, order: targetDaybreak.order - 0.5 + data.rowIds.indexOf(r.id) * 0.01 };
-      }
-      return r;
-    });
-    newRows.sort((a, b) => {
-      if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
-      return a.order - b.order;
-    });
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: data.versionId, rows: renumberRows(newRows) } });
+    const newRows = scheduleRowsToDay(data.rows, data.rowIds, daybreakOrderRef.current, parseInt(data.buffer, 10));
+    setDigitBuffer('');
+    digitDataRef.current.buffer = '';
+    if (!newRows) return;
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: data.versionId, rows: newRows } });
     const scheduledIds = new Set(data.rowIds);
     const remainingBoneyard = data.rows
       .filter(r => getContainerBlock(r) === 'boneyard' && !scheduledIds.has(r.id))
@@ -1207,8 +1186,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
       setSelectedRowIds(new Set([selection.id]));
       setLastClickedId(selection.id);
     }
-    setDigitBuffer('');
-    digitDataRef.current.buffer = '';
   }, [dispatch]);
 
   useEffect(() => {
@@ -1225,7 +1202,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
       if (!/^[0-9]$/.test(e.key)) return;
       const boneyardSelected = activeVersion.rows.filter(r => selectedRowIds.has(r.id) && getContainerBlock(r) !== 'stripboard');
       if (boneyardSelected.length === 0) return;
-      if (daybreakOrderRef.current.filter(d => !d.pinned).length === 0) return;
+      if (daybreakOrderRef.current.length === 0) return;
       e.preventDefault();
       const next = digitDataRef.current.buffer + e.key;
       digitDataRef.current = {
