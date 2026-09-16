@@ -501,6 +501,8 @@ the committed seed via the pure `computeRowData` → `buildReportCtx` pipeline);
 `elementDayStats.test.ts` (per-element work/status/total days, `totalDays = workDays +
 Σ statusCounts`); `dayMeta.test.ts` (governing-daybreak reads, empty-check, crew-call
 writes, dangling-ref prune) and `sceneDuplicates.test.ts` (coverage/plain/split modes);
+`crewCatalog.test.ts` (role→category resolution, department grouping, catalog reorder)
+and `sceneTrash.test.ts` (ADD_SCENE row invariant + scene trash delete/restore/empty);
 `docs/TESTING.md` pyramid section corrected (it still claimed "no unit runner"), and the
 manual-verification policy (visually-checkable changes get NO e2e — hand the user a
 numbered check) added to AGENTS.md rule 7.
@@ -508,10 +510,10 @@ Suite runs now print total wall time via `scripts/pw-duration-reporter.mjs`; wor
 tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→saturates CPU).
 
 **Next (ranked, lowest extraction cost first)**:
-- Pure modules with no Vitest yet → new cases: `dayView` (read model), `crewCatalog`.
-- Reducer-level cases still additive (the reducer is importable; `debug-bridge` #2–#3
-  stay e2e as the bridge's API proof): `caseAddScene` row invariant, `BATCH`/undo
-  contract, trash reducer cases (`trash-restore`).
+- `dayView` read model needs its assembly pulled out of the `useDayViews` hook into a
+  pure `lib/` builder before it can be unit-tested (`crewCatalog`/trash are done).
+- Remaining reducer cases: version/element/category trash channels beyond scenes,
+  `BATCH`/undo contract (`debug-bridge` #2–#3 stay e2e as the bridge's API proof).
 - Day-scoped **categories** scoping (`resolveCollectionItems` + ancestors) so
   `report-smart-counts` can drop its inline logic duplication; `report-lookups` token
   resolution (`reportFields`) — both are the last MIXED single-test report specs worth
