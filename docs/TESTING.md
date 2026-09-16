@@ -105,10 +105,12 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 - `playwright.config.ts`: prod-preview webServer on :3001, `reducedMotion: 'reduce'`,
   `retries: 1` locally / `2` on CI, `trace: 'on-first-retry'`, `grepInvert: /@perf|@quarantine/`.
   `PLAYWRIGHT_PORT=<n>` isolates the server (owned, no reuse); `PLAYWRIGHT_DEV=1` runs the dev server.
-- **Parallelism**: the config defaults to **7 workers** (clamped to the core count).
-  Measured on a 10-core box: 5 workers → ~71s, 8 → ~62s; 10 saturates the CPU for no real
-  gain and raises flake risk (morph/canvas specs under contention). Tune with
-  `PLAYWRIGHT_WORKERS=<n>`; don't crank it for a small gain.
+- **Parallelism**: each worker is a full Chromium, so N workers pins ~N cores and spins
+  the laptop fans. The config defaults to a cool **4 workers** (clamped to the core
+  count); raise it only when you want speed over a quiet machine —
+  `PLAYWRIGHT_WORKERS=7 npx playwright test`. Measured on a 10-core box: 5 → ~71s,
+  7 → ~77s, 8 → ~62s; 10 saturates the CPU for no real gain and raises flake risk
+  (morph/canvas specs under contention).
 - **Duration**: a custom reporter (`scripts/pw-duration-reporter.mjs`) prints
   `[timing] N tests in Xs across W worker(s)` on the final line, so runs are comparable.
 - **`npm run test:smart`** selects only specs your diff can affect (RULES map), plus the

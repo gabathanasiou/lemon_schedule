@@ -36,16 +36,16 @@ export default defineConfig({
       origins: [{ origin: `http://localhost:${PORT}`, localStorage: [{ name: 'LEMON_AGENT', value: '1' }] }],
     },
   },
-  // Parallelism — measured on a 10-core box:
-  //   5 → ~71s   ·   8 → ~62s   ·   10 → CPU-saturating, no real gain
-  // Default 7 (clamped to the core count, so a small CI box isn't
-  // oversubscribed) — the measured speed/CPU sweet spot. Override with
-  // PLAYWRIGHT_WORKERS. Timing-sensitive morph/canvas specs can fail under
-  // heavy contention (see docs/TESTING.md). The duration reporter prints the
-  // total elapsed on the final line.
+  // Parallelism — each worker is a full Chromium, so N workers pins ~N cores
+  // for the whole run and spins the fans. Measured on a 10-core box:
+  //   4 → quiet-ish   ·   5 → ~71s   ·   7 → ~77s   ·   8 → ~62s   ·   10 → saturates
+  // Default is deliberately LOW (4) to keep the laptop cool; raise it for speed
+  // when you don't mind the heat: `PLAYWRIGHT_WORKERS=7 npx playwright test`.
+  // (Timing-sensitive morph/canvas specs can also flake under heavy contention —
+  // see docs/TESTING.md.) The duration reporter prints the total at the end.
   workers: process.env.PLAYWRIGHT_WORKERS
     ? Number(process.env.PLAYWRIGHT_WORKERS)
-    : Math.min(7, availableParallelism()),
+    : Math.min(4, availableParallelism()),
   reporter: [['list'], ['./scripts/pw-duration-reporter.mjs']],
   // Tests run against the PRODUCTION build (vite build is ~4s): boots and page
   // loads are far faster than the dev server (no per-module transforms, no
