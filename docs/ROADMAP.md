@@ -499,13 +499,16 @@ on CI); `reportResolve.test.ts` (day-scoped resolver: `days`/`scenesOfDay`,
 the committed seed via the pure `computeRowData` → `buildReportCtx` pipeline);
 `sceneNumbering.test.ts` (collision detection + lettered child numbering) and
 `elementDayStats.test.ts` (per-element work/status/total days, `totalDays = workDays +
-Σ statusCounts`);
-`docs/TESTING.md` pyramid section corrected (it still claimed "no unit runner").
+Σ statusCounts`); `dayMeta.test.ts` (governing-daybreak reads, empty-check, crew-call
+writes, dangling-ref prune) and `sceneDuplicates.test.ts` (coverage/plain/split modes);
+`docs/TESTING.md` pyramid section corrected (it still claimed "no unit runner"), and the
+manual-verification policy (visually-checkable changes get NO e2e — hand the user a
+numbered check) added to AGENTS.md rule 7.
 Suite runs now print total wall time via `scripts/pw-duration-reporter.mjs`; workers are
 tunable via `PLAYWRIGHT_WORKERS` (default 7; measured 5→~71s, 8→~62s, 10→saturates CPU).
 
 **Next (ranked, lowest extraction cost first)**:
-- Pure modules with no Vitest yet → new cases: `dayMeta`/`dayView`, `sceneDuplicates`.
+- Pure modules with no Vitest yet → new cases: `dayView` (read model), `crewCatalog`.
 - Reducer-level cases still additive (the reducer is importable; `debug-bridge` #2–#3
   stay e2e as the bridge's API proof): `caseAddScene` row invariant, `BATCH`/undo
   contract, trash reducer cases (`trash-restore`).
