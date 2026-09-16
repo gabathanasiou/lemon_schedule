@@ -236,6 +236,9 @@ test.describe('script tagging — selection menu (roadmap 136)', () => {
       block.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
     });
 
+    // The highlight stays selected while the menu is open.
+    await expect(page.getByRole('menuitem', { name: 'Props' })).toBeVisible();
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe('coffee');
     await page.getByRole('menuitem', { name: 'Props' }).click();
     await waitForPersistedProject(page, "(p.scriptAnnotations && p.scriptAnnotations.length === 1)");
     const saved = (await bridgeProject(page)).scriptAnnotations[0];

@@ -120,6 +120,8 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
 
   const [tagMenu, setTagMenu] = useState<ScriptTagMenuState | null>(null);
   const [hovered, setHovered] = useState<{ annotation: ScriptAnnotation; x: number; y: number } | null>(null);
+  /** The native selection range to keep highlighted while the menu is open. */
+  const selectionRangeRef = useRef<Range | null>(null);
 
   // A text selection opens the category menu. Deferred so the browser has
   // committed the selection before we read it.
@@ -128,6 +130,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
       if (readOnly) return;
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+        selectionRangeRef.current = null;
         // Never clobber a menu opened by a click on a tag (its click fires
         // after this mouseup).
         setTagMenu(prev => (prev && prev.source === 'annotation' ? prev : null));
@@ -150,14 +153,40 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
       const existing = (project.scriptAnnotations || []).find(
         a => a.sceneId === sceneId && a.blockIndex === blockIndex && a.start === start && a.end === end,
       );
+      selectionRangeRef.current = range.cloneRange();
       const rect = range.getBoundingClientRect();
       setTagMenu({ x: rect.left, y: rect.bottom, target: { sceneId, blockIndex, start, end, text }, existing, source: 'selection' });
     }, 0);
   }, [readOnly, project.scriptAnnotations]);
 
+  // Keep the native selection highlighted while the selection menu is open:
+  // Radix focuses its menu content on open, which clears the browser selection.
+  // Re-apply the saved range after the menu mounts (and once more after the
+  // focus handling settles), then drop it when the menu closes.
+  useEffect(() => {
+    if (!tagMenu) {
+      window.getSelection()?.removeAllRanges();
+      return;
+    }
+    if (tagMenu.source !== 'selection') return;
+    const restore = () => {
+      const range = selectionRangeRef.current;
+      if (!range) return;
+      const sel = window.getSelection();
+      if (!sel) return;
+      sel.removeAllRanges();
+      sel.addRange(range);
+    };
+    restore();
+    const raf = requestAnimationFrame(restore);
+    const settle = window.setTimeout(restore, 60);
+    return () => { cancelAnimationFrame(raf); clearTimeout(settle); };
+  }, [tagMenu]);
+
   const openAnnotation = useCallback((annotation: ScriptAnnotation, event?: React.MouseEvent) => {
     if (readOnly) return;
     setHovered(null);
+    selectionRangeRef.current = null;
     const existing = (project.scriptAnnotations || []).find(a => a.id === annotation.id);
     setTagMenu({
       x: event?.clientX ?? 0,
