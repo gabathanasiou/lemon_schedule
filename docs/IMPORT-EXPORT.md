@@ -160,14 +160,15 @@ Status: read this before touching any import/export work.
   the body uses `UPDATE_SCRIPT_DOCUMENT` (baseline NOT rotated). Defaults come
   from one builder, `buildCutScene` (`nextLetterSceneNumber`, inherited heading +
   element fields, content `cutAnchor`); `cutSceneAt` is the one-tap cut.
-  **UI (razor)**: the Breakdown toolbar's **Cut** toggle (Script sub-tab only)
-  turns on a Premiere-style razor — a cut bar snaps to paragraph gaps and a click
-  splits instantly (one-shot; `⌥`-click opens `SceneCutModal` at that boundary
-  for a custom number/heading). On touch the bar is persistent: drag it up/down,
-  then tap **Cut** (⋯ opens the modal). `SceneCutModal` survives only as the
-  options path. Every split junction shows a hoverable **Merge** handle
-  (`mergeSceneWithNext`, instant + undoable); the per-scene Cut/Merge hover
-  buttons are gone.
+  **UI (razor)**: the Script sub-tab's **Cut** menu (Breakdown toolbar) has *Cut
+  scenes* (turn on a Premiere-style razor — a cut bar snaps to paragraph gaps and
+  a click splits instantly, one-shot; `⌥`-click opens `SceneCutModal` at that
+  boundary for a custom number/heading) and *Split Manager…*. On touch the bar is
+  persistent: drag it up/down, then tap **Cut** (⋯ opens the modal). The script
+  name in the toolbar is a **Script** menu (Update script… + format/count) and a
+  **View** menu toggles Suggestions / Eighths ruler / Tags. Every split junction
+  shows a hoverable **Merge** handle (`mergeSceneWithNext`, instant + undoable);
+  the per-scene Cut/Merge hover buttons are gone.
 - **Duplicate modes (roadmap 132 Part D)**: ONE modal (`SceneDuplicateModal`,
   mounted by `SceneDuplicateProvider`, opened via `useSceneDuplicate()`) serves
   the stripboard context menu / Glide / Scene Sheet: **Split** (renumber + copy

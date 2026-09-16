@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronUp, ExternalLink, FileText, MoreHorizontal, Ruler, Scissors, Search, Sparkles, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, ExternalLink, FileText, MoreHorizontal, Ruler, Scissors, Search, SlidersHorizontal, Sparkles, Tag as TagIcon, Upload, X } from 'lucide-react';
 import { useProject } from '../store';
 import { ScriptSceneText } from './script/ScriptSceneScript';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
+import DropdownDivider from './DropdownDivider';
 import { EighthsRuler } from './script/EighthsRuler';
 import { ScriptTagOverlay, useScriptTagging } from './script/ScriptTagging';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
@@ -98,6 +101,9 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   const [query, setQuery] = useState('');
   const [matchPos, setMatchPos] = useState(0);
   const [showEighths, setShowEighths] = useState(true);
+  const [showTags, setShowTags] = usePersistState('lemon_schedule_script_show_tags', true);
+  const [scriptMenuOpen, setScriptMenuOpen] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [contentHeight, setContentHeight] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [sidebarPref, setSidebarPref] = usePersistState('lemon_schedule_script_sidebar', { width: 320 });
@@ -351,62 +357,93 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   const header = headerTarget ? createPortal(
     <>
       {doc && doc.scenes.length > 0 && (
-        <span className="hidden min-w-0 items-center gap-1.5 md:flex" title={scriptLabel}>
-          <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-          <span className="max-w-[20rem] truncate text-[11px] font-semibold text-zinc-600">{scriptLabel}</span>
-        </span>
-      )}
-      {onUpdateScript && (
-        <Button variant="subtle" type="button" onClick={onUpdateScript} title="Upload a revised screenplay and review the changes">
-          <Upload className="w-3.5 h-3.5" /> Update script
-        </Button>
+        <DropdownMenu
+          open={scriptMenuOpen}
+          onOpenChange={setScriptMenuOpen}
+          theme="light"
+          width="w-64"
+          trigger={
+            <Button variant="subtle" type="button" title={scriptLabel}>
+              <FileText className="w-3.5 h-3.5" />
+              <span className="max-w-[16rem] truncate">{scriptLabel}</span>
+              <ChevronDown className="w-3 h-3.5 text-zinc-400" />
+            </Button>
+          }
+        >
+          {onUpdateScript && (
+            <DropdownItem icon={<Upload className="w-3.5 h-3.5" />} onClick={() => { setScriptMenuOpen(false); onUpdateScript(); }}>
+              Update script…
+            </DropdownItem>
+          )}
+          <DropdownDivider />
+          <DropdownItem disabled onClick={() => {}} trailing={<span className="text-[10px] text-zinc-400">{(doc.format || '').toUpperCase()} · {doc.scenes.length} scenes</span>}>
+            Script
+          </DropdownItem>
+        </DropdownMenu>
       )}
       {doc && doc.scenes.length > 0 && (
-        <>
-          <div className="relative flex items-center">
-            <Search className="absolute left-2 h-3.5 w-3.5 text-zinc-400" />
-            <input
-              type="text"
-              aria-label="Search script"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search script"
-              className="w-40 rounded border border-zinc-200 bg-white py-1 pl-7 pr-2 text-[11px] text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-            />
-            {q && (
-              <span className="ml-1.5 min-w-[3.5rem] text-[10px] tabular-nums text-zinc-500">
-                {matches.length === 0 ? 'No matches' : `${matchPos + 1}/${matches.length}`}
-              </span>
-            )}
-            <button type="button" title="Previous match" onClick={() => stepMatch(-1)} disabled={matches.length === 0}
-              className="ml-0.5 rounded p-0.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30">
-              <ChevronUp className="h-3.5 w-3.5" />
-            </button>
-            <button type="button" title="Next match" onClick={() => stepMatch(1)} disabled={matches.length === 0}
-              className="rounded p-0.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30">
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <Button
-            variant="subtle"
-            type="button"
-            active={tagging.showSuggestions}
-            aria-pressed={tagging.showSuggestions}
-            onClick={() => tagging.setShowSuggestions(v => !v)}
-            title={tagging.showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
-          >
-            <Sparkles className="w-3.5 h-3.5" /> Suggestions
-          </Button>
-          <button
-            type="button"
-            onClick={() => setShowEighths(v => !v)}
-            aria-pressed={showEighths}
-            title={showEighths ? 'Hide eighths ruler' : 'Show eighths ruler'}
-            className={`p-1.5 rounded-md transition-colors ${showEighths ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800'}`}
-          >
-            <Ruler className="h-4 w-4" />
+        <div className="relative flex items-center">
+          <Search className="absolute left-2 h-3.5 w-3.5 text-zinc-400" />
+          <input
+            type="text"
+            aria-label="Search script"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search script"
+            className="w-40 rounded border border-zinc-200 bg-white py-1 pl-7 pr-2 text-[11px] text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+          />
+          {q && (
+            <span className="ml-1.5 min-w-[3.5rem] text-[10px] tabular-nums text-zinc-500">
+              {matches.length === 0 ? 'No matches' : `${matchPos + 1}/${matches.length}`}
+            </span>
+          )}
+          <button type="button" title="Previous match" onClick={() => stepMatch(-1)} disabled={matches.length === 0}
+            className="ml-0.5 rounded p-0.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30">
+            <ChevronUp className="h-3.5 w-3.5" />
           </button>
-        </>
+          <button type="button" title="Next match" onClick={() => stepMatch(1)} disabled={matches.length === 0}
+            className="rounded p-0.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30">
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+      {doc && doc.scenes.length > 0 && (
+        <DropdownMenu
+          open={viewMenuOpen}
+          onOpenChange={setViewMenuOpen}
+          theme="light"
+          width="w-52"
+          trigger={
+            <Button variant="subtle" type="button">
+              <SlidersHorizontal className="w-3.5 h-3.5" /> View <ChevronDown className="w-3 h-3.5 text-zinc-400" />
+            </Button>
+          }
+        >
+          <DropdownItem
+            keepOpen
+            icon={<Sparkles className="w-3.5 h-3.5" />}
+            trailing={tagging.showSuggestions ? <Check className="w-3 h-3" /> : undefined}
+            onClick={() => tagging.setShowSuggestions(v => !v)}
+          >
+            Suggestions
+          </DropdownItem>
+          <DropdownItem
+            keepOpen
+            icon={<Ruler className="w-3.5 h-3.5" />}
+            trailing={showEighths ? <Check className="w-3 h-3" /> : undefined}
+            onClick={() => setShowEighths(v => !v)}
+          >
+            Eighths ruler
+          </DropdownItem>
+          <DropdownItem
+            keepOpen
+            icon={<TagIcon className="w-3.5 h-3.5" />}
+            trailing={showTags ? <Check className="w-3 h-3" /> : undefined}
+            onClick={() => setShowTags(v => !v)}
+          >
+            Tags
+          </DropdownItem>
+        </DropdownMenu>
       )}
     </>,
     headerTarget,
@@ -501,7 +538,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                       fontClass={READ_FONT_CLASS}
                       highlight={q}
                       sceneNumber={scene.sceneNumber}
-                      annotations={tagging.annotations}
+                      annotations={showTags ? tagging.annotations : []}
                       sceneId={match?.id}
                       onAnnotationClick={tagging.openAnnotation}
                       onAnnotationHover={tagging.handleAnnotationHover}

@@ -158,7 +158,6 @@ function AnnotatedText({ text, runs, ranges, theme, highlight, onAnnotationClick
                   className={`rounded-[2px] ${onAnnotationClick ? 'cursor-pointer' : ''}`}
                   style={s.annotation.recognized
                     ? {
-                        backgroundColor: `${color}1f`,
                         textDecorationLine: 'underline',
                         textDecorationStyle: 'wavy',
                         textDecorationColor: color,

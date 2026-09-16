@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Scissors } from 'lucide-react';
+import { Check, ChevronDown, Scissors, SplitSquareHorizontal } from 'lucide-react';
 import { ElementManager } from './ElementManager';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
 import { SceneSheet } from './SceneSheet';
 import { ScriptView } from './ScriptView';
 import SplitManagerModal from './script/SplitManagerModal';
@@ -41,6 +43,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
   const [splitManagerOpen, setSplitManagerOpen] = useState(false);
   const [cutMode, setCutMode] = useState(false);
+  const [cutMenuOpen, setCutMenuOpen] = useState(false);
   // The razor only makes sense on the script canvas — leave the tool when the
   // sub-tab changes.
   useEffect(() => { if (subTab !== 'script') setCutMode(false); }, [subTab]);
@@ -77,23 +80,36 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         shiftHeld={shiftHeld}
         rightContent={
           <div className="flex items-center gap-2">
-            {subTab === 'script' && (
-              <Button
-                variant="subtle"
-                type="button"
-                active={cutMode}
-                aria-pressed={cutMode}
-                data-testid={TEST_IDS.scriptCutToggle}
-                onClick={() => setCutMode(v => !v)}
-                title="Cut tool — click the script to split a scene (⌥-click for options)"
-              >
-                <Scissors className="w-3.5 h-3.5" /> Cut
-              </Button>
-            )}
-            <Button variant="subtle" type="button" onClick={() => setSplitManagerOpen(true)} title="Manage split scenes">
-              Split Manager
-            </Button>
+            {/* Script controls portal in first so the script menu is leftmost. */}
             <div ref={el => { portalTargetRef.current = el; setPortalTarget(el); }} className="flex items-center gap-2" />
+            {subTab === 'script' && (
+              <DropdownMenu
+                open={cutMenuOpen}
+                onOpenChange={setCutMenuOpen}
+                theme="light"
+                width="w-56"
+                trigger={
+                  <Button variant="subtle" type="button" active={cutMode} aria-pressed={cutMode} data-testid={TEST_IDS.scriptCutToggle}>
+                    <Scissors className="w-3.5 h-3.5" /> Cut <ChevronDown className="w-3 h-3.5 text-zinc-400" />
+                  </Button>
+                }
+              >
+                <DropdownItem
+                  keepOpen
+                  icon={<Scissors className="w-3.5 h-3.5" />}
+                  trailing={cutMode ? <Check className="w-3 h-3" /> : undefined}
+                  onClick={() => setCutMode(v => !v)}
+                >
+                  Cut scenes
+                </DropdownItem>
+                <DropdownItem
+                  icon={<SplitSquareHorizontal className="w-3.5 h-3.5" />}
+                  onClick={() => { setCutMenuOpen(false); setSplitManagerOpen(true); }}
+                >
+                  Split Manager…
+                </DropdownItem>
+              </DropdownMenu>
+            )}
           </div>
         }
       />

@@ -106,11 +106,16 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
         </Section>
 
         <Section title="Script — Cut tool">
-          <Row keys={<><Kbd>✂</Kbd> Cut</>} action="Breakdown toolbar (Script tab): turn on the razor. The pointer becomes scissors and a cut bar snaps to the nearest paragraph — Esc exits" />
+          <Row keys={<><Kbd>✂</Kbd> Cut menu</>} action="Breakdown toolbar (Script tab): choose Cut scenes to turn on the razor — the pointer becomes scissors and a cut bar snaps to the nearest paragraph (Esc exits). Split Manager… lists split groups" />
           <Row keys={<>Click</>} action="Split the scene at the cut bar (one undo step; the new lettered scene lands in the boneyard)" />
           <Row keys={<><Kbd>⌥</Kbd> + Click</>} action="Open the cut dialog for a custom number / heading / move-tags" />
           <Row keys={<>iPad: drag the bar</>} action="Move the break up/down, then tap Cut (⋯ for the cut dialog)" />
           <Row keys={<>Hover a cut</>} action="Merge the two split scenes back together (one undo step)" />
+        </Section>
+
+        <Section title="Script — View & source">
+          <Row keys={<>Script menu</>} action="The screenplay name in the toolbar — click for Update script… and the format/scene count" />
+          <Row keys={<>View menu</>} action="Toggle Suggestions (wavy hints), the Eighths ruler, and Tags (all highlights)" />
         </Section>
 
         <Section title="Reports Designer (text blocks)">
