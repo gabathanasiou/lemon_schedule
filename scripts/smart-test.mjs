@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Smart E2E selector — runs only the Playwright specs your changes can touch.
 //
-//   npm run test:smart            # run affected specs (writes a Playwright --test-list file first)
+//   npm run test:smart            # run affected specs (passed to Playwright as file filters)
 //   npm run test:smart -- --list  # just print the selection, don't run
 //   SMART_BASE=origin/main npm run test:smart   # diff against a branch instead of HEAD
 //   npm run test:smart -- --full  # always run the entire suite
@@ -20,9 +20,8 @@
 // The rule map is a judgment call by nature — extend it as features grow. Never
 // second-guess the ALL entries; when in doubt, run the full suite.
 
-import { execSync } from 'node:child_process';
-import { writeFileSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { execSync, execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -288,8 +287,8 @@ function changedFiles() {
   return [...files].filter(isRelevant).sort();
 }
 
-function execInherit(cmd) {
-  try { execSync(cmd, { cwd: ROOT, stdio: 'inherit' }); process.exit(0); }
+function execInherit(bin, args) {
+  try { execFileSync(bin, args, { cwd: ROOT, stdio: 'inherit' }); process.exit(0); }
   catch (e) { process.exit(typeof e.status === 'number' ? e.status : 1); }
 }
 
@@ -300,13 +299,14 @@ function run(sel, listOnly) {
   }
   if (!sel) {
     console.log('running FULL suite');
-    execInherit('npx playwright test');
+    execInherit('npx', ['playwright', 'test']);
   }
-  const listFile = join(tmpdir(), `lemon-smart-test-${process.pid}.txt`);
-  writeFileSync(listFile, sel.join('\n') + '\n');
   console.log(`running ${sel.length} spec(s):`);
   console.log(sel.map(s => '  ' + s).join('\n'));
-  execInherit(`npx playwright test --test-list ${listFile}`);
+  // Spec paths as Playwright positional filters. NOT `--test-list`, which
+  // expects test IDs (`file:line:title`) and silently matches nothing for a
+  // bare `e2e/x.spec.ts` line — the selection used to run 0 tests.
+  execInherit('npx', ['playwright', 'test', ...sel]);
 }
 
 function main() {
