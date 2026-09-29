@@ -87,7 +87,7 @@ export const ElementPickerRow: React.FC<{
       {trailing}
 
       {onRemove && (
-        <button onClick={onRemove} className={removeBtnClass || 'text-zinc-600 hover:text-red-400 transition-colors p-0.5 shrink-0'}>
+        <button onClick={onRemove} aria-label="Remove linked element" className={removeBtnClass || 'text-zinc-600 hover:text-red-400 transition-colors p-0.5 shrink-0'}>
           {removeIcon || <X className="w-3 h-3" />}
         </button>
       )}

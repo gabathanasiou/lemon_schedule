@@ -17,7 +17,17 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   instances).
 - **Header portal pattern**: parent puts `<div ref>` in `rightContent`; child accepts `headerTarget`
   and `createPortal`s its controls there (fallback: inline). Used by ElementManager, SceneSheet,
-  GlideBreakdownTab, ColorsTab, RibbonTab.
+  GlideBreakdownTab, ColorsTab, RibbonTab, DayManagerPage/CallSheetEditPage.
+- **Merged-view switcher** (roadmap 177): sub-tabs that are two views of one surface (Crew
+  manager/Glide, Locations manager/Glide, Days Day Manager/Call Sheet) collapse to ONE sub-tab plus
+  a 2-segment icon control **pinned rightmost** in the `PageToolbar` — after the portaled controls,
+  so it never moves when the view changes. It is theme-aware (dark while the Call Sheet editor is
+  open); the view mode travels in the history place (roadmap 176). Recipe:
+  `docs/DESIGN-LANGUAGE.md` §Buttons + §Toolbar composition.
+- **Toolbar composition rule** (`docs/DESIGN-LANGUAGE.md` §Toolbar composition): order controls by
+  scope with shared controls in a fixed right slot, and divide groups with the shared
+  `ToolbarDivider` (`src/components/ToolbarDivider.tsx`; light `bg-zinc-200` / dark `bg-zinc-700`)
+  — never hand-write divider strings.
 - **Scene sheet view order** (`SceneSheet.tsx`): view-only pref `lemon_schedule_breakdown_order`
   (`sheet | sceneNumber | stripboard`, `usePersistState` — the object form `{order}`). A sorted COPY
   drives rendering/navigation — `project.scenes` is never reordered; the Sheet # column always shows
@@ -26,6 +36,26 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   (`lastReportedIndexRef`) so the App→prop feedback doesn't yoyo the position in non-sheet orders.
 - **Cloud coloring**: cloud projects switch light PageToolbars to `bg-blue-950` (active
   tabs/buttons); derive via `useIsCloudProject()`. Dark toolbars unaffected.
+
+## App Navigation (roadmap 176)
+
+- Tabs + sub-tabs are **places** with hash routes (`#/production/days`); every navigation pushes a
+  browser-history entry, so browser back/forward (keys, iPad swipe) and browser forward undo app
+  navigation. There is **no in-app back button** right now (user decision — browser buttons are the
+  affordance).
+- **Production → Days has a sub-sub level** (like a sub-sub tab): `#/production/days` = Day Manager,
+  `#/production/days/callsheet` = Call Sheet editor. The mode is App state (`prodDayMode`) passed to
+  `DayManagerPage` as `dayMode`/`onDayModeChange`; memory persists across tab switches and the
+  editor's Back button returns to the manager without stacking duplicate entries.
+- **One entry point**: `go(place)` in `App.tsx` (dedupe → `pushState`/`replaceState` → applies
+  tab/sub/target state). Never call `setActiveTab`/sub-tab setters directly for user navigation —
+  route through `go` (in-tab selections like a selected day/scene are NOT places). One-shot jump
+  targets (scene/day/sheet) travel in the history state, not the hash.
+- Pure model: `src/lib/appNav.ts` (`AppPlace`, `placeToHash`/`parsePlaceHash`, `placeLabel`, stack
+  helpers, unit-tested). The stack rides in `history.state` (`{ lemon, pid }`) so reload-restore
+  works; the route is adopted on project open and left untouched on the boot screen.
+- The element manager's unsaved guard (`requestUnsavedSave`) runs for browser back too (cancel =
+  discard, same contract as a tab click); pop-out windows never push main-window history.
 
 ## UI Primitives (use these, not raw HTML)
 

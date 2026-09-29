@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import ToolbarDivider from './ToolbarDivider';
 import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES, useIsCloudProject } from '../store';
 import { useDialog } from './Dialog';
@@ -16,7 +17,6 @@ import { setPendingTab } from '../lib/unsavedGuard';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
 import { MergeRowsModal } from './elements/MergeRowsModal';
 import { LinkManagerModal } from './elements/LinkManagerModal';
-import { PositionCategoriesModal } from './crew/PositionCategoriesModal';
 import { ElementCrewLinksModal } from './crew/ElementCrewLinksModal';
 import { ElementEventsModal } from './elements/ElementEventsModal';
 import { MT_INPUT, MT_HEADER, MT_CELL_SMALL, MT_ADD, useManagerTableSizes } from '../lib/managerTable';
@@ -90,7 +90,6 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const [newCatMultiValue, setNewCatMultiValue] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
-  const [showPositions, setShowPositions] = useState(false);
   const [eventsTarget, setEventsTarget] = useState<{ key: string; id: string; name: string } | null>(null);
   const [crewTarget, setCrewTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -441,10 +440,6 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         <Link2 className="w-3 h-3" />
         Links
       </Button>
-      <Button onClick={() => setShowPositions(true)} title="Crew positions that look after this category">
-        <Users className="w-3 h-3" />
-        Positions
-      </Button>
     </div>
   );
 
@@ -452,12 +447,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     <>
       {revertButton}
       {saveButton}
-      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
+      <ToolbarDivider />
       <Button onClick={() => setShowLinks(true)} disabled={readOnly}>
         <Link2 className="w-3 h-3" /> Links
-      </Button>
-      <Button onClick={() => setShowPositions(true)}>
-        <Users className="w-3 h-3" /> Positions
       </Button>
       <DropdownMenu open={showSortMenu} onOpenChange={setShowSortMenu} width="w-40" theme="light"
         trigger={
@@ -755,12 +747,6 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           <LinkManagerModal
             initialAnchorCategory={category}
             onClose={() => setShowLinks(false)}
-          />
-        )}
-        {showPositions && (
-          <PositionCategoriesModal
-            category={category}
-            onClose={() => setShowPositions(false)}
           />
         )}
         {eventsTarget && (

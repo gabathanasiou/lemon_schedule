@@ -58,7 +58,7 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
                 className="w-28"
               />
             </ValueRow>
-            <ValueRow label="First call">{day.firstCall || '—'}</ValueRow>
+            <ValueRow label="First turnover">{day.firstCall || '—'}</ValueRow>
             <ValueRow label="Est. wrap">{day.wrap || '—'}</ValueRow>
           </tbody>
         </table>

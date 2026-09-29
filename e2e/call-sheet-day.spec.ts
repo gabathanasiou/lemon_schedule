@@ -34,8 +34,9 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
       return Array.isArray(blocks) && blocks.length > 0;
     }, { timeout: 5000 }).toBe(true);
 
-    // Reset to template clears the override.
-    await page.getByRole('button', { name: /Reset to template/ }).click();
+    // Reset to template clears the override (Settings → Reset to template).
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Reset to template' }).click();
     await expect.poll(async () => (await readPinnedMeta(page, designId)) === null, { timeout: 5000 }).toBe(true);
   });
 

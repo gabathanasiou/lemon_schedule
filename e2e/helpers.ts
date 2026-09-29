@@ -364,10 +364,34 @@ export async function openDayManager(page: Page, mutate?: (project: any) => void
   await gotoDayManager(page);
 }
 
-/** Opens the full-surface call-sheet editor from the Day Manager header. */
+/** Reloads and waits for the last project to auto-open (roadmap 178). */
+export async function reloadProject(page: Page) {
+  await page.reload();
+  await expect(APP_BOOT_ANCHOR(page)).toBeVisible({ timeout: 10000 });
+}
+
+/** Opens the full-surface call-sheet editor via the toolbar view switcher. */
 export async function openCallSheetEdit(page: Page) {
-  await page.locator('[data-day-manager] header').getByRole('button', { name: /Call Sheet/ }).click();
+  await page.getByRole('button', { name: 'Call Sheet view' }).click();
   await expect(page.locator('[data-call-sheet-edit]')).toBeVisible({ timeout: 8000 });
+}
+
+/** Production → Crew with the Glide view active (toolbar segments, roadmap 177). */
+export async function openCrewGlide(page: Page) {
+  await page.getByRole('button', { name: 'Production', exact: true }).click();
+  await page.getByRole('button', { name: 'Crew', exact: true }).click();
+  const glide = page.getByRole('button', { name: 'Glide view' });
+  await glide.click();
+  await expect(glide).toHaveAttribute('aria-pressed', 'true', { timeout: 8000 });
+}
+
+/** Production → Locations with the Glide view active (toolbar segments, roadmap 177). */
+export async function openLocationsGlide(page: Page) {
+  await page.getByRole('button', { name: 'Production', exact: true }).click();
+  await page.getByRole('button', { name: 'Locations', exact: true }).click();
+  const glide = page.getByRole('button', { name: 'Glide view' });
+  await glide.click();
+  await expect(glide).toHaveAttribute('aria-pressed', 'true', { timeout: 8000 });
 }
 
 /** Expands a collapsible Day Manager section and returns it. */

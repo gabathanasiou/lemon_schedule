@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pencil, Printer, HelpCircle, Clock, FileText, Trash2, StickyNote, CalendarPlus, ChevronDown, Check, LayoutTemplate, Monitor, Table, Flag, Sunset, Loader2 } from 'lucide-react';
+import ToolbarDivider from '../ToolbarDivider';
+import { Pencil, Printer, HelpCircle, Clock, FileText, Trash2, StickyNote, CalendarPlus, ChevronDown, Check, LayoutTemplate, Monitor, Table, Flag, Sunset, Loader2, Eye } from 'lucide-react';
 import { useProject } from '../../store';
 import { useDialog } from '../Dialog';
 import { RibbonDesign } from '../../types';
@@ -142,15 +143,18 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
 
   const controls = (
     <>
-      <button
-        onClick={() => shootViolations.length > 0 && onShowViolations()}
-        className={`flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none ${shootViolations.length > 0 ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200'}`}
-        title="View All Violations"
-      >
-        <Flag className={`w-3.5 h-3.5 ${shootViolations.length > 0 ? 'text-red-500' : ''}`} />
-        {shootViolations.length > 0 && <span className="shrink-0">{shootViolations.length}</span>}
-      </button>
-      <div className="w-px h-4 bg-zinc-200" />
+      {shootViolations.length > 0 && (
+        <button
+          onClick={onShowViolations}
+          aria-label="View All Violations"
+          className="flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none bg-red-100 text-red-600 hover:bg-red-200"
+          title="View All Violations"
+        >
+          <Flag className="w-3.5 h-3.5 text-red-500" />
+          <span className="shrink-0">{shootViolations.length}</span>
+        </button>
+      )}
+      <ToolbarDivider />
       {selectionSummary && (
         <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -165,7 +169,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
           {bufferSummary.count} in buffer
         </span>
       )}
-      <div className="w-px h-4 bg-zinc-200" />
+      <ToolbarDivider />
       <DropdownMenu
         open={autoDaybreakOpen}
         onOpenChange={setAutoDaybreakOpen}
@@ -210,6 +214,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         onOpenChange={setSortMenuOpen}
         sortBy={sortState.sortBy}
         sortDir={sortState.sortDir}
+        compact
         lockedCriteria={sortState.lockedCriteria}
         onToggleLock={handleToggleLock}
         onSort={handleSort}
@@ -218,15 +223,15 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         intExtLabel={sortState.intExtSortLabel}
         dayNightLabel={sortState.dayNightSortLabel}
       />
-      <div className="w-px h-4 bg-zinc-200" />
+      <ToolbarDivider />
       <DropdownMenu
         open={ribbonMenuOpen}
         onOpenChange={setRibbonMenuOpen}
         width="w-48"
         theme="light"
           trigger={
-            <Button>
-              View
+            <Button title="View" aria-label="View">
+              <Eye className="w-3.5 h-3.5 shrink-0" />
               <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
             </Button>
         }
@@ -271,6 +276,8 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         cloud={isCloud}
         onClick={() => !readOnly && onToggleEdit()}
         disabled={readOnly}
+        title="Edit"
+        aria-label="Edit"
         className={textEditingEnabled ? 'bg-blue-600! hover:bg-blue-500!' : ''}
       >
         {isEditPending ? (
@@ -278,16 +285,14 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         ) : (
           <Pencil className="w-3.5 h-3.5 shrink-0" />
         )}
-        Edit
       </Button>
-      <div className="w-px h-4 bg-zinc-200" />
+      <ToolbarDivider />
       {onPrint && (
-        <Button variant="primary" cloud={isCloud} onClick={onPrint}>
+        <Button variant="primary" cloud={isCloud} onClick={onPrint} title="Print" aria-label="Print">
           <Printer className="w-3.5 h-3.5 shrink-0" />
-          Print
         </Button>
       )}
-      <div className="w-px h-4 bg-zinc-200" />
+      <ToolbarDivider />
       <button
         onClick={onShowHelp}
         className="flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer select-none"
@@ -295,7 +300,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       >
         <HelpCircle className="w-4 h-4" />
       </button>
-      <div className="w-px h-4 bg-zinc-200" />
+      <ToolbarDivider />
       {versionPicker}
     </>
   );

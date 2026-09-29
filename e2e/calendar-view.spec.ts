@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedTitle, waitForOverlaySettle, clickMenuText } from './helpers';
+import { openSeededProject, reloadProject, waitForOverlaySettle, clickMenuText } from './helpers';
 
 /** WebKit quirk: clicking a fixed kit-menu item over a deep-scrolled calendar
  *  grid can miss (Playwright's hit-test finds the grid underneath even though
@@ -51,9 +51,10 @@ test('calendar view: day cells expand by default; Expand Day Cells toggle restor
   await page.keyboard.press('Escape');
   await expect.poll(height).toBeGreaterThan(170);
 
-  await page.reload();
-  await page.getByText(seedTitle(), { exact: true }).first().click();
-  await page.getByRole('button', { name: 'Calendar' }).click();
+  await reloadProject(page);
+  // The route restores Calendar; scope to the header so the identical-named
+  // Calendar sub-tab can't make the locator ambiguous.
+  await page.locator('header').getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.getByRole('button', { name: 'View' }).click();
   await waitForOverlaySettle(page);
   await expect(page.getByText('Expand Day Cells', { exact: true })).toBeVisible();

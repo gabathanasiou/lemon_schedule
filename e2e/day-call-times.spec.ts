@@ -20,7 +20,8 @@ test.describe('Day call times + crew (roadmap 99)', () => {
 
   test('call-times settings modal — tabbed redesign, removable category defaults (roadmap 110)', async ({ page }) => {
     await openDayManager(page);
-    await page.getByTitle('Call-stage settings, category defaults and usual crew').click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Call Times' }).click();
 
     const modal = page.getByRole('dialog').last();
     await expect(modal).toBeVisible({ timeout: 5000 });

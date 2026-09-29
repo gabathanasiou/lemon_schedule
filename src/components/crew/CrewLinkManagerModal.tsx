@@ -374,8 +374,8 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Positions → element categories (roadmap 11, layer 1) — the same mapping the
- *  Element Manager's Positions modal edits; positions grouped by department. */
+/** Positions → element categories (roadmap 11, layer 1) — the one editor of
+ *  the mapping; positions grouped by department. */
 const PositionsTab: React.FC<{
   dispatch: (action: any) => void;
   readOnly: boolean;

@@ -1,4 +1,5 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
+import ToolbarDivider from './ToolbarDivider';
 import { createPortal } from 'react-dom';
 import DataEditor, {
   GridCellKind,
@@ -1031,7 +1032,7 @@ export function GlideBreakdownTab({
         </div>
       </DropdownMenu>
 
-      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
+      <ToolbarDivider />
       <ScriptPaneToggle open={scriptPane.open} onToggle={() => scriptPane.setOpen(!scriptPane.open)} />
     </div>
   );
@@ -1245,7 +1246,6 @@ export function GlideBreakdownTab({
       <SceneScriptPane
         sceneNumber={activeSceneNumber}
         open={scriptPane.open}
-        onClose={() => scriptPane.setOpen(false)}
         width={scriptPane.width}
         onWidthChange={scriptPane.setWidth}
       />

@@ -78,6 +78,7 @@ const RULES = [
   { g: 'src/store/**', s: 'ALL' },
   { g: 'src/lib/daybreakUtils.ts', s: 'ALL' },
   { g: 'src/lib/dayMeta.ts', s: 'ALL' },
+  { g: 'src/lib/appNav.ts', s: 'ALL' },
   { g: 'src/lib/containers.ts', s: 'ALL' },
   { g: 'src/lib/categories.ts', s: 'ALL' },
   { g: 'src/lib/projectCodec.ts', s: 'ALL' },

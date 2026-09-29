@@ -56,7 +56,7 @@ never re-derive their logic.
 - **Position → categories** (`CrewRole.categories`, resolve via `resolveRoleCategories` in
   `lib/crewCatalog.ts`; `undefined` = the catalog default, `[]` = none): makes crew rule-bearing —
   report scoping by the position's categories ("only crew in this day"); managed in Crew Manager →
-  Links → **Positions** + Element Manager → **Positions**.
+  Links → **Positions** (the Element Manager's Positions modal was removed — item 153).
 - **Person → element/crew** (`project.crewLinks`, `lib/crewLinks.ts`; reserved `category: 'crew'` =
   another person id): Crew Manager → Links → **People** + Element Manager per-element **Linked
   crew**; report fields crew `linkedElements`/`linkedCrew` and element `linkedCrew`; dangling-target

@@ -304,6 +304,8 @@ const VIOLATION_TYPE_FIELDS: ReportFieldDef[] = [
 const SUN_WEATHER_FIELDS: ReportFieldDef[] = [
   { key: 'sunrise', label: 'Sunrise', group: 'Sun & Weather', scope: 'locations', align: 'center', defaultWidth: 9, get: (ctx, it, aux) => sunWeatherFieldValue(ctx, it, aux, 'sunrise') },
   { key: 'sunset', label: 'Sunset', group: 'Sun & Weather', scope: 'locations', align: 'center', defaultWidth: 9, get: (ctx, it, aux) => sunWeatherFieldValue(ctx, it, aux, 'sunset') },
+  { key: 'tempHigh', label: 'High Temp', group: 'Sun & Weather', scope: 'locations', align: 'center', defaultWidth: 8, get: (ctx, it, aux) => sunWeatherFieldValue(ctx, it, aux, 'tempHigh') },
+  { key: 'tempLow', label: 'Low Temp', group: 'Sun & Weather', scope: 'locations', align: 'center', defaultWidth: 8, get: (ctx, it, aux) => sunWeatherFieldValue(ctx, it, aux, 'tempLow') },
   { key: 'weather', label: 'Weather', group: 'Sun & Weather', scope: 'locations', defaultWidth: 20, get: (ctx, it, aux) => sunWeatherFieldValue(ctx, it, aux, 'weather') },
 ];
 

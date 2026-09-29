@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import ToolbarDivider from './ToolbarDivider';
 import { createPortal } from 'react-dom';
 import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store';
 import { Scene } from '../types';
@@ -240,6 +241,20 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     onIndexChange?.(idx);
   }, [orderedScenes.length, onIndexChange, commitTextEdits]);
 
+  // A scene inserted by New/Duplicate is revealed once it lands in the view
+  // order — `orderedScenes` in the dispatch render is still the old list, so
+  // resolving the position here (not in the click handler) keeps every order
+  // mode correct.
+  const pendingRevealRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingRevealRef.current;
+    if (!id) return;
+    const idx = orderedScenes.findIndex(s => s.id === id);
+    if (idx < 0) return;
+    pendingRevealRef.current = null;
+    goTo(idx);
+  }, [orderedScenes, goTo]);
+
   const update = useCallback((field: string, value: any) => {
     if (!scene || readOnly) return;
     setEdits(prev => {
@@ -257,6 +272,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const createNewScene = useCallback(() => {
     commitTextEdits();
     const newId = generateUUID();
+    pendingRevealRef.current = newId;
     dispatch({
       type: 'ADD_SCENE',
       payload: {
@@ -288,25 +304,16 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         artDept: '',
       }
     });
-    const newIdx = Math.max(0, orderedScenes.findIndex(s => s.id === newId));
-    setIndex(newIdx);
-    setSheetInput(String(newIdx + 1));
-    lastReportedIndexRef.current = newIdx;
-    onIndexChange?.(newIdx);
-  }, [orderedScenes, onIndexChange, commitTextEdits, dispatch]);
+  }, [commitTextEdits, dispatch]);
 
   const duplicateScene = useCallback(() => {
     if (!scene) return;
     commitTextEdits();
     requestSceneDuplicate({ scene, onConfirm: (dup) => {
+      pendingRevealRef.current = dup.id;
       dispatch({ type: 'INSERT_SCENE_AT', payload: { index: scenes.indexOf(scene) + 1, scene: dup } });
-      const newIdx = Math.max(0, orderedScenes.findIndex(s => s.id === dup.id));
-      setIndex(newIdx);
-      setSheetInput(String(newIdx + 1));
-      lastReportedIndexRef.current = newIdx;
-      onIndexChange?.(newIdx);
     } });
-  }, [scene, scenes, orderedScenes, dispatch, onIndexChange, commitTextEdits, requestSceneDuplicate]);
+  }, [scene, scenes, dispatch, commitTextEdits, requestSceneDuplicate]);
 
   const deleteCurrentScene = useCallback(() => {
     if (!scene) return;
@@ -407,19 +414,16 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           )}
         </div>
         <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
-        <div className="w-px h-5 bg-zinc-200 mx-1" />
-        <Button onClick={createNewScene} disabled={readOnly} title="New Scene Sheet">
+        <ToolbarDivider />
+        <Button onClick={createNewScene} disabled={readOnly} title="New Scene Sheet" aria-label="New">
           <Plus className="w-3.5 h-3.5" />
-          New
         </Button>
-        <Button onClick={duplicateScene} disabled={readOnly} title="Duplicate Scene Sheet">
+        <Button onClick={duplicateScene} disabled={readOnly} title="Duplicate Scene Sheet" aria-label="Duplicate">
           <Copy className="w-3.5 h-3.5" />
-          Duplicate
         </Button>
       </div>
-      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={readOnly} title="Delete Scene Sheet">
+      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={readOnly} title="Delete Scene Sheet" aria-label="Delete">
         <Trash2 className="w-3.5 h-3.5" />
-        Delete
       </Button>
     </div>
   ) : null;
@@ -449,23 +453,23 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           </DropdownItem>
         ))}
       </DropdownMenu>
-      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
+      <ToolbarDivider />
       <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-500" /></button>
       <span className="text-[11px] text-zinc-500">Sheet</span>
       <input type="text" aria-label="Sheet number" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-10 text-center border border-zinc-200 rounded px-1 py-0.5 text-[11px] font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
       <span className="text-[11px] text-zinc-500">of {scenes.length}</span>
       <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-500" /></button>
-      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
-      <Button variant="primary" cloud={isCloud} onClick={createNewScene} disabled={readOnly}>
-        <Plus className="w-3 h-3" /> New
+      <ToolbarDivider />
+      <Button variant="primary" cloud={isCloud} onClick={createNewScene} disabled={readOnly} title="New Scene Sheet" aria-label="New">
+        <Plus className="w-3 h-3" />
       </Button>
-      <Button onClick={duplicateScene} disabled={readOnly}>
-        <Copy className="w-3 h-3" /> Duplicate
+      <Button onClick={duplicateScene} disabled={readOnly} title="Duplicate Scene Sheet" aria-label="Duplicate">
+        <Copy className="w-3 h-3" />
       </Button>
-      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={readOnly}>
-        <Trash2 className="w-3 h-3" /> Delete
+      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={readOnly} title="Delete Scene Sheet" aria-label="Delete">
+        <Trash2 className="w-3 h-3" />
       </Button>
-      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
+      <ToolbarDivider />
       <ScriptPaneToggle open={scriptPane.open} onToggle={() => scriptPane.setOpen(!scriptPane.open)} />
     </>
   ) : null;
@@ -527,7 +531,6 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       <SceneScriptPane
         sceneNumber={scene?.sceneNumber}
         open={scriptPane.open}
-        onClose={() => scriptPane.setOpen(false)}
         width={scriptPane.width}
         onWidthChange={scriptPane.setWidth}
       />

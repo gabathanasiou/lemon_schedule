@@ -295,6 +295,11 @@ export async function prepareSunWeatherForDesign(project: Project, version: Sche
   await prepareSunWeatherForCtx(ctx, design);
 }
 
+/** "24°C" — em dash when the API returned no temperature. */
+export function formatTempC(value: number | null): string {
+  return value == null ? '—' : `${Math.round(value)}°C`;
+}
+
 /** Field get(): sun/weather for the resolved location on the in-scope day —
  *  a day item uses its own date; a location item uses the nearest day
  *  ancestor's date. Empty when no day is in scope or the data isn't cached
@@ -303,7 +308,7 @@ export function sunWeatherFieldValue(
   ctx: ReportCtx,
   item: any,
   aux: { dayDate?: string; locationChoice?: string } | undefined,
-  kind: 'sunrise' | 'sunset' | 'weather',
+  kind: 'sunrise' | 'sunset' | 'weather' | 'tempHigh' | 'tempLow',
 ): string {
   const date = aux?.dayDate || (item?.date as string | undefined);
   if (!date) return '—';
@@ -312,5 +317,7 @@ export function sunWeatherFieldValue(
   const w = getCachedSunWeather(loc, date);
   if (!w) return '—';
   if (kind === 'weather') return formatWeatherValue(w);
+  if (kind === 'tempHigh') return formatTempC(w.tempMax);
+  if (kind === 'tempLow') return formatTempC(w.tempMin);
   return w[kind];
 }

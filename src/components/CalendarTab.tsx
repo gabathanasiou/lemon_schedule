@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import ToolbarDivider from './ToolbarDivider';
 import { DndContext, useDraggable, DragOverlay, closestCorners, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus, Eye } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -981,6 +982,7 @@ export const CalendarTab: React.FC<{
                   <CalendarDays className="w-3.5 h-3.5" />
                   Production Dates
                 </Button>
+                <ToolbarDivider />
                 <div className="flex border border-zinc-200 rounded p-0.5">
                   {(['strips', 'events'] as const).map(m => (
                     <button
@@ -993,6 +995,7 @@ export const CalendarTab: React.FC<{
                     </button>
                   ))}
                 </div>
+                <ToolbarDivider />
                 <DropdownMenu
                   open={filterMenuOpen}
                   onOpenChange={setFilterMenuOpen}
@@ -1070,8 +1073,8 @@ export const CalendarTab: React.FC<{
                   width="w-48"
                   theme="light"
                   trigger={
-                    <Button>
-                      View
+                    <Button title="View" aria-label="View">
+                      <Eye className="w-3.5 h-3.5 shrink-0" />
                       <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
                     </Button>
                   }

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, nameCell } from './helpers';
+import { openSeededProject, nameCell, openLocationsGlide } from './helpers';
 
 type AnyPage = any;
 
@@ -55,7 +55,7 @@ test.describe('Locations', () => {
     await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(4);
 
     // ---- Glide ----
-    await page.getByRole('button', { name: 'Locations Glide', exact: true }).click();
+    await openLocationsGlide(page);
         await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Info' })).toBeVisible();
 
@@ -125,7 +125,7 @@ test.describe('Locations', () => {
     await expect(page.getByText('Types', { exact: true })).toBeVisible();
 
     // ---- CSV export from the glide ----
-    await page.getByRole('button', { name: 'Locations Glide', exact: true }).click();
+    await openLocationsGlide(page);
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Edit' }).click();
     await page.getByRole('menuitem', { name: 'Export Locations to CSV' }).click();

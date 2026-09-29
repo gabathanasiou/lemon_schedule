@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, reloadProject } from './helpers';
 
 test.describe('Seeded Project Smoke Tests', () => {
   test.describe.configure({ mode: 'serial' });
@@ -168,4 +168,38 @@ test.describe('Stripboard Keyboard', () => {
   // No crash, stripboard still renders
   await expect(page.locator('[data-row-id]').first()).toBeAttached({ timeout: 3000 });
 });
+});
+
+test.describe('App Navigation (roadmap 176)', () => {
+  test('tabs, sub-tabs and the Days mode push history; browser back/forward + reload restore', async ({ page }) => {
+    await openSeededProject(page);
+    await expect(page).toHaveURL(/#\/breakdown\/glide$/);
+
+    // Tab + sub-tab navigation are history places.
+    await page.getByRole('button', { name: 'Calendar', exact: true }).click();
+    await expect(page).toHaveURL(/#\/calendar\/calendar$/);
+    await page.getByRole('button', { name: 'Day Types' }).click();
+    await expect(page).toHaveURL(/#\/calendar\/dayTypes$/);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/#\/calendar\/calendar$/);
+    await page.goForward();
+    await expect(page).toHaveURL(/#\/calendar\/dayTypes$/);
+
+    // Production → Days: Day Manager and the Call Sheet editor are separate places.
+    await page.getByRole('button', { name: 'Production', exact: true }).click();
+    await expect(page).toHaveURL(/#\/production\/days$/);
+    await page.getByRole('button', { name: 'Call Sheet view' }).click();
+    await expect(page.locator('[data-call-sheet-edit]')).toBeVisible();
+    await expect(page).toHaveURL(/#\/production\/days\/callsheet$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/#\/production\/days$/);
+    await page.goForward();
+    await expect(page).toHaveURL(/#\/production\/days\/callsheet$/);
+
+    // Reload auto-opens the last project and restores the route (roadmap 178).
+    await reloadProject(page);
+    await expect(page.locator('[data-call-sheet-edit]')).toBeVisible();
+    await expect(page).toHaveURL(/#\/production\/days\/callsheet$/);
+  });
 });

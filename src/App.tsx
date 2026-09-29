@@ -73,7 +73,7 @@ import { IS_COARSE, pickerAccept } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
 import AppHeader, { AppTabId } from './components/AppHeader';
-import ProductionTab, { ProductionSubTab } from './components/ProductionTab';
+import ProductionTab, { ProductionSubTab, ProdViews } from './components/ProductionTab';
 import ReportDesigner from './components/reports/ReportDesigner';
 import { useDaybreakSections } from './lib/useDaybreakSections';
 import { ReportBlock, ReportDesign } from './types';
@@ -84,9 +84,9 @@ import OfflineStatus from './components/OfflineStatus';
 import { PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar } from './components/popout/PopoutFrames';
 import { DayTypesTab } from './components/calendar/DayTypesTab';
 import { requestUnsavedSave } from './lib/unsavedGuard';
+import { AppPlace, NavStack, initStack, pushPlace, currentPlace, previousPlace, isNavStack, parsePlaceHash, placeToHash, samePlace } from './lib/appNav';
 import { NewCastNamingProvider } from './lib/newCastNaming';
 import { SceneDuplicateProvider } from './lib/sceneDuplicate';
-import { SceneScriptPreviewProvider } from './components/script/SceneScriptPreview';
 
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity, activeCalendarVersion } = useProject();
@@ -101,6 +101,7 @@ function AppContent() {
   const [calendarSubTab, setCalendarSubTab] = useState<'calendar' | 'dayTypes'>('calendar');
   const [reportsCategory, setReportsCategory] = useState('cast');
   const [prodSubTab, setProdSubTab] = useState<ProductionSubTab>('days');
+  const [prodViews, setProdViews] = useState<ProdViews>({ days: 'manager', crew: 'manager', locations: 'manager' });
   const [prodCrewRole, setProdCrewRole] = useState<string | null>(null);
   const [prodLocationType, setProdLocationType] = useState<string | null>(null);
   const [dayManagerTarget, setDayManagerTarget] = useState<number | null>(null);
@@ -141,12 +142,128 @@ function AppContent() {
     popoutWindowsRef.current.delete(tabId);
   };
 
+  // ---- App navigation history (roadmap 176) --------------------------------
+  // Tabs/sub-tabs are addressable places with hash routes (#/production/days);
+  // every navigation is pushed onto the browser history so back/forward (keys,
+  // iPad swipe) undo app navigation. Production → Days has a sub-sub level:
+  // the Day Manager and the Call Sheet editor are separate places
+  // (#/production/days/callsheet) with memory.
+  const navRef = useRef<NavStack>(initStack({ tab: 'breakdown', sub: 'glide' }));
+
+  const applyPlace = useCallback((place: AppPlace) => {
+    setActiveTab(place.tab);
+    if (place.sub !== undefined) {
+      switch (place.tab) {
+        case 'breakdown': setBrSubTab(place.sub as 'elements' | 'sheet' | 'glide' | 'script'); break;
+        case 'calendar': setCalendarSubTab(place.sub as 'calendar' | 'dayTypes'); break;
+        case 'design': setDesignSubTab(place.sub as 'colors' | 'ribbons' | 'designer'); break;
+        case 'reports': setReportsSubTab(place.sub as 'doods' | 'elementBreakdown'); break;
+        case 'production': setProdSubTab(place.sub as ProductionSubTab); break;
+      }
+    }
+    if (place.tab === 'production') {
+      if (place.sub === 'days') setProdViews(p => ({ ...p, days: place.mode === 'callsheet' ? 'callsheet' : 'manager' }));
+      else if (place.sub === 'crew') setProdViews(p => ({ ...p, crew: place.mode === 'glide' ? 'glide' : 'manager' }));
+      else if (place.sub === 'locations') setProdViews(p => ({ ...p, locations: place.mode === 'glide' ? 'glide' : 'manager' }));
+    }
+    if (place.tab === 'schedule' && place.sceneId !== undefined) setScheduleTargetScene(place.sceneId);
+    if (place.tab === 'breakdown' && place.sheetIndex !== undefined) setBrSheetIdx(place.sheetIndex);
+    if (place.tab === 'production' && place.daySection !== undefined) setDayManagerTarget(place.daySection);
+  }, []);
+
+  /** Writes the history entry — push for a new place, replace when only the
+   *  current entry's one-shot target changed (re-clicking the active tab). */
+  const writeEntry = useCallback((nav: NavStack, replace: boolean) => {
+    const state = { lemon: nav, pid: currentProjectId };
+    const url = `#/${placeToHash(currentPlace(nav))}`;
+    if (replace) window.history.replaceState(state, '', url);
+    else window.history.pushState(state, '', url);
+  }, [currentProjectId]);
+
+  /** The one navigation entry point: dedupe, record history, apply the place. */
+  const go = useCallback((place: AppPlace) => {
+    const prev = navRef.current;
+    const same = samePlace(currentPlace(prev), place);
+    const next = pushPlace(prev, place);
+    navRef.current = next;
+    writeEntry(next, same);
+    applyPlace(place);
+  }, [applyPlace, writeEntry]);
+
+  /** Production sub-sub views (Days Manager/Call Sheet, Crew/Locations
+   *  manager/Glide). Leaving a non-default view goes BACK when the previous
+   *  entry is the manager (so the toggle doesn't stack duplicate entries). */
+  const goProdView = useCallback((sub: 'days' | 'crew' | 'locations', mode: string) => {
+    if (mode === 'manager') {
+      const prev = previousPlace(navRef.current);
+      if (prev && prev.tab === 'production' && prev.sub === sub && (prev.mode ?? 'manager') === 'manager') {
+        window.history.back();
+        return;
+      }
+    }
+    go({ tab: 'production', sub, mode });
+  }, [go]);
+
+  const currentSubOf = useCallback((tab: AppTabId): string | undefined => {
+    switch (tab) {
+      case 'breakdown': return brSubTab;
+      case 'calendar': return calendarSubTab;
+      case 'design': return designSubTab;
+      case 'reports': return reportsSubTab;
+      case 'production': return prodSubTab;
+      default: return undefined;
+    }
+  }, [brSubTab, calendarSubTab, designSubTab, reportsSubTab, prodSubTab]);
+
+  const goBrSubTab = useCallback((sub: string) => go({ tab: 'breakdown', sub }), [go]);
+  const goCalSubTab = useCallback((sub: string) => go({ tab: 'calendar', sub }), [go]);
+  const goDesignSubTab = useCallback((sub: string) => go({ tab: 'design', sub }), [go]);
+  const goReportsSubTab = useCallback((sub: string) => go({ tab: 'reports', sub }), [go]);
+  const goProdSubTab = useCallback((sub: string) => go({ tab: 'production', sub }), [go]);
+
+  // Browser back/forward: apply the incoming entry through the unsaved guard
+  // (which prompts AND proceeds — cancel means discard, the same as a tab
+  // click), without re-pushing.
+  useEffect(() => {
+    const onPopState = (e: PopStateEvent) => {
+      const incoming = (e.state as { lemon?: unknown } | null)?.lemon;
+      if (!isNavStack(incoming)) return;
+      void requestUnsavedSave(dialog, () => {
+        navRef.current = incoming;
+        applyPlace(currentPlace(incoming));
+      });
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [dialog, applyPlace]);
+
+  // Seed the history entry when a project opens — adopting the reloaded stack
+  // for the same project. The boot screen leaves the route untouched so it can
+  // be adopted once the user opens a project.
+  useEffect(() => {
+    if (currentProjectId === null) return;
+    const persistedState = window.history.state as { lemon?: unknown; pid?: string } | null;
+    const persistedStack = isNavStack(persistedState?.lemon) ? persistedState.lemon : null;
+    const adopt = !!persistedStack && persistedState?.pid === currentProjectId;
+    const fallback: AppPlace = { tab: 'breakdown', sub: 'glide' };
+    const base = adopt
+      ? currentPlace(persistedStack!)
+      : (persistedStack ? fallback : (parsePlaceHash(window.location.hash) ?? fallback));
+    const nav = adopt ? persistedStack! : initStack(base);
+    navRef.current = nav;
+    applyPlace(base);
+    window.history.replaceState({ lemon: nav, pid: currentProjectId }, '', `#/${placeToHash(base)}`);
+  }, [currentProjectId, applyPlace]);
+
   // Tab actions consult the element manager's unsaved-changes guard first:
   // the prompt (and any merge confirmation from the save) happens while the
   // element manager is still mounted, before the switch/popout.
   const requestTabSwitch = useCallback((tab: AppTabId) => {
-    void requestUnsavedSave(dialog, () => setActiveTab(tab));
-  }, [dialog, setActiveTab]);
+    const sub = currentSubOf(tab);
+    const place: AppPlace = { tab, sub };
+    if (tab === 'production' && (sub === 'days' || sub === 'crew' || sub === 'locations')) place.mode = prodViews[sub];
+    void requestUnsavedSave(dialog, () => go(place));
+  }, [dialog, go, currentSubOf, prodViews]);
 
   const requestTabPopout = useCallback((tab: AppTabId) => {
     void requestUnsavedSave(dialog, () => togglePopout(tab));
@@ -195,28 +312,29 @@ function AppContent() {
   const handleOpenSheet = useCallback((rowIndex: number) => {
     setBrSubTab('sheet');
     setBrSheetIdx(rowIndex);
-    if (!poppedOutTabs.has('breakdown')) setActiveTab('breakdown');
-  }, [poppedOutTabs]);
+    if (!poppedOutTabs.has('breakdown')) go({ tab: 'breakdown', sub: 'sheet', sheetIndex: rowIndex });
+  }, [poppedOutTabs, go]);
 
   const handleOpenScene = useCallback((sceneId: string) => {
     const idx = state.present.scenes.findIndex(s => s.id === sceneId);
     if (idx >= 0) {
       setBrSubTab('sheet');
       setBrSheetIdx(idx);
-      if (!poppedOutTabs.has('breakdown')) setActiveTab('breakdown');
+      if (!poppedOutTabs.has('breakdown')) go({ tab: 'breakdown', sub: 'sheet', sheetIndex: idx });
     }
-  }, [state.present.scenes, poppedOutTabs]);
+  }, [state.present.scenes, poppedOutTabs, go]);
 
   const handleOpenScheduleAtScene = useCallback((sceneId: string) => {
     setScheduleTargetScene(sceneId);
-    if (!poppedOutTabs.has('schedule')) setActiveTab('schedule');
-  }, [poppedOutTabs]);
+    if (!poppedOutTabs.has('schedule')) go({ tab: 'schedule', sceneId });
+  }, [poppedOutTabs, go]);
 
   const handleOpenDayManager = useCallback((sectionIndex: number) => {
     setDayManagerTarget(sectionIndex);
     setProdSubTab('days');
-    if (!poppedOutTabs.has('production')) setActiveTab('production');
-  }, [poppedOutTabs]);
+    setProdViews(p => ({ ...p, days: 'manager' }));
+    if (!poppedOutTabs.has('production')) go({ tab: 'production', sub: 'days', mode: 'manager', daySection: sectionIndex });
+  }, [poppedOutTabs, go]);
 
   const [poppedOutDays, setPoppedOutDays] = useState<Set<number>>(new Set());
   const popoutDayWindowsRef = useRef<Map<number, Window>>(new Map());
@@ -302,7 +420,7 @@ function AppContent() {
         const nextTab = ['doods', 'elementBreakdown'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setReportsSubTab(nextTab as any);
       } else if (parentId === 'production' && prodSubTab === subTabId) {
-        const nextTab = ['days', 'crew', 'crewGlide', 'locations'].find(t => t !== subTabId && !newSet.has(t));
+        const nextTab = ['days', 'crew', 'locations'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setProdSubTab(nextTab as any);
       } else if (parentId === 'calendar' && calendarSubTab === subTabId) {
         const nextTab = ['calendar', 'dayTypes'].find(t => t !== subTabId && !newSet.has(t));
@@ -947,22 +1065,12 @@ function AppContent() {
 
       {poppedOutSubTabs.production?.has('crew') && popoutSubWindowsRef.current.get('sub_production_crew') && (
         <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Crew`} win={popoutSubWindowsRef.current.get('sub_production_crew')!} onClose={() => closeSubPopout('production', 'crew')} tabName="Production" subTabId="crew" tabLabel="Crew" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_production_crew']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_production_crew: el }))}>
-          <ProductionTab subTab="crew" onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} headerTarget={subHeaderTargets['sub_production_crew']} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} />
-        </SubTabPopoutFrame>
-      )}
-      {poppedOutSubTabs.production?.has('crewGlide') && popoutSubWindowsRef.current.get('sub_production_crewGlide') && (
-        <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Crew Glide`} win={popoutSubWindowsRef.current.get('sub_production_crewGlide')!} onClose={() => closeSubPopout('production', 'crewGlide')} tabName="Production" subTabId="crewGlide" tabLabel="Crew Glide" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_production_crewGlide']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_production_crewGlide: el }))}>
-          <ProductionTab subTab="crewGlide" onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} headerTarget={subHeaderTargets['sub_production_crewGlide']} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} />
+          <ProductionTab subTab="crew" onSubTabChange={goProdSubTab} views={prodViews} onViewChange={goProdView} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} headerTarget={subHeaderTargets['sub_production_crew']} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} />
         </SubTabPopoutFrame>
       )}
       {poppedOutSubTabs.production?.has('locations') && popoutSubWindowsRef.current.get('sub_production_locations') && (
         <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Locations`} win={popoutSubWindowsRef.current.get('sub_production_locations')!} onClose={() => closeSubPopout('production', 'locations')} tabName="Production" subTabId="locations" tabLabel="Locations" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_production_locations']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_production_locations: el }))}>
-          <ProductionTab subTab="locations" onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} headerTarget={subHeaderTargets['sub_production_locations']} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} />
-        </SubTabPopoutFrame>
-      )}
-      {poppedOutSubTabs.production?.has('locationsGlide') && popoutSubWindowsRef.current.get('sub_production_locationsGlide') && (
-        <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Locations Glide`} win={popoutSubWindowsRef.current.get('sub_production_locationsGlide')!} onClose={() => closeSubPopout('production', 'locationsGlide')} tabName="Production" subTabId="locationsGlide" tabLabel="Locations Glide" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_production_locationsGlide']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_production_locationsGlide: el }))}>
-          <ProductionTab subTab="locationsGlide" onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} headerTarget={subHeaderTargets['sub_production_locationsGlide']} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} />
+          <ProductionTab subTab="locations" onSubTabChange={goProdSubTab} views={prodViews} onViewChange={goProdView} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} headerTarget={subHeaderTargets['sub_production_locations']} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} />
         </SubTabPopoutFrame>
       )}
       {Array.from(poppedOutDays).map(idx => {
@@ -994,7 +1102,7 @@ function AppContent() {
         {poppedOutTabs.has(activeTab) ? (
           <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
         ) : (
-          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} onUpdateScript={() => updateScriptFileRef.current?.click()} onCutScene={handleCutScene} shiftHeld={shiftHeld} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> :           activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} subTab={calendarSubTab} onSubTabChange={setCalendarSubTab} poppedOutSubTabs={poppedOutSubTabs.calendar || new Set()} onToggleSubPopout={(id) => toggleSubPopout('calendar', id)} onCloseSubPopout={(id) => closeSubPopout('calendar', id)} shiftHeld={shiftHeld} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} onReportPrint={(design) => setCustomReportPrint(design)} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> : activeTab === 'production' ? <ProductionTab subTab={prodSubTab} onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} shiftHeld={shiftHeld} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} dayTarget={dayManagerTarget} onDayTargetSeen={() => setDayManagerTarget(null)} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} /> : <RulesTab />
+          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={goBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} onUpdateScript={() => updateScriptFileRef.current?.click()} onCutScene={handleCutScene} shiftHeld={shiftHeld} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> :           activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} subTab={calendarSubTab} onSubTabChange={goCalSubTab} poppedOutSubTabs={poppedOutSubTabs.calendar || new Set()} onToggleSubPopout={(id) => toggleSubPopout('calendar', id)} onCloseSubPopout={(id) => closeSubPopout('calendar', id)} shiftHeld={shiftHeld} /> :           activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={goDesignSubTab} onReportPrint={(design) => setCustomReportPrint(design)} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> :           activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={goReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> :           activeTab === 'production' ? <ProductionTab subTab={prodSubTab} onSubTabChange={goProdSubTab} views={prodViews} onViewChange={goProdView} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} shiftHeld={shiftHeld} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} dayTarget={dayManagerTarget} onDayTargetSeen={() => setDayManagerTarget(null)} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} /> : <RulesTab />
         )}
       </main>
 
@@ -1068,9 +1176,7 @@ export default function App() {
     <ProjectProvider>
       <NewCastNamingProvider>
         <SceneDuplicateProvider>
-          <SceneScriptPreviewProvider>
-            <AppContent />
-          </SceneScriptPreviewProvider>
+          <AppContent />
         </SceneDuplicateProvider>
       </NewCastNamingProvider>
     </ProjectProvider>

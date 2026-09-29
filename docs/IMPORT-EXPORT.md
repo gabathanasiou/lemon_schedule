@@ -193,8 +193,7 @@ Status: read this before touching any import/export work.
   sub-tab** (`src/components/ScriptView.tsx`) reads the whole body with
   scene-linked navigation into Sheet/Schedule, and the portable
   `SceneScriptPane` (`src/components/script/SceneScriptPane.tsx`) previews one
-  scene on the right of Sheet / Glide, plus a **hover preview**
-  (`SceneScriptPreviewProvider`, roadmap 123 Phase 3; e.g. Calendar scene cards).
+  scene on the right of Sheet / Glide.
   All render through the shared `ScriptSceneText` — never a second screenplay
   renderer. The
   sub-tab lists scenes in **screenplay order** — the retained
@@ -213,7 +212,7 @@ Status: read this before touching any import/export work.
   (`DELETE_SCENE`, restorable — rows removed in every version); both default to
   keep, and one `BATCH_START`/`BATCH_COMMIT` makes the whole accept one undo step
   (`src/lib/import/commitScriptDiff.ts`).
-- Highlight-to-tag / hover preview / cuts are **123 Phases 2–3** + **132** — not
+- Highlight-to-tag / cuts are **123 Phases 2–3** + **132** — not
   this section (item 38's body-aware diff + conflict review is done).
 
 ## New-project import parity (roadmap 126)

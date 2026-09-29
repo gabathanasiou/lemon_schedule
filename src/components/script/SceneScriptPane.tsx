@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { PanelRight, X } from 'lucide-react';
+import { PanelRight } from 'lucide-react';
 import { useProject, useIsCloudProject } from '../../store';
 import { ScriptSceneText } from './ScriptSceneScript';
 import { ScriptTagOverlay, useScriptTagging } from './ScriptTagging';
@@ -59,10 +59,9 @@ export function ScriptPaneToggle({ open, onToggle }: { open: boolean; onToggle: 
   );
 }
 
-export function SceneScriptPane({ sceneNumber, open, onClose, width, onWidthChange }: {
+export function SceneScriptPane({ sceneNumber, open, width, onWidthChange }: {
   sceneNumber?: string;
   open: boolean;
-  onClose: () => void;
   width: number;
   onWidthChange: (w: number) => void;
 }) {
@@ -113,15 +112,6 @@ export function SceneScriptPane({ sceneNumber, open, onClose, width, onWidthChan
           <span className="truncate font-mono text-xs font-semibold text-zinc-700">
             {sceneNumber || '—'}{heading ? `  ${heading}` : ''}
           </span>
-          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-zinc-400">Preview</span>
-          <button
-            type="button"
-            onClick={onClose}
-            title="Hide script pane"
-            className="ml-auto rounded p-1 text-zinc-500 hover:bg-zinc-100"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
         </div>
         <div
           ref={bodyRef}

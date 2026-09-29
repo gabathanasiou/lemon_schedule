@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, nameCell } from './helpers';
+import { openSeededProject, nameCell, openCrewGlide } from './helpers';
 
 type AnyPage = any;
 
@@ -32,7 +32,7 @@ test.describe('Crew Glide', () => {
     await expect.poll(() => memberCount(page)).toBe(0);
 
     await page.getByRole('button', { name: 'Production', exact: true }).click();
-    await page.getByRole('button', { name: 'Crew Glide', exact: true }).click();
+    await openCrewGlide(page);
 
     const isCoarse = () => page.evaluate(() => window.matchMedia('(pointer: coarse)').matches);
     test.skip(await isCoarse(), 'range-fill drag is a desktop (mouse) interaction');
@@ -96,8 +96,7 @@ test.describe('Crew Glide', () => {
     });
     await expect.poll(() => memberCount(page)).toBe(0);
 
-    await page.getByRole('button', { name: 'Production', exact: true }).click();
-        await page.getByRole('button', { name: 'Crew Glide', exact: true }).click();
+    await openCrewGlide(page);
     
     await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Info' })).toBeVisible();
@@ -197,7 +196,7 @@ test.describe('Crew Glide', () => {
     await expect(nameCell(page, 'Alice Smith')).toBeVisible();
 
     // --- Back to the glide: CSV export ---
-    await page.getByRole('button', { name: 'Crew Glide', exact: true }).click();
+    await openCrewGlide(page);
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Edit' }).click();
     await page.getByRole('menuitem', { name: 'Export Crew to CSV' }).click();

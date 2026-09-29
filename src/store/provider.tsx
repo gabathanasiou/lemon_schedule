@@ -18,6 +18,9 @@ import {
   loadProjectFromStorage,
   setPendingLegacyMigrationNotice,
   consumePendingLegacyMigrationNotice,
+  rememberLastProject,
+  readLastProject,
+  clearLastProject,
 } from './storage';
 import { Action, State, reducer, makeBlankProject } from './reducer';
 import { installAgentBridge, notifyAgentBridge } from '../lib/debugBridge';
@@ -622,8 +625,32 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [flushCurrentProject, auth.accessToken, projectList]);
 
-  const deleteProject = useCallback(async (id: string, cloudDriveFileId?: string) => {
-    const meta = projectList.find(p => p.id === id);
+  // Remember the last successfully-opened project (roadmap 178) so a refresh
+  // can auto-open it within the TTL — local and cloud alike.
+  useEffect(() => {
+    if (!currentProjectId) return;
+    const meta = projectList.find(p => p.id === currentProjectId);
+    rememberLastProject(currentProjectId, meta?.driveFileId ?? driveFileIdRef.current);
+  }, [currentProjectId, projectList]);
+
+  // Boot auto-open (once per app load): the last project when it was loaded in
+  // the past hour. Cloud projects wait for the silent GIS session restore.
+  const autoOpenTriedRef = useRef(false);
+  useEffect(() => {
+    if (!initialized || currentProjectId || autoOpenTriedRef.current) return;
+    const rec = readLastProject();
+    if (!rec) return;
+    if (rec.driveFileId) {
+      if (!auth.isSignedIn || !auth.accessToken) return; // wait for the silent restore
+      autoOpenTriedRef.current = true;
+      void openProject(rec.id, rec.driveFileId).catch(() => {});
+      return;
+    }
+    autoOpenTriedRef.current = true;
+    void openProject(rec.id).catch(() => {});
+  }, [initialized, currentProjectId, auth.isSignedIn, auth.accessToken, openProject]);
+
+  const deleteProject = useCallback(async (id: string, cloudDriveFileId?: string) => {    const meta = projectList.find(p => p.id === id);
     const driveFileId = meta?.driveFileId || cloudDriveFileId;
     if (driveFileId && auth.isSignedIn && auth.accessToken) {
       try {
@@ -649,6 +676,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setProjectList(prev => prev.filter(p => p.id !== id));
 
     if (currentProjectId === id) {
+      clearLastProject();
       setCurrentProjectId(null);
     }
   }, [currentProjectId, openProject, projectList, auth.isSignedIn, auth.accessToken]);
@@ -775,6 +803,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [currentProjectId]);
 
   const closeProject = useCallback(() => {
+    clearLastProject();
     setCurrentProjectId(null);
   }, []);
 

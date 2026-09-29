@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, seedTitle, bridgeProject } from './helpers';
+import { openSeededProject, reloadProject, bridgeProject } from './helpers';
 
 // Scene sheet view order (roadmap 51): the sheet navigates by Sheet order
 // (default), Scene Number order, or the current stripboard order. The order
@@ -133,8 +133,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
     await switchOrder(page, 'Scene Number Order');
     await expect(page.getByRole('button', { name: 'Scene Number Order' })).toBeVisible();
 
-    await page.reload();
-    await page.getByText(seedTitle(), { exact: true }).first().click();
+    await reloadProject(page);
     await page.getByRole('button', { name: 'Sheet' }).click();
     await expect(page.getByRole('button', { name: 'Scene Number Order' })).toBeVisible();
     const pref = await page.evaluate(() => JSON.parse(localStorage.getItem('lemon_schedule_breakdown_order') || '{}').order);

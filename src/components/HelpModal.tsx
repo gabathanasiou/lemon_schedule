@@ -55,6 +55,10 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
       }
     >
       <div className={`${HM_CONTENT} overflow-y-auto max-h-[65vh]`}>
+        <Section title="App Navigation">
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>[</Kbd> / browser back</>} action="Back to the previous tab / sub-tab (browser forward / ⌘] goes the other way). The Day Manager and the Call Sheet editor are separate steps" />
+        </Section>
+
         <Section title="Cell Editing (Edit mode)">
           <Row keys={<>Click a field</>} action="Make that strip editable and open/focus the field (one tap — hover shows which fields are editable)" />
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="Commit edit, stay on cell" />
@@ -203,7 +207,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
 
         <Section title="Locations Manager & Glide">
           <Row keys={<>Locations Manager</>} action="Type sidebar groups addresses. Each entry has a name, map pin (search + drag the pin), contact details and nearest hospital/police links" />
-          <Row keys={<>Locations Glide</>} action="Spreadsheet view — right-click a column header to sort, right-click a row for Go to Locations Manager" />
+          <Row keys={<>Glide toggle</>} action="The toolbar's Glide button switches the Locations/Crew sub-tab to its spreadsheet view (and back via Manager)" />
           <Row keys={<>Type cell</>} action="Autocomplete creates a new type as you type; types are managed in the Locations Manager sidebar" />
           <Row keys={<>CSV</>} action="Import / Export Locations CSV from the Edit menu (headers: Name, Type, Address, Contact, Phone, Email)" />
         </Section>

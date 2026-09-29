@@ -164,7 +164,7 @@ function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onT
       theme="light"
       trigger={
         compact ? (
-          <button className={`flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Sort">
+          <button className={`flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Sort" aria-label="Sort">
             <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
           </button>
         ) : (

@@ -12,8 +12,9 @@ import Button from './Button';
 import { SaveIndicator } from './SaveIndicator';
 import { useUnsavedGuardState, performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 import type { AgentBridgeStatus } from '../lib/agentBridgeClient';
+import type { AppTabId } from '../lib/appNav';
 
-export type AppTabId = 'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'production' | 'reports';
+export type { AppTabId };
 
 interface GoogleAuthContextValue {
   isSignedIn: boolean;

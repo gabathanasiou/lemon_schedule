@@ -24,7 +24,9 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
 
 - localStorage: index key `lemon_schedule_project_index`, per-project
   `lemon_schedule_project_v1_{id}`. Cloud projects (Drive) are NOT in localStorage index (filtered on
-  save).
+  save). `lemon_schedule_last_project` records the last successful open (`id`, `driveFileId?`, `at`)
+  with a **1-hour TTL** — the boot auto-open (roadmap 178) reopens it; an explicit close/delete
+  clears the record, and cloud records wait for the silent GIS session restore.
 - **Project entries are `base64(gzip(json))` (roadmap 124)** — the localStorage boundary codec lives
   in `src/lib/projectCodec.ts` (`serializeProject`/`deserializeProject`, used by
   `saveProjectToStorage`/`loadProjectFromStorage`). Reads detect plain vs compressed by first char

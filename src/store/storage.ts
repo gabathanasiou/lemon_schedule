@@ -7,6 +7,51 @@ export const LEGACY_KEY = 'a-little-bit-of-hope-project';
 export const INDEX_KEY = 'lemon_schedule_project_index';
 export const PROJECT_KEY_PREFIX = 'lemon_schedule_project_v1_';
 
+/** Last-opened project (roadmap 178): boot auto-opens it within the TTL. */
+export const LAST_PROJECT_KEY = 'lemon_schedule_last_project';
+export const LAST_PROJECT_MAX_AGE_MS = 60 * 60 * 1000;
+
+export interface LastProjectRecord {
+  id: string;
+  /** Present for cloud (Drive) projects — re-open needs a silently restored session. */
+  driveFileId?: string;
+  /** Epoch ms of the last successful open. */
+  at: number;
+}
+
+export function rememberLastProject(id: string, driveFileId?: string): void {
+  try {
+    localStorage.setItem(LAST_PROJECT_KEY, JSON.stringify({ id, driveFileId, at: Date.now() } satisfies LastProjectRecord));
+  } catch {
+    // Quota — recording is best-effort, never breaks the open.
+  }
+}
+
+/** The last-opened project while it is younger than the TTL, else null (and pruned). */
+export function readLastProject(): LastProjectRecord | null {
+  try {
+    const raw = localStorage.getItem(LAST_PROJECT_KEY);
+    if (!raw) return null;
+    const rec = JSON.parse(raw) as LastProjectRecord;
+    if (!rec?.id || typeof rec.at !== 'number' || Date.now() - rec.at > LAST_PROJECT_MAX_AGE_MS) {
+      localStorage.removeItem(LAST_PROJECT_KEY);
+      return null;
+    }
+    return rec;
+  } catch {
+    return null;
+  }
+}
+
+/** An explicit close/delete must not be undone by the boot auto-open. */
+export function clearLastProject(): void {
+  try {
+    localStorage.removeItem(LAST_PROJECT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 // Module-level store for communicating legacy migration notices from standalone functions
 let _pendingLegacyMigrationNotice: LegacyMigrationResult | null = null;
 

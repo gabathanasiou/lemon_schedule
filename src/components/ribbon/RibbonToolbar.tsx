@@ -1,4 +1,5 @@
 import React from 'react';
+import ToolbarDivider from '../ToolbarDivider';
 import { Plus, Trash2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ArrowRightLeft, ChevronDown, AlignLeft, AlignCenter, AlignRight, PanelTop, Equal, PanelBottom, WrapText, X, Eye, Ellipsis } from 'lucide-react';
 import { Tooltip } from '../Tooltip';
 import Button from '../Button';
@@ -84,7 +85,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             <Trash2 className="w-3 h-3" /> Column
           </Button>
         </Tooltip>
-        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <ToolbarDivider dark />
         <Tooltip content="Add Row">
           <Button theme="dark" onClick={() => selCell && addRow()} disabled={readOnly || !selCell}
             className={BTN_LABEL}>
@@ -97,7 +98,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             <Trash2 className="w-3 h-3" /> Row
           </Button>
         </Tooltip>
-        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <ToolbarDivider dark />
         <Tooltip content="Move Column Left">
           <Button theme="dark" onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci - 1)} disabled={readOnly || !selCell || selCell.ci === 0}
             className={BTN_MOVE}>
@@ -135,7 +136,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
           </Button>
         </Tooltip>
-        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <ToolbarDivider dark />
         <Tooltip content="Copy field from row above">
           <Button theme="dark" onClick={() => selCell && copyFromAbove(selCell.cell.id)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
             className={BTN_MOVE}>
@@ -179,7 +180,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             </Tooltip>
           );
         })}
-        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <ToolbarDivider dark />
         {(['top', 'middle', 'bottom'] as const).map(va => {
           const Icon = va === 'top' ? PanelTop : va === 'middle' ? Equal : PanelBottom;
           const active = va === 'middle'
@@ -197,7 +198,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             </Tooltip>
           );
         })}
-        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <ToolbarDivider dark />
         <div className="inline-flex items-center gap-0.5">
           {(['truncate', 'wrap', 'none', 'visible'] as const).map(mode => {
             const current = selCell?.cell.truncation === false ? 'none' : selCell?.cell.overflowVisible ? 'visible' : selCell?.cell.wrap ? 'wrap' : 'truncate';
@@ -216,7 +217,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             );
           })}
         </div>
-        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <ToolbarDivider dark />
         {selCell?.cell.field === 'text' ? (
           <Tooltip content="Static Text Content">
             <input
@@ -249,7 +250,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             </Tooltip>
           </div>
         )}
-        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <ToolbarDivider dark />
         <span className="text-[10px] text-zinc-500 shrink-0">Size</span>
         <Tooltip content="Cell text size offset (px) vs the design master — −8…+8">
           <LiveNumberInput
@@ -305,7 +306,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             className="ui-input w-10 h-6 text-[11px] text-center shrink-0 read-only:opacity-50"
           />
         </Tooltip>
-        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <ToolbarDivider dark />
         <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
         <Tooltip content="Edge Padding (px)">
           <LiveNumberInput
@@ -319,7 +320,7 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
             className="ui-input w-10 h-6 text-[11px] text-center shrink-0 read-only:opacity-50"
           />
         </Tooltip>
-        <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+        <ToolbarDivider dark />
         <span className="text-[10px] text-zinc-500 shrink-0">Master Size</span>
         <Tooltip content="Master text size (px) for the whole ribbon — cells scale with it">
           <LiveNumberInput

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, loadSeedProject, waitForPersistedProject } from './helpers';
+import { openSeededProject, loadSeedProject, reloadProject, waitForPersistedProject } from './helpers';
 
 test('xmlns fix: editor round-trip, old polluted data, keys/values modes, preview', async ({ page }) => {
   const seed = loadSeedProject();
@@ -28,8 +28,7 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
   });
 
   // Boot the app from the polluted storage, then re-enter the designer.
-  await page.reload();
-  await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
+  await reloadProject(page);
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();

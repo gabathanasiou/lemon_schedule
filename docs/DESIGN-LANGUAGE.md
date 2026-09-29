@@ -92,18 +92,36 @@ no color, no motifs:
 
 ### Day Manager page (Production → Days) — light page + live call-sheet pane
 
-The page is a light single-column surface with a **white** minimal header: a fixed-width
-**Call Sheet** nav button (top-left, arrow-left glyph, no icon — it mirrors the call-sheet
-editor's dark **Days** button, both `w-28`) + the shared **`DayPicker`** `< [DAY] >` group
-(`production/day/DayPicker.tsx` — prev · day label · next as ONE bordered row that IS the
-menu trigger, so the week-grouped dropdown opens aligned with the group's left edge; no
-chevron; each row shows the date and a red conflict count). The header keeps only a
-conflict pill and **Copy from day** / **Pop out** buttons. Below it the collapsible
-section cards (`DaySectionCard`). All overlays (Copy-from-day, events, pickers) are dark
-per the two-layer rule. The **Call Sheet** surface is its own full-screen DARK editor
-(next paragraph); while it is open the host darkens the surrounding Production sub-tab bar
-(`PageToolbar theme="dark"`, driven by the Days page's `onChromeModeChange`) so the light
-tabs never float over the dark editor — it flips back when you return to Days. The **Call Sheet** card is the FIRST section (top of the page — the deliverable comes first). Its **Edit** switches to a full-surface dark mode (roadmap 10/D17): a `CallSheetEditPage` header (Back · DAY N · design picker · Reset to template · Print) over a **single-page WYSIWYG canvas** (`CallSheetCanvas`) — the whole design renders on one white page filled with THAT day's real data (scenes/crew/locations read-only), and the `callSheetEdit` zone slot embeds the REAL reports-designer canvas (`ReportDesignerCanvas` `bare` + `CallSheetZoneDesigner`): full palette/canvas drag & drop, drop zones, floating block chrome, column ops and right-click menus, all scoped to the day's zone content. A design without a `days`-repeat `callSheetEdit` zone falls back to a zone-only editor.
+The page is a light single-column surface **without its own header**: the Day Manager's
+controls portal into the Production **sub-tab toolbar** (`PageToolbar` rightContent, the
+header-portal pattern) — a conflict pill, a **Settings** dropdown (Production Details ·
+Call Times · Copy from day · Pop out on desktop). The shared **`DayPicker`** `< [DAY] >`
+group (`production/day/DayPicker.tsx` — prev · day label · next as ONE bordered row that
+IS the menu trigger; no chevron; each row shows the date and a red conflict count)
+portals into its OWN slot **immediately left of the view switcher**, so it sits in the
+same spot in BOTH Days views (roadmap 177) — a thin vertical divider separates the
+view-specific controls from that shared day-selector + switcher cluster. The **view
+switcher** is the toolbar's
+rightmost element (see the merged-view switcher recipe below). Below the toolbar sit the
+collapsible section cards (`DaySectionCard`). All overlays (Copy-from-day, events,
+pickers) are dark per the two-layer rule. The **Call Sheet** surface is its own
+full-screen DARK editor (next paragraph); while it is open the host darkens the
+surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's
+`onChromeModeChange`) so the light tabs never float over the dark editor — the switcher
+follows the theme. The **Call Sheet** card is the FIRST section (top of the page — the
+deliverable comes first). Its **Edit** switches to a full-surface dark mode (roadmap
+10/D17): the editor's controls (**Settings** dropdown — a **Design** submenu, the
+call-sheet designs with the active one checked, and **Reset to template** — then Times ·
+Preview/Edit · Print, all icon + label) portal into the SAME dark toolbar (the day
+selector reuses the slot left of the switcher) over a **single-page WYSIWYG canvas**
+(`CallSheetCanvas`) — the whole design renders on one white page filled with THAT day's
+real data (scenes/crew/locations read-only), and the `callSheetEdit` zone slot embeds the
+REAL reports-designer canvas (`ReportDesignerCanvas` `bare` + `CallSheetZoneDesigner`):
+full palette/canvas drag & drop, drop zones, floating block chrome, column ops and
+right-click menus, all scoped to the day's zone content. A design without a `days`-repeat
+`callSheetEdit` zone falls back to a zone-only editor.
+**Pop-out day windows** (no shared toolbar) keep the local header with the Call
+Sheet/Days buttons.
 
 ## Canonical class recipes (the exact strings)
 
@@ -126,7 +144,28 @@ tabs never float over the dark editor — it flips back when you return to Days.
 | Chip button (dark-modal dropdown triggers) | `DD_CHIP_TRIGGER_CLASS` (`src/lib/dropdown.ts`): `flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900` — the cast-dropdown/chip look. Text size NOT included (add `text-xs`), layout extras (`relative` for an absolute value overlay, `justify-between`, min-widths, `w-full px-3 py-2` for full-width) append on top. Single source for the EntityDropdown `variant="chip"` trigger AND every value-displaying menu trigger styled like it (day-status + event-type pickers, `CategoryDropdown`, rule-type picker, print-dialog ribbon-layout/page-size/category pickers) — never hand-write the strings |
 | Icon-only | `p-1.5 rounded-md transition-colors shrink-0 text-zinc-600 hover:text-red-400 hover:bg-zinc-800` (`LinkManagerModal.tsx:29-30`) |
 | Toolbar micro (dark) | desktop `h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700`; touch `h-10 px-3.5 text-sm` (kit `TB_BTN`) |
+| **Merged-view switcher** (roadmap 177) | container `flex items-center rounded p-0.5 border` — light `border-zinc-200` / dark `border-zinc-700`; segment `p-1 rounded transition-colors` — active light `bg-zinc-950 text-white`, active dark `bg-white text-zinc-900`, inactive `text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100` (dark: `hover:text-zinc-200 hover:bg-zinc-800`); icon-only `w-3.5 h-3.5` with `aria-label` + `title` + `aria-pressed`, group `role="group"` + `aria-label="<Sub> view"`. Semantic pairing: segment 1 = manager (`List`), segment 2 = alternate view (`Table2` Glide / `Sheet` Call Sheet). Rendered by the host (`ProductionTab.tsx`) as the RIGHTMOST toolbar element so it never moves when the view's own portaled controls change; follows the toolbar theme (dark while the Call Sheet editor is open) | `ProductionTab.tsx` |
 | Danger ghost | `text-red-400 hover:bg-rose-950/40` (dark) / `text-rose-600 hover:bg-rose-50` (light) |
+
+### Toolbar composition (EVERY page that shares controls)
+
+One composition so controls never move when the view changes (roadmap 177). Applies to every
+page/sub-tab toolbar (Schedule, Calendar, Breakdown header controls, Production, pop-out frames):
+
+1. **Order by scope, shared controls in a fixed slot on the right.** View-specific controls come
+   first; the RIGHTMOST slot is reserved for controls present in EVERY view of the surface (the
+   merged-view switcher, roadmap 177). The day selector owns the slot immediately left of it.
+   Repeated/shared controls must never reflow between views.
+2. **Divide the groups.** Adjacent groups are separated by the shared `ToolbarDivider`
+   (`src/components/ToolbarDivider.tsx`): `w-px h-5 shrink-0` — light `bg-zinc-200`, dark
+   `bg-zinc-700` (`<ToolbarDivider dark />`). **Never hand-write the divider string.** Required
+   between: the view-specific block ↔ the shared block, and between logical action groups
+   (nav · view · filter · actions · print · help · version-select).
+3. **Icon-only stays icon-only.** Icon-only controls keep `title` + `aria-label` (native tooltip;
+   `aria-pressed` for toggles) — labels live in the tooltip, not the toolbar.
+4. **Merged views collapse** (roadmap 177): two sub-tabs that are views of one surface become ONE
+   sub-tab + the 2-segment switcher (recipe above), pinned rightmost; the view mode travels in the
+   history place (roadmap 176), and the switcher follows the toolbar theme.
 
 ### Forms (dark modals)
 | Element | Classes | Source |
