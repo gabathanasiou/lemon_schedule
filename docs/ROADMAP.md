@@ -600,7 +600,10 @@ through the picker, zone edits still persist per day; manual iPad pass.
 
 **Relations**: builds on 98/99/101/110-118 (all DONE), supersedes D21's
 `Manage | Call Sheet` toggle and the removed `CallSheetSection`; touches
-111/112 grids and 113/114 call-sheet chrome; related to 140/141.
+111/112 grids and 113/114 call-sheet chrome; related to 140/141. **User note
+(176)**: the Day Manager and the Call Sheet editor now navigate as separate
+history places with memory — the user wants them kept separately navigable;
+this merge would supersede that split.
 
 ## 145. Desktop app (Tauri) hosting the web UI + local MCP server (`[ ]`)
 
@@ -638,8 +641,9 @@ department (catalog order + "Other"); each department shows one slot per role
 that survives switching the person, an include/exclude toggle, and a
 department pre-call anchor. A project-level **crew template** (full
 arrangement) replaces "Usual crew"; "Apply template" / "Copy from day" restore
-a day. A shared **Add Crew Member modal** (name/phone/email + role) replaces
-the Crew Manager's inline blank row.
+a day. A shared **Add Crew Member modal** (name/phone/email + role) serves the
+day-slot/template entry points; the Crew Manager's add button stays an inline
+blank row (user decision, debug report — no modal there).
 
 **Call chain**: day call → dept pre-call resolves against the day call = dept
 call → slot override resolves against the dept call; `noCall` wins over
@@ -659,8 +663,9 @@ pure mutations).
 2) shared `CrewRosterEditor` built on `InlineGlideTable` (per-department
 table: Role · Person dropdown · Call, dept header include+pre-call, "+ Add
 role") hosted by the Day Crew section and the Call Times "Crew template" tab;
-3) `AddCrewMemberModal` + `ManagerShellConfig.addModal` + entry points (Crew
-Manager, a day slot, the template editor); 4) call-sheet crew table grouped by
+3) `AddCrewMemberModal` for the day-slot/template entry points ONLY — the
+Crew Manager's add button appends an inline blank row (user decision, debug
+report) + `ManagerShellConfig.addModal`; 4) call-sheet crew table grouped by
 department + docs.
 
 **Non-negotiables**: `daybreakMeta` on the governing DAYBREAK; one write path
@@ -731,3 +736,245 @@ before the grid).
 
 **Relations**: surfaced while building **146**; touches `InlineGlideTable` +
 `createGlideCellEditor`.
+
+## 150. Reports designer — the free (custom-rows) Table block is broken (`[ ]`)
+
+**Bug** (debug report): the palette's Table block in free/custom-rows mode
+misbehaves. Pin the failing flow first (render / cell edit / token cells /
+print-pagination) with a repro, then fix in the shared table recipe — no fork.
+- Pointers: custom-rows editor `blockControls.tsx:971-1075` (`block.custom` /
+  `customRows`), static renderer `ReportBlockView.tsx` (`ReportTableView`),
+  paginator `useReportPaginator.tsx`.
+- **Verify**: rule-7 manual across designer/preview/print; extend
+  `e2e/report-page-breaks.spec.ts` only if pagination splits change.
+
+## 151. Reports — the Advance (`relative`) block doesn't print (`[ ]`)
+
+**Bug** (debug report): the palette's **Advance** block (`type: 'relative'`)
+renders in the designer but is missing from preview/print.
+- Pointers: view `ReportBlockView.tsx:205,600+`, chunk granularity
+  `reportPagination.ts:53-60` (`relative` → repeat units),
+  `useReportPaginator.tsx`, print shell `ReportPrint.tsx`. Find where the print
+  path drops it (paginator vs renderer) and fix once in the shared pipeline.
+- **Verify**: rule-7 manual (designer vs preview vs print) + keep
+  `e2e/report-page-breaks.spec.ts` green (page math).
+- **Relations**: 27 (the block), 120 (nested fragment model).
+
+## 152. Ribbon designer — truncation when two cells connect side by side (`[ ]`)
+
+**Bug** (debug report): text truncates wrong when adjacent cells share the
+side-by-side layout (second cell loses room / clips early).
+- Check the per-cell contract — `getRibbonCellBaseStyle` /
+  `ribCellTextSize` / edges + padding (`src/lib/ribbonUtils.ts`) and the row
+  renderers (`src/components/ribbon/SortableRow*`), designer grid + live
+  preview + print.
+- **Verify**: rule-7 manual (screenshot repro first) at every pad/edge/text-size
+  setting — both cells keep full text room, designer vs print agree.
+
+## 154. Script tagging — new cast skips the naming modal (`[ ]`)
+
+**Bug** (debug report): tagging a selection with no matching cast member
+creates it via a raw `ADD_ELEMENT` (`src/lib/scriptTagging.ts:73-77,267` —
+`resolveCast` / `plan.newElement`) instead of the shared `addNewElement`
+(`src/lib/newCastNaming.tsx`), so the "name the new cast" modal (item 86)
+never opens.
+- Route the tagging create path through `addNewElement` / the naming queue
+  while keeping the annotation's element key (cast is id-keyed — the tag must
+  reference the created id, not the typed name).
+- **Verify**: extend `e2e/new-cast-naming.spec.ts` (or the script-tagging
+  case) — silent break = wrong cast identity.
+- **Relations**: 86, 123/132, 136.
+
+## 155. Crew template — call-time boxes can't be typed (`[ ]`)
+
+**Bug** (debug report): Production tab → Call Times → **Crew template**, the
+per-slot Call cells don't accept typing.
+- `CrewRosterEditor` renders the Call column through `InlineGlideTable` with
+  `dayCall=''` (template context, item 141's seeded computed-cell editor);
+  typing is discarded/reset. Pointers: `CrewRosterEditor.tsx:106-113,170,265-271`,
+  `src/lib/glideCells.ts`.
+- Fix the seed/commit path for the empty-anchor template case — no component
+  special-case.
+- **Verify**: extend `e2e/day-call-times.spec.ts` (edit + persistence = silent
+  break).
+- **Relations**: 146 (shipped the editor), 141.
+
+## 156. Crew table block — contact details + "Report to" (`[ ]`)
+
+**Request**: the `crewTable` report block needs contact columns (Phone/Email
+already exist as crew fields — `reportFields.ts:217-218` — but are missing from
+`CREW_FIXED`, `reportGrids.ts:46`) and **report-to** info (who/where the crew
+reports to — location/contact; user-confirmed not a time).
+- Add `phone`/`email` to the fixed crew columns (static + interactive stay in
+  lockstep); decide the report-to source first (per-person/per-slot field on the
+  item-146 crew model vs crew links) — one owner, no parallel model.
+- **Verify**: rule-7 manual + `e2e/report-grid-blocks.spec.ts` only if the write
+  path changes.
+- **Relations**: 112, 146.
+
+## 157. Cast performer ("Artiste") — person + contact details on cast elements (`[ ]`, big)
+
+**Request**: a cast element is the character; users must record the actual
+performer playing them — name + contact details like crew has (phone/email) —
+shown in the cast call-times block (labelled "Artiste") and available to
+reports.
+- Scope first: decide the model — extend `CastMember` (`types.ts`) with
+  performer fields or link a crew-person record (reuse item 146's crew person
+  shape; never duplicate `project.crew`). One source of truth; migration on
+  local load AND `readDriveProject`.
+- Surfaces: Element Manager cast table/columns, `ELEMENT_CALL_FIELDS`
+  (`reportFields.ts:230-236`) + call-times block labels, cast report fields.
+- **Verify**: Vitest for migration + read model; targeted e2e only if
+  call-times output changes (wrong name/contact = silent).
+- **Relations**: 111, 146; 11/44 are links, not the store.
+
+## 158. Reports designer — Requirements table block (FUTURE, parked) (`[ ]`)
+
+**Request** (future): a Requirements table block (reports designer, user
+decision). Scope TBD at unpark: what rows/columns and where the requirements
+data comes from.
+- Parked knowingly — no data model exists yet (rule 3; don't speculate).
+- When unparked, reuse the 111/112 grid recipe (`reportGrids.ts` +
+  `ReportGridBlock`) — never a new table engine.
+- **Relations**: 111, 112.
+
+## 159. Reports designer — Precalls table block (`[ ]`)
+
+**Request**: a table block showing the day's department precalls (department →
+resolved call), sibling of Call Times / Crew Table (reports designer, user
+decision).
+- Reuse the canonical `departmentCallsOfDay` collection (item 99) + the
+  111/112 grid seam (`reportGrids.ts`, `ReportGridBlock`); palette entry next
+  to Call Times / Crew Table; editable-in-place only if the call-sheet editor
+  should edit precalls (decide at implementation).
+- **Verify**: rule-7 manual + `e2e/report-grid-blocks.spec.ts` only if writes.
+- **Relations**: 99, 111, 112.
+
+## 160. Reports designer — page setup: margins, document size, scaling (`[ ]`)
+
+**Request**: designer controls for page margins + document size + page scaling
+(user-confirmed: designer page scaling, print included). Today
+`ReportDesign.page` is portrait/landscape only (`types.ts:765-775`) and margins
+are hard-coded (`src/components/reports/reportStyle.ts:37-42`, A4 − 12mm;
+`@page` in print CSS).
+- Add page geometry to `ReportDesign` (size, margins, scale) with today's
+  values as defaults; ONE metrics source feeds designer canvas, preview, print
+  and the paginator's page-height math.
+- **Verify**: `e2e/report-page-breaks.spec.ts` must stay green (pagination
+  math) + manual; migrate existing designs.
+- **Relations**: 140/142 (designer chrome), 3.
+
+## 161. Designer — remember Day vs Call-Sheet mode (`[ ]`)
+
+**Request**: the designer reopens in the Day designer every time; it should
+remember the last-used designer mode (Day vs Call Sheet). Decide scope: per
+project (design) or app-local pref (`lemon_schedule_*`).
+- Pointers: `reports/ReportDesigner.tsx` mode state + entry points
+  (`DesignTab`, `DayManagerPage`, `CallSheetEditPage`).
+- **Verify**: rule-7 manual (pref persistence).
+- **Relations**: 142, 10, 113.
+
+## 162. Day pop-out window doesn't scroll (`[ ]`)
+
+**Bug** (debug report): a day opened in a pop-out can't be scrolled.
+- Check the popup frames' height/overflow chain
+  (`src/components/popout/PopoutFrames.tsx`, `PopoutWindow.tsx`) + the Day
+  Manager layout inside a popup (`min-h-0` / `overflow` — AGENTS §Pop-out
+  Windows).
+- **Verify**: rule-7 manual; e2e only if state (not layout) is at fault.
+- **Relations**: 98.
+
+## 163. Script tab performance (`[ ]`)
+
+**Request** (debug report): the Script tab feels sluggish. Find the hot path —
+suspects: full-document re-render on selection/hover, `ScriptTagging` overlay
+recompute/scroll listeners, scene-index rebuilds
+(`ScriptView.tsx`, `src/components/script/*`).
+- Deliverable: a measured fix using the existing perf tooling
+  (`docs/PERF-DIAGNOSIS.md`); behavior unchanged.
+- **Verify**: before/after profile + `npx playwright test e2e/script-*.spec.ts`
+  green.
+- **Relations**: 123/132/136.
+
+## 164. Day Manager — add an element to a day's Call Times (`[ ]`)
+
+**Request**: in the Day Manager Call Times section, allow adding an element
+(cast etc.) to the day even when it appears in no scheduled scene (e.g. a
+fitting), so it lands on that day's call sheet.
+- Extend the day-scoped element set: resolver `elementCallsOfDay`
+  (`reportData.ts`) + `DayTimesGlide` reads; write per-day additions on the
+  governing `daybreakMeta` (item 99/101 convention, `dayMeta.ts`) — one source
+  for grid + report + call sheet.
+- **Verify**: Vitest for the resolver; extend `e2e/day-times-glide.spec.ts`
+  (wrong call time/count = silent).
+- **Relations**: 99, 107, 111, 146.
+
+## 165. Dropdowns — panels must always be openable inside modals (`[ ]`)
+
+**Bug** (debug report): in the Call Times editor a category dropdown with no
+space below doesn't flip/clamp properly ("should open on the top of the
+dropdown when there is no space"). All dropdowns should always open (and stay)
+fully visible.
+- Check kit `useFixedPosition` / `useSmartPosition` + `DropdownPanel` inside
+  tall/scrollable modals (roadmap 64/70); reproduce in the ui-kit playground
+  and the app modal.
+- **Verify**: playground spec for the flip case + app manual, iPad pass.
+- **Relations**: 64, 69, 70, 110.
+
+## 169. Call Sheet editor — Print/Times labels + hover previews follow Times (`[ ]`)
+
+**Request**: icon-only Print; Times button copy → "preview times & durations"
+(title/aria); when **Times** is OFF, hovering Call Times / Crew Table blocks
+must NOT show the first-scene hover preview (`FirstSceneTooltip`, item 115) — it
+currently always shows.
+- Pointers: `CallSheetEditPage.tsx:100-135`, `InteractiveGridBlock` /
+  `ReportGridBlock` `rowTooltip` wiring.
+- **Verify**: rule-7 manual + `e2e/call-sheet-day.spec.ts` only if the gating
+  is stateful.
+- **Relations**: 114, 115, 142.
+
+## 171. Day Manager locations overhaul + drop nearest hospital/police (`[ ]`, big)
+
+**Request**: the day's location attachment is bad — the dropdown cuts off and
+shows too much. Rebuild the Day Manager **Locations** module like the crew
+system: pick the **master location**, then add any number of additional
+locations (unit base, hospital, police station, …) as an ordered slot list with
+add/remove + type picker. The Locations manager stops carrying nearest
+hospital/police links (user decision; supersedes item 53's fields) — those are
+set manually per day instead.
+- Scope: `production/day/sections/LocationsSection.tsx` → slot list (146's
+  roster pattern); remove `nearbyHospital`/`nearbyPolice` from
+  `locationManagerConfig.tsx` (fields, merge plan, blank row) + `Location.nearby`
+  (`types.ts:555-558`) with a migration/prune; day writes stay `daybreakMeta`
+  (`dayMeta.ts`); keep `getReportLocation` / `locationsOfDay` truthful.
+- **Verify**: Vitest for migration + resolver; targeted e2e for day
+  persistence; module is a rule-7 manual pass.
+- **Relations**: 98, 53 (supersedes its nearby-fields part), 109, 146.
+
+## 172. Managers + Glide — deep search, jump-and-flash, table filtering (`[ ]`, big)
+
+**Request**: the managers' left search must also search **inside** categories
+and attributes (e.g. "Roy" → crew roles containing Roy; phone numbers).
+Clicking a result opens that category, scrolls to the match and briefly flashes
+the matching row(s) red (scroll only to the first). Universal for all manager
+pages. Glide tables get a row **filter** (show only matching rows). Multiple
+tags via commas — consider reusing the rich-text chip/token system for search
+tags.
+- Approach: one shared search module (parse comma tags → per-manager field
+  accessors from the manager configs) consumed by `managerShell.tsx` (sidebar)
+  and `ElementManager.tsx` (scroll + flash); Glide filter in `glideShell.tsx` /
+  `InlineGlideTable`. Evaluate a small fuzzy lib (fuse.js / uFuzzy) — no new dep
+  unless it clearly beats a tokenizer (deps must be imported by ≥1 source file).
+- **Verify**: Vitest for the query/tag parser; e2e for flash/scroll + glide
+  filter (rows silently disappearing = break).
+- **Relations**: 121, 84, 88, 139-145.
+
+## 174. Call Times — label audit (`[ ]`)
+
+**Request** (debug report): audit and fix the Call Times labels — stage headers,
+category/department names in the Call Times modal and the day grids.
+Enumerate the wrong ones with the user before changing copy.
+- Pointers: `production/day/CallTimesSettingsModal.tsx`, `DayTimesGlide.tsx`,
+  `CrewRosterEditor.tsx`, `CallTimesSection.tsx`/`CrewSection.tsx`.
+- **Verify**: rule-7 manual.
+- **Relations**: 110, 146; split out of 173.
