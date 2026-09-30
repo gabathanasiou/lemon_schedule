@@ -144,7 +144,9 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           <button
             type="button"
             onClick={() => setShowRibbonTimes(v => !v)}
-            title="Show call times & durations in ribbon blocks (preview only — never printed)"
+            title="Preview times & durations"
+            aria-label="Preview times & durations"
+            aria-pressed={showRibbonTimes}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs hover:bg-zinc-800 ${showRibbonTimes ? 'text-amber-400' : 'text-zinc-400 hover:text-white'}`}
           >
             <Clock className="w-3.5 h-3.5" /> Times
@@ -164,9 +166,10 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           type="button"
           onClick={onPrint}
           title="Print the call sheet"
+          aria-label="Print"
           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
         >
-          <Printer className="w-3.5 h-3.5" /> Print
+          <Printer className="w-3.5 h-3.5" />
         </button>
       </div>
     </>

@@ -41,9 +41,9 @@ export interface ReportGridGroup {
   columns: ReportGridColumn[];
 }
 
-/** Fixed columns: element calls = ID · Name · SWF · <stages>; crew = Name · Role · Call. */
+/** Fixed columns: element calls = ID · Name · SWF · <stages>; crew = Name · Role · Call · Phone · Email. */
 const ELEMENT_CALL_FIXED = ['elementCallId', 'elementCallName', 'elementCallCode'];
-const CREW_FIXED = ['crewName', 'role', 'crewCallTime'];
+const CREW_FIXED = ['crewName', 'role', 'crewCallTime', 'phone', 'email'];
 
 function fieldColumn(fieldMap: Record<string, ReportFieldDef>, field: string, fallbackWidth = 10): ReportGridColumn {
   const def = fieldMap[field];

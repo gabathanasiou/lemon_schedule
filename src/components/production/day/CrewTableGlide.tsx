@@ -29,6 +29,9 @@ export interface CrewTableGlideProps {
   /** Header right-click → "Edit Call Time Stages…" (department precalls,
    *  usual crew) opens the settings modal owned by the composition root. */
   onEditCallTimesSettings?: () => void;
+  /** Item 169: hide the hover preview (it shows the resolved call) while the
+   *  Call Sheet's Times toggle is off. */
+  showTimes?: boolean;
 }
 
 interface GroupProps {
@@ -40,9 +43,10 @@ interface GroupProps {
   readOnly?: boolean;
   project: Project;
   onEditCallTimesSettings?: () => void;
+  showTimes?: boolean;
 }
 
-const CrewGroupTable: React.FC<GroupProps> = ({ group, allSlots, dayCall, patchMeta, readOnly, project, onEditCallTimesSettings }) => {
+const CrewGroupTable: React.FC<GroupProps> = ({ group, allSlots, dayCall, patchMeta, readOnly, project, onEditCallTimesSettings, showTimes = true }) => {
   const crewRoles = project.crewRoles || [];
 
   const rows = useMemo(
@@ -57,6 +61,8 @@ const CrewGroupTable: React.FC<GroupProps> = ({ group, allSlots, dayCall, patchM
         slotId: slot.id,
         name: person.name,
         role: roleLabel,
+        phone: person.phone || '',
+        email: person.email || '',
         isOverride: slot.callTime ? 'true' : '',
         isNoCall: slot.noCall ? 'true' : '',
         call: slot.callTime || '',
@@ -71,6 +77,10 @@ const CrewGroupTable: React.FC<GroupProps> = ({ group, allSlots, dayCall, patchM
     { key: 'name', label: 'Name', width: 140 },
     { key: 'role', label: 'Role', width: 110 },
     { key: 'call', label: 'Call', width: 90, align: 'center' },
+    // Contact details mirror the static crewTable block's fixed columns
+    // (`CREW_FIXED`, item 156) — display-only, never editable here.
+    { key: 'phone', label: 'Phone', width: 110 },
+    { key: 'email', label: 'Email', width: 150 },
   ], []);
 
   const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>): GridCell => {
@@ -86,8 +96,8 @@ const CrewGroupTable: React.FC<GroupProps> = ({ group, allSlots, dayCall, patchM
         themeOverride: overridden ? { textDark: '#b45309' } : undefined,
       });
     }
-    if (col.key === 'role') {
-      return textCell(row.role, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#71717a' } });
+    if (col.key === 'role' || col.key === 'phone' || col.key === 'email') {
+      return textCell(row[col.key], { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#71717a' } });
     }
     return textCell(row.name, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
   }, [readOnly]);
@@ -135,7 +145,7 @@ const CrewGroupTable: React.FC<GroupProps> = ({ group, allSlots, dayCall, patchM
         editableKeys={CALL_KEYS}
         readOnly={readOnly}
         createTheme={createDayTimesTheme}
-        rowTooltip={(_row, i) => {
+        rowTooltip={showTimes ? (_row, i) => {
           const r = rows[i];
           if (!r) return null;
           return (
@@ -152,7 +162,7 @@ const CrewGroupTable: React.FC<GroupProps> = ({ group, allSlots, dayCall, patchM
               </div>
             </div>
           );
-        }}
+        } : undefined}
         headerMenuItems={onEditCallTimesSettings ? close => (
           <ContextMenuItem
             onClick={() => { close(); onEditCallTimesSettings(); }}
@@ -166,7 +176,7 @@ const CrewGroupTable: React.FC<GroupProps> = ({ group, allSlots, dayCall, patchM
   );
 };
 
-const CrewTableGlide: React.FC<CrewTableGlideProps> = ({ day, project, patchMeta, readOnly, onEditCallTimesSettings }) => {
+const CrewTableGlide: React.FC<CrewTableGlideProps> = ({ day, project, patchMeta, readOnly, onEditCallTimesSettings, showTimes }) => {
   // The day's FULL effective slots — every group commits against this list so a
   // group edit never drops another department's slots.
   const effective = useMemo(() => day.meta.crewSlots ?? slotsForDay(project, day.meta), [day.meta, project]);
@@ -191,6 +201,7 @@ const CrewTableGlide: React.FC<CrewTableGlideProps> = ({ day, project, patchMeta
           readOnly={readOnly}
           project={project}
           onEditCallTimesSettings={onEditCallTimesSettings}
+          showTimes={showTimes}
         />
       ))}
     </div>

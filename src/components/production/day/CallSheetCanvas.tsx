@@ -123,7 +123,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
                   if (b.type === 'callTimes' || b.type === 'crewTable') {
                     return (
                       <div key={b.id} className="my-3">
-                        <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={setHighlightScene} />
+                        <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={setHighlightScene} showTimes={showRibbonTimes} />
                       </div>
                     );
                   }

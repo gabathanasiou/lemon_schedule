@@ -141,14 +141,14 @@ test.describe('Crew Glide', () => {
 
     // --- Add two members via the add-row Name cell (falls back to the first role) ---
     const base = await memberCount(page);
-    await editCell(base, 1, 'Zed Zed');
+    await editCell(base, 1, 'ZED ZED');
     await expect.poll(() => memberCount(page), { timeout: 8000 }).toBe(base + 1);
-    await editCell(base + 1, 1, 'Alice Smith');
+    await editCell(base + 1, 1, 'ALICE SMITH');
     await expect.poll(() => memberCount(page), { timeout: 8000 }).toBe(base + 2);
 
     let st = await crewState(page);
     const firstRole = st!.roles[0];
-    expect(st!.crew[firstRole].map((p: any) => p.name)).toEqual(['Zed Zed', 'Alice Smith']);
+    expect(st!.crew[firstRole].map((p: any) => p.name)).toEqual(['ZED ZED', 'ALICE SMITH']);
 
     // --- Create a brand-new role from the add-row Role cell ---
     await editCell(base + 2, 2, 'Grip');
@@ -159,7 +159,7 @@ test.describe('Crew Glide', () => {
     await editCell(1, 2, 'Grip');
     await expect.poll(async () => {
       const s = await crewState(page);
-      return s!.crew['grip']?.some((p: any) => p.name === 'Alice Smith') ?? false;
+      return s!.crew['grip']?.some((p: any) => p.name === 'ALICE SMITH') ?? false;
     }, { timeout: 8000 }).toBe(true);
 
     // --- Header right-click sort: Name A to Z sorts within each role ---
@@ -172,14 +172,14 @@ test.describe('Crew Glide', () => {
     await expect.poll(async () => {
       const s = await crewState(page);
       return s!.crew['grip']?.map((p: any) => p.name) ?? [];
-    }, { timeout: 8000 }).toEqual(['Alice Smith', '']);
+    }, { timeout: 8000 }).toEqual(['ALICE SMITH', '']);
 
     // New members always land at the bottom (unless manually sorted)
-    await editCell(base + 3, 1, 'Bottom Person');
+    await editCell(base + 3, 1, 'BOTTOM PERSON');
     await expect.poll(async () => {
       const s = await crewState(page);
       return s!.crew[firstRole]?.map((p: any) => p.name) ?? [];
-    }, { timeout: 8000 }).toEqual(['Zed Zed', 'Bottom Person']);
+    }, { timeout: 8000 }).toEqual(['ZED ZED', 'BOTTOM PERSON']);
 
     // --- Right-click a row -> Go to Crew Manager → role ---
     // Rows: 0=Zed, 1=Bottom Person (producer), 2=Alice (grip), 3=empty (grip)
@@ -193,7 +193,7 @@ test.describe('Crew Glide', () => {
     // Lands on the Crew manager with the Grip role selected
     await expect(page.getByText('Roles', { exact: true })).toBeVisible();
     await expect(page.locator('button.bg-zinc-900', { hasText: 'Grip' })).toBeVisible();
-    await expect(nameCell(page, 'Alice Smith')).toBeVisible();
+    await expect(nameCell(page, 'ALICE SMITH')).toBeVisible();
 
     // --- Back to the glide: CSV export ---
     await openCrewGlide(page);
@@ -204,14 +204,14 @@ test.describe('Crew Glide', () => {
     const csvPath = await download.path();
     const csvText = (await import('node:fs')).readFileSync(csvPath!, 'utf8');
     expect(csvText.split('\n')[0]).toBe('Role,Name,Phone,Email');
-    expect(csvText).toContain('"Grip","Alice Smith"');
+    expect(csvText).toContain('"Grip","ALICE SMITH"');
 
     // --- CSV import: new role + members merge ---
     const importCsv = [
       'Role,Name,Phone,Email',
       'Green Team,Stunt One,555-0001,stunt@test.com',
       'Green Team,Stunt Two,,stunt2@test.com',
-      'Grip,Alice Smith,555-9999,alice@new.test',
+      'Grip,ALICE SMITH,555-9999,alice@new.test',
     ].join('\n');
     await page.setInputFiles('input[type="file"][accept=".csv"]', {
       name: 'crew-import.csv',
@@ -231,11 +231,11 @@ test.describe('Crew Glide', () => {
       const s = await crewState(page);
       const stunt = s!.crew['greenteam'];
       return stunt?.map((p: any) => p.name) ?? [];
-    }, { timeout: 8000 }).toEqual(['Stunt One', 'Stunt Two']);
+    }, { timeout: 8000 }).toEqual(['STUNT ONE', 'STUNT TWO']);
     // Merge: Alice's phone/email updated from the import (non-empty values)
     await expect.poll(async () => {
       const s = await crewState(page);
-      return s!.crew['grip']?.find((p: any) => p.name === 'Alice Smith');
+      return s!.crew['grip']?.find((p: any) => p.name === 'ALICE SMITH');
     }, { timeout: 8000 }).toEqual(expect.objectContaining({ phone: '555-9999', email: 'alice@new.test' }));
   });
 });

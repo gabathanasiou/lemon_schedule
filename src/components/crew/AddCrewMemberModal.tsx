@@ -103,7 +103,7 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
         <div className="p-6 space-y-4">
           <div>
             <label className={LABEL}>Name</label>
-            <input className={INPUT} value={name} autoFocus onChange={e => setName(e.target.value)} placeholder="Full name" />
+            <input className={`${INPUT} uppercase`} value={name} autoFocus onChange={e => setName(e.target.value.toUpperCase())} placeholder="Full name" />
           </div>
           <div>
             <label className={LABEL}>Role</label>

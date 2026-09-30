@@ -25,9 +25,13 @@ export interface InteractiveGridBlockProps {
   onEditCallTimesSettings?: () => void;
   /** Hovered element row's first scene (item 115) → highlight its strip. */
   onHighlightScene?: (sceneId: string | null) => void;
+  /** Item 169: with the Call Sheet's Times toggle OFF, the hover previews
+   *  (which show call time/duration context) must not appear. Undefined =
+   *  show (other hosts, e.g. the Day Manager). */
+  showTimes?: boolean;
 }
 
-const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene }) => {
+const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes }) => {
   const collection = isReportGridCollection(block.collection) ? block.collection : 'elementCallsOfDay';
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
 
@@ -45,7 +49,7 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
     }
     return (
       <div data-report-grid="crew">
-        <CrewTableGlide day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} />
+        <CrewTableGlide day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} showTimes={showTimes} />
       </div>
     );
   }
@@ -61,7 +65,7 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
             <span className="text-[11px] font-semibold text-zinc-700">{getLabel(category, category, project.categoryLabels)}</span>
           </div>
-          <DayTimesGlide day={day} category={category} patchMeta={patchMeta} project={project} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={onHighlightScene} />
+          <DayTimesGlide day={day} category={category} patchMeta={patchMeta} project={project} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={onHighlightScene} showTimes={showTimes} />
         </div>
       ))}
     </div>

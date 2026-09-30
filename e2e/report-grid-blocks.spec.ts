@@ -136,13 +136,15 @@ test.describe('Report grid blocks (items 111/112)', () => {
     }, undefined, { timeout: 5000 });
 
     const box = (await scroller.boundingBox())!;
-    // Name 140 · Role 110 · Call 90 → the Call column center.
-    const total = 340;
+    // Name 140 · Role 110 · Call 90 · Phone 110 · Email 150 (item 156) — the
+    // shared auto-fit flexes the second column; Call's center is the target.
+    const cols = [140, 110, 90, 110, 150];
+    const total = cols.reduce((a, b) => a + b, 0);
     const target = Math.max(120, Math.floor(box.width) - 1);
-    const nameW = Math.max(40, Math.floor((140 / total) * target));
-    const roleW = Math.max(40, Math.floor((110 / total) * target));
-    const callW = Math.max(40, target - nameW - roleW);
-    const x = box.x + nameW + roleW + callW / 2;
+    const widths = cols.map(w => Math.max(40, Math.floor((w / total) * target)));
+    const sum = widths.reduce((a, b) => a + b, 0);
+    widths[1] += target - sum;
+    const x = box.x + widths[0] + widths[1] + widths[2] / 2;
     const y = box.y + 30 + 14;
 
     await page.mouse.dblclick(x, y);

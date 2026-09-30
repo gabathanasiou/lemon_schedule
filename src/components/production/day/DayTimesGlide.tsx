@@ -33,6 +33,9 @@ export interface DayTimesGlideProps {
   onEditCallTimesSettings?: () => void;
   /** Hovered row's first scene id (item 115) → highlight that strip. */
   onHighlightScene?: (sceneId: string | null) => void;
+  /** Item 169: hide the first-scene hover preview while the Call Sheet's Times
+   *  toggle is off (the preview is a times/durations affordance). */
+  showTimes?: boolean;
 }
 
 interface SheetColumn extends InlineGlideColumn {}
@@ -43,7 +46,7 @@ const ID_COL = 'id';
 const NAME_COL = 'name';
 const SWF_COL = 'swf';
 
-const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings, onHighlightScene }) => {
+const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes = true }) => {
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
   const stageKeys = useMemo(() => settings.categoryStages[category] || [], [settings, category]);
   const stageDefs = useMemo(
@@ -155,7 +158,7 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
         const e = i == null ? null : entries[i];
         onHighlightScene(e ? (day.scenes[e.firstScene - 1]?.scene?.id ?? null) : null);
       } : undefined}
-      rowTooltip={(_row, i) => {
+      rowTooltip={showTimes ? (_row, i) => {
         const e = entries[i];
         if (!e) return null;
         const overrides = day.meta.elementCalls?.[category]?.[e.key];
@@ -170,7 +173,7 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
             overridden={!!overrides && Object.values(overrides).some(Boolean)}
           />
         );
-      }}
+      } : undefined}
       headerMenuItems={onEditCallTimesSettings ? close => (
         <ContextMenuItem
           onClick={() => { close(); onEditCallTimesSettings(); }}

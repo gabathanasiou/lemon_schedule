@@ -190,23 +190,29 @@ export function caseDeleteCrewRole(state: State, action: Action, applyChange: Ap
 }
 
 // ---- crew people -------------------------------------------------------------
+// Crew person NAMES are normalized UPPERCASE here — the one write seam every
+// entry path goes through (Crew Manager, Glide, Add Crew Member modal), mirror-
+// ing cast names. Contact fields keep their case.
 
 export function caseAddCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'ADD_CREW_PERSON') return state;
+  const person = { ...action.payload.person, name: (action.payload.person.name || '').toUpperCase() };
   const crew = { ...(state.present.crew || {}) };
-  crew[action.payload.role] = [...(crew[action.payload.role] || []), action.payload.person];
+  crew[action.payload.role] = [...(crew[action.payload.role] || []), person];
   return applyChange({
     ...state.present,
     crew,
-    crewOrder: [...(state.present.crewOrder || []), action.payload.person.id],
+    crewOrder: [...(state.present.crewOrder || []), person.id],
   });
 }
 
 export function caseUpdateCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'UPDATE_CREW_PERSON') return state;
+  const rawUpdates = action.payload.updates;
+  const updates = rawUpdates.name !== undefined ? { ...rawUpdates, name: (rawUpdates.name || '').toUpperCase() } : rawUpdates;
   const crew = { ...(state.present.crew || {}) };
   const list = crew[action.payload.role] || [];
-  crew[action.payload.role] = list.map(p => (p.id === action.payload.id ? { ...p, ...action.payload.updates } : p));
+  crew[action.payload.role] = list.map(p => (p.id === action.payload.id ? { ...p, ...updates } : p));
   if (action.payload.toRole && action.payload.toRole !== action.payload.role) {
     const person = (crew[action.payload.role] || []).find(p => p.id === action.payload.id);
     crew[action.payload.role] = (crew[action.payload.role] || []).filter(p => p.id !== action.payload.id);

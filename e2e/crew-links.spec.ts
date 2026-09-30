@@ -19,8 +19,8 @@ async function seedCrew(page: Page) {
     };
     ensureRole('zzzRole', 'ZZZ Role');
     const has = (id: string) => Object.values(b.getProject().crew || {}).some((l: any) => (l || []).some((x: any) => x.id === id));
-    if (!has('zzz-crew-a')) b.dispatch({ type: 'ADD_CREW_PERSON', payload: { role: 'zzzRole', person: { id: 'zzz-crew-a', name: 'ZZZ Alpha' } } });
-    if (!has('zzz-crew-b')) b.dispatch({ type: 'ADD_CREW_PERSON', payload: { role: 'zzzRole', person: { id: 'zzz-crew-b', name: 'ZZZ Beta' } } });
+    if (!has('zzz-crew-a')) b.dispatch({ type: 'ADD_CREW_PERSON', payload: { role: 'zzzRole', person: { id: 'zzz-crew-a', name: 'ZZZ ALPHA' } } });
+    if (!has('zzz-crew-b')) b.dispatch({ type: 'ADD_CREW_PERSON', payload: { role: 'zzzRole', person: { id: 'zzz-crew-b', name: 'ZZZ BETA' } } });
     return { a: 'zzz-crew-a', b: 'zzz-crew-b' };
   });
 }
@@ -72,9 +72,9 @@ test('crew links: seeded person→element and person→crew show on both sides, 
 
   // Crew Links → People: the person card shows both targets.
   const modal = await openCrewLinks(page);
-  await expect(modal).toContainText('ZZZ Alpha');
+  await expect(modal).toContainText('ZZZ ALPHA');
   await expect(modal.locator('[data-el-dropdown] input').first()).toHaveValue(String(anchor.id));
-  await expect(modal.getByText('ZZZ Beta', { exact: true })).toBeVisible();
+  await expect(modal.getByText('ZZZ BETA', { exact: true })).toBeVisible();
   await modal.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(modal).toBeHidden();
 
@@ -84,7 +84,7 @@ test('crew links: seeded person→element and person→crew show on both sides, 
   const row = page.locator('tr', { hasText: anchor.name }).first();
   await row.getByTitle(/^Linked crew/).click();
   const emModal = page.getByRole('dialog');
-  await expect(emModal).toContainText('ZZZ Alpha');
+  await expect(emModal).toContainText('ZZZ ALPHA');
   await emModal.locator('[data-crew-person="zzz-crew-a"]').click();
   await expect.poll(() => page.evaluate(() =>
     ((window as any).__lemonSchedule.getProject().crewLinks || []).some((l: any) => l.id === 'zzz-cl-1'),
@@ -107,6 +107,6 @@ test('day manager: warns when a linked crew target is not on the day', async ({ 
   await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
   await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
   const warning = page.locator('[data-crew-link-warnings]');
-  await expect(warning).toContainText('ZZZ Beta');
+  await expect(warning).toContainText('ZZZ BETA');
   await expect(warning).toContainText('not on this day');
 });
