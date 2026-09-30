@@ -170,6 +170,12 @@ export function reportLocationLink(kind: MapLinkKind, loc: ReportLocation): stri
 type CacheEntry = SunWeather | null;
 const cache = new Map<string, CacheEntry>();
 
+/** Why a date resolved to a null cache entry: `too-far` = beyond the Open-Meteo
+ *  forecast horizon (no data exists yet), `error` = the fetch failed. Lets the
+ *  fields show a hint instead of a bare dash. */
+export type WeatherMissReason = 'too-far' | 'error';
+const missReasons = new Map<string, WeatherMissReason>();
+
 function cacheKey(loc: ReportLocation, date: string): string {
   return `${loc.lat.toFixed(4)}|${loc.lng.toFixed(4)}|${date}`;
 }
@@ -177,6 +183,11 @@ function cacheKey(loc: ReportLocation, date: string): string {
 /** undefined = not fetched yet · null = fetch failed · SunWeather = ready. */
 export function getCachedSunWeather(loc: ReportLocation, date: string): CacheEntry | undefined {
   return cache.get(cacheKey(loc, date));
+}
+
+/** The miss reason for a null cache entry (undefined = not a known miss). */
+export function getSunWeatherMiss(loc: ReportLocation, date: string): WeatherMissReason | undefined {
+  return missReasons.get(cacheKey(loc, date));
 }
 
 // ---- fetch -------------------------------------------------------------------
@@ -244,13 +255,21 @@ export async function fetchSunWeatherBatch(loc: ReportLocation, dates: string[])
   for (const d of fresh) {
     const endpoint = endpointFor(d);
     if (endpoint) (byEndpoint[endpoint] ||= []).push(d);
-    else cache.set(cacheKey(loc, d), null); // beyond the forecast horizon — no data yet
+    else {
+      // Beyond the forecast horizon — no data exists yet (this is the "date
+      // too far" case the fields label as "No forecast yet").
+      cache.set(cacheKey(loc, d), null);
+      missReasons.set(cacheKey(loc, d), 'too-far');
+    }
   }
   await Promise.all(Object.entries(byEndpoint).map(async ([endpoint, ds]) => {
     try {
       await fetchForEndpoint(endpoint, loc, ds);
     } catch {
-      for (const d of ds) cache.set(cacheKey(loc, d), null);
+      for (const d of ds) {
+        cache.set(cacheKey(loc, d), null);
+        missReasons.set(cacheKey(loc, d), 'error');
+      }
     }
   }));
 }
@@ -315,7 +334,13 @@ export function sunWeatherFieldValue(
   const loc = pickLocation(ctx, item, aux?.locationChoice);
   if (!loc) return '—';
   const w = getCachedSunWeather(loc, date);
-  if (!w) return '—';
+  if (!w) {
+    // A resolved miss (not the pre-fetch undefined, which stays a dash until
+    // the canvas/preview warms): a date past the forecast horizon gets a short
+    // hint instead of a bare dash. Fetch errors stay quiet.
+    if (w === null && getSunWeatherMiss(loc, date) === 'too-far') return 'No forecast yet';
+    return '—';
+  }
   if (kind === 'weather') return formatWeatherValue(w);
   if (kind === 'tempHigh') return formatTempC(w.tempMax);
   if (kind === 'tempLow') return formatTempC(w.tempMin);
