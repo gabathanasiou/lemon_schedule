@@ -79,6 +79,12 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
           id: 'days', type: 'repeat', collection: 'days', children: [
             { id: 'hdr', type: 'text', text: 'DAY HEADER {{dayNumber}} {{dayDate}}' },
             { id: 'zone', type: 'callSheetEdit', children: [] },
+            {
+              // Roadmap 151 — the +1 Advance must resolve the NEXT day even
+              // though the day scope filters the parent days list to one day.
+              id: 'adv', type: 'relative', relativeOffset: 1, relativeCount: 1, gap: 8,
+              children: [{ id: 'adv-text', type: 'text', text: 'NEXTDAY {{dayNumber}}' }],
+            },
           ],
         }],
         header: [], footer: [],
@@ -108,8 +114,10 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
 
     // Preview toggles to the paginated day-scoped report and back.
     await page.getByRole('button', { name: 'Preview', exact: true }).click();
-    await expect(page.locator('[data-call-sheet-edit] .report-page').first()).toBeAttached({ timeout: 8000 });
+    const preview = page.locator('[data-call-sheet-edit]');
+    await expect(preview.locator('.report-page').first()).toBeAttached({ timeout: 8000 });
     await expect(page.getByText(/^DAY HEADER /).first()).toBeVisible({ timeout: 8000 });
+    await expect(preview.getByText('NEXTDAY 2', { exact: true })).toBeVisible({ timeout: 8000 });
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
 
@@ -262,7 +270,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(strip).toBeAttached({ timeout: 8000 });
     await expect(strip).toContainText(/\d{1,2}:\d{2}/);
 
-    await page.getByRole('button', { name: 'Times', exact: true }).click();
+    await page.getByRole('button', { name: 'Preview times & durations' }).click();
     await expect(strip).not.toContainText(/\d{1,2}:\d{2}/);
   });
 

@@ -1335,20 +1335,35 @@ export function resolveRelativeItems(
 ): ReportCollectionItem[] {
   const offset = block.relativeOffset ?? 1;
   const count = Math.max(1, block.relativeCount ?? 1);
+  /** The grandparent item the parent repeat itself was scoped to. */
+  const parentItem = ancestors && ancestors.length > 1 ? ancestors[1] : undefined;
+  const rankIn = (list: ReportCollectionItem[]): number =>
+    item && parentCollection
+      ? list.findIndex(it => it === item || reportItemKey(parentCollection, it) === reportItemKey(parentCollection, item))
+      : -1;
   let list = parentItems;
   if (!list && parentCollection) {
-    const parentItem = ancestors && ancestors.length > 1 ? ancestors[1] : undefined;
     const base = resolveCollectionItems(ctx, parentCollection, parentCategory, parentItem, parentCategory, undefined, parentItem ? ancestors?.slice(1) : undefined);
     list = filterItemsByScope(base, parentCollection, parentCollection === 'elements' ? parentCategory : undefined, scopeFilter);
   }
   list = list || [];
   let idx = itemIndex;
   if (idx === undefined && item && list.length > 0 && parentCollection) {
-    idx = list.findIndex(it => it === item || reportItemKey(parentCollection, it) === reportItemKey(parentCollection, item));
+    idx = rankIn(list);
     if (idx < 0) idx = 0;
   }
   if (idx === undefined) return [];
-  return list.slice(idx + offset, idx + offset + count);
+  const sliced = list.slice(idx + offset, idx + offset + count);
+  if (sliced.length > 0 || !item || !parentCollection) return sliced;
+  // The parent list is a SCOPED view — the call sheet's day scope filters the
+  // `days` repeat to the printed day, so a +1 Advance would have no next day
+  // and silently vanished from preview/print while the unscoped editor canvas
+  // still showed it. Re-resolve against the UNSCOPED list and locate the
+  // current item there (last day → still empty: there is no advance).
+  const base = resolveCollectionItems(ctx, parentCollection, parentCategory, parentItem, parentCategory, undefined, parentItem ? ancestors?.slice(1) : undefined);
+  const full = filterItemsByScope(base, parentCollection, parentCollection === 'elements' ? parentCategory : undefined, undefined);
+  const fullIdx = rankIn(full);
+  return fullIdx >= 0 ? full.slice(fullIdx + offset, fullIdx + offset + count) : sliced;
 }
 
 /**
