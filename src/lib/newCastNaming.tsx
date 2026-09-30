@@ -8,8 +8,11 @@ import { TEST_IDS } from './testIds';
 
 interface NewCastNamingContextValue {
   /** Queue newly-created (blank-named) cast member ids so the user can name
-   *  them — element dropdowns create cast with an empty name. */
-  queue: (ids: string[]) => void;
+   *  them — element dropdowns create cast with an empty name. `names` carries
+   *  an already-known name (script tagging highlights one) to prefill;
+   *  `onCancel` reverts whatever ELSE the creation commit did (script tagging
+   *  reverts the whole tag) when the user cancels the naming modal. */
+  queue: (ids: string[], names?: Record<string, string>, onCancel?: () => void) => void;
 }
 
 const NewCastNamingContext = createContext<NewCastNamingContextValue>({ queue: () => {} });
@@ -21,17 +24,20 @@ export const useQueueCastNaming = (): NewCastNamingContextValue => useContext(Ne
 /** Shared "ensure this new element exists" dispatch for entity fields — the
  *  stripboard, Glide breakdown and Scene Sheet all route new items through
  *  here. Cast is referenced by ID, so a brand-new cast member is created with
- *  a BLANK name and queued for the naming modal; every other category uses its
+ *  a BLANK name and queued for the naming modal (`name` — e.g. the name
+ *  highlighted in script tagging — prefills it); every other category uses its
  *  name as its key. */
 export function addNewElement(
   dispatch: (a: Action) => void,
-  queue: (ids: string[]) => void,
+  queue: (ids: string[], names?: Record<string, string>, onCancel?: () => void) => void,
   category: string,
   item: string,
+  name?: string,
+  onCancel?: () => void,
 ): void {
   if (category === 'cast') {
     dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: item, name: '' } } });
-    queue([item]);
+    queue([item], name ? { [item]: name } : undefined, onCancel);
   } else {
     dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: item, name: item } } });
   }
@@ -45,15 +51,15 @@ const NAME_INPUT_CLASS = 'flex-1 min-w-0 px-3 py-2 bg-zinc-900 border border-zin
 export function NewCastNamingProvider({ children }: { children: React.ReactNode }) {
   const { state, dispatch, readOnly } = useProject();
   const castMembers = state.present.castMembers || [];
-  const [pending, setPending] = useState<{ id: string; name: string }[]>([]);
+  const [pending, setPending] = useState<{ id: string; name: string; onCancel?: () => void }[]>([]);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
 
-  const queue = useCallback((ids: string[]) => {
+  const queue = useCallback((ids: string[], names?: Record<string, string>, onCancel?: () => void) => {
     setPending(prev => {
       const seen = new Set(prev.map(p => p.id));
       const fresh = ids.filter(id => !seen.has(id));
-      return fresh.length ? [...prev, ...fresh.map(id => ({ id, name: '' }))] : prev;
+      return fresh.length ? [...prev, ...fresh.map(id => ({ id, name: names?.[id] || '', onCancel }))] : prev;
     });
   }, []);
 
@@ -63,10 +69,12 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
     setPending(prev => prev.map(p => (p.id === id ? { ...p, name } : p)));
   }, []);
 
-  /** Per-entry undo: the cast was added by mistake — delete it everywhere. */
+  /** Per-entry undo: the cast was added by mistake — delete it everywhere,
+   *  plus revert whatever else the creation commit did (a script tag). */
   const undoEntry = useCallback((id: string) => {
     if (readOnly) return;
     dispatch({ type: 'DELETE_CAST_MEMBER', payload: id });
+    pendingRef.current.find(p => p.id === id)?.onCancel?.();
     setPending(prev => prev.filter(p => p.id !== id));
   }, [dispatch, readOnly]);
 
@@ -83,7 +91,14 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
     setPending([]);
   }, [dispatch, readOnly]);
 
-  const dismiss = useCallback(() => setPending([]), []);
+  /** Cancel: revert each queued creation that carried a revert (script tags)
+   *  once per callback — other entries keep the pre-feature blank-member
+   *  behavior. */
+  const dismiss = useCallback(() => {
+    const cancels = new Set(pendingRef.current.map(p => p.onCancel).filter(Boolean));
+    for (const cb of cancels) cb!();
+    setPending([]);
+  }, []);
 
   // Drop entries whose member vanished (e.g. the add was undone) so the modal
   // never proposes naming a cast that no longer exists.

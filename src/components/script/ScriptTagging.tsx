@@ -4,6 +4,7 @@ import ScriptTagMenu, { type ScriptTagMenuState } from './ScriptTagMenu';
 import { useProject } from '../../store';
 import { annotationColor } from '../../lib/scriptAnnotations';
 import { annotationCategoryLabel, annotationElementName, attachedRanges, commitTag, detachTag, suggestionRanges, type TagExisting } from '../../lib/scriptTagging';
+import { useQueueCastNaming } from '../../lib/newCastNaming';
 import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
 import { normalizeSceneNumber } from '../../lib/script';
 import { usePersistState } from '../../lib/persist';
@@ -67,6 +68,7 @@ export interface ScriptTaggingApi {
 export function useScriptTagging(): ScriptTaggingApi {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
+  const { queue: queueCastNaming } = useQueueCastNaming();
   const [showSuggestions, setShowSuggestions] = usePersistState('lemon_schedule_script_suggestions', true);
   const [tagMenu, setTagMenu] = useState<ScriptTagMenuState | null>(null);
   const [hovered, setHovered] = useState<{ annotation: ScriptAnnotation; x: number; y: number } | null>(null);
@@ -214,9 +216,9 @@ export function useScriptTagging(): ScriptTaggingApi {
         : suggestion
           ? { category: suggestion.category, elementKey: suggestion.elementKey }
           : undefined;
-    commitTag(dispatch, project, target, category, previous);
+    commitTag(dispatch, project, target, category, previous, queueCastNaming);
     setTagMenu(null);
-  }, [tagMenu, readOnly, dispatch, project]);
+  }, [tagMenu, readOnly, dispatch, project, queueCastNaming]);
 
   const onRemove = useCallback(() => {
     if (!tagMenu) return;

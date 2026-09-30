@@ -257,6 +257,80 @@ test.describe('script tagging — selection menu (roadmap 136)', () => {
     await expect(page.locator(`[data-annotation-id="${saved.id}"]`)).toHaveCount(0);
   });
 
+  test('script-tagging a new cast name: modal prefilled, Save stores the id, Cancel reverts the tag (roadmap 154)', async ({ page }) => {
+    await openSeededProject(page);
+    await importFile(page, writeFdx('lemon-script-tag-cast.fdx', FDX_A));
+    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
+    await page.getByRole('button', { name: 'Script', exact: true }).click();
+
+    // Highlight a word in the screenplay body and open the category menu.
+    const selectWord = async (word: string) => {
+      await page.evaluate((w) => {
+        const block = Array.from(document.querySelectorAll('[data-script-block]'))
+          .find(b => (b.textContent || '').includes(w)) as HTMLElement | undefined;
+        if (!block) throw new Error('block not found');
+        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        let node: Text | null = null;
+        let n: Node | null;
+        while ((n = walker.nextNode())) {
+          if ((n.textContent || '').includes(w)) { node = n as Text; break; }
+        }
+        if (!node) throw new Error(`${w} text node not found`);
+        const idx = node.textContent!.indexOf(w);
+        const range = document.createRange();
+        range.setStart(node, idx);
+        range.setEnd(node, idx + w.length);
+        const sel = window.getSelection()!;
+        sel.removeAllRanges();
+        sel.addRange(range);
+        block.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      }, word);
+    };
+
+    // Phase 1 — Save: the shared naming modal opens prefilled with the
+    // highlighted name and the tag stores the new member's id.
+    await selectWord('BOB');
+    await page.getByRole('menuitem', { name: 'Cast', exact: true }).click();
+    const naming = page.locator('[data-testid="new-cast-name-modal"]');
+    await expect(naming).toBeVisible({ timeout: 5000 });
+    const input = naming.locator('[data-testid="new-cast-name-input"]').first();
+    await expect(input).toHaveValue('BOB');
+    await input.click();
+    await page.keyboard.press('Meta+A');
+    await page.keyboard.type('BOB TAGGER');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(naming).toBeHidden({ timeout: 5000 });
+
+    const state = await bridgeProject(page);
+    const bob = (state.castMembers || []).find((m: any) => m.name === 'BOB TAGGER');
+    expect(bob).toBeTruthy();
+    const ann = (state.scriptAnnotations || []).find((a: any) => a.text === 'BOB');
+    expect(ann).toBeTruthy();
+    expect(String(ann.elementKey)).toBe(String(bob.id));
+    const scene = state.scenes.find((s: any) => s.id === ann.sceneId);
+    expect((scene.cast || '').split(',').map((x: string) => x.trim())).toContain(String(bob.id));
+
+    // Phase 2 — Cancel reverts the WHOLE tag: member, annotation(s) and the
+    // scene-field attachment.
+    const before = await page.evaluate(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return { castCount: (p.castMembers || []).length, sceneCasts: p.scenes.map((s: any) => s.cast || '') };
+    });
+    await selectWord('coffee');
+    await page.getByRole('menuitem', { name: 'Cast', exact: true }).click();
+    await expect(naming).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(naming).toBeHidden({ timeout: 5000 });
+
+    const after = await page.evaluate(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return { castCount: (p.castMembers || []).length, sceneCasts: p.scenes.map((s: any) => s.cast || ''), annotations: p.scriptAnnotations || [] };
+    });
+    expect(after.castCount).toBe(before.castCount);
+    expect(after.annotations.some((a: any) => a.text === 'coffee')).toBe(false);
+    expect(after.sceneCasts).toEqual(before.sceneCasts);
+  });
+
   test('an imported FDX tag is already attached → solid; removing it falls back to a gated suggestion', async ({ page }) => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-tagged-menu.fdx', FDX_TAGGED));

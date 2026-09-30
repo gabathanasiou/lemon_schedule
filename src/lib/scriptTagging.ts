@@ -3,6 +3,7 @@ import type { CastMember, CustomCategoryDef, Project, Scene, ScriptAnnotation, S
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel, isMultiValue } from './categories';
 import { getCategoryElements } from './elements';
 import { firstFreeCastId } from './import/castIds';
+import { addNewElement } from './newCastNaming';
 import { generateUUID } from './utils';
 import { scriptSceneOf } from './script';
 
@@ -248,6 +249,13 @@ export function elementOccurrences(docScene: ScriptScene, category: string, name
  * field(s), then write an annotation for EVERY occurrence of that element in the
  * scene (accepting "Bob" once tags all five Bobs). Returns the plan (or null
  * when the target is invalid/empty).
+ *
+ * A brand-new CAST member goes through the shared `addNewElement` (blank name +
+ * naming queue, prefilled with the highlighted name) like every other entity
+ * field — the tag still stores the new id (cast is id-keyed), and the naming
+ * modal opens right after. Cancelling that modal REVERTS the whole tag (the
+ * added annotations, the scene-field attachment and the member). Pass the queue
+ * from `useQueueCastNaming()`; without it the raw add is the fallback.
  */
 export function commitTag(
   dispatch: (a: Action) => void,
@@ -255,6 +263,7 @@ export function commitTag(
   target: ScriptTagTarget,
   category: string,
   existing?: TagExisting,
+  queueCastNaming?: (ids: string[], names?: Record<string, string>, onCancel?: () => void) => void,
 ): TagPlan | null {
   const scene = project.scenes.find(s => s.id === target.sceneId);
   if (!target.text.trim() || !scene) return null;
@@ -263,8 +272,34 @@ export function commitTag(
   const occs = docScene ? elementOccurrences(docScene, category, plan.name) : [];
   const stored = project.scriptAnnotations || [];
 
+  // What the commit adds/changes, so the naming modal's Cancel can revert the
+  // whole tag (the shared modal is a confirmation step for a new cast name).
+  const addedAnnotationIds: string[] = [];
+  const restoredAnnotations: { id: string; category: string; elementKey: string }[] = [];
+  const restoreEntry = existing?.id ? { id: existing.id, category: existing.category, elementKey: existing.elementKey } : null;
+
   dispatch({ type: 'BATCH_START' });
-  if (plan.newElement) dispatch({ type: 'ADD_ELEMENT', payload: { category, element: plan.newElement } });
+  if (plan.newElement) {
+    // New cast goes through the shared create path (blank + naming modal, the
+    // highlighted NAME prefilled) — the annotation/scene field still store the
+    // new id, never the name.
+    if (category === 'cast' && queueCastNaming) {
+      const elementKey = plan.elementKey;
+      const onCancel = () => {
+        dispatch({ type: 'BATCH_START' });
+        for (const id of addedAnnotationIds) dispatch({ type: 'REMOVE_SCRIPT_ANNOTATION', payload: id });
+        for (const r of restoredAnnotations) {
+          dispatch({ type: 'UPDATE_SCRIPT_ANNOTATION', payload: { id: r.id, updates: { category: r.category, elementKey: r.elementKey, recognized: false } } });
+        }
+        // Also strips the id from the scene's cast field.
+        dispatch({ type: 'DELETE_CAST_MEMBER', payload: elementKey });
+        dispatch({ type: 'BATCH_COMMIT' });
+      };
+      addNewElement(dispatch, queueCastNaming, category, elementKey, plan.name, onCancel);
+    } else {
+      dispatch({ type: 'ADD_ELEMENT', payload: { category, element: plan.newElement } });
+    }
+  }
   dispatch({ type: 'UPDATE_SCENE', payload: { id: target.sceneId, ...plan.scenePatch } });
 
   const overlapsStored = (occ: ElementOccurrence) =>
@@ -272,8 +307,10 @@ export function commitTag(
 
   if (occs.length === 0) {
     if (plan.annotation.mode === 'update') {
+      if (restoreEntry) restoredAnnotations.push(restoreEntry);
       dispatch({ type: 'UPDATE_SCRIPT_ANNOTATION', payload: { id: plan.annotation.id, updates: plan.annotation.updates } });
     } else {
+      addedAnnotationIds.push(plan.annotation.value.id);
       dispatch({ type: 'ADD_SCRIPT_ANNOTATION', payload: { annotation: plan.annotation.value } });
     }
   } else {
@@ -281,14 +318,17 @@ export function commitTag(
     for (const occ of occs) {
       const isTarget = !!existing?.id && occ.blockIndex === target.blockIndex && occ.start === target.start && occ.end === target.end;
       if (isTarget) {
+        if (restoreEntry) restoredAnnotations.push(restoreEntry);
         dispatch({ type: 'UPDATE_SCRIPT_ANNOTATION', payload: { id: existing!.id!, updates: { category, elementKey: plan.elementKey, recognized: false } } });
         targetUpdated = true;
       } else if (!overlapsStored(occ)) {
+        const id = generateUUID();
+        addedAnnotationIds.push(id);
         dispatch({
           type: 'ADD_SCRIPT_ANNOTATION',
           payload: {
             annotation: {
-              id: generateUUID(),
+              id,
               sceneId: scene.id,
               blockIndex: occ.blockIndex,
               start: occ.start,
@@ -302,6 +342,7 @@ export function commitTag(
       }
     }
     if (existing?.id && !targetUpdated) {
+      if (restoreEntry) restoredAnnotations.push(restoreEntry);
       dispatch({ type: 'UPDATE_SCRIPT_ANNOTATION', payload: { id: existing.id, updates: { category, elementKey: plan.elementKey, recognized: false } } });
     }
   }
