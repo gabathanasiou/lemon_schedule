@@ -683,26 +683,6 @@ manual (numbered hand-off).
 person-keyed `crewCalls` write path (items 101/106/112); touches 111/112 grids;
 related to **142** (Day workspace) and **148** (crew glide Links).
 
-## 149. Glide overlay entity dropdown — Shift key remounts/clears the editor (`[ ]`)
-
-**Bug**: in a `createGlideCellEditor` entity/enum overlay (e.g. the Day Manager
-crew **Person** cell), holding and releasing **Shift** remounts the editor and
-discards in-progress typing — the field snaps back to the seeded value.
-
-**Repro**: Day Manager → Crew → double-click a Person cell → type `ZZ` → press
-and release Shift → the cell reverts to the current person (selection reset to
-select-all).
-
-**Why it's filed, not fixed**: `createGlideCellEditor` returns a STABLE editor
-component per column (cached + the per-activation config travels through a box —
-the identity churn that remounted the overlay and ate keystrokes is fixed), but
-the reset persists — so it comes from Glide's overlay lifecycle on a modifier
-keydown/keyup, not the component identity. Needs a dig into Glide's
-`DataEditor` overlay behaviour (or intercepting the Shift key before the grid).
-
-**Relations**: surfaced while building **146**; touches `InlineGlideTable` +
-`createGlideCellEditor`; the confirm-interception sibling is **180**.
-
 ## 180. Range-fill multi-value confirm — blocked by stacked guards + a dead overlay session (`[ ]`)
 
 **Bug**: `e2e/glide-breakdown.spec.ts` (roadmap 144) is `test.fixme`d — the
@@ -737,18 +717,6 @@ print-pagination) with a repro, then fix in the shared table recipe — no fork.
 - **Verify**: rule-7 manual across designer/preview/print; extend
   `e2e/report-page-breaks.spec.ts` only if pagination splits change.
 
-## 151. Reports — the Advance (`relative`) block doesn't print (`[ ]`)
-
-**Bug** (debug report): the palette's **Advance** block (`type: 'relative'`)
-renders in the designer but is missing from preview/print.
-- Pointers: view `ReportBlockView.tsx:205,600+`, chunk granularity
-  `reportPagination.ts:53-60` (`relative` → repeat units),
-  `useReportPaginator.tsx`, print shell `ReportPrint.tsx`. Find where the print
-  path drops it (paginator vs renderer) and fix once in the shared pipeline.
-- **Verify**: rule-7 manual (designer vs preview vs print) + keep
-  `e2e/report-page-breaks.spec.ts` green (page math).
-- **Relations**: 27 (the block), 120 (nested fragment model).
-
 ## 152. Ribbon designer — truncation when two cells connect side by side (`[ ]`)
 
 **Bug** (debug report): text truncates wrong when adjacent cells share the
@@ -760,42 +728,13 @@ side-by-side layout (second cell loses room / clips early).
 - **Verify**: rule-7 manual (screenshot repro first) at every pad/edge/text-size
   setting — both cells keep full text room, designer vs print agree.
 
-## 154. Script tagging — new cast skips the naming modal (`[ ]`)
-
-**Bug** (debug report): tagging a selection with no matching cast member
-creates it via a raw `ADD_ELEMENT` (`src/lib/scriptTagging.ts:73-77,267` —
-`resolveCast` / `plan.newElement`) instead of the shared `addNewElement`
-(`src/lib/newCastNaming.tsx`), so the "name the new cast" modal (item 86)
-never opens.
-- Route the tagging create path through `addNewElement` / the naming queue
-  while keeping the annotation's element key (cast is id-keyed — the tag must
-  reference the created id, not the typed name).
-- **Verify**: extend `e2e/new-cast-naming.spec.ts` (or the script-tagging
-  case) — silent break = wrong cast identity.
-- **Relations**: 86, 123/132, 136.
-
-## 155. Crew template — call-time boxes can't be typed (`[ ]`)
-
-**Bug** (debug report): Production tab → Call Times → **Crew template**, the
-per-slot Call cells don't accept typing.
-- `CrewRosterEditor` renders the Call column through `InlineGlideTable` with
-  `dayCall=''` (template context, item 141's seeded computed-cell editor);
-  typing is discarded/reset. Pointers: `CrewRosterEditor.tsx:106-113,170,265-271`,
-  `src/lib/glideCells.ts`.
-- Fix the seed/commit path for the empty-anchor template case — no component
-  special-case.
-- **Verify**: extend `e2e/day-call-times.spec.ts` (edit + persistence = silent
-  break).
-- **Relations**: 146 (shipped the editor), 141.
-
 ## 156. Crew table block — contact details + "Report to" (`[ ]`)
 
-**Request**: the `crewTable` report block needs contact columns (Phone/Email
-already exist as crew fields — `reportFields.ts:217-218` — but are missing from
-`CREW_FIXED`, `reportGrids.ts:46`) and **report-to** info (who/where the crew
-reports to — location/contact; user-confirmed not a time).
-- Add `phone`/`email` to the fixed crew columns (static + interactive stay in
-  lockstep); decide the report-to source first (per-person/per-slot field on the
+**Request**: the `crewTable` report block needs **report-to** info (who/where
+the crew reports to — location/contact; user-confirmed not a time).
+- SHIPPED: Phone/Email columns (static `CREW_FIXED` + the interactive
+  `CrewTableGlide`) — `reportGrids.ts`, `CrewTableGlide.tsx`.
+- Remaining: decide the report-to source (per-person/per-slot field on the
   item-146 crew model vs crew links) — one owner, no parallel model.
 - **Verify**: rule-7 manual + `e2e/report-grid-blocks.spec.ts` only if the write
   path changes.
@@ -863,26 +802,25 @@ project (design) or app-local pref (`lemon_schedule_*`).
 - **Verify**: rule-7 manual (pref persistence).
 - **Relations**: 142, 10, 113.
 
-## 162. Day pop-out window doesn't scroll (`[ ]`)
+## 163. Script tab performance — render is unacceptably heavy (`[ ]`)
 
-**Bug** (debug report): a day opened in a pop-out can't be scrolled.
-- Check the popup frames' height/overflow chain
-  (`src/components/popout/PopoutFrames.tsx`, `PopoutWindow.tsx`) + the Day
-  Manager layout inside a popup (`min-h-0` / `overflow` — AGENTS §Pop-out
-  Windows).
-- **Verify**: rule-7 manual; e2e only if state (not layout) is at fault.
-- **Relations**: 98.
-
-## 163. Script tab performance (`[ ]`)
-
-**Request** (debug report): the Script tab feels sluggish. Find the hot path —
-suspects: full-document re-render on selection/hover, `ScriptTagging` overlay
-recompute/scroll listeners, scene-index rebuilds
-(`ScriptView.tsx`, `src/components/script/*`).
-- Deliverable: a measured fix using the existing perf tooling
-  (`docs/PERF-DIAGNOSIS.md`); behavior unchanged.
+**Request** (debug report, escalated): the Script tab renders too slowly and is
+heavy — "performance is really unacceptable". Likely suspects, verify by
+profiling before changing anything:
+- the tagging derivation recomputes attached spans + suggestions for EVERY
+  scene on every project change (`attachedRanges`/`suggestionRanges` scan each
+  element × each block — `src/lib/scriptTagging.ts`, `useScriptTagging`);
+- full-document re-render on selection/hover, `ScriptTagging` overlay
+  recompute/scroll listeners, scene-index rebuilds (`ScriptView.tsx`,
+  `src/components/script/*`).
+- **Deliverable**: a measured fix using the existing perf tooling
+  (`docs/PERF-DIAGNOSIS.md`); behavior unchanged. Evaluate virtualized/windowed
+  rendering for the script body (e.g. `react-window`/`react-virtuoso`/TanStack
+  Virtual) and/or foveated/priority rendering (render the viewport, degrade the
+  rest) — look online for current libraries/methods and pick the smallest one
+  that clears the budget; new deps must be imported by ≥1 source file.
 - **Verify**: before/after profile + `npx playwright test e2e/script-*.spec.ts`
-  green.
+  green (README: existing perf harnesses are `@perf`-tagged).
 - **Relations**: 123/132/136.
 
 ## 164. Day Manager — add an element to a day's Call Times (`[ ]`)
@@ -909,18 +847,6 @@ fully visible.
   and the app modal.
 - **Verify**: playground spec for the flip case + app manual, iPad pass.
 - **Relations**: 64, 69, 70, 110.
-
-## 169. Call Sheet editor — Print/Times labels + hover previews follow Times (`[ ]`)
-
-**Request**: icon-only Print; Times button copy → "preview times & durations"
-(title/aria); when **Times** is OFF, hovering Call Times / Crew Table blocks
-must NOT show the first-scene hover preview (`FirstSceneTooltip`, item 115) — it
-currently always shows.
-- Pointers: `CallSheetEditPage.tsx:100-135`, `InteractiveGridBlock` /
-  `ReportGridBlock` `rowTooltip` wiring.
-- **Verify**: rule-7 manual + `e2e/call-sheet-day.spec.ts` only if the gating
-  is stateful.
-- **Relations**: 114, 115, 142.
 
 ## 171. Day Manager locations overhaul + drop nearest hospital/police (`[ ]`, big)
 

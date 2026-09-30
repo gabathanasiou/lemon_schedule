@@ -62,3 +62,17 @@ auto-repaint.
   runs the batch, Cancel keeps the edit on just the edited cell. Single-value entity columns
   (Set / I/E / D/N, Role, Type) fill directly. Paste is NOT confirmed (a 2D block is fuzzier) — the
   fill handle copies the same value, so its outcome is unchanged.
+- **ONE stable `provideEditor` per grid lifetime** (roadmap 149): build it with
+  `createGlideCellEditor(() => optsRef.current)` from a ref, never as a `useMemo` on config
+  identities. Recreating the callback recreated the cached editor components → Glide remounted the
+  OPEN overlay on every parent re-render (Shift's `setShiftHeld`, keystrokes via state) and typing
+  reset to the seed. Call sites: `InlineGlideTable`, `BreakdownTabGlide`, `glideShell`.
+- **Grids INSIDE a modal get their own overlay layer** (roadmap 155): the shared `#portal` sits at
+  z-9999, BELOW modal content (z-10000), so a cell editor in a modal (Call Times → Crew template)
+  rendered invisible/unclickable. `InlineGlideTable` creates a `[data-glide-overlay-layer]` element
+  (fixed 0,0, z-10001, pointer-events re-enabled — Radix modal mode sets body `pointer-events:none`)
+  and `stopPropagation`s its own focus events, plus a document-capture guard for the focusout fired
+  on the dialog when focus moves INTO the layer — Radix's FocusScope otherwise yanks focus back on
+  every keystroke (edit-on-type re-opened the cell per key: "only one character sticks").
+  `useEscapeCapture` (`src/lib/dropdown.ts`) listens on the WINDOW capture phase so a dropdown's Esc
+  always beats the dialog's document listener, regardless of mount order.
