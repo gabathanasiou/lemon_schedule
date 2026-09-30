@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { GridCellKind, type Item } from '@glideapps/glide-data-grid';
 import { AutocompleteDropdown } from '../components/AutocompleteDropdown';
 import { EntityDropdown } from '../components/EntityDropdown';
+import { useCurrentDocument } from './popoutTarget';
 
 export type GlideColumnEditor =
   | { kind: 'enum'; options: string[]; placeholder?: string }
@@ -94,11 +95,15 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
         };
         const handleClose = () => onFinishedEditing(latestRef.current);
         const handleTabClose = () => onFinishedEditing(latestRef.current, [1, 0] as any);
+        // Escape leaves the whole editing session: the dropdown closes itself
+        // (useEscapeCapture) and calls this — Glide's cancel path (undefined,
+        // no commit), so the cell editor box goes away with the panel.
+        const handleEscape = () => onFinishedEditing(undefined, [0, 0] as any);
 
         if (cfg.kind === 'enum') {
-          return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={cfg.options} showAll positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
+          return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} options={cfg.options} showAll positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
         }
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
       };
       components.set(colKey, Editor);
     }
@@ -127,5 +132,42 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     const { Editor, box } = editorFor(colKey);
     box.current = { cfg: editorCfg, skipComma, selectAllOnOpen, portal: portalRef.current };
     return { editor: Editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
+  };
+}
+
+/**
+ * Escape while a Glide cell editor is open cancels JUST the edit. A modal's
+ * Escape listener (Radix, document capture) would close the enclosing dialog
+ * before Glide's own overlay handler sees the key — so this window-capture
+ * interceptor marks the event `preventDefault`ed while an editor is open
+ * (Radix skips dismissal for handled events) and lets it continue to the
+ * overlay, where Glide's native Escape path cancels the edit without
+ * committing. With no editor open it stays silent and Esc behaves as before.
+ *
+ * Registered at grid mount, so it runs before the dropdowns' own
+ * window-capture interceptors (mounted with the overlay) — entity dropdowns
+ * still close themselves via their `onEscape`.
+ * Spread the returned handlers onto the grid's DataEditor.
+ */
+export function useGlideEscapeCancel(): {
+  onCellActivated: () => void;
+  onFinishedEditing: () => void;
+} {
+  const currentDocument = useCurrentDocument();
+  const openRef = useRef(false);
+  useEffect(() => {
+    const doc = currentDocument ?? document;
+    const win = doc.defaultView;
+    if (!win) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !openRef.current) return;
+      e.preventDefault();
+    };
+    win.addEventListener('keydown', onKey, { capture: true });
+    return () => win.removeEventListener('keydown', onKey, { capture: true });
+  }, [currentDocument]);
+  return {
+    onCellActivated: () => { openRef.current = true; },
+    onFinishedEditing: () => { openRef.current = false; },
   };
 }

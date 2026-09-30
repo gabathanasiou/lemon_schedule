@@ -18,7 +18,7 @@ import { useGlideFill } from '../lib/glideFill';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { expandRangeFill, planGridPaste, type PasteEdit } from '../lib/glidePaste';
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
-import { createGlideCellEditor, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
+import { createGlideCellEditor, useGlideEscapeCancel, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { clipboardRead, clipboardWrite } from '../lib/utils';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
@@ -244,6 +244,8 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       }
     : null;
   const provideEditor = useMemo(() => createGlideCellEditor(() => editorOptsRef.current), []);
+  // Escape cancels the open cell edit without closing an enclosing modal.
+  const escapeCancel = useGlideEscapeCancel();
 
   const gridRef = useRef<DataEditorRef>(null);
   // Row-action glyphs (drawn on the canvas — Glide cells can't host React).
@@ -633,6 +635,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             onCellsEdited={onCellsEdited}
             onPaste={handlePaste}
             provideEditor={provideEditor}
+            {...escapeCancel}
             getCellsForSelection={true}
             gridSelection={gridSelection}
             onGridSelectionChange={setGridSelection}

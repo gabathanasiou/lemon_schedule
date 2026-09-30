@@ -84,6 +84,9 @@ interface EntityDropdownProps {
   panelMinWidth?: string;
   /** Called when the dropdown is dismissed by clicking outside (handleClose). Not called on Enter/Tab commit. */
   onExit?: () => void;
+  /** Called when Escape dismisses the dropdown — hosts may exit the enclosing
+   *  editor too (Glide cancels the cell edit). Not called on commit/outside. */
+  onEscape?: () => void;
   /** Called when Tab is pressed - allows passing movement to Glide's onFinishedEditing */
   onTabExit?: (el?: HTMLElement) => void;
   /** Auto-convert typed and selected values to uppercase (e.g. set fields like "INT. POLICE STATION") */
@@ -254,6 +257,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   panelMinWidth,
   onExit,
   onTabExit,
+  onEscape,
   uppercase = false,
   portalTarget,
   skipComma = false,
@@ -295,6 +299,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     setOpen(false);
     setQuery('');
     setHighlightedIndex(-1);
+    onEscape?.();
   });
 
   useSmartPosition(ref, positioning === 'relative' && open);
@@ -637,7 +642,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     else el.setSelectionRange(len, len);
   };
   const onKeyDownEditor = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-          if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
+          if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); onEscape?.(); }
           if (e.key === 'Tab') {
             e.preventDefault();
             let forceCommit = false;

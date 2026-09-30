@@ -75,4 +75,7 @@ auto-repaint.
   on the dialog when focus moves INTO the layer — Radix's FocusScope otherwise yanks focus back on
   every keystroke (edit-on-type re-opened the cell per key: "only one character sticks").
   `useEscapeCapture` (`src/lib/dropdown.ts`) listens on the WINDOW capture phase so a dropdown's Esc
-  always beats the dialog's document listener, regardless of mount order.
+  always beats the dialog's document listener, regardless of mount order. The Glide editors pass
+  `onEscape` into EntityDropdown/AutocompleteDropdown (`createGlideCellEditor`): one Esc closes the
+  dropdown AND cancels the whole cell-edit overlay (`onFinishedEditing(undefined, [0,0])` — no
+  commit), so the edit popout never lingers.

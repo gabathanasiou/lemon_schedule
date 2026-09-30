@@ -119,8 +119,13 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     await expect(addItem).toBeVisible({ timeout: 4000 });
     await page.keyboard.press('Escape');
     await expect(addItem).toBeHidden();
+    // Escape closes the whole editing session: the cell editor box goes too.
+    await expect(layer.locator('input')).toHaveCount(0);
     await expect(modal).toBeVisible();
-    await layer.locator('input').first().click();
+    // Reopen the person editor for the Add-new flow (click to re-select, then
+    // edit-on-type — dblclick is flaky right after an overlay-cancel).
+    await page.mouse.click(tBox.x + tCols[0] + tCols[1] / 2, tBox.y + 30 + 14);
+    await page.keyboard.press('a');
     await expect(addItem).toBeVisible({ timeout: 4000 });
     await addItem.click();
     const addModal = page.getByRole('dialog').filter({ hasText: 'Add Crew Member' });
@@ -201,6 +206,7 @@ test.describe('Day call times + crew (roadmap 99)', () => {
   });
 
   test('crew template call override accepts typing (roadmap 155)', async ({ page }) => {
+    page.on('console', m => { if (m.text().startsWith('DBG')) console.log('PAGE:', m.text()); });
     await openDayManager(page);
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Call Times' }).click();
@@ -231,13 +237,31 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     const callX = box.x + widths[0] + widths[1] + widths[2] / 2;
     const callY = box.y + 30 + 14;
 
+    // Escape cancels JUST the edit: the editor closes, nothing commits, and
+    // the Call Times modal stays open.
     await page.mouse.dblclick(callX, callY);
     const ta = page.locator('[data-glide-overlay-layer] textarea').first();
     await expect(ta).toBeAttached({ timeout: 4000 });
     await ta.click();
-    await ta.fill('07:30');
-    await expect(ta).toHaveValue('07:30', { timeout: 4000 });
-    await ta.press('Enter');
+    await ta.fill('06:00');
+    await expect(ta).toHaveValue('06:00', { timeout: 4000 });
+    await page.keyboard.press('Escape');
+    await expect(ta).toHaveCount(0, { timeout: 4000 });
+    await expect(modal).toBeVisible();
+    expect(await page.evaluate(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return (p.crewTemplate?.slots || []).some((s: any) => s.callTime === '06:00');
+    })).toBe(false);
+
+    // Reopen (edit-on-type) and commit for real.
+    await page.mouse.click(callX, callY);
+    await page.keyboard.press('0');
+    const ta2 = page.locator('[data-glide-overlay-layer] textarea').first();
+    await expect(ta2).toBeAttached({ timeout: 4000 });
+    await ta2.click();
+    await ta2.fill('07:30');
+    await expect(ta2).toHaveValue('07:30', { timeout: 4000 });
+    await ta2.press('Enter');
 
     await expect.poll(() => page.evaluate(() => {
       const p = (window as any).__lemonSchedule.getProject();

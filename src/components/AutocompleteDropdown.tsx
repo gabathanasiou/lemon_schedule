@@ -59,6 +59,9 @@ interface AutocompleteDropdownProps {
   fuzzy?: boolean;
   /** Called when the dropdown is dismissed by clicking outside or committing. Not called on Escape. */
   onExit?: () => void;
+  /** Called when Escape dismisses the dropdown — hosts may exit the enclosing
+   *  editor too (Glide cancels the cell edit). */
+  onEscape?: () => void;
   /** Called when Tab is pressed - allows passing movement to Glide's onFinishedEditing */
   onTabExit?: () => void;
   portalTarget?: HTMLElement | null;
@@ -82,6 +85,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   autoFocus: autoFocusProp = false,
   showAll = false,
   onExit,
+  onEscape,
   onTabExit,
   portalTarget,
   fuzzy = false,
@@ -134,7 +138,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   }, [setContentRef]);
 
   // Escape dismisses ONLY this dropdown — never the enclosing modal.
-  useEscapeCapture(open, () => { typedRef.current = false; setOpen(false); setVal(value); });
+  useEscapeCapture(open, () => { typedRef.current = false; setOpen(false); setVal(value); onEscape?.(); });
 
   useSmartPosition(ref, positioning === 'relative' && open);
 
@@ -226,7 +230,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
             setOpen(false);
             setVal(value);
           }
-          if (e.key === 'Escape') { typedRef.current = false; setOpen(false); setVal(value); }
+          if (e.key === 'Escape') { typedRef.current = false; setOpen(false); setVal(value); onEscape?.(); }
         }}
       />
       {open && filtered.length > 0 && (() => {
