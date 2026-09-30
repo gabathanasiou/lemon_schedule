@@ -65,6 +65,9 @@ export interface GlideEditorOptions {
 export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) {
   interface EditorBox {
     cfg: GlideColumnEditor;
+    /** Monotonic per-activation id — the same Editor component instance is
+     *  REUSED across overlay sessions, so mount-only effects can't re-run. */
+    activation: number;
     skipComma: boolean;
     /** False when Glide opened the overlay BY the first typed key (`cellData`
      *  already differs from the stored value) — the editor must not select the
@@ -74,6 +77,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
   }
   const boxes = new Map<string, { current: EditorBox | null }>();
   const components = new Map<string, React.ComponentType<any>>();
+  let activationCounter = 0;
 
   const editorFor = (colKey: string) => {
     let box = boxes.get(colKey);
@@ -85,7 +89,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     if (!Editor) {
       Editor = (p: any) => {
         const { value: cellValue, onChange, onFinishedEditing } = p;
-        const { cfg, skipComma, selectAllOnOpen, portal } = box!.current as EditorBox;
+        const { cfg, activation, skipComma, selectAllOnOpen, portal } = box!.current as EditorBox;
         const currentVal = cellValue?.data ?? '';
         const latestRef = useRef(cellValue);
 
@@ -122,19 +126,40 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             el.focus();
             if (selectAllOnOpen) el.select();
             else el.setSelectionRange(el.value.length, el.value.length);
-          }, []);
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+          }, [activation]);
           return (
             <input
               ref={inputRef}
               className="gdg-input"
               value={currentVal}
               onChange={e => apply(e.target.value)}
-              // Glide can pull focus to the grid's a11y cell right after the
-              // overlay opens (seen on the trailing add row) — keep the caret
-              // in the editor while it is still mounted.
-              onBlur={e => {
-                const el = e.target;
-                requestAnimationFrame(() => { if (document.contains(el)) el.focus(); });
+              // Enter commits like the entity dropdown (no row movement): the
+              // grid canvas keeps focus so arrows keep navigating. Letting the
+              // clip region handle it moved the selection and parked focus on
+              // the a11y cell, killing keyboard navigation.
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const value = latestRef.current;
+                  window.setTimeout(() => onFinishedEditing(value), 0);
+                }
+              }}
+              // Glide's canvas/a11y focus churn can pull focus off the editor
+              // right after it opens (seen on the trailing add row) — take it
+              // back while the editor is still mounted. If the user clicked
+              // elsewhere the editor unmounts first, so this never fights a
+              // deliberate outside interaction.
+              onBlur={() => {
+                const reclaim = () => {
+                  const el = inputRef.current;
+                  if (!el || !document.contains(el) || document.activeElement === el) return;
+                  const active = document.activeElement as HTMLElement | null;
+                  if (active && (active.matches('td[role="gridcell"], canvas') || active === document.body)) el.focus();
+                };
+                requestAnimationFrame(reclaim);
+                window.setTimeout(reclaim, 80);
               }}
               placeholder={cfg.placeholder}
             />
@@ -167,7 +192,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     const skipComma = storedVal !== (cellData.data ?? '');
     const selectAllOnOpen = !skipComma;
     const { Editor, box } = editorFor(colKey);
-    box.current = { cfg: editorCfg, skipComma, selectAllOnOpen, portal: portalRef.current };
+    box.current = { cfg: editorCfg, activation: ++activationCounter, skipComma, selectAllOnOpen, portal: portalRef.current };
     // Plain text keeps Glide's default overlay chrome (padding); entity/enum
     // editors bring their own trigger + panel styling.
     if (editorCfg.kind === 'text') return { editor: Editor };

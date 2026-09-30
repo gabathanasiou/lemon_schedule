@@ -32,6 +32,8 @@ export interface ManagerFieldDef {
   key: string;
   label: string;
   width?: string;
+  /** Plain text inputs: force typed values UPPERCASE live (e.g. crew names). */
+  uppercase?: boolean;
   /** Omit for a plain text input; supply for richer editors (e.g. the address LocationPickerModal). */
   render?: (row: ManagerRow, update: (field: string, val: string) => void, readOnly: boolean, ctx: { project: Project }) => React.ReactNode;
 }
@@ -362,7 +364,7 @@ export const DatabaseManagerView: React.FC<{
     </>
   );
 
-  const renderInput = (key: string, field: string, val: string, onChange: (v: string) => void, placeholder?: string, wrap = false) => {
+  const renderInput = (key: string, field: string, val: string, onChange: (v: string) => void, placeholder?: string, wrap = false, uppercase = false) => {
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
       if (e.key === 'Tab') {
@@ -381,7 +383,7 @@ export const DatabaseManagerView: React.FC<{
           value={val}
           placeholder={placeholder}
           readOnly={readOnly}
-          onChange={e => onChange(e.target.value.replace(/\n/g, ' '))}
+          onChange={e => { const v = e.target.value.replace(/\n/g, ' '); onChange(uppercase ? v.toUpperCase() : v); }}
           onKeyDown={handleKey}
           onFocus={buf.noteFocusStart}
           onBlur={buf.noteFocusEnd}
@@ -397,7 +399,7 @@ export const DatabaseManagerView: React.FC<{
         value={val}
         placeholder={placeholder}
         readOnly={readOnly}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => onChange(uppercase ? e.target.value.toUpperCase() : e.target.value)}
         onKeyDown={handleKey}
         onFocus={buf.noteFocusStart}
         onBlur={buf.noteFocusEnd}
@@ -414,7 +416,7 @@ export const DatabaseManagerView: React.FC<{
   };
 
   const defaultInput = (field: ManagerFieldDef, r: ManagerRow, update: (f: string, v: string) => void, ro: boolean, wrap = false) =>
-    renderInput(r.key, field.key, r[field.key] || '', v => update(field.key, v), field.label, wrap);
+    renderInput(r.key, field.key, r[field.key] || '', v => update(field.key, v), field.label, wrap, !!field.uppercase);
 
   const revertButton = hasChanges ? (
     <Button variant="subtle" onClick={doRevert} disabled={readOnly}>

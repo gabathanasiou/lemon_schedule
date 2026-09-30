@@ -161,6 +161,24 @@ function migrateLegacyVersion(v: ScheduleVersion): ScheduleVersion {
 }
 
 /**
+ * Crew person names are stored UPPERCASE (the cast convention). Older projects
+ * carry mixed-case names — normalize them so every surface (Call Times crew
+ * tables, roster dropdowns, reports, CSVs) reads consistently. Idempotent;
+ * runs on local load AND cloud reads.
+ */
+export function migrateCrewNamesToUpper(project: Project): void {
+  if (!project.crew) return;
+  for (const role of Object.keys(project.crew)) {
+    const list = project.crew[role];
+    if (!Array.isArray(list)) continue;
+    for (const person of list) {
+      const name = person?.name;
+      if (typeof name === 'string' && name !== name.toUpperCase()) person.name = name.toUpperCase();
+    }
+  }
+}
+
+/**
  * Item 146: convert legacy person-keyed day crew (`crewIds`/`crewCalls`) and the
  * usual-crew template (`crewTemplate.crewIds`) into slot lists
  * (`crewSlots` / `crewTemplate.slots`). Idempotent; returns true when anything

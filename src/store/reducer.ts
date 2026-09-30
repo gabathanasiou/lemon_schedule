@@ -4,6 +4,7 @@ import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
 import { DEFAULT_LOCATION_TYPES, LOCATION_BUILTIN_KEYS } from '../lib/locations';
 import { ensurePinnedDaybreak, ensureAllScenesHaveRows } from './rows';
+import { migrateCrewNamesToUpper } from '../lib/legacyMigration';
 import {
   caseUpdateProject, caseAddScene, caseUpdateScene, caseDeleteScene, caseRestoreScene,
   caseEmptyTrash, caseSortScenes, caseSortScenesBy, caseInsertSceneAt, caseUpdateVersion, caseUpdateRow,
@@ -341,6 +342,8 @@ export function reducer(state: State, action: Action): State {
       if (!p.colorPalette.dayFooterText) p.colorPalette.dayFooterText = '#000000';
     }
     p = ensureAllScenesHaveRows(p);
+    // Crew names are stored UPPERCASE everywhere (cast convention).
+    migrateCrewNamesToUpper(p);
 
     // Calendar versions (item 66): NO migration — the old per-version calendar
     // data (nonShootDates/productionStart/prepStart/postEnd/weeklyDaysOff on

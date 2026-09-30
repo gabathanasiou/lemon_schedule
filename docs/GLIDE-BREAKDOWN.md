@@ -71,7 +71,8 @@ auto-repaint.
   a plain input, because Glide's built-in editor is unavailable to custom columns. It focuses on
   mount, selects the value when the overlay was opened on the stored value, uppercases live per
   keystroke, and re-takes focus on blur (Glide's a11y cell can steal it right after opening, e.g.
-  the trailing add row). Enter/Tab/Escape still go through Glide's clip region.
+  the trailing add row). Enter commits like the entity dropdown (canvas keeps focus, arrows
+  keep navigating) instead of Glide's clip region moving the selection to the a11y cell.
 - **Grids INSIDE a modal get their own overlay layer** (roadmap 155): the shared `#portal` sits at
   z-9999, BELOW modal content (z-10000), so a cell editor in a modal (Call Times → Crew template)
   rendered invisible/unclickable. `InlineGlideTable` creates a `[data-glide-overlay-layer]` element

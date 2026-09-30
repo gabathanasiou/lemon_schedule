@@ -1,7 +1,7 @@
 import type { ProjectMeta } from '../store';
 import type { Project } from '../types';
 import { pruneVersionTrash, pruneCalendarVersionTrash } from '../store/storage';
-import { migrateCrewSlots } from './legacyMigration';
+import { migrateCrewSlots, migrateCrewNamesToUpper } from './legacyMigration';
 
 export function getDriveErrorStatus(err: unknown): number | null {
   const msg = err instanceof Error ? err.message : String(err ?? '');
@@ -282,6 +282,8 @@ export async function readDriveProject(
   }
   // Item 146: person-keyed crew → slot lists, same as local loads.
   migrateCrewSlots(project);
+  // Crew names are stored UPPERCASE everywhere (cast convention).
+  migrateCrewNamesToUpper(project);
   return project;
 }
 

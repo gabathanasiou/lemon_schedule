@@ -72,7 +72,7 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
     for (const [roleKey, names] of Object.entries(GOLDEN.crew || {})) {
       expect((p.crew?.[roleKey] || []).map((m: any) => m.name)).toEqual(names);
     }
-    expect((p.crew?.director || []).map((m: any) => m.name)).toContain('Frank Capra');
+    expect((p.crew?.director || []).map((m: any) => m.name)).toContain('FRANK CAPRA');
 
     // strip colors — the MMS ColorSettings matrix + strip preferences
     const goldenColors = GOLDEN.colors;
