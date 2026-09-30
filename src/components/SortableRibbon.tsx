@@ -340,7 +340,7 @@ const SortableRowContent: React.FC<{
             className="text-left w-full text-xs"
             readOnly={!isEditable}
             mode="multi"
-            positioning="fixed"
+           
             placeholder="Cast"
             displayMode="id"
             items={castItems}
@@ -429,7 +429,7 @@ const SortableRowContent: React.FC<{
       const entityItems = entityItemsMap[field] || [];
       return (
         <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
-          <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full text-xs" readOnly={!isEditable} placeholder={fieldLabels[field] || field} anchoredKeys={anchoredByCategory.get(field)} />
+          <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} className="text-left w-full text-xs" readOnly={!isEditable} placeholder={fieldLabels[field] || field} anchoredKeys={anchoredByCategory.get(field)} />
         </td>
       );
     }
@@ -524,7 +524,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={style}>
           {isEditable ? (
-            <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({intExt: val as any})} options={getIntExtOptions(palette)} className="text-left w-full" readOnly={!isEditable} positioning="fixed" placeholder={fieldLabel} />
+            <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({intExt: val as any})} options={getIntExtOptions(palette)} className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -536,7 +536,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={style}>
           {isEditable ? (
-            <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({dayNight: val as any})} options={getDayNightOptions(palette)} className="text-left w-full" readOnly={!isEditable} positioning="fixed" placeholder={fieldLabel} />
+            <SelectDropdown autoFocus={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({dayNight: val as any})} options={getDayNightOptions(palette)} className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -548,7 +548,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={style}>
           {isEditable ? (
-            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!isEditable} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" anchoredKeys={anchoredByCategory.get('cast')} renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>} />
+            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!isEditable} mode="multi" placeholder="Cast" displayMode="id" anchoredKeys={anchoredByCategory.get('cast')} renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -629,7 +629,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={style}>
           {isEditable ? (
-            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} anchoredKeys={anchoredByCategory.get(field)} />
+            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} anchoredKeys={anchoredByCategory.get(field)} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import { useDropdown, useEscapeCapture } from '../../lib/dropdown';
-import { useFixedPosition } from '../../lib/useSmartPosition';
 import { IS_COARSE, useHardwareKeyboard } from '../../lib/device';
 import { useKeyboardMode } from '../../lib/persist';
 import DropdownPanel from '../DropdownPanel';
@@ -48,19 +47,11 @@ export function AsyncResultsDropdown<T extends AsyncResultItem>({
   const [keyboardMode] = useKeyboardMode();
   const hwKeyboard = useHardwareKeyboard();
 
-  /* Fixed positioning + the same pos/ready contract as DropdownPanel: the
-     panel stays invisible until the positioning rAF flips `ready`. */
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288, ready: false } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
-
+  /* Fixed positioning + the ready gate live in the shared DropdownPanel
+     engine; the panel stays invisible until it is positioned. */
   useEscapeCapture(open, () => setOpen(false));
 
-  useFixedPosition(ref, open, (p) => setPos({ ...p, ready: true }));
-
   useDropdown(open, ref, () => setOpen(false), panelRef);
-
-  useEffect(() => {
-    if (open) setPos(p => ({ ...p, ready: false }));
-  }, [open]);
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -116,8 +107,7 @@ export function AsyncResultsDropdown<T extends AsyncResultItem>({
       {open && (
         <DropdownPanel
           dark
-          positioning="fixed"
-          pos={pos}
+          anchorRef={ref}
           panelRef={panelRef}
           scrollRef={scrollRef}
           dropdownItems={results.map(r => ({ id: r.key, name: r.label }))}
@@ -133,7 +123,6 @@ export function AsyncResultsDropdown<T extends AsyncResultItem>({
           onHoverLeave={() => setHighlighted(-1)}
           onCommit={() => {}}
           portalTarget={null}
-          anchorRef={ref}
         />
       )}
     </div>

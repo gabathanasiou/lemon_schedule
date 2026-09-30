@@ -76,6 +76,7 @@ import AppHeader, { AppTabId } from './components/AppHeader';
 import ProductionTab, { ProductionSubTab, ProdViews } from './components/ProductionTab';
 import ReportDesigner from './components/reports/ReportDesigner';
 import { useDaybreakSections } from './lib/useDaybreakSections';
+import { useKeyboardDismissOnScroll } from './lib/useKeyboardDismissOnScroll';
 import { ReportBlock, ReportDesign } from './types';
 import { dayScopeFilter } from './components/reports/DayReportPreview';
 import { ReportDaybreakData } from './lib/reportData';
@@ -220,6 +221,9 @@ function AppContent() {
   const goDesignSubTab = useCallback((sub: string) => go({ tab: 'design', sub }), [go]);
   const goReportsSubTab = useCallback((sub: string) => go({ tab: 'reports', sub }), [go]);
   const goProdSubTab = useCallback((sub: string) => go({ tab: 'production', sub }), [go]);
+
+  // Native .onDrag-style keyboard dismissal on touch (see the hook).
+  useKeyboardDismissOnScroll();
 
   // Browser back/forward: apply the incoming entry through the unsaved guard
   // (which prompts AND proceeds — cancel means discard, the same as a tab
@@ -439,15 +443,6 @@ function AppContent() {
     });
     popoutSubWindowsRef.current.delete(`sub_${parentId}_${subTabId}`);
   };
-
-  useEffect(() => {
-    if (IS_COARSE && typeof document !== 'undefined') {
-      const opts: AddEventListenerOptions = { passive: false };
-      document.addEventListener('gesturestart', e => e.preventDefault(), opts);
-      document.addEventListener('gesturechange', e => e.preventDefault(), opts);
-      document.addEventListener('gestureend', e => e.preventDefault(), opts);
-    }
-  }, []);
 
   const wasOfflineRef = useRef(false);
   const [retryingConnection, setRetryingConnection] = useState(false);

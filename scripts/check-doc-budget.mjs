@@ -196,7 +196,9 @@ const E2E_SPEC_CAP = 70;
 // real DOM/file-chooser coverage, not unit-only.
 // 267 → 268: roadmap 136 tagging overhaul (selection→category menu + FDX commit
 // + the Suggestions toggle) needs a second spec case; the old picker e2e is gone.
-const E2E_TEST_CAP = 268;
+// 268 → 270: roadmap 165 positioning engine — app-level geometry guards that a
+// panel never overhangs the visual viewport (the kit playground covers flip).
+const E2E_TEST_CAP = 270;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

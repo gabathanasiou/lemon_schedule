@@ -59,6 +59,9 @@ const IMPORT = ['msd-import', 'sex-import', 'cast-single-source', 'script-retent
 const PRINT = ['report-pagination', 'report-page-breaks', 'print-dialog-dropdowns'];
 const MODAL = ['pen-modal', 'keyboard-mode', 'overlay-morph'];
 const TRASH = ['trash-restore'];
+/* The shared positioning engine (roadmap 165): app panels must stay inside the
+   visual viewport — geometry guarded by the dropdown-positioning spec. */
+const DROPDOWN_POS = ['dropdown-positioning'];
 /* iPad touch/keyboard/viewport specs (roadmap 69-71). Gated to the webkit iPad
    project (`test.skip` in the spec), so running them via smart-test's default
    config only reports them as skipped — they're the real gate under
@@ -236,7 +239,8 @@ const RULES = [
   // shared dropdown base + overlay surfaces are app-wide (sheets, glide, stripboard, modals)
   { g: 'src/lib/dropdown*.ts', s: 'ALL' },
   { g: 'src/components/cards/ItemRow.tsx', s: 'ALL' },
-  { g: 'src/lib/useSmartPosition.ts', s: [...MODAL, 'report-chrome', 'print-dialog-dropdowns'] },
+  { g: 'src/lib/useDropdownPosition.ts', s: [...MODAL, 'report-chrome', 'print-dialog-dropdowns', ...DROPDOWN_POS] },
+  { g: 'src/lib/useKeyboardDismissOnScroll.ts', s: [...MODAL, ...DROPDOWN_POS, 'ipad-touch-scroll'] },
   { g: 'src/lib/useScrolledLeft.ts', s: [...MODAL, 'report-chrome', 'print-dialog-dropdowns'] },
   { g: 'src/lib/doodCells.ts', s: [...REPORT, 'day-call-times', 'report-grid-blocks'] },
   { g: 'src/lib/crewManagerConfig.tsx', s: CREW },

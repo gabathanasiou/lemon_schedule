@@ -234,7 +234,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 |---|---|---|
 | Toolbar / action button | kit `Button` | Variants `subtle`/`primary`/`danger-ghost`; `cloud` prop colors light primary for cloud projects (derive via `useIsCloudProject`); `theme="dark"` for dark toolbars; icon-only nav + status pills stay bespoke |
 | Version picker (schedule/calendar/ribbon-design dropdown) | `ItemManagerDropdown` | Per-tab placement (item 66: Schedule tab toolbar right edge + Calendar tab outer PageToolbar — **no header pickers**); trigger = kit `Button` with a muted label span + `text-zinc-900`/`text-zinc-200` value span + muted chevron (ribbon-designer recipe); rename inline uses the kit's theme-aware input (light theme = light input) — the create flow must dispatch with the SAME id the menu handed to its inline rename (`makeBlankCalendarVersion(name, id)`) or the rename input never appears |
-| Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; **one `.ui-item-highlighted` row** (pointer hover + arrows, latest wins; the CSS `:hover` fill feeds iOS tap-to-hover but is suppressed while a row is highlighted — kit `tokens.css`, keyed on the kit class not Radix's attr), arrows/typeahead/Esc + the document-level menu key-lock (mini-modal: menu keys stay captured even when focus sits on a canvas); `modal:false`; root content = panel positioning (fixed below the trigger, width-matched, viewport-clamped); submenus keep the Radix popper side-placement; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy). **`searchable`** adds the kit search box that filters the registered rows (the long category list in Script tagging, roadmap 136: `ScriptTagMenu` anchors a zero-size fixed trigger at the text selection, so the highlighted text stays selected while the menu is open) |
+| Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; **one `.ui-item-highlighted` row** (pointer hover + arrows, latest wins; the CSS `:hover` fill feeds iOS tap-to-hover but is suppressed while a row is highlighted — kit `tokens.css`, keyed on the kit class not Radix's attr), arrows/typeahead/Esc + the document-level menu key-lock (mini-modal: menu keys stay captured even when focus sits on a canvas); `modal:false`; root content = the one positioning engine (`useDropdownPosition`: fixed below the trigger, width-matched, visual-viewport flip/clamp, `maxMenuHeight` ceiling); submenus keep the Radix popper side-placement; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy). **`searchable`** adds the kit search box that filters the registered rows (the long category list in Script tagging, roadmap 136: `ScriptTagMenu` anchors a zero-size fixed trigger at the text selection, so the highlighted text stays selected while the menu is open) |
 | Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme by default** (`theme` prop; the ribbon designer passes `"dark"`); press-point-anchored morph, closes on Esc. Shares the kit menu machinery (highlight/keys/lock) — `ContextMenuSub` = `DropdownSubmenu` |
 | Entity/cast picker in a cell or form | `EntityDropdown` | Modes: `multi` (comma list, click toggles), `single` (search-then-select), `select` (legacy). `items` prop REQUIRED — no context fallback. **Inside modals use `variant="chip"`** (dark chip trigger + dark panel; §EntityDropdown chip version below) — cells/forms keep the light default |
 | Async address/place search | `AsyncResultsDropdown` (`src/components/location/`) | Debounced async results rendered in the **shared dark `DropdownPanel`** (the chip-EntityDropdown panel — morph, touch/wheel scroll, visual-viewport keyboard clamp for free) with a `Loader2` spinner in the trigger while searching; the search input keeps focus (NOT a kit `DropdownMenu`: its document key-lock consumes typeahead letters + steals focus to the content, breaking typing) |
@@ -242,12 +242,12 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Live numeric box (toolbar steppers: ribbon Pad V/H, Edge, Master Size, cell offset) | `LiveNumberInput` (`RibbonToolbar.tsx`) | Free-typed draft while focused (type digits one at a time, delete-to-empty); commit clamps live (preview updates), Enter/blur clamps + finalizes, Escape reverts to the committed value. Never a clamped controlled input — clamping on change snaps the first keystroke |
 | Confirm/prompt/alert | `useDialog().confirm/prompt/alert` | **Renders through the kit Modal (`flat` chrome — no header/footer bars, item 67)**: inherits the zoom/stack morph, the one-dim backdrop and the viewport clamp; Enter ALWAYS triggers the primary action (document-capture, even with focus on the X close button); Esc/outside = cancel |
 | Confirm + remember-24h | `dialog.confirm({…, danger:true, suppressKey})` | For frequent-but-serious only |
-| Popup above keyboard | `FloatingChrome` / `useSmartPosition` | iOS visual-viewport aware |
+| Popup above keyboard | `FloatingChrome` / `useDropdownPosition` | iOS visual-viewport aware |
 | Full form surface | `Modal` + `ModalFooter` | §Modal anatomy |
 | Full-page detail editor | SceneSheet pattern (light page, NOT a modal) | `SceneSheet.tsx` |
 | Multi-select lists | `Checklist` / `RadioList` / `Checkbox` | kit, `data-theme` aware |
 | Call-time / duration input | `TimeField` / `DurationField` | Shared expression parsing + touch keypad; never a raw time input |
-| Grouped single/multi-select dropdown (locations/crew/categories) | `GroupedSelect` (`production/day/`) | Renders through the shared `DropdownPanel` (group headers + single-highlight), NOT the kit `DropdownMenu` — the panel flips above the trigger when short on space (the kit menu's `bottom`-anchored flip lands off-screen inside a modal's transformed popper wrapper); light/dark themes |
+| Grouped single/multi-select dropdown (locations/crew/categories) | `GroupedSelect` (`production/day/`) | Renders through the shared `DropdownPanel` (group headers + single-highlight), NOT the kit `DropdownMenu` (the async/darker interaction needs the panel's typeahead-friendly model); light/dark themes. Positioning comes from the one engine — never hand-place the panel |
 | Grouped item list (dark modals) | `ItemCard` + `ItemRow` (`src/components/cards/`) | Collapsible group card + interactive row — the element events manager's day-type sections and its Rules section (first migrations). §Item cards below |
 | Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), read-only cells gray + `cursor: default`, editable rows hover-tinted, centered headers, one commit per edit/paste/fill/clear. Header right-click can expose caller menu items via `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut. Day Manager Call Times + Crew; reuse for manager pages |
 
@@ -410,13 +410,20 @@ and EntityDropdown/Select/Autocomplete panels out of their trigger — the kit's
 `visibility: hidden` and styles are restored only after the node detaches (menus, `Modal.zoomOut`)
 or on a pinned clone for unmount-driven closes (`cloneOnUnmount`, panels).
 
-**Touch + keyboard inside modals** (roadmap 69/70): overlays are ALWAYS scrollable by touch —
+**Touch + keyboard inside modals** (roadmap 69/70/165): overlays are ALWAYS scrollable by touch —
 react-remove-scroll (Radix Dialog) cancels `touchmove` on anything outside the dialog content, so
 `useOverlayMorph` intercepts touchmoves at document capture (stop-propagation, the same trick as the
-v0.1.52 wheel interceptor) and lets native finger scroll proceed. Dropdown panels position/clamp
-against the **visual viewport** and re-measure on `visualViewport` resize/scroll — the iOS keyboard
-fires resize there (never on `window`), so a panel open near the keyboard stays inside the visible
-area instead of extending under it.
+v0.1.52 wheel interceptor) and lets native finger scroll proceed. **One positioning engine** — kit
+`useDropdownPosition` (`ui-kit/src/useDropdownPosition.ts`, re-exported at
+`src/lib/useDropdownPosition.ts`) — owns every menu/panel: fixed + portaled to the current document
+body, decisions against the **visual viewport** (the iOS keyboard shrinks/pans it and fires
+resize/scroll there, never on `window`), top/left only (CSS `bottom` is layout-viewport-relative and
+lands under the keyboard), content-height-aware flip (`bestFit` when neither side fits) and height
+clamp on the chosen side (`maxMenuHeight` = per-menu ceiling). Re-measures on
+scroll/resize/visualViewport/ResizeObserver. **MUST NOT hand-position a panel, add a second
+positioner, or cap a panel's height with an `!important` class** (an `!important` cap beats the
+engine's inline clamp — menus hung off-screen). On touch, `useKeyboardDismissOnScroll` mirrors
+native `.onDrag`: dragging a surface the focused field does NOT live in dismisses the keyboard.
 
 Width ladder (verified call sites): `max-w-sm` simple forms (`CustomOrderSortModal`) · `max-w-md`
 single-form (`DayTypeModals.tsx:26`) · `max-w-lg` merge/violations (`ViolationModal`) · `max-w-xl`

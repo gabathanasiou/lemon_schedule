@@ -48,7 +48,8 @@ export const CategoryDropdown: React.FC<{
       theme="dark"
       initialHighlightIndex={activeIndex >= 0 ? activeIndex : undefined}
       width={minWidth ? `${minWidth}!` : 'min-w-[160px]!'}
-      contentClassName="z-[10001] max-h-64!"
+      contentClassName="z-[10001]"
+      maxMenuHeight={256}
       trigger={
         <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} ${btnClass} shrink-0 ${minWidth || 'min-w-[120px]'} justify-between cursor-pointer`}>
           <span className={`truncate ${!value && placeholder ? 'text-zinc-500' : ''}`}>{categoryLabelLookup[value] || value || placeholder || ''}</span>

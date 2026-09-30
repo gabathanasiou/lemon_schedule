@@ -107,7 +107,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       onChange={val => setter(val.split(',').map(x => x.trim()).filter(Boolean))}
       onCreateItem={(item) => addNewElement(dispatch, queue, 'cast', item)}
       items={castOptions}
-      positioning="fixed"
+     
       portalTarget={portalTarget ?? document.body}
       mode="multi"
       variant="chip"

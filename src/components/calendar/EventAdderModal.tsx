@@ -281,7 +281,7 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
                         onChange={val => patchRow(r.id, { keys: val.split(',').map(x => x.trim()).filter(Boolean), all: false })}
                         onCreateItem={(item) => addNewElement(dispatch, queue, r.category, item)}
                         items={items}
-                        positioning="fixed"
+                       
                         portalTarget={portalTarget ?? document.body}
                         mode="multi"
                         variant="chip"

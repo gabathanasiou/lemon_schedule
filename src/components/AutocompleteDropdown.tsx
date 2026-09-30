@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useOverlayMorph } from '@gabriel/ui-kit';
 import { useDropdown, useOpenHandler, useEscapeCapture, DD_ITEM } from '../lib/dropdown';
-import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
+import { useDropdownPosition, type DropdownPanelPos } from '../lib/useDropdownPosition';
+import { useCurrentDocument } from '../lib/popoutTarget';
 import { overlayMorphOptIn } from '../lib/overlayMotion';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
@@ -44,7 +45,6 @@ interface AutocompleteDropdownProps {
   className?: string;
   readOnly?: boolean;
   placeholder?: string;
-  positioning?: 'relative' | 'fixed';
   standalone?: boolean;
   normalize?: (val: string) => string;
   /** Start with the dropdown open (editors that should show suggestions immediately) */
@@ -78,7 +78,6 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   className,
   readOnly,
   placeholder,
-  positioning = 'relative',
   standalone = false,
   normalize = v => v.toUpperCase(),
   defaultOpen = false,
@@ -106,12 +105,13 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   });
   const ref = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const currentDocument = useCurrentDocument();
   /** True while the user has typed since the dropdown opened — a click-open
    *  (no typing yet) shows ALL options, not a pre-filtered query. */
   const typedRef = useRef(false);
-  /* Fixed panels stay INVISIBLE until the positioning rAF flips `ready` —
-     the panel must never paint a frame at (0,0) before it is positioned. */
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288, ready: false } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
+  /* Fixed panels stay INVISIBLE until the positioning engine reports `ready`
+     — the panel must never paint a frame at (0,0) before it is positioned. */
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288, ready: false });
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleOpen = useOpenHandler(setOpen);
@@ -140,8 +140,6 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   // Escape dismisses ONLY this dropdown — never the enclosing modal.
   useEscapeCapture(open, () => { typedRef.current = false; setOpen(false); setVal(value); onEscape?.(); });
 
-  useSmartPosition(ref, positioning === 'relative' && open);
-
   useDropdown(open, ref, () => {
     if (val !== value) onChange(val);
     onExit?.();
@@ -150,7 +148,15 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
     setVal(value);
   }, scrollRef);
 
-  useFixedPosition(ref, positioning === 'fixed' && open, (p) => setPos({ ...p, ready: true }));
+  useDropdownPosition({
+    anchorRef: ref,
+    panelRef: scrollRef,
+    contentRef: scrollRef,
+    open,
+    onPosition: useCallback((p: DropdownPanelPos) => {
+      setPos({ top: p.top, left: p.left, width: ref.current?.getBoundingClientRect().width ?? 0, maxH: p.maxH, ready: true });
+    }, []),
+  });
 
   useEffect(() => {
     if (open) setPos(p => ({ ...p, ready: false }));
@@ -238,12 +244,8 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
          <div
           ref={setPanelRef}
           data-overlay-panel
-          className={
-            positioning === 'fixed'
-              ? 'click-outside-ignore z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[160px]'
-              : `click-outside-ignore absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1 min-w-[160px]`
-          }
-          style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxH, visibility: pos.ready ? 'visible' : 'hidden', ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
+          className="click-outside-ignore z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[160px]"
+          style={{ position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxH, visibility: pos.ready ? 'visible' : 'hidden', top: pos.top }}
         >
           {filtered.map((opt, i) => (
             <div
@@ -257,9 +259,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
           ))}
         </div>
         );
-        return portalTarget && positioning === 'fixed'
-          ? createPortal(panel, portalTarget)
-          : panel;
+        return createPortal(panel, portalTarget ?? currentDocument?.body ?? document.body);
       })()}
     </div>
   );

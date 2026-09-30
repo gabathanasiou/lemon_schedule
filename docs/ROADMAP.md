@@ -836,18 +836,6 @@ fitting), so it lands on that day's call sheet.
   (wrong call time/count = silent).
 - **Relations**: 99, 107, 111, 146.
 
-## 165. Dropdowns — panels must always be openable inside modals (`[ ]`)
-
-**Bug** (debug report): in the Call Times editor a category dropdown with no
-space below doesn't flip/clamp properly ("should open on the top of the
-dropdown when there is no space"). All dropdowns should always open (and stay)
-fully visible.
-- Check kit `useFixedPosition` / `useSmartPosition` + `DropdownPanel` inside
-  tall/scrollable modals (roadmap 64/70); reproduce in the ui-kit playground
-  and the app modal.
-- **Verify**: playground spec for the flip case + app manual, iPad pass.
-- **Relations**: 64, 69, 70, 110.
-
 ## 171. Day Manager locations overhaul + drop nearest hospital/police (`[ ]`, big)
 
 **Request**: the day's location attachment is bad — the dropdown cuts off and
@@ -893,3 +881,15 @@ Enumerate the wrong ones with the user before changing copy.
   `CrewRosterEditor.tsx`, `CallTimesSection.tsx`/`CrewSection.tsx`.
 - **Verify**: rule-7 manual.
 - **Relations**: 110, 146; split out of 173.
+
+## 182. Nested submenus on touch — iOS-style replace-in-place (`[ ]`)
+
+**Request**: on touch devices a submenu should present over/near its parent —
+the parent card scales down and fades while the child opens (Apple's mobile
+menu pattern), instead of the desktop side-placement that can land off-screen.
+- Kit `DropdownSubmenu.tsx`: coarse-pointer (`useTouchMode`) presentation only —
+  child anchored to the parent card (same rect + slight offset), parent
+  scale-down + fade via `useOverlayMorph` (`playOverlayOpen/Close`), a back
+  affordance in the child; desktop keeps the Radix side placement.
+- **Verify**: playground spec under the `ipad` project + app iPad manual pass.
+- **Relations**: 165 (positioning engine), 64, 69-71.

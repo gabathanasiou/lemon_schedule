@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useOverlayMorph } from '@gabriel/ui-kit';
 import { useDropdown, useOpenHandler, useEscapeCapture, DD_ITEM } from '../lib/dropdown';
-import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
+import { useDropdownPosition, type DropdownPanelPos } from '../lib/useDropdownPosition';
+import { useCurrentDocument } from '../lib/popoutTarget';
 import { overlayMorphOptIn } from '../lib/overlayMotion';
 import { advanceRibbonFocus } from '../lib/ribbonEditNav';
 import { IS_COARSE } from '../lib/device';
@@ -15,7 +17,6 @@ interface SelectDropdownProps {
   className?: string;
   readOnly?: boolean;
   placeholder?: string;
-  positioning?: 'relative' | 'fixed';
   standalone?: boolean;
   autoFocus?: boolean;
   onTabExit?: (el: HTMLElement) => void;
@@ -29,7 +30,6 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   className,
   readOnly,
   placeholder,
-  positioning = 'relative',
   standalone = false,
   autoFocus = false,
   onTabExit,
@@ -40,7 +40,8 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
   const ref = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
+  const currentDocument = useCurrentDocument();
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288, ready: false });
 
   const handleOpen = useOpenHandler(setOpen);
 
@@ -76,11 +77,17 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
     }
   }, [autoFocus, readOnly, handleOpen]);
 
-  useSmartPosition(ref, positioning === 'relative' && open);
-
   useDropdown(open, ref, () => setOpen(false));
 
-  useFixedPosition(ref, positioning === 'fixed' && open, (p) => setPos({ ...p, ready: true }));
+  useDropdownPosition({
+    anchorRef: ref,
+    panelRef: scrollRef,
+    contentRef: scrollRef,
+    open,
+    onPosition: useCallback((p: DropdownPanelPos) => {
+      setPos({ top: p.top, left: p.left, width: ref.current?.getBoundingClientRect().width ?? 0, maxH: p.maxH, ready: true });
+    }, []),
+  });
 
   useEffect(() => {
     if (open) setPos(p => ({ ...p, ready: false }));
@@ -135,16 +142,12 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
           {value || placeholder}
         </span>
       )}
-      {open && (
+      {open && createPortal(
         <div
           ref={setPanelRef}
           data-overlay-panel
-          className={
-            positioning === 'fixed'
-              ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[120px]'
-              : `absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1 min-w-[120px]`
-          }
-          style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxH, visibility: pos.ready ? 'visible' : 'hidden', ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
+          className="z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[120px]"
+          style={{ position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxH, visibility: pos.ready ? 'visible' : 'hidden', top: pos.top }}
         >
           {options.map((opt, i) => (
             <div
@@ -156,7 +159,8 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
               {opt}
             </div>
           ))}
-        </div>
+        </div>,
+        currentDocument?.body ?? document.body,
       )}
     </div>
   );

@@ -97,7 +97,8 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
             align="left"
             width="min-w-[180px]!"
             initialHighlightIndex={activeIndex >= 0 ? activeIndex : undefined}
-            contentClassName="z-[10001] max-h-64! scrollbar-custom"
+            contentClassName="z-[10001] scrollbar-custom"
+            maxMenuHeight={256}
             trigger={
               <button
                 type="button"

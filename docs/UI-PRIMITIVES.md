@@ -69,11 +69,24 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `src/components/` inject the opt-out key). Don't re-create menu/panel positioning, morphing, or Esc
   handling. **iPad invariants (kit ≥v0.1.64)**: overlays inside modals are finger-scrollable
   (react-remove-scroll cancels touchmoves outside the dialog content; `useOverlayMorph` intercepts
-  them at capture) and modals/dropdowns position against the **visual viewport**
-  (`visualViewport.height/offsetTop` — the iOS keyboard fires resize there, never on `window`), so
-  panels re-clamp and modals re-centre when the keyboard opens/closes. Async search pickers keep the
+  them at capture). Async search pickers keep the
   input focused — use the shared `DropdownPanel`, NOT the kit menu (its document key-lock eats
   typeahead letters).
+- **One positioning engine (roadmap 165, kit v0.1.83)**: EVERY floating menu/panel (kit
+  `DropdownMenu`, `DropdownPanel`, EntityDropdown/SelectDropdown/AutocompleteDropdown, GroupedSelect,
+  the Glide editors) positions through kit `useDropdownPosition`
+  (`ui-kit/src/useDropdownPosition.ts`, re-exported at `src/lib/useDropdownPosition.ts` — the ONE
+  source of truth). Fixed + portaled to the current document body; decisions use the **visual
+  viewport** (the iOS keyboard resizes/pans it and fires events there, never on `window`; position is
+  top/left only — CSS `bottom` is layout-viewport-relative and lands under the keyboard); it measures
+  the panel's real content height, flips above when there's no room below (`bestFit` when neither
+  side fits) and clamps the height to the chosen side. Re-measures on scroll/resize/visualViewport/
+  ResizeObserver. **MUST NOT hand-position a panel, add a second positioner, or cap a panel's height
+  with an `!important` class** (that defeated the clamp — menus hung off-screen). Per-menu ceiling =
+  the kit `maxMenuHeight` prop (e.g. 256 for the category menus).
+- **Keyboard dismissal (touch)**: `useKeyboardDismissOnScroll` (`src/lib/`) mirrors native
+  `UIScrollView.keyboardDismissMode = .onDrag` — a finger drag on a surface the focused field does
+  NOT live in dismisses the keyboard (dragging within the field's own scroller keeps it).
 - `DropdownMenu`/`DropdownItem`/`DropdownDivider`/`DropdownSubmenu` (Radix click-to-toggle;
   **single-highlight + keys/lock shared with ContextMenu** — one `.ui-item-highlighted` row, the CSS
   `:hover` fill is suppressed while a row is highlighted (kit `tokens.css`), arrows/Enter/typeahead,
@@ -106,9 +119,8 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   edit mode (never call both in one handler — editor unmounts and can't reopen).
 - `TimeField`/`DurationField` (`src/components/`): call-time expression input (absolute/relative,
   touch keypad, live resolved value, reset) + the extracted duration recipe. `GroupedSelect`
-  (`production/day/`): grouped single/multi-select dropdown rendered through `DropdownPanel` (flips
-  above the trigger when short on space — the kit menu's `bottom`-anchored flip lands off-screen in a
-  modal's transformed popper wrapper); `EntityItem.group` also renders headers in `DropdownPanel`.
+  (`production/day/`): grouped single/multi-select dropdown rendered through `DropdownPanel` (the one
+  positioning engine handles flip/clamp); `EntityItem.group` also renders headers in `DropdownPanel`.
 - **Key patterns**: click-to-toggle menus (never `group-hover`); Lucide icons
   `w-3.5 h-3.5 shrink-0` in menus; dark surfaces `bg-zinc-950/95 backdrop-blur-md border
   border-zinc-800`.

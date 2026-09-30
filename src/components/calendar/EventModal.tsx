@@ -201,7 +201,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
                 onChange={setKey}
                 onCreateItem={(item) => addNewElement(dispatch, queue, cat, item)}
                 items={getCategoryElements(project, cat)}
-                positioning="fixed"
+               
                 portalTarget={portalTarget ?? document.body}
                 mode="single"
                 variant="chip"

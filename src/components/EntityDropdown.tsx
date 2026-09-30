@@ -34,7 +34,6 @@ export const DD_ITEM_BASE = DD_ITEM_BASE_LIB;
 export const DD_ITEM_CLASS = DD_ITEM_CLASS_LIB;
 export const DD_PANEL_CLASS = DD_PANEL_CLASS_LIB;
 export const DD_INPUT_CLASS = DD_INPUT_CLASS_LIB;
-import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 import { resolveTypedElementKey } from '../lib/elements';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
@@ -53,7 +52,6 @@ interface EntityDropdownProps {
   className?: string;
   readOnly?: boolean;
   placeholder?: string;
-  positioning?: 'relative' | 'fixed';
   mode?: 'single' | 'multi' | 'select';
   showSceneCounts?: boolean;
   scenes?: Scene[];
@@ -237,7 +235,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   className,
   readOnly,
   placeholder = 'Type...',
-  positioning = 'relative',
   mode = 'multi',
   showSceneCounts = false,
   scenes,
@@ -272,7 +269,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
   const committedRef = useRef(false);
   const syntheticRef = useRef(false);
   /** Whether the dropdown was open when the editor was last mousedowned —
@@ -301,8 +297,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     setHighlightedIndex(-1);
     onEscape?.();
   });
-
-  useSmartPosition(ref, positioning === 'relative' && open);
 
   // --- Multi mode: val = full comma-separated text (like CastEditor) ---
   // --- Single mode: query + localIds (search-then-select pattern) ---
@@ -349,7 +343,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       } else {
         setHighlightedIndex(-1);
       }
-      setPos(p => ({ ...p, ready: false }));
     }
   }, [open]);
 
@@ -480,8 +473,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   }, [mode, val, localIds, query, onChange, sortAndJoin, onExit, value]);
 
   useDropdown(open, ref, handleClose, panelRef);
-
-  useFixedPosition(ref, positioning === 'fixed' && open, (p) => setPos({ ...p, ready: true }));
 
   const toggle = useCallback((id: string) => {
     if (mode === 'single') {
@@ -825,8 +816,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       )}
       {open && (
         <DropdownPanel
-          positioning={positioning}
-          pos={pos}
+          anchorRef={ref}
           panelRef={panelRef}
           scrollRef={scrollRef}
           panelMinWidth={panelMinWidth}
@@ -883,7 +873,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           commitHint={commitHint}
           onCommit={() => commit()}
           portalTarget={portalTarget}
-          anchorRef={ref}
           dark={variant === 'chip'}
         />
       )}

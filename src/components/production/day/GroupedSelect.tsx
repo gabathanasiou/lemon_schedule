@@ -3,7 +3,6 @@ import { ChevronDown } from 'lucide-react';
 import DropdownPanel from '../../DropdownPanel';
 import { EntityItem } from '../../EntityDropdown';
 import { useDropdown, useEscapeCapture, DD_CHIP_TRIGGER_CLASS } from '../../../lib/dropdown';
-import { useFixedPosition } from '../../../lib/useSmartPosition';
 import { usePortalTarget } from '../../../lib/popoutTarget';
 
 /**
@@ -52,7 +51,6 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   const portalTarget = usePortalTarget();
   const [open, setOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -60,7 +58,6 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   const close = useCallback(() => setOpen(false), []);
   useDropdown(open, triggerRef, close, panelRef);
   useEscapeCapture(open, close);
-  useFixedPosition(triggerRef, open, (p) => setPos({ ...p, ready: true }));
 
   const dropdownItems: EntityItem[] = useMemo(
     () => items.map(i => ({ id: i.id, name: i.name, group: i.group })),
@@ -127,8 +124,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
       </button>
       {open && (
         <DropdownPanel
-          positioning="fixed"
-          pos={pos}
+          anchorRef={triggerRef}
           panelRef={panelRef}
           scrollRef={scrollRef}
           dropdownItems={dropdownItems}
@@ -150,7 +146,6 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
           onCommit={() => {}}
           portalTarget={portalTarget ?? document.body}
           dark={dark}
-          anchorRef={triggerRef}
         />
       )}
     </div>

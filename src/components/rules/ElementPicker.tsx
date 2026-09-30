@@ -71,7 +71,7 @@ export const ElementPickerRow: React.FC<{
           value={elementValue}
           onChange={onElementChange}
           items={items}
-          positioning="fixed"
+         
           portalTarget={portalTarget ?? document.body}
           mode={mode}
           variant="chip"

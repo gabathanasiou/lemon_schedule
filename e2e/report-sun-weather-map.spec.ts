@@ -232,7 +232,8 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
         await page.getByRole('button', { name: 'Change location' }).click();
     await expect(page.getByText('Attach a location')).toBeVisible();
     await page.getByPlaceholder('Search an address or place…').fill('Big Ben');
-        await page.getByRole('dialog').getByText('Big Ben, Bridge Street', { exact: false }).click();
+        // The results panel portals to the body (roadmap 165) — query it outside the dialog.
+        await page.getByRole('button', { name: /Big Ben, Bridge Street/ }).first().click();
     // The editable address input follows the picked street — a manual
     // street number override (geocoder can't match it) survives confirm.
     await page.getByPlaceholder('Street number / address').fill('1 Bridge Street 92');

@@ -1,24 +1,32 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 import { useOverlayMorph } from '@gabriel/ui-kit';
 import { overlayMorphOptIn } from '../lib/overlayMotion';
 import { EntityItem } from './EntityDropdown';
-import { DD_PANEL_CLASS_LIB as DD_PANEL_CLASS, DD_ITEM_CLASS_LIB as DD_ITEM_CLASS, DD_ITEM_BASE_LIB as DD_ITEM_BASE, DD_ITEM_BASE_DARK_LIB } from '../lib/dropdown';
+import { DD_ITEM_BASE_LIB as DD_ITEM_BASE, DD_ITEM_BASE_DARK_LIB } from '../lib/dropdown';
+import { useDropdownPosition, type DropdownPanelPos } from '../lib/useDropdownPosition';
+import { useCurrentDocument } from '../lib/popoutTarget';
 
 /* The panel morph (trigger-anchored scale+fade, the modal FLIP language) is
    shared from the ui-kit; this app-side panel carries the app's opt-out flag
    (localStorage lemon_schedule_modal_morph === '0', documented in
    docs/DESIGN-LANGUAGE.md §Modal anatomy & rules). The close is ALWAYS
    unmount-driven (the parent removes this panel to close), so the reverse
-   morph plays on a pinned clone — the modal's clone pattern. */
+   morph plays on a pinned clone — the modal's clone pattern.
+
+   Positioning is owned by the ONE engine (useDropdownPosition): fixed in the
+   current document's body, visual-viewport-aware flip/shift/size. Renderers
+   only describe the panel; they never position it. */
 
 interface DropdownPanelProps {
-  positioning: 'relative' | 'fixed' | string;
-  pos: { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean };
+  /** The trigger element the panel hangs off. */
+  anchorRef: React.RefObject<HTMLElement | null>;
   panelRef: React.RefObject<HTMLDivElement | null>;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   panelMinWidth?: string;
+  /** Per-surface height ceiling for the engine. Default 384. */
+  maxHeight?: number;
   dropdownItems: EntityItem[];
   currentIds: string[];
   highlightedIndex: number;
@@ -33,20 +41,38 @@ interface DropdownPanelProps {
   onHoverLeave?: () => void;
   commitHint?: boolean;
   onCommit: () => void;
+  /** Portal target override (popout windows); defaults to the current document body. */
   portalTarget?: HTMLElement | null;
   /** Dark menu surface for modal chips (variant="chip") — the dark design
    *  language used by the color-rules/link-manager pickers. */
   dark?: boolean;
-  /** The trigger wrapper rect — the morph grows out of it. */
-  anchorRef?: React.RefObject<HTMLElement | null>;
 }
 
 export default function DropdownPanel({
-  positioning, pos, panelRef, scrollRef, panelMinWidth,
+  anchorRef, panelRef, scrollRef, panelMinWidth, maxHeight,
   dropdownItems, currentIds, highlightedIndex, itemKey,
   searchQuery, hasExactMatch, renderItem, defaultRenderer,
-  onItemClick, onItemHover, onHoverLeave, commitHint, onCommit, portalTarget, dark = false, anchorRef,
+  onItemClick, onItemHover, onHoverLeave, commitHint, onCommit, portalTarget, dark = false,
 }: DropdownPanelProps) {
+  const currentDocument = useCurrentDocument();
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288, ready: false });
+  useDropdownPosition({
+    anchorRef,
+    panelRef,
+    contentRef: scrollRef,
+    open: true,
+    maxHeight,
+    onPosition: useCallback((p: DropdownPanelPos) => {
+      setPos({
+        top: p.top,
+        left: p.left,
+        width: anchorRef.current?.getBoundingClientRect().width ?? 0,
+        maxH: p.maxH,
+        ready: true,
+      });
+    }, [anchorRef]),
+  });
+
   const ITEM_BASE = dark ? `scroll-my-4 flex items-center gap-2 ${DD_ITEM_BASE_DARK_LIB} rounded transition-colors cursor-pointer select-none whitespace-nowrap w-full text-left` : `scroll-my-4 ${DD_ITEM_BASE}`;
   const LIGHT_BASE = `scroll-my-4 w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2`;
   // SINGLE-highlight rule (both themes): NO CSS hover fills — the one active
@@ -73,7 +99,7 @@ export default function DropdownPanel({
     morph: overlayMorphOptIn(),
     ref: panelRef,
     anchor: () => {
-      const el = anchorRef?.current;
+      const el = anchorRef.current;
       if (!el) return null;
       const r = el.getBoundingClientRect();
       return { left: r.left, top: r.top, width: r.width, height: r.height };
@@ -87,12 +113,12 @@ export default function DropdownPanel({
   const panel = (
     <div
       ref={setRef}
-      className={`click-outside-ignore ${dark ? 'bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 flex flex-col pointer-events-auto min-w-[200px]' : DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
-      style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, visibility: pos.ready ? 'visible' : 'hidden', ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
+      className={`click-outside-ignore ${dark ? 'bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 flex flex-col pointer-events-auto min-w-[200px]' : 'z-[10010] bg-white border border-zinc-200 rounded-md shadow-lg p-1 min-w-[200px] flex flex-col pointer-events-auto'} ${panelMinWidth || ''}`}
+      style={{ position: 'fixed', left: pos.left, width: pos.width, top: pos.top, visibility: pos.ready ? 'visible' : 'hidden' }}
     >
       {/* scrollbar-custom: always-visible thin scrollbar — with macOS overlay
           scrollbars a tiny panel hides the scroll position entirely. */}
-      <div ref={scrollRef} className="overflow-y-auto max-h-72 scrollbar-custom" style={positioning === 'fixed' ? { maxHeight: pos.maxH - 16 } : undefined} onMouseLeave={onHoverLeave}>
+      <div ref={scrollRef} className="overflow-y-auto max-h-72 scrollbar-custom" style={{ maxHeight: pos.maxH - 16 }} onMouseLeave={onHoverLeave}>
       {dropdownItems.length > 0 ? (() => {
         let lastGroup: string | undefined;
         return dropdownItems.map((m, idx) => {
@@ -147,7 +173,5 @@ export default function DropdownPanel({
       )}
     </div>
   );
-  return portalTarget && positioning === 'fixed'
-    ? createPortal(panel, portalTarget)
-    : panel;
+  return createPortal(panel, portalTarget ?? currentDocument?.body ?? document.body);
 }

@@ -111,7 +111,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
         const handleEscape = () => onFinishedEditing(undefined, [0, 0] as any);
 
         if (cfg.kind === 'enum') {
-          return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} options={cfg.options} showAll positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
+          return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} options={cfg.options} showAll portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
         }
         if (cfg.kind === 'text') {
           // Plain text editor (Glide's own is unavailable to custom editors):
@@ -165,7 +165,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             />
           );
         }
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
       };
       components.set(colKey, Editor);
     }
