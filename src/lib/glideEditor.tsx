@@ -20,6 +20,12 @@ export type GlideColumnEditor =
       /** Fires for a committed value with no matching item (the shared
        *  "type a new value" flow) — e.g. open the Add Crew Member modal. */
       onCreateItem?: (val: string) => void;
+    }
+  | {
+      /** Plain text cell with optional live uppercase (e.g. crew names). */
+      kind: 'text';
+      uppercase?: boolean;
+      placeholder?: string;
     };
 
 export interface GlideEditorOptions {
@@ -103,6 +109,37 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
         if (cfg.kind === 'enum') {
           return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} options={cfg.options} showAll positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
         }
+        if (cfg.kind === 'text') {
+          // Plain text editor (Glide's own is unavailable to custom editors):
+          // Enter/Tab/Escape are handled by the clip region around us. Focus +
+          // select ONCE on mount — a re-rendering ref callback would re-select
+          // on every keystroke and eat the typed chars.
+          const apply = (raw: string) => handleChange(cfg.uppercase ? raw.toUpperCase() : raw);
+          const inputRef = useRef<HTMLInputElement>(null);
+          useEffect(() => {
+            const el = inputRef.current;
+            if (!el) return;
+            el.focus();
+            if (selectAllOnOpen) el.select();
+            else el.setSelectionRange(el.value.length, el.value.length);
+          }, []);
+          return (
+            <input
+              ref={inputRef}
+              className="gdg-input"
+              value={currentVal}
+              onChange={e => apply(e.target.value)}
+              // Glide can pull focus to the grid's a11y cell right after the
+              // overlay opens (seen on the trailing add row) — keep the caret
+              // in the editor while it is still mounted.
+              onBlur={e => {
+                const el = e.target;
+                requestAnimationFrame(() => { if (document.contains(el)) el.focus(); });
+              }}
+              placeholder={cfg.placeholder}
+            />
+          );
+        }
         return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
       };
       components.set(colKey, Editor);
@@ -131,6 +168,9 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     const selectAllOnOpen = !skipComma;
     const { Editor, box } = editorFor(colKey);
     box.current = { cfg: editorCfg, skipComma, selectAllOnOpen, portal: portalRef.current };
+    // Plain text keeps Glide's default overlay chrome (padding); entity/enum
+    // editors bring their own trigger + panel styling.
+    if (editorCfg.kind === 'text') return { editor: Editor };
     return { editor: Editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   };
 }

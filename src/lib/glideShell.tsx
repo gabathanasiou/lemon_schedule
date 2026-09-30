@@ -59,6 +59,8 @@ export interface GlideColumnDef {
    *  dropdown over these items (labels); the committed value stays the
    *  comma-joined label list. */
   entityItems?: (project: Project) => { id: string; name: string }[];
+  /** Text columns: force typed values UPPERCASE live (e.g. crew names). */
+  uppercase?: boolean;
 }
 
 /** A flat grid row. `categoryKey`/`categoryLabel` anchor the category column
@@ -215,6 +217,8 @@ export const GlideGridShell: React.FC<{
         // Item 147 — multi-select autocomplete (e.g. a crew role's element
         // categories). Committed value = the comma-joined label list.
         editors[c.key] = { kind: 'entity', mode: 'multi', displayMode: 'name', items: c.entityItems(project), placeholder: c.placeholder || c.label };
+      } else if (c.uppercase) {
+        editors[c.key] = { kind: 'text', uppercase: true, placeholder: c.placeholder || c.label };
       }
     }
     return editors;

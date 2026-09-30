@@ -130,8 +130,10 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     await addItem.click();
     const addModal = page.getByRole('dialog').filter({ hasText: 'Add Crew Member' });
     await expect(addModal).toBeVisible({ timeout: 4000 });
-    await addModal.getByPlaceholder('Full name').fill('TEST NEWBIE');
-    await addModal.getByRole('button', { name: 'Add member' }).click();
+    const nameBox = addModal.getByPlaceholder('Full name');
+    await expect(nameBox).toBeFocused();
+    await nameBox.fill('TEST NEWBIE');
+    await page.keyboard.press('Enter');
     await expect(addModal).toBeHidden();
     await expect.poll(() => page.evaluate(() => {
       const p = (window as any).__lemonSchedule.getProject();

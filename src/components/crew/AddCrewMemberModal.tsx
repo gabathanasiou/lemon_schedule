@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { UserPlus, ChevronDown } from 'lucide-react';
 import { useProject } from '../../store';
 import { crewRoleGroup, CREW_DEPARTMENT_NAMES } from '../../lib/crewCatalog';
@@ -52,6 +52,14 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
   const [newRoleOpen, setNewRoleOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleGroup, setNewRoleGroup] = useState('Other');
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // The kit modal's focus scope runs its own autofocus on mount — focus the
+  // name box after it settles so typing can start immediately.
+  useEffect(() => {
+    const t = window.setTimeout(() => nameRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!roleKey && crewRoles[0]) setRoleKey(crewRoles[0].key);
@@ -103,7 +111,15 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
         <div className="p-6 space-y-4">
           <div>
             <label className={LABEL}>Name</label>
-            <input className={`${INPUT} uppercase`} value={name} autoFocus onChange={e => setName(e.target.value.toUpperCase())} placeholder="Full name" />
+            <input
+              ref={nameRef}
+              className={`${INPUT} uppercase`}
+              value={name}
+              autoFocus
+              onChange={e => setName(e.target.value.toUpperCase())}
+              onKeyDown={e => { if (e.key === 'Enter' && canSave) { e.preventDefault(); save(); } }}
+              placeholder="Full name"
+            />
           </div>
           <div>
             <label className={LABEL}>Role</label>

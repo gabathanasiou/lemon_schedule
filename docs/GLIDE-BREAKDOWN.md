@@ -67,6 +67,11 @@ auto-repaint.
   identities. Recreating the callback recreated the cached editor components → Glide remounted the
   OPEN overlay on every parent re-render (Shift's `setShiftHeld`, keystrokes via state) and typing
   reset to the seed. Call sites: `InlineGlideTable`, `BreakdownTabGlide`, `glideShell`.
+- **`kind: 'text'` editors** (crew Glide Name, `uppercase: true` via `GlideColumnDef.uppercase`):
+  a plain input, because Glide's built-in editor is unavailable to custom columns. It focuses on
+  mount, selects the value when the overlay was opened on the stored value, uppercases live per
+  keystroke, and re-takes focus on blur (Glide's a11y cell can steal it right after opening, e.g.
+  the trailing add row). Enter/Tab/Escape still go through Glide's clip region.
 - **Grids INSIDE a modal get their own overlay layer** (roadmap 155): the shared `#portal` sits at
   z-9999, BELOW modal content (z-10000), so a cell editor in a modal (Call Times → Crew template)
   rendered invisible/unclickable. `InlineGlideTable` creates a `[data-glide-overlay-layer]` element
