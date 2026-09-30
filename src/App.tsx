@@ -1078,7 +1078,7 @@ function AppContent() {
         if (!win) return null;
         return (
           <PopoutWindow key={idx} title={`${project.title || 'Untitled'} - Day`} win={win} onClose={() => closePopoutDay(idx)}>
-            <div className="h-screen w-screen overflow-hidden bg-gray-50">
+            <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-50">
               <DayManagerPage initialDayIndex={idx} onOpenScene={handleOpenScene} />
             </div>
           </PopoutWindow>
