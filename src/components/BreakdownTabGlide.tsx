@@ -515,6 +515,16 @@ export function GlideBreakdownTab({
     if (!colDef || colDef.key === 'actions') return;
     if (newValue.kind === GridCellKind.Text) {
       if (colDef.key === 'sceneNumber') { trySetSceneNumber(scene, newValue.data); return; }
+      // Glide fires onCellEdited twice per overlay commit (the editor's own
+      // commit + the overlay close). Editing a row is idempotent, but with the
+      // range confirm (roadmap 144) a duplicate fire AFTER a cancel re-reads a
+      // stale value and re-opens the dialog — dedupe existing-row commits too.
+      if (!dedupeCellCommit(`${row}:${colDef.key}:${newValue.data}`)) return;
+      // A commit that only re-states the cell's stored value is a no-op — never
+      // start a range fill (or the confirm) for it.
+      const normalized = colDef.key === 'set' ? newValue.data.toUpperCase() : newValue.data;
+      const storedNow = String((scene as any)[colDef.key] ?? '');
+      if (storedNow === normalized) return;
       // Range fill (roadmap 139/144): a single edit committed while a multi-cell
       // selection is active writes that value down the SAME column — VERTICAL
       // only. The columns are different kinds, so an entity value (Set, Cast, a

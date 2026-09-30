@@ -2,7 +2,6 @@ import type { Project, CrewPerson, CrewRole } from '../types';
 import { generateUUID } from './utils';
 import { crewRoleGroup, CREW_DEPARTMENT_NAMES } from './crewCatalog';
 import { CrewLinksButton } from '../components/crew/CrewLinksButton';
-import AddCrewMemberModal from '../components/crew/AddCrewMemberModal';
 import {
   computeManagerDiff,
   type ManagerRow,
@@ -93,7 +92,6 @@ export const crewManagerConfig: ManagerShellConfig = {
     { key: 'name', label: 'By Name', comparator: (a, b) => (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase()) },
     { key: 'phone', label: 'By Phone', comparator: (a, b) => (a.phone || a.name).toLowerCase().localeCompare((b.phone || b.name).toLowerCase()) },
   ],
-  AddModal: AddCrewMemberModal,
   renderHeaderActions: ({ readOnly }) => <CrewLinksButton readOnly={readOnly} />,
 };
 

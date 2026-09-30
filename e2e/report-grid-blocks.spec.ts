@@ -113,7 +113,9 @@ test.describe('Report grid blocks (items 111/112)', () => {
     await gotoDayManager(page);
     await openCallSheetEdit(page);
 
-    const grid = page.locator('[data-report-grid="crew"] [data-crew-table-glide]');
+    // Item 146 groups the crew table BY DEPARTMENT — one glide per department.
+    const grids = page.locator('[data-report-grid="crew"] [data-crew-table-glide]');
+    const grid = grids.first();
     await expect(grid).toBeAttached({ timeout: 8000 });
 
     const hasCrew = await page.evaluate(() => {

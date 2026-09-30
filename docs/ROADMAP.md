@@ -683,40 +683,6 @@ manual (numbered hand-off).
 person-keyed `crewCalls` write path (items 101/106/112); touches 111/112 grids;
 related to **142** (Day workspace) and **148** (crew glide Links).
 
-## 147. Crew Glide — Element Categories multi-select autocomplete (`[ ]`)
-
-**Request**: the crew glide's "Element Categories" column is a plain text box;
-it should be a multi-select autocomplete over every available element category
-(built-ins + customs), attach-only (creating categories stays in the Element
-Manager).
-
-**Approach**: add an optional `entityItems?` to `GlideColumnDef`
-(`src/lib/glideShell.tsx`) — when present the shell builds the existing
-`{ kind: 'entity', mode: 'multi' }` editor (`src/lib/glideEditor.tsx`, no new
-primitive). Set it on the `categories` column in `src/lib/crewGlideConfig.ts`
-from `ELEMENT_CATEGORIES` (labels via `getLabel`) + `project.customCategories`
-in registry order. The commit path (`commitCrewEdit` →
-`SET_CREW_ROLE_CATEGORIES`) already resolves labels → keys; unchanged.
-
-**Verify**: rule-7 manual — picker lists built-ins + customs, multi-attach
-works, roles persist the right keys; extend the label↔key unit coverage if
-missing.
-
-## 148. Crew Glide — Links action in the header (`[ ]`)
-
-**Request**: the crew glide's header should expose the Crew Links action (the
-same `CrewLinksButton` the Crew Manager header shows).
-
-**Approach**: add an optional `renderHeaderActions?: (ctx: { dispatch;
-readOnly; project }) => ReactNode` to `GlideShellConfig`
-(`src/lib/glideShell.tsx`, mirrors `ManagerShellConfig`), rendered inside
-`headerContent`; set it in `src/lib/crewGlideConfig.ts` to `CrewLinksButton`.
-Generic shell hook, so the Location Glide can opt in later (not in scope).
-
-**Verify**: rule-7 manual — the button opens the Crew Links modal.
-
-**Relations**: item 11 (crew links), 146 (crew work).
-
 ## 149. Glide overlay entity dropdown — Shift key remounts/clears the editor (`[ ]`)
 
 **Bug**: in a `createGlideCellEditor` entity/enum overlay (e.g. the Day Manager
@@ -727,15 +693,38 @@ discards in-progress typing — the field snaps back to the seeded value.
 and release Shift → the cell reverts to the current person (selection reset to
 select-all).
 
-**Why it's filed, not fixed**: `createGlideCellEditor` was refactored to cache
-one editor component per column (`src/lib/glideEditor.tsx`) precisely to stop
-remounts, but the reset persists — so the remount comes from Glide's overlay
-lifecycle on a modifier keydown/keyup, not the component identity. Needs a dig
-into Glide's `DataEditor` overlay behaviour (or intercepting the Shift key
-before the grid).
+**Why it's filed, not fixed**: `createGlideCellEditor` returns a STABLE editor
+component per column (cached + the per-activation config travels through a box —
+the identity churn that remounted the overlay and ate keystrokes is fixed), but
+the reset persists — so it comes from Glide's overlay lifecycle on a modifier
+keydown/keyup, not the component identity. Needs a dig into Glide's
+`DataEditor` overlay behaviour (or intercepting the Shift key before the grid).
 
 **Relations**: surfaced while building **146**; touches `InlineGlideTable` +
-`createGlideCellEditor`.
+`createGlideCellEditor`; the confirm-interception sibling is **180**.
+
+## 180. Range-fill multi-value confirm — blocked by stacked guards + a dead overlay session (`[ ]`)
+
+**Bug**: `e2e/glide-breakdown.spec.ts` (roadmap 144) is `test.fixme`d — the
+multi-value range fill dead-ends on the seed:
+- replacing cast on a linked scene ALSO opens the "Remove linked elements?"
+  prompt (`useLinkedEditGuard`) after the replace confirm — two
+  `[data-modal-confirm]` dialogs interact;
+- typing a NEW name (the natural UX input) opens the "Name New Cast Members"
+  modal — cast is Board-ID keyed (the dropdown now resolves typed names via
+  `resolveTypedElementKey`, so existing members bind by ID);
+- after the dialog closes, Glide's overlay session can no longer activate a
+  cell for editing (double-click does nothing; focus()/remount attempts did
+  not help) — the overlay-lifecycle family of **149**.
+- Already in place: existing-row commits dedupe Glide's duplicate
+  `onCellEdited` fire and unchanged-value commits are no-ops
+  (`BreakdownTabGlide.onCellEdited`).
+- **Fix directions**: sequence the guards (linked-elements confirmation before
+  the multi-value one, or one merged prompt); dig into Glide's edit activation
+  after a modal.
+- **Verify**: un-fixme the spec and make it pass; check the `GlideGridShell`
+  twin.
+- **Relations**: 144 (source), 149, `src/lib/elements.ts`.
 
 ## 150. Reports designer — the free (custom-rows) Table block is broken (`[ ]`)
 

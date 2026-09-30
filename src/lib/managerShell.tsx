@@ -83,10 +83,6 @@ export interface ManagerShellConfig {
   makeBlankRow(): ManagerRow;
   commitPlan(dispatch: (action: any) => void, plan: ManagerSavePlan, categoryKey: string, project: Project): void;
   sortModes: ManagerSortMode[];
-  /** Optional Add-modal (item 146, crew). When present the Add buttons open it
-   *  instead of adding an inline blank row; the shell passes the active
-   *  category as `defaultRole` and switches to the created role. */
-  AddModal?: React.ComponentType<{ onClose: () => void; defaultRole?: string; onCreated?: (id: string, roleKey: string) => void }>;
   /** Optional extra header/toolbar actions (roadmap 11: Crew Manager → Links). */
   renderHeaderActions?: (ctx: { dispatch: (action: any) => void; readOnly: boolean; project: Project }) => React.ReactNode;
 }
@@ -220,7 +216,6 @@ export const DatabaseManagerView: React.FC<{
   const [renameDraft, setRenameDraft] = useState('');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sortMode, setSortMode] = useState(config.sortModes[0]?.key || '');
-  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const categoryLabel = (key: string) => categories.find(c => c.key === key)?.label || key;
 
@@ -262,12 +257,10 @@ export const DatabaseManagerView: React.FC<{
     onCategoryChange?.(newKey);
   };
 
-  /** Add button: open the config's Add-modal when provided, else add inline. */
+  /** Add button: appends an inline blank row (user decision — no modal in the
+   *  Crew Manager; the Add Crew Member modal stays on the day-slot/template
+   *  entry points in the Day Manager). */
   const openAdd = () => {
-    if (config.AddModal) {
-      setAddModalOpen(true);
-      return;
-    }
     buf.addNew();
   };
 
@@ -541,14 +534,6 @@ export const DatabaseManagerView: React.FC<{
             </div>
           </div>
         </div>
-
-        {config.AddModal && addModalOpen && (
-          <config.AddModal
-            defaultRole={categoryKey}
-            onClose={() => setAddModalOpen(false)}
-            onCreated={(_id, roleKey) => { if (roleKey && roleKey !== categoryKey) switchCategory(roleKey); }}
-          />
-        )}
 
         {mergeDialog && (
           <MergeRowsModal

@@ -40,23 +40,44 @@ export interface GlideEditorOptions {
 
 /**
  * Builds Glide's provideEditor callback: inline enum/entity dropdowns for the
- * configured columns. Uses the component's row-marker offset (dataCol = col - 1)
- * per Glide's provideEditor contract. Shared by the scenes and crew glides.
+ * configured columns. Uses the component's row-marker offset
+ * (dataCol = col - columnOffset) per Glide's provideEditor contract. Shared by
+ * the scenes and crew glides.
  *
- * The editor COMPONENT is cached per column key: a fresh identity each
- * activation made Glide remount the overlay on any re-render, losing in-progress
- * typing (e.g. pressing Shift). The per-activation config travels as props.
+ * One STABLE component per column key is returned directly to Glide (identity
+ * never changes), so a re-render during typing cannot remount the overlay and
+ * re-fire select-on-open (roadmap 146 wrapped the cached component in a
+ * per-call arrow — the new identity remounted the overlay and ate keystrokes:
+ * "MARY" → "ARY"). The per-activation config travels through a per-column box
+ * the component reads at render time.
  */
 export function createGlideCellEditor(opts: GlideEditorOptions) {
   const { readOnlyRef, columns, getValue, editors, getEditor, portalRef } = opts;
   const columnOffset = opts.columnOffset ?? 1;
-  const componentCache = new Map<string, React.ComponentType<any>>();
+
+  interface EditorBox {
+    cfg: GlideColumnEditor;
+    skipComma: boolean;
+    /** False when Glide opened the overlay BY the first typed key (`cellData`
+     *  already differs from the stored value) — the editor must not select the
+     *  typed char, or the next keystroke replaces it. */
+    selectAllOnOpen: boolean;
+    portal: HTMLElement | null;
+  }
+  const boxes = new Map<string, { current: EditorBox | null }>();
+  const components = new Map<string, React.ComponentType<any>>();
 
   const editorFor = (colKey: string) => {
-    let Editor = componentCache.get(colKey);
+    let box = boxes.get(colKey);
+    if (!box) {
+      box = { current: null };
+      boxes.set(colKey, box);
+    }
+    let Editor = components.get(colKey);
     if (!Editor) {
       Editor = (p: any) => {
-        const { value: cellValue, onChange, onFinishedEditing, cfg, skipComma, portal } = p;
+        const { value: cellValue, onChange, onFinishedEditing } = p;
+        const { cfg, skipComma, selectAllOnOpen, portal } = box!.current as EditorBox;
         const currentVal = cellValue?.data ?? '';
         const latestRef = useRef(cellValue);
 
@@ -76,11 +97,11 @@ export function createGlideCellEditor(opts: GlideEditorOptions) {
         if (cfg.kind === 'enum') {
           return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={cfg.options} showAll positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
         }
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} positioning="fixed" portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
       };
-      componentCache.set(colKey, Editor);
+      components.set(colKey, Editor);
     }
-    return Editor;
+    return { Editor, box };
   };
 
   return (cellData: any & { location?: Item }): any => {
@@ -97,8 +118,9 @@ export function createGlideCellEditor(opts: GlideEditorOptions) {
 
     const storedVal = String(getValue(row, colKey) ?? '');
     const skipComma = storedVal !== (cellData.data ?? '');
-    const Editor = editorFor(colKey);
-    const editor = (p: any) => <Editor {...p} cfg={editorCfg} skipComma={skipComma} portal={portalRef.current} />;
-    return { editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
+    const selectAllOnOpen = !skipComma;
+    const { Editor, box } = editorFor(colKey);
+    box.current = { cfg: editorCfg, skipComma, selectAllOnOpen, portal: portalRef.current };
+    return { editor: Editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   };
 }

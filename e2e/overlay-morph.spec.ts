@@ -183,7 +183,7 @@ test.describe('overlay morph — dropdowns, submenus, context menus', () => {
   test('stripboard INT/EXT cell editor (SelectDropdown) morphs open and closes', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.locator('button:has-text("Edit")').last().click(); // cell editors need edit mode
+    await page.getByRole('button', { name: 'Edit', exact: true }).click(); // cell editors need edit mode (icon-only since 0.3.22)
 
     // In edit mode clicking the cell makes it the editing target — the
     // INT/EXT SelectDropdown mounts with autoFocus and opens itself.

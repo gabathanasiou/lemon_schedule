@@ -71,7 +71,11 @@ export function buildDefaultSlots(project: Project): DayCrewSlot[] {
   for (const role of project.crewRoles || []) {
     const people = peopleForRole(project, role.key);
     if (people.length === 0) continue;
-    out.push({ id: generateUUID(), role: role.key, personId: people[0].id });
+    // DETERMINISTIC id: this list is derived on every call (the DayView groups
+    // and the crew-table committer each derive it) — random ids made the two
+    // derivations disagree, so slot edits matched nothing and no-op'd. The ids
+    // are stored verbatim once the day is edited (then meta.crewSlots wins).
+    out.push({ id: `default:${role.key}`, role: role.key, personId: people[0].id });
   }
   return out;
 }
@@ -81,11 +85,14 @@ function slotsFromPersonIds(project: Project, ids: string[], crewCalls?: DayMeta
   const byId = crewPeopleById(project);
   const callById = new Map((crewCalls || []).map(c => [c.personId, c.callTime]));
   const out: DayCrewSlot[] = [];
+  const seen = new Set<string>();
   for (const pid of ids) {
+    if (seen.has(pid)) continue; // duplicate person ids must not duplicate slot ids
+    seen.add(pid);
     const entry = byId.get(pid);
     if (!entry) continue;
     const call = callById.get(pid);
-    out.push({ id: generateUUID(), role: entry.roleKey, personId: pid, ...(call ? { callTime: call } : {}) });
+    out.push({ id: `legacy:${pid}`, role: entry.roleKey, personId: pid, ...(call ? { callTime: call } : {}) });
   }
   return out;
 }

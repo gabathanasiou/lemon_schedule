@@ -1,46 +1,41 @@
 import { describe, it, expect } from 'vitest';
-import { isIdKeyed, getCategoryElements, elementMatchId, elementKey, countOccurrences } from '../elements';
+import { isIdKeyed, elementMatchId, resolveTypedElementKey } from '../elements';
 
-const project = {
-  castMembers: [{ id: '1', name: 'GEORGE' }, { id: '2', name: 'MARY' }],
-  breakdownElements: { props: [{ id: 'gun', name: 'gun' }, { id: 'rope', name: 'rope' }] },
-};
-
-describe('isIdKeyed / getCategoryElements', () => {
-  it('reads cast from castMembers and every other category from breakdownElements', () => {
+/**
+ * AGENTS.md §Cast & Entities — the STRICT cast-vs-elements storage rule:
+ * `scene.cast` holds Board IDs; every other category holds names. These are
+ * the canonical helpers; hand-rolled `isCast ? id : name` branches are banned.
+ */
+describe('cast is id-keyed, every other category is name-keyed', () => {
+  it('isIdKeyed only for cast', () => {
     expect(isIdKeyed('cast')).toBe(true);
-    expect(getCategoryElements(project, 'cast').map(e => e.id)).toEqual(['1', '2']);
-    expect(getCategoryElements(project, 'props').map(e => e.name)).toEqual(['gun', 'rope']);
-    expect(getCategoryElements(project, 'nope')).toEqual([]);
+    expect(isIdKeyed('props')).toBe(false);
+  });
+
+  it('elementMatchId returns the id for cast, the name otherwise', () => {
+    expect(elementMatchId({ id: '2', name: 'MARY' }, 'cast')).toBe('2');
+    expect(elementMatchId({ id: 'GUN', name: 'GUN' }, 'props')).toBe('GUN');
+    expect(elementMatchId({ id: 'x', name: 'Rifle' }, 'props')).toBe('Rifle');
   });
 });
 
-describe('elementMatchId', () => {
-  it('is the id for cast, the name for others (falling back to the id)', () => {
-    expect(elementMatchId({ id: '1', name: 'GEORGE' }, 'cast')).toBe('1');
-    expect(elementMatchId({ id: 'gun', name: 'gun' }, 'props')).toBe('gun');
-    expect(elementMatchId({ id: 'x', name: '' } as any, 'props')).toBe('x');
+describe('resolveTypedElementKey', () => {
+  const items = [{ id: '2', name: 'MARY' }, { id: '5', name: 'GEORGE' }, { id: '7', name: '' }];
+
+  it('binds a typed cast NAME to the existing member id (never duplicates)', () => {
+    expect(resolveTypedElementKey(items, 'id', 'MARY')).toBe('2');
+    expect(resolveTypedElementKey(items, 'id', 'mary')).toBe('2');
+    expect(resolveTypedElementKey(items, 'id', ' MARY ')).toBe('2');
   });
-});
 
-describe('elementKey', () => {
-  it('prefers id, then name, then the __new__ sentinel', () => {
-    expect(elementKey({ id: '1', name: 'G' })).toBe('1');
-    expect(elementKey({ id: '', name: 'G' })).toBe('G');
-    expect(elementKey({ id: '', name: '' } as any)).toBe('__new__');
+  it('an exact Board ID wins, and an unknown name stays new', () => {
+    expect(resolveTypedElementKey(items, 'id', '5')).toBe('5');
+    expect(resolveTypedElementKey(items, 'id', 'NEW PERSON')).toBe('NEW PERSON');
+    expect(resolveTypedElementKey(items, 'id', '7')).toBe('7');
   });
-});
 
-describe('countOccurrences', () => {
-  it('counts per scene, case-insensitively, splitting multi-value fields', () => {
-    const scenes = [{ cast: '1, 2' }, { cast: '1' }, {}];
-    const cast = countOccurrences(scenes, 'cast', true);
-    expect(cast.get('1')).toBe(2);
-    expect(cast.get('2')).toBe(1);
-
-    const props = [{ props: 'gun, rope' }, { props: 'Gun' }];
-    const c = countOccurrences(props, 'props', false);
-    expect(c.get('gun')).toBe(2);
-    expect(c.get('rope')).toBe(1);
+  it('name-keyed categories keep the raw text', () => {
+    expect(resolveTypedElementKey(items, 'name', 'MARY')).toBe('MARY');
+    expect(resolveTypedElementKey(items, 'name', 'mary')).toBe('mary');
   });
 });

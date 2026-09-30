@@ -54,6 +54,28 @@ export function loadCategoryElements(project: any, category: string): ProjectEle
 
 export function elementKey(e: { id: string; name: string }) { return e.id || e.name || '__new__'; }
 
+/**
+ * Resolve a typed dropdown segment to the key scenes store (AGENTS.md §Cast &
+ * Entities — the STRICT id-vs-name rule). For ID-keyed categories (cast): an
+ * exact Board ID wins, then an exact case-insensitive display NAME resolves to
+ * that member's ID — typing "MARY" must bind the existing member, NEVER create
+ * a duplicate blank one. Name-keyed categories keep the raw text.
+ */
+export function resolveTypedElementKey(
+  items: { id: string; name: string }[],
+  displayMode: 'id' | 'name',
+  segment: string,
+): string {
+  if (displayMode !== 'id') return segment;
+  const seg = segment.trim();
+  if (!seg) return seg;
+  const byId = items.find(m => String(m.id || m.name) === seg);
+  if (byId) return String(byId.id || byId.name);
+  const lower = seg.toLowerCase();
+  const byName = items.find(m => (m.name || '').trim().toLowerCase() === lower);
+  return byName ? String(byName.id || byName.name) : seg;
+}
+
 /** Counts how many scenes reference each element value. */
 export function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string, number> {
   const counts = new Map<string, number>();

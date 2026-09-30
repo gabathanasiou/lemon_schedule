@@ -35,6 +35,7 @@ export const DD_ITEM_CLASS = DD_ITEM_CLASS_LIB;
 export const DD_PANEL_CLASS = DD_PANEL_CLASS_LIB;
 export const DD_INPUT_CLASS = DD_INPUT_CLASS_LIB;
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
+import { resolveTypedElementKey } from '../lib/elements';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
 
@@ -91,6 +92,11 @@ interface EntityDropdownProps {
   portalTarget?: HTMLElement | null;
   /** Skip the auto-append of ', ' when opening a cell - used when a key press replaced the cell value */
   skipComma?: boolean;
+  /** Spreadsheet cell editors: select the existing value on open so typing
+   *  REPLACES it. False when the overlay was opened BY the first typed key
+   *  (the key already replaced the value) — selecting then would eat the next
+   *  keystroke. Default true. */
+  selectAllOnOpen?: boolean;
   style?: React.CSSProperties;
   /** Visual style: 'default' (thin transparent inline editor) or 'chip' (dark
    *  bordered button-like trigger with chevron — for modal rows like the link
@@ -241,6 +247,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   itemBadge,
   defaultOpen = false,
   autoFocus: autoFocusProp = false,
+  selectAllOnOpen = true,
   displayMode = 'name',
   commitHint = false,
   keepAlphabetical = false,
@@ -342,13 +349,25 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   }, [open]);
 
   // Spreadsheet cell editor (defaultOpen/autoFocus): select the current value
-  // on open so typing REPLACES it (the single-select contract, like Set cells).
+  // ON THE OPEN EDGE so typing REPLACES it (the single-select contract, like
+  // Set cells). Two guards: never re-run while already open (Glide re-renders
+  // the overlay during typing — a re-select swallowed the next keystroke), and
+  // never select when the overlay was opened BY the first typed key
+  // (`selectAllOnOpen` false: that key already replaced the value; selecting
+  // would make the second key replace it again, "MARY" → "ARY").
+  const didSelectOnOpenRef = useRef(false);
   useEffect(() => {
-    if (!open || mode !== 'single' || wrapValue || variant === 'chip') return;
+    if (!open) {
+      didSelectOnOpenRef.current = false;
+      return;
+    }
+    if (didSelectOnOpenRef.current) return;
+    didSelectOnOpenRef.current = true;
+    if (!selectAllOnOpen || mode !== 'single' || wrapValue || variant === 'chip') return;
     const el = ref.current?.querySelector('input') as HTMLInputElement | null;
     if (!el || document.activeElement !== el) return;
     el.setSelectionRange(0, el.value.length);
-  }, [open, mode, wrapValue, variant]);
+  }, [open, selectAllOnOpen, mode, wrapValue, variant]);
 
   useLayoutEffect(() => {
     if (highlightedIndex < 0 || !panelRef.current) return;
@@ -397,11 +416,25 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   }, [onCreateItem, items, mode, displayMode, itemKey]);
 
   /* All commits route through this wrapper so creation stays in ONE place —
-     every internal `onChange(...)` call now auto-creates missing items. */
+     every internal `onChange(...)` call now auto-creates missing items. Cast
+     segments are resolved FIRST (AGENTS.md §Cast & Entities): `scene.cast`
+     stores Board IDs, so typing an existing member's display name binds their
+     id instead of creating a duplicate blank member + naming modal. */
+  const normalizeCommitValue = useCallback((v: string): string => {
+    if (displayMode !== 'id') return v;
+    if (mode === 'multi' || mode === 'select') {
+      return v.split(',').map(s => s.trim()).filter(Boolean)
+        .map(s => resolveTypedElementKey(items, displayMode, s))
+        .join(', ');
+    }
+    return resolveTypedElementKey(items, displayMode, v);
+  }, [displayMode, mode, items]);
+
   const onChange = useCallback((v: string) => {
-    ensureNew(v);
-    onChangeProp(v);
-  }, [ensureNew, onChangeProp]);
+    const resolved = normalizeCommitValue(v);
+    ensureNew(resolved);
+    onChangeProp(resolved);
+  }, [ensureNew, onChangeProp, normalizeCommitValue]);
 
   const currentIds = useMemo(() => {
     if (mode === 'multi' || mode === 'select') {
