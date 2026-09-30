@@ -44,17 +44,18 @@ export interface GlideEditorOptions {
  * (dataCol = col - columnOffset) per Glide's provideEditor contract. Shared by
  * the scenes and crew glides.
  *
- * One STABLE component per column key is returned directly to Glide (identity
- * never changes), so a re-render during typing cannot remount the overlay and
- * re-fire select-on-open (roadmap 146 wrapped the cached component in a
- * per-call arrow — the new identity remounted the overlay and ate keystrokes:
- * "MARY" → "ARY"). The per-activation config travels through a per-column box
- * the component reads at render time.
+ * `getOpts` is read lazily on every call, and ONE component instance per column
+ * key is cached for the life of the returned callback. The caller builds the
+ * callback ONCE (memoized with no deps) and keeps the mutable config in a ref —
+ * recreating the callback on a config change would create a new editor
+ * component type and REMOUNT an open overlay, discarding in-progress typing
+ * (page re-renders recreated it per keystroke/Shift press).
+ *
+ * The per-activation config travels through a per-column box the component
+ * reads at render time (identity never changes, so a re-render during typing
+ * cannot remount the overlay and re-fire select-on-open).
  */
-export function createGlideCellEditor(opts: GlideEditorOptions) {
-  const { readOnlyRef, columns, getValue, editors, getEditor, portalRef } = opts;
-  const columnOffset = opts.columnOffset ?? 1;
-
+export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) {
   interface EditorBox {
     cfg: GlideColumnEditor;
     skipComma: boolean;
@@ -105,6 +106,10 @@ export function createGlideCellEditor(opts: GlideEditorOptions) {
   };
 
   return (cellData: any & { location?: Item }): any => {
+    const opts = getOpts();
+    if (!opts) return undefined;
+    const { readOnlyRef, columns, getValue, editors, getEditor, portalRef } = opts;
+    const columnOffset = opts.columnOffset ?? 1;
     if (readOnlyRef.current) return undefined;
     const loc = cellData.location;
     if (!loc || cellData.kind !== GridCellKind.Text) return undefined;

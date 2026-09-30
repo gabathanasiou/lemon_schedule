@@ -78,15 +78,16 @@ export function useOpenHandler(setOpen: (v: boolean) => void) {
 
 /**
  * Escape inside an open dropdown must dismiss ONLY the dropdown — NEVER the
- * enclosing app Modal (a Radix dialog closes on Escape via a document
- * CAPTURE listener registered when the dialog opens). This interceptor is
- * registered at MOUNT (capture listeners run in registration order, so a
- * mount-time registration always wins over the dialog's later one) and, while
- * `active`, swallows Escape at the very start (stopImmediatePropagation) and
- * runs `onEscape` (the dropdown's own dismiss logic — its input-level handler
- * never fires because the native event is stopped before it reaches the tree).
- * When no dropdown is open the interceptor stays silent and the modal closes
- * as usual.
+ * enclosing app Modal (a Radix dialog closes on Escape via a document CAPTURE
+ * listener). This interceptor runs on the WINDOW in the capture phase, which
+ * beats any document-level listener regardless of registration order (a
+ * dropdown mounted after the dialog — e.g. a Glide cell editor's entity
+ * dropdown — used to lose the registration race and let the dialog swallow
+ * Escape). While `active` it swallows Escape at the very start
+ * (stopImmediatePropagation) and runs `onEscape` (the dropdown's own dismiss
+ * logic — its input-level handler never fires because the native event is
+ * stopped before it reaches the tree). When no dropdown is open the
+ * interceptor stays silent and the modal closes as usual.
  */
 export function useEscapeCapture(active: boolean, onEscape: () => void) {
   const activeRef = useRef(active);
@@ -95,13 +96,15 @@ export function useEscapeCapture(active: boolean, onEscape: () => void) {
   onEscapeRef.current = onEscape;
   const currentDocument = useCurrentDocument();
   useEffect(() => {
+    const win = currentDocument?.defaultView;
+    if (!win) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !activeRef.current) return;
       e.stopImmediatePropagation();
       onEscapeRef.current();
     };
-    currentDocument.addEventListener('keydown', onKey, { capture: true });
-    return () => currentDocument.removeEventListener('keydown', onKey, { capture: true });
+    win.addEventListener('keydown', onKey, { capture: true });
+    return () => win.removeEventListener('keydown', onKey, { capture: true });
   }, [currentDocument]);
 }
 

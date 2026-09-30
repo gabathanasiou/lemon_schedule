@@ -6,7 +6,7 @@ import { Clock, GripVertical, Plus, X } from 'lucide-react';
 import { useProject } from '../../../store';
 import { getCallTimeSettings } from '../../../lib/callTimes';
 import { CREW_DEPARTMENTS } from '../../../lib/crewCatalog';
-import { buildDefaultSlots, templateSlots } from '../../../lib/dayCrew';
+import { assignSlotPerson, buildDefaultSlots, templateSlots } from '../../../lib/dayCrew';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../../lib/categories';
 import type { CallStageDef, CallTimeSettings, CrewTemplate } from '../../../types';
 import TimeField from '../../TimeField';
@@ -134,7 +134,9 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
   const template = project.crewTemplate || {};
   const [tab, setTab] = useState<TabKey>('stages');
   const [catOpen, setCatOpen] = useState(false);
-  const [addCrewRole, setAddCrewRole] = useState<string | null | undefined>(undefined);
+  // Open Add Crew Member modal state: role-only from the section button, or
+  // role + typed name + slot from the Person dropdown ("Add new crew member…").
+  const [addCrew, setAddCrew] = useState<{ role?: string; name?: string; slotId?: string } | null>(null);
 
   const setCallTimes = (patch: Partial<CallTimeSettings>) =>
     dispatch({ type: 'SET_PRODUCTION_INFO', payload: { callTimes: { ...settings, ...patch } } });
@@ -386,14 +388,23 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 if (value) next[dept] = value; else delete next[dept];
                 setTemplate({ departmentPrecalls: Object.keys(next).length ? next : undefined });
               }}
-              onAddCrewMember={role => setAddCrewRole(role ?? null)}
+              onAddCrewMember={role => setAddCrew({ role })}
+              onCreatePerson={(role, name, slotId) => setAddCrew({ role, name, slotId })}
             />
           </div>
         )}
       </div>
     </Modal>
-    {addCrewRole !== undefined && (
-      <AddCrewMemberModal defaultRole={addCrewRole ?? undefined} onClose={() => setAddCrewRole(undefined)} />
+    {addCrew && (
+      <AddCrewMemberModal
+        defaultRole={addCrew.role}
+        defaultName={addCrew.name}
+        onClose={() => setAddCrew(null)}
+        onCreated={personId => {
+          if (!addCrew.slotId) return;
+          setTemplate({ slots: assignSlotPerson(templateSlotsList, addCrew.slotId, personId) });
+        }}
+      />
     )}
     </>
   );

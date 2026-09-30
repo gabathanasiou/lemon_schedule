@@ -54,7 +54,7 @@ void import('@glide-overlay-editor');
 import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { planPaste } from '../lib/glidePaste';
-import { createGlideCellEditor, type GlideColumnEditor } from '../lib/glideEditor';
+import { createGlideCellEditor, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { useGlideColumnWidths } from '../lib/glideColumns';
 import { useDedupeCellCommit } from '../lib/glideEditGuard';
@@ -590,13 +590,18 @@ export function GlideBreakdownTab({
     return editors;
   }, [intExtOptions, dayNightOptions, setItems, castItems, allBreakdownCategories, allBreakdownLabels, project.customCategories, project.elementLinks, breakdownEditorItems]);
 
-  const provideEditor = useMemo(() => createGlideCellEditor({
+  // ONE stable provideEditor for the grid's lifetime — the current config
+  // travels through a ref, so re-renders can never recreate the editor
+  // components and remount an open overlay (in-progress typing survives).
+  const editorOptsRef = useRef<GlideEditorOptions | null>(null);
+  editorOptsRef.current = {
     readOnlyRef,
     columns: COLUMNS,
     getValue: (row: number, colKey: string) => String(scenesRef.current[row]?.[colKey] ?? ''),
     editors: glideEditors,
     portalRef,
-  }), [COLUMNS, glideEditors]);
+  };
+  const provideEditor = useMemo(() => createGlideCellEditor(() => editorOptsRef.current), []);
 
   const onDelete = useCallback((sel: GridSelection): boolean => {
     if (selectModeRef.current) return false;

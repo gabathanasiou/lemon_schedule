@@ -18,7 +18,7 @@ import { useGlideFill } from '../lib/glideFill';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { expandRangeFill, planGridPaste, type PasteEdit } from '../lib/glidePaste';
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
-import { createGlideCellEditor, type GlideColumnEditor } from '../lib/glideEditor';
+import { createGlideCellEditor, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { clipboardRead, clipboardWrite } from '../lib/utils';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
@@ -181,27 +181,69 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
 
   const portalTarget = usePortalTarget();
   const currentDocument = useCurrentDocument();
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const gridPortalRef = useRef<HTMLElement | null>(null);
+  // Glide portals cell editors (and their dropdown panels) into
+  // `gridPortalRef.current`. The shared `#portal` sits at z-9999 — BELOW modal
+  // content (z-10000) — so a grid rendered INSIDE a modal (Call Times → Crew
+  // template) opened its editors behind the dialog: invisible and unclickable.
+  // Those grids get their own body-level, viewport-anchored layer at the
+  // in-modal popover depth (the `.ui-menu` 10001 tier) instead.
   useEffect(() => {
-    gridPortalRef.current = portalTarget ? portalTarget.querySelector('#portal') : document.getElementById('portal');
-  }, [portalTarget]);
+    const doc = currentDocument ?? document;
+    const inModal = !!wrapperRef.current?.closest('[role="dialog"]');
+    if (!inModal) {
+      gridPortalRef.current = portalTarget ? portalTarget.querySelector('#portal') : doc.getElementById('portal');
+      return;
+    }
+    const layer = doc.createElement('div');
+    layer.setAttribute('data-glide-overlay-layer', '');
+    // Radix modal mode sets `pointer-events: none` on <body>; re-enable on the
+    // layer (a 0×0 fixed anchor, so it never blocks clicks itself).
+    layer.style.cssText = 'position:fixed;left:0;top:0;z-index:10001;pointer-events:auto';
+    // The dialog's focus scope (Radix FocusScope) listens for focusin/focusout
+    // on the document and yanks focus back inside the dialog whenever it lands
+    // outside — the layer is outside by construction, so every keystroke would
+    // be stolen back to the grid (edit-on-type then re-opened the cell editor
+    // per key: "only one character sticks"). Focus events inside the layer stay
+    // inside it (React's own delegated listeners live ON the layer and still
+    // run), and a capture guard below covers the focusout fired on the dialog
+    // element itself when focus moves INTO the layer.
+    const swallow = (e: FocusEvent) => e.stopPropagation();
+    layer.addEventListener('focusin', swallow);
+    layer.addEventListener('focusout', swallow);
+    const onDocFocusOut = (e: FocusEvent) => {
+      const related = e.relatedTarget as Node | null;
+      if (related && layer.contains(related)) e.stopPropagation();
+    };
+    doc.addEventListener('focusout', onDocFocusOut, true);
+    doc.body.appendChild(layer);
+    gridPortalRef.current = layer;
+    return () => {
+      doc.removeEventListener('focusout', onDocFocusOut, true);
+      layer.remove();
+      gridPortalRef.current = null;
+    };
+  }, [portalTarget, currentDocument]);
 
   // Optional inline dropdown editors (crew slot person/call). Column offset 0:
   // this grid has no row-marker column, so Glide's reported col IS the data col.
-  const provideEditor = useMemo(
-    () => (editors || getEditor)
-      ? createGlideCellEditor({
-          readOnlyRef,
-          columns: COLUMNS,
-          getValue: (row, colKey) => String(rowsRef.current[row]?.[colKey] ?? ''),
-          editors,
-          getEditor,
-          portalRef: gridPortalRef,
-          columnOffset: 0,
-        })
-      : undefined,
-    [COLUMNS, editors, getEditor],
-  );
+  // ONE stable provideEditor for the grid's lifetime — the current config
+  // travels through a ref, so parent re-renders (new callback identities) can
+  // never recreate the editor components and remount an open overlay.
+  const editorOptsRef = useRef<GlideEditorOptions | null>(null);
+  editorOptsRef.current = (editors || getEditor)
+    ? {
+        readOnlyRef,
+        columns: COLUMNS,
+        getValue: (row, colKey) => String(rowsRef.current[row]?.[colKey] ?? ''),
+        editors,
+        getEditor,
+        portalRef: gridPortalRef,
+        columnOffset: 0,
+      }
+    : null;
+  const provideEditor = useMemo(() => createGlideCellEditor(() => editorOptsRef.current), []);
 
   const gridRef = useRef<DataEditorRef>(null);
   // Row-action glyphs (drawn on the canvas — Glide cells can't host React).
@@ -235,7 +277,6 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   // Track the cursor (capture phase, so it beats Glide's canvas handler) and
   // seed the tooltip there — it then follows the pointer smoothly with no
   // first-frame jump from the cell anchor.
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const pointerRef = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     const el = wrapperRef.current;

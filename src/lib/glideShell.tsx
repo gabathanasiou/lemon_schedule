@@ -26,7 +26,7 @@ import { IS_COARSE, useHardwareKeyboard, isTouchLike } from './device';
 import { createGlideTheme } from './glideTheme';
 import { usePortalTarget, useCurrentDocument } from './popoutTarget';
 import { textCell, buildCopyText, buildCutPlan } from './glideCells';
-import { createGlideCellEditor, type GlideColumnEditor } from './glideEditor';
+import { createGlideCellEditor, type GlideColumnEditor, type GlideEditorOptions } from './glideEditor';
 import { useGlidePasteInterception } from './glidePasteIntercept';
 import { useGlideColumnWidths } from './glideColumns';
 import { useDedupeCellCommit } from './glideEditGuard';
@@ -220,13 +220,18 @@ export const GlideGridShell: React.FC<{
     return editors;
   }, [config.columnDefs, categoryItems, project]);
 
-  const provideEditor = useMemo(() => createGlideCellEditor({
+  // ONE stable provideEditor for the grid's lifetime — the current config
+  // travels through a ref, so re-renders can never recreate the editor
+  // components and remount an open overlay (in-progress typing survives).
+  const editorOptsRef = useRef<GlideEditorOptions | null>(null);
+  editorOptsRef.current = {
     readOnlyRef,
     columns: COLUMNS,
     getValue: (row: number, colKey: string) => String(rowsRef.current[row]?.[colKey] ?? ''),
     editors: glideEditors,
     portalRef: gridPortalRef,
-  }), [COLUMNS, glideEditors]);
+  };
+  const provideEditor = useMemo(() => createGlideCellEditor(() => editorOptsRef.current), []);
 
   const trashImg = useRef<HTMLImageElement | null>(null);
   const plusImg = useRef<HTMLImageElement | null>(null);
