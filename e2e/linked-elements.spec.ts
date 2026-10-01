@@ -173,7 +173,7 @@ test('link manager: anchor card links multiple elements and applies retroactivel
   await expect(modal).toContainText('Element Links');
 
   // Day-status-modal style rows: type to filter, CLICK the item (mouse).
-  const elementInput = modal.locator('[data-el-dropdown] input');
+  const elementInput = modal.locator('[data-el-dropdown] :is(input, textarea)');
   await elementInput.nth(0).click();
   await page.keyboard.type(anchor.name.slice(0, 4));
   await page.getByText(anchor.name, { exact: true }).last().click();
@@ -267,7 +267,7 @@ test('link manager: typing a brand-new element in a linked row creates it', asyn
   await expect(modal).toBeVisible();
   await expect(modal).toContainText('Element Links');
 
-  const elementInput = modal.locator('[data-el-dropdown] input');
+  const elementInput = modal.locator('[data-el-dropdown] :is(input, textarea)');
   // Anchor (cast): pick the lead member.
   await elementInput.nth(0).click();
   await page.keyboard.type(anchor.name.slice(0, 4));
@@ -322,7 +322,7 @@ test('anchored elements show an anchor icon in pickers (link manager + scene she
   await page.getByRole('button', { name: 'Links', exact: true }).click();
   const modal = page.getByRole('dialog');
   await expect(modal).toBeVisible();
-  const elementInput = modal.locator('[data-el-dropdown] input');
+  const elementInput = modal.locator('[data-el-dropdown] :is(input, textarea)');
 
   await elementInput.nth(0).click();
   await page.keyboard.type(anchor.name.slice(0, 4));

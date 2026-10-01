@@ -47,7 +47,10 @@ export const ElementPickerRow: React.FC<{
   /** Called by the EntityDropdown for committed values with no matching
    *  element — auto-creates new elements (cast naming flow). */
   onCreateItem?: (item: string) => void;
-}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys, anchoredKeys, onCreateItem }) => {
+  /** Let a long comma-list wrap onto multiple lines (the EntityDropdown
+   *  `wrapValue` contract) — the row grows with the value. */
+  wrapValue?: boolean;
+}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys, anchoredKeys, onCreateItem, wrapValue }) => {
   const portalTarget = usePortalTarget();
   const isCast = category === 'cast';
   return (
@@ -80,6 +83,7 @@ export const ElementPickerRow: React.FC<{
           placeholder={placeholder || 'Select...'}
           anchoredKeys={anchoredKeys}
           onCreateItem={onCreateItem}
+          wrapValue={wrapValue}
           renderItem={isCast ? (item) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>) : undefined}
         />
       </span>

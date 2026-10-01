@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { ensureProject, openSeededProject, reloadProject } from './helpers';
+import { ensureProject, openSeededProject } from './helpers';
 
 test.describe('Glide Breakdown Tab', () => {
   test.beforeEach(async ({ page }) => {
@@ -146,15 +146,7 @@ test.describe('Glide Breakdown Tab', () => {
     ), { timeout: 5000 }).toEqual(['MARS', 'MARS', 'MARS']);
   });
 
-  // FIXME (roadmap 180): the multi-value range-fill confirm is entangled with
-  // two other guards on the seed — replacing cast on a linked scene stacks the
-  // "Remove linked elements?" prompt (`useLinkedEditGuard`), and typing a NEW
-  // name stacks the "Name New Cast Members" modal (cast is Board-ID keyed).
-  // After the dialog closes, Glide's overlay session can no longer activate a
-  // cell for editing, so the second edit of the two-path flow can't run.
-  // Re-enable with the fix; the Cancel/Confirm paths are otherwise covered by
-  // the single-value range-fill test above.
-  test.fixme('range fill: a multi-value column (Cast) confirms before replacing the lists (roadmap 144)', async ({ page }) => {
+  test('range fill: a multi-value column (Cast) confirms before replacing the lists (roadmap 144)', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Glide Breakdown' }).click();
     await expect(page.locator('.dvn-scroller')).toBeAttached({ timeout: 5000 });
@@ -201,11 +193,10 @@ test.describe('Glide Breakdown Tab', () => {
     expect(afterCancel[2]).toBe(original[2]);
     expect(afterCancel[0]).toBe(castIdA);
 
-    // Confirm path, in a fresh session: the dialog leaves Glide's overlay
-    // session unable to start another edit (roadmap 180), so reload between
-    // the two paths; the reload auto-opens the project + restores the route.
-    await reloadProject(page);
-    await expect(page.locator('.dvn-scroller')).toBeAttached({ timeout: 8000 });
+    // Confirm path, same session (roadmap 180: the second edit must survive
+    // the first edit + dialog). The replace confirm folds in the
+    // linked-elements cascade (one prompt) and applies the whole fill +
+    // cascade as ONE undo entry.
     const before = await page.evaluate(() => (window as any).__lemonSchedule.pastCount());
     await selectAndEdit(castIdB);
     await expect(confirmBtn).toBeVisible({ timeout: 4000 });

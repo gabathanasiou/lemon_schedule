@@ -14,6 +14,14 @@ import { useCurrentDocument } from './popoutTarget';
 export const DD_CHIP_TRIGGER_CLASS =
   `flex items-center gap-1.5 ${IS_COARSE ? 'px-3.5 py-2.5' : 'px-2.5 py-1.5'} bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900`;
 
+/**
+ * Padding for the `wrapValue` chip's absolute textarea so its caret sits
+ * exactly on the in-flow value span's glyphs: left = the chip's px, right =
+ * the chip's px + the span's `pr-4` chevron clearance (chevron `right-2 w-3`).
+ * The plain chip input needs no padding — it lives in the content box.
+ */
+export const DD_CHIP_WRAP_EDITOR_PAD = IS_COARSE ? 'pl-3.5 pr-[30px] py-2.5' : 'pl-2.5 pr-[26px] py-1.5';
+
 const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 
 export const DD_ITEM = (active: boolean) =>
@@ -48,17 +56,44 @@ export type CloseRef = { current: (() => void) | null };
 
 export const globalDropdownCloseRef: CloseRef = { current: null };
 
+/** Latest pointerdown per document — lets `useDropdown` recognize the second
+ *  press of the gesture that opened a dropdown. Glide's permissive
+ *  double-click detection activates a cell editor on the FIRST mouseup of a
+ *  double-click, so the second mousedown lands on the overlay chrome just
+ *  after the editor opened and would close it (or blur-commit it). That press
+ *  is within a few px of the opener and inside the double-click window. */
+const lastDownByDoc = new WeakMap<Document, { at: number; x: number; y: number }>();
+const trackedDocs = new WeakSet<Document>();
+function trackPointerDowns(doc: Document) {
+  if (trackedDocs.has(doc)) return;
+  trackedDocs.add(doc);
+  doc.addEventListener('pointerdown', (e) => {
+    lastDownByDoc.set(doc, { at: performance.now(), x: e.clientX, y: e.clientY });
+  }, { capture: true });
+}
+const DOUBLE_CLICK_MS = 500;
+const DOUBLE_CLICK_SLOP_PX = 24;
+
 export function useDropdown(open: boolean, ref: RefObject<HTMLElement | null>, onClose?: () => void, panelRef?: RefObject<HTMLElement | null>) {
   const currentDocument = useCurrentDocument();
   useEffect(() => {
     if (open) {
+      trackPointerDowns(currentDocument);
+      const opener = lastDownByDoc.get(currentDocument);
       globalDropdownCloseRef.current = () => onClose?.();
       const onClick = (e: PointerEvent) => {
         const inWrapper = ref.current && ref.current.contains(e.target as Node);
         const inPanel = panelRef?.current && panelRef.current.contains(e.target as Node);
-        if (!inWrapper && !inPanel) {
-          onClose?.();
+        if (inWrapper || inPanel) return;
+        // Second press of the opening double-click — swallow it whole: the
+        // close AND the focus change (a blur would commit and close anyway).
+        if (opener &&
+            performance.now() - opener.at < DOUBLE_CLICK_MS &&
+            Math.hypot(e.clientX - opener.x, e.clientY - opener.y) < DOUBLE_CLICK_SLOP_PX) {
+          e.preventDefault();
+          return;
         }
+        onClose?.();
       };
       currentDocument.addEventListener('pointerdown', onClick);
       return () => {

@@ -198,7 +198,9 @@ const E2E_SPEC_CAP = 70;
 // + the Suggestions toggle) needs a second spec case; the old picker e2e is gone.
 // 268 → 270: roadmap 165 positioning engine — app-level geometry guards that a
 // panel never overhangs the visual viewport (the kit playground covers flip).
-const E2E_TEST_CAP = 270;
+// 270 → 271: roadmap 180 fix — re-enable the multi-value range-fill confirm spec
+// (was `test.fixme`d; disabled cases aren't counted by this check).
+const E2E_TEST_CAP = 271;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

@@ -368,6 +368,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                         idPrefix={`l${gi}-${li}`}
                         btnClass={BTN}
                         anchoredKeys={anchoredByCategory.get(l.linkedCategory)}
+                        wrapValue
                         onRemove={() => removeLink(g.id, l.id)}
                         removeIcon={<X className="w-3.5 h-3.5" />}
                         removeBtnClass={REMOVE_BTN}

@@ -185,7 +185,7 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 ## Adding a spec
 
 Adding is **deliberate, not automatic** — e2e is the expensive layer, so the suite is **capped**
-(enforced by `npm run lint`): **≤ 70 specs / ≤ 268 tests** (`scripts/check-doc-budget.mjs`).
+(enforced by `npm run lint`): **≤ 70 specs / ≤ 271 tests** (`scripts/check-doc-budget.mjs`).
 More features means more tests; unbounded growth means a prune. When a new case is needed, in
 order of preference:
 

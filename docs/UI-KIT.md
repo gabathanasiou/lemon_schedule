@@ -25,6 +25,8 @@ Before building any of these by hand again, check the kit first:
 
 **v0.1.84 (Seg stretch)**: `Seg` gained `stretch?: boolean` — `w-full` container + `flex-1` segments (labels stay centered). Used where the control should fill a column rather than hug its content (the Reports Designer docked inspector). Content-width remains the default everywhere else.
 
+**v0.1.85 (hover never scrolls menus)**: pointer-driven highlights no longer run `scrollIntoView` — hovering a clipped edge row used to move the list under the cursor while aiming at it. Keyboard arrows/typeahead (and open-scroll-to-active) still keep the active row visible. Covers `DropdownMenu`, `DropdownSubmenu` and the rich-text suggestion popup; the app's `EntityDropdown` mirrors it (roadmap 187).
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

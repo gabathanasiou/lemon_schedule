@@ -395,7 +395,7 @@ export function GlideBreakdownTab({
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
 
-  const commitEdit = useCallback((sceneId: string, colKey: string, newVal: string) => {
+  const commitEdit = useCallback((sceneId: string, colKey: string, newVal: string, opts?: { cascadeRemovals?: boolean }) => {
     const currentProject = projectRef.current;
     const updates: any = { [colKey]: newVal };
     if (colKey === 'pageCount') {
@@ -417,7 +417,7 @@ export function GlideBreakdownTab({
         addNewElement(dispatch, queue, colKey, item);
       }
       const scene = currentProject.scenes.find((s: Scene) => s.id === sceneId);
-      if (scene) linkGuard.tryCommitSceneEdit(scene, { [colKey]: updates[colKey] });
+      if (scene) linkGuard.tryCommitSceneEdit(scene, { [colKey]: updates[colKey] }, opts);
       return;
     }
     dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, ...updates } });
@@ -536,22 +536,41 @@ export function GlideBreakdownTab({
           if (r < scenesRef.current.length) fillRows.push(r);
         }
         if (fillRows.length > 1) {
-          const run = () => {
+          const run = (cascadeRemovals = false) => {
             dispatch({ type: 'BATCH_START' });
-            for (const r of fillRows) commitEdit(scenesRef.current[r].id, colDef.key, newValue.data);
+            for (const r of fillRows) {
+              commitEdit(scenesRef.current[r].id, colDef.key, newValue.data, cascadeRemovals ? { cascadeRemovals: true } : undefined);
+            }
             dispatch({ type: 'BATCH_COMMIT' });
           };
           // A multi-value column (a comma list per scene) replaces every
           // selected scene's list — confirm before nuking them. Cancel keeps the
           // edit on just the cell you changed.
-          const isMulti = (colDef.key === 'cast' || allBreakdownCategories.includes(colDef.key))
-            && isMultiValue(colDef.key, project.customCategories);
+          const guarded = colDef.key === 'cast' || allBreakdownCategories.includes(colDef.key);
+          const isMulti = guarded && isMultiValue(colDef.key, project.customCategories);
+          // Element links (roadmap 44/180): anchors this fill removes would
+          // cascade their linked elements out. Preview the WHOLE selection once
+          // and fold it into the same confirm, then run the batch with the
+          // cascade inline — one prompt and one undo entry, instead of the
+          // guard's per-row dialog dispatching outside the batch.
+          const cascadeNotes = guarded
+            ? linkGuard.collectRemovals(fillRows.map(r => ({ scene: scenesRef.current[r], updates: { [colDef.key]: newValue.data } })))
+            : [];
+          const cascadeNote = cascadeNotes.length > 0
+            ? ` Linked elements will also be removed: ${cascadeNotes.join('; ')}.`
+            : '';
           if (isMulti) {
             void dialog.confirm({
               title: `Replace ${colDef.label} in ${fillRows.length} scenes?`,
-              message: `This replaces the existing ${colDef.label} in ${fillRows.length} scenes with “${newValue.data}”.`,
+              message: `This replaces the existing ${colDef.label} in ${fillRows.length} scenes with “${newValue.data}”.${cascadeNote}`,
               danger: true,
-            }).then(ok => { if (ok) run(); else commitEdit(scene.id, colDef.key, newValue.data); });
+            }).then(ok => { if (ok) run(cascadeNotes.length > 0); else commitEdit(scene.id, colDef.key, newValue.data); });
+          } else if (cascadeNotes.length > 0) {
+            void dialog.confirm({
+              title: 'Remove linked elements?',
+              message: `Removing these anchors will also remove their linked elements: ${cascadeNotes.join('; ')}. The linked elements will be removed from the selected scenes too.`,
+              danger: true,
+            }).then(ok => { if (ok) run(true); else commitEdit(scene.id, colDef.key, newValue.data); });
           } else {
             run();
           }
@@ -560,7 +579,7 @@ export function GlideBreakdownTab({
       }
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog]);
+  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog, linkGuard]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const anchoredByCategory = new Map<string, Set<string>>();

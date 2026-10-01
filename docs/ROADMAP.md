@@ -108,34 +108,6 @@ DESIGN-LANGUAGE §Primitive matrix + Recipes class strings, update this roadmap 
 same commit. The events-mode day cells, section tabs, and icon-only buttons stay bespoke
 (no kit primitive exists; icon-only is the documented exception).
 
-## 96. Spread `wrapValue` (multiline entity dropdown + growing container) to the other surfaces (`[ ]`)
-
-- The Scene Sheet got the opt-in `wrapValue` prop (`EntityDropdown`: closed
-  values wrap onto new lines, the editor is a wrapping `<textarea>` covering
-  the whole cell, and the container grows with content — roadmap 95). The
-  SAME pain exists wherever an entity dropdown holds a long comma-list inside
-  a fixed container. Check and extend:
-- Candidate surfaces (verify each on a seeded project with a long cast/list):
-  - **Link Manager** (`elements/LinkManagerModal.tsx`) — the linked-element
-    rows are the chip-`EntityDropdown` `ElementPickerRow`s; long lists may
-    truncate and the row container stays fixed.
-  - **Glide overlay editors** (`src/lib/glideEditor.tsx`) — `autoGrow`
-    widens horizontally (roadmap 88) but never grows vertically/height.
-  - **Stripboard / boneyard cells** — edit-mode cells truncate; may be
-    intentionally single-line (leave if so — the sheet form was the pain).
-  - **Day/event modal attachment rows** (`DayEventsModal`, `ElementEventsModal`)
-    — multi-mode EntityDropdown rows.
-  - **Color Rules / rule editor cast pickers** (`rules/ElementPicker.tsx`).
-- The `wrapValue` prop is already opt-in and surface-agnostic; `resolveClosed`
-  resolves cast to "1. NAME". The worker should wire `wrapValue` per surface
-  where it fits (and stretch the container like the sheet's `flex flex-col` +
-  `flex-1` + `pb-[1lh]`), NOT change EntityDropdown's default behavior.
-- Decide per surface: full multiline growth vs. keep single-line cells that
-  are edited in place (stripboard). Document the choice in the item's Done
-  note. Only add to `SHEET`-adjacent specs that exercise the changed surface.
-
-**Verify**: lint + e2e for each surface actually changed.
-
 ## 97. Developer/agent API + MCP server for the app (`[ ]`)
 
 **Relations**: extends the debug bridge (AGENTS.md §Agentic Debug Bridge);
@@ -683,29 +655,6 @@ manual (numbered hand-off).
 person-keyed `crewCalls` write path (items 101/106/112); touches 111/112 grids;
 related to **142** (Day workspace) and **148** (crew glide Links).
 
-## 180. Range-fill multi-value confirm — blocked by stacked guards + a dead overlay session (`[ ]`)
-
-**Bug**: `e2e/glide-breakdown.spec.ts` (roadmap 144) is `test.fixme`d — the
-multi-value range fill dead-ends on the seed:
-- replacing cast on a linked scene ALSO opens the "Remove linked elements?"
-  prompt (`useLinkedEditGuard`) after the replace confirm — two
-  `[data-modal-confirm]` dialogs interact;
-- typing a NEW name (the natural UX input) opens the "Name New Cast Members"
-  modal — cast is Board-ID keyed (the dropdown now resolves typed names via
-  `resolveTypedElementKey`, so existing members bind by ID);
-- after the dialog closes, Glide's overlay session can no longer activate a
-  cell for editing (double-click does nothing; focus()/remount attempts did
-  not help) — the overlay-lifecycle family of **149**.
-- Already in place: existing-row commits dedupe Glide's duplicate
-  `onCellEdited` fire and unchanged-value commits are no-ops
-  (`BreakdownTabGlide.onCellEdited`).
-- **Fix directions**: sequence the guards (linked-elements confirmation before
-  the multi-value one, or one merged prompt); dig into Glide's edit activation
-  after a modal.
-- **Verify**: un-fixme the spec and make it pass; check the `GlideGridShell`
-  twin.
-- **Relations**: 144 (source), 149, `src/lib/elements.ts`.
-
 ## 150. Reports designer — the free (custom-rows) Table block is broken (`[ ]`)
 
 **Bug** (debug report): the palette's Table block in free/custom-rows mode
@@ -861,11 +810,13 @@ tags.
   filter (rows silently disappearing = break).
 - **Relations**: 121, 84, 88, 139-145.
 
-## 174. Call Times — label audit (`[ ]`)
+## 174. Call Times — label audit (`[ ]`, parked)
 
 **Request** (debug report): audit and fix the Call Times labels — stage headers,
 category/department names in the Call Times modal and the day grids.
 Enumerate the wrong ones with the user before changing copy.
+- **Parked (user, this session)** — no concrete wrong labels could be named;
+  revisit only if a specific example is reported.
 - Pointers: `production/day/CallTimesSettingsModal.tsx`, `DayTimesGlide.tsx`,
   `CrewRosterEditor.tsx`, `CallTimesSection.tsx`/`CrewSection.tsx`.
 - **Verify**: rule-7 manual.
@@ -882,4 +833,3 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
   affordance in the child; desktop keeps the Radix side placement.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
-

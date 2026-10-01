@@ -26,7 +26,7 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { ChevronDown, Anchor } from 'lucide-react';
 import { Scene } from '../types';
-import { useDropdown, useEscapeCapture, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB, DD_CHIP_TRIGGER_CLASS } from '../lib/dropdown';
+import { useDropdown, useEscapeCapture, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB, DD_CHIP_TRIGGER_CLASS, DD_CHIP_WRAP_EDITOR_PAD } from '../lib/dropdown';
 import { buildDropdownItems } from '../lib/dropdownItems';
 import DropdownPanel from './DropdownPanel';
 
@@ -110,9 +110,11 @@ interface EntityDropdownProps {
   /** Wrap the closed value onto multiple lines (`whitespace-normal`) instead
    *  of truncating, and stretch the write hitbox to the whole cell: the
    *  wrapper grows with content (`min-h-[1lh]`, no fixed `h-[1lh]`) and the
-   *  transparent input becomes `absolute inset-0`. Opt-in — the stripboard,
-   *  Glide and modal usages keep the single-line truncated cell. Pass with a
-   *  stretching container (`flex flex-col` + `flex-1`) for the full-box hit. */
+   *  transparent input becomes `absolute inset-0`. Opt-in per surface — the
+   *  stripboard and Glide cells keep the single-line truncated cell; the
+   *  Scene Sheet cells and the chip variant (Link Manager linked rows) wrap.
+   *  Pass with a stretching container (`flex flex-col` + `flex-1`) for the
+   *  full-box hit. */
   wrapValue?: boolean;
   /** Resolve the CLOSED value against `items` the way the chip variant does —
    *  cast reads "1. FISHERMAN" instead of raw ids, non-cast keeps its names.
@@ -368,7 +370,10 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   }, [open, selectAllOnOpen, mode, wrapValue, variant]);
 
   useLayoutEffect(() => {
-    if (highlightedIndex < 0 || !panelRef.current) return;
+    // Keep the active row visible for KEYBOARD navigation only — a pointer
+    // hover must not scroll the list (the row under the cursor would move
+    // while the user aims at it). Hover still lights the row via hoverRef.
+    if (highlightedIndex < 0 || hoverRef.current || !panelRef.current) return;
     const btn = panelRef.current.querySelector(`[data-ei="${highlightedIndex}"]`) as HTMLElement;
     if (btn) btn.scrollIntoView({ block: 'nearest' });
   }, [highlightedIndex]);
@@ -746,7 +751,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           }
   };
 
-  const editorCls = `${DD_INPUT_CLASS(standalone)} ${variant === 'chip' ? 'cursor-pointer pr-5' : ''} ${standalone ? '' : (className || '')} ${(standalone || variant === 'chip' || autoGrow || wrapValue) ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`;
+  const isWrapEditor = wrapValue && !standalone && !autoGrow;
+  const editorCls = `${DD_INPUT_CLASS(standalone)} ${variant === 'chip' ? (isWrapEditor ? 'cursor-pointer' : 'cursor-pointer pr-5') : ''} ${standalone ? '' : (className || '')} ${(standalone || variant === 'chip' || autoGrow || wrapValue) ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`;
   const editorStyle = standalone
     ? style
     : autoGrow
@@ -764,7 +770,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     placeholder: standalone || autoGrow ? placeholder : '',
     onKeyDown: onKeyDownEditor,
   };
-  const isWrapEditor = wrapValue && !standalone && !autoGrow && variant !== 'chip';
 
   return (
     <div
@@ -795,7 +800,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         <textarea
           {...editorProps}
           rows={1}
-          className={`${editorCls} absolute inset-0 resize-none overflow-hidden whitespace-pre-wrap break-words leading-relaxed`}
+          className={`${editorCls} ${variant === 'chip' ? DD_CHIP_WRAP_EDITOR_PAD : 'leading-relaxed'} absolute inset-0 resize-none overflow-hidden whitespace-pre-wrap break-words`}
           style={editorStyle}
         />
       ) : (
@@ -804,7 +809,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       {!standalone && !autoGrow && (
         <span
           className={wrapValue
-            ? `block pointer-events-none text-left whitespace-pre-wrap break-words leading-relaxed ${displayValue ? '' : 'italic opacity-50'}`
+            ? `block pointer-events-none text-left whitespace-pre-wrap break-words ${variant === 'chip' ? 'pr-4' : 'leading-relaxed'} ${displayValue ? '' : 'italic opacity-50'}`
             : `absolute inset-y-0 truncate pointer-events-none whitespace-nowrap text-left flex items-center ${variant === 'chip' ? 'left-2.5 right-5' : 'inset-x-0'} ${displayValue ? '' : 'italic opacity-50'}`}
           style={style}
         >

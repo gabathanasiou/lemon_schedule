@@ -61,12 +61,26 @@ auto-repaint.
   whole list, so a >1-row spread opens `useDialog().confirm` first (`danger`, no suppress): Confirm
   runs the batch, Cancel keeps the edit on just the edited cell. Single-value entity columns
   (Set / I/E / D/N, Role, Type) fill directly. Paste is NOT confirmed (a 2D block is fuzzier) — the
-  fill handle copies the same value, so its outcome is unchanged.
+  fill handle copies the same value, so its outcome is unchanged. **Element links fold into this ONE
+  confirm** (roadmap 180): `useLinkedEditGuard.collectRemovals` previews the linked elements the
+  fill's removed anchors would cascade out, the message lists them, and the batch runs with
+  `{ cascadeRemovals: true }` so the guard applies the cascade INLINE — one prompt and one undo entry
+  (never a per-row guard dialog dispatching outside the batch). A single-value fill that would remove
+  linked anchors gets the same one-shot prompt before running.
 - **ONE stable `provideEditor` per grid lifetime** (roadmap 149): build it with
   `createGlideCellEditor(() => optsRef.current)` from a ref, never as a `useMemo` on config
   identities. Recreating the callback recreated the cached editor components → Glide remounted the
   OPEN overlay on every parent re-render (Shift's `setShiftHeld`, keystrokes via state) and typing
   reset to the seed. Call sites: `InlineGlideTable`, `BreakdownTabGlide`, `glideShell`.
+- **Double-click activation vs. the editor's outside-close** (roadmap 180): Glide's permissive
+  double-click detection (any two mouseups <500ms apart) can activate the editor on the FIRST mouseup
+  of a double-click, so the second mousedown lands just after the EntityDropdown mounted and would
+  close it (outside `pointerdown`) or blur-commit it. `useDropdown` (`src/lib/dropdown.ts`) tracks the
+  opening pointerdown and swallows an outside press that is within a few px of it inside the
+  double-click window (`DOUBLE_CLICK_MS`/`DOUBLE_CLICK_SLOP_PX`) — both the close and the default
+  focus change — so the gesture never dismisses the editor it opened. Fast clicks elsewhere are
+  untouched. Without this the grid is dead to double-click edits after an edit + dialog (typing/Enter
+  still worked, which is how the e2e caught it).
 - **`kind: 'text'` editors** (crew Glide Name, `uppercase: true` via `GlideColumnDef.uppercase`):
   a plain input, because Glide's built-in editor is unavailable to custom columns. It focuses on
   mount, selects the value when the overlay was opened on the stored value, uppercases live per

@@ -266,7 +266,9 @@ ProductionDatesModal-adjacent modals). Trigger = dark chip — the shared **`DD_
 px-2.5 py-1.5 flex items-center gap-1.5` (+ `relative` for the absolute value overlay) + chevron
 (`w-3 h-3 text-zinc-500 absolute right-2`) + value/placeholder overlay; committed value stays raw,
 the overlay resolves cast as Glide-style (`1. FISHERMAN`, `—` fallback) via the `items` prop.
-**Every entity dropdown rendered inside a dark modal uses `variant="chip"`** — the dark trigger +
+Opt-in `wrapValue` makes a long resolved list wrap onto multiple lines — the chip grows and the
+editor becomes a textarea (`DD_CHIP_WRAP_EDITOR_PAD` keeps its caret on the span's glyphs;
+Link Manager linked rows). **Every entity dropdown rendered inside a dark modal uses `variant="chip"`** — the dark trigger +
 dark panel are the modal theme (the light default is for light cells/forms only). **Any other
 dropdown/menu trigger inside a dark modal can adopt the same look by using `DD_CHIP_TRIGGER_CLASS`**
 (e.g. the day-status DropdownMenu trigger in DayEventsModal, `CategoryDropdown` — its trigger IS the
@@ -286,7 +288,9 @@ tap-to-hover), but `highlightedIndex` is the ONE active row
 for light), which pointer hover (`onMouseEnter` → `onItemHover`) and the keyboard arrows both write
 (latest wins; leaving the list clears a pointer-driven highlight via `onHoverLeave`). Checked rows =
 distinct from the highlight: dark `bg-zinc-800/40 text-zinc-100` + trailing `Check` glyph
-(`DropdownPanel.tsx`), light `bg-blue-50 text-blue-700`.
+(`DropdownPanel.tsx`), light `bg-blue-50 text-blue-700`. **Only a KEYBOARD-driven highlight
+scrolls the active row into view** — pointer hover never moves the list (item 187; `EntityDropdown`
+gates its `scrollIntoView` on `hoverRef`).
 
 **Single-highlight rule (kit menus AND context menus — the kit `DropdownMenu`/`DropdownSubmenu`/
 `ContextMenu` share the panel's highlight model, item 64)**: the one lit row is `.ui-item-highlighted`
@@ -295,7 +299,8 @@ clears a pointer-driven highlight); the CSS `.ui-item:hover` fill feeds iOS tap-
 suppressed while a row is highlighted (`.ui-menu:has(.ui-item.ui-item-highlighted) .ui-item:hover:not(.ui-item-highlighted)` —
 keyed on the kit class, NOT Radix's `[data-highlighted]`, which stays on the last pointer-hovered
 item when the keyboard moves the highlight away). Checked rows stay distinct (dark =
-Check glyph; light = blue bg). **Menu key-lock (mini-modal)**: while a menu is open, the MENU keys
+Check glyph; light = blue bg). **Only keyboard-driven highlights run `scrollIntoView`** — pointer
+hover never moves the list (kit `pointerDriven` gate, v0.1.85). **Menu key-lock (mini-modal)**: while a menu is open, the MENU keys
 (arrows/Enter/Space/typeahead letters) are captured at the document and routed to the surface even
 when focus sits on a stripboard canvas or the page body; events inside the menu pass through;
 every other key (Cmd+Z, Esc, Tab…) is untouched. A submenu trigger row: Enter/ArrowRight opens the
