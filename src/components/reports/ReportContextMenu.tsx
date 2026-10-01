@@ -32,6 +32,8 @@ const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, proj
   const itemCls = 'w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs text-zinc-300 hover:bg-zinc-800 rounded transition-colors';
   const isColumnMenu = menu.colIndex !== undefined;
   const isTableColumn = isColumnMenu && block.type === 'table';
+  // Rows-axis tables render `block.columns` as matrix rows: same ops, row wording.
+  const isTableRow = isTableColumn && (block.axis ?? 'columns') === 'rows';
   const labelOf = (f: ReportFieldDef) => f.scope === 'smart' ? smartFieldLabel(f.label, insertScope) : f.label;
 
   return (
@@ -48,7 +50,7 @@ const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, proj
         {isColumnMenu && (
           <>
             <div className="px-2.5 py-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-              {isTableColumn ? `Table column ${menu.colIndex! + 1} of ${(block.columns || []).length}` : `Column ${menu.colIndex! + 1} of ${(block.cols || []).length}`}
+              {isTableColumn ? `Table ${isTableRow ? 'row' : 'column'} ${menu.colIndex! + 1} of ${(block.columns || []).length}` : `Column ${menu.colIndex! + 1} of ${(block.cols || []).length}`}
             </div>
             {isTableColumn && (
               <>
@@ -70,15 +72,15 @@ const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, proj
                   )}
                 </div>
                 <div className="border-t border-zinc-800 my-1" />
-                <button className={itemCls} onClick={() => { onColumnMove(-1); onClose(); }}>Move column left</button>
-                <button className={itemCls} onClick={() => { onColumnMove(1); onClose(); }}>Move column right</button>
+                <button className={itemCls} onClick={() => { onColumnMove(-1); onClose(); }}>{isTableRow ? 'Move row up' : 'Move column left'}</button>
+                <button className={itemCls} onClick={() => { onColumnMove(1); onClose(); }}>{isTableRow ? 'Move row down' : 'Move column right'}</button>
                 <div className="border-t border-zinc-800 my-1" />
               </>
             )}
-            <button className={itemCls} onClick={() => { onColumnInsertAt(menu.colIndex!); onClose(); }}>Insert column before</button>
-            <button className={itemCls} onClick={() => { onColumnInsertAt(menu.colIndex! + 1); onClose(); }}>Insert column after</button>
+            <button className={itemCls} onClick={() => { onColumnInsertAt(menu.colIndex!); onClose(); }}>{isTableRow ? 'Insert row above' : 'Insert column before'}</button>
+            <button className={itemCls} onClick={() => { onColumnInsertAt(menu.colIndex! + 1); onClose(); }}>{isTableRow ? 'Insert row below' : 'Insert column after'}</button>
             <div className="border-t border-zinc-800 my-1" />
-            <button className={`${itemCls} text-red-400 hover:text-red-300`} onClick={() => { onColumnRemove(); onClose(); }}>Delete column</button>
+            <button className={`${itemCls} text-red-400 hover:text-red-300`} onClick={() => { onColumnRemove(); onClose(); }}>{isTableRow ? 'Delete row' : 'Delete column'}</button>
           </>
         )}
         {!isColumnMenu && block.type === 'field' && (

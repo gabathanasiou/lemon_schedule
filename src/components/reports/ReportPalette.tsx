@@ -40,9 +40,12 @@ interface ReportPaletteProps {
   insertCategory?: string;
   onInsert: (payload: PaletteDropPayload) => void;
   readOnly: boolean;
+  /** Fill the parent column (the designer's left rail) instead of the fixed
+   *  188px sidebar (the Call Sheet canvas mounts it as a direct flex child). */
+  fill?: boolean;
 }
 
-const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, insertCategory, onInsert, readOnly }) => {
+const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, insertCategory, onInsert, readOnly, fill }) => {
   const [query, setQuery] = useState('');
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
   const fields = useMemo(() => fieldsForScope(allFields, insertScope, insertCategory), [allFields, insertScope, insertCategory]);
@@ -121,7 +124,7 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
   const noResults = searching && matchedBlocks.length === 0 && groups.length === 0;
 
   return (
-    <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto select-none">
+    <aside className={`${fill ? 'flex-1 min-h-0 w-full' : 'w-[188px] shrink-0 border-r border-zinc-800'} bg-zinc-900 overflow-y-auto select-none`}>
       <div className="p-3">
         <div className="relative mb-3">
           <Search className="w-3 h-3 text-zinc-600 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />

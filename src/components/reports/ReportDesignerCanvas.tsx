@@ -1,26 +1,25 @@
 import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
-import { TB_PICKER, TB_DIVIDER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_BTN_ICON, TB_DANGER, ToolButton, ChromeHeader, SectionHeader } from '@gabriel/ui-kit';
-import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportTableColumn } from '../../types';
+import { TB_BTN_ICON, ToolButton } from '@gabriel/ui-kit';
+import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { ReportCtx, resolveCollectionItems, resolveRelativeItems, reportItemLabel, locationsOfItem, filterItemsByScope, ReportCollectionItem } from '../../lib/reportData';
 import { FieldAux } from '../../lib/reportFields';
-import { ReportFieldDef, fieldsForScope, reportFieldValueByKey, ITEM_SCOPES, TOKEN_RE, parseToken } from '../../lib/reportFields';
-import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, tableFieldScope, scopedCollectionLabel } from '../../lib/reportBlocks';
+import { ReportFieldDef, reportFieldValueByKey, ITEM_SCOPES, TOKEN_RE, parseToken } from '../../lib/reportFields';
+import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, scopedCollectionLabel } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
 import { useColumnResize, ColumnResizeStrip } from '../columnResize';
 import { ReportBlockView } from './ReportBlockView';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
 import {
-  BLOCK_TYPE_META, useReportControlContext,
+  BLOCK_TYPE_META,
   BlockEditorContent,
 } from './blockControls';
-import { FieldPicker } from './FieldPicker';
+import { ColumnsColumnEditorContent, TableColumnEditorContent } from './reportColumnControls';
 import { FloatingChrome } from '../FloatingChrome';
-import { Tooltip } from '../Tooltip';
 import Checkbox from '../Checkbox';
 import { TEST_IDS } from '../../lib/testIds';
 import type { ReportLocation } from '../../lib/reportWeather';
-import { EyeOff, AlignLeft, AlignCenter, AlignRight, ArrowLeft, ArrowRight, Trash2, Plus, Columns3, GripVertical, Filter } from 'lucide-react';
+import { Columns3, GripVertical, Filter, Plus } from 'lucide-react';
 
 function firstItemOf(ctx: ReportCtx, b: ReportBlock, fieldMap: Record<string, ReportFieldDef>, parentItem: any, parentCategory?: string, ancestors?: any): any {
   const items = resolveCollectionItems(ctx, b.collection, b.category, parentItem, parentCategory, b, ancestors);
@@ -339,7 +338,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       const selected = selId === b.id;
       const parentCollection = parentColl || parentCollectionOf(allBlocks, b.id);
       const meta = BLOCK_TYPE_META[b.type] || { label: b.type, icon: null };
-      const isTable = b.type === 'table' && (b.axis ?? 'columns') === 'columns';
+      const isTable = b.type === 'table';
       const selectedTableCol = isTable && selCol && selCol.colsId === b.id ? selCol : null;
       // Designer chrome extras (sampled template context): the relative block's
       // resolved target label + a text/field block's item locations (the
@@ -400,7 +399,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 availableLocations={itemLocations}
               />
             )}
-            {selectedTableCol && !externalDrag && (
+            {selectedTableCol && editorMode === 'floating' && !externalDrag && (
               <TableColumnChrome
                 block={b}
                 colIndex={selectedTableCol.colIndex}
@@ -531,15 +530,13 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                               onClick={e => { e.stopPropagation(); onSelectCol({ colsId: b.id, colIndex: ci }); }}
                               onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onMenu(e, b.id, ci); }}
                             >
-                              {colSelected && !externalDrag && (
+                              {colSelected && editorMode === 'floating' && !externalDrag && (
                                 <ColumnBlockChrome
                                   colIndex={ci}
                                   colsCount={cols.length}
                                   readOnly={readOnly}
-                                  onInsertBefore={() => onInsertNewColumn(b.id, ci, { kind: 'block', type: 'text' })}
-                                  onInsertAfter={() => onInsertNewColumn(b.id, ci + 1, { kind: 'block', type: 'text' })}
-                                  onMoveLeft={() => onMoveColumn(b.id, ci, ci - 1)}
-                                  onMoveRight={() => onMoveColumn(b.id, ci, ci + 1)}
+                                  onInsertAt={at => onInsertNewColumn(b.id, at, { kind: 'block', type: 'text' })}
+                                  onMove={d => onMoveColumn(b.id, ci, ci + d)}
                                   onDelete={() => onRemoveColumn(b.id, ci)}
                                   onDeselect={() => onSelectCol(null)}
                                 />
@@ -796,8 +793,6 @@ interface TableColumnChromeProps {
 }
 
 const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, project, parentCollection, readOnly, onPatch, onInsertAt, onRemove, onMoveCol, onDeselect }) => {
-  const { allFields } = useReportControlContext(project, parentCollection);
-  const scope = tableFieldScope(block, parentCollection);
   const columns = block.columns || [];
   const col = columns[colIndex];
   // Anchor the panel to the selected column's header cell (`.report-table-cols
@@ -812,74 +807,24 @@ const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, 
     setReference(cell instanceof HTMLElement ? cell : (card as HTMLElement));
   }, [colIndex, block.id]);
   if (!col) return null;
-  const disabled = readOnly;
-  const patchCol = (p: Partial<ReportTableColumn>) => onPatch({ columns: columns.map((c, i) => i === colIndex ? { ...c, ...p } : c) });
   return (
     <>
       <div ref={anchorRef} className="chrome-anchor" aria-hidden />
       <FloatingChrome className="table-column-chrome" reference={reference}>
-        {/* Header bar: column name + field */}
-        <ChromeHeader
-          leading={<span className="text-[10px] font-semibold text-zinc-300 pr-1">Column {colIndex + 1} of {columns.length}</span>}
-          trailing={
-            <>
-              <FieldPicker
-                value={col.field}
-                fields={fieldsForScope(allFields, scope, block.category)}
-                onChange={f => patchCol({ field: f })}
-                disabled={disabled}
-                scope={scope}
-                className={`w-32 ${TB_PICKER}`}
-              />
-              <ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
-            </>
-          }
-        />
-        {/* Column style */}
-        <div className="flex flex-col gap-1 px-2.5 py-1.5 min-w-max">
-          <SectionHeader>Column</SectionHeader>
-          <div className="flex items-center gap-1 flex-nowrap min-w-max">
-            <Tooltip content="Bold">
-              <button disabled={disabled} onClick={() => patchCol({ bold: !col.bold })} className={`${TB_TOGGLE} ${col.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                <span className="text-[10px] font-bold">B</span>
-              </button>
-            </Tooltip>
-            <Tooltip content="Italic">
-              <button disabled={disabled} onClick={() => patchCol({ italic: !col.italic })} className={`${TB_TOGGLE} ${col.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                <span className="text-[10px] italic">I</span>
-              </button>
-            </Tooltip>
-            <Tooltip content="Hide rows where this column is empty">
-              <button disabled={disabled} onClick={() => patchCol({ skipEmpty: !col.skipEmpty })} className={`${TB_TOGGLE} ${col.skipEmpty ? 'bg-amber-900/50 border-amber-700 text-amber-300' : TB_TOGGLE_OFF}`}>
-                <EyeOff className="w-3 h-3" />
-              </button>
-            </Tooltip>
-            <div className={TB_DIVIDER} />
-            {(['left', 'center', 'right'] as const).map(a => {
-              const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-              const on = (col.align ?? 'left') === a;
-              return (
-                <Tooltip key={a} content={`Align ${a}`}>
-                  <button disabled={disabled} onClick={() => patchCol({ align: a })} className={`${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                    <Icon className="w-3 h-3" />
-                  </button>
-                </Tooltip>
-              );
-            })}
-          </div>
-        </div>
-        {/* Structure */}
-        <div className="flex flex-col gap-1 px-2.5 py-1.5 min-w-max border-t border-zinc-700/60">
-          <SectionHeader>Structure</SectionHeader>
-          <div className="flex items-center gap-1 flex-nowrap min-w-max">
-            <ToolButton onClick={() => onInsertAt(colIndex)} disabled={disabled} title="Insert column before" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> Before</ToolButton>
-            <ToolButton onClick={() => onInsertAt(colIndex + 1)} disabled={disabled} title="Insert column after" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> After</ToolButton>
-            <div className={TB_DIVIDER} />
-            <ToolButton onClick={() => onMoveCol(-1)} disabled={disabled || colIndex <= 0} title="Move column left" className={TB_BTN_ICON}><ArrowLeft className="w-2.5 h-2.5" /> Left</ToolButton>
-            <ToolButton onClick={() => onMoveCol(1)} disabled={disabled || colIndex >= columns.length - 1} title="Move column right" className={TB_BTN_ICON}><ArrowRight className="w-2.5 h-2.5" /> Right</ToolButton>
-            <div className={TB_DIVIDER} />
-            <ToolButton onClick={onRemove} disabled={disabled || columns.length <= 1} title="Delete column" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /> Delete</ToolButton>
-          </div>
+        <div className="py-1.5">
+          <TableColumnEditorContent
+            block={block}
+            colIndex={colIndex}
+            project={project}
+            parentCollection={parentCollection}
+            readOnly={readOnly}
+            onPatch={onPatch}
+            onInsertAt={onInsertAt}
+            onMove={onMoveCol}
+            onDelete={onRemove}
+            axis={block.axis ?? 'columns'}
+            headerTrailing={<ToolButton onClick={onDeselect} disabled={false} title={block.axis === 'rows' ? 'Deselect row' : 'Deselect column'} className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>}
+          />
         </div>
       </FloatingChrome>
     </>
@@ -892,33 +837,22 @@ const ColumnBlockChrome: React.FC<{
   colIndex: number;
   colsCount: number;
   readOnly: boolean;
-  onInsertBefore: () => void;
-  onInsertAfter: () => void;
-  onMoveLeft: () => void;
-  onMoveRight: () => void;
+  onInsertAt: (at: number) => void;
+  onMove: (dir: -1 | 1) => void;
   onDelete: () => void;
   onDeselect: () => void;
-}> = ({ colIndex, colsCount, readOnly, onInsertBefore, onInsertAfter, onMoveLeft, onMoveRight, onDelete, onDeselect }) => (
+}> = ({ colIndex, colsCount, readOnly, onInsertAt, onMove, onDelete, onDeselect }) => (
   <FloatingChrome className="column-chrome">
-    {/* Header bar: column name + deselect */}
-    <ChromeHeader
-      leading={<span className="text-[10px] font-semibold text-zinc-300 pr-1">Column {colIndex + 1} of {colsCount}</span>}
-      trailing={
-        <ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
-      }
-    />
-    {/* Structure */}
-    <div className="flex flex-col gap-1 px-2.5 py-1.5 min-w-max">
-      <SectionHeader>Structure</SectionHeader>
-      <div className="flex items-center gap-1 flex-nowrap min-w-max">
-        <ToolButton onClick={onInsertBefore} disabled={readOnly} title="Insert column before" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> Before</ToolButton>
-        <ToolButton onClick={onInsertAfter} disabled={readOnly} title="Insert column after" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> After</ToolButton>
-        <div className={TB_DIVIDER} />
-        <ToolButton onClick={onMoveLeft} disabled={readOnly || colIndex <= 0} title="Move column left" className={TB_BTN_ICON}><ArrowLeft className="w-2.5 h-2.5" /> Left</ToolButton>
-        <ToolButton onClick={onMoveRight} disabled={readOnly || colIndex >= colsCount - 1} title="Move column right" className={TB_BTN_ICON}><ArrowRight className="w-2.5 h-2.5" /> Right</ToolButton>
-        <div className={TB_DIVIDER} />
-        <ToolButton onClick={onDelete} disabled={readOnly || colsCount <= 1} title="Delete column" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /> Delete</ToolButton>
-      </div>
+    <div className="py-1.5">
+      <ColumnsColumnEditorContent
+        colIndex={colIndex}
+        colsCount={colsCount}
+        readOnly={readOnly}
+        onInsertAt={onInsertAt}
+        onMove={onMove}
+        onDelete={onDelete}
+        headerTrailing={<ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>}
+      />
     </div>
   </FloatingChrome>
 );

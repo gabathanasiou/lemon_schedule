@@ -23,6 +23,8 @@ Before building any of these by hand again, check the kit first:
 
 **v0.1.83 (one positioning engine — roadmap 165)**: `useSmartPosition`/`useFixedPosition` are replaced by `useDropdownPosition` (floating-ui `flip`/`shift`/`size` against the visual viewport; fixed strategy; top/left only — never CSS `bottom`; natural content height drives the flip, `bestFit` when neither side fits; re-measures on scroll/resize/visualViewport/ResizeObserver). `DropdownMenu` gained `maxMenuHeight` (px ceiling, default 384) and no longer self-caps; the app re-exports the hook at `src/lib/useDropdownPosition.ts` and every panel (DropdownPanel/EntityDropdown/SelectDropdown/AutocompleteDropdown/GroupedSelect/AsyncResultsDropdown) uses it, portaled to the current document body. **MUST NOT add a second positioner or an `!important` height cap on a panel** (an `!important` cap beats the engine's inline clamp). Playground: `playground/specs/dropdown-flip.spec.ts`; app: `e2e/dropdown-positioning.spec.ts`.
 
+**v0.1.84 (Seg stretch)**: `Seg` gained `stretch?: boolean` — `w-full` container + `flex-1` segments (labels stay centered). Used where the control should fill a column rather than hug its content (the Reports Designer docked inspector). Content-width remains the default everywhere else.
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

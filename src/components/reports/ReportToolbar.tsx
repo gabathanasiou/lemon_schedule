@@ -7,10 +7,14 @@ import { X, ArrowRightLeft } from 'lucide-react';
 import {
   BlockCtx, BlockEditorContent, BLOCK_TYPE_META,
 } from './blockControls';
+import { ColumnsColumnEditorContent, TableColumnEditorContent } from './reportColumnControls';
+import { BlockEditorPanelContext } from './reportEditorLayout';
+import type { ColSel } from './ReportDesignerCanvas';
 
-// Two surfaces for the block editor, one source of truth (BlockEditorContent):
-//  - 'floating' — controls live in the chrome above the selected block
-//  - 'toolbar'  — controls are pinned into this bar instead
+// Three surfaces for the block/column editors, one source of truth per editor:
+//  - 'floating' — controls live in the chrome above the selected block/column
+//  - 'toolbar'  — the block controls are pinned into this bar instead
+//  - `panel`    — the pinned controls dock into the left inspector column
 // The bar always offers Deselect and a button to switch surfaces.
 
 interface ReportToolbarProps {
@@ -27,17 +31,85 @@ interface ReportToolbarProps {
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
+  /** Dock the editor into the left inspector column instead of a top bar. */
+  panel?: boolean;
+  /** Panel only: the selected table/columns column + its owner block. */
+  colSel?: ColSel | null;
+  colBlock?: ReportBlock | null;
+  onColPatch?: (patch: Partial<ReportBlock>) => void;
+  onColInsertAt?: (at: number) => void;
+  onColMove?: (dir: -1 | 1) => void;
+  onColDelete?: () => void;
 }
 
 const ReportToolbar: React.FC<ReportToolbarProps> = ({
   block, parentCollection, parentCategory, project, readOnly, editorMode,
   onToggleEditorMode, onDeselect, onPatch, onSaveTextStyles,
-  onDuplicate, onRemove, onMove,
+  onDuplicate, onRemove, onMove, panel,
+  colSel, colBlock, onColPatch, onColInsertAt, onColMove, onColDelete,
 }) => {
+  const hint = 'Select a block to edit it. Click an item in the palette to add it.';
+  const noop = () => {};
+
+  if (panel) {
+    // The shared column/block editors read the panel layout from context; the
+    // rail is always a panel surface, so provide it here (BlockEditorContent
+    // provides its own value too).
+    const body = colBlock && colSel ? (
+      <div className="flex-1 min-h-0 overflow-y-auto px-2.5 py-2" onClick={e => e.stopPropagation()}>
+        {colBlock.type === 'table' ? (
+          <TableColumnEditorContent
+            block={colBlock}
+            colIndex={colSel.colIndex}
+            project={project}
+            parentCollection={parentCollection}
+            readOnly={readOnly}
+            onPatch={onColPatch || noop}
+            onInsertAt={onColInsertAt || noop}
+            onMove={onColMove || noop}
+            onDelete={onColDelete || noop}
+            axis={colBlock.axis ?? 'columns'}
+          />
+        ) : (
+          <ColumnsColumnEditorContent
+            colIndex={colSel.colIndex}
+            colsCount={colBlock.cols?.length ?? 0}
+            readOnly={readOnly}
+            onInsertAt={onColInsertAt || noop}
+            onMove={onColMove || noop}
+            onDelete={onColDelete || noop}
+          />
+        )}
+      </div>
+    ) : !block ? (
+      <div className="flex-1 px-3 py-2">
+        <span className="text-[10px] text-zinc-600">{hint}</span>
+      </div>
+    ) : (
+      <div className="flex-1 min-h-0 overflow-y-auto px-2.5 py-2" onClick={e => e.stopPropagation()}>
+        <BlockEditorContent
+          block={block}
+          project={project}
+          parentCollection={parentCollection}
+          parentCategory={parentCategory}
+          readOnly={readOnly}
+          onPatch={onPatch}
+          onSaveTextStyles={onSaveTextStyles}
+          panel
+          compact
+          onDuplicate={onDuplicate}
+          onRemove={onRemove}
+          onMove={onMove}
+        />
+      </div>
+    );
+    return <BlockEditorPanelContext.Provider value={true}>{body}</BlockEditorPanelContext.Provider>;
+  }
+
   if (!block) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900/60 shrink-0">
-        <span className="text-xs text-zinc-600">Select a block to edit it. Click an item in the palette to add it.</span>
+        <span className="text-xs text-zinc-600">{hint}</span>
       </div>
     );
   }

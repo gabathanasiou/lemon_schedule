@@ -5,7 +5,7 @@ import { useCurrentWindow } from '../../lib/popoutTarget';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap } from '../../lib/reportFields';
 import { prepareSunWeatherForCtx } from '../../lib/reportWeather';
-import { ReportDesign, ReportBlock, ReportCollection } from '../../types';
+import { ReportDesign, ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
@@ -14,7 +14,8 @@ import {
   moveTableColumn, insertTableColumnAt, removeTableColumnAt, blockAllowedIn, blockPlacementHint,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
-import { useViewMode } from '../../lib/persist';
+import { useViewMode, usePersistState } from '../../lib/persist';
+import { usePaneResize } from '../../lib/usePaneResize';
 import { ItemManagerDropdown } from '../DropdownMenu';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
@@ -23,8 +24,9 @@ import ReportToolbar from './ReportToolbar';
 import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
-import { Printer, Eye, EyeOff, ChevronDown, Check } from 'lucide-react';
+import { Printer, Eye, EyeOff, ChevronDown, Check, X, ArrowRightLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import Button from '../Button';
+import { ToolButton, TB_BTN_ICON } from '@gabriel/ui-kit';
 import { useDialog } from '../Dialog';
 
 function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
@@ -82,6 +84,16 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const [selId, setSelId] = useState<string | null>(null);
   const [selCol, setSelCol] = useState<ColSel | null>(null);
   const [preview, setPreview] = useState(false);
+  // Docked rail (inspector + palette): collapse state and drag width persist
+  // like the manager/script side panes.
+  const [rail, setRail] = usePersistState('lemon_schedule_report_rail', { open: true, width: 360 });
+  const onRailResize = usePaneResize({
+    width: rail.width,
+    min: 240,
+    max: 560,
+    edge: 'right',
+    onChange: w => setRail(p => ({ ...p, width: w })),
+  });
   const [viewKeys, setViewKeys] = useState<boolean>(() => {
     // Show field values is the default; the choice persists across sessions.
     try { return localStorage.getItem('lemon_schedule_report_view_keys') === '1'; } catch { return false; }
@@ -450,6 +462,67 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     );
   }
 
+  const docked = editorMode === 'toolbar';
+  const selColBlock = selCol ? findBlock(allBlocks, selCol.colsId)?.block ?? null : null;
+
+  // Column ops shared by the canvas column chromes and the docked inspector.
+  const insertTableColumn = (tableId: string, at: number) => {
+    const zone = zoneOf(tableId);
+    commit(insertTableColumnAt(listOfZone(zone), tableId, at), zone);
+  };
+  const removeTableColumn = (tableId: string, colIndex: number) => {
+    const zone = zoneOf(tableId);
+    commit(removeTableColumnAt(listOfZone(zone), tableId, colIndex), zone);
+    setSelCol(null);
+  };
+  const moveTableColumnBy = (tableId: string, from: number, to: number) => {
+    const zone = zoneOf(tableId);
+    commit(moveTableColumn(listOfZone(zone), tableId, from, to), zone);
+    setSelCol(prev => (prev && prev.colsId === tableId ? { ...prev, colIndex: to } : prev));
+  };
+  const removeColumnsColumn = (columnsId: string, colIndex: number) => {
+    const zone = zoneOf(columnsId);
+    commit(removeColumnAt(listOfZone(zone), columnsId, colIndex), zone);
+    setSelCol(null);
+  };
+  const moveColumnsColumnBy = (columnsId: string, from: number, to: number) => {
+    const zone = zoneOf(columnsId);
+    commit(moveColumnAt(listOfZone(zone), columnsId, from, to), zone);
+    setSelCol(prev => (prev && prev.colsId === columnsId ? { ...prev, colIndex: to } : prev));
+  };
+
+  const columnProps = selCol && selColBlock ? {
+    colSel: selCol,
+    colBlock: selColBlock,
+    onColPatch: (p: Partial<ReportBlock>) => patch(selColBlock.id, p),
+    onColInsertAt: (at: number) => selColBlock.type === 'table'
+      ? insertTableColumn(selColBlock.id, at)
+      : insertNewColumn(selColBlock.id, at, { kind: 'block', type: 'text' }),
+    onColMove: (d: -1 | 1) => selColBlock.type === 'table'
+      ? moveTableColumnBy(selColBlock.id, selCol.colIndex, selCol.colIndex + d)
+      : moveColumnsColumnBy(selColBlock.id, selCol.colIndex, selCol.colIndex + d),
+    onColDelete: () => selColBlock.type === 'table'
+      ? removeTableColumn(selColBlock.id, selCol.colIndex)
+      : removeColumnsColumn(selColBlock.id, selCol.colIndex),
+  } : {};
+
+  const toolbarProps = {
+    block: selBlock,
+    parentCollection: selParentCollection,
+    parentCategory: selParentCategory,
+    project,
+    readOnly,
+    editorMode,
+    onToggleEditorMode: toggleEditorMode,
+    onDeselect: () => { setSelId(null); setSelCol(null); },
+    onPatch: (p: Partial<ReportBlock>) => selId && patch(selId, p),
+    onSaveTextStyles: (styles: ReportTextStyle[]) => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles }),
+    onDuplicate: () => selId && commitZone(selId, list => duplicateBlock(list, selId)),
+    onRemove: () => { if (selId) { commitZone(selId, list => removeBlock(list, selId)); setSelId(null); } },
+    onMove: (d: -1 | 1) => selId && commitZone(selId, list => moveBlock(list, selId, d)),
+    ...columnProps,
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 select-none min-h-0 min-w-0">
       {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{headerContent}</header>)}
@@ -458,23 +531,57 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} onExit={() => setPreview(false)} />
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
-          <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={readOnly} />
+          {/* One left rail for the whole editor: the palette normally, the
+              inspector for the selected block/column. Collapsible + drag-
+              resizable like the manager side panels. */}
+          {docked ? (
+            rail.open ? (
+              <div className="relative flex shrink-0" style={{ width: rail.width, maxWidth: '70%' }}>
+                <aside className="min-w-0 flex-1 bg-zinc-900 border-r border-zinc-800 flex flex-col min-h-0">
+                  <div className="shrink-0 flex items-center gap-1 border-b border-zinc-800 px-2 py-1.5">
+                    <div className="ml-auto flex items-center gap-1">
+                      {(selBlock || selColBlock) && (
+                        <ToolButton onClick={() => { setSelId(null); setSelCol(null); }} title="Deselect block" className={TB_BTN_ICON}><X className="w-2.5 h-2.5" /></ToolButton>
+                      )}
+                      <ToolButton onClick={toggleEditorMode} title="Floating editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-2.5 h-2.5" /></ToolButton>
+                      <ToolButton onClick={() => setRail(p => ({ ...p, open: false }))} title="Collapse panel" className={TB_BTN_ICON}><PanelLeftClose className="w-3 h-3" /></ToolButton>
+                    </div>
+                  </div>
+                  {selBlock || selColBlock ? (
+                    <ReportToolbar {...toolbarProps} panel />
+                  ) : (
+                    <>
+                      <div className="shrink-0 border-b border-zinc-800 px-3 py-2">
+                        <span className="text-[10px] text-zinc-600">Select a block to edit it. Click an item in the palette to add it.</span>
+                      </div>
+                      <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={readOnly} fill />
+                    </>
+                  )}
+                </aside>
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Resize panel"
+                  onPointerDown={onRailResize}
+                  className="absolute inset-y-0 right-0 z-10 w-1.5 translate-x-1/2 cursor-col-resize touch-none hover:bg-blue-400/40"
+                />
+              </div>
+            ) : (
+              <div className="w-8 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center pt-3">
+                <button
+                  onClick={() => setRail(p => ({ ...p, open: true }))}
+                  className="text-zinc-500 hover:text-zinc-200 transition-colors"
+                  title="Expand panel"
+                >
+                  <PanelLeftOpen className="w-4 h-4" />
+                </button>
+              </div>
+            )
+          ) : (
+            <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={readOnly} />
+          )}
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
-            <ReportToolbar
-              block={selBlock}
-              parentCollection={selParentCollection}
-              parentCategory={selParentCategory}
-              project={project}
-              readOnly={readOnly}
-              editorMode={editorMode}
-              onToggleEditorMode={toggleEditorMode}
-              onDeselect={() => { setSelId(null); setSelCol(null); }}
-              onPatch={p => selId && patch(selId, p)}
-              onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
-              onDuplicate={() => selId && commitZone(selId, list => duplicateBlock(list, selId))}
-              onRemove={() => { if (selId) { commitZone(selId, list => removeBlock(list, selId)); setSelId(null); } }}
-              onMove={d => selId && commitZone(selId, list => moveBlock(list, selId, d))}
-            />
+            {!docked && <ReportToolbar {...toolbarProps} />}
             <ReportDesignerCanvas
               blocks={blocks}
               headerBlocks={headerBlocks}
@@ -498,8 +605,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               onSelect={selectBlock}
               onSelectCol={selectCol}
               onPatch={patch}
-              onInsertTableColumnAt={(tableId, colIndex) => { const zone = zoneOf(tableId); commit(insertTableColumnAt(listOfZone(zone), tableId, colIndex), zone); }}
-              onRemoveTableColumn={(tableId, colIndex) => { const zone = zoneOf(tableId); commit(removeTableColumnAt(listOfZone(zone), tableId, colIndex), zone); setSelCol(null); }}
+              onInsertTableColumnAt={insertTableColumn}
+              onRemoveTableColumn={removeTableColumn}
               onInsertIntoZone={(zone, payload) => {
                 // dragging an existing block moves it (Alt = duplicate)
                 if (payload.moveId) {
@@ -530,11 +637,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                 });
               }}
               editorMode={editorMode}
-              onMoveTableColumn={(tableId, from, to) => {
-                const zone = zoneOf(tableId);
-                commit(moveTableColumn(listOfZone(zone), tableId, from, to), zone);
-                setSelCol(prev => (prev && prev.colsId === tableId ? { colsId: tableId, colIndex: to } : prev));
-              }}
+              onMoveTableColumn={moveTableColumnBy}
               onInsertAfter={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertAfter(list, id, b) : [...list, b], zone); setSelId(b.id); }); }}
               onInsertBefore={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertBefore(list, id, b) : [b, ...list], zone); setSelId(b.id); }); }}
               onInsertInto={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(insertInto(list, id, b), zone); setSelId(b.id); }); }}
@@ -642,16 +745,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               onInsertNewColumn={insertNewColumn}
               onMoveToNewColumn={moveToNewColumn}
               onDuplicateToNewColumn={duplicateToNewColumn}
-              onRemoveColumn={(columnsId, colIndex) => {
-                const zone = zoneOf(columnsId);
-                commit(removeColumnAt(listOfZone(zone), columnsId, colIndex), zone);
-                setSelCol(null);
-              }}
-              onMoveColumn={(columnsId, from, to) => {
-                const zone = zoneOf(columnsId);
-                commit(moveColumnAt(listOfZone(zone), columnsId, from, to), zone);
-                setSelCol(prev => (prev && prev.colsId === columnsId ? { colsId: columnsId, colIndex: to } : prev));
-              }}
+              onRemoveColumn={removeColumnsColumn}
+              onMoveColumn={moveColumnsColumnBy}
               onDuplicate={id => commitZone(id, list => duplicateBlock(list, id))}
               onRemove={id => { commitZone(id, list => removeBlock(list, id)); if (selId === id) setSelId(null); if (selCol?.colsId === id) setSelCol(null); }}
               onMove={(id, d) => commitZone(id, list => moveBlock(list, id, d))}

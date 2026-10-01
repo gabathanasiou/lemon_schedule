@@ -893,3 +893,4 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
   affordance in the child; desktop keeps the Radix side placement.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
+

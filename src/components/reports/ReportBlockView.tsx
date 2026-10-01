@@ -699,7 +699,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
 
   const renderTable = (items: ReportCollectionItem[], skeleton = false) =>
     (block.axis ?? 'columns') === 'rows'
-      ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} rowOffset={rowRange?.[0]} skeleton={skeleton} />
+      ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} rowOffset={rowRange?.[0]} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} selectedColumn={selectedColumn} />
       : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} />;
 
   // Designer canvas: an empty collection still shows the table skeleton
@@ -986,7 +986,10 @@ const TableRowsMatrix: React.FC<{
   perItemIndex?: number;
   rowOffset?: number;
   skeleton?: boolean;
-}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border, showKeys, aux, perItemIndex, rowOffset = 0, skeleton }) => {
+  onColumnSelect?: (colIndex: number) => void;
+  onColumnContextMenu?: (e: React.MouseEvent, colIndex: number) => void;
+  selectedColumn?: number | null;
+}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border, showKeys, aux, perItemIndex, rowOffset = 0, skeleton, onColumnSelect, onColumnContextMenu, selectedColumn }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [chunk, setChunk] = useState(() => Math.max(1, Math.floor((800 - TABLE_LABEL_W) / TABLE_ITEM_W)));
   useEffect(() => {
@@ -1008,6 +1011,17 @@ const TableRowsMatrix: React.FC<{
   for (let i = 0; i < items.length; i += chunk) groups.push(items.slice(i, i + chunk));
 
   const labelStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: REPORT_TABLE_HEADER_BG } as React.CSSProperties;
+  // Designer-only: a `block.columns` entry is the row label here, so the same
+  // selection/context-menu affordances as a columns-mode column apply — every
+  // cell of the row is clickable, not just the label.
+  const selectable = !!onColumnSelect;
+  const cellHandlers = (ai: number) => ({
+    'data-table-col-ci': ai,
+    onClick: onColumnSelect ? ((e: React.MouseEvent) => { e.stopPropagation(); onColumnSelect(ai); }) : undefined,
+    onContextMenu: onColumnContextMenu ? ((e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onColumnContextMenu(e, ai); }) : undefined,
+  });
+  const cellOutline = (ai: number): React.CSSProperties =>
+    selectedColumn === ai ? { outline: '2px solid #3b82f6', outlineOffset: -2 } : {};
 
   if (skeleton) {
     return (
@@ -1021,12 +1035,12 @@ const TableRowsMatrix: React.FC<{
               {keySpan(identityField)}
             </div>
           </div>
-          {attributes.map(a => (
+          {attributes.map((a, ai) => (
             <div key={a.id} style={{ display: 'flex' }}>
-              <div style={{ ...labelStyle, width: TABLE_LABEL_W, textAlign: 'left', borderRight: border, borderBottom: border }}>
+              <div {...cellHandlers(ai)} style={{ ...labelStyle, width: TABLE_LABEL_W, textAlign: 'left', borderRight: border, borderBottom: border, cursor: selectable ? 'pointer' : undefined, ...cellOutline(ai) }}>
                 {fieldMap[a.field]?.label || a.field || ''}
               </div>
-              <div style={{ ...baseStyle, ...cellPad, flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border }}>
+              <div {...cellHandlers(ai)} style={{ ...baseStyle, ...cellPad, flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border, cursor: selectable ? 'pointer' : undefined, ...cellOutline(ai) }}>
                 {keySpan(a.field)}
               </div>
             </div>
@@ -1055,15 +1069,15 @@ const TableRowsMatrix: React.FC<{
               })}
             </div>
           )}
-          {attributes.map(a => (
+          {attributes.map((a, ai) => (
             <div key={a.id} style={{ display: 'flex' }}>
-              <div style={{ ...labelStyle, width: TABLE_LABEL_W, textAlign: 'left', borderRight: border, borderBottom: border }}>
+              <div {...cellHandlers(ai)} style={{ ...labelStyle, width: TABLE_LABEL_W, textAlign: 'left', borderRight: border, borderBottom: border, cursor: selectable ? 'pointer' : undefined, ...cellOutline(ai) }}>
                 {fieldMap[a.field]?.label || a.field || ''}
               </div>
               {g.map((it, ii) => {
                 const gIndex = perItemIndex ?? rowOffset + gi * chunk + ii;
                 return (
-                  <div key={ii} style={{ ...baseStyle, ...cellPad, ...(a.bold ? { fontWeight: 700 } : {}), ...(a.italic ? { fontStyle: 'italic' } : {}), flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border }}>
+                  <div key={ii} {...cellHandlers(ai)} style={{ ...baseStyle, ...cellPad, ...(a.bold ? { fontWeight: 700 } : {}), ...(a.italic ? { fontStyle: 'italic' } : {}), flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border, cursor: selectable ? 'pointer' : undefined, ...cellOutline(ai) }}>
                     {showKeys
                       ? keySpan(a.field)
                       : (fieldValueNode(ctx, fieldMap, a.field, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ToolButton, Seg, SectionHeader, ContentRow, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
+import { ToolButton, Seg, SectionHeader, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE, buildLookupTokens, LookupTokenItem } from '../../lib/reportFields';
@@ -27,6 +27,7 @@ import { stagedCategoryKeys } from '../../lib/reportGrids';
 import ColorField from '../ColorField';
 import { reportLocationLabel } from '../../lib/reportWeather';
 import type { ReportLocation } from '../../lib/reportWeather';
+import { BlockEditorPanelContext, ContentRow, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -50,7 +51,8 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
 
 // ---- shared block editor (floating chrome AND pinned toolbar) -----------------
 // One source of truth: the same controls render in the floating chrome above a
-// selected block or pinned into the top toolbar — the user can switch surfaces.
+// selected block, pinned into the top toolbar, or docked as the left inspector
+// panel — the user can switch surfaces.
 
 export interface BlockEditorProps {
   block: ReportBlock;
@@ -65,6 +67,8 @@ export interface BlockEditorProps {
   onMove?: (dir: -1 | 1) => void;
   compact?: boolean;   // chrome mode: icon-only structure buttons
   trailing?: React.ReactNode; // extra actions at the end of the Structure row
+  /** Docked inspector layout — labels above controls, fields full-width. */
+  panel?: boolean;
   /** Designer chrome only: resolved relative-block target ("→ Day 4 …"). */
   relativeTarget?: string | null;
   /** Designer chrome only: the sampled item's available locations (roadmap 6
@@ -83,6 +87,7 @@ const LocationChoiceRow: React.FC<{
   onPatch: (patch: Partial<ReportBlock>) => void;
 }> = ({ block, availableLocations: choices, disabled, onPatch }) => {
   const [open, setOpen] = useState(false);
+  const panel = useBlockEditorPanel();
   const current = block.locationChoice || (choices[0].typeKey || '');
   return (
     <ContentRow label="Show location">
@@ -92,7 +97,7 @@ const LocationChoiceRow: React.FC<{
         theme="dark"
         width="w-56"
         trigger={
-          <button type="button" disabled={disabled} className={`w-44 ${TB_PICKER}`}>
+          <button type="button" disabled={disabled} className={`${panel ? 'w-full' : 'w-44'} ${TB_PICKER}`}>
             <span className="truncate">
               {choices.find(l => l.typeKey === current)?.info
                 ? (() => { const l = choices.find(x => x.typeKey === current)!; return `${l.info!.name} · ${l.info!.typeLabel}`; })()
@@ -150,6 +155,7 @@ const ItemFilterControl: React.FC<{
   onPatch: (patch: Partial<ReportBlock>) => void;
 }> = ({ block, project, fields, disabled, onPatch }) => {
   const [open, setOpen] = useState(false);
+  const panel = useBlockEditorPanel();
   const filter = block.itemFilter;
   const fieldDef = filter ? fields.find(f => f.key === filter.field) : undefined;
   const options = filter?.field ? filterValueOptions(project, filter.field) : null;
@@ -168,14 +174,14 @@ const ItemFilterControl: React.FC<{
   };
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className={panel ? 'flex flex-wrap items-center gap-1.5 min-w-0' : 'flex items-center gap-1.5'}>
       <DropdownMenu
         open={open}
         onOpenChange={setOpen}
         theme="dark"
         width="w-52"
         trigger={
-          <button type="button" disabled={disabled} className={`w-32 ${TB_PICKER}`}>
+          <button type="button" disabled={disabled} className={`${panel ? 'w-full' : 'w-32'} ${TB_PICKER}`}>
             <span className="truncate">{fieldDef?.label || 'Pick a field'}</span>
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
           </button>
@@ -196,11 +202,11 @@ const ItemFilterControl: React.FC<{
           placeholder="Values…"
           disabled={disabled}
           theme="dark"
-          className="w-44"
+          className={panel ? 'w-full' : 'w-44'}
         />
       ) : (
         <input
-          className={`${TB_INPUT} w-40`}
+          className={`${TB_INPUT} ${panel ? 'w-full' : 'w-40'}`}
           disabled={disabled || !filter?.field}
           value={draft}
           onFocus={() => { focused.current = true; }}
@@ -236,6 +242,7 @@ const GridCategoryMenu: React.FC<{
   onChange: (value: string | undefined) => void;
 }> = ({ value, categories, categoryLabels, disabled, onChange }) => {
   const [open, setOpen] = useState(false);
+  const panel = useBlockEditorPanel();
   return (
     <DropdownMenu
       open={open}
@@ -243,7 +250,7 @@ const GridCategoryMenu: React.FC<{
       theme="dark"
       width="w-56"
       trigger={
-        <button type="button" disabled={disabled} className={`w-44 ${TB_PICKER}`}>
+        <button type="button" disabled={disabled} className={`${panel ? 'w-full' : 'w-44'} ${TB_PICKER}`}>
           <span className="truncate">{value ? (categoryLabels[value] || value) : 'All categories'}</span>
           <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
         </button>
@@ -269,12 +276,18 @@ const GapRow: React.FC<{ label?: string; value: number; disabled?: boolean; onPa
   </ContentRow>
 );
 
+/** Kit Seg; the docked panel stretches it to the column (equal segments). */
+const SegControl: React.FC<React.ComponentProps<typeof Seg>> = (props) => {
+  const panel = useBlockEditorPanel();
+  return <Seg {...props} stretch={panel || props.stretch} />;
+};
+
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
-  onDuplicate, onRemove, onMove, compact, trailing, relativeTarget, availableLocations,
+  onDuplicate, onRemove, onMove, compact, trailing, panel, relativeTarget, availableLocations,
 }) => {
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
-  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, relativeTarget, availableLocations };
+  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, panel, relativeTarget, availableLocations };
   const isTextLike = block.type === 'text' || block.type === 'field' || block.type === 'link';
   const { allFields, contextFields } = useReportControlContext(project, parentCollection);
   const isField = block.type === 'field';
@@ -289,23 +302,25 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const chipField = chipKey ? parseToken(chipKey).field : null;
   const chipDef = chipField ? allFields.find(f => f.key === chipField) : undefined;
   const chipIsList = !!chipDef?.multiValue;
+  const sectionCls = panel ? 'flex flex-col gap-1.5 px-2.5 py-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 px-2.5 py-1.5 min-w-max';
+  const rowCls = editorRowCls(panel);
   const styleLayoutCell = isTextLike ? (
-    <div className="flex flex-col gap-1.5 px-2.5 py-1.5 min-w-max">
+    <div className={sectionCls}>
       <SectionHeader>Style</SectionHeader>
-      <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
+      <div className={rowCls}>
         <StyleControls {...ctx} />
       </div>
       {block.type !== 'link' && (
         <>
           <SectionHeader>Outline</SectionHeader>
-          <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
+          <div className={rowCls}>
             <OutlineControls {...ctx} />
           </div>
         </>
       )}
       <div className="h-px bg-zinc-800 my-1" />
       <SectionHeader>Padding</SectionHeader>
-      <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
+      <div className={rowCls}>
         <LayoutControls {...ctx} />
       </div>
       {block.type === 'text' && chipKey && chipIsList && (
@@ -322,13 +337,14 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
     </div>
   ) : null;
   return (
-    <div className="flex flex-col gap-1.5 min-w-max">
+    <BlockEditorPanelContext.Provider value={!!panel}>
+    <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
       {/* Header bar: block type (or attribute name) + quick controls — always
           full panel width on top; everything else stacks under it */}
       <ChromeHeader
         className="w-full"
         leading={
-          isField ? (
+          isField && !panel ? (
             <>
               <span className="flex items-center text-zinc-400 shrink-0">{meta.icon}</span>
               <FieldPicker
@@ -381,6 +397,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
         </div>
       )}
     </div>
+    </BlockEditorPanelContext.Provider>
   );
 };
 
@@ -394,6 +411,8 @@ export interface BlockCtx {
   readOnly: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  /** Docked inspector layout (labels above controls, fields full-width). */
+  panel?: boolean;
   /** Text blocks only: the editor handle (formatting + chip rewriting). */
   editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
   /** Text blocks only: the selected chip changed (key + pos), or null. */
@@ -681,6 +700,7 @@ const ExcludeCategoriesMenu: React.FC<{
   onChange: (excluded: string[]) => void;
 }> = ({ excluded, categoryKeys, categoryLabels, disabled, onChange }) => {
   const [open, setOpen] = useState(false);
+  const panel = useBlockEditorPanel();
   const excludedSet = new Set(excluded);
   const label = excluded.length > 0 ? `${excluded.length} excluded` : 'None';
   return (
@@ -690,7 +710,7 @@ const ExcludeCategoriesMenu: React.FC<{
       theme="dark"
       width="w-44"
       trigger={
-        <button type="button" disabled={disabled} className={`${TB_PICKER} w-32 disabled:pointer-events-none`}>
+        <button type="button" disabled={disabled} className={`${TB_PICKER} ${panel ? 'w-full' : 'w-32'} disabled:pointer-events-none`}>
           <span className="truncate">{label}</span>
           <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
         </button>
@@ -721,6 +741,7 @@ const NestedTableMenu: React.FC<{
   disabled: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
 }> = ({ block, parentCollection, parentCategory, allCategoryKeys, categoryLabelLookup, customCategories, locationTypes, disabled, onPatch }) => {
+  const panel = useBlockEditorPanel();
   const contextual = contextualCollectionsFor(parentCollection);
   const collections: ReportCollection[] = [];
   const preserved = block.collection && !contextual.includes(block.collection) && block.collection !== 'scenes' && block.collection !== 'cast'
@@ -742,6 +763,7 @@ const NestedTableMenu: React.FC<{
       disabled={disabled}
       parentCollection={parentCollection}
       scopedToParent={block.scopedToParent !== false}
+      width={panel ? 'w-full' : 'w-40'}
       disabledCategories={allCategoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
       onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
     />
@@ -779,6 +801,7 @@ function repeatMenuCollections(
 /** Ribbon design picker for ribbon blocks (module scope — stable identity). */
 const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disabled: boolean; onPatch: (p: Partial<ReportBlock>) => void }> = ({ block, project, disabled, onPatch }) => {
   const [open, setOpen] = useState(false);
+  const panel = useBlockEditorPanel();
   const designs = project.ribbonDesigns || [];
   return (
     <DropdownMenu
@@ -787,7 +810,7 @@ const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disable
       theme="dark"
       width="w-44"
       trigger={
-        <button type="button" disabled={disabled} className={`${TB_PICKER} w-40 disabled:pointer-events-none`}>
+        <button type="button" disabled={disabled} className={`${TB_PICKER} ${panel ? 'w-full' : 'w-40'} disabled:pointer-events-none`}>
           <span className="truncate">{designs.find(d => d.id === (block.ribbonId || project.activeRibbonId || ''))?.name || '—'}</span>
           <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
         </button>
@@ -805,6 +828,7 @@ const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disable
 /** Ribbon block visibility toggles — compact icon row, same style as the
  *  column chrome's B/I/align toggles. */
 const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPatch: (p: Partial<ReportBlock>) => void }> = ({ block, disabled, onPatch }) => {
+  const panel = useBlockEditorPanel();
   const dayBreaksOn = block.ribbonDayBreaks === true || block.ribbonHeaders === true;
   const toggles = [
     { key: 'ribbonDayBreaks', icon: <PanelTop className="w-3 h-3" />, title: 'Day breaks (START OF DAY / End of Day)', on: dayBreaksOn },
@@ -814,7 +838,7 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
     { key: 'ribbonBreaks', icon: <Coffee className="w-3 h-3" />, title: 'Break rows', on: block.ribbonBreaks === true },
   ];
   return (
-    <div className="flex items-center gap-1 flex-nowrap min-w-max">
+    <div className={panel ? 'flex flex-wrap items-center gap-1 min-w-0' : 'flex items-center gap-1 flex-nowrap min-w-max'}>
       {toggles.slice(0, 1).map(t => (
         <Tooltip key={t.key} content={t.title}>
           <button
@@ -846,10 +870,11 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
   );
 };
 
-export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, editorRef, onSelectionChange, relativeTarget, availableLocations }) => {
+export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, editorRef, onSelectionChange, panel, relativeTarget, availableLocations }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels, lookupTokens } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
-  const fieldPickerCls = `w-36 ${TB_PICKER}`;
+  const fieldPickerCls = panel ? `w-full ${TB_PICKER}` : `w-36 ${TB_PICKER}`;
+  const pw = (base: string) => editorFieldCls(panel, base);
   const [rtActive, setRtActive] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
   const [locationOpen, setLocationOpen] = useState(false);
 
@@ -899,7 +924,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           disabled={disabled}
           active={rtActive}
           lockedFormatting={{ bold: lockTooltip('bold'), italic: lockTooltip('italic') }}
-          trailing={
+          trailing={panel ? undefined : (
             <FieldPicker
               value=""
               fields={contextFields}
@@ -909,8 +934,19 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
               scope={parentCollection}
               className={`w-32 ${TB_PICKER}`}
             />
-          }
+          )}
         />
+        {panel && (
+          <FieldPicker
+            value=""
+            fields={contextFields}
+            onChange={f => editorRef.current?.insertToken(f)}
+            disabled={disabled}
+            placeholder="Insert attribute…"
+            scope={parentCollection}
+            className={`w-full ${TB_PICKER}`}
+          />
+        )}
         {/* Editing surface stays at a comfortable size — the block's real font
             size is only honored by the preview/print renderers. */}
         <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: 14, lineHeight: 1.5 }}>
@@ -924,7 +960,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             disabled={disabled}
             fields={contextFields}
             lookupTokens={lookupTokens}
-            className="w-96 h-28"
+            className={panel ? 'w-full h-28' : 'w-96 h-28'}
           />
         </div>
       </ContentRow>,
@@ -934,35 +970,51 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   if (block.type === 'link') {
     push(null,
       <ContentRow key="label" label="Label">
-        <input className={TB_INPUT + ' w-64'} disabled={disabled} value={block.text || ''} onChange={e => onPatch({ text: e.target.value })} placeholder="Link text…" />
+        <input className={TB_INPUT + ' ' + pw('w-64')} disabled={disabled} value={block.text || ''} onChange={e => onPatch({ text: e.target.value })} placeholder="Link text…" />
       </ContentRow>,
       <ContentRow key="url" label="URL">
-        <input className={TB_INPUT + ' w-64'} disabled={disabled} value={block.url || ''} onChange={e => onPatch({ url: e.target.value })} placeholder="https://… or {{locationMapLink}}" />
+        <input className={TB_INPUT + ' ' + pw('w-64')} disabled={disabled} value={block.url || ''} onChange={e => onPatch({ url: e.target.value })} placeholder="https://… or {{locationMapLink}}" />
       </ContentRow>,
     );
   }
 
   if (block.type === 'field') {
-    // the field picker itself lives in the chrome header; here only affixes
+    // the field picker lives in the chrome header in bar mode; the docked
+    // panel puts it at the top of Content (the header must stay narrow)
     const multi = !!block.field && !!allFields.find(f => f.key === block.field)?.multiValue;
+    if (panel) {
+      push(null,
+        <ContentRow key="field" label="Attribute">
+          <FieldPicker
+            value={block.field || ''}
+            fields={contextFields}
+            onChange={f => onPatch({ field: f })}
+            disabled={disabled}
+            placeholder="Select attribute…"
+            scope={parentCollection}
+            className={fieldPickerCls}
+          />
+        </ContentRow>,
+      );
+    }
     push(multi ? 'Value' : null,
       <ContentRow key="prefix" label="Prefix">
-        <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.prefix || ''} onChange={e => onPatch({ prefix: e.target.value })} />
+        <input className={TB_INPUT + ' ' + pw('w-20')} disabled={disabled} value={block.prefix || ''} onChange={e => onPatch({ prefix: e.target.value })} />
       </ContentRow>,
       <ContentRow key="suffix" label="Suffix">
-        <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.suffix || ''} onChange={e => onPatch({ suffix: e.target.value })} />
+        <input className={TB_INPUT + ' ' + pw('w-20')} disabled={disabled} value={block.suffix || ''} onChange={e => onPatch({ suffix: e.target.value })} />
       </ContentRow>,
     );
     if (multi) {
       push('Items',
         <ContentRow key="itemPrefix" label="Item prefix">
-          <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.itemPrefix || ''} onChange={e => onPatch({ itemPrefix: e.target.value })} placeholder="e.g. —" />
+          <input className={TB_INPUT + ' ' + pw('w-20')} disabled={disabled} value={block.itemPrefix || ''} onChange={e => onPatch({ itemPrefix: e.target.value })} placeholder="e.g. —" />
         </ContentRow>,
         <ContentRow key="itemSuffix" label="Item suffix">
-          <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.itemSuffix || ''} onChange={e => onPatch({ itemSuffix: e.target.value })} placeholder="e.g. —" />
+          <input className={TB_INPUT + ' ' + pw('w-20')} disabled={disabled} value={block.itemSuffix || ''} onChange={e => onPatch({ itemSuffix: e.target.value })} placeholder="e.g. —" />
         </ContentRow>,
         <ContentRow key="itemSep" label="Separator">
-          <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.itemSeparator ?? ', '} onChange={e => onPatch({ itemSeparator: e.target.value })} />
+          <input className={TB_INPUT + ' ' + pw('w-20')} disabled={disabled} value={block.itemSeparator ?? ', '} onChange={e => onPatch({ itemSeparator: e.target.value })} />
         </ContentRow>,
       );
     }
@@ -973,7 +1025,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     const rows = block.customRows || [];
     push(null,
       <ContentRow key="mode" label="Mode">
-        <Seg
+        <SegControl
           value="custom"
           options={[{ v: 'custom', l: 'Custom rows' }, { v: 'collection', l: 'From collection' }]}
           onChange={v => { if (v === 'collection') onPatch({ custom: false }); }}
@@ -989,7 +1041,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           {cols.map((c, ci) => (
             <input
               key={c.id}
-              className={TB_INPUT + ' w-44'}
+              className={TB_INPUT + ' ' + pw('w-44')}
               value={c.label ?? ''}
               placeholder={`Column ${ci + 1}`}
               disabled={disabled}
@@ -1039,6 +1091,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             disabled={disabled}
             parentCollection={parentCollection}
             scopedToParent={block.scopedToParent !== false}
+            width={panel ? 'w-full' : 'w-40'}
             disabledCategories={categoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
             onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
           />
@@ -1054,6 +1107,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             customCategories={project.customCategories}
             locationTypes={project.locationTypes}
             disabled={disabled}
+            width={panel ? 'w-full' : 'w-40'}
             onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
           />
         )}
@@ -1065,7 +1119,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     if (block.type === 'table') {
       push('Display',
         <ContentRow key="mode" label="Mode">
-          <Seg
+          <SegControl
             value="collection"
             options={[{ v: 'custom', l: 'Custom rows' }, { v: 'collection', l: 'From collection' }]}
             onChange={v => {
@@ -1078,7 +1132,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           />
         </ContentRow>,
         <ContentRow key="axis" label="Axis">
-          <Seg
+          <SegControl
             value={block.axis ?? 'columns'}
             options={[{ v: 'columns', l: 'Columns' }, { v: 'rows', l: 'Rows' }]}
             onChange={v => onPatch({ axis: v as 'columns' | 'rows' })}
@@ -1114,7 +1168,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     const effective = block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes');
     push('Behavior',
       <ContentRow key="counter" label="Counter starts at">
-        <Seg
+        <SegControl
           value={String(block.counterStart ?? 1)}
           options={[{ v: '1', l: '1' }, { v: '0', l: '0' }]}
           onChange={v => onPatch({ counterStart: v === '0' ? 0 : 1 })}
@@ -1247,7 +1301,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         <LiveNumberInput value={block.height} min={4} max={200} fallback={16} disabled={disabled} className={TB_INPUT + ' w-14'} onCommit={v => onPatch({ height: v })} />
       </ContentRow>,
       <ContentRow key="style" label="Style">
-        <Seg
+        <SegControl
           value={spacerStyle}
           options={[
             { v: 'none', l: 'None' },
@@ -1314,7 +1368,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           <span className="text-[9px] text-zinc-500">blank = natural size (fits the container)</span>
         </ContentRow>,
         <ContentRow key="fit" label="Fit">
-          <Seg
+          <SegControl
             value={block.imageFit ?? 'contain'}
             options={[
               { v: 'contain', l: 'Contain' },
@@ -1376,7 +1430,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         <LocationChoiceRow key="showLoc" block={block} availableLocations={availableLocations} disabled={disabled} onPatch={onPatch} />
       ) : null,
       <ContentRow key="open" label="Open in">
-        <Seg
+        <SegControl
           value={block.mapOpenLink || 'none'}
           options={[
             { v: 'none', l: 'None' },
@@ -1392,9 +1446,9 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   }
 
   return (
-    <div className="flex flex-col gap-2 min-w-max">
+    <div className={panel ? 'flex flex-col gap-2 min-w-0 w-full' : 'flex flex-col gap-2 min-w-max'}>
       {sections.map((s, i) => (
-        <div key={s.title ?? `flat${i}`} className="flex flex-col gap-1 min-w-max">
+        <div key={s.title ?? `flat${i}`} className={panel ? 'flex flex-col gap-1 min-w-0 w-full' : 'flex flex-col gap-1 min-w-max'}>
           {s.title && <SectionHeader>{s.title}</SectionHeader>}
           <div className="flex flex-col gap-1.5">{s.rows}</div>
         </div>
@@ -1596,6 +1650,7 @@ export const ChipAffixSection: React.FC<{
   readOnly: boolean;
   onChange: (key: string) => void;
 }> = ({ chipKey, fieldLabel, readOnly, onChange }) => {
+  const panel = useBlockEditorPanel();
   const { field, opts } = parseToken(chipKey);
   const setOpt = (kind: 'itemPrefix' | 'itemSuffix' | 'itemSeparator', value: string) => {
     onChange(composeTokenKey(
@@ -1608,13 +1663,13 @@ export const ChipAffixSection: React.FC<{
   return (
     <>
       <SectionHeader>Item formatting — {fieldLabel}</SectionHeader>
-      <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
+      <div className={panel ? 'flex flex-wrap items-center gap-1.5 min-w-0' : 'flex items-center gap-1.5 flex-nowrap min-w-max'}>
         <span className="text-[10px] text-zinc-500 shrink-0">Prefix</span>
-        <input aria-label="Item prefix" readOnly={readOnly} className={TB_INPUT + ' w-20'} value={opts.itemPrefix ?? ''} onChange={e => setOpt('itemPrefix', e.target.value)} />
+        <input aria-label="Item prefix" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemPrefix ?? ''} onChange={e => setOpt('itemPrefix', e.target.value)} />
         <span className="text-[10px] text-zinc-500 shrink-0">Suffix</span>
-        <input aria-label="Item suffix" readOnly={readOnly} className={TB_INPUT + ' w-20'} value={opts.itemSuffix ?? ''} onChange={e => setOpt('itemSuffix', e.target.value)} />
+        <input aria-label="Item suffix" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemSuffix ?? ''} onChange={e => setOpt('itemSuffix', e.target.value)} />
         <span className="text-[10px] text-zinc-500 shrink-0">Sep</span>
-        <input aria-label="Item separator" readOnly={readOnly} className={TB_INPUT + ' w-20'} value={opts.itemSeparator ?? ''} onChange={e => setOpt('itemSeparator', e.target.value)} />
+        <input aria-label="Item separator" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemSeparator ?? ''} onChange={e => setOpt('itemSeparator', e.target.value)} />
       </div>
     </>
   );
@@ -1624,6 +1679,7 @@ export const ChipAffixSection: React.FC<{
 
 export const DayFormatMenu: React.FC<{ value: string; disabled: boolean; onChange: (v: string) => void }> = ({ value, disabled, onChange }) => {
   const [open, setOpen] = useState(false);
+  const panel = useBlockEditorPanel();
   return (
     <DropdownMenu
       open={open}
@@ -1631,7 +1687,7 @@ export const DayFormatMenu: React.FC<{ value: string; disabled: boolean; onChang
       theme="dark"
       width="w-40"
       trigger={
-        <button type="button" disabled={disabled} className={`${TB_PICKER} w-36 disabled:pointer-events-none`}>
+        <button type="button" disabled={disabled} className={`${TB_PICKER} ${panel ? 'w-full' : 'w-36'} disabled:pointer-events-none`}>
           <span className="truncate">{DAY_FORMAT_OPTIONS.find(o => o.key === value)?.label || value}</span>
           <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
         </button>
