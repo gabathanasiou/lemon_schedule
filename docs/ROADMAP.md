@@ -717,17 +717,6 @@ print-pagination) with a repro, then fix in the shared table recipe — no fork.
 - **Verify**: rule-7 manual across designer/preview/print; extend
   `e2e/report-page-breaks.spec.ts` only if pagination splits change.
 
-## 152. Ribbon designer — truncation when two cells connect side by side (`[ ]`)
-
-**Bug** (debug report): text truncates wrong when adjacent cells share the
-side-by-side layout (second cell loses room / clips early).
-- Check the per-cell contract — `getRibbonCellBaseStyle` /
-  `ribCellTextSize` / edges + padding (`src/lib/ribbonUtils.ts`) and the row
-  renderers (`src/components/ribbon/SortableRow*`), designer grid + live
-  preview + print.
-- **Verify**: rule-7 manual (screenshot repro first) at every pad/edge/text-size
-  setting — both cells keep full text room, designer vs print agree.
-
 ## 156. Crew table block — contact details + "Report to" (`[ ]`)
 
 **Request**: the `crewTable` report block needs **report-to** info (who/where

@@ -148,7 +148,11 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
           const span = m ? m.group.span : 1;
           const isH = m ? m.group.direction === 'h' : false;
           const isV = m ? m.group.direction === 'v' : false;
-          const base = getRibbonCellBaseStyle(cell, cpv, cph, span, ribCellTextSize(ts, cell));
+          // Only a VERTICAL span is a multi-row cell (padding/line-height/line-clamp).
+          // A side-by-side merge is a wider single-row cell — same contract as the
+          // stripboard row renderers (SortableRowScene) and the live preview.
+          const vSpan = isV ? span : 1;
+          const base = getRibbonCellBaseStyle(cell, cpv, cph, vSpan, ribCellTextSize(ts, cell));
           const d = ribbonCellDisplayValue(cell, sceneDataFor(it), { sample, customFieldLabels });
           const lastInRow = (ci + (isH ? span : 1) - 1) >= rows[0].cells.length - 1;
           const lastRow = (ri + (isV ? span : 1) - 1) >= rows.length - 1;
@@ -164,7 +168,7 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
                 ...getCellBorderProps(cellBorders, style.color, lastInRow, lastRow),
               }}
             >
-              <RibbonCellText cell={cell} span={span} cellPadding={cpv} textSize={ts} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>
+              <RibbonCellText cell={cell} span={vSpan} cellPadding={cpv} textSize={ts} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>
                 {d.text || '\u00A0'}
               </RibbonCellText>
             </div>

@@ -12,6 +12,12 @@ cell styling — never hardcode cell padding/font/text styles.
   unset = 8pt rendering; `RibbonCell.textSizeOffset` −8…+8). All renderers (stripboard, print,
   designer canvas/preview, reports ribbon block) thread the master through; `SET_RIBBON_TEXT_SIZE`
   setter.
+- `span` is the **row span only** — `span N` on `gridRow` plus the `RibbonCellText` clamp. A
+  side-by-side merge (same field in adjacent columns, item 152) is a WIDER SINGLE-ROW cell: pass
+  `span 1` to `getRibbonCellBaseStyle`/`RibbonCellText` and the horizontal span only to `gridColumn`.
+  Its wrap/truncation/overflow flags come from the merge LEAD (leftmost cell; style edits propagate
+  to siblings via `mergeSiblingIds`). Mixing the axes makes an h-merge render like a stacked cell
+  (2-line clamp, `0px` vertical padding) — the `ReportRibbonView` bug fixed by roadmap 152.
 - Scene cell padding `cellPaddingV/H ?? 3`; banner pad `getNoteBreakPad(cellPaddingV, rowCount)` =
   `cellPaddingV * N + 6 * (N-1)` (matches scene height). `edgePadding` (default 3) applies to the
   outer ribbon container only.
