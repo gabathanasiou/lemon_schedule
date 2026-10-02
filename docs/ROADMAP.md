@@ -882,32 +882,56 @@ works on both, mouse + touch).
 **Relations**: builds on **24/34** (shared `useColumnResize` seam) and **188**
 (free-table resize tabs).
 
-## 195. Reports designer — cellref attribute lists mirror repeater scopes, Lego-style (`[ ]`, future)
+## 195. Reports designer — cellref `.` attributes match the repeater scope (`[ ]`, future)
 
 **Request**: when a cell references an item (a day, a scene, an element…) the
 `.` attribute list should offer EXACTLY the attributes the matching repeater/
 table scope offers (`fieldsForScope` parity) — contextual children and smart
-fields included. Chained refs should walk the collection graph: reference a
-day → the day's attributes AND a way to reach its first scene → reference that
-scene cell → the scene's attributes, and so on (Lego-style scope chaining).
+fields included, so a day ref's list matches a days-repeater palette, a scene
+ref's matches a scenes palette, and so on.
+
+**Split (2026-10-02)**: the Lego collection-navigation half (day → first scene
+→ that scene's attributes) moved to **196**; this item is the parity
+deliverable that lands first.
 
 **Approach**: `cellRefAttributeItems` (`lib/reportTokens.ts`, roadmap 190)
-currently returns `lookupAttributeFields` (static item-scope registry). Extend
-it to a context-aware scope descriptor shared with `fieldsForScope`
-(`reportFields.ts`): the target item carries its collection + ancestor chain
-(day → scenes, element → scenes, category → elements, crew → categories) so the
-offered list matches `ReportRepeatView`'s scope exactly (day-scoped breakdown
-fields, `scenesOfDay`, `dayTypesOfElement`, smart fields' contextual meaning).
-Pinning resolves through that same scope chain, not the formula cell's aux.
-Where a scope has a canonical child relationship (day → scene), expose it as a
-navigable ref target rather than a synthetic field.
+currently returns `lookupAttributeFields` (static item-scope registry). Swap it
+for the canonical `fieldsForScope` (`reportFields.ts`) with the target item's
+context (collection + category + the parent/ancestor context the formula cell
+carries), including day-context extras (breakdown-in-days, locations-in-days,
+`crewOfDay`/`locationsOfDay`-style children where applicable). Pinning resolves
+through the same scope, not the formula cell's aux. Thread the parent context
+(`parentCollection`/`parentCategory`/ancestors) into `TokenResolveOptions` from
+`CustomTable`/`ReportBlockView`.
 
 **Verify**: unit tests comparing the offered key set against
-`fieldsForScope(...)` for each collection; resolution tests for a day → first
-scene → attribute chain; `npm run lint` + `test:smart`; rule-7 manual (picker
-rows match a repeater's palette for the same item).
+`fieldsForScope(...)` for each collection/context; `npm run lint` +
+`test:smart`; rule-7 manual (picker rows match a repeater's palette for the
+same item).
 
 **Relations**: extends **190** (cellref resolution + attribute picker) and
-**121** (two-stage item picker); reuses the canonical scope registry in
-`reportFields.ts` / `docs/REPORTS-LEGO-CONTEXT.md`; related to **27**
-(`relative` context shifter — the in-repeater analogue).
+**121** (two-stage item picker); **196** is the split-off navigation half;
+reuses the canonical scope registry in `reportFields.ts` /
+`docs/REPORTS-LEGO-CONTEXT.md`.
+
+## 196. Reports designer — cellref collection navigation / scope chaining (`[ ]`, future, big)
+
+**Request** (split out of **195**): walk the collection graph through cell
+references — reference a day, reach its first scene, reference that scene cell,
+then use the scene's attributes; same for element → scenes, category →
+elements, crew → categories. Lego-style scope chaining.
+
+**Approach**: a scope-chain model on top of 195's parity: refs carry their
+collection + ancestor context through resolution (not the formula cell's aux);
+canonical child relationships (day → scene, category → element, …) become
+navigable ref targets rather than synthetic fields; the `.` picker offers a
+"child" section (or a dedicated navigation token form) for scopes with a child
+list. Smart/contextual fields resolve against the target's chain, not the
+formula cell's.
+
+**Verify**: resolution tests for day → first scene → attribute (and a
+category → element chain); `npm run lint` + `test:smart`; rule-7 manual (picker
+navigation + the resolved preview value).
+
+**Relations**: depends on **195** (attribute parity); extends **190** and
+**121**; related to **27** (`relative` context shifter).
