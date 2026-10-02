@@ -939,3 +939,30 @@ precedent) and **189** (canvas cell-chrome interaction language); gives **121**
 (and **190**) their inline home — the two-stage picker works in the inline
 editor through the shared adapter; related to **17** (iPad touch affordances)
 and **140** (rich-text table title, same editor reuse).
+
+## 194. Resize tabs — double-click resets the boundary (`[ ]`)
+
+**Request**: double-clicking a column-resize tab resets that boundary —
+horizontally, the two neighbouring columns split evenly (the boundary returns
+to the middle); vertically, the row returns to its default height (drop the
+explicit override). User ask (2026-10-02), on the free table's tab. The
+free-table right-edge row tab already resets on double-click (`CustomTableBands.tsx`
+row-height grip, roadmap 188) — verify it and fill the gaps.
+
+**Approach**: `ColumnResizeStrip` (`src/components/columnResize.tsx`) gains an
+optional `onResetBoundary?: (ci: number) => void` wired to the tab's
+`onDoubleClick` (no drag session, stopPropagation like the pointerdown).
+Free tables (`reports/CustomTable.tsx` + `useCustomTableCells`): column
+boundary `ci` → set `columns[ci]`/`columns[ci+1]` to half their combined width
+(MIN_PCT clamp, other columns untouched) through the existing block-patch
+commit; the vertical strip mode → clear the row's `height`. The ribbon
+designer's tabs and the collection-table `TableResizeBar` opt into the same
+callback where they share the strip.
+
+**Verify**: extract the split math as a pure helper + unit test if it grows;
+`npm run lint`; `test:smart` (resize specs); rule-7 manual (double-click a
+horizontal tab → the pair equalizes; vertical → default height; dragging still
+works on both, mouse + touch).
+
+**Relations**: builds on **24/34** (shared `useColumnResize` seam) and **188**
+(free-table resize tabs).
