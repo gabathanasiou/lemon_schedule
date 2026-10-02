@@ -77,6 +77,7 @@ import ProductionTab, { ProductionSubTab, ProdViews } from './components/Product
 import ReportDesigner from './components/reports/ReportDesigner';
 import { useDaybreakSections } from './lib/useDaybreakSections';
 import { useKeyboardDismissOnScroll } from './lib/useKeyboardDismissOnScroll';
+import { usePersistState } from './lib/persist';
 import { ReportBlock, ReportDesign } from './types';
 import { dayScopeFilter } from './components/reports/DayReportPreview';
 import { ReportDaybreakData } from './lib/reportData';
@@ -102,7 +103,7 @@ function AppContent() {
   const [calendarSubTab, setCalendarSubTab] = useState<'calendar' | 'dayTypes'>('calendar');
   const [reportsCategory, setReportsCategory] = useState('cast');
   const [prodSubTab, setProdSubTab] = useState<ProductionSubTab>('days');
-  const [prodViews, setProdViews] = useState<ProdViews>({ days: 'manager', crew: 'manager', locations: 'manager' });
+  const [prodViews, setProdViews] = usePersistState<ProdViews>('lemon_schedule_prod_views', { days: 'manager', crew: 'manager', locations: 'manager' });
   const [prodCrewRole, setProdCrewRole] = useState<string | null>(null);
   const [prodLocationType, setProdLocationType] = useState<string | null>(null);
   const [dayManagerTarget, setDayManagerTarget] = useState<number | null>(null);

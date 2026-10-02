@@ -5,8 +5,9 @@ import { openSeededProject } from './helpers';
  * Trash modal (roadmap 67) — the File menu's Trash… now renders on the kit
  * Modal with one collapsible ItemCard section per trash kind. Uses the
  * bridge to populate trash (delete scene/version/rule/element), then
- * verifies sections, restore, and Empty. The seed project carries some
- * trash of its own — every count assertion is a DELTA over the baseline.
+ * verifies sections, restore, and Empty. Every spec creates its OWN trash
+ * (the seed's own trash expires via the 30-day TTL); count assertions that
+ * read a baseline are DELTA over it.
  */
 
 async function trashCounts(page: import('@playwright/test').Page) {
@@ -27,13 +28,11 @@ async function openTrashModal(page: import('@playwright/test').Page) {
   await expect(page.getByRole('heading', { name: 'Trash' })).toBeVisible();
 }
 
-test('trash modal: sections per kind with counts, restore', async ({ page }) => {
-  await openSeededProject(page);
-
-  const before = await trashCounts(page);
-
-  // Populate the trash via the bridge: one scene, one version (a throwaway
-  // NON-active one — the active version can't be deleted), one rule.
+/** Populate the trash via the bridge instead of trusting the seed's own trash:
+ *  the app prunes trash older than its 30-day TTL on load (`storage.ts`), so a
+ *  seed exported weeks ago boots with an empty trash. Deletes one scene, one
+ *  non-active version and one rule — never date-dependent. */
+async function populateTrash(page: import('@playwright/test').Page) {
   await page.evaluate(() => {
     const b = (window as any).__lemonSchedule;
     const p = b.getProject();
@@ -48,6 +47,14 @@ test('trash modal: sections per kind with counts, restore', async ({ page }) => 
       b.dispatch({ type: 'DELETE_RULE', payload: p.rules[0].id });
     });
   });
+}
+
+test('trash modal: sections per kind with counts, restore', async ({ page }) => {
+  await openSeededProject(page);
+
+  const before = await trashCounts(page);
+
+  await populateTrash(page);
 
   await openTrashModal(page);
 
@@ -73,6 +80,8 @@ test('trash modal: sections per kind with counts, restore', async ({ page }) => 
 
 test('trash modal: Empty with DNWA confirm empties all sections', async ({ page }) => {
   await openSeededProject(page);
+
+  await populateTrash(page);
 
   await openTrashModal(page);
   const sectionsBefore = await page.locator('[data-trash-section]').count();

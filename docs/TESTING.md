@@ -162,7 +162,8 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 - **Known drift causes** (from `docs/KNOWN-TEST-FAILURES.md`): `wrapValue` entity cells are
   `<textarea>` (not `<input>`); kit menu/popup rows are `[role="option"]` / `.ui-item` (not
   `<button>`); tall content needs `scrollIntoViewIfNeeded()` before coordinate clicks; the
-  viewport is 1280×720.
+  viewport is 1280×720; seed data the app expires (trash entries age out via the 30-day TTL
+  on load — the spec creates its own, `e2e/trash-restore.spec.ts`).
 
 ### Quarantine registry
 

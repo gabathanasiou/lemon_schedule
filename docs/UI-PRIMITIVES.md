@@ -44,9 +44,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   navigation. There is **no in-app back button** right now (user decision — browser buttons are the
   affordance).
 - **Production → Days has a sub-sub level** (like a sub-sub tab): `#/production/days` = Day Manager,
-  `#/production/days/callsheet` = Call Sheet editor. The mode is App state (`prodDayMode`) passed to
-  `DayManagerPage` as `dayMode`/`onDayModeChange`; memory persists across tab switches and the
-  editor's Back button returns to the manager without stacking duplicate entries.
+  `#/production/days/callsheet` = Call Sheet editor. All three merged-view modes live in `prodViews`
+  (`usePersistState` key `lemon_schedule_prod_views` in `App.tsx`), passed to `ProductionTab`;
+  `DayManagerPage` receives `dayMode`/`onDayModeChange`. Memory persists across tab switches and app
+  restarts (a fresh open resumes the last-used view); the editor's Back button returns to the
+  manager without stacking duplicate entries.
 - **One entry point**: `go(place)` in `App.tsx` (dedupe → `pushState`/`replaceState` → applies
   tab/sub/target state). Never call `setActiveTab`/sub-tab setters directly for user navigation —
   route through `go` (in-tab selections like a selected day/scene are NOT places). One-shot jump

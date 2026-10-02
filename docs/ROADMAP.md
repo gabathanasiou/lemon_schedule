@@ -655,17 +655,6 @@ manual (numbered hand-off).
 person-keyed `crewCalls` write path (items 101/106/112); touches 111/112 grids;
 related to **142** (Day workspace) and **148** (crew glide Links).
 
-## 150. Reports designer — the free (custom-rows) Table block is broken (`[ ]`)
-
-**Bug** (debug report): the palette's Table block in free/custom-rows mode
-misbehaves. Pin the failing flow first (render / cell edit / token cells /
-print-pagination) with a repro, then fix in the shared table recipe — no fork.
-- Pointers: custom-rows editor `blockControls.tsx:971-1075` (`block.custom` /
-  `customRows`), static renderer `ReportBlockView.tsx` (`ReportTableView`),
-  paginator `useReportPaginator.tsx`.
-- **Verify**: rule-7 manual across designer/preview/print; extend
-  `e2e/report-page-breaks.spec.ts` only if pagination splits change.
-
 ## 156. Crew table block — contact details + "Report to" (`[ ]`)
 
 **Request**: the `crewTable` report block needs **report-to** info (who/where
@@ -729,16 +718,6 @@ are hard-coded (`src/components/reports/reportStyle.ts:37-42`, A4 − 12mm;
 - **Verify**: `e2e/report-page-breaks.spec.ts` must stay green (pagination
   math) + manual; migrate existing designs.
 - **Relations**: 140/142 (designer chrome), 3.
-
-## 161. Designer — remember Day vs Call-Sheet mode (`[ ]`)
-
-**Request**: the designer reopens in the Day designer every time; it should
-remember the last-used designer mode (Day vs Call Sheet). Decide scope: per
-project (design) or app-local pref (`lemon_schedule_*`).
-- Pointers: `reports/ReportDesigner.tsx` mode state + entry points
-  (`DesignTab`, `DayManagerPage`, `CallSheetEditPage`).
-- **Verify**: rule-7 manual (pref persistence).
-- **Relations**: 142, 10, 113.
 
 ## 163. Script tab performance — render is unacceptably heavy (`[ ]`)
 

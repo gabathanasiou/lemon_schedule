@@ -145,7 +145,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange, parentItems, itemIndex, partChildren }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange, parentItems, itemIndex, partChildren, onPatchBlock }) => {
     const baseStyle = getReportBlockBaseStyle(block, ctx.project);
     const blockAux: FieldAux = {
       ...aux,
@@ -206,7 +206,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <ReportRelativeView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} partChildren={partChildren} parentItems={parentItems} itemIndex={itemIndex} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} />;
       }
       case 'columns': {
         const cols = block.cols || [];
