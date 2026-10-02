@@ -74,7 +74,7 @@ nesting depth):**
   (roadmap 120). `assembleChunks` stays ONE flat walker; each unit carries a
   `{ item, child }` path and the parts tree is rebuilt by grouping on it.
 - tables split between ROWS — the column header REPEATS on continuation chunks;
-  custom-rows tables (`block.custom`) render with the same
+  free tables (`block.custom`) render with the same
   `.report-table-cols`/`.rm-row` classes, so they split between rows identically;
 - ribbons split between STRIPS, never mid-strip (split day boxes drop the box
   border on fragments — `unitRange` on `ReportRibbonView`);

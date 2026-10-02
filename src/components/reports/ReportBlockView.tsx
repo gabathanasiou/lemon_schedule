@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection } from '../../types';
 import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, applyItemFilter, resolveCollectionItems, resolveRelativeItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
-import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor, getReportFieldDefs, buildLookupTokens, LookupTokenItem } from '../../lib/reportFields';
-import RichTextEditor from './RichTextEditor';
+import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor } from '../../lib/reportFields';
+import CustomTable from './CustomTable';
+import { useTableColumnReorder } from './useTableColumnReorder';
 import { getReportBlockBaseStyle, blockGapMargin, CALL_SHEET_EDIT_ZONE_STYLE } from './reportStyle';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
 import { ReportRibbonView } from './ReportRibbonView';
@@ -56,8 +57,11 @@ export interface ReportRenderProps {
    *  [itemRange[0], itemRange[1]) a parts list (which children render and how
    *  far) or null (whole item). */
   partChildren?: (FragmentPartUnit[] | null)[];
-  /** Designer only: patch THIS block (custom-rows table cell edits, item 10). */
+  /** Designer only: patch THIS block (free-table cell edits, item 10). */
   onPatchBlock?: (patch: Partial<ReportBlock>) => void;
+  /** Designer canvas only: this block is the selected one (free tables
+   *  use it to show the column-resize strip like collection tables do). */
+  selected?: boolean;
 }
 
 function isEmptyValue(v: string): boolean {
@@ -145,7 +149,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange, parentItems, itemIndex, partChildren, onPatchBlock }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected }) => {
     const baseStyle = getReportBlockBaseStyle(block, ctx.project);
     const blockAux: FieldAux = {
       ...aux,
@@ -206,7 +210,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <ReportRelativeView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} partChildren={partChildren} parentItems={parentItems} itemIndex={itemIndex} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} selected={selected} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -377,6 +381,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.parentItems === b.parentItems &&
     a.itemIndex === b.itemIndex &&
     a.partChildren === b.partChildren &&
+    a.selected === b.selected &&
     a.onPatchBlock === b.onPatchBlock,
 );
 
@@ -657,7 +662,7 @@ const TABLE_ITEM_W = 72;
 /** Preview surfaces cap tables at this many item rows (+N more indicator). */
 const TABLE_PREVIEW_LIMIT = 6;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
@@ -680,7 +685,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
 
   if (block.custom) {
     return (
-      <TableCustomRows
+      <CustomTable
         block={block}
         ctx={ctx}
         fieldMap={fieldMap}
@@ -693,6 +698,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
         rowRange={rowRange}
         repeatTableHeader={repeatTableHeader}
         onPatchBlock={onPatchBlock}
+        selected={selected}
       />
     );
   }
@@ -753,97 +759,9 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   return renderTable(rowRange ? shown.slice(rowRange[0], rowRange[1]) : shown);
 };
 
-// ---- custom-rows table (item 10) ---------------------------------------------
-// Literal rows × columns; every cell is rich text with `@` tokens. The
-// designer (`hint`) renders an inline editor per cell; preview/print resolve
-// the tokens to HTML. Rendered with the `.report-table-cols`/`.rm-row` classes
-// so the measured paginator splits it between rows for free.
-
-const CustomCellEditor: React.FC<{
-  html: string;
-  fields: ReportFieldDef[];
-  lookupTokens: LookupTokenItem[];
-  disabled?: boolean;
-  onChange: (html: string) => void;
-}> = ({ html, fields, lookupTokens, disabled, onChange }) => (
-  <RichTextEditor
-    value={html}
-    onChange={onChange}
-    fields={fields}
-    lookupTokens={lookupTokens}
-    disabled={disabled}
-    placeholder="Type… @ for tokens"
-    className="w-full min-h-[18px]"
-  />
-);
-
-const TableCustomRows: React.FC<{
-  block: ReportBlock;
-  ctx: ReportCtx;
-  fieldMap: Record<string, ReportFieldDef>;
-  item?: any;
-  aux?: FieldAux;
-  baseStyle: React.CSSProperties;
-  cellPad: React.CSSProperties;
-  border: string;
-  hint?: boolean;
-  rowRange?: [number, number];
-  repeatTableHeader?: boolean;
-  onPatchBlock?: (patch: Partial<ReportBlock>) => void;
-}> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, rowRange, repeatTableHeader, onPatchBlock }) => {
-  const rows = block.customRows || [];
-  const attributes = block.columns || [];
-  const shown = rowRange ? rows.slice(rowRange[0], rowRange[1]) : rows;
-  const fields = useMemo(() => getReportFieldDefs(ctx.project), [ctx.project]);
-  const lookupTokens = useMemo(
-    () => buildLookupTokens(ctx.project, ctx.dayInfos.map(d => ({ index: d.section.index, chronoDay: d.chronoDay, date: d.date }))),
-    [ctx.project, ctx.dayInfos],
-  );
-  const headerStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: REPORT_TABLE_HEADER_BG } as React.CSSProperties;
-  const commitCell = (rowIndex: number, colIndex: number, html: string) => {
-    if (!onPatchBlock) return;
-    const next = rows.map((r, i) => i === rowIndex
-      ? { ...r, cells: attributes.map((_, j) => (j === colIndex ? html : (r.cells[j] || ''))) }
-      : r);
-    onPatchBlock({ customRows: next });
-  };
-  return (
-    <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>
-      {block.showHeader && (rowRange ? rowRange[0] === 0 || repeatTableHeader : true) && (
-        <div className="rm-header" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          {attributes.map(c => (
-            <div key={c.id} style={{ ...headerStyle, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
-              {c.label || c.field || ''}
-            </div>
-          ))}
-        </div>
-      )}
-      {shown.map((row, ri) => {
-        const absoluteRi = rowRange ? rowRange[0] + ri : ri;
-        return (
-          <div key={row.id} className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-            {attributes.map((c, ci) => {
-              const cellStyle = {
-                ...baseStyle, ...cellPad, ...(c.bold ? { fontWeight: 700 } : {}), ...(c.italic ? { fontStyle: 'italic' } : {}),
-                width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border,
-              } as React.CSSProperties;
-              const html = row.cells[ci] || '';
-              return (
-                <div key={c.id} style={cellStyle}>
-                  {hint ? (
-                    <CustomCellEditor html={html} fields={fields} lookupTokens={lookupTokens} onChange={h => commitCell(absoluteRi, ci, h)} />
-                  ) : (
-                    <div dangerouslySetInnerHTML={{ __html: resolveReportTokensHtml(ctx, fieldMap, html, item, aux) }} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
+// ---- free table (item 10) ---------------------------------------------
+// The editable table lives in `CustomTable.tsx` (roadmap 188); this file just
+// routes the custom branch to it with the resolved style props.
 
 const TableColumnsGrid: React.FC<{
   block: ReportBlock;
@@ -870,72 +788,17 @@ const TableColumnsGrid: React.FC<{
     <span style={{ color: '#8f8f8f', fontStyle: 'italic' }}>{`{{${field}}}`}</span>
   );
   const editable = !!onColumnSelect;
-  const dragRef = React.useRef<{ from: number; startX: number; startY: number; dragging: boolean } | null>(null);
-  const [reorderFrom, setReorderFrom] = React.useState<number | null>(null);
-  const [reorderOver, setReorderOver] = React.useState<number | null>(null);
-  const reorderOverRef = React.useRef<number | null>(null);
-  reorderOverRef.current = reorderOver;
-
-  const startPointer = (e: React.PointerEvent, ci: number) => {
-    if (!editable) return;
-    // preventDefault stops the block card's native HTML5 drag from swallowing
-    // pointer events; selection happens on pointerup instead of click.
-    e.preventDefault();
-    e.stopPropagation();
-    dragRef.current = { from: ci, startX: e.clientX, startY: e.clientY, dragging: false };
-    const rowEl = (e.currentTarget as HTMLElement).parentElement;
-    const onMove = (ev: PointerEvent) => {
-      const d = dragRef.current;
-      if (!d || !rowEl) return;
-      if (!d.dragging && Math.abs(ev.clientX - d.startX) + Math.abs(ev.clientY - d.startY) < 6) return;
-      if (!d.dragging) {
-        d.dragging = true;
-        setReorderFrom(d.from);
-      }
-      ev.preventDefault();
-      const rect = rowEl.getBoundingClientRect();
-      const cells = Array.from(rowEl.children) as HTMLElement[];
-      const x = ev.clientX - rect.left;
-      let acc = 0;
-      const centers = cells.map(c => { const w = c.getBoundingClientRect().width; acc += w; return acc - w / 2; });
-      let over = cells.length - 1;
-      for (let i = 0; i < centers.length; i++) {
-        if (x <= centers[i] + 0.5) { over = i; break; }
-      }
-      reorderOverRef.current = over;
-      setReorderOver(over);
-    };
-    const onUp = () => {
-      const d = dragRef.current;
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      if (!d) return;
-      if (d.dragging) {
-        if (reorderOverRef.current !== null && reorderOverRef.current !== d.from && onMoveColumn) {
-          onMoveColumn(d.from, reorderOverRef.current);
-        }
-      } else if (onColumnSelect) {
-        onColumnSelect(d.from);
-      }
-      dragRef.current = null;
-      setReorderFrom(null);
-      setReorderOver(null);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
-
-  const cellHandlers = (ci: number) => ({
-    onPointerDown: editable ? ((e: React.PointerEvent) => startPointer(e, ci)) : undefined,
-    onContextMenu: onColumnContextMenu ? ((e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onColumnContextMenu(e, ci); }) : undefined,
+  const { startDrag, colOutline } = useTableColumnReorder({
+    enabled: editable,
+    selected: selectedColumn,
+    onSelect: onColumnSelect,
+    onMove: onMoveColumn,
   });
 
-  const colOutline = (ci: number): React.CSSProperties => {
-    if (selectedColumn === ci) return { outline: '2px solid #3b82f6', outlineOffset: -2 };
-    if (reorderFrom !== null && reorderOver !== null && reorderFrom !== reorderOver && reorderOver === ci) return { outline: '2px dashed #3b82f6', outlineOffset: -2 };
-    if (reorderFrom === ci) return { opacity: 0.45 };
-    return {};
-  };
+  const cellHandlers = (ci: number) => ({
+    onPointerDown: editable ? ((e: React.PointerEvent) => startDrag(e, ci)) : undefined,
+    onContextMenu: onColumnContextMenu ? ((e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onColumnContextMenu(e, ci); }) : undefined,
+  });
 
   return (
     <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>

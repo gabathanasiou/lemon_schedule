@@ -356,7 +356,21 @@ export function duplicateIntoNewColumn(blocks: ReportBlock[], moveId: string, co
 function mapTableColumns(blocks: ReportBlock[], tableId: string, fn: (cols: ReportTableColumn[]) => ReportTableColumn[]): ReportBlock[] {
   return mapTree(blocks, tableId, b => {
     if (b.type !== 'table') return b;
-    return { ...b, columns: fn(b.columns || []) };
+    const prev = b.columns || [];
+    const next = fn(prev);
+    if (next === prev || !b.custom) return { ...b, columns: next };
+    // Free-table rows store cells positionally: remap by column ID so a value
+    // follows its column through inserts, removes and reorders (a fresh
+    // column contributes an empty cell).
+    const indexById = new Map(prev.map((c, i) => [c.id, i]));
+    return {
+      ...b,
+      columns: next,
+      customRows: (b.customRows || []).map(r => ({
+        ...r,
+        cells: next.map(c => r.cells[indexById.get(c.id) ?? -1] ?? ''),
+      })),
+    };
   });
 }
 

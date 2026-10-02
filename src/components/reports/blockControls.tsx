@@ -1021,13 +1021,13 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   }
 
   if (block.type === 'table' && block.custom) {
-    const cols = block.columns || [];
-    const rows = block.customRows || [];
+    // Headers and rows are edited ON the table (roadmap 188) — the chrome
+    // keeps only the mode + header/border toggles.
     push(null,
       <ContentRow key="mode" label="Mode">
         <SegControl
           value="custom"
-          options={[{ v: 'custom', l: 'Custom rows' }, { v: 'collection', l: 'From collection' }]}
+          options={[{ v: 'custom', l: 'Free table' }, { v: 'collection', l: 'From collection' }]}
           onChange={v => { if (v === 'collection') onPatch({ custom: false }); }}
           disabled={disabled}
         />
@@ -1035,45 +1035,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       <ContentRow key="headerBorders" label="Header & borders">
         <Checkbox checked={block.showHeader !== false} disabled={disabled} onChange={on => onPatch({ showHeader: on })} label="Header row" />
         <Checkbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
-      </ContentRow>,
-      <ContentRow key="headers" label="Column headers">
-        <div className="flex flex-col gap-1">
-          {cols.map((c, ci) => (
-            <input
-              key={c.id}
-              className={TB_INPUT + ' ' + pw('w-44')}
-              value={c.label ?? ''}
-              placeholder={`Column ${ci + 1}`}
-              disabled={disabled}
-              onChange={e => onPatch({ columns: cols.map((x, i) => (i === ci ? { ...x, label: e.target.value } : x)) })}
-            />
-          ))}
-        </div>
-      </ContentRow>,
-      <ContentRow key="rows" label="Rows">
-        <div className="flex flex-col gap-1">
-          {rows.map((r, ri) => (
-            <div key={r.id} className="flex items-center gap-1">
-              <span className="text-[10px] text-zinc-500 w-4 tabular-nums">{ri + 1}</span>
-              <ToolButton
-                onClick={() => onPatch({ customRows: rows.filter((_, i) => i !== ri) })}
-                disabled={disabled}
-                title="Remove row"
-                className={TB_BTN}
-              >
-                <Trash2 className="w-3 h-3" />
-              </ToolButton>
-            </div>
-          ))}
-          <ToolButton
-            onClick={() => onPatch({ customRows: [...rows, { id: blockId(), cells: cols.map(() => '') }] })}
-            disabled={disabled}
-            title="Add row"
-            className={TB_BTN}
-          >
-            <Plus className="w-3 h-3" /> Add row
-          </ToolButton>
-        </div>
       </ContentRow>,
     );
   } else if (block.type === 'repeat' || block.type === 'table') {
@@ -1121,7 +1082,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         <ContentRow key="mode" label="Mode">
           <SegControl
             value="collection"
-            options={[{ v: 'custom', l: 'Custom rows' }, { v: 'collection', l: 'From collection' }]}
+            options={[{ v: 'custom', l: 'Free table' }, { v: 'collection', l: 'From collection' }]}
             onChange={v => {
               if (v !== 'custom') return;
               const cols = block.columns || [];

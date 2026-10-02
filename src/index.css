@@ -234,6 +234,170 @@ input, textarea, [contenteditable] {
 .block-card.block-type-columns { background: #f4f4f5; }
 .block-card.block-type-columns.selected { background: #e7edfa; }
 
+/* Free-table cell editors (designer): the inline editor IS the cell —
+   no kit input chrome and the cell's resolved color, not the kit dark-theme
+   input variables (light-gray text + a near-black box on the white page). */
+.report-cell-editor .tiptap,
+.report-cell-editor .tiptap:hover,
+.report-cell-editor .tiptap:focus {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  height: auto;
+  min-height: 0;
+}
+
+/* Free-table inline controls (roadmap 188): hover-revealed +/× buttons and
+   the row-height grip. Row buttons sit in the empty left gutter; column
+   buttons sit inside the hovered header cell (right, next to the drag grip)
+   with the input's padding reserving their space, so they never cover cell
+   content or a neighbouring column. Hidden controls are pointer-transparent.
+   Hover stays un-gated (iOS tap-to-hover). */
+.report-ct-hcell { position: relative; }
+.report-ct-row { position: relative; }
+.report-ct-controls {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 80ms;
+  z-index: 6;
+}
+.report-ct-hcontrols { right: 14px; }
+.report-ct-rcontrols { left: -35px; }
+.report-ct-hcell:hover > .report-ct-controls,
+.report-ct-row:hover > .report-ct-controls { opacity: 1; pointer-events: auto; }
+.report-ct-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: none;
+  background: #3f3f46;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+.report-ct-btn:hover { background: #2563eb; }
+.report-ct-header-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  /* Reserve the right strip for the drag grip so text never runs under it;
+     hovering widens the reserve for the +/× controls (no text hidden). */
+  padding: 0 14px 0 0;
+  margin: 0;
+}
+.report-ct-hcell:hover .report-ct-header-input { padding-right: 46px; }
+.report-ct-header-input::placeholder { color: #a1a1aa; font-weight: 400; }
+.report-ct-colgrip {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+  color: #a1a1aa;
+  cursor: grab;
+  touch-action: none;
+  z-index: 5;
+}
+.report-ct-colgrip:hover { color: #3f3f46; }
+.report-ct-colgrip:active { cursor: grabbing; }
+/* Row-resize tab (roadmap 188): the column strip's handle mirrored to the
+   table's right edge — same look, vertical drag. Selection-gated like the
+   column tabs; hidden tabs are pointer-transparent. */
+.report-ct-rowtab {
+  position: absolute;
+  right: -20px;
+  bottom: -4px;
+  display: flex;
+  align-items: center;
+  cursor: row-resize;
+  touch-action: none;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 80ms;
+}
+.block-card.selected .report-ct-rowtab { opacity: 1; pointer-events: auto; }
+.report-ct-rowtab-stem { width: 14px; height: 1px; background: rgba(113, 113, 122, 0.4); }
+.report-ct-rowtab-tri {
+  border-right: 6px solid rgba(113, 113, 122, 0.4);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+/* The tab and the row's border line are ONE handle: hovering or dragging
+   either lights both. */
+.report-ct-rowtab:hover .report-ct-rowtab-tri,
+.report-ct-rowtab:active .report-ct-rowtab-tri,
+.report-ct-row:has(.report-ct-rowborder:hover) .report-ct-rowtab-tri,
+.report-ct-row:has(.report-ct-rowborder:active) .report-ct-rowtab-tri { border-right-color: #3b82f6; }
+.report-ct-rowtab:hover .report-ct-rowtab-stem,
+.report-ct-rowtab:active .report-ct-rowtab-stem,
+.report-ct-row:has(.report-ct-rowborder:hover) .report-ct-rowtab-stem,
+.report-ct-row:has(.report-ct-rowborder:active) .report-ct-rowtab-stem { background: #3b82f6; }
+
+/* Direct border drag (mouse only, roadmap 188): invisible grab strips on the
+   cell borders — vertical between columns, horizontal between rows. They show
+   a blue dashed hint on hover and drive the same shared resize engine as the
+   tabs; touch users use the tabs instead (never scroll-vs-resize ambiguity). */
+.report-ct-colborder {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -3px;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 5;
+}
+.report-ct-colborder::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  border-left: 1px dashed transparent;
+}
+.report-ct-colborder:hover::after,
+.report-ct-colborder:active::after,
+.report-ct-colborder[data-active="1"]::after { border-left-color: #3b82f6; }
+.report-ct-rowborder {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 5px;
+  cursor: row-resize;
+  touch-action: none;
+  z-index: 5;
+}
+.report-ct-rowborder::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2px;
+  border-top: 1px dashed transparent;
+}
+.report-ct-rowborder:hover::after,
+.report-ct-rowborder:active::after,
+.report-ct-row:has(.report-ct-rowtab:hover) .report-ct-rowborder::after,
+.report-ct-row:has(.report-ct-rowtab:active) .report-ct-rowborder::after { border-top-color: #3b82f6; }
+
 /* header/footer zones + empty body: drop-preview highlight */
 .report-zone,
 .report-zone-body-empty {

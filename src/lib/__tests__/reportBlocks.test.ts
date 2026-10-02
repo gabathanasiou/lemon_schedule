@@ -7,6 +7,9 @@ import {
   moveBlock,
   paginateBlocks,
   collectRibbonBlocks,
+  insertTableColumnAt,
+  removeTableColumnAt,
+  moveTableColumn,
 } from '../reportBlocks';
 import type { ReportBlock } from '../../types';
 
@@ -79,5 +82,44 @@ describe('collectRibbonBlocks', () => {
       b('cols', 'columns', { cols: [{ id: 'c1', blocks: [b('r3', 'ribbon')] } as any] }),
     ];
     expect(collectRibbonBlocks(design).map(x => x.id)).toEqual(['r1', 'r2', 'r3']);
+  });
+});
+
+describe('free-table column ops keep cells aligned', () => {
+  const custom = (): ReportBlock => b('t', 'table', {
+    custom: true,
+    columns: [
+      { id: 'c1', field: '', width: 50, label: 'A' },
+      { id: 'c2', field: '', width: 50, label: 'B' },
+      { id: 'c3', field: '', width: 50, label: 'C' },
+    ],
+    customRows: [
+      { id: 'r1', cells: ['a1', 'b1', 'c1'] },
+      { id: 'r2', cells: ['a2', 'b2', 'c2'] },
+    ],
+  });
+
+  it('insert inserts an empty cell at the column index', () => {
+    const [t] = insertTableColumnAt([custom()], 't', 1);
+    expect(t.columns!.map(c => c.id)).toEqual(['c1', expect.any(String), 'c2', 'c3']);
+    expect(t.customRows!.map(r => r.cells)).toEqual([
+      ['a1', '', 'b1', 'c1'],
+      ['a2', '', 'b2', 'c2'],
+    ]);
+  });
+
+  it('remove drops that column’s cell from every row', () => {
+    const [t] = removeTableColumnAt([custom()], 't', 1);
+    expect(t.columns!.map(c => c.id)).toEqual(['c1', 'c3']);
+    expect(t.customRows!.map(r => r.cells)).toEqual([['a1', 'c1'], ['a2', 'c2']]);
+  });
+
+  it('move carries each cell with its column', () => {
+    const [t] = moveTableColumn([custom()], 't', 0, 2);
+    expect(t.columns!.map(c => c.id)).toEqual(['c2', 'c3', 'c1']);
+    expect(t.customRows!.map(r => r.cells)).toEqual([
+      ['b1', 'c1', 'a1'],
+      ['b2', 'c2', 'a2'],
+    ]);
   });
 });

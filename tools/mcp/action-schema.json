@@ -1675,6 +1675,11 @@
           "name": "cells",
           "optional": false,
           "type": "string[]"
+        },
+        {
+          "name": "height",
+          "optional": true,
+          "type": "number"
         }
       ]
     },

@@ -812,3 +812,92 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
   affordance in the child; desktop keeps the Radix side placement.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
+
+## 189. Reports designer — free table: merge cells (spans) + per-cell chrome + context menu (`[ ]`, big)
+
+**Request**: merge cells in the free table like Numbers/Excel —
+horizontal AND vertical spans, header + body. Select a range (click an anchor,
+Shift+click to extend), then Merge from either a **per-cell chrome** (the
+discoverable path, like `TableColumnChrome` on collection tables) or a
+**right-click context menu** (the power path: merge/unmerge, insert/delete
+row+column, clear). Locked with the user (2026-10-02 session).
+
+**Model** (`types.ts` + new `lib/reportTableMerges.ts` — the ONE module; never
+re-derive coverage in a view):
+- `ReportCellMerge { rowId; colId; colSpan; rowSpan }` on
+  `ReportBlock.cellMerges?: ReportCellMerge[]`; `rowId: 'header'` = the header
+  band. Anchored by stable row/column ids; covered cells are DERIVED.
+- API: `isCovered`, `mergeAnchorAt`, `mergeRange`, `unmergeAt`,
+  `buildBands(rows, merges)`, `pruneMerges` (+ pure structural helpers).
+- Merging keeps the top-left content and clears covered cells in ONE patch
+  (one undo; undo restores); unmerge leaves content only top-left (Excel).
+
+**Vertical spans = grid bands** (the architectural decision):
+- Rows render as BANDS: one row, or a maximal run of consecutive rows joined by
+  a vertical merge. Each band is a `display:grid` with the column widths; cells
+  get `gridColumn`/`gridRow` spans (`span n` for anchors). Band wrappers keep
+  `className="rm-row"` so `useReportPaginator.flattenTable` is UNCHANGED — one
+  unit per band; `rowRange` in `TableCustomRows` becomes a BAND range and a
+  merged band is atomic (never split across pages). Tradeoff: a band taller
+  than a page overflows like any unsplittable block.
+- Per-row affordances (row +/× controls, row border drag, right-edge row tab,
+  `minHeight`) move into an invisible per-row overlay grid item
+  (`gridColumn: 1 / -1`, `data-row-id`) inside the band; row-resize measures
+  `[data-row-id]` instead of `.rm-row`.
+- Column-resize live-apply updates each band's `gridTemplateColumns` + the
+  strip (anchors span tracks; replace the per-cell `width:` loop).
+  `data-table-col-ci` stays on cells for the strip/resize bar.
+- Horizontal-only tables degrade to single-row bands = today's layout.
+
+**Selection + chrome**:
+- Click a cell = select (and focus its editor, as today); Shift+click extends a
+  rectangular range (intercept pointerdown so TipTap text selection isn't
+  disturbed); blue range outline (the `colOutline` language).
+- `reports/TableCellChrome.tsx` (new; mirror `TableColumnChrome`):
+  `FloatingChrome` anchored to the focus cell via a new
+  `data-cell="rowId:colId"`, actions **Merge cells** (range ≥2; intersecting
+  merges are absorbed) / **Unmerge** / ✕ deselect. Structure the panel so
+  per-cell styling can join later.
+- Header cells are selectable the same way (grouped column headers).
+
+**Context menu**:
+- `reports/CustomTableContextMenu.tsx` (new) on the canonical kit `ContextMenu`
+  via the app re-export `src/components/ContextMenu.tsx`, mirroring
+  `RibbonContextMenu` (dark, `{x,y}`, morph) — do NOT extend the legacy block
+  `ReportContextMenu`.
+- Trigger: `onContextMenu` on body + header cells with
+  `preventDefault + stopPropagation` (kills the native TipTap menu and the
+  canvas block menu; the App global handler only skips INPUT/contentEditable).
+  Right-click inside the current range targets the range; outside it selects
+  that cell first.
+- Items (disabled from the ops module): Merge cells / Unmerge · Insert row
+  above/below · Delete row(s) · Insert column left/right · Delete column(s) ·
+  Clear contents. Header menu hides row items. Range deletes act on all covered
+  rows/columns; inserts at the focus boundary.
+- Touch: right-click is primary; long-press is best-effort (contentEditable) —
+  verify the kit long-press provider and document the fallback.
+
+**Structural rules** (one owner): `mapTableColumns` (insert/remove/reorder) and
+the row insert/delete ops DROP any merge they cut (no half-rectangles); column
+width / row height changes never drop merges; `pruneMerges` handles stale ids
+defensively on load/render.
+
+**Files**: `types.ts`; new `lib/reportTableMerges.ts`,
+`reports/TableCellChrome.tsx`, `reports/CustomTableContextMenu.tsx`; split
+`CustomTable.tsx` into the composition root + `reports/CustomTableBands.tsx`
+(presentational bands/cells) if it crosses ~500 lines; `lib/reportBlocks.ts`
+(prune); `index.css` (range outline); `docs/REPORTS-DESIGNER.md` (free-table
+bullet + Extending recipe). Build on **188**'s infra: `useColumnResize`
+(`activeIndex`/`onHoverIndex` + vertical mode), `useTableColumnReorder`,
+`ColumnResizeStrip`, the `selected` prop threading.
+
+**Verify**: unit tests for `reportTableMerges` (coverage, bands, merge/unmerge,
+prune on insert/remove/reorder) + extend `reportBlocks.test.ts`; `npm run lint`;
+`npm run test:smart` (report specs); rule-7 manual for chrome/menu/visuals (the
+suite is at the 271 cap — NO new spec unless a silent data-loss path appears);
+check preview/print of a horizontally AND vertically merged table, including a
+merge near a page break. Bump `package.json` (patch) when wrapping.
+
+**Relations**: builds on **10** (free table), **150**/**188** (inline
+editing + resize infra, DONE), related to **186** (rows-axis selection + chrome
+precedent), **111/112** (grid reading recipe); supersedes nothing.

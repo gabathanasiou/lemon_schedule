@@ -648,15 +648,18 @@ export interface ReportTableColumn {
   bold?: boolean;       // per-column cell style
   italic?: boolean;
   skipEmpty?: boolean;  // hide rows where this column's cell is empty
-  /** Custom-rows table mode: the column header text (falls back to `field`). */
+  /** Free-table mode: the column header text (falls back to `field`). */
   label?: string;
 }
 
-/** One literal row of a custom-rows table (item 10): rich-text cells (may
+/** One literal row of a free table (item 10): rich-text cells (may
  *  contain `{{field}}` / lookup tokens), one per `columns` entry. */
 export interface ReportCustomRow {
   id: string;
   cells: string[];
+  /** Designer-set row height (px) from the row-resize grip — applied as
+   *  min-height in designer, preview and print. Unset = content height. */
+  height?: number;
 }
 
 export interface ReportTableRow {
@@ -706,7 +709,7 @@ export interface ReportBlock {
   repeatAxis?: RepeatAxis;
   colWidths?: number[];          // rows-mode, % summing to 100
   tableRows?: ReportTableRow[];  // rows-mode: multiple design rows per item
-  /** Custom-rows table mode (item 10): literal rows × columns, every cell a
+  /** Free-table mode (item 10): literal rows × columns, every cell a
    *  rich-text cell with `@` tokens. Overrides collection resolution. */
   custom?: boolean;
   customRows?: ReportCustomRow[];
