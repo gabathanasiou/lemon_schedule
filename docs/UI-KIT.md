@@ -37,6 +37,8 @@ Before building any of these by hand again, check the kit first:
 
 **v0.1.91 (one prosemirror-view)**: `@tiptap/pm/view` added to the kit build's externals — bundling it gave the editor a SECOND prosemirror-view copy, so the new plugin `DecorationSet` failed `instanceof` and the editor crashed at mount (`DecorationGroup` member undefined). Never bundle a `@tiptap/pm` subpath the consumer's editor also uses.
 
+**v0.1.92 (suggestion popup follows the caret)**: the TipTap suggestion mount positions once on open; the decoration rect widens with each keystroke but autoUpdate can't observe the virtual reference, so the `@` autocomplete trailed the caret by the last keystrokes. The token popup re-mounts per update (old autoUpdate/dismiss listeners cleaned first), re-running computePosition against the current decoration.
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

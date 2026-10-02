@@ -93,7 +93,7 @@ const CellEditor: React.FC<{
       allFields={shared.fields}
       lookupTokens={shared.lookupTokens}
       placeholder="Type… @ for tokens"
-      className="report-cell-editor w-full min-h-[18px]"
+      className={`report-cell-editor w-full min-h-[18px]${isFocus ? ' report-cell-editor-active' : ''}`}
     />
   );
 };

@@ -248,6 +248,19 @@ input, textarea, [contenteditable] {
   min-height: 0;
 }
 
+/* The kit placeholder floats left (out of flow) so it never affects the
+   paragraph height; in a cell that ignores the cell's text-align, so a
+   centered/right cell showed a left-hugging placeholder while the typed text
+   centered. Keep it in flow so it follows the cell's styling. */
+.report-cell-editor .tiptap p.is-empty::before {
+  float: none;
+  display: inline;
+}
+
+/* No placeholder on the cell you've selected/are editing — it only hints
+   cells you haven't engaged yet. */
+.report-cell-editor-active .tiptap p.is-empty::before { display: none; }
+
 /* Free-table inline controls (roadmap 188): hover-revealed +/× buttons and
    the row-height grip. Row buttons sit in the empty left gutter; column
    buttons sit inside the hovered header cell (right, next to the drag grip)
