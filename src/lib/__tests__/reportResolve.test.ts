@@ -9,6 +9,7 @@ import {
   ancestorSceneScope,
   type ReportCtx,
 } from '../reportData';
+import { composeLookupKey, getReportFieldMap, resolveReportTokens, resolveReportTokensHtml } from '../reportFields';
 
 // Resolver-level coverage for the day-scoped report collections, built from the
 // committed hermetic seed via the SAME pure pipeline the app uses
@@ -156,5 +157,34 @@ describe('ancestorSceneScope', () => {
     const nested = ancestorSceneScope(ctx, [day, category])!;
     expect(nested.size).toBeLessThanOrEqual(dayIds.size);
     for (const id of nested) expect(dayIds.has(id)).toBe(true);
+  });
+});
+
+describe('lookup pair suppression — the 121 reference + attribute pair', () => {
+  const project = seedProject((p) => {
+    p.crewRoles = [{ key: 'gaffer', label: 'Gaffer' }];
+    p.crew = { gaffer: [{ id: 'p-test', name: 'BOB', phone: '555-0134', email: 'bob@example.com' }] };
+  });
+  const ctx = buildCtx(project);
+  const fieldMap = getReportFieldMap(project);
+  const ref = composeLookupKey('crew', 'crewName', 'p-test');
+  const phone = composeLookupKey('crew', 'phone', 'p-test');
+
+  it('an adjacent pair prints the attribute only (reference is the anchor)', () => {
+    expect(resolveReportTokens(ctx, fieldMap, `{{${ref}}}{{${phone}}}`, null)).toBe('555-0134');
+    // the HTML path shares the same pair pass (phone stays a tel link)
+    expect(resolveReportTokensHtml(ctx, fieldMap, `<p>{{${ref}}}{{${phone}}}</p>`, null)).toContain('555-0134');
+  });
+
+  it('deleting the attribute leaves the reference resolving to the name', () => {
+    expect(resolveReportTokens(ctx, fieldMap, `{{${ref}}}`, null)).toBe('BOB');
+  });
+
+  it('deleting the reference leaves the attribute resolving on its own', () => {
+    expect(resolveReportTokens(ctx, fieldMap, `{{${phone}}}`, null)).toBe('555-0134');
+  });
+
+  it('text between the tokens stops the suppression', () => {
+    expect(resolveReportTokens(ctx, fieldMap, `{{${ref}}} at {{${phone}}}`, null)).toBe('BOB at 555-0134');
   });
 });

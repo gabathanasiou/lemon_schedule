@@ -335,50 +335,6 @@ require a backend and is not planned.
 
 **Verify**: TBD once scope is agreed.
 
-## 121. Smart lookup tokens — `@item.attribute` two-stage drill-down in rich-text editors (`[ ]`)
-
-**Request**: in any rich-text token editor (reports designer text blocks /
-free-table cells / headers, Call Sheet zone), typing `@` opens the lookup
-picker. Today it's a flat query-filtered list — item · attribute in ONE step
-(item 100's documented deviation). Users want object-dot-property: type `@` →
-pick/search an item ("Bob") → press `.` → see only THAT item's attributes
-(call time, phone, email, …) → pick one. Should cover every lookup collection —
-days, crew, locations, categories, location types, day types, scenes, and
-elements (every breakdown category, cast included; element keys carry their
-category) — with fuzzy search + grouping.
-
-**Design** (locked with the user 2026-10-02): the token format is already right
-— `lookup.<collection>.<field>.<encodedItemKey>` stays; this is a PICKER
-feature, not a new data model. Stage 1 lists ITEMS only — one row per item,
-label = the item's name ("Bob", "Main St", "Day 3 (Jul 1)", "23 · DINER"),
-group = collection — each inserting the collection's identity field
-(crew → `crewName`, locations → `locationName`, days → `dayDate`, scenes →
-`sceneNumber`, elements → `elementName`, categories/location types/day types →
-their label fields). Stage 2 = the full field registry scoped to the item's
-collection (crew: role/phone/email/call time/links; scenes: set/description/
-call time/cast; elements: attached scenes, totals, work/hold/travel days), so
-invalid picks never appear. **Strictly two-stage — no flat `item.attr` fallback.**
-The kit change shipped accordingly: a second suggestion on `.`, gated to fire
-only when a token chip sits immediately before the dot. **Picking inserts the
-attribute as a SECOND, independent chip** directly after the reference — each
-bubble is its own atom + full token key, so deleting either detaches just that
-part (delete the reference and the attribute still resolves on its own; delete
-the attribute and the reference reverts to the name). Resolution: a lookup
-token DIRECTLY followed by another lookup token of the same collection + item
-renders empty (the attribute prints — the reference is its anchor), so the
-adjacent pair reads as Bob's phone. The `.` menu opens only on identity-field
-(reference) chips. Cap the unfiltered stage-1 list (~50 rows) since scenes +
-elements can run into the hundreds.
-
-**Verify**: e2e in the reports designer + Call Sheet editor — type `@`, pick an
-item, `.`, assert the attribute list is scope-filtered, pick one, assert the
-token resolves/renders (link fields still link); a ui-kit bump + playground
-spec for the nested picker.
-
-**Relations**: extends 100 (the deferred three-step picker — **DONE**) and 19/16
-(token chips/affixes — **DONE**); touches the ui-kit rich-text editor +
-`reportFields.ts` (`buildLookupTokens`, `fieldsForScope`).
-
 ## 125. Storage overhaul — delta pack, normalization only if needed (FUTURE, parked) (`[ ]`)
 
 **Relations**: follow-on to 124 (**DONE** — `src/lib/projectCodec.ts`); build

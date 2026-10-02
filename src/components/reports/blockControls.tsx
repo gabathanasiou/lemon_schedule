@@ -959,6 +959,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             placeholder="Type text… type @ to insert an attribute"
             disabled={disabled}
             fields={contextFields}
+            allFields={allFields}
             lookupTokens={lookupTokens}
             className={panel ? 'w-full h-28' : 'w-96 h-28'}
           />

@@ -1,5 +1,6 @@
 import { Project, ReportBlock, ReportCollection, RuleViolation } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
+import { elementMatchId, getCategoryElements } from './elements';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
 import { parentNoun } from './reportBlocks';
@@ -778,12 +779,15 @@ export function composeTokenKey(field: string, prefix: string, suffix: string, s
   return `${field}|${prefix}|${suffix}|${separator}`;
 }
 
-// ---- item lookup tokens (item 100) -------------------------------------------
+// ---- item lookup tokens (item 100, two-stage picker item 121) ----------------
 // `lookup.<collection>.<field>.<encodedItemKey>` references ONE item's attribute
-// anywhere in the design (text/free-table cells, headers). The `@` picker lists
-// a bounded set of collections; the resolver finds the item by its stable key
-// (`reportItemKey` / crew id) and returns the field through the same registry,
-// so lookup tokens and normal fields can never disagree.
+// anywhere the design resolves tokens (text blocks, free-table cells/headers,
+// the Call Sheet zone). Stage 1 (`@`) lists ITEMS ONLY, each inserting the
+// collection's IDENTITY field; stage 2 (a `.` typed right after the chip) lists
+// that item's scoped attributes and the kit INSERTS A SECOND, independent chip.
+// The resolver finds the item by its stable key (`reportItemKey` / crew id) and
+// returns the field through the same registry, so lookup tokens and normal
+// fields can never disagree.
 
 export const LOOKUP_PREFIX = 'lookup.';
 
@@ -794,6 +798,8 @@ export interface LookupTokenItem {
   collection: string;
   field: string;
   itemKey: string;
+  /** Elements only: the breakdown category the item belongs to. */
+  category?: string;
 }
 
 export function composeLookupKey(collection: string, field: string, itemKey: string): string {
@@ -807,50 +813,58 @@ export function parseLookupKey(raw: string): { collection: string; field: string
   return { collection: parts[1], field: parts[2], itemKey: decodeURIComponent(parts.slice(3).join('.')) };
 }
 
+/** Elements encode their category in the item key (`<category>::<matchId>`) —
+ *  element names are unique within a category only. */
+export function elementLookupKey(category: string, matchId: string): string {
+  return `${category}::${matchId}`;
+}
+
+export function splitElementLookupKey(itemKey: string): { category: string; matchId: string } {
+  const i = itemKey.indexOf('::');
+  return i < 0 ? { category: 'props', matchId: itemKey } : { category: itemKey.slice(0, i), matchId: itemKey.slice(i + 2) };
+}
+
 /** Stable item key for lookups (crew has no `reportItemKey` case — its id). */
 function lookupItemKey(collection: string, item: ReportCollectionItem): string {
   if (collection === 'crew') return (item as ReportCrewItem).id;
+  if (collection === 'elements') {
+    const el = item as ReportElementInfo;
+    const cat = el.category || 'props';
+    return elementLookupKey(cat, elementMatchId(el, cat));
+  }
   return String(reportItemKey(collection as ReportCollection, item));
 }
 
-interface LookupFieldDef { field: string; label: string; }
-interface LookupSpec { collection: ReportCollection; label: string; fields: LookupFieldDef[]; }
+/** The field an `@` item pick inserts — the collection's identity value. */
+export function lookupIdentityField(collection: string): string {
+  return LOOKUP_SPECS.find(s => s.collection === collection)?.identityField ?? '';
+}
+
+interface LookupSpec { collection: ReportCollection; label: string; identityField: string; }
 
 const LOOKUP_SPECS: LookupSpec[] = [
-  { collection: 'days', label: 'Days', fields: [
-    { field: 'dayDate', label: 'Date' }, { field: 'dayCallTime', label: 'Call Time' },
-    { field: 'dayEnd', label: 'End Time' }, { field: 'dayType', label: 'Day Type' }, { field: 'dayNotes', label: 'Notes' },
-  ] },
-  { collection: 'crew', label: 'Crew', fields: [
-    { field: 'role', label: 'Role' }, { field: 'phone', label: 'Phone' }, { field: 'email', label: 'Email' },
-  ] },
-  { collection: 'locations', label: 'Locations', fields: [
-    { field: 'locationName', label: 'Name' }, { field: 'locationAddress', label: 'Address' },
-    { field: 'locationPhone', label: 'Phone' }, { field: 'locationEmail', label: 'Email' },
-  ] },
-  { collection: 'categories', label: 'Categories', fields: [
-    { field: 'categoryLabel', label: 'Name' }, { field: 'categoryElementCount', label: 'Element Count' },
-  ] },
-  { collection: 'locationTypes', label: 'Location Types', fields: [
-    { field: 'locationTypeLabel', label: 'Type' }, { field: 'locationTypeCount', label: 'Location Count' },
-  ] },
-  { collection: 'dayTypes', label: 'Day Types', fields: [
-    { field: 'dayTypeLabel', label: 'Day Type' }, { field: 'dayTypeDayCount', label: 'Total Days' },
-  ] },
+  { collection: 'days', label: 'Days', identityField: 'dayLabel' },
+  { collection: 'crew', label: 'Crew', identityField: 'crewName' },
+  { collection: 'locations', label: 'Locations', identityField: 'locationName' },
+  { collection: 'categories', label: 'Categories', identityField: 'categoryLabel' },
+  { collection: 'locationTypes', label: 'Location Types', identityField: 'locationTypeLabel' },
+  { collection: 'dayTypes', label: 'Day Types', identityField: 'dayTypeLabel' },
+  { collection: 'scenes', label: 'Scenes', identityField: 'sceneNumber' },
+  { collection: 'elements', label: 'Elements', identityField: 'elementName' },
 ];
 
 /** A lightweight day reference for the picker (avoids needing a full ReportCtx). */
 export interface LookupDayRef { index: number; chronoDay: number; date: string; }
 
-/** Project-derived items for one lookup collection, as `{ key, label }`. */
-function lookupItemsFor(project: Project, collection: ReportCollection, days: LookupDayRef[]): { key: string; label: string }[] {
+/** Project-derived items for one lookup collection, as `{ key, label, category? }`. */
+function lookupItemsFor(project: Project, collection: ReportCollection, days: LookupDayRef[]): { key: string; label: string; category?: string }[] {
   switch (collection) {
     case 'days':
       return days.map(d => ({ key: String(d.index), label: `Day ${d.chronoDay} (${formatDateCustom(d.date, project.productionInfo?.dateFormat)})` }));
     case 'crew': {
       const out: { key: string; label: string }[] = [];
       for (const role of project.crewRoles || []) {
-        for (const p of project.crew?.[role.key] || []) out.push({ key: p.id, label: `${p.name} · ${role.label}` });
+        for (const p of project.crew?.[role.key] || []) out.push({ key: p.id, label: p.name });
       }
       return out;
     }
@@ -866,31 +880,60 @@ function lookupItemsFor(project: Project, collection: ReportCollection, days: Lo
       return (project.locationTypes || []).map(t => ({ key: t.key, label: t.label }));
     case 'dayTypes':
       return getDayTypes(project).map(t => ({ key: t.key, label: t.label }));
+    case 'scenes':
+      return (project.scenes || []).map(sc => ({
+        key: sc.id,
+        label: `${sc.sceneNumber} · ${sc.set || sc.description || sc.intExt || ''}`.replace(/ · $/, ''),
+      }));
+    case 'elements': {
+      const out: { key: string; label: string; category: string }[] = [];
+      const cats = [...ELEMENT_CATEGORIES.map(c => c.key), ...(project.customCategories || []).map(c => c.key)];
+      for (const cat of cats) {
+        for (const el of getCategoryElements(project, cat)) {
+          const matchId = elementMatchId(el, cat);
+          if (!matchId) continue;
+          out.push({ key: elementLookupKey(cat, matchId), label: el.name || matchId, category: cat });
+        }
+      }
+      return out;
+    }
     default:
       return [];
   }
 }
 
-/** Builds the lookup suggestion list (bounded: pickable collections × a few
- *  attributes). `days` comes from the caller's canonical sections. */
+/** Stage-1 (`@`) lookup items: ONE entry per item, keyed by the collection's
+ *  identity field. `days` comes from the caller's canonical sections. Stage 2
+ *  (the `.` attribute list) comes from `lookupAttributeFields`. */
 export function buildLookupTokens(project: Project, days: LookupDayRef[]): LookupTokenItem[] {
   const out: LookupTokenItem[] = [];
   for (const spec of LOOKUP_SPECS) {
     for (const item of lookupItemsFor(project, spec.collection, days)) {
       if (!item.key) continue;
-      for (const f of spec.fields) {
-        out.push({
-          key: composeLookupKey(spec.collection, f.field, item.key),
-          label: `${item.label} · ${f.label}`,
-          group: `Reference — ${spec.label}`,
-          collection: spec.collection,
-          field: f.field,
-          itemKey: item.key,
-        });
-      }
+      out.push({
+        key: composeLookupKey(spec.collection, spec.identityField, item.key),
+        label: item.label,
+        group: `Reference — ${spec.label}`,
+        collection: spec.collection,
+        field: spec.identityField,
+        itemKey: item.key,
+        category: item.category,
+      });
     }
   }
   return out;
+}
+
+/** The item-scoped attributes offered at stage 2 (full registry): every field
+ *  registered for the item's collection (a cast member adds the cast identity
+ *  fields). The identity field itself stays out — that IS the reference chip. */
+export function lookupAttributeFields(allFields: ReportFieldDef[], collection: string, category?: string): ReportFieldDef[] {
+  const identity = lookupIdentityField(collection);
+  if (collection === 'elements') {
+    const scopes = new Set(category === 'cast' ? ['elements', 'cast'] : ['elements']);
+    return allFields.filter(f => scopes.has(f.scope) && f.key !== identity);
+  }
+  return allFields.filter(f => f.scope === collection && f.key !== identity);
 }
 
 export interface TokenResolveOptions {
@@ -900,10 +943,32 @@ export interface TokenResolveOptions {
   showUnresolved?: boolean;
 }
 
+/** Resolve a lookup's target items — elements carry their category in the item
+ *  key, so the collection resolves with the right category. */
+function resolveLookupItems(ctx: ReportCtx, collection: string, itemKey: string): ReportCollectionItem[] {
+  if (collection === 'elements') {
+    return resolveCollection(ctx, 'elements', splitElementLookupKey(itemKey).category, undefined, undefined);
+  }
+  return resolveCollection(ctx, collection as ReportCollection, undefined, undefined, undefined);
+}
+
+/** The 121 pair rule: a lookup token DIRECTLY followed by another lookup token
+ *  of the same collection + item prints as the attribute only — the reference
+ *  chip is its anchor and renders empty. Deleting either chip leaves the other
+ *  resolving on its own. */
+function suppressLookupPairs(text: string): string {
+  return text.replace(/\{\{(lookup\.[^{}]+)\}\}\{\{(lookup\.[^{}]+)\}\}/g, (m, a: string, b: string) => {
+    const pa = parseLookupKey(a);
+    const pb = parseLookupKey(b);
+    if (!pa || !pb || pa.collection !== pb.collection || pa.itemKey !== pb.itemKey) return m;
+    return `{{${b}}}`;
+  });
+}
+
 function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, raw: string, item: any, aux?: FieldAux): string {
   const lookup = parseLookupKey(raw);
   if (lookup) {
-    const items = resolveCollection(ctx, lookup.collection as ReportCollection, undefined, undefined, undefined);
+    const items = resolveLookupItems(ctx, lookup.collection, lookup.itemKey);
     const hit = items.find(it => lookupItemKey(lookup.collection, it) === lookup.itemKey);
     if (!hit) return '';
     return fieldValueSafe(fieldMap[lookup.field], ctx, hit, aux);
@@ -936,7 +1001,7 @@ export function resolveReportTokens(
   aux?: FieldAux,
   opts?: TokenResolveOptions,
 ): string {
-  return text.replace(TOKEN_RE, (_m, raw: string) => {
+  return suppressLookupPairs(text).replace(TOKEN_RE, (_m, raw: string) => {
     const value = resolveToken(ctx, fieldMap, raw, item, aux);
     return opts?.showUnresolved && !value ? `{{${raw}}}` : value;
   });
@@ -951,11 +1016,11 @@ export function resolveReportTokensHtml(
   aux?: FieldAux,
   opts?: TokenResolveOptions,
 ): string {
-  return normalizeSpaces(html)
+  const cleaned = normalizeSpaces(html)
     // Old kit builds serialized via XMLSerializer — drop the xmlns noise it
     // left on every element so polluted stored text renders clean.
-    .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '')
-    .replace(TOKEN_RE, (_m, raw: string) => {
+    .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '');
+  return suppressLookupPairs(cleaned).replace(TOKEN_RE, (_m, raw: string) => {
     const lookup = parseLookupKey(raw);
     const { field } = parseToken(raw);
     const value = resolveToken(ctx, fieldMap, raw, item, aux);
