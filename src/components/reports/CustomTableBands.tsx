@@ -1,6 +1,6 @@
 import React from 'react';
-import { Plus, X } from 'lucide-react';
-import { ReportCellMerge, ReportCellStyle, ReportTableColumn } from '../../types';
+import { CopyPlus, Plus, X } from 'lucide-react';
+import { ReportBlock, ReportCellMerge, ReportCellStyle, ReportTableColumn } from '../../types';
 import { ReportCtx } from '../../lib/reportData';
 import { FieldAux, LookupTokenItem, ReportFieldDef, resolveReportTokensHtml } from '../../lib/reportFields';
 import { REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
@@ -15,9 +15,16 @@ import RichTextEditor, { RichTextEditorHandle, RichTextState } from './RichTextE
 // tracks) so vertical merges become grid-row spans. Band wrappers keep
 // `rm-row`/`rm-header` so the measured paginator flattens them unchanged.
 
+/** Hover-revealed +/duplicate/× row & column controls. Row/column structure
+ *  now lives in the cell chrome + context menu; the floating affordances are
+ *  kept here — flip to true to bring them back. */
+const SHOW_FLOATING_STRUCTURE_CONTROLS = false;
+
 export interface CustomSelection { anchor: CellRef; focus: CellRef; }
 
 export interface CustomTableShared {
+  /** The containing free-table block — cellrefs resolve targets inside it. */
+  block: ReportBlock;
   columns: ReportTableColumn[];
   merges: ReportCellMerge[];
   cellStyles: Record<string, ReportCellStyle>;
@@ -47,6 +54,14 @@ export interface CustomTableShared {
   /** Scope-filtered attributes for the `@` field autocomplete. */
   contextFields: ReportFieldDef[];
   lookupTokens: LookupTokenItem[];
+  /** `=` referencing menu (roadmap 190): pick mode + key interception. */
+  pickSource: CellRef | null;
+  onPickTarget: (ref: CellRef) => void;
+  onRefKeyDown: (e: React.KeyboardEvent, rowId: string, colId: string, html: string) => void;
+  onRefHover: (index: number) => void;
+  /** Hovered cellref chip's origin cell — the parent source of the info. */
+  hoverCell: CellRef | null;
+  onChipHover: (rowId: string, colId: string, key: string | null) => void;
 }
 
 const CellBtn: React.FC<{ title: string; onClick: () => void; children: React.ReactNode }> = ({ title, onClick, children }) => (
@@ -81,20 +96,24 @@ const CellEditor: React.FC<{
     };
   }, [isFocus, shared.focusedEditorRef]);
   if (!shared.editable) {
-    return <div dangerouslySetInnerHTML={{ __html: resolveReportTokensHtml(shared.ctx, shared.fieldMap, html, shared.item, shared.aux) }} />;
+    return <div dangerouslySetInnerHTML={{ __html: resolveReportTokensHtml(shared.ctx, shared.fieldMap, html, shared.item, shared.aux, { cellRef: { block: shared.block, rowId, colId } }) }} />;
   }
   return (
-    <RichTextEditor
-      ref={ref}
-      value={html}
-      onChange={onChange}
-      onStateChange={isFocus ? shared.onRtStateChange : undefined}
-      fields={shared.contextFields}
-      allFields={shared.fields}
-      lookupTokens={shared.lookupTokens}
-      placeholder="Type… @ for tokens"
-      className={`report-cell-editor w-full min-h-[18px]${isFocus ? ' report-cell-editor-active' : ''}`}
-    />
+    <div onKeyDownCapture={e => shared.onRefKeyDown(e, rowId, colId, html)}>
+      <RichTextEditor
+        ref={ref}
+        value={html}
+        onChange={onChange}
+        onStateChange={isFocus ? shared.onRtStateChange : undefined}
+        fields={shared.contextFields}
+        allFields={shared.fields}
+        lookupTokens={shared.lookupTokens}
+        cellRef={{ block: shared.block, rowId, colId, ctx: shared.ctx, fieldMap: shared.fieldMap, item: shared.item, aux: shared.aux }}
+        onTokenHover={key => shared.onChipHover(rowId, colId, key)}
+        placeholder="Type… @ for tokens"
+        className={`report-cell-editor w-full min-h-[18px]${isFocus ? ' report-cell-editor-active' : ''}`}
+      />
+    </div>
   );
 };
 
@@ -159,21 +178,32 @@ const CellShell: React.FC<{
 }> = ({ shared, band, rowId, colId, colPos, rowPos, gridRow, colSpan, rowSpan, style, children }) => {
   const { editable, columns, border, selectionRect, onSelectCell, onCellContextMenu, activeCol, onColHover, startColResize } = shared;
   const lastCol = colPos + colSpan - 1;
+  const picking = !!shared.pickSource && band === 'body';
+  const hovered = !!shared.hoverCell && shared.hoverCell.rowId === rowId && shared.hoverCell.colId === colId;
   return (
     <div
       data-cell={`${rowId}:${colId}`}
       data-table-col-ci={colPos}
       data-row-id={rowId}
-      className={band === 'header' && editable ? 'report-ct-hcell' : undefined}
+      data-pick-target={picking ? '1' : undefined}
+      className={`${band === 'header' && editable ? 'report-ct-hcell' : ''}${picking ? ' report-cell-pick' : ''}` || undefined}
       style={{
         ...style,
         gridColumn: `${colPos + 1} / span ${colSpan}`,
         gridRow: `${gridRow + 1} / span ${rowSpan}`,
         position: 'relative',
         ...selectionEdges(selectionRect, band, rowPos, colPos, colSpan, rowSpan),
+        ...(hovered ? { backgroundColor: 'rgba(59, 130, 246, 0.16)' } : {}),
       }}
       onPointerDown={editable ? e => {
         if (e.button !== 0) return;
+        if (shared.pickSource) {
+          if (band !== 'body') return;
+          e.preventDefault();
+          e.stopPropagation();
+          shared.onPickTarget({ rowId, colId });
+          return;
+        }
         if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); }
         onSelectCell({ rowId, colId }, e.shiftKey);
       } : undefined}
@@ -201,8 +231,9 @@ export const HeaderBand: React.FC<{
   setHeader: (ci: number, label: string) => void;
   insertColumnAfter: (ci: number) => void;
   removeColumn: (ci: number) => void;
+  duplicateColumn: (ci: number) => void;
   startColumnDrag: (e: React.PointerEvent, ci: number) => void;
-}> = ({ shared, show, setHeader, insertColumnAfter, removeColumn, startColumnDrag }) => {
+}> = ({ shared, show, setHeader, insertColumnAfter, removeColumn, duplicateColumn, startColumnDrag }) => {
   const { columns, merges, baseStyle, cellPad, border, editable, colOutline } = shared;
   if (!show) return null;
   const headerStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: REPORT_TABLE_HEADER_BG } as React.CSSProperties;
@@ -259,12 +290,15 @@ export const HeaderBand: React.FC<{
                     onPointerDown={e => startColumnDrag(e, ci)}
                   >⠿</span>
                 )}
-                <span className="report-ct-controls report-ct-hcontrols">
-                  <CellBtn title="Insert column after" onClick={() => insertColumnAfter(ci + colSpan - 1)}><Plus className="w-3 h-3" /></CellBtn>
-                  {columns.length > 1 && (
-                    <CellBtn title="Delete column" onClick={() => removeColumn(ci)}><X className="w-3 h-3" /></CellBtn>
-                  )}
-                </span>
+                {SHOW_FLOATING_STRUCTURE_CONTROLS && (
+                  <span className="report-ct-controls report-ct-hcontrols">
+                    <CellBtn title="Insert column after" onClick={() => insertColumnAfter(ci + colSpan - 1)}><Plus className="w-3 h-3" /></CellBtn>
+                    <CellBtn title="Duplicate column" onClick={() => duplicateColumn(ci)}><CopyPlus className="w-3 h-3" /></CellBtn>
+                    {columns.length > 1 && (
+                      <CellBtn title="Delete column" onClick={() => removeColumn(ci)}><X className="w-3 h-3" /></CellBtn>
+                    )}
+                  </span>
+                )}
               </>
             ) : (
               c.label || c.field || ''
@@ -285,9 +319,10 @@ export const BodyBand: React.FC<{
   commitCell: (ri: number, ci: number, html: string) => void;
   insertRowBelow: (ri: number) => void;
   removeRow: (ri: number) => void;
+  duplicateRow: (ri: number) => void;
   startRowResize: (ri: number, e: React.PointerEvent) => void;
   setRowHeight: (ri: number, height: number | undefined) => void;
-}> = ({ shared, band, rowCount, commitCell, insertRowBelow, removeRow, startRowResize, setRowHeight }) => {
+}> = ({ shared, band, rowCount, commitCell, insertRowBelow, removeRow, duplicateRow, startRowResize, setRowHeight }) => {
   const { columns, merges, baseStyle, cellPad, border, editable, colOutline } = shared;
   const [hoverRow, setHoverRow] = React.useState<string | null>(null);
   return (
@@ -352,9 +387,10 @@ export const BodyBand: React.FC<{
           data-hover={hoverRow === row.id ? '1' : undefined}
           style={{ gridColumn: '1 / -1', gridRow: `${bi + 1} / span 1`, position: 'relative', pointerEvents: 'none', zIndex: 6 }}
         >
-          {editable && (
+          {editable && SHOW_FLOATING_STRUCTURE_CONTROLS && (
             <span className="report-ct-controls report-ct-rcontrols">
               <CellBtn title="Insert row below" onClick={() => insertRowBelow(band.start + bi + 1)}><Plus className="w-3 h-3" /></CellBtn>
+              <CellBtn title="Duplicate row" onClick={() => duplicateRow(band.start + bi)}><CopyPlus className="w-3 h-3" /></CellBtn>
               {rowCount > 1 && (
                 <CellBtn title="Delete row" onClick={() => removeRow(band.start + bi)}><X className="w-3 h-3" /></CellBtn>
               )}

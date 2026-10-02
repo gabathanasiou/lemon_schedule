@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { ReportBlock, ReportCellStyle, ReportCustomRow, ReportTableColumn } from '../../types';
 import { blockId, insertCustomRowAt, insertTableColumnAt, moveTableColumn, removeCustomRowAt, removeTableColumnAt } from '../../lib/reportBlocks';
 import {
-  CellRef, HEADER_ROW_ID, MergeRect, TableBand, buildBands, expandRectToMerges, isCovered, mergeCellsInBlock,
-  pruneMerges, rangeRect, rectCellCount, rectTouchesMerge, resetCellsInBlock, unmergeCellsInBlock,
+  CellRef, HEADER_ROW_ID, MergeRect, TableBand, buildBands, expandRectToMerges, insertMergeRow, isCovered, mergeCellsInBlock,
+  pruneMerges, rangeRect, rectCellCount, rectTouchesMerge, remapMergesForColumns, resetCellsInBlock, unmergeCellsInBlock,
 } from '../../lib/reportTableMerges';
 import { cellStyleKey, getCellStyle, patchCellStyleKeys, pruneCellStyles } from '../../lib/reportCellStyles';
 
@@ -49,10 +49,12 @@ export interface CustomTableCells {
   setHeader: (colIndex: number, label: string) => void;
   insertRowAt: (index: number) => void;
   removeRow: (index: number) => void;
+  duplicateRow: (index: number) => void;
   setRowHeight: (index: number, height: number | undefined) => void;
   insertColumnAt: (index: number) => void;
   moveColumn: (from: number, to: number) => void;
   removeColumn: (index: number) => void;
+  duplicateColumn: (index: number) => void;
   deleteRows: () => void;
   deleteColumns: () => void;
   merge: () => void;
@@ -158,6 +160,24 @@ export function useCustomTableCells(opts: {
   const removeRow = (index: number) => {
     applyTableOp(blocks => removeCustomRowAt(blocks, block!.id, index));
   };
+  /** Copy a row in place (new stable id): cells, height and per-cell styles;
+   *  merges the insert would cut open are dropped (the insertMergeRow rule). */
+  const duplicateRow = (index: number) => {
+    if (!block || !patch || !rows[index]) return;
+    const src = rows[index];
+    const dup = { ...src, id: blockId(), cells: [...src.cells] };
+    const nextRows = [...rows.slice(0, index + 1), dup, ...rows.slice(index + 1)];
+    const nextStyles = { ...block.cellStyles };
+    for (const c of columns) {
+      const style = block.cellStyles?.[cellStyleKey(src.id, c.id)];
+      if (style) nextStyles[cellStyleKey(dup.id, c.id)] = { ...style };
+    }
+    patch({
+      customRows: nextRows,
+      cellMerges: insertMergeRow(nextRows, block.cellMerges, index + 1),
+      ...(Object.keys(nextStyles).length !== Object.keys(block.cellStyles || {}).length ? { cellStyles: nextStyles } : {}),
+    });
+  };
   const setRowHeight = (index: number, height: number | undefined) => {
     if (!patch) return;
     patch({ customRows: rows.map((r, i) => (i === index ? { ...r, height } : r)) });
@@ -170,6 +190,30 @@ export function useCustomTableCells(opts: {
   };
   const removeColumn = (index: number) => {
     applyTableOp(blocks => removeTableColumnAt(blocks, block!.id, index));
+  };
+  /** Copy a column in place (new stable id): header props, every row's cell and
+   *  per-cell styles; merges the insert would cross are dropped (the same
+   *  remapMergesForColumns rule as an empty column insert). */
+  const duplicateColumn = (index: number) => {
+    if (!block || !patch || !columns[index]) return;
+    const src = columns[index];
+    const dup = { ...src, id: blockId() };
+    const nextColumns = [...columns.slice(0, index + 1), dup, ...columns.slice(index + 1)];
+    const nextRows = rows.map(r => ({
+      ...r,
+      cells: [...r.cells.slice(0, index + 1), r.cells[index] ?? '', ...r.cells.slice(index + 1)],
+    }));
+    const nextStyles = { ...block.cellStyles };
+    for (const r of rows) {
+      const style = block.cellStyles?.[cellStyleKey(r.id, src.id)];
+      if (style) nextStyles[cellStyleKey(r.id, dup.id)] = { ...style };
+    }
+    patch({
+      columns: nextColumns,
+      customRows: nextRows,
+      cellMerges: remapMergesForColumns(columns, nextColumns, block.cellMerges),
+      ...(Object.keys(nextStyles).length !== Object.keys(block.cellStyles || {}).length ? { cellStyles: nextStyles } : {}),
+    });
   };
   const deleteRows = () => {
     if (!block || !selectionRect || selectionRect.band !== 'body') return;
@@ -230,7 +274,7 @@ export function useCustomTableCells(opts: {
     hasStyleOverride: selectionKeys.some(k => !!cellStyles[k]),
     rangeMixed,
     focusStyle,
-    commitCell, setHeader, insertRowAt, removeRow, setRowHeight, insertColumnAt, moveColumn, removeColumn,
+    commitCell, setHeader, insertRowAt, removeRow, duplicateRow, setRowHeight, insertColumnAt, moveColumn, removeColumn, duplicateColumn,
     deleteRows, deleteColumns, merge, unmerge, patchStyle, resetCells, clearContents,
   };
 }

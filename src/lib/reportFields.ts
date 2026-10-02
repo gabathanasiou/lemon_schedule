@@ -1,9 +1,6 @@
-import { Project, ReportBlock, ReportCollection, RuleViolation } from '../types';
+import { Project, ReportBlock, RuleViolation } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
-import { elementMatchId, getCategoryElements } from './elements';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
-import { escapeHtml, normalizeSpaces } from './richText';
-import { parentNoun } from './reportBlocks';
 import { dayTypeLabelForDate, getDayTypes, codeForType, dayTypeForDate } from './dayTypes';
 import { getStatusesWithLists } from './nonShootHelpers';
 import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, hasMapPin, MapLinkKind, type ReportLocation } from './reportWeather';
@@ -12,7 +9,7 @@ import {
   ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, crewLinkWarningsForReportDay,
 } from './reportData';
 import { getCallTimeSettings } from './callTimes';
-import { resolveReportTextStyleSpans } from './reportTextStyles';
+import { fieldValueSafe } from './reportTokens';
 
 // Single field registry for the Reports Designer. Attributes only exist in the
 // context where they make sense — the palette, token picker and table pickers
@@ -67,19 +64,6 @@ const s = (v: unknown): string => (v == null ? '' : String(v));
 /** The project's global date format (Production tab) — source of truth for report dates. */
 const dateKey = (ctx: ReportCtx) => ctx.project.productionInfo?.dateFormat;
 
-/**
- * Re-joins a comma-separated attribute with per-item affixes. Only used when
- * the field is multiValue and the block carries at least one item option —
- * otherwise the raw value passes through untouched.
- */
-export function applyItemAffixes(value: string, opts: { itemPrefix?: string; itemSuffix?: string; itemSeparator?: string }): string {
-  const parts = value.split(',').map(x => x.trim()).filter(Boolean);
-  if (parts.length === 0) return value;
-  // Empty separator segment = ", " default — joining items with no spacing is
-  // never wanted, so only an EXPLICIT separator (e.g. "; ") overrides it.
-  const sep = opts.itemSeparator || ', ';
-  return parts.map(p => `${opts.itemPrefix ?? ''}${p}${opts.itemSuffix ?? ''}`).join(sep);
-}
 
 function keyPerson(ctx: ReportCtx, roleKey: string): string {
   return (ctx.project.crew?.[roleKey] || []).map(p => p.name).join(', ');
@@ -692,55 +676,6 @@ export function getReportFieldMap(project: Project): Record<string, ReportFieldD
   return map;
 }
 
-/** Scopes whose values come from the resolved collection ITEM (repeat/table
- *  rows) — vs document/project/smart fields that resolve from ctx/aux. */
-export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew', 'locations', 'locationTypes', 'dayTypes', 'elementCallsOfDay', 'departmentCallsOfDay']);
-
-/**
- * Breakdown attributes (group 'Breakdown', scene-scope) inside a DAY repeater:
- * resolve to the union of that day's scenes' values — Cast Members List →
- * distinct cast working that day, Props → distinct props across the day's
- * scenes. Composed with the ancestor `sceneScope` intersection like the smart
- * fields, so a days repeater nested in a cast/element chain only unions the
- * scenes that survive the Lego intersection. Field extraction stays in the
- * registry (`def.get` per scene — never re-derived).
- */
-function dayBreakdownValue(ctx: ReportCtx, def: ReportFieldDef, day: any, scope?: Set<string> | null): string {
-  let scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
-  if (scope && scope.size > 0) scenes = scenes.filter(si => scope.has(si.scene.id));
-  const seen = new Set<string>();
-  const out: string[] = [];
-  const push = (v: string) => {
-    const k = v.toLowerCase();
-    if (k && !seen.has(k)) { seen.add(k); out.push(v); }
-  };
-  for (const si of scenes) {
-    if (def.multiValue) {
-      for (const part of String(def.get(ctx, si) || '').split(',').map(x => x.trim()).filter(Boolean)) push(part);
-    } else {
-      const v = String(def.get(ctx, si) || '').trim();
-      if (v) push(v);
-    }
-  }
-  return out.join(', ');
-}
-
-function fieldValueSafe(def: ReportFieldDef, ctx: ReportCtx, item: any, aux?: FieldAux): string {
-  if (!def) return '';
-  if (ITEM_SCOPES.has(def.scope) && !item) return '';
-  try {
-    // Breakdown attributes inside a day repeater can't read `it.scene` (a day
-    // item has none) — resolve them per-day instead of blanking out. Only the
-    // Breakdown group: other scene-scope fields stay scene-only, so legacy
-    // {{sceneNumber}}-style tokens inside day repeaters keep rendering ''.
-    if (def.scope === 'scenes' && def.group === 'Breakdown' && item && typeof item.section?.index === 'number') {
-      return dayBreakdownValue(ctx, def, item, aux?.sceneScope) || '';
-    }
-    return def.get(ctx, item, aux) || '';
-  } catch {
-    return '';
-  }
-}
 
 export function reportFieldValueByKey(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, key: string, item: any, aux?: FieldAux): string {
   const def = fieldMap[key];
@@ -748,346 +683,6 @@ export function reportFieldValueByKey(ctx: ReportCtx, fieldMap: Record<string, R
   return fieldValueSafe(def, ctx, item, aux);
 }
 
-// ---- token resolution (text blocks) ------------------------------------------
-
-export const TOKEN_RE = /\{\{([^}]+)\}\}/g;
-const KEY_POSITION_KEYS = new Set(['director', 'producer', 'lineProducer', 'firstAD', 'upm']);
-
-/** Item-formatting options parsed from a token's `|`-separated tail:
- *  `{{field|itemPrefix|itemSuffix|itemSeparator}}` — empty segments mean
- *  defaults. Tokens without pipes carry no options (exact current behavior). */
-export interface TokenItemOpts {
-  itemPrefix?: string;
-  itemSuffix?: string;
-  itemSeparator?: string;
-}
-
-export function parseToken(raw: string): { field: string; opts: TokenItemOpts } {
-  const parts = raw.split('|');
-  const field = parts[0].trim();
-  if (parts.length === 1) return { field, opts: {} };
-  return {
-    field,
-    opts: {
-      itemPrefix: parts[1] ?? '',
-      itemSuffix: parts[2] ?? '',
-      itemSeparator: parts[3] ?? '',
-    },
-  };
-}
-
-/** Compose a piped token key from parts (omits pipes when all empty). */
-export function composeTokenKey(field: string, prefix: string, suffix: string, separator: string): string {
-  if (!prefix && !suffix && !separator) return field;
-  return `${field}|${prefix}|${suffix}|${separator}`;
-}
-
-// ---- item lookup tokens (item 100, two-stage picker item 121) ----------------
-// `lookup.<collection>.<field>.<encodedItemKey>` references ONE item's attribute
-// anywhere the design resolves tokens (text blocks, free-table cells/headers,
-// the Call Sheet zone). Stage 1 (`@`) lists ITEMS ONLY, each inserting the
-// collection's IDENTITY field; stage 2 (a `.` typed right after the chip) lists
-// that item's scoped attributes and the kit INSERTS A SECOND, independent chip.
-// The resolver finds the item by its stable key (`reportItemKey` / crew id) and
-// returns the field through the same registry, so lookup tokens and normal
-// fields can never disagree.
-
-export const LOOKUP_PREFIX = 'lookup.';
-
-export interface LookupTokenItem {
-  key: string;
-  label: string;
-  collection: string;
-  field: string;
-  itemKey: string;
-  /** Contextual right-side text in the picker — crew role, element category,
-   *  location type, scene INT/EXT, counts, day-type code. Never a generic
-   *  "Reference — {collection}" tag; hints are searchable too. */
-  hint?: string;
-  /** Elements only: the breakdown category the item belongs to. */
-  category?: string;
-}
-
-export function composeLookupKey(collection: string, field: string, itemKey: string): string {
-  return `${LOOKUP_PREFIX}${collection}.${field}.${encodeURIComponent(itemKey)}`;
-}
-
-export function parseLookupKey(raw: string): { collection: string; field: string; itemKey: string } | null {
-  if (!raw.startsWith(LOOKUP_PREFIX)) return null;
-  const parts = raw.split('.');
-  if (parts.length < 4) return null;
-  return { collection: parts[1], field: parts[2], itemKey: decodeURIComponent(parts.slice(3).join('.')) };
-}
-
-/** Elements encode their category in the item key (`<category>::<matchId>`) —
- *  element names are unique within a category only. */
-export function elementLookupKey(category: string, matchId: string): string {
-  return `${category}::${matchId}`;
-}
-
-export function splitElementLookupKey(itemKey: string): { category: string; matchId: string } {
-  const i = itemKey.indexOf('::');
-  return i < 0 ? { category: 'props', matchId: itemKey } : { category: itemKey.slice(0, i), matchId: itemKey.slice(i + 2) };
-}
-
-/** Stable item key for lookups (crew has no `reportItemKey` case — its id). */
-function lookupItemKey(collection: string, item: ReportCollectionItem): string {
-  if (collection === 'crew') return (item as ReportCrewItem).id;
-  if (collection === 'elements') {
-    const el = item as ReportElementInfo;
-    const cat = el.category || 'props';
-    return elementLookupKey(cat, elementMatchId(el, cat));
-  }
-  return String(reportItemKey(collection as ReportCollection, item));
-}
-
-/** The field an `@` item pick inserts — the collection's identity value. */
-export function lookupIdentityField(collection: string): string {
-  return LOOKUP_SPECS.find(s => s.collection === collection)?.identityField ?? '';
-}
-
-interface LookupSpec { collection: ReportCollection; label: string; identityField: string; }
-
-const LOOKUP_SPECS: LookupSpec[] = [
-  { collection: 'days', label: 'Days', identityField: 'dayLabel' },
-  { collection: 'crew', label: 'Crew', identityField: 'crewName' },
-  { collection: 'locations', label: 'Locations', identityField: 'locationName' },
-  { collection: 'categories', label: 'Categories', identityField: 'categoryLabel' },
-  { collection: 'locationTypes', label: 'Location Types', identityField: 'locationTypeLabel' },
-  { collection: 'dayTypes', label: 'Day Types', identityField: 'dayTypeLabel' },
-  { collection: 'scenes', label: 'Scenes', identityField: 'sceneLabel' },
-  { collection: 'elements', label: 'Elements', identityField: 'elementName' },
-];
-
-/** A lightweight day reference for the picker (avoids needing a full ReportCtx). */
-export interface LookupDayRef { index: number; chronoDay: number; date: string; }
-
-/** One picker item: `hint` is the short right-side kind label (crew role,
- *  element category, location type, else a plain noun like "Scene"/"Day"). */
-type LookupItem = { key: string; label: string; category?: string; hint?: string };
-
-/** Project-derived items for one lookup collection. */
-function lookupItemsFor(project: Project, collection: ReportCollection, days: LookupDayRef[]): LookupItem[] {
-  switch (collection) {
-    case 'days':
-      return days.map(d => ({
-        key: String(d.index),
-        label: `Day ${d.chronoDay} (${formatDateCustom(d.date, project.productionInfo?.dateFormat)})`,
-        hint: 'Prod date',
-      }));
-    case 'crew': {
-      const out: LookupItem[] = [];
-      for (const role of project.crewRoles || []) {
-        for (const p of project.crew?.[role.key] || []) out.push({ key: p.id, label: p.name, hint: role.label });
-      }
-      return out;
-    }
-    case 'locations': {
-      const typeLabel = new Map((project.locationTypes || []).map(t => [t.key, t.label]));
-      return (project.locations || []).map(l => ({
-        key: l.id,
-        label: l.name,
-        hint: (l.type && typeLabel.get(l.type)) || 'Location',
-      }));
-    }
-    case 'categories':
-      return [
-        ...ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: getLabel(c.key, c.label, project.categoryLabels), hint: 'Category' })),
-        ...(project.customCategories || []).map(c => ({ key: c.key, label: c.label, hint: 'Category' })),
-      ];
-    case 'locationTypes':
-      return (project.locationTypes || []).map(t => ({ key: t.key, label: t.label, hint: 'Location type' }));
-    case 'dayTypes':
-      return getDayTypes(project).map(t => ({ key: t.key, label: t.label, hint: 'Day type' }));
-    case 'scenes':
-      return (project.scenes || []).map(sc => ({
-        key: sc.id,
-        label: `Scene ${sc.sceneNumber}`,
-        hint: 'Scene',
-      }));
-    case 'elements': {
-      const out: LookupItem[] = [];
-      const catLabel = new Map<string, string>();
-      for (const c of ELEMENT_CATEGORIES) catLabel.set(c.key, getLabel(c.key, c.label, project.categoryLabels));
-      for (const c of project.customCategories || []) catLabel.set(c.key, c.label);
-      const cats = [...ELEMENT_CATEGORIES.map(c => c.key), ...(project.customCategories || []).map(c => c.key)];
-      for (const cat of cats) {
-        for (const el of getCategoryElements(project, cat)) {
-          const matchId = elementMatchId(el, cat);
-          if (!matchId) continue;
-          out.push({ key: elementLookupKey(cat, matchId), label: el.name || matchId, category: cat, hint: catLabel.get(cat) || cat });
-        }
-      }
-      return out;
-    }
-    default:
-      return [];
-  }
-}
-
-/** Stage-1 (`@`) lookup items: ONE entry per item, keyed by the collection's
- *  identity field. `days` comes from the caller's canonical sections. Stage 2
- *  (the `.` attribute list) comes from `lookupAttributeFields`. */
-export function buildLookupTokens(project: Project, days: LookupDayRef[]): LookupTokenItem[] {
-  const out: LookupTokenItem[] = [];
-  for (const spec of LOOKUP_SPECS) {
-    for (const item of lookupItemsFor(project, spec.collection, days)) {
-      if (!item.key) continue;
-      out.push({
-        key: composeLookupKey(spec.collection, spec.identityField, item.key),
-        label: item.label,
-        hint: item.hint,
-        collection: spec.collection,
-        field: spec.identityField,
-        itemKey: item.key,
-        category: item.category,
-      });
-    }
-  }
-  return out;
-}
-
-/** The item-scoped attributes offered at stage 2 (full registry): every field
- *  registered for the item's collection (a cast member adds the cast identity
- *  fields). The identity field itself stays out — that IS the reference chip. */
-export function lookupAttributeFields(allFields: ReportFieldDef[], collection: string, category?: string): ReportFieldDef[] {
-  const identity = lookupIdentityField(collection);
-  if (collection === 'elements') {
-    const scopes = new Set(category === 'cast' ? ['elements', 'cast'] : ['elements']);
-    return allFields.filter(f => scopes.has(f.scope) && f.key !== identity);
-  }
-  return allFields.filter(f => f.scope === collection && f.key !== identity);
-}
-
-export interface TokenResolveOptions {
-  /** Designer canvas: render the raw token ({{field}}) when its value is empty
-   *  so templates stay visible instead of showing a blank spot. Print/preview
-   *  keep true empty values. */
-  showUnresolved?: boolean;
-}
-
-/** Resolve a lookup's target items — elements carry their category in the item
- *  key, and scene references target ANY project scene (scheduled or not). */
-function resolveLookupItems(ctx: ReportCtx, collection: string, itemKey: string): ReportCollectionItem[] {
-  if (collection === 'elements') {
-    return resolveCollection(ctx, 'elements', splitElementLookupKey(itemKey).category, undefined, undefined);
-  }
-  if (collection === 'scenes') {
-    const info = reportSceneInfoFor(ctx, itemKey);
-    return info ? [info] : [];
-  }
-  return resolveCollection(ctx, collection as ReportCollection, undefined, undefined, undefined);
-}
-
-/** The 121 pair rule: a lookup token DIRECTLY followed by another lookup token
- *  of the same collection + item prints as the attribute only — the reference
- *  chip is its anchor and renders empty. Deleting either chip leaves the other
- *  resolving on its own. */
-function suppressLookupPairs(text: string): string {
-  return text.replace(/\{\{(lookup\.[^{}]+)\}\}\{\{(lookup\.[^{}]+)\}\}/g, (m, a: string, b: string) => {
-    const pa = parseLookupKey(a);
-    const pb = parseLookupKey(b);
-    if (!pa || !pb || pa.collection !== pb.collection || pa.itemKey !== pb.itemKey) return m;
-    return `{{${b}}}`;
-  });
-}
-
-function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, raw: string, item: any, aux?: FieldAux): string {
-  const lookup = parseLookupKey(raw);
-  if (lookup) {
-    const items = resolveLookupItems(ctx, lookup.collection, lookup.itemKey);
-    const hit = items.find(it => lookupItemKey(lookup.collection, it) === lookup.itemKey);
-    // Excel-style error markers: a dangling reference and an attribute that
-    // doesn't exist on the item are LOUD (an existing-but-empty value stays
-    // blank — only "can't resolve" is an error).
-    if (!hit) return '#REF!';
-    const def = fieldMap[lookup.field];
-    if (!def) return '#VALUE!';
-    return fieldValueSafe(def, ctx, hit, aux);
-  }
-  const { field, opts } = parseToken(raw);
-  const [base, sub] = field.split('.');
-  const def = fieldMap[base];
-  if (!def) return '';
-  if (def.scope === 'production' && KEY_POSITION_KEYS.has(base)) {
-    const people = ctx.project.crew?.[base] || [];
-    if (sub === 'phone') return people[0]?.phone || '';
-    if (sub === 'email') return people[0]?.email || '';
-    return people.map(p => p.name).join(', ');
-  }
-  const value = fieldValueSafe(def, ctx, item, aux);
-  // Item affixes only apply to multi-value attributes (the same rule as the
-  // retired attribute block) — single values are formatted by typing around
-  // the token, and link fields must stay unaffixed so their hrefs stay valid.
-  if (def.multiValue && (opts.itemPrefix !== undefined || opts.itemSuffix !== undefined || opts.itemSeparator !== undefined)) {
-    return applyItemAffixes(value, opts);
-  }
-  return value;
-}
-
-export function resolveReportTokens(
-  ctx: ReportCtx,
-  fieldMap: Record<string, ReportFieldDef>,
-  text: string,
-  item: any,
-  aux?: FieldAux,
-  opts?: TokenResolveOptions,
-): string {
-  return suppressLookupPairs(text).replace(TOKEN_RE, (_m, raw: string) => {
-    const value = resolveToken(ctx, fieldMap, raw, item, aux);
-    return opts?.showUnresolved && !value ? `{{${raw}}}` : value;
-  });
-}
-
-/** Rich-text variant: token values are HTML-escaped so formatting can't be injected. */
-export function resolveReportTokensHtml(
-  ctx: ReportCtx,
-  fieldMap: Record<string, ReportFieldDef>,
-  html: string,
-  item: any,
-  aux?: FieldAux,
-  opts?: TokenResolveOptions,
-): string {
-  const cleaned = normalizeSpaces(html)
-    // Old kit builds serialized via XMLSerializer — drop the xmlns noise it
-    // left on every element so polluted stored text renders clean.
-    .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '');
-  const resolved = suppressLookupPairs(cleaned).replace(TOKEN_RE, (_m, raw: string) => {
-    const lookup = parseLookupKey(raw);
-    const { field } = parseToken(raw);
-    const value = resolveToken(ctx, fieldMap, raw, item, aux);
-    // Lookup tokens reference an existing field — reuse its group color + link
-    // behavior so a looked-up phone/email still renders as a link.
-    const baseKey = lookup ? lookup.field : field.split('.')[0];
-    if (opts?.showUnresolved && !value) {
-      // Designer canvas: an empty token renders as a colored tag (background
-      // only — the token text inherits the block's typography) so templates
-      // stay visible instead of blank spots.
-      const color = fieldMap[baseKey] ? fieldChipColor(fieldMap[baseKey].group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
-      return `<span style="${tokenTagCss(color)}">{{${escapeHtml(raw)}}}</span>`;
-    }
-    // Link fields (map links, emails, phones) resolve to clickable anchors.
-    // Scheme-guarded so token values can't inject javascript: URLs. Key
-    // positions' .phone/.email sub-tokens link too.
-    const subKey = lookup ? undefined : field.split('.')[1];
-    const def = fieldMap[baseKey];
-    let kind: 'url' | 'mailto' | 'tel' | null = null;
-    if (subKey === 'phone') kind = 'tel';
-    else if (subKey === 'email') kind = 'mailto';
-    else if (def?.link) kind = def.linkKind || 'url';
-    if (kind && value) {
-      const href = kind === 'mailto' ? `mailto:${value}` : kind === 'tel' ? `tel:${value}` : value;
-      if (/^(https?:\/\/|mailto:|tel:)/i.test(href)) {
-        const label = kind === 'url' && def?.linkLabel ? def.linkLabel(ctx, item) : value;
-        return `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${escapeHtml(label || href)}</a>`;
-      }
-    }
-    return escapeHtml(value);
-  });
-  // Linked named-style runs resolve last: markers are tags, not tokens, so
-  // token replacement never disturbs them.
-  return resolveReportTextStyleSpans(resolved, ctx.project);
-}
 
 export function fieldsForScope(
   fields: ReportFieldDef[],
@@ -1138,64 +733,6 @@ export function searchReportFields(fields: ReportFieldDef[], query: string): Rep
   );
 }
 
-// ---- token chip colors -------------------------------------------------------
-// One source of truth for attribute color coding (editor chips, autocomplete
-// rows, designer key view). Stored as {text, bg} pairs — chips render with a
-// tinted background + colored text.
-
-export interface ChipColor { text: string; bg: string }
-
-const FIELD_GROUP_COLORS: Record<string, ChipColor> = {
-  'Scene Info': { text: '#1d4ed8', bg: 'rgba(37, 99, 235, 0.12)' },
-  'Shooting': { text: '#6d28d9', bg: 'rgba(109, 40, 217, 0.12)' },
-  'Breakdown': { text: '#047857', bg: 'rgba(5, 150, 105, 0.12)' },
-  'Elements': { text: '#0e7490', bg: 'rgba(8, 145, 178, 0.12)' },
-  'Cast & Talent': { text: '#be185d', bg: 'rgba(219, 39, 119, 0.12)' },
-  'Categories': { text: '#b45309', bg: 'rgba(217, 119, 6, 0.12)' },
-  'Document': { text: '#475569', bg: 'rgba(100, 116, 139, 0.12)' },
-  'Days': { text: '#c2410c', bg: 'rgba(234, 88, 12, 0.12)' },
-  'Day Types': { text: '#7c3aed', bg: 'rgba(147, 51, 234, 0.12)' },
-  'Sun & Weather': { text: '#ca8a04', bg: 'rgba(202, 138, 4, 0.12)' },
-  'Location': { text: '#0369a1', bg: 'rgba(14, 165, 233, 0.12)' },
-  'Crew': { text: '#4338ca', bg: 'rgba(79, 70, 229, 0.12)' },
-  'Production': { text: '#0f766e', bg: 'rgba(13, 148, 136, 0.12)' },
-  'Key Positions': { text: '#334155', bg: 'rgba(71, 85, 105, 0.12)' },
-  'Project': { text: '#57534e', bg: 'rgba(87, 83, 78, 0.12)' },
-  'Smart': { text: '#a21caf', bg: 'rgba(168, 85, 247, 0.12)' },
-  'Violations': { text: '#b91c1c', bg: 'rgba(220, 38, 38, 0.12)' },
-};
-
-const FALLBACK_CHIP_COLORS: ChipColor[] = [
-  { text: '#1d4ed8', bg: 'rgba(37, 99, 235, 0.12)' },
-  { text: '#047857', bg: 'rgba(5, 150, 105, 0.12)' },
-  { text: '#be185d', bg: 'rgba(219, 39, 119, 0.12)' },
-  { text: '#c2410c', bg: 'rgba(234, 88, 12, 0.12)' },
-  { text: '#4338ca', bg: 'rgba(79, 70, 229, 0.12)' },
-  { text: '#0e7490', bg: 'rgba(8, 145, 178, 0.12)' },
-];
-
-/** Deterministic chip color for an attribute group (custom groups hash onto
- *  the fallback palette). */
-export function fieldChipColor(group: string | undefined): ChipColor {
-  if (!group) return { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
-  const known = FIELD_GROUP_COLORS[group];
-  if (known) return known;
-  let h = 0;
-  for (const ch of group) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return FALLBACK_CHIP_COLORS[h % FALLBACK_CHIP_COLORS.length];
-}
-
-/** Inline CSS for the editor token chip (white text on the group color).
- *  Canvas/preview tags use tokenTagCss (background-only) instead. */
-export function tokenChipCss(color: ChipColor, margin = '0 2px'): string {
-  return `background:${color.text};color:#fff;border-radius:2px;padding:4px;margin:${margin};font-weight:600;white-space:nowrap`;
-}
-
-/** Inline CSS for canvas/preview token tags: colored background only — the
- *  token text inherits the block's own typography (color, size, weight). */
-export function tokenTagCss(color: ChipColor, margin = '0 2px'): string {
-  return `background:${color.text};border-radius:2px;padding:1px 4px;margin:${margin}`;
-}
 
 /** Report-wide constant fields — grouped under the GLOBAL divider in pickers. */
 export const GLOBAL_FIELD_SCOPES = new Set(['production', 'project', 'document']);
@@ -1205,3 +742,19 @@ export function isGlobalField(f: ReportFieldDef): boolean {
 
 /** Day-list field keys — the toolbar's day-format dropdown applies to these. */
 export const DAY_LIST_FIELD_KEYS = new Set(['workDayList', 'holdDayList', 'travelDayList']);
+
+// ---- token vocabulary (moved to reportTokens.ts, roadmap 190) ----------------
+// Re-exported through this module (the ONE import site for report consumers) so
+// existing `from '../lib/reportFields'` imports keep working unchanged.
+export {
+  applyItemAffixes, ITEM_SCOPES, TOKEN_RE, parseToken, composeTokenKey, LOOKUP_PREFIX,
+  composeLookupKey, parseLookupKey, elementLookupKey, splitElementLookupKey, lookupIdentityField,
+  buildLookupTokens, lookupAttributeFields, resolveReportTokens, resolveReportTokensHtml,
+  fieldChipColor, tokenChipCss, tokenTagCss,
+  parseCellRefKey, composeCellRefKey, composeRelativeCellRefKey, cellRefTarget,
+  cellRefChipMeta, cellRefAttributeItems, cellRefChain,
+} from './reportTokens';
+export type {
+  TokenItemOpts, LookupTokenItem, LookupDayRef, TokenResolveOptions, ChipColor,
+  CellRefKey, CellRefContext, CellRefTarget, CellRefEditorInfo, CellRefChipMeta, CellRefAttributeItem,
+} from './reportTokens';

@@ -24,7 +24,7 @@ import ReportToolbar from './ReportToolbar';
 import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
-import CustomCellControls from './CustomCellControls';
+import CustomCellControls, { cellStructureOps } from './CustomCellControls';
 import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells';
 import { RichTextEditorHandle, RICH_TEXT_STATE_IDLE, RichTextState } from './RichTextEditor';
 import { Printer, Eye, EyeOff, ChevronDown, Check, X, ArrowRightLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
@@ -271,6 +271,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       onReset={cellOps.resetCells}
       onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
       onDeselect={() => setSelCell(null)}
+      structure={cellStructureOps(cellOps)}
     />
   ) : null;
 

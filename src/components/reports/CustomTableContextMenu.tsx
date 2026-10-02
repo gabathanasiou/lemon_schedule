@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Combine, Eraser, Trash2, Ungroup } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Combine, CopyPlus, Eraser, Trash2, Ungroup } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from '../ContextMenu';
 import { MergeRect } from '../../lib/reportTableMerges';
 
@@ -21,17 +21,19 @@ interface CustomTableContextMenuProps {
   onUnmerge: () => void;
   onInsertRowAbove: () => void;
   onInsertRowBelow: () => void;
+  onDuplicateRow: () => void;
   onDeleteRows: () => void;
   onInsertColumnLeft: () => void;
   onInsertColumnRight: () => void;
+  onDuplicateColumn: () => void;
   onDeleteColumns: () => void;
   onClear: () => void;
 }
 
 const CustomTableContextMenu: React.FC<CustomTableContextMenuProps> = ({
   menu, rect, canMerge, canUnmerge, canDeleteRows, canDeleteColumns,
-  onClose, onMerge, onUnmerge, onInsertRowAbove, onInsertRowBelow, onDeleteRows,
-  onInsertColumnLeft, onInsertColumnRight, onDeleteColumns, onClear,
+  onClose, onMerge, onUnmerge, onInsertRowAbove, onInsertRowBelow, onDuplicateRow, onDeleteRows,
+  onInsertColumnLeft, onInsertColumnRight, onDuplicateColumn, onDeleteColumns, onClear,
 }) => {
   if (!menu || !rect) return null;
   const header = rect.band === 'header';
@@ -51,6 +53,7 @@ const CustomTableContextMenu: React.FC<CustomTableContextMenuProps> = ({
           <ContextMenuDivider />
           <ContextMenuItem icon={<ArrowUp className="w-3.5 h-3.5 shrink-0" />} onClick={run(onInsertRowAbove)}>Insert row above</ContextMenuItem>
           <ContextMenuItem icon={<ArrowDown className="w-3.5 h-3.5 shrink-0" />} onClick={run(onInsertRowBelow)}>Insert row below</ContextMenuItem>
+          <ContextMenuItem icon={<CopyPlus className="w-3.5 h-3.5 shrink-0" />} onClick={run(onDuplicateRow)}>Duplicate row</ContextMenuItem>
           <ContextMenuItem variant="danger" icon={<Trash2 className="w-3.5 h-3.5 shrink-0" />} disabled={!canDeleteRows} onClick={run(onDeleteRows)}>
             Delete row{rowsCovered > 1 ? 's' : ''}
           </ContextMenuItem>
@@ -59,6 +62,7 @@ const CustomTableContextMenu: React.FC<CustomTableContextMenuProps> = ({
       <ContextMenuDivider />
       <ContextMenuItem icon={<ArrowLeft className="w-3.5 h-3.5 shrink-0" />} onClick={run(onInsertColumnLeft)}>Insert column left</ContextMenuItem>
       <ContextMenuItem icon={<ArrowRight className="w-3.5 h-3.5 shrink-0" />} onClick={run(onInsertColumnRight)}>Insert column right</ContextMenuItem>
+      <ContextMenuItem icon={<CopyPlus className="w-3.5 h-3.5 shrink-0" />} onClick={run(onDuplicateColumn)}>Duplicate column</ContextMenuItem>
       <ContextMenuItem variant="danger" icon={<Trash2 className="w-3.5 h-3.5 shrink-0" />} disabled={!canDeleteColumns} onClick={run(onDeleteColumns)}>
         Delete column{colsCovered > 1 ? 's' : ''}
       </ContextMenuItem>

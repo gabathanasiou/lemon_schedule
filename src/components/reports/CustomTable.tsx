@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
 import { ReportCtx } from '../../lib/reportData';
-import { ReportFieldDef, FieldAux, buildLookupTokens, fieldsForScope, getReportFieldDefs } from '../../lib/reportFields';
+import { ReportFieldDef, FieldAux, buildLookupTokens, fieldsForScope, getReportFieldDefs, composeCellRefKey, composeRelativeCellRefKey, parseCellRefKey, cellRefChain } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
 import { useTableColumnReorder } from './useTableColumnReorder';
@@ -10,8 +10,9 @@ import { CellRef, rectCovers } from '../../lib/reportTableMerges';
 import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells';
 import { BodyBand, HeaderBand } from './CustomTableBands';
 import TableCellChrome from './TableCellChrome';
-import CustomCellControls from './CustomCellControls';
+import CustomCellControls, { cellStructureOps } from './CustomCellControls';
 import CustomTableContextMenu, { CustomTableMenuState } from './CustomTableContextMenu';
+import CustomCellRefMenu, { CellRefMenuAction, filterCellRefMenu } from './CustomCellRefMenu';
 import { RichTextEditorHandle, RICH_TEXT_STATE_IDLE, RichTextState } from './RichTextEditor';
 
 // Free table (item 10, roadmap 188/189): literal rows × columns; every cell
@@ -91,8 +92,146 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
     rtCbRef.current?.(RICH_TEXT_STATE_IDLE);
   }, [focusKey]);
 
+  // The `=` referencing menu (roadmap 190): intercept `=` in an empty cell
+  // (it never enters the editor), own the following keystrokes for the query,
+  // insert a relative cellref at the caret, or enter click-a-cell pick mode.
+  const [refMenu, setRefMenu] = useState<{ rowId: string; colId: string; query: string; highlight: number } | null>(null);
+  const [pickSource, setPickSource] = useState<CellRef | null>(null);
+  const [hoverCell, setHoverCell] = useState<CellRef | null>(null);
+  const cellIsEmpty = (html: string) => !html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').trim();
+
+  const handleRefPick = (id: CellRefMenuAction) => {
+    const source = refMenu ? { rowId: refMenu.rowId, colId: refMenu.colId } : null;
+    if (!source) return;
+    if (id === 'pick') {
+      setPickSource(source);
+      setRefMenu(null);
+      select(null);
+      // Leave the editor so typing can't land in the source cell while picking.
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      return;
+    }
+    const delta: Record<Exclude<CellRefMenuAction, 'pick'>, [number, number]> = {
+      left: [-1, 0], right: [1, 0], above: [0, -1], below: [0, 1],
+    };
+    const [dx, dy] = delta[id];
+    const key = composeRelativeCellRefKey(dx, dy);
+    setRefMenu(null);
+    // Insert through the focused source editor so the caret lands after the
+    // chip and the kit's `.` attribute stage keeps working.
+    if (focusedEditorRef.current) {
+      focusedEditorRef.current.insertToken(key);
+      return;
+    }
+    const ri = rows.findIndex(r => r.id === source.rowId);
+    const ci = columns.findIndex(c => c.id === source.colId);
+    if (ri >= 0 && ci >= 0) cells.commitCell(ri, ci, `{{${key}}}`);
+  };
+
+  const handleRefKeyDown = (e: React.KeyboardEvent, rowId: string, colId: string, html: string): void => {
+    // Pick mode owns all typing — the source cell must never receive it.
+    if (pickSource) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (!refMenu) {
+      if (e.key === '=' && cellIsEmpty(html)) {
+        e.preventDefault();
+        e.stopPropagation();
+        setRefMenu({ rowId, colId, query: '', highlight: 0 });
+      }
+      return;
+    }
+    if (refMenu.rowId !== rowId || refMenu.colId !== colId) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      setRefMenu(null);
+      return;
+    }
+    const entries = filterCellRefMenu(refMenu.query);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (entries.length) {
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        setRefMenu(m => m && { ...m, highlight: (m.highlight + step + entries.length) % entries.length });
+      }
+      return;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      const entry = entries[refMenu.highlight];
+      if (entry) handleRefPick(entry.id);
+      return;
+    }
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      e.stopPropagation();
+      setRefMenu(m => m && { ...m, query: m.query.slice(0, -1), highlight: 0 });
+      return;
+    }
+    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      setRefMenu(m => m && { ...m, query: m.query + e.key, highlight: 0 });
+    }
+  };
+
+  const handlePickTarget = (ref: CellRef) => {
+    const source = pickSource;
+    setPickSource(null);
+    if (!source) return;
+    const ri = rows.findIndex(r => r.id === source.rowId);
+    const ci = columns.findIndex(c => c.id === source.colId);
+    if (ri < 0 || ci < 0) return;
+    // Blur the source editor first so the kit's external-value sync applies
+    // the patched token (the roadmap's blur → patch flow). Deferred a tick:
+    // blur handlers can leave React mid-lifecycle, and dispatch() is flushSync.
+    queueMicrotask(() => {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      cells.commitCell(ri, ci, `{{${composeCellRefKey(ref.rowId, ref.colId)}}}`);
+    });
+  };
+
+  /** Hovering a cellref chip highlights the PARENT SOURCE of the info — the
+   *  origin cell at the end of the reference chain (not every hop). */
+  const handleChipHover = (rowId: string, colId: string, key: string | null) => {
+    const parsed = key ? parseCellRefKey(key) : null;
+    const chain = parsed ? cellRefChain(block, { rowId, colId }, parsed) : [];
+    const origin = chain.length ? chain[chain.length - 1] : null;
+    const next = origin ? { rowId: origin.rowId, colId: origin.colId } : null;
+    setHoverCell(prev => (prev?.rowId === next?.rowId && prev?.colId === next?.colId ? prev : next));
+  };
+
+  // Pick mode: Esc or a pointerdown outside a body cell cancels.
   React.useEffect(() => {
-    if (!selected) { select(null); setMenu(null); }
+    if (!pickSource) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest?.('[data-pick-target]') && rootRef.current?.contains(t)) return;
+      setPickSource(null);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPickSource(null); };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [pickSource]);
+
+  // Selection moving off the formula cell closes the referencing menu.
+  React.useEffect(() => {
+    if (!refMenu) return;
+    if (selection && selection.focus.rowId === refMenu.rowId && selection.focus.colId === refMenu.colId) return;
+    setRefMenu(null);
+  }, [refMenu, selection]);
+
+  React.useEffect(() => {
+    if (!selected) { select(null); setMenu(null); setRefMenu(null); setPickSource(null); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
@@ -103,6 +242,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
     if (!editable) return;
     e.preventDefault();
     e.stopPropagation();
+    if (pickSource) { setPickSource(null); return; }
     if (!selectionRect || !rectCovers(rows, columns, selectionRect, ref.rowId, ref.colId)) {
       select({ anchor: ref, focus: ref });
     }
@@ -188,15 +328,18 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
 
   const shownBands = rowRange ? bands.slice(rowRange[0], rowRange[1]) : bands;
   const shared = {
-    columns, merges, cellStyles: cells.cellStyles, baseStyle, cellPad, border, editable,
+    block, columns, merges, cellStyles: cells.cellStyles, baseStyle, cellPad, border, editable,
     selection, selectionRect, focusKey, focusedEditorRef, rtState, onRtStateChange: handleRtState,
     onSelectCell: selectCell, onCellContextMenu: handleCellContextMenu,
     activeCol, onColHover: setHoverCol, colOutline, startColResize,
     ctx, fieldMap, item, aux, fields, contextFields, lookupTokens,
+    pickSource, onPickTarget: handlePickTarget, onRefKeyDown: handleRefKeyDown,
+    onRefHover: (i: number) => setRefMenu(m => m && { ...m, highlight: i }),
+    hoverCell, onChipHover: handleChipHover,
   };
 
   return (
-    <div className="report-ct-root">
+    <div className="report-ct-root" data-picking={pickSource ? '1' : undefined}>
       {editable && selected && (
         <div className={`${IS_COARSE ? 'h-10' : 'h-5'} select-none`}>
           <ColumnResizeStrip
@@ -215,6 +358,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
           setHeader={cells.setHeader}
           insertColumnAfter={i => cells.insertColumnAt(i + 1)}
           removeColumn={cells.removeColumn}
+          duplicateColumn={cells.duplicateColumn}
           startColumnDrag={startDrag}
         />
         {shownBands.map(band => (
@@ -226,6 +370,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
             commitCell={cells.commitCell}
             insertRowBelow={cells.insertRowAt}
             removeRow={cells.removeRow}
+            duplicateRow={cells.duplicateRow}
             startRowResize={startRowResize}
             setRowHeight={cells.setRowHeight}
           />
@@ -248,6 +393,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
             onReset={cells.resetCells}
             onSaveTextStyles={onCellSaveTextStyles}
             onDeselect={() => select(null)}
+            structure={cellStructureOps(cells)}
           />
         </TableCellChrome>
       )}
@@ -264,11 +410,28 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
           onUnmerge={cells.unmerge}
           onInsertRowAbove={() => selectionRect && cells.insertRowAt(selectionRect.r0)}
           onInsertRowBelow={() => selectionRect && cells.insertRowAt(selectionRect.r1 + 1)}
+          onDuplicateRow={() => {
+            const ri = selection ? rows.findIndex(r => r.id === selection.focus.rowId) : -1;
+            if (ri >= 0) cells.duplicateRow(ri);
+          }}
           onDeleteRows={cells.deleteRows}
           onInsertColumnLeft={() => selectionRect && cells.insertColumnAt(selectionRect.c0)}
           onInsertColumnRight={() => selectionRect && cells.insertColumnAt(selectionRect.c1 + 1)}
+          onDuplicateColumn={() => {
+            const ci = selection ? columns.findIndex(c => c.id === selection.focus.colId) : -1;
+            if (ci >= 0) cells.duplicateColumn(ci);
+          }}
           onDeleteColumns={cells.deleteColumns}
           onClear={cells.clearContents}
+        />
+      )}
+      {editable && refMenu && (
+        <CustomCellRefMenu
+          focus={{ rowId: refMenu.rowId, colId: refMenu.colId }}
+          query={refMenu.query}
+          highlight={refMenu.highlight}
+          onPick={handleRefPick}
+          onHover={i => setRefMenu(m => m && { ...m, highlight: i })}
         />
       )}
     </div>

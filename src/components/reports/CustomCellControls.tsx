@@ -1,20 +1,59 @@
 import React, { useState } from 'react';
 import { ChromeHeader, TB_BTN_ICON, TB_DIVIDER, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON, ToolButton, RICH_TEXT_STATE_IDLE } from '@gabriel/ui-kit';
-import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, RotateCcw, TableCellsMerge, Ungroup } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CopyPlus, RotateCcw, TableCellsMerge, Trash2, Ungroup } from 'lucide-react';
 import { Project, ReportCellStyle, ReportTextStyle } from '../../types';
 import { Tooltip } from '../Tooltip';
 import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import { ContentRow, editorRowCls } from './reportEditorLayout';
 import { TextStyleMenu, TextStylesModal } from './blockControls';
 import RichTextFormatBar from './RichTextFormatBar';
+import { CustomTableCells } from './useCustomTableCells';
 
 // Free-table cell controls (roadmap 189) — the ONE body rendered by both the
 // floating cell chrome and the docked inspector: the chrome header carries
 // merge/unmerge/reset (icon actions, like every editor chrome), the body the
 // same rich text toolbar a text block gets (inline marks on the focused cell's
 // editor), paragraph styles (project named styles), per-cell typography
-// (font/size/align, horizontal + vertical). Reset clears the overrides +
-// inline formatting back to the table defaults.
+// (font/size/align, horizontal + vertical), and the row/column structure
+// actions (insert/duplicate/delete). Reset clears the overrides + inline
+// formatting back to the table defaults.
+
+/** Row/column structure actions for the selected range — ONE mapping from the
+ *  shared cell model so the floating chrome and the docked inspector render
+ *  the same controls. */
+export interface CellStructureOps {
+  headerSelection: boolean;
+  canDeleteRows: boolean;
+  canDeleteColumns: boolean;
+  onInsertRowAbove: () => void;
+  onInsertRowBelow: () => void;
+  onDuplicateRow: () => void;
+  onDeleteRows: () => void;
+  onInsertColumnLeft: () => void;
+  onInsertColumnRight: () => void;
+  onDuplicateColumn: () => void;
+  onDeleteColumns: () => void;
+}
+
+export function cellStructureOps(cells: CustomTableCells): CellStructureOps {
+  const rect = cells.selectionRect;
+  const focus = cells.selection?.focus;
+  const focusRow = focus ? cells.rows.findIndex(r => r.id === focus.rowId) : -1;
+  const focusCol = focus ? cells.columns.findIndex(c => c.id === focus.colId) : -1;
+  return {
+    headerSelection: rect?.band === 'header',
+    canDeleteRows: cells.canDeleteRows,
+    canDeleteColumns: cells.canDeleteColumns,
+    onInsertRowAbove: () => { if (rect && rect.band === 'body') cells.insertRowAt(rect.r0); },
+    onInsertRowBelow: () => { if (rect && rect.band === 'body') cells.insertRowAt(rect.r1 + 1); },
+    onDuplicateRow: () => { if (focusRow >= 0 && rect?.band !== 'header') cells.duplicateRow(focusRow); },
+    onDeleteRows: () => cells.deleteRows(),
+    onInsertColumnLeft: () => { if (rect) cells.insertColumnAt(rect.c0); },
+    onInsertColumnRight: () => { if (rect) cells.insertColumnAt(rect.c1 + 1); },
+    onDuplicateColumn: () => { if (focusCol >= 0) cells.duplicateColumn(focusCol); },
+    onDeleteColumns: () => cells.deleteColumns(),
+  };
+}
 
 interface CustomCellControlsProps {
   /** Range description, e.g. "2 × 3 cells" / "No cells selected". */
@@ -39,11 +78,13 @@ interface CustomCellControlsProps {
   onReset: () => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
   onDeselect?: () => void;
+  /** Row/column structure actions (insert/duplicate/delete) for the range. */
+  structure?: CellStructureOps;
 }
 
 export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
   label, canMerge, canUnmerge, project, styleValue, editorRef, active, objectMixed, readOnly, panel,
-  onMerge, onUnmerge, onStyle, onReset, onSaveTextStyles, onDeselect,
+  onMerge, onUnmerge, onStyle, onReset, onSaveTextStyles, onDeselect, structure,
 }) => {
   const [stylesOpen, setStylesOpen] = useState(false);
   const hasSelection = label !== 'No cells selected';
@@ -138,6 +179,26 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
               })}
             </div>
           </ContentRow>
+          {structure && !structure.headerSelection && (
+            <ContentRow label="Row">
+              <div className={editorRowCls(panel)}>
+                <ToolButton onClick={structure.onInsertRowAbove} disabled={disabled} title="Insert row above" className={TB_BTN_ICON}><ArrowUp className="w-3 h-3" /></ToolButton>
+                <ToolButton onClick={structure.onInsertRowBelow} disabled={disabled} title="Insert row below" className={TB_BTN_ICON}><ArrowDown className="w-3 h-3" /></ToolButton>
+                <ToolButton onClick={structure.onDuplicateRow} disabled={disabled} title="Duplicate row" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></ToolButton>
+                <ToolButton onClick={structure.onDeleteRows} disabled={disabled || !structure.canDeleteRows} title="Delete row(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></ToolButton>
+              </div>
+            </ContentRow>
+          )}
+          {structure && (
+            <ContentRow label="Column">
+              <div className={editorRowCls(panel)}>
+                <ToolButton onClick={structure.onInsertColumnLeft} disabled={disabled} title="Insert column left" className={TB_BTN_ICON}><ArrowLeft className="w-3 h-3" /></ToolButton>
+                <ToolButton onClick={structure.onInsertColumnRight} disabled={disabled} title="Insert column right" className={TB_BTN_ICON}><ArrowRight className="w-3 h-3" /></ToolButton>
+                <ToolButton onClick={structure.onDuplicateColumn} disabled={disabled} title="Duplicate column" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></ToolButton>
+                <ToolButton onClick={structure.onDeleteColumns} disabled={disabled || !structure.canDeleteColumns} title="Delete column(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></ToolButton>
+              </div>
+            </ContentRow>
+          )}
         </div>
       )}
       <TextStylesModal

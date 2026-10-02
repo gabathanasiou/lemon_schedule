@@ -781,110 +781,6 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
 
-## 190. Reports designer — free-table cell references (`=` menu: pick-a-cell + directional offsets) with attribute drill-down (`[ ]`)
-
-**Request**: inside a free table, a cell can reference another cell
-(Excel-style) instead of holding a value. Type `=` in an empty cell → a small
-**referencing menu** opens (its own dropdown — NOT the `@` popup: `@` is
-semantic items/attributes, cell refs are table structure): `← Cell left` /
-`→ Cell right` / `↑ Cell above` / `↓ Cell below` · separator · `▦ Pick a
-cell…`. Filter by typing (`=le`), arrows + Enter, Esc reverts the `=`.
-"Pick a cell…" = click-a-cell mode → the source cell stores a reference and
-mirrors the target live. If the target is an item reference (`@Bob`), the new
-cell follows it: press `.` after the inserted reference chip → the item's
-attribute list (the 121 stage-2 picker) → pick phone → that cell renders Bob's
-phone and keeps updating when the target cell changes item. A broken reference
-shows an error in the cell (designer, preview and print). Free tables only —
-locked with the user (2026-10-02 session). Offsets are a quick relative form
-(one step per direction in v1).
-
-**Locked decisions (2026-10-02, continued session)**:
-- **`=` trigger (Option A)**: in an EMPTY cell the `=` key is intercepted on
-  keydown before it reaches the editor — it is never stored. The menu owns the
-  keystrokes that follow (printable → query filter, Backspace, arrows, Enter,
-  Esc closes). This is what lets a directional pick insert the chip through the
-  kit handle with the caret after it (the kit has no delete/select-all
-  command). Committed-HTML detection (Option B) is deferred for later.
-- **Attribute pick = the 121 two-chip pair**: picking from the `.` list stores
-  a SECOND chip (`{{cellref.X}}` + `{{cellref.X.field}}`) exactly like
-  `@Bob` + Phone — no kit change, no "rewrite the chip" mode. The resolver
-  suppresses the reference chip of an adjacent same-target pair and prints the
-  attribute; a lone pinned token still resolves.
-
-**Token** (helpers compose/parse exported for tests): `{{cellref.<rowId>.<colId>}}`
-mirrors the target; an appended `.<field>` pins one attribute
-(`{{cellref.<rowId>.<colId>.phone}}`). Row/column IDs are the stable
-`blockId()` ids — absolute refs survive column reorder + row insert/delete
-(`mapTableColumns` remaps cells by column id); a deleted target row/column is a
-broken ref, never a silent renumber. **Relative offsets** store the direction,
-not ids — `{{cellref.rel.<dx>.<dy>}}` (`-1.0` left, `1.0` right, `0.-1` above,
-`0.1` below; signed pair leaves room for N steps later) — and resolve against
-the formula cell's CURRENT row/column index, so "above" follows the neighbor
-when rows/columns move (Excel-like). Same `.<field>` pinning on both forms.
-Picked attributes are stored as an adjacent pair (reference chip + pinned chip,
-the 121 convention); the resolver prints only the pinned value for a same-target
-pair — a lone pinned token resolves on its own.
-
-**Resolution** (ONE pure seam shared by designer/preview/print — extract the
-token-resolution block of `lib/reportFields.ts` into `lib/reportTokens.ts` and
-re-export through the barrel so imports keep working; cell refs must not bloat a
-~1.1k-line file):
-- Mirror mode resolves the target cell's own content in place — its tokens
-  resolve against the current item/aux (a `{{crewName}}` source mirrors live; a
-  nested `cellref` recurses; plain text mirrors as text).
-- Pinned mode requires the target cell to reduce to exactly ONE item reference
-  — a bare reference chip, or the 121 reference + attribute pair (which
-  resolves as the attribute). The field resolves for that token's
-  collection/item through the existing lookup resolver, so phone/email stay
-  links and changing the target's item updates the value.
-- Relative offsets resolve against the FORMULA cell's current row/column index,
-  then behave exactly like an absolute ref to that cell (mirror/pinned/attrs
-  identical) — inserting a row between the two cells moves "above" with the
-  neighbor. An offset out of the table (`left` from column 0, `above` from row
-  0, past the last column/row) → `#REF!`.
-- Errors: missing row/col or a reference cycle → `#REF!`; a pinned attribute
-  whose target is not an item reference → `#VALUE!`; an empty target → empty.
-  The error renders as red cell text in designer/preview/print and the chip's
-  meta shows it in the editor.
-
-**Interaction** (CustomTable + the 189 bands/chrome):
-- `=` keydown-intercepted into an EMPTY cell opens the referencing menu (see
-  Locked decisions; the kit/overlay primitives anchor the panel at the cell,
-  not the `@` popup). Directional entries insert the relative token immediately
-  and leave the caret after the chip for the `.` stage-2 picker; `Pick a
-  cell…` enters pick mode — cells highlight, cursor crosshair, Esc/outside
-  click cancels (the cell stays empty); clicking a cell writes `{{cellref…}}`
-  into the source cell (blur → patch so the editor's external-sync applies).
-- Pick mode overrides 189's range selection while active (a click commits the
-  ref, it does not select); merged targets resolve through their merge anchor.
-- A cellref chip resolves its label from the target ("Bob", "Bob · Phone",
-  `#REF!` when broken); optional polish — a selected cellref chip outlines its
-  target cell with the shared range-outline language.
-- The `.` attribute list on a cellref resolves the target (transitively through
-  nested refs) to its item reference and uses the 121 stage-2 scope; picking
-  inserts the attribute as a SECOND chip (the 121 behavior, stored pinned).
-
-**Files**: `lib/reportTokens.ts` (new; extraction + cellref resolution incl.
-relative), `lib/reportFields.ts` (re-export), `reports/CustomTable.tsx` +
-`reports/CustomTableBands.tsx` (pick mode, chip meta), `reports/RichTextEditor.tsx`
-(adapter: cellref chip labels + the `.` attribute stage), `reports/CustomCellRefMenu.tsx`
-(new; the `=` menu), `index.css` (pick-mode + error styles), `docs/REPORTS-DESIGNER.md`
-(free-table bullet + Extending recipe).
-
-**Verify**: unit tests for compose/parse/resolve (absolute mirror, pin,
-target-item change, nested ref, missing target, cycle, `#VALUE!`; relative
-offsets all four directions, out-of-bounds `#REF!`, row insert/delete between
-the cells, pin on a relative ref); one e2e for persistence + preview resolution
-if the resolution path is not fully covered by unit tests (rule 7: menu/pick
-visuals are manual checks — no new spec for the gesture); manual: `=` → each
-direction and Pick a cell → `.` → attribute in designer, then a print preview;
-check a ref across a page break. Bump `package.json` (patch) when wrapping.
-
-**Relations**: depends on **121** (the two-stage `@item.attribute` picker whose
-stage 2 supplies the attribute list), builds on **10** (free table) and
-**150**/**188**/**189** (inline editing, resize infra, merges/chrome/context
-menu); extends **100** (item lookup tokens).
-
 ## 191. Reports designer — inline rich-text editing + ONE shared chrome for text blocks and free-table cells (`[ ]`)
 
 **Request**: one rich-text experience across the designer's two free-text
@@ -985,3 +881,33 @@ works on both, mouse + touch).
 
 **Relations**: builds on **24/34** (shared `useColumnResize` seam) and **188**
 (free-table resize tabs).
+
+## 195. Reports designer — cellref attribute lists mirror repeater scopes, Lego-style (`[ ]`, future)
+
+**Request**: when a cell references an item (a day, a scene, an element…) the
+`.` attribute list should offer EXACTLY the attributes the matching repeater/
+table scope offers (`fieldsForScope` parity) — contextual children and smart
+fields included. Chained refs should walk the collection graph: reference a
+day → the day's attributes AND a way to reach its first scene → reference that
+scene cell → the scene's attributes, and so on (Lego-style scope chaining).
+
+**Approach**: `cellRefAttributeItems` (`lib/reportTokens.ts`, roadmap 190)
+currently returns `lookupAttributeFields` (static item-scope registry). Extend
+it to a context-aware scope descriptor shared with `fieldsForScope`
+(`reportFields.ts`): the target item carries its collection + ancestor chain
+(day → scenes, element → scenes, category → elements, crew → categories) so the
+offered list matches `ReportRepeatView`'s scope exactly (day-scoped breakdown
+fields, `scenesOfDay`, `dayTypesOfElement`, smart fields' contextual meaning).
+Pinning resolves through that same scope chain, not the formula cell's aux.
+Where a scope has a canonical child relationship (day → scene), expose it as a
+navigable ref target rather than a synthetic field.
+
+**Verify**: unit tests comparing the offered key set against
+`fieldsForScope(...)` for each collection; resolution tests for a day → first
+scene → attribute chain; `npm run lint` + `test:smart`; rule-7 manual (picker
+rows match a repeater's palette for the same item).
+
+**Relations**: extends **190** (cellref resolution + attribute picker) and
+**121** (two-stage item picker); reuses the canonical scope registry in
+`reportFields.ts` / `docs/REPORTS-LEGO-CONTEXT.md`; related to **27**
+(`relative` context shifter — the in-repeater analogue).

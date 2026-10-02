@@ -261,6 +261,10 @@ input, textarea, [contenteditable] {
    cells you haven't engaged yet. */
 .report-cell-editor-active .tiptap p.is-empty::before { display: none; }
 
+/* Excel-style cellref/lookup errors (#REF! / #VALUE!) — red in the designer
+   key view, preview and print (roadmap 190). */
+.report-cell-error { color: #b91c1c; }
+
 /* Free-table inline controls (roadmap 188): hover-revealed +/× buttons and
    the row-height grip. Row buttons sit in the empty left gutter; column
    buttons sit inside the hovered header cell (right, next to the drag grip)
@@ -437,6 +441,19 @@ input, textarea, [contenteditable] {
 .block-chrome { z-index: 40; gap: 6px; }
 .table-column-chrome { z-index: 41; gap: 4px; }
 .table-cell-chrome { z-index: 42; gap: 4px; }
+/* `=` referencing menu: pick-a-cell mode (the menu itself is the kit
+   ui-menu surface, positioned by useDropdownPosition). Cells read as
+   pressable targets: hand cursor + a soft button-like fill. */
+.report-ct-root[data-picking="1"] { cursor: pointer; }
+.report-ct-root[data-picking="1"] [data-pick-target] {
+  cursor: pointer;
+  outline: 1px solid rgba(13, 148, 136, 0.5);
+  outline-offset: -1px;
+  transition: background-color 80ms ease;
+}
+.report-ct-root[data-picking="1"] [data-pick-target]:hover {
+  background-color: rgba(13, 148, 136, 0.12);
+}
 .column-chrome { z-index: 41; gap: 4px; }
 @media (pointer: coarse) {
   .block-chrome { padding: 10px; }
