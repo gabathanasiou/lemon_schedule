@@ -10,6 +10,12 @@ roadmap worker session, so it stays lean.
 - **New asks** go through the triage/dedupe gate (AGENTS.md, §Roadmap Work)
   before becoming an item here.
 
+> **Next session — Reports Designer**: pick up and finish the designer pass.
+> Start with **191** (inline text blocks + the ONE shared chrome), then **194**
+> (resize-tab double-click reset), **195** (cellref `.` attributes match the
+> repeater scope — honor its guardrails) and **196** (cellref collection
+> navigation / chaining). **190** (`=` cell references) shipped 2026-10-02.
+
 ---
 ## 17. Report designer iPad-friendly (`[ ]`)
 
