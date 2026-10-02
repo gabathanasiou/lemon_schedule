@@ -10,6 +10,8 @@ import {
   lookupIdentityField,
   lookupAttributeFields,
   buildLookupTokens,
+  fieldsForScope,
+  searchReportFields,
 } from '../reportFields';
 
 describe('applyItemAffixes', () => {
@@ -98,6 +100,61 @@ describe('lookupIdentityField / lookupAttributeFields', () => {
     expect(lookupAttributeFields(fields, 'elements', 'props').map(f => f.key)).toEqual(['attachedScenes']);
     // cast adds its own identity fields
     expect(lookupAttributeFields(fields, 'elements', 'cast').map(f => f.key)).toEqual(['attachedScenes', 'id']);
+  });
+});
+
+describe('fieldsForScope — contextual @ suggestions', () => {
+  const fields = [
+    { key: 'sceneNumber', label: 'Scene #', group: 'Scene Info', scope: 'scenes' },
+    { key: 'cast', label: 'Cast Members List', group: 'Breakdown', scope: 'scenes' },
+    { key: 'dayCallTime', label: 'Call Time', group: 'Days', scope: 'days' },
+    { key: 'locationName', label: 'Name', group: 'Locations', scope: 'locations' },
+    { key: 'phone', label: 'Phone', group: 'Crew', scope: 'crew' },
+    { key: 'elementName', label: 'Name', group: 'Elements', scope: 'elements' },
+    { key: 'id', label: 'Cast ID', group: 'Cast & Talent', scope: 'cast' },
+    { key: 'totalShootDays', label: 'Total Shoot Days', group: 'Production', scope: 'production' },
+  ] as any[];
+
+  it('top level offers universal scopes only (no repeat-dependent fields)', () => {
+    expect(fieldsForScope(fields, undefined).map(f => f.key)).toEqual(['totalShootDays']);
+  });
+
+  it('a days context adds day fields, scene Breakdown fields and locations', () => {
+    const keys = fieldsForScope(fields, 'days').map(f => f.key);
+    expect(keys).toContain('dayCallTime');
+    expect(keys).toContain('cast');
+    expect(keys).toContain('locationName');
+    expect(keys).not.toContain('sceneNumber'); // Scene Info needs a scene context
+    expect(keys).not.toContain('phone');
+  });
+
+  it('a crew context adds crew fields only', () => {
+    const keys = fieldsForScope(fields, 'crew').map(f => f.key);
+    expect(keys).toContain('phone');
+    expect(keys).not.toContain('dayCallTime');
+  });
+
+  it('a cast element context adds the cast identity fields', () => {
+    const keys = fieldsForScope(fields, 'elementsOfCategory', 'cast').map(f => f.key);
+    expect(keys).toEqual(['elementName', 'id', 'totalShootDays']);
+  });
+});
+
+describe('searchReportFields — label, key and group matching', () => {
+  const fields = [
+    { key: 'counter', label: 'Counter', group: 'Document', scope: 'document' },
+    { key: 'pageNumber', label: 'Page Number', group: 'Document', scope: 'document' },
+    { key: 'pageSize', label: 'Page Size', group: 'Document', scope: 'document' },
+    { key: 'dayCallTime', label: 'Call Time', group: 'Days', scope: 'days' },
+  ] as any[];
+
+  it('a group name lists every attribute of that group', () => {
+    expect(searchReportFields(fields, 'document').map(f => f.key)).toEqual(['counter', 'pageNumber', 'pageSize']);
+  });
+
+  it('still matches labels and keys', () => {
+    expect(searchReportFields(fields, 'page').map(f => f.key)).toEqual(['pageNumber', 'pageSize']);
+    expect(searchReportFields(fields, 'call').map(f => f.key)).toEqual(['dayCallTime']);
   });
 });
 

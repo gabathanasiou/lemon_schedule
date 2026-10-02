@@ -1092,7 +1092,15 @@ export function fieldsForScope(
 export function searchReportFields(fields: ReportFieldDef[], query: string): ReportFieldDef[] {
   const q = query.trim().toLowerCase();
   if (!q) return fields;
-  return fields.filter(f => f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q));
+  // Matches the label, the key AND the GROUP name — typing `document` (or
+  // `crew`, `breakdown`, …) lists every attribute of that group. Group names
+  // only surface fields already in scope, so this can't re-introduce
+  // suggestions that don't resolve where the caret is.
+  return fields.filter(f =>
+    f.label.toLowerCase().includes(q)
+    || f.key.toLowerCase().includes(q)
+    || f.group.toLowerCase().includes(q),
+  );
 }
 
 // ---- token chip colors -------------------------------------------------------

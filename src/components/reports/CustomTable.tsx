@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
 import { ReportCtx } from '../../lib/reportData';
-import { ReportFieldDef, FieldAux, getReportFieldDefs, buildLookupTokens } from '../../lib/reportFields';
+import { ReportFieldDef, FieldAux, buildLookupTokens, fieldsForScope, getReportFieldDefs } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
 import { useTableColumnReorder } from './useTableColumnReorder';
@@ -58,6 +58,11 @@ export interface CustomTableProps {
 const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, parentCollection, parentCategory, onCellSaveTextStyles }) => {
   const editable = !!hint && !!onPatchBlock;
   const fields = useMemo(() => getReportFieldDefs(ctx.project), [ctx.project]);
+  // Contextual `@` suggestions: cell editors get the SAME scope-filtered field
+  // list text blocks get, so fields that need a repeat parent (scene/day/
+  // element fields) only appear where they resolve. `fields` stays the full
+  // registry for lookup chip labels + the `.` attribute stage.
+  const contextFields = useMemo(() => fieldsForScope(fields, parentCollection, parentCategory), [fields, parentCollection, parentCategory]);
   const lookupTokens = useMemo(
     () => buildLookupTokens(ctx.project, ctx.dayInfos.map(d => ({ index: d.section.index, chronoDay: d.chronoDay, date: d.date }))),
     [ctx.project, ctx.dayInfos],
@@ -187,7 +192,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
     selection, selectionRect, focusKey, focusedEditorRef, rtState, onRtStateChange: handleRtState,
     onSelectCell: selectCell, onCellContextMenu: handleCellContextMenu,
     activeCol, onColHover: setHoverCol, colOutline, startColResize,
-    ctx, fieldMap, item, aux, fields, lookupTokens,
+    ctx, fieldMap, item, aux, fields, contextFields, lookupTokens,
   };
 
   return (

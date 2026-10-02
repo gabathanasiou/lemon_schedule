@@ -42,7 +42,10 @@ export interface CustomTableShared {
   fieldMap: Record<string, ReportFieldDef>;
   item?: any;
   aux?: FieldAux;
+  /** Full registry — lookup chip labels and the `.` attribute stage. */
   fields: ReportFieldDef[];
+  /** Scope-filtered attributes for the `@` field autocomplete. */
+  contextFields: ReportFieldDef[];
   lookupTokens: LookupTokenItem[];
 }
 
@@ -86,7 +89,8 @@ const CellEditor: React.FC<{
       value={html}
       onChange={onChange}
       onStateChange={isFocus ? shared.onRtStateChange : undefined}
-      fields={shared.fields}
+      fields={shared.contextFields}
+      allFields={shared.fields}
       lookupTokens={shared.lookupTokens}
       placeholder="Type… @ for tokens"
       className="report-cell-editor w-full min-h-[18px]"

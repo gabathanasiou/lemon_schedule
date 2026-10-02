@@ -21,6 +21,13 @@ import {
 
 const LOOKUP_COLOR = { text: '#7c3aed', bg: 'rgba(124, 58, 237, 0.12)' };
 
+/** Reference caps for the `@` autocomplete: a bare `@` must never dump every
+ *  scene/element of a large project into the popup. Each "Reference — {…}"
+ *  group keeps its first matches; the total is capped too. Query narrowing
+ *  happens BEFORE the caps, so a typed search reaches any item. */
+const MAX_REFERENCE_RESULTS = 50;
+const MAX_PER_REFERENCE_GROUP = 8;
+
 interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
@@ -100,10 +107,17 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
       suggestionItems={q => {
         const query = q.trim().toLowerCase();
         const fieldTokens = searchReportFields(fieldsRef.current, q).map(toToken);
-        const lookups = (lookupsRef.current || [])
-          .filter(t => !query || t.label.toLowerCase().includes(query) || t.key.toLowerCase().includes(query))
-          .map<TokenItem>(t => ({ key: t.key, label: t.label, color: LOOKUP_COLOR, group: t.group }));
-        return [...fieldTokens, ...lookups];
+        const perGroup = new Map<string, number>();
+        const references: TokenItem[] = [];
+        for (const t of lookupsRef.current || []) {
+          if (references.length >= MAX_REFERENCE_RESULTS) break;
+          if (query && !t.label.toLowerCase().includes(query) && !t.key.toLowerCase().includes(query)) continue;
+          const n = perGroup.get(t.group) ?? 0;
+          if (n >= MAX_PER_REFERENCE_GROUP) continue;
+          perGroup.set(t.group, n + 1);
+          references.push({ key: t.key, label: t.label, color: LOOKUP_COLOR, group: t.group });
+        }
+        return [...fieldTokens, ...references];
       }}
       attributeItems={attributeItems}
       onSelectionChange={onSelectionChange}
