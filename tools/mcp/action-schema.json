@@ -1357,6 +1357,16 @@
           "type": "ReportCustomRow[]"
         },
         {
+          "name": "cellMerges",
+          "optional": true,
+          "type": "ReportCellMerge[]"
+        },
+        {
+          "name": "cellStyles",
+          "optional": true,
+          "type": "Record<string, ReportCellStyle>"
+        },
+        {
           "name": "showHeader",
           "optional": true,
           "type": "boolean"

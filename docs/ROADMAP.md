@@ -342,21 +342,33 @@ free-table cells / headers, Call Sheet zone), typing `@` opens the lookup
 picker. Today it's a flat query-filtered list — item · attribute in ONE step
 (item 100's documented deviation). Users want object-dot-property: type `@` →
 pick/search an item ("Bob") → press `.` → see only THAT item's attributes
-(call time, phone, email, …) → pick one. Should cover every lookup collection
-(cast, crew, days, locations, categories, location types, day types) with fuzzy
-search + category grouping.
+(call time, phone, email, …) → pick one. Should cover every lookup collection —
+days, crew, locations, categories, location types, day types, scenes, and
+elements (every breakdown category, cast included; element keys carry their
+category) — with fuzzy search + grouping.
 
-**Design**: the token format is already right — `lookup.<collection>.<field>.<encodedItemKey>`
-stays; this is a PICKER feature, not a new data model. Reuse the canonical
-`buildLookupTokens(project, days)` for stage 1 (items grouped by collection,
-stable keys) and `getReportFieldDefs(project)`/`fieldsForScope` for stage 2 —
-the field registry already scopes attributes (a cast member's phone/email/
-call-time vs a location's address), so invalid picks never appear. The kit
-rich-text editor has no nested picker, so this needs a kit change: stage 2 as a
-submenu of the highlighted item, or a second popup stage after the `.`. Keep the
-flat list as a fallback (typing a full `item.attr` query still works) and fire
-the `.` trigger only after a committed item. Insertion stays a single chip whose
-label resolves to the item name (renames don't break the stable key).
+**Design** (locked with the user 2026-10-02): the token format is already right
+— `lookup.<collection>.<field>.<encodedItemKey>` stays; this is a PICKER
+feature, not a new data model. Stage 1 lists ITEMS only — one row per item,
+label = the item's name ("Bob", "Main St", "Day 3 (Jul 1)", "23 · DINER"),
+group = collection — each inserting the collection's identity field
+(crew → `crewName`, locations → `locationName`, days → `dayDate`, scenes →
+`sceneNumber`, elements → `elementName`, categories/location types/day types →
+their label fields). Stage 2 = the full field registry scoped to the item's
+collection (crew: role/phone/email/call time/links; scenes: set/description/
+call time/cast; elements: attached scenes, totals, work/hold/travel days), so
+invalid picks never appear. **Strictly two-stage — no flat `item.attr` fallback.**
+The kit change shipped accordingly: a second suggestion on `.`, gated to fire
+only when a token chip sits immediately before the dot. **Picking inserts the
+attribute as a SECOND, independent chip** directly after the reference — each
+bubble is its own atom + full token key, so deleting either detaches just that
+part (delete the reference and the attribute still resolves on its own; delete
+the attribute and the reference reverts to the name). Resolution: a lookup
+token DIRECTLY followed by another lookup token of the same collection + item
+renders empty (the attribute prints — the reference is its anchor), so the
+adjacent pair reads as Bob's phone. The `.` menu opens only on identity-field
+(reference) chips. Cap the unfiltered stage-1 list (~50 rows) since scenes +
+elements can run into the hundreds.
 
 **Verify**: e2e in the reports designer + Call Sheet editor — type `@`, pick an
 item, `.`, assert the attribute list is scope-filtered, pick one, assert the
@@ -813,91 +825,204 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
 
-## 189. Reports designer — free table: merge cells (spans) + per-cell chrome + context menu (`[ ]`, big)
+## 190. Reports designer — free-table cell references (`=`) with attribute drill-down (`[ ]`)
 
-**Request**: merge cells in the free table like Numbers/Excel —
-horizontal AND vertical spans, header + body. Select a range (click an anchor,
-Shift+click to extend), then Merge from either a **per-cell chrome** (the
-discoverable path, like `TableColumnChrome` on collection tables) or a
-**right-click context menu** (the power path: merge/unmerge, insert/delete
-row+column, clear). Locked with the user (2026-10-02 session).
+**Request**: inside a free table, a cell can reference another cell
+(Excel-style) instead of holding a value. Type `=` in an empty cell → the table
+enters pick mode → click a target cell → the source cell stores a reference and
+the referencing cell mirrors the target live. If the target is an item
+reference (`@Bob`), the new cell follows it: press `.` after the inserted
+reference chip → the item's attribute list (the 121 stage-2 picker) → pick
+phone → that cell renders Bob's phone and keeps updating when the target cell
+changes item. A broken reference shows an error in the cell (designer, preview
+and print). Free tables only — locked with the user (2026-10-02 session).
 
-**Model** (`types.ts` + new `lib/reportTableMerges.ts` — the ONE module; never
-re-derive coverage in a view):
-- `ReportCellMerge { rowId; colId; colSpan; rowSpan }` on
-  `ReportBlock.cellMerges?: ReportCellMerge[]`; `rowId: 'header'` = the header
-  band. Anchored by stable row/column ids; covered cells are DERIVED.
-- API: `isCovered`, `mergeAnchorAt`, `mergeRange`, `unmergeAt`,
-  `buildBands(rows, merges)`, `pruneMerges` (+ pure structural helpers).
-- Merging keeps the top-left content and clears covered cells in ONE patch
-  (one undo; undo restores); unmerge leaves content only top-left (Excel).
+**Token** (helpers compose/parse exported for tests): `{{cellref.<rowId>.<colId>}}`
+mirrors the target; an appended `.<field>` pins one attribute
+(`{{cellref.<rowId>.<colId>.phone}}`). Row/column IDs are the stable
+`blockId()` ids — refs survive column reorder + row insert/delete
+(`mapTableColumns` remaps cells by column id); a deleted target row/column is a
+broken ref, never a silent renumber.
 
-**Vertical spans = grid bands** (the architectural decision):
-- Rows render as BANDS: one row, or a maximal run of consecutive rows joined by
-  a vertical merge. Each band is a `display:grid` with the column widths; cells
-  get `gridColumn`/`gridRow` spans (`span n` for anchors). Band wrappers keep
-  `className="rm-row"` so `useReportPaginator.flattenTable` is UNCHANGED — one
-  unit per band; `rowRange` in `TableCustomRows` becomes a BAND range and a
-  merged band is atomic (never split across pages). Tradeoff: a band taller
-  than a page overflows like any unsplittable block.
-- Per-row affordances (row +/× controls, row border drag, right-edge row tab,
-  `minHeight`) move into an invisible per-row overlay grid item
-  (`gridColumn: 1 / -1`, `data-row-id`) inside the band; row-resize measures
-  `[data-row-id]` instead of `.rm-row`.
-- Column-resize live-apply updates each band's `gridTemplateColumns` + the
-  strip (anchors span tracks; replace the per-cell `width:` loop).
-  `data-table-col-ci` stays on cells for the strip/resize bar.
-- Horizontal-only tables degrade to single-row bands = today's layout.
+**Resolution** (ONE pure seam shared by designer/preview/print — extract the
+token-resolution block of `lib/reportFields.ts` into `lib/reportTokens.ts` and
+re-export through the barrel so imports keep working; cell refs must not bloat a
+~1.1k-line file):
+- Mirror mode resolves the target cell's own content in place — its tokens
+  resolve against the current item/aux (a `{{crewName}}` source mirrors live; a
+  nested `cellref` recurses; plain text mirrors as text).
+- Pinned mode requires the target cell to reduce to exactly ONE item reference
+  — a bare reference chip, or the 121 reference + attribute pair (which
+  resolves as the attribute). The field resolves for that token's
+  collection/item through the existing lookup resolver, so phone/email stay
+  links and changing the target's item updates the value.
+- Errors: missing row/col or a reference cycle → `#REF!`; a pinned attribute
+  whose target is not an item reference → `#VALUE!`; an empty target → empty.
+  The error renders as red cell text in designer/preview/print and the chip's
+  meta shows it in the editor.
 
-**Selection + chrome**:
-- Click a cell = select (and focus its editor, as today); Shift+click extends a
-  rectangular range (intercept pointerdown so TipTap text selection isn't
-  disturbed); blue range outline (the `colOutline` language).
-- `reports/TableCellChrome.tsx` (new; mirror `TableColumnChrome`):
-  `FloatingChrome` anchored to the focus cell via a new
-  `data-cell="rowId:colId"`, actions **Merge cells** (range ≥2; intersecting
-  merges are absorbed) / **Unmerge** / ✕ deselect. Structure the panel so
-  per-cell styling can join later.
-- Header cells are selectable the same way (grouped column headers).
+**Interaction** (CustomTable + the 189 bands/chrome):
+- `=` typed into an EMPTY cell enters pick mode (detected from the committed
+  cell HTML): cells highlight, cursor crosshair, Esc/outside click cancels and
+  reverts the `=`; clicking a cell writes `{{cellref…}}` into the source cell
+  (blur → patch so the editor's external-sync applies) and leaves the caret
+  after the chip for the `.` stage-2 picker.
+- Pick mode overrides 189's range selection while active (a click commits the
+  ref, it does not select); merged targets resolve through their merge anchor.
+- A cellref chip resolves its label from the target ("Bob", "Bob · Phone",
+  `#REF!` when broken); optional polish — a selected cellref chip outlines its
+  target cell with the shared range-outline language.
+- The `.` attribute list on a cellref resolves the target (transitively through
+  nested refs) to its item reference and uses the 121 stage-2 scope; picking
+  rewrites the chip to the pinned key.
 
-**Context menu**:
-- `reports/CustomTableContextMenu.tsx` (new) on the canonical kit `ContextMenu`
-  via the app re-export `src/components/ContextMenu.tsx`, mirroring
-  `RibbonContextMenu` (dark, `{x,y}`, morph) — do NOT extend the legacy block
-  `ReportContextMenu`.
-- Trigger: `onContextMenu` on body + header cells with
-  `preventDefault + stopPropagation` (kills the native TipTap menu and the
-  canvas block menu; the App global handler only skips INPUT/contentEditable).
-  Right-click inside the current range targets the range; outside it selects
-  that cell first.
-- Items (disabled from the ops module): Merge cells / Unmerge · Insert row
-  above/below · Delete row(s) · Insert column left/right · Delete column(s) ·
-  Clear contents. Header menu hides row items. Range deletes act on all covered
-  rows/columns; inserts at the focus boundary.
-- Touch: right-click is primary; long-press is best-effort (contentEditable) —
-  verify the kit long-press provider and document the fallback.
+**Files**: `lib/reportTokens.ts` (new; extraction + cellref resolution),
+`lib/reportFields.ts` (re-export), `reports/CustomTable.tsx` +
+`reports/CustomTableBands.tsx` (pick mode, chip meta), `index.css` (pick-mode +
+error styles), `docs/REPORTS-DESIGNER.md` (free-table bullet + Extending
+recipe).
 
-**Structural rules** (one owner): `mapTableColumns` (insert/remove/reorder) and
-the row insert/delete ops DROP any merge they cut (no half-rectangles); column
-width / row height changes never drop merges; `pruneMerges` handles stale ids
-defensively on load/render.
+**Verify**: unit tests for compose/parse/resolve (mirror, pin, target-item
+change, nested ref, missing target, cycle, `#VALUE!`); one e2e for persistence +
+preview resolution if the resolution path is not fully covered by unit tests
+(rule 7: pick-mode visuals are manual checks — no new spec for the gesture);
+manual: `=` → click cell → `.` → attribute in designer, then a print preview;
+check a ref across a page break. Bump `package.json` (patch) when wrapping.
 
-**Files**: `types.ts`; new `lib/reportTableMerges.ts`,
-`reports/TableCellChrome.tsx`, `reports/CustomTableContextMenu.tsx`; split
-`CustomTable.tsx` into the composition root + `reports/CustomTableBands.tsx`
-(presentational bands/cells) if it crosses ~500 lines; `lib/reportBlocks.ts`
-(prune); `index.css` (range outline); `docs/REPORTS-DESIGNER.md` (free-table
-bullet + Extending recipe). Build on **188**'s infra: `useColumnResize`
-(`activeIndex`/`onHoverIndex` + vertical mode), `useTableColumnReorder`,
-`ColumnResizeStrip`, the `selected` prop threading.
+**Relations**: depends on **121** (the two-stage `@item.attribute` picker whose
+stage 2 supplies the attribute list), builds on **10** (free table) and
+**150**/**188**/**189** (inline editing, resize infra, merges/chrome/context
+menu); extends **100** (item lookup tokens).
 
-**Verify**: unit tests for `reportTableMerges` (coverage, bands, merge/unmerge,
-prune on insert/remove/reorder) + extend `reportBlocks.test.ts`; `npm run lint`;
-`npm run test:smart` (report specs); rule-7 manual for chrome/menu/visuals (the
-suite is at the 271 cap — NO new spec unless a silent data-loss path appears);
-check preview/print of a horizontally AND vertically merged table, including a
-merge near a page break. Bump `package.json` (patch) when wrapping.
+## 191. Reports designer — text blocks editable inline on the canvas (`[ ]`)
 
-**Relations**: builds on **10** (free table), **150**/**188** (inline
-editing + resize infra, DONE), related to **186** (rows-axis selection + chrome
-precedent), **111/112** (grid reading recipe); supersedes nothing.
+**Request**: click into a text block on the designer canvas and type in place
+(Word/Pages-like) instead of only editing it in the block chrome/rail. The rich
+controls stay in the chrome — formatting toolbar, style/outline/padding, chip
+affixes — but the typing surface IS the canvas block. Locked with the user
+(2026-10-02 session); free tables already work this way (188).
+
+**Design**: reuse the SAME editor, not a parallel one — the canvas text block
+(`ReportBlockView`'s `text` case, gated `hint && !!onPatchBlock` like
+`CustomTable`) renders the app `RichTextEditor` adapter (tokens as chips, `@`
+incl. the 121 two-stage picker, `resolveToken`). The composition root owns ONE
+editor handle per selected block — a small `ReportInlineEditorContext`
+(register/get by block id) or an equivalent ref channel — so
+`BlockEditorContent`'s chrome controls (`FormatToolbar`, `ChipAffixSection`,
+`onSelectionChange`) bind to the canvas instance; the chrome's own Content
+text editor is replaced by that binding (one editing surface, no duplication).
+
+- WYSIWYG: the inline editor renders inside the block's computed
+  `getReportBlockBaseStyle` typography, so size/line breaks/alignment match
+  preview/print; empty blocks show the placeholder.
+- Entry: click selects the block (unchanged); double-click (desktop) or
+  tap-again-on-selected (coarse, item 17) enters edit; Escape exits; clicking
+  another block commits (`onPatch({ text })` per change — the CustomTable
+  pattern).
+- While a block is in edit mode, canvas drag/edge-zones/drop targets for that
+  block are suppressed so text selection never starts a drag; block drag
+  resumes after blur. Selection still marks all instances of a repeated
+  template; editing any instance edits the template (same as editable
+  free-table cells inside repeaters). Floating chrome must not cover the first
+  line — the docked rail is the roomy fallback.
+- Scope v1: `type === 'text'` only (field/link blocks keep their chrome
+  inputs). Preview/print never render the editor.
+
+**Files**: `reports/ReportBlockView.tsx` (text case renders the editor when
+hint+onPatchBlock), `reports/ReportDesignerCanvas.tsx` +
+`reports/ReportDesigner.tsx` (editor-handle context/ref channel, edit-mode
+state, drag suppression), `reports/blockControls.tsx` (bind chrome controls to
+the registered handle; drop the duplicate editor), `reports/RichTextEditor.tsx`
+(no change expected — same adapter), `index.css` (inline editor affordances /
+placeholder / focus outline).
+
+**Verify**: `npm run lint`; manual (rule 7) — type inline on desktop + iPad
+emulation, formatting toolbar + chip selection still target the inline editor,
+token chips render/resolve, Escape/click-away commits, block drag still works
+after blur, print preview unchanged; extend an existing report spec only if a
+silent break (edit persistence) appears uncovered; bump `package.json` (patch)
+when wrapping.
+
+**Relations**: builds on **188** (self-editing canvas blocks + persistence
+precedent) and **189** (canvas cell-chrome interaction language); gives **121**
+(and **190**) their inline home — the two-stage picker works in the inline
+editor through the shared adapter; related to **17** (iPad touch affordances)
+and **140** (rich-text table title, same editor reuse).
+
+## 192. Reports — contextual (selection-level) font/size + one shared format bar for text blocks & free-table cells (`[ ]`, big)
+
+**Request**: font family and size should apply to the SELECTED TEXT inside a
+text block or a free-table cell, exactly like B/I/U/S already do (not only to
+the whole block/cell). The whole-block/whole-cell pickers stay as defaults and
+show **Mixed** when a selection spans different formatting. Locked with the
+user (2026-10-02 session). Related ask: the text block and the cell are the
+same editor underneath — ONE shared format bar, not two copies.
+
+**Kit prerequisite** (the user is doing the kit side first): add TipTap
+`FontFamily` + `FontSize` (both already exported by the installed
+`@tiptap/extension-text-style`) to `RichTextEditor`, `exec('fontFamily' |
+'fontSize' | 'clearFormatting')` and `RichTextState.fontFamily/fontSize`.
+The kit's storage sanitizer (`ui-kit/src/richText.ts`) already whitelists
+`font-family`/`font-size` on `<span>` — no storage-contract change. Bump/tag
+the kit, then re-pin the app dependency.
+
+**App**:
+- Extract `reports/RichTextFormatBar.tsx` — FormatToolbar + FontMenu + size +
+  named-style picker + the attribute insert picker — driven by
+  `{ editorRef, active, defaults, onDefaults, onStyle }`. Consumed by
+  `ContentControls` (text/field blocks) and `CustomCellControls` (free-table
+  cells), replacing their two ad-hoc rows.
+- No selection (collapsed caret) → patch the object default (block props /
+  `cellStyles`, current behavior). A real selection → `exec` the inline mark.
+- Mixed state: a small resolver compares the selection's active formatting
+  against the object default and feeds the pickers a `'mixed'` value; document
+  the comparison in the bar, not per call site.
+- `Reset` (cells) also clears inline marks via the kit's `clearFormatting`.
+
+**Files**: `reports/RichTextFormatBar.tsx` (new), `reports/blockControls.tsx`,
+`reports/CustomCellControls.tsx`, `reports/RichTextEditor.tsx` (expose the new
+state fields through the adapter), `docs/UI-KIT.md` (kit version),
+`docs/REPORTS-DESIGNER.md` (free-table + text-block bullets).
+
+**Verify**: unit test for the mixed-state resolver; `npm run lint`;
+`npm run test:smart` (report specs); rule-7 manual (select text in a text block
+and in a cell → font/size apply to the run only; Mixed appears; Reset clears;
+print/preview match). Bump `package.json` (patch) when wrapping.
+
+**Relations**: depends on the kit FontFamily/FontSize release; builds on **189**
+(cell chrome + `useCustomTableCells`) and **191** (inline editor + shared
+handle channel); related to **140** (same editor reuse), **121** (attribute
+picker), **193** (linked paragraph runs).
+
+## 193. Reports — linked paragraph-style runs in rich text (`[ ]`)
+
+**Request**: a named paragraph style applied to a SELECTION stays linked to the
+style definition — editing the style updates every styled run (Word-like).
+Chosen over "bake the resolved font/size/bold/italic inline" with the user
+(2026-10-02). Object-level links already exist (`ReportBlock.textStyle` /
+`ReportCellStyle.textStyle`).
+
+**Design**: a custom TipTap mark (`reportTextStyle`, attr `styleId`) in the
+kit's `RichTextEditor`, with `exec('textStyle', id)` / unset and
+`RichTextState.textStyle` (id or mixed). The kit sanitizer must keep the
+markers through save (a whitelisted `data-text-style` attribute or class on
+`<span>`); the app's token-resolution seam (`resolveReportTokensHtml` /
+`resolveReportTokens`) resolves each marked span against
+`project.reportTextStyles` at render time, so preview/print/PDF show the
+current definition. Missing/deleted style id → render as plain text (no
+`#REF`).
+
+**Files**: kit `RichTextEditor.tsx` + `richText.ts` (mark + whitelist);
+`reports/RichTextFormatBar.tsx` (style picker applies to selection vs object),
+`lib/reportFields.ts` (render-time span resolution), `reports/CustomTableBands.tsx`
+(any static-render path), `docs/UI-KIT.md`, `docs/REPORTS-DESIGNER.md`.
+
+**Verify**: kit playground spec for mark persistence + mixed state; app unit
+test for span resolution (linked style edit re-renders); rule-7 manual
+(apply style to a selection, edit the style in the Text Styles modal, watch the
+run update in canvas + preview); `npm run lint` + `test:smart`. Bump the kit
+version and re-pin; bump `package.json` (patch) when wrapping.
+
+**Relations**: depends on **192** (shared format bar + selection-level
+semantics) and the kit mark work; extends **189** (object-level
+`cellStyles.textStyle`); related to **100** (token resolution at render).

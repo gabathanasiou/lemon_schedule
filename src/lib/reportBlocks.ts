@@ -1,6 +1,7 @@
-import { ReportBlock, ReportCollection, ReportColumn, ReportTableColumn } from '../types';
+import { ReportBlock, ReportCollection, ReportColumn, ReportCustomRow, ReportTableColumn } from '../types';
 import { generateUUID } from './utils';
 import { normalizeColWidths } from './ribbonDefaults';
+import { insertMergeRow, removeMergeRow, remapMergesForColumns } from './reportTableMerges';
 
 // Immutable tree helpers for report design block lists. Contract: findBlock
 // returns `parent: null` for root-level blocks (never the root array) — root
@@ -353,7 +354,7 @@ export function duplicateIntoNewColumn(blocks: ReportBlock[], moveId: string, co
 // reorder by dragging the header, insert/delete at any index. Widths are
 // re-normalized to sum to 100 on every structural change.
 
-function mapTableColumns(blocks: ReportBlock[], tableId: string, fn: (cols: ReportTableColumn[]) => ReportTableColumn[]): ReportBlock[] {
+function mapTableColumns(blocks: ReportBlock[], tableId: string, fn: (cols: ReportTableColumn[]) => ReportTableColumn[], movedFrom?: number): ReportBlock[] {
   return mapTree(blocks, tableId, b => {
     if (b.type !== 'table') return b;
     const prev = b.columns || [];
@@ -361,7 +362,8 @@ function mapTableColumns(blocks: ReportBlock[], tableId: string, fn: (cols: Repo
     if (next === prev || !b.custom) return { ...b, columns: next };
     // Free-table rows store cells positionally: remap by column ID so a value
     // follows its column through inserts, removes and reorders (a fresh
-    // column contributes an empty cell).
+    // column contributes an empty cell). Merged-cell rectangles follow the
+    // same rule — any edit that cuts one drops it (roadmap 189).
     const indexById = new Map(prev.map((c, i) => [c.id, i]));
     return {
       ...b,
@@ -370,6 +372,7 @@ function mapTableColumns(blocks: ReportBlock[], tableId: string, fn: (cols: Repo
         ...r,
         cells: next.map(c => r.cells[indexById.get(c.id) ?? -1] ?? ''),
       })),
+      cellMerges: remapMergesForColumns(prev, next, b.cellMerges, movedFrom),
     };
   });
 }
@@ -382,7 +385,7 @@ export function moveTableColumn(blocks: ReportBlock[], tableId: string, from: nu
     const [c] = next.splice(from, 1);
     next.splice(to, 0, c);
     return next;
-  });
+  }, from);
 }
 
 /** Inserts an (empty-field) column at `index`; existing widths shrink proportionally. */
@@ -402,6 +405,36 @@ export function removeTableColumnAt(blocks: ReportBlock[], tableId: string, inde
     if (cols.length <= 1) return cols;
     const next = cols.filter((_, i) => i !== index);
     return normalizeColWidths(next.map(c => c.width)).map((w, j) => ({ ...next[j], width: w }));
+  });
+}
+
+/** Free-table row insert (roadmap 189): drops any vertical merge the insert
+ *  cuts open, so no half-rectangles survive. */
+export function insertCustomRowAt(blocks: ReportBlock[], tableId: string, index: number, row: ReportCustomRow): ReportBlock[] {
+  return mapTree(blocks, tableId, b => {
+    if (b.type !== 'table' || !b.custom) return b;
+    const rows = b.customRows || [];
+    const i = Math.max(0, Math.min(index, rows.length));
+    return {
+      ...b,
+      customRows: [...rows.slice(0, i), row, ...rows.slice(i)],
+      cellMerges: insertMergeRow(rows, b.cellMerges, i),
+    };
+  });
+}
+
+/** Free-table row delete (roadmap 189): every merge covering the row drops;
+ *  no-op when only one row remains. */
+export function removeCustomRowAt(blocks: ReportBlock[], tableId: string, index: number): ReportBlock[] {
+  return mapTree(blocks, tableId, b => {
+    if (b.type !== 'table' || !b.custom) return b;
+    const rows = b.customRows || [];
+    if (rows.length <= 1) return b;
+    return {
+      ...b,
+      customRows: rows.filter((_, i) => i !== index),
+      cellMerges: removeMergeRow(rows, b.cellMerges, index),
+    };
   });
 }
 

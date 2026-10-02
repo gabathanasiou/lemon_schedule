@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ReportBlock, ReportCollection } from '../../types';
+import { ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
 import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, applyItemFilter, resolveCollectionItems, resolveRelativeItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
 import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor } from '../../lib/reportFields';
 import CustomTable from './CustomTable';
+import { CustomCellSelection } from './useCustomTableCells';
+import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import { useTableColumnReorder } from './useTableColumnReorder';
 import { getReportBlockBaseStyle, blockGapMargin, CALL_SHEET_EDIT_ZONE_STYLE } from './reportStyle';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
@@ -62,6 +64,18 @@ export interface ReportRenderProps {
   /** Designer canvas only: this block is the selected one (free tables
    *  use it to show the column-resize strip like collection tables do). */
   selected?: boolean;
+  /** Free table only (roadmap 189): the designer-owned cell selection + its
+   *  editor handle, so the floating chrome and the docked inspector share
+   *  ONE selection and formatting target. */
+  cellSelection?: CustomCellSelection | null;
+  onCellSelectionChange?: (sel: CustomCellSelection | null) => void;
+  cellEditorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  onCellRtStateChange?: (state: RichTextState) => void;
+  /** True in docked ('toolbar') editor mode: the dock owns the cell controls,
+   *  so the canvas must NOT float its own cell chrome. */
+  cellDocked?: boolean;
+  /** Persist named text styles edited from the free-table cell chrome. */
+  onCellSaveTextStyles?: (styles: ReportTextStyle[]) => void;
 }
 
 function isEmptyValue(v: string): boolean {
@@ -149,7 +163,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onCellSaveTextStyles }) => {
     const baseStyle = getReportBlockBaseStyle(block, ctx.project);
     const blockAux: FieldAux = {
       ...aux,
@@ -210,7 +224,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <ReportRelativeView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} partChildren={partChildren} parentItems={parentItems} itemIndex={itemIndex} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} selected={selected} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} selected={selected} cellSelection={cellSelection} onCellSelectionChange={onCellSelectionChange} cellEditorRef={cellEditorRef} onCellRtStateChange={onCellRtStateChange} cellDocked={cellDocked} onCellSaveTextStyles={onCellSaveTextStyles} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -382,7 +396,13 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.itemIndex === b.itemIndex &&
     a.partChildren === b.partChildren &&
     a.selected === b.selected &&
-    a.onPatchBlock === b.onPatchBlock,
+    a.onPatchBlock === b.onPatchBlock &&
+    a.cellSelection === b.cellSelection &&
+    a.onCellSelectionChange === b.onCellSelectionChange &&
+    a.cellEditorRef === b.cellEditorRef &&
+    a.onCellRtStateChange === b.onCellRtStateChange &&
+    a.cellDocked === b.cellDocked &&
+    a.onCellSaveTextStyles === b.onCellSaveTextStyles,
 );
 
 // ---- chunked page rendering (measured pagination) -----------------------------
@@ -662,7 +682,7 @@ const TABLE_ITEM_W = 72;
 /** Preview surfaces cap tables at this many item rows (+N more indicator). */
 const TABLE_PREVIEW_LIMIT = 6;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onCellSaveTextStyles }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
@@ -699,6 +719,14 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
         repeatTableHeader={repeatTableHeader}
         onPatchBlock={onPatchBlock}
         selected={selected}
+        cellSelection={cellSelection}
+        onCellSelectionChange={onCellSelectionChange}
+        cellEditorRef={cellEditorRef}
+        onCellRtStateChange={onCellRtStateChange}
+        cellDocked={cellDocked}
+        parentCollection={parentCollection}
+        parentCategory={parentCategory}
+        onCellSaveTextStyles={onCellSaveTextStyles}
       />
     );
   }

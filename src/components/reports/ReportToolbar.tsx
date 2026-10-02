@@ -40,6 +40,9 @@ interface ReportToolbarProps {
   onColInsertAt?: (at: number) => void;
   onColMove?: (dir: -1 | 1) => void;
   onColDelete?: () => void;
+  /** Free-table cell controls (roadmap 189) — rendered under the block editor
+   *  on the docked surfaces; the floating chrome hosts them on the canvas. */
+  cellControls?: React.ReactNode;
 }
 
 const ReportToolbar: React.FC<ReportToolbarProps> = ({
@@ -47,6 +50,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
   onToggleEditorMode, onDeselect, onPatch, onSaveTextStyles,
   onDuplicate, onRemove, onMove, panel,
   colSel, colBlock, onColPatch, onColInsertAt, onColMove, onColDelete,
+  cellControls,
 }) => {
   const hint = 'Select a block to edit it. Click an item in the palette to add it.';
   const noop = () => {};
@@ -101,6 +105,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
           onRemove={onRemove}
           onMove={onMove}
         />
+        {cellControls && <div className="mt-2 pt-2 border-t border-zinc-800">{cellControls}</div>}
       </div>
     );
     return <BlockEditorPanelContext.Provider value={true}>{body}</BlockEditorPanelContext.Provider>;
@@ -136,6 +141,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
               </>
             }
           />
+          {cellControls && <div className="border-t border-zinc-800 px-2.5 py-2">{cellControls}</div>}
         </div>
       ) : (
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 flex items-center gap-2 select-none min-w-max">

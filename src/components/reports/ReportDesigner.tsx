@@ -24,6 +24,9 @@ import ReportToolbar from './ReportToolbar';
 import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
+import CustomCellControls from './CustomCellControls';
+import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells';
+import { RichTextEditorHandle, RICH_TEXT_STATE_IDLE, RichTextState } from './RichTextEditor';
 import { Printer, Eye, EyeOff, ChevronDown, Check, X, ArrowRightLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import Button from '../Button';
 import { ToolButton, TB_BTN_ICON } from '@gabriel/ui-kit';
@@ -83,6 +86,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   };
   const [selId, setSelId] = useState<string | null>(null);
   const [selCol, setSelCol] = useState<ColSel | null>(null);
+  // Free-table cell selection (roadmap 189) — lifted here so the docked
+  // inspector mirrors the canvas selection and shares its editor target.
+  const [selCell, setSelCell] = useState<(CustomCellSelection & { blockId: string }) | null>(null);
+  const cellEditorRef = useRef<RichTextEditorHandle | null>(null);
+  const [cellRtState, setCellRtState] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
   const [preview, setPreview] = useState(false);
   // Docked rail (inspector + palette): collapse state and drag width persist
   // like the manager/script side panes.
@@ -129,6 +137,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     setSkipFirstFooter(!!activeDesign?.footerSkipFirst);
     setSelId(null);
     setSelCol(null);
+    setSelCell(null);
     setMenu(null);
   }, [activeDesign?.id]);
 
@@ -162,8 +171,12 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const selColRef = useRef(selCol);
   selColRef.current = selCol;
 
-  const selectBlock = (id: string | null) => { setSelId(id); if (id) setSelCol(null); };
-  const selectCol = (sel: ColSel | null) => { setSelCol(sel); if (sel) setSelId(null); };
+  const selectBlock = (id: string | null) => {
+    setSelId(id);
+    if (id) setSelCol(null);
+    setSelCell(prev => (prev && prev.blockId === id ? prev : null));
+  };
+  const selectCol = (sel: ColSel | null) => { setSelCol(sel); if (sel) { setSelId(null); setSelCell(null); } };
 
   /** The zone (list) containing `id`. */
   const zoneOf = (id: string | null): 'header' | 'body' | 'footer' => {
@@ -229,6 +242,37 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       : selParentCategory),
     [selBlock, selParentCategory],
   );
+
+  // Free-table cell ops (roadmap 189): the docked inspector renders the same
+  // controls as the floating cell chrome, sharing the selection + editor ref.
+  const customSelBlock = selBlock && selBlock.type === 'table' && selBlock.custom ? selBlock : undefined;
+  const cellSelForBlock = selCell && customSelBlock && selCell.blockId === customSelBlock.id ? selCell : null;
+  const cellOps = useCustomTableCells({
+    block: customSelBlock,
+    patch: p => { if (selId) patch(selId, p); },
+    selection: cellSelForBlock,
+    onSelectionChange: sel => setSelCell(sel && customSelBlock ? { blockId: customSelBlock.id, ...sel } : null),
+  });
+  const cellControls = customSelBlock && cellSelForBlock ? (
+    <CustomCellControls
+      label={cellOps.label}
+      canMerge={cellOps.canMerge}
+      canUnmerge={cellOps.canUnmerge}
+      project={project}
+      parentCollection={selParentCollection}
+      styleValue={cellOps.focusStyle}
+      editorRef={cellEditorRef}
+      active={cellRtState}
+      readOnly={readOnly}
+      panel
+      onMerge={cellOps.merge}
+      onUnmerge={cellOps.unmerge}
+      onStyle={cellOps.patchStyle}
+      onReset={cellOps.resetCells}
+      onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
+      onDeselect={() => setSelCell(null)}
+    />
+  ) : null;
 
   // Palette blocks are always enabled; a disallowed placement explains where
   // the block CAN go instead of silently disabling the palette item.
@@ -298,7 +342,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       // everything mounted inside it, like the modal, would unmount).
       if (e.key === 'Escape') {
         if (currentWin.document.querySelector('[role="dialog"]')) return;
-        setMenu(null); setPreview(false); setSelId(null); setSelCol(null); return;
+        setMenu(null); setPreview(false); setSelId(null); setSelCol(null); setSelCell(null); return;
       }
       const t = e.target as HTMLElement;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
@@ -521,6 +565,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     onRemove: () => { if (selId) { commitZone(selId, list => removeBlock(list, selId)); setSelId(null); } },
     onMove: (d: -1 | 1) => selId && commitZone(selId, list => moveBlock(list, selId, d)),
     ...columnProps,
+    cellControls,
   };
 
   return (
@@ -753,8 +798,13 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               onMenu={(e, id, colIndex) => {
                 setSelId(id);
                 setSelCol(colIndex !== undefined ? { colsId: id, colIndex } : null);
+                setSelCell(null);
                 setMenu({ x: e.clientX, y: e.clientY, id, colIndex });
               }}
+              cellSel={selCell}
+              onCellSel={(blockId, sel) => setSelCell(sel ? { blockId, ...sel } : null)}
+              cellEditorRef={cellEditorRef}
+              onCellRtStateChange={setCellRtState}
             />
           </div>
         </div>

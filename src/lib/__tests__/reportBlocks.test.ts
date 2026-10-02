@@ -10,6 +10,8 @@ import {
   insertTableColumnAt,
   removeTableColumnAt,
   moveTableColumn,
+  insertCustomRowAt,
+  removeCustomRowAt,
 } from '../reportBlocks';
 import type { ReportBlock } from '../../types';
 
@@ -121,5 +123,62 @@ describe('free-table column ops keep cells aligned', () => {
       ['b1', 'c1', 'a1'],
       ['b2', 'c2', 'a2'],
     ]);
+  });
+});
+
+describe('free-table structural edits drop cut merges (roadmap 189)', () => {
+  const custom = (over: Partial<ReportBlock> = {}): ReportBlock => b('t', 'table', {
+    custom: true,
+    columns: [
+      { id: 'c1', field: '', width: 50, label: 'A' },
+      { id: 'c2', field: '', width: 50, label: 'B' },
+      { id: 'c3', field: '', width: 50, label: 'C' },
+    ],
+    customRows: [
+      { id: 'r1', cells: ['a1', 'b1', 'c1'] },
+      { id: 'r2', cells: ['a2', 'b2', 'c2'] },
+      { id: 'r3', cells: ['a3', 'b3', 'c3'] },
+    ],
+    cellMerges: [{ rowId: 'r1', colId: 'c1', colSpan: 2, rowSpan: 1 }],
+    ...over,
+  });
+
+  it('column insert inside a span drops the merge; outside keeps it', () => {
+    const [inside] = insertTableColumnAt([custom()], 't', 1);
+    expect(inside.cellMerges).toEqual([]);
+    const [before] = insertTableColumnAt([custom()], 't', 0);
+    expect(before.cellMerges).toEqual([{ rowId: 'r1', colId: 'c1', colSpan: 2, rowSpan: 1 }]);
+    const [after] = insertTableColumnAt([custom()], 't', 3);
+    expect(after.cellMerges).toEqual([{ rowId: 'r1', colId: 'c1', colSpan: 2, rowSpan: 1 }]);
+  });
+
+  it('removing a covered column drops the merge', () => {
+    const [t] = removeTableColumnAt([custom()], 't', 1);
+    expect(t.cellMerges).toEqual([]);
+    const [keep] = removeTableColumnAt([custom()], 't', 2);
+    expect(keep.cellMerges).toEqual([{ rowId: 'r1', colId: 'c1', colSpan: 2, rowSpan: 1 }]);
+  });
+
+  it('moving a merged column drops the merge', () => {
+    const [t] = moveTableColumn([custom()], 't', 0, 2);
+    expect(t.cellMerges).toEqual([]);
+  });
+
+  it('row insert/remove drops a vertical merge it cuts', () => {
+    const vertical = custom({ cellMerges: [{ rowId: 'r1', colId: 'c1', colSpan: 1, rowSpan: 2 }] });
+    const [cut] = insertCustomRowAt([vertical], 't', 1, { id: 'rx', cells: ['', '', ''] });
+    expect(cut.customRows!.map(r => r.id)).toEqual(['r1', 'rx', 'r2', 'r3']);
+    expect(cut.cellMerges).toEqual([]);
+    const [before] = insertCustomRowAt([vertical], 't', 0, { id: 'rx', cells: ['', '', ''] });
+    expect(before.cellMerges).toEqual([{ rowId: 'r1', colId: 'c1', colSpan: 1, rowSpan: 2 }]);
+    const [removed] = removeCustomRowAt([vertical], 't', 1);
+    expect(removed.customRows!.map(r => r.id)).toEqual(['r1', 'r3']);
+    expect(removed.cellMerges).toEqual([]);
+  });
+
+  it('row delete is a no-op with a single row', () => {
+    const one = custom({ customRows: [{ id: 'r1', cells: ['', '', ''] }] });
+    const [t] = removeCustomRowAt([one], 't', 0);
+    expect(t.customRows).toHaveLength(1);
   });
 });

@@ -662,6 +662,29 @@ export interface ReportCustomRow {
   height?: number;
 }
 
+/** One merged-cell rectangle in a free table (roadmap 189). Anchored by
+ *  stable row + column ids (`rowId: 'header'` = the header band); covered
+ *  cells are DERIVED — never stored. `colSpan`/`rowSpan` count cells. */
+export interface ReportCellMerge {
+  rowId: string;
+  colId: string;
+  colSpan: number;
+  rowSpan: number;
+}
+
+/** Per-cell typography override on a free table (roadmap 189), keyed by
+ *  `${rowId}:${colId}` on `ReportBlock.cellStyles`. Unset fields fall back to
+ *  the column/table defaults. Column remaps keep the key valid (colId is
+ *  stable); "reset cells" clears the entries. */
+export interface ReportCellStyle {
+  fontFamily?: string;
+  fontSize?: number;
+  align?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  /** Paragraph style: id of a `project.reportTextStyles` entry. */
+  textStyle?: string;
+}
+
 export interface ReportTableRow {
   id: string;
   cells: { id: string; field: string; align?: 'left' | 'center' | 'right' }[];
@@ -713,6 +736,12 @@ export interface ReportBlock {
    *  rich-text cell with `@` tokens. Overrides collection resolution. */
   custom?: boolean;
   customRows?: ReportCustomRow[];
+  /** Free table: merged-cell rectangles (roadmap 189) — horizontal and/or
+   *  vertical spans anchored by row/column ids. */
+  cellMerges?: ReportCellMerge[];
+  /** Free table: per-cell typography overrides keyed `rowId:colId` (roadmap
+   *  189) — reset clears them back to the column/table defaults. */
+  cellStyles?: Record<string, ReportCellStyle>;
   showHeader?: boolean;
   showBorders?: boolean;          // table cell borders — on unless explicitly off
   skipEmptyRows?: boolean;        // hide items whose cells are all/partly empty

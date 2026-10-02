@@ -9,6 +9,8 @@ import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
 import { useColumnResize, ColumnResizeStrip } from '../columnResize';
 import { ReportBlockView } from './ReportBlockView';
+import { CustomCellSelection } from './useCustomTableCells';
+import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
 import {
   BLOCK_TYPE_META,
@@ -107,6 +109,12 @@ interface ReportDesignerCanvasProps {
   onInsertTableColumnAt: (tableId: string, colIndex: number) => void;
   onRemoveTableColumn: (tableId: string, colIndex: number) => void;
   onMoveTableColumn: (tableId: string, from: number, to: number) => void;
+  /** Free-table cell selection (roadmap 189), owned by ReportDesigner so the
+   *  docked inspector mirrors the canvas. `blockId` identifies the table. */
+  cellSel?: (CustomCellSelection & { blockId: string }) | null;
+  onCellSel?: (blockId: string, sel: CustomCellSelection | null) => void;
+  cellEditorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  onCellRtStateChange?: (state: RichTextState) => void;
   onInsertIntoZone: (zone: 'header' | 'body' | 'footer', payload: PaletteDropPayload) => void;
   editorMode: 'floating' | 'toolbar';
   viewWidth?: number | null;
@@ -203,10 +211,13 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, cellSel, onCellSel, cellEditorRef, onCellRtStateChange }) => {
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
+  // A drag that starts inside a free-table cell is a TEXT selection — the
+  // card's native block drag must be off until the pointer is released.
+  const [cellDragBlockId, setCellDragBlockId] = useState<string | null>(null);
   // HTML5 drags (palette or block) must not be intercepted by the floating
   // editors — they hide for the duration of any DROP_MIME drag.
   const [externalDrag, setExternalDrag] = useState(false);
@@ -332,6 +343,16 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     </div>
   );
 
+  /** Free-table cell selection props for one block (roadmap 189). */
+  const cellPropsFor = (b: ReportBlock) => (!b.custom ? {} : {
+    cellSelection: cellSel && cellSel.blockId === b.id ? { anchor: cellSel.anchor, focus: cellSel.focus } : null,
+    onCellSelectionChange: onCellSel ? (sel: CustomCellSelection | null) => onCellSel(b.id, sel) : undefined,
+    cellEditorRef,
+    onCellRtStateChange,
+    cellDocked: editorMode === 'toolbar',
+    onCellSaveTextStyles: onSaveTextStyles,
+  });
+
   const renderBlocks = (list: ReportBlock[], depth: number, parentColl?: ReportCollection, parentItem?: any, parentCategory?: string, onceIds?: Set<string>, ancestors?: any, parentItems?: ReportCollectionItem[], parentItemIndex?: number): React.ReactNode[] => {
     const out: React.ReactNode[] = [];
     list.forEach((b, i) => {
@@ -361,14 +382,24 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               e.stopPropagation();
               // Collection-table cells own their clicks (column select/reorder);
               // a click that lands on one must not select the card and clear the
-              // column. Free-table cells are editors — selecting the block
-              // there is what reveals the table's resize handles and chrome.
-              if (!b.custom && (e.target as HTMLElement).closest?.('[data-table-col-ci]')) return;
+              // column. Free-table cells own their selection too: a click on a
+              // CELL keeps it (selecting the block just reveals the resize
+              // strip), a click on the card itself deselects the cells so the
+              // table's own block chrome returns.
+              const el = e.target as HTMLElement;
+              if (!b.custom && el.closest?.('[data-table-col-ci]')) return;
+              if (b.custom && onCellSel && !el.closest?.('[data-cell]')) onCellSel(b.id, null);
               onSelect(b.id);
             }}
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onMenu(e, b.id); }}
-            draggable={!readOnly}
+            onPointerDown={b.custom ? e => {
+              if ((e.target as HTMLElement).closest?.('[data-cell]')) setCellDragBlockId(b.id);
+            } : undefined}
+            onPointerUp={b.custom ? () => setCellDragBlockId(null) : undefined}
+            onPointerCancel={b.custom ? () => setCellDragBlockId(null) : undefined}
+            draggable={!readOnly && !(b.custom && cellDragBlockId === b.id)}
             onDragStart={e => {
+              if (b.custom && cellDragBlockId === b.id) { e.preventDefault(); return; }
               startBlockDrag(e, b);
             }}
             style={{
@@ -384,7 +415,8 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 <EdgeZone side="right" b={b} depth={depth} onWrap={(id, payload, side) => { onWrap(id, payload, side); endDrag(); }} pendingRef={pendingRef} />
               </>
             )}
-            {selected && editorMode === 'floating' && !externalDrag && (
+            {selected && editorMode === 'floating' && !externalDrag
+              && !(b.custom && cellSel?.blockId === b.id) && (
               <BlockChrome
                 block={b}
                 project={project}
@@ -480,7 +512,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     endDrag={endDrag}
                   />
                 ) : (
-                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} />
+                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} />
                 )}
               </div>
             ) : b.type === 'pageBreak' ? (
@@ -593,7 +625,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 );
               })()
             ) : (
-              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} />
+              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} />
             )}
           </div>
         </div>,
