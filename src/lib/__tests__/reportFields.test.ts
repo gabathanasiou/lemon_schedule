@@ -91,7 +91,7 @@ describe('lookupIdentityField / lookupAttributeFields', () => {
 
   it('maps each collection to its identity field', () => {
     expect(lookupIdentityField('crew')).toBe('crewName');
-    expect(lookupIdentityField('scenes')).toBe('sceneNumber');
+    expect(lookupIdentityField('scenes')).toBe('sceneLabel');
     expect(lookupIdentityField('elements')).toBe('elementName');
   });
 
@@ -164,7 +164,7 @@ describe('buildLookupTokens — stage 1 items only', () => {
     categoryLabels: {},
     crewRoles: [{ key: 'gaffer', label: 'Gaffer' }],
     crew: { gaffer: [{ id: 'p1', name: 'Bob', phone: '555' }] },
-    locations: [{ id: 'loc1', name: 'Main St' }],
+    locations: [{ id: 'loc1', name: 'Main St', type: 'set' }],
     locationTypes: [{ key: 'set', label: 'Set' }],
     dayTypes: [],
     customCategories: [],
@@ -177,17 +177,29 @@ describe('buildLookupTokens — stage 1 items only', () => {
   it('one entry per item, keyed by the collection identity field', () => {
     expect(items.find(t => t.key === composeLookupKey('crew', 'crewName', 'p1'))?.label).toBe('Bob');
     expect(items.find(t => t.key === composeLookupKey('locations', 'locationName', 'loc1'))?.label).toBe('Main St');
-    expect(items.find(t => t.key === composeLookupKey('scenes', 'sceneNumber', 's1'))?.label).toBe('23 · DINER');
+    expect(items.find(t => t.key === composeLookupKey('scenes', 'sceneLabel', 's1'))?.label).toBe('Scene 23');
     expect(items.find(t => t.key === composeLookupKey('days', 'dayLabel', '0'))?.label).toContain('Day 1');
   });
 
-  it('elements carry their category in the item key + entry', () => {
+  it('rows carry a contextual hint instead of a generic collection tag', () => {
+    expect(items.find(t => t.key === composeLookupKey('crew', 'crewName', 'p1'))?.hint).toBe('Gaffer');
+    expect(items.find(t => t.key === composeLookupKey('locations', 'locationName', 'loc1'))?.hint).toBe('Set');
+    expect(items.find(t => t.key === composeLookupKey('scenes', 'sceneLabel', 's1'))?.hint).toBe('Scene');
+    expect(items.find(t => t.collection === 'categories' && t.itemKey === 'props')?.hint).toBe('Category');
+    expect(items.find(t => t.collection === 'locationTypes' && t.itemKey === 'set')?.hint).toBe('Location type');
+    expect(items.find(t => t.collection === 'dayTypes')?.hint).toBe('Day type');
+    expect(items.find(t => t.collection === 'days')?.hint).toBe('Prod date');
+  });
+
+  it('elements carry their category in the item key, entry and hint', () => {
     const gun = items.find(t => t.collection === 'elements' && t.itemKey === elementLookupKey('props', 'Gun'));
     expect(gun?.category).toBe('props');
     expect(gun?.key).toBe(composeLookupKey('elements', 'elementName', elementLookupKey('props', 'Gun')));
+    expect(gun?.hint).toBe('Props');
     const mary = items.find(t => t.collection === 'elements' && t.itemKey === elementLookupKey('cast', '2'));
     expect(mary?.category).toBe('cast');
     expect(mary?.label).toBe('MARY');
+    expect(mary?.hint).toBe('Cast');
   });
 
   it('never emits the old flat item · attribute combinations', () => {

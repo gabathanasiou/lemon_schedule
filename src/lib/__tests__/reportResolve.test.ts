@@ -188,3 +188,15 @@ describe('lookup pair suppression — the 121 reference + attribute pair', () =>
     expect(resolveReportTokens(ctx, fieldMap, `{{${ref}}} at {{${phone}}}`, null)).toBe('BOB at 555-0134');
   });
 });
+
+describe('scene lookup — the Scene identity label', () => {
+  const project = seedProject();
+  const ctx = buildCtx(project);
+  const fieldMap = getReportFieldMap(project);
+
+  it('resolves to "Scene {number}" so the chip and the print agree', () => {
+    const scene = ctx.sceneInfos[0].scene;
+    const key = composeLookupKey('scenes', 'sceneLabel', scene.id);
+    expect(resolveReportTokens(ctx, fieldMap, `{{${key}}}`, null)).toBe(`Scene ${scene.sceneNumber}`);
+  });
+});

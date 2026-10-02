@@ -22,9 +22,9 @@ import {
 const LOOKUP_COLOR = { text: '#7c3aed', bg: 'rgba(124, 58, 237, 0.12)' };
 
 /** Reference caps for the `@` autocomplete: a bare `@` must never dump every
- *  scene/element of a large project into the popup. Each "Reference — {…}"
- *  group keeps its first matches; the total is capped too. Query narrowing
- *  happens BEFORE the caps, so a typed search reaches any item. */
+ *  scene/element of a large project into the popup. Each collection (elements
+ *  per category) keeps its first matches; the total is capped too. Query
+ *  narrowing happens BEFORE the caps, so a typed search reaches any item. */
 const MAX_REFERENCE_RESULTS = 50;
 const MAX_PER_REFERENCE_GROUP = 8;
 
@@ -111,11 +111,15 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
         const references: TokenItem[] = [];
         for (const t of lookupsRef.current || []) {
           if (references.length >= MAX_REFERENCE_RESULTS) break;
-          if (query && !t.label.toLowerCase().includes(query) && !t.key.toLowerCase().includes(query)) continue;
-          const n = perGroup.get(t.group) ?? 0;
+          const hint = t.hint || '';
+          if (query && !t.label.toLowerCase().includes(query) && !t.key.toLowerCase().includes(query) && !hint.toLowerCase().includes(query)) continue;
+          // Cap per COLLECTION (elements split by category) — hints repeat and
+          // can be empty, so they must never drive the cap.
+          const capKey = t.category ? `${t.collection}:${t.category}` : t.collection;
+          const n = perGroup.get(capKey) ?? 0;
           if (n >= MAX_PER_REFERENCE_GROUP) continue;
-          perGroup.set(t.group, n + 1);
-          references.push({ key: t.key, label: t.label, color: LOOKUP_COLOR, group: t.group });
+          perGroup.set(capKey, n + 1);
+          references.push({ key: t.key, label: t.label, color: LOOKUP_COLOR, group: t.hint });
         }
         return [...fieldTokens, ...references];
       }}

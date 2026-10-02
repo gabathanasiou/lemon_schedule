@@ -94,6 +94,7 @@ function sceneCast(ctx: ReportCtx, ids: string): string {
 
 const SCENE_FIELDS: ReportFieldDef[] = [
   { key: 'sceneNumber', label: 'Scene #', group: 'Scene Info', scope: 'scenes', align: 'center', defaultWidth: 8, get: (_c, it: ReportSceneInfo) => s(it.scene.sceneNumber) },
+  { key: 'sceneLabel', label: 'Scene', group: 'Scene Info', scope: 'scenes', defaultWidth: 10, get: (_c, it: ReportSceneInfo) => `Scene ${s(it.scene.sceneNumber)}` },
   { key: 'sheetNumber', label: 'Sheet #', group: 'Scene Info', scope: 'scenes', align: 'center', defaultWidth: 8, get: (_c, it: ReportSceneInfo) => s(it.sheetNumber) },
   { key: 'scriptDay', label: 'Script Day', group: 'Scene Info', scope: 'scenes', align: 'center', defaultWidth: 9, get: (_c, it: ReportSceneInfo) => s(it.scene.scriptDay) },
   { key: 'intExt', label: 'Int/Ext', group: 'Scene Info', scope: 'scenes', align: 'center', defaultWidth: 7, get: (_c, it: ReportSceneInfo) => s(it.scene.intExt) },
@@ -794,10 +795,13 @@ export const LOOKUP_PREFIX = 'lookup.';
 export interface LookupTokenItem {
   key: string;
   label: string;
-  group: string;
   collection: string;
   field: string;
   itemKey: string;
+  /** Contextual right-side text in the picker — crew role, element category,
+   *  location type, scene INT/EXT, counts, day-type code. Never a generic
+   *  "Reference — {collection}" tag; hints are searchable too. */
+  hint?: string;
   /** Elements only: the breakdown category the item belongs to. */
   category?: string;
 }
@@ -849,50 +853,67 @@ const LOOKUP_SPECS: LookupSpec[] = [
   { collection: 'categories', label: 'Categories', identityField: 'categoryLabel' },
   { collection: 'locationTypes', label: 'Location Types', identityField: 'locationTypeLabel' },
   { collection: 'dayTypes', label: 'Day Types', identityField: 'dayTypeLabel' },
-  { collection: 'scenes', label: 'Scenes', identityField: 'sceneNumber' },
+  { collection: 'scenes', label: 'Scenes', identityField: 'sceneLabel' },
   { collection: 'elements', label: 'Elements', identityField: 'elementName' },
 ];
 
 /** A lightweight day reference for the picker (avoids needing a full ReportCtx). */
 export interface LookupDayRef { index: number; chronoDay: number; date: string; }
 
-/** Project-derived items for one lookup collection, as `{ key, label, category? }`. */
-function lookupItemsFor(project: Project, collection: ReportCollection, days: LookupDayRef[]): { key: string; label: string; category?: string }[] {
+/** One picker item: `hint` is the short right-side kind label (crew role,
+ *  element category, location type, else a plain noun like "Scene"/"Day"). */
+type LookupItem = { key: string; label: string; category?: string; hint?: string };
+
+/** Project-derived items for one lookup collection. */
+function lookupItemsFor(project: Project, collection: ReportCollection, days: LookupDayRef[]): LookupItem[] {
   switch (collection) {
     case 'days':
-      return days.map(d => ({ key: String(d.index), label: `Day ${d.chronoDay} (${formatDateCustom(d.date, project.productionInfo?.dateFormat)})` }));
+      return days.map(d => ({
+        key: String(d.index),
+        label: `Day ${d.chronoDay} (${formatDateCustom(d.date, project.productionInfo?.dateFormat)})`,
+        hint: 'Prod date',
+      }));
     case 'crew': {
-      const out: { key: string; label: string }[] = [];
+      const out: LookupItem[] = [];
       for (const role of project.crewRoles || []) {
-        for (const p of project.crew?.[role.key] || []) out.push({ key: p.id, label: p.name });
+        for (const p of project.crew?.[role.key] || []) out.push({ key: p.id, label: p.name, hint: role.label });
       }
       return out;
     }
-    case 'locations':
-      return (project.locations || []).map(l => ({ key: l.id, label: l.name }));
-    case 'categories': {
-      const out: { key: string; label: string }[] = [];
-      for (const c of ELEMENT_CATEGORIES) out.push({ key: c.key, label: getLabel(c.key, c.label, project.categoryLabels) });
-      for (const c of project.customCategories || []) out.push({ key: c.key, label: c.label });
-      return out;
+    case 'locations': {
+      const typeLabel = new Map((project.locationTypes || []).map(t => [t.key, t.label]));
+      return (project.locations || []).map(l => ({
+        key: l.id,
+        label: l.name,
+        hint: (l.type && typeLabel.get(l.type)) || 'Location',
+      }));
     }
+    case 'categories':
+      return [
+        ...ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: getLabel(c.key, c.label, project.categoryLabels), hint: 'Category' })),
+        ...(project.customCategories || []).map(c => ({ key: c.key, label: c.label, hint: 'Category' })),
+      ];
     case 'locationTypes':
-      return (project.locationTypes || []).map(t => ({ key: t.key, label: t.label }));
+      return (project.locationTypes || []).map(t => ({ key: t.key, label: t.label, hint: 'Location type' }));
     case 'dayTypes':
-      return getDayTypes(project).map(t => ({ key: t.key, label: t.label }));
+      return getDayTypes(project).map(t => ({ key: t.key, label: t.label, hint: 'Day type' }));
     case 'scenes':
       return (project.scenes || []).map(sc => ({
         key: sc.id,
-        label: `${sc.sceneNumber} · ${sc.set || sc.description || sc.intExt || ''}`.replace(/ · $/, ''),
+        label: `Scene ${sc.sceneNumber}`,
+        hint: 'Scene',
       }));
     case 'elements': {
-      const out: { key: string; label: string; category: string }[] = [];
+      const out: LookupItem[] = [];
+      const catLabel = new Map<string, string>();
+      for (const c of ELEMENT_CATEGORIES) catLabel.set(c.key, getLabel(c.key, c.label, project.categoryLabels));
+      for (const c of project.customCategories || []) catLabel.set(c.key, c.label);
       const cats = [...ELEMENT_CATEGORIES.map(c => c.key), ...(project.customCategories || []).map(c => c.key)];
       for (const cat of cats) {
         for (const el of getCategoryElements(project, cat)) {
           const matchId = elementMatchId(el, cat);
           if (!matchId) continue;
-          out.push({ key: elementLookupKey(cat, matchId), label: el.name || matchId, category: cat });
+          out.push({ key: elementLookupKey(cat, matchId), label: el.name || matchId, category: cat, hint: catLabel.get(cat) || cat });
         }
       }
       return out;
@@ -913,7 +934,7 @@ export function buildLookupTokens(project: Project, days: LookupDayRef[]): Looku
       out.push({
         key: composeLookupKey(spec.collection, spec.identityField, item.key),
         label: item.label,
-        group: `Reference — ${spec.label}`,
+        hint: item.hint,
         collection: spec.collection,
         field: spec.identityField,
         itemKey: item.key,
