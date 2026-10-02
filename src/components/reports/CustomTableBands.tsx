@@ -116,7 +116,7 @@ const CellEditor: React.FC<{
         lookupTokens={shared.lookupTokens}
         cellRef={{ block: shared.block, rowId, colId, ctx: shared.ctx, fieldMap: shared.fieldMap, item: shared.item, aux: shared.aux }}
         onTokenHover={key => shared.onChipHover(rowId, colId, key)}
-        placeholder="Type… @ for tokens · = for references"
+        placeholder={'"@" for tokens, "=" for references'}
         className={`report-cell-editor w-full min-h-[18px]${isFocus ? ' report-cell-editor-active' : ''}`}
       />
     </div>
