@@ -141,7 +141,9 @@ export function designLocationsIn(ctx: ReportCtx, design: ReportDesign): ReportL
 
 export interface ReportSceneInfo {
   scene: Scene;
-  row: ScheduleRow;
+  /** The stripboard row when the scene is scheduled; absent for off-board
+   *  scenes (lookup shells) — no scene field reads it. */
+  row?: ScheduleRow;
   sectionIndex: number;
   chronoDay: number;
   date: string;
@@ -393,6 +395,25 @@ export function reportItemKey(collection: ReportCollection, item: ReportCollecti
     case 'departmentCallsOfDay': return (item as ReportDepartmentCallItem).key;
     default: return 0;
   }
+}
+
+/** One scene as a report item: the scheduled info when it is on the board,
+ *  else a schedule-less shell — a scene reference may target ANY project
+ *  scene, with its day/call-time fields blank when it isn't scheduled. */
+export function reportSceneInfoFor(ctx: ReportCtx, sceneId: string): ReportSceneInfo | null {
+  const scheduled = ctx.sceneInfos.find(si => si.scene.id === sceneId);
+  if (scheduled) return scheduled;
+  const idx = ctx.project.scenes.findIndex(s => s.id === sceneId);
+  if (idx < 0) return null;
+  return {
+    scene: ctx.project.scenes[idx],
+    sectionIndex: -1,
+    chronoDay: 0,
+    date: '',
+    callTime: '',
+    durationMin: 0,
+    sheetNumber: idx + 1,
+  };
 }
 
 /** Human label for one collection item — shared by the print dialog's

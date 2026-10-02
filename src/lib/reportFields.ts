@@ -9,7 +9,7 @@ import { getStatusesWithLists } from './nonShootHelpers';
 import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, hasMapPin, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportElementCallItem, ReportDepartmentCallItem, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
-  ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, crewLinkWarningsForReportDay,
+  ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, crewLinkWarningsForReportDay,
 } from './reportData';
 import { getCallTimeSettings } from './callTimes';
 
@@ -725,6 +725,7 @@ function dayBreakdownValue(ctx: ReportCtx, def: ReportFieldDef, day: any, scope?
 }
 
 function fieldValueSafe(def: ReportFieldDef, ctx: ReportCtx, item: any, aux?: FieldAux): string {
+  if (!def) return '';
   if (ITEM_SCOPES.has(def.scope) && !item) return '';
   try {
     // Breakdown attributes inside a day repeater can't read `it.scene` (a day
@@ -965,10 +966,14 @@ export interface TokenResolveOptions {
 }
 
 /** Resolve a lookup's target items — elements carry their category in the item
- *  key, so the collection resolves with the right category. */
+ *  key, and scene references target ANY project scene (scheduled or not). */
 function resolveLookupItems(ctx: ReportCtx, collection: string, itemKey: string): ReportCollectionItem[] {
   if (collection === 'elements') {
     return resolveCollection(ctx, 'elements', splitElementLookupKey(itemKey).category, undefined, undefined);
+  }
+  if (collection === 'scenes') {
+    const info = reportSceneInfoFor(ctx, itemKey);
+    return info ? [info] : [];
   }
   return resolveCollection(ctx, collection as ReportCollection, undefined, undefined, undefined);
 }
@@ -991,8 +996,13 @@ function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, 
   if (lookup) {
     const items = resolveLookupItems(ctx, lookup.collection, lookup.itemKey);
     const hit = items.find(it => lookupItemKey(lookup.collection, it) === lookup.itemKey);
-    if (!hit) return '';
-    return fieldValueSafe(fieldMap[lookup.field], ctx, hit, aux);
+    // Excel-style error markers: a dangling reference and an attribute that
+    // doesn't exist on the item are LOUD (an existing-but-empty value stays
+    // blank — only "can't resolve" is an error).
+    if (!hit) return '#REF!';
+    const def = fieldMap[lookup.field];
+    if (!def) return '#VALUE!';
+    return fieldValueSafe(def, ctx, hit, aux);
   }
   const { field, opts } = parseToken(raw);
   const [base, sub] = field.split('.');

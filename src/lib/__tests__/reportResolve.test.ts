@@ -187,6 +187,11 @@ describe('lookup pair suppression — the 121 reference + attribute pair', () =>
   it('text between the tokens stops the suppression', () => {
     expect(resolveReportTokens(ctx, fieldMap, `{{${ref}}} at {{${phone}}}`, null)).toBe('BOB at 555-0134');
   });
+
+  it('a dangling reference prints #REF! and an unknown attribute #VALUE!', () => {
+    expect(resolveReportTokens(ctx, fieldMap, '{{lookup.crew.crewName.gone}}', null)).toBe('#REF!');
+    expect(resolveReportTokens(ctx, fieldMap, `{{lookup.crew.nope.p-test}}`, null)).toBe('#VALUE!');
+  });
 });
 
 describe('scene lookup — the Scene identity label', () => {
@@ -198,5 +203,15 @@ describe('scene lookup — the Scene identity label', () => {
     const scene = ctx.sceneInfos[0].scene;
     const key = composeLookupKey('scenes', 'sceneLabel', scene.id);
     expect(resolveReportTokens(ctx, fieldMap, `{{${key}}}`, null)).toBe(`Scene ${scene.sceneNumber}`);
+  });
+
+  it('resolves scenes that are NOT on the stripboard (schedule fields blank)', () => {
+    const scheduled = new Set(ctx.sceneInfos.map(si => si.scene.id));
+    const off = project.scenes.find(sc => !scheduled.has(sc.id));
+    expect(off).toBeTruthy();
+    const intExt = composeLookupKey('scenes', 'intExt', off!.id);
+    const day = composeLookupKey('scenes', 'day', off!.id);
+    expect(resolveReportTokens(ctx, fieldMap, `{{${intExt}}}`, null)).toBe(off!.intExt);
+    expect(resolveReportTokens(ctx, fieldMap, `{{${day}}}`, null)).toBe('');
   });
 });
