@@ -885,60 +885,79 @@ stage 2 supplies the attribute list), builds on **10** (free table) and
 **150**/**188**/**189** (inline editing, resize infra, merges/chrome/context
 menu); extends **100** (item lookup tokens).
 
-## 191. Reports designer — text blocks editable inline on the canvas (`[ ]`)
+## 191. Reports designer — inline rich-text editing + ONE shared chrome for text blocks and free-table cells (`[ ]`)
 
-**Request**: click into a text block on the designer canvas and type in place
-(Word/Pages-like) instead of only editing it in the block chrome/rail. The rich
-controls stay in the chrome — formatting toolbar, style/outline/padding, chip
-affixes — but the typing surface IS the canvas block. Locked with the user
-(2026-10-02 session); free tables already work this way (188).
+**Request**: one rich-text experience across the designer's two free-text
+surfaces. Click selects; double-click (desktop) or tap-again-on-selected
+(coarse, item 17) types in place on the canvas instead of in the chrome; ONE
+floating chrome serves both surfaces — same header shell and the same Format +
+Style body — with only the header actions and extra rows contextual (block:
+empty behavior/structure/Padding/Outline/chip affixes; cell:
+merge/unmerge/reset, vertical align, range). The atoms are already shared
+(`reports/RichTextEditor.tsx` + `reports/RichTextFormatBar.tsx`, roadmaps
+188/192/193), but the chrome BODY is wired twice (`CustomCellControls` vs the
+text branch of `ContentControls`/`StyleControls`) and a text block still edits
+inside the chrome. Extends the original inline-editing item with the user's
+unify-the-rich-text-editing ask (2026-10-02 session).
 
-**Design**: reuse the SAME editor, not a parallel one — the canvas text block
-(`ReportBlockView`'s `text` case, gated `hint && !!onPatchBlock` like
-`CustomTable`) renders the app `RichTextEditor` adapter (tokens as chips, `@`
-incl. the 121 two-stage picker, `resolveToken`). The composition root owns ONE
-editor handle per selected block — a small `ReportInlineEditorContext`
-(register/get by block id) or an equivalent ref channel — so
-`BlockEditorContent`'s chrome controls (`FormatToolbar`, `ChipAffixSection`,
-`onSelectionChange`) bind to the canvas instance; the chrome's own Content
-text editor is replaced by that binding (one editing surface, no duplication).
-
-- WYSIWYG: the inline editor renders inside the block's computed
-  `getReportBlockBaseStyle` typography, so size/line breaks/alignment match
+**Design**:
+- **Shared body**: extract `reports/RichTextControls.tsx` — the Format row
+  (existing `RichTextFormatBar`) + the Style row (named `TextStyleMenu` +
+  horizontal align; a `verticalAlign` slot rendered only for cells). Consumed
+  by `CustomCellControls` and the text case of `BlockEditorContent`; horizontal
+  align moves out of `StyleControls` into the shared row (field blocks keep
+  whole-block font/size/B/I + Outline; text blocks keep Padding + chip-affix
+  rows). No second row wiring anywhere.
+- **Inline editing**: the canvas text block (`ReportBlockView`'s `text` case,
+  gated `hint && !!onPatchBlock` like `CustomTable`) renders the app
+  `RichTextEditor` adapter (tokens as chips, `@` incl. the 121 two-stage
+  picker, `resolveToken`). WYSIWYG in the block's computed
+  `getReportBlockBaseStyle` typography so size/line breaks/alignment match
   preview/print; empty blocks show the placeholder.
-- Entry: click selects the block (unchanged); double-click (desktop) or
-  tap-again-on-selected (coarse, item 17) enters edit; Escape exits; clicking
-  another block commits (`onPatch({ text })` per change — the CustomTable
-  pattern).
-- While a block is in edit mode, canvas drag/edge-zones/drop targets for that
-  block are suppressed so text selection never starts a drag; block drag
-  resumes after blur. Selection still marks all instances of a repeated
-  template; editing any instance edits the template (same as editable
-  free-table cells inside repeaters). Floating chrome must not cover the first
-  line — the docked rail is the roomy fallback.
-- Scope v1: `type === 'text'` only (field/link blocks keep their chrome
-  inputs). Preview/print never render the editor.
+- **One editor channel**: the composition root owns ONE active editor handle +
+  `RichTextState`, mirroring the existing `cellEditorRef`/`cellRtState`
+  (`ReportDesigner.tsx`) — a small `ReportInlineEditorContext` register/get by
+  block id or an equivalent ref channel. The floating chrome, docked rail and
+  top toolbar bind the shared body to that instance; the chrome's own Content
+  text editor is deleted (one editing surface, no duplication).
+- **Same affordance language**: an editing block wears the focused-cell
+  outline; canvas drag/edge-zones/drop targets for that block are suppressed so
+  text selection never starts a drag (drag resumes on blur); clicking another
+  block/Escape commits (`onPatch({ text })` per change — the CustomTable
+  pattern). The floating chrome clamps so it never covers the first line; the
+  docked rail is the roomy fallback. Selection still marks all instances of a
+  repeated template; editing one edits the template (same as editable cells).
+- **Not unified (deliberate)**: the block/cell DATA models — a text block is
+  never a 1×1 table (pagination, drag, outline and token semantics stay
+  block-specific); field/link blocks keep their chrome inputs; cell/table
+  context menus stay structure-specific. Preview/print never render an editor.
 
-**Files**: `reports/ReportBlockView.tsx` (text case renders the editor when
-hint+onPatchBlock), `reports/ReportDesignerCanvas.tsx` +
-`reports/ReportDesigner.tsx` (editor-handle context/ref channel, edit-mode
-state, drag suppression), `reports/blockControls.tsx` (bind chrome controls to
-the registered handle; drop the duplicate editor), `reports/RichTextEditor.tsx`
-(no change expected — same adapter), `index.css` (inline editor affordances /
-placeholder / focus outline).
+**Files**: `reports/RichTextControls.tsx` (new — the shared Format+Style body),
+`reports/CustomCellControls.tsx` (render the shared body; keep the merge header
++ V-align), `reports/blockControls.tsx` (text case renders the shared body
+against the canvas instance; drop the duplicate editor + Style-row wiring;
+`StyleControls` loses H-align for text), `reports/ReportBlockView.tsx` (text
+case renders the inline editor when hint+onPatchBlock),
+`reports/ReportDesignerCanvas.tsx` + `reports/ReportDesigner.tsx`
+(editor-handle channel, edit-mode state, drag suppression),
+`reports/RichTextEditor.tsx` (no change expected — same adapter), `index.css`
+(inline editor affordances / placeholder / focus outline),
+`docs/REPORTS-DESIGNER.md` (block + free-table bullets, Extending recipe).
 
 **Verify**: `npm run lint`; manual (rule 7) — type inline on desktop + iPad
-emulation, formatting toolbar + chip selection still target the inline editor,
-token chips render/resolve, Escape/click-away commits, block drag still works
-after blur, print preview unchanged; extend an existing report spec only if a
-silent break (edit persistence) appears uncovered; bump `package.json` (patch)
-when wrapping.
+emulation (entry/exit, chip selection + two-stage picker, named style run vs
+object, Format/Style rows target the canvas instance, block drag still works
+after blur, chrome never covers line 1, print preview unchanged); extend an
+existing report spec only if a silent break (edit persistence) appears
+uncovered; bump `package.json` (patch) when wrapping.
 
-**Relations**: builds on **188** (self-editing canvas blocks + persistence
-precedent) and **189** (canvas cell-chrome interaction language); gives **121**
-(and **190**) their inline home — the two-stage picker works in the inline
-editor through the shared adapter; related to **17** (iPad touch affordances)
-and **140** (rich-text table title, same editor reuse).
+**Relations**: merges the unify-the-rich-text-editing ask into **191**; builds
+on **188** (self-editing canvas blocks + persistence precedent), **189**
+(canvas cell-chrome interaction language) and **192**/**193** (shared format
+bar + linked style runs — the atoms this body reuses); gives **121** (and
+**190**) their inline home — the two-stage picker works in the inline editor
+through the shared adapter; related to **17** (iPad touch affordances) and
+**140** (rich-text table title, same editor reuse).
 
 ## 194. Resize tabs — double-click resets the boundary (`[ ]`)
 
