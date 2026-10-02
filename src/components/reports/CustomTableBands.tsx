@@ -58,6 +58,8 @@ export interface CustomTableShared {
   pickSource: CellRef | null;
   onPickTarget: (ref: CellRef) => void;
   onRefKeyDown: (e: React.KeyboardEvent, rowId: string, colId: string, html: string) => void;
+  refMenuOpen: boolean;
+  onCellTab: (e: React.KeyboardEvent, rowId: string, colId: string) => void;
   onRefHover: (index: number) => void;
   /** Hovered cellref chip's origin cell — the parent source of the info. */
   hoverCell: CellRef | null;
@@ -99,7 +101,11 @@ const CellEditor: React.FC<{
     return <div dangerouslySetInnerHTML={{ __html: resolveReportTokensHtml(shared.ctx, shared.fieldMap, html, shared.item, shared.aux, { cellRef: { block: shared.block, rowId, colId } }) }} />;
   }
   return (
-    <div onKeyDownCapture={e => shared.onRefKeyDown(e, rowId, colId, html)}>
+    <div onKeyDownCapture={e => {
+      // Tab navigates cells unless the referencing menu owns it (commit).
+      if (e.key === 'Tab' && !shared.refMenuOpen) { shared.onCellTab(e, rowId, colId); return; }
+      shared.onRefKeyDown(e, rowId, colId, html);
+    }}>
       <RichTextEditor
         ref={ref}
         value={html}
@@ -110,7 +116,7 @@ const CellEditor: React.FC<{
         lookupTokens={shared.lookupTokens}
         cellRef={{ block: shared.block, rowId, colId, ctx: shared.ctx, fieldMap: shared.fieldMap, item: shared.item, aux: shared.aux }}
         onTokenHover={key => shared.onChipHover(rowId, colId, key)}
-        placeholder="Type… @ for tokens"
+        placeholder="Type… @ for tokens · = for references"
         className={`report-cell-editor w-full min-h-[18px]${isFocus ? ' report-cell-editor-active' : ''}`}
       />
     </div>

@@ -6,7 +6,7 @@ import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
 import { useTableColumnReorder } from './useTableColumnReorder';
 import { useColumnResize, ColumnResizeStrip } from '../columnResize';
-import { CellRef, rectCovers } from '../../lib/reportTableMerges';
+import { CellRef, isCovered, rectCovers } from '../../lib/reportTableMerges';
 import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells';
 import { BodyBand, HeaderBand } from './CustomTableBands';
 import TableCellChrome from './TableCellChrome';
@@ -180,6 +180,38 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
     }
   };
 
+  /** Tab / Shift+Tab move the selection AND the focus to the next/previous
+   *  body cell (row-major, merged cells skipped, no wrap) so the new cell is
+   *  live — outline follows, and `=` opens the referencing menu there. */
+  const handleCellTab = (e: React.KeyboardEvent, rowId: string, colId: string): void => {
+    if (pickSource) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    const ri = rows.findIndex(r => r.id === rowId);
+    const ci = columns.findIndex(c => c.id === colId);
+    if (ri < 0 || ci < 0) return;
+    const dir = e.shiftKey ? -1 : 1;
+    const total = rows.length * columns.length;
+    for (let step = 1; step <= total; step++) {
+      const next = ri * columns.length + ci + dir * step;
+      if (next < 0 || next >= total) return;
+      const nr = Math.floor(next / columns.length);
+      const nc = next % columns.length;
+      const targetRow = rows[nr];
+      const targetCol = columns[nc];
+      if (isCovered(merges, rows, columns, targetRow.id, targetCol.id)) continue;
+      e.preventDefault();
+      e.stopPropagation();
+      const ref = { rowId: targetRow.id, colId: targetCol.id };
+      select({ anchor: ref, focus: ref });
+      const el = rootRef.current?.querySelector<HTMLElement>(`[data-cell="${ref.rowId}:${ref.colId}"] .tiptap`);
+      queueMicrotask(() => el?.focus());
+      return;
+    }
+  };
+
   const handlePickTarget = (ref: CellRef) => {
     const source = pickSource;
     setPickSource(null);
@@ -334,6 +366,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
     activeCol, onColHover: setHoverCol, colOutline, startColResize,
     ctx, fieldMap, item, aux, fields, contextFields, lookupTokens,
     pickSource, onPickTarget: handlePickTarget, onRefKeyDown: handleRefKeyDown,
+    refMenuOpen: !!refMenu, onCellTab: handleCellTab,
     onRefHover: (i: number) => setRefMenu(m => m && { ...m, highlight: i }),
     hoverCell, onChipHover: handleChipHover,
   };
