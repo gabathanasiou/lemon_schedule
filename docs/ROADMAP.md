@@ -11,7 +11,8 @@ roadmap worker session, so it stays lean.
   before becoming an item here.
 
 > **Next session — Reports Designer**: pick up and finish the designer pass.
-> Start with **191** (inline text blocks + the ONE shared chrome), then **194**
+> **Urgent first**: **197** (day list blank in preview while the designer shows
+> a value). Then **191** (inline text blocks + the ONE shared chrome), **194**
 > (resize-tab double-click reset), **195** (cellref `.` attributes match the
 > repeater scope — honor its guardrails) and **196** (cellref collection
 > navigation / chaining). **190** (`=` cell references) shipped 2026-10-02.
@@ -951,3 +952,43 @@ navigation + the resolved preview value).
 
 **Relations**: depends on **195** (attribute parity); extends **190** and
 **121**; related to **27** (`relative` context shifter).
+
+## 197. Reports — day list renders blank in preview while the designer shows a value (`[ ]`, urgent)
+
+**Reported** (user, 2026-10-02): a Call Sheet `days` repeat with a
+`{{wardrobe}}` TEXT BLOCK and a `{{wardrobe}}` free-table CELL shows a value in
+the designer but blank in preview; the user also doubts the list consolidates
+across ALL of the day's scenes in both surfaces.
+
+**Verified so far** (agent, 2026-10-02, seed project): both surfaces render the
+SAME consolidated, de-duplicated per-day union in preview — `Derby, Army
+Uniform`, `George's Coat, George's Hat`, … for the text block and the free-table
+cell alike (`dayBreakdownValue` over the day's `ctx.sceneInfos`,
+`lib/reportTokens.ts`). On the live project, Day 1 is genuinely blank because
+scenes 73/24/152/12/14 carry no wardrobe tags; Day 2 has `Derby` + `Army
+Uniform`. The likely root of the “designer shows it, preview doesn't” report:
+the DESIGNER samples the day that resolves the most item-scoped tokens
+(`firstItemOf`, `ReportDesignerCanvas.tsx` — Day 2+), while the PREVIEW starts
+at Day 1 (blank page) — and free-table cells show chips in the designer, not
+values, unlike text blocks.
+
+**To fix / decide**:
+- Confirm the designer sampling: show which day the canvas is previewing
+  (e.g. a small “Day N” badge) so a blank first day is never mistaken for a
+  broken token.
+- Decide whether designer free-table cells (and text-block chips, roadmap 191)
+  should stay chips — the asymmetry vs the text block's resolved value is the
+  reported confusion.
+- If a real resolution miss shows up on the reported project, trace
+  `dayBreakdownValue` vs `resolveCollectionItems` scoping (custom/hidden
+  categories, calendar version) with the agent bridge open on that design.
+
+**Verify**: unit test pinning text-block ↔ free-table-cell day-union parity
+(`resolveReportTokensHtml` both paths); `npm run lint`; rule-7 manual on the
+reported project (tag one Day-1 scene's wardrobe → page 1 fills; designer badge
+names the sampled day).
+
+**Relations**: extends **190** (token/cellref resolution seam,
+`lib/reportTokens.ts`); informs **191** (inline text-block editing — chips vs
+resolved values) and **195/196** (cellref attribute parity); touches the Call
+Sheet template path (`callSheetEdit`).
