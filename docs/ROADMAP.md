@@ -11,12 +11,13 @@ roadmap worker session, so it stays lean.
   before becoming an item here.
 
 > **Next session — Reports Designer**: pick up and finish the designer pass.
-> **Urgent first**: **197** (day list blank in preview while the designer shows
-> a value). Then **191** (inline text blocks + the ONE shared chrome), **194**
-> (resize-tab double-click reset), **195** (cellref `.` attributes match the
+> Then **191** (inline text blocks + the ONE shared chrome), **194**
+> (resize-tab double-click reset), **195** (reference `.` attributes match the
 > repeater scope — honor its guardrails), **196** (cellref collection
-> navigation / chaining) and **198** (designer day picker — preview any day).
-> **190** (`=` cell references) shipped 2026-10-02.
+> navigation / chaining), **198** (designer day picker — preview any day) and
+> **199** (collection-table column headers — custom text + tokens).
+> **190** (`=` cell references) and **197** (day repeats sample Day 1 of the
+> active schedule/calendar) shipped 2026-10-02.
 
 ---
 ## 17. Report designer iPad-friendly (`[ ]`)
@@ -890,17 +891,38 @@ works on both, mouse + touch).
 **Relations**: builds on **24/34** (shared `useColumnResize` seam) and **188**
 (free-table resize tabs).
 
-## 195. Reports designer — cellref `.` attributes match the repeater scope (`[ ]`, future)
+## 195. Reports designer — reference `.` attributes match the repeater scope (`[ ]`, future)
 
-**Request**: when a cell references an item (a day, a scene, an element…) the
-`.` attribute list should offer EXACTLY the attributes the matching repeater/
-table scope offers (`fieldsForScope` parity) — contextual children and smart
-fields included, so a day ref's list matches a days-repeater palette, a scene
-ref's matches a scenes palette, and so on.
+**Request**: when a reference targets an item (a day, a scene, an element, a
+category…) the `.` attribute list should offer EXACTLY the attributes the
+matching repeater/table scope offers (`fieldsForScope` parity) — contextual
+children and smart fields included, so a day ref's list matches a days-repeater
+palette, a scene ref's matches a scenes palette, and so on. **Both reference
+surfaces** (user ask 2026-10-02): `@item` + `.` lookups in text blocks /
+free-table cells (`RichTextEditor.attributeItems`) AND `=` cellrefs
+(`cellRefAttributeItems`) — they share `lookupAttributeFields`
+(`lib/reportTokens.ts`), so fix the seam once, don't patch cellrefs only.
+
+**Contextual resolution (same ask)**: the referenced item's attributes must also
+RESOLVE against the containing repeater, not just be offered contextually —
+`@Props` + `.Element List` inside a days repeat must print that day's props
+(the `{{props}}` day union), not all 99 project props. Contextualize the lookup
+TARGET through `resolveCollectionItems` with the containing chain's ancestor
+scene scope (machinery exists: `ancestorSceneScope`/`ruleBearingAncestor`),
+then read the attribute off the scoped item. This is the resolution twin of the
+offer parity; **196** keeps the navigable-child half.
 
 **Split (2026-10-02)**: the Lego collection-navigation half (day → first scene
-→ that scene's attributes) moved to **196**; this item is the parity
-deliverable that lands first.
+→ that scene's attributes) moved to **196**; this item is the parity +
+contextual-resolution deliverable that lands first.
+
+**Finding (deep dive 2026-10-02, seed-verified)**: contextual `.` does NOT
+retire the relative list fields (`categoryItems` Element List, `cast`,
+`attachedScenes`, `workDayList`/…, `dayTypeDays`): they read the CURRENT repeat
+item, while `@item` + `.` references a NAMED item. The two routes converge only
+when the named item sits in a context (`@Props.Element List` in a days repeat ≡
+`{{props}}`). Keep every list field; the code simplification is that
+`lookupAttributeFields`'s static scope list collapses into `fieldsForScope`.
 
 **Approach**: `cellRefAttributeItems` (`lib/reportTokens.ts`, roadmap 190)
 currently returns `lookupAttributeFields` (static item-scope registry). Swap it
@@ -910,12 +932,14 @@ carries), including day-context extras (breakdown-in-days, locations-in-days,
 `crewOfDay`/`locationsOfDay`-style children where applicable). Pinning resolves
 through the same scope, not the formula cell's aux. Thread the parent context
 (`parentCollection`/`parentCategory`/ancestors) into `TokenResolveOptions` from
-`CustomTable`/`ReportBlockView`.
+`CustomTable`/`ReportBlockView` **and** into the text-block/free-table
+`RichTextEditor` adapter (the `@` lookup path).
 
 **Verify**: unit tests comparing the offered key set against
-`fieldsForScope(...)` for each collection/context; `npm run lint` +
-`test:smart`; rule-7 manual (picker rows match a repeater's palette for the
-same item).
+`fieldsForScope(...)` for each collection/context, plus a resolution test
+(`@Props.Element List` inside a day item ≡ `{{props}}` day union; bare ref
+outside any repeater stays global); `npm run lint` + `test:smart`; rule-7
+manual (picker rows match a repeater's palette for the same item).
 
 **Guardrails (do not lose)**: parity only changes the OFFERED LIST — the
 existing cellref picker behavior must survive: transitive target resolution
@@ -945,7 +969,9 @@ canonical child relationships (day → scene, category → element, …) become
 navigable ref targets rather than synthetic fields; the `.` picker offers a
 "child" section (or a dedicated navigation token form) for scopes with a child
 list. Smart/contextual fields resolve against the target's chain, not the
-formula cell's.
+formula cell's. Lookup (`@`) refs ride the SAME chain — their
+contextual-resolution half lands in **195**; this item adds the navigable child
+step on top.
 
 **Verify**: resolution tests for day → first scene → attribute (and a
 category → element chain); `npm run lint` + `test:smart`; rule-7 manual (picker
@@ -953,46 +979,6 @@ navigation + the resolved preview value).
 
 **Relations**: depends on **195** (attribute parity); extends **190** and
 **121**; related to **27** (`relative` context shifter).
-
-## 197. Reports — day list renders blank in preview while the designer shows a value (`[ ]`, urgent)
-
-**Reported** (user, 2026-10-02): a Call Sheet `days` repeat with a
-`{{wardrobe}}` TEXT BLOCK and a `{{wardrobe}}` free-table CELL shows a value in
-the designer but blank in preview; the user also doubts the list consolidates
-across ALL of the day's scenes in both surfaces.
-
-**Verified so far** (agent, 2026-10-02, seed project): both surfaces render the
-SAME consolidated, de-duplicated per-day union in preview — `Derby, Army
-Uniform`, `George's Coat, George's Hat`, … for the text block and the free-table
-cell alike (`dayBreakdownValue` over the day's `ctx.sceneInfos`,
-`lib/reportTokens.ts`). On the live project, Day 1 is genuinely blank because
-scenes 73/24/152/12/14 carry no wardrobe tags; Day 2 has `Derby` + `Army
-Uniform`. The likely root of the “designer shows it, preview doesn't” report:
-the DESIGNER samples the day that resolves the most item-scoped tokens
-(`firstItemOf`, `ReportDesignerCanvas.tsx` — Day 2+), while the PREVIEW starts
-at Day 1 (blank page) — and free-table cells show chips in the designer, not
-values, unlike text blocks.
-
-**To fix / decide**:
-- Confirm the designer sampling: show which day the canvas is previewing
-  (e.g. a small “Day N” badge) so a blank first day is never mistaken for a
-  broken token.
-- Decide whether designer free-table cells (and text-block chips, roadmap 191)
-  should stay chips — the asymmetry vs the text block's resolved value is the
-  reported confusion.
-- If a real resolution miss shows up on the reported project, trace
-  `dayBreakdownValue` vs `resolveCollectionItems` scoping (custom/hidden
-  categories, calendar version) with the agent bridge open on that design.
-
-**Verify**: unit test pinning text-block ↔ free-table-cell day-union parity
-(`resolveReportTokensHtml` both paths); `npm run lint`; rule-7 manual on the
-reported project (tag one Day-1 scene's wardrobe → page 1 fills; designer badge
-names the sampled day).
-
-**Relations**: extends **190** (token/cellref resolution seam,
-`lib/reportTokens.ts`); informs **191** (inline text-block editing — chips vs
-resolved values) and **195/196** (cellref attribute parity); touches the Call
-Sheet template path (`callSheetEdit`).
 
 ## 198. Reports designer — day picker to preview the design against a chosen day (`[ ]`)
 
@@ -1007,8 +993,9 @@ View/Preview) when the design is day-scoped (a `days`/`daysOfCast` repeat or a
 `callSheetEdit` zone anywhere in the tree). Options from the canonical
 production sections (same source as the Day Manager, incl. violation counts).
 Selecting a day pins the repeat sample: thread an optional
-`previewSectionIndex` into `ReportDesignerCanvas`/`firstItemOf` so day repeats
-resolve against the chosen day, and use the same index for the designer's
+`previewSectionIndex` into `sampleRepeatItem` (`lib/reportSampling.ts`; the
+default stays Day 1 of the active schedule/calendar) so day repeats resolve
+against the chosen day, and use the same index for the designer's
 Preview/Print so canvas and preview agree; persist per design like the other
 designer view prefs. In the Call Sheet design the `callSheetEdit` zone stays
 template-level (per-day content is edited in the Day Manager — item 113
@@ -1019,7 +1006,137 @@ Day 2 show different per-day values in canvas + preview; preference persists);
 `npm run lint`; extend an existing report spec only if a silent break (wrong
 day sampled after reload) is plausible.
 
-**Relations**: extends **197** (designer sampling clarity — its "Day N" badge
-becomes this picker), reuses **113**'s DayPicker + preview-persistence
-precedent and the Day Manager day source; related to **191** (inline canvas)
-and **190** (token resolution).
+**Relations**: extends **197** (day repeats sample Day 1 of the active
+schedule/calendar — this item makes the sample selectable), reuses **113**'s
+DayPicker + preview-persistence precedent and the Day Manager day source;
+related to **191** (inline canvas) and **190** (token resolution).
+
+## 199. Reports designer — collection-table column headers: custom text + tokens (`[ ]`)
+
+**Request** (user, 2026-10-02): a collection table's column header is hardwired
+to the field label — there is no rename at all. Give each column an optional
+rich-text header (custom text + `{{field}}` tokens and `@` item lookups),
+falling back to the field label when empty. Headers resolve against the
+ENCLOSING repeat item (the table's `item`), not the row item: a crew table
+inside a days repeat can read "Crew — {{dayDate}}"; top level uses
+`{{title}}`/`{{company}}`. Row-matrix mode gets the same for its row labels and
+the top-left `headerField`. Collection tables only — free tables keep their
+existing editable header labels (`columns[].label` is shared: render plain
+labels unchanged and pass HTML through).
+
+**Approach**:
+- Data: reuse `ReportTableColumn.label` (exists; today only free tables consume
+  it). Store token HTML; no migration (plain labels render as text).
+- Renderer: `TableColumnsGrid` header + `TableRowsMatrix` row labels/top-left
+  (`ReportBlockView.tsx:836/932/966`) — when `col.label` is set,
+  `resolveReportTokensHtml(ctx, fieldMap, col.label, item, blockAux)`, else the
+  field label. `showKeys` keeps `{{field}}`. Empty-collection skeleton and
+  per-fragment `repeatTableHeader` behavior unchanged (resolution is
+  deterministic per fragment).
+- Editor: a "Header" `RichTextEditor` field in the selected-column chrome
+  (`reportColumnControls.tsx` `CollectionColumnEditorContent`) — `fields` /
+  `allFields` scoped to the PARENT context (`fieldsForScope(allFields,
+  parentCollection)`), `lookupTokens` from `buildLookupTokens`, so a top-level
+  header never offers `{{sceneNumber}}`; `@` + `.` work, and **195** makes the
+  `.` attributes contextual automatically.
+- NOT in scope: tokenizing cells (the typed grid stays), inline header editing
+  (**191** can layer it later), free-table header rework.
+
+**Verify**: `npm run lint`; rule-7 manual (custom text, `{{token}}`, `@`
+lookup, empty → field label, rows mode + top-left, print header repeat, blank
+collection skeleton); no new e2e unless a silent break (persistence of the
+header HTML) appears uncovered.
+
+**Relations**: same rich-text recipe as **140** (block title above the table —
+per-column sibling, not a duplicate); reuses **191** (shared editor/chrome),
+**121** (`@` picker) and **195** (contextual `.` attrs); docs
+`docs/REPORTS-DESIGNER.md` (§free vs collection tables / Extending) update at
+wrap.
+
+## 200. E2E — `glide-first-edit` fails whenever a dev server occupies :3001 (`[ ]`)
+
+**Reported** (user, 2026-10-02): `e2e/glide-first-edit.spec.ts` fails routinely
+in local runs. **Verified root cause** (agent, same day): `npm run dev` starts
+Vite with `--port=3000` but NO `--strictPort`, so when 3000 is already taken a
+second dev server silently falls back to 3001; `playwright.config.ts` then
+REUSES whatever listens on the default port (`reuseExistingServer: !isolated`),
+so the suite actually runs against the DEV server, not the production preview.
+The spec waits for the prod chunk URL (`…data-grid-overlay-editor-<hash>.js`);
+dev serves `…/@glide-overlay-editor.js?v=<hash>` (does not end in `.js`), so the
+wait times out. Proof: `PLAYWRIGHT_PORT=3011 npx playwright test
+e2e/glide-first-edit.spec.ts` passes (owned preview), and `test:baseline`
+(clean HEAD, owned server) passes — no code regression, but ANY run can silently
+test another process's stale server.
+
+**To fix / decide**:
+- Never silently reuse a foreign server: when `PLAYWRIGHT_DEV` is unset, probe
+  the reused URL for a prod-preview marker and fail fast with a clear message
+  (name the port + `lsof -i :<port>`), or set `reuseExistingServer: false` by
+  default (keep `PLAYWRIGHT_PORT` owned-server semantics).
+- And/or make the fallback impossible: `--strictPort` on the dev script (fails
+  loudly when 3000 is busy) or move the E2E default off 3001.
+- Same family: `glide-clipboard.spec.ts` hardcodes
+  `grantPermissions(..., { origin: 'http://localhost:3001' })`, so the documented
+  `PLAYWRIGHT_PORT=<n>` isolation makes all 6 clipboard tests fail with
+  `NotAllowedError` — read the origin from the test `baseURL` instead.
+- Update `docs/TESTING.md` §Harness facts + the "was it me?" flow with the
+  symptom → diagnosis.
+
+**Verify**: with a dev server on 3001, a default-port run either uses an owned
+preview or exits with the new diagnostic; `npm run test:smart` + the isolated
+spec are green; `npm run lint`.
+
+**Relations**: extends **63** (the boot preload this spec pins); touches
+`playwright.config.ts`, the `dev` script (`package.json`) and `docs/TESTING.md`.
+
+## 201. Reports designer — fold day-contextual collections into base collections? (`[ ]`, NEEDS CONVERSATION FIRST)
+
+**Status: DISCUSS BEFORE BUILDING — do not implement from this item alone.**
+User ask (2026-10-02): the collection menus are overloaded with hardcoded
+contextual entries ("Crew (of this day)", "Element Calls (of this day)",
+"Department Calls (of this day)", "Locations (of this day)", "Day Types (of
+this element)", …). Hypothesis: once **195**'s contextual attribute resolution
+lands, a plain scoped collection + day-aware fields produces the same output,
+so those entries can be retired and the picker shrinks.
+
+**What it would mean (spell out in the conversation)**:
+- Picker: users pick ONLY base collections (Scenes/Days/Cast/Elements/
+  Categories/Crew/Locations/Day Types); Lego scoping + context-aware fields
+  make them behave as today's "(of this …)" entries. Saved designs + the
+  built-in Call Sheet migrate via collection aliases (old id → base collection
+  + scoping) or keep the old ids as legacy read aliases.
+- Field work: per-day logic baked into the synthetic item shapes moves into
+  field resolvers — `crewCallTime`/department against the day's slots/precalls/
+  overrides; per-element `call_{stage}` columns against the day call chain;
+  `dayTypeDays` scoped to an element/day ancestor; the day location seam for a
+  scoped locations table. Fields registered ONLY for synthetic scopes today
+  (`call_{stage}`, `elementCallCode`, `elementCallFirstScene`) must be offered
+  on base scopes in day contexts.
+- Audit first: some contextual collections may ALREADY be subsumed by ancestor
+  scoping (`daysOfCast` vs scoped `days`; `scenesOfDay` vs scoped `scenes`) —
+  classify each as shape alias / needs day-aware fields / genuinely separate.
+- NOT implied: lookups still fetch ONE named item — iteration always needs a
+  repeat/table. This is about collection entries, not tokens.
+- Hard cases to weigh: `departmentCallsOfDay` (departments aren't a base
+  collection — keep synthetic?), Call Sheet zone (`callSheetEdit`) + its field
+  seams, `ReportScopeFilter` (keyed by collection), `tableFieldScope`/
+  `fieldsForScope` mappings, `onceTable`, `defaultIdentityField`, MCP
+  `get_report_registry` output, e2e specs pinned to collection ids.
+- Trade-off: smaller user-facing menu vs churn in saved designs, the Call
+  Sheet template and a working registry — candidate for staging (pilot
+  `crewOfDay` first).
+
+**Conversation agenda (before writing code)**: enumerate every contextual
+collection, classify (already subsumed / needs day-aware fields / genuinely
+separate), decide keep/retire/stage, choose the saved-design migration
+approach. Only then turn the outcome into an implementation plan.
+
+**Verify** (if it proceeds): parity tests (scoped base collection output ===
+today's synthetic collection output for the built-in templates), design-load
+migration test, `npm run lint` + `test:smart`, rule-7 manual on the built-in
+reports; update `docs/REPORTS-LEGO-CONTEXT.md` + `docs/REPORTS-DESIGNER.md`.
+
+**Relations**: powered by **195/196** (contextual resolution/chaining) and
+**199** (contextual headers); touches **99/111/112** (the collections),
+archive **25** (self-redundant menu hiding); read
+`docs/REPORTS-LEGO-CONTEXT.md` first.

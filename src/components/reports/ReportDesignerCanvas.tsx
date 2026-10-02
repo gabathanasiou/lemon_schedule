@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from
 import { TB_BTN_ICON, ToolButton } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { ReportCtx, resolveCollectionItems, resolveRelativeItems, reportItemLabel, locationsOfItem, filterItemsByScope, ReportCollectionItem } from '../../lib/reportData';
-import { FieldAux } from '../../lib/reportFields';
-import { ReportFieldDef, reportFieldValueByKey, ITEM_SCOPES, TOKEN_RE, parseToken } from '../../lib/reportFields';
+import { FieldAux, ReportFieldDef } from '../../lib/reportFields';
+import { sampleRepeatItem } from '../../lib/reportSampling';
 import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, scopedCollectionLabel } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
@@ -23,43 +23,6 @@ import Checkbox from '../Checkbox';
 import { TEST_IDS } from '../../lib/testIds';
 import type { ReportLocation } from '../../lib/reportWeather';
 import { Columns3, GripVertical, Filter, Plus } from 'lucide-react';
-
-function firstItemOf(ctx: ReportCtx, b: ReportBlock, fieldMap: Record<string, ReportFieldDef>, parentItem: any, parentCategory?: string, ancestors?: any): any {
-  const items = resolveCollectionItems(ctx, b.collection, b.category, parentItem, parentCategory, b, ancestors);
-  if (items.length === 0) return undefined;
-  // The canvas samples ONE item for the repeat's template preview. Pick the
-  // first item that resolves the most ITEM data — sampling a data-less scene
-  // (no cast/breakdown attached) would show raw {{tokens}} on the canvas
-  // while print/preview render the real items from later scenes. Document
-  // fields ({{pageCount}}, {{title}}…) resolve from ctx/aux, never from item
-  // data, so they're excluded from the comparison.
-  const itemTokens = new Set<string>();
-  for (const cb of (b.children || [])) {
-    if (cb.type === 'text' && cb.text) {
-      for (const m of cb.text.matchAll(TOKEN_RE)) {
-        const base = parseToken(m[1]).field.split('.')[0];
-        const def = fieldMap[base];
-        if (def && ITEM_SCOPES.has(def.scope)) itemTokens.add(m[1]);
-      }
-    } else if (cb.type === 'field' && cb.field) {
-      const def = fieldMap[cb.field];
-      if (def && ITEM_SCOPES.has(def.scope)) itemTokens.add(cb.field);
-    }
-  }
-  if (itemTokens.size === 0) return items[0];
-  let best = items[0];
-  let bestMissing = Infinity;
-  for (const it of items) {
-    let missing = 0;
-    for (const raw of itemTokens) {
-      const base = parseToken(raw).field.split('.')[0];
-      if (!reportFieldValueByKey(ctx, fieldMap, base, it, undefined)) missing++;
-    }
-    if (missing === 0) return it;
-    if (missing < bestMissing) { bestMissing = missing; best = it; }
-  }
-  return best;
-}
 
 export interface ColSel { colsId: string; colIndex: number; }
 
@@ -483,7 +446,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                       const onceTables = (b.children || []).filter(cb => cb.type === 'table' && coll === 'elementsOfCategory' && tableItemCollection(cb, coll) === coll);
                       const onceIds = new Set(onceTables.map(cb => cb.id));
                       const regular = (b.children || []).filter(cb => !onceIds.has(cb.id));
-                      const childItem = firstItemOf(ctx, b, fieldMap, parentItem, parentCategory, ancestors);
+                      const childItem = sampleRepeatItem(ctx, b, fieldMap, parentItem, parentCategory, ancestors);
                       const parentList = coll ? filterItemsByScope(resolveCollectionItems(ctx, coll, b.category, parentItem, parentCategory, b, ancestors) as ReportCollectionItem[], coll, coll === 'elements' ? b.category : undefined, undefined) : [];
                       const childIdx = childItem ? parentList.findIndex(it => it === childItem) : -1;
                       return (
