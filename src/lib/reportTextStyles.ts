@@ -36,4 +36,31 @@ export function newTextStyle(name: string, styles: ReportTextStyle[]): ReportTex
   };
 }
 
+/** Resolve linked run markers (`<span data-text-style="id">`, roadmap 193) to
+ *  inline typography AT RENDER TIME — the seam `resolveReportTokensHtml`
+ *  calls, so editing a style restyles every marked run in the canvas, preview
+ *  and print. A missing/deleted id renders as plain text (no error marker).
+ *  Direct formatting nests INSIDE the marker (mark priority), so its inline
+ *  style wins where both apply. */
+export function resolveReportTextStyleSpans(html: string, project: Project): string {
+  if (!html || !html.includes('data-text-style')) return html;
+  return html.replace(/<span([^>]*\bdata-text-style="([^"]*)"[^>]*)>/gi, (_m, attrs: string, id: string) => {
+    const style = getTextStyleById(project, id);
+    const rest = attrs.replace(/\s*data-text-style="[^"]*"/i, '');
+    if (!style) return `<span${rest}>`;
+    const named = [
+      `font-size: ${style.fontSize}pt`,
+      style.fontFamily ? `font-family: ${style.fontFamily.replace(/"/g, '&quot;')}` : '',
+      style.bold ? 'font-weight: 700' : '',
+      style.italic ? 'font-style: italic' : '',
+    ].filter(Boolean).join('; ');
+    // Direct formatting (a nested span in practice) still wins conflicts: its
+    // declarations come LAST so they override the named style's.
+    const direct = /\s*style="([^"]*)"/i.exec(rest);
+    const merged = [named, direct?.[1].trim()].filter(Boolean).join('; ');
+    const bare = direct ? rest.replace(direct[0], '') : rest;
+    return `<span${bare} style="${merged}">`;
+  });
+}
+
 export { generateUUID };

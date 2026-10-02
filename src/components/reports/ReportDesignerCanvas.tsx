@@ -9,6 +9,7 @@ import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
 import { useColumnResize, ColumnResizeStrip } from '../columnResize';
 import { ReportBlockView } from './ReportBlockView';
+import { ReportTextStyleRules } from './ReportTextStyleRules';
 import { CustomCellSelection } from './useCustomTableCells';
 import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
@@ -670,6 +671,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
           clearActiveZones();
         }}
       >
+        <ReportTextStyleRules project={ctx.project} />
         {bodyBlocks}
       </div>
     );
@@ -689,6 +691,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
         clearActiveZones();
       }}
     >
+      <ReportTextStyleRules project={ctx.project} />
       <div data-testid={TEST_IDS.reportPage} className="mx-auto" style={{ width: viewWidth ? `${viewWidth}px` : '100%', minHeight: '80vh', background: '#e4e4e7', borderRadius: 10, padding: 28 }}>
         <ReportZone
           label="Header"

@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
-import { ChromeHeader, FontMenu, FormatToolbar, TB_BTN_ICON, TB_DIVIDER, TB_NUM, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON, ToolButton } from '@gabriel/ui-kit';
+import { ChromeHeader, TB_BTN_ICON, TB_DIVIDER, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON, ToolButton, RICH_TEXT_STATE_IDLE } from '@gabriel/ui-kit';
 import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, RotateCcw, TableCellsMerge, Ungroup } from 'lucide-react';
-import { Project, ReportCellStyle, ReportCollection, ReportTextStyle } from '../../types';
-import { LiveNumberInput } from '../LiveNumberInput';
+import { Project, ReportCellStyle, ReportTextStyle } from '../../types';
 import { Tooltip } from '../Tooltip';
 import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import { ContentRow, editorRowCls } from './reportEditorLayout';
-import { FieldPicker } from './FieldPicker';
-import { TextStyleMenu, TextStylesModal, useReportControlContext } from './blockControls';
+import { TextStyleMenu, TextStylesModal } from './blockControls';
+import RichTextFormatBar from './RichTextFormatBar';
 
 // Free-table cell controls (roadmap 189) — the ONE body rendered by both the
 // floating cell chrome and the docked inspector: the chrome header carries
 // merge/unmerge/reset (icon actions, like every editor chrome), the body the
 // same rich text toolbar a text block gets (inline marks on the focused cell's
-// editor), the attribute insert picker, paragraph styles (project named
-// styles), per-cell typography (font/size/align, horizontal + vertical).
-// Reset clears the overrides + inline formatting back to the table defaults.
+// editor), paragraph styles (project named styles), per-cell typography
+// (font/size/align, horizontal + vertical). Reset clears the overrides +
+// inline formatting back to the table defaults.
 
 interface CustomCellControlsProps {
   /** Range description, e.g. "2 × 3 cells" / "No cells selected". */
@@ -23,13 +22,14 @@ interface CustomCellControlsProps {
   canMerge: boolean;
   canUnmerge: boolean;
   project: Project;
-  parentCollection?: ReportCollection;
   /** Focus cell's effective style — the typography pickers' current values. */
   styleValue?: ReportCellStyle;
   /** The focused cell's editor handle — FormatToolbar's exec target. */
   editorRef?: React.RefObject<RichTextEditorHandle | null>;
   /** Inline formatting state at the caret (lights the toggles). */
   active?: RichTextState;
+  /** Multi-cell selection with differing overrides — object-level Mixed. */
+  objectMixed?: { fontFamily: boolean; fontSize: boolean };
   readOnly?: boolean;
   /** Docked inspector layout: stacked ContentRows (context also drives them). */
   panel?: boolean;
@@ -42,27 +42,14 @@ interface CustomCellControlsProps {
 }
 
 export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
-  label, canMerge, canUnmerge, project, parentCollection, styleValue, editorRef, active, readOnly, panel,
+  label, canMerge, canUnmerge, project, styleValue, editorRef, active, objectMixed, readOnly, panel,
   onMerge, onUnmerge, onStyle, onReset, onSaveTextStyles, onDeselect,
 }) => {
-  const { contextFields } = useReportControlContext(project, parentCollection);
   const [stylesOpen, setStylesOpen] = useState(false);
   const hasSelection = label !== 'No cells selected';
   const disabled = !!readOnly || !hasSelection;
   const align = styleValue?.align ?? 'left';
   const vAlign = styleValue?.verticalAlign ?? 'top';
-
-  const insertAttribute = (
-    <FieldPicker
-      value=""
-      fields={contextFields}
-      onChange={f => editorRef?.current?.insertToken(f)}
-      disabled={disabled}
-      placeholder="Insert attribute…"
-      scope={parentCollection}
-      className={panel ? 'w-full' : 'w-32'}
-    />
-  );
 
   return (
     <div className={panel ? 'flex flex-col gap-1.5 min-w-0 w-full' : 'flex flex-col gap-1.5 min-w-max'}>
@@ -98,36 +85,27 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
       {editorRef && (
         <div className={panel ? 'flex flex-col gap-1.5 px-2.5 pb-1.5' : 'flex flex-col gap-1 px-2.5 pb-1.5'}>
           <ContentRow label="Format">
-            <FormatToolbar
+            <RichTextFormatBar
               editorRef={editorRef}
+              active={active ?? RICH_TEXT_STATE_IDLE}
               disabled={disabled}
-              active={active}
-              trailing={panel ? undefined : insertAttribute}
+              defaults={{ fontFamily: styleValue?.fontFamily, fontSize: styleValue?.fontSize }}
+              objectMixed={objectMixed}
+              onDefaults={onStyle}
             />
-            {panel && insertAttribute}
           </ContentRow>
           <ContentRow label="Style">
             <div className={editorRowCls(panel)}>
               <TextStyleMenu
-                value={styleValue?.textStyle || ''}
+                value={active?.hasSelection ? (active.textStyle || '') : (styleValue?.textStyle || '')}
                 project={project}
                 disabled={disabled}
+                editorRef={editorRef}
+                hasSelection={!!active?.hasSelection}
+                mixed={!!active?.textStyleMixed}
                 onChange={id => onStyle({ textStyle: id || undefined })}
                 onEdit={() => setStylesOpen(true)}
               />
-              <div className={TB_DIVIDER} />
-              <FontMenu value={styleValue?.fontFamily || 'Helvetica'} disabled={disabled} onChange={f => onStyle({ fontFamily: f === 'Helvetica' ? undefined : f })} />
-              <Tooltip content="Font size (pt)">
-                <LiveNumberInput
-                  value={styleValue?.fontSize}
-                  min={6}
-                  max={48}
-                  fallback={10}
-                  disabled={disabled}
-                  className={TB_NUM}
-                  onCommit={v => onStyle({ fontSize: v })}
-                />
-              </Tooltip>
               <div className={TB_DIVIDER} />
               {(['left', 'center', 'right'] as const).map(a => {
                 const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;

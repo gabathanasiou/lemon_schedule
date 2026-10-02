@@ -12,6 +12,7 @@ import {
   ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, crewLinkWarningsForReportDay,
 } from './reportData';
 import { getCallTimeSettings } from './callTimes';
+import { resolveReportTextStyleSpans } from './reportTextStyles';
 
 // Single field registry for the Reports Designer. Attributes only exist in the
 // context where they make sense — the palette, token picker and table pickers
@@ -1051,7 +1052,7 @@ export function resolveReportTokensHtml(
     // Old kit builds serialized via XMLSerializer — drop the xmlns noise it
     // left on every element so polluted stored text renders clean.
     .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '');
-  return suppressLookupPairs(cleaned).replace(TOKEN_RE, (_m, raw: string) => {
+  const resolved = suppressLookupPairs(cleaned).replace(TOKEN_RE, (_m, raw: string) => {
     const lookup = parseLookupKey(raw);
     const { field } = parseToken(raw);
     const value = resolveToken(ctx, fieldMap, raw, item, aux);
@@ -1083,6 +1084,9 @@ export function resolveReportTokensHtml(
     }
     return escapeHtml(value);
   });
+  // Linked named-style runs resolve last: markers are tags, not tokens, so
+  // token replacement never disturbs them.
+  return resolveReportTextStyleSpans(resolved, ctx.project);
 }
 
 export function fieldsForScope(

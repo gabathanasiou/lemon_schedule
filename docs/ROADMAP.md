@@ -798,6 +798,19 @@ shows an error in the cell (designer, preview and print). Free tables only —
 locked with the user (2026-10-02 session). Offsets are a quick relative form
 (one step per direction in v1).
 
+**Locked decisions (2026-10-02, continued session)**:
+- **`=` trigger (Option A)**: in an EMPTY cell the `=` key is intercepted on
+  keydown before it reaches the editor — it is never stored. The menu owns the
+  keystrokes that follow (printable → query filter, Backspace, arrows, Enter,
+  Esc closes). This is what lets a directional pick insert the chip through the
+  kit handle with the caret after it (the kit has no delete/select-all
+  command). Committed-HTML detection (Option B) is deferred for later.
+- **Attribute pick = the 121 two-chip pair**: picking from the `.` list stores
+  a SECOND chip (`{{cellref.X}}` + `{{cellref.X.field}}`) exactly like
+  `@Bob` + Phone — no kit change, no "rewrite the chip" mode. The resolver
+  suppresses the reference chip of an adjacent same-target pair and prints the
+  attribute; a lone pinned token still resolves.
+
 **Token** (helpers compose/parse exported for tests): `{{cellref.<rowId>.<colId>}}`
 mirrors the target; an appended `.<field>` pins one attribute
 (`{{cellref.<rowId>.<colId>.phone}}`). Row/column IDs are the stable
@@ -808,6 +821,9 @@ not ids — `{{cellref.rel.<dx>.<dy>}}` (`-1.0` left, `1.0` right, `0.-1` above,
 `0.1` below; signed pair leaves room for N steps later) — and resolve against
 the formula cell's CURRENT row/column index, so "above" follows the neighbor
 when rows/columns move (Excel-like). Same `.<field>` pinning on both forms.
+Picked attributes are stored as an adjacent pair (reference chip + pinned chip,
+the 121 convention); the resolver prints only the pinned value for a same-target
+pair — a lone pinned token resolves on its own.
 
 **Resolution** (ONE pure seam shared by designer/preview/print — extract the
 token-resolution block of `lib/reportFields.ts` into `lib/reportTokens.ts` and
@@ -832,14 +848,13 @@ re-export through the barrel so imports keep working; cell refs must not bloat a
   meta shows it in the editor.
 
 **Interaction** (CustomTable + the 189 bands/chrome):
-- `=` typed into an EMPTY cell opens the referencing menu (detected from the
-  committed cell HTML; the kit `DropdownPanel`/overlay primitives anchored at
-  the cell, not the `@` popup). Directional entries insert the relative token
-  immediately and leave the caret after the chip for the `.` stage-2 picker;
-  `Pick a cell…` enters pick mode — cells highlight, cursor crosshair,
-  Esc/outside click cancels and reverts the `=`; clicking a cell writes
-  `{{cellref…}}` into the source cell (blur → patch so the editor's
-  external-sync applies).
+- `=` keydown-intercepted into an EMPTY cell opens the referencing menu (see
+  Locked decisions; the kit/overlay primitives anchor the panel at the cell,
+  not the `@` popup). Directional entries insert the relative token immediately
+  and leave the caret after the chip for the `.` stage-2 picker; `Pick a
+  cell…` enters pick mode — cells highlight, cursor crosshair, Esc/outside
+  click cancels (the cell stays empty); clicking a cell writes `{{cellref…}}`
+  into the source cell (blur → patch so the editor's external-sync applies).
 - Pick mode overrides 189's range selection while active (a click commits the
   ref, it does not select); merged targets resolve through their merge anchor.
 - A cellref chip resolves its label from the target ("Bob", "Bob · Phone",
@@ -847,11 +862,12 @@ re-export through the barrel so imports keep working; cell refs must not bloat a
   target cell with the shared range-outline language.
 - The `.` attribute list on a cellref resolves the target (transitively through
   nested refs) to its item reference and uses the 121 stage-2 scope; picking
-  rewrites the chip to the pinned key.
+  inserts the attribute as a SECOND chip (the 121 behavior, stored pinned).
 
 **Files**: `lib/reportTokens.ts` (new; extraction + cellref resolution incl.
 relative), `lib/reportFields.ts` (re-export), `reports/CustomTable.tsx` +
-`reports/CustomTableBands.tsx` (pick mode, chip meta), `reports/CustomCellRefMenu.tsx`
+`reports/CustomTableBands.tsx` (pick mode, chip meta), `reports/RichTextEditor.tsx`
+(adapter: cellref chip labels + the `.` attribute stage), `reports/CustomCellRefMenu.tsx`
 (new; the `=` menu), `index.css` (pick-mode + error styles), `docs/REPORTS-DESIGNER.md`
 (free-table bullet + Extending recipe).
 
@@ -923,81 +939,3 @@ precedent) and **189** (canvas cell-chrome interaction language); gives **121**
 (and **190**) their inline home — the two-stage picker works in the inline
 editor through the shared adapter; related to **17** (iPad touch affordances)
 and **140** (rich-text table title, same editor reuse).
-
-## 192. Reports — contextual (selection-level) font/size + one shared format bar for text blocks & free-table cells (`[ ]`, big)
-
-**Request**: font family and size should apply to the SELECTED TEXT inside a
-text block or a free-table cell, exactly like B/I/U/S already do (not only to
-the whole block/cell). The whole-block/whole-cell pickers stay as defaults and
-show **Mixed** when a selection spans different formatting. Locked with the
-user (2026-10-02 session). Related ask: the text block and the cell are the
-same editor underneath — ONE shared format bar, not two copies.
-
-**Kit prerequisite** (the user is doing the kit side first): add TipTap
-`FontFamily` + `FontSize` (both already exported by the installed
-`@tiptap/extension-text-style`) to `RichTextEditor`, `exec('fontFamily' |
-'fontSize' | 'clearFormatting')` and `RichTextState.fontFamily/fontSize`.
-The kit's storage sanitizer (`ui-kit/src/richText.ts`) already whitelists
-`font-family`/`font-size` on `<span>` — no storage-contract change. Bump/tag
-the kit, then re-pin the app dependency.
-
-**App**:
-- Extract `reports/RichTextFormatBar.tsx` — FormatToolbar + FontMenu + size +
-  named-style picker + the attribute insert picker — driven by
-  `{ editorRef, active, defaults, onDefaults, onStyle }`. Consumed by
-  `ContentControls` (text/field blocks) and `CustomCellControls` (free-table
-  cells), replacing their two ad-hoc rows.
-- No selection (collapsed caret) → patch the object default (block props /
-  `cellStyles`, current behavior). A real selection → `exec` the inline mark.
-- Mixed state: a small resolver compares the selection's active formatting
-  against the object default and feeds the pickers a `'mixed'` value; document
-  the comparison in the bar, not per call site.
-- `Reset` (cells) also clears inline marks via the kit's `clearFormatting`.
-
-**Files**: `reports/RichTextFormatBar.tsx` (new), `reports/blockControls.tsx`,
-`reports/CustomCellControls.tsx`, `reports/RichTextEditor.tsx` (expose the new
-state fields through the adapter), `docs/UI-KIT.md` (kit version),
-`docs/REPORTS-DESIGNER.md` (free-table + text-block bullets).
-
-**Verify**: unit test for the mixed-state resolver; `npm run lint`;
-`npm run test:smart` (report specs); rule-7 manual (select text in a text block
-and in a cell → font/size apply to the run only; Mixed appears; Reset clears;
-print/preview match). Bump `package.json` (patch) when wrapping.
-
-**Relations**: depends on the kit FontFamily/FontSize release; builds on **189**
-(cell chrome + `useCustomTableCells`) and **191** (inline editor + shared
-handle channel); related to **140** (same editor reuse), **121** (attribute
-picker), **193** (linked paragraph runs).
-
-## 193. Reports — linked paragraph-style runs in rich text (`[ ]`)
-
-**Request**: a named paragraph style applied to a SELECTION stays linked to the
-style definition — editing the style updates every styled run (Word-like).
-Chosen over "bake the resolved font/size/bold/italic inline" with the user
-(2026-10-02). Object-level links already exist (`ReportBlock.textStyle` /
-`ReportCellStyle.textStyle`).
-
-**Design**: a custom TipTap mark (`reportTextStyle`, attr `styleId`) in the
-kit's `RichTextEditor`, with `exec('textStyle', id)` / unset and
-`RichTextState.textStyle` (id or mixed). The kit sanitizer must keep the
-markers through save (a whitelisted `data-text-style` attribute or class on
-`<span>`); the app's token-resolution seam (`resolveReportTokensHtml` /
-`resolveReportTokens`) resolves each marked span against
-`project.reportTextStyles` at render time, so preview/print/PDF show the
-current definition. Missing/deleted style id → render as plain text (no
-`#REF`).
-
-**Files**: kit `RichTextEditor.tsx` + `richText.ts` (mark + whitelist);
-`reports/RichTextFormatBar.tsx` (style picker applies to selection vs object),
-`lib/reportFields.ts` (render-time span resolution), `reports/CustomTableBands.tsx`
-(any static-render path), `docs/UI-KIT.md`, `docs/REPORTS-DESIGNER.md`.
-
-**Verify**: kit playground spec for mark persistence + mixed state; app unit
-test for span resolution (linked style edit re-renders); rule-7 manual
-(apply style to a selection, edit the style in the Text Styles modal, watch the
-run update in canvas + preview); `npm run lint` + `test:smart`. Bump the kit
-version and re-pin; bump `package.json` (patch) when wrapping.
-
-**Relations**: depends on **192** (shared format bar + selection-level
-semantics) and the kit mark work; extends **189** (object-level
-`cellStyles.textStyle`); related to **100** (token resolution at render).

@@ -27,6 +27,16 @@ Before building any of these by hand again, check the kit first:
 
 **v0.1.85 (hover never scrolls menus)**: pointer-driven highlights no longer run `scrollIntoView` — hovering a clipped edge row used to move the list under the cursor while aiming at it. Keyboard arrows/typeahead (and open-scroll-to-active) still keep the active row visible. Covers `DropdownMenu`, `DropdownSubmenu` and the rich-text suggestion popup; the app's `EntityDropdown` mirrors it (roadmap 187).
 
+**v0.1.87 (contextual font family/size + clear formatting)**: `RichTextState` gained the run's `fontFamily`/`fontSize` (the `textStyle` mark attrs at the caret) and `exec()` gained `fontFamily`/`unsetFontFamily`/`fontSize`/`unsetFontSize` + `clearFormatting` (unsets every inline mark and normalizes the block). `FormatToolbar` gained optional `font` (`{ value, onChange }` — a consumer-owned contextual family picker) and `showClearFormatting`. Run overrides persist as sanitized `<span style="font-family/font-size">` (the storage sanitizer already whitelists both).
+
+**v0.1.88 (selection Mixed + focus intent)**: `RichTextState.hasSelection` — a ranged selection means "style the RUN", a collapsed caret means "style the consumer's object default"; `fontFamilyMixed`/`fontSizeMixed` report a range spanning different run values, and `FontMenu`/the size input render "Mixed" (italic, no check) instead of a misleading first-mark value.
+
+**v0.1.89 (consumer size slot + non-focusing exec)**: `FormatToolbar.fontSizeSlot` replaces the kit's size input — the consumer passes its own (the app uses `LiveNumberInput`, the ribbon number recipe). `exec(cmd, val, { focus: false })` applies the command WITHOUT stealing focus, so a live-committing input can patch a run while it keeps the selection and its own focus. `FontMenu`'s trigger restyled to the app-picker (`TB_PICKER`) look.
+
+**v0.1.90 (linked named-style runs + held selection)**: a `reportTextStyle` TipTap mark (`attr styleId`, priority 102 so direct formatting nests inside and wins) with `exec('textStyle', id)` (also clears direct font family/size on the range) / `exec('unsetTextStyle')`, `RichTextState.textStyle` + `textStyleMixed`; the sanitizer keeps `data-text-style` on spans (the consumer resolves the id at render time — editing the style updates every run). `RichTextEditorHandle.holdSelectionHighlight(on)` paints a ghost highlight (`.rt-retained-selection`, OS `Highlight` colors) over the current range while a consumer control (font-size box, style picker) holds focus.
+
+**v0.1.91 (one prosemirror-view)**: `@tiptap/pm/view` added to the kit build's externals — bundling it gave the editor a SECOND prosemirror-view copy, so the new plugin `DecorationSet` failed `instanceof` and the editor crashed at mount (`DecorationGroup` member undefined). Never bundle a `@tiptap/pm` subpath the consumer's editor also uses.
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

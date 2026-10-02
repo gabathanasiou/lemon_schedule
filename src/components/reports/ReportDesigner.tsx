@@ -259,8 +259,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       canMerge={cellOps.canMerge}
       canUnmerge={cellOps.canUnmerge}
       project={project}
-      parentCollection={selParentCollection}
       styleValue={cellOps.focusStyle}
+      objectMixed={cellOps.rangeMixed}
       editorRef={cellEditorRef}
       active={cellRtState}
       readOnly={readOnly}

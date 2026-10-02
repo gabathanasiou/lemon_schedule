@@ -42,6 +42,8 @@ export interface CustomTableCells {
   canDeleteRows: boolean;
   canDeleteColumns: boolean;
   hasStyleOverride: boolean;
+  /** A multi-cell selection whose overrides differ (object-level "Mixed"). */
+  rangeMixed: { fontFamily: boolean; fontSize: boolean };
   focusStyle: ReportCellStyle;
   commitCell: (rowIndex: number, colIndex: number, html: string) => void;
   setHeader: (colIndex: number, label: string) => void;
@@ -123,6 +125,16 @@ export function useCustomTableCells(opts: {
     ...(focusColumn?.align ? { align: focusColumn.align } : {}),
     ...(selection ? (getCellStyle(cellStyles, selection.focus.rowId, selection.focus.colId) || {}) : {}),
   };
+  const rangeMixed = useMemo(() => {
+    const families = new Set<string>();
+    const sizes = new Set<string>();
+    for (const k of selectionKeys) {
+      const s = cellStyles[k];
+      families.add(s?.fontFamily ?? '');
+      sizes.add(s?.fontSize != null ? String(s.fontSize) : '');
+    }
+    return { fontFamily: families.size > 1, fontSize: sizes.size > 1 };
+  }, [selectionKeys, cellStyles]);
 
   const applyTableOp = (op: (blocks: ReportBlock[]) => ReportBlock[]) => {
     if (!block || !patch) return;
@@ -216,6 +228,7 @@ export function useCustomTableCells(opts: {
     canDeleteRows: !!selectionRect && selectionRect.band === 'body' && rows.length - rangeRows >= 1,
     canDeleteColumns: !!selectionRect && columns.length - rangeCols >= 1,
     hasStyleOverride: selectionKeys.some(k => !!cellStyles[k]),
+    rangeMixed,
     focusStyle,
     commitCell, setHeader, insertRowAt, removeRow, setRowHeight, insertColumnAt, moveColumn, removeColumn,
     deleteRows, deleteColumns, merge, unmerge, patchStyle, resetCells, clearContents,

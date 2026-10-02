@@ -19,6 +19,7 @@ export function LiveNumberInput({
   ariaLabel,
   className,
   title,
+  placeholder,
 }: {
   value: number | undefined;
   min: number;
@@ -30,17 +31,20 @@ export function LiveNumberInput({
   ariaLabel?: string;
   className?: string;
   title?: string;
+  /** Shown (and the box left empty) when `value` is unset — e.g. "Mixed". */
+  placeholder?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const focusedRef = useRef(false);
   useEffect(() => { if (!focusedRef.current) setDraft(null); }, [value]);
-  const display = draft !== null ? draft : String(value ?? fallback);
+  const display = draft !== null ? draft : value != null ? String(value) : (placeholder ? '' : String(fallback));
   const clamp = (n: number) => Math.max(min, Math.min(max, n));
   return (
     <input
       type="number"
       aria-label={ariaLabel}
       title={title}
+      placeholder={placeholder}
       value={display}
       onFocus={() => { focusedRef.current = true; }}
       onChange={e => {
