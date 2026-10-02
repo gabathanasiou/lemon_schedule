@@ -909,6 +909,16 @@ through the same scope, not the formula cell's aux. Thread the parent context
 `test:smart`; rule-7 manual (picker rows match a repeater's palette for the
 same item).
 
+**Guardrails (do not lose)**: parity only changes the OFFERED LIST — the
+existing cellref picker behavior must survive: transitive target resolution
+through nested/pinned refs (chains keep passing the item, e.g.
+`@Bob` → `LEFT.phone` → `LEFT.email`), the element category's extra identity
+scope (cast item → Cast ID fields), identity-field exclusion, the RELATIVE form
+preserved when composing a pin (`cellref.rel.*` stays relative), the picker
+group label from the target item, and the typed query filter. Add a no-loss
+unit test: capture today's per-collection offered key set and assert it stays a
+subset of the new `fieldsForScope` list, so nothing silently disappears.
+
 **Relations**: extends **190** (cellref resolution + attribute picker) and
 **121** (two-stage item picker); **196** is the split-off navigation half;
 reuses the canonical scope registry in `reportFields.ts` /
