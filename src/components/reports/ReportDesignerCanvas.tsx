@@ -387,6 +387,26 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     }
     return null;
   };
+  // A selected text block enters editing on a single click of its body — but
+  // DEFERRED a beat: entering on the opening click of a double-click would
+  // mount the editor under the second click and word-select natively. A real
+  // double-click (or another pointerdown) cancels the timer and enters/selects
+  // instead, so both gestures land exactly like roadmap 191.
+  const textEntryTimerRef = useRef<number | null>(null);
+  const selIdNowRef = useRef(selId);
+  selIdNowRef.current = selId;
+  const cancelTextEntry = () => {
+    if (textEntryTimerRef.current != null) { clearTimeout(textEntryTimerRef.current); textEntryTimerRef.current = null; }
+  };
+  const scheduleTextEntry = (id: string) => {
+    cancelTextEntry();
+    textEntryTimerRef.current = window.setTimeout(() => {
+      textEntryTimerRef.current = null;
+      if (selIdNowRef.current === id) setEditingId(id);
+    }, 250);
+  };
+  useEffect(() => () => { if (textEntryTimerRef.current != null) clearTimeout(textEntryTimerRef.current); }, []);
+
   // The cell each of the last two pointerdowns resolved to, plus whether they
   // form a double-click pair (time + distance). Selecting the card inserts the
   // in-flow resize strip, which SHIFTS the table before the second click — and
@@ -467,22 +487,39 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               // table's own block chrome returns.
               const el = e.target as HTMLElement;
               if (!b.custom && el.closest?.('[data-table-col-ci]')) return;
-              if (b.custom && onCellSel && !el.closest?.('[data-cell]')) onCellSel(b.id, null);
-              // Coarse pointers can't double-click cleanly: a second tap on the
-              // already-selected target enters editing (Values mode). Free
-              // tables enter only from cell CONTENTS — the card itself offers
-              // the resize chrome.
-              if (IS_COARSE && !readOnly && mode === 'values' && selId === b.id) {
-                if (b.type === 'text' && !isEditingText) setEditingId(b.id);
-                if (b.custom && editingId !== b.id) {
-                  const cell = entryCellFromEvent(e);
+              const clickedCell = b.custom ? cellFromEvent(e) : null;
+              if (b.custom && onCellSel && !clickedCell) onCellSel(b.id, null);
+              if (!readOnly && mode === 'values') {
+                if (b.custom && editingId === b.id) {
+                  // Editing: a click on the card (padding/header) exits; cells
+                  // stay live (the click places the caret natively).
+                  if (!clickedCell) {
+                    setEditingId(null);
+                    setTextFocusedId(null);
+                    setTableFocusCell(null);
+                    handleTextSelection(null);
+                    handleTextRtState(RICH_TEXT_STATE_IDLE);
+                  }
+                } else if (b.custom && selId === b.id) {
+                  // Selected card + click on a cell → enter editing (coarse
+                  // second taps are pair-aware; the strip shift can move rows).
+                  const cell = IS_COARSE ? entryCellFromEvent(e) : clickedCell;
                   if (cell) { setTableFocusCell(cell); setEditingId(b.id); }
+                } else if (b.type === 'text' && selId === b.id && !isEditingText && (IS_COARSE || el.closest?.('.report-text-block'))) {
+                  // Already-selected text block: clicking its BODY enters
+                  // inline editing (the same second-click rule free tables
+                  // use). Desktop keeps the leaf header as the pure
+                  // select/drag handle; coarse pointers can't double-click
+                  // cleanly, so a second tap anywhere on the card enters.
+                  if (IS_COARSE) setEditingId(b.id);
+                  else scheduleTextEntry(b.id);
                 }
               }
               onSelect(b.id);
             }}
             onDoubleClick={!readOnly && mode === 'values' && (b.type === 'text' || b.custom) ? e => {
               e.stopPropagation();
+              cancelTextEntry();
               onSelect(b.id);
               if (b.custom) {
                 const cell = entryCellFromEvent(e);
@@ -492,10 +529,18 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               setEditingId(b.id);
             } : undefined}
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onMenu(e, b.id); }}
-            onPointerDown={b.custom ? e => {
+            onPointerDown={e => {
+              cancelTextEntry();
+              if (!b.custom) return;
               recordPointerCell(e);
-              if ((e.target as HTMLElement).closest?.('[data-cell]')) setCellDragBlockId(b.id);
-            } : undefined}
+              // Suppress the block drag only while the table is LIVE (Fields /
+              // Values entry): there the cells are text surfaces. Values-static
+              // cells keep the card draggable — and, critically, no state update
+              // means no re-render between mousedown and mouseup (a re-render
+              // remounts the cell content and the browser then swallows the
+              // click/dblclick, so the block never selects or enters editing).
+              if ((mode === 'fields' || editingId === b.id) && (e.target as HTMLElement).closest?.('[data-cell]')) setCellDragBlockId(b.id);
+            }}
             onPointerUp={b.custom ? () => setCellDragBlockId(null) : undefined}
             onPointerCancel={b.custom ? () => setCellDragBlockId(null) : undefined}
             // While a Values-mode editor holds the card (text focus / cell

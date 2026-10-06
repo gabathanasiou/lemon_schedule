@@ -312,14 +312,24 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
     if (!editable || !focusCell || focusRequestRef.current === focusCell) return;
     focusRequestRef.current = focusCell;
     selectRef.current({ anchor: focusCell, focus: focusCell });
-    const raf = requestAnimationFrame(() => {
-      const el = rootRef.current?.querySelector<HTMLElement>(
-        `[data-cell="${focusCell.rowId}:${focusCell.colId}"] .tiptap, [data-cell="${focusCell.rowId}:${focusCell.colId}"] .report-ct-header-input`,
-      );
-      el?.focus();
-    });
+    let raf = 0;
+    let attempts = 0;
+    const enter = () => {
+      // Entering focuses with the caret at the END (the InlineTextBlock
+      // contract, roadmap 191) — the clicked point is only the entry target.
+      if (focusedEditorRef.current) { focusedEditorRef.current.focus('end'); return; }
+      const el = rootRef.current?.querySelector<HTMLElement>(`[data-cell="${focusCell.rowId}:${focusCell.colId}"] .report-ct-header-input`);
+      if (el) {
+        el.focus();
+        if (el instanceof HTMLInputElement) el.setSelectionRange(el.value.length, el.value.length);
+        return;
+      }
+      // The cell editor publishes its handle a beat after the re-render.
+      if (++attempts < 20) raf = requestAnimationFrame(enter);
+    };
+    raf = requestAnimationFrame(enter);
     return () => cancelAnimationFrame(raf);
-  }, [editable, focusCell]);
+  }, [editable, focusCell, focusedEditorRef]);
   const startHeightsRef = React.useRef<number[]>([]);
   const rowEls = () => rootRef.current
     ? (Array.from(rootRef.current.querySelectorAll('.report-ct-row[data-row-id]')) as HTMLElement[])
