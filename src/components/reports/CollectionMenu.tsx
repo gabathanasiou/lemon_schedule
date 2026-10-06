@@ -7,6 +7,7 @@ import DropdownSubmenu from '../DropdownSubmenu';
 import DropdownItem from '../DropdownItem';
 import { ChevronDown, Check } from 'lucide-react';
 import { TB_PICKER } from '@gabriel/ui-kit';
+import { useBlockEditorPanel } from './reportEditorLayout';
 
 // Collection picker for report blocks (Repeat over / Table over). Replaces the
 // native selects with the shared Radix menu: top-level collections plus an
@@ -42,6 +43,7 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
   onChange,
 }) => {
   const [open, setOpen] = useState(false);
+  const panel = useBlockEditorPanel();
   const scoped = scopedToParent !== false;
   // Locations: callers default an unset category to 'props' — for locations
   // that's the "All types" state (a real type key can never be 'props').
@@ -77,7 +79,7 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
         <button
           type="button"
           disabled={disabled}
-          className={`${width} ${TB_PICKER}`}
+          className={`${panel ? 'w-full' : width} ${TB_PICKER}`}
         >
           <span className="truncate">{label}</span>
           <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />

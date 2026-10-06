@@ -4,7 +4,7 @@ import type { Project, ReportBlock, ReportCollection, ReportTextStyle } from '..
 import { getReportFieldMap } from '../../../lib/reportFields';
 import type { ReportCtx } from '../../../lib/reportData';
 import {
-  appendToColumn, cloneBlock, duplicateBlock, duplicateBlockTo, findBlock, insertAfter, insertBefore,
+  appendToColumn, cloneBlock, duplicateBlockWithId, duplicateBlockTo, findBlock, insertAfter, insertBefore,
   insertColumnAt, insertInto, insertTableColumnAt, makeReportBlock, moveBlock, moveBlockTo, moveColumnAt,
   moveIntoChildren, moveIntoColumn, moveIntoNewColumn, moveTableColumn, parentCategoryOf, parentCollectionOf,
   removeBlock, removeColumnAt, removeTableColumnAt, updateBlock, wrapWithColumns, duplicateIntoNewColumn,
@@ -59,6 +59,14 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
   };
 
   const zoneScope: ReportCollection = 'days';
+
+  /** Duplicate + select the COPY (roadmap 204) — shared by the canvas chrome
+   *  and the context menu. */
+  const duplicateSelect = (id: string) => {
+    const { blocks: next, newId } = duplicateBlockWithId(blocks, id);
+    onChange(next);
+    if (newId) setSelId(newId);
+  };
 
   const canvasProps = {
     blocks,
@@ -125,7 +133,7 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
       onChange(duplicateIntoNewColumn(blocks, moveId, columnsId, colIndex)),
     onRemoveColumn: (columnsId: string, colIndex: number) => onChange(removeColumnAt(blocks, columnsId, colIndex)),
     onMoveColumn: (columnsId: string, from: number, to: number) => onChange(moveColumnAt(blocks, columnsId, from, to)),
-    onDuplicate: (id: string) => onChange(duplicateBlock(blocks, id)),
+    onDuplicate: (id: string) => duplicateSelect(id),
     onRemove: (id: string) => { onChange(removeBlock(blocks, id)); if (selId === id) setSelId(null); },
     onMove: (id: string, dir: -1 | 1) => onChange(moveBlock(blocks, id, dir)),
     onMenu: (e: React.MouseEvent, id: string, colIndex?: number) => {
@@ -177,7 +185,7 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
           onInsertAbove={() => onChange(insertBefore(blocks, menu.id, makeReportBlock('text')))}
           onInsertBelow={() => onChange(insertAfter(blocks, menu.id, makeReportBlock('text')))}
           onAddChild={() => onChange(insertInto(blocks, menu.id, makeReportBlock('text')))}
-          onDuplicate={() => onChange(duplicateBlock(blocks, menu.id))}
+          onDuplicate={() => duplicateSelect(menu.id)}
           onRemove={() => { onChange(removeBlock(blocks, menu.id)); setSelId(null); setMenu(null); }}
           onColumnInsertAt={i => {
             if (menu.colIndex === undefined) return;

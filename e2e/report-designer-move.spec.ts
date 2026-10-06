@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { openSeededProject, loadSeedProject, seedProjectScript, seedTitle, seedLeadCast, seedElement } from './helpers';
 
 test('reports designer lives in design tab; collection menu uses submenu', async ({ page }) => {
-  await openSeededProject(page);
+  await openSeededProject(page, undefined, { editorMode: 'floating' });
 
   const designTab = page.getByRole('button', { name: 'Design', exact: true });
   await designTab.click();
@@ -17,7 +17,7 @@ test('reports designer lives in design tab; collection menu uses submenu', async
 });
 
 test('table over menu drops cast and nests categories in an elements submenu', async ({ page }) => {
-  await openSeededProject(page);
+  await openSeededProject(page, undefined, { editorMode: 'floating' });
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
@@ -80,7 +80,7 @@ test('reports designer view toggle switches canvas width (portrait/landscape/ful
 });
 
 test('keys/values toggle switches text blocks and table cells', async ({ page }) => {
-  await openSeededProject(page);
+  await openSeededProject(page, undefined, { editorMode: 'floating' });
   const lead = await seedLeadCast(page);
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
@@ -105,7 +105,7 @@ test('keys/values toggle switches text blocks and table cells', async ({ page })
 });
 
 test('repeat nested in a categories repeat offers Elements (of this category)', async ({ page }) => {
-  await openSeededProject(page);
+  await openSeededProject(page, undefined, { editorMode: 'floating' });
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
@@ -130,7 +130,7 @@ test('repeat nested in a categories repeat offers Elements (of this category)', 
 });
 
 test('cast repeat exposes Cast ID / Cast ID & Name attributes and renders them', async ({ page }) => {
-  await openSeededProject(page);
+  await openSeededProject(page, undefined, { editorMode: 'floating' });
   const lead = await seedLeadCast(page);
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
@@ -155,7 +155,7 @@ test('cast repeat exposes Cast ID / Cast ID & Name attributes and renders them',
 });
 
 test('element work/shoot day attributes fill for mixed-case elements', async ({ page }) => {
-  await openSeededProject(page);
+  await openSeededProject(page, undefined, { editorMode: 'floating' });
   const prop = await seedElement(page, 'props');
   expect(prop.name).toBeTruthy();
 
@@ -175,7 +175,7 @@ test('element work/shoot day attributes fill for mixed-case elements', async ({ 
 });
 
 test('category breakdown template iterates categories; skip empty + exclude work', async ({ page }) => {
-  await openSeededProject(page);
+  await openSeededProject(page, undefined, { editorMode: 'floating' });
   const lead = await seedLeadCast(page);
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();

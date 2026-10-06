@@ -34,11 +34,9 @@ interface RichTextFormatBarProps {
   /** Object-level Mixed (a multi-cell selection with differing overrides) —
    *  ORed with the kit's run-level mixed flags. */
   objectMixed?: { fontFamily?: boolean; fontSize?: boolean };
-  /** Attribute insert picker / extra controls after the divider. */
-  trailing?: React.ReactNode;
 }
 
-export const RichTextFormatBar: React.FC<RichTextFormatBarProps> = ({ editorRef, active, disabled, defaults, onDefaults, lockedFormatting, objectMixed, trailing }) => {
+export const RichTextFormatBar: React.FC<RichTextFormatBarProps> = ({ editorRef, active, disabled, defaults, onDefaults, lockedFormatting, objectMixed }) => {
   const hasSelection = active.hasSelection;
   const exec = (cmd: string, value?: string, opts?: { focus?: boolean }) => editorRef.current?.exec(cmd, value, opts);
 
@@ -93,7 +91,6 @@ export const RichTextFormatBar: React.FC<RichTextFormatBarProps> = ({ editorRef,
       font={{ value: fontValue, mixed: hasSelection ? active.fontFamilyMixed : !!objectMixed?.fontFamily, onChange: onFont }}
       fontSizeSlot={sizeSlot}
       showClearFormatting
-      trailing={trailing}
     />
   );
 };

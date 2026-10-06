@@ -345,7 +345,10 @@ Structure (all in `src/components/Modal.tsx`):
 - **No manual resize** — the modal auto-fits its content (content-driven height changes animate,
   see Morph below); drag-to-move by the header is the only manual geometry control. Default
   width comes from the `width` prop (`max-w-* w-full`, else `max-w-xl`) clamped by
-  `min(100%, 100vw - 64px)` + `max-height: 100vh - 64px`.
+  `min(100%, 100vw - 64px)` + `max-height: 100vh - 64px`. **The prop takes a MAX-width class —
+  never `w-[…]`**: the kit sets the width inline (the viewport clamp above), and inline width
+  beats a `w-*` class, so a `w-[420px]` silently runs the modal edge-to-edge (the Text-styles
+  modal bug, roadmap 205).
 
 Behavior: Esc and outside-click = cancel (touch: overlay `onTouchEnd` closes unless a Radix menu is
 open, `:165-169`); Enter = confirm — when nothing interactive is focused

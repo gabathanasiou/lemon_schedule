@@ -10,17 +10,18 @@ roadmap worker session, so it stays lean.
 - **New asks** go through the triage/dedupe gate (AGENTS.md, §Roadmap Work)
   before becoming an item here.
 
-> **Next session — 202 first** (kit `NumberInput` stepper; it also gets the
-> next ui-kit bump, so do it before the Reports Designer pass). Then the
+> **Next session — 202 first** (kit `NumberInput` stepper; it gets the next
+> ui-kit bump — the kit is at v0.1.98 after the docked-editor pass). Then the
 > Reports Designer pass: **195** (reference `.` attributes match the repeater
 > scope — honor its guardrails), **196** (cellref collection navigation /
-> chaining), **198** (designer day picker — preview any day), **199**
-> (collection-table column headers — custom text + tokens), **204** (Duplicate
-> selects the new block) and **205** (toolbar-editor layout polish). **203**
+> chaining), **198** (designer day picker — preview any day) and **199**
+> (collection-table column headers — custom text + tokens). **203**
 > (Fields/Values mode + block headers + tips star), **191** (inline text
-> blocks + the ONE shared chrome) and **194** (resize-tab double-click reset)
-> shipped 2026-10-06 (their 203 follow-ups — edit-entry clicks, caret at end,
-> insert auto-edit — same day).
+> blocks + the ONE shared chrome), **194** (resize-tab double-click reset) and
+> **204**/**205** (Duplicate selects the new block; docked-toolbar layout
+> polish — docked is now the DEFAULT surface, the switch lives in the chrome
+> header) shipped 2026-10-06 (the 203 follow-ups — edit-entry clicks, caret at
+> end, insert auto-edit — same day).
 
 ---
 ## 17. Report designer iPad-friendly (`[ ]`)
@@ -1069,51 +1070,3 @@ coarse size, disabled at min/max). No new e2e.
 **Relations**: depends on/extends **56** (kit promotion), consumed by **48**
 (ribbon toolbar) and **192** (format bar size slot); related to **17**/**182**
 (touch affordances).
-
-## 204. Reports designer — Duplicate selects the new block (`[ ]`)
-
-**Request** (user, 2026-10-06): duplicating a report block should select the
-DUPLICATE so it can be edited/moved immediately — today the original stays
-selected and the copy is easy to lose.
-
-**Approach**: the explicit duplicate paths in `ReportDesigner.tsx` (toolbar /
-chrome `onDuplicate`, context-menu Duplicate, canvas Cmd+C) call
-`duplicateBlock` and keep `selId` on the source. Create the copy explicitly
-(`{ ...cloneBlock(src), id: blockId() }` + `insertAfter`, or a tiny
-`reportBlocks.ts` helper returning the new id) and `setSelId(copy.id)` — then
-`onAutoEditId` (203) also drops straight into editing for text/free tables.
-Decide the drag-duplicate paths (`onDuplicateTo`/`onDuplicateIntoColumn`):
-keep the source selected there (the drop is the placement gesture) unless that
-reads wrong. Dedupe with **191**'s duplicate flow (toolbar/menu share one
-handler).
-
-**Verify**: `npm run lint`; rule-7 manual (toolbar Duplicate, context menu,
-Cmd+C; nested repeat/columns child) — no new e2e.
-
-**Relations**: extends **203**/**191** (shared duplicate handlers + auto-edit).
-
-## 205. Reports designer — toolbar-editor layout polish (clipping, flex, grouping) (`[ ]`)
-
-**Request** (user, 2026-10-06): in the docked **toolbar editor** the Format
-options don't flex and look cut off — deep pass for a clean, Numbers-like
-grouped bar (best practices across spacing, sizing, wrap, dividers).
-
-**Approach**: the toolbar surface is `ReportToolbar.tsx`'s non-panel branch
-(`min-w-max` inside `overflow-x-auto`, so wide rows clip/scroll) plus
-`reportEditorLayout.tsx` `editorRowCls` (`bar` = `flex-nowrap min-w-max`) and
-the shared `RichTextControls.tsx` / `RichTextFormatBar.tsx` rows. Make the bar
-wrap/flex to the available width (`flex-wrap`, `min-w-0`, no forced
-`min-w-max`), group controls into logical clusters with `TB_DIVIDER`, keep
-one control height + micro type per DESIGN-LANGUAGE §Toolbar composition, and
-keep ALL three surfaces reading right (floating chrome + docked inspector
-share `BlockEditorContent` — don't fork the body). Consider a compact
-no-label 'bar' variant for the toolbar. Compare against Numbers' format bar
-(grouped, wrapping, generous hit targets) for the manual check.
-
-**Verify**: `npm run lint`; rule-7 manual at narrow + wide widths, every block
-type's toolbar editor (text/table/columns/repeat/field), floating and docked
-parity; no new e2e.
-
-**Relations**: extends **185** (docked rail) / **191** (ONE shared editor
-body) / **203** (mode toggle crowding the same header); uses DESIGN-LANGUAGE
-§Toolbar composition.

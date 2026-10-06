@@ -3,7 +3,7 @@ import { ChromeHeader, TB_BTN_ICON, TB_DIVIDER, ToolButton } from '@gabriel/ui-k
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CopyPlus, RotateCcw, TableCellsMerge, Trash2, Ungroup } from 'lucide-react';
 import { Project, ReportCellStyle, ReportTextStyle } from '../../types';
 import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
-import { ContentRow, editorRowCls } from './reportEditorLayout';
+import { EditorGroup, EditorSection, editorRowCls } from './reportEditorLayout';
 import RichTextControls from './RichTextControls';
 import { CustomTableCells } from './useCustomTableCells';
 
@@ -74,14 +74,13 @@ interface CustomCellControlsProps {
   onStyle: (patch: Partial<ReportCellStyle>) => void;
   onReset: () => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
-  onDeselect?: () => void;
   /** Row/column structure actions (insert/duplicate/delete) for the range. */
   structure?: CellStructureOps;
 }
 
 export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
   label, canMerge, canUnmerge, project, styleValue, editorRef, active, objectMixed, readOnly, panel,
-  onMerge, onUnmerge, onStyle, onReset, onSaveTextStyles, onDeselect, structure,
+  onMerge, onUnmerge, onStyle, onReset, onSaveTextStyles, structure,
 }) => {
   const hasSelection = label !== 'No cells selected';
   const disabled = !!readOnly || !hasSelection;
@@ -108,12 +107,6 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
             <ToolButton onClick={onReset} disabled={disabled} title="Reset to table default — clears cell styles and inline formatting" className={TB_BTN_ICON}>
               <RotateCcw className="w-2.5 h-2.5" />
             </ToolButton>
-            {onDeselect && (
-              <>
-                <div className={TB_DIVIDER} />
-                <ToolButton onClick={onDeselect} disabled={false} title="Deselect cells" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
-              </>
-            )}
           </>
         }
       />
@@ -138,24 +131,28 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
             onSaveTextStyles={onSaveTextStyles}
           />
           {structure && !structure.headerSelection && (
-            <ContentRow label="Row">
+            <EditorSection label="Row">
               <div className={editorRowCls(panel)}>
-                <ToolButton onClick={structure.onInsertRowAbove} disabled={disabled} title="Insert row above" className={TB_BTN_ICON}><ArrowUp className="w-3 h-3" /></ToolButton>
-                <ToolButton onClick={structure.onInsertRowBelow} disabled={disabled} title="Insert row below" className={TB_BTN_ICON}><ArrowDown className="w-3 h-3" /></ToolButton>
-                <ToolButton onClick={structure.onDuplicateRow} disabled={disabled} title="Duplicate row" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></ToolButton>
-                <ToolButton onClick={structure.onDeleteRows} disabled={disabled || !structure.canDeleteRows} title="Delete row(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></ToolButton>
+                <EditorGroup>
+                  <ToolButton onClick={structure.onInsertRowAbove} disabled={disabled} title="Insert row above" className={TB_BTN_ICON}><ArrowUp className="w-3 h-3" /></ToolButton>
+                  <ToolButton onClick={structure.onInsertRowBelow} disabled={disabled} title="Insert row below" className={TB_BTN_ICON}><ArrowDown className="w-3 h-3" /></ToolButton>
+                  <ToolButton onClick={structure.onDuplicateRow} disabled={disabled} title="Duplicate row" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></ToolButton>
+                  <ToolButton onClick={structure.onDeleteRows} disabled={disabled || !structure.canDeleteRows} title="Delete row(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></ToolButton>
+                </EditorGroup>
               </div>
-            </ContentRow>
+            </EditorSection>
           )}
           {structure && (
-            <ContentRow label="Column">
+            <EditorSection label="Column">
               <div className={editorRowCls(panel)}>
-                <ToolButton onClick={structure.onInsertColumnLeft} disabled={disabled} title="Insert column left" className={TB_BTN_ICON}><ArrowLeft className="w-3 h-3" /></ToolButton>
-                <ToolButton onClick={structure.onInsertColumnRight} disabled={disabled} title="Insert column right" className={TB_BTN_ICON}><ArrowRight className="w-3 h-3" /></ToolButton>
-                <ToolButton onClick={structure.onDuplicateColumn} disabled={disabled} title="Duplicate column" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></ToolButton>
-                <ToolButton onClick={structure.onDeleteColumns} disabled={disabled || !structure.canDeleteColumns} title="Delete column(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></ToolButton>
+                <EditorGroup>
+                  <ToolButton onClick={structure.onInsertColumnLeft} disabled={disabled} title="Insert column left" className={TB_BTN_ICON}><ArrowLeft className="w-3 h-3" /></ToolButton>
+                  <ToolButton onClick={structure.onInsertColumnRight} disabled={disabled} title="Insert column right" className={TB_BTN_ICON}><ArrowRight className="w-3 h-3" /></ToolButton>
+                  <ToolButton onClick={structure.onDuplicateColumn} disabled={disabled} title="Duplicate column" className={TB_BTN_ICON}><CopyPlus className="w-3 h-3" /></ToolButton>
+                  <ToolButton onClick={structure.onDeleteColumns} disabled={disabled || !structure.canDeleteColumns} title="Delete column(s)" className={TB_BTN_ICON}><Trash2 className="w-3 h-3" /></ToolButton>
+                </EditorGroup>
               </div>
-            </ContentRow>
+            </EditorSection>
           )}
         </div>
       )}

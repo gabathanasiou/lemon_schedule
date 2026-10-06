@@ -4,7 +4,7 @@ import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVe
 import { Project, ReportTextStyle } from '../../types';
 import { Tooltip } from '../Tooltip';
 import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
-import { ContentRow, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
+import { EditorGroup, EditorSection, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
 import { TextStyleMenu, TextStylesModal } from './TextStyleMenu';
 import RichTextFormatBar from './RichTextFormatBar';
 
@@ -61,13 +61,11 @@ interface RichTextControlsProps {
   verticalAlign?: boolean;
   /** Persist named-style edits from the styles modal. */
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
-  /** Extra controls after the format bar (text blocks: Insert attribute). */
-  trailing?: React.ReactNode;
 }
 
 export const RichTextControls: React.FC<RichTextControlsProps> = ({
   project, editorRef, active, disabled, value, lockedFormatting, objectMixed,
-  onDefaults, onStyle, onPickStyle, onUpdateFromSelection, verticalAlign, onSaveTextStyles, trailing,
+  onDefaults, onStyle, onPickStyle, onUpdateFromSelection, verticalAlign, onSaveTextStyles,
 }) => {
   const [stylesOpen, setStylesOpen] = useState(false);
   const panel = useBlockEditorPanel();
@@ -78,7 +76,7 @@ export const RichTextControls: React.FC<RichTextControlsProps> = ({
 
   return (
     <>
-      <ContentRow label="Format">
+      <EditorSection label="Format">
         <RichTextFormatBar
           editorRef={editorRef}
           active={rt}
@@ -87,58 +85,63 @@ export const RichTextControls: React.FC<RichTextControlsProps> = ({
           lockedFormatting={lockedFormatting}
           objectMixed={objectMixed}
           onDefaults={onDefaults}
-          trailing={trailing}
         />
-      </ContentRow>
-      <ContentRow label="Style">
+      </EditorSection>
+      <EditorSection label="Style">
         <div className={editorRowCls(panel)}>
-          <TextStyleMenu
-            value={hasSelection ? (rt.textStyle || '') : (value?.textStyle || '')}
-            project={project}
-            disabled={!!disabled}
-            editorRef={editorRef}
-            hasSelection={hasSelection}
-            mixed={hasSelection && !!rt.textStyleMixed}
-            onChange={onPickStyle ?? (id => onStyle({ textStyle: id || undefined }))}
-            onEdit={() => setStylesOpen(true)}
-            onUpdateFromSelection={onUpdateFromSelection}
-          />
+          <EditorGroup>
+            <TextStyleMenu
+              value={hasSelection ? (rt.textStyle || '') : (value?.textStyle || '')}
+              project={project}
+              disabled={!!disabled}
+              editorRef={editorRef}
+              hasSelection={hasSelection}
+              mixed={hasSelection && !!rt.textStyleMixed}
+              onChange={onPickStyle ?? (id => onStyle({ textStyle: id || undefined }))}
+              onEdit={() => setStylesOpen(true)}
+              onUpdateFromSelection={onUpdateFromSelection}
+            />
+          </EditorGroup>
           <div className={TB_DIVIDER} />
-          {(['left', 'center', 'right'] as const).map(a => {
-            const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-            return (
-              <Tooltip key={a} content={`Align ${a}`}>
-                <button
-                  disabled={disabled}
-                  onClick={() => onStyle({ align: a })}
-                  className={`${TB_TOGGLE} ${align === a ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-                >
-                  <Icon className="w-3 h-3" />
-                </button>
-              </Tooltip>
-            );
-          })}
+          <EditorGroup>
+            {(['left', 'center', 'right'] as const).map(a => {
+              const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+              return (
+                <Tooltip key={a} content={`Align ${a}`}>
+                  <button
+                    disabled={disabled}
+                    onClick={() => onStyle({ align: a })}
+                    className={`${TB_TOGGLE} ${align === a ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+                  >
+                    <Icon className="w-3 h-3" />
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </EditorGroup>
           {verticalAlign && (
             <>
               <div className={TB_DIVIDER} />
-              {(['top', 'middle', 'bottom'] as const).map(a => {
-                const Icon = a === 'top' ? AlignVerticalJustifyStart : a === 'middle' ? AlignVerticalJustifyCenter : AlignVerticalJustifyEnd;
-                return (
-                  <Tooltip key={a} content={`Vertical align ${a}`}>
-                    <button
-                      disabled={disabled}
-                      onClick={() => onStyle({ verticalAlign: a })}
-                      className={`${TB_TOGGLE} ${vAlign === a ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-                    >
-                      <Icon className="w-3 h-3" />
-                    </button>
-                  </Tooltip>
-                );
-              })}
+              <EditorGroup>
+                {(['top', 'middle', 'bottom'] as const).map(a => {
+                  const Icon = a === 'top' ? AlignVerticalJustifyStart : a === 'middle' ? AlignVerticalJustifyCenter : AlignVerticalJustifyEnd;
+                  return (
+                    <Tooltip key={a} content={`Vertical align ${a}`}>
+                      <button
+                        disabled={disabled}
+                        onClick={() => onStyle({ verticalAlign: a })}
+                        className={`${TB_TOGGLE} ${vAlign === a ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+                      >
+                        <Icon className="w-3 h-3" />
+                      </button>
+                    </Tooltip>
+                  );
+                })}
+              </EditorGroup>
             </>
           )}
         </div>
-      </ContentRow>
+      </EditorSection>
       <TextStylesModal
         open={stylesOpen}
         project={project}

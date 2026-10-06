@@ -45,6 +45,12 @@ Before building any of these by hand again, check the kit first:
 
 **v0.1.95 (Seg dense)**: `Seg` gained `dense?: boolean` — 24px control height on fine pointers so the toggle rides a plain toolbar row next to `text-xs`/`py-1` buttons (the Reports Designer header); ignored on coarse pointers, which keep the editor-chrome touch size.
 
+**v0.1.96 (wrapping editor chrome)**: `FormatToolbar` wraps its control clusters (`flex-wrap`; marks · link · color · font/size · trailing stay whole — a line break only lands between clusters) and `ChromeHeader` wraps its leading/trailing instead of forcing `min-w-max`. The Reports Designer's docked inspector no longer clips or scrolls horizontally; the floating chrome is unchanged at natural widths. The app keeps cluster dividers on every surface.
+
+**v0.1.97 (FormatToolbar dividers opt-out)**: `FormatToolbar` gained `dividers?: boolean` (default true) — `false` renders gap-only clusters for a wrapping surface (no divider can strand at a wrapped line end). Shipped for the inspector experiment; the app currently uses the default (dividers on).
+
+**v0.1.98 (header actions wrap + group)**: `ChromeHeader`'s trailing cluster now wraps internally (`flex-wrap`, right-aligned) so a narrow rail lays the actions out in two rows instead of clipping, and `StructureControls` renders as ONE unbreakable cluster (move pair + duplicate/delete stay together). The Reports Designer's rail header actions (surface switch + collapse) ride inside this trailing slot.
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

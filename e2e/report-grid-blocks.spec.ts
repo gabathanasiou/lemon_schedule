@@ -28,7 +28,7 @@ async function seedGrid(page: Page) {
   await openSeededProject(page, (project) => {
     project.reportDesigns = [design];
     project.activeReportId = design.id;
-  });
+  }, { editorMode: 'floating' });
 }
 
 test.describe('Report grid blocks (items 111/112)', () => {

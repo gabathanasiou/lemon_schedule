@@ -12,6 +12,7 @@ import {
   moveTableColumn,
   insertCustomRowAt,
   removeCustomRowAt,
+  duplicateBlockWithId,
 } from '../reportBlocks';
 import type { ReportBlock } from '../../types';
 
@@ -180,5 +181,27 @@ describe('free-table structural edits drop cut merges (roadmap 189)', () => {
     const one = custom({ customRows: [{ id: 'r1', cells: ['', '', ''] }] });
     const [t] = removeCustomRowAt([one], 't', 0);
     expect(t.customRows).toHaveLength(1);
+  });
+});
+
+describe('duplicateBlockWithId (roadmap 204)', () => {
+  it('inserts the copy right after the source and returns its id', () => {
+    const list = [b('a'), b('c'), b('d')];
+    const { blocks: next, newId } = duplicateBlockWithId(list, 'c');
+    expect(next.map(x => x.id)).toEqual(['a', 'c', newId, 'd']);
+    expect(newId).toBeTruthy();
+    expect(newId).not.toBe('c');
+    expect(findBlock(next, newId!)?.block.type).toBe('text');
+  });
+
+  it('duplicates a nested child in place', () => {
+    const list = [b('rep', 'repeat', { children: [b('x'), b('y')] })];
+    const { blocks: next, newId } = duplicateBlockWithId(list, 'x');
+    expect((findBlock(next, 'rep')!.block.children || []).map(x => x.id)).toEqual(['x', newId, 'y']);
+  });
+
+  it('unknown id returns the list unchanged and a null id', () => {
+    const list = [b('a')];
+    expect(duplicateBlockWithId(list, 'nope')).toEqual({ blocks: list, newId: null });
   });
 });

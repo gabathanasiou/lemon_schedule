@@ -24,7 +24,7 @@ import { FloatingChrome } from '../FloatingChrome';
 import Checkbox from '../Checkbox';
 import { TEST_IDS } from '../../lib/testIds';
 import type { ReportLocation } from '../../lib/reportWeather';
-import { Columns3, GripVertical, Filter, Plus } from 'lucide-react';
+import { Columns3, GripVertical, Filter, Plus, ArrowRightLeft } from 'lucide-react';
 
 export interface ColSel { colsId: string; colIndex: number; }
 
@@ -87,6 +87,9 @@ interface ReportDesignerCanvasProps {
   onRemove: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
   onMenu: (e: React.MouseEvent, id: string, colIndex?: number) => void;
+  /** Switch the editor surface (floating ↔ docked) — hosted in the floating
+   *  chrome headers (roadmap 205). */
+  onToggleEditorMode?: () => void;
   onInsertTableColumnAt: (tableId: string, colIndex: number) => void;
   onRemoveTableColumn: (tableId: string, colIndex: number) => void;
   onMoveTableColumn: (tableId: string, from: number, to: number) => void;
@@ -200,7 +203,7 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, autoEditId, onAutoEditHandled, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, autoEditId, onAutoEditHandled, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onToggleEditorMode, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp }) => {
 
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
@@ -621,7 +624,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 onDuplicate={() => onDuplicate(b.id)}
                 onRemove={() => onRemove(b.id)}
                 onMove={d => onMove(b.id, d)}
-                onDeselect={() => onSelect(null)}
+                onToggleEditorMode={onToggleEditorMode}
                 relativeTarget={relTarget}
                 availableLocations={itemLocations}
                 editorRef={textEditorRef}
@@ -640,7 +643,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 onInsertAt={i => onInsertTableColumnAt(b.id, i)}
                 onRemove={() => onRemoveTableColumn(b.id, selectedTableCol.colIndex)}
                 onMoveCol={d => onMoveTableColumn(b.id, selectedTableCol.colIndex, selectedTableCol.colIndex + d)}
-                onDeselect={() => onSelectCol(null)}
+                onToggleEditorMode={onToggleEditorMode}
               />
             )}
 
@@ -771,7 +774,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                                   onInsertAt={at => onInsertNewColumn(b.id, at, { kind: 'block', type: 'text' })}
                                   onMove={d => onMoveColumn(b.id, ci, ci + d)}
                                   onDelete={() => onRemoveColumn(b.id, ci)}
-                                  onDeselect={() => onSelectCol(null)}
+                                  onToggleEditorMode={onToggleEditorMode}
                                 />
                               )}
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -992,7 +995,8 @@ const BlockChrome: React.FC<{
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
-  onDeselect: () => void;
+  /** Switch to the docked inspector — hosted in the chrome header (roadmap 205). */
+  onToggleEditorMode?: () => void;
   relativeTarget?: string | null;
   availableLocations?: ReportLocation[];
   /** Inline text editing channel (roadmap 191) — the chrome body binds to the
@@ -1000,7 +1004,7 @@ const BlockChrome: React.FC<{
   editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
   active?: RichTextState;
   chipKey?: string | null;
-}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onDeselect, relativeTarget, availableLocations, editorRef, active, chipKey }) => (
+}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onToggleEditorMode, relativeTarget, availableLocations, editorRef, active, chipKey }) => (
   // anchorMode 'visible' (default): the anchor rect is clipped to the viewport
   // so the panel floats above the VISIBLE part of the card — identical feel
   // for a small text card and a tall repeat/ribbon card.
@@ -1017,9 +1021,9 @@ const BlockChrome: React.FC<{
       onRemove={onRemove}
       onMove={onMove}
       compact
-      trailing={
-        <ToolButton onClick={onDeselect} disabled={false} title="Deselect block" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
-      }
+      trailing={onToggleEditorMode ? (
+        <ToolButton onClick={onToggleEditorMode} disabled={false} title="Toolbar editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></ToolButton>
+      ) : undefined}
       relativeTarget={relativeTarget}
       availableLocations={availableLocations}
       editorRef={editorRef}
@@ -1042,10 +1046,10 @@ interface TableColumnChromeProps {
   onInsertAt: (colIndex: number) => void;
   onRemove: () => void;
   onMoveCol: (dir: -1 | 1) => void;
-  onDeselect: () => void;
+  onToggleEditorMode?: () => void;
 }
 
-const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, project, parentCollection, readOnly, onPatch, onInsertAt, onRemove, onMoveCol, onDeselect }) => {
+const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, project, parentCollection, readOnly, onPatch, onInsertAt, onRemove, onMoveCol, onToggleEditorMode }) => {
   const columns = block.columns || [];
   const col = columns[colIndex];
   // Anchor the panel to the selected column's header cell (`.report-table-cols
@@ -1076,7 +1080,9 @@ const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, 
             onMove={onMoveCol}
             onDelete={onRemove}
             axis={block.axis ?? 'columns'}
-            headerTrailing={<ToolButton onClick={onDeselect} disabled={false} title={block.axis === 'rows' ? 'Deselect row' : 'Deselect column'} className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>}
+            headerTrailing={onToggleEditorMode ? (
+              <ToolButton onClick={onToggleEditorMode} disabled={false} title="Toolbar editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></ToolButton>
+            ) : undefined}
           />
         </div>
       </FloatingChrome>
@@ -1093,8 +1099,8 @@ const ColumnBlockChrome: React.FC<{
   onInsertAt: (at: number) => void;
   onMove: (dir: -1 | 1) => void;
   onDelete: () => void;
-  onDeselect: () => void;
-}> = ({ colIndex, colsCount, readOnly, onInsertAt, onMove, onDelete, onDeselect }) => (
+  onToggleEditorMode?: () => void;
+}> = ({ colIndex, colsCount, readOnly, onInsertAt, onMove, onDelete, onToggleEditorMode }) => (
   <FloatingChrome className="column-chrome">
     <div className="py-1.5">
       <ColumnsColumnEditorContent
@@ -1104,7 +1110,9 @@ const ColumnBlockChrome: React.FC<{
         onInsertAt={onInsertAt}
         onMove={onMove}
         onDelete={onDelete}
-        headerTrailing={<ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>}
+        headerTrailing={onToggleEditorMode ? (
+          <ToolButton onClick={onToggleEditorMode} disabled={false} title="Toolbar editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></ToolButton>
+        ) : undefined}
       />
     </div>
   </FloatingChrome>

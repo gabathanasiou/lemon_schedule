@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { FontMenu, TB_PICKER } from '@gabriel/ui-kit';
+import { FontMenu, TB_DIVIDER, TB_NUM, TB_PICKER, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON } from '@gabriel/ui-kit';
 import { Project, ReportTextStyle } from '../../types';
 import { getTextStyles, newTextStyle } from '../../lib/reportTextStyles';
 import DropdownMenu, { ItemManagerDropdown } from '../DropdownMenu';
-import Button from '../Button';
 import { LiveNumberInput } from '../LiveNumberInput';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
+import ModalFooterButton from '../ModalFooterButton';
+import { EditorGroup } from './reportEditorLayout';
 import { Check, ChevronDown, Pencil, Wand2 } from 'lucide-react';
 import { RichTextEditorHandle } from './RichTextEditor';
 
@@ -143,27 +144,25 @@ export const TextStylesModal: React.FC<{
     reader.readAsText(file);
   };
 
-  const rowInput = 'bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 outline-none focus:border-zinc-500';
-  const miniBtn = 'w-7 h-6 rounded text-[11px] transition-colors';
-
   return (
     <Modal
       open={open}
       onClose={close}
       title="Text styles"
-      width="w-[380px]"
+      width="max-w-[440px]"
       footer={
         <ModalFooter>
-          <button onClick={close} className="px-3 py-1.5 rounded text-xs text-zinc-400 hover:text-zinc-200">Cancel</button>
-          <button onClick={commit} className="px-3 py-1.5 rounded text-xs bg-zinc-800 text-zinc-100 hover:bg-zinc-700">Done</button>
+          <ModalFooterButton variant="ghost" onClick={close}>Cancel</ModalFooterButton>
+          <ModalFooterButton onClick={commit}>Done</ModalFooterButton>
         </ModalFooter>
       }
     >
-      <div className="p-6 space-y-3">
+      <div className="p-5 space-y-3">
         <p className="text-xs text-zinc-500">Edits update every block that uses the style.</p>
 
-        {/* one compact row: version-picker-style selector + size + bold/italic + font */}
-        <div className="flex items-center gap-1">
+        {/* Style picker (version-picker recipe) + the rich-text Format-bar
+            controls for the style's typography — same chrome as the editors. */}
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
           <ItemManagerDropdown
             open={pickerOpen}
             onClose={setPickerOpen}
@@ -203,35 +202,49 @@ export const TextStylesModal: React.FC<{
               return st ? <span className="truncate" style={styleCss(st)}>{s.name}</span> : s.name;
             }}
             trigger={
-              <Button theme="dark" className="w-32">
-                {sel ? <span className="truncate">{sel.name}</span> : <span className="truncate text-zinc-500">No styles</span>}
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-500 ml-auto shrink-0" />
-              </Button>
+              <button type="button" className={`${TB_PICKER} w-36`}>
+                <span className="truncate">{sel ? sel.name : 'No styles'}</span>
+                <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+              </button>
             }
           />
           {sel && (
             <>
-              <LiveNumberInput
-                value={sel.fontSize}
-                min={6}
-                max={72}
-                fallback={10}
-                className={`${rowInput} w-14 text-center`}
-                onCommit={v => patch({ fontSize: v })}
-                title="Font size (pt)"
-              />
-              <button title="Bold" onClick={() => patch({ bold: !sel.bold })} className={`${miniBtn} font-bold ${sel.bold ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>B</button>
-              <button title="Italic" onClick={() => patch({ italic: !sel.italic })} className={`${miniBtn} italic ${sel.italic ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>I</button>
-              <FontMenu value={sel.fontFamily || 'Helvetica'} disabled={false} onChange={f => patch({ fontFamily: f === 'Helvetica' ? undefined : f })} />
+              <div className={TB_DIVIDER} />
+              <EditorGroup>
+                <button
+                  title="Bold"
+                  onClick={() => patch({ bold: !sel.bold })}
+                  className={`${TB_TOGGLE} font-bold ${sel.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+                >B</button>
+                <button
+                  title="Italic"
+                  onClick={() => patch({ italic: !sel.italic })}
+                  className={`${TB_TOGGLE} italic ${sel.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+                >I</button>
+              </EditorGroup>
+              <div className={TB_DIVIDER} />
+              <EditorGroup>
+                <FontMenu value={sel.fontFamily || 'Helvetica'} disabled={false} onChange={f => patch({ fontFamily: f === 'Helvetica' ? undefined : f })} />
+                <LiveNumberInput
+                  value={sel.fontSize}
+                  min={6}
+                  max={72}
+                  fallback={10}
+                  className={TB_NUM}
+                  onCommit={v => patch({ fontSize: v })}
+                  title="Font size (pt)"
+                />
+              </EditorGroup>
             </>
           )}
         </div>
 
-        {/* live preview — paper white so it matches print; content-sized so it
-            doesn't stretch the modal wider than its controls */}
+        {/* live preview — paper white so it matches print; wraps inside the
+            modal width (never widens it) */}
         {sel && (
-          <div className="w-max max-w-full rounded-md border border-zinc-700 bg-white px-2.5 py-1.5">
-            <div className="truncate whitespace-nowrap" style={{ ...styleCss(sel), color: '#000' }}>
+          <div className="rounded-md border border-zinc-700 bg-white px-3 py-2">
+            <div className="leading-snug break-words" style={{ ...styleCss(sel), color: '#000' }}>
               The quick brown fox jumps over the lazy dog
             </div>
           </div>

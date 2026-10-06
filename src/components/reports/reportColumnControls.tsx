@@ -6,7 +6,7 @@ import { fieldsForScope } from '../../lib/reportFields';
 import { tableFieldScope } from '../../lib/reportBlocks';
 import { FieldPicker } from './FieldPicker';
 import { Tooltip } from '../Tooltip';
-import { ContentRow, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
+import { ContentRow, EditorGroup, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
 import { useReportControlContext } from './blockControls';
 
 // ---- column editors (table columns AND columns-block columns) -------------------
@@ -32,15 +32,19 @@ export const ColumnStructureControls: React.FC<{
     <div className="flex flex-col gap-1">
       <SectionHeader>Structure</SectionHeader>
       <div className={editorRowCls(panel)}>
-        <ToolButton onClick={() => onInsertAt(colIndex)} disabled={readOnly} title={rows ? 'Insert row above' : 'Insert column before'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Above' : 'Before'}</ToolButton>
-        <ToolButton onClick={() => onInsertAt(colIndex + 1)} disabled={readOnly} title={rows ? 'Insert row below' : 'Insert column after'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Below' : 'After'}</ToolButton>
+        <EditorGroup>
+          <ToolButton onClick={() => onInsertAt(colIndex)} disabled={readOnly} title={rows ? 'Insert row above' : 'Insert column before'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Above' : 'Before'}</ToolButton>
+          <ToolButton onClick={() => onInsertAt(colIndex + 1)} disabled={readOnly} title={rows ? 'Insert row below' : 'Insert column after'} className={TB_BTN_ICON}><Plus className="w-3 h-3" /> {rows ? 'Below' : 'After'}</ToolButton>
+        </EditorGroup>
         <div className={TB_DIVIDER} />
-        <ToolButton onClick={() => onMove(-1)} disabled={readOnly || colIndex <= 0} title={rows ? 'Move row up' : 'Move column left'} className={TB_BTN_ICON}>
-          {rows ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowLeft className="w-2.5 h-2.5" />} {rows ? 'Up' : 'Left'}
-        </ToolButton>
-        <ToolButton onClick={() => onMove(1)} disabled={readOnly || colIndex >= colsCount - 1} title={rows ? 'Move row down' : 'Move column right'} className={TB_BTN_ICON}>
-          {rows ? <ArrowDown className="w-2.5 h-2.5" /> : <ArrowRight className="w-2.5 h-2.5" />} {rows ? 'Down' : 'Right'}
-        </ToolButton>
+        <EditorGroup>
+          <ToolButton onClick={() => onMove(-1)} disabled={readOnly || colIndex <= 0} title={rows ? 'Move row up' : 'Move column left'} className={TB_BTN_ICON}>
+            {rows ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowLeft className="w-2.5 h-2.5" />} {rows ? 'Up' : 'Left'}
+          </ToolButton>
+          <ToolButton onClick={() => onMove(1)} disabled={readOnly || colIndex >= colsCount - 1} title={rows ? 'Move row down' : 'Move column right'} className={TB_BTN_ICON}>
+            {rows ? <ArrowDown className="w-2.5 h-2.5" /> : <ArrowRight className="w-2.5 h-2.5" />} {rows ? 'Down' : 'Right'}
+          </ToolButton>
+        </EditorGroup>
       </div>
     </div>
   );
@@ -117,35 +121,39 @@ export const TableColumnEditorContent: React.FC<{
         <div className="flex flex-col gap-1">
           <SectionHeader>{rows ? 'Row' : 'Column'}</SectionHeader>
           <div className={editorRowCls(panel)}>
-            <Tooltip content="Bold">
-              <button disabled={disabled} onClick={() => patchCol({ bold: !col.bold })} className={`${TB_TOGGLE} ${col.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                <span className="text-[10px] font-bold">B</span>
-              </button>
-            </Tooltip>
-            <Tooltip content="Italic">
-              <button disabled={disabled} onClick={() => patchCol({ italic: !col.italic })} className={`${TB_TOGGLE} ${col.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                <span className="text-[10px] italic">I</span>
-              </button>
-            </Tooltip>
-            {!rows && (
-              <Tooltip content="Hide rows where this column is empty">
-                <button disabled={disabled} onClick={() => patchCol({ skipEmpty: !col.skipEmpty })} className={`${TB_TOGGLE} ${col.skipEmpty ? 'bg-amber-900/50 border-amber-700 text-amber-300' : TB_TOGGLE_OFF}`}>
-                  <EyeOff className="w-3 h-3" />
+            <EditorGroup>
+              <Tooltip content="Bold">
+                <button disabled={disabled} onClick={() => patchCol({ bold: !col.bold })} className={`${TB_TOGGLE} ${col.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+                  <span className="text-[10px] font-bold">B</span>
                 </button>
               </Tooltip>
-            )}
-            <div className={TB_DIVIDER} />
-            {(['left', 'center', 'right'] as const).map(a => {
-              const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-              const on = (col.align ?? 'left') === a;
-              return (
-                <Tooltip key={a} content={`Align ${a}`}>
-                  <button disabled={disabled} onClick={() => patchCol({ align: a })} className={`${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                    <Icon className="w-3 h-3" />
+              <Tooltip content="Italic">
+                <button disabled={disabled} onClick={() => patchCol({ italic: !col.italic })} className={`${TB_TOGGLE} ${col.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+                  <span className="text-[10px] italic">I</span>
+                </button>
+              </Tooltip>
+              {!rows && (
+                <Tooltip content="Hide rows where this column is empty">
+                  <button disabled={disabled} onClick={() => patchCol({ skipEmpty: !col.skipEmpty })} className={`${TB_TOGGLE} ${col.skipEmpty ? 'bg-amber-900/50 border-amber-700 text-amber-300' : TB_TOGGLE_OFF}`}>
+                    <EyeOff className="w-3 h-3" />
                   </button>
                 </Tooltip>
-              );
-            })}
+              )}
+            </EditorGroup>
+            <div className={TB_DIVIDER} />
+            <EditorGroup>
+              {(['left', 'center', 'right'] as const).map(a => {
+                const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+                const on = (col.align ?? 'left') === a;
+                return (
+                  <Tooltip key={a} content={`Align ${a}`}>
+                    <button disabled={disabled} onClick={() => patchCol({ align: a })} className={`${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+                      <Icon className="w-3 h-3" />
+                    </button>
+                  </Tooltip>
+                );
+              })}
+            </EditorGroup>
           </div>
         </div>
         <ColumnStructureControls

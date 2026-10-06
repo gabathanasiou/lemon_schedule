@@ -139,9 +139,21 @@ export async function seedProject(page: Page, project: any) {
  * Seeds the demo project and opens it from the Project Manager screen.
  * Pass `mutate` to patch a copy of the seed (add a report design, point an
  * active id at a new block, …) before it is written — replaces the per-spec
- * `seedWithDesign` / `seedProject` copy-paste.
+ * `seedWithDesign` / `seedProject` copy-paste. `opts.editorMode` seeds the
+ * Reports Designer surface preference before boot (`'floating'` for specs
+ * that drive the floating chrome / palette workflows; omit for the real
+ * default — docked, roadmap 205).
  */
-export async function openSeededProject(page: Page, mutate?: (project: any) => void) {
+export async function openSeededProject(
+  page: Page,
+  mutate?: (project: any) => void,
+  opts: { editorMode?: 'floating' | 'toolbar' | null } = {},
+) {
+  if (opts.editorMode) {
+    await page.addInitScript((m) => {
+      try { localStorage.setItem('lemon_schedule_report_editor_mode', m); } catch { /* ignore */ }
+    }, opts.editorMode);
+  }
   if (mutate) {
     const project = JSON.parse(loadSeedProject().raw);
     mutate(project);
@@ -302,14 +314,17 @@ export async function openReportsDesigner(page: Page) {
 
 /** Seeds the demo project, opens it, and lands in Reports Designer. Pass
  *  `stubPrint` for specs that render the print view (blocks the weather/geocode
- *  fetches that otherwise dangle headless). */
+ *  fetches that otherwise dangle headless). `editorMode` seeds the editor
+ *  surface preference before boot (default `'floating'` so the floating-chrome
+ *  specs keep their target); `null` leaves the REAL default (docked, roadmap
+ *  205) in place. */
 export async function openSeededReportsDesigner(
   page: Page,
   mutate?: (project: any) => void,
-  opts: { stubPrint?: boolean } = {},
+  opts: { stubPrint?: boolean; editorMode?: 'floating' | 'toolbar' | null } = {},
 ) {
   if (opts.stubPrint) await stubPrintNetwork(page);
-  await openSeededProject(page, mutate);
+  await openSeededProject(page, mutate, { editorMode: opts.editorMode === undefined ? 'floating' : opts.editorMode });
   await openReportsDesigner(page);
 }
 

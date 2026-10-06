@@ -16,7 +16,6 @@ import DropdownMenu from '../DropdownMenu';
 import { LiveNumberInput } from '../LiveNumberInput';
 import { GroupedSelect } from '../production/day/GroupedSelect';
 import DropdownItem from '../DropdownItem';
-import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
 import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
@@ -25,8 +24,7 @@ import { stagedCategoryKeys } from '../../lib/reportGrids';
 import ColorField from '../ColorField';
 import { reportLocationLabel } from '../../lib/reportWeather';
 import type { ReportLocation } from '../../lib/reportWeather';
-import { BlockEditorPanelContext, ContentRow, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
-
+import { BlockEditorPanelContext, ContentRow, EditorCheckbox, EditorGroup, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
 export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
@@ -180,60 +178,64 @@ const ItemFilterControl: React.FC<{
   };
 
   return (
-    <div className={panel ? 'flex flex-wrap items-center gap-1.5 min-w-0' : 'flex items-center gap-1.5'}>
-      <DropdownMenu
-        open={open}
-        onOpenChange={setOpen}
-        theme="dark"
-        width="w-52"
-        trigger={
-          <button type="button" disabled={disabled} className={`${panel ? 'w-full' : 'w-32'} ${TB_PICKER}`}>
-            <span className="truncate">{fieldDef?.label || 'Pick a field'}</span>
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-          </button>
-        }
-      >
-        {fields.map(f => (
-          <DropdownItem key={f.key} selected={filter?.field === f.key} onClick={() => { onPatch({ itemFilter: { field: f.key, values: [] } }); setOpen(false); }}>
-            {f.label}
-          </DropdownItem>
-        ))}
-      </DropdownMenu>
-      {options && options.length > 0 ? (
-        <GroupedSelect
-          items={options.map(o => ({ id: o, name: o }))}
-          selectedIds={filter?.values || []}
-          onChange={ids => onPatch({ itemFilter: { field: filter!.field, values: ids } })}
-          mode="multi"
-          placeholder="Values…"
-          disabled={disabled}
+    <div className={panel ? 'flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0' : 'flex items-center gap-1.5'}>
+      <EditorGroup className={panel ? 'w-full' : undefined}>
+        <DropdownMenu
+          open={open}
+          onOpenChange={setOpen}
           theme="dark"
-          className={panel ? 'w-full' : 'w-44'}
-        />
-      ) : (
-        <input
-          className={`${TB_INPUT} ${panel ? 'w-full' : 'w-40'}`}
-          disabled={disabled || !filter?.field}
-          value={draft}
-          onFocus={() => { focused.current = true; }}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={() => {
-            focused.current = false;
-            if (canceling.current) { canceling.current = false; setDraft(valuesKey); return; }
-            commit();
-          }}
-          onKeyDown={e => {
-            if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
-            else if (e.key === 'Escape') { canceling.current = true; e.currentTarget.blur(); }
-          }}
-          placeholder="Values…"
-        />
-      )}
-      {filter?.field && (
-        <button type="button" disabled={disabled} onClick={() => onPatch({ itemFilter: undefined })} className={TB_BTN_ICON} title="Clear filter">
-          <X className="w-3 h-3" />
-        </button>
-      )}
+          width="w-52"
+          trigger={
+            <button type="button" disabled={disabled} className={`${panel ? 'w-full' : 'w-32'} ${TB_PICKER}`}>
+              <span className="truncate">{fieldDef?.label || 'Pick a field'}</span>
+              <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+            </button>
+          }
+        >
+          {fields.map(f => (
+            <DropdownItem key={f.key} selected={filter?.field === f.key} onClick={() => { onPatch({ itemFilter: { field: f.key, values: [] } }); setOpen(false); }}>
+              {f.label}
+            </DropdownItem>
+          ))}
+        </DropdownMenu>
+      </EditorGroup>
+      <EditorGroup className={panel ? 'min-w-0 flex-1' : undefined}>
+        {options && options.length > 0 ? (
+          <GroupedSelect
+            items={options.map(o => ({ id: o, name: o }))}
+            selectedIds={filter?.values || []}
+            onChange={ids => onPatch({ itemFilter: { field: filter!.field, values: ids } })}
+            mode="multi"
+            placeholder="Values…"
+            disabled={disabled}
+            theme="dark"
+            className={panel ? 'w-full' : 'w-44'}
+          />
+        ) : (
+          <input
+            className={`${TB_INPUT} ${panel ? 'w-full' : 'w-40'}`}
+            disabled={disabled || !filter?.field}
+            value={draft}
+            onFocus={() => { focused.current = true; }}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={() => {
+              focused.current = false;
+              if (canceling.current) { canceling.current = false; setDraft(valuesKey); return; }
+              commit();
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+              else if (e.key === 'Escape') { canceling.current = true; e.currentTarget.blur(); }
+            }}
+            placeholder="Values…"
+          />
+        )}
+        {filter?.field && (
+          <button type="button" disabled={disabled} onClick={() => onPatch({ itemFilter: undefined })} className={TB_BTN_ICON} title="Clear filter">
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </EditorGroup>
     </div>
   );
 };
@@ -324,8 +326,10 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
       {/* Style + Padding side by side (two columns) — Outline only for field
           blocks. Text blocks' Style row lives in the Content section's shared
           RichTextControls body (roadmap 191); field/link keep whole-block
-          typography + alignment here. */}
-      <div className={panel ? 'grid grid-cols-2 gap-2 items-start' : 'flex items-start gap-5'}>
+          typography + alignment here. Text blocks have no Style column, so the
+          panel gives Padding the full width (a reserved empty column left the
+          section rule half-length). */}
+      <div className={panel ? (block.type === 'text' ? 'flex flex-col gap-1.5 min-w-0' : 'grid grid-cols-2 gap-2 items-start') : 'flex items-start gap-5'}>
         {block.type !== 'text' && (
           <div className="flex flex-col gap-1.5 min-w-0">
             <SectionHeader>Style</SectionHeader>
@@ -416,10 +420,13 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
       />
       {/* Style + Layout — above Content for every block type */}
       {styleLayoutCell}
-      {/* Content — hidden when the block type has no content controls */}
+      {/* Content — hidden when the block type has no content controls. The
+          panel skips the eyebrow: every group inside (Display/Filters/Behavior,
+          Format/Style, …) carries its own section rule, so a leading "Content"
+          would stack two hairlines. */}
       {block.type !== 'pageBreak' && (
         <div className="flex flex-col gap-1.5 px-2.5 py-1.5">
-          <SectionHeader>Content</SectionHeader>
+          {!panel && <SectionHeader>Content</SectionHeader>}
           <ContentControls {...ctx} />
         </div>
       )}
@@ -590,7 +597,7 @@ const NestedTableMenu: React.FC<{
       disabled={disabled}
       parentCollection={parentCollection}
       scopedToParent={block.scopedToParent !== false}
-      width={panel ? 'w-full' : 'w-40'}
+      width="w-40"
       disabledCategories={allCategoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
       onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
     />
@@ -666,33 +673,37 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
   ];
   return (
     <div className={panel ? 'flex flex-wrap items-center gap-1 min-w-0' : 'flex items-center gap-1 flex-nowrap min-w-max'}>
-      {toggles.slice(0, 1).map(t => (
-        <Tooltip key={t.key} content={t.title}>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => t.key === 'ribbonDayBreaks'
-              ? onPatch(dayBreaksOn ? { ribbonDayBreaks: false, ribbonHeaders: false } : { ribbonDayBreaks: true })
-              : onPatch({ [t.key]: !t.on } as Partial<ReportBlock>)}
-            className={`${TB_TOGGLE} ${t.on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-          >
-            {t.icon}
-          </button>
-        </Tooltip>
-      ))}
+      <EditorGroup>
+        {toggles.slice(0, 1).map(t => (
+          <Tooltip key={t.key} content={t.title}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => t.key === 'ribbonDayBreaks'
+                ? onPatch(dayBreaksOn ? { ribbonDayBreaks: false, ribbonHeaders: false } : { ribbonDayBreaks: true })
+                : onPatch({ [t.key]: !t.on } as Partial<ReportBlock>)}
+              className={`${TB_TOGGLE} ${t.on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+            >
+              {t.icon}
+            </button>
+          </Tooltip>
+        ))}
+      </EditorGroup>
       <div className={TB_DIVIDER} />
-      {toggles.slice(1).map(t => (
-        <Tooltip key={t.key} content={t.title}>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onPatch({ [t.key]: !t.on } as Partial<ReportBlock>)}
-            className={`${TB_TOGGLE} ${t.on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-          >
-            {t.icon}
-          </button>
-        </Tooltip>
-      ))}
+      <EditorGroup>
+        {toggles.slice(1).map(t => (
+          <Tooltip key={t.key} content={t.title}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onPatch({ [t.key]: !t.on } as Partial<ReportBlock>)}
+              className={`${TB_TOGGLE} ${t.on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+            >
+              {t.icon}
+            </button>
+          </Tooltip>
+        ))}
+      </EditorGroup>
     </div>
   );
 };
@@ -778,31 +789,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           }}
           onUpdateFromSelection={block.textStyle && blockHasDirectFormatting(block) ? updateFromSelection : undefined}
           onSaveTextStyles={onSaveTextStyles}
-          trailing={panel ? undefined : (
-            <FieldPicker
-              value=""
-              fields={contextFields}
-              onChange={f => editorRef.current?.insertToken(f)}
-              disabled={disabled}
-              placeholder="Insert attribute…"
-              scope={parentCollection}
-              className={`w-32 ${TB_PICKER}`}
-            />
-          )}
         />
-      ) : null,
-      panel && editorRef ? (
-        <ContentRow key="insert">
-          <FieldPicker
-            value=""
-            fields={contextFields}
-            onChange={f => editorRef.current?.insertToken(f)}
-            disabled={disabled}
-            placeholder="Insert attribute…"
-            scope={parentCollection}
-            className={`w-full ${TB_PICKER}`}
-          />
-        </ContentRow>
       ) : null,
     );
   }
@@ -873,50 +860,15 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         />
       </ContentRow>,
       <ContentRow key="headerBorders" label="Header & borders">
-        <Checkbox checked={block.showHeader !== false} disabled={disabled} onChange={on => onPatch({ showHeader: on })} label="Header row" />
-        <Checkbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
+        <EditorGroup className={panel ? 'w-full' : undefined}>
+          <EditorCheckbox className={panel ? 'flex-1' : undefined} checked={block.showHeader !== false} disabled={disabled} onChange={on => onPatch({ showHeader: on })} label="Header row" />
+          <EditorCheckbox className={panel ? 'flex-1' : undefined} checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
+        </EditorGroup>
       </ContentRow>,
     );
   } else if (block.type === 'repeat' || block.type === 'table') {
-    push(null,
-      <ContentRow key="over" label={block.type === 'repeat' ? 'Repeat over' : 'Table over'}>
-        {block.type === 'repeat' ? (
-          <CollectionMenu
-            value={block.collection || 'scenes'}
-            category={block.category || 'props'}
-            collections={repeatMenuCollections(block.collection, parentCollection, parentCategory)}
-            categoryKeys={categoryKeys}
-            categoryLabels={categoryLabels}
-            customCategories={project.customCategories}
-            locationTypes={project.locationTypes}
-            disabled={disabled}
-            parentCollection={parentCollection}
-            scopedToParent={block.scopedToParent !== false}
-            width={panel ? 'w-full' : 'w-40'}
-            disabledCategories={categoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
-            onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
-          />
-        ) : parentCollection ? (
-          <NestedTableMenu block={block} parentCollection={parentCollection} parentCategory={parentCategory} allCategoryKeys={categoryKeys} categoryLabelLookup={categoryLabels} customCategories={project.customCategories} locationTypes={project.locationTypes} disabled={disabled} onPatch={onPatch} />
-        ) : (
-          <CollectionMenu
-            value={block.collection || 'scenes'}
-            category={block.category || 'props'}
-            collections={baseValidCollections().filter(c => c !== 'cast')}
-            categoryKeys={categoryKeys}
-            categoryLabels={categoryLabels}
-            customCategories={project.customCategories}
-            locationTypes={project.locationTypes}
-            disabled={disabled}
-            width={panel ? 'w-full' : 'w-40'}
-            onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
-          />
-        )}
-      </ContentRow>,
-      block.type === 'repeat' ? (
-        <GapRow key="gap" value={block.gap ?? 8} disabled={disabled} onPatch={onPatch} />
-      ) : null,
-    );
+    // Order reads: what the table IS (Display) → over what (Table over) →
+    // which rows (Filters) → behavior (roadmap 205).
     if (block.type === 'table') {
       push('Display',
         <ContentRow key="mode" label="Mode">
@@ -942,8 +894,10 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         </ContentRow>,
         (block.axis ?? 'columns') === 'columns' ? (
           <ContentRow key="headerBorders" label="Header & borders">
-            <Checkbox checked={!!block.showHeader} disabled={disabled} onChange={on => onPatch({ showHeader: on })} label="Header row" />
-            <Checkbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
+            <EditorGroup className={panel ? 'w-full' : undefined}>
+              <EditorCheckbox className={panel ? 'flex-1' : undefined} checked={!!block.showHeader} disabled={disabled} onChange={on => onPatch({ showHeader: on })} label="Header row" />
+              <EditorCheckbox className={panel ? 'flex-1' : undefined} checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
+            </EditorGroup>
           </ContentRow>
         ) : (
           <ContentRow key="headerBorders" label="Item header">
@@ -956,7 +910,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
               scope={tableFieldScope(block, parentCollection)}
               className={fieldPickerCls}
             />
-            <Checkbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
+            <EditorCheckbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
           </ContentRow>
         ),
         hasDayList ? (
@@ -966,28 +920,52 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         ) : null,
       );
     }
-    const effective = block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes');
-    push('Behavior',
-      <ContentRow key="counter" label="Counter starts at">
-        <SegControl
-          value={String(block.counterStart ?? 1)}
-          options={[{ v: '1', l: '1' }, { v: '0', l: '0' }]}
-          onChange={v => onPatch({ counterStart: v === '0' ? 0 : 1 })}
-          disabled={disabled}
-        />
+    push(null,
+      <ContentRow key="over" label={block.type === 'repeat' ? 'Repeat over' : 'Table over'}>
+        {block.type === 'repeat' ? (
+          <CollectionMenu
+            value={block.collection || 'scenes'}
+            category={block.category || 'props'}
+            collections={repeatMenuCollections(block.collection, parentCollection, parentCategory)}
+            categoryKeys={categoryKeys}
+            categoryLabels={categoryLabels}
+            customCategories={project.customCategories}
+            locationTypes={project.locationTypes}
+            disabled={disabled}
+            parentCollection={parentCollection}
+            scopedToParent={block.scopedToParent !== false}
+            width="w-40"
+            disabledCategories={categoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
+            onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
+          />
+        ) : parentCollection ? (
+          <NestedTableMenu block={block} parentCollection={parentCollection} parentCategory={parentCategory} allCategoryKeys={categoryKeys} categoryLabelLookup={categoryLabels} customCategories={project.customCategories} locationTypes={project.locationTypes} disabled={disabled} onPatch={onPatch} />
+        ) : (
+          <CollectionMenu
+            value={block.collection || 'scenes'}
+            category={block.category || 'props'}
+            collections={baseValidCollections().filter(c => c !== 'cast')}
+            categoryKeys={categoryKeys}
+            categoryLabels={categoryLabels}
+            customCategories={project.customCategories}
+            locationTypes={project.locationTypes}
+            disabled={disabled}
+            width="w-40"
+            onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
+          />
+        )}
       </ContentRow>,
-      parentCollection && !NON_SCOPABLE_COLLECTIONS.has(effective) && !CONTEXTUAL_COLLECTIONS.has(effective) ? (
-        <ContentRow key="scope" label="Scope">
-          <Checkbox checked={block.scopedToParent !== false} disabled={disabled} onChange={on => onPatch({ scopedToParent: on })} label={`Only ${COLLECTION_LABELS_LOCAL[effective] || 'items'} in this ${PARENT_LABELS[parentCollection] || 'item'}`} />
-        </ContentRow>
+      block.type === 'repeat' ? (
+        <GapRow key="gap" value={block.gap ?? 8} disabled={disabled} onPatch={onPatch} />
       ) : null,
     );
+    const effective = block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes');
     const skipEmpty = block.collection ? SKIP_EMPTY_TEST[block.collection] : undefined;
     if (block.collection) {
       push('Filters',
         skipEmpty ? (
           <ContentRow key="skipEmpty" label="Skip empty">
-            <Checkbox checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={on => onPatch({ skipEmptyCategories: on })} label={block.collection ? (SKIP_EMPTY_LABEL[block.collection] || 'Skip empty items') : 'Skip empty items'} />
+            <EditorCheckbox checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={on => onPatch({ skipEmptyCategories: on })} label={block.collection ? (SKIP_EMPTY_LABEL[block.collection] || 'Skip empty items') : 'Skip empty items'} />
           </ContentRow>
         ) : null,
         block.collection === 'categories' ? (
@@ -1006,6 +984,21 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         </ContentRow>,
       );
     }
+    push('Behavior',
+      <ContentRow key="counter" label="Counter starts at">
+        <SegControl
+          value={String(block.counterStart ?? 1)}
+          options={[{ v: '1', l: '1' }, { v: '0', l: '0' }]}
+          onChange={v => onPatch({ counterStart: v === '0' ? 0 : 1 })}
+          disabled={disabled}
+        />
+      </ContentRow>,
+      parentCollection && !NON_SCOPABLE_COLLECTIONS.has(effective) && !CONTEXTUAL_COLLECTIONS.has(effective) ? (
+        <ContentRow key="scope" label="Scope">
+          <EditorCheckbox checked={block.scopedToParent !== false} disabled={disabled} onChange={on => onPatch({ scopedToParent: on })} label={`Only ${COLLECTION_LABELS_LOCAL[effective] || 'items'} in this ${PARENT_LABELS[parentCollection] || 'item'}`} />
+        </ContentRow>
+      ) : null,
+    );
   }
 
   if (block.type === 'columns') {
@@ -1225,7 +1218,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
     push('Map',
       <ContentRow key="inherit" label="Day location">
-        <Checkbox checked={inherited} disabled={disabled} onChange={on => onPatch({ mapInheritLocation: on })} label="Use the day's location" />
+        <EditorCheckbox checked={inherited} disabled={disabled} onChange={on => onPatch({ mapInheritLocation: on })} label="Use the day's location" />
       </ContentRow>,
       inherited && availableLocations && availableLocations.length > 1 ? (
         <LocationChoiceRow key="showLoc" block={block} availableLocations={availableLocations} disabled={disabled} onPatch={onPatch} />
@@ -1293,7 +1286,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
 // Text blocks' typography + alignment live in the Content section's shared
 // RichTextControls body (roadmap 191), bound to the inline canvas editor.
 
-export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, onPatch, onSaveTextStyles, editorRef, active }) => {
+export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, onPatch, onSaveTextStyles, editorRef, active, panel }) => {
   const disabled = readOnly;
   const font = block.fontFamily || 'Helvetica';
   const hasSelection = !!active?.hasSelection;
@@ -1312,72 +1305,80 @@ export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, on
     <>
       {onSaveTextStyles && (
         <>
-          <TextStyleMenu
-            value={styleId}
-            project={project}
-            disabled={disabled}
-            editorRef={editorRef}
-            hasSelection={hasSelection}
-            mixed={styleMixed}
-            onChange={id => {
-              if (!id) { onPatch({ textStyle: undefined }); return; }
-              // Applying a style clears the block's direct typography so the
-              // style's values take effect (Word behavior). Bake tweaks into
-              // the style via "Update from selection" instead.
-              onPatch({ textStyle: id, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
-            }}
-            onEdit={() => setStylesOpen(true)}
-            onUpdateFromSelection={block.textStyle && blockHasDirectFormatting(block) ? updateFromSelection : undefined}
-          />
+          <EditorGroup>
+            <TextStyleMenu
+              value={styleId}
+              project={project}
+              disabled={disabled}
+              editorRef={editorRef}
+              hasSelection={hasSelection}
+              mixed={styleMixed}
+              onChange={id => {
+                if (!id) { onPatch({ textStyle: undefined }); return; }
+                // Applying a style clears the block's direct typography so the
+                // style's values take effect (Word behavior). Bake tweaks into
+                // the style via "Update from selection" instead.
+                onPatch({ textStyle: id, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
+              }}
+              onEdit={() => setStylesOpen(true)}
+              onUpdateFromSelection={block.textStyle && blockHasDirectFormatting(block) ? updateFromSelection : undefined}
+            />
+            <TextStylesModal open={stylesOpen} project={project} onClose={() => setStylesOpen(false)} onSave={styles => onSaveTextStyles(styles)} />
+          </EditorGroup>
           <div className={TB_DIVIDER} />
-          <TextStylesModal open={stylesOpen} project={project} onClose={() => setStylesOpen(false)} onSave={styles => onSaveTextStyles(styles)} />
         </>
       )}
-      <FontMenu value={font} disabled={disabled} onChange={f => onPatch({ fontFamily: f })} />
-      <Tooltip content="Font size (pt)">
-        <LiveNumberInput
-          value={block.fontSize}
-          min={6}
-          max={48}
-          fallback={10}
-          disabled={disabled}
-          className={TB_NUM}
-          onCommit={v => onPatch({ fontSize: v })}
-        />
-      </Tooltip>
+      <EditorGroup>
+        <FontMenu value={font} disabled={disabled} onChange={f => onPatch({ fontFamily: f })} />
+        <Tooltip content="Font size (pt)">
+          <LiveNumberInput
+            value={block.fontSize}
+            min={6}
+            max={48}
+            fallback={10}
+            disabled={disabled}
+            className={TB_NUM}
+            onCommit={v => onPatch({ fontSize: v })}
+          />
+        </Tooltip>
+      </EditorGroup>
       {/* block-level B/I only for field blocks — link blocks keep their fixed
           link look; text blocks use the shared body's run formatting */}
       {block.type === 'field' && (
         <>
           <div className={TB_DIVIDER} />
-          <Tooltip content="Bold">
-            <button disabled={disabled} onClick={() => onPatch({ bold: !block.bold })} className={`${TB_TOGGLE} ${block.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-              <span className="text-[11px] font-bold">B</span>
-            </button>
-          </Tooltip>
-          <Tooltip content="Italic">
-            <button disabled={disabled} onClick={() => onPatch({ italic: !block.italic })} className={`${TB_TOGGLE} ${block.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-              <span className="text-[11px] italic">I</span>
-            </button>
-          </Tooltip>
+          <EditorGroup>
+            <Tooltip content="Bold">
+              <button disabled={disabled} onClick={() => onPatch({ bold: !block.bold })} className={`${TB_TOGGLE} ${block.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+                <span className="text-[11px] font-bold">B</span>
+              </button>
+            </Tooltip>
+            <Tooltip content="Italic">
+              <button disabled={disabled} onClick={() => onPatch({ italic: !block.italic })} className={`${TB_TOGGLE} ${block.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+                <span className="text-[11px] italic">I</span>
+              </button>
+            </Tooltip>
+          </EditorGroup>
         </>
       )}
       <div className={TB_DIVIDER} />
-      {(['left', 'center', 'right'] as const).map(a => {
-        const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-        const on = (block.align ?? 'left') === a;
-        return (
-          <Tooltip key={a} content={`Align ${a}`}>
-            <button
-              disabled={disabled}
-              onClick={() => onPatch({ align: a })}
-              className={`${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-            >
-              <Icon className="w-3 h-3" />
-            </button>
-          </Tooltip>
-        );
-      })}
+      <EditorGroup>
+        {(['left', 'center', 'right'] as const).map(a => {
+          const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+          const on = (block.align ?? 'left') === a;
+          return (
+            <Tooltip key={a} content={`Align ${a}`}>
+              <button
+                disabled={disabled}
+                onClick={() => onPatch({ align: a })}
+                className={`${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+              >
+                <Icon className="w-3 h-3" />
+              </button>
+            </Tooltip>
+          );
+        })}
+      </EditorGroup>
     </>
   );
 };
@@ -1417,30 +1418,34 @@ export const OutlineControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch }
 
 export const LayoutControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch }) => (
   <>
-    <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
-    <Tooltip content="Vertical padding (px)">
-      <LiveNumberInput
-        value={block.paddingV}
-        min={0}
-        max={24}
-        fallback={2}
-        readOnly={readOnly}
-        className={TB_NUM}
-        onCommit={v => onPatch({ paddingV: v })}
-      />
-    </Tooltip>
-    <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
-    <Tooltip content="Horizontal padding (px)">
-      <LiveNumberInput
-        value={block.paddingH}
-        min={0}
-        max={24}
-        fallback={4}
-        readOnly={readOnly}
-        className={TB_NUM}
-        onCommit={v => onPatch({ paddingH: v })}
-      />
-    </Tooltip>
+    <EditorGroup>
+      <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
+      <Tooltip content="Vertical padding (px)">
+        <LiveNumberInput
+          value={block.paddingV}
+          min={0}
+          max={24}
+          fallback={2}
+          readOnly={readOnly}
+          className={TB_NUM}
+          onCommit={v => onPatch({ paddingV: v })}
+        />
+      </Tooltip>
+    </EditorGroup>
+    <EditorGroup>
+      <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
+      <Tooltip content="Horizontal padding (px)">
+        <LiveNumberInput
+          value={block.paddingH}
+          min={0}
+          max={24}
+          fallback={4}
+          readOnly={readOnly}
+          className={TB_NUM}
+          onCommit={v => onPatch({ paddingH: v })}
+        />
+      </Tooltip>
+    </EditorGroup>
   </>
 );
 
@@ -1466,12 +1471,18 @@ export const ChipAffixSection: React.FC<{
     <>
       <SectionHeader>Item formatting — {fieldLabel}</SectionHeader>
       <div className={panel ? 'flex flex-wrap items-center gap-1.5 min-w-0' : 'flex items-center gap-1.5 flex-nowrap min-w-max'}>
-        <span className="text-[10px] text-zinc-500 shrink-0">Prefix</span>
-        <input aria-label="Item prefix" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemPrefix ?? ''} onChange={e => setOpt('itemPrefix', e.target.value)} />
-        <span className="text-[10px] text-zinc-500 shrink-0">Suffix</span>
-        <input aria-label="Item suffix" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemSuffix ?? ''} onChange={e => setOpt('itemSuffix', e.target.value)} />
-        <span className="text-[10px] text-zinc-500 shrink-0">Sep</span>
-        <input aria-label="Item separator" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemSeparator ?? ''} onChange={e => setOpt('itemSeparator', e.target.value)} />
+        <EditorGroup className={panel ? 'min-w-0 flex-1' : undefined}>
+          <span className="text-[10px] text-zinc-500 shrink-0">Prefix</span>
+          <input aria-label="Item prefix" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemPrefix ?? ''} onChange={e => setOpt('itemPrefix', e.target.value)} />
+        </EditorGroup>
+        <EditorGroup className={panel ? 'min-w-0 flex-1' : undefined}>
+          <span className="text-[10px] text-zinc-500 shrink-0">Suffix</span>
+          <input aria-label="Item suffix" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemSuffix ?? ''} onChange={e => setOpt('itemSuffix', e.target.value)} />
+        </EditorGroup>
+        <EditorGroup className={panel ? 'min-w-0 flex-1' : undefined}>
+          <span className="text-[10px] text-zinc-500 shrink-0">Sep</span>
+          <input aria-label="Item separator" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemSeparator ?? ''} onChange={e => setOpt('itemSeparator', e.target.value)} />
+        </EditorGroup>
       </div>
     </>
   );

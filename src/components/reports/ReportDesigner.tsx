@@ -7,7 +7,7 @@ import { getReportFieldMap } from '../../lib/reportFields';
 import { prepareSunWeatherForCtx } from '../../lib/reportWeather';
 import { ReportDesign, ReportBlock, ReportCollection, ReportTextStyle, ReportViewMode } from '../../types';
 import {
-  findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
+  findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlockWithId,
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock, listOwnerOf,
   insertColumnAt, removeColumnAt, moveColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
@@ -27,7 +27,7 @@ import ReportPreview from './ReportPreview';
 import CustomCellControls, { cellStructureOps } from './CustomCellControls';
 import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells';
 import { RichTextEditorHandle, RICH_TEXT_STATE_IDLE, RichTextState } from './RichTextEditor';
-import { Printer, Eye, EyeOff, ChevronDown, Check, X, ArrowRightLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Printer, Eye, EyeOff, ChevronDown, Check, ArrowRightLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import Button from '../Button';
 import { Seg, ToolButton, TB_BTN_ICON } from '@gabriel/ui-kit';
 import { useDialog } from '../Dialog';
@@ -74,8 +74,10 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const [footerBlocks, setFooterBlocks] = useState<ReportBlock[]>(() => activeDesign?.footer || []);
   const [skipFirstHeader, setSkipFirstHeader] = useState(() => !!activeDesign?.headerSkipFirst);
   const [skipFirstFooter, setSkipFirstFooter] = useState(() => !!activeDesign?.footerSkipFirst);
+  // Docked inspector is the DEFAULT (roadmap 205) — floating is opt-in and
+  // persists per session.
   const [editorMode, setEditorMode] = useState<'floating' | 'toolbar'>(() => {
-    try { return localStorage.getItem('lemon_schedule_report_editor_mode') === 'toolbar' ? 'toolbar' : 'floating'; } catch { return 'floating'; }
+    try { return localStorage.getItem('lemon_schedule_report_editor_mode') === 'floating' ? 'floating' : 'toolbar'; } catch { return 'toolbar'; }
   });
   const toggleEditorMode = () => {
     setEditorMode(prev => {
@@ -287,7 +289,6 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       onStyle={cellOps.patchStyle}
       onReset={cellOps.resetCells}
       onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
-      onDeselect={() => setSelCell(null)}
       structure={cellStructureOps(cellOps)}
     />
   ) : null;
@@ -310,6 +311,20 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const markAutoEdit = (b: ReportBlock, attribute = false) => {
     if (attribute) return;
     if (b.type === 'text' || (b.type === 'table' && b.custom)) setAutoEditId(b.id);
+  };
+
+  // Explicit duplicate (toolbar / block chrome / context menu / Cmd+C): the
+  // COPY becomes the selection so it can be edited/moved immediately — but it
+  // never auto-enters editing (roadmap 204; only palette inserts do that).
+  // Drag duplicates (Alt+drag) keep the SOURCE selected: the drop is the
+  // placement gesture and re-dragging should keep placing copies of the
+  // original.
+  const duplicateBlockSelect = (id: string) => {
+    const zone = zoneOf(id);
+    const { blocks: next, newId } = duplicateBlockWithId(listOfZone(zone), id);
+    if (!newId) return;
+    commit(next, zone);
+    setSelId(newId);
   };
 
   const insertPayload = (payload: PaletteDropPayload, id: string | null = selId) => {
@@ -394,7 +409,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); commit(removeBlock(listOfZone(zone), id), zone); setSelId(null); }
       if (e.key === 'ArrowUp') { e.preventDefault(); commit(moveBlock(listOfZone(zone), id, -1), zone); }
       if (e.key === 'ArrowDown') { e.preventDefault(); commit(moveBlock(listOfZone(zone), id, 1), zone); }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); commit(duplicateBlock(listOfZone(zone), id), zone); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); duplicateBlockSelect(id); }
     };
     currentWin.addEventListener('keydown', onKey);
     return () => currentWin.removeEventListener('keydown', onKey);
@@ -582,12 +597,9 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     parentCategory: selParentCategory,
     project,
     readOnly,
-    editorMode,
-    onToggleEditorMode: toggleEditorMode,
-    onDeselect: () => { setSelId(null); setSelCol(null); },
     onPatch: (p: Partial<ReportBlock>) => selId && patch(selId, p),
     onSaveTextStyles: (styles: ReportTextStyle[]) => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles }),
-    onDuplicate: () => selId && commitZone(selId, list => duplicateBlock(list, selId)),
+    onDuplicate: () => selId && duplicateBlockSelect(selId),
     onRemove: () => { if (selId) { commitZone(selId, list => removeBlock(list, selId)); setSelId(null); } },
     onMove: (d: -1 | 1) => selId && commitZone(selId, list => moveBlock(list, selId, d)),
     ...columnProps,
@@ -596,6 +608,15 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     active: textRtState,
     chipKey: textChipKey,
   };
+
+  // Rail actions, rendered IN the chrome header's trailing slot (block) or as
+  // its headerTrailing (column) — no separate rail header bar (roadmap 205).
+  const railActions = (
+    <>
+      <ToolButton onClick={toggleEditorMode} title="Floating editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-3 h-3" /></ToolButton>
+      <ToolButton onClick={() => setRail(p => ({ ...p, open: false }))} title="Collapse panel" className={TB_BTN_ICON}><PanelLeftClose className="w-3 h-3" /></ToolButton>
+    </>
+  );
 
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 select-none min-h-0 min-w-0">
@@ -612,19 +633,13 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             rail.open ? (
               <div className="relative flex shrink-0" style={{ width: rail.width, maxWidth: '70%' }}>
                 <aside className="min-w-0 flex-1 bg-zinc-900 border-r border-zinc-800 flex flex-col min-h-0">
-                  <div className="shrink-0 flex items-center gap-1 border-b border-zinc-800 px-2 py-1.5">
-                    <div className="ml-auto flex items-center gap-1">
-                      {(selBlock || selColBlock) && (
-                        <ToolButton onClick={() => { setSelId(null); setSelCol(null); }} title="Deselect block" className={TB_BTN_ICON}><X className="w-2.5 h-2.5" /></ToolButton>
-                      )}
-                      <ToolButton onClick={toggleEditorMode} title="Floating editor" className={TB_BTN_ICON}><ArrowRightLeft className="w-2.5 h-2.5" /></ToolButton>
-                      <ToolButton onClick={() => setRail(p => ({ ...p, open: false }))} title="Collapse panel" className={TB_BTN_ICON}><PanelLeftClose className="w-3 h-3" /></ToolButton>
-                    </div>
-                  </div>
                   {selBlock || selColBlock ? (
-                    <ReportToolbar {...toolbarProps} panel />
+                    <ReportToolbar {...toolbarProps} headerActions={railActions} />
                   ) : (
                     <>
+                      <div className="shrink-0 flex flex-wrap items-center gap-x-1 gap-y-1 border-b border-zinc-800 px-3 py-2">
+                        <div className="ml-auto flex items-center gap-1">{railActions}</div>
+                      </div>
                       <div className="shrink-0 border-b border-zinc-800 px-3 py-2">
                         <span className="text-[10px] text-zinc-600">Select a block to edit it. Click an item in the palette to add it.</span>
                       </div>
@@ -655,7 +670,6 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={readOnly} />
           )}
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
-            {!docked && <ReportToolbar {...toolbarProps} />}
             <ReportDesignerCanvas
               blocks={blocks}
               headerBlocks={headerBlocks}
@@ -675,8 +689,9 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               project={project}
               parentCollection={zoneMode ? zone!.scope : selParentCollection}
               parentCategory={selParentCategory}
-              onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
-              viewWidth={viewWidth}
+      onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
+      onToggleEditorMode={toggleEditorMode}
+      viewWidth={viewWidth}
               pageSize={activeDesign?.page}
               onSelect={selectBlock}
               onSelectCol={selectCol}
@@ -825,7 +840,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               onDuplicateToNewColumn={duplicateToNewColumn}
               onRemoveColumn={removeColumnsColumn}
               onMoveColumn={moveColumnsColumnBy}
-              onDuplicate={id => commitZone(id, list => duplicateBlock(list, id))}
+              onDuplicate={id => duplicateBlockSelect(id)}
               onRemove={id => { commitZone(id, list => removeBlock(list, id)); if (selId === id) setSelId(null); if (selCol?.colsId === id) setSelCol(null); }}
               onMove={(id, d) => commitZone(id, list => moveBlock(list, id, d))}
               onMenu={(e, id, colIndex) => {
@@ -867,7 +882,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           onInsertAbove={() => { const b = makeReportBlock('text'); commitZone(menu.id, list => insertBefore(list, menu.id, b)); setSelId(b.id); markAutoEdit(b); }}
           onInsertBelow={() => { const b = makeReportBlock('text'); commitZone(menu.id, list => insertAfter(list, menu.id, b)); setSelId(b.id); markAutoEdit(b); }}
           onAddChild={insertIntoSelected}
-          onDuplicate={() => commitZone(menu.id, list => duplicateBlock(list, menu.id))}
+          onDuplicate={() => duplicateBlockSelect(menu.id)}
           onRemove={() => { commitZone(menu.id, list => removeBlock(list, menu.id)); setSelId(null); setMenu(null); }}
           onColumnInsertAt={i => {
             if (menu.colIndex === undefined) return;

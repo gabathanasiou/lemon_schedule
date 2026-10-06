@@ -56,7 +56,7 @@ export interface CustomTableProps {
   onCellRtStateChange?: (state: RichTextState) => void;
   /** Docked editor mode: the dock hosts the cell controls — no floating chrome. */
   cellDocked?: boolean;
-  /** Field scope for the cell chrome's "Insert attribute" picker. */
+  /** Field scope for the cell editor's `@` attribute picker. */
   parentCollection?: ReportCollection;
   parentCategory?: string;
   /** Persist named text styles edited from the cell chrome's style menu. */
@@ -466,7 +466,6 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
             onStyle={cells.patchStyle}
             onReset={cells.resetCells}
             onSaveTextStyles={onCellSaveTextStyles}
-            onDeselect={() => select(null)}
             structure={cellStructureOps(cells)}
           />
         </TableCellChrome>

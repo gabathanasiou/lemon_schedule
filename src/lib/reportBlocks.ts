@@ -218,10 +218,16 @@ export function removeBlock(blocks: ReportBlock[], id: string): ReportBlock[] {
 }
 
 export function duplicateBlock(blocks: ReportBlock[], id: string): ReportBlock[] {
+  return duplicateBlockWithId(blocks, id).blocks;
+}
+
+/** Duplicate `id`'s block after it, ALSO returning the copy's id so callers
+ *  can select the new block (roadmap 204 — the designer selects the copy). */
+export function duplicateBlockWithId(blocks: ReportBlock[], id: string): { blocks: ReportBlock[]; newId: string | null } {
   const f = findBlock(blocks, id);
-  if (!f) return blocks;
+  if (!f) return { blocks, newId: null };
   const copy = { ...cloneBlock(f.block), id: blockId() };
-  return insertSibling(blocks, f, copy, f.index + 1);
+  return { blocks: insertSibling(blocks, f, copy, f.index + 1), newId: copy.id };
 }
 
 export function moveBlock(blocks: ReportBlock[], id: string, dir: -1 | 1): ReportBlock[] {
