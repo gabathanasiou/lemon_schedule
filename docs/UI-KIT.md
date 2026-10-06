@@ -41,6 +41,10 @@ Before building any of these by hand again, check the kit first:
 
 **v0.1.93 (focus position)**: `RichTextEditorHandle.focus(position?: 'start' | 'end')` — wraps TipTap's focus-command position so consumers entering edit mode land the caret at the textblock edge. Needed because a plain DOM range after programmatic focus is clobbered by the editor's own selection sync (the Reports Designer's inline text blocks focus with `focus('end')`).
 
+**v0.1.94 (Seg per-option title)**: `Seg` options accept `title?: string` — the button gets the native tooltip while its label stays the accessible name (the Reports Designer's Fields/Values toggle explains each mode on hover).
+
+**v0.1.95 (Seg dense)**: `Seg` gained `dense?: boolean` — 24px control height on fine pointers so the toggle rides a plain toolbar row next to `text-xs`/`py-1` buttons (the Reports Designer header); ignored on coarse pointers, which keep the editor-chrome touch size.
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)
