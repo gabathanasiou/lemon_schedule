@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { TB_BTN_ICON, ToolButton } from '@gabriel/ui-kit';
-import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
+import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportViewMode } from '../../types';
 import { ReportCtx, resolveCollectionItems, resolveRelativeItems, reportItemLabel, locationsOfItem, filterItemsByScope, ReportCollectionItem } from '../../lib/reportData';
 import { FieldAux, ReportFieldDef } from '../../lib/reportFields';
 import { sampleRepeatItem } from '../../lib/reportSampling';
@@ -8,6 +8,8 @@ import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, l
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
 import { useColumnResize, ColumnResizeStrip, splitBoundaryEven } from '../columnResize';
+import { CellRef } from '../../lib/reportTableMerges';
+import { hasCalculatedContent, CALCULATED_CONTENT_TIP } from '../../lib/reportTips';
 import { ReportBlockView } from './ReportBlockView';
 import { ReportTextStyleRules } from './ReportTextStyleRules';
 import { CustomCellSelection } from './useCustomTableCells';
@@ -26,6 +28,15 @@ import { Columns3, GripVertical, Filter, Plus } from 'lucide-react';
 
 export interface ColSel { colsId: string; colIndex: number; }
 
+/** Container-style block header (repeat/table/columns/relative + the leaf text
+ *  header, roadmap 203) — one class string, one look. */
+const BLOCK_HEADER_CLS = 'flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1';
+
+/** Designer-only ★ for blocks with calculated content (roadmap 203). */
+const TipStar: React.FC = () => (
+  <span className="report-tip-star" title={CALCULATED_CONTENT_TIP}>★</span>
+);
+
 interface ReportDesignerCanvasProps {
   blocks: ReportBlock[];
   headerBlocks: ReportBlock[];
@@ -39,7 +50,9 @@ interface ReportDesignerCanvasProps {
   ctx: ReportCtx;
   fieldMap: Record<string, ReportFieldDef>;
   readOnly: boolean;
-  showKeys: boolean;
+  /** Global display/edit mode (roadmap 203) — designer-only. `fields` drives
+   *  the key↔value seam (`showKeys`) and keeps text/free tables live. */
+  mode: ReportViewMode;
   project: Project;
   parentCollection?: ReportCollection;
   parentCategory?: string;
@@ -183,20 +196,23 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp }) => {
+
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
   // A drag that starts inside a free-table cell is a TEXT selection — the
   // card's native block drag must be off until the pointer is released.
   const [cellDragBlockId, setCellDragBlockId] = useState<string | null>(null);
-  // Inline text editing (roadmap 191): the block currently typed in place,
-  // which block's editor holds DOM focus (drag suppression — drag resumes on
-  // blur) and the editor channel. The Reports Designer passes its own channel
-  // so the docked toolbar shares the exact instance; without one the canvas
-  // owns a local fallback (Call Sheet zone designer).
-  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  // Inline editing (roadmaps 191/203): the block currently entered in Values
+  // mode (text OR free table), which text block's editor holds DOM focus
+  // (drag suppression — drag resumes on blur) and the editor channel. Fields
+  // mode needs no entry state: text and free tables render live directly.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [textFocusedId, setTextFocusedId] = useState<string | null>(null);
+  // Values free-table entry: the cell the double-click/tap-again landed on —
+  // the table focuses it once it goes live.
+  const [tableFocusCell, setTableFocusCell] = useState<CellRef | null>(null);
   const [ownTextEditorRef] = useState<React.MutableRefObject<RichTextEditorHandle | null>>(() => ({ current: null }));
   const [ownTextRtState, setOwnTextRtState] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
   const [ownTextChipKey, setOwnTextChipKey] = useState<string | null>(null);
@@ -208,13 +224,20 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
   // Leave the editing block (another block / the background selected) → end
   // inline editing and reset the channel.
   useEffect(() => {
-    if (editingTextId && selId !== editingTextId) {
-      setEditingTextId(null);
+    if (editingId && selId !== editingId) {
+      setEditingId(null);
       setTextFocusedId(null);
+      setTableFocusCell(null);
       handleTextSelection(null);
       handleTextRtState(RICH_TEXT_STATE_IDLE);
     }
-  }, [selId, editingTextId, handleTextSelection, handleTextRtState]);
+  }, [selId, editingId, handleTextSelection, handleTextRtState]);
+  // Switching mode ends any Values entry (Fields renders live directly).
+  useEffect(() => {
+    setEditingId(null);
+    setTextFocusedId(null);
+    setTableFocusCell(null);
+  }, [mode]);
   // Canvas unmount (design switch / preview) resets the parent's channel too.
   const textChannelRef = useRef({ sel: handleTextSelection, state: handleTextRtState });
   textChannelRef.current = { sel: handleTextSelection, state: handleTextRtState };
@@ -347,6 +370,40 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     </div>
   );
 
+  /** The cell an event's element stack resolves to (cell contents, headers,
+   *  overlays and resize handles all included). */
+  const cellFromEvent = (e: { target: EventTarget | null; clientX: number; clientY: number }): CellRef | null => {
+    const target = e.target as HTMLElement | null;
+    const fromEl = (el: Element | null | undefined): CellRef | null => {
+      const cell = (el as HTMLElement | null)?.closest?.('[data-cell]');
+      const [rowId, colId] = (cell?.getAttribute('data-cell') || '').split(':');
+      return rowId && colId ? { rowId, colId } : null;
+    };
+    const direct = fromEl(target);
+    if (direct) return direct;
+    for (const el of target?.ownerDocument?.elementsFromPoint?.(e.clientX, e.clientY) ?? []) {
+      const hit = fromEl(el);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  // The cell each of the last two pointerdowns resolved to, plus whether they
+  // form a double-click pair (time + distance). Selecting the card inserts the
+  // in-flow resize strip, which SHIFTS the table before the second click — and
+  // an empty row is only a few px tall, so the second click often lands on a
+  // DIFFERENT cell. The paired first click is the truthful entry target.
+  const pointerCellRef = useRef<{ paired: boolean; prev: CellRef | null; last: { cell: CellRef | null; t: number; x: number; y: number } | null }>({ paired: false, prev: null, last: null });
+  const recordPointerCell = (e: React.PointerEvent) => {
+    const h = pointerCellRef.current;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const paired = !!h.last && now - h.last.t < 700 && Math.hypot(e.clientX - h.last.x, e.clientY - h.last.y) < 16;
+    pointerCellRef.current = { paired, prev: paired && h.last ? h.last.cell : null, last: { cell: cellFromEvent(e), t: now, x: e.clientX, y: e.clientY } };
+  };
+  /** Entry target: a paired first click's cell wins (it saw the pre-shift
+   *  layout); a lone click uses its own resolution. */
+  const entryCellFromEvent = (e: { target: EventTarget | null; clientX: number; clientY: number }): CellRef | null =>
+    pointerCellRef.current.paired ? pointerCellRef.current.prev : cellFromEvent(e);
+
   /** Free-table cell selection props for one block (roadmap 189). */
   const cellPropsFor = (b: ReportBlock) => (!b.custom ? {} : {
     cellSelection: cellSel && cellSel.blockId === b.id ? { anchor: cellSel.anchor, focus: cellSel.focus } : null,
@@ -355,6 +412,9 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     onCellRtStateChange,
     cellDocked: editorMode === 'toolbar',
     onCellSaveTextStyles: onSaveTextStyles,
+    mode,
+    tableEditing: editingId === b.id,
+    focusCell: editingId === b.id ? tableFocusCell : null,
   });
 
   const renderBlocks = (list: ReportBlock[], depth: number, parentColl?: ReportCollection, parentItem?: any, parentCategory?: string, onceIds?: Set<string>, ancestors?: any, parentItems?: ReportCollectionItem[], parentItemIndex?: number): React.ReactNode[] => {
@@ -375,14 +435,19 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
         ? `→ ${reportItemLabel(parentCollection, relItems[0])}`
         : null;
       const itemLocations = (b.type === 'text' || b.type === 'field' || b.type === 'map') && parentItem ? locationsOfItem(ctx, parentItem) : [];
-      // Inline text editing (roadmap 191): the block being typed in place.
-      const isEditingText = b.type === 'text' && editingTextId === b.id;
+      // Inline text editing (roadmaps 191/203): Fields mode ALWAYS renders the
+      // live chip editor; Values enters it on double-click / tap-again. Only
+      // the Values ENTRY wears the editing outline — Fields editors are the
+      // normal state, never a selection look.
+      const isEditingText = b.type === 'text' && (mode === 'fields' || editingId === b.id);
+      const enteredTextEditing = b.type === 'text' && mode === 'values' && editingId === b.id;
       const textEditProps = b.type === 'text' ? {
         editing: isEditingText,
+        textAutoFocus: mode === 'values',
         textEditorRef,
         onTextStateChange: handleTextRtState,
         onTextSelectionChange: handleTextSelection,
-        onTextEditEnd: () => { setEditingTextId(null); setTextFocusedId(null); },
+        onTextEditEnd: () => { setEditingId(null); setTextFocusedId(null); },
         onTextFocusChange: (focused: boolean) => setTextFocusedId(focused ? b.id : null),
       } : {};
 
@@ -391,7 +456,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
         <div key={b.id}>
           <div
             data-block-id={b.id}
-            className={`block-card block-type-${b.type}${selected ? ' selected' : ''}${isEditingText ? ' block-text-editing' : ''}`}
+            className={`block-card block-type-${b.type}${selected ? ' selected' : ''}${enteredTextEditing ? ' block-text-editing' : ''}`}
             onClick={e => {
               e.stopPropagation();
               // Collection-table cells own their clicks (column select/reorder);
@@ -404,27 +469,47 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               if (!b.custom && el.closest?.('[data-table-col-ci]')) return;
               if (b.custom && onCellSel && !el.closest?.('[data-cell]')) onCellSel(b.id, null);
               // Coarse pointers can't double-click cleanly: a second tap on the
-              // already-selected text block starts inline editing.
-              if (IS_COARSE && b.type === 'text' && !readOnly && selId === b.id && !isEditingText) setEditingTextId(b.id);
+              // already-selected target enters editing (Values mode). Free
+              // tables enter only from cell CONTENTS — the card itself offers
+              // the resize chrome.
+              if (IS_COARSE && !readOnly && mode === 'values' && selId === b.id) {
+                if (b.type === 'text' && !isEditingText) setEditingId(b.id);
+                if (b.custom && editingId !== b.id) {
+                  const cell = entryCellFromEvent(e);
+                  if (cell) { setTableFocusCell(cell); setEditingId(b.id); }
+                }
+              }
               onSelect(b.id);
             }}
-            onDoubleClick={b.type === 'text' && !readOnly ? e => {
+            onDoubleClick={!readOnly && mode === 'values' && (b.type === 'text' || b.custom) ? e => {
               e.stopPropagation();
               onSelect(b.id);
-              setEditingTextId(b.id);
+              if (b.custom) {
+                const cell = entryCellFromEvent(e);
+                if (!cell) return;
+                setTableFocusCell(cell);
+              }
+              setEditingId(b.id);
             } : undefined}
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onMenu(e, b.id); }}
             onPointerDown={b.custom ? e => {
+              recordPointerCell(e);
               if ((e.target as HTMLElement).closest?.('[data-cell]')) setCellDragBlockId(b.id);
             } : undefined}
             onPointerUp={b.custom ? () => setCellDragBlockId(null) : undefined}
             onPointerCancel={b.custom ? () => setCellDragBlockId(null) : undefined}
-            // While the inline editor holds focus the card must not be
-            // draggable — text selection never starts a block drag; drag
-            // resumes on blur.
-            draggable={!readOnly && !(b.custom && cellDragBlockId === b.id) && !(b.type === 'text' && textFocusedId === b.id)}
+            // While a Values-mode editor holds the card (text focus / cell
+            // drag) the card must not drag — text selection never starts a
+            // block drag. Fields mode keeps the card draggable (the leaf header
+            // and padding drag) and cancels body drags in onDragStart instead.
+            draggable={!readOnly && !(b.custom && cellDragBlockId === b.id) && !(b.type === 'text' && mode === 'values' && textFocusedId === b.id)}
             onDragStart={e => {
               if (b.custom && cellDragBlockId === b.id) { e.preventDefault(); return; }
+              const from = e.target as HTMLElement;
+              // Fields mode: live editor bodies (text + free-table cells) are
+              // text surfaces — cancel the card drag so gestures select text.
+              // The leaf header and card padding still drag the block.
+              if (mode === 'fields' && (from.closest?.('.report-text-editor') || from.closest?.('[data-cell]'))) { e.preventDefault(); return; }
               startBlockDrag(e, b);
             }}
             style={{
@@ -478,7 +563,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
 
             {(b.type === 'repeat' || b.type === 'table' || b.type === 'relative') ? (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1">
+                <div className={BLOCK_HEADER_CLS}>
                   {meta.icon}
                   {b.type === 'relative'
                     ? `Advance · ${b.relativeOffset ?? 1} ${(b.relativeOffset ?? 1) < 0 ? 'back' : 'ahead'} × ${Math.max(1, b.relativeCount ?? 1)}${relTarget ? ` — ${relTarget}` : ''}`
@@ -490,6 +575,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                   {b.collection === 'elements' ? ` (${b.category || 'props'})` : ''}
                   {b.collection === 'locations' && b.category ? ` (${(project.locationTypes || []).find(t => t.key === b.category)?.label || b.category})` : ''}
                   {b.type === 'table' && !b.custom && (b.axis ?? 'columns') === 'rows' ? ' · rows mode' : ''}
+                  {b.type === 'table' && b.custom && hasCalculatedContent(b) && <TipStar />}
                   {b.itemFilter && (
                     <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 text-amber-700 px-1.5 py-px text-[9px] font-bold normal-case tracking-normal" title={`Filtered: ${b.itemFilter.field} = ${b.itemFilter.values.join(', ')}`}>
                       <Filter className="w-2.5 h-2.5" /> Filtered
@@ -540,7 +626,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     endDrag={endDrag}
                   />
                 ) : (
-                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
+                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint mode={mode} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
                 )}
               </div>
             ) : b.type === 'pageBreak' ? (
@@ -653,7 +739,16 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 );
               })()
             ) : (
-              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
+              <div className={b.type === 'text' ? 'flex flex-col gap-2' : undefined}>
+                {b.type === 'text' && (
+                  <div className={BLOCK_HEADER_CLS}>
+                    {meta.icon}
+                    Text
+                    {hasCalculatedContent(b) && <TipStar />}
+                  </div>
+                )}
+                <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint mode={mode} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
+              </div>
             )}
           </div>
         </div>,

@@ -290,10 +290,21 @@ input, textarea, [contenteditable] {
 }
 
 /* The block being typed in place wears the focused-cell outline (roadmap
-   191) — the canvas's "this is an editing surface" language. */
+   191) — the canvas's "this is an editing surface" language. Values ENTRY
+   only (roadmap 203): Fields mode's always-live editors are the normal state
+   and must not read as selected. */
 .block-card.block-text-editing {
   outline-color: transparent;
   box-shadow: inset 0 2px 0 0 #3b82f6, inset 0 -2px 0 0 #3b82f6, inset 2px 0 0 0 #3b82f6, inset -2px 0 0 0 #3b82f6;
+}
+
+/* Calculated-content ★ (roadmap 203) — designer-only badge after a block
+   header's label; the explanation lives in the span's native tooltip. */
+.report-tip-star {
+  color: #d97706;
+  cursor: help;
+  font-size: 11px;
+  line-height: 1;
 }
 
 /* Excel-style cellref/lookup errors (#REF! / #VALUE!) — red in the designer

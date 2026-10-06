@@ -5,7 +5,7 @@ import { useCurrentWindow } from '../../lib/popoutTarget';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap } from '../../lib/reportFields';
 import { prepareSunWeatherForCtx } from '../../lib/reportWeather';
-import { ReportDesign, ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
+import { ReportDesign, ReportBlock, ReportCollection, ReportTextStyle, ReportViewMode } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
@@ -29,7 +29,7 @@ import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells'
 import { RichTextEditorHandle, RICH_TEXT_STATE_IDLE, RichTextState } from './RichTextEditor';
 import { Printer, Eye, EyeOff, ChevronDown, Check, X, ArrowRightLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import Button from '../Button';
-import { ToolButton, TB_BTN_ICON } from '@gabriel/ui-kit';
+import { Seg, ToolButton, TB_BTN_ICON } from '@gabriel/ui-kit';
 import { useDialog } from '../Dialog';
 
 function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
@@ -108,13 +108,17 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     edge: 'right',
     onChange: w => setRail(p => ({ ...p, width: w })),
   });
-  const [viewKeys, setViewKeys] = useState<boolean>(() => {
-    // Show field values is the default; the choice persists across sessions.
-    try { return localStorage.getItem('lemon_schedule_report_view_keys') === '1'; } catch { return false; }
+  // One global display/edit mode (roadmap 203): Fields = chips/keys with
+  // single-click editing, Values = the final look with double-click/tap-again
+  // entry. Default Values; the retired `lemon_schedule_report_view_keys` key is
+  // ignored (no migration).
+  const [reportMode, setReportMode] = useState<ReportViewMode>(() => {
+    try { return localStorage.getItem('lemon_schedule_report_view_mode') === 'fields' ? 'fields' : 'values'; } catch { return 'values'; }
   });
-  const setViewKeysPersisted = (keys: boolean) => {
-    setViewKeys(keys);
-    try { localStorage.setItem('lemon_schedule_report_view_keys', keys ? '1' : '0'); } catch { /* ignore */ }
+  const setReportModePersisted = (mode: ReportViewMode) => {
+    setReportMode(mode);
+    setSelCell(null);
+    try { localStorage.setItem('lemon_schedule_report_view_mode', mode); } catch { /* ignore */ }
   };
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
@@ -442,6 +446,15 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       />
       <div className="flex-1" />
       <div className="flex-1" />
+      <Seg
+        dense
+        value={reportMode}
+        options={[
+          { v: 'fields', l: 'Fields', title: 'Fields — chips everywhere; text and tables edit in place' },
+          { v: 'values', l: 'Values', title: 'Values — the final look; double-click or tap again to edit' },
+        ]}
+        onChange={v => setReportModePersisted(v as ReportViewMode)}
+      />
       <DropdownMenu
         open={viewMenuOpen}
         onOpenChange={setViewMenuOpen}
@@ -469,19 +482,6 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
           </DropdownItem>
         ))}
-        <div className="border-t border-zinc-800 my-1" />
-        <DropdownItem
-          onClick={() => { setViewKeysPersisted(true); setViewMenuOpen(false); }}
-          icon={viewKeys ? <Check className="w-3.5 h-3.5" /> : undefined}
-        >
-          Show field keys
-        </DropdownItem>
-        <DropdownItem
-          onClick={() => { setViewKeysPersisted(false); setViewMenuOpen(false); }}
-          icon={!viewKeys ? <Check className="w-3.5 h-3.5" /> : undefined}
-        >
-          Show field values
-        </DropdownItem>
       </DropdownMenu>
       <button
         onClick={() => setPreview(v => !v)}
@@ -652,7 +652,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               ctx={ctx}
               fieldMap={fieldMap}
               readOnly={readOnly}
-              showKeys={viewKeys}
+              mode={reportMode}
               project={project}
               parentCollection={zoneMode ? zone!.scope : selParentCollection}
               parentCategory={selParentCategory}

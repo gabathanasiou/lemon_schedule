@@ -89,16 +89,17 @@ test('keys/values toggle switches text blocks and table cells', async ({ page })
   await expect(page.getByText(`${seedTitle()} — One-Liner`)).toBeVisible({ timeout: 5000 });
   await expect(page.getByText(lead.name).first()).toBeVisible({ timeout: 3000 });
 
-  await page.getByRole('button', { name: /View:/ }).click();
-  await page.locator('.ui-menu').getByText('Show field keys', { exact: true }).click();
-  
-  await expect(page.getByText('{{title}} — One-Liner')).toBeVisible({ timeout: 3000 });
+  await page.getByRole('button', { name: 'Fields', exact: true }).click();
+
+  // Fields: text blocks become live chip editors (field labels), collection
+  // tables render raw {{keys}} — no resolved values anywhere.
+  const titleCard = page.locator('.block-card.block-type-text').filter({ hasText: 'One-Liner' }).first();
+  await expect(titleCard.locator('.rt-token').first()).toBeVisible({ timeout: 3000 });
   await expect(page.getByText('{{cast}}').first()).toBeVisible({ timeout: 3000 });
   await expect(page.getByText(lead.name)).toHaveCount(0);
 
-  await page.getByRole('button', { name: /View:/ }).click();
-  await page.locator('.ui-menu').getByText('Show field values', { exact: true }).click();
-  
+  await page.getByRole('button', { name: 'Values', exact: true }).click();
+
   await expect(page.getByText(`${seedTitle()} — One-Liner`)).toBeVisible({ timeout: 3000 });
   await expect(page.getByText(lead.name).first()).toBeVisible({ timeout: 3000 });
 });

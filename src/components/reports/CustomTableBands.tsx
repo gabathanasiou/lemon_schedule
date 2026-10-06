@@ -32,6 +32,9 @@ export interface CustomTableShared {
   cellPad: React.CSSProperties;
   border: string;
   editable: boolean;
+  /** Designer resize affordances (column strip + row handles) — available in
+   *  Values mode too, where cells stay static (roadmap 203). */
+  resizable: boolean;
   selection: CustomSelection | null;
   selectionRect: MergeRect | null;
   focusKey: string | null;
@@ -182,7 +185,7 @@ const CellShell: React.FC<{
   style: React.CSSProperties;
   children: React.ReactNode;
 }> = ({ shared, band, rowId, colId, colPos, rowPos, gridRow, colSpan, rowSpan, style, children }) => {
-  const { editable, columns, border, selectionRect, onSelectCell, onCellContextMenu, activeCol, onColHover, startColResize } = shared;
+  const { editable, resizable, columns, border, selectionRect, onSelectCell, onCellContextMenu, activeCol, onColHover, startColResize } = shared;
   const lastCol = colPos + colSpan - 1;
   const picking = !!shared.pickSource && band === 'body';
   const hovered = !!shared.hoverCell && shared.hoverCell.rowId === rowId && shared.hoverCell.colId === colId;
@@ -192,6 +195,7 @@ const CellShell: React.FC<{
       data-table-col-ci={colPos}
       data-row-id={rowId}
       data-pick-target={picking ? '1' : undefined}
+      draggable={false}
       className={`${band === 'header' && editable ? 'report-ct-hcell' : ''}${picking ? ' report-cell-pick' : ''}` || undefined}
       style={{
         ...style,
@@ -216,7 +220,7 @@ const CellShell: React.FC<{
       onContextMenu={editable ? e => onCellContextMenu(e, { rowId, colId }) : undefined}
     >
       {children}
-      {editable && !IS_COARSE && lastCol < columns.length - 1 && (
+      {resizable && !IS_COARSE && lastCol < columns.length - 1 && (
         <div
           className="report-ct-colborder"
           data-active={activeCol === lastCol ? '1' : undefined}
@@ -329,7 +333,7 @@ export const BodyBand: React.FC<{
   startRowResize: (ri: number, e: React.PointerEvent) => void;
   setRowHeight: (ri: number, height: number | undefined) => void;
 }> = ({ shared, band, rowCount, commitCell, insertRowBelow, removeRow, duplicateRow, startRowResize, setRowHeight }) => {
-  const { columns, merges, baseStyle, cellPad, border, editable, colOutline } = shared;
+  const { columns, merges, baseStyle, cellPad, border, editable, resizable, colOutline } = shared;
   const [hoverRow, setHoverRow] = React.useState<string | null>(null);
   return (
     <div
@@ -341,11 +345,11 @@ export const BodyBand: React.FC<{
         pageBreakInside: 'avoid',
         breakInside: 'avoid',
       }}
-      onMouseOver={editable ? e => {
+      onMouseOver={resizable ? e => {
         const el = (e.target as HTMLElement).closest('[data-row-id]');
         setHoverRow(el?.getAttribute('data-row-id') ?? null);
       } : undefined}
-      onMouseLeave={editable ? () => setHoverRow(null) : undefined}
+      onMouseLeave={resizable ? () => setHoverRow(null) : undefined}
     >
       {band.rows.map((row, bi) => {
         const absoluteRi = band.start + bi;
@@ -402,7 +406,7 @@ export const BodyBand: React.FC<{
               )}
             </span>
           )}
-          {editable && !IS_COARSE && (() => {
+          {resizable && !IS_COARSE && (() => {
             // Direct row-resize grab strips: one segment per column, skipping
             // any column whose boundary below this row is INSIDE a vertical
             // merge (otherwise the strip would cross a merged cell's middle
@@ -427,7 +431,7 @@ export const BodyBand: React.FC<{
               );
             });
           })()}
-          {editable && (
+          {resizable && (
             <div
               className="report-ct-rowtab"
               title="Drag to resize the row (double-click to reset)"

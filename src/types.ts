@@ -806,6 +806,11 @@ export interface ReportDesign {
   footerSkipFirst?: boolean;     // hide the footer on page 1
 }
 
+/** Reports-designer display mode (roadmap 203). Fields = chips/keys everywhere
+ *  with single-click editing; Values = the final look, double-click/tap-again
+ *  to edit. Designer-only — preview and print always render values. */
+export type ReportViewMode = 'fields' | 'values';
+
 /** Named text style (Word/Pages-like): blocks link to one via `textStyle`. */
 export interface ReportTextStyle {
   id: string;

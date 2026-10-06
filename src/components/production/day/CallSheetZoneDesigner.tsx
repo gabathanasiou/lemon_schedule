@@ -73,7 +73,7 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
     ctx,
     fieldMap,
     readOnly: !!readOnly,
-    showKeys: false,
+    mode: 'values' as const,
     project,
     parentCollection: zoneScope,
     rootItem: dayItem,

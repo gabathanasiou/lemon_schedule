@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
+import { ReportBlock, ReportCollection, ReportTextStyle, ReportViewMode } from '../../types';
 import { ReportCtx } from '../../lib/reportData';
 import { ReportFieldDef, FieldAux, buildLookupTokens, fieldsForScope, getReportFieldDefs, composeCellRefKey, composeRelativeCellRefKey, parseCellRefKey, cellRefChain } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
@@ -35,6 +35,13 @@ export interface CustomTableProps {
   cellPad: React.CSSProperties;
   border: string;
   hint?: boolean;
+  /** Designer mode (roadmap 203): Fields = live cells (today); Values =
+   *  static resolved cells until `tableEditing` enters the whole table. */
+  mode?: ReportViewMode;
+  tableEditing?: boolean;
+  /** Values entry: the cell the double-click/tap-again landed on — selected
+   *  and focused once the table goes live. */
+  focusCell?: CellRef | null;
   rowRange?: [number, number];
   repeatTableHeader?: boolean;
   onPatchBlock?: (patch: Partial<ReportBlock>) => void;
@@ -56,8 +63,13 @@ export interface CustomTableProps {
   onCellSaveTextStyles?: (styles: ReportTextStyle[]) => void;
 }
 
-const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, parentCollection, parentCategory, onCellSaveTextStyles }) => {
-  const editable = !!hint && !!onPatchBlock;
+const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, mode, tableEditing, focusCell, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, parentCollection, parentCategory, onCellSaveTextStyles }) => {
+  // Designer surfaces can ALWAYS select the card and resize (column strip +
+  // row handles); cell EDITING is Fields mode (live) or a Values entry, which
+  // makes the whole table live.
+  const designer = !!hint && !!onPatchBlock;
+  const editable = designer && (mode === 'fields' || !!tableEditing);
+  const resizable = designer && (editable || !!selected);
   const fields = useMemo(() => getReportFieldDefs(ctx.project), [ctx.project]);
   // Contextual `@` suggestions: cell editors get the SAME scope-filtered field
   // list text blocks get, so fields that need a repeat parent (scene/day/
@@ -290,6 +302,24 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
   // row above the boundary changes). Heights are measured from the per-row
   // overlay grid items (`data-row-id`) inside each band.
   const rootRef = React.useRef<HTMLDivElement>(null);
+  // Values entry (roadmap 203): when the table goes live, select the cell the
+  // double-click/tap-again landed on and focus its editor (or the header
+  // input). Consumed per request object so a later re-render can't refocus.
+  const focusRequestRef = React.useRef<CellRef | null>(null);
+  const selectRef = React.useRef(select);
+  selectRef.current = select;
+  React.useEffect(() => {
+    if (!editable || !focusCell || focusRequestRef.current === focusCell) return;
+    focusRequestRef.current = focusCell;
+    selectRef.current({ anchor: focusCell, focus: focusCell });
+    const raf = requestAnimationFrame(() => {
+      const el = rootRef.current?.querySelector<HTMLElement>(
+        `[data-cell="${focusCell.rowId}:${focusCell.colId}"] .tiptap, [data-cell="${focusCell.rowId}:${focusCell.colId}"] .report-ct-header-input`,
+      );
+      el?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [editable, focusCell]);
   const startHeightsRef = React.useRef<number[]>([]);
   const rowEls = () => rootRef.current
     ? (Array.from(rootRef.current.querySelectorAll('.report-ct-row[data-row-id]')) as HTMLElement[])
@@ -360,7 +390,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
 
   const shownBands = rowRange ? bands.slice(rowRange[0], rowRange[1]) : bands;
   const shared = {
-    block, columns, merges, cellStyles: cells.cellStyles, baseStyle, cellPad, border, editable,
+    block, columns, merges, cellStyles: cells.cellStyles, baseStyle, cellPad, border, editable, resizable,
     selection, selectionRect, focusKey, focusedEditorRef, rtState, onRtStateChange: handleRtState,
     onSelectCell: selectCell, onCellContextMenu: handleCellContextMenu,
     activeCol, onColHover: setHoverCol, colOutline, startColResize,
@@ -373,7 +403,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
 
   return (
     <div className="report-ct-root" data-picking={pickSource ? '1' : undefined}>
-      {editable && selected && (
+      {designer && selected && (
         <div className={`${IS_COARSE ? 'h-10' : 'h-5'} select-none`}>
           <ColumnResizeStrip
             widths={columns.map(c => c.width)}

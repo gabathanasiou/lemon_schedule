@@ -49,9 +49,8 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
   expect(valuesDump.count).toBe(0);
   expect(valuesDump.textWithXmlns).toBe(0);
 
-  // 3) KEYS mode: no literal tags in the template text
-  await page.getByRole('button', { name: /A4 Portrait|A4 Landscape|Full Width/ }).click();
-  await page.getByRole('menuitem', { name: 'Show field keys' }).click();
+  // 3) FIELDS mode (header toggle): no literal tags in the template text
+  await page.getByRole('button', { name: 'Fields', exact: true }).click();
     const keysText = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.block-card.block-type-text, .report-repeat .block-card')).map(el => (el as HTMLElement).innerText?.slice(0, 90)).filter(Boolean).slice(0, 10),
   );
@@ -60,8 +59,7 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
   expect(keysText.join('\n')).not.toContain('xmlns');
 
   // 4) back to VALUES + edit the polluted block → save must store CLEAN text
-  await page.getByRole('button', { name: /A4 Portrait|A4 Landscape|Full Width/ }).click();
-  await page.getByRole('menuitem', { name: 'Show field values' }).click();
+  await page.getByRole('button', { name: 'Values', exact: true }).click();
     const propsCard = page.locator('.block-card.block-type-text').filter({ hasText: 'Props' }).first();
   await propsCard.click();
     // roadmap 191: double-click the card to edit it INLINE on the canvas
