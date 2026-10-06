@@ -10,13 +10,14 @@ roadmap worker session, so it stays lean.
 - **New asks** go through the triage/dedupe gate (AGENTS.md, §Roadmap Work)
   before becoming an item here.
 
-> **Next session — 203 first** (Fields/Values mode + text-block headers + tips
-> star — full plan below; do it BEFORE **202**, the stepper number input).
-> Then the Reports Designer pass: **195** (reference `.` attributes match the
-> repeater scope — honor its guardrails), **196** (cellref collection
-> navigation / chaining), **198** (designer day picker — preview any day) and
-> **199** (collection-table column headers — custom text + tokens).
-> **191** (inline text blocks + the ONE shared chrome) and **194** (resize-tab
+> **Next session — 202 first** (kit `NumberInput` stepper — full plan at the
+> bottom; it also gets the next ui-kit bump, so do it before the Reports
+> Designer pass). Then the Reports Designer pass: **195** (reference `.`
+> attributes match the repeater scope — honor its guardrails), **196**
+> (cellref collection navigation / chaining), **198** (designer day picker —
+> preview any day) and **199** (collection-table column headers — custom text
+> + tokens). **203** (Fields/Values mode + block headers + tips star), **191**
+> (inline text blocks + the ONE shared chrome) and **194** (resize-tab
 > double-click reset) shipped 2026-10-06.
 
 ---
@@ -1067,96 +1068,3 @@ coarse size, disabled at min/max). No new e2e.
 (ribbon toolbar) and **192** (format bar size slot); related to **17**/**182**
 (touch affordances).
 
-## 203. Reports designer — Fields/Values mode + block headers + tips star (`[ ]`)
-
-**Request** (user, 2026-10-06): one global display/edit mode replaces the View
-menu's two items. **Fields** = chips everywhere, single-click editing; **Values**
-= the final look, double-click/tap-again to edit. Free tables stop being
-implicitly always-live. Text blocks get the small uppercase header free tables
-already have, plus a star for calculated content. Do this BEFORE 202.
-
-**Mode + toggle**
-- Segmented `Fields | Values` control in `ReportDesigner.tsx`'s `headerContent`
-  (kit `Seg`), next to View, works floating + docked, each segment tooltipped;
-  remove the View menu's "Show field keys"/"Show field values" items (`:465-484`).
-- Persist `lemon_schedule_report_view_mode`; the old
-  `lemon_schedule_report_view_keys` key is IGNORED (no migration). Default
-  **Values**.
-- Thread one `mode: 'fields' | 'values'` through `ReportDesignerCanvas` →
-  `ReportBlockView`; derive `showKeys = mode === 'fields'` at the existing
-  `showKeys` seam so collection tables / field blocks / grid blocks keep today's
-  key↔value behavior untouched.
-
-**Surface behavior**
-| Surface | Fields | Values |
-|---|---|---|
-| Text block | chips, always the live editor; desktop single click types in | resolved (today's default); double-click / touch tap-again enters editing (current 191 flow) |
-| Free table | all cells live (today) | resolved static cells; entering edit makes the WHOLE table live and focuses the clicked cell |
-| Collection table | `{{field}}` keys | values |
-| Field / Call Times / Crew / grid | keys | values |
-| Ribbon / image / map / spacer / pageBreak | unchanged | unchanged |
-
-- Collection tables are display-only toggling — column/cell selection + chrome
-  editing identical in both modes (no cell editor exists for them).
-- Touch everywhere = Glide's rule (precedent `BreakdownTabGlide.tsx:197-235`,
-  `e2e/keyboard-mode.spec.ts`): first tap selects, second tap within ~1s on the
-  same target edits (jiggle-tolerant). Applies in both modes; today's free-table
-  cells (always live) are brought in line.
-- Escape / click-away / selecting another block ends editing; preview + print
-  always render values (mode is designer-only).
-
-**Drag** — Fields: body is an editor, so set `draggable={false}` on the editor
-wrapper (`.report-text-editor`, and the live free-table cells) so body gestures
-are text selection; card **padding + the new header** still drag the block.
-Values: body drag works as today until editing starts (current 191
-`textFocusedId`/`cellDragBlockId` suppression).
-
-**Headers + ★ tips**
-- Text blocks render the container-style header (`Type` icon + "Text", same
-  `text-[10px] ... text-sky-700 uppercase` recipe the canvas uses for
-  repeat/table/columns); free tables keep their existing "Free table" header.
-- ★ after the label when the block has CALCULATED content only:
-  free table = any `{{cellref…}}` in cells/header (`parseCellRefKey`);
-  text = cellrefs or `@` lookup refs (`parseLookupKey`) — plain `{{field}}`
-  tokens do NOT star. Hover tooltip, e.g. "Contains calculated values".
-  Designer-only, no count.
-- Field (`Attribute`) blocks: untouched — no header/star, no migration
-  (user doesn't use them; retiring the type is separate work, not this item).
-
-**Files**: `ReportDesigner.tsx` (toggle + state/persistence + thread mode),
-`ReportDesignerCanvas.tsx` (mode prop; generalize `editingTextId` into one
-edit-entry state covering text + free tables; leaf header + star; drag rules),
-`ReportBlockView.tsx` (text case branching on mode; pass mode to CustomTable),
-`CustomTable.tsx`/`CustomTableBands.tsx`/`useCustomTableCells.ts` (Values:
-`editable=false` static render — `CellEditor` already resolves tokens when not
-editable — with whole-table entry + focus-target-cell; Fields: today's live
-cells), new pure `src/lib/reportTips.ts` (+ unit test), `index.css` (header/star).
-
-**Test adjustments (required)**
-- `e2e/report-xmlns.spec.ts:54,64` and `e2e/report-designer-move.spec.ts:93,100`
-  click the removed menu items — retarget them to the new header toggle
-  (e.g. `getByRole('button', { name: 'Fields' })` / `'Values'`); same test count.
-- Default stays **Values**, so all 191 specs (`rich-text-editor`,
-  `report-chip-affix`, `report-editor-polish`, `report-sun-weather-map`,
-  `report-chrome`) keep passing unchanged (double-click entry).
-- `e2e/call-sheet-day.spec.ts` is the only free-table-ish spec — if it types into
-  a free-table cell, add the double-click entry (bare zone canvas gets the same
-  Values default).
-- Suite is AT the cap (69 specs / 271 tests) — do NOT add net-new tests for this;
-  cover the toggle + silent-break risk by repurposing the two specs above and a
-  rule-7 manual pass. If one focused new test is genuinely needed, replace a
-  weaker one (or raise the cap deliberately in the same commit).
-- Verify with `PLAYWRIGHT_PORT=3011` when dev servers occupy :3001 — otherwise
-  `glide-first-edit` fails for the known item-200 reason and the clipboard specs
-  only pass on the default port.
-
-**Verify**: `npm run lint`; `test:smart` (or full suite on an owned port) with
-the two retargeted specs green; rule-7 manual — toggle flips text/free-table
-chips↔values, single-click vs double-click entry, whole-table edit + Escape,
-touch tap-tap, header drag in Fields + body drag in Values, star tooltip,
-preview/print unchanged.
-
-**Relations**: extends **191** (inline editing it re-shapes); supersedes the
-"Show field keys/value" View options; touches **188/189** (free-table cells);
-uses **17** touch precedents and Glide's tap-tap; verification caveat from
-**200**. Runs before number-input **202**.
