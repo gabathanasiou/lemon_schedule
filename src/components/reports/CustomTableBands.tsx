@@ -102,7 +102,14 @@ const CellEditor: React.FC<{
     };
   }, [isFocus, shared.focusedEditorRef]);
   if (!shared.editable) {
-    return <div dangerouslySetInnerHTML={htmlProp(resolveReportTokensHtml(shared.ctx, shared.fieldMap, html, shared.item, shared.aux, { cellRef: { block: shared.block, rowId, colId } }))} />;
+    // Empty cells still hold ONE line box (the row otherwise collapses to its
+    // borders — a squashed empty row in Values/preview/print).
+    return (
+      <div
+        style={{ minHeight: '1.5em' }}
+        dangerouslySetInnerHTML={htmlProp(resolveReportTokensHtml(shared.ctx, shared.fieldMap, html, shared.item, shared.aux, { cellRef: { block: shared.block, rowId, colId } }))}
+      />
+    );
   }
   return (
     <div onKeyDownCapture={e => {

@@ -453,7 +453,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
         ))}
       </div>
       {editable && selected && !cellDocked && selection && selectionRect && (
-        <TableCellChrome focus={selection.focus}>
+        <TableCellChrome>
           <CustomCellControls
             label={label}
             canMerge={canMerge}
