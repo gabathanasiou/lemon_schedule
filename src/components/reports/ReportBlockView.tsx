@@ -13,7 +13,7 @@ import { ReportMapView } from './ReportMapView';
 import ReportGridBlock from './ReportGridBlock';
 import { ReportLocationLink } from './ReportLocationLink';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
-import { stripRichText, normalizeSpaces } from '../../lib/richText';
+import { stripRichText, normalizeSpaces, htmlProp } from '../../lib/richText';
 import { CellRef } from '../../lib/reportTableMerges';
 import { PageChunk, FragmentPartUnit, splittableKind } from '../../lib/reportPagination';
 
@@ -240,7 +240,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         if ((block.emptyBehavior ?? 'show') === 'hideText' && isEmptyValue(text)) st.display = 'none';
         const isHtml = html.includes('<');
         if (isHtml) {
-          return <div className="report-text-block" style={st} dangerouslySetInnerHTML={{ __html: html || '\u00A0' }} />;
+          return <div className="report-text-block" style={st} dangerouslySetInnerHTML={htmlProp(html || '\u00A0')} />;
         }
         return <div className="report-text-block" style={{ ...st, whiteSpace: 'pre-wrap' }}>{text || '\u00A0'}</div>;
       }

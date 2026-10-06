@@ -6,6 +6,7 @@ import { FieldAux, LookupTokenItem, ReportFieldDef, resolveReportTokensHtml } fr
 import { REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
 import { CellRef, MergeRect, TableBand, HEADER_ROW_ID, isCovered, mergeAnchorAt } from '../../lib/reportTableMerges';
 import { getTextStyleById } from '../../lib/reportTextStyles';
+import { htmlProp } from '../../lib/richText';
 import { IS_COARSE } from '../../lib/device';
 import RichTextEditor, { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 
@@ -101,7 +102,7 @@ const CellEditor: React.FC<{
     };
   }, [isFocus, shared.focusedEditorRef]);
   if (!shared.editable) {
-    return <div dangerouslySetInnerHTML={{ __html: resolveReportTokensHtml(shared.ctx, shared.fieldMap, html, shared.item, shared.aux, { cellRef: { block: shared.block, rowId, colId } }) }} />;
+    return <div dangerouslySetInnerHTML={htmlProp(resolveReportTokensHtml(shared.ctx, shared.fieldMap, html, shared.item, shared.aux, { cellRef: { block: shared.block, rowId, colId } }))} />;
   }
   return (
     <div onKeyDownCapture={e => {

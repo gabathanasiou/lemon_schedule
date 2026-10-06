@@ -235,7 +235,12 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     dispatch({ type: 'BATCH_COMMIT' });
   };
 
-  const patch = (id: string, p: Partial<ReportBlock>) => commitZone(id, list => updateBlock(list, id, p));
+  const patch = (id: string, p: Partial<ReportBlock>) => {
+    // Switching a table to Free table drops you straight into editing (the
+    // canvas focuses the first cell).
+    if (p.custom === true && !findBlock(allBlocks, id)?.block.custom) setAutoEditId(id);
+    commitZone(id, list => updateBlock(list, id, p));
+  };
 
   const allBlocks = useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
 
@@ -299,6 +304,14 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     if (guardAllowed(payload, scope, insideColumns)) apply();
   };
 
+  // Freshly added text / free-table blocks enter editing with the caret inside
+  // — the canvas focuses once the block has rendered.
+  const [autoEditId, setAutoEditId] = useState<string | null>(null);
+  const markAutoEdit = (b: ReportBlock, attribute = false) => {
+    if (attribute) return;
+    if (b.type === 'text' || (b.type === 'table' && b.custom)) setAutoEditId(b.id);
+  };
+
   const insertPayload = (payload: PaletteDropPayload, id: string | null = selId) => {
     guardInsert(payload, insertScope, id ? insideColumnsBlock(allBlocks, id) : false, () => {
       const zone = zoneOf(id);
@@ -307,6 +320,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       const next = id ? insertAfter(list, id, b) : [...list, b];
       commit(next, zone);
       setSelId(b.id);
+      markAutoEdit(b, !!payload.field);
     });
   };
 
@@ -314,6 +328,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     if (!selId) return;
     const b = makeReportBlock('text');
     commitZone(selId, list => insertInto(list, selId, b));
+    setSelId(b.id);
+    markAutoEdit(b);
   };
 
   // New-column ops (gutter drops AND edge drops inside a column): a brand-new
@@ -325,6 +341,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       const b = payloadToBlock(payload, insertScopeFor(list, columnsId));
       commit(insertColumnAt(list, columnsId, colIndex, b), zone);
       setSelId(b.id);
+      markAutoEdit(b, !!payload.field);
     });
   };
   const moveToNewColumn = (moveId: string, columnsId: string, colIndex: number) => {
@@ -653,6 +670,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               fieldMap={fieldMap}
               readOnly={readOnly}
               mode={reportMode}
+              autoEditId={autoEditId}
+              onAutoEditHandled={() => setAutoEditId(null)}
               project={project}
               parentCollection={zoneMode ? zone!.scope : selParentCollection}
               parentCategory={selParentCategory}
@@ -691,13 +710,14 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                   const b = payloadToBlock(payload, null);
                   commit([...listOfZone(zone), b], zone);
                   setSelId(b.id);
+                  markAutoEdit(b, !!payload.field);
                 });
               }}
               editorMode={editorMode}
               onMoveTableColumn={moveTableColumnBy}
-              onInsertAfter={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertAfter(list, id, b) : [...list, b], zone); setSelId(b.id); }); }}
-              onInsertBefore={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertBefore(list, id, b) : [b, ...list], zone); setSelId(b.id); }); }}
-              onInsertInto={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(insertInto(list, id, b), zone); setSelId(b.id); }); }}
+              onInsertAfter={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertAfter(list, id, b) : [...list, b], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
+              onInsertBefore={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertBefore(list, id, b) : [b, ...list], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
+              onInsertInto={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(insertInto(list, id, b), zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
               onMoveInto={(containerId, moveId) => {
                 const zone = zoneOf(containerId);
                 const srcZone = zoneOf(moveId);
@@ -776,6 +796,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                   const b = payloadToBlock(payload, insertScopeFor(list, columnsId));
                   commit(appendToColumn(list, columnsId, colIndex, b), zone);
                   setSelId(b.id);
+                  markAutoEdit(b, !!payload.field);
                 });
               }}
               onMoveIntoColumn={(moveId, columnsId, colIndex) => {
@@ -843,8 +864,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             }
             patch(menu.id, { field: f });
           }}
-          onInsertAbove={() => commitZone(menu.id, list => insertBefore(list, menu.id, makeReportBlock('text')))}
-          onInsertBelow={() => commitZone(menu.id, list => insertAfter(list, menu.id, makeReportBlock('text')))}
+          onInsertAbove={() => { const b = makeReportBlock('text'); commitZone(menu.id, list => insertBefore(list, menu.id, b)); setSelId(b.id); markAutoEdit(b); }}
+          onInsertBelow={() => { const b = makeReportBlock('text'); commitZone(menu.id, list => insertAfter(list, menu.id, b)); setSelId(b.id); markAutoEdit(b); }}
           onAddChild={insertIntoSelected}
           onDuplicate={() => commitZone(menu.id, list => duplicateBlock(list, menu.id))}
           onRemove={() => { commitZone(menu.id, list => removeBlock(list, menu.id)); setSelId(null); setMenu(null); }}
@@ -859,6 +880,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             const b = makeReportBlock('text');
             commit(insertColumnAt(listOfZone(zone), menu.id, i, b), zone);
             setSelId(b.id);
+            markAutoEdit(b);
             setMenu(null);
           }}
           onColumnMove={dir => {

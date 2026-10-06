@@ -53,6 +53,10 @@ interface ReportDesignerCanvasProps {
   /** Global display/edit mode (roadmap 203) — designer-only. `fields` drives
    *  the key↔value seam (`showKeys`) and keeps text/free tables live. */
   mode: ReportViewMode;
+  /** Just-added text/free-table block: enter editing + focus once rendered
+   *  (the Reports Designer sets it on insert / Free-table switch). */
+  autoEditId?: string | null;
+  onAutoEditHandled?: () => void;
   project: Project;
   parentCollection?: ReportCollection;
   parentCategory?: string;
@@ -196,7 +200,7 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, autoEditId, onAutoEditHandled, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp }) => {
 
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
@@ -238,6 +242,34 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     setTextFocusedId(null);
     setTableFocusCell(null);
   }, [mode]);
+  // Freshly added text / free-table blocks (palette, context menu, or a table
+  // switched to Free table): enter editing with the caret inside once the
+  // block has rendered.
+  useEffect(() => {
+    if (!autoEditId) return;
+    const target = findBlock(allBlocks, autoEditId)?.block;
+    if (!target) return;
+    // Insert paths already select the new block — only correct a mismatch
+    // (`onSelect` would also clear a sibling column selection).
+    if (selId !== autoEditId) onSelect(autoEditId);
+    if (mode === 'values' && target.type === 'text') {
+      setEditingId(autoEditId);
+    } else if (mode === 'values' && target.type === 'table' && target.custom) {
+      const row = target.customRows?.[0];
+      const col = (target.columns || [])[0];
+      setTableFocusCell(row && col ? { rowId: row.id, colId: col.id } : null);
+      setEditingId(autoEditId);
+    } else {
+      // Fields mode (or nothing focusable in the block): focus the first live
+      // editor / header input directly.
+      requestAnimationFrame(() => {
+        const root = containerRef.current?.querySelector<HTMLElement>(`[data-block-id="${autoEditId}"]`);
+        const el = root?.querySelector<HTMLElement>('.tiptap') ?? root?.querySelector<HTMLElement>('.report-ct-header-input');
+        el?.focus();
+      });
+    }
+    onAutoEditHandled?.();
+  }, [autoEditId, allBlocks, mode, selId, onSelect, onAutoEditHandled]);
   // Canvas unmount (design switch / preview) resets the parent's channel too.
   const textChannelRef = useRef({ sel: handleTextSelection, state: handleTextRtState });
   textChannelRef.current = { sel: handleTextSelection, state: handleTextRtState };
@@ -490,16 +522,22 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               const clickedCell = b.custom ? cellFromEvent(e) : null;
               if (b.custom && onCellSel && !clickedCell) onCellSel(b.id, null);
               if (!readOnly && mode === 'values') {
+                const exitEditing = () => {
+                  setEditingId(null);
+                  setTextFocusedId(null);
+                  setTableFocusCell(null);
+                  handleTextSelection(null);
+                  handleTextRtState(RICH_TEXT_STATE_IDLE);
+                };
                 if (b.custom && editingId === b.id) {
                   // Editing: a click on the card (padding/header) exits; cells
                   // stay live (the click places the caret natively).
-                  if (!clickedCell) {
-                    setEditingId(null);
-                    setTextFocusedId(null);
-                    setTableFocusCell(null);
-                    handleTextSelection(null);
-                    handleTextRtState(RICH_TEXT_STATE_IDLE);
-                  }
+                  if (!clickedCell) exitEditing();
+                } else if (b.type === 'text' && editingId === b.id) {
+                  // Same for text: a click outside the live editor (leaf
+                  // header / card padding) exits, so a following double-click
+                  // re-enters cleanly instead of leaving a blurred editor.
+                  if (!el.closest?.('.report-text-editor')) exitEditing();
                 } else if (b.custom && selId === b.id) {
                   // Selected card + click on a cell → enter editing (coarse
                   // second taps are pair-aware; the strip shift can move rows).
