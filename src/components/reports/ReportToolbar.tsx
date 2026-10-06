@@ -7,6 +7,7 @@ import { X, ArrowRightLeft } from 'lucide-react';
 import {
   BlockCtx, BlockEditorContent, BLOCK_TYPE_META,
 } from './blockControls';
+import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import { ColumnsColumnEditorContent, TableColumnEditorContent } from './reportColumnControls';
 import { BlockEditorPanelContext } from './reportEditorLayout';
 import type { ColSel } from './ReportDesignerCanvas';
@@ -43,6 +44,11 @@ interface ReportToolbarProps {
   /** Free-table cell controls (roadmap 189) — rendered under the block editor
    *  on the docked surfaces; the floating chrome hosts them on the canvas. */
   cellControls?: React.ReactNode;
+  /** Inline text editing channel (roadmap 191) — the shared Format/Style body
+   *  binds to the canvas text block's live editor. */
+  editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  active?: RichTextState;
+  chipKey?: string | null;
 }
 
 const ReportToolbar: React.FC<ReportToolbarProps> = ({
@@ -50,7 +56,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
   onToggleEditorMode, onDeselect, onPatch, onSaveTextStyles,
   onDuplicate, onRemove, onMove, panel,
   colSel, colBlock, onColPatch, onColInsertAt, onColMove, onColDelete,
-  cellControls,
+  cellControls, editorRef, active, chipKey,
 }) => {
   const hint = 'Select a block to edit it. Click an item in the palette to add it.';
   const noop = () => {};
@@ -104,6 +110,9 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
           onDuplicate={onDuplicate}
           onRemove={onRemove}
           onMove={onMove}
+          editorRef={editorRef}
+          active={active}
+          chipKey={chipKey}
         />
         {cellControls && <div className="mt-2 pt-2 border-t border-zinc-800">{cellControls}</div>}
       </div>
@@ -133,6 +142,9 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
             onDuplicate={onDuplicate}
             onRemove={onRemove}
             onMove={onMove}
+            editorRef={editorRef}
+            active={active}
+            chipKey={chipKey}
             trailing={
               <>
                 <div className={TB_DIVIDER} />

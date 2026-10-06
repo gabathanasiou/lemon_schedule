@@ -75,8 +75,12 @@ test('token autocomplete anchors to the caret and stays inside the window', asyn
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
   
-  const editor = page.locator('.block-chrome .richtext-editor');
-  await editor.click();
+  // roadmap 191: the editor lives INLINE on the canvas (double-click the card)
+  const card = page.locator('.block-card.selected');
+  await card.dblclick();
+  const editor = card.locator('.report-text-editor .richtext-editor');
+  await expect(editor).toBeVisible({ timeout: 3000 });
+  await expect(card.locator('.tiptap')).toBeFocused({ timeout: 3000 });
   await page.keyboard.press('End');
   // The token popup is a kit DropdownMenu (ui-menu) in a z-index 10002 holder,
   // and the holder is display:none while the query is empty — type a real

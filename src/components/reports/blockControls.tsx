@@ -1,27 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ToolButton, Seg, SectionHeader, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
+import { ToolButton, Seg, SectionHeader, ChromeHeader, StructureControls, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId } from '../../lib/reportBlocks';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE, buildLookupTokens, LookupTokenItem } from '../../lib/reportFields';
-import { useDaybreakSections } from '../../lib/useDaybreakSections';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { codeForType } from '../../lib/dayTypes';
-import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
+import { getTextStyles, getTextStyleById } from '../../lib/reportTextStyles';
 import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
-import RichTextEditor, { RichTextEditorHandle, RichTextState } from './RichTextEditor';
-import RichTextFormatBar from './RichTextFormatBar';
-import DropdownMenu, { ItemManagerDropdown } from '../DropdownMenu';
-import Button from '../Button';
+import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
+import RichTextControls from './RichTextControls';
+import { TextStyleMenu, TextStylesModal } from './TextStyleMenu';
+import DropdownMenu from '../DropdownMenu';
 import { LiveNumberInput } from '../LiveNumberInput';
 import { GroupedSelect } from '../production/day/GroupedSelect';
 import DropdownItem from '../DropdownItem';
-import DropdownDivider from '../DropdownDivider';
-import Modal, { ModalFooter } from '../Modal';
 import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward, Users } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 import { SKIP_EMPTY_TEST, SKIP_EMPTY_LABEL } from '../../lib/reportData';
 import { stagedCategoryKeys } from '../../lib/reportGrids';
@@ -75,6 +72,14 @@ export interface BlockEditorProps {
   /** Designer chrome only: the sampled item's available locations (roadmap 6
    *  "Show location" picker — rendered only when more than one exists). */
   availableLocations?: ReportLocation[];
+  /** Inline text editing channel (roadmap 191): the canvas text block's live
+   *  editor, so the chrome's Format/Style body targets the on-canvas instance
+   *  instead of owning a second editor. */
+  editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  /** Formatting state at the canvas editor's caret (lights the toggles). */
+  active?: RichTextState;
+  /** Selected chip key from the canvas editor (drives the affix controls). */
+  chipKey?: string | null;
 }
 
 /** "Show location" row — picks WHICH of the item's available locations a
@@ -286,23 +291,29 @@ const SegControl: React.FC<React.ComponentProps<typeof Seg>> = (props) => {
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
   onDuplicate, onRemove, onMove, compact, trailing, panel, relativeTarget, availableLocations,
+  editorRef: editorRefProp, active: activeProp, chipKey: chipKeyProp,
 }) => {
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
   const isTextLike = block.type === 'text' || block.type === 'field' || block.type === 'link';
   const { allFields, contextFields } = useReportControlContext(project, parentCollection);
   const isField = block.type === 'field';
   const emptyHidden = block.emptyBehavior === 'hideBlock';
-  // Text blocks: the item-formatting editor follows the editor's chip
-  // SELECTION — it shows only while a chip is selected (deselect hides it).
-  // Lifted here so the affix section can live in the panel where the Layout
-  // section used to be.
-  const editorRef = React.useRef<RichTextEditorHandle>(null);
-  // Inline formatting state lives at the composition root: the Content format
-  // bar and the Style section's named-style pick both branch on it.
-  const [rtActive, setRtActive] = React.useState<RichTextState>(RICH_TEXT_STATE_IDLE);
-  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, panel, relativeTarget, availableLocations, editorRef, active: rtActive, onActiveStateChange: setRtActive };
-  const [chipKey, setChipKey] = React.useState<string | null>(null);
-  React.useEffect(() => { setChipKey(null); }, [block.id]);
+  // Text blocks: the Format/Style body binds to the canvas block's inline
+  // editor (roadmap 191) — ONE editing surface; the local fallbacks keep the
+  // component self-sufficient when no channel is provided.
+  const ownEditorRef = React.useRef<RichTextEditorHandle>(null);
+  const editorRef = editorRefProp ?? ownEditorRef;
+  const [ownActive, setOwnActive] = React.useState<RichTextState>(RICH_TEXT_STATE_IDLE);
+  const rtActive = activeProp ?? ownActive;
+  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, panel, relativeTarget, availableLocations, editorRef, active: rtActive };
+  // The item-formatting affix follows the editor's chip SELECTION — it shows
+  // only while a chip is selected. An optimistic override keeps the panel live
+  // right after an affix rewrite until the canvas editor reports the new key.
+  const [ownChipKey, setOwnChipKey] = React.useState<string | null>(null);
+  const [chipOverride, setChipOverride] = React.useState<string | null>(null);
+  React.useEffect(() => { setOwnChipKey(null); setChipOverride(null); }, [block.id]);
+  React.useEffect(() => { setChipOverride(null); }, [chipKeyProp]);
+  const chipKey = chipOverride ?? (chipKeyProp !== undefined ? chipKeyProp : ownChipKey);
   const chipField = chipKey ? parseToken(chipKey).field : null;
   const chipDef = chipField ? allFields.find(f => f.key === chipField) : undefined;
   const chipIsList = !!chipDef?.multiValue;
@@ -311,14 +322,18 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const styleLayoutCell = isTextLike ? (
     <div className={sectionCls}>
       {/* Style + Padding side by side (two columns) — Outline only for field
-          blocks (text blocks lost theirs with the contextual format bar). */}
+          blocks. Text blocks' Style row lives in the Content section's shared
+          RichTextControls body (roadmap 191); field/link keep whole-block
+          typography + alignment here. */}
       <div className={panel ? 'grid grid-cols-2 gap-2 items-start' : 'flex items-start gap-5'}>
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <SectionHeader>Style</SectionHeader>
-          <div className={rowCls}>
-            <StyleControls {...ctx} />
+        {block.type !== 'text' && (
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <SectionHeader>Style</SectionHeader>
+            <div className={rowCls}>
+              <StyleControls {...ctx} />
+            </div>
           </div>
-        </div>
+        )}
         <div className="flex flex-col gap-1.5 min-w-0">
           <SectionHeader>Padding</SectionHeader>
           <div className={rowCls}>
@@ -340,7 +355,8 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
           fieldLabel={chipDef?.label ?? chipField}
           readOnly={readOnly}
           onChange={key => {
-            setChipKey(key);
+            setOwnChipKey(key);
+            setChipOverride(key);
             editorRef.current?.replaceToken(key);
           }}
         />
@@ -404,7 +420,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
       {block.type !== 'pageBreak' && (
         <div className="flex flex-col gap-1.5 px-2.5 py-1.5">
           <SectionHeader>Content</SectionHeader>
-          <ContentControls {...ctx} editorRef={editorRef} onSelectionChange={(sel) => setChipKey(sel ? sel.key : null)} />
+          <ContentControls {...ctx} />
         </div>
       )}
     </div>
@@ -427,11 +443,8 @@ export interface BlockCtx {
   /** Text blocks only: the editor handle (formatting + chip rewriting). */
   editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
   /** Text blocks only: the inline formatting state at the caret (selection →
-   *  run, collapsed → object; drives the Style section's named-style pick). */
+   *  run, collapsed → object; drives the shared Style row). */
   active?: RichTextState;
-  onActiveStateChange?: (state: RichTextState) => void;
-  /** Text blocks only: the selected chip changed (key + pos), or null. */
-  onSelectionChange?: (sel: { key: string; pos: number } | null) => void;
   /** Designer chrome only: resolved relative-block target ("→ Day 4 …"). */
   relativeTarget?: string | null;
   /** Designer chrome only: the sampled item's available locations. */
@@ -445,241 +458,28 @@ export function blockHasDirectFormatting(block: ReportBlock): boolean {
   return block.fontSize !== undefined || block.bold !== undefined || block.italic !== undefined || block.fontFamily !== undefined;
 }
 
-export const TextStyleMenu: React.FC<{
-  value: string;
-  project: Project;
-  disabled: boolean;
-  onChange: (id: string) => void;
-  onEdit: () => void;
-  onUpdateFromSelection?: () => void;
-  /** Run-level target (roadmap 193): when the editor has a text selection the
-   *  pick marks the RUN (`exec('textStyle', id)`, linked to the registry) and
-   *  holds the ghost highlight while the menu is open. Without a selection the
-   *  pick patches the object (`onChange`, Word-style paragraph default). */
-  editorRef?: React.RefObject<RichTextEditorHandle | null>;
-  hasSelection?: boolean;
-  /** The selection spans different linked ids — show Mixed on the trigger. */
-  mixed?: boolean;
-}> = ({ value, project, disabled, onChange, onEdit, onUpdateFromSelection, editorRef, hasSelection, mixed }) => {
-  const [open, setOpen] = useState(false);
-  const styles = getTextStyles(project);
-  const current = styles.find(s => s.id === value);
-  React.useEffect(() => {
-    if (!open || !hasSelection) return;
-    editorRef?.current?.holdSelectionHighlight(true);
-    return () => editorRef?.current?.holdSelectionHighlight(false);
-  }, [open, hasSelection, editorRef]);
-  const pick = (id: string) => {
-    if (hasSelection && editorRef?.current) editorRef.current.exec(id ? 'textStyle' : 'unsetTextStyle', id || undefined);
-    else onChange(id);
-    setOpen(false);
-  };
-  return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={setOpen}
-      theme="dark"
-      width="w-52"
-      trigger={
-        <button type="button" disabled={disabled} className={`${TB_PICKER} w-32 disabled:pointer-events-none`}>
-          <span className="truncate">{hasSelection && mixed ? 'Mixed' : current ? current.name : 'Direct formatting'}</span>
-          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-        </button>
+/** Bake a block's direct typography into its linked named style (Word-like
+ *  "Update style from selection") — ONE implementation shared by the
+ *  field/link StyleControls and the text-block Content controls. Returns null
+ *  when the block has no linked style. */
+export function updateStyleFromBlock(project: Project, block: ReportBlock): ReportTextStyle[] | null {
+  const style = getTextStyles(project).find(s => s.id === block.textStyle);
+  if (!style) return null;
+  return getTextStyles(project).map(s => s.id === style.id
+    ? {
+        ...s,
+        fontSize: block.fontSize ?? s.fontSize,
+        bold: block.bold ?? s.bold,
+        italic: block.italic ?? s.italic,
+        fontFamily: block.fontFamily ?? s.fontFamily,
       }
-    >
-      <DropdownItem onClick={() => pick('')} icon={!value ? <Check className="w-3.5 h-3.5" /> : undefined}>
-        Direct formatting
-      </DropdownItem>
-      <DropdownDivider />
-      {styles.map(s => (
-        <DropdownItem key={s.id} onClick={() => pick(s.id)} icon={s.id === value ? <Check className="w-3.5 h-3.5" /> : undefined}>
-          <span style={{ fontSize: s.fontSize, fontWeight: s.bold ? 700 : 400, fontStyle: s.italic ? 'italic' : 'normal', fontFamily: s.fontFamily || 'Helvetica' }}>{s.name}</span>
-        </DropdownItem>
-      ))}
-      <DropdownDivider />
-      {onUpdateFromSelection && !hasSelection && (
-        <DropdownItem onClick={() => { onUpdateFromSelection(); setOpen(false); }} icon={<Wand2 className="w-3.5 h-3.5" />}>
-          Update “{current?.name || 'style'}” from selection
-        </DropdownItem>
-      )}
-      <DropdownItem onClick={() => { onEdit(); setOpen(false); }} icon={<Pencil className="w-3.5 h-3.5" />}>
-        Edit styles…
-      </DropdownItem>
-    </DropdownMenu>
-  );
-};
+    : s);
+}
 
-export const TextStylesModal: React.FC<{
-  open: boolean;
-  project: Project;
-  onClose: () => void;
-  onSave: (styles: ReportTextStyle[]) => void;
-}> = ({ open, project, onClose, onSave }) => {
-  const [draft, setDraft] = useState<ReportTextStyle[] | null>(null);
-  const [selId, setSelId] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [importErr, setImportErr] = useState<string | null>(null);
-  const fileRef = React.useRef<HTMLInputElement>(null);
-  const styles = draft ?? getTextStyles(project);
-  const sel = styles.find(s => s.id === selId) ?? styles[0];
-  const set = (next: ReportTextStyle[]) => setDraft(next);
-  const patchId = (id: string, p: Partial<ReportTextStyle>) => set(styles.map(s => s.id === id ? { ...s, ...p } : s));
-  const patch = (p: Partial<ReportTextStyle>) => sel && patchId(sel.id, p);
-  const commit = () => { onSave(draft ?? styles); setDraft(null); setSelId(null); onClose(); };
-  const close = () => { setDraft(null); setSelId(null); onClose(); };
-
-  // Fresh editing state each time the modal opens (registry → draft).
-  const wasOpen = React.useRef(false);
-  React.useEffect(() => {
-    if (open && !wasOpen.current) {
-      setDraft(null);
-      setImportErr(null);
-      setSelId(getTextStyles(project)[0]?.id ?? null);
-    }
-    wasOpen.current = open;
-  }, [open, project]);
-
-  const styleCss = (s: ReportTextStyle): React.CSSProperties => ({
-    fontFamily: s.fontFamily || 'Helvetica',
-    fontSize: s.fontSize,
-    fontWeight: s.bold ? 700 : 400,
-    fontStyle: s.italic ? 'italic' : 'normal',
-  });
-
-  const exportStyles = () => {
-    const blob = new Blob([JSON.stringify(styles, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'report-text-styles.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  const importStyles = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result || ''));
-        if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every(s => s && typeof s.id === 'string' && typeof s.name === 'string' && typeof s.fontSize === 'number')) {
-          throw new Error('bad shape');
-        }
-        set(parsed as ReportTextStyle[]);
-        setSelId((parsed[0] as ReportTextStyle).id);
-        setImportErr(null);
-      } catch {
-        setImportErr("Couldn't import — not a valid styles file.");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const rowInput = 'bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 outline-none focus:border-zinc-500';
-  const miniBtn = 'w-7 h-6 rounded text-[11px] transition-colors';
-
-  return (
-    <Modal
-      open={open}
-      onClose={close}
-      title="Text styles"
-      width="w-[380px]"
-      footer={
-        <ModalFooter>
-          <button onClick={close} className="px-3 py-1.5 rounded text-xs text-zinc-400 hover:text-zinc-200">Cancel</button>
-          <button onClick={commit} className="px-3 py-1.5 rounded text-xs bg-zinc-800 text-zinc-100 hover:bg-zinc-700">Done</button>
-        </ModalFooter>
-      }
-    >
-      <div className="p-6 space-y-3">
-        <p className="text-xs text-zinc-500">Edits update every block that uses the style.</p>
-
-        {/* one compact row: version-picker-style selector + size + bold/italic + font */}
-        <div className="flex items-center gap-1">
-          <ItemManagerDropdown
-            open={pickerOpen}
-            onClose={setPickerOpen}
-            items={styles.map(s => ({ id: s.id, name: s.name }))}
-            activeId={sel?.id || ''}
-            closeOnSelect
-            onSelect={id => setSelId(id)}
-            onRename={(id, name) => patchId(id, { name })}
-            onDuplicate={id => {
-              const s = styles.find(x => x.id === id);
-              if (!s) return;
-              const copy = { ...s, id: newTextStyle('', []).id, name: `${s.name} Copy` };
-              set([...styles, copy]);
-              setSelId(copy.id);
-              return copy.id;
-            }}
-            onDelete={id => {
-              const next = styles.filter(s => s.id !== id);
-              if (next.length === styles.length) return;
-              set(next);
-              if (id === selId) setSelId(next[0]?.id ?? null);
-            }}
-            onCreate={() => {
-              const s = newTextStyle(`Style ${styles.length + 1}`, styles);
-              set([...styles, s]);
-              setSelId(s.id);
-              return s.id;
-            }}
-            onImport={() => fileRef.current?.click()}
-            onExport={exportStyles}
-            theme="dark"
-            label="Style"
-            header="TEXT STYLES"
-            itemLabel="Style"
-            itemRender={s => {
-              const st = styles.find(x => x.id === s.id);
-              return st ? <span className="truncate" style={styleCss(st)}>{s.name}</span> : s.name;
-            }}
-            trigger={
-              <Button theme="dark" className="w-32">
-                {sel ? <span className="truncate">{sel.name}</span> : <span className="truncate text-zinc-500">No styles</span>}
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-500 ml-auto shrink-0" />
-              </Button>
-            }
-          />
-          {sel && (
-            <>
-              <LiveNumberInput
-                value={sel.fontSize}
-                min={6}
-                max={72}
-                fallback={10}
-                className={`${rowInput} w-14 text-center`}
-                onCommit={v => patch({ fontSize: v })}
-                title="Font size (pt)"
-              />
-              <button title="Bold" onClick={() => patch({ bold: !sel.bold })} className={`${miniBtn} font-bold ${sel.bold ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>B</button>
-              <button title="Italic" onClick={() => patch({ italic: !sel.italic })} className={`${miniBtn} italic ${sel.italic ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>I</button>
-              <FontMenu value={sel.fontFamily || 'Helvetica'} disabled={false} onChange={f => patch({ fontFamily: f === 'Helvetica' ? undefined : f })} />
-            </>
-          )}
-        </div>
-
-        {/* live preview — paper white so it matches print; content-sized so it
-            doesn't stretch the modal wider than its controls */}
-        {sel && (
-          <div className="w-max max-w-full rounded-md border border-zinc-700 bg-white px-2.5 py-1.5">
-            <div className="truncate whitespace-nowrap" style={{ ...styleCss(sel), color: '#000' }}>
-              The quick brown fox jumps over the lazy dog
-            </div>
-          </div>
-        )}
-
-        {importErr && <p className="text-xs text-red-400">{importErr}</p>}
-
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          className="hidden"
-          onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importStyles(f); }}
-        />
-      </div>
-    </Modal>
-  );
-};
+// The named-style picker + manager modal live in `TextStyleMenu.tsx` (shared
+// with the RichTextControls body without a circular import) — re-exported here
+// so existing imports keep working.
+export { TextStyleMenu, TextStylesModal } from './TextStyleMenu';
 
 const COLLECTION_LABELS_LOCAL: Record<string, string> = {
   scenes: 'scenes', scenesOfDay: 'scenes', scenesOfElement: 'scenes', scenesOfCast: 'scenes',
@@ -698,14 +498,9 @@ const PARENT_LABELS: Record<string, string> = {
   locations: 'location', locationsOfType: 'location', locationTypes: 'location type',
 };
 
-export function useReportControlContext(project: Project, parentCollection?: ReportCollection): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; lookupTokens: LookupTokenItem[]; } {
+export function useReportControlContext(project: Project, parentCollection?: ReportCollection): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; } {
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
   const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection, undefined), [allFields, parentCollection]);
-  const { productionSections } = useDaybreakSections();
-  const lookupTokens = useMemo(
-    () => buildLookupTokens(project, productionSections.map(s => ({ index: s.index, chronoDay: s.chronoDay, date: s.date }))),
-    [project, productionSections],
-  );
   const categoryLabels = useMemo(() => {
     const map: Record<string, string> = {};
     for (const c of ELEMENT_CATEGORIES) map[c.key] = getLabel(c.key, c.label, project.categoryLabels);
@@ -719,7 +514,7 @@ export function useReportControlContext(project: Project, parentCollection?: Rep
     for (const c of project.customCategories || []) { if (!seen.has(c.key)) { seen.add(c.key); keys.push({ key: c.key, isCustom: true }); } }
     return keys;
   }, [project.customCategories]);
-  return { allFields, contextFields, categoryKeys, categoryLabels, lookupTokens };
+  return { allFields, contextFields, categoryKeys, categoryLabels };
 }
 
 // ---- content controls (per block type) ----------------------------------------
@@ -902,8 +697,8 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
   );
 };
 
-export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, editorRef, active, onActiveStateChange, onSelectionChange, panel, relativeTarget, availableLocations }) => {
-  const { allFields, contextFields, categoryKeys, categoryLabels, lookupTokens } = useReportControlContext(project, parentCollection);
+export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, editorRef, active, panel, relativeTarget, availableLocations }) => {
+  const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
   const fieldPickerCls = panel ? `w-full ${TB_PICKER}` : `w-36 ${TB_PICKER}`;
   const pw = (base: string) => editorFieldCls(panel, base);
@@ -949,15 +744,40 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         ? `${axis === 'bold' ? 'Bold' : 'Italic'} comes from “${linkedStyle.name}” — applies to the whole block`
         : `${axis === 'bold' ? 'Bold' : 'Italic'} is set for the whole block`;
     };
+    const updateFromSelection = () => {
+      const next = updateStyleFromBlock(project, block);
+      if (!next) return;
+      onSaveTextStyles?.(next);
+      onPatch({ textStyle: block.textStyle, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
+    };
+    // The block edits INLINE on the canvas (roadmap 191) — the chrome's
+    // Content section is the shared Format + Style body bound to that editor.
     push(null,
-      <ContentRow key="content" tall>
-        <RichTextFormatBar
+      editorRef ? (
+        <RichTextControls
+          key="content"
+          project={project}
           editorRef={editorRef}
           active={rtActive}
           disabled={disabled}
+          value={{
+            fontFamily: block.fontFamily ?? linkedStyle?.fontFamily,
+            fontSize: block.fontSize ?? linkedStyle?.fontSize,
+            textStyle: block.textStyle,
+            align: block.align,
+          }}
           lockedFormatting={{ bold: lockTooltip('bold'), italic: lockTooltip('italic') }}
-          defaults={{ fontFamily: block.fontFamily ?? linkedStyle?.fontFamily, fontSize: block.fontSize ?? linkedStyle?.fontSize }}
           onDefaults={p => onPatch(p)}
+          onStyle={p => onPatch(p)}
+          onPickStyle={id => {
+            if (!id) { onPatch({ textStyle: undefined }); return; }
+            // Applying a style clears the block's direct typography so the
+            // style's values take effect (Word behavior). Bake tweaks into
+            // the style via "Update from selection" instead.
+            onPatch({ textStyle: id, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
+          }}
+          onUpdateFromSelection={block.textStyle && blockHasDirectFormatting(block) ? updateFromSelection : undefined}
+          onSaveTextStyles={onSaveTextStyles}
           trailing={panel ? undefined : (
             <FieldPicker
               value=""
@@ -970,7 +790,9 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             />
           )}
         />
-        {panel && (
+      ) : null,
+      panel && editorRef ? (
+        <ContentRow key="insert">
           <FieldPicker
             value=""
             fields={contextFields}
@@ -980,25 +802,8 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             scope={parentCollection}
             className={`w-full ${TB_PICKER}`}
           />
-        )}
-        {/* Editing surface stays at a comfortable size — the block's real font
-            size is only honored by the preview/print renderers. */}
-        <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: 14, lineHeight: 1.5 }}>
-          <RichTextEditor
-            ref={editorRef}
-            value={block.text || ''}
-            onChange={text => onPatch({ text })}
-            onStateChange={onActiveStateChange}
-            onSelectionChange={onSelectionChange}
-            placeholder="Type text… type @ to insert an attribute"
-            disabled={disabled}
-            fields={contextFields}
-            allFields={allFields}
-            lookupTokens={lookupTokens}
-            className={panel ? 'w-full h-28' : 'w-96 h-28'}
-          />
-        </div>
-      </ContentRow>,
+        </ContentRow>
+      ) : null,
     );
   }
 
@@ -1484,7 +1289,9 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   );
 };
 
-// ---- style controls (typography — text/field only) -----------------------------
+// ---- style controls (typography — field / link blocks) -------------------------
+// Text blocks' typography + alignment live in the Content section's shared
+// RichTextControls body (roadmap 191), bound to the inline canvas editor.
 
 export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, onPatch, onSaveTextStyles, editorRef, active }) => {
   const disabled = readOnly;
@@ -1496,19 +1303,10 @@ export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, on
   const styleMixed = hasSelection && !!active?.textStyleMixed;
   const [stylesOpen, setStylesOpen] = useState(false);
   const updateFromSelection = () => {
-    const style = getTextStyles(project).find(s => s.id === block.textStyle);
-    if (!style) return;
-    const b = block;
-    onSaveTextStyles?.(getTextStyles(project).map(s => s.id === style.id
-      ? {
-          ...s,
-          fontSize: b.fontSize ?? s.fontSize,
-          bold: b.bold ?? s.bold,
-          italic: b.italic ?? s.italic,
-          fontFamily: b.fontFamily ?? s.fontFamily,
-        }
-      : s));
-    onPatch({ textStyle: style.id, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
+    const next = updateStyleFromBlock(project, block);
+    if (!next) return;
+    onSaveTextStyles?.(next);
+    onPatch({ textStyle: block.textStyle, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
   };
   return (
     <>
@@ -1535,27 +1333,20 @@ export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, on
           <TextStylesModal open={stylesOpen} project={project} onClose={() => setStylesOpen(false)} onSave={styles => onSaveTextStyles(styles)} />
         </>
       )}
-      {/* Text blocks get font family/size from the contextual format bar
-          (CONTENT section: run when text is selected, block default
-          otherwise); field blocks keep these whole-block controls here. */}
-      {block.type !== 'text' && (
-        <>
-          <FontMenu value={font} disabled={disabled} onChange={f => onPatch({ fontFamily: f })} />
-          <Tooltip content="Font size (pt)">
-            <LiveNumberInput
-              value={block.fontSize}
-              min={6}
-              max={48}
-              fallback={10}
-              disabled={disabled}
-              className={TB_NUM}
-              onCommit={v => onPatch({ fontSize: v })}
-            />
-          </Tooltip>
-        </>
-      )}
-      {/* block-level B/I only for field blocks — text blocks use the inline
-          selection toolbar for bold/italic instead */}
+      <FontMenu value={font} disabled={disabled} onChange={f => onPatch({ fontFamily: f })} />
+      <Tooltip content="Font size (pt)">
+        <LiveNumberInput
+          value={block.fontSize}
+          min={6}
+          max={48}
+          fallback={10}
+          disabled={disabled}
+          className={TB_NUM}
+          onCommit={v => onPatch({ fontSize: v })}
+        />
+      </Tooltip>
+      {/* block-level B/I only for field blocks — link blocks keep their fixed
+          link look; text blocks use the shared body's run formatting */}
       {block.type === 'field' && (
         <>
           <div className={TB_DIVIDER} />

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
 import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, applyItemFilter, resolveCollectionItems, resolveRelativeItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
-import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor } from '../../lib/reportFields';
+import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor, getReportFieldDefs, fieldsForScope, buildLookupTokens } from '../../lib/reportFields';
 import CustomTable from './CustomTable';
 import { CustomCellSelection } from './useCustomTableCells';
-import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
+import RichTextEditor, { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
 import { useTableColumnReorder } from './useTableColumnReorder';
 import { getReportBlockBaseStyle, blockGapMargin, CALL_SHEET_EDIT_ZONE_STYLE } from './reportStyle';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
@@ -76,6 +76,19 @@ export interface ReportRenderProps {
   cellDocked?: boolean;
   /** Persist named text styles edited from the free-table cell chrome. */
   onCellSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  /** Designer canvas inline text editing (roadmap 191): true while THIS text
+   *  block is being edited in place — renders the live rich-text editor
+   *  instead of resolved HTML. */
+  editing?: boolean;
+  /** The canvas text editor channel — the block publishes its editor handle
+   *  here so the chrome/dock Format + Style body targets it. */
+  textEditorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  onTextStateChange?: (state: RichTextState) => void;
+  onTextSelectionChange?: (sel: { key: string; pos: number } | null) => void;
+  /** End inline editing (click-away / Escape) — the editor commits per change. */
+  onTextEditEnd?: () => void;
+  /** The inline editor gained/lost DOM focus (canvas drag suppression). */
+  onTextFocusChange?: (focused: boolean) => void;
 }
 
 function isEmptyValue(v: string): boolean {
@@ -163,7 +176,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onCellSaveTextStyles }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onCellSaveTextStyles, editing, textEditorRef, onTextStateChange, onTextSelectionChange, onTextEditEnd, onTextFocusChange }) => {
     const baseStyle = getReportBlockBaseStyle(block, ctx.project);
     const blockAux: FieldAux = {
       ...aux,
@@ -176,6 +189,27 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
 
     switch (block.type) {
       case 'text': {
+        // Designer canvas: an EDITING text block is the live editor (roadmap
+        // 191) — tokens render as chips and every change patches the block.
+        // Everywhere else (and when not editing) the block renders resolved
+        // HTML exactly as preview/print do.
+        if (editing && onPatchBlock) {
+          return (
+            <InlineTextBlock
+              block={block}
+              ctx={ctx}
+              parentCollection={parentCollection}
+              parentCategory={parentCategory}
+              style={baseStyle}
+              onPatchBlock={onPatchBlock}
+              textEditorRef={textEditorRef}
+              onStateChange={onTextStateChange}
+              onSelectionChange={onTextSelectionChange}
+              onEditEnd={onTextEditEnd}
+              onFocusChange={onTextFocusChange}
+            />
+          );
+        }
         if (showKeys) {
           return (
             <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>
@@ -402,7 +436,13 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.cellEditorRef === b.cellEditorRef &&
     a.onCellRtStateChange === b.onCellRtStateChange &&
     a.cellDocked === b.cellDocked &&
-    a.onCellSaveTextStyles === b.onCellSaveTextStyles,
+    a.onCellSaveTextStyles === b.onCellSaveTextStyles &&
+    a.editing === b.editing &&
+    a.textEditorRef === b.textEditorRef &&
+    a.onTextStateChange === b.onTextStateChange &&
+    a.onTextSelectionChange === b.onTextSelectionChange &&
+    a.onTextEditEnd === b.onTextEditEnd &&
+    a.onTextFocusChange === b.onTextFocusChange,
 );
 
 // ---- chunked page rendering (measured pagination) -----------------------------
@@ -670,6 +710,105 @@ const ReportRelativeView: React.FC<Omit<ReportRenderProps, 'block'> & { block: R
           </div>
         );
       })}
+    </div>
+  );
+};
+
+/** Designer canvas: a text block being edited in place (roadmap 191). Renders
+ *  the LIVE editor adapter (tokens as chips, `@` incl. the two-stage `.`
+ *  picker) in the block's computed typography so size/alignment/line breaks
+ *  match the resolved preview; `onChange` patches the block per change (the
+ *  CustomTable cell pattern). Publishes its handle into the canvas's shared
+ *  editor channel and reports focus/selection so the chrome body and the
+ *  chip-affix controls follow. */
+const InlineTextBlock: React.FC<{
+  block: ReportBlock;
+  ctx: ReportCtx;
+  parentCollection?: ReportCollection;
+  parentCategory?: string;
+  style: React.CSSProperties;
+  onPatchBlock: (patch: Partial<ReportBlock>) => void;
+  textEditorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  onStateChange?: (state: RichTextState) => void;
+  onSelectionChange?: (sel: { key: string; pos: number } | null) => void;
+  onEditEnd?: () => void;
+  onFocusChange?: (focused: boolean) => void;
+}> = ({ block, ctx, parentCollection, parentCategory, style, onPatchBlock, textEditorRef, onStateChange, onSelectionChange, onEditEnd, onFocusChange }) => {
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const handleRef = React.useRef<RichTextEditorHandle | null>(null);
+  const fields = React.useMemo(() => getReportFieldDefs(ctx.project), [ctx.project]);
+  const contextFields = React.useMemo(() => fieldsForScope(fields, parentCollection, parentCategory), [fields, parentCollection, parentCategory]);
+  const lookupTokens = React.useMemo(
+    () => buildLookupTokens(ctx.project, ctx.dayInfos.map(d => ({ index: d.section.index, chronoDay: d.chronoDay, date: d.date }))),
+    [ctx.project, ctx.dayInfos],
+  );
+  // The editor mounts once per editing session: capture the latest callbacks
+  // in a ref so re-renders never detach the channel or drop the cleanup.
+  const cbRef = React.useRef({ onStateChange, onSelectionChange, onEditEnd, onFocusChange });
+  cbRef.current = { onStateChange, onSelectionChange, onEditEnd, onFocusChange };
+  const setHandle = React.useCallback((node: RichTextEditorHandle | null) => {
+    handleRef.current = node;
+    if (textEditorRef) textEditorRef.current = node;
+  }, [textEditorRef]);
+  React.useLayoutEffect(() => {
+    // Entering editing focuses IMMEDIATELY (one click, no second click needed)
+    // so the double-click (or tap-again) types in place. Token blocks mount
+    // their chips a beat later (TipTap NodeViews), and that render REPLACES
+    // the paragraph DOM — resetting the caret — so wait for the chips before
+    // focusing.
+    let raf = 0;
+    let attempts = 0;
+    const enter = () => {
+      attempts++;
+      const tip = wrapperRef.current?.querySelector<HTMLElement>('.tiptap');
+      const waitingForChips = !!tip && (block.text || '').includes('{{') && !tip.querySelector('.rt-token');
+      // The editor DOM and the token NodeViews settle a beat after mount.
+      if ((!tip || waitingForChips) && attempts < 90) {
+        raf = requestAnimationFrame(enter);
+        return;
+      }
+      if (!tip) return;
+      if (document.activeElement !== tip) {
+        // focus('end') places the caret where typing continues (kit handle,
+        // TipTap's focus command) — a DOM range gets clobbered by the
+        // editor's own selection sync.
+        if (handleRef.current) handleRef.current.focus('end');
+        if (document.activeElement !== tip) tip.focus();
+      }
+    };
+    enter();
+    return () => {
+      cancelAnimationFrame(raf);
+      if (textEditorRef) textEditorRef.current = null;
+      cbRef.current.onStateChange?.(RICH_TEXT_STATE_IDLE);
+      cbRef.current.onSelectionChange?.(null);
+    };
+  }, [textEditorRef]);
+  return (
+    <div
+      ref={wrapperRef}
+      className="report-text-editor"
+      style={style}
+      onFocus={() => cbRef.current.onFocusChange?.(true)}
+      onBlur={() => cbRef.current.onFocusChange?.(false)}
+      onKeyDown={e => {
+        // Escape exits editing (every change is already patched). An open
+        // suggestion popup consumes Escape before this handler runs.
+        if (e.key === 'Escape') { e.stopPropagation(); cbRef.current.onEditEnd?.(); }
+      }}
+    >
+      <RichTextEditor
+        ref={setHandle}
+        value={block.text || ''}
+        onChange={text => onPatchBlock({ text })}
+        onStateChange={state => cbRef.current.onStateChange?.(state)}
+        onSelectionChange={sel => cbRef.current.onSelectionChange?.(sel)}
+        placeholder="Type text… type @ to insert an attribute"
+        fields={contextFields}
+        allFields={fields}
+        lookupTokens={lookupTokens}
+        className="w-full"
+      />
     </div>
   );
 };

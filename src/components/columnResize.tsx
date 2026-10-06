@@ -130,6 +130,20 @@ export function useColumnResize(
 }
 
 /**
+ * Even-split reset for one horizontal boundary (roadmap 194 — double-click a
+ * resize tab): the two neighbouring sizes split their combined value evenly,
+ * every other size is untouched. Returns null when the index is out of range
+ * or the pair can't hold the floor — ONE implementation shared by the free
+ * tables, the collection-table bar and the ribbon designer.
+ */
+export function splitBoundaryEven(sizes: number[], ci: number, min: number = MIN_PCT): number[] | null {
+  if (ci < 0 || ci + 1 >= sizes.length) return null;
+  const half = Math.round(((sizes[ci] + sizes[ci + 1]) / 2) * 100) / 100;
+  if (half < min) return null;
+  return sizes.map((w, i) => (i === ci || i === ci + 1 ? half : w));
+}
+
+/**
  * Handle strip for column resize: one cell per column (grid template mirrors
  * the columns), a handle at each cell's right edge. Live tracking during a
  * drag works because consumers write the updated `gridTemplateColumns` to the
@@ -146,6 +160,7 @@ export function ColumnResizeStrip({
   style,
   activeIndex,
   onHoverIndex,
+  onResetBoundary,
 }: {
   widths: number[];
   startResize: (ci: number, e: React.PointerEvent) => void;
@@ -158,6 +173,8 @@ export function ColumnResizeStrip({
   activeIndex?: number | null;
   /** Handle hover reporting (boundary index, or null on leave). */
   onHoverIndex?: (i: number | null) => void;
+  /** Double-click on a tab resets that boundary (roadmap 194). */
+  onResetBoundary?: (ci: number) => void;
 }) {
   return (
     <div
@@ -174,10 +191,11 @@ export function ColumnResizeStrip({
                 className={`absolute bottom-0 cursor-col-resize group/tab z-10 flex flex-col items-center justify-end${IS_COARSE ? ' transition-transform group-active/tab:-translate-y-2.5 touch-none px-2.5' : ''} ${readOnly ? 'pointer-events-none opacity-30' : 'pointer-events-auto'}`}
                 style={{ left: '100%', transform: 'translateX(-50%)' }}
                 onPointerDown={e => !readOnly && startResize(i, e)}
+                onDoubleClick={e => { e.stopPropagation(); if (!readOnly) onResetBoundary?.(i); }}
                 onClick={e => e.stopPropagation()}
                 onMouseEnter={onHoverIndex ? () => onHoverIndex(i) : undefined}
                 onMouseLeave={onHoverIndex ? () => onHoverIndex(null) : undefined}
-                title={`Resize column ${i + 1}/${i + 2}`}
+                title={onResetBoundary ? `Resize column ${i + 1}/${i + 2} (double-click to even)` : `Resize column ${i + 1}/${i + 2}`}
               >
                 <div className={`${IS_COARSE ? 'border-l-[8px] border-r-[8px] border-t-[10px] group-active/tab:border-l-[10px] group-active/tab:border-r-[10px] group-active/tab:border-t-[14px] group-active/tab:border-t-blue-500 transition-all' : 'border-l-[5px] border-r-[5px] border-t-[6px] transition-colors'} border-l-transparent border-r-transparent ${active ? 'border-t-blue-400' : 'border-t-zinc-500/40 group-hover/tab:border-t-blue-400'}`} />
                 <div className={`${IS_COARSE ? 'w-px h-5 group-active/tab:h-8 group-active/tab:bg-blue-500 transition-all' : 'w-px h-3.5 transition-colors'} mx-auto ${active ? 'bg-blue-400' : 'bg-zinc-500/40 group-hover/tab:bg-blue-400'}`} />

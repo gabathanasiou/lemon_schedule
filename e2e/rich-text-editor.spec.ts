@@ -6,9 +6,9 @@ async function openTitleChrome(page: any) {
   const title = page.getByText(`${seedTitle()} — One-Liner`).first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
-    const chrome = page.locator('.block-chrome');
+  const chrome = page.locator('.block-chrome');
   await expect(chrome).toBeVisible({ timeout: 3000 });
-  return chrome;
+  return { chrome, card: page.locator('.block-card.selected') };
 }
 
 /** Inserts a fresh text block into the (empty) header zone — a block with no
@@ -18,40 +18,52 @@ async function insertFreshTextBlock(page: any) {
   const headerZone = page.locator('.report-zone[data-zone-list="header"]');
   await expect(headerZone).toBeVisible({ timeout: 5000 });
   await headerZone.getByText('Empty — click or drag palette items here').click();
-    const chrome = page.locator('.block-chrome');
+  const chrome = page.locator('.block-chrome');
   await expect(chrome).toBeVisible({ timeout: 3000 });
-  return { chrome, block: headerZone.locator('.report-text-block') };
+  return { chrome, card: headerZone.locator('.block-card').first() };
+}
+
+/** Roadmap 191: text blocks edit INLINE on the canvas — double-click enters
+ *  editing (the live editor replaces the resolved render, focused with the
+ *  caret at the end) and the chrome's Format/Style body targets it. */
+async function enterTextEdit(card: any) {
+  await card.dblclick();
+  const editor = card.locator('.report-text-editor');
+  await expect(editor).toBeVisible({ timeout: 3000 });
+  // entering editing auto-focuses the live editor (caret at the end)
+  await expect(editor.locator('.tiptap')).toBeFocused({ timeout: 3000 });
+  return editor;
 }
 
 const ON_CLS = 'bg-blue-900/50';
 
 test('format toggles light up from the selection (bold, italic, underline)', async ({ page }) => {
-  const { chrome, block } = await insertFreshTextBlock(page);
-  const editor = chrome.locator('.richtext-editor');
-  await editor.click();
+  const { chrome, card } = await insertFreshTextBlock(page);
+  const editor = await enterTextEdit(card);
   await page.keyboard.type('Hello world');
 
   // select all, hit B → button lights + canvas text wrapped bold
   await page.keyboard.press('Meta+a');
   await chrome.getByRole('button', { name: 'Bold' }).click();
   await expect(chrome.getByRole('button', { name: 'Bold' })).toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
-  let canvasHtml = await block.evaluate(el => el.innerHTML);
-  expect(canvasHtml).toContain('<b>');
+  // the LIVE inline editor is ProseMirror — bold serializes as <strong>
+  let canvasHtml = await editor.locator('.tiptap').evaluate(el => el.innerHTML);
+  expect(canvasHtml).toContain('<strong>');
 
   // U (previously dead — extension missing) → lights + canvas underlined
   await chrome.getByRole('button', { name: 'Underline' }).click();
   await expect(chrome.getByRole('button', { name: 'Underline' })).toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
-  canvasHtml = await block.evaluate(el => el.innerHTML);
+  canvasHtml = await editor.locator('.tiptap').evaluate(el => el.innerHTML);
   expect(canvasHtml).toContain('<u>');
 
   // I → lights
   await chrome.getByRole('button', { name: 'Italic' }).click();
   await expect(chrome.getByRole('button', { name: 'Italic' })).toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
-  canvasHtml = await block.evaluate(el => el.innerHTML);
-  expect(canvasHtml).toContain('<i>');
+  canvasHtml = await editor.locator('.tiptap').evaluate(el => el.innerHTML);
+  expect(canvasHtml).toContain('<em>');
 
   // caret placed inside the formatted text stays lit (Word behavior)
-  await editor.click();
+  await editor.locator('.tiptap').click();
   await page.keyboard.press('Home');
   await expect(chrome.getByRole('button', { name: 'Bold' })).toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
 
@@ -66,8 +78,8 @@ test('format toggles light up from the selection (bold, italic, underline)', asy
 });
 
 test('bold with empty selection lights the button immediately', async ({ page }) => {
-  const { chrome, block } = await insertFreshTextBlock(page);
-  await chrome.locator('.richtext-editor').click();
+  const { chrome, card } = await insertFreshTextBlock(page);
+  const editor = await enterTextEdit(card);
   await page.keyboard.type('plus');
 
   // caret at end, empty selection → click Bold
@@ -76,21 +88,23 @@ test('bold with empty selection lights the button immediately', async ({ page })
 
   // and the next keystroke really is bold
   await page.keyboard.type('x');
-    const htmlAfter = await block.evaluate(el => el.innerHTML);
-  expect(htmlAfter).toContain('<b>x</b>');
+  const htmlAfter = await editor.locator('.tiptap').evaluate(el => el.innerHTML);
+  expect(htmlAfter).toContain('<strong>x</strong>');
 });
 
 test('empty line from Enter renders in the canvas as a <br> paragraph', async ({ page }) => {
-  const chrome = await openTitleChrome(page);
+  const { card } = await openTitleChrome(page);
   const canvasBlock = page.locator('.report-text-block').first();
   const h1 = (await canvasBlock.boundingBox())!.height;
 
-  await chrome.locator('.richtext-editor').click();
+  await enterTextEdit(card);
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
   await page.keyboard.type('second line');
-  
+  // exit editing → the resolved canvas renders the stored HTML
+  await page.keyboard.press('Escape');
+
   // stored/render HTML keeps an empty paragraph with a <br> (not <p></p>)
   const html = await canvasBlock.evaluate(el => el.innerHTML);
   expect(html).toContain('<br></p>');
@@ -102,24 +116,30 @@ test('empty line from Enter renders in the canvas as a <br> paragraph', async ({
 });
 
 test('default color swatch removes the color (editor light, print black)', async ({ page }) => {
-  const chrome = await openTitleChrome(page);
+  const { chrome, card } = await openTitleChrome(page);
   const canvasBlock = page.locator('.report-text-block').first();
-  await chrome.locator('.richtext-editor').click();
+  await enterTextEdit(card);
   await page.keyboard.press('Meta+a');
 
-  // apply red → canvas stores the color (innerHTML normalizes hex → rgb)
+  // apply red → exit editing; the resolved canvas stores the color
+  // (innerHTML normalizes hex → rgb)
   await chrome.getByRole('button', { name: 'Text color' }).click();
   await page.locator('.ui-menu').getByTitle('#b91c1c').click();
-    expect(await canvasBlock.evaluate(el => el.innerHTML)).toContain('color: rgb(185, 28, 28)');
+  await page.locator('.flex-1.overflow-auto.p-8').click({ position: { x: 8, y: 300 } });
+  expect(await canvasBlock.evaluate(el => el.innerHTML)).toContain('color: rgb(185, 28, 28)');
 
   // pick "Default" → color span gone, swatch back to the default glyph
+  await canvasBlock.click();
+  await enterTextEdit(page.locator('.block-card.selected'));
+  await page.keyboard.press('Meta+a');
   await chrome.getByRole('button', { name: 'Text color' }).click();
   await page.locator('.ui-menu').getByTitle('Default (black ink)').click();
-    expect(await canvasBlock.evaluate(el => el.innerHTML)).not.toContain('color:');
+  await page.locator('.flex-1.overflow-auto.p-8').click({ position: { x: 8, y: 300 } });
+  expect(await canvasBlock.evaluate(el => el.innerHTML)).not.toContain('color:');
 });
 
 test('named style locks redundant B/I but keeps per-word italic + underline', async ({ page }) => {
-  const chrome = await openTitleChrome(page);
+  const { chrome, card } = await openTitleChrome(page);
   const bold = chrome.getByRole('button', { name: 'Bold' });
   const italic = chrome.getByRole('button', { name: 'Italic' });
 
@@ -132,21 +152,21 @@ test('named style locks redundant B/I but keeps per-word italic + underline', as
   // apply Heading 1 (bold named style) → still locked
   await chrome.getByRole('button', { name: /Direct formatting/ }).click();
   await page.locator('.ui-menu').getByText('Heading 1', { exact: true }).click();
-    await expect(bold).toBeDisabled();
+  await expect(bold).toBeDisabled();
   await expect(bold).toHaveClass(new RegExp(ON_CLS));
   await expect(italic).toBeEnabled();
 
   // per-word italic still works inside the heading
-  await chrome.locator('.richtext-editor').click();
+  const editor = await enterTextEdit(card);
   await page.keyboard.press('End');
   await page.keyboard.type(' one');
   for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowLeft');
   await italic.click();
-    expect(await page.locator('.report-text-block').first().evaluate(el => el.innerHTML)).toContain('<i>one</i>');
+  expect(await editor.locator('.tiptap').evaluate(el => el.innerHTML)).toContain('<em>one</em>');
 });
 
 test('text styles modal: version-picker editing — create, rename, live preview, persist', async ({ page }) => {
-  const chrome = await openTitleChrome(page);
+  const { chrome } = await openTitleChrome(page);
 
   // open the styles modal from the chrome style menu
   await chrome.getByRole('button', { name: /Direct formatting/ }).click();

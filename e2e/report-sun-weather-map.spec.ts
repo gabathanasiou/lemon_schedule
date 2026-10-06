@@ -264,8 +264,9 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     // Deselect (map chrome overlaps the repeat card), then select the text block.
     await page.locator('.flex-1.overflow-auto.p-8').click({ position: { x: 8, y: 300 } });
         await page.locator('[data-block-id="t-env"]').click();
-        const prose = page.locator('.block-chrome .richtext-editor .ProseMirror');
-    await prose.click();
+        // roadmap 191: double-click the card to edit it INLINE on the canvas
+        await page.locator('[data-block-id="t-env"]').dblclick();
+        const prose = page.locator('[data-block-id="t-env"] .report-text-editor .ProseMirror');
     await expect(prose).toBeFocused({ timeout: 5000 });
     await page.keyboard.press('End');
     await page.keyboard.type(' https://example.com ');

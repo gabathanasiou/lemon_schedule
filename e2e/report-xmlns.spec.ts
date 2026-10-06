@@ -64,8 +64,9 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
   await page.getByRole('menuitem', { name: 'Show field values' }).click();
     const propsCard = page.locator('.block-card.block-type-text').filter({ hasText: 'Props' }).first();
   await propsCard.click();
-    const editor = page.locator('.block-chrome .richtext-editor');
-  await editor.click();
+    // roadmap 191: double-click the card to edit it INLINE on the canvas
+    await propsCard.dblclick();
+  await expect(propsCard.locator('.tiptap')).toBeFocused({ timeout: 3000 });
   await page.keyboard.press('End');
   await page.keyboard.type('x');
   await waitForPersistedProject(page, "(p.reportDesigns || []).some(d => JSON.stringify(d.blocks).includes('{{props}}x') && !JSON.stringify(d.blocks).includes('xmlns'))");

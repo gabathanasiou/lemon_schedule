@@ -7,11 +7,11 @@ import { sampleRepeatItem } from '../../lib/reportSampling';
 import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, scopedCollectionLabel } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
-import { useColumnResize, ColumnResizeStrip } from '../columnResize';
+import { useColumnResize, ColumnResizeStrip, splitBoundaryEven } from '../columnResize';
 import { ReportBlockView } from './ReportBlockView';
 import { ReportTextStyleRules } from './ReportTextStyleRules';
 import { CustomCellSelection } from './useCustomTableCells';
-import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
+import { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
 import {
   BLOCK_TYPE_META,
@@ -79,6 +79,14 @@ interface ReportDesignerCanvasProps {
   onCellSel?: (blockId: string, sel: CustomCellSelection | null) => void;
   cellEditorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
   onCellRtStateChange?: (state: RichTextState) => void;
+  /** Inline text editing channel (roadmap 191): the Reports Designer supplies
+   *  its own so the docked toolbar shares the exact instance; the Call Sheet
+   *  zone designer omits it and the canvas owns a local fallback. */
+  textEditorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  textRtState?: RichTextState;
+  onTextRtStateChange?: (state: RichTextState) => void;
+  textChipKey?: string | null;
+  onTextSelectionChange?: (sel: { key: string; pos: number } | null) => void;
   onInsertIntoZone: (zone: 'header' | 'body' | 'footer', payload: PaletteDropPayload) => void;
   editorMode: 'floating' | 'toolbar';
   viewWidth?: number | null;
@@ -175,13 +183,45 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, cellSel, onCellSel, cellEditorRef, onCellRtStateChange }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp }) => {
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
   // A drag that starts inside a free-table cell is a TEXT selection — the
   // card's native block drag must be off until the pointer is released.
   const [cellDragBlockId, setCellDragBlockId] = useState<string | null>(null);
+  // Inline text editing (roadmap 191): the block currently typed in place,
+  // which block's editor holds DOM focus (drag suppression — drag resumes on
+  // blur) and the editor channel. The Reports Designer passes its own channel
+  // so the docked toolbar shares the exact instance; without one the canvas
+  // owns a local fallback (Call Sheet zone designer).
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [textFocusedId, setTextFocusedId] = useState<string | null>(null);
+  const [ownTextEditorRef] = useState<React.MutableRefObject<RichTextEditorHandle | null>>(() => ({ current: null }));
+  const [ownTextRtState, setOwnTextRtState] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
+  const [ownTextChipKey, setOwnTextChipKey] = useState<string | null>(null);
+  const textEditorRef = textEditorRefProp ?? ownTextEditorRef;
+  const textRtState = textRtStateProp ?? ownTextRtState;
+  const handleTextRtState = onTextRtStateChangeProp ?? setOwnTextRtState;
+  const textChipKey = textChipKeyProp !== undefined ? textChipKeyProp : ownTextChipKey;
+  const handleTextSelection = onTextSelectionChangeProp ?? ((sel: { key: string; pos: number } | null) => setOwnTextChipKey(sel?.key ?? null));
+  // Leave the editing block (another block / the background selected) → end
+  // inline editing and reset the channel.
+  useEffect(() => {
+    if (editingTextId && selId !== editingTextId) {
+      setEditingTextId(null);
+      setTextFocusedId(null);
+      handleTextSelection(null);
+      handleTextRtState(RICH_TEXT_STATE_IDLE);
+    }
+  }, [selId, editingTextId, handleTextSelection, handleTextRtState]);
+  // Canvas unmount (design switch / preview) resets the parent's channel too.
+  const textChannelRef = useRef({ sel: handleTextSelection, state: handleTextRtState });
+  textChannelRef.current = { sel: handleTextSelection, state: handleTextRtState };
+  useEffect(() => () => {
+    textChannelRef.current.sel(null);
+    textChannelRef.current.state(RICH_TEXT_STATE_IDLE);
+  }, []);
   // HTML5 drags (palette or block) must not be intercepted by the floating
   // editors — they hide for the duration of any DROP_MIME drag.
   const [externalDrag, setExternalDrag] = useState(false);
@@ -335,13 +375,23 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
         ? `→ ${reportItemLabel(parentCollection, relItems[0])}`
         : null;
       const itemLocations = (b.type === 'text' || b.type === 'field' || b.type === 'map') && parentItem ? locationsOfItem(ctx, parentItem) : [];
+      // Inline text editing (roadmap 191): the block being typed in place.
+      const isEditingText = b.type === 'text' && editingTextId === b.id;
+      const textEditProps = b.type === 'text' ? {
+        editing: isEditingText,
+        textEditorRef,
+        onTextStateChange: handleTextRtState,
+        onTextSelectionChange: handleTextSelection,
+        onTextEditEnd: () => { setEditingTextId(null); setTextFocusedId(null); },
+        onTextFocusChange: (focused: boolean) => setTextFocusedId(focused ? b.id : null),
+      } : {};
 
       out.push(
         <div key={`z-${b.id}`}>{renderZone(b, 'before', depth)}</div>,
         <div key={b.id}>
           <div
             data-block-id={b.id}
-            className={`block-card block-type-${b.type}${selected ? ' selected' : ''}`}
+            className={`block-card block-type-${b.type}${selected ? ' selected' : ''}${isEditingText ? ' block-text-editing' : ''}`}
             onClick={e => {
               e.stopPropagation();
               // Collection-table cells own their clicks (column select/reorder);
@@ -353,15 +403,26 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               const el = e.target as HTMLElement;
               if (!b.custom && el.closest?.('[data-table-col-ci]')) return;
               if (b.custom && onCellSel && !el.closest?.('[data-cell]')) onCellSel(b.id, null);
+              // Coarse pointers can't double-click cleanly: a second tap on the
+              // already-selected text block starts inline editing.
+              if (IS_COARSE && b.type === 'text' && !readOnly && selId === b.id && !isEditingText) setEditingTextId(b.id);
               onSelect(b.id);
             }}
+            onDoubleClick={b.type === 'text' && !readOnly ? e => {
+              e.stopPropagation();
+              onSelect(b.id);
+              setEditingTextId(b.id);
+            } : undefined}
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onMenu(e, b.id); }}
             onPointerDown={b.custom ? e => {
               if ((e.target as HTMLElement).closest?.('[data-cell]')) setCellDragBlockId(b.id);
             } : undefined}
             onPointerUp={b.custom ? () => setCellDragBlockId(null) : undefined}
             onPointerCancel={b.custom ? () => setCellDragBlockId(null) : undefined}
-            draggable={!readOnly && !(b.custom && cellDragBlockId === b.id)}
+            // While the inline editor holds focus the card must not be
+            // draggable — text selection never starts a block drag; drag
+            // resumes on blur.
+            draggable={!readOnly && !(b.custom && cellDragBlockId === b.id) && !(b.type === 'text' && textFocusedId === b.id)}
             onDragStart={e => {
               if (b.custom && cellDragBlockId === b.id) { e.preventDefault(); return; }
               startBlockDrag(e, b);
@@ -395,6 +456,9 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 onDeselect={() => onSelect(null)}
                 relativeTarget={relTarget}
                 availableLocations={itemLocations}
+                editorRef={textEditorRef}
+                active={textRtState}
+                chipKey={textChipKey}
               />
             )}
             {selectedTableCol && editorMode === 'floating' && !externalDrag && (
@@ -476,7 +540,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     endDrag={endDrag}
                   />
                 ) : (
-                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} />
+                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
                 )}
               </div>
             ) : b.type === 'pageBreak' ? (
@@ -589,7 +653,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 );
               })()
             ) : (
-              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} />
+              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
             )}
           </div>
         </div>,
@@ -753,7 +817,12 @@ const BlockChrome: React.FC<{
   onDeselect: () => void;
   relativeTarget?: string | null;
   availableLocations?: ReportLocation[];
-}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onDeselect, relativeTarget, availableLocations }) => (
+  /** Inline text editing channel (roadmap 191) — the chrome body binds to the
+   *  canvas block's live editor instead of owning one. */
+  editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  active?: RichTextState;
+  chipKey?: string | null;
+}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onDeselect, relativeTarget, availableLocations, editorRef, active, chipKey }) => (
   // anchorMode 'visible' (default): the anchor rect is clipped to the viewport
   // so the panel floats above the VISIBLE part of the card — identical feel
   // for a small text card and a tall repeat/ribbon card.
@@ -775,6 +844,9 @@ const BlockChrome: React.FC<{
       }
       relativeTarget={relativeTarget}
       availableLocations={availableLocations}
+      editorRef={editorRef}
+      active={active}
+      chipKey={chipKey}
     />
   </FloatingChrome>
 );
@@ -1012,6 +1084,12 @@ const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]
 
   if (widths.length < 2) return null;
 
+  // Double-click a tab (roadmap 194): the boundary's two columns split evenly.
+  const resetBoundary = (ci: number) => {
+    const next = splitBoundaryEven(widths, ci);
+    if (next) onResizeRef.current(normalizeColWidths(next));
+  };
+
   // The handle strip is IN FLOW: it occupies its own band between the label
   // row and the table, pushing the table down while selected — the tabs
   // (anchored bottom-0) sit in that gap, flush against the table's top edge
@@ -1020,7 +1098,7 @@ const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]
   // chrome can never cover the handles.
   return (
     <div className={`${IS_COARSE ? 'h-10' : 'h-5'} -mb-2 select-none`}>
-      <ColumnResizeStrip widths={widths} startResize={startResize} containerRef={stripRef} />
+      <ColumnResizeStrip widths={widths} startResize={startResize} containerRef={stripRef} onResetBoundary={resetBoundary} />
     </div>
   );
 };

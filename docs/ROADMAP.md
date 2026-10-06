@@ -11,13 +11,12 @@ roadmap worker session, so it stays lean.
   before becoming an item here.
 
 > **Next session — Reports Designer**: pick up and finish the designer pass.
-> Then **191** (inline text blocks + the ONE shared chrome), **194**
-> (resize-tab double-click reset), **195** (reference `.` attributes match the
-> repeater scope — honor its guardrails), **196** (cellref collection
-> navigation / chaining), **198** (designer day picker — preview any day) and
-> **199** (collection-table column headers — custom text + tokens).
-> **190** (`=` cell references) and **197** (day repeats sample Day 1 of the
-> active schedule/calendar) shipped 2026-10-02.
+> Then **195** (reference `.` attributes match the repeater scope — honor its
+> guardrails), **196** (cellref collection navigation / chaining), **198**
+> (designer day picker — preview any day) and **199** (collection-table column
+> headers — custom text + tokens).
+> **191** (inline text blocks + the ONE shared chrome) and **194** (resize-tab
+> double-click reset) shipped 2026-10-06.
 
 ---
 ## 17. Report designer iPad-friendly (`[ ]`)
@@ -790,107 +789,6 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
 
-## 191. Reports designer — inline rich-text editing + ONE shared chrome for text blocks and free-table cells (`[ ]`)
-
-**Request**: one rich-text experience across the designer's two free-text
-surfaces. Click selects; double-click (desktop) or tap-again-on-selected
-(coarse, item 17) types in place on the canvas instead of in the chrome; ONE
-floating chrome serves both surfaces — same header shell and the same Format +
-Style body — with only the header actions and extra rows contextual (block:
-empty behavior/structure/Padding/Outline/chip affixes; cell:
-merge/unmerge/reset, vertical align, range). The atoms are already shared
-(`reports/RichTextEditor.tsx` + `reports/RichTextFormatBar.tsx`, roadmaps
-188/192/193), but the chrome BODY is wired twice (`CustomCellControls` vs the
-text branch of `ContentControls`/`StyleControls`) and a text block still edits
-inside the chrome. Extends the original inline-editing item with the user's
-unify-the-rich-text-editing ask (2026-10-02 session).
-
-**Design**:
-- **Shared body**: extract `reports/RichTextControls.tsx` — the Format row
-  (existing `RichTextFormatBar`) + the Style row (named `TextStyleMenu` +
-  horizontal align; a `verticalAlign` slot rendered only for cells). Consumed
-  by `CustomCellControls` and the text case of `BlockEditorContent`; horizontal
-  align moves out of `StyleControls` into the shared row (field blocks keep
-  whole-block font/size/B/I + Outline; text blocks keep Padding + chip-affix
-  rows). No second row wiring anywhere.
-- **Inline editing**: the canvas text block (`ReportBlockView`'s `text` case,
-  gated `hint && !!onPatchBlock` like `CustomTable`) renders the app
-  `RichTextEditor` adapter (tokens as chips, `@` incl. the 121 two-stage
-  picker, `resolveToken`). WYSIWYG in the block's computed
-  `getReportBlockBaseStyle` typography so size/line breaks/alignment match
-  preview/print; empty blocks show the placeholder.
-- **One editor channel**: the composition root owns ONE active editor handle +
-  `RichTextState`, mirroring the existing `cellEditorRef`/`cellRtState`
-  (`ReportDesigner.tsx`) — a small `ReportInlineEditorContext` register/get by
-  block id or an equivalent ref channel. The floating chrome, docked rail and
-  top toolbar bind the shared body to that instance; the chrome's own Content
-  text editor is deleted (one editing surface, no duplication).
-- **Same affordance language**: an editing block wears the focused-cell
-  outline; canvas drag/edge-zones/drop targets for that block are suppressed so
-  text selection never starts a drag (drag resumes on blur); clicking another
-  block/Escape commits (`onPatch({ text })` per change — the CustomTable
-  pattern). The floating chrome clamps so it never covers the first line; the
-  docked rail is the roomy fallback. Selection still marks all instances of a
-  repeated template; editing one edits the template (same as editable cells).
-- **Not unified (deliberate)**: the block/cell DATA models — a text block is
-  never a 1×1 table (pagination, drag, outline and token semantics stay
-  block-specific); field/link blocks keep their chrome inputs; cell/table
-  context menus stay structure-specific. Preview/print never render an editor.
-
-**Files**: `reports/RichTextControls.tsx` (new — the shared Format+Style body),
-`reports/CustomCellControls.tsx` (render the shared body; keep the merge header
-+ V-align), `reports/blockControls.tsx` (text case renders the shared body
-against the canvas instance; drop the duplicate editor + Style-row wiring;
-`StyleControls` loses H-align for text), `reports/ReportBlockView.tsx` (text
-case renders the inline editor when hint+onPatchBlock),
-`reports/ReportDesignerCanvas.tsx` + `reports/ReportDesigner.tsx`
-(editor-handle channel, edit-mode state, drag suppression),
-`reports/RichTextEditor.tsx` (no change expected — same adapter), `index.css`
-(inline editor affordances / placeholder / focus outline),
-`docs/REPORTS-DESIGNER.md` (block + free-table bullets, Extending recipe).
-
-**Verify**: `npm run lint`; manual (rule 7) — type inline on desktop + iPad
-emulation (entry/exit, chip selection + two-stage picker, named style run vs
-object, Format/Style rows target the canvas instance, block drag still works
-after blur, chrome never covers line 1, print preview unchanged); extend an
-existing report spec only if a silent break (edit persistence) appears
-uncovered; bump `package.json` (patch) when wrapping.
-
-**Relations**: merges the unify-the-rich-text-editing ask into **191**; builds
-on **188** (self-editing canvas blocks + persistence precedent), **189**
-(canvas cell-chrome interaction language) and **192**/**193** (shared format
-bar + linked style runs — the atoms this body reuses); gives **121** (and
-**190**) their inline home — the two-stage picker works in the inline editor
-through the shared adapter; related to **17** (iPad touch affordances) and
-**140** (rich-text table title, same editor reuse).
-
-## 194. Resize tabs — double-click resets the boundary (`[ ]`)
-
-**Request**: double-clicking a column-resize tab resets that boundary —
-horizontally, the two neighbouring columns split evenly (the boundary returns
-to the middle); vertically, the row returns to its default height (drop the
-explicit override). User ask (2026-10-02), on the free table's tab. The
-free-table right-edge row tab already resets on double-click (`CustomTableBands.tsx`
-row-height grip, roadmap 188) — verify it and fill the gaps.
-
-**Approach**: `ColumnResizeStrip` (`src/components/columnResize.tsx`) gains an
-optional `onResetBoundary?: (ci: number) => void` wired to the tab's
-`onDoubleClick` (no drag session, stopPropagation like the pointerdown).
-Free tables (`reports/CustomTable.tsx` + `useCustomTableCells`): column
-boundary `ci` → set `columns[ci]`/`columns[ci+1]` to half their combined width
-(MIN_PCT clamp, other columns untouched) through the existing block-patch
-commit; the vertical strip mode → clear the row's `height`. The ribbon
-designer's tabs and the collection-table `TableResizeBar` opt into the same
-callback where they share the strip.
-
-**Verify**: extract the split math as a pure helper + unit test if it grows;
-`npm run lint`; `test:smart` (resize specs); rule-7 manual (double-click a
-horizontal tab → the pair equalizes; vertical → default height; dragging still
-works on both, mouse + touch).
-
-**Relations**: builds on **24/34** (shared `useColumnResize` seam) and **188**
-(free-table resize tabs).
-
 ## 195. Reports designer — reference `.` attributes match the repeater scope (`[ ]`, future)
 
 **Request**: when a reference targets an item (a day, a scene, an element, a
@@ -1140,3 +1038,30 @@ reports; update `docs/REPORTS-LEGO-CONTEXT.md` + `docs/REPORTS-DESIGNER.md`.
 **199** (contextual headers); touches **99/111/112** (the collections),
 archive **25** (self-redundant menu hiding); read
 `docs/REPORTS-LEGO-CONTEXT.md` first.
+
+## 202. Stepper number input — kit `NumberInput` with custom up/down buttons (`[ ]`)
+
+**Request** (user, 2026-10-06, with mock): a shared number input styled like the
+mock — rounded dark box, right-aligned stacked chevron buttons (▲/▼) for
+increment/decrement, value centered-left. Same typing model as today's
+`LiveNumberInput`: free-typed draft, live clamp on change, Enter/blur finalize,
+Escape reverts, arrow keys step. On coarse pointers the steppers grow to the
+touch target size used elsewhere in the UI (the mock is desktop).
+
+**Approach**: build it as a kit primitive in `../ui-kit` (the promotion path of
+item 56; the app's `LiveNumberInput` becomes a 1-line re-export shim so its 6
+call sites stay untouched). Extract the behavior from `LiveNumberInput`
+(`src/components/LiveNumberInput.tsx` — the single source: draft state, clamp,
+commit, Escape), add `step` (default 1) + the two buttons; buttons must not
+steal the draft's focus mid-typing (mousedown preventDefault, commit on click,
+repeat on hold is optional). Coarse sizing via the kit chrome scale. Bump
+`@gabriel/ui-kit` per the release flow; update `docs/UI-KIT.md` +
+`docs/DESIGN-LANGUAGE.md` §primitive matrix.
+
+**Verify**: `npm run lint`; `e2e/ribbon-text-size.spec.ts` (types into the
+current boxes) stays green; rule-7 manual (type/steppers/arrow keys/Escape,
+coarse size, disabled at min/max). No new e2e.
+
+**Relations**: depends on/extends **56** (kit promotion), consumed by **48**
+(ribbon toolbar) and **192** (format bar size slot); related to **17**/**182**
+(touch affordances).

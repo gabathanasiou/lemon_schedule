@@ -381,6 +381,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
             containerRef={stripRef}
             activeIndex={activeCol}
             onHoverIndex={setHoverCol}
+            onResetBoundary={cells.resetColumnBoundary}
           />
         </div>
       )}

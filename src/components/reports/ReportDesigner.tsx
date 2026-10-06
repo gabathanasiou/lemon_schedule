@@ -91,6 +91,12 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const [selCell, setSelCell] = useState<(CustomCellSelection & { blockId: string }) | null>(null);
   const cellEditorRef = useRef<RichTextEditorHandle | null>(null);
   const [cellRtState, setCellRtState] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
+  // Inline text editing channel (roadmap 191) — ONE handle + formatting state
+  // shared by the canvas text block's live editor and the chrome/dock's
+  // Format + Style body (the block's own chip key rides along).
+  const textEditorRef = useRef<RichTextEditorHandle | null>(null);
+  const [textRtState, setTextRtState] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
+  const [textChipKey, setTextChipKey] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   // Docked rail (inspector + palette): collapse state and drag width persist
   // like the manager/script side panes.
@@ -139,6 +145,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     setSelCol(null);
     setSelCell(null);
     setMenu(null);
+    setTextRtState(RICH_TEXT_STATE_IDLE);
+    setTextChipKey(null);
   }, [activeDesign?.id]);
 
   useEffect(() => {
@@ -567,6 +575,9 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     onMove: (d: -1 | 1) => selId && commitZone(selId, list => moveBlock(list, selId, d)),
     ...columnProps,
     cellControls,
+    editorRef: textEditorRef,
+    active: textRtState,
+    chipKey: textChipKey,
   };
 
   return (
@@ -806,6 +817,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               onCellSel={(blockId, sel) => setSelCell(sel ? { blockId, ...sel } : null)}
               cellEditorRef={cellEditorRef}
               onCellRtStateChange={setCellRtState}
+              textEditorRef={textEditorRef}
+              textRtState={textRtState}
+              onTextRtStateChange={setTextRtState}
+              textChipKey={textChipKey}
+              onTextSelectionChange={sel => setTextChipKey(sel?.key ?? null)}
             />
           </div>
         </div>

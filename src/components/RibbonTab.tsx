@@ -36,7 +36,7 @@ import RibbonToolbar from './ribbon/RibbonToolbar';
 import RibbonDesignerGrid from './ribbon/RibbonDesignerGrid';
 import RibbonLivePreview from './ribbon/RibbonLivePreview';
 import RibbonContextMenu from './ribbon/RibbonContextMenu';
-import { useColumnResize } from './columnResize';
+import { useColumnResize, splitBoundaryEven } from './columnResize';
 
 function cloneRows(rs: RibbonRow[]): RibbonRow[] {
   return JSON.parse(JSON.stringify(rs));
@@ -441,6 +441,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     },
   });
 
+  // Double-click a resize tab (roadmap 194): the boundary's two columns split
+  // their combined width evenly, every other column untouched.
+  const resetColumnBoundary = useCallback((ci: number) => {
+    const next = splitBoundaryEven(colWidths, ci);
+    if (next) saveToStore(rowsRef.current, next);
+  }, [colWidths, saveToStore]);
+
   /* ── Keyboard (use refs for stable closures) ── */
   const selIdRef = useRef(selId);
   selIdRef.current = selId;
@@ -727,6 +734,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               dropHover={dropHover}
               cellDropTarget={cellDropTarget}
               startResize={startResize}
+              onResetBoundary={resetColumnBoundary}
               moveCellToRow={moveCellToRow}
               assign={assign}
               customFieldLabels={customFieldLabels}

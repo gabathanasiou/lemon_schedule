@@ -25,6 +25,8 @@ interface RibbonDesignerGridProps {
   dropHover: string | null;
   cellDropTarget: string | null;
   startResize: (ci: number, e: React.PointerEvent) => void;
+  /** Double-click a resize tab resets that boundary (roadmap 194). */
+  onResetBoundary?: (ci: number) => void;
   moveCellToRow: (srcRowId: string, srcCi: number, dstRowId: string, dstCi: number) => void;
   assign: (cellId: string, key: string) => void;
   customFieldLabels: Record<string, string>;
@@ -38,7 +40,7 @@ export default function RibbonDesignerGrid({
   readOnly, rows, colWidths, numCols, selId, setSelId, setContextPos,
   tabBarRef, gridRef, cellRefs, mergeLookup, cellDragRef, setCellDrag,
   setCellDropTarget, setDropHover, dropHover, cellDropTarget,
-  startResize, moveCellToRow, assign, customFieldLabels,
+  startResize, onResetBoundary, moveCellToRow, assign, customFieldLabels,
   cellPaddingV, cellPaddingH, textSize, edgePadding,
 }: RibbonDesignerGridProps) {
   return (
@@ -58,6 +60,7 @@ export default function RibbonDesignerGrid({
             readOnly={readOnly}
             containerRef={tabBarRef}
             className="h-full relative"
+            onResetBoundary={onResetBoundary}
           />
         </div>
 

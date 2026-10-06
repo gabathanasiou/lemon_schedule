@@ -31,8 +31,9 @@ test('floating block editor shows per-type controls on selection', async ({ page
   
   const chrome = page.locator('.block-chrome');
   await expect(chrome).toBeVisible({ timeout: 3000 });
-  // rich text editor + formatting toolbar + token picker
-  await expect(chrome.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
+  // roadmap 191: the editor is INLINE on the canvas; the chrome hosts the
+  // shared Format + Style body and the token picker
+  await expect(chrome.getByText('Format', { exact: true })).toBeVisible({ timeout: 3000 });
   await expect(chrome.getByRole('button', { name: 'Insert attribute…' })).toBeVisible({ timeout: 3000 });
   // Style + Padding sections (side by side); Outline is field-block-only since
   // the contextual format bar landed (roadmap 192)
@@ -40,11 +41,17 @@ test('floating block editor shows per-type controls on selection', async ({ page
   await expect(chrome.getByText('Outline', { exact: true })).toHaveCount(0);
   await expect(chrome.getByText('Padding', { exact: true }).first()).toBeVisible({ timeout: 3000 });
 
-  // editing the editor updates the canvas render
-  await chrome.locator('.richtext-editor').click();
+  // editing inline on the canvas updates the canvas render
+  const card = page.locator('.block-card.selected');
+  await card.dblclick();
+  const editor = card.locator('.report-text-editor');
+  await expect(editor).toBeVisible({ timeout: 3000 });
+  await expect(editor.locator('.tiptap')).toBeFocused({ timeout: 3000 });
   await page.keyboard.press('End');
   await page.keyboard.type(' — DRAFT');
-    await expect(page.getByText(`${seedTitle()} — One-Liner — DRAFT`)).toBeVisible({ timeout: 3000 });
+  await expect(editor).toContainText('— DRAFT', { timeout: 3000 });
+  await page.keyboard.press('Escape');
+  await expect(page.getByText(`${seedTitle()} — One-Liner — DRAFT`)).toBeVisible({ timeout: 3000 });
 });
 
 async function countColumns(page: any, table: any): Promise<number> {
@@ -87,25 +94,25 @@ test('status bar: deselect clears selection; editor switches between chrome and 
   await title.click();
     await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
 
-  // pin the editor into the toolbar → chrome disappears, editor appears in the bar
+  // pin the editor into the toolbar → chrome disappears, the controls render
+  // in the bar (roadmap 191: the inline editor always lives on the canvas)
   await page.getByRole('button', { name: 'Toolbar editor', exact: true }).click();
     await expect(page.locator('.block-chrome')).toHaveCount(0);
-  await expect(page.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
+  await expect(page.getByRole('button', { name: 'Deselect block', exact: true })).toBeVisible({ timeout: 3000 });
 
-  // deselect from the pinned editor → editor gone, hint back
+  // deselect from the pinned editor → controls gone, hint back
   await page.getByRole('button', { name: 'Deselect block', exact: true }).click();
-    await expect(page.locator('.richtext-editor')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Deselect block', exact: true })).toHaveCount(0);
   await expect(page.getByText('Select a block to edit it. Click an item in the palette to add it.')).toBeVisible({ timeout: 3000 });
 
   // re-select → still pinned in the toolbar (mode persists per session)
   await page.getByText(`${seedTitle()} — One-Liner`).first().click();
     await expect(page.locator('.block-chrome')).toHaveCount(0);
-  await expect(page.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
+  await expect(page.getByRole('button', { name: 'Deselect block', exact: true })).toBeVisible({ timeout: 3000 });
 
   // switch back to the floating editor
   await page.getByRole('button', { name: 'Floating editor', exact: true }).click();
     await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
-  await expect(page.locator('.block-chrome .richtext-editor')).toBeVisible({ timeout: 3000 });
 });
 
 test('table columns edit on the canvas: select, insert, reorder', async ({ page }) => {

@@ -39,6 +39,8 @@ Before building any of these by hand again, check the kit first:
 
 **v0.1.92 (suggestion popup follows the caret)**: the TipTap suggestion mount positions once on open; the decoration rect widens with each keystroke but autoUpdate can't observe the virtual reference, so the `@` autocomplete trailed the caret by the last keystrokes. The token popup re-mounts per update (old autoUpdate/dismiss listeners cleaned first), re-running computePosition against the current decoration.
 
+**v0.1.93 (focus position)**: `RichTextEditorHandle.focus(position?: 'start' | 'end')` — wraps TipTap's focus-command position so consumers entering edit mode land the caret at the textblock edge. Needed because a plain DOM range after programmatic focus is clobbered by the editor's own selection sync (the Reports Designer's inline text blocks focus with `focus('end')`).
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

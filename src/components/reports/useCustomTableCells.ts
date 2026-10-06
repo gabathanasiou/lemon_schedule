@@ -6,6 +6,7 @@ import {
   pruneMerges, rangeRect, rectCellCount, rectTouchesMerge, remapMergesForColumns, resetCellsInBlock, unmergeCellsInBlock,
 } from '../../lib/reportTableMerges';
 import { cellStyleKey, getCellStyle, patchCellStyleKeys, pruneCellStyles } from '../../lib/reportCellStyles';
+import { splitBoundaryEven } from '../columnResize';
 
 // Free-table cell model (roadmap 189): selection + derived merge/style state +
 // every block mutation, shared by the canvas table (CustomTable) and the
@@ -55,6 +56,9 @@ export interface CustomTableCells {
   moveColumn: (from: number, to: number) => void;
   removeColumn: (index: number) => void;
   duplicateColumn: (index: number) => void;
+  /** Double-click a column tab (roadmap 194): the boundary's two columns
+   *  split their combined width evenly; other columns untouched. */
+  resetColumnBoundary: (index: number) => void;
   deleteRows: () => void;
   deleteColumns: () => void;
   merge: () => void;
@@ -191,6 +195,12 @@ export function useCustomTableCells(opts: {
   const removeColumn = (index: number) => {
     applyTableOp(blocks => removeTableColumnAt(blocks, block!.id, index));
   };
+  const resetColumnBoundary = (index: number) => {
+    if (!patch) return;
+    const next = splitBoundaryEven(columns.map(c => c.width), index);
+    if (!next) return;
+    patch({ columns: columns.map((c, i) => ({ ...c, width: next[i] })) });
+  };
   /** Copy a column in place (new stable id): header props, every row's cell and
    *  per-cell styles; merges the insert would cross are dropped (the same
    *  remapMergesForColumns rule as an empty column insert). */
@@ -275,6 +285,7 @@ export function useCustomTableCells(opts: {
     rangeMixed,
     focusStyle,
     commitCell, setHeader, insertRowAt, removeRow, duplicateRow, setRowHeight, insertColumnAt, moveColumn, removeColumn, duplicateColumn,
+    resetColumnBoundary,
     deleteRows, deleteColumns, merge, unmerge, patchStyle, resetCells, clearContents,
   };
 }

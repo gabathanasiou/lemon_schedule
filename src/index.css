@@ -261,6 +261,41 @@ input, textarea, [contenteditable] {
    cells you haven't engaged yet. */
 .report-cell-editor-active .tiptap p.is-empty::before { display: none; }
 
+/* Inline text-block editors (roadmap 191): the canvas block IS the editor —
+   same strip-down as the free-table cell editors (no kit input chrome, the
+   block's resolved typography, no fixed height) so the WYSIWYG matches the
+   resolved preview. */
+.report-text-editor .tiptap,
+.report-text-editor .tiptap:hover,
+.report-text-editor .tiptap:focus {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  height: auto;
+  min-height: 1em;
+}
+
+/* Keep the placeholder in flow so a centered/right-aligned block's hint sits
+   with the text (same fix as the cell editors). */
+.report-text-editor .tiptap p.is-empty::before {
+  float: none;
+  display: inline;
+}
+
+/* The block being typed in place wears the focused-cell outline (roadmap
+   191) — the canvas's "this is an editing surface" language. */
+.block-card.block-text-editing {
+  outline-color: transparent;
+  box-shadow: inset 0 2px 0 0 #3b82f6, inset 0 -2px 0 0 #3b82f6, inset 2px 0 0 0 #3b82f6, inset -2px 0 0 0 #3b82f6;
+}
+
 /* Excel-style cellref/lookup errors (#REF! / #VALUE!) — red in the designer
    key view, preview and print (roadmap 190). */
 .report-cell-error { color: #b91c1c; }
