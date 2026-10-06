@@ -58,6 +58,9 @@ export interface CustomTableProps {
   cellDocked?: boolean;
   /** Floating chrome: switch to the docked inspector (cell header button). */
   onToggleEditorMode?: () => void;
+  /** Designer canvas only: unresolved tokens render as colored tags instead of
+   *  blank (preview/print stay blank). */
+  showUnresolved?: boolean;
   /** Field scope for the cell editor's `@` attribute picker. */
   parentCollection?: ReportCollection;
   parentCategory?: string;
@@ -65,7 +68,7 @@ export interface CustomTableProps {
   onCellSaveTextStyles?: (styles: ReportTextStyle[]) => void;
 }
 
-const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, mode, tableEditing, focusCell, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, parentCollection, parentCategory, onCellSaveTextStyles }) => {
+const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, mode, tableEditing, focusCell, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, showUnresolved, parentCollection, parentCategory, onCellSaveTextStyles }) => {
   // Designer surfaces can ALWAYS select the card and resize (column strip +
   // row handles); cell EDITING is Fields mode (live) or a Values entry, which
   // makes the whole table live.
@@ -405,8 +408,8 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
     block, columns, merges, cellStyles: cells.cellStyles, baseStyle, cellPad, border, editable, resizable,
     selection, selectionRect, focusKey, focusedEditorRef, rtState, onRtStateChange: handleRtState,
     onSelectCell: selectCell, onCellContextMenu: handleCellContextMenu,
-    activeCol, onColHover: setHoverCol, colOutline, startColResize,
-    ctx, fieldMap, item, aux, fields, contextFields, lookupTokens,
+    activeCol, colOutline,
+    ctx, fieldMap, item, aux, showUnresolved, fields, contextFields, lookupTokens,
     pickSource, onPickTarget: handlePickTarget, onRefKeyDown: handleRefKeyDown,
     refMenuOpen: !!refMenu, onCellTab: handleCellTab,
     onRefHover: (i: number) => setRefMenu(m => m && { ...m, highlight: i }),

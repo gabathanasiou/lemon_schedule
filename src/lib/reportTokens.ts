@@ -656,7 +656,13 @@ function resolveTokenHtml(
     if (!info) return errorSpan('#REF!');
     const r = resolveCellRefAtom(ctx, fieldMap, info, cellRef, item, aux, seen);
     if (r.kind === 'error') return errorSpan(r.error);
-    if (r.kind === 'empty') return '';
+    if (r.kind === 'empty') {
+      if (opts?.showUnresolved) {
+        const chip = cellRefChipMeta({ ...info, ctx, fieldMap, item, aux }, raw);
+        return unresolvedPairTagCss(chip?.label || raw);
+      }
+      return '';
+    }
     if (r.kind === 'mirror') {
       return resolveHtmlInner(
         ctx, fieldMap, unwrapSingleParagraph(r.target.html), item, aux,
@@ -665,8 +671,8 @@ function resolveTokenHtml(
       );
     }
     if (opts?.showUnresolved && !r.value) {
-      const color = r.def ? fieldChipColor(r.def.group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
-      return `<span style="${tokenTagCss(color)}">{{${escapeHtml(raw)}}}</span>`;
+      const chip = cellRefChipMeta({ ...info, ctx, fieldMap, item, aux }, raw);
+      return unresolvedPairTagCss(chip?.label || raw);
     }
     if (r.value && r.def?.link) {
       const kind = r.def.linkKind || 'url';
@@ -685,11 +691,18 @@ function resolveTokenHtml(
   // behavior so a looked-up phone/email still renders as a link.
   const baseKey = lookup ? lookup.field : field.split('.')[0];
   if (opts?.showUnresolved && !value) {
-    // Designer canvas: an empty token renders as a colored tag (background
-    // only — the token text inherits the block's typography) so templates
-    // stay visible instead of blank spots.
+    // Designer canvas: an empty token reads as a chip instead of a blank spot.
+    // References (lookup) render the error pair chip — item + attribute label
+    // — matching the editor's chip pair; plain fields keep the group-color
+    // chip with the field's label.
+    if (lookup) {
+      const attr = fieldMap[lookup.field];
+      const isIdentity = lookup.field === lookupIdentityField(lookup.collection);
+      const refLabel = lookupItemLabel(ctx, fieldMap, aux, lookup) || raw;
+      return unresolvedPairTagCss(refLabel, isIdentity ? undefined : (attr?.label || lookup.field));
+    }
     const color = fieldMap[baseKey] ? fieldChipColor(fieldMap[baseKey].group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
-    return `<span style="${tokenTagCss(color)}">{{${escapeHtml(raw)}}}</span>`;
+    return `<span data-ui-tooltip="No value" style="${tokenTagCss(color)}">${escapeHtml(fieldMap[baseKey]?.label || raw)}</span>`;
   }
   if (value === '#REF!' || value === '#VALUE!') return errorSpan(value);
   // Link fields (map links, emails, phones) resolve to clickable anchors.
@@ -711,6 +724,37 @@ function resolveTokenHtml(
   return escapeHtml(value);
 }
 
+/** Designer-only: a pinned cellref PAIR whose value is empty renders as ONE
+ *  error-red chip ("✕ LEFT | VFX List") instead of a blank spot. Non-empty
+ *  pairs collapse to the attribute token exactly like the normal suppressor. */
+function unresolvedCellRefPairChips(
+  ctx: ReportCtx,
+  fieldMap: Record<string, ReportFieldDef>,
+  html: string,
+  item: any,
+  aux: FieldAux | undefined,
+  opts: TokenResolveOptions | undefined,
+  seen: Set<string>,
+): string {
+  if (!opts?.showUnresolved || !opts.cellRef) return html;
+  const info: CellRefEditorInfo = { ...opts.cellRef, ctx, fieldMap, item, aux };
+  return html.replace(/\{\{(cellref\.[^{}]+)\}\}\{\{(cellref\.[^{}]+)\}\}/g, (m, a: string, b: string) => {
+    const pa = parseCellRefKey(a);
+    const pb = parseCellRefKey(b);
+    if (!pa || !pb || pa.field || !pb.field) return m;
+    const sameTarget =
+      (pa.kind === 'abs' && pb.kind === 'abs' && pa.rowId === pb.rowId && pa.colId === pb.colId) ||
+      (pa.kind === 'rel' && pb.kind === 'rel' && pa.dx === pb.dx && pa.dy === pb.dy);
+    if (!sameTarget) return m;
+    const r = resolveCellRefAtom(ctx, fieldMap, opts.cellRef!, pb, item, aux, seen);
+    const empty = r.kind === 'empty' || (r.kind === 'pinned' && !r.value);
+    if (!empty) return `{{${b}}}`;
+    const refLabel = cellRefChipMeta(info, a)?.label || 'REF';
+    const attrLabel = cellRefChipMeta(info, b)?.label;
+    return unresolvedPairTagCss(refLabel, attrLabel);
+  });
+}
+
 /** Rich-text token replacement (cellref mirrors recurse here). */
 function resolveHtmlInner(
   ctx: ReportCtx,
@@ -725,7 +769,8 @@ function resolveHtmlInner(
     // Old kit builds serialized via XMLSerializer — drop the xmlns noise it
     // left on every element so polluted stored text renders clean.
     .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '');
-  return suppressCellRefPairs(suppressLookupPairs(cleaned)).replace(TOKEN_RE, (_m, raw: string) => (
+  const withPairs = unresolvedCellRefPairChips(ctx, fieldMap, cleaned, item, aux, opts, seen);
+  return suppressCellRefPairs(suppressLookupPairs(withPairs)).replace(TOKEN_RE, (_m, raw: string) => (
     resolveTokenHtml(ctx, fieldMap, raw, item, aux, opts, seen)
   ));
 }
@@ -768,12 +813,17 @@ const CELLREF_DIRECTIONS: Record<string, string> = {
   '0.1': 'BELOW',
 };
 
+/** The identity value of a lookup item ("Bob", "Day 1"), '' when dangling. */
+function lookupItemLabel(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, aux: FieldAux | undefined, lookup: LookupRef): string {
+  const hit = resolveLookupItems(ctx, lookup.collection, lookup.itemKey).find(it => lookupItemKey(lookup.collection, it) === lookup.itemKey);
+  if (!hit) return '';
+  const def = fieldMap[lookupIdentityField(lookup.collection)];
+  return def ? fieldValueSafe(def, ctx, hit, aux) : '';
+}
+
 /** The identity value of a reduced lookup ref ("Bob"), '' when dangling. */
 function lookupRefItemLabel(info: CellRefEditorInfo, lookup: LookupRef): string {
-  const hit = resolveLookupItems(info.ctx, lookup.collection, lookup.itemKey).find(it => lookupItemKey(lookup.collection, it) === lookup.itemKey);
-  if (!hit) return '';
-  const def = info.fieldMap[lookupIdentityField(lookup.collection)];
-  return def ? fieldValueSafe(def, info.ctx, hit, info.aux) : '';
+  return lookupItemLabel(info.ctx, info.fieldMap, info.aux, lookup);
 }
 
 /** A cellref chip's display meta. The REFERENCE chip names the referenced
@@ -882,8 +932,19 @@ export function tokenChipCss(color: ChipColor, margin = '0 2px'): string {
   return `background:${color.text};color:#fff;border-radius:2px;padding:4px;margin:${margin};font-weight:600;white-space:nowrap`;
 }
 
-/** Inline CSS for canvas/preview token tags: colored background only — the
- *  token text inherits the block's own typography (color, size, weight). */
+/** Inline CSS for canvas token tags (designer only, `showUnresolved`): the
+ *  same chip look as the editor chips — white semibold text on the color. */
 export function tokenTagCss(color: ChipColor, margin = '0 2px'): string {
-  return `background:${color.text};border-radius:2px;padding:1px 4px;margin:${margin}`;
+  return `background:${color.text};color:#fff;border-radius:10px;padding:0 6px;margin:${margin};font-weight:600;white-space:nowrap`;
+}
+
+/** Error-red reference tag (designer only): `✕ <ref>` with the attribute as a
+ *  nested bubble — the editor chip pair's look — for a reference whose value
+ *  is empty. Hovering explains it (`No items`). Preview/print never render
+ *  tags and stay blank. */
+function unresolvedPairTagCss(refLabel: string, attrLabel?: string, margin = '0 2px'): string {
+  const inner = attrLabel
+    ? `<span style="background:rgba(255,255,255,0.22);border-radius:10px;padding:0 5px;margin-left:4px">${escapeHtml(attrLabel)}</span>`
+    : '';
+  return `<span data-ui-tooltip="No items" style="background:#b91c1c;color:#fff;border-radius:10px;padding:0 6px;margin:${margin};font-weight:600;white-space:nowrap">✕ ${escapeHtml(refLabel)}${inner}</span>`;
 }

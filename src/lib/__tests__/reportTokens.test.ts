@@ -231,3 +231,42 @@ describe('cellref editor vocabulary', () => {
     expect(cellRefAttributeItems(info, 'cellref.r1.c2.phone', '', fields)).toEqual([]);
   });
 });
+
+// Designer-only unresolved tags (showUnresolved): empty tokens read as chips,
+// never blank spots; references render the error pair chip with a hover title.
+describe('designer unresolved tags (showUnresolved)', () => {
+  const tagProject = seedProject((p: any) => {
+    p.crew = { gaffer: [{ id: 'p-empty', name: 'NOBODY', phone: '', email: '' }] };
+  });
+  const tagCtx = buildCtx(tagProject);
+  const tagMap = getReportFieldMap(tagProject);
+  const emptyRef = composeLookupKey('crew', 'crewName', 'p-empty');
+
+  it('plain empty field renders a labeled chip, not the raw {{token}}', () => {
+    const html = resolveReportTokensHtml(tagCtx, tagMap, '<p>{{set}}</p>', null, undefined, { showUnresolved: true });
+    expect(html).toContain('>Set</span>');
+    expect(html).not.toContain('{{set}}');
+    // preview/print (no showUnresolved) stay blank
+    expect(resolveReportTokensHtml(tagCtx, tagMap, '<p>{{set}}</p>', null)).toBe('<p></p>');
+  });
+
+  it('empty lookup renders the error pair chip (item + attribute label)', () => {
+    const key = composeLookupKey('crew', 'phone', 'p-empty');
+    const html = resolveReportTokensHtml(tagCtx, tagMap, `<p>{{${key}}}</p>`, null, undefined, { showUnresolved: true });
+    expect(html).toContain('✕ NOBODY');
+    expect(html).toContain('Phone');
+    expect(html).toContain('background:#b91c1c');
+    expect(html).toContain('data-ui-tooltip="No items"');
+  });
+
+  it('empty cellref pair renders ONE error chip (ref + attribute label)', () => {
+    const block = table([['', `<p>{{${emptyRef}}}</p>`], ['', '']]);
+    const html = resolveReportTokensHtml(
+      tagCtx, tagMap, '<p>{{cellref.r1.c2}}{{cellref.r1.c2.phone}}</p>', null, undefined,
+      { showUnresolved: true, cellRef: { block, rowId: 'r2', colId: 'c2' } },
+    );
+    expect(html).toContain('✕ R1C2');
+    expect(html).toContain('Phone');
+    expect(html.match(/✕/g)).toHaveLength(1);
+  });
+});

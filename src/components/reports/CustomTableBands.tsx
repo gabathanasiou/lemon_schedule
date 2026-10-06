@@ -46,13 +46,14 @@ export interface CustomTableShared {
   onSelectCell: (ref: CellRef, shift: boolean) => void;
   onCellContextMenu: (e: React.MouseEvent, ref: CellRef) => void;
   activeCol: number | null;
-  onColHover: (ci: number | null) => void;
   colOutline: (ci: number) => React.CSSProperties;
-  startColResize: (ci: number, e: React.PointerEvent) => void;
   ctx: ReportCtx;
   fieldMap: Record<string, ReportFieldDef>;
   item?: any;
   aux?: FieldAux;
+  /** Designer canvas only: unresolved tokens render as colored tags instead
+   *  of blank (preview/print stay blank). */
+  showUnresolved?: boolean;
   /** Full registry — lookup chip labels and the `.` attribute stage. */
   fields: ReportFieldDef[];
   /** Scope-filtered attributes for the `@` field autocomplete. */
@@ -107,7 +108,7 @@ const CellEditor: React.FC<{
     return (
       <div
         style={{ minHeight: '1.5em' }}
-        dangerouslySetInnerHTML={htmlProp(resolveReportTokensHtml(shared.ctx, shared.fieldMap, html, shared.item, shared.aux, { cellRef: { block: shared.block, rowId, colId } }))}
+        dangerouslySetInnerHTML={htmlProp(resolveReportTokensHtml(shared.ctx, shared.fieldMap, html, shared.item, shared.aux, { cellRef: { block: shared.block, rowId, colId }, showUnresolved: shared.showUnresolved }))}
       />
     );
   }
@@ -193,7 +194,7 @@ const CellShell: React.FC<{
   style: React.CSSProperties;
   children: React.ReactNode;
 }> = ({ shared, band, rowId, colId, colPos, rowPos, gridRow, colSpan, rowSpan, style, children }) => {
-  const { editable, resizable, columns, border, selectionRect, onSelectCell, onCellContextMenu, activeCol, onColHover, startColResize } = shared;
+  const { editable, resizable, columns, border, selectionRect, onSelectCell, onCellContextMenu, activeCol } = shared;
   const lastCol = colPos + colSpan - 1;
   const picking = !!shared.pickSource && band === 'body';
   const hovered = !!shared.hoverCell && shared.hoverCell.rowId === rowId && shared.hoverCell.colId === colId;
@@ -229,13 +230,9 @@ const CellShell: React.FC<{
     >
       {children}
       {resizable && !IS_COARSE && lastCol < columns.length - 1 && (
-        <div
-          className="report-ct-colborder"
-          data-active={activeCol === lastCol ? '1' : undefined}
-          onPointerDown={e => startColResize(lastCol, e)}
-          onMouseEnter={() => onColHover(lastCol)}
-          onMouseLeave={() => onColHover(null)}
-        />
+        // Pure highlight line for the active column boundary (the strip's tab
+        // drives resize + hover) — never an invisible click-grab.
+        <div className="report-ct-colborder" data-active={activeCol === lastCol ? '1' : undefined} />
       )}
     </div>
   );
@@ -415,26 +412,29 @@ export const BodyBand: React.FC<{
             </span>
           )}
           {resizable && !IS_COARSE && (() => {
-            // Direct row-resize grab strips: one segment per column, skipping
-            // any column whose boundary below this row is INSIDE a vertical
-            // merge (otherwise the strip would cross a merged cell's middle
-            // and swallow clicks meant for its text).
-            const nextRow = band.rows[bi + 1];
+            // Highlight-only line for the boundary BELOW this row: one segment
+            // per column that does not continue into the next row (a vertical
+            // merge's interior has no line; its BOTTOM edge does — that was
+            // the missing highlight with merged cells). The row tab (right
+            // edge) is the ONE resize handle; hovering/dragging it lights this
+            // line. The strips themselves never grab clicks (they used to
+            // swallow clicks aimed at the cells).
             const offsets: number[] = [];
             let acc = 0;
             for (const c of columns) { offsets.push(acc); acc += c.width; }
-            const mergedAt = (rowId: string, ci: number) => {
+            const continues = (rowId: string, ci: number) => {
               const anchor = mergeAnchorAt(merges, rowId, columns[ci].id);
-              return !!(anchor && anchor.rowSpan > 1) || !!isCovered(merges, band.rows, columns, rowId, columns[ci].id);
+              if (!anchor || !(anchor.rowSpan > 1)) return false;
+              const r0 = band.rows.findIndex(r => r.id === anchor.rowId);
+              return r0 >= 0 && r0 + anchor.rowSpan - 1 > bi;
             };
             return columns.map((c, ci) => {
-              if (mergedAt(row.id, ci) || (nextRow && mergedAt(nextRow.id, ci))) return null;
+              if (continues(row.id, ci)) return null;
               return (
                 <div
                   key={c.id}
                   className="report-ct-rowborder"
                   style={{ left: `${offsets[ci]}%`, width: `${c.width}%`, right: 'auto' }}
-                  onPointerDown={e => startRowResize(band.start + bi, e)}
                 />
               );
             });

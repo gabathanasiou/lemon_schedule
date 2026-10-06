@@ -276,7 +276,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <ReportRelativeView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} mode={mode} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} partChildren={partChildren} parentItems={parentItems} itemIndex={itemIndex} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} mode={mode} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} selected={selected} cellSelection={cellSelection} onCellSelectionChange={onCellSelectionChange} cellEditorRef={cellEditorRef} onCellRtStateChange={onCellRtStateChange} cellDocked={cellDocked} onToggleEditorMode={onToggleEditorMode} onCellSaveTextStyles={onCellSaveTextStyles} tableEditing={tableEditing} focusCell={focusCell} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} mode={mode} showKeys={showKeys} aux={blockAux} showUnresolved={showUnresolved} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} selected={selected} cellSelection={cellSelection} onCellSelectionChange={onCellSelectionChange} cellEditorRef={cellEditorRef} onCellRtStateChange={onCellRtStateChange} cellDocked={cellDocked} onToggleEditorMode={onToggleEditorMode} onCellSaveTextStyles={onCellSaveTextStyles} tableEditing={tableEditing} focusCell={focusCell} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -860,7 +860,7 @@ const TABLE_ITEM_W = 72;
 /** Preview surfaces cap tables at this many item rows (+N more indicator). */
 const TABLE_PREVIEW_LIMIT = 6;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock; showKeys?: boolean }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, tableEditing, focusCell }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock; showKeys?: boolean }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, tableEditing, focusCell }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
@@ -906,6 +906,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
         onCellRtStateChange={onCellRtStateChange}
         cellDocked={cellDocked}
         onToggleEditorMode={onToggleEditorMode}
+        showUnresolved={showUnresolved}
         parentCollection={parentCollection}
         parentCategory={parentCategory}
         onCellSaveTextStyles={onCellSaveTextStyles}
