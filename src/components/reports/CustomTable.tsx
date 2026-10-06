@@ -56,6 +56,8 @@ export interface CustomTableProps {
   onCellRtStateChange?: (state: RichTextState) => void;
   /** Docked editor mode: the dock hosts the cell controls — no floating chrome. */
   cellDocked?: boolean;
+  /** Floating chrome: switch to the docked inspector (cell header button). */
+  onToggleEditorMode?: () => void;
   /** Field scope for the cell editor's `@` attribute picker. */
   parentCollection?: ReportCollection;
   parentCategory?: string;
@@ -63,7 +65,7 @@ export interface CustomTableProps {
   onCellSaveTextStyles?: (styles: ReportTextStyle[]) => void;
 }
 
-const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, mode, tableEditing, focusCell, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, parentCollection, parentCategory, onCellSaveTextStyles }) => {
+const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, mode, tableEditing, focusCell, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, parentCollection, parentCategory, onCellSaveTextStyles }) => {
   // Designer surfaces can ALWAYS select the card and resize (column strip +
   // row handles); cell EDITING is Fields mode (live) or a Values entry, which
   // makes the whole table live.
@@ -466,6 +468,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
             onStyle={cells.patchStyle}
             onReset={cells.resetCells}
             onSaveTextStyles={onCellSaveTextStyles}
+            onToggleEditorMode={onToggleEditorMode}
             structure={cellStructureOps(cells)}
           />
         </TableCellChrome>

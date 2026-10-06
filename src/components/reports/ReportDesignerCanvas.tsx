@@ -466,6 +466,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     cellEditorRef,
     onCellRtStateChange,
     cellDocked: editorMode === 'toolbar',
+    onToggleEditorMode,
     onCellSaveTextStyles: onSaveTextStyles,
     mode,
     tableEditing: editingId === b.id,
