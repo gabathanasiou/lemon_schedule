@@ -10,10 +10,9 @@ roadmap worker session, so it stays lean.
 - **New asks** go through the triage/dedupe gate (AGENTS.md, §Roadmap Work)
   before becoming an item here.
 
-> **Next session — 206 (URGENT bugfix) first**, before 202: the EntityDropdown
-> closes on a finger scroll on mobile (206). Then **202** (kit `NumberInput`
-> stepper; it gets the next ui-kit bump — the kit is at v0.1.98 after the
-> docked-editor pass). Then the Reports Designer pass: **195** (reference `.`
+> **Next session — 202** (kit `NumberInput` stepper; it gets the next ui-kit
+> bump — the kit is at v0.1.98 after the docked-editor pass). Then the Reports
+> Designer pass: **195** (reference `.`
 > attributes match the repeater scope — honor its guardrails), **196** (cellref
 > collection navigation / chaining), **198** (designer day picker — preview any
 > day) and **199** (collection-table column headers — custom text + tokens).
@@ -1072,37 +1071,3 @@ coarse size, disabled at min/max). No new e2e.
 (ribbon toolbar) and **192** (format bar size slot); related to **17**/**182**
 (touch affordances).
 
-## 206. URGENT — EntityDropdown closes on finger scroll (mobile) (`[ ]`)
-
-**Request** (user, 2026-10-07): on touch devices, finger-scrolling an open
-EntityDropdown panel DISMISSES it — a long list can't be scrolled (the drag
-reads as an outside tap). Desktop wheel/pointer scrolling is fine.
-
-**Repro**: iPad/phone → open any EntityDropdown (Scene Sheet cast cell, Glide
-cast cell, day-modal chip variant, Link Manager) → drag a finger on the panel
-list → the panel closes instead of scrolling.
-
-**Suspects** (verify each before changing):
-1. `useDropdown`'s document `pointerdown` close (`src/lib/dropdown.ts:77-105`):
-   a scroll gesture starts with a pointerdown; confirm `panelRef` containment
-   on EVERY host (the panel is portaled, so a missing/stale `panelRef` makes
-   any in-panel pointerdown count as outside). Consider dismissing on
-   pointerUP-without-movement (or `touchstart` → only close if the touch didn't
-   turn into a scroll) instead of pointerdown.
-2. Host commit-on-blur: SceneSheet/Glide cell editors close the editor when the
-   input blurs — a touch scroll may blur it. Check `EntityDropdown`'s trigger
-   `onBlur`/`pointerdown` paths.
-3. Kit `useOverlayMorph` touchmove guards (item 69's fix) — confirm they still
-   let the panel's own `overflow-y-auto` scroll proceed.
-
-**Fix**: the panel must survive a scroll gesture (still open + scrolled) and
-close only on a genuine outside tap. Keep desktop behavior identical.
-
-**Verify**: `npm run lint`; a WebKit touch spec sibling of item 69's
-(`e2e/ipad-touch-scroll.spec.ts`, `playwright.ipad.config.ts`): open → touch-
-scroll inside → still open + list scrolled → tap outside → closes; rule-7
-manual on iPad (Scene Sheet + Glide + a chip-variant modal). No snap-scroll
-regression (item 187).
-
-**Relations**: sibling bugs **69**/**71** (touch dismissal layers) and **187**
-(hover scroll); touches **17** (iPad audit), **50** (chip variant).
