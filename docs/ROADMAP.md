@@ -1111,3 +1111,44 @@ back to the first-scene call).
 (seeded editors); siblings **174** (label audit, parked) and **164** (add an
 element to Call Times).
 
+## 208. Reports — free table: `=` → "Pick a cell…" is dead in Values mode (`[ ]`)
+
+**Request** (user, 2026-10-08): in a free table, pressing `=` then choosing
+"Pick a cell…" no longer works — the subsequent click on a target cell does
+nothing. Values mode is the DEFAULT designer surface, so this reads as broken
+for every user.
+
+**Root cause** (reproduced with a scratch Playwright spec; Fields mode WORKS,
+Values mode does not): `CustomCellRefMenu` is PORTALED to `<body>` but stays in
+the React tree, so clicking "Pick a cell…" bubbles a synthetic click to the
+block card's `onClick` (`ReportDesignerCanvas.tsx:516`). There, a click with no
+`data-cell` ancestor is a click on the card → the Values-mode branch
+(`:536-539`, `if (!clickedCell) exitEditing()`) clears `editingId`. The table
+re-renders STATIC (`editable` = `mode==='fields' || tableEditing`,
+`CustomTable.tsx:76`), while pick mode stays armed — `pickSource` is set, and
+`data-pick-target`/`.report-cell-pick` remain (they don't require `editable`),
+but `CellShell.onPointerDown` is only attached when `editable`
+(`CustomTableBands.tsx:217-228`), so the target click is swallowed. Fields mode
+survives because `editable` is mode-based there. Directional entries likely
+still work (they insert via `focusedEditorRef` in the item's own handler,
+before the bubbled card click exits) — pin both paths in the e2e.
+
+**Fix**: a click inside the referencing menu must never read as a card click —
+`stopPropagation` on the menu root (and/or in the pick action), like other
+portaled overlays do. Belt-and-braces: keep the table live while picking
+(`editable = … || !!pickSource`) so the pick target can't be disarmed by a
+future state path. Check the `@` suggestion popup for the same bubble (it is
+also a portal inside the card) while in there.
+
+**Verify**: `npm run lint`; a proper e2e for the Values-mode pick flow (seed a
+free-table design like `report-table-resize.spec.ts` → select card → click cell
+→ `=` → "Pick a cell…" → click target → source compiles to
+`{{cellref.row.col}}`; plus the Fields-mode flow unchanged; suite is capped —
+extend the closest `report-*` spec, don't add a file); rule-7 manual in both
+modes (directional entry + pick + Esc cancels).
+
+**Relations**: regression exposed by **203/205** (Values entered editing is the
+default) against **190** (cellref menu/pick mode); parity guardrail from **195**
+(the picker's existing behavior must survive); touches **196** (cellref
+navigation).
+
