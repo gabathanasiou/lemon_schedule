@@ -159,8 +159,11 @@ containing chain, not against its own authored position:
   stage offers the child steps (`referenceOffer`): day → scenes, element/cast →
   scenes, scene → elements, category → elements, crew → categories
   (`navChildItems`; crew→categories = the categories present in the member's
-  scenes). `→ First/Last` + specific children by name; picking one inserts a
-  chained chip that suppresses its anchor and anchors the next `.` stage.
-  Chains are SELF-CONTAINED — the path defines the context, so `aux.sceneScope`
-  does not re-intersect a chained target (unlike a plain ref).
+  scenes). `→ First/Last` + specific children by name (element children name
+  their category, e.g. "Elements · Sets"); picking one inserts a chained chip
+  that suppresses its anchor and anchors the next `.` stage. A chain resolves
+  against its OWN path ancestors (`chainSceneScope` — the intersection of every
+  path item's scenes), so `@EDITH.Categories.Wardrobe.Element List` scopes the
+  category to EDITH's scenes and the containing block's `aux.sceneScope` never
+  leaks in. Locations/location types/day types have no child steps.
 

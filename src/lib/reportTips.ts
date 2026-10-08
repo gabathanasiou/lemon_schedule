@@ -1,5 +1,6 @@
 import { ReportBlock } from '../types';
-import { parseCellRefKey, parseLookupKey, parseToken } from './reportTokens';
+import { parseCellRefKey, parseToken } from './reportTokens';
+import { parseLookupKey } from './reportLookup';
 
 // Designer-only ★ tip (roadmap 203): a text block or free table gets the star
 // when its content CALCULATES anything — a `{{cellref…}}` reference or an `@`

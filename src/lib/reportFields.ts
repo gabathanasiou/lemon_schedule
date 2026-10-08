@@ -9,7 +9,7 @@ import {
   ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, crewLinkWarningsForReportDay,
 } from './reportData';
 import { getCallTimeSettings } from './callTimes';
-import { fieldValueSafe } from './reportTokens';
+import { fieldValueSafe } from './reportLookup';
 
 // Single field registry for the Reports Designer. Attributes only exist in the
 // context where they make sense — the palette, token picker and table pickers
@@ -704,21 +704,26 @@ export function searchReportFields(fields: ReportFieldDef[], query: string): Rep
 /** Day-list field keys — the toolbar's day-format dropdown applies to these. */
 export const DAY_LIST_FIELD_KEYS = new Set(['workDayList', 'holdDayList', 'travelDayList']);
 
-// ---- token vocabulary (moved to reportTokens.ts, roadmap 190) ----------------
+// ---- token vocabulary (moved to reportTokens.ts / reportLookup.ts, roadmap 190) --
 // Re-exported through this module (the ONE import site for report consumers) so
 // existing `from '../lib/reportFields'` imports keep working unchanged.
 export {
-  applyItemAffixes, ITEM_SCOPES, TOKEN_RE, parseToken, composeTokenKey, LOOKUP_PREFIX,
-  composeLookupKey, parseLookupKey, elementLookupKey, splitElementLookupKey, lookupIdentityField,
-  composeLookupPathKey, parseLookupPath, lookupTargetItem, referenceOffer, lookupReferenceLabel,
-  buildLookupTokens, lookupAttributeFields, fieldsForScope, GLOBAL_FIELD_SCOPES, isGlobalField,
+  applyItemAffixes, TOKEN_RE, parseToken, composeTokenKey,
   resolveReportTokens, resolveReportTokensHtml,
   fieldChipColor, tokenChipCss, tokenTagCss,
   parseCellRefKey, composeCellRefKey, composeRelativeCellRefKey, cellRefTarget,
   cellRefChipMeta, cellRefAttributeItems, cellRefChain,
 } from './reportTokens';
 export type {
-  TokenItemOpts, LookupTokenItem, LookupDayRef, TokenResolveOptions, ChipColor,
+  TokenItemOpts, TokenResolveOptions, ChipColor,
   CellRefKey, CellRefContext, CellRefTarget, CellRefEditorInfo, CellRefChipMeta, CellRefAttributeItem,
-  LookupNavHop, LookupPath, ParsedLookupKey, ReferenceOffer, ReferenceOfferChild,
 } from './reportTokens';
+export {
+  ITEM_SCOPES, LOOKUP_PREFIX,
+  composeLookupKey, parseLookupKey, elementLookupKey, splitElementLookupKey, lookupIdentityField,
+  composeLookupPathKey, parseLookupPath, lookupTargetItem, referenceOffer, lookupReferenceLabel,
+  buildLookupTokens, lookupAttributeFields, fieldsForScope, GLOBAL_FIELD_SCOPES, isGlobalField,
+} from './reportLookup';
+export type {
+  LookupTokenItem, LookupDayRef, LookupNavHop, LookupPath, ParsedLookupKey, ReferenceOffer, ReferenceOfferChild,
+} from './reportLookup';

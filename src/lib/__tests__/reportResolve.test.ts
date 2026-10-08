@@ -258,11 +258,46 @@ describe('reference navigation — chained lookups (roadmap 196)', () => {
     expect(resolveReportTokens(ctx, fieldMap, `{{${intExt}}}`, null)).toBe(dayScenes[0].scene.intExt);
   });
 
-  it('a chain is self-contained — the containing scope does not re-intersect it', () => {
+  it('a chain resolves the final item against its OWN path context', () => {
+    // A foreign containing scope must not leak into the chain (the path defines it).
     const foreign = new Set(ctx.sceneInfos.filter(si => si.sectionIndex !== day.section.index).slice(0, 1).map(si => si.scene.id));
     expect(foreign.size).toBeGreaterThan(0);
     const intExt = composeLookupPathKey('scenes', 'intExt', firstScenePath);
     expect(resolveReportTokens(ctx, fieldMap, `{{${intExt}}}`, day, { sceneScope: foreign })).toBe(dayScenes[0].scene.intExt);
+  });
+
+  it('scopes a chained category to its path ancestors (crew → wardrobe)', () => {
+    const p = seedProject((proj) => {
+      proj.crewRoles = [{ key: 'costumeDesigner', label: 'Costume Designer' }];
+      proj.crew = { costumeDesigner: [{ id: 'c-1', name: 'EDITH' }] };
+    });
+    const c = buildCtx(p);
+    const fm = getReportFieldMap(p);
+    const wardrobePath: LookupPath = { v: 1, root: { collection: 'crew', itemKey: 'c-1' }, hops: [{ collection: 'categories', key: 'wardrobe' }] };
+    const scoped = resolveReportTokens(c, fm, `{{${composeLookupPathKey('categories', 'categoryItems', wardrobePath)}}}`, null);
+    // Expected: the wardrobe items across the member's scenes (case-insensitive union).
+    const seen = new Set<string>();
+    const parts: string[] = [];
+    for (const si of c.sceneInfos) {
+      for (const v of c.sceneFieldItems(si.scene, 'wardrobe')) {
+        const k = v.toLowerCase();
+        if (!seen.has(k)) { seen.add(k); parts.push(v); }
+      }
+    }
+    const globalWardrobe = (c.categoryInfos.find(x => x.key === 'wardrobe') as any).items.join(', ');
+    expect(parts.join(', ')).not.toBe(globalWardrobe);
+    expect(scoped).toBe(parts.join(', '));
+  });
+
+  it('scopes an element reached via day → scene → element to the day', () => {
+    const withEls = dayScenes.find(si => (resolveCollection(ctx, 'elementsOfScene', undefined, si) as any[]).length > 0);
+    expect(withEls).toBeTruthy();
+    const el = (resolveCollection(ctx, 'elementsOfScene', undefined, withEls) as any[])[0];
+    const path: LookupPath = { v: 1, root: dayRoot, hops: [{ collection: 'scenes', key: withEls.scene.id }, { collection: 'elements', pick: 'first' }] };
+    const count = resolveReportTokens(ctx, fieldMap, `{{${composeLookupPathKey('elements', 'sceneCount', path)}}}`, null);
+    const expected = (el.sceneIds as string[]).filter(id => dayScenes.some((si: any) => si.scene.id === id)).length;
+    expect(expected).toBeGreaterThan(0);
+    expect(count).toBe(String(expected));
   });
 
   it('anchor + chain suppress like the 121 pair; chain + attribute print the value', () => {
@@ -303,10 +338,6 @@ describe('reference navigation — chained lookups (roadmap 196)', () => {
     const fm = getReportFieldMap(p);
     const path: LookupPath = { v: 1, root: { collection: 'crew', itemKey: 'c-1' }, hops: [{ collection: 'categories', pick: 'first' }] };
     expect(resolveReportTokens(c, fm, `{{${composeLookupPathKey('categories', 'categoryLabel', path)}}}`, null)).toBeTruthy();
-    const wardrobePath: LookupPath = { v: 1, root: path.root, hops: [{ collection: 'categories', key: 'wardrobe' }] };
-    const wardrobe = c.categoryInfos.find(x => x.key === 'wardrobe') as any;
-    expect(wardrobe).toBeTruthy();
-    expect(resolveReportTokens(c, fm, `{{${composeLookupPathKey('categories', 'categoryItems', wardrobePath)}}}`, null)).toBe(wardrobe.items.join(', '));
   });
 
   it('referenceOffer lists attributes + First/Last + specific children, query-narrowed', () => {
