@@ -1136,46 +1136,6 @@ the same "person beyond one project" idea for cast); overlaps **146** (crew
 roster/template model) and the Crew Manager items **89-91**; may interact with
 **145** (desktop app hosting) and **97** (API store) for where the DB is kept.
 
-## 210. Reports — free table: `.` property picker on a reference dies after editing the cell (`[ ]`, awaiting user repro)
-
-**Request** (user, 2026-10-08): in a free-table cell, insert a reference (`=`
-cellref or `@` item), then edit the cell — type other text, or insert another
-`@` reference, then delete it — and the `.` typed after the FIRST reference no
-longer offers / attaches its property (attribute) chip. Reported for both a
-plain typed-then-deleted text and an added-then-deleted second reference.
-
-**Finding (2026-10-08)**: could NOT reproduce standalone. A 22-case scratch
-matrix — Reports Designer (Fields + Values) and the Call Sheet zone (Values),
-relative + absolute (`Pick a cell…`) + `@` refs, typed-then-deleted text,
-added-then-deleted `@` item/field tokens, chains, pairs, dot/Escape dot,
-target-cell edits — was green once the 208 portal-click fix landed. The one
-demonstrable dead path was 208 itself (a clicked `=` menu entry in the Call
-Sheet zone never inserted the chip, so the later `.` had nothing to attach to).
-**Do not re-open as code work before the user supplies the exact surface +
-mode + keystrokes**; if it reappears, capture the failing step with the 208
-scratch-spec process.
-
-**Suspects / pointers** (if reproduced): the `.` gate lives in the kit's
-`tokenAttributeSuggestion` (dist functions resolve the token immediately before
-the dot from the ProseMirror doc, `nodeBefore.attrs.field`); the app supplies
-`attributeItems` (`src/components/reports/RichTextEditor.tsx:144` →
-`cellRefAttributeItems` / `lookupAttributeFields`, `src/lib/reportTokens.ts:853`).
-Check all three: (a) the chipKey the kit reads after complex insert/delete
-transactions, (b) the adapter's chip-key↔token mapping
-(`RichTextEditor.tsx:81-112` maps chip DOM order to `value` token order — can it
-go stale and feed the wrong key?), (c) whether the cell commit/re-render
-(`CustomTable.tsx`) drops the reference's node attrs. Fix at the shared
-`attributeItems` seam — never fork cellref vs lookup.
-
-**Verify**: `npm run lint`; extend the closest `report-*` e2e (suite capped — no
-new file) with the repro in Fields AND Values mode; rule-7 manual for picker
-contents after the edit/delete dance.
-
-**Relations**: sibling bug of **208** (DONE — the portal-click dead path; the
-likely cause of the reported symptom); the attribute path is shared with
-**195**/**196** — do not fork it; cellrefs from **190**, Values entry from
-**203**.
-
 ## 212. Call Sheet editor — 1:1 designer parity with the Reports designer (docked inspector included) (`[ ]`, future, big)
 
 **Request** (user, 2026-10-08, user-confirmed direction): the call-sheet
@@ -1187,8 +1147,8 @@ mounts the raw canvas with `editorMode: 'floating'` and `mode: 'values'`
 hardcoded (`CallSheetZoneDesigner.tsx:84,148`) — no rail, no mode switch,
 floating chrome only. `CallSheetZoneDesigner` is the wrapper to retire in favour
 of a first-class zone mode on `ReportDesigner` — not a second designer.
-(Non-call-sheet-shaped designs no longer reach the zone designer at all: they
-render read-only, roadmap 211.)
+(Zone-less designs now render through the same `CallSheetCanvas` page with no
+zone slot — roadmap 211 — so this item only concerns the zone itself.)
 
 **Approach**: give `ReportDesigner` a first-class zone mode (design = the
 selected call-sheet template's `days` repeat, editable root = the

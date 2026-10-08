@@ -105,6 +105,16 @@ describe('cellref resolution', () => {
     expect(resolveReportTokens(ctx, fieldMap, '{{cellref.r2.c1.phone}}', null, undefined, { cellRef: formula })).toBe('555-0134');
   });
 
+  it('pins through a labelled target cell ("Director: @Bob") and its mirror (roadmap 210)', () => {
+    const block = table([
+      [`<p>Director: {{${crewRef}}}</p>`, `<p>{{cellref.r1.c1}}</p>`],
+      ['', ''],
+    ]);
+    const formula = { block, rowId: 'r2', colId: 'c2' };
+    expect(resolveReportTokens(ctx, fieldMap, '{{cellref.r1.c1.phone}}', null, undefined, { cellRef: formula })).toBe('555-0134');
+    expect(resolveReportTokens(ctx, fieldMap, '{{cellref.r1.c2.email}}', null, undefined, { cellRef: formula })).toBe('bob@example.com');
+  });
+
   it('chains pinned refs (@Bob | LEFT.phone | LEFT.email)', () => {
     const block = table([
       [`<p>{{${crewRef}}}</p>`, `<p>{{${composeRelativeCellRefKey(-1, 0, 'phone')}}}</p>`, `<p>{{${composeRelativeCellRefKey(-1, 0, 'email')}}}</p>`],
@@ -229,6 +239,14 @@ describe('cellref editor vocabulary', () => {
     expect(phone?.label).toBe('Phone');
     expect(items2.find(i => i.key === composeCellRefKey('r1', 'c2', 'crewName'))).toBeUndefined();
     expect(cellRefAttributeItems(info, 'cellref.r1.c2.phone', '', fields)).toEqual([]);
+  });
+
+  it('offers attributes when the target wraps the reference in a label (roadmap 210)', () => {
+    const labelled = table([['', `<p>Director: {{${crewRef}}}</p>`], ['', '']]);
+    const info2: CellRefEditorInfo = { block: labelled, rowId: 'r2', colId: 'c1', ctx, fieldMap };
+    const fields = Object.values(getReportFieldMap(project));
+    const items = cellRefAttributeItems(info2, 'cellref.r1.c2', '', fields);
+    expect(items.find(i => i.key === 'cellref.r1.c2.phone')?.label).toBe('Phone');
   });
 });
 

@@ -442,8 +442,9 @@ interface LookupRef { collection: string; field: string; itemKey: string; }
 /** Reduce a target cell's raw HTML to exactly ONE item reference (a lookup
  *  token, possibly the suppressed 121 ref+attribute pair), following nested
  *  cellrefs transitively — a PINNED cellref still identifies the same item,
- *  so `@Bob` | `LEFT.phone` | `LEFT.email` chains resolve. Null when the cell
- *  isn't one reference. */
+ *  so `@Bob` | `LEFT.phone` | `LEFT.email` chains resolve. Surrounding label
+ *  text is fine ("Director: @Bob") — only the TOKEN count decides; several
+ *  tokens stay ambiguous. Null when the cell isn't one reference. */
 function reduceCellToLookup(
   ctx: ReportCtx,
   fieldMap: Record<string, ReportFieldDef>,
@@ -454,8 +455,6 @@ function reduceCellToLookup(
   seen: Set<string>,
 ): LookupRef | null {
   const supp = suppressCellRefPairs(suppressLookupPairs(html));
-  // Extra visible text (or several tokens) disqualifies the cell.
-  if (plainText(supp.replace(TOKEN_RE, ''))) return null;
   const tokens = [...supp.matchAll(TOKEN_RE)].map(m => m[1]);
   if (tokens.length !== 1) return null;
   const raw = tokens[0];
