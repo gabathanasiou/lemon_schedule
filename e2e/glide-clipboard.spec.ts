@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, APP_URL } from './helpers';
 
 /**
  * Glide Breakdown copy/cut/paste must behave 1:1 on iPad (touch + hardware
@@ -17,7 +17,7 @@ test.describe('Glide Breakdown clipboard', () => {
   test.beforeEach(async ({ page, browserName }) => {
     for (const p of ['clipboard-read', 'clipboard-write']) {
       try {
-        await page.context().grantPermissions([p], { origin: 'http://localhost:3001' });
+        await page.context().grantPermissions([p], { origin: APP_URL });
       } catch {
         /* unsupported permission — skip */
       }

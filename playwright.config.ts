@@ -1,11 +1,12 @@
 import { defineConfig } from '@playwright/test';
 import { availableParallelism } from 'node:os';
 
-// Set PLAYWRIGHT_PORT to force an isolated port (default 3001). When
-// overridden the server is OWNED (no reuse) so a run never silently tests
-// another process's server (stale-code bugs).
+// Set PLAYWRIGHT_PORT to choose the port (default 3001). The run ALWAYS owns
+// its server — `reuseExistingServer: false`, so a foreign process on the port
+// (a stray `npm run dev` fallback, another project's server) fails fast with
+// "already used" instead of being silently tested (roadmap 200:
+// glide-first-edit waited for a prod chunk a dev server never serves).
 const PORT = Number(process.env.PLAYWRIGHT_PORT) || 3001;
-const isolated = process.env.PLAYWRIGHT_PORT !== undefined;
 
 export default defineConfig({
   testDir: './e2e',
@@ -56,17 +57,19 @@ export default defineConfig({
   // Tests run against the PRODUCTION build (vite build is ~4s): boots and page
   // loads are far faster than the dev server (no per-module transforms, no
   // HMR). To run against the dev server instead: PLAYWRIGHT_DEV=1.
+  // Both servers are OWNED (`reuseExistingServer: false`) — see PORT above:
+  // a busy port throws "http://localhost:<PORT> is already used" (roadmap 200).
   webServer: process.env.PLAYWRIGHT_DEV
     ? {
         command: `npm run dev -- --port=${PORT} --strictPort`,
         url: `http://localhost:${PORT}`,
-        reuseExistingServer: !isolated,
+        reuseExistingServer: false,
         timeout: 30000,
       }
     : {
         command: `npm run build && npm run preview -- --port=${PORT} --strictPort`,
         url: `http://localhost:${PORT}`,
-        reuseExistingServer: !isolated,
+        reuseExistingServer: false,
         timeout: 120000,
       },
   // The perf/memory harnesses have their own configs (playwright.perf*.config.ts)

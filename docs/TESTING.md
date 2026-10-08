@@ -107,7 +107,11 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
   suite (or `npm run test:smart`) locally before done/commit (AGENTS.md rule 7).
 - `playwright.config.ts`: prod-preview webServer on :3001, `reducedMotion: 'reduce'`,
   `retries: 1` locally / `2` on CI, `trace: 'on-first-retry'`, `grepInvert: /@perf|@quarantine/`.
-  `PLAYWRIGHT_PORT=<n>` isolates the server (owned, no reuse); `PLAYWRIGHT_DEV=1` runs the dev server.
+  Every run OWNS its server (`reuseExistingServer: false`): a busy port fails fast with
+  "http://localhost:`<port>` is already used" instead of silently testing a foreign server
+  (the old failure: `npm run dev` fell back to :3001, the suite reused it, prod-chunk waits
+  timed out). `npm run dev` is `--strictPort` now too, so it fails loudly instead of falling
+  back. `PLAYWRIGHT_PORT=<n>` picks the port; `PLAYWRIGHT_DEV=1` runs the dev server.
 - **Parallelism**: each worker is a full Chromium, so N workers pins ~N cores and spins
   the laptop fans. The config defaults to **5 workers** (clamped to the core count) —
   the proven baseline. 7+ pins most of the CPU and ramps the fans; 8 is a bit faster
@@ -176,6 +180,11 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 1. **Did smart-test select it?** If the failing spec isn't in `npm run test:smart -- --list`,
    your change can't reach it — it's pre-existing/flaky. Don't chase it.
 2. **Re-run just that spec** (`npx playwright test e2e/<spec>.spec.ts`). The retry often clears it.
+   - **Port-collision symptom** (roadmap 200): `glide-first-edit` times out waiting for the prod
+     overlay chunk (`…data-grid-overlay-editor-<hash>.js`) → something else owns the port
+     (historically a `npm run dev` that silently fell back off :3000). The run now fails fast with
+     "http://localhost:`<port>` is already used" instead; find the process with `lsof -i :3001`
+     and stop it, or run on another port (`PLAYWRIGHT_PORT=3011 …`).
 3. **Baseline it without touching your tree**:
    `npm run test:baseline -- e2e/<spec>.spec.ts`
    Runs the spec against a clean `HEAD` worktree (symlinked `node_modules`). Fails there too →
