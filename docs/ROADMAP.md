@@ -1081,3 +1081,23 @@ equality, reload keeps the size, Fit modes unchanged.
 its scale control must compose with this, not fork it); reuses **188**'s resize
 recipe; touches **212** (call-sheet editor inherits the same canvas).
 
+
+## 215. Reports — unlock chained reference navigation (roadmap 196 child steps) (`[ ]`, gated)
+
+**Request**: 196 shipped code-complete but LOCKED — `CHILD_NAVIGATION_ENABLED = false`
+(`src/lib/reportLookup.ts`) keeps the child steps (`→ First scene` / `→ Last scene`
++ specific children after any reference chip) out of the `.` picker. Flip when the
+feature is wanted in the product.
+
+**Approach**: set `CHILD_NAVIGATION_ENABLED = true`. Nothing else should be
+needed — the path grammar, `lookupTargetItem`/`chainSceneScope` resolution, pair
+suppression and `referenceOffer` are live and unit-tested; the editor surfaces
+`offer.children` again at the one seam (`reports/RichTextEditor.tsx`).
+
+**Verify**: `npm run lint` + `test:smart` (unit coverage already exercises the
+chains); rule-7 manual — `@Day 1` → `.` shows `Scenes` steps, `→ First scene`
+inserts a `Scene N` chip, its `.` offers that scene's attributes; deleting chips
+restores the anchor.
+
+**Relations**: unlocks the gate over **196**; related to **195** (attribute
+parity) and **27** (`relative` context shifter).

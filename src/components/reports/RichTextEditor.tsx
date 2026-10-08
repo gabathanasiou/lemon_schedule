@@ -3,7 +3,8 @@ import { RichTextEditor as KitRichTextEditor, RICH_TEXT_STATE_IDLE } from '@gabr
 import type { RichTextEditorHandle, RichTextState, TokenItem } from '@gabriel/ui-kit';
 import {
   ReportFieldDef, searchReportFields, fieldChipColor, parseToken, parseLookupKey, LookupTokenItem,
-  lookupIdentityField, composeLookupKey, composeLookupPathKey, referenceOffer, lookupReferenceLabel, TOKEN_RE,
+  lookupIdentityField, composeLookupKey, composeLookupPathKey, referenceOffer, lookupReferenceLabel,
+  CHILD_NAVIGATION_ENABLED, TOKEN_RE,
   parseCellRefKey, cellRefChipMeta, cellRefAttributeItems, type CellRefEditorInfo,
 } from '../../lib/reportFields';
 import type { ReportCtx } from '../../lib/reportData';
@@ -173,6 +174,9 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
       ? composeLookupPathKey(lookup.collection, field, lookup.path)
       : composeLookupKey(lookup.collection, field, lookup.itemKey);
     const items: TokenItem[] = offer.attributes.map(f => ({ key: attrKey(f.key), label: f.label, color: LOOKUP_COLOR, group: itemLabel }));
+    // Child navigation (roadmap 196) is locked for now (roadmap 215) — the
+    // offer machinery stays live; only the picker hides the steps.
+    if (!CHILD_NAVIGATION_ENABLED) return items;
     for (const child of offer.children) {
       items.push({
         key: composeLookupPathKey(child.collection, lookupIdentityField(child.collection), child.path),

@@ -154,16 +154,19 @@ containing chain, not against its own authored position:
   timeline attributes stay element-wide. No scene scope (top level, or a
   non-rule-bearing chain like a crew repeat) → the global item.
 - Cellref pins (`cellref….<field>`) resolve through the same scope.
-- **Chained navigation (196)** — a reference can walk to children: the path
-  lives in the token (`lookup.…nav:<encoded JSON>`, `LookupPath`), and the `.`
-  stage offers the child steps (`referenceOffer`): day → scenes, element/cast →
-  scenes, scene → elements, category → elements, crew → categories
-  (`navChildItems`; crew→categories = the categories present in the member's
-  scenes). `→ First/Last` + specific children by name (element children name
-  their category, e.g. "Elements · Sets"); picking one inserts a chained chip
-  that suppresses its anchor and anchors the next `.` stage. A chain resolves
-  against its OWN path ancestors (`chainSceneScope` — the intersection of every
-  path item's scenes), so `@EDITH.Categories.Wardrobe.Element List` scopes the
-  category to EDITH's scenes and the containing block's `aux.sceneScope` never
-  leaks in. Locations/location types/day types have no child steps.
+- **Chained navigation (196 — LOCKED behind `CHILD_NAVIGATION_ENABLED` in
+  `reportLookup.ts`; unlock = roadmap 215)** — a reference can walk to children:
+  the path lives in the token (`lookup.…nav:<encoded JSON>`, `LookupPath`), and
+  the `.` stage offers the child steps (`referenceOffer`): day → scenes,
+  element/cast → scenes, scene → elements, category → elements, crew →
+  categories (`navChildItems`; crew→categories = the categories present in the
+  member's scenes). `→ First/Last` + specific children by name (element
+  children name their category, e.g. "Elements · Sets"); picking one inserts a
+  chained chip that suppresses its anchor and anchors the next `.` stage. A
+  chain resolves against its OWN path ancestors (`chainSceneScope` — the
+  intersection of every path item's scenes), so
+  `@EDITH.Categories.Wardrobe.Element List` scopes the category to EDITH's
+  scenes and the containing block's `aux.sceneScope` never leaks in.
+  Locations/location types/day types have no child steps. Locked = the picker
+  hides the steps; grammar + resolution stay live and tested.
 

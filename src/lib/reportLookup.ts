@@ -393,6 +393,13 @@ const NAV_CHILDREN: Partial<Record<string, { collection: ReportCollection; label
   crew: [{ collection: 'categories', label: 'Categories', noun: 'category' }],
 };
 
+/** Roadmap 196 child navigation is LOCKED (user decision 2026-10-08): the
+ *  grammar, resolution, scoping and offer machinery stay live and tested, but
+ *  the `.` picker hides child steps until this flips to true. Unlock tracked
+ *  by roadmap 215 — same pattern as SHOW_FLOATING_STRUCTURE_CONTROLS
+ *  (reports/CustomTableBands.tsx). */
+export const CHILD_NAVIGATION_ENABLED = false;
+
 /** Per-relation cap on the specific-child entries offered after a query
  *  narrows (same convention as the `@` reference list). */
 const NAV_CHILD_LIMIT = 8;

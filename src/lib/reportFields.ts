@@ -723,6 +723,7 @@ export {
   composeLookupKey, parseLookupKey, elementLookupKey, splitElementLookupKey, lookupIdentityField,
   composeLookupPathKey, parseLookupPath, lookupTargetItem, referenceOffer, lookupReferenceLabel,
   buildLookupTokens, lookupAttributeFields, fieldsForScope, GLOBAL_FIELD_SCOPES, isGlobalField,
+  CHILD_NAVIGATION_ENABLED,
 } from './reportLookup';
 export type {
   LookupTokenItem, LookupDayRef, LookupNavHop, LookupPath, ParsedLookupKey, ReferenceOffer, ReferenceOfferChild,
