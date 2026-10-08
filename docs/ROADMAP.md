@@ -1097,3 +1097,78 @@ separately navigable); builds on **203** (Fields/Values mode) and **204**
 (duplicate selects); touches **113**/**114** (zone chrome/Times toggle) and
 **208**/**211** (same editor).
 
+## 213. Call Sheet editor — header/footer read-only except the Call Sheet Edit block (`[ ]`)
+
+**Request** (user, 2026-10-08, bug): in the per-day Call Sheet editor only the
+`callSheetEdit` zone is per-day content — the design's header and footer must be
+read-only. The one exception: when a header/footer region CONTAINS the Call
+Sheet Edit block, that slot stays editable in place (the zone is honored wherever
+it sits). Template header/footer content belongs to the Reports Designer. (Audit
+note: the current per-day canvas already renders header/footer via `readOnlyView`
+— `CallSheetCanvas.tsx:134/160` — but the zone is only found in `design.blocks`,
+so a zone placed inside header/footer is silently ignored; verify every edit
+path while implementing.)
+
+**Fix**:
+- Zone search must include header/footer: `callSheetDayBlocks`
+  (`CallSheetCanvas.tsx:26`), `templateZoneBlocks` (`DayManagerPage.tsx:57`) and
+  `findCallSheetZone` (`lib/reportBlocks.ts:193`) — today a zone there falls into
+  the roadmap-211 zone-less fallback and the day's content is unreachable.
+- Render: header/footer map keeps `readOnlyView` for every block, but swaps the
+  `callSheetEdit` slot to `CallSheetZoneDesigner` at its position
+  (`CallSheetCanvas.tsx:134/160`); no palette drop, chrome or inline edit may
+  target template blocks.
+- Guard the write path: `patchZone`/`daybreakMeta.callSheets[designId]`
+  (`DayManagerPage.tsx:147`, `types.ts:213`) receives zone blocks only — audit
+  palette `onInsert`, chrome and `onPatchBlock` for leaks so header/footer
+  template content can never be written per day. Same rule for designs offered
+  via Settings → Design.
+
+**Verify**: `e2e/call-sheet-day.spec.ts` extended — design with the zone INSIDE
+header/footer: the day's zone content renders editable there and persists per
+day; add a targeted assertion only for a silent break (a header/footer
+interaction writing `daybreakMeta.callSheets`); `npm run lint`; rule-7 manual
+(editor vs print still match).
+
+**Relations**: keeps **212** (1:1 designer parity) honest — that item must
+preserve this bound; extends **10** (zone model) and **211** (zone-less
+fallback); day write path from **98**/**99**.
+
+## 214. Image block — bottom-right drag to scale; editor renders at true print scale (`[ ]`)
+
+**Request** (user, 2026-10-08): image blocks must scale by dragging the
+bottom-right corner — aspect-locked, Shift = free stretch (user decision) — and
+the designer must stop the guessing game: sizes in the editor should BE the
+printed sizes ("print matches the editor").
+
+**Current state**:
+- Image renders `width: 100%` of its container + optional `imageHeight` px
+  (`ReportBlockView.tsx:331`; fields `imageDataUrl`/`imageHeight`/`imageFit`,
+  `types.ts:780-782`); only a height number input (`blockControls.tsx:1117-1175`).
+- Designer canvas page = view-mode width (730/1060/full) grey card
+  (`ReportDesignerCanvas.tsx:904`; `VIEW_WIDTHS`, `lib/persist.ts:28`) while
+  preview/print/paginator measure `REPORT_PAGE_METRICS` (697px portrait / 960
+  landscape — `reportStyle.ts:49`, `ReportPrint.tsx:61`,
+  `useReportPaginator.tsx:548`) → text wraps and images scale differently than
+  print. `CallSheetCanvas.tsx:127` already uses the true metrics.
+
+**Approach**:
+- Persist `imageWidth` alongside `imageHeight` (store % of content width so the
+  size survives a page-geometry change; `imageFit` stays the legacy stretch
+  control) and add a selection-gated bottom-right handle on the canvas — reuse
+  the pointer-resize recipe (`src/components/columnResize.tsx`, roadmap 188
+  precedent); aspect-locked by default, Shift = free; show a px size badge while
+  dragging; keep the Content controls in sync with the handle.
+- Render the designer page at `REPORT_PAGE_METRICS[page].contentWidth` — ONE
+  metrics source shared with print/preview/paginator — with a display-only
+  fit/zoom so landscape still fits the viewport (zoom never changes layout units).
+
+**Verify**: `e2e/report-page-breaks.spec.ts` stays green (pagination math);
+targeted e2e only if the resize persistence is silently losable; rule-7 manual —
+drag the corner (aspect lock + Shift), editor vs preview/print side-by-side
+equality, reload keeps the size, Fit modes unchanged.
+
+**Relations**: overlaps **160** (page geometry/scale — the single metrics source;
+its scale control must compose with this, not fork it); reuses **188**'s resize
+recipe; touches **212** (call-sheet editor inherits the same canvas).
+
