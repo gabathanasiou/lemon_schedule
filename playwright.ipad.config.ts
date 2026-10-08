@@ -9,6 +9,10 @@ export default defineConfig({
     baseURL: 'http://localhost:3001',
     headless: true,
     screenshot: 'only-on-failure',
+    // Same rationale as playwright.config.ts: the overlay morph self-disables
+    // under prefers-reduced-motion, removing 220ms of moving/attached-detached
+    // chrome that flakes WebKit clicks on menu items.
+    contextOptions: { reducedMotion: 'reduce' },
   },
   webServer: {
     command: 'npm run dev -- --port=3001',

@@ -200,7 +200,9 @@ const E2E_SPEC_CAP = 70;
 // panel never overhangs the visual viewport (the kit playground covers flip).
 // 270 → 271: roadmap 180 fix — re-enable the multi-value range-fill confirm spec
 // (was `test.fixme`d; disabled cases aren't counted by this check).
-const E2E_TEST_CAP = 271;
+// 271 → 272: roadmap 206 — WebKit-only EntityDropdown finger-scroll regression
+// (coarse+touch path; no unit/Chromium layer can drive it).
+const E2E_TEST_CAP = 272;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

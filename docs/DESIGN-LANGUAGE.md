@@ -432,7 +432,10 @@ clamp on the chosen side (`maxMenuHeight` = per-menu ceiling). Re-measures on
 scroll/resize/visualViewport/ResizeObserver. **MUST NOT hand-position a panel, add a second
 positioner, or cap a panel's height with an `!important` class** (an `!important` cap beats the
 engine's inline clamp — menus hung off-screen). On touch, `useKeyboardDismissOnScroll` mirrors
-native `.onDrag`: dragging a surface the focused field does NOT live in dismisses the keyboard.
+native `.onDrag`: dragging a surface the focused field does NOT live in dismisses the keyboard —
+EXCEPT a drag that starts inside an editor-attached floating panel (`.click-outside-ignore`, the
+portaled EntityDropdown/Autocomplete/ref list the field itself opened): scrolling the suggestion
+list is part of the edit and must not blur (a blur commits + closes the dropdown; roadmap 206).
 
 Width ladder (verified call sites): `max-w-sm` simple forms (`CustomOrderSortModal`) · `max-w-md`
 single-form (`DayTypeModals.tsx:26`) · `max-w-lg` merge/violations (`ViolationModal`) · `max-w-xl`

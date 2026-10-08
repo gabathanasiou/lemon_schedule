@@ -42,9 +42,16 @@ export function useKeyboardDismissOnScroll() {
       if (!active) return;
       const tag = active.tagName;
       if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !active.isContentEditable) return;
+      // Editor-attached floating panels (`.click-outside-ignore` — the
+      // EntityDropdown/Autocomplete/ref panels the field itself opened) are
+      // an extension of the edit, even though they portal to <body> and never
+      // contain the input. Scrolling the suggestion list must NOT blur: the
+      // editor's commit-on-blur would close the dropdown mid-scroll
+      // (roadmap 206).
+      if (startTarget?.closest?.('.click-outside-ignore')) return;
       const scroller = scrollableAncestor(startTarget);
       // Dragging the surface the field lives in keeps the keyboard; dragging
-      // anything else (list, panel, page) dismisses it.
+      // anything else (list, page) dismisses it.
       if (scroller && scroller.contains(active)) return;
       active.blur();
     };

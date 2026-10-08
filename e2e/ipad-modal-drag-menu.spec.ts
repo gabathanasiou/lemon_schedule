@@ -53,7 +53,9 @@ async function openDayModal(page: Page) {
   const dayCell = page.locator(`[data-date-key="${days[0]}"]`);
   await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[data-day-header]').first();
-  await header.dblclick();
+  // The day header opens the Day Events modal on a single tap/click (the
+  // dblclick path is explicitly neutralized in DayCell).
+  await header.click();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
   return page.locator('[data-modal-stack]').last();
 }

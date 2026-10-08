@@ -48,7 +48,10 @@ async function openDayModalWithAdder(page: Page) {
   const dayCell = page.locator(`[data-date-key="${days[0]}"]`);
   await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[data-day-header]').first();
-  await header.dblclick();
+  // The day header opens the Day Events modal on a single tap/click (the
+  // dblclick path is explicitly neutralized in DayCell); a dblclick would
+  // fire two toggling clicks and end up closed.
+  await header.click();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Add Event' }).click();
   const adder = page.getByRole('dialog').last();
@@ -113,34 +116,36 @@ test('dropdown inside a modal re-clamps when the iPad keyboard opens', async ({ 
   await expect.poll(panelBottom, { timeout: 3000 }).toBeLessThanOrEqual(visibleBottom + 1);
 });
 
-test('Project Manager centres within the visible viewport', async ({ page }) => {
+test('Project Manager stays CSS-centred while the mocked iPad keyboard is up (coarse: no JS re-centre)', async ({ page }) => {
   await installKeyboardMock(page);
   // Boot with NO seeded project → the Project Manager is locked open at start.
   await page.goto('http://localhost:3001/lemon_schedule/');
   const pm = page.getByText('Project Manager', { exact: true });
   await expect(pm).toBeVisible();
 
+  const modal = page.locator('[data-modal-stack]').last();
+  await expect(modal).toBeVisible();
+  const before = await modal.boundingBox();
+  expect(before).toBeTruthy();
+
   // Safari chrome + keyboard leave a visible area that is NOT the full layout
   // viewport: mock the visual viewport as a 500px-tall strip starting at y=50.
-  // A keyboard-aware modal must centre inside it (centre = 50 + 500/2 = 300),
-  // not at innerHeight/2 (≈597 on the iPad Pro 11 layout viewport).
+  // Coarse devices keep the un-dragged modal CSS-centred in the LAYOUT
+  // viewport (kit Modal: the keyboard re-centre branch is fine-pointer-only) —
+  // the exact fix for item 80's "pushed down" bug. It must NOT jump when the
+  // keyboard opens.
   await page.evaluate(() => {
     const vv = (window as unknown as { __mockVV: { offsetTop: number; setHeight: (h: number) => void } }).__mockVV;
     vv.offsetTop = 50;
     vv.setHeight(500);
   });
+  // Two frames is enough for the kit's rAF-coalesced visualViewport handler.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 
-  const modal = page.locator('[data-modal-stack]').last();
-  await expect(modal).toBeVisible();
-  const box = await modal.boundingBox();
-  expect(box).toBeTruthy();
-
-  const expectedCenter = await page.evaluate(() => {
-    const vv = (window as unknown as { __mockVV: { height: number; offsetTop: number } }).__mockVV;
-    return vv.offsetTop + vv.height / 2;
-  });
-  const actualCenter = box!.y + box!.height / 2;
-  expect(Math.abs(actualCenter - expectedCenter), 'modal centre must follow the visible viewport centre').toBeLessThan(40);
+  const after = await modal.boundingBox();
+  expect(after).toBeTruthy();
+  expect(Math.abs(after!.y - before!.y), 'modal must not jump while the keyboard is up').toBeLessThan(2);
+  expect(Math.abs(after!.x - before!.x), 'modal must not jump while the keyboard is up').toBeLessThan(2);
 });
 
 test('Cancel on the Add Events modal returns to a visible, interactive day modal', async ({ page }) => {
@@ -152,7 +157,7 @@ test('Cancel on the Add Events modal returns to a visible, interactive day modal
   const dayCell = page.locator(`[data-date-key="${days[0]}"]`);
   await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[data-day-header]').first();
-  await header.dblclick();
+  await header.click();
   await expect(page.getByText('Day Events —', { exact: false })).toBeVisible();
 
   // The reported freeze: Add Event → Cancel → Add Event again, WITHOUT closing
@@ -206,4 +211,79 @@ test('Cancel on the Add Events modal returns to a visible, interactive day modal
   // And it stays interactive: a touch-tap on Done closes it.
   await tap(page.locator('[data-modal-stack]').last().getByRole('button', { name: 'Done' }));
   await expect(page.getByText('Day Events —', { exact: false })).toBeHidden();
+});
+
+// Roadmap 206: the EntityDropdown panel is portaled to <body>, so a finger
+// scroll inside it starts a touch on a surface that does NOT contain the
+// focused editor input. useKeyboardDismissOnScroll (the `.onDrag` keyboard
+// dismissal) blurred the input → EntityDropdown's commit-on-blur closed the
+// panel mid-scroll. Editor-attached panels (`.click-outside-ignore`) are now
+// exempt; a genuine outside drag must still dismiss.
+test('finger-scrolling an open EntityDropdown panel keeps it open and scrolled (roadmap 206)', async ({ page }) => {
+  await openSeededProject(page);
+  await page.getByRole('button', { name: 'Sheet', exact: true }).click();
+  const cell = page.locator('[data-scene-field="cast"]');
+  await expect(cell).toBeVisible();
+  await cell.locator('textarea').click();
+  const panel = page.locator('.click-outside-ignore').last();
+  await expect(panel).toBeVisible();
+  expect(await page.evaluate(() => document.activeElement?.tagName), 'the cast editor owns the panel').toBe('TEXTAREA');
+
+  const listBox = await panel.evaluate((el) => {
+    const scroller = el.querySelector('.overflow-y-auto') as HTMLElement;
+    return { scrollHeight: scroller.scrollHeight, clientHeight: scroller.clientHeight };
+  });
+  expect(listBox.scrollHeight, 'the seed cast list must be scrollable').toBeGreaterThan(listBox.clientHeight);
+
+  // Finger drag over a row (touchstart + touchmove >12px). The native scroll
+  // moves the list in the same gesture; the app must neither blur the editor
+  // nor snap the scroll position back.
+  await page.evaluate(() => {
+    const panels = document.querySelectorAll('.click-outside-ignore');
+    const p = panels[panels.length - 1] as HTMLElement;
+    const scroller = p.querySelector('.overflow-y-auto') as HTMLElement;
+    scroller.scrollTop = 40;
+    const mk = (type: string, y: number) => {
+      const ev = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(ev, 'touches', { value: [{ clientY: y }] });
+      return ev;
+    };
+    const row = p.querySelector('button') as HTMLElement;
+    row.dispatchEvent(mk('touchstart', 100));
+    row.dispatchEvent(mk('touchmove', 160));
+    row.dispatchEvent(mk('touchend', 160));
+  });
+
+  await expect(panel, 'panel must survive the finger scroll').toBeVisible();
+  expect(await page.evaluate(() => document.activeElement?.tagName), 'editor must keep focus').toBe('TEXTAREA');
+  expect(
+    await panel.evaluate((el) => (el.querySelector('.overflow-y-auto') as HTMLElement).scrollTop),
+    'the scrolled position must survive (no snap)',
+  ).toBe(40);
+
+  // A genuine outside tap still dismisses the panel (the fix exempts only the
+  // panel's own surface).
+  const tab = page.getByRole('button', { name: 'Breakdown', exact: true });
+  const b = (await tab.boundingBox())!;
+  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+  await expect(page.locator('.click-outside-ignore')).toHaveCount(0);
+
+  // The exemption is narrow: a finger drag on an UNRELATED surface still
+  // dismisses the focused editor (the `.onDrag` behavior itself is preserved).
+  await cell.locator('textarea').click();
+  await expect(page.locator('.click-outside-ignore').last()).toBeVisible();
+  expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('TEXTAREA');
+  await page.evaluate(() => {
+    const header = document.querySelector('header') as HTMLElement;
+    const mk = (type: string, y: number) => {
+      const ev = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(ev, 'touches', { value: [{ clientY: y }] });
+      return ev;
+    };
+    header.dispatchEvent(mk('touchstart', 100));
+    header.dispatchEvent(mk('touchmove', 160));
+    header.dispatchEvent(mk('touchend', 160));
+  });
+  await expect(page.locator('.click-outside-ignore')).toHaveCount(0);
+  expect(await page.evaluate(() => document.activeElement?.tagName), 'editor must blur').not.toBe('TEXTAREA');
 });

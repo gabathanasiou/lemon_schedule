@@ -88,7 +88,10 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   the kit `maxMenuHeight` prop (e.g. 256 for the category menus).
 - **Keyboard dismissal (touch)**: `useKeyboardDismissOnScroll` (`src/lib/`) mirrors native
   `UIScrollView.keyboardDismissMode = .onDrag` — a finger drag on a surface the focused field does
-  NOT live in dismisses the keyboard (dragging within the field's own scroller keeps it).
+  NOT live in dismisses the keyboard (dragging within the field's own scroller keeps it). An
+  editor-attached floating panel (`.click-outside-ignore` — the EntityDropdown/Autocomplete/ref list
+  the field opened, portaled to `<body>`) counts as the field's own surface: scrolling the
+  suggestion list must NOT blur (blur = commit + close, roadmap 206).
 - `DropdownMenu`/`DropdownItem`/`DropdownDivider`/`DropdownSubmenu` (Radix click-to-toggle;
   **single-highlight + keys/lock shared with ContextMenu** — one `.ui-item-highlighted` row, the CSS
   `:hover` fill is suppressed while a row is highlighted (kit `tokens.css`), arrows/Enter/typeahead,
