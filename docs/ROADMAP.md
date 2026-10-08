@@ -12,8 +12,7 @@ roadmap worker session, so it stays lean.
 
 > **Next session — 202** (kit `NumberInput` stepper; it gets the next ui-kit
 > bump — the kit is at v0.1.98 after the docked-editor pass). Then the Reports
-> Designer pass: **195** (reference `.`
-> attributes match the repeater scope — honor its guardrails), **196** (cellref
+> Designer pass: **196** (cellref
 > collection navigation / chaining), **198** (designer day picker — preview any
 > day) and **199** (collection-table column headers — custom text + tokens).
 > **203** (Fields/Values mode + block headers + tips star), **191** (inline text
@@ -794,71 +793,6 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
 
-## 195. Reports designer — reference `.` attributes match the repeater scope (`[ ]`, future)
-
-**Request**: when a reference targets an item (a day, a scene, an element, a
-category…) the `.` attribute list should offer EXACTLY the attributes the
-matching repeater/table scope offers (`fieldsForScope` parity) — contextual
-children and smart fields included, so a day ref's list matches a days-repeater
-palette, a scene ref's matches a scenes palette, and so on. **Both reference
-surfaces** (user ask 2026-10-02): `@item` + `.` lookups in text blocks /
-free-table cells (`RichTextEditor.attributeItems`) AND `=` cellrefs
-(`cellRefAttributeItems`) — they share `lookupAttributeFields`
-(`lib/reportTokens.ts`), so fix the seam once, don't patch cellrefs only.
-
-**Contextual resolution (same ask)**: the referenced item's attributes must also
-RESOLVE against the containing repeater, not just be offered contextually —
-`@Props` + `.Element List` inside a days repeat must print that day's props
-(the `{{props}}` day union), not all 99 project props. Contextualize the lookup
-TARGET through `resolveCollectionItems` with the containing chain's ancestor
-scene scope (machinery exists: `ancestorSceneScope`/`ruleBearingAncestor`),
-then read the attribute off the scoped item. This is the resolution twin of the
-offer parity; **196** keeps the navigable-child half.
-
-**Split (2026-10-02)**: the Lego collection-navigation half (day → first scene
-→ that scene's attributes) moved to **196**; this item is the parity +
-contextual-resolution deliverable that lands first.
-
-**Finding (deep dive 2026-10-02, seed-verified)**: contextual `.` does NOT
-retire the relative list fields (`categoryItems` Element List, `cast`,
-`attachedScenes`, `workDayList`/…, `dayTypeDays`): they read the CURRENT repeat
-item, while `@item` + `.` references a NAMED item. The two routes converge only
-when the named item sits in a context (`@Props.Element List` in a days repeat ≡
-`{{props}}`). Keep every list field; the code simplification is that
-`lookupAttributeFields`'s static scope list collapses into `fieldsForScope`.
-
-**Approach**: `cellRefAttributeItems` (`lib/reportTokens.ts`, roadmap 190)
-currently returns `lookupAttributeFields` (static item-scope registry). Swap it
-for the canonical `fieldsForScope` (`reportFields.ts`) with the target item's
-context (collection + category + the parent/ancestor context the formula cell
-carries), including day-context extras (breakdown-in-days, locations-in-days,
-`crewOfDay`/`locationsOfDay`-style children where applicable). Pinning resolves
-through the same scope, not the formula cell's aux. Thread the parent context
-(`parentCollection`/`parentCategory`/ancestors) into `TokenResolveOptions` from
-`CustomTable`/`ReportBlockView` **and** into the text-block/free-table
-`RichTextEditor` adapter (the `@` lookup path).
-
-**Verify**: unit tests comparing the offered key set against
-`fieldsForScope(...)` for each collection/context, plus a resolution test
-(`@Props.Element List` inside a day item ≡ `{{props}}` day union; bare ref
-outside any repeater stays global); `npm run lint` + `test:smart`; rule-7
-manual (picker rows match a repeater's palette for the same item).
-
-**Guardrails (do not lose)**: parity only changes the OFFERED LIST — the
-existing cellref picker behavior must survive: transitive target resolution
-through nested/pinned refs (chains keep passing the item, e.g.
-`@Bob` → `LEFT.phone` → `LEFT.email`), the element category's extra identity
-scope (cast item → Cast ID fields), identity-field exclusion, the RELATIVE form
-preserved when composing a pin (`cellref.rel.*` stays relative), the picker
-group label from the target item, and the typed query filter. Add a no-loss
-unit test: capture today's per-collection offered key set and assert it stays a
-subset of the new `fieldsForScope` list, so nothing silently disappears.
-
-**Relations**: extends **190** (cellref resolution + attribute picker) and
-**121** (two-stage item picker); **196** is the split-off navigation half;
-reuses the canonical scope registry in `reportFields.ts` /
-`docs/REPORTS-LEGO-CONTEXT.md`.
-
 ## 196. Reports designer — cellref collection navigation / scope chaining (`[ ]`, future, big)
 
 **Request** (split out of **195**): walk the collection graph through cell
@@ -880,8 +814,8 @@ step on top.
 category → element chain); `npm run lint` + `test:smart`; rule-7 manual (picker
 navigation + the resolved preview value).
 
-**Relations**: depends on **195** (attribute parity); extends **190** and
-**121**; related to **27** (`relative` context shifter).
+**Relations**: builds on **195** (shipped — `.` parity + contextual resolution);
+extends **190** and **121**; related to **27** (`relative` context shifter).
 
 ## 198. Reports designer — day picker to preview the design against a chosen day (`[ ]`)
 

@@ -11,6 +11,7 @@ import {
   lookupAttributeFields,
   buildLookupTokens,
   fieldsForScope,
+  GLOBAL_FIELD_SCOPES,
   searchReportFields,
 } from '../reportFields';
 
@@ -100,6 +101,87 @@ describe('lookupIdentityField / lookupAttributeFields', () => {
     expect(lookupAttributeFields(fields, 'elements', 'props').map(f => f.key)).toEqual(['attachedScenes']);
     // cast adds its own identity fields
     expect(lookupAttributeFields(fields, 'elements', 'cast').map(f => f.key)).toEqual(['attachedScenes', 'id']);
+  });
+});
+
+describe('lookupAttributeFields — relevance (roadmap 195)', () => {
+  const fields = [
+    { key: 'totalShootDays', label: 'Total Shoot Days', group: 'Production', scope: 'production' },
+    { key: 'counter', label: 'Counter', group: 'Document', scope: 'document' },
+    { key: 'shootTime', label: 'Shoot Time', group: 'Smart', scope: 'smart' },
+    { key: 'dayCallTime', label: 'Call Time', group: 'Days', scope: 'days' },
+    { key: 'dayLabel', label: 'Day Label', group: 'Days', scope: 'days' },
+    { key: 'sceneNumber', label: 'Scene #', group: 'Scene Info', scope: 'scenes' },
+    { key: 'props', label: 'Props List', group: 'Breakdown', scope: 'scenes', multiValue: true },
+    { key: 'cast', label: 'Cast Members List', group: 'Breakdown', scope: 'scenes', multiValue: true },
+    { key: 'attachedScenes', label: 'Attached Scenes List', group: 'Elements', scope: 'elements' },
+    { key: 'elementName', label: 'Name', group: 'Elements', scope: 'elements' },
+    { key: 'id', label: 'Cast ID', group: 'Cast & Talent', scope: 'cast' },
+    { key: 'categoryLabel', label: 'Category Name', group: 'Categories', scope: 'categories' },
+    { key: 'categoryItems', label: 'Element List', group: 'Categories', scope: 'categories', multiValue: true },
+    { key: 'phone', label: 'Phone', group: 'Crew', scope: 'crew' },
+    { key: 'locationName', label: 'Name', group: 'Location', scope: 'locations' },
+    { key: 'locationAddress', label: 'Street Address', group: 'Location', scope: 'locations' },
+    { key: 'locationTypeLabel', label: 'Type', group: 'Location', scope: 'locationTypes' },
+    { key: 'locationTypeCount', label: 'Location Count', group: 'Location', scope: 'locationTypes' },
+    { key: 'dayTypeLabel', label: 'Day Type', group: 'Day Types', scope: 'dayTypes' },
+  ] as any[];
+
+  const cases: { collection: string; category?: string }[] = [
+    { collection: 'days' },
+    { collection: 'scenes' },
+    { collection: 'elements', category: 'props' },
+    { collection: 'elements', category: 'cast' },
+    { collection: 'categories' },
+    { collection: 'crew' },
+    { collection: 'locations' },
+    { collection: 'locationTypes' },
+    { collection: 'dayTypes' },
+  ];
+  const keys = (collection: string, category?: string) => lookupAttributeFields(fields, collection, category).map(f => f.key);
+
+  it('offers the target\'s OWN item scope — a day ref gets day-context extras, others just their own', () => {
+    // day ref: day fields + day-context extras (breakdown-in-day, locations) + smart
+    expect(keys('days')).toEqual(['shootTime', 'dayCallTime', 'props', 'cast', 'locationName', 'locationAddress']);
+    // scene ref: scene fields + smart
+    expect(keys('scenes')).toEqual(['shootTime', 'sceneNumber', 'props', 'cast']);
+    // element refs: element fields (+ cast identity for a cast member) + smart
+    expect(keys('elements', 'props')).toEqual(['shootTime', 'attachedScenes']);
+    expect(keys('elements', 'cast')).toEqual(['shootTime', 'attachedScenes', 'id']);
+    // category ref: category fields + smart
+    expect(keys('categories')).toEqual(['shootTime', 'categoryItems']);
+    // no-scene item kinds: their own fields only — no blank smart
+    expect(keys('crew')).toEqual(['phone']);
+    expect(keys('locations')).toEqual(['locationAddress']); // locationName IS the identity chip
+    expect(keys('locationTypes')).toEqual(['locationTypeCount']);
+    // dayTypeLabel IS the identity chip — nothing left in this sample
+    expect(keys('dayTypes')).toEqual([]);
+  });
+
+  it('never offers the document-wide GLOBAL divider or unreadable smart fields', () => {
+    for (const { collection, category } of cases) {
+      for (const f of lookupAttributeFields(fields, collection, category)) {
+        expect(GLOBAL_FIELD_SCOPES.has(f.scope)).toBe(false);
+        if (f.scope === 'smart') expect(['days', 'scenes', 'elements', 'categories']).toContain(collection);
+      }
+    }
+  });
+
+  it('no-loss: every attribute offered before 195 is still offered', () => {
+    const legacyOffer = (collection: string, category?: string): string[] => {
+      const identity = lookupIdentityField(collection);
+      if (collection === 'elements') {
+        const scopes = new Set(category === 'cast' ? ['elements', 'cast'] : ['elements']);
+        return fields.filter(f => scopes.has(f.scope) && f.key !== identity).map(f => f.key);
+      }
+      return fields.filter(f => f.scope === collection && f.key !== identity).map(f => f.key);
+    };
+    for (const { collection, category } of cases) {
+      const now = new Set(lookupAttributeFields(fields, collection, category).map(f => f.key));
+      for (const key of legacyOffer(collection, category)) {
+        expect(now.has(key)).toBe(true);
+      }
+    }
   });
 });
 

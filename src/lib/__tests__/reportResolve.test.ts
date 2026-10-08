@@ -9,7 +9,7 @@ import {
   ancestorSceneScope,
   type ReportCtx,
 } from '../reportData';
-import { composeLookupKey, getReportFieldMap, resolveReportTokens, resolveReportTokensHtml } from '../reportFields';
+import { composeLookupKey, elementLookupKey, getReportFieldMap, resolveReportTokens, resolveReportTokensHtml } from '../reportFields';
 
 // Resolver-level coverage for the day-scoped report collections, built from the
 // committed hermetic seed via the SAME pure pipeline the app uses
@@ -191,6 +191,43 @@ describe('lookup pair suppression — the 121 reference + attribute pair', () =>
   it('a dangling reference prints #REF! and an unknown attribute #VALUE!', () => {
     expect(resolveReportTokens(ctx, fieldMap, '{{lookup.crew.crewName.gone}}', null)).toBe('#REF!');
     expect(resolveReportTokens(ctx, fieldMap, `{{lookup.crew.nope.p-test}}`, null)).toBe('#VALUE!');
+  });
+});
+
+describe('lookup contextual resolution (roadmap 195)', () => {
+  const project = seedProject();
+  const ctx = buildCtx(project);
+  const fieldMap = getReportFieldMap(project);
+  const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+  const day = days[0];
+  const sceneScope = ancestorSceneScope(ctx, [day])!;
+  const propsItems = composeLookupKey('categories', 'categoryItems', 'props');
+
+  it('a category ref inside a day prints that day\'s union (≡ {{props}})', () => {
+    const viaRef = resolveReportTokens(ctx, fieldMap, `{{${propsItems}}}`, day, { sceneScope });
+    const viaUnion = resolveReportTokens(ctx, fieldMap, '{{props}}', day, { sceneScope });
+    expect(viaUnion).not.toBe('');
+    expect(viaRef).toBe(viaUnion);
+  });
+
+  it('a bare category ref outside any repeater stays project-wide', () => {
+    const projectWide = resolveReportTokens(ctx, fieldMap, `{{${propsItems}}}`, null);
+    const scoped = resolveReportTokens(ctx, fieldMap, `{{${propsItems}}}`, day, { sceneScope });
+    expect(projectWide).toBe(ctx.categoryInfos.find(c => c.key === 'props')!.items.join(', '));
+    expect(scoped).not.toBe(projectWide);
+  });
+
+  it('an element ref scopes its scene-derived fields to the day', () => {
+    const cast = resolveCollection(ctx, 'cast', undefined, undefined) as any[];
+    const el = cast.find(e => e.sceneIds.some((id: string) => sceneScope.has(id)) && e.sceneIds.some((id: string) => !sceneScope.has(id)));
+    expect(el).toBeTruthy();
+    const key = composeLookupKey('elements', 'attachedScenes', elementLookupKey('cast', el.id));
+    const scoped = resolveReportTokens(ctx, fieldMap, `{{${key}}}`, day, { sceneScope });
+    const global = resolveReportTokens(ctx, fieldMap, `{{${key}}}`, null);
+    const numberById = new Map(ctx.sceneInfos.map(si => [si.scene.id, si.scene.sceneNumber]));
+    expect(scoped).toBe(el.sceneIds.filter((id: string) => sceneScope.has(id)).map((id: string) => numberById.get(id)).join(', '));
+    expect(scoped).not.toBe('');
+    expect(scoped).not.toBe(global);
   });
 });
 

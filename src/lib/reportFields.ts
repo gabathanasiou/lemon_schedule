@@ -51,7 +51,7 @@ export interface FieldAux {
   counterStart?: number;           // from the iterating block
   pageSize?: 'portrait' | 'landscape';
   dayFormat?: DayFormatMode;       // from the block's day-list display mode
-  sceneScope?: Set<string> | null; // Lego ancestor intersection — smart fields resolve within it
+  sceneScope?: Set<string> | null; // Lego ancestor intersection — smart fields AND scoped lookup targets resolve within it
   locationChoice?: string;         // block-level "Show location" pick: a location TYPE key
   dayDate?: string;                // nearest in-scope DAY's date (location rows inside a day repeat)
   /** Per-day call-sheet content overriding every `callSheetEdit` zone in the
@@ -684,39 +684,6 @@ export function reportFieldValueByKey(ctx: ReportCtx, fieldMap: Record<string, R
 }
 
 
-export function fieldsForScope(
-  fields: ReportFieldDef[],
-  scope: string | null | undefined,
-  category?: string,
-): ReportFieldDef[] {
-  const scopeSet = new Set(['production', 'project', 'document', 'smart']);
-  const dayScope = scope === 'days' || scope === 'daysOfCast';
-  if (scope) {
-    if (['scenes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast'].includes(scope)) scopeSet.add('scenes');
-    else if (scope === 'elementsOfCategory') scopeSet.add('elements');
-    // dayTypesOfElement items share the day-type item shape — the Day Types
-    // attributes (scope 'dayTypes') belong there too.
-    else if (scope === 'dayTypesOfElement') scopeSet.add('dayTypes');
-    else if (scope === 'crewOfDay') scopeSet.add('crew');
-    else if (scope === 'locationsOfDay') scopeSet.add('locations');
-    else scopeSet.add(scope);
-  }
-  // Cast members are reached via Elements → Cast (collection 'elements' with
-  // category 'cast') or a categories repeat's Cast item ('elementsOfCategory')
-  // — their identity fields (Cast ID, Cast ID & Name) belong there too.
-  if (scope === 'cast' || category === 'cast' || scope === 'elementsOfCategory') scopeSet.add('cast');
-  return fields.filter(f => {
-    if (scopeSet.has(f.scope)) return true;
-    // Breakdown attributes (scene-scope) resolve per-day inside a days repeater
-    // (roadmap 22) — the only scene fields pickable in a day context.
-    if (dayScope && f.scope === 'scenes' && f.group === 'Breakdown') return true;
-    // Location + weather attributes (scope 'locations') are pickable in day
-    // contexts too — they resolve through the day's location seam (roadmap 6).
-    if (dayScope && f.scope === 'locations') return true;
-    return false;
-  });
-}
-
 /** Search-by-label-or-key shared by the palette search box and the text
  *  editor's token autocomplete — one source of truth for field filtering. */
 export function searchReportFields(fields: ReportFieldDef[], query: string): ReportFieldDef[] {
@@ -734,12 +701,6 @@ export function searchReportFields(fields: ReportFieldDef[], query: string): Rep
 }
 
 
-/** Report-wide constant fields — grouped under the GLOBAL divider in pickers. */
-export const GLOBAL_FIELD_SCOPES = new Set(['production', 'project', 'document']);
-export function isGlobalField(f: ReportFieldDef): boolean {
-  return GLOBAL_FIELD_SCOPES.has(f.scope);
-}
-
 /** Day-list field keys — the toolbar's day-format dropdown applies to these. */
 export const DAY_LIST_FIELD_KEYS = new Set(['workDayList', 'holdDayList', 'travelDayList']);
 
@@ -749,7 +710,8 @@ export const DAY_LIST_FIELD_KEYS = new Set(['workDayList', 'holdDayList', 'trave
 export {
   applyItemAffixes, ITEM_SCOPES, TOKEN_RE, parseToken, composeTokenKey, LOOKUP_PREFIX,
   composeLookupKey, parseLookupKey, elementLookupKey, splitElementLookupKey, lookupIdentityField,
-  buildLookupTokens, lookupAttributeFields, resolveReportTokens, resolveReportTokensHtml,
+  buildLookupTokens, lookupAttributeFields, fieldsForScope, GLOBAL_FIELD_SCOPES, isGlobalField,
+  resolveReportTokens, resolveReportTokensHtml,
   fieldChipColor, tokenChipCss, tokenTagCss,
   parseCellRefKey, composeCellRefKey, composeRelativeCellRefKey, cellRefTarget,
   cellRefChipMeta, cellRefAttributeItems, cellRefChain,

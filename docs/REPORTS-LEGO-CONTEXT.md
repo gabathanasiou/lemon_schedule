@@ -132,3 +132,29 @@ Repeat over Days
   it's per-collection include lists from the print dialog, applied on top.
 - Per-item tables (crew parents, same-collection scenes tables) render the
   parent item as a single row — Counter uses the repeat index, not the row.
+
+## 7. Lookup refs in context (roadmap 195)
+
+A `@item.` reference is a Lego participant too — it resolves against the
+containing chain, not against its own authored position:
+
+- **Offered list** — `lookupAttributeFields` (`lib/reportTokens.ts`) = the
+  target's OWN item scope: `fieldsForScope` for its collection/category minus
+  the identity field, the document-wide GLOBAL divider (production/project/
+  document never read the item) and smart fields where the item kind can't
+  read them (crew/locations/rollup types). A day ref offers the days palette
+  (smart fields, locations, per-day breakdown attributes); a cast element adds
+  the cast identity fields.
+- **Resolution** — `scopeLookupTarget` (`reportTokens.ts`) applies
+  `aux.sceneScope` (the ancestor intersection) to the target before the field
+  reads it: a category ref's Element List/counts reduce to the scoped scenes
+  (shares `unionSceneFieldParts` with `dayBreakdownValue`, so
+  `@Props.Element List` inside a days repeat ≡ `{{props}}`); an element ref's
+  attached scenes/scene count/pages reduce to its scoped scenes; day-list
+  timeline attributes stay element-wide. No scene scope (top level, or a
+  non-rule-bearing chain like a crew repeat) → the global item.
+- Cellref pins (`cellref….<field>`) resolve through the same scope.
+
+**196** (next) adds the navigable-child half — refs walking day → scene →
+attribute — on top of this parity.
+

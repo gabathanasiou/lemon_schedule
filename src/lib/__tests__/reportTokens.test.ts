@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { buildNonShootSet, computeRowData } from '../daybreakUtils';
-import { buildReportCtx, type ReportCtx } from '../reportData';
+import { buildReportCtx, resolveCollection, ancestorSceneScope, type ReportCtx } from '../reportData';
 import { makeReportBlock } from '../reportBlocks';
 import {
   composeCellRefKey, composeRelativeCellRefKey, parseCellRefKey,
@@ -209,6 +209,27 @@ describe('cellref relative offsets', () => {
     const target = cellRefTarget({ block, rowId: 'r2', colId: 'c1' }, { kind: 'abs', rowId: 'r1', colId: 'c2' });
     expect(target?.colId).toBe('c1');
     expect(target?.html).toBe('MERGED');
+  });
+});
+
+describe('cellref pins resolve through the containing scope (roadmap 195)', () => {
+  const propsRef = composeLookupKey('categories', 'categoryLabel', 'props');
+  const block = table([['', `<p>{{${propsRef}}}</p>`], ['', '']]);
+  const formula = { block, rowId: 'r2', colId: 'c1' };
+  const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+  const day = days[0];
+  const sceneScope = ancestorSceneScope(ctx, [day])!;
+
+  it('a pinned category Element List prints the day union inside a days context', () => {
+    const scoped = resolveReportTokens(ctx, fieldMap, '{{cellref.r1.c2.categoryItems}}', day, { sceneScope }, { cellRef: formula });
+    const union = resolveReportTokens(ctx, fieldMap, '{{props}}', day, { sceneScope });
+    expect(union).not.toBe('');
+    expect(scoped).toBe(union);
+  });
+
+  it('the same pin outside any repeater stays project-wide', () => {
+    const projectWide = resolveReportTokens(ctx, fieldMap, '{{cellref.r1.c2.categoryItems}}', null, undefined, { cellRef: formula });
+    expect(projectWide).toBe((ctx.categoryInfos.find(c => c.key === 'props') as any).items.join(', '));
   });
 });
 

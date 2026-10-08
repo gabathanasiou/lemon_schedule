@@ -5,7 +5,7 @@ import { formatDateCustom } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
 import { isCovered } from './reportTableMerges';
 import { getDayTypes } from './dayTypes';
-import { resolveCollection, reportItemKey, reportSceneInfoFor, type ReportCtx, type ReportCollectionItem, type ReportCrewItem, type ReportElementInfo } from './reportData';
+import { resolveCollection, reportItemKey, reportSceneInfoFor, type ReportCtx, type ReportCollectionItem, type ReportCategoryInfo, type ReportCrewItem, type ReportElementInfo, type ReportSceneInfo } from './reportData';
 import { resolveReportTextStyleSpans } from './reportTextStyles';
 import type { ReportFieldDef, FieldAux } from './reportFields';
 
@@ -34,6 +34,33 @@ export function applyItemAffixes(value: string, opts: { itemPrefix?: string; ite
  *  rows) — vs document/project/smart fields that resolve from ctx/aux. */
 export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew', 'locations', 'locationTypes', 'dayTypes', 'elementCallsOfDay', 'departmentCallsOfDay']);
 
+/** Distinct values a scene-scope field yields across scenes (case-insensitive
+ *  dedupe, first-seen order) plus the raw occurrence/scene counts — the union
+ *  primitive shared by `dayBreakdownValue` and roadmap 195's scoped lookup
+ *  targets. Field extraction always goes through `def.get`. */
+function unionSceneFieldParts(
+  ctx: ReportCtx,
+  def: ReportFieldDef,
+  scenes: ReportSceneInfo[],
+): { items: string[]; occurrences: number; sceneCount: number } {
+  const seen = new Set<string>();
+  const items: string[] = [];
+  let occurrences = 0;
+  let sceneCount = 0;
+  const push = (v: string) => {
+    const k = v.toLowerCase();
+    if (k && !seen.has(k)) { seen.add(k); items.push(v); }
+  };
+  for (const si of scenes) {
+    const raw = String(def.get(ctx, si) || '');
+    const parts = def.multiValue ? raw.split(',').map(x => x.trim()).filter(Boolean) : (raw.trim() ? [raw.trim()] : []);
+    if (parts.length > 0) sceneCount++;
+    occurrences += parts.length;
+    for (const p of parts) push(p);
+  }
+  return { items, occurrences, sceneCount };
+}
+
 /**
  * Breakdown attributes (group 'Breakdown', scene-scope) inside a DAY repeater:
  * resolve to the union of that day's scenes' values — Cast Members List →
@@ -46,21 +73,7 @@ export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew'
 function dayBreakdownValue(ctx: ReportCtx, def: ReportFieldDef, day: any, scope?: Set<string> | null): string {
   let scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
   if (scope && scope.size > 0) scenes = scenes.filter(si => scope.has(si.scene.id));
-  const seen = new Set<string>();
-  const out: string[] = [];
-  const push = (v: string) => {
-    const k = v.toLowerCase();
-    if (k && !seen.has(k)) { seen.add(k); out.push(v); }
-  };
-  for (const si of scenes) {
-    if (def.multiValue) {
-      for (const part of String(def.get(ctx, si) || '').split(',').map(x => x.trim()).filter(Boolean)) push(part);
-    } else {
-      const v = String(def.get(ctx, si) || '').trim();
-      if (v) push(v);
-    }
-  }
-  return out.join(', ');
+  return unionSceneFieldParts(ctx, def, scenes).items.join(', ');
 }
 
 export function fieldValueSafe(def: ReportFieldDef, ctx: ReportCtx, item: any, aux?: FieldAux): string {
@@ -278,16 +291,76 @@ export function buildLookupTokens(project: Project, days: LookupDayRef[]): Looku
   return out;
 }
 
-/** The item-scoped attributes offered at stage 2 (full registry): every field
- *  registered for the item's collection (a cast member adds the cast identity
- *  fields). The identity field itself stays out — that IS the reference chip. */
+/** Report-wide constant fields — grouped under the GLOBAL divider in pickers,
+ *  and EXCLUDED from a lookup's `.` offer (roadmap 195): they resolve from
+ *  ctx/aux, never from the item, so `@Bob.Company` is not Bob's attribute. */
+export const GLOBAL_FIELD_SCOPES = new Set(['production', 'project', 'document']);
+export function isGlobalField(f: ReportFieldDef): boolean {
+  return GLOBAL_FIELD_SCOPES.has(f.scope);
+}
+
+/** The item-scope palette for a collection/context — the ONE scope filter
+ *  consumed by the palette, table pickers and (since roadmap 195) the lookup
+ *  `.` attribute stage. Lives here (not the registry) so the token module can
+ *  use it without a runtime cycle.
+ *
+ *  `scopeSet` = production/project/document/smart (always) + the context's
+ *  scopes; day contexts additionally admit scene-Breakdown attributes (they
+ *  resolve per-day as a union) and location/weather attributes. See
+ *  `docs/REPORTS-LEGO-CONTEXT.md` for the Lego context model. */
+export function fieldsForScope(
+  fields: ReportFieldDef[],
+  scope: string | null | undefined,
+  category?: string,
+): ReportFieldDef[] {
+  const scopeSet = new Set(['production', 'project', 'document', 'smart']);
+  const dayScope = scope === 'days' || scope === 'daysOfCast';
+  if (scope) {
+    if (['scenes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast'].includes(scope)) scopeSet.add('scenes');
+    else if (scope === 'elementsOfCategory') scopeSet.add('elements');
+    // dayTypesOfElement items share the day-type item shape — the Day Types
+    // attributes (scope 'dayTypes') belong there too.
+    else if (scope === 'dayTypesOfElement') scopeSet.add('dayTypes');
+    else if (scope === 'crewOfDay') scopeSet.add('crew');
+    else if (scope === 'locationsOfDay') scopeSet.add('locations');
+    else scopeSet.add(scope);
+  }
+  // Cast members are reached via Elements → Cast (collection 'elements' with
+  // category 'cast') or a categories repeat's Cast item ('elementsOfCategory')
+  // — their identity fields (Cast ID, Cast ID & Name) belong there too.
+  if (scope === 'cast' || category === 'cast' || scope === 'elementsOfCategory') scopeSet.add('cast');
+  return fields.filter(f => {
+    if (scopeSet.has(f.scope)) return true;
+    // Breakdown attributes (scene-scope) resolve per-day inside a days repeater
+    // (roadmap 22) — the only scene fields pickable in a day context.
+    if (dayScope && f.scope === 'scenes' && f.group === 'Breakdown') return true;
+    // Location + weather attributes (scope 'locations') are pickable in day
+    // contexts too — they resolve through the day's location seam (roadmap 6).
+    if (dayScope && f.scope === 'locations') return true;
+    return false;
+  });
+}
+
+/** Lookup collections whose items the smart fields can read (a day/scene/
+ *  element/category's scenes). Crew, locations and the rollup types carry no
+ *  scene data — smart fields would only offer blanks/zeros there, so the `.`
+ *  stage omits them. */
+const SMART_LOOKUP_COLLECTIONS = new Set(['days', 'scenes', 'elements', 'categories']);
+
+/** The item-scoped attributes offered at stage 2 — the target's OWN item
+ *  scope (roadmap 195): `fieldsForScope` for its collection (+ category), so a
+ *  day ref offers the days palette (smart fields, locations, per-day breakdown
+ *  attributes) and a cast element adds the cast identity fields. Three
+ *  exclusions keep the list relevant: the identity field (that IS the
+ *  reference chip), the document-wide GLOBAL divider (not attributes OF the
+ *  item), and smart fields where the item kind can't resolve them. */
 export function lookupAttributeFields(allFields: ReportFieldDef[], collection: string, category?: string): ReportFieldDef[] {
   const identity = lookupIdentityField(collection);
-  if (collection === 'elements') {
-    const scopes = new Set(category === 'cast' ? ['elements', 'cast'] : ['elements']);
-    return allFields.filter(f => scopes.has(f.scope) && f.key !== identity);
-  }
-  return allFields.filter(f => f.scope === collection && f.key !== identity);
+  return fieldsForScope(allFields, collection, category).filter(f =>
+    f.key !== identity
+    && !GLOBAL_FIELD_SCOPES.has(f.scope)
+    && (f.scope !== 'smart' || SMART_LOOKUP_COLLECTIONS.has(collection)),
+  );
 }
 
 export interface TokenResolveOptions {
@@ -434,7 +507,7 @@ function resolveCellRefAtom(
   if (!hit) return { kind: 'error', error: '#REF!' };
   const def = fieldMap[key.field];
   if (!def) return { kind: 'error', error: '#VALUE!' };
-  return { kind: 'pinned', value: fieldValueSafe(def, ctx, hit, aux), def, ref: lookup };
+  return { kind: 'pinned', value: fieldValueSafe(def, ctx, scopeLookupTarget(ctx, fieldMap, lookup.collection, hit, aux?.sceneScope), aux), def, ref: lookup };
 }
 
 interface LookupRef { collection: string; field: string; itemKey: string; }
@@ -550,6 +623,48 @@ function resolveLookupItems(ctx: ReportCtx, collection: string, itemKey: string)
   return resolveCollection(ctx, collection as ReportCollection, undefined, undefined, undefined);
 }
 
+/**
+ * Roadmap 195: read a lookup target through the containing repeater's scene
+ * scope (the resolved ancestor intersection, `aux.sceneScope`). A category
+ * target reduces its Element List/counts to the scoped scenes — the SAME
+ * `{{props}}` day-union semantics, so `@Props.Element List` inside a days
+ * repeat prints that day's props. An element target reduces its scene-derived
+ * fields (attached scenes/count/pages) to its scoped scenes; its day-list
+ * timeline attributes stay element-wide. Bare refs and item shapes without
+ * scene-derived attributes pass through unchanged.
+ */
+function scopeLookupTarget(
+  ctx: ReportCtx,
+  fieldMap: Record<string, ReportFieldDef>,
+  collection: string,
+  item: ReportCollectionItem,
+  scope: Set<string> | null | undefined,
+): ReportCollectionItem {
+  if (!scope || scope.size === 0) return item;
+  if (collection === 'categories') {
+    const cat = item as ReportCategoryInfo;
+    const def = fieldMap[cat.key];
+    // No scene-scope field registered for this category key → nothing
+    // scene-derived to reduce.
+    if (!def || def.scope !== 'scenes') return item;
+    const { items, occurrences, sceneCount } = unionSceneFieldParts(ctx, def, ctx.sceneInfos.filter(si => scope.has(si.scene.id)));
+    return { ...cat, items, elementCount: items.length, occurrences, sceneCount };
+  }
+  if (collection === 'elements') {
+    const el = item as ReportElementInfo;
+    const own = new Set(el.sceneIds || []);
+    const scenes = ctx.sceneInfos.filter(si => own.has(si.scene.id) && scope.has(si.scene.id));
+    return {
+      ...el,
+      sceneIds: scenes.map(si => si.scene.id),
+      sceneCount: scenes.length,
+      attachedScenes: scenes.map(si => si.scene.sceneNumber).join(', '),
+      totalPages: scenes.reduce((sum, si) => sum + (si.scene.pageCountDecimal || 0), 0),
+    };
+  }
+  return item;
+}
+
 /** The 121 pair rule: a lookup token DIRECTLY followed by another lookup token
  *  of the same collection + item prints as the attribute only — the reference
  *  chip is its anchor and renders empty. Deleting either chip leaves the other
@@ -574,7 +689,7 @@ function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, 
     if (!hit) return '#REF!';
     const def = fieldMap[lookup.field];
     if (!def) return '#VALUE!';
-    return fieldValueSafe(def, ctx, hit, aux);
+    return fieldValueSafe(def, ctx, scopeLookupTarget(ctx, fieldMap, lookup.collection, hit, aux?.sceneScope), aux);
   }
   const { field, opts } = parseToken(raw);
   const [base, sub] = field.split('.');
