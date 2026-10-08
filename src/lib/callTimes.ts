@@ -101,9 +101,11 @@ export interface ResolvedCall {
 
 /**
  * Computes every stage's call time for one element. The LAST stage in
- * `stageKeys` is the anchor (On Set) — its time is the element's first scene
- * call. Earlier stages walk backwards, each using its override (absolute or
- * relative) or its configured default lead.
+ * `stageKeys` is the anchor (On Set) — its computed default is the element's
+ * first scene call. Earlier stages walk backwards, each using its override
+ * (absolute or relative) or its configured default lead. The anchor takes the
+ * same overrides: absolute pins the time, relative measures from the
+ * first-scene call — either re-bases the earlier stages.
  */
 export function computeElementCallChain(
   stages: CallStageDef[],
@@ -131,6 +133,11 @@ export function computeElementCallChain(
       if (override && parsed.kind === 'absolute') {
         out[key] = { time: parsed.time, source: 'override', expr: override };
         nextTime = parsed.time;
+      } else if (parsed.kind === 'relative') {
+        // A relative override measures from the anchor (the first-scene call).
+        const time = addMinutesToTime(anchor, parsed.minutes);
+        out[key] = { time, source: 'override', expr: override };
+        nextTime = time;
       } else {
         out[key] = { time: anchor, source: 'computed' };
         nextTime = anchor;
@@ -155,11 +162,11 @@ export function computeElementCallChain(
 }
 
 /**
- * Immutably sets (or clears, when `raw` is blank) one element's override for a
- * single stage inside a day's `elementCalls` map. Returns `undefined` when the
- * map would be empty so callers can drop the field entirely. This is the ONE
- * write path for overrides — the Call Times table and the Day Times sheet both
- * go through it, so the two surfaces can never drift.
+ * Immutably sets (or clears, when `raw` is blank or unparseable) one element's
+ * override for a single stage inside a day's `elementCalls` map. Returns
+ * `undefined` when the map would be empty so callers can drop the field
+ * entirely. This is the ONE write path for overrides — the Call Times table and
+ * the Day Times sheet both go through it, so the two surfaces can never drift.
  */
 export function setElementCall(
   elementCalls: Record<string, Record<string, ElementCallTimes>> | undefined,
@@ -171,8 +178,10 @@ export function setElementCall(
   const next = { ...(elementCalls || {}) };
   const catCalls = { ...(next[category] || {}) };
   const current: ElementCallTimes = { ...(catCalls[elementKey] || {}) };
+  // Only a parseable expression is stored — blank OR garbage clears the stage,
+  // so an unparseable override can never sit in the store being ignored.
   const value = raw.trim();
-  if (value) (current as Record<string, string>)[stageKey] = value;
+  if (value && isValidTimeExpression(value)) (current as Record<string, string>)[stageKey] = value;
   else delete (current as Record<string, string | undefined>)[stageKey];
   if (Object.keys(current).length > 0) catCalls[elementKey] = current;
   else delete catCalls[elementKey];

@@ -24,7 +24,7 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     expect(box.sh).toBeLessThanOrEqual(box.ch);
   });
 
-  test('editor seeds the default expression / resolved time, fully selected; Enter stores no override (roadmap 141)', async ({ page }) => {
+  test('editor seeds the default expression / resolved time, fully selected; Enter stores no override; the anchor takes a relative override (roadmaps 141/207)', async ({ page }) => {
     await openCallTimes(page);
     const cast = await day1Cast(page);
     expect(cast.length).toBeGreaterThan(0);
@@ -47,6 +47,53 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     await ta.press('Enter');
     await expect.poll(() => callsFor(page, cast[0]), { timeout: 4000 }).toBeNull();
     expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(0);
+
+    // --- the anchor (LAST stage, On Set) takes a relative override (roadmap 207) ---
+    // Resolve the cast chain's stage columns from the project settings — the
+    // LAST configured stage is the anchor (seed-agnostic).
+    const stageKeys: string[] = await page.evaluate(() => {
+      const p = (window as any).__lemonSchedule.getProject();
+      const s = p.productionInfo?.callTimes;
+      const stages = s?.stages?.length ? s.stages : [
+        { key: 'pickup' }, { key: 'arrive' }, { key: 'hmua' }, { key: 'costume' }, { key: 'onSet' },
+      ];
+      const keys = s?.categoryStages?.cast ?? ['pickup', 'arrive', 'hmua', 'costume', 'onSet'];
+      return stages.filter((st: any) => keys.includes(st.key)).map((st: any) => st.key as string);
+    });
+    const anchorKey = stageKeys[stageKeys.length - 1];
+    expect(anchorKey).toBeTruthy();
+
+    // An untouched anchor seeds with the resolved first-scene call — Enter must
+    // store nothing (roadmap 141).
+    const anchorCell = await stageCellPoint(page, 0, stageKeys.length - 1);
+    await page.mouse.dblclick(anchorCell.x, anchorCell.y);
+    const anchorTa = page.locator('#portal textarea').first();
+    await expect(anchorTa).toBeAttached({ timeout: 4000 });
+    expect(await anchorTa.inputValue()).toMatch(/^\d{1,2}:\d{2}$/);
+    await anchorTa.press('Enter');
+    await expect.poll(() => callsFor(page, cast[0]), { timeout: 4000 }).toBeNull();
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(0);
+
+    // A relative override sticks on the anchor (one undo entry), and the
+    // stored expression round-trips into the editor.
+    await page.mouse.dblclick(anchorCell.x, anchorCell.y);
+    const anchorTa2 = page.locator('#portal textarea').first();
+    await expect(anchorTa2).toBeAttached({ timeout: 4000 });
+    await anchorTa2.click();
+    await anchorTa2.fill('+30m');
+    await anchorTa2.press('Enter');
+    await expect.poll(() => callsFor(page, cast[0]), { timeout: 5000 }).toEqual({ [anchorKey]: '+30m' });
+    expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(1);
+
+    await page.mouse.dblclick(anchorCell.x, anchorCell.y);
+    const anchorTa3 = page.locator('#portal textarea').first();
+    await expect(anchorTa3).toBeAttached({ timeout: 4000 });
+    await expect(anchorTa3).toHaveValue('+30m', { timeout: 4000 });
+    await anchorTa3.press('Escape');
+
+    // Undo clears it back to the computed first-scene call.
+    await page.evaluate(() => (window as any).__lemonSchedule.undo());
+    await expect.poll(() => callsFor(page, cast[0]), { timeout: 4000 }).toBeNull();
   });
 
   test('edits a cell, pastes a block, and each op is one undo entry', async ({ page }) => {

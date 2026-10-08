@@ -86,6 +86,30 @@ describe('computeElementCallChain', () => {
     expect(out.costume.time).toBe('07:30');
   });
 
+  it('an absolute override on the anchor pins it and re-bases earlier stages', () => {
+    const out = computeElementCallChain(DEFAULT_CALL_STAGES, keys, '08:00', { onSet: '09:15' });
+    expect(out.onSet).toEqual({ time: '09:15', source: 'override', expr: '09:15' });
+    expect(out.costume.time).toBe('08:45');
+    expect(out.hmua.time).toBe('07:45');
+    expect(out.arrive.time).toBe('07:15');
+    expect(out.pickup.time).toBe('06:15');
+  });
+
+  it('a relative override on the anchor measures from the first-scene call and re-bases earlier stages', () => {
+    const out = computeElementCallChain(DEFAULT_CALL_STAGES, keys, '08:00', { onSet: '+30m' });
+    expect(out.onSet).toEqual({ time: '08:30', source: 'override', expr: '+30m' });
+    expect(out.costume.time).toBe('08:00');
+    expect(out.hmua.time).toBe('07:00');
+    expect(out.arrive.time).toBe('06:30');
+    expect(out.pickup.time).toBe('05:30');
+  });
+
+  it('an unparseable anchor override falls back to the first-scene call', () => {
+    const out = computeElementCallChain(DEFAULT_CALL_STAGES, keys, '08:00', { onSet: 'banana' });
+    expect(out.onSet).toEqual({ time: '08:00', source: 'computed' });
+    expect(out.pickup.time).toBe('05:00');
+  });
+
   it('returns {} when the category has no configured stages', () => {
     expect(computeElementCallChain(DEFAULT_CALL_STAGES, [], '08:00')).toEqual({});
   });
@@ -111,5 +135,11 @@ describe('setElementCall', () => {
     const withArrive = setElementCall(set, 'cast', '1', 'arrive', '06:15');
     const cleared = setElementCall(withArrive, 'cast', '1', 'hmua', '');
     expect(cleared).toEqual({ cast: { '1': { arrive: '06:15' } } });
+  });
+  it('never stores an unparseable expression (clears like a blank)', () => {
+    expect(setElementCall(undefined, 'cast', '1', 'onSet', 'banana')).toBeUndefined();
+    const set = setElementCall(undefined, 'cast', '1', 'onSet', '+30m');
+    expect(set).toEqual({ cast: { '1': { onSet: '+30m' } } });
+    expect(setElementCall(set, 'cast', '1', 'onSet', 'banana')).toBeUndefined();
   });
 });
