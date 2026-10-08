@@ -3,9 +3,10 @@ import { RichTextEditor as KitRichTextEditor, RICH_TEXT_STATE_IDLE } from '@gabr
 import type { RichTextEditorHandle, RichTextState, TokenItem } from '@gabriel/ui-kit';
 import {
   ReportFieldDef, searchReportFields, fieldChipColor, parseToken, parseLookupKey, LookupTokenItem,
-  lookupAttributeFields, lookupIdentityField, splitElementLookupKey, composeLookupKey, TOKEN_RE,
+  lookupIdentityField, composeLookupKey, composeLookupPathKey, referenceOffer, lookupReferenceLabel, TOKEN_RE,
   parseCellRefKey, cellRefChipMeta, cellRefAttributeItems, type CellRefEditorInfo,
 } from '../../lib/reportFields';
+import type { ReportCtx } from '../../lib/reportData';
 
 // App adapter: wires the kit's generic rich-text editor to the report field
 // vocabulary — `{{field}}` tokens resolve to report attributes (label + group
@@ -45,6 +46,10 @@ interface RichTextEditorProps {
   allFields?: ReportFieldDef[];
   /** Stage-1 item references ("Bob", "Day 3 (…)", "23 · DINER") for `@`. */
   lookupTokens?: LookupTokenItem[];
+  /** Report context (roadmap 196): resolves live labels for chained reference
+   *  chips and the child steps they navigate to. Optional — keys present in
+   *  `lookupTokens` still label without it. */
+  ctx?: ReportCtx;
   /** Free-table cell editing (roadmap 190): labels `cellref.…` chips from the
    *  target cell and feeds the `.` stage the target item's attributes. */
   cellRef?: CellRefEditorInfo;
@@ -62,13 +67,15 @@ const toToken = (f: ReportFieldDef): TokenItem => {
   return { key: f.key, label: f.label, color: c, group: f.group };
 };
 
-const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ fields, allFields, lookupTokens, cellRef, onSelectionChange, onTokenHover, ...rest }, ref) => {
+const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ fields, allFields, lookupTokens, cellRef, ctx, onSelectionChange, onTokenHover, ...rest }, ref) => {
   const fieldsRef = React.useRef(fields);
   fieldsRef.current = fields;
   const allFieldsRef = React.useRef(allFields);
   allFieldsRef.current = allFields;
   const lookupsRef = React.useRef(lookupTokens);
   lookupsRef.current = lookupTokens;
+  const ctxRef = React.useRef(ctx);
+  ctxRef.current = ctx;
   const cellRefRef = React.useRef(cellRef);
   cellRefRef.current = cellRef;
   const editorRef = React.useRef<RichTextEditorHandle | null>(null);
@@ -123,8 +130,11 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
     const lookup = parseLookupKey(key);
     if (lookup) {
       if (lookup.field === lookupIdentityField(lookup.collection)) {
+        // Static @ list first; chained reference chips (roadmap 196) aren't in
+        // it, so resolve their label live from the path's final item.
         const hit = lookupsRef.current?.find(t => t.key === key);
-        return { label: hit?.label || key, color: LOOKUP_COLOR };
+        const live = hit?.label || (ctxRef.current ? lookupReferenceLabel(ctxRef.current, allFieldsRef.current || fieldsRef.current || [], key) : '');
+        return { label: live || key, color: LOOKUP_COLOR };
       }
       // An attached attribute is its own chip — a nested bubble.
       const f = (allFieldsRef.current || fieldsRef.current)?.find(f => f.key === lookup.field);
@@ -138,9 +148,11 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
     return { label: customized ? `${f.label} *` : f.label, color: c };
   };
 
-  /** Stage 2: the identity chip's item-scoped attributes; each item's key is
-   *  the full lookup key the kit inserts as a SECOND chip. Attribute chips
-   *  themselves don't drill further (the dot does nothing). */
+  /** Stage 2 after a reference chip: the target's attributes (each key is the
+   *  full lookup key the kit inserts as a SECOND chip) plus navigable child
+   *  steps (roadmap 196) — First/Last and specific children, which insert a
+   *  chained reference chip that anchors the following `.` stage. Attribute
+   *  chips themselves don't drill further (the dot does nothing). */
   const attributeItems = (chipKey: string, q: string): TokenItem[] => {
     const cref = parseCellRefKey(chipKey);
     if (cref) {
@@ -151,13 +163,25 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
     }
     const lookup = parseLookupKey(chipKey);
     if (!lookup || lookup.field !== lookupIdentityField(lookup.collection)) return [];
-    const category = lookup.collection === 'elements' ? splitElementLookupKey(lookup.itemKey).category : undefined;
-    const attrs = lookupAttributeFields(allFieldsRef.current || fieldsRef.current || [], lookup.collection, category);
-    const itemLabel = lookupsRef.current?.find(t => t.key === chipKey)?.label || '';
-    const query = q.trim().toLowerCase();
-    return attrs
-      .filter(f => !query || f.label.toLowerCase().includes(query) || f.key.toLowerCase().includes(query))
-      .map(f => ({ key: composeLookupKey(lookup.collection, f.key, lookup.itemKey), label: f.label, color: LOOKUP_COLOR, group: itemLabel }));
+    const ctxNow = ctxRef.current;
+    if (!ctxNow) return [];
+    const all = allFieldsRef.current || fieldsRef.current || [];
+    const offer = referenceOffer(all, ctxNow, lookup, q);
+    const itemLabel = lookupsRef.current?.find(t => t.key === chipKey)?.label
+      || lookupReferenceLabel(ctxNow, all, chipKey) || '';
+    const attrKey = (field: string) => lookup.path
+      ? composeLookupPathKey(lookup.collection, field, lookup.path)
+      : composeLookupKey(lookup.collection, field, lookup.itemKey);
+    const items: TokenItem[] = offer.attributes.map(f => ({ key: attrKey(f.key), label: f.label, color: LOOKUP_COLOR, group: itemLabel }));
+    for (const child of offer.children) {
+      items.push({
+        key: composeLookupPathKey(child.collection, lookupIdentityField(child.collection), child.path),
+        label: child.label,
+        color: LOOKUP_COLOR,
+        group: child.group,
+      });
+    }
+    return items;
   };
 
   return (

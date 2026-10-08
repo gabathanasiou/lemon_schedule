@@ -5,7 +5,7 @@ import { formatDateCustom } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
 import { isCovered } from './reportTableMerges';
 import { getDayTypes } from './dayTypes';
-import { resolveCollection, reportItemKey, reportSceneInfoFor, type ReportCtx, type ReportCollectionItem, type ReportCategoryInfo, type ReportCrewItem, type ReportElementInfo, type ReportSceneInfo } from './reportData';
+import { resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, parentScenesOf, type ReportCtx, type ReportCollectionItem, type ReportCategoryInfo, type ReportCrewItem, type ReportElementInfo, type ReportSceneInfo } from './reportData';
 import { resolveReportTextStyleSpans } from './reportTextStyles';
 import type { ReportFieldDef, FieldAux } from './reportFields';
 
@@ -156,11 +156,66 @@ export function composeLookupKey(collection: string, field: string, itemKey: str
   return `${LOOKUP_PREFIX}${collection}.${field}.${encodeURIComponent(itemKey)}`;
 }
 
-export function parseLookupKey(raw: string): { collection: string; field: string; itemKey: string } | null {
+// ---- navigable reference paths (roadmap 196) ----------------------------------
+// A reference can WALK the collection graph: day → first scene → that scene's
+// attributes, category → an element, crew → their categories. The path lives
+// inside the token's itemKey slot as `nav:` + URI-encoded JSON. Real item keys
+// are ALWAYS URI-encoded by composeLookupKey, and encodeURIComponent escapes
+// `:`, so a plain key can never start with the literal `nav:` marker — the two
+// forms are unambiguous. Legacy tokens parse unchanged.
+
+/** One navigation step: the child collection plus either a specific child
+ *  (`key`, the child's stable lookup key) or an end pick (`first`/`last`). */
+export interface LookupNavHop {
+  collection: ReportCollection;
+  key?: string;
+  pick?: 'first' | 'last';
+}
+
+/** Root item + child hops — the full target of a chained reference. */
+export interface LookupPath {
+  v: 1;
+  root: { collection: string; itemKey: string };
+  hops: LookupNavHop[];
+}
+
+const NAV_PREFIX = 'nav:';
+
+export interface ParsedLookupKey {
+  collection: string;
+  field: string;
+  /** Plain keys are decoded; a path key stays the RAW `nav:…` payload so
+   *  adjacent chips compare equal by string identity. */
+  itemKey: string;
+  path?: LookupPath;
+}
+
+export function composeLookupPathKey(collection: string, field: string, path: LookupPath): string {
+  return `${LOOKUP_PREFIX}${collection}.${field}.${NAV_PREFIX}${encodeURIComponent(JSON.stringify(path))}`;
+}
+
+export function parseLookupPath(itemKey: string): LookupPath | null {
+  if (!itemKey.startsWith(NAV_PREFIX)) return null;
+  try {
+    const p = JSON.parse(decodeURIComponent(itemKey.slice(NAV_PREFIX.length)));
+    if (!p || p.v !== 1 || !p.root || !Array.isArray(p.hops)) return null;
+    return p as LookupPath;
+  } catch {
+    return null;
+  }
+}
+
+export function parseLookupKey(raw: string): ParsedLookupKey | null {
   if (!raw.startsWith(LOOKUP_PREFIX)) return null;
   const parts = raw.split('.');
   if (parts.length < 4) return null;
-  return { collection: parts[1], field: parts[2], itemKey: decodeURIComponent(parts.slice(3).join('.')) };
+  const rest = parts.slice(3).join('.');
+  if (rest.startsWith(NAV_PREFIX)) {
+    const path = parseLookupPath(rest);
+    if (!path) return null;
+    return { collection: parts[1], field: parts[2], itemKey: rest, path };
+  }
+  return { collection: parts[1], field: parts[2], itemKey: decodeURIComponent(rest) };
 }
 
 /** Elements encode their category in the item key (`<category>::<matchId>`) —
@@ -503,14 +558,17 @@ function resolveCellRefAtom(
     item, aux, seen,
   );
   if (!lookup) return { kind: 'error', error: '#VALUE!' };
-  const hit = resolveLookupItems(ctx, lookup.collection, lookup.itemKey).find(it => lookupItemKey(lookup.collection, it) === lookup.itemKey);
+  const hit = lookupTargetItem(ctx, lookup.collection, lookup.itemKey, lookup.path);
   if (!hit) return { kind: 'error', error: '#REF!' };
   const def = fieldMap[key.field];
   if (!def) return { kind: 'error', error: '#VALUE!' };
-  return { kind: 'pinned', value: fieldValueSafe(def, ctx, scopeLookupTarget(ctx, fieldMap, lookup.collection, hit, aux?.sceneScope), aux), def, ref: lookup };
+  // A chained ref is self-contained (roadmap 196): its own path defines the
+  // context, so the containing chain's scene scope does not re-intersect it.
+  const scoped = lookup.path ? hit : scopeLookupTarget(ctx, fieldMap, lookup.collection, hit, aux?.sceneScope);
+  return { kind: 'pinned', value: fieldValueSafe(def, ctx, scoped, aux), def, ref: lookup };
 }
 
-interface LookupRef { collection: string; field: string; itemKey: string; }
+interface LookupRef { collection: string; field: string; itemKey: string; path?: LookupPath; }
 
 /** Reduce a target cell's raw HTML to exactly ONE item reference (a lookup
  *  token, possibly the suppressed 121 ref+attribute pair), following nested
@@ -532,7 +590,7 @@ function reduceCellToLookup(
   if (tokens.length !== 1) return null;
   const raw = tokens[0];
   const lookup = parseLookupKey(raw);
-  if (lookup) return { collection: lookup.collection, field: lookup.field, itemKey: lookup.itemKey };
+  if (lookup) return { collection: lookup.collection, field: lookup.field, itemKey: lookup.itemKey, path: lookup.path };
   const nested = parseCellRefKey(raw);
   if (!nested) return null;
   const r = resolveCellRefAtom(ctx, fieldMap, cellRefCtx, nested, item, aux, seen);
@@ -623,6 +681,132 @@ function resolveLookupItems(ctx: ReportCtx, collection: string, itemKey: string)
   return resolveCollection(ctx, collection as ReportCollection, undefined, undefined, undefined);
 }
 
+/** Navigable child relations per reference collection (roadmap 196). Hops
+ *  reuse the canonical contextual child resolvers — never a parallel list. */
+const NAV_CHILDREN: Partial<Record<string, { collection: ReportCollection; label: string; noun: string }[]>> = {
+  days: [{ collection: 'scenes', label: 'Scenes', noun: 'scene' }],
+  elements: [{ collection: 'scenes', label: 'Scenes', noun: 'scene' }],
+  cast: [{ collection: 'scenes', label: 'Scenes', noun: 'scene' }],
+  categories: [{ collection: 'elements', label: 'Elements', noun: 'element' }],
+  scenes: [{ collection: 'elements', label: 'Elements', noun: 'element' }],
+  crew: [{ collection: 'categories', label: 'Categories', noun: 'category' }],
+};
+
+/** Per-relation cap on the specific-child entries offered after a query
+ *  narrows (same convention as the `@` reference list). */
+const NAV_CHILD_LIMIT = 8;
+
+/** One item's children in a base collection, through the contextual resolver
+ *  branches. Crew → categories has no collection of its own: the categories
+ *  present in the member's scenes (their position's categories). */
+function navChildItems(ctx: ReportCtx, parentCollection: string, parentItem: ReportCollectionItem, child: ReportCollection): ReportCollectionItem[] {
+  if (child === 'scenes') {
+    if (parentCollection === 'days') return resolveCollection(ctx, 'scenesOfDay', undefined, parentItem);
+    const el = parentItem as ReportElementInfo;
+    if (parentCollection === 'cast' || el.category === 'cast') return resolveCollection(ctx, 'scenesOfCast', undefined, parentItem);
+    return resolveCollection(ctx, 'scenesOfElement', el.category, parentItem);
+  }
+  if (child === 'elements') {
+    return resolveCollection(ctx, parentCollection === 'categories' ? 'elementsOfCategory' : 'elementsOfScene', undefined, parentItem);
+  }
+  if (child === 'categories') {
+    const scenes = parentScenesOf(ctx, parentItem);
+    return ctx.categoryInfos.filter(cat => scenes.some(si => ctx.sceneFieldItems(si.scene, cat.key).length > 0));
+  }
+  return [];
+}
+
+/** The single item a reference targets (roadmap 196): a plain key resolves
+ *  through the canonical collection; a nav path walks root → hops, each hop
+ *  resolved as a child of the previous item. Null when any step dangles. */
+export function lookupTargetItem(ctx: ReportCtx, collection: string, itemKey: string, path?: LookupPath): ReportCollectionItem | null {
+  if (path) {
+    let collectionNow = path.root.collection;
+    let item: ReportCollectionItem | null =
+      resolveLookupItems(ctx, collectionNow, path.root.itemKey).find(it => lookupItemKey(collectionNow, it) === path.root.itemKey) ?? null;
+    for (const hop of path.hops) {
+      if (!item) return null;
+      const children = navChildItems(ctx, collectionNow, item, hop.collection);
+      item = hop.key
+        ? children.find(c => lookupItemKey(hop.collection, c) === hop.key) ?? null
+        : hop.pick === 'last' ? children[children.length - 1] ?? null : children[0] ?? null;
+      collectionNow = hop.collection;
+    }
+    return item;
+  }
+  return resolveLookupItems(ctx, collection, itemKey).find(it => lookupItemKey(collection, it) === itemKey) ?? null;
+}
+
+export interface ReferenceOfferChild {
+  label: string;
+  group: string;
+  /** The child's base collection — its identity field names the chip. */
+  collection: ReportCollection;
+  path: LookupPath;
+}
+
+export interface ReferenceOffer {
+  /** The target's own attribute palette (roadmap 195 relevance rules). */
+  attributes: ReportFieldDef[];
+  /** Navigable child steps (roadmap 196): First/Last + specific children. */
+  children: ReferenceOfferChild[];
+  /** The resolved target item — null when the reference dangles. */
+  item: ReportCollectionItem | null;
+  category?: string;
+}
+
+/** Everything a `.` picker offers after a reference chip (roadmaps 195/196):
+ *  the target's own attribute palette plus navigable child steps — First/Last
+ *  and the specific children (query-narrowed, then capped). ONE source for the
+ *  text-block editor and the cellref picker so the surfaces can't drift. */
+export function referenceOffer(
+  allFields: ReportFieldDef[],
+  ctx: ReportCtx,
+  lookup: { collection: string; itemKey: string; path?: LookupPath },
+  query: string,
+  childLimit = NAV_CHILD_LIMIT,
+): ReferenceOffer {
+  const item = lookupTargetItem(ctx, lookup.collection, lookup.itemKey, lookup.path);
+  const category = lookup.collection === 'elements'
+    ? ((item as ReportElementInfo | null)?.category ?? (lookup.path ? undefined : splitElementLookupKey(lookup.itemKey).category))
+    : undefined;
+  const q = query.trim().toLowerCase();
+  const attributes = lookupAttributeFields(allFields, lookup.collection, category)
+    .filter(f => !q || f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q));
+  const children: ReferenceOfferChild[] = [];
+  if (item) {
+    const base: LookupPath = lookup.path ?? { v: 1, root: { collection: lookup.collection, itemKey: lookup.itemKey }, hops: [] };
+    const pathTo = (hop: LookupNavHop): LookupPath => ({ v: 1, root: base.root, hops: [...base.hops, hop] });
+    for (const rel of NAV_CHILDREN[lookup.collection] ?? []) {
+      const kids = navChildItems(ctx, lookup.collection, item, rel.collection);
+      if (kids.length === 0) continue;
+      const matches = (label: string) => !q || label.toLowerCase().includes(q) || rel.label.toLowerCase().includes(q);
+      if (matches(`First ${rel.noun}`)) children.push({ label: `→ First ${rel.noun}`, group: rel.label, collection: rel.collection, path: pathTo({ collection: rel.collection, pick: 'first' }) });
+      if (matches(`Last ${rel.noun}`)) children.push({ label: `→ Last ${rel.noun}`, group: rel.label, collection: rel.collection, path: pathTo({ collection: rel.collection, pick: 'last' }) });
+      let shown = 0;
+      for (const child of kids) {
+        if (shown >= childLimit) break;
+        const label = reportItemLabel(rel.collection, child);
+        if (!matches(label)) continue;
+        children.push({ label, group: rel.label, collection: rel.collection, path: pathTo({ collection: rel.collection, key: lookupItemKey(rel.collection, child) }) });
+        shown++;
+      }
+    }
+  }
+  return { attributes, children, item, category };
+}
+
+/** The live chip label of an identity reference (a chained one included) —
+ *  the editor uses it for keys not present in the static `@` item list. */
+export function lookupReferenceLabel(ctx: ReportCtx, allFields: ReportFieldDef[], raw: string): string {
+  const lookup = parseLookupKey(raw);
+  if (!lookup || lookup.field !== lookupIdentityField(lookup.collection)) return '';
+  const hit = lookupTargetItem(ctx, lookup.collection, lookup.itemKey, lookup.path);
+  if (!hit) return '';
+  const def = allFields.find(f => f.key === lookup.field);
+  return def ? fieldValueSafe(def, ctx, hit, undefined) : '';
+}
+
 /**
  * Roadmap 195: read a lookup target through the containing repeater's scene
  * scope (the resolved ancestor intersection, `aux.sceneScope`). A category
@@ -666,30 +850,55 @@ function scopeLookupTarget(
 }
 
 /** The 121 pair rule: a lookup token DIRECTLY followed by another lookup token
- *  of the same collection + item prints as the attribute only — the reference
- *  chip is its anchor and renders empty. Deleting either chip leaves the other
- *  resolving on its own. */
+ *  of the same target prints as the attribute only — the reference chip is its
+ *  anchor and renders empty. The same adjacency suppresses the anchor when a
+ *  chain chip starts a navigation from it (roadmap 196). Deleting either chip
+ *  leaves the other resolving on its own. Repeated until stable: an
+ *  `anchor + chain + attribute` run needs more than one pass. */
 function suppressLookupPairs(text: string): string {
-  return text.replace(/\{\{(lookup\.[^{}]+)\}\}\{\{(lookup\.[^{}]+)\}\}/g, (m, a: string, b: string) => {
-    const pa = parseLookupKey(a);
-    const pb = parseLookupKey(b);
-    if (!pa || !pb || pa.collection !== pb.collection || pa.itemKey !== pb.itemKey) return m;
-    return `{{${b}}}`;
-  });
+  const re = /\{\{(lookup\.[^{}]+)\}\}\{\{(lookup\.[^{}]+)\}\}/g;
+  let prev: string;
+  do {
+    prev = text;
+    text = text.replace(re, (m, a: string, b: string) => {
+      const pa = parseLookupKey(a);
+      const pb = parseLookupKey(b);
+      if (!pa || !pb) return m;
+      if (pa.collection === pb.collection && pa.itemKey === pb.itemKey) return `{{${b}}}`;
+      if (pathExtends(pa, pb)) return `{{${b}}}`;
+      return m;
+    });
+  } while (text !== prev);
+  return text;
+}
+
+/** True when `next` is `prev` plus exactly one navigation hop (roadmap 196):
+ *  the chain chip sits directly after its anchor chip and suppresses it. */
+function pathExtends(prev: ParsedLookupKey, next: ParsedLookupKey): boolean {
+  const np = next.path;
+  if (!np || np.hops.length === 0) return false;
+  if (prev.path) {
+    return np.hops.length === prev.path.hops.length + 1
+      && JSON.stringify(np.root) === JSON.stringify(prev.path.root)
+      && JSON.stringify(np.hops.slice(0, -1)) === JSON.stringify(prev.path.hops);
+  }
+  return np.root.collection === prev.collection && np.root.itemKey === prev.itemKey && np.hops.length === 1;
 }
 
 function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, raw: string, item: any, aux?: FieldAux): string {
   const lookup = parseLookupKey(raw);
   if (lookup) {
-    const items = resolveLookupItems(ctx, lookup.collection, lookup.itemKey);
-    const hit = items.find(it => lookupItemKey(lookup.collection, it) === lookup.itemKey);
+    const hit = lookupTargetItem(ctx, lookup.collection, lookup.itemKey, lookup.path);
     // Excel-style error markers: a dangling reference and an attribute that
     // doesn't exist on the item are LOUD (an existing-but-empty value stays
     // blank — only "can't resolve" is an error).
     if (!hit) return '#REF!';
     const def = fieldMap[lookup.field];
     if (!def) return '#VALUE!';
-    return fieldValueSafe(def, ctx, scopeLookupTarget(ctx, fieldMap, lookup.collection, hit, aux?.sceneScope), aux);
+    // A chained ref is self-contained (roadmap 196): skip the containing
+    // chain's scope — its own path defines the context.
+    const target = lookup.path ? hit : scopeLookupTarget(ctx, fieldMap, lookup.collection, hit, aux?.sceneScope);
+    return fieldValueSafe(def, ctx, target, aux);
   }
   const { field, opts } = parseToken(raw);
   const [base, sub] = field.split('.');
@@ -929,7 +1138,7 @@ const CELLREF_DIRECTIONS: Record<string, string> = {
 
 /** The identity value of a lookup item ("Bob", "Day 1"), '' when dangling. */
 function lookupItemLabel(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, aux: FieldAux | undefined, lookup: LookupRef): string {
-  const hit = resolveLookupItems(ctx, lookup.collection, lookup.itemKey).find(it => lookupItemKey(lookup.collection, it) === lookup.itemKey);
+  const hit = lookupTargetItem(ctx, lookup.collection, lookup.itemKey, lookup.path);
   if (!hit) return '';
   const def = fieldMap[lookupIdentityField(lookup.collection)];
   return def ? fieldValueSafe(def, ctx, hit, aux) : '';
@@ -980,18 +1189,17 @@ export function cellRefAttributeItems(
     info.item, info.aux, new Set(),
   );
   if (!lookup) return [];
-  const category = lookup.collection === 'elements' ? splitElementLookupKey(lookup.itemKey).category : undefined;
-  const q = query.trim().toLowerCase();
+  // Attributes only: a cellref pin addresses ONE field of the target's item —
+  // child navigation composes as lookup chips (a chain step isn't a pin).
+  const offer = referenceOffer(allFields, info.ctx, lookup, query);
   const itemLabel = lookupRefItemLabel(info, lookup);
-  return lookupAttributeFields(allFields, lookup.collection, category)
-    .filter(f => !q || f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q))
-    .map(f => ({
-      key: key.kind === 'abs'
-        ? composeCellRefKey(key.rowId, key.colId, f.key)
-        : composeRelativeCellRefKey(key.dx, key.dy, f.key),
-      label: f.label,
-      group: itemLabel,
-    }));
+  return offer.attributes.map(f => ({
+    key: key.kind === 'abs'
+      ? composeCellRefKey(key.rowId, key.colId, f.key)
+      : composeRelativeCellRefKey(key.dx, key.dy, f.key),
+    label: f.label,
+    group: itemLabel,
+  }));
 }
 // ---- token chip colors -------------------------------------------------------
 // One source of truth for attribute color coding (editor chips, autocomplete

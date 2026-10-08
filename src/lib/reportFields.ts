@@ -710,6 +710,7 @@ export const DAY_LIST_FIELD_KEYS = new Set(['workDayList', 'holdDayList', 'trave
 export {
   applyItemAffixes, ITEM_SCOPES, TOKEN_RE, parseToken, composeTokenKey, LOOKUP_PREFIX,
   composeLookupKey, parseLookupKey, elementLookupKey, splitElementLookupKey, lookupIdentityField,
+  composeLookupPathKey, parseLookupPath, lookupTargetItem, referenceOffer, lookupReferenceLabel,
   buildLookupTokens, lookupAttributeFields, fieldsForScope, GLOBAL_FIELD_SCOPES, isGlobalField,
   resolveReportTokens, resolveReportTokensHtml,
   fieldChipColor, tokenChipCss, tokenTagCss,
@@ -719,4 +720,5 @@ export {
 export type {
   TokenItemOpts, LookupTokenItem, LookupDayRef, TokenResolveOptions, ChipColor,
   CellRefKey, CellRefContext, CellRefTarget, CellRefEditorInfo, CellRefChipMeta, CellRefAttributeItem,
+  LookupNavHop, LookupPath, ParsedLookupKey, ReferenceOffer, ReferenceOfferChild,
 } from './reportTokens';

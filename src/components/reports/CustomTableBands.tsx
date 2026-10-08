@@ -126,6 +126,7 @@ const CellEditor: React.FC<{
         fields={shared.contextFields}
         allFields={shared.fields}
         lookupTokens={shared.lookupTokens}
+        ctx={shared.ctx}
         cellRef={{ block: shared.block, rowId, colId, ctx: shared.ctx, fieldMap: shared.fieldMap, item: shared.item, aux: shared.aux }}
         onTokenHover={key => shared.onChipHover(rowId, colId, key)}
         placeholder={'"@" for tokens, "=" for references'}

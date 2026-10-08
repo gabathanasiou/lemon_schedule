@@ -6,7 +6,8 @@ import { buildReportCtx, resolveCollection, ancestorSceneScope, type ReportCtx }
 import { makeReportBlock } from '../reportBlocks';
 import {
   composeCellRefKey, composeRelativeCellRefKey, parseCellRefKey,
-  composeLookupKey, resolveReportTokens, resolveReportTokensHtml,
+  composeLookupKey, composeLookupPathKey, parseLookupKey, parseLookupPath,
+  resolveReportTokens, resolveReportTokensHtml,
   cellRefTarget, cellRefChipMeta, cellRefAttributeItems, cellRefChain,
   getReportFieldMap,
   type CellRefEditorInfo,
@@ -230,6 +231,49 @@ describe('cellref pins resolve through the containing scope (roadmap 195)', () =
   it('the same pin outside any repeater stays project-wide', () => {
     const projectWide = resolveReportTokens(ctx, fieldMap, '{{cellref.r1.c2.categoryItems}}', null, undefined, { cellRef: formula });
     expect(projectWide).toBe((ctx.categoryInfos.find(c => c.key === 'props') as any).items.join(', '));
+  });
+});
+
+describe('lookup path grammar (roadmap 196)', () => {
+  it('round-trips a chain key; plain keys keep their shape; bad payloads reject', () => {
+    const path = { v: 1 as const, root: { collection: 'days', itemKey: '0' }, hops: [{ collection: 'scenes' as const, pick: 'first' as const }] };
+    const key = composeLookupPathKey('scenes', 'sceneLabel', path);
+    const parsed = parseLookupKey(key);
+    expect(parsed?.collection).toBe('scenes');
+    expect(parsed?.field).toBe('sceneLabel');
+    expect(parsed?.path).toEqual(path);
+    expect(parsed?.itemKey.startsWith('nav:')).toBe(true);
+    const plain = parseLookupKey(composeLookupKey('crew', 'crewName', 'p-test'));
+    expect(plain?.path).toBeUndefined();
+    expect(plain?.itemKey).toBe('p-test');
+    // A real item key containing "nav:" is URI-encoded, so the two forms stay unambiguous.
+    const tricky = parseLookupKey(composeLookupKey('crew', 'crewName', 'nav:not-a-path'));
+    expect(tricky?.path).toBeUndefined();
+    expect(tricky?.itemKey).toBe('nav:not-a-path');
+    expect(parseLookupPath('nav:%7Bnope')).toBeNull();
+    expect(parseLookupKey('lookup.scenes.sceneLabel.nav:%7Bnope')).toBeNull();
+  });
+});
+
+describe('cellrefs ride chained targets (roadmap 196)', () => {
+  const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+  const day = days[0];
+  const dayScenes = resolveCollection(ctx, 'scenesOfDay', undefined, day) as any[];
+  const chain = composeLookupPathKey('scenes', 'sceneLabel', {
+    v: 1, root: { collection: 'days', itemKey: String(day.section.index) }, hops: [{ collection: 'scenes', pick: 'first' }],
+  });
+  const block = table([['', `<p>{{${chain}}}</p>`], ['', '']]);
+  const formula = { block, rowId: 'r2', colId: 'c1' };
+  const info: CellRefEditorInfo = { block, rowId: 'r2', colId: 'c1', ctx, fieldMap };
+
+  it('pins an attribute through a chain target cell', () => {
+    expect(resolveReportTokens(ctx, fieldMap, '{{cellref.r1.c2.intExt}}', null, undefined, { cellRef: formula })).toBe(dayScenes[0].scene.intExt);
+  });
+
+  it('offers the final item\'s attributes for a chain target cell', () => {
+    const fields = Object.values(getReportFieldMap(project));
+    const items = cellRefAttributeItems(info, 'cellref.r1.c2', '', fields);
+    expect(items.find(i => i.key === 'cellref.r1.c2.intExt')).toBeTruthy();
   });
 });
 

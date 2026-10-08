@@ -846,6 +846,7 @@ const InlineTextBlock: React.FC<{
         fields={contextFields}
         allFields={fields}
         lookupTokens={lookupTokens}
+        ctx={ctx}
         className="w-full"
       />
     </div>

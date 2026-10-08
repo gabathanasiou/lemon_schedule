@@ -154,7 +154,13 @@ containing chain, not against its own authored position:
   timeline attributes stay element-wide. No scene scope (top level, or a
   non-rule-bearing chain like a crew repeat) → the global item.
 - Cellref pins (`cellref….<field>`) resolve through the same scope.
-
-**196** (next) adds the navigable-child half — refs walking day → scene →
-attribute — on top of this parity.
+- **Chained navigation (196)** — a reference can walk to children: the path
+  lives in the token (`lookup.…nav:<encoded JSON>`, `LookupPath`), and the `.`
+  stage offers the child steps (`referenceOffer`): day → scenes, element/cast →
+  scenes, scene → elements, category → elements, crew → categories
+  (`navChildItems`; crew→categories = the categories present in the member's
+  scenes). `→ First/Last` + specific children by name; picking one inserts a
+  chained chip that suppresses its anchor and anchors the next `.` stage.
+  Chains are SELF-CONTAINED — the path defines the context, so `aux.sceneScope`
+  does not re-intersect a chained target (unlike a plain ref).
 

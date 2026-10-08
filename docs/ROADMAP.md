@@ -12,8 +12,7 @@ roadmap worker session, so it stays lean.
 
 > **Next session — 202** (kit `NumberInput` stepper; it gets the next ui-kit
 > bump — the kit is at v0.1.98 after the docked-editor pass). Then the Reports
-> Designer pass: **196** (cellref
-> collection navigation / chaining), **198** (designer day picker — preview any
+> Designer pass: **198** (designer day picker — preview any
 > day) and **199** (collection-table column headers — custom text + tokens).
 > **203** (Fields/Values mode + block headers + tips star), **191** (inline text
 > blocks + the ONE shared chrome), **194** (resize-tab double-click reset) and
@@ -792,30 +791,6 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
   affordance in the child; desktop keeps the Radix side placement.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
-
-## 196. Reports designer — cellref collection navigation / scope chaining (`[ ]`, future, big)
-
-**Request** (split out of **195**): walk the collection graph through cell
-references — reference a day, reach its first scene, reference that scene cell,
-then use the scene's attributes; same for element → scenes, category →
-elements, crew → categories. Lego-style scope chaining.
-
-**Approach**: a scope-chain model on top of 195's parity: refs carry their
-collection + ancestor context through resolution (not the formula cell's aux);
-canonical child relationships (day → scene, category → element, …) become
-navigable ref targets rather than synthetic fields; the `.` picker offers a
-"child" section (or a dedicated navigation token form) for scopes with a child
-list. Smart/contextual fields resolve against the target's chain, not the
-formula cell's. Lookup (`@`) refs ride the SAME chain — their
-contextual-resolution half lands in **195**; this item adds the navigable child
-step on top.
-
-**Verify**: resolution tests for day → first scene → attribute (and a
-category → element chain); `npm run lint` + `test:smart`; rule-7 manual (picker
-navigation + the resolved preview value).
-
-**Relations**: builds on **195** (shipped — `.` parity + contextual resolution);
-extends **190** and **121**; related to **27** (`relative` context shifter).
 
 ## 198. Reports designer — day picker to preview the design against a chosen day (`[ ]`)
 
