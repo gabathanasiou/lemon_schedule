@@ -956,42 +956,6 @@ per-column sibling, not a duplicate); reuses **191** (shared editor/chrome),
 `docs/REPORTS-DESIGNER.md` (§free vs collection tables / Extending) update at
 wrap.
 
-## 200. E2E — `glide-first-edit` fails whenever a dev server occupies :3001 (`[ ]`)
-
-**Reported** (user, 2026-10-02): `e2e/glide-first-edit.spec.ts` fails routinely
-in local runs. **Verified root cause** (agent, same day): `npm run dev` starts
-Vite with `--port=3000` but NO `--strictPort`, so when 3000 is already taken a
-second dev server silently falls back to 3001; `playwright.config.ts` then
-REUSES whatever listens on the default port (`reuseExistingServer: !isolated`),
-so the suite actually runs against the DEV server, not the production preview.
-The spec waits for the prod chunk URL (`…data-grid-overlay-editor-<hash>.js`);
-dev serves `…/@glide-overlay-editor.js?v=<hash>` (does not end in `.js`), so the
-wait times out. Proof: `PLAYWRIGHT_PORT=3011 npx playwright test
-e2e/glide-first-edit.spec.ts` passes (owned preview), and `test:baseline`
-(clean HEAD, owned server) passes — no code regression, but ANY run can silently
-test another process's stale server.
-
-**To fix / decide**:
-- Never silently reuse a foreign server: when `PLAYWRIGHT_DEV` is unset, probe
-  the reused URL for a prod-preview marker and fail fast with a clear message
-  (name the port + `lsof -i :<port>`), or set `reuseExistingServer: false` by
-  default (keep `PLAYWRIGHT_PORT` owned-server semantics).
-- And/or make the fallback impossible: `--strictPort` on the dev script (fails
-  loudly when 3000 is busy) or move the E2E default off 3001.
-- Same family: `glide-clipboard.spec.ts` hardcodes
-  `grantPermissions(..., { origin: 'http://localhost:3001' })`, so the documented
-  `PLAYWRIGHT_PORT=<n>` isolation makes all 6 clipboard tests fail with
-  `NotAllowedError` — read the origin from the test `baseURL` instead.
-- Update `docs/TESTING.md` §Harness facts + the "was it me?" flow with the
-  symptom → diagnosis.
-
-**Verify**: with a dev server on 3001, a default-port run either uses an owned
-preview or exits with the new diagnostic; `npm run test:smart` + the isolated
-spec are green; `npm run lint`.
-
-**Relations**: extends **63** (the boot preload this spec pins); touches
-`playwright.config.ts`, the `dev` script (`package.json`) and `docs/TESTING.md`.
-
 ## 201. Reports designer — fold day-contextual collections into base collections? (`[ ]`, NEEDS CONVERSATION FIRST)
 
 **Status: DISCUSS BEFORE BUILDING — do not implement from this item alone.**
