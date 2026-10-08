@@ -85,7 +85,12 @@ const CustomCellRefMenu: React.FC<CustomCellRefMenuProps> = ({ focus, query, hig
           ref={panelRef}
           className="click-outside-ignore ui-menu rounded-lg shadow-xl p-1 flex flex-col min-w-[220px] overflow-y-auto"
           style={{ position: 'fixed', top: pos.top, left: pos.left, width: 280, maxHeight: MENU_MAX_HEIGHT, visibility: pos.ready ? 'visible' : 'hidden', zIndex: 10002 }}
-          onMouseDown={e => e.preventDefault()}
+          // A portaled React child still bubbles to the block card's onClick —
+          // that read as a card click and exited Values editing (dead pick).
+          // Swallow the interaction on the menu root (roadmap 208).
+          onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
         >
           <div ref={scrollRef} style={{ maxHeight: pos.maxH - 8 }}>
             {query && <div className={`${classes.headerPad} ${classes.headerText}`}>= {query}</div>}

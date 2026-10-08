@@ -71,9 +71,11 @@ export interface CustomTableProps {
 const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, mode, tableEditing, focusCell, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, showUnresolved, parentCollection, parentCategory, onCellSaveTextStyles }) => {
   // Designer surfaces can ALWAYS select the card and resize (column strip +
   // row handles); cell EDITING is Fields mode (live) or a Values entry, which
-  // makes the whole table live.
+  // makes the whole table live. `=` pick mode keeps the table live on its own
+  // (roadmap 208) so a future editing-exit path can't disarm the pick target.
   const designer = !!hint && !!onPatchBlock;
-  const editable = designer && (mode === 'fields' || !!tableEditing);
+  const [pickSource, setPickSource] = useState<CellRef | null>(null);
+  const editable = designer && (mode === 'fields' || !!tableEditing || !!pickSource);
   const resizable = designer && (editable || !!selected);
   const fields = useMemo(() => getReportFieldDefs(ctx.project), [ctx.project]);
   // Contextual `@` suggestions: cell editors get the SAME scope-filtered field
@@ -113,7 +115,6 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
   // (it never enters the editor), own the following keystrokes for the query,
   // insert a relative cellref at the caret, or enter click-a-cell pick mode.
   const [refMenu, setRefMenu] = useState<{ rowId: string; colId: string; query: string; highlight: number } | null>(null);
-  const [pickSource, setPickSource] = useState<CellRef | null>(null);
   const [hoverCell, setHoverCell] = useState<CellRef | null>(null);
   const cellIsEmpty = (html: string) => !html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').trim();
 

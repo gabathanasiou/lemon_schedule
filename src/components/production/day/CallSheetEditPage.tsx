@@ -4,7 +4,6 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, Check, ChevronDown, Clock, Eye, EyeOff, Printer, RotateCcw, Sheet } from 'lucide-react';
 import type { DayView } from '../../../lib/dayView';
 import type { DayMeta, ReportBlock, ReportDesign } from '../../../types';
-import ReportDesigner from '../../reports/ReportDesigner';
 import DayReportPreview from '../../reports/DayReportPreview';
 import CallSheetCanvas, { callSheetDayBlocks } from './CallSheetCanvas';
 import DayPicker from './DayPicker';
@@ -203,10 +202,24 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           showRibbonTimes={showRibbonTimes}
         />
       ) : (
-        <ReportDesigner
-          key={editorKey}
-          zone={{ designId: design.id, blocks: zoneBlocks, onChange: onChangeZone, scope: 'days' }}
-        />
+        // A design without the `days` repeat → `callSheetEdit` shape has no
+        // editable zone, so per-day content could never print (roadmap 211).
+        // Show the design itself, read-only, and say why — never a blank page.
+        <div className="flex-1 flex flex-col min-h-0" data-call-sheet-readonly>
+          <div className="shrink-0 px-4 py-2 text-[11px] leading-relaxed text-amber-200/90 bg-amber-950/50 border-b border-amber-900/50">
+            “{design.name}” has no editable call-sheet zone — showing it read-only for this day. Add a
+            <span className="font-semibold"> Call Sheet Edit </span>
+            zone to the design in Design → Reports Designer to edit days here.
+          </div>
+          <DayReportPreview
+            key={editorKey}
+            design={design}
+            sectionIndex={day.sectionIndex}
+            callSheetBlocks={zoneBlocks}
+            onExit={() => {}}
+            embedded
+          />
+        </div>
       )}
     </div>
   );

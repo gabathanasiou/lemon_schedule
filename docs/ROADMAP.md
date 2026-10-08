@@ -1111,47 +1111,6 @@ back to the first-scene call).
 (seeded editors); siblings **174** (label audit, parked) and **164** (add an
 element to Call Times).
 
-## 208. Reports — free table: `=` → "Pick a cell…" is dead in Values mode (`[ ]`)
-
-**Request** (user, 2026-10-08): in a free table, pressing `=` then choosing
-"Pick a cell…" no longer works — the subsequent click on a target cell does
-nothing. Values mode is the DEFAULT designer surface, so this reads as broken
-for every user.
-
-**Root cause** (reproduced with a scratch Playwright spec; Fields mode WORKS,
-Values mode does not): `CustomCellRefMenu` is PORTALED to `<body>` but stays in
-the React tree, so clicking "Pick a cell…" bubbles a synthetic click to the
-block card's `onClick` (`ReportDesignerCanvas.tsx:516`). There, a click with no
-`data-cell` ancestor is a click on the card → the Values-mode branch
-(`:536-539`, `if (!clickedCell) exitEditing()`) clears `editingId`. The table
-re-renders STATIC (`editable` = `mode==='fields' || tableEditing`,
-`CustomTable.tsx:76`), while pick mode stays armed — `pickSource` is set, and
-`data-pick-target`/`.report-cell-pick` remain (they don't require `editable`),
-but `CellShell.onPointerDown` is only attached when `editable`
-(`CustomTableBands.tsx:217-228`), so the target click is swallowed. Fields mode
-survives because `editable` is mode-based there. Directional entries likely
-still work (they insert via `focusedEditorRef` in the item's own handler,
-before the bubbled card click exits) — pin both paths in the e2e.
-
-**Fix**: a click inside the referencing menu must never read as a card click —
-`stopPropagation` on the menu root (and/or in the pick action), like other
-portaled overlays do. Belt-and-braces: keep the table live while picking
-(`editable = … || !!pickSource`) so the pick target can't be disarmed by a
-future state path. Check the `@` suggestion popup for the same bubble (it is
-also a portal inside the card) while in there.
-
-**Verify**: `npm run lint`; a proper e2e for the Values-mode pick flow (seed a
-free-table design like `report-table-resize.spec.ts` → select card → click cell
-→ `=` → "Pick a cell…" → click target → source compiles to
-`{{cellref.row.col}}`; plus the Fields-mode flow unchanged; suite is capped —
-extend the closest `report-*` spec, don't add a file); rule-7 manual in both
-modes (directional entry + pick + Esc cancels).
-
-**Relations**: regression exposed by **203/205** (Values entered editing is the
-default) against **190** (cellref menu/pick mode); parity guardrail from **195**
-(the picker's existing behavior must survive); touches **196** (cellref
-navigation).
-
 ## 209. Crew database — universal across projects, not per project (`[ ]`, awaiting user detail)
 
 **Request** (user, 2026-10-08): a crew database that is UNIVERSAL — crew
@@ -1176,4 +1135,81 @@ offline behavior (`docs/STORE-AND-SYNC.md` read-only rules).
 the same "person beyond one project" idea for cast); overlaps **146** (crew
 roster/template model) and the Crew Manager items **89-91**; may interact with
 **145** (desktop app hosting) and **97** (API store) for where the DB is kept.
+
+## 210. Reports — free table: `.` property picker on a reference dies after editing the cell (`[ ]`, awaiting user repro)
+
+**Request** (user, 2026-10-08): in a free-table cell, insert a reference (`=`
+cellref or `@` item), then edit the cell — type other text, or insert another
+`@` reference, then delete it — and the `.` typed after the FIRST reference no
+longer offers / attaches its property (attribute) chip. Reported for both a
+plain typed-then-deleted text and an added-then-deleted second reference.
+
+**Finding (2026-10-08)**: could NOT reproduce standalone. A 22-case scratch
+matrix — Reports Designer (Fields + Values) and the Call Sheet zone (Values),
+relative + absolute (`Pick a cell…`) + `@` refs, typed-then-deleted text,
+added-then-deleted `@` item/field tokens, chains, pairs, dot/Escape dot,
+target-cell edits — was green once the 208 portal-click fix landed. The one
+demonstrable dead path was 208 itself (a clicked `=` menu entry in the Call
+Sheet zone never inserted the chip, so the later `.` had nothing to attach to).
+**Do not re-open as code work before the user supplies the exact surface +
+mode + keystrokes**; if it reappears, capture the failing step with the 208
+scratch-spec process.
+
+**Suspects / pointers** (if reproduced): the `.` gate lives in the kit's
+`tokenAttributeSuggestion` (dist functions resolve the token immediately before
+the dot from the ProseMirror doc, `nodeBefore.attrs.field`); the app supplies
+`attributeItems` (`src/components/reports/RichTextEditor.tsx:144` →
+`cellRefAttributeItems` / `lookupAttributeFields`, `src/lib/reportTokens.ts:853`).
+Check all three: (a) the chipKey the kit reads after complex insert/delete
+transactions, (b) the adapter's chip-key↔token mapping
+(`RichTextEditor.tsx:81-112` maps chip DOM order to `value` token order — can it
+go stale and feed the wrong key?), (c) whether the cell commit/re-render
+(`CustomTable.tsx`) drops the reference's node attrs. Fix at the shared
+`attributeItems` seam — never fork cellref vs lookup.
+
+**Verify**: `npm run lint`; extend the closest `report-*` e2e (suite capped — no
+new file) with the repro in Fields AND Values mode; rule-7 manual for picker
+contents after the edit/delete dance.
+
+**Relations**: sibling bug of **208** (DONE — the portal-click dead path; the
+likely cause of the reported symptom); the attribute path is shared with
+**195**/**196** — do not fork it; cellrefs from **190**, Values entry from
+**203**.
+
+## 212. Call Sheet editor — 1:1 designer parity with the Reports designer (docked inspector included) (`[ ]`, future, big)
+
+**Request** (user, 2026-10-08, user-confirmed direction): the call-sheet
+editor's design surface should BE the Reports designer — including the
+right-hand inspector dock (palette when nothing selected → block/column/cell
+inspector on selection, collapse + drag-resize), Fields/Values mode, and the
+full block/column/cell editing chrome. **Confirmed as accurate**: today the zone
+mounts the raw canvas with `editorMode: 'floating'` and `mode: 'values'`
+hardcoded (`CallSheetZoneDesigner.tsx:84,148`) — no rail, no mode switch,
+floating chrome only. `CallSheetZoneDesigner` is the wrapper to retire in favour
+of a first-class zone mode on `ReportDesigner` — not a second designer.
+(Non-call-sheet-shaped designs no longer reach the zone designer at all: they
+render read-only, roadmap 211.)
+
+**Approach**: give `ReportDesigner` a first-class zone mode (design = the
+selected call-sheet template's `days` repeat, editable root = the
+`callSheetEdit` zone, day item resolved like today) and retire the hand-rolled
+wrapper: same rail layout/`usePaneResize` + persisted prefs
+(`lemon_schedule_report_editor_mode` / `..._rail`), same Fields/Values `Seg`,
+same canvas. Keep the surrounding template read-only and the per-day-per-design
+zone writes (`daybreakMeta.callSheets[designId]`); keep the live grid blocks
+(`callTimes`/`crewTable`) interactive. Decide the toolbar shape in
+implementation (keep the editor header's Times/Preview/Print, or adopt the
+designer toolbar) and document whichever ships.
+
+**Verify**: `npm run lint`; `e2e/call-sheet-day.spec.ts` stays green + new
+assertions (rail open by default, selecting a block swaps palette → inspector, a
+Fields-mode edit still persists to that day's zone); rule-7 manual (rail parity
+side-by-side with the Reports designer).
+
+**Relations**: replaces `CallSheetZoneDesigner` (keep until then); **142**
+(Unified Day workspace) merges the surfaces — this item makes the editor good
+WITHOUT merging navigation (the 176 note keeps Day Manager / Call Sheet
+separately navigable); builds on **203** (Fields/Values mode) and **204**
+(duplicate selects); touches **113**/**114** (zone chrome/Times toggle) and
+**208**/**211** (same editor).
 

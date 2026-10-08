@@ -14,30 +14,84 @@ const readPinnedMeta = (page: Page, designId: string) => page.evaluate((id) => {
 }, designId);
 
 test.describe('Call Sheet Designer (roadmap 10)', () => {
-  test('per-day zone edit writes daybreakMeta.callSheets and resets to template', async ({ page }) => {
-    await openDayManager(page);
+  test('zone-less designs show read-only; per-day zone edit writes daybreakMeta.callSheets and resets to template', async ({ page }) => {
+    await openDayManager(page, project => {
+      const firstScene = project.scenes[0].id;
+      project.reportDesigns = [
+        // zone-less (legacy shape) — must render read-only, never blank (211)
+        {
+          id: 'cs-ro', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
+          blocks: [{ id: 'ro-days', type: 'repeat', collection: 'days', children: [{ id: 'ro-t', type: 'text', text: 'RO TEMPLATE' }] }],
+          header: [], footer: [],
+        },
+        // proper shape: days repeat → callSheetEdit zone holding a free table
+        {
+          id: 'cs-zone', name: 'Call Sheet Zone', createdAt: Date.now(), page: 'portrait',
+          blocks: [{
+            id: 'z-days', type: 'repeat', collection: 'days', children: [{
+              id: 'z-zone', type: 'callSheetEdit', children: [{
+                id: 'z-table', type: 'table', custom: true, collection: 'days', showHeader: true,
+                columns: [
+                  { id: 'c1', field: '', label: 'A', width: 34 },
+                  { id: 'c2', field: '', label: 'B', width: 33 },
+                  { id: 'c3', field: '', label: 'C', width: 33 },
+                ],
+                customRows: [{ id: 'r1', cells: ['', `<p>{{lookup.scenes.sceneLabel.${firstScene}}}</p>`, ''] }],
+              }],
+            }],
+          }],
+          header: [], footer: [],
+        },
+      ];
+      project.activeReportId = 'cs-zone';
+    });
+
     await openCallSheetEdit(page);
 
-    const designId = await page.evaluate(() => {
-      const b: any = (window as any).__lemonSchedule;
-      const p = b.getProject();
-      const d = (p.reportDesigns || []).find((x: any) => /call\s*sheet/i.test(x.name)) || (p.reportDesigns || [])[0];
-      return d?.id || '';
-    });
-    expect(designId).not.toBe('');
+    // Default = the first name match (cs-ro, zone-less): the design renders
+    // READ-ONLY with the explanatory notice — never a blank page (roadmap 211).
+    await expect(page.locator('[data-call-sheet-readonly]')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText(/has no editable call-sheet zone/)).toBeVisible();
+    await expect(page.locator('.report-page').first()).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText('RO TEMPLATE').first()).toBeVisible({ timeout: 8000 });
 
-    // The zone-less seed design falls back to the zone-mode designer: add a
-    // text block via its palette → per-day storage.
-    await page.getByRole('button', { name: 'Text', exact: true }).first().click();
+    // Switch designs (Settings → Design) to the zone-bearing one.
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Design' }).click();
+    await page.getByRole('menuitem', { name: 'Call Sheet Zone', exact: true }).click();
+    await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
+    const formulaCell = page.locator('[data-cell="r1:c3"]');
+    await expect(formulaCell).toBeVisible({ timeout: 8000 });
+
+    // Roadmap 208: the `=` menu is a React portal INSIDE the block card — its
+    // click used to bubble to the card, exit Values editing and lose the pick.
+    await formulaCell.dblclick();
+    await expect(page.locator('[data-cell="r1:c3"] .report-cell-editor-active')).toBeVisible({ timeout: 5000 });
+    await page.locator('[data-cell="r1:c3"] .tiptap').first().click();
+    await page.keyboard.type('=');
+    await page.getByRole('option', { name: '← Cell left' }).click();
+    await expect(page.locator('[data-cell="r1:c3"] .rt-token')).toHaveCount(1);
+
+    // The `.` stage still answers after the portal pick (item ref target).
+    await page.keyboard.type('.');
+    const attr = page.locator('.ui-menu').last().getByRole('option').filter({ hasText: 'Scene #' }).first();
+    await expect(attr).toBeVisible({ timeout: 3000 });
+    await attr.click();
+    await expect(page.locator('[data-cell="r1:c3"] .rt-token')).toHaveCount(2);
+
+    // The cell edit landed in the day's per-design zone storage.
     await expect.poll(async () => {
-      const blocks = await readPinnedMeta(page, designId);
-      return Array.isArray(blocks) && blocks.length > 0;
+      const blocks = await readPinnedMeta(page, 'cs-zone');
+      return Array.isArray(blocks) && blocks.length === 1;
     }, { timeout: 5000 }).toBe(true);
 
     // Reset to template clears the override (Settings → Reset to template).
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    // The zone's floating block chrome can sit over the toolbar — activate the
+    // trigger by keyboard so the overlay can't intercept the click.
+    await page.getByRole('button', { name: 'Settings', exact: true }).focus();
+    await page.keyboard.press('Enter');
     await page.getByRole('menuitem', { name: 'Reset to template' }).click();
-    await expect.poll(async () => (await readPinnedMeta(page, designId)) === null, { timeout: 5000 }).toBe(true);
+    await expect.poll(async () => (await readPinnedMeta(page, 'cs-zone')) === null, { timeout: 5000 }).toBe(true);
   });
 
   test('custom-rows table renders literal cells and resolves tokens', async ({ page }) => {
