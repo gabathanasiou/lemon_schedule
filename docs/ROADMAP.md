@@ -1152,3 +1152,28 @@ default) against **190** (cellref menu/pick mode); parity guardrail from **195**
 (the picker's existing behavior must survive); touches **196** (cellref
 navigation).
 
+## 209. Crew database — universal across projects, not per project (`[ ]`, awaiting user detail)
+
+**Request** (user, 2026-10-08): a crew database that is UNIVERSAL — crew
+people live in one place and are reusable across projects, instead of the
+current per-project store. The user will explain the intended shape later —
+**do not design or implement before that conversation**; this item only
+captures the ask.
+
+**Current state** (for that conversation): crew people are per project —
+`project.crew` (`Record<string, CrewPerson[]>`, role-keyed) + `CrewPerson`
+(`src/types.ts:521`) + `crewTemplate` (`src/types.ts:866`), managed by the
+Crew Manager and consumed by the day roster (`dayCrew.ts`), call-time grids
+(`crewCalls`) and report seams (`crewOfDay`). Nothing crosses projects today.
+
+**Open questions** to resolve with the user: where the DB lives (device-local
+vs Drive/account), identity/dedup across projects, whether person↔role /
+department / contacts / `crewLinks` travel with the person, how project
+rosters reference people (stable ids), merge semantics on import/copy, and
+offline behavior (`docs/STORE-AND-SYNC.md` read-only rules).
+
+**Relations**: sibling of **157** (cast performer person records + contacts —
+the same "person beyond one project" idea for cast); overlaps **146** (crew
+roster/template model) and the Crew Manager items **89-91**; may interact with
+**145** (desktop app hosting) and **97** (API store) for where the DB is kept.
+
