@@ -5,7 +5,7 @@ import { ArrowLeft, Check, ChevronDown, Clock, Eye, EyeOff, Printer, RotateCcw, 
 import type { DayView } from '../../../lib/dayView';
 import type { DayMeta, ReportBlock, ReportDesign } from '../../../types';
 import DayReportPreview from '../../reports/DayReportPreview';
-import CallSheetCanvas, { callSheetDayBlocks } from './CallSheetCanvas';
+import CallSheetCanvas from './CallSheetCanvas';
 import DayPicker from './DayPicker';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
@@ -189,7 +189,10 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           callSheetBlocks={zoneBlocks}
           onExit={() => setPreview(false)}
         />
-      ) : callSheetDayBlocks(design) ? (
+      ) : (
+        // Every design renders on the same WYSIWYG page; the editable zone
+        // slot is simply absent when the design has no `callSheetEdit`
+        // (roadmap 211 — zone-less designs display instead of a blank canvas).
         <CallSheetCanvas
           key={editorKey}
           design={design}
@@ -201,25 +204,6 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           readOnly={readOnly}
           showRibbonTimes={showRibbonTimes}
         />
-      ) : (
-        // A design without the `days` repeat → `callSheetEdit` shape has no
-        // editable zone, so per-day content could never print (roadmap 211).
-        // Show the design itself, read-only, and say why — never a blank page.
-        <div className="flex-1 flex flex-col min-h-0" data-call-sheet-readonly>
-          <div className="shrink-0 px-4 py-2 text-[11px] leading-relaxed text-amber-200/90 bg-amber-950/50 border-b border-amber-900/50">
-            “{design.name}” has no editable call-sheet zone — showing it read-only for this day. Add a
-            <span className="font-semibold"> Call Sheet Edit </span>
-            zone to the design in Design → Reports Designer to edit days here.
-          </div>
-          <DayReportPreview
-            key={editorKey}
-            design={design}
-            sectionIndex={day.sectionIndex}
-            callSheetBlocks={zoneBlocks}
-            onExit={() => {}}
-            embedded
-          />
-        </div>
       )}
     </div>
   );

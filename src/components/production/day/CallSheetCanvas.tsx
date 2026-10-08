@@ -20,7 +20,8 @@ import type { DayView } from '../../../lib/dayView';
  * scenes/crew/locations/etc. are read-only. At the `callSheetEdit` zone slot
  * the REAL reports-designer canvas is embedded (drag & drop from the palette,
  * drop zones, floating block chrome, right-click menus) editing the day's
- * zone content only. Works on the shape `days` repeat → (…, callSheetEdit, …).
+ * zone content only. Every call-sheet design renders here: the zone slot is
+ * simply absent when the design has no `callSheetEdit` (roadmap 211).
  */
 export function callSheetDayBlocks(design: ReportDesign): ReportBlock[] | null {
   for (const b of design.blocks || []) {
@@ -29,6 +30,19 @@ export function callSheetDayBlocks(design: ReportDesign): ReportBlock[] | null {
     }
   }
   return null;
+}
+
+/** The body blocks this page renders for the day: the zone-bearing days
+ *  repeat's children when present, else a plain days repeat's children, else
+ *  the design body itself — so zone-less designs display the same page instead
+ *  of nothing (roadmap 211). */
+export function callSheetPageBlocks(design: ReportDesign): ReportBlock[] {
+  const withZone = callSheetDayBlocks(design);
+  if (withZone) return withZone;
+  for (const b of design.blocks || []) {
+    if (b.type === 'repeat' && b.collection === 'days') return b.children || [];
+  }
+  return design.blocks || [];
 }
 
 interface CallSheetCanvasProps {
@@ -53,7 +67,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
 
   const dayItem = ctx?.dayInfos.find(d => d.section.index === day.sectionIndex);
-  const dayBlocks = useMemo(() => callSheetDayBlocks(design), [design]);
+  const dayBlocks = useMemo(() => callSheetPageBlocks(design), [design]);
   const metrics = REPORT_PAGE_METRICS[design.page];
   // Hovered element row's first scene (item 115) → the ribbon's strip highlights.
   const [highlightScene, setHighlightScene] = useState<string | null>(null);

@@ -14,11 +14,11 @@ const readPinnedMeta = (page: Page, designId: string) => page.evaluate((id) => {
 }, designId);
 
 test.describe('Call Sheet Designer (roadmap 10)', () => {
-  test('zone-less designs show read-only; per-day zone edit writes daybreakMeta.callSheets and resets to template', async ({ page }) => {
+  test('zone-less designs render the day page; per-day zone edit writes daybreakMeta.callSheets and resets to template', async ({ page }) => {
     await openDayManager(page, project => {
       const firstScene = project.scenes[0].id;
       project.reportDesigns = [
-        // zone-less (legacy shape) — must render read-only, never blank (211)
+        // zone-less (legacy shape) — must render the same day page, never blank (211)
         {
           id: 'cs-ro', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
           blocks: [{ id: 'ro-days', type: 'repeat', collection: 'days', children: [{ id: 'ro-t', type: 'text', text: 'RO TEMPLATE' }] }],
@@ -48,12 +48,12 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
 
     await openCallSheetEdit(page);
 
-    // Default = the first name match (cs-ro, zone-less): the design renders
-    // READ-ONLY with the explanatory notice — never a blank page (roadmap 211).
-    await expect(page.locator('[data-call-sheet-readonly]')).toBeVisible({ timeout: 8000 });
-    await expect(page.getByText(/has no editable call-sheet zone/)).toBeVisible();
-    await expect(page.locator('.report-page').first()).toBeVisible({ timeout: 8000 });
-    await expect(page.getByText('RO TEMPLATE').first()).toBeVisible({ timeout: 8000 });
+    // Default = the first name match (cs-ro, zone-less): it renders the SAME
+    // WYSIWYG day page as zone-bearing designs — no blank canvas, no notice
+    // (roadmap 211). There is simply no editable zone area.
+    await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('[data-call-sheet-page]').getByText('RO TEMPLATE')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('[data-call-sheet-readonly]')).toHaveCount(0);
 
     // Switch designs (Settings → Design) to the zone-bearing one.
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
