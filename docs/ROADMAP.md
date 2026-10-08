@@ -1071,3 +1071,43 @@ coarse size, disabled at min/max). No new e2e.
 (ribbon toolbar) and **192** (format bar size slot); related to **17**/**182**
 (touch affordances).
 
+## 207. Call Times — the on-set (anchor) cell can't take a relative override (`[ ]`)
+
+**Request** (user, 2026-10-08): in the Day Manager Call Times grid, changing a
+cast member's On Set time doesn't stick — it keeps defaulting to the
+first-scene call (the anchor). The anchor should remain the DEFAULT/reference
+(George's first scene 8:00 AM → On Set 8:00 AM is correct), but a typed time
+must override it: the cell shows the new time (amber), and the earlier stages
+(Arrive/HMU/Costume/Pickup) chain back from the overridden time.
+
+**Root cause** (verified with a scratch Vitest run on `computeElementCallChain`):
+the anchor branch (`src/lib/callTimes.ts:127-138`) accepts **only absolute**
+overrides. A relative expression (`+30m`, `-30m` — the same style every other
+column accepts and what the user already uses on Arrive/HMU/Costume, e.g.
+`-1h`, `-21`) is STORED in `daybreakMeta.elementCalls` but silently ignored:
+`source: 'computed'`, time = the first-scene call. `DayTimesGlide` then seeds
+the editor with the stored `+30m` but renders `displayData: resolved` (08:00),
+so the cell looks like the edit never took. Absolute overrides DO work today
+(and shift earlier stages) — confirm which style the repro used; the fix must
+make both work. Same hole in the Call Sheet editor's live Times grid
+(`InteractiveGridBlock` → same `DayTimesGlide`).
+
+**Fix**: anchor overrides resolve like any other stage — absolute pins the
+time; relative measures from the first-scene call (the anchor), then the chain
+walks backwards from it. Never store/silently ignore an unparseable override
+(validate at `setElementCall` or surface it). Keep "only overrides stored";
+the first-scene call stays the computed default. Check `AGENTS.md` §Call times
+(the model already documents "absolute/relative overrides").
+
+**Verify**: `npm run lint`; Vitest on `computeElementCallChain` (anchor:
+absolute, relative, invalid; earlier stages shift from the override); e2e
+`day-times-glide.spec.ts` gains the missing LAST-stage case (edit the anchor
+cell → override stored + resolved + amber, earlier stages move, one undo
+entry; Enter without typing still stores nothing — roadmap 141); rule-7 manual
+on a cast row (On Set 8:00 → type `+30m` and `9:30`, both stick; clear →
+back to the first-scene call).
+
+**Relations**: bug against **99** (chain model) / **101** (grid) / **141**
+(seeded editors); siblings **174** (label audit, parked) and **164** (add an
+element to Call Times).
+
