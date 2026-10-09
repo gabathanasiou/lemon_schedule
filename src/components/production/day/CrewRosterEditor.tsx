@@ -304,6 +304,64 @@ const DeptTable: React.FC<DeptTableProps> = ({
   );
 };
 
+export interface CrewAddRoleMenuProps {
+  project: Project;
+  /** The working slot list (day or template). */
+  slots: DayCrewSlot[];
+  onSlotsChange: (slots: DayCrewSlot[]) => void;
+  readOnly?: boolean;
+  className?: string;
+}
+
+/**
+ * Roadmap 218 — the one "Add role…" menu (hosted by the Day Crew section
+ * header next to "Apply template" and by the Call Times modal's Crew template
+ * tab). The per-card "Add role" menus only exist inside a rendered card, so a
+ * department absent from the WORKING list (a stored template/day that predates
+ * a roster role) can never gain a slot — this adds any role to the working
+ * list, auto-filling its first unused roster person (the slot's Person
+ * dropdown handles swaps / new people).
+ */
+export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots, onSlotsChange, readOnly, className = '' }) => {
+  const allRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
+  const [open, setOpen] = useState(false);
+
+  const addRoleSlot = useCallback((roleKey: string) => {
+    const used = new Set(slots.map(s => s.personId).filter(Boolean) as string[]);
+    onSlotsChange(addSlotToList(slots, roleKey, peopleForRole(project, roleKey).find(p => !used.has(p.id))?.id));
+  }, [project, slots, onSlotsChange]);
+
+  if (readOnly || allRoles.length === 0) return null;
+
+  return (
+    <div className={`flex items-center ${className}`} data-crew-add-role>
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        theme="light"
+        width="w-72"
+        searchable
+        searchPlaceholder="Search roles…"
+        trigger={
+          <Button variant="subtle">
+            <Plus className="w-3 h-3" /> Add role…
+          </Button>
+        }
+      >
+        {allRoles.map(r => (
+          <DropdownItem
+            key={r.key}
+            trailing={<span className="opacity-70">{crewRoleGroup(r)}</span>}
+            onClick={() => { setOpen(false); addRoleSlot(r.key); }}
+          >
+            {r.label}
+          </DropdownItem>
+        ))}
+      </DropdownMenu>
+    </div>
+  );
+};
+
 export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
   slots, excludedDepts, effectivePrecalls, templatePrecalls, dayCall, project,
   readOnly, onSlotsChange, onExcludedChange, onDeptPrecallChange, onAddCrewMember,
@@ -318,19 +376,7 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
     () => groupSlotsByDept(project, meta, slots, dayCall),
     [project, meta, slots, dayCall],
   );
-
   const allRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
-  const [addRoleOpen, setAddRoleOpen] = useState(false);
-
-  // Roadmap 218 — editor-level add. The per-card "Add role" menus only exist
-  // inside a rendered card, so a department absent from the WORKING list (a
-  // stored template/day that predates a roster role) can never gain a slot.
-  // This adds any role to the working list, auto-filling its first unused
-  // roster person (the slot's Person dropdown handles swaps / new people).
-  const addRoleSlot = useCallback((roleKey: string) => {
-    const used = new Set(slots.map(s => s.personId).filter(Boolean) as string[]);
-    onSlotsChange(addSlotToList(slots, roleKey, peopleForRole(project, roleKey).find(p => !used.has(p.id))?.id));
-  }, [project, slots, onSlotsChange]);
 
   if (groups.length === 0 && allRoles.length === 0) {
     return (
@@ -366,33 +412,6 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
           onCreatePerson={onCreatePerson}
         />
       ))}
-      {allRoles.length > 0 && (
-        <div className="flex items-center gap-2" data-crew-add-role>
-          <DropdownMenu
-            open={addRoleOpen}
-            onOpenChange={setAddRoleOpen}
-            theme="light"
-            width="w-72"
-            searchable
-            searchPlaceholder="Search roles…"
-            trigger={
-              <Button variant="subtle" disabled={readOnly}>
-                <Plus className="w-3 h-3" /> Add role…
-              </Button>
-            }
-          >
-            {allRoles.map(r => (
-              <DropdownItem
-                key={r.key}
-                trailing={<span className="opacity-70">{crewRoleGroup(r)}</span>}
-                onClick={() => { setAddRoleOpen(false); addRoleSlot(r.key); }}
-              >
-                {r.label}
-              </DropdownItem>
-            ))}
-          </DropdownMenu>
-        </div>
-      )}
     </div>
   );
 };

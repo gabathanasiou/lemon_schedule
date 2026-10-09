@@ -11,7 +11,7 @@ import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../..
 import type { CallStageDef, CallTimeSettings, CrewTemplate } from '../../../types';
 import TimeField from '../../TimeField';
 import GroupedSelect, { GroupedSelectItem } from './GroupedSelect';
-import CrewRosterEditor from './CrewRosterEditor';
+import CrewRosterEditor, { CrewAddRoleMenu } from './CrewRosterEditor';
 import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
 import { CategoryDropdown } from '../../rules/CategoryDropdown';
 import Modal, { ModalFooter } from '../../Modal';
@@ -368,7 +368,18 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
 
         {tab === 'crew' && (
           <div className="space-y-3">
-            <Hint>The default crew arrangement every day inherits until it is customized. Roles default to one slot each (first person); add more slots or a whole department toggle per day.</Hint>
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <Hint>The default crew arrangement every day inherits until it is customized. Roles default to one slot each (first person); add more slots or a whole department toggle per day.</Hint>
+              </div>
+              <CrewAddRoleMenu
+                className="shrink-0"
+                project={project}
+                slots={templateSlotsList}
+                onSlotsChange={slots => setTemplate({ slots })}
+                readOnly={readOnly}
+              />
+            </div>
             <CrewRosterEditor
               dataAttr="data-crew-template-editor"
               slots={templateSlotsList}

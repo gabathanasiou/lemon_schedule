@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { AlertTriangle, UsersRound } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
-import CrewRosterEditor from '../CrewRosterEditor';
+import CrewRosterEditor, { CrewAddRoleMenu } from '../CrewRosterEditor';
 import { excludedDeptsForDay, slotsForDay } from '../../../../lib/dayCrew';
 import { crewLinkWarnings, crewNameMap, targetLabelForLink } from '../../../../lib/crewLinks';
 import Button from '../../../Button';
@@ -58,6 +58,12 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
         <span className="text-xs text-zinc-500 flex-1">
           {day.crew.length > 0 ? `${day.crew.length} crew across ${day.crewGroups.filter(g => !g.excluded).length} departments` : 'No crew assigned'}
         </span>
+        <CrewAddRoleMenu
+          project={project}
+          slots={slots}
+          onSlotsChange={next => patchMeta({ crewSlots: next })}
+          readOnly={readOnly}
+        />
         {!readOnly && hasCustomization && (
           <Button variant="subtle" onClick={applyTemplate} title="Reset this day to the project crew template">
             Apply template

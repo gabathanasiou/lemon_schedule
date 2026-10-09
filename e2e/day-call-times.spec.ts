@@ -143,9 +143,9 @@ test.describe('Day call times + crew (roadmap 99)', () => {
       return (p.crewTemplate?.slots || []).some((s: any) => s.personId === (person as any).id);
     }), { timeout: 5000 }).toBe(true);
 
-    // Roadmap 218 — the editor-level "Add role…" footer reaches a department
-    // that has no card (a stored arrangement predating the roster role), so
-    // its first unused person can be placed and the slot persists.
+    // Roadmap 218 — the "Add role…" menu reaches a department that has no
+    // card (a stored arrangement predating the roster role), so its first
+    // unused person can be placed and the slot persists.
     const seed = loadSeedProject().data;
     const staffed = new Set(Object.entries(seed.crew || {})
       .filter(([, list]) => ((list as any[]) || []).length > 0)
@@ -158,9 +158,8 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     const dept = crewRoleGroup(role);
     const card = modal.locator(`[data-crew-dept="${dept}"]`);
     await expect(card).toHaveCount(0);
-    const footer = modal.locator('[data-crew-add-role]');
-    await footer.scrollIntoViewIfNeeded();
-    await footer.getByRole('button', { name: 'Add role…' }).click();
+    const addRoleMenu = modal.locator('[data-crew-add-role]');
+    await addRoleMenu.getByRole('button', { name: 'Add role…' }).click();
     const roleSearch = page.getByPlaceholder('Search roles…');
     await expect(roleSearch).toBeVisible({ timeout: 4000 });
     await roleSearch.fill(role.label);
