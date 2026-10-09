@@ -480,6 +480,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       <div className="flex-1" />
       <div className="flex-1" />
       <Seg
+        variant="track"
+        theme="dark"
         dense
         value={reportMode}
         options={[
