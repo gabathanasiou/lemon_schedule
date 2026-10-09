@@ -13,6 +13,7 @@ import {
   setSlotCall,
   setSlotNoCall,
 } from '../../../lib/dayCrew';
+import { crewRoleGroup } from '../../../lib/crewCatalog';
 import { resolveCrewCall } from '../../../lib/callTimes';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction } from '../../InlineGlideTable';
 import { seededTextCell, textCell } from '../../../lib/glideCells';
@@ -318,7 +319,20 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
     [project, meta, slots, dayCall],
   );
 
-  if (groups.length === 0) {
+  const allRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
+  const [addRoleOpen, setAddRoleOpen] = useState(false);
+
+  // Roadmap 218 — editor-level add. The per-card "Add role" menus only exist
+  // inside a rendered card, so a department absent from the WORKING list (a
+  // stored template/day that predates a roster role) can never gain a slot.
+  // This adds any role to the working list, auto-filling its first unused
+  // roster person (the slot's Person dropdown handles swaps / new people).
+  const addRoleSlot = useCallback((roleKey: string) => {
+    const used = new Set(slots.map(s => s.personId).filter(Boolean) as string[]);
+    onSlotsChange(addSlotToList(slots, roleKey, peopleForRole(project, roleKey).find(p => !used.has(p.id))?.id));
+  }, [project, slots, onSlotsChange]);
+
+  if (groups.length === 0 && allRoles.length === 0) {
     return (
       <div className={className} {...(dataAttr ? { [dataAttr]: '' } : {})}>
         <p className="text-xs text-zinc-400">No crew roles yet — add a role in the Crew Manager or a crew member below.</p>
@@ -352,6 +366,33 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
           onCreatePerson={onCreatePerson}
         />
       ))}
+      {allRoles.length > 0 && (
+        <div className="flex items-center gap-2" data-crew-add-role>
+          <DropdownMenu
+            open={addRoleOpen}
+            onOpenChange={setAddRoleOpen}
+            theme="light"
+            width="w-72"
+            searchable
+            searchPlaceholder="Search roles…"
+            trigger={
+              <Button variant="subtle" disabled={readOnly}>
+                <Plus className="w-3 h-3" /> Add role…
+              </Button>
+            }
+          >
+            {allRoles.map(r => (
+              <DropdownItem
+                key={r.key}
+                trailing={<span className="opacity-70">{crewRoleGroup(r)}</span>}
+                onClick={() => { setAddRoleOpen(false); addRoleSlot(r.key); }}
+              >
+                {r.label}
+              </DropdownItem>
+            ))}
+          </DropdownMenu>
+        </div>
+      )}
     </div>
   );
 };

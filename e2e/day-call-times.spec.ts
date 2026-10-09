@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { openDayManager, expandDaySection as expand } from './helpers';
+import { openDayManager, expandDaySection as expand, loadSeedProject, waitForPersistedProject } from './helpers';
+import { crewRoleGroup } from '../src/lib/crewCatalog';
 
 test.describe('Day call times + crew (roadmap 99)', () => {
   test('call-times and crew sections render inline Glide grids sized to content', async ({ page }) => {
@@ -45,7 +46,7 @@ test.describe('Day call times + crew (roadmap 99)', () => {
   });
 
 
-  test('call-times settings modal — tabbed redesign, removable category defaults (roadmap 110)', async ({ page }) => {
+  test('call-times settings modal — tabbed redesign, removable category defaults, Add role (roadmaps 110/218)', async ({ page }) => {
     await openDayManager(page);
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Call Times' }).click();
@@ -141,6 +142,35 @@ test.describe('Day call times + crew (roadmap 99)', () => {
       if (!person) return false;
       return (p.crewTemplate?.slots || []).some((s: any) => s.personId === (person as any).id);
     }), { timeout: 5000 }).toBe(true);
+
+    // Roadmap 218 — the editor-level "Add role…" footer reaches a department
+    // that has no card (a stored arrangement predating the roster role), so
+    // its first unused person can be placed and the slot persists.
+    const seed = loadSeedProject().data;
+    const staffed = new Set(Object.entries(seed.crew || {})
+      .filter(([, list]) => ((list as any[]) || []).length > 0)
+      .map(([key]) => key));
+    const staffedDepts = new Set((seed.crewRoles || [])
+      .filter((r: any) => staffed.has(r.key))
+      .map((r: any) => crewRoleGroup(r)));
+    const role = (seed.crewRoles || []).find((r: any) => !staffed.has(r.key) && !staffedDepts.has(crewRoleGroup(r)));
+    expect(role).toBeTruthy();
+    const dept = crewRoleGroup(role);
+    const card = modal.locator(`[data-crew-dept="${dept}"]`);
+    await expect(card).toHaveCount(0);
+    const footer = modal.locator('[data-crew-add-role]');
+    await footer.scrollIntoViewIfNeeded();
+    await footer.getByRole('button', { name: 'Add role…' }).click();
+    const roleSearch = page.getByPlaceholder('Search roles…');
+    await expect(roleSearch).toBeVisible({ timeout: 4000 });
+    await roleSearch.fill(role.label);
+    await page.getByRole('menuitem', { name: role.label }).first().click();
+    await expect(card).toBeVisible({ timeout: 5000 });
+    await expect.poll(() => page.evaluate((key) => {
+      const p = (window as any).__lemonSchedule.getProject();
+      return (p.crewTemplate?.slots || []).some((s: any) => s.role === key);
+    }, role.key), { timeout: 5000 }).toBe(true);
+    await waitForPersistedProject(page, `(p.crewTemplate?.slots || []).some(s => s.role === '${role.key}')`);
   });
 
 
