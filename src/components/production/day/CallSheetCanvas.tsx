@@ -8,6 +8,7 @@ import { makeReportBlock, collectRibbonBlocks } from '../../../lib/reportBlocks'
 import type { RibbonPrintOptions } from '../../../lib/reportData';
 import { REPORT_PAGE_METRICS, REPORT_PAGE_PADDING, CALL_SHEET_EDIT_ZONE_STYLE } from '../../reports/reportStyle';
 import { ReportBlockView } from '../../reports/ReportBlockView';
+import ReportBlockTitle from '../../reports/ReportBlockTitle';
 import ReportPalette from '../../reports/ReportPalette';
 import CallSheetZoneDesigner from './CallSheetZoneDesigner';
 import InteractiveGridBlock from './InteractiveGridBlock';
@@ -112,6 +113,20 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
     return map;
   }, [design, showRibbonTimes]);
 
+  // The design's own block title (item 140) for a live grid — the ONE
+  // `ReportBlockTitle` renderer, resolved against the selected day like the
+  // surrounding read-only template (item 222).
+  const gridTitle = (b: ReportBlock) => (
+    <ReportBlockTitle
+      block={b}
+      ctx={ctx!}
+      fieldMap={fieldMap}
+      item={dayItem}
+      parentCollection="days"
+      aux={{ callSheetBlocks: zoneBlocks }}
+    />
+  );
+
   const readOnlyView = (b: ReportBlock, i: number, item?: any, parentCollection?: string) => (
     <div key={`${b.id}:${weatherTick}`} style={{ marginTop: i === 0 ? 0 : 6 }}>
       <ReportBlockView block={b} ctx={ctx!} fieldMap={fieldMap} item={item} parentCollection={parentCollection as any} aux={{ callSheetBlocks: zoneBlocks }} ribbonOverrides={ribbonOverrides} />
@@ -179,7 +194,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
                   if (b.type === 'callTimes' || b.type === 'crewTable' || b.type === 'precalls') {
                     return (
                       <div key={b.id} className="my-3">
-                        <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={setHighlightScene} showTimes={showRibbonTimes} openAddCrewMember={openAddCrewMember} />
+                        <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={setHighlightScene} showTimes={showRibbonTimes} openAddCrewMember={openAddCrewMember} title={gridTitle(b)} />
                       </div>
                     );
                   }

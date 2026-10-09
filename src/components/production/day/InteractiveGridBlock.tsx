@@ -35,11 +35,18 @@ export interface InteractiveGridBlockProps {
   /** The Day Manager's shared Add Crew Member modal (item 146) — the crew
    *  table's person swap / Add role flows open it here too. */
   openAddCrewMember?: (opts?: { role?: string; name?: string; slotId?: string }) => void;
+  /** The design's optional block title (item 140), built by the host — the
+   *  ONE `ReportBlockTitle` text renderer, rendered above every live grid so
+   *  the editing canvas reads like the printed sheet (item 222). */
+  title?: React.ReactNode;
 }
 
-const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes, openAddCrewMember }) => {
+const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes, openAddCrewMember, title }) => {
   const collection = isReportGridCollection(block.collection) ? block.collection : 'elementCallsOfDay';
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
+  // The title (item 140) sits above the grid in every branch — the hardcoded
+  // "Precalls"/category bars stay as the table's own heading row.
+  const withTitle = (body: React.ReactNode) => (title ? <>{title}{body}</> : body);
 
   const stagedCategories = useMemo(() => {
     const cats: string[] = [];
@@ -50,7 +57,7 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
   }, [day, settings, block.category]);
 
   if (collection === 'departmentCallsOfDay') {
-    return (
+    return withTitle(
       <div className="rounded-lg border border-zinc-200 overflow-hidden bg-white" data-report-grid="precalls">
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
           <span className="text-[11px] font-semibold text-zinc-700">Precalls</span>
@@ -65,7 +72,7 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
           layout={block.precallsLayout}
           onEditCallTimesSettings={onEditCallTimesSettings}
         />
-      </div>
+      </div>,
     );
   }
 
@@ -74,7 +81,7 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
     const slots = day.meta.crewSlots ?? slotsForDay(project, day.meta);
     const excluded = excludedDeptsForDay(project, day.meta);
     const effectivePrecalls = { ...(template.departmentPrecalls || {}), ...(day.meta.departmentPrecalls || {}) };
-    return (
+    return withTitle(
       <div data-report-grid="crew">
         {!readOnly && (
           <div className="flex items-center justify-end mb-2">
@@ -97,15 +104,15 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
           onAddCrewMember={() => openAddCrewMember?.()}
           onCreatePerson={(role, name, slotId) => openAddCrewMember?.({ role, name, slotId })}
         />
-      </div>
+      </div>,
     );
   }
 
   if (stagedCategories.length === 0) {
-    return <p className="px-2 py-3 text-xs text-zinc-400">No call-time elements on this day.</p>;
+    return withTitle(<p className="px-2 py-3 text-xs text-zinc-400">No call-time elements on this day.</p>);
   }
 
-  return (
+  return withTitle(
     <div style={{ display: 'flex', flexDirection: 'column', gap: block.gap ?? 8 }} data-report-grid="elementCalls">
       {stagedCategories.map(category => (
         <div key={category} className="rounded-lg border border-zinc-200 overflow-hidden bg-white">
@@ -115,7 +122,7 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
           <DayTimesGlide day={day} category={category} patchMeta={patchMeta} project={project} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={onHighlightScene} showTimes={showTimes} />
         </div>
       ))}
-    </div>
+    </div>,
   );
 };
 

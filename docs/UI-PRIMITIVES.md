@@ -7,8 +7,8 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 
 ## Tabs & Toolbars
 
-- Top tabs (App header): breakdown, schedule, calendar, design, rules, reports. Shift+click /
-  right-click = pop-out (desktop only, `!IS_COARSE`).
+- Top tabs (App header): breakdown, schedule, calendar, design, rules, production, reports.
+  Shift+click / right-click = pop-out (desktop only, `!IS_COARSE`).
 - `PageToolbar` (`src/components/PageToolbar.tsx`): reusable toolbar with optional sub-tabs. Active
   tab `bg-zinc-950 text-white rounded px-3 py-1.5` (cloud: `bg-blue-950 text-blue-50`); inactive
   `text-zinc-500 hover:text-zinc-900`. Scrolls horizontally with edge fades. Usage: Breakdown

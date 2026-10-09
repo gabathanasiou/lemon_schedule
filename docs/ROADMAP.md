@@ -835,7 +835,8 @@ side-by-side with the Reports designer).
 WITHOUT merging navigation (the 176 note keeps Day Manager / Call Sheet
 separately navigable); builds on **203** (Fields/Values mode) and **204**
 (duplicate selects); touches **113**/**114** (zone chrome/Times toggle) and
-**208**/**211** (same editor).
+**208**/**211** (same editor); related **222** (the fill canvas's live-grid
+headings/print parity — independent, not blocked by this).
 
 ## 214. Image block — bottom-right drag to scale; editor renders at true print scale (`[ ]`)
 
@@ -876,7 +877,10 @@ its scale control must compose with this, not fork it); reuses **188**'s resize
 recipe; touches **212** (call-sheet editor inherits the same canvas).
 
 
-## 215. Reports — unlock chained reference navigation (roadmap 196 child steps) (`[ ]`, gated)
+## 215. Reports — unlock chained reference navigation (roadmap 196 child steps) (`[ ]`, gated, parked)
+
+**Parked (user, 2026-10-09):** keep the gate closed — do not flip until the
+feature is explicitly wanted in the product.
 
 **Request**: 196 shipped code-complete but LOCKED — `CHILD_NAVIGATION_ENABLED = false`
 (`src/lib/reportLookup.ts`) keeps the child steps (`→ First scene` / `→ Last scene`
@@ -920,33 +924,3 @@ precalls block.
 - **Relations**: extends **159**; overlaps **99**/**146** (pool source); **201**
   (base-vs-contextual collection direction).
 
-## 221. Production tab — "Open in New Window" opens a blank window (`[ ]`, bugfix)
-
-**Request** (user 2026-10-09): right-click → Open in New Window (or shift+click)
-on the top-level Production tab opens an empty `popout_production` window while
-the main window swaps Production for the "is open in a separate window"
-placeholder — no sub-tab bar anywhere. While flagged, Schedule's
-Day Manager jump silently no-ops; closing the blank window directly leaves the
-placeholder stuck forever; "Bring back" clears the flag but leaves the orphan
-window open.
-
-**Cause**: no `poppedOutTabs.has('production')` frame among the top-level popout
-blocks (`src/App.tsx` ~982-1011 covers breakdown/schedule/calendar/design/rules/
-reports only) — Production postdates the popout feature and the frame never
-existed (repo 217 fixed only the sub-tab pop-outs).
-
-**Approach**: add the missing `PopoutFrame` block rendering `ProductionTab` with
-the same props as the main render (`src/App.tsx` ~1138) plus the sub-tab pop-out
-wiring (`poppedOutSubTabs.production`, `onToggleSubPopout`/`onCloseSubPopout`,
-`shiftHeld`, `subHeaderTargets`). Mounting `PopoutWindow` also restores
-close-detection, so × / "Bring back" close the real window. Same area, if cheap:
-the Days sub-tab popout drops Call Sheet mode (`src/App.tsx` ~1073 omits
-`dayMode`/`onDayModeChange` — `DayManagerPage.tsx:83` falls back to manager).
-
-**Verify**: rule-7 manual only (a screenshot catches a blank window): right-click
-Production → new window shows the Production UI + sub-tab bar; main shows the
-placeholder; "Bring back" restores and closes the window; closing the popout
-directly clears the placeholder. `npm run lint`.
-
-**Relations**: completes **217** (sub-tab pop-outs — this is the missing
-top-level frame); touches **176** (nav/popout wiring).

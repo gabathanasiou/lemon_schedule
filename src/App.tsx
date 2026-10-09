@@ -1004,6 +1004,11 @@ function AppContent() {
           <RulesTab />
         </PopoutFrame>
       )}
+      {poppedOutTabs.has('production') && popoutWindowsRef.current.get('production') && (
+        <PopoutFrame title={`${project.title || 'Untitled'} - Production`} win={popoutWindowsRef.current.get('production')!} onClose={() => closePopout('production')} tabName="Production" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)}>
+          <ProductionTab subTab={prodSubTab} onSubTabChange={setProdSubTab} views={prodViews} onViewChange={(sub, mode) => setProdViews(p => ({ ...p, [sub]: mode } as ProdViews))} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} shiftHeld={shiftHeld} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} dayTarget={dayManagerTarget} onDayTargetSeen={() => setDayManagerTarget(null)} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} />
+        </PopoutFrame>
+      )}
       {poppedOutTabs.has('reports') && popoutWindowsRef.current.get('reports') && (
         <PopoutFrame title={`${project.title || 'Untitled'} - Reports`} win={popoutWindowsRef.current.get('reports')!} onClose={() => closePopout('reports')} tabName="Reports" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} bg="bg-zinc-900">
           <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} />
@@ -1070,7 +1075,7 @@ function AppContent() {
       {poppedOutSubTabs.production?.has('days') && popoutSubWindowsRef.current.get('sub_production_days') && (
         <PopoutWindow title={`${project.title || 'Untitled'} - Day Manager`} win={popoutSubWindowsRef.current.get('sub_production_days')!} onClose={() => closeSubPopout('production', 'days')}>
           <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-50">
-            <DayManagerPage initialDayIndex={dayManagerTarget} onTargetSeen={() => setDayManagerTarget(null)} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} />
+            <DayManagerPage initialDayIndex={dayManagerTarget} onTargetSeen={() => setDayManagerTarget(null)} dayMode={prodViews.days} onDayModeChange={(mode) => setProdViews(p => ({ ...p, days: mode }))} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} />
           </div>
         </PopoutWindow>
       )}
