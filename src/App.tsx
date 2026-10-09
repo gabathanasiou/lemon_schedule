@@ -74,6 +74,10 @@ import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
 import AppHeader, { AppTabId } from './components/AppHeader';
 import ProductionTab, { ProductionSubTab, ProdViews } from './components/ProductionTab';
+import { CrewManager } from './components/CrewManager';
+import { CrewGlideTab } from './components/CrewGlideTab';
+import { LocationsManager } from './components/LocationsManager';
+import { LocationsGlideTab } from './components/LocationsGlideTab';
 import ReportDesigner from './components/reports/ReportDesigner';
 import { useDaybreakSections } from './lib/useDaybreakSections';
 import { useKeyboardDismissOnScroll } from './lib/useKeyboardDismissOnScroll';
@@ -1059,14 +1063,43 @@ function AppContent() {
         </SubTabPopoutFrame>
       )}
 
+      {poppedOutSubTabs.production?.has('days') && popoutSubWindowsRef.current.get('sub_production_days') && (
+        <PopoutWindow title={`${project.title || 'Untitled'} - Day Manager`} win={popoutSubWindowsRef.current.get('sub_production_days')!} onClose={() => closeSubPopout('production', 'days')}>
+          <div className="h-screen w-screen flex flex-col overflow-hidden bg-gray-50">
+            <DayManagerPage initialDayIndex={dayManagerTarget} onTargetSeen={() => setDayManagerTarget(null)} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} />
+          </div>
+        </PopoutWindow>
+      )}
       {poppedOutSubTabs.production?.has('crew') && popoutSubWindowsRef.current.get('sub_production_crew') && (
         <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Crew`} win={popoutSubWindowsRef.current.get('sub_production_crew')!} onClose={() => closeSubPopout('production', 'crew')} tabName="Production" subTabId="crew" tabLabel="Crew" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_production_crew']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_production_crew: el }))}>
-          <ProductionTab subTab="crew" onSubTabChange={goProdSubTab} views={prodViews} onViewChange={goProdView} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} headerTarget={subHeaderTargets['sub_production_crew']} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} />
+          {prodViews.crew === 'glide' ? (
+            <CrewGlideTab
+              headerTarget={subHeaderTargets['sub_production_crew']}
+              onGoToManager={(roleKey) => { setProdCrewRole(roleKey); setProdViews(p => ({ ...p, crew: 'manager' })); }}
+            />
+          ) : (
+            <CrewManager
+              headerTarget={subHeaderTargets['sub_production_crew']}
+              initialRole={prodCrewRole}
+              onRoleChange={setProdCrewRole}
+            />
+          )}
         </SubTabPopoutFrame>
       )}
       {poppedOutSubTabs.production?.has('locations') && popoutSubWindowsRef.current.get('sub_production_locations') && (
         <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Locations`} win={popoutSubWindowsRef.current.get('sub_production_locations')!} onClose={() => closeSubPopout('production', 'locations')} tabName="Production" subTabId="locations" tabLabel="Locations" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_production_locations']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_production_locations: el }))}>
-          <ProductionTab subTab="locations" onSubTabChange={goProdSubTab} views={prodViews} onViewChange={goProdView} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} headerTarget={subHeaderTargets['sub_production_locations']} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} />
+          {prodViews.locations === 'glide' ? (
+            <LocationsGlideTab
+              headerTarget={subHeaderTargets['sub_production_locations']}
+              onGoToManager={(typeKey) => { setProdLocationType(typeKey); setProdViews(p => ({ ...p, locations: 'manager' })); }}
+            />
+          ) : (
+            <LocationsManager
+              headerTarget={subHeaderTargets['sub_production_locations']}
+              initialType={prodLocationType}
+              onTypeChange={setProdLocationType}
+            />
+          )}
         </SubTabPopoutFrame>
       )}
       {Array.from(poppedOutDays).map(idx => {

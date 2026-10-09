@@ -18,6 +18,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - **Header portal pattern**: parent puts `<div ref>` in `rightContent`; child accepts `headerTarget`
   and `createPortal`s its controls there (fallback: inline). Used by ElementManager, SceneSheet,
   GlideBreakdownTab, ColorsTab, RibbonTab, DayManagerPage/CallSheetEditPage.
+- **Sub-tab pop-outs mount the CONTENT, never the tab shell** (`App.tsx` SUB-TAB POPOUT WINDOWS):
+  each popped sub-tab renders its content component (SceneSheet, ElementManager, DoodTab,
+  CrewManager/CrewGlideTab per `prodViews`) in a `SubTabPopoutFrame`; the main window shows
+  `PopoutPlaceholder`. Mounting the host tab component in its own pop-out re-triggers the
+  placeholder (its own id is in `poppedOutSubTabs`) and doubles the toolbar. Production → Days
+  pop-outs use the day-popout recipe (plain `PopoutWindow` + `DayManagerPage` local header).
 - **Merged-view switcher** (roadmap 177): sub-tabs that are two views of one surface (Crew
   manager/Glide, Locations manager/Glide, Days Day Manager/Call Sheet) collapse to ONE sub-tab plus
   a 2-segment icon control **pinned rightmost** in the `PageToolbar` — after the portaled controls,
