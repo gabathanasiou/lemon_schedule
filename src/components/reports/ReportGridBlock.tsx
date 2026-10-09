@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { ReportBlock } from '../../types';
+import type { ReportBlock, ReportCollection, ReportViewMode } from '../../types';
 import type { ReportCollectionItem, ReportCtx } from '../../lib/reportData';
 import { reportFieldValueByKey, type ReportFieldDef } from '../../lib/reportFields';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
@@ -26,8 +26,14 @@ interface ReportGridBlockProps {
   /** The enclosing day item (a `days` repeat row). */
   dayItem?: ReportCollectionItem;
   hint?: boolean;
+  mode?: ReportViewMode;
   showKeys?: boolean;
   rowRange?: [number, number];
+  onPatchBlock?: (patch: Partial<ReportBlock>) => void;
+  showUnresolved?: boolean;
+  parentCollection?: ReportCollection;
+  /** The title node (item 140), built by `ReportBlockView`. */
+  title?: React.ReactNode;
 }
 
 type FlatRow =
@@ -36,7 +42,7 @@ type FlatRow =
   | { kind: 'key'; group: ReportGridGroup }
   | { kind: 'data'; group: ReportGridGroup; item: ReportCollectionItem };
 
-const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap, dayItem, hint, showKeys, rowRange }) => {
+const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap, dayItem, hint, mode, showKeys, rowRange, onPatchBlock, showUnresolved, parentCollection, title }) => {
   const collection = isReportGridCollection(block.collection) ? block.collection : null;
   const baseStyle = getReportBlockBaseStyle(block, ctx.project);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };
@@ -66,7 +72,7 @@ const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap,
   }
   const shown = rowRange ? flat.slice(rowRange[0], rowRange[1]) : flat;
 
-  return (
+  const table = (
     <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>
       {shown.map((row, i) => {
         if (row.kind === 'group') {
@@ -111,6 +117,13 @@ const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap,
         );
       })}
     </div>
+  );
+
+  return (
+    <>
+      {title}
+      {table}
+    </>
   );
 };
 

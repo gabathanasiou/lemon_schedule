@@ -24,8 +24,10 @@ export type BodyChunk =
       /** Per item in [itemStart, itemEnd): `null` = whole item, an array =
        *  child-part slices (one part per repeat child present on this page). */
       perItemParts: (FragmentPartUnit[] | null)[];
+      /** This fragment holds the title unit (item 140). */
+      showTitle?: boolean;
     }
-  | { kind: 'table'; block: ReportBlock; rowStart: number; rowEnd: number; repeatHeader: boolean }
+  | { kind: 'table'; block: ReportBlock; rowStart: number; rowEnd: number; repeatHeader: boolean; /** This fragment holds the title unit (item 140). */ showTitle?: boolean }
   | { kind: 'ribbon'; block: ReportBlock; unitStart: number; unitEnd: number };
 
 /** A slice of one child of a split repeat-item fragment. No range = the whole
@@ -38,6 +40,8 @@ export interface FragmentPartUnit {
   ribbonRange?: [number, number];
   tableRowRange?: [number, number];
   repeatTableHeader?: boolean;
+  /** The title unit (item 140) lives on this fragment. */
+  showTitle?: boolean;
   /** Nested repeat child: item index range rendered, plus per-item parts
    *  (relative to `itemRange[0]`; a `null` entry = whole item). */
   itemRange?: [number, number];

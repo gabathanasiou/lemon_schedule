@@ -261,6 +261,17 @@ input, textarea, [contenteditable] {
    cells you haven't engaged yet. */
 .report-cell-editor-active .tiptap p.is-empty::before { display: none; }
 
+/* Table titles (roadmap 140): in the DESIGNER the title reads as an editable
+   field — the kit input language (light border, radius, hover fill, muted
+   focus border) on the white canvas page. Print/preview never get the class. */
+.report-title-input {
+  border: 1px solid #e4e4e7;
+  border-radius: 4px;
+  transition: background 120ms, border-color 120ms;
+}
+.report-title-input:hover { background: rgba(0, 0, 0, 0.03); }
+.report-title-input:focus-within { border-color: #a1a1aa; }
+
 /* Inline text-block editors (roadmap 191): the canvas block IS the editor —
    same strip-down as the free-table cell editors (no kit input chrome, the
    block's resolved typography, no fixed height) so the WYSIWYG matches the

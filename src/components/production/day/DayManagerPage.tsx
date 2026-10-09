@@ -22,7 +22,7 @@ import { EventAdderModal } from '../../calendar/EventAdderModal';
 import CopyDayModal from './CopyDayModal';
 import CallSheetEditPage from './CallSheetEditPage';
 import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
-import { findCallSheetZone } from '../../../lib/reportBlocks';
+import { findDesignCallSheetZone } from '../../../lib/reportBlocks';
 import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../types';
 
 const PREFS_KEY = 'lemon_schedule_day_manager';
@@ -55,7 +55,7 @@ export interface DayManagerPageProps {
 }
 
 const templateZoneBlocks = (design: ReportDesign): ReportBlock[] =>
-  findCallSheetZone(design.blocks || [])?.children || [];
+  findDesignCallSheetZone(design)?.children || [];
 
 const DayManagerPage: React.FC<DayManagerPageProps> = ({
   headerTarget,

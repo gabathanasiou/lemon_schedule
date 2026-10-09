@@ -69,7 +69,9 @@ export const ReportMapView: React.FC<{
   ctx?: ReportCtx;
   item?: any;
   hint?: boolean; // designer canvas: anchors inert via .block-card a
-}> = ({ block, ctx, item, hint }) => {
+  /** Optional caption (item 140) rendered below the map — never without it. */
+  caption?: React.ReactNode;
+}> = ({ block, ctx, item, hint, caption }) => {
   // Resolved location: inherited from the item (first location, or the
   // per-block "Show location" pick like the fields) — or the block's own
   // pin + structured parts (from the location picker).
@@ -92,7 +94,12 @@ export const ReportMapView: React.FC<{
     // The "Add a location…" prompt is a DESIGNER hint — preview/print render
     // nothing, so an empty day produces no page (and never a stray label).
     if (!hint) return null;
-    return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>Add a location…</div>;
+    return (
+      <>
+        <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>Add a location…</div>
+        {caption}
+      </>
+    );
   }
   const position: [number, number] = [loc.lat, loc.lng];
   const zoom = block.mapZoom ?? 15;
@@ -101,42 +108,45 @@ export const ReportMapView: React.FC<{
   const addressText = reportLocationLinkLabel(loc);
 
   return (
-    <div className="rounded-sm overflow-hidden border border-zinc-300">
-      <div className="relative" style={{ height: block.mapHeight ?? 240 }}>
-        <div className="h-full w-full pointer-events-none">
-          <MapContainer
-            center={position}
-            zoom={zoom}
-            scrollWheelZoom={false}
-            dragging={false}
-            zoomControl={false}
-            attributionControl={false}
-            className="h-full w-full"
-            style={{ background: '#e5e7eb' }}
-          >
-            <TileLayer url={OSM_TILES} attribution={OSM_ATTRIBUTION} />
-            <Marker position={position} icon={locationMarker()} interactive={false} />
-            <MapCenterSync center={position} zoom={zoom} />
-            <MapResize />
-          </MapContainer>
-        </div>
-        {/* Floating location label — the address (street, city postcode) on the
-            map itself; a clickable link when an "Open in" service is set. */}
-        <div className={`absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-white border border-zinc-300 rounded px-2 py-0.5 text-[10px] max-w-[80%] shadow-sm ${hint ? 'pointer-events-none' : ''}`}>
-          <span className="flex items-center gap-1 min-w-0">
-            <MapPin className="w-3 h-3 text-zinc-400 shrink-0" />
-            {href ? (
-              <ReportLocationLink
-                href={href}
-                label={addressText}
-                className="truncate text-zinc-700 underline underline-offset-2"
-              />
-            ) : (
-              <span className="truncate text-zinc-700">{addressText}</span>
-            )}
-          </span>
+    <>
+      <div className="rounded-sm overflow-hidden border border-zinc-300">
+        <div className="relative" style={{ height: block.mapHeight ?? 240 }}>
+          <div className="h-full w-full pointer-events-none">
+            <MapContainer
+              center={position}
+              zoom={zoom}
+              scrollWheelZoom={false}
+              dragging={false}
+              zoomControl={false}
+              attributionControl={false}
+              className="h-full w-full"
+              style={{ background: '#e5e7eb' }}
+            >
+              <TileLayer url={OSM_TILES} attribution={OSM_ATTRIBUTION} />
+              <Marker position={position} icon={locationMarker()} interactive={false} />
+              <MapCenterSync center={position} zoom={zoom} />
+              <MapResize />
+            </MapContainer>
+          </div>
+          {/* Floating location label — the address (street, city postcode) on the
+              map itself; a clickable link when an "Open in" service is set. */}
+          <div className={`absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-white border border-zinc-300 rounded px-2 py-0.5 text-[10px] max-w-[80%] shadow-sm ${hint ? 'pointer-events-none' : ''}`}>
+            <span className="flex items-center gap-1 min-w-0">
+              <MapPin className="w-3 h-3 text-zinc-400 shrink-0" />
+              {href ? (
+                <ReportLocationLink
+                  href={href}
+                  label={addressText}
+                  className="truncate text-zinc-700 underline underline-offset-2"
+                />
+              ) : (
+                <span className="truncate text-zinc-700">{addressText}</span>
+              )}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+      {caption}
+    </>
   );
 };

@@ -746,6 +746,12 @@ export interface ReportBlock {
   showBorders?: boolean;          // table cell borders — on unless explicitly off
   skipEmptyRows?: boolean;        // hide items whose cells are all/partly empty
   headerField?: string;          // columns-mode: item identity row
+  /** Optional title rendered top-left ABOVE the table (roadmap 140) for
+   *  table / callTimes / crewTable — a REAL text block (same renderer, same
+   *  chrome controls, default centered). Off unless `showTitle`. */
+  titleBlock?: ReportBlock;
+  showTitle?: boolean;
+  titleRepeat?: boolean;         // repeat the title on every pagination fragment
   axis?: 'columns' | 'rows';     // attributes as columns (default) or rows (matrix)
   columns?: ReportTableColumn[]; // simple column defs (field/align/width) — canonical table model
   // columns (Notion-style)

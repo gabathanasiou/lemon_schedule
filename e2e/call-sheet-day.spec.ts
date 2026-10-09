@@ -125,14 +125,13 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(editor.getByText('{{title}}')).toHaveCount(0);
   });
 
-  test('call-sheet edit shows the full day page read-only with an editable zone', async ({ page }) => {
+  test('call-sheet edit shows the full day page read-only with an editable zone (header-hosted, item 213)', async ({ page }) => {
     await openDayManager(page, project => {
       project.reportDesigns = [{
         id: 'cs-wysiwyg', name: 'Call Sheet', createdAt: Date.now(), page: 'portrait',
         blocks: [{
           id: 'days', type: 'repeat', collection: 'days', children: [
             { id: 'hdr', type: 'text', text: 'DAY HEADER {{dayNumber}} {{dayDate}}' },
-            { id: 'zone', type: 'callSheetEdit', children: [] },
             {
               // Roadmap 151 — the +1 Advance must resolve the NEXT day even
               // though the day scope filters the parent days list to one day.
@@ -141,19 +140,27 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
             },
           ],
         }],
-        header: [], footer: [],
+        // Item 213: the zone lives in the HEADER — it must stay editable in
+        // place while the rest of the header stays read-only.
+        header: [
+          { id: 'hdr-title', type: 'text', text: 'HEADER TEMPLATE' },
+          { id: 'zone', type: 'callSheetEdit', children: [] },
+        ],
+        footer: [],
       }];
       project.activeReportId = 'cs-wysiwyg';
     });
 
     await openCallSheetEdit(page);
 
-    // WYSIWYG page: read-only template resolved for the day.
+    // WYSIWYG page: read-only template resolved for the day; the header's
+    // non-zone content renders read-only.
     await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
     await expect(page.getByText(/^DAY HEADER /).first()).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText('HEADER TEMPLATE', { exact: true })).toBeVisible({ timeout: 8000 });
     await expect(page.getByText('{{dayNumber}}')).toHaveCount(0);
 
-    // The empty zone is the designer's drop target — click it to add a block.
+    // The header-hosted empty zone is the designer's drop target — click it.
     await page.getByText(/No blocks yet/).click();
     await expect(page.locator('[data-call-sheet-page] [data-block-id]').first()).toBeAttached({ timeout: 8000 });
     await expect.poll(() => page.evaluate(() => {

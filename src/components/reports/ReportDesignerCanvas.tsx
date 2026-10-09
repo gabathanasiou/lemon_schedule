@@ -4,13 +4,15 @@ import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportViewMode
 import { ReportCtx, resolveCollectionItems, resolveRelativeItems, reportItemLabel, locationsOfItem, filterItemsByScope, ReportCollectionItem } from '../../lib/reportData';
 import { FieldAux, ReportFieldDef } from '../../lib/reportFields';
 import { sampleRepeatItem } from '../../lib/reportSampling';
-import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, scopedCollectionLabel } from '../../lib/reportBlocks';
+import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, scopedCollectionLabel, supportsTitle } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
 import { useColumnResize, ColumnResizeStrip, splitBoundaryEven } from '../columnResize';
 import { CellRef } from '../../lib/reportTableMerges';
 import { hasCalculatedContent, CALCULATED_CONTENT_TIP } from '../../lib/reportTips';
+import { getLabel } from '../../lib/categories';
 import { ReportBlockView } from './ReportBlockView';
+import ReportBlockTitle from './ReportBlockTitle';
 import { ReportTextStyleRules } from './ReportTextStyleRules';
 import { CustomCellSelection } from './useCustomTableCells';
 import { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
@@ -214,6 +216,16 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
   // A drag that starts inside a free-table cell is a TEXT selection — the
   // card's native block drag must be off until the pointer is released.
   const [cellDragBlockId, setCellDragBlockId] = useState<string | null>(null);
+  // Same for the table title (item 140): a press on the title is a text
+  // gesture (click = edit, drag = select) — the card must not drag from it.
+  const [titleDragBlockId, setTitleDragBlockId] = useState<string | null>(null);
+  React.useEffect(() => {
+    if (!titleDragBlockId) return;
+    const clear = () => setTitleDragBlockId(null);
+    window.addEventListener('pointerup', clear);
+    window.addEventListener('pointercancel', clear);
+    return () => { window.removeEventListener('pointerup', clear); window.removeEventListener('pointercancel', clear); };
+  }, [titleDragBlockId]);
   // Inline editing (roadmaps 191/203): the block currently entered in Values
   // mode (text OR free table), which text block's editor holds DOM focus
   // (drag suppression — drag resumes on blur) and the editor channel. Fields
@@ -497,12 +509,17 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       // Inline text editing (roadmaps 191/203): Fields mode ALWAYS renders the
       // live chip editor; Values enters it on double-click / tap-again. Only
       // the Values ENTRY wears the editing outline — Fields editors are the
-      // normal state, never a selection look.
+      // normal state, never a selection look. A table title (roadmap 140) is a
+      // real text block and rides the same channel, but is ALWAYS live in the
+      // designer: a title reads as an input — click places the caret, drag
+      // selects text (the global `user-select: none` means a resolved div
+      // could never be selected).
+      const isTitledBlock = supportsTitle(b.type) && b.showTitle === true && !!b.titleBlock;
       const isEditingText = b.type === 'text' && (mode === 'fields' || editingId === b.id);
       const enteredTextEditing = b.type === 'text' && mode === 'values' && editingId === b.id;
-      const textEditProps = b.type === 'text' ? {
-        editing: isEditingText,
-        textAutoFocus: mode === 'values',
+      const textEditProps = (b.type === 'text' || isTitledBlock) ? {
+        editing: b.type === 'text' ? isEditingText : true,
+        textAutoFocus: b.type === 'text' && mode === 'values',
         textEditorRef,
         onTextStateChange: handleTextRtState,
         onTextSelectionChange: handleTextSelection,
@@ -576,6 +593,10 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onMenu(e, b.id); }}
             onPointerDown={e => {
               cancelTextEntry();
+              // A press on the title is a text gesture: take the card's native
+              // drag off for this gesture so click-drag selects text (the card
+              // header / padding still drag the block).
+              if (isTitledBlock && (e.target as HTMLElement).closest?.('.report-block-title')) setTitleDragBlockId(b.id);
               if (!b.custom) return;
               recordPointerCell(e);
               // Suppress the block drag only while the table is LIVE (Fields /
@@ -592,14 +613,20 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
             // drag) the card must not drag — text selection never starts a
             // block drag. Fields mode keeps the card draggable (the leaf header
             // and padding drag) and cancels body drags in onDragStart instead.
-            draggable={!readOnly && !(b.custom && cellDragBlockId === b.id) && !(b.type === 'text' && mode === 'values' && textFocusedId === b.id)}
+            draggable={!readOnly && !titleDragBlockId && !(b.custom && cellDragBlockId === b.id) && !(b.type === 'text' && mode === 'values' && textFocusedId === b.id) && !(isTitledBlock && textFocusedId === b.id)}
             onDragStart={e => {
+              // A press that landed on a table title is a text gesture — no
+              // card in the tree may start a drag (with the title's own card
+              // non-draggable, the browser would otherwise walk up to the
+              // enclosing repeat/columns card and drag THAT).
+              if (titleDragBlockId) { e.preventDefault(); return; }
               if (b.custom && cellDragBlockId === b.id) { e.preventDefault(); return; }
               const from = e.target as HTMLElement;
               // Fields mode: live editor bodies (text + free-table cells) are
               // text surfaces — cancel the card drag so gestures select text.
-              // The leaf header and card padding still drag the block.
-              if (mode === 'fields' && (from.closest?.('.report-text-editor') || from.closest?.('[data-cell]'))) { e.preventDefault(); return; }
+              // The table title editor is ALWAYS live — never drag the card
+              // from it. The leaf header and card padding still drag the block.
+              if (from.closest?.('.report-block-title-editor') || (mode === 'fields' && (from.closest?.('.report-text-editor') || from.closest?.('[data-cell]')))) { e.preventDefault(); return; }
               startBlockDrag(e, b);
             }}
             style={{
@@ -672,6 +699,25 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     </span>
                   )}
                 </div>
+                {/* Repeat titles render here (the repeat card bypasses
+                    ReportBlockView); tables/grids/images/maps build theirs
+                    inside the view below. */}
+                {isTitledBlock && b.type === 'repeat' && (
+                  <ReportBlockTitle
+                    block={b}
+                    ctx={ctx}
+                    fieldMap={fieldMap}
+                    item={parentItem}
+                    aux={{ index: 0, pageSize }}
+                    mode={mode}
+                    onPatchBlock={p => onPatch(b.id, p)}
+                    showUnresolved
+                    parentCollection={parentCollection}
+                    parentCategory={parentCategory}
+                    selected={selected}
+                    {...textEditProps}
+                  />
+                )}
                 {resizeTarget && resizeTarget.id === b.id && (
                   <TableResizeBar
                     block={resizeTarget}
@@ -829,12 +875,21 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 );
               })()
             ) : (
-              <div className={b.type === 'text' ? 'flex flex-col gap-2' : undefined}>
+              <div className={b.type === 'text' || b.type === 'callTimes' || b.type === 'crewTable' ? 'flex flex-col gap-2' : undefined}>
                 {b.type === 'text' && (
                   <div className={BLOCK_HEADER_CLS}>
                     {meta.icon}
                     Text
                     {hasCalculatedContent(b) && <TipStar />}
+                  </div>
+                )}
+                {/* Grid blocks (items 111/112) carry the same little card
+                    header as tables — the block name + its staged category. */}
+                {(b.type === 'callTimes' || b.type === 'crewTable') && (
+                  <div className={BLOCK_HEADER_CLS}>
+                    {meta.icon}
+                    {meta.label}
+                    {b.type === 'callTimes' && b.category ? ` · ${getLabel(b.category, b.category, project.categoryLabels)}` : null}
                   </div>
                 )}
                 <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint mode={mode} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
@@ -867,6 +922,14 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
   );
   const bodyBlocks = blocks.length === 0 ? emptyBodyDrop : <div className="flex flex-col">{renderBlocks(blocks, 0, bare ? parentCollection : undefined, bare ? rootItem : undefined)}</div>;
 
+  // A press anywhere outside an editable clears the current text selection —
+  // a title/text selection left highlighted after clicking the background or
+  // another block must deselect (the always-live title editors keep it alive
+  // otherwise). Capture phase so card `stopPropagation` can't hide it.
+  const clearSelectionOutsideEditable = (e: React.PointerEvent) => {
+    if (!(e.target as HTMLElement).closest?.('[contenteditable]')) window.getSelection()?.removeAllRanges();
+  };
+
   if (bare) {
     // Embedded list (Call Sheet zone): same cards / DnD / floating chrome, but
     // no Header/Footer zones and no page-width scroller — the parent owns the
@@ -875,6 +938,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       <div
         ref={containerRef}
         onClick={() => { onSelect(null); onSelectCol(null); }}
+        onPointerDownCapture={clearSelectionOutsideEditable}
         onDragEnter={e => { if (isDrag(e)) setDragging(true); }}
         onDragLeave={e => {
           const cur = e.currentTarget;
@@ -895,6 +959,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       data-testid={TEST_IDS.reportCanvas}
       className="flex-1 overflow-auto p-8"
       onClick={() => { onSelect(null); onSelectCol(null); }}
+      onPointerDownCapture={clearSelectionOutsideEditable}
       onDragEnter={e => { if (isDrag(e)) setDragging(true); }}
       onDragLeave={e => {
         const cur = e.currentTarget;

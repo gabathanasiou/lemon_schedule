@@ -24,6 +24,9 @@ import type { DayView } from '../../../lib/dayView';
  * simply absent when the design has no `callSheetEdit` (roadmap 211).
  */
 export function callSheetDayBlocks(design: ReportDesign): ReportBlock[] | null {
+  // BODY only on purpose: a zone-bearing days repeat in header/footer renders
+  // in place via `renderTemplateRegion`, so returning its children here would
+  // duplicate the day content in the body (item 213).
   for (const b of design.blocks || []) {
     if (b.type === 'repeat' && b.collection === 'days' && (b.children || []).some(c => c.type === 'callSheetEdit')) {
       return b.children || [];
@@ -106,9 +109,42 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
 
   const readOnlyView = (b: ReportBlock, i: number, item?: any, parentCollection?: string) => (
     <div key={`${b.id}:${weatherTick}`} style={{ marginTop: i === 0 ? 0 : 6 }}>
-      <ReportBlockView block={b} ctx={ctx!} fieldMap={fieldMap} item={item} parentCollection={parentCollection as any} ribbonOverrides={ribbonOverrides} />
+      <ReportBlockView block={b} ctx={ctx!} fieldMap={fieldMap} item={item} parentCollection={parentCollection as any} aux={{ callSheetBlocks: zoneBlocks }} ribbonOverrides={ribbonOverrides} />
     </div>
   );
+
+  // The zone is honored WHEREVER it sits (item 213): a direct header/footer
+  // child swaps to the editable zone slot; a `days` repeat there dissolves to
+  // the selected day's content (matching print/preview). Every other block
+  // stays read-only — only `callSheetEdit` is per-day content.
+  const zoneSlot = (b: ReportBlock) => (
+    <div key={b.id} className="my-3" style={CALL_SHEET_EDIT_ZONE_STYLE}>
+      <CallSheetZoneDesigner
+        blocks={zoneBlocks}
+        onChange={onChangeZone}
+        readOnly={readOnly}
+        ctx={ctx!}
+        pageSize={design.page}
+        dayItem={dayItem}
+      />
+    </div>
+  );
+
+  const renderTemplateRegion = (blocks: ReportBlock[]) =>
+    blocks.map((b, i) => {
+      if (b.type === 'callSheetEdit') return zoneSlot(b);
+      if (b.type === 'repeat' && b.collection === 'days') {
+        return (
+          <React.Fragment key={b.id}>
+            {(b.children || []).map((c, ci) =>
+              c.type === 'pageBreak' ? null
+                : c.type === 'callSheetEdit' ? zoneSlot(c)
+                  : readOnlyView(c, ci, dayItem, 'days'))}
+          </React.Fragment>
+        );
+      }
+      return readOnlyView(b, i);
+    });
 
   return (
     <SceneHighlightContext.Provider value={highlightScene}>
@@ -131,7 +167,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
               <div className="py-16 text-center text-xs text-zinc-400">Loading day…</div>
             ) : (
               <>
-                {(design.header || []).map((b, i) => readOnlyView(b, i))}
+                {renderTemplateRegion(design.header || [])}
                 {(dayBlocks || []).map((b, i) => {
                   if (b.type === 'pageBreak') return null;
                   if (b.type === 'callTimes' || b.type === 'crewTable') {
@@ -142,22 +178,11 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
                     );
                   }
                   if (b.type === 'callSheetEdit') {
-                    return (
-                      <div key={b.id} className="my-3" style={CALL_SHEET_EDIT_ZONE_STYLE}>
-                        <CallSheetZoneDesigner
-                          blocks={zoneBlocks}
-                          onChange={onChangeZone}
-                          readOnly={readOnly}
-                          ctx={ctx}
-                          pageSize={design.page}
-                          dayItem={dayItem}
-                        />
-                      </div>
-                    );
+                    return zoneSlot(b);
                   }
                   return readOnlyView(b, i, dayItem, 'days');
                 })}
-                {(design.footer || []).map((b, i) => readOnlyView(b, i))}
+                {renderTemplateRegion(design.footer || [])}
               </>
             )}
           </div>

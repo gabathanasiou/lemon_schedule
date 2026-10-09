@@ -1,4 +1,4 @@
-import { ReportBlock, ReportCollection, ReportColumn, ReportCustomRow, ReportTableColumn } from '../types';
+import { ReportBlock, ReportCollection, ReportColumn, ReportCustomRow, ReportDesign, ReportTableColumn } from '../types';
 import { generateUUID } from './utils';
 import { normalizeColWidths } from './ribbonDefaults';
 import { insertMergeRow, removeMergeRow, remapMergesForColumns } from './reportTableMerges';
@@ -221,6 +221,12 @@ export function findCallSheetZone(blocks: ReportBlock[]): ReportBlock | undefine
     }
   }
   return undefined;
+}
+
+/** The design's zone across ALL regions (body, header, footer) — the zone is
+ *  honored wherever it sits (item 213). */
+export function findDesignCallSheetZone(design: ReportDesign): ReportBlock | undefined {
+  return findCallSheetZone([...(design.header || []), ...(design.blocks || []), ...(design.footer || [])]);
 }
 
 export function removeBlock(blocks: ReportBlock[], id: string): ReportBlock[] {
@@ -642,6 +648,34 @@ export function tableOverLabel(parentCollection?: ReportCollection): string {
   const contextual = contextualCollectionsFor(parentCollection);
   if (contextual.length > 0) return COLLECTION_LABELS[contextual[0]] || '';
   return `Per-item — ${COLLECTION_LABELS[parentCollection] || parentCollection} fields`;
+}
+
+/** Blocks that support the optional title (item 140): table-shaped blocks,
+ *  the repeat (section heading) and image/map (caption below). */
+const TITLED_BLOCK_TYPES = new Set(['table', 'callTimes', 'crewTable', 'repeat', 'image', 'map']);
+export function supportsTitle(type: ReportBlock['type']): boolean {
+  return TITLED_BLOCK_TYPES.has(type);
+}
+
+/** Block types whose title can repeat on every pagination fragment — only
+ *  blocks that actually split across pages (a caption never does). */
+export function titleRepeatable(type: ReportBlock['type']): boolean {
+  return type === 'table' || type === 'callTimes' || type === 'crewTable' || type === 'repeat';
+}
+
+/** The default title text a block seeds with (item 140): grid blocks use their
+ *  palette names, tables their collection label, a repeat its collection
+ *  heading; a caption (image/map) starts blank. */
+export function reportTitleAutoLabel(block: ReportBlock, parentCollection?: ReportCollection): string {
+  if (block.type === 'callTimes') return 'Call Times';
+  if (block.type === 'crewTable') return 'Crew Table';
+  if (block.type === 'image' || block.type === 'map') return '';
+  if (block.type === 'repeat') return scopedCollectionLabel(block.collection || 'scenes', parentCollection, block.scopedToParent !== false);
+  if (parentCollection) {
+    const over = tableOverLabel(parentCollection);
+    if (over) return over;
+  }
+  return scopedCollectionLabel(tableItemCollection(block, parentCollection), parentCollection, block.scopedToParent !== false);
 }
 
 /** Default identity header field per collection (rows-mode matrix headers). */

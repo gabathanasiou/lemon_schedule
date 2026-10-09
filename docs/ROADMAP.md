@@ -10,17 +10,8 @@ roadmap worker session, so it stays lean.
 - **New asks** go through the triage/dedupe gate (AGENTS.md, §Roadmap Work)
   before becoming an item here.
 
-> **Next session — Reports Designer pass**: **140** (rich-text table title,
-> top-left, opt-in — the Numbers-style table title; retired **199** was a
-> misread of this ask). **198** (designer day picker — All days/Day N
-> scopes canvas + Preview/Print) and **202** (kit `NumberInput` stepper + mouse
-> drag-scrub) shipped 2026-10-09; **203** (Fields/Values mode + block headers +
-> tips star), **191**
-> (inline text blocks + the ONE shared chrome), **194** (resize-tab double-click
-> reset) and **204**/**205** (Duplicate selects the new block; docked-toolbar
-> layout polish — docked is the DEFAULT surface) shipped 2026-10-06.
-
 ---
+
 ## 17. Report designer iPad-friendly (`[ ]`)
 
 - The **report designer must work on iPad** — both the **looks** and the
@@ -420,55 +411,6 @@ known-element matching in **136** ships the same value cheaply; AI needs
 accuracy, consent and cost decisions first.
 
 **Verify**: TBD when unparked.
-
-## 140. Reports designer — rich-text table title (top-left, opt-in) (`[ ]`)
-
-**Request**: table-shaped blocks get an optional title rendered top-left
-ABOVE the block in designer, preview and print. Off by default; when on it
-starts as the block's auto label (`scopedCollectionLabel` / `tableOverLabel`
-— e.g. "Scenes", "Crew Table") and the user can type anything, including
-`{{field}}` tokens and `@` item lookups. No title when the block renders
-nothing.
-
-**Blocks**: `table` (columns/rows + custom rows), `callTimes`, `crewTable` —
-NOT repeat/relative.
-
-**Approach**:
-- New optional `ReportBlock` props (no migration): `title?: string`
-  (rich-text HTML + tokens), `showTitle?: boolean`, `titleRepeat?: boolean`
-  (repeat on every pagination fragment; default off = first fragment only).
-- One small shared title renderer used by `ReportTableView`
-  (`ReportBlockView.tsx:660`) and `ReportGridBlock`; an empty `title` falls
-  back to the block's auto label. Left-aligned, above the table header,
-  inheriting `getReportBlockBaseStyle`.
-- Reuse the existing token recipe — do NOT build a new editor/parser:
-  designer (`hint`) edits via `RichTextEditor` + `fields`/`lookupTokens`
-  (the `CustomCellEditor` recipe, `ReportBlockView.tsx:762`); preview/print
-  resolve via `resolveReportTokensHtml(ctx, fieldMap, block.title, item, aux)`
-  (`ReportBlockView.tsx:836`).
-- Emptiness: the title lives INSIDE the existing `null` return path, so
-  preview/print omit it when the collection is empty; the designer skeleton
-  still shows it.
-- Pagination: tables dissolve into row fragments — render the title with the
-  first fragment, and (with `titleRepeat`) on each continuing fragment,
-  mirroring `repeatTableHeader`/`rowRange` in `ReportChunkPage`. The title
-  must count toward the measured page budget.
-- Controls in `blockControls.tsx` Content: table branch (`:1027-1113`) and
-  `callTimes` branch (`:1186`) — token-capable "Title" field, "Show title"
-  checkbox, "Repeat on each page" checkbox (shown only when enabled).
-- Docs: `docs/REPORTS-DESIGNER.md` (props + recipe); `docs/DESIGN-LANGUAGE.md`
-  only if a new control recipe appears.
-
-**Verify**: visual (AGENTS.md rule 7) — manual: title shows in
-designer/preview/print, blank → auto label, off → gone, empty collection → no
-title, `{{field}}`/`@` resolves, forced page split honors the repeat toggle.
-Add a targeted `report-page-breaks` case ONLY if the title turns out to be
-duplicated/dropped/miscounted across fragments.
-
-**Relations**: 111/112 (grid blocks), 100 (same chrome header), 121 (`@` token
-picker); read `docs/REPORTS-DESIGNER.md` first. **Absorbed 199** (retired
-2026-10-09 — per-column headers were a misread of this ask; the table TITLE is
-what's wanted, Numbers-style, same token recipe).
 
 ## 142. Unified Day workspace — the Call Sheet becomes the Day Manager (`[ ]`, big)
 
@@ -906,43 +848,6 @@ WITHOUT merging navigation (the 176 note keeps Day Manager / Call Sheet
 separately navigable); builds on **203** (Fields/Values mode) and **204**
 (duplicate selects); touches **113**/**114** (zone chrome/Times toggle) and
 **208**/**211** (same editor).
-
-## 213. Call Sheet editor — header/footer read-only except the Call Sheet Edit block (`[ ]`)
-
-**Request** (user, 2026-10-08, bug): in the per-day Call Sheet editor only the
-`callSheetEdit` zone is per-day content — the design's header and footer must be
-read-only. The one exception: when a header/footer region CONTAINS the Call
-Sheet Edit block, that slot stays editable in place (the zone is honored wherever
-it sits). Template header/footer content belongs to the Reports Designer. (Audit
-note: the current per-day canvas already renders header/footer via `readOnlyView`
-— `CallSheetCanvas.tsx:134/160` — but the zone is only found in `design.blocks`,
-so a zone placed inside header/footer is silently ignored; verify every edit
-path while implementing.)
-
-**Fix**:
-- Zone search must include header/footer: `callSheetDayBlocks`
-  (`CallSheetCanvas.tsx:26`), `templateZoneBlocks` (`DayManagerPage.tsx:57`) and
-  `findCallSheetZone` (`lib/reportBlocks.ts:193`) — today a zone there falls into
-  the roadmap-211 zone-less fallback and the day's content is unreachable.
-- Render: header/footer map keeps `readOnlyView` for every block, but swaps the
-  `callSheetEdit` slot to `CallSheetZoneDesigner` at its position
-  (`CallSheetCanvas.tsx:134/160`); no palette drop, chrome or inline edit may
-  target template blocks.
-- Guard the write path: `patchZone`/`daybreakMeta.callSheets[designId]`
-  (`DayManagerPage.tsx:147`, `types.ts:213`) receives zone blocks only — audit
-  palette `onInsert`, chrome and `onPatchBlock` for leaks so header/footer
-  template content can never be written per day. Same rule for designs offered
-  via Settings → Design.
-
-**Verify**: `e2e/call-sheet-day.spec.ts` extended — design with the zone INSIDE
-header/footer: the day's zone content renders editable there and persists per
-day; add a targeted assertion only for a silent break (a header/footer
-interaction writing `daybreakMeta.callSheets`); `npm run lint`; rule-7 manual
-(editor vs print still match).
-
-**Relations**: keeps **212** (1:1 designer parity) honest — that item must
-preserve this bound; extends **10** (zone model) and **211** (zone-less
-fallback); day write path from **98**/**99**.
 
 ## 214. Image block — bottom-right drag to scale; editor renders at true print scale (`[ ]`)
 

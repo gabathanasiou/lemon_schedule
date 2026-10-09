@@ -1,19 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection, ReportTextStyle, ReportViewMode } from '../../types';
 import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, applyItemFilter, resolveCollectionItems, resolveRelativeItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
-import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor, getReportFieldDefs, fieldsForScope, buildLookupTokens } from '../../lib/reportFields';
+import { reportFieldValueByKey, resolveReportTokens, applyItemAffixes, ReportFieldDef, FieldAux } from '../../lib/reportFields';
 import CustomTable from './CustomTable';
 import { CustomCellSelection } from './useCustomTableCells';
-import RichTextEditor, { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
+import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
+import TextBlockView, { isEmptyValue, visibleFor } from './TextBlockView';
 import { useTableColumnReorder } from './useTableColumnReorder';
 import { getReportBlockBaseStyle, blockGapMargin, CALL_SHEET_EDIT_ZONE_STYLE } from './reportStyle';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
 import { ReportRibbonView } from './ReportRibbonView';
 import { ReportMapView } from './ReportMapView';
 import ReportGridBlock from './ReportGridBlock';
+import ReportBlockTitle from './ReportBlockTitle';
 import { ReportLocationLink } from './ReportLocationLink';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
-import { stripRichText, normalizeSpaces, htmlProp } from '../../lib/richText';
 import { CellRef } from '../../lib/reportTableMerges';
 import { PageChunk, FragmentPartUnit, splittableKind } from '../../lib/reportPagination';
 
@@ -57,6 +58,9 @@ export interface ReportRenderProps {
   itemRange?: [number, number];        // repeat: item index range
   rowRange?: [number, number];         // table: row index range (into `shown`)
   repeatTableHeader?: boolean;         // table: continuation chunk repeats the header row
+  /** Titled blocks (item 140): this pagination fragment holds the title unit.
+   *  Undefined outside the paginator (designer / whole blocks). */
+  showBlockTitle?: boolean;
   unitRange?: [number, number];        // ribbon: strip/row unit range
   /** Measured-pagination child slices for the rendered items: per item in
    *  [itemRange[0], itemRange[1]) a parts list (which children render and how
@@ -103,10 +107,6 @@ export interface ReportRenderProps {
   onTextFocusChange?: (focused: boolean) => void;
 }
 
-function isEmptyValue(v: string): boolean {
-  return !v.trim();
-}
-
 /** Field value as a React node: plain text, or a clickable anchor when the
  *  field is a link field (map links, emails, phones) or its value is itself a
  *  URL. Shared by field blocks and table cells so links work everywhere.
@@ -139,46 +139,9 @@ function fieldValueNode(
   return value;
 }
 
-function visibleFor(b: ReportBlock, value: string): boolean {
-  if (!isEmptyValue(value)) return true;
-  return (b.emptyBehavior ?? 'show') !== 'hideBlock';
-}
-
 function emptyHint(text: string, style: React.CSSProperties): React.ReactNode {
   return <div style={{ ...style, color: '#8f8f8f', fontStyle: 'italic' }}>{text}</div>;
 }
-
-const TOKEN_CHIP_RE = /(\{\{[^}]+\}\})/g;
-
-/** Template preview: `{{field}}` tokens render as color-coded chips (one color
- *  per attribute group) so the "this is a template" nature of a text block is
- *  obvious in key mode. */
-export const TokenPreview: React.FC<{ text: string; fieldMap?: Record<string, ReportFieldDef> }> = ({ text, fieldMap }) => {
-  // stripRichText removes any stored markup (editor saves wrap text in <p>,
-  // old kit builds polluted it with xmlns attrs) — key mode must show the
-  // template text, never tags.
-  const parts = stripRichText(text).split(TOKEN_CHIP_RE);
-  return (
-    <>
-      {parts.map((part, i) => {
-        const key = part.startsWith('{{') && part.endsWith('}}') && part.length > 4 ? part.slice(2, -2).trim() : null;
-        const fieldKey = key ? key.split('|')[0].trim() : null;
-        const customized = key ? key.includes('|') : false;
-        if (key !== null) {
-          const def = fieldKey ? fieldMap?.[fieldKey] : undefined;
-          const color = def ? fieldChipColor(def.group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
-          return (
-            <span key={i} style={{ background: color.text, color: '#ffffff', borderRadius: 2, padding: '1px 4px', margin: '0 2px', fontWeight: 600, fontStyle: 'normal' }}>
-              {part}
-              {customized && <span style={{ opacity: 0.7, marginLeft: 2 }}>*</span>}
-            </span>
-          );
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </>
-  );
-};
 
 /** Drops trailing pageBreak children (a trailing break would print a blank page). */
 function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
@@ -188,7 +151,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, editing, textAutoFocus, textEditorRef, onTextStateChange, onTextSelectionChange, onTextEditEnd, onTextFocusChange, tableEditing, focusCell }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, showBlockTitle, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, editing, textAutoFocus, textEditorRef, onTextStateChange, onTextSelectionChange, onTextEditEnd, onTextFocusChange, tableEditing, focusCell }) => {
     // One mode → key seam: Fields drives today's key↔value behavior; preview
     // and print omit the mode (always values).
     const showKeys = mode === 'fields';
@@ -202,49 +165,60 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
       dayDate: aux?.dayDate ?? (ancestors?.find(a => typeof (a as any).section?.index === 'number') as any)?.date,
     };
 
+    // The optional title node (item 140) — a real text block (one renderer,
+    // one chrome). `visible` is the pagination fragment flag for splittable
+    // blocks; callers place it above (heading) or below (caption).
+    const renderTitle = (owner: ReportBlock, visible?: boolean) => (
+      <ReportBlockTitle
+        block={owner}
+        ctx={ctx}
+        fieldMap={fieldMap}
+        item={item}
+        aux={blockAux}
+        hint={hint}
+        mode={mode}
+        onPatchBlock={onPatchBlock}
+        showUnresolved={showUnresolved}
+        parentCollection={parentCollection}
+        parentCategory={parentCategory}
+        visible={visible}
+        selected={selected}
+        editing={editing}
+        textAutoFocus={textAutoFocus}
+        textEditorRef={textEditorRef}
+        onTextStateChange={onTextStateChange}
+        onTextSelectionChange={onTextSelectionChange}
+        onTextEditEnd={onTextEditEnd}
+        onTextFocusChange={onTextFocusChange}
+      />
+    );
+
     switch (block.type) {
       case 'text': {
-        // Designer canvas: an editing text block is the live editor (roadmap
-        // 191) — tokens render as chips and every change patches the block.
-        // Fields mode (roadmap 203) always renders the editor; Values enters
-        // it via double-click / tap-again. Everywhere else the block renders
-        // resolved HTML exactly as preview/print do.
-        if (onPatchBlock && (showKeys || editing)) {
-          return (
-            <InlineTextBlock
-              block={block}
-              ctx={ctx}
-              parentCollection={parentCollection}
-              parentCategory={parentCategory}
-              style={baseStyle}
-              onPatchBlock={onPatchBlock}
-              autoFocus={textAutoFocus}
-              selected={selected}
-              textEditorRef={textEditorRef}
-              onStateChange={onTextStateChange}
-              onSelectionChange={onTextSelectionChange}
-              onEditEnd={onTextEditEnd}
-              onFocusChange={onTextFocusChange}
-            />
-          );
-        }
-        if (showKeys) {
-          return (
-            <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>
-              {block.text ? <TokenPreview text={block.text} fieldMap={fieldMap} /> : '\u00A0'}
-            </div>
-          );
-        }
-        const html = resolveReportTokensHtml(ctx, fieldMap, block.text || '', item, blockAux, { showUnresolved });
-        const text = stripRichText(html);
-        if (!visibleFor(block, text)) return null;
-        const st: React.CSSProperties = { ...baseStyle };
-        if ((block.emptyBehavior ?? 'show') === 'hideText' && isEmptyValue(text)) st.display = 'none';
-        const isHtml = html.includes('<');
-        if (isHtml) {
-          return <div className="report-text-block" style={st} dangerouslySetInnerHTML={htmlProp(html || '\u00A0')} />;
-        }
-        return <div className="report-text-block" style={{ ...st, whiteSpace: 'pre-wrap' }}>{text || '\u00A0'}</div>;
+        // ONE text renderer (roadmap 191/203/140): the live inline editor in
+        // the designer, resolved HTML everywhere else.
+        return (
+          <TextBlockView
+            block={block}
+            ctx={ctx}
+            fieldMap={fieldMap}
+            aux={blockAux}
+            item={item}
+            parentCollection={parentCollection}
+            parentCategory={parentCategory}
+            mode={mode}
+            showUnresolved={showUnresolved}
+            onPatchBlock={onPatchBlock}
+            editing={editing}
+            textAutoFocus={textAutoFocus}
+            selected={selected}
+            textEditorRef={textEditorRef}
+            onStateChange={onTextStateChange}
+            onSelectionChange={onTextSelectionChange}
+            onEditEnd={onTextEditEnd}
+            onFocusChange={onTextFocusChange}
+          />
+        );
       }
       case 'field': {
         if (!block.field) {
@@ -270,13 +244,13 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <div style={st}>{text || '\u00A0'}</div>;
       }
       case 'repeat': {
-        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} mode={mode} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} partChildren={partChildren} parentItems={parentItems} itemIndex={itemIndex} />;
+        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} mode={mode} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} partChildren={partChildren} parentItems={parentItems} itemIndex={itemIndex} title={renderTitle(block, showBlockTitle)} />;
       }
       case 'relative': {
         return <ReportRelativeView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} mode={mode} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} partChildren={partChildren} parentItems={parentItems} itemIndex={itemIndex} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} mode={mode} showKeys={showKeys} aux={blockAux} showUnresolved={showUnresolved} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} selected={selected} cellSelection={cellSelection} onCellSelectionChange={onCellSelectionChange} cellEditorRef={cellEditorRef} onCellRtStateChange={onCellRtStateChange} cellDocked={cellDocked} onToggleEditorMode={onToggleEditorMode} onCellSaveTextStyles={onCellSaveTextStyles} tableEditing={tableEditing} focusCell={focusCell} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} mode={mode} showKeys={showKeys} aux={blockAux} showUnresolved={showUnresolved} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} selected={selected} cellSelection={cellSelection} onCellSelectionChange={onCellSelectionChange} cellEditorRef={cellEditorRef} onCellRtStateChange={onCellRtStateChange} cellDocked={cellDocked} onToggleEditorMode={onToggleEditorMode} onCellSaveTextStyles={onCellSaveTextStyles} tableEditing={tableEditing} focusCell={focusCell} title={renderTitle(block, showBlockTitle)} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -335,19 +309,22 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         const height = block.imageHeight;
         const fit = block.imageFit ?? 'contain';
         return (
-          <img
-            src={block.imageDataUrl}
-            alt=""
-            style={{
-              display: 'block',
-              width: '100%',
-              ...(height ? { height, objectFit: fit } : { height: 'auto' }),
-            }}
-          />
+          <>
+            <img
+              src={block.imageDataUrl}
+              alt=""
+              style={{
+                display: 'block',
+                width: '100%',
+                ...(height ? { height, objectFit: fit } : { height: 'auto' }),
+              }}
+            />
+            {renderTitle(block)}
+          </>
         );
       }
       case 'map': {
-        return <ReportMapView block={block} ctx={ctx} item={item} hint={hint} />;
+        return <ReportMapView block={block} ctx={ctx} item={item} hint={hint} caption={renderTitle(block)} />;
       }
       case 'link': {
         const label = block.text || '';
@@ -371,7 +348,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
       }
       case 'callTimes':
       case 'crewTable': {
-        return <ReportGridBlock block={block} ctx={ctx} fieldMap={fieldMap} dayItem={item} hint={hint} showKeys={showKeys} rowRange={rowRange} />;
+        return <ReportGridBlock block={block} ctx={ctx} fieldMap={fieldMap} dayItem={item} hint={hint} mode={mode} showKeys={showKeys} rowRange={rowRange} onPatchBlock={onPatchBlock} showUnresolved={showUnresolved} parentCollection={parentCollection} title={renderTitle(block, showBlockTitle)} />;
       }
       case 'callSheetEdit': {
         // The per-day editable region of a call-sheet template. A host scoped
@@ -443,6 +420,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.itemRange === b.itemRange &&
     a.rowRange === b.rowRange &&
     a.repeatTableHeader === b.repeatTableHeader &&
+    a.showBlockTitle === b.showBlockTitle &&
     a.unitRange === b.unitRange &&
     a.parentItems === b.parentItems &&
     a.itemIndex === b.itemIndex &&
@@ -498,7 +476,7 @@ const RepeatItemChildren: React.FC<{
         const part = parts ? parts.find(p => p.childIndex === ci) : undefined;
         if (parts && !part) return null;
         return (
-          <div key={cb.id} className="rm-frag-child" data-rm-kind={splittableKind(cb.type)} style={{ marginTop: blockGapMargin(cb, ci === 0) }}>
+          <div key={cb.id} className="rm-frag-child" data-rm-kind={splittableKind(cb.type)} data-rm-title-repeat={cb.titleRepeat ? '1' : undefined} style={{ marginTop: blockGapMargin(cb, ci === 0) }}>
             <ReportBlockView
               block={cb}
               ctx={ctx}
@@ -519,6 +497,7 @@ const RepeatItemChildren: React.FC<{
               unitRange={part?.ribbonRange}
               rowRange={part?.tableRowRange}
               repeatTableHeader={part?.repeatTableHeader}
+              showBlockTitle={part?.showTitle}
               itemRange={part?.itemRange}
               partChildren={part?.itemParts}
             />
@@ -564,9 +543,9 @@ export const ReportChunkPage: React.FC<{
             case 'block':
               return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} mode={mode} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} /></div>;
             case 'repeat':
-              return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} mode={mode} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} itemRange={[ci.itemStart, ci.itemEnd]} partChildren={ci.perItemParts} /></div>;
+              return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} mode={mode} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} itemRange={[ci.itemStart, ci.itemEnd]} partChildren={ci.perItemParts} showBlockTitle={ci.showTitle} /></div>;
             case 'table':
-              return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} mode={mode} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} rowRange={[ci.rowStart, ci.rowEnd]} repeatTableHeader={ci.repeatHeader} /></div>;
+              return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} mode={mode} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} rowRange={[ci.rowStart, ci.rowEnd]} repeatTableHeader={ci.repeatHeader} showBlockTitle={ci.showTitle} /></div>;
             case 'ribbon':
               return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} mode={mode} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} unitRange={[ci.unitStart, ci.unitEnd]} /></div>;
             default:
@@ -589,12 +568,12 @@ export const ReportChunkPage: React.FC<{
 
 // ---- repeat (vertical stack of children) ------------------------------------
 
-const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, mode, showUnresolved, aux, ancestors, ribbonOverrides, itemRange, partChildren, previewLimit, parentItems, itemIndex }) => {
+const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock; title?: React.ReactNode }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, mode, showUnresolved, aux, ancestors, ribbonOverrides, itemRange, partChildren, previewLimit, parentItems, itemIndex, title }) => {
   const items = resolveCollectionItems(ctx, block.collection, block.category, item, parentCategory, block, ancestors) as ReportCollectionItem[];
   const scoped = filterItemsByScope(items, block.collection, block.collection === 'elements' ? block.category : undefined, scopeFilter);
   const filtered = applyItemFilter(scoped, block.itemFilter, (it, field) => String(reportFieldValueByKey(ctx, fieldMap, field, it, aux) ?? ''));
   if (filtered.length === 0) {
-    if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block, ctx.project));
+    if (hint) return <>{title}{emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block, ctx.project))}</>;
     return null;
   }
   const gap = block.gap ?? 8;
@@ -631,9 +610,12 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
 
   if (!hasContent) {
     return (
-      <div className="rm-repeat-col" style={{ display: 'flex', flexDirection: 'column', gap }}>
-        {renderOnceTables()}
-      </div>
+      <>
+        {title}
+        <div className="rm-repeat-col" style={{ display: 'flex', flexDirection: 'column', gap }}>
+          {renderOnceTables()}
+        </div>
+      </>
     );
   }
 
@@ -647,39 +629,42 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
     : true;
 
   return (
-    <div className="rm-repeat-col" style={{ display: 'flex', flexDirection: 'column', gap }}>
-      {shown.map((it, localI) => {
-        const i = itemRange ? itemRange[0] + localI : localI;
-        const itemChildren = i === filtered.length - 1 ? dropTrailingBreaks(perItemChildren) : perItemChildren;
-        const parts = partChildren ? partChildren[localI] : undefined;
-        return (
-          <div key={i} className="rm-item">
-            <RepeatItemChildren
-              children={itemChildren}
-              item={it}
-              itemIndex={i}
-              parts={parts}
-              ctx={ctx}
-              fieldMap={fieldMap}
-              scopeFilter={scopeFilter}
-              hint={hint}
-              mode={mode}
-              showUnresolved={showUnresolved}
-              aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }}
-              ancestors={[it, ...(ancestors || [])]}
-              parentCategory={block.collection === 'elements' ? block.category : parentCategory}
-              parentCollection={block.collection}
-              parentItems={filtered}
-              previewLimit={previewLimit}
-              ribbonOverrides={ribbonOverrides}
-            />
-          </div>
-        );
-      })}
-      {renderOnce && onceTables.length > 0 && (
-        <div className="rm-once">{renderOnceTables()}</div>
-      )}
-    </div>
+    <>
+      {title}
+      <div className="rm-repeat-col" style={{ display: 'flex', flexDirection: 'column', gap }}>
+        {shown.map((it, localI) => {
+          const i = itemRange ? itemRange[0] + localI : localI;
+          const itemChildren = i === filtered.length - 1 ? dropTrailingBreaks(perItemChildren) : perItemChildren;
+          const parts = partChildren ? partChildren[localI] : undefined;
+          return (
+            <div key={i} className="rm-item">
+              <RepeatItemChildren
+                children={itemChildren}
+                item={it}
+                itemIndex={i}
+                parts={parts}
+                ctx={ctx}
+                fieldMap={fieldMap}
+                scopeFilter={scopeFilter}
+                hint={hint}
+                mode={mode}
+                showUnresolved={showUnresolved}
+                aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }}
+                ancestors={[it, ...(ancestors || [])]}
+                parentCategory={block.collection === 'elements' ? block.category : parentCategory}
+                parentCollection={block.collection}
+                parentItems={filtered}
+                previewLimit={previewLimit}
+                ribbonOverrides={ribbonOverrides}
+              />
+            </div>
+          );
+        })}
+        {renderOnce && onceTables.length > 0 && (
+          <div className="rm-once">{renderOnceTables()}</div>
+        )}
+      </div>
+    </>
   );
 };
 
@@ -735,124 +720,6 @@ const ReportRelativeView: React.FC<Omit<ReportRenderProps, 'block'> & { block: R
   );
 };
 
-/** Designer canvas: a text block being edited in place (roadmap 191). Renders
- *  the LIVE editor adapter (tokens as chips, `@` incl. the two-stage `.`
- *  picker) in the block's computed typography so size/alignment/line breaks
- *  match the resolved preview; `onChange` patches the block per change (the
- *  CustomTable cell pattern). Publishes its handle into the canvas's shared
- *  editor channel and reports focus/selection so the chrome body and the
- *  chip-affix controls follow. */
-const InlineTextBlock: React.FC<{
-  block: ReportBlock;
-  ctx: ReportCtx;
-  parentCollection?: ReportCollection;
-  parentCategory?: string;
-  style: React.CSSProperties;
-  onPatchBlock: (patch: Partial<ReportBlock>) => void;
-  /** Values entry only: focus on mount (caret at end). Fields mode mounts
-   *  editors unfocused — the click that lands in one focuses it. */
-  autoFocus?: boolean;
-  /** The block is selected: its editor owns the shared formatting channel. */
-  selected?: boolean;
-  textEditorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
-  onStateChange?: (state: RichTextState) => void;
-  onSelectionChange?: (sel: { key: string; pos: number } | null) => void;
-  onEditEnd?: () => void;
-  onFocusChange?: (focused: boolean) => void;
-}> = ({ block, ctx, parentCollection, parentCategory, style, onPatchBlock, textEditorRef, onStateChange, onSelectionChange, onEditEnd, onFocusChange, autoFocus, selected }) => {
-  const wrapperRef = React.useRef<HTMLDivElement>(null);
-  const handleRef = React.useRef<RichTextEditorHandle | null>(null);
-  const [focused, setFocused] = React.useState(false);
-  const fields = React.useMemo(() => getReportFieldDefs(ctx.project), [ctx.project]);
-  const contextFields = React.useMemo(() => fieldsForScope(fields, parentCollection, parentCategory), [fields, parentCollection, parentCategory]);
-  const lookupTokens = React.useMemo(
-    () => buildLookupTokens(ctx.project, ctx.dayInfos.map(d => ({ index: d.section.index, chronoDay: d.chronoDay, date: d.date }))),
-    [ctx.project, ctx.dayInfos],
-  );
-  // The editor mounts once per editing session: capture the latest callbacks
-  // in a ref so re-renders never detach the channel or drop the cleanup.
-  const cbRef = React.useRef({ onStateChange, onSelectionChange, onEditEnd, onFocusChange });
-  cbRef.current = { onStateChange, onSelectionChange, onEditEnd, onFocusChange };
-  // Fields mode mounts an editor per text block: only the SELECTED (or focused)
-  // one owns the shared handle, so the chrome's format controls target the
-  // block being worked on.
-  const publish = !!selected || focused;
-  const publishRef = React.useRef(publish);
-  publishRef.current = publish;
-  const setHandle = React.useCallback((node: RichTextEditorHandle | null) => {
-    handleRef.current = node;
-    if (!textEditorRef) return;
-    if (node && publishRef.current) textEditorRef.current = node;
-    else if (textEditorRef.current === node) textEditorRef.current = null;
-  }, [textEditorRef]);
-  React.useEffect(() => {
-    if (textEditorRef && publish && handleRef.current) textEditorRef.current = handleRef.current;
-    return () => { if (textEditorRef?.current === handleRef.current) textEditorRef.current = null; };
-  }, [publish, textEditorRef]);
-  React.useLayoutEffect(() => {
-    // Entering editing focuses IMMEDIATELY (one click, no second click needed)
-    // so the double-click (or tap-again) types in place. Token blocks mount
-    // their chips a beat later (TipTap NodeViews), and that render REPLACES
-    // the paragraph DOM — resetting the caret — so wait for the chips before
-    // focusing.
-    let raf = 0;
-    let attempts = 0;
-    const enter = () => {
-      attempts++;
-      const tip = wrapperRef.current?.querySelector<HTMLElement>('.tiptap');
-      const waitingForChips = !!tip && (block.text || '').includes('{{') && !tip.querySelector('.rt-token');
-      // The editor DOM and the token NodeViews settle a beat after mount.
-      if ((!tip || waitingForChips) && attempts < 90) {
-        raf = requestAnimationFrame(enter);
-        return;
-      }
-      if (!tip) return;
-      if (document.activeElement !== tip) {
-        // focus('end') places the caret where typing continues (kit handle,
-        // TipTap's focus command) — a DOM range gets clobbered by the
-        // editor's own selection sync.
-        if (handleRef.current) handleRef.current.focus('end');
-        if (document.activeElement !== tip) tip.focus();
-      }
-    };
-    if (autoFocus) enter();
-    return () => {
-      cancelAnimationFrame(raf);
-      cbRef.current.onStateChange?.(RICH_TEXT_STATE_IDLE);
-      cbRef.current.onSelectionChange?.(null);
-    };
-  }, [autoFocus, textEditorRef]);
-  return (
-    <div
-      ref={wrapperRef}
-      className="report-text-editor"
-      draggable={false}
-      style={style}
-      onFocus={() => { setFocused(true); cbRef.current.onFocusChange?.(true); }}
-      onBlur={() => { setFocused(false); cbRef.current.onFocusChange?.(false); }}
-      onKeyDown={e => {
-        // Escape exits editing (every change is already patched). An open
-        // suggestion popup consumes Escape before this handler runs.
-        if (e.key === 'Escape') { e.stopPropagation(); cbRef.current.onEditEnd?.(); }
-      }}
-    >
-      <RichTextEditor
-        ref={setHandle}
-        value={block.text || ''}
-        onChange={text => onPatchBlock({ text })}
-        onStateChange={state => cbRef.current.onStateChange?.(state)}
-        onSelectionChange={sel => cbRef.current.onSelectionChange?.(sel)}
-        placeholder="Type text… type @ to insert an attribute"
-        fields={contextFields}
-        allFields={fields}
-        lookupTokens={lookupTokens}
-        ctx={ctx}
-        className="w-full"
-      />
-    </div>
-  );
-};
-
 // ---- table (contextual repeat: attributes as columns or rows) ----------------
 
 const TABLE_LABEL_W = 120;
@@ -861,7 +728,7 @@ const TABLE_ITEM_W = 72;
 /** Preview surfaces cap tables at this many item rows (+N more indicator). */
 const TABLE_PREVIEW_LIMIT = 6;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock; showKeys?: boolean }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, tableEditing, focusCell }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock; showKeys?: boolean; title?: React.ReactNode }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, tableEditing, focusCell, title }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
@@ -882,8 +749,12 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   const attributes = block.columns || [];
   if (attributes.length === 0) return null;
 
+  // Optional title (item 140) — wrapped around every non-empty return so it
+  // never renders when the table itself renders nothing (preview/print).
+  const withTitle = (node: React.ReactNode) => <>{title}{node}</>;
+
   if (block.custom) {
-    return (
+    return withTitle(
       <CustomTable
         block={block}
         ctx={ctx}
@@ -923,7 +794,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   // Designer canvas: an empty collection still shows the table skeleton
   // (header + field-key row) so the layout is visible without data.
   if (filtered.length === 0) {
-    if (hint && attributes.length > 0) return renderTable([], true);
+    if (hint && attributes.length > 0) return withTitle(renderTable([], true));
     if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block, ctx.project));
     return null;
   }
@@ -945,7 +816,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
       }))
     : filtered;
   if (shown.length === 0) {
-    if (hint && attributes.length > 0) return renderTable([], true);
+    if (hint && attributes.length > 0) return withTitle(renderTable([], true));
     return null;
   }
 
@@ -956,7 +827,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   const isLastFragment = !rowRange || rowRange[1] === shown.length;
   if (editorTableLimit && isLastFragment && shown.length > TABLE_PREVIEW_LIMIT) {
     const more = shown.length - TABLE_PREVIEW_LIMIT;
-    return (
+    return withTitle(
       <>
         {renderTable(shown.slice(0, TABLE_PREVIEW_LIMIT))}
         <div className="report-table-cols" style={{ border: 'none', borderLeft: border, borderRight: border, borderBottom: border }}>
@@ -968,7 +839,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
     );
   }
 
-  return renderTable(rowRange ? shown.slice(rowRange[0], rowRange[1]) : shown);
+  return withTitle(renderTable(rowRange ? shown.slice(rowRange[0], rowRange[1]) : shown));
 };
 
 // ---- free table (item 10) ---------------------------------------------

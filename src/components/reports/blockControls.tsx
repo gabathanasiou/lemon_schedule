@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ChromeHeader, StructureControls, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
-import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId } from '../../lib/reportBlocks';
+import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId, makeReportBlock, supportsTitle, titleRepeatable, reportTitleAutoLabel } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, fieldScopeFor, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
@@ -708,6 +708,64 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
   );
 };
 
+/** The Format + Style body of a text block (roadmap 191) — the ONE chrome
+ *  body bound to a live canvas editor. Shared by text blocks themselves and by
+ *  table titles (roadmap 140 — a title IS a text block). */
+const TextContentControls: React.FC<{
+  block: ReportBlock;
+  project: Project;
+  onPatch: (patch: Partial<ReportBlock>) => void;
+  onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  active: RichTextState;
+  disabled?: boolean;
+}> = ({ block, project, onPatch, onSaveTextStyles, editorRef, active, disabled }) => {
+  const linkedStyle = getTextStyleById(project, block.textStyle);
+  // A named style (or block-level direct formatting) pins bold/italic for
+  // the WHOLE block — per-selection toggling on that axis is a visual no-op,
+  // so the button renders lit-but-dimmed instead of misleadingly live.
+  const lockTooltip = (axis: 'bold' | 'italic') => {
+    const pinned = axis === 'bold' ? (block.bold ?? linkedStyle?.bold) : (block.italic ?? linkedStyle?.italic);
+    if (!pinned) return undefined;
+    return linkedStyle
+      ? `${axis === 'bold' ? 'Bold' : 'Italic'} comes from “${linkedStyle.name}” — applies to the whole block`
+      : `${axis === 'bold' ? 'Bold' : 'Italic'} is set for the whole block`;
+  };
+  const updateFromSelection = () => {
+    const next = updateStyleFromBlock(project, block);
+    if (!next) return;
+    onSaveTextStyles?.(next);
+    onPatch({ textStyle: block.textStyle, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
+  };
+  if (!editorRef) return null;
+  return (
+    <RichTextControls
+      project={project}
+      editorRef={editorRef}
+      active={active}
+      disabled={disabled}
+      value={{
+        fontFamily: block.fontFamily ?? linkedStyle?.fontFamily,
+        fontSize: block.fontSize ?? linkedStyle?.fontSize,
+        textStyle: block.textStyle,
+        align: block.align,
+      }}
+      lockedFormatting={{ bold: lockTooltip('bold'), italic: lockTooltip('italic') }}
+      onDefaults={p => onPatch(p)}
+      onStyle={p => onPatch(p)}
+      onPickStyle={id => {
+        if (!id) { onPatch({ textStyle: undefined }); return; }
+        // Applying a style clears the block's direct typography so the
+        // style's values take effect (Word behavior). Bake tweaks into
+        // the style via "Update from selection" instead.
+        onPatch({ textStyle: id, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
+      }}
+      onUpdateFromSelection={block.textStyle && blockHasDirectFormatting(block) ? updateFromSelection : undefined}
+      onSaveTextStyles={onSaveTextStyles}
+    />
+  );
+};
+
 export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, editorRef, active, panel, relativeTarget, availableLocations }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection, parentCategory);
   const disabled = readOnly;
@@ -743,54 +801,46 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     for (const r of rows) if (r != null) s.rows.push(r);
   };
 
+  // Optional title (item 140) — table-shaped blocks, the repeat (heading) and
+  // image/map (caption). The title IS a text block (`titleBlock`): same
+  // renderer, same Format/Style body and padding controls as any text block,
+  // default centered/bold. Turning it on seeds it from the block's auto label.
+  const titleBlock = block.titleBlock;
+  const patchTitle = titleBlock ? (p: Partial<ReportBlock>) => onPatch({ titleBlock: { ...titleBlock, ...p } }) : undefined;
+  const titleSection = supportsTitle(block.type) ? (
+    <>
+      <ContentRow key="showTitle" label="Title">
+        <EditorGroup className={panel ? 'w-full' : undefined}>
+          <EditorCheckbox
+            className={panel ? 'flex-1' : undefined}
+            checked={block.showTitle === true}
+            disabled={disabled}
+            onChange={on => onPatch(on
+              ? { showTitle: true, titleBlock: block.titleBlock || { ...makeReportBlock('text', { text: reportTitleAutoLabel(block, parentCollection) }), align: 'center', bold: true, fontSize: 12, paddingV: 10 } }
+              : { showTitle: false })}
+            label="Show title"
+          />
+          {block.showTitle === true && titleRepeatable(block.type) && (
+            <EditorCheckbox className={panel ? 'flex-1' : undefined} checked={block.titleRepeat === true} disabled={disabled} onChange={on => onPatch({ titleRepeat: on })} label="Repeat on each page" />
+          )}
+        </EditorGroup>
+      </ContentRow>
+      {titleBlock && block.showTitle === true ? (
+        <TextContentControls key="titleFormat" block={titleBlock} project={project} onPatch={p => patchTitle?.(p)} onSaveTextStyles={onSaveTextStyles} editorRef={editorRef} active={rtActive} disabled={disabled} />
+      ) : null}
+      {titleBlock && block.showTitle === true ? (
+        <ContentRow key="titlePad" label="Padding">
+          <LayoutControls block={titleBlock} project={project} readOnly={disabled} onPatch={p => patchTitle?.(p)} panel={panel} />
+        </ContentRow>
+      ) : null}
+    </>
+  ) : null;
+
   if (block.type === 'text') {
-    const linkedStyle = getTextStyleById(project, block.textStyle);
-    // A named style (or block-level direct formatting) pins bold/italic for
-    // the WHOLE block — per-selection toggling on that axis is a visual no-op,
-    // so the button renders lit-but-dimmed instead of misleadingly live.
-    const lockTooltip = (axis: 'bold' | 'italic') => {
-      const pinned = axis === 'bold' ? (block.bold ?? linkedStyle?.bold) : (block.italic ?? linkedStyle?.italic);
-      if (!pinned) return undefined;
-      return linkedStyle
-        ? `${axis === 'bold' ? 'Bold' : 'Italic'} comes from “${linkedStyle.name}” — applies to the whole block`
-        : `${axis === 'bold' ? 'Bold' : 'Italic'} is set for the whole block`;
-    };
-    const updateFromSelection = () => {
-      const next = updateStyleFromBlock(project, block);
-      if (!next) return;
-      onSaveTextStyles?.(next);
-      onPatch({ textStyle: block.textStyle, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
-    };
     // The block edits INLINE on the canvas (roadmap 191) — the chrome's
     // Content section is the shared Format + Style body bound to that editor.
     push(null,
-      editorRef ? (
-        <RichTextControls
-          key="content"
-          project={project}
-          editorRef={editorRef}
-          active={rtActive}
-          disabled={disabled}
-          value={{
-            fontFamily: block.fontFamily ?? linkedStyle?.fontFamily,
-            fontSize: block.fontSize ?? linkedStyle?.fontSize,
-            textStyle: block.textStyle,
-            align: block.align,
-          }}
-          lockedFormatting={{ bold: lockTooltip('bold'), italic: lockTooltip('italic') }}
-          onDefaults={p => onPatch(p)}
-          onStyle={p => onPatch(p)}
-          onPickStyle={id => {
-            if (!id) { onPatch({ textStyle: undefined }); return; }
-            // Applying a style clears the block's direct typography so the
-            // style's values take effect (Word behavior). Bake tweaks into
-            // the style via "Update from selection" instead.
-            onPatch({ textStyle: id, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
-          }}
-          onUpdateFromSelection={block.textStyle && blockHasDirectFormatting(block) ? updateFromSelection : undefined}
-          onSaveTextStyles={onSaveTextStyles}
-        />
-      ) : null,
+      <TextContentControls key="content" block={block} project={project} onPatch={onPatch} onSaveTextStyles={onSaveTextStyles} editorRef={editorRef} active={rtActive} disabled={disabled} />,
     );
   }
 
@@ -865,6 +915,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           <EditorCheckbox className={panel ? 'flex-1' : undefined} checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
         </EditorGroup>
       </ContentRow>,
+      titleSection,
     );
   } else if (block.type === 'repeat' || block.type === 'table') {
     // Order reads: what the table IS (Display) → over what (Table over) →
@@ -918,6 +969,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             <DayFormatMenu value={block.dayFormat || 'dayNumDate'} disabled={disabled} onChange={v => onPatch({ dayFormat: v as DayFormatMode })} />
           </ContentRow>
         ) : null,
+        titleSection,
       );
     }
     push(null,
@@ -958,6 +1010,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       block.type === 'repeat' ? (
         <GapRow key="gap" value={block.gap ?? 8} disabled={disabled} onPatch={onPatch} />
       ) : null,
+      titleSection,
     );
     const effective = block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes');
     const skipEmpty = block.collection ? SKIP_EMPTY_TEST[block.collection] : undefined;
@@ -1043,7 +1096,10 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         />
       </ContentRow>,
       <GapRow key="gap" label="Table gap (px)" value={block.gap ?? 8} disabled={disabled} onPatch={onPatch} />,
+      titleSection,
     );
+  } else if (block.type === 'crewTable') {
+    push(null, titleSection);
   }
 
   if (block.type === 'relative') {
@@ -1145,6 +1201,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           </ToolButton>
         )}
       </ContentRow>,
+      titleSection,
     );
     if (block.imageDataUrl) {
       push('Size',
@@ -1215,6 +1272,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       <ContentRow key="height" label="Height (px)">
         <LiveNumberInput value={block.mapHeight} min={80} max={1200} fallback={240} disabled={disabled} className={TB_INPUT + ' w-14'} onCommit={v => onPatch({ mapHeight: v })} />
       </ContentRow>,
+      titleSection,
     );
     push('Map',
       <ContentRow key="inherit" label="Day location">

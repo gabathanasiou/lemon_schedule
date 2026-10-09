@@ -73,6 +73,10 @@ interface FlatUnit {
    *  table header). A `unitKind: 'break'` unit is a hard page boundary (h=0). */
   path?: FlatStep[];
   unitKind?: 'whole' | 'ribbon' | 'table' | 'repeat' | 'break';
+  /** The block's title (item 140) is FOLDED into this unit (its height is
+   *  included) — the fragment holding it renders the title. The title can
+   *  therefore never be separated from the block's first content. */
+  titleOn?: boolean;
   /** Unit must START a new page (a pageBreak exists inside an unsplittable
    *  container — the whole container moves to the next page). */
   breakBefore?: boolean;
@@ -93,17 +97,30 @@ function wholeUnit(wrapper: HTMLElement, extra: Partial<FlatUnit> = {}): FlatUni
 
 
 /** Columns-grid table: one unit per row, plus a header unit (local -1) when
- *  showHeader. Continuation rows reserve the repeated header height. */
+ *  showHeader, plus the optional title unit (local -2, item 140). Continuation
+ *  rows reserve the repeated header (and repeated title) height. */
 function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 'whole', path?: FlatStep[]): FlatUnit[] {
   const containers = scope.querySelectorAll('.report-table-cols');
   const first = containers[0] as HTMLElement | undefined;
   // The scope wrapper's marginTop is the block's gap (roadmap 33) — paid
-  // before the block's first unit so tables budget their spacing too.
+  // before the block's first unit so tables budget its spacing too.
   const blockGap = marginTopOf(scope);
+  // Optional title above the table (item 140): its height folds into the
+  // block's FIRST unit (`titleOn`) so the page budget counts it and it can
+  // never land on its own pagination fragment; `titleRepeat` reserves its
+  // height on every continuation page.
+  const titleEl = scope.querySelector(':scope > .report-block-title') as HTMLElement | null;
+  const titleH = titleEl ? titleEl.offsetHeight : 0;
+  const titleRepeat = scope.getAttribute('data-rm-title-repeat') === '1';
+  const foldTitle = (units: FlatUnit[]): FlatUnit[] => {
+    if (titleH > 0 && units.length > 0) { units[0].h += titleH; units[0].titleOn = true; }
+    return units;
+  };
   if (first && first.classList.contains('rm-row')) {
     // rows-matrix: one self-contained grid per row group (label header is
     // inside each group) — no repeated header needed.
-    return Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: i === 0 ? blockGap : 0, pageStartExtra: 0, el: c as HTMLElement, local: i, blockEl, path, unitKind: 'table' }));
+    const units = Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: i === 0 ? blockGap : 0, pageStartExtra: titleRepeat ? titleH : 0, el: c as HTMLElement, local: i, blockEl, path, unitKind: 'table' }));
+    return foldTitle(units);
   }
   if (first) {
     const headerEl = first.querySelector(':scope > .rm-header') as HTMLElement | null;
@@ -111,17 +128,18 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
     const rows = Array.from(first.children).filter(c => c.classList.contains('rm-row')) as HTMLElement[];
     const units = rows.map((el, i): FlatUnit => ({
       h: el.offsetHeight,
-      // The block's own gap rides on the FIRST row's gapBefore (a header-less
-      // table) — a header unit below gets it instead. Each row also pays its
-      // own marginTop (grid-block inter-table gap, item 116).
+      // The block's own gap rides on the FIRST unit (the title folds into it)
+      // — a later unit below gets it instead. Each row also pays its own
+      // marginTop (grid-block inter-table gap, item 116).
       gapBefore: (i === 0 && !headerEl ? blockGap : 0) + marginTopOf(el),
       // A continuation chunk renders the column header again at its top
       // (classic "thead repeats") — reserve that height when a row opens a
-      // page. Row 0 does too: if it opens a page its header unit stayed on the
+      // page, plus the repeated title when `titleRepeat` (item 140). Row 0
+      // does too: if it opens a page its header unit stayed on the
       // previous page, and `rowRange[0] === 0` still renders the header (an
       // orphaned header — reserved here so the budget stays honest). local -1
       // marks the header unit (folded into row ranges below).
-      pageStartExtra: headerH,
+      pageStartExtra: headerH + (titleRepeat ? titleH : 0),
       el,
       local: i,
       blockEl,
@@ -129,7 +147,7 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
       unitKind: 'table',
     }));
     if (headerEl) units.unshift({ h: headerH, gapBefore: blockGap, pageStartExtra: 0, el: headerEl, local: -1, blockEl, path, unitKind: 'table' } as FlatUnit);
-    return units;
+    return foldTitle(units);
   }
   return [{ ...wholeUnit(scope, { blockEl, path, unitKind: kind }) } as FlatUnit];
 }
@@ -192,6 +210,16 @@ function flattenFragChildren(
 function flattenRepeatContent(scope: HTMLElement, blockEl: HTMLElement, prefix: FlatStep[]): FlatUnit[] {
   const col = scope.querySelector('.rm-repeat-col');
   const items = col ? Array.from(col.children).filter(c => c.classList.contains('rm-item')) as HTMLElement[] : [];
+  // Optional title (item 140): its height folds into the FIRST content unit
+  // (`titleOn`) so the page budget counts it and it can never land on its own
+  // fragment; `titleRepeat` reserves its height on continuation pages.
+  const titleEl = scope.querySelector(':scope > .report-block-title') as HTMLElement | null;
+  const titleH = titleEl ? titleEl.offsetHeight : 0;
+  const titleRepeat = scope.getAttribute('data-rm-title-repeat') === '1';
+  const foldTitle = (units: FlatUnit[]): FlatUnit[] => {
+    if (titleH > 0 && units.length > 0) { units[0].h += titleH; units[0].titleOn = true; }
+    return units;
+  };
   if (items.length === 0) return [{ ...wholeUnit(scope, { blockEl, path: prefix, unitKind: 'repeat' }) } as FlatUnit];
   const gap = parseFloat(getComputedStyle(col).rowGap || '') || 8;
   const once = scope.querySelector('.rm-once') as HTMLElement | null;
@@ -219,9 +247,10 @@ function flattenRepeatContent(scope: HTMLElement, blockEl: HTMLElement, prefix: 
   if (once) {
     const lastUnit = [...units].reverse().find(u => u.unitKind !== 'break');
     if (lastUnit) lastUnit.h += once.offsetHeight + gap;
-    else return [wholeUnit(scope, { blockEl, path: prefix, unitKind: 'repeat' })];
+    else units.push(wholeUnit(scope, { blockEl, path: prefix, unitKind: 'repeat' }));
   }
-  return units;
+  if (titleRepeat) for (const u of units) u.pageStartExtra += titleH;
+  return foldTitle(units);
 }
 
 function flattenBlock(wrapper: HTMLElement): FlatUnit[] {
@@ -333,21 +362,32 @@ function buildChildPart(
   child: number,
 ): FragmentPartUnit {
   const childKey = `${JSON.stringify(prefix)}#i${item}#c${child}`;
-  if (nodeFull(childKey, totals, present)) return { childIndex: child };
+  // The block's title (item 140) rides its FIRST unit (`titleOn`) — the
+  // fragment holding that unit renders the title.
+  const showTitle = childUnits.some(u => u.titleOn);
+  if (nodeFull(childKey, totals, present)) return { childIndex: child, showTitle };
   if (childUnits.some(u => u.path!.length > depth + 1)) {
     const nested = buildRepeatLevel(childUnits, totals, present, depth + 1, [...prefix, { item, child }]);
-    return { childIndex: child, itemRange: [nested.itemStart, nested.itemEnd], itemParts: nested.perItemParts };
+    return { childIndex: child, itemRange: [nested.itemStart, nested.itemEnd], itemParts: nested.perItemParts, showTitle };
   }
   const locals = childUnits.filter(u => u.local >= 0).map(u => u.local);
-  const min = Math.min(...locals);
-  const max = Math.max(...locals);
   const kind = childUnits[0]?.unitKind || 'whole';
-  if (kind === 'ribbon') return { childIndex: child, ribbonRange: [min, max + 1] };
+  if (kind === 'ribbon') {
+    const min = Math.min(...locals);
+    const max = Math.max(...locals);
+    return { childIndex: child, ribbonRange: [min, max + 1], showTitle };
+  }
   if (kind === 'table') {
     const hasHeader = childUnits.some(u => u.local === -1);
-    return { childIndex: child, tableRowRange: [min, max + 1], repeatTableHeader: !hasHeader && min > 0 };
+    // A fragment with no data rows (the budgeted header, or nothing but the
+    // folded title) renders exactly what its units contain — never an
+    // unbudgeted repeated header; the continuation page renders it with rows.
+    if (locals.length === 0) return { childIndex: child, tableRowRange: hasHeader ? [0, 0] : [1, 0], repeatTableHeader: false, showTitle };
+    const min = Math.min(...locals);
+    const max = Math.max(...locals);
+    return { childIndex: child, tableRowRange: [min, max + 1], repeatTableHeader: !hasHeader && min > 0, showTitle };
   }
-  return { childIndex: child };
+  return { childIndex: child, showTitle };
 }
 
 /** Rebuild the nested per-item parts for ONE repeat level present on a page.
@@ -417,10 +457,14 @@ function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string,
         continue;
       }
       const blockUnits = flat.filter(u => u.blockEl === blockEl);
+      // The title rides the block's FIRST unit — the fragment holding it
+      // renders the title (item 140).
+      const firstUnit = blockUnits[0];
+      const showTitle = !!firstUnit && pageUnits.includes(firstUnit);
       const totals = countByPrefix(blockUnits);
       const present = countByPrefix(pageUnits);
       const built = buildRepeatLevel(pageUnits, totals, present, 0, []);
-      if (block) out.push({ kind: 'repeat', block, itemStart: built.itemStart, itemEnd: built.itemEnd, perItemParts: built.perItemParts });
+      if (block) out.push({ kind: 'repeat', block, itemStart: built.itemStart, itemEnd: built.itemEnd, perItemParts: built.perItemParts, showTitle });
       continue;
     }
     const total = flat.filter(u => u.blockEl === blockEl && u.unitKind !== 'break').length;
@@ -442,7 +486,12 @@ function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string,
       if (pageHasHeader && minRow === 0 && maxRow === rowTotal - 1) {
         out.push({ kind: 'block', block });
       } else {
-        out.push({ kind: 'table', block, rowStart: Math.max(0, minRow), rowEnd: maxRow + 1, repeatHeader: !pageHasHeader && minRow > 0 });
+        // No data rows on the page: [0,0] renders the (budgeted) header, [1,0]
+        // renders nothing — a title-only page (item 140) must not pull in an
+        // unbudgeted header.
+        const rowStart = pageRows.length > 0 ? Math.max(0, minRow) : (pageHasHeader ? 0 : 1);
+        const rowEnd = pageRows.length > 0 ? maxRow + 1 : 0;
+        out.push({ kind: 'table', block, rowStart, rowEnd, repeatHeader: !pageHasHeader && minRow > 0, showTitle: pageUnits.some(u => u.titleOn) });
       }
     } else if (kind === 'ribbon') {
       out.push({ kind: 'ribbon', block, unitStart: first.local, unitEnd: last.local + 1 });
@@ -514,10 +563,10 @@ function chunkSigEq(a: PageChunk[], b: PageChunk[]): boolean {
       const y = cb.body[j] as any;
       if (x.kind !== y.kind) return false;
       if (x.kind === 'repeat') {
-        if (x.block.id !== y.block.id || x.itemStart !== y.itemStart || x.itemEnd !== y.itemEnd) return false;
+        if (x.block.id !== y.block.id || x.itemStart !== y.itemStart || x.itemEnd !== y.itemEnd || x.showTitle !== y.showTitle) return false;
         if (JSON.stringify(x.perItemParts) !== JSON.stringify(y.perItemParts)) return false;
       } else if (x.kind === 'table') {
-        if (x.block.id !== y.block.id || x.rowStart !== y.rowStart || x.rowEnd !== y.rowEnd || x.repeatHeader !== y.repeatHeader) return false;
+        if (x.block.id !== y.block.id || x.rowStart !== y.rowStart || x.rowEnd !== y.rowEnd || x.repeatHeader !== y.repeatHeader || x.showTitle !== y.showTitle) return false;
       } else if (x.kind === 'ribbon') {
         if (x.block.id !== y.block.id || x.unitStart !== y.unitStart || x.unitEnd !== y.unitEnd) return false;
       } else if (x.block.id !== y.block.id) {
@@ -561,7 +610,7 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
           )}
           <div className="rm-body">
             {items.map((it, k) => (
-              <div key={it.id} className="rm-block" data-rm-kind={splittableKind(it.type)} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0} style={{ marginTop: blockGapMargin(it, k === 0) }}>
+              <div key={it.id} className="rm-block" data-rm-kind={splittableKind(it.type)} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0} data-rm-title-repeat={it.titleRepeat ? '1' : undefined} style={{ marginTop: blockGapMargin(it, k === 0) }}>
                 <ReportBlockView block={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length, callSheetBlocks }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
               </div>
             ))}
