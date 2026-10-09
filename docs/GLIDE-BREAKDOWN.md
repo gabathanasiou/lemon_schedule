@@ -87,6 +87,14 @@ auto-repaint.
   keystroke, and re-takes focus on blur (Glide's a11y cell can steal it right after opening, e.g.
   the trailing add row). Enter commits like the entity dropdown (canvas keeps focus, arrows
   keep navigating) instead of Glide's clip region moving the selection to the a11y cell.
+- **The overlay text matches the cell's alignment** (item 223): `contentAlign` is canvas-draw-only
+  and Glide's stock TextCell editor ignores it, so centered/right cells used to edit left-aligned.
+  `createGlideCellEditor` now styles the overlay: a configured `kind:'text'` editor inherits the
+  column's `align` on its input, and a centered/right column with NO configured editor gets Glide's
+  own `TextCellEntry` re-wrapped with `style={{ textAlign }}` (`cfg: null` in the per-column editor
+  box) — the stock textarea, the `seededTextCell` selection (`validatedSelection`) and the
+  `#portal textarea` contract all stay intact. Left columns keep the untouched default editor, so
+  `InlineGlideTable` ALWAYS supplies `provideEditor` (its opts ref is never null).
 - **Grids INSIDE a modal get their own overlay layer** (roadmap 155): the shared `#portal` sits at
   z-9999, BELOW modal content (z-10000), so a cell editor in a modal (Call Times → Crew template)
   rendered invisible/unclickable. `InlineGlideTable` creates a `[data-glide-overlay-layer]` element

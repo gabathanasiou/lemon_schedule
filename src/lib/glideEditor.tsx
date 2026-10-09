@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { GridCellKind, type Item } from '@glideapps/glide-data-grid';
+import { GridCellKind, TextCellEntry, type Item } from '@glideapps/glide-data-grid';
 import { AutocompleteDropdown } from '../components/AutocompleteDropdown';
 import { EntityDropdown } from '../components/EntityDropdown';
 import { useCurrentDocument } from './popoutTarget';
@@ -26,11 +26,16 @@ export type GlideColumnEditor =
       kind: 'text';
       uppercase?: boolean;
       placeholder?: string;
+      /** Overlay text alignment. Defaults to the column's `align` when the
+       *  column is configured through `GlideEditorOptions.columns` — Glide's
+       *  default TextCell editor ignores the cell's `contentAlign`, so
+       *  centered/right text columns get THIS editor to match (item 223). */
+      align?: 'left' | 'center' | 'right';
     };
 
 export interface GlideEditorOptions {
   readOnlyRef: React.MutableRefObject<boolean>;
-  columns: { key: string }[];
+  columns: { key: string; align?: 'left' | 'center' | 'right' }[];
   /** Reads the stored cell value for a grid row (used for skipComma semantics). */
   getValue: (row: number, colKey: string) => string;
   /** Per-column editor config; columns without an entry use Glide's default text editor. */
@@ -64,7 +69,10 @@ export interface GlideEditorOptions {
  */
 export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) {
   interface EditorBox {
-    cfg: GlideColumnEditor;
+    /** null = Glide's stock TextCellEntry, aligned to `align` (item 223). */
+    cfg: GlideColumnEditor | null;
+    /** Column alignment — styles the stock entry / a configured text editor. */
+    align?: 'left' | 'center' | 'right';
     /** Monotonic per-activation id — the same Editor component instance is
      *  REUSED across overlay sessions, so mount-only effects can't re-run. */
     activation: number;
@@ -88,8 +96,8 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     let Editor = components.get(colKey);
     if (!Editor) {
       Editor = (p: any) => {
-        const { value: cellValue, onChange, onFinishedEditing } = p;
-        const { cfg, activation, skipComma, selectAllOnOpen, portal } = box!.current as EditorBox;
+        const { value: cellValue, onChange, onFinishedEditing, isHighlighted, validatedSelection } = p;
+        const { cfg, align, activation, skipComma, selectAllOnOpen, portal } = box!.current as EditorBox;
         const currentVal = cellValue?.data ?? '';
         const latestRef = useRef(cellValue);
 
@@ -110,6 +118,26 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
         // no commit), so the cell editor box goes away with the panel.
         const handleEscape = () => onFinishedEditing(undefined, [0, 0] as any);
 
+        if (cfg === null) {
+          // Glide's OWN TextCell editor, re-wrapped with the column's
+          // alignment (item 223): the cell's `contentAlign` is canvas-draw-only
+          // and the stock editor ignores it, so centered/right columns would
+          // edit left-aligned. Same textarea + seed-selection contract as
+          // Glide's default — only `textAlign` is added (and it still lands in
+          // the grid's `#portal`).
+          return (
+            <TextCellEntry
+              style={align ? { textAlign: align } : undefined}
+              highlight={isHighlighted}
+              autoFocus={cellValue?.readonly !== true}
+              disabled={cellValue?.readonly === true}
+              altNewline
+              value={currentVal}
+              validatedSelection={validatedSelection}
+              onChange={e => handleChange(e.target.value)}
+            />
+          );
+        }
         if (cfg.kind === 'enum') {
           return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} options={cfg.options} showAll portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} autoGrow />;
         }
@@ -133,6 +161,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
               ref={inputRef}
               className="gdg-input"
               value={currentVal}
+              style={cfg.align ? { textAlign: cfg.align } : undefined}
               onChange={e => apply(e.target.value)}
               // Enter commits like the entity dropdown (no row movement): the
               // grid canvas keeps focus so arrows keep navigating. Letting the
@@ -185,17 +214,27 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     const colDef = columns[dataCol];
     if (!colDef) return undefined;
     const colKey = colDef.key;
-    const editorCfg = getEditor ? getEditor(row, colKey) : editors?.[colKey];
-    if (!editorCfg) return undefined;
+    let editorCfg = getEditor ? getEditor(row, colKey) : editors?.[colKey];
+    // A configured text editor inherits its column's alignment unless it
+    // overrides it.
+    if (editorCfg?.kind === 'text' && editorCfg.align === undefined && colDef.align) {
+      editorCfg = { ...editorCfg, align: colDef.align };
+    }
+    // Centered/right text columns with no configured editor get the stock
+    // Glide entry re-styled (`cfg: null`): its default editor ignores the
+    // cell's `contentAlign`, so the overlay text would sit left while the
+    // committed value renders aligned (item 223).
+    const alignedStock = !editorCfg && (colDef.align === 'center' || colDef.align === 'right');
+    if (!editorCfg && !alignedStock) return undefined;
 
     const storedVal = String(getValue(row, colKey) ?? '');
     const skipComma = storedVal !== (cellData.data ?? '');
     const selectAllOnOpen = !skipComma;
     const { Editor, box } = editorFor(colKey);
-    box.current = { cfg: editorCfg, activation: ++activationCounter, skipComma, selectAllOnOpen, portal: portalRef.current };
+    box.current = { cfg: editorCfg ?? null, align: colDef.align, activation: ++activationCounter, skipComma, selectAllOnOpen, portal: portalRef.current };
     // Plain text keeps Glide's default overlay chrome (padding); entity/enum
     // editors bring their own trigger + panel styling.
-    if (editorCfg.kind === 'text') return { editor: Editor };
+    if (!editorCfg || editorCfg.kind === 'text') return { editor: Editor };
     return { editor: Editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   };
 }

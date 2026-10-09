@@ -232,23 +232,24 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     };
   }, [portalTarget, currentDocument]);
 
-  // Optional inline dropdown editors (crew slot person/call). Column offset 0:
-  // this grid has no row-marker column, so Glide's reported col IS the data col.
+  // Inline dropdown editors (crew slot person/call) AND the default aligned
+  // text editor for centered/right columns (item 223): the provider is ALWAYS
+  // supplied — with no per-column config it only kicks in for non-left columns
+  // (left cells keep Glide's own editor untouched). Column offset 0: this grid
+  // has no row-marker column, so Glide's reported col IS the data col.
   // ONE stable provideEditor for the grid's lifetime — the current config
   // travels through a ref, so parent re-renders (new callback identities) can
   // never recreate the editor components and remount an open overlay.
   const editorOptsRef = useRef<GlideEditorOptions | null>(null);
-  editorOptsRef.current = (editors || getEditor)
-    ? {
-        readOnlyRef,
-        columns: COLUMNS,
-        getValue: (row, colKey) => String(rowsRef.current[row]?.[colKey] ?? ''),
-        editors,
-        getEditor,
-        portalRef: gridPortalRef,
-        columnOffset: 0,
-      }
-    : null;
+  editorOptsRef.current = {
+    readOnlyRef,
+    columns: COLUMNS,
+    getValue: (row, colKey) => String(rowsRef.current[row]?.[colKey] ?? ''),
+    editors,
+    getEditor,
+    portalRef: gridPortalRef,
+    columnOffset: 0,
+  };
   const provideEditor = useMemo(() => createGlideCellEditor(() => editorOptsRef.current), []);
   // Escape cancels the open cell edit without closing an enclosing modal.
   const escapeCancel = useGlideEscapeCancel();

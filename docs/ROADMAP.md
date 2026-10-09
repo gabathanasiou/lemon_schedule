@@ -924,3 +924,28 @@ precalls block.
 - **Relations**: extends **159**; overlaps **99**/**146** (pool source); **201**
   (base-vs-contextual collection direction).
 
+## 224. Call Sheet editor — container/card affordance for the live editable grids (`[ ]`, NEEDS DECISION)
+
+**Request** (user 2026-10-09): in the Call Sheet editor's fill canvas, the
+dynamic editable tables (Call Times / Crew Table / Precalls — the live Glide
+grids) should sit in a clear **container/card** so it's obvious they are
+interactive, not read-only template content.
+
+**Current state**: they already render inside white cards — per-category cards
+(`data-report-grid="elementCalls"`), per-department cards (`CrewRosterEditor`),
+one Precalls card (`data-report-grid="precalls"`) — but flush on the white
+printed page with light `border-zinc-200` borders, so editability doesn't read.
+The `callSheetEdit` zone signals itself with the dashed
+`CALL_SHEET_EDIT_ZONE_STYLE` border (`reports/reportStyle.ts`).
+
+**Decision needed** (ask before building): (a) wrap every live block (title +
+grid) in the dashed edit treatment, (b) tint the live cards (e.g. the
+`zinc-50`/interactive-cell tint already used for editable Glide cells), or
+(c) leave the cards and add a hover-only outline. One seam:
+`production/day/InteractiveGridBlock.tsx` + `CallSheetCanvas.tsx`
+(`data-report-grid` wrappers) — print/preview output MUST stay unchanged (no
+`hint` leakage; the canvas already separates those paths).
+
+**Verify**: rule-7 manual on the call sheet canvas; preview/print byte-equal
+visually; `npm run lint`.
+
