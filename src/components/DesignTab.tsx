@@ -9,7 +9,7 @@ import { PopoutPlaceholder } from './PopoutWindow';
 interface DesignTabProps {
   subTab: 'colors' | 'ribbons' | 'designer';
   onSubTabChange: (t: 'colors' | 'ribbons' | 'designer') => void;
-  onReportPrint?: (design: ReportDesign) => void;
+  onReportPrint?: (design: ReportDesign, daySectionIndex?: number) => void;
   poppedOutSubTabs: Set<string>;
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;

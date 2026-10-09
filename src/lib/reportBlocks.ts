@@ -188,6 +188,21 @@ export function insertInto(blocks: ReportBlock[], id: string | null, b: ReportBl
   return insertSibling(blocks, f, b, f.index + 1);
 }
 
+/** True when a design renders per-day content — a `days`/`daysOfCast` repeat
+ *  or a `callSheetEdit` zone anywhere in the tree. Gates the Reports Designer's
+ *  day picker (roadmap 198): the day the canvas/preview resolve against. */
+export function designIsDayScoped(blocks: ReportBlock[]): boolean {
+  for (const b of blocks) {
+    if (b.type === 'callSheetEdit') return true;
+    if (b.collection === 'days' || b.collection === 'daysOfCast') return true;
+    if (b.children?.length && designIsDayScoped(b.children)) return true;
+    if (b.type === 'columns' && b.cols) {
+      for (const c of b.cols) if (designIsDayScoped(c.blocks || [])) return true;
+    }
+  }
+  return false;
+}
+
 /** The first `callSheetEdit` zone anywhere in the tree (the per-day editable
  *  region of a call-sheet template — item 10). */
 export function findCallSheetZone(blocks: ReportBlock[]): ReportBlock | undefined {

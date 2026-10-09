@@ -35,28 +35,34 @@ function weekStart(date: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect, theme = 'light', disabled }) => {
-  const [open, setOpen] = useState(false);
+export interface DayPickerListProps {
+  options: DayPickerOption[];
+  selectedIndex: number;
+  onSelect: (sectionIndex: number) => void;
+  /** Dark surface (the Reports Designer's View submenu) — colors the week
+   *  headers; the items themselves inherit the enclosing menu's theme. */
+  dark?: boolean;
+  /** Optional leading whole-range row (Reports Designer, roadmap 198): shown
+   *  when no option matches `selectedIndex`; picking it calls `onSelect(-1)`.
+   *  The Call Sheet / Days page dropdowns never pass it. */
+  allLabel?: string;
+}
+
+/** The day-list body: week-grouped production days with conflict badges and
+ *  scroll-to-current. Shared by the `DayPicker` dropdown (Days page / Call
+ *  Sheet edit) and the Reports Designer's View → Report day submenu. */
+export const DayPickerList: React.FC<DayPickerListProps> = ({ options, selectedIndex, onSelect, dark = false, allLabel }) => {
   const listRef = useRef<HTMLDivElement>(null);
-  const dark = theme === 'dark';
+  const allSelected = allLabel != null && !options.some(o => o.sectionIndex === selectedIndex);
 
-  const i = options.findIndex(o => o.sectionIndex === selectedIndex);
-  const selected = i >= 0 ? options[i] : undefined;
-  const canPrev = i > 0;
-  const canNext = i >= 0 && i < options.length - 1;
-  const step = (delta: number) => {
-    const n = options[i + delta];
-    if (n) { onSelect(n.sectionIndex); setOpen(false); }
-  };
-
-  // Scroll the menu to the current day (centred) on open.
+  // Scroll the current day (centred) into view when the surface opens — the
+  // list mounts with the menu/submenu content.
   useEffect(() => {
-    if (!open) return;
     const raf = requestAnimationFrame(() => requestAnimationFrame(() => {
       listRef.current?.querySelector(`[data-day="${selectedIndex}"]`)?.scrollIntoView({ block: 'center' });
     }));
     return () => cancelAnimationFrame(raf);
-  }, [open, selectedIndex]);
+  }, [selectedIndex]);
 
   const weeks: { key: string; days: DayPickerOption[] }[] = [];
   for (const o of options) {
@@ -65,6 +71,51 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
     if (!w) { w = { key, days: [] }; weeks.push(w); }
     w.days.push(o);
   }
+
+  return (
+    <div ref={listRef} className="flex flex-col">
+      {allLabel != null && (
+        <DropdownItem selected={allSelected} onClick={() => onSelect(-1)}>
+          {allLabel}
+        </DropdownItem>
+      )}
+      {weeks.length === 0 && <div className="px-3 py-2 text-xs text-zinc-500">No production days yet.</div>}
+      {weeks.map(week => (
+        <React.Fragment key={week.key}>
+          <div className={`px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+            Week of {formatDateShort(week.key)}
+          </div>
+          {week.days.map(d => (
+            <div key={d.sectionIndex} data-day={d.sectionIndex}>
+              <DropdownItem
+                selected={d.sectionIndex === selectedIndex}
+                onClick={() => onSelect(d.sectionIndex)}
+                trailing={d.conflicts ? (
+                  <span className="inline-flex items-center rounded-full bg-red-500 text-white px-1.5 text-[9px] font-bold" title={`${d.conflicts} conflict${d.conflicts !== 1 ? 's' : ''}`}>
+                    {d.conflicts}
+                  </span>
+                ) : undefined}
+              >
+                DAY {d.chronoDay} · {formatDateShort(d.date)}
+              </DropdownItem>
+            </div>
+          ))}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};
+
+const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect, theme = 'light', disabled }) => {
+  const [open, setOpen] = useState(false);
+  const dark = theme === 'dark';
+
+  const i = options.findIndex(o => o.sectionIndex === selectedIndex);
+  const selected = i >= 0 ? options[i] : undefined;
+  const step = (delta: number) => {
+    const n = options[i + delta];
+    if (n) { onSelect(n.sectionIndex); setOpen(false); }
+  };
 
   const stop = (e: React.SyntheticEvent) => { e.preventDefault(); e.stopPropagation(); };
   const arrowCls = `px-1.5 py-1 ${dark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'} disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-inherit rounded transition-colors`;
@@ -109,31 +160,7 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
         </button>
       }
     >
-      <div ref={listRef} className="flex flex-col">
-        {weeks.length === 0 && <div className="px-3 py-2 text-xs text-zinc-500">No production days yet.</div>}
-        {weeks.map(week => (
-          <React.Fragment key={week.key}>
-            <div className={`px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>
-              Week of {formatDateShort(week.key)}
-            </div>
-            {week.days.map(d => (
-              <div key={d.sectionIndex} data-day={d.sectionIndex}>
-                <DropdownItem
-                  selected={d.sectionIndex === selectedIndex}
-                  onClick={() => { onSelect(d.sectionIndex); setOpen(false); }}
-                  trailing={d.conflicts ? (
-                    <span className="inline-flex items-center rounded-full bg-red-500 text-white px-1.5 text-[9px] font-bold" title={`${d.conflicts} conflict${d.conflicts !== 1 ? 's' : ''}`}>
-                      {d.conflicts}
-                    </span>
-                  ) : undefined}
-                >
-                  DAY {d.chronoDay} · {formatDateShort(d.date)}
-                </DropdownItem>
-              </div>
-            ))}
-          </React.Fragment>
-        ))}
-      </div>
+      <DayPickerList options={options} selectedIndex={selectedIndex} dark={dark} onSelect={idx => { onSelect(idx); setOpen(false); }} />
     </DropdownMenu>
   );
 };

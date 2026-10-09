@@ -40,11 +40,15 @@ function itemLabel(collection: ReportCollection, it: any): string {
 
 interface ReportPrintDialogProps {
   design: ReportDesign;
+  /** Reports-designer day picker (roadmap 198): for a day-scoped design, the
+   *  top-level `days` repeat starts with only this production day checked
+   *  (the user can re-check others). */
+  initialDaySectionIndex?: number;
   onPrint: (scopes: ReportScope[], printOptions: ReportPrintOptions) => void;
   onClose: () => void;
 }
 
-const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, onClose }) => {
+const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDaySectionIndex, onPrint, onClose }) => {
   const ctx = useReportCtx();
   const [currentCellBorders] = useCellBorders();
 
@@ -64,10 +68,17 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
     }), [design.blocks, ctx]);
 
   // per-block explicit include lists — pre-checked with ALL items; unchecking
-  // any item limits that repeat to the remaining selection
+  // any item limits that repeat to the remaining selection. A day-scoped
+  // design's top-level `days` repeat starts with just the designer's picked
+  // day when one was handed over (roadmap 198).
   const [include, setInclude] = useState<Record<string, (string | number)[]>>(() => {
     const base: Record<string, (string | number)[]> = {};
-    for (const r of resolved) base[r.block.id] = [...r.keys];
+    for (const r of resolved) {
+      const picked = initialDaySectionIndex != null && r.scope.collection === 'days'
+        ? r.keys.filter(k => String(k) === String(initialDaySectionIndex))
+        : [];
+      base[r.block.id] = picked.length > 0 ? picked : [...r.keys];
+    }
     return base;
   });
 

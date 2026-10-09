@@ -98,6 +98,38 @@ describe('sampleRepeatItem — day repeats show Day 1', () => {
   });
 });
 
+describe('sampleRepeatItem — designer day picker (roadmap 198)', () => {
+  const sampleWithDay = (project: any, previewSectionIndex?: number): any => {
+    const ctx = buildCtx(project);
+    return sampleRepeatItem(ctx, wardrobeRepeat(), getReportFieldMap(project), undefined, undefined, undefined, previewSectionIndex);
+  };
+
+  it('samples the picked production day instead of Day 1, and its values resolve', () => {
+    const probe = buildCtx(seedProject());
+    const days = resolveCollection(probe, 'days', undefined, undefined) as any[];
+    const picked = days[days.length - 1];
+    const pickedSceneIds = probe.sceneInfos.filter(si => si.sectionIndex === picked.section.index).map(si => si.scene.id);
+    expect(pickedSceneIds.length).toBeGreaterThan(0);
+
+    const project = seedProject((p) => {
+      for (const s of p.scenes) s.wardrobe = '';
+      for (const id of pickedSceneIds) p.scenes.find((s: any) => s.id === id).wardrobe = 'DERBY';
+    });
+    const ctx = buildCtx(project);
+    const item = sampleRepeatItem(ctx, wardrobeRepeat(), getReportFieldMap(project), undefined, undefined, undefined, picked.section.index);
+    expect(item.section.index).toBe(picked.section.index);
+    expect(item.chronoDay).toBe(picked.chronoDay);
+    expect(resolveReportTokensHtml(ctx, getReportFieldMap(project), '<p>{{wardrobe}}</p>', item)).toContain('DERBY');
+  });
+
+  it('falls back to Day 1 when the picked section no longer exists', () => {
+    const project = seedProject();
+    const ctx = buildCtx(project);
+    const item = sampleWithDay(project, 99_999);
+    expect(item.section.index).toBe(ctx.dayInfos[0].section.index);
+  });
+});
+
 describe('day union parity — text block vs free-table cell', () => {
   it('resolves the same consolidated, de-duplicated union of the day\'s scenes', () => {
     const probe = buildCtx(seedProject());

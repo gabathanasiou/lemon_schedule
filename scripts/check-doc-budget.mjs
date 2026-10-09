@@ -202,7 +202,9 @@ const E2E_SPEC_CAP = 70;
 // (was `test.fixme`d; disabled cases aren't counted by this check).
 // 271 → 272: roadmap 206 — WebKit-only EntityDropdown finger-scroll regression
 // (coarse+touch path; no unit/Chromium layer can drive it).
-const E2E_TEST_CAP = 272;
+// 272 → 273: roadmap 198 — designer day picker: the picked day must survive a
+// reload (localStorage pref + designer remount; unit tests can't drive the app).
+const E2E_TEST_CAP = 273;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

@@ -10,10 +10,11 @@ roadmap worker session, so it stays lean.
 - **New asks** go through the triage/dedupe gate (AGENTS.md, §Roadmap Work)
   before becoming an item here.
 
-> **Next session — Reports Designer pass**: **198** (designer day picker —
-> preview any day) then **199** (collection-table column headers — custom text +
-> tokens). **202** (kit `NumberInput` stepper + mouse drag-scrub) shipped
-> 2026-10-09; **203** (Fields/Values mode + block headers + tips star), **191**
+> **Next session — Reports Designer pass**: **199** (collection-table column
+> headers — custom text + tokens). **198** (designer day picker — All days/Day N
+> scopes canvas + Preview/Print) and **202** (kit `NumberInput` stepper + mouse
+> drag-scrub) shipped 2026-10-09; **203** (Fields/Values mode + block headers +
+> tips star), **191**
 > (inline text blocks + the ONE shared chrome), **194** (resize-tab double-click
 > reset) and **204**/**205** (Duplicate selects the new block; docked-toolbar
 > layout polish — docked is the DEFAULT surface) shipped 2026-10-06.
@@ -789,37 +790,6 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
   affordance in the child; desktop keeps the Radix side placement.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
-
-## 198. Reports designer — day picker to preview the design against a chosen day (`[ ]`)
-
-**Request** (user, 2026-10-02): reuse the call-sheet editor's day picker
-(`production/day/DayPicker.tsx` — the ONE `< [DAY N] >` selector shared by the
-Days page + Call Sheet edit, item 113) in the Reports Designer, so the day the
-canvas samples is explicit and the template can be previewed against any day
-(the "`{{wardrobe}}` looks blank on preview page 1" confusion, roadmap 197).
-
-**Approach**: add a dark-theme `DayPicker` to the designer toolbar (next to
-View/Preview) when the design is day-scoped (a `days`/`daysOfCast` repeat or a
-`callSheetEdit` zone anywhere in the tree). Options from the canonical
-production sections (same source as the Day Manager, incl. violation counts).
-Selecting a day pins the repeat sample: thread an optional
-`previewSectionIndex` into `sampleRepeatItem` (`lib/reportSampling.ts`; the
-default stays Day 1 of the active schedule/calendar) so day repeats resolve
-against the chosen day, and use the same index for the designer's
-Preview/Print so canvas and preview agree; persist per design like the other
-designer view prefs. In the Call Sheet design the `callSheetEdit` zone stays
-template-level (per-day content is edited in the Day Manager — item 113
-precedent); the picker only drives which day the sample resolves.
-
-**Verify**: rule-7 manual (picker visible only for day-scoped designs; Day 1 vs
-Day 2 show different per-day values in canvas + preview; preference persists);
-`npm run lint`; extend an existing report spec only if a silent break (wrong
-day sampled after reload) is plausible.
-
-**Relations**: extends **197** (day repeats sample Day 1 of the active
-schedule/calendar — this item makes the sample selectable), reuses **113**'s
-DayPicker + preview-persistence precedent and the Day Manager day source;
-related to **191** (inline canvas) and **190** (token resolution).
 
 ## 199. Reports designer — collection-table column headers: custom text + tokens (`[ ]`)
 

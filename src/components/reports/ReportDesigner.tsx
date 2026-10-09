@@ -11,9 +11,10 @@ import {
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock, listOwnerOf,
   insertColumnAt, removeColumnAt, moveColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
-  moveTableColumn, insertTableColumnAt, removeTableColumnAt, blockAllowedIn, blockPlacementHint,
+  moveTableColumn, insertTableColumnAt, removeTableColumnAt, blockAllowedIn, blockPlacementHint, designIsDayScoped,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
+import { useDayViews } from '../../lib/dayView';
 import { useViewMode, usePersistState } from '../../lib/persist';
 import { usePaneResize } from '../../lib/usePaneResize';
 import { ItemManagerDropdown } from '../DropdownMenu';
@@ -24,11 +25,15 @@ import ReportToolbar from './ReportToolbar';
 import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
+import { dayScopeFilter } from './DayReportPreview';
+import { DayPickerList } from '../production/day/DayPicker';
+import DropdownSubmenu from '../DropdownSubmenu';
+import DropdownDivider from '../DropdownDivider';
 import DelegatedTooltip from '../DelegatedTooltip';
 import CustomCellControls, { cellStructureOps } from './CustomCellControls';
 import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells';
 import { RichTextEditorHandle, RICH_TEXT_STATE_IDLE, RichTextState } from './RichTextEditor';
-import { Printer, Eye, EyeOff, ChevronDown, Check, ArrowRightLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Printer, Eye, EyeOff, ChevronDown, Check, ArrowRightLeft, PanelLeftClose, PanelLeftOpen, CalendarDays } from 'lucide-react';
 import Button from '../Button';
 import { Seg, ToolButton, TB_BTN_ICON } from '@gabriel/ui-kit';
 import { useDialog } from '../Dialog';
@@ -54,7 +59,9 @@ export interface ReportDesignerZone {
 
 interface ReportDesignerProps {
   headerTarget?: HTMLElement | null;
-  onPrint?: (design: ReportDesign) => void;
+  /** `daySectionIndex` = the day picker's choice for a day-scoped design
+   *  (roadmap 198) — the print dialog preselects it. */
+  onPrint?: (design: ReportDesign, daySectionIndex?: number) => void;
   zone?: ReportDesignerZone;
 }
 
@@ -123,6 +130,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     setSelCell(null);
     try { localStorage.setItem('lemon_schedule_report_view_mode', mode); } catch { /* ignore */ }
   };
+  // Designer day picker (roadmap 198): for a day-scoped design, pin which
+  // production day the canvas sample AND the Preview/Print resolve against.
+  // Persisted per design (localStorage); null = All days (the default).
+  const { days: dayViews } = useDayViews();
+  const [previewDay, setPreviewDay] = useState<number | null>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   // Sun & Weather values: warm the cache on load so canvas + preview render
@@ -154,6 +166,15 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     setMenu(null);
     setTextRtState(RICH_TEXT_STATE_IDLE);
     setTextChipKey(null);
+    let storedDay: number | null = null;
+    if (activeDesign?.id) {
+      try {
+        const raw = localStorage.getItem(`lemon_schedule_report_preview_day_${activeDesign.id}`);
+        const n = raw == null ? NaN : parseInt(raw, 10);
+        if (Number.isFinite(n)) storedDay = n;
+      } catch { /* ignore */ }
+    }
+    setPreviewDay(storedDay);
   }, [activeDesign?.id]);
 
   useEffect(() => {
@@ -246,6 +267,37 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   };
 
   const allBlocks = useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
+
+  // Day picker resolution (roadmap 198): visible only for day-scoped designs.
+  // `null` = All days (the default): canvas samples the first production day
+  // (roadmap 197) and Preview/Print render the whole report. A specific day
+  // scopes the canvas sample AND Preview/Print to it (stale stored days fall
+  // back to All days).
+  const dayScoped = useMemo(() => designIsDayScoped(allBlocks), [allBlocks]);
+  const dayOptions = useMemo(
+    () => dayViews.map(d => ({ sectionIndex: d.sectionIndex, chronoDay: d.chronoDay, date: d.date, conflicts: d.violations.length })),
+    [dayViews],
+  );
+  const scopedDay = useMemo(
+    () => (previewDay != null && dayOptions.some(o => o.sectionIndex === previewDay) ? previewDay : null),
+    [previewDay, dayOptions],
+  );
+  const scopedDayLabel = scopedDay != null ? dayOptions.find(o => o.sectionIndex === scopedDay)?.chronoDay ?? null : null;
+  const effectiveDay = scopedDay ?? dayOptions[0]?.sectionIndex ?? null;
+  const selectPreviewDay = (sectionIndex: number) => {
+    const next = sectionIndex === -1 ? null : sectionIndex;
+    setPreviewDay(next);
+    if (!designId) return;
+    try {
+      const key = `lemon_schedule_report_preview_day_${designId}`;
+      if (next == null) localStorage.removeItem(key);
+      else localStorage.setItem(key, String(next));
+    } catch { /* ignore */ }
+  };
+  const previewScopeFilter = useMemo(
+    () => (dayScoped && scopedDay != null ? dayScopeFilter(scopedDay) : undefined),
+    [dayScoped, scopedDay],
+  );
 
   const selBlock = selId ? findBlock(allBlocks, selId)?.block ?? null : null;
   const selParentCollection = selId ? parentCollectionOf(allBlocks, selId) : undefined;
@@ -498,6 +550,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           <button className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
             <span className="font-semibold text-zinc-500">View:</span>
             <span className="text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
+            {scopedDayLabel != null && <span className="text-zinc-400" title="This report day is pinned — canvas sample and Preview/Print resolve it">· Day {scopedDayLabel}</span>}
             <ChevronDown className="w-3 h-3 text-zinc-500" />
           </button>
         }
@@ -517,6 +570,20 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
           </DropdownItem>
         ))}
+        {dayScoped && dayOptions.length > 0 && (
+          <>
+            <DropdownDivider />
+            <DropdownSubmenu id="report-day" label="Report day" icon={<CalendarDays className="w-3.5 h-3.5" />} width="w-64">
+              <DayPickerList
+                options={dayOptions}
+                selectedIndex={previewDay ?? -1}
+                allLabel="All days"
+                dark
+                onSelect={idx => { selectPreviewDay(idx); setViewMenuOpen(false); }}
+              />
+            </DropdownSubmenu>
+          </>
+        )}
       </DropdownMenu>
       <button
         onClick={() => setPreview(v => !v)}
@@ -526,7 +593,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         {preview ? 'Edit' : 'Preview'}
       </button>
       <button
-        onClick={() => activeDesign && onPrint?.(activeDesign)}
+        onClick={() => activeDesign && onPrint?.(activeDesign, dayScoped && scopedDay != null ? scopedDay : undefined)}
         disabled={!onPrint}
         className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-zinc-100 text-zinc-900 font-medium hover:bg-white disabled:opacity-30"
       >
@@ -627,7 +694,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{headerContent}</header>)}
 
       {preview ? (
-        <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} onExit={() => setPreview(false)} />
+        <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} scopeFilter={previewScopeFilter} onExit={() => setPreview(false)} />
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
           {/* One left rail for the whole editor: the palette normally, the
@@ -688,6 +755,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               fieldMap={fieldMap}
               readOnly={readOnly}
               mode={reportMode}
+              previewSectionIndex={dayScoped && effectiveDay != null ? effectiveDay : undefined}
               autoEditId={autoEditId}
               onAutoEditHandled={() => setAutoEditId(null)}
               project={project}
