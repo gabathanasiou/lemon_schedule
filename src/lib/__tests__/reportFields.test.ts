@@ -11,9 +11,12 @@ import {
   lookupAttributeFields,
   buildLookupTokens,
   fieldsForScope,
+  fieldScopeFor,
   GLOBAL_FIELD_SCOPES,
   searchReportFields,
 } from '../reportFields';
+import { tableFieldScope } from '../reportBlocks';
+import type { ReportBlock, ReportCollection } from '../../types';
 
 describe('applyItemAffixes', () => {
   it('applies prefix/suffix to every item', () => {
@@ -219,6 +222,63 @@ describe('fieldsForScope — contextual @ suggestions', () => {
   it('a cast element context adds the cast identity fields', () => {
     const keys = fieldsForScope(fields, 'elementsOfCategory', 'cast').map(f => f.key);
     expect(keys).toEqual(['elementName', 'id', 'totalShootDays']);
+  });
+
+  it('cast = element + identity extras — both families offered', () => {
+    expect(fieldsForScope(fields, 'cast').map(f => f.key)).toEqual(['elementName', 'id', 'totalShootDays']);
+  });
+
+  it('a day of a cast member is a day context (days + Breakdown + locations)', () => {
+    expect(fieldsForScope(fields, 'daysOfCast').map(f => f.key)).toEqual(['cast', 'dayCallTime', 'locationName', 'totalShootDays']);
+  });
+
+  it('elements-of-scene and locations-of-type read their base registries', () => {
+    expect(fieldsForScope(fields, 'elementsOfScene').map(f => f.key)).toEqual(['elementName', 'totalShootDays']);
+    expect(fieldsForScope(fields, 'locationsOfType').map(f => f.key)).toEqual(['locationName', 'totalShootDays']);
+  });
+});
+
+describe('fieldScopeFor — the ONE collection→scope map', () => {
+  it('aliases contextual collections to their item shape', () => {
+    expect(fieldScopeFor('scenesOfCast')).toBe('scenes');
+    expect(fieldScopeFor('daysOfCast')).toBe('days');
+    expect(fieldScopeFor('elementsOfScene')).toBe('elements');
+    expect(fieldScopeFor('locationsOfType')).toBe('locations');
+    expect(fieldScopeFor('dayTypesOfElement')).toBe('dayTypes');
+    expect(fieldScopeFor('crewOfDay')).toBe('crew');
+    expect(fieldScopeFor('elementCallsOfDay')).toBe('elementCallsOfDay');
+    expect(fieldScopeFor(undefined)).toBeUndefined();
+  });
+});
+
+describe('tableFieldScope — effective item collection mapped to its field scope', () => {
+  const block = (collection?: ReportCollection): ReportBlock => ({ id: 'b', type: 'table', collection }) as ReportBlock;
+
+  it('standalone blocks map their own collection (contextual aliases included)', () => {
+    expect(tableFieldScope(block('cast'), undefined)).toBe('cast');
+    expect(tableFieldScope(block('elements'), undefined)).toBe('elements');
+    expect(tableFieldScope(block('elementsOfScene'), undefined)).toBe('elements');
+    expect(tableFieldScope(block('locationsOfType'), undefined)).toBe('locations');
+    expect(tableFieldScope(block('daysOfCast'), undefined)).toBe('days');
+    expect(tableFieldScope(block('scenesOfDay'), undefined)).toBe('scenes');
+  });
+
+  it('contextual defaults resolve through the parent collection', () => {
+    expect(tableFieldScope(block('scenes'), 'scenes')).toBe('elements');          // elementsOfScene
+    expect(tableFieldScope(block('scenes'), 'categories')).toBe('elements');      // elementsOfCategory
+    expect(tableFieldScope(block('scenes'), 'days')).toBe('scenes');              // scenesOfDay
+    expect(tableFieldScope(block('scenes'), 'cast')).toBe('scenes');              // scenesOfCast
+    expect(tableFieldScope(block('scenes'), 'locationTypes')).toBe('locations');  // locationsOfType
+    expect(tableFieldScope(block(), 'crew')).toBe('crew');                        // per-item crew
+  });
+
+  it('explicit nested picks keep their own collection (no parent override)', () => {
+    expect(tableFieldScope(block('days'), 'scenes')).toBe('days');
+    expect(tableFieldScope(block('crew'), 'scenes')).toBe('crew');
+    expect(tableFieldScope(block('daysOfCast'), 'cast')).toBe('days');
+    expect(tableFieldScope(block('crew'), 'categories')).toBe('crew');
+    expect(tableFieldScope(block('locationsOfDay'), 'days')).toBe('locations');
+    expect(tableFieldScope(block('elementCallsOfDay'), 'days')).toBe('elementCallsOfDay');
   });
 });
 

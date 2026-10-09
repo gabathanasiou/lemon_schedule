@@ -303,39 +303,54 @@ export function isGlobalField(f: ReportFieldDef): boolean {
   return GLOBAL_FIELD_SCOPES.has(f.scope);
 }
 
+/** The FIELD scope a collection's items read from — the ONE collection→scope
+ *  map (fieldsForScope, tableFieldScope and every picker go through it).
+ *  Contextual collections alias their item shape's base registry: a day of a
+ *  cast member is a day, elements-of-scene are elements, locations-of-type are
+ *  locations. Cast is the one hybrid — its items are full element infos PLUS
+ *  the identity pair; `fieldsForScope` admits both families for 'cast'. */
+export function fieldScopeFor(collection: string | null | undefined): string | undefined {
+  switch (collection) {
+    case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast': return 'scenes';
+    case 'days': case 'daysOfCast': return 'days';
+    case 'cast': return 'cast';
+    case 'elements': case 'elementsOfCategory': case 'elementsOfScene': return 'elements';
+    case 'locationsOfType': case 'locationsOfDay': return 'locations';
+    case 'dayTypesOfElement': return 'dayTypes';
+    case 'crewOfDay': return 'crew';
+    default: return collection ?? undefined;
+  }
+}
+
 /** The item-scope palette for a collection/context — the ONE scope filter
  *  consumed by the palette, table pickers and (since roadmap 195) the lookup
  *  `.` attribute stage. Lives here (not the registry) so the token module can
  *  use it without a runtime cycle.
  *
  *  `scopeSet` = production/project/document/smart (always) + the context's
- *  scopes; day contexts additionally admit scene-Breakdown attributes (they
- *  resolve per-day as a union) and location/weather attributes. See
- *  `docs/REPORTS-LEGO-CONTEXT.md` for the Lego context model. */
+ *  mapped field scope; day contexts additionally admit scene-Breakdown
+ *  attributes (they resolve per-day as a union) and location/weather
+ *  attributes; a cast context admits the element fields too (cast items ARE
+ *  element infos). See `docs/REPORTS-LEGO-CONTEXT.md` for the Lego context
+ *  model + the collection→scope matrix. */
 export function fieldsForScope(
   fields: ReportFieldDef[],
   scope: string | null | undefined,
   category?: string,
 ): ReportFieldDef[] {
   const scopeSet = new Set(['production', 'project', 'document', 'smart']);
-  const dayScope = scope === 'days' || scope === 'daysOfCast';
-  if (scope) {
-    if (['scenes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast'].includes(scope)) scopeSet.add('scenes');
-    else if (scope === 'elementsOfCategory') scopeSet.add('elements');
-    // dayTypesOfElement items share the day-type item shape — the Day Types
-    // attributes (scope 'dayTypes') belong there too.
-    else if (scope === 'dayTypesOfElement') scopeSet.add('dayTypes');
-    else if (scope === 'crewOfDay') scopeSet.add('crew');
-    else if (scope === 'locationsOfDay') scopeSet.add('locations');
-    else scopeSet.add(scope);
-  }
-  // Cast members are reached via Elements → Cast (collection 'elements' with
-  // category 'cast') or a categories repeat's Cast item ('elementsOfCategory')
-  // — their identity fields (Cast ID, Cast ID & Name) belong there too.
-  if (scope === 'cast' || category === 'cast' || scope === 'elementsOfCategory') scopeSet.add('cast');
+  const mapped = fieldScopeFor(scope);
+  if (mapped) scopeSet.add(mapped);
+  // Cast items are elements with identity extras — both families apply.
+  if (mapped === 'cast') scopeSet.add('elements');
+  // Cast identity fields belong to element contexts too: Elements → Cast
+  // (category 'cast') and a categories repeat's Cast item (its category is
+  // per-iteration, so elementsOfCategory admits the identity fields always).
+  if (scope === 'elementsOfCategory' || category === 'cast') scopeSet.add('cast');
+  const dayScope = mapped === 'days';
   return fields.filter(f => {
     if (scopeSet.has(f.scope)) return true;
-    // Breakdown attributes (scene-scope) resolve per-day inside a days repeater
+    // Breakdown attributes (scene-scope) resolve per-day inside a day context
     // (roadmap 22) — the only scene fields pickable in a day context.
     if (dayScope && f.scope === 'scenes' && f.group === 'Breakdown') return true;
     // Location + weather attributes (scope 'locations') are pickable in day

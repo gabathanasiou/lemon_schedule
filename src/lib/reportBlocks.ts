@@ -2,6 +2,7 @@ import { ReportBlock, ReportCollection, ReportColumn, ReportCustomRow, ReportTab
 import { generateUUID } from './utils';
 import { normalizeColWidths } from './ribbonDefaults';
 import { insertMergeRow, removeMergeRow, remapMergesForColumns } from './reportTableMerges';
+import { fieldScopeFor } from './reportLookup';
 
 // Immutable tree helpers for report design block lists. Contract: findBlock
 // returns `parent: null` for root-level blocks (never the root array) — root
@@ -625,26 +626,14 @@ export function tableItemCollection(block: ReportBlock, parentCollection?: Repor
   return contextual[0] || parentCollection;
 }
 
-/** The field scope for a table's attribute list (column/row field options). */
-export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCollection): ReportCollection | undefined {
-  if (!parentCollection) return block.collection;
-  if (parentCollection === 'categories') return 'elements';
-  if (parentCollection === 'locationTypes') return 'locations';
-  if (parentCollection === 'scenes') return 'elements';
-  // Day-type items carry their OWN field scope (label/count/list), unlike the
-  // scene-ish contextual collections — a dayTypesOfElement table iterates
-  // day-type rows, so its columns pick day-type attributes.
-  if (block.collection === 'dayTypesOfElement') return 'dayTypesOfElement';
-  // Crew (of this day) items carry crew fields + the resolved call time.
-  if (block.collection === 'crewOfDay') return 'crewOfDay';
-  // Day call-sheet collections carry their own field scopes (element calls
-  // include the dynamic stage columns; department calls are their own shape).
-  if (block.collection === 'elementCallsOfDay') return 'elementCallsOfDay';
-  if (block.collection === 'departmentCallsOfDay') return 'departmentCallsOfDay';
-  if (block.collection === 'locationsOfDay') return 'locations';
-  const contextual = contextualCollectionsFor(parentCollection);
-  if (block.collection && block.collection !== 'scenes' && !contextual.includes(block.collection)) return block.collection;
-  return contextual.length > 0 ? 'scenes' : parentCollection;
+/** The field scope for a table's attribute list (column/row field options) —
+ *  the block's EFFECTIVE item collection (`tableItemCollection`: contextual
+ *  defaults resolved, explicit picks respected) mapped through the ONE
+ *  collection→field-scope registry (`fieldScopeFor`, `reportLookup.ts`). A
+ *  table explicitly over Days under a Scenes repeat offers day fields; the
+ *  default elements-of-scene table offers element fields. */
+export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCollection): string | undefined {
+  return fieldScopeFor(tableItemCollection(block, parentCollection));
 }
 
 /** Human label for where a nested table gets its rows. */
@@ -660,7 +649,7 @@ export function defaultIdentityField(collection?: ReportCollection): string {
   switch (collection) {
     case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast': return 'sceneNumber';
     case 'days': case 'daysOfCast': return 'dayNumber';
-    case 'cast': case 'elements': return 'name';
+    case 'cast': case 'elements': return 'elementName';
     case 'elementsOfCategory': return 'elementName';
     case 'elementsOfScene': return 'elementName';
     case 'categories': return 'categoryLabel';
@@ -744,8 +733,9 @@ export function blockAllowedIn(type: ReportBlock['type'], insertScope?: ReportCo
   if (type === 'columns' && insideColumns) return false;
   // Advance needs a current item — only inside a repeat/relative context.
   if (type === 'relative' && !insertScope) return false;
-  // Day-scoped grids (items 111/112) only make sense inside a days repeat.
-  if ((type === 'callTimes' || type === 'crewTable') && insertScope !== 'days') return false;
+  // Day-scoped grids (items 111/112) only make sense inside a days repeat —
+  // any day context (days, daysOfCast) through the ONE collection→scope map.
+  if ((type === 'callTimes' || type === 'crewTable') && fieldScopeFor(insertScope) !== 'days') return false;
   return true;
 }
 

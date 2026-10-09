@@ -12,6 +12,7 @@ import {
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock, listOwnerOf,
   insertColumnAt, removeColumnAt, moveColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
   moveTableColumn, insertTableColumnAt, removeTableColumnAt, blockAllowedIn, blockPlacementHint, designIsDayScoped,
+  tableItemCollection,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { useDayViews } from '../../lib/dayView';
@@ -302,9 +303,13 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const selBlock = selId ? findBlock(allBlocks, selId)?.block ?? null : null;
   const selParentCollection = selId ? parentCollectionOf(allBlocks, selId) : undefined;
   const selParentCategory = selId ? parentCategoryOf(allBlocks, selId) : undefined;
+  // Palette/context-menu fields + context: a selected repeat/table stands for
+  // its EFFECTIVE item collection (contextual defaults resolved via
+  // tableItemCollection), so the offered attributes always match the items the
+  // block actually iterates.
   const insertScope = useMemo(
     () => (selBlock && (selBlock.type === 'repeat' || selBlock.type === 'table')
-      ? selBlock.collection || null
+      ? tableItemCollection(selBlock, selParentCollection)
       : selParentCollection || (zoneMode ? zone!.scope || null : null)),
     [selBlock, selParentCollection, zoneMode, zone?.scope],
   );
@@ -942,6 +947,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           project={project}
           insertScope={insertScope}
           insertCategory={insertCategory}
+          parentCollection={selParentCollection}
           onClose={() => setMenu(null)}
           onChangeField={f => {
             if (menu.colIndex !== undefined && selBlock?.type === 'table') {

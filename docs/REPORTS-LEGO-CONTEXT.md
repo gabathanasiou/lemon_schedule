@@ -170,3 +170,44 @@ containing chain, not against its own authored position:
   Locations/location types/day types have no child steps. Locked = the picker
   hides the steps; grammar + resolution stay live and tested.
 
+## 8. Field scopes (picker gating)
+
+Scope gates **pickers only** — values resolve through the field map regardless
+(`fieldValueSafe`), so a saved design always renders. ONE collection→field-scope
+map feeds every picker: `fieldScopeFor` (`lib/reportLookup.ts`), consumed by
+`fieldsForScope` (internally — raw callers are safe) and by
+`tableFieldScope(block, parent) = fieldScopeFor(tableItemCollection(block, parent))`
+(the block's EFFECTIVE item collection: contextual defaults resolved, explicit
+nested picks respected — a Days table under a Scenes repeat offers day fields).
+
+| Collection | Field scope |
+|---|---|
+| scenes / scenesOfDay / scenesOfElement / scenesOfCast | `scenes` |
+| days / daysOfCast | `days` (+ Breakdown-union + locations admitted) |
+| cast | `cast` **+ `elements`** (cast items ARE element infos + ID/ID&Name) |
+| elements / elementsOfCategory / elementsOfScene | `elements` (+ `cast` when category `cast`; `elementsOfCategory` always, its category is per-iteration) |
+| locationsOfType / locationsOfDay | `locations` |
+| dayTypesOfElement | `dayTypes` |
+| crewOfDay | `crew` |
+| elementCallsOfDay / departmentCallsOfDay | themselves |
+| everything else | itself |
+
+Plus always: `production` / `project` / `document` / `smart`.
+
+Surfaces and their scope source:
+
+- Palette + block context menu: the designer's `insertScope` — a selected
+  repeat/table stands for `tableItemCollection(block, parent)`; otherwise the
+  selection's parent collection.
+- Table column / rows-mode header / "Filter rows" pickers: `tableFieldScope`
+  (same for the floating chrome and the docked inspector).
+- Field blocks / text blocks / free-table cells (`{{}}` + `@` suggestions):
+  `fieldsForScope(parentCollection, parentCategory)` — the block's CURRENT item
+  is the parent repeat's item.
+- `@` stage 1 (item list) is context-free (`buildLookupTokens`); the `.` stage
+  after a reference/cellref chip uses the TARGET's own scope
+  (`lookupAttributeFields`) — references exist only for `LOOKUP_SPECS`
+  collections (cast refs ride `elements` + category `cast`).
+- Day-scoped grid blocks (`callTimes`/`crewTable`) are allowed in any day
+  context (`fieldScopeFor(scope) === 'days'`), `daysOfCast` included.
+

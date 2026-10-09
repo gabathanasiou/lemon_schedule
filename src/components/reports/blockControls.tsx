@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ChromeHeader, StructureControls, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId } from '../../lib/reportBlocks';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
+import { getReportFieldDefs, fieldsForScope, fieldScopeFor, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { codeForType } from '../../lib/dayTypes';
@@ -297,7 +297,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
 }) => {
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
   const isTextLike = block.type === 'text' || block.type === 'field' || block.type === 'link';
-  const { allFields, contextFields } = useReportControlContext(project, parentCollection);
+  const { allFields, contextFields } = useReportControlContext(project, parentCollection, parentCategory);
   const isField = block.type === 'field';
   const emptyHidden = block.emptyBehavior === 'hideBlock';
   // Text blocks: the Format/Style body binds to the canvas block's inline
@@ -384,7 +384,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
                 onChange={f => onPatch({ field: f })}
                 disabled={readOnly}
                 placeholder="Select attribute…"
-                scope={parentCollection}
+                scope={fieldScopeFor(parentCollection)}
                 className={`w-44 font-semibold ${TB_PICKER}`}
               />
             </>
@@ -505,9 +505,9 @@ const PARENT_LABELS: Record<string, string> = {
   locations: 'location', locationsOfType: 'location', locationTypes: 'location type',
 };
 
-export function useReportControlContext(project: Project, parentCollection?: ReportCollection): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; } {
+export function useReportControlContext(project: Project, parentCollection?: ReportCollection, parentCategory?: string): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; } {
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
-  const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection, undefined), [allFields, parentCollection]);
+  const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection, parentCategory), [allFields, parentCollection, parentCategory]);
   const categoryLabels = useMemo(() => {
     const map: Record<string, string> = {};
     for (const c of ELEMENT_CATEGORIES) map[c.key] = getLabel(c.key, c.label, project.categoryLabels);
@@ -709,7 +709,7 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
 };
 
 export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, editorRef, active, panel, relativeTarget, availableLocations }) => {
-  const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
+  const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection, parentCategory);
   const disabled = readOnly;
   const fieldPickerCls = panel ? `w-full ${TB_PICKER}` : `w-36 ${TB_PICKER}`;
   const pw = (base: string) => editorFieldCls(panel, base);
@@ -818,7 +818,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             onChange={f => onPatch({ field: f })}
             disabled={disabled}
             placeholder="Select attribute…"
-            scope={parentCollection}
+            scope={fieldScopeFor(parentCollection)}
             className={fieldPickerCls}
           />
         </ContentRow>,
@@ -980,7 +980,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           </ContentRow>
         ) : null,
         <ContentRow key="itemFilter" label="Filter rows">
-          <ItemFilterControl block={block} project={project} fields={fieldsForScope(allFields, block.collection)} disabled={disabled} onPatch={onPatch} />
+          <ItemFilterControl block={block} project={project} fields={fieldsForScope(allFields, tableFieldScope(block, parentCollection), block.category)} disabled={disabled} onPatch={onPatch} />
         </ContentRow>,
       );
     }

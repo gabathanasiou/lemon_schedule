@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { ReportBlock } from '../../types';
-import { COLLECTION_LABELS } from '../../lib/reportBlocks';
+import { ReportBlock, ReportCollection } from '../../types';
+import { COLLECTION_LABELS, tableFieldScope } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import { Project } from '../../types';
 
@@ -12,6 +12,9 @@ interface ReportContextMenuProps {
   project: Project;
   insertScope: string | null;
   insertCategory?: string;
+  /** The owning repeat/table collection of the selection — table columns
+   *  resolve their item scope through tableFieldScope(block, parent). */
+  parentCollection?: ReportCollection;
   onClose: () => void;
   onChangeField: (field: string) => void;
   onInsertAbove: () => void;
@@ -24,10 +27,17 @@ interface ReportContextMenuProps {
   onColumnRemove: () => void;
 }
 
-const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, project, insertScope, insertCategory, onClose, onChangeField, onInsertAbove, onInsertBelow, onAddChild, onDuplicate, onRemove, onColumnInsertAt, onColumnMove, onColumnRemove }) => {
+const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, project, insertScope, insertCategory, parentCollection, onClose, onChangeField, onInsertAbove, onInsertBelow, onAddChild, onDuplicate, onRemove, onColumnInsertAt, onColumnMove, onColumnRemove }) => {
   const fields: ReportFieldDef[] = useMemo(
-    () => block.type === 'field' || (block.type === 'table' && menu.colIndex !== undefined) ? fieldsForScope(getReportFieldDefs(project), insertScope, insertCategory) : [],
-    [block.type, menu.colIndex, project, insertScope, insertCategory],
+    () => {
+      if (block.type === 'table' && menu.colIndex !== undefined) {
+        // Same scope source as the column chrome — never the raw block.collection.
+        return fieldsForScope(getReportFieldDefs(project), tableFieldScope(block, parentCollection), block.category);
+      }
+      if (block.type === 'field') return fieldsForScope(getReportFieldDefs(project), insertScope, insertCategory);
+      return [];
+    },
+    [block, menu.colIndex, project, insertScope, insertCategory, parentCollection],
   );
   const itemCls = 'w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs text-zinc-300 hover:bg-zinc-800 rounded transition-colors';
   const isColumnMenu = menu.colIndex !== undefined;
