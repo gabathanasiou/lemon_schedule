@@ -51,6 +51,8 @@ Before building any of these by hand again, check the kit first:
 
 **v0.1.98 (header actions wrap + group)**: `ChromeHeader`'s trailing cluster now wraps internally (`flex-wrap`, right-aligned) so a narrow rail lays the actions out in two rows instead of clipping, and `StructureControls` renders as ONE unbreakable cluster (move pair + duplicate/delete stay together). The Reports Designer's rail header actions (surface switch + collapse) ride inside this trailing slot.
 
+**v0.1.99 (NumberInput — the shared numeric box, roadmap 202)**: the number recipe promoted to the kit: `NumberInput` = free-typed draft + live clamp + Enter/blur finalize + Escape revert (the old `LiveNumberInput` contract — the app module is now a 1-line shim, call sites untouched), PLUS stacked chevron steppers (±`step`, disabled at the bounds; pointerdown prevented so they never steal the draft's focus mid-typing), ArrowUp/ArrowDown stepping, and mouse drag-to-scrub (Premiere/Resolve — drag up = increase, 2px per step, commits live, focus dropped; touch/pen keep scrolling). Default look = the bordered `.ui-number-box` (border-only at rest → hover fill → muted focus border, the `.ui-input`/Checkbox language) with an explicit `theme="dark|light|blue"`; a consumer `className` keeps owning the input's look (bare wrapper — chevrons mirror the input's computed text color). Native number spinners are hidden (the chevrons replace them). Pure math in `numberInputMath.ts` (Vitest); playground `number-input.spec.ts` covers steppers/bounds/draft/Escape + the drag wiring.
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

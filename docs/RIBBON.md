@@ -24,7 +24,8 @@ cell styling — never hardcode cell padding/font/text styles.
 - Padding/edge/textSize stored per `RibbonDesign`; setters `SET_RIBBON_CELL_PADDING_V/H`,
   `SET_RIBBON_EDGE_PADDING`, `SET_RIBBON_TEXT_SIZE`. Pass through ScheduleTab → StripBlock →
   SortableRibbon, PrintSchedule/DaySection, PrintDialog, RibbonTab. RibbonToolbar numeric boxes are
-  `LiveNumberInput` (free-typed draft, commit clamps on change, Enter/blur finalize, Escape reverts) —
+  the kit `NumberInput` (v0.1.99, app shim `LiveNumberInput`: free-typed draft, commit clamps on
+  change, Enter/blur finalize, Escape reverts, chevron steppers + mouse drag-scrub) —
   never a clamped controlled input.
 
 ## View mode & borders

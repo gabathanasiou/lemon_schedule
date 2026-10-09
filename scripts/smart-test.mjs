@@ -156,6 +156,8 @@ const RULES = [
   { g: 'src/components/ColorsTab.tsx', s: RIBBON },
   { g: 'src/components/RibbonEditor.tsx', s: RIBBON },
   { g: 'src/components/RibbonPreview.tsx', s: RIBBON },
+  // shared numeric box (kit NumberInput shim) — every number surface consumes it
+  { g: 'src/components/LiveNumberInput.tsx', s: RIBBON },
   // glide breakdown
   { g: 'src/components/BreakdownTabGlide.tsx', s: [...GLIDE, ...LINKED] },
   { g: 'src/components/InlineGlideTable.tsx', s: GLIDE },

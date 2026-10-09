@@ -10,16 +10,13 @@ roadmap worker session, so it stays lean.
 - **New asks** go through the triage/dedupe gate (AGENTS.md, §Roadmap Work)
   before becoming an item here.
 
-> **Next session — 202** (kit `NumberInput` stepper; it gets the next ui-kit
-> bump — the kit is at v0.1.98 after the docked-editor pass). Then the Reports
-> Designer pass: **198** (designer day picker — preview any
-> day) and **199** (collection-table column headers — custom text + tokens).
-> **203** (Fields/Values mode + block headers + tips star), **191** (inline text
-> blocks + the ONE shared chrome), **194** (resize-tab double-click reset) and
-> **204**/**205** (Duplicate selects the new block; docked-toolbar layout
-> polish — docked is now the DEFAULT surface, the switch lives in the chrome
-> header) shipped 2026-10-06 (the 203 follow-ups — edit-entry clicks, caret at
-> end, insert auto-edit — same day).
+> **Next session — Reports Designer pass**: **198** (designer day picker —
+> preview any day) then **199** (collection-table column headers — custom text +
+> tokens). **202** (kit `NumberInput` stepper + mouse drag-scrub) shipped
+> 2026-10-09; **203** (Fields/Values mode + block headers + tips star), **191**
+> (inline text blocks + the ONE shared chrome), **194** (resize-tab double-click
+> reset) and **204**/**205** (Duplicate selects the new block; docked-toolbar
+> layout polish — docked is the DEFAULT surface) shipped 2026-10-06.
 
 ---
 ## 17. Report designer iPad-friendly (`[ ]`)
@@ -116,8 +113,9 @@ kit instead." The genuinely-shared components that are still app-local should mo
 
 Per item: bump `@gabriel/ui-kit` (`package.json` → `@gabriel/ui-kit#v0.1.x`), re-verify the
 DESIGN-LANGUAGE §Primitive matrix + Recipes class strings, update this roadmap + the matrix in the
-same commit. The events-mode day cells, section tabs, and icon-only buttons stay bespoke
-(no kit primitive exists; icon-only is the documented exception).
+same commit. The events-mode day cells and section tabs stay bespoke; icon-only
+buttons move to the kit via **216** (the "icon-only is the documented exception"
+note is retired).
 
 ## 97. Developer/agent API + MCP server for the app (`[ ]`)
 
@@ -917,33 +915,6 @@ reports; update `docs/REPORTS-LEGO-CONTEXT.md` + `docs/REPORTS-DESIGNER.md`.
 archive **25** (self-redundant menu hiding); read
 `docs/REPORTS-LEGO-CONTEXT.md` first.
 
-## 202. Stepper number input — kit `NumberInput` with custom up/down buttons (`[ ]`)
-
-**Request** (user, 2026-10-06, with mock): a shared number input styled like the
-mock — rounded dark box, right-aligned stacked chevron buttons (▲/▼) for
-increment/decrement, value centered-left. Same typing model as today's
-`LiveNumberInput`: free-typed draft, live clamp on change, Enter/blur finalize,
-Escape reverts, arrow keys step. On coarse pointers the steppers grow to the
-touch target size used elsewhere in the UI (the mock is desktop).
-
-**Approach**: build it as a kit primitive in `../ui-kit` (the promotion path of
-item 56; the app's `LiveNumberInput` becomes a 1-line re-export shim so its 6
-call sites stay untouched). Extract the behavior from `LiveNumberInput`
-(`src/components/LiveNumberInput.tsx` — the single source: draft state, clamp,
-commit, Escape), add `step` (default 1) + the two buttons; buttons must not
-steal the draft's focus mid-typing (mousedown preventDefault, commit on click,
-repeat on hold is optional). Coarse sizing via the kit chrome scale. Bump
-`@gabriel/ui-kit` per the release flow; update `docs/UI-KIT.md` +
-`docs/DESIGN-LANGUAGE.md` §primitive matrix.
-
-**Verify**: `npm run lint`; `e2e/ribbon-text-size.spec.ts` (types into the
-current boxes) stays green; rule-7 manual (type/steppers/arrow keys/Escape,
-coarse size, disabled at min/max). No new e2e.
-
-**Relations**: depends on/extends **56** (kit promotion), consumed by **48**
-(ribbon toolbar) and **192** (format bar size slot); related to **17**/**182**
-(touch affordances).
-
 ## 209. Crew database — universal across projects, not per project (`[ ]`, awaiting user detail)
 
 **Request** (user, 2026-10-08): a crew database that is UNIVERSAL — crew
@@ -1101,3 +1072,74 @@ restores the anchor.
 
 **Relations**: unlocks the gate over **196**; related to **195** (attribute
 parity) and **27** (`relative` context shifter).
+
+
+## 216. Tabs & switches — unify on kit primitives (themed `Seg` track + sliding pill) (`[ ]`)
+
+**Request**: one source of truth for tab/segment/switch chrome — the kit's
+canonical segmented control for future in-place tab needs. Audit done
+2026-10-09 (findings below — don't redo): the kit covers most surfaces, but kit
+`Seg` is hard-coded to the dark editor chrome (`bg-zinc-800`, active
+`bg-blue-900/50 text-blue-300`, 28px) and can't express the light-toolbar or
+dark-modal segmented recipes, so 7 segmented surfaces keep hand-rolled copies —
+plus icon-only toggle buttons and the crew-links checklist rows. User decisions
+2026-10-09: ALL of it goes kit (the item-56 carve-outs are retired) and the
+track look gets the **classic sliding-pill animation**, with the Call Times
+settings switch as the reference look.
+
+**Audit findings**:
+- Already kit (leave): header tabs (`Button variant="tab-header"`,
+  `AppHeader.tsx`), PageToolbar sub-tabs (`Button variant="tab"`),
+  RibbonToolbar group tabs, Reports `Seg` (Fields/Values + docked inspector),
+  designer `TB_TOGGLE`s, `Checkbox`/`Checklist`/`RadioList`. There is NO
+  `role="switch"`/sliding switch anywhere — on/off is Checkbox or pressed
+  buttons, so no new kit `Switch` is needed. App *navigation* tabs stay on
+  `Button variant="tab"/"tab-header"` (places/history — roadmap 176); this item
+  is the in-place mode-switch track.
+- Bespoke segmented copies → themed `Seg` track:
+  - dark modal recipe (`p-0.5`, selected `bg-zinc-800/700 text-white`):
+    `production/day/CallTimesSettingsModal.tsx:232` (4 tabs, stretched — the
+    reference look), `calendar/DayEventsModal.tsx:250` (Events/Conflicts/Rules,
+    content-width), `crew/CrewLinkManagerModal.tsx:238` (role=tablist),
+    `import/HeadingValueMapper.tsx:77`, `calendar/DayTypeModals.tsx:64`
+    (Yes/No block buttons);
+  - light toolbar recipe (active `bg-zinc-950 text-white`):
+    `CalendarTab.tsx:986` (Strips/Events, content-width), `ProductionTab.tsx:111`
+    (manager↔Glide, Day Manager↔Call Sheet — dark variant + per-segment icons).
+- `ProjectManager.tsx:385` boot Local/Cloud tabs (icons + counts, blue active):
+  decide inline — boot screen is self-contained; use kit only if the
+  count/icon layout survives, else leave and note it.
+- Icon-only toggles → kit: `ScriptPaneToggle`, CallSheetEditPage Times, floating
+  `KeyboardToggleButton`/`SelectionModeButton` (kit owns the button
+  chrome/toggle recipe; the fixed-position wrapper keeps the device state, and
+  a device-specific state frame may ride `className` if the kit can't express
+  it). `BreakdownTab` cut mode already uses kit `Button active`.
+- `ElementCrewLinksModal` rows (role label + name + trailing check) → kit
+  `Checklist` (extend it with a trailing-check and/or fixed-width leading slot
+  if needed); the `CardSection` department groups stay.
+
+**Approach**: in the kit repo — (a) add `Seg` variant `track`
+(pill-in-padded-track) with `theme` (light-toolbar / dark-modal / dark-toolbar
+tones; editor-chrome default unchanged), optional per-option `icon`, `stretch`
+(already exists — the full-width flex-1 look), and optional `role="tablist"`
+semantics. Dark theme = the Call Times look exactly (`p-0.5` container,
+`border-zinc-800 bg-zinc-950`, active `bg-zinc-800 text-white`). The track look
+gets the **classic sliding pill**: one absolutely-positioned pill behind the
+segments, animated via `transform`/`width` transition (~180ms; pure math for
+stretched equal segments, measured active-button offset for content-width),
+skipped under `prefers-reduced-motion`, pill `aria-hidden`, segments keep
+focus/keys. (b) icon-only recipe on kit `Button` (or a small kit `IconToggle`)
+covering `subtle` + `active`. (c) extend kit `Checklist` for the crew-links row
+shape. Ship one kit release, bump `package.json`, then swap the surfaces (no
+behavior change; keep aria/roles). Update `docs/UI-KIT.md` + DESIGN-LANGUAGE:
+§Segmented toggle recipe retires to themed `Seg`; the "icon-only stays bespoke"
+lines (DESIGN-LANGUAGE:235, UI-PRIMITIVES:104) retire.
+
+**Verify**: `npm run lint`; rule-7 manual pass over the migrated surfaces
+(segments + icon-only toggles + crew-links checks: selected/unselected/disabled,
+coarse sizes, pill slide + reduced-motion) + Reports designer unchanged; no e2e
+(chrome-only, a screenshot catches breakage).
+
+**Relations**: same kit-migration pipeline as **56** — supersedes its
+"icon-only buttons stay bespoke" carve-out (updated there); ships as its own kit
+bump (202 took v0.1.99).
