@@ -59,6 +59,7 @@ Before building any of these by hand again, check the kit first:
 - `FloatingToggle` (v0.1.100): the round 48px pinned device-mode toggle (idle white / lit blue / `warn` amber frames), position via `style`.
 - `Checklist checkPosition="trailing"` (v0.1.100): the check box on the right (row lists); `ChecklistItem.dataProps` for `data-*` hooks; rows now expose `aria-pressed`.
 - **v0.1.103**: `dense` applies to `track` too — 26px on fine pointers (the Reports Designer header rides its toolbar row).
+- **v0.1.105**: fixed track segment heights on fine pointers — text and icon segments agree (toolbar-dense container 26px, comfortable/modal container 36px); coarse keeps the padding-driven touch size.
 - **v0.1.104**: the **`chrome` variant animates too** — the blue `bg-blue-900/50` highlight glides between the joined cells (the container carries `bg-zinc-800`, cells are transparent, dividers untouched). Every `Seg` now animates.
 - Playground `seg.spec.ts` (pill position, palettes, tablist, FloatingToggle, Checklist trailing); suite caps raised 13/73 → 14/78 with the ledger note.
 

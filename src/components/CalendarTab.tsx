@@ -986,6 +986,7 @@ export const CalendarTab: React.FC<{
                 <ToolbarDivider />
                 <Seg
                   variant="track"
+                  dense
                   value={viewMode}
                   options={[
                     { v: 'strips', l: 'Strips', title: 'Strips view' },

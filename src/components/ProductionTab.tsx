@@ -97,6 +97,7 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
       <Seg
         variant="track"
         theme={dark ? 'dark' : 'light'}
+        dense
         value={views[sub]}
         options={[
           { v: 'manager', l: '', title: `${subTabLabels[sub]} manager view`, ariaLabel: 'Manager view', icon: <List className="w-3.5 h-3.5" /> },
