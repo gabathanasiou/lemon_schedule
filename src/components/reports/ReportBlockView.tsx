@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ReportBlock, ReportCollection, ReportTextStyle, ReportViewMode } from '../../types';
+import { ReportBlock, ReportCollection, ReportTableColumn, ReportTextStyle, ReportViewMode } from '../../types';
 import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, applyItemFilter, resolveCollectionItems, resolveRelativeItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
-import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor, getReportFieldDefs, fieldsForScope, buildLookupTokens } from '../../lib/reportFields';
+import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor, getReportFieldDefs, fieldsForScope, buildCtxLookupTokens } from '../../lib/reportFields';
 import CustomTable from './CustomTable';
 import { CustomCellSelection } from './useCustomTableCells';
 import RichTextEditor, { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
@@ -765,10 +765,7 @@ const InlineTextBlock: React.FC<{
   const [focused, setFocused] = React.useState(false);
   const fields = React.useMemo(() => getReportFieldDefs(ctx.project), [ctx.project]);
   const contextFields = React.useMemo(() => fieldsForScope(fields, parentCollection, parentCategory), [fields, parentCollection, parentCategory]);
-  const lookupTokens = React.useMemo(
-    () => buildLookupTokens(ctx.project, ctx.dayInfos.map(d => ({ index: d.section.index, chronoDay: d.chronoDay, date: d.date }))),
-    [ctx.project, ctx.dayInfos],
-  );
+  const lookupTokens = React.useMemo(() => buildCtxLookupTokens(ctx), [ctx]);
   // The editor mounts once per editing session: capture the latest callbacks
   // in a ref so re-renders never detach the channel or drop the cleanup.
   const cbRef = React.useRef({ onStateChange, onSelectionChange, onEditEnd, onFocusChange });
@@ -917,8 +914,8 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
 
   const renderTable = (items: ReportCollectionItem[], skeleton = false) =>
     (block.axis ?? 'columns') === 'rows'
-      ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} rowOffset={rowRange?.[0]} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} selectedColumn={selectedColumn} />
-      : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} />;
+      ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} headerItem={item} showUnresolved={showUnresolved} perItemIndex={undefined} rowOffset={rowRange?.[0]} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} selectedColumn={selectedColumn} />
+      : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} headerItem={item} showUnresolved={showUnresolved} perItemIndex={undefined} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} />;
 
   // Designer canvas: an empty collection still shows the table skeleton
   // (header + field-key row) so the layout is visible without data.
@@ -975,6 +972,25 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
 // The editable table lives in `CustomTable.tsx` (roadmap 188); this file just
 // routes the custom branch to it with the resolved style props.
 
+/** Optional custom header (roadmap 199): `col.label` rich text with `{{field}}`
+ *  tokens / `@` lookups resolves against the ENCLOSING repeat item (the
+ *  table's `item`), never the row item; off/empty falls back to the field
+ *  label. Fields mode shows the raw template (designer canvas preview). */
+function tableHeaderNode(
+  ctx: ReportCtx,
+  fieldMap: Record<string, ReportFieldDef>,
+  col: Pick<ReportTableColumn, 'field' | 'label' | 'labelEnabled'>,
+  item: any,
+  aux: FieldAux | undefined,
+  showKeys?: boolean,
+  showUnresolved?: boolean,
+): React.ReactNode {
+  const label = col.label || '';
+  if (!col.labelEnabled || !label) return fieldMap[col.field]?.label || col.field || '';
+  if (showKeys) return <TokenPreview text={label} fieldMap={fieldMap} />;
+  return <span dangerouslySetInnerHTML={htmlProp(resolveReportTokensHtml(ctx, fieldMap, label, item, aux, { showUnresolved }))} />;
+}
+
 const TableColumnsGrid: React.FC<{
   block: ReportBlock;
   ctx: ReportCtx;
@@ -986,6 +1002,9 @@ const TableColumnsGrid: React.FC<{
   border: string;
   showKeys?: boolean;
   aux?: FieldAux;
+  /** The ENCLOSING repeat item — custom headers resolve against it (roadmap 199). */
+  headerItem?: any;
+  showUnresolved?: boolean;
   perItemIndex?: number;
   skeleton?: boolean;
   onColumnSelect?: (colIndex: number) => void;
@@ -994,7 +1013,7 @@ const TableColumnsGrid: React.FC<{
   selectedColumn?: number | null;
   rowRange?: [number, number];
   repeatTableHeader?: boolean;
-}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border, showKeys, aux, perItemIndex, skeleton, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, rowRange, repeatTableHeader }) => {
+}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border, showKeys, aux, headerItem, showUnresolved, perItemIndex, skeleton, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, rowRange, repeatTableHeader }) => {
   const headerStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: REPORT_TABLE_HEADER_BG } as React.CSSProperties;
   const keyCell = (field: string) => (
     <span style={{ color: '#8f8f8f', fontStyle: 'italic' }}>{`{{${field}}}`}</span>
@@ -1018,7 +1037,7 @@ const TableColumnsGrid: React.FC<{
         <div className="rm-header" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {attributes.map((c, ci) => (
             <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...headerStyle, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
-              {fieldMap[c.field]?.label || c.field || ''}
+              {tableHeaderNode(ctx, fieldMap, c, headerItem, aux, showKeys, showUnresolved)}
               {editable && <span style={{ float: 'right', opacity: 0.35, fontSize: 9, lineHeight: '14px' }}>⠿</span>}
             </div>
           ))}
@@ -1058,13 +1077,16 @@ const TableRowsMatrix: React.FC<{
   border: string;
   showKeys?: boolean;
   aux?: FieldAux;
+  /** The ENCLOSING repeat item — custom headers resolve against it (roadmap 199). */
+  headerItem?: any;
+  showUnresolved?: boolean;
   perItemIndex?: number;
   rowOffset?: number;
   skeleton?: boolean;
   onColumnSelect?: (colIndex: number) => void;
   onColumnContextMenu?: (e: React.MouseEvent, colIndex: number) => void;
   selectedColumn?: number | null;
-}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border, showKeys, aux, perItemIndex, rowOffset = 0, skeleton, onColumnSelect, onColumnContextMenu, selectedColumn }) => {
+}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border, showKeys, aux, headerItem, showUnresolved, perItemIndex, rowOffset = 0, skeleton, onColumnSelect, onColumnContextMenu, selectedColumn }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [chunk, setChunk] = useState(() => Math.max(1, Math.floor((800 - TABLE_LABEL_W) / TABLE_ITEM_W)));
   useEffect(() => {
@@ -1079,6 +1101,11 @@ const TableRowsMatrix: React.FC<{
 
   const attributes = block.columns || [];
   const identityField = block.headerField || defaultIdentityField(itemCollection);
+  const cornerLabel = () => tableHeaderNode(
+    ctx, fieldMap,
+    { field: identityField, label: block.headerFieldLabel, labelEnabled: block.headerFieldLabelEnabled },
+    headerItem, aux, showKeys, showUnresolved,
+  );
   const keySpan = (field: string) => (
     <span style={{ color: '#8f8f8f', fontStyle: 'italic' }}>{`{{${field}}}`}</span>
   );
@@ -1104,7 +1131,7 @@ const TableRowsMatrix: React.FC<{
         <div className="report-table-cols" style={{ borderTop: border, borderLeft: border, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <div style={{ display: 'flex' }}>
             <div style={{ ...labelStyle, width: TABLE_LABEL_W, borderRight: border, borderBottom: border }}>
-              {fieldMap[identityField]?.label || identityField || ''}
+              {cornerLabel()}
             </div>
             <div style={{ ...labelStyle, flex: '1 1 0%', minWidth: 0, textAlign: 'center', borderRight: border, borderBottom: border }}>
               {keySpan(identityField)}
@@ -1113,7 +1140,7 @@ const TableRowsMatrix: React.FC<{
           {attributes.map((a, ai) => (
             <div key={a.id} style={{ display: 'flex' }}>
               <div {...cellHandlers(ai)} style={{ ...labelStyle, width: TABLE_LABEL_W, textAlign: 'left', borderRight: border, borderBottom: border, cursor: selectable ? 'pointer' : undefined, ...cellOutline(ai) }}>
-                {fieldMap[a.field]?.label || a.field || ''}
+                {tableHeaderNode(ctx, fieldMap, a, headerItem, aux, showKeys, showUnresolved)}
               </div>
               <div {...cellHandlers(ai)} style={{ ...baseStyle, ...cellPad, flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border, cursor: selectable ? 'pointer' : undefined, ...cellOutline(ai) }}>
                 {keySpan(a.field)}
@@ -1131,7 +1158,9 @@ const TableRowsMatrix: React.FC<{
         <div key={gi} className="report-table-cols rm-row" style={{ borderTop: border, borderLeft: border, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {g.length > 1 && (
             <div style={{ display: 'flex' }}>
-              <div style={{ ...labelStyle, width: TABLE_LABEL_W, borderRight: border, borderBottom: border }}>&nbsp;</div>
+              <div style={{ ...labelStyle, width: TABLE_LABEL_W, borderRight: border, borderBottom: border }}>
+                {block.headerFieldLabelEnabled ? cornerLabel() : '\u00A0'}
+              </div>
               {g.map((it, ii) => {
                 const gIndex = perItemIndex ?? rowOffset + gi * chunk + ii;
                 return (
@@ -1147,7 +1176,7 @@ const TableRowsMatrix: React.FC<{
           {attributes.map((a, ai) => (
             <div key={a.id} style={{ display: 'flex' }}>
               <div {...cellHandlers(ai)} style={{ ...labelStyle, width: TABLE_LABEL_W, textAlign: 'left', borderRight: border, borderBottom: border, cursor: selectable ? 'pointer' : undefined, ...cellOutline(ai) }}>
-                {fieldMap[a.field]?.label || a.field || ''}
+                {tableHeaderNode(ctx, fieldMap, a, headerItem, aux, showKeys, showUnresolved)}
               </div>
               {g.map((it, ii) => {
                 const gIndex = perItemIndex ?? rowOffset + gi * chunk + ii;

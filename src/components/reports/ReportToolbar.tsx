@@ -8,6 +8,7 @@ import {
 import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import { ColumnsColumnEditorContent, TableColumnEditorContent } from './reportColumnControls';
 import { BlockEditorPanelContext, EditorGroup } from './reportEditorLayout';
+import type { ReportCtx } from '../../lib/reportData';
 import type { ColSel } from './ReportDesignerCanvas';
 
 // The docked inspector rail's editor body — the block or column editor. The
@@ -22,6 +23,8 @@ interface ReportToolbarProps {
   parentCategory?: string;
   project: Project;
   readOnly: boolean;
+  /** Designer context — the column editor's header `@` lookups (roadmap 199). */
+  ctx?: ReportCtx;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
   onDuplicate: () => void;
@@ -48,7 +51,7 @@ interface ReportToolbarProps {
 }
 
 const ReportToolbar: React.FC<ReportToolbarProps> = ({
-  block, parentCollection, parentCategory, project, readOnly,
+  block, parentCollection, parentCategory, project, readOnly, ctx,
   onPatch, onSaveTextStyles,
   onDuplicate, onRemove, onMove,
   colSel, colBlock, onColPatch, onColInsertAt, onColMove, onColDelete,
@@ -65,6 +68,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
           project={project}
           parentCollection={parentCollection}
           readOnly={readOnly}
+          ctx={ctx}
           onPatch={onColPatch || noop}
           onInsertAt={onColInsertAt || noop}
           onMove={onColMove || noop}
@@ -92,6 +96,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
         parentCollection={parentCollection}
         parentCategory={parentCategory}
         readOnly={readOnly}
+        reportCtx={ctx}
         onPatch={onPatch}
         onSaveTextStyles={onSaveTextStyles}
         panel

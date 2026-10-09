@@ -2,11 +2,13 @@ import React from 'react';
 import { ChromeHeader, SectionHeader, TB_BTN_ICON, TB_DANGER, TB_DIVIDER, TB_PICKER, TB_TOGGLE, TB_TOGGLE_OFF, TB_TOGGLE_ON, ToolButton } from '@gabriel/ui-kit';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { Project, ReportBlock, ReportCollection, ReportTableColumn } from '../../types';
-import { fieldsForScope } from '../../lib/reportFields';
+import { buildCtxLookupTokens, fieldsForScope } from '../../lib/reportFields';
+import type { ReportCtx } from '../../lib/reportData';
 import { tableFieldScope } from '../../lib/reportBlocks';
 import { FieldPicker } from './FieldPicker';
+import RichTextEditor from './RichTextEditor';
 import { Tooltip } from '../Tooltip';
-import { ContentRow, EditorGroup, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
+import { ContentRow, EditorCheckbox, EditorGroup, editorFieldCls, editorRowCls, useBlockEditorPanel } from './reportEditorLayout';
 import { useReportControlContext } from './blockControls';
 
 // ---- column editors (table columns AND columns-block columns) -------------------
@@ -92,15 +94,22 @@ export const TableColumnEditorContent: React.FC<{
   onDelete: () => void;
   /** Rows-axis tables render the attribute list as matrix rows. */
   axis?: 'columns' | 'rows';
+  /** Designer canvas context — labels the header editor's `@` item lookups
+   *  and the chained reference chips (roadmap 199). */
+  ctx?: ReportCtx;
   /** Floating chrome only: the deselect ✕ (the panel's rail header owns it). */
   headerTrailing?: React.ReactNode;
-}> = ({ block, colIndex, project, parentCollection, readOnly, onPatch, onInsertAt, onMove, onDelete, axis = 'columns', headerTrailing }) => {
+}> = ({ block, colIndex, project, parentCollection, readOnly, onPatch, onInsertAt, onMove, onDelete, axis = 'columns', ctx, headerTrailing }) => {
   const panel = useBlockEditorPanel();
   const rows = axis === 'rows';
   const { allFields } = useReportControlContext(project, parentCollection);
   const scope = tableFieldScope(block, parentCollection);
   const columns = block.columns || [];
   const col = columns[colIndex];
+  // The custom header resolves against the ENCLOSING repeat item (the table's
+  // context), so the `@` field list is the parent scope — never the row scope.
+  const headerFields = React.useMemo(() => fieldsForScope(allFields, parentCollection), [allFields, parentCollection]);
+  const lookupTokens = React.useMemo(() => ctx ? buildCtxLookupTokens(ctx) : [], [ctx]);
   if (!col) return null;
   const disabled = readOnly;
   const patchCol = (p: Partial<ReportTableColumn>) => onPatch({ columns: columns.map((c, i) => i === colIndex ? { ...c, ...p } : c) });
@@ -118,6 +127,30 @@ export const TableColumnEditorContent: React.FC<{
             className={`${editorFieldCls(panel, 'w-44')} ${TB_PICKER}`}
           />
         </ContentRow>
+        <ContentRow label="Header">
+          <EditorCheckbox
+            className={panel ? 'flex-1' : undefined}
+            checked={!!col.labelEnabled}
+            disabled={disabled}
+            onChange={on => patchCol({ labelEnabled: on })}
+            label={rows ? 'Custom row label' : 'Custom header'}
+          />
+        </ContentRow>
+        {col.labelEnabled && (
+          <div className={`${editorFieldCls(panel, 'w-56')} min-w-0`}>
+            <RichTextEditor
+              value={col.label || ''}
+              onChange={html => patchCol({ label: html })}
+              placeholder={rows ? 'Custom row label…' : 'Custom header…'}
+              disabled={disabled}
+              fields={headerFields}
+              allFields={allFields}
+              lookupTokens={lookupTokens}
+              ctx={ctx}
+              className="w-full"
+            />
+          </div>
+        )}
         <div className="flex flex-col gap-1">
           <SectionHeader>{rows ? 'Row' : 'Column'}</SectionHeader>
           <div className={editorRowCls(panel)}>

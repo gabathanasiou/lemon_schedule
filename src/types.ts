@@ -650,6 +650,11 @@ export interface ReportTableColumn {
   skipEmpty?: boolean;  // hide rows where this column's cell is empty
   /** Free-table mode: the column header text (falls back to `field`). */
   label?: string;
+  /** Collection tables only (roadmap 199): opt-in custom header. When on,
+   *  `label` is rich text with `{{field}}` tokens / `@` item lookups resolved
+   *  against the ENCLOSING repeat item; empty falls back to the field label.
+   *  Free tables always consume `label` (this flag is ignored there). */
+  labelEnabled?: boolean;
 }
 
 /** One literal row of a free table (item 10): rich-text cells (may
@@ -746,6 +751,10 @@ export interface ReportBlock {
   showBorders?: boolean;          // table cell borders — on unless explicitly off
   skipEmptyRows?: boolean;        // hide items whose cells are all/partly empty
   headerField?: string;          // columns-mode: item identity row
+  /** Rows mode (roadmap 199): opt-in rich-text label for the top-left
+   *  `headerField` corner — same resolution as a column header. */
+  headerFieldLabel?: string;
+  headerFieldLabelEnabled?: boolean;
   axis?: 'columns' | 'rows';     // attributes as columns (default) or rows (matrix)
   columns?: ReportTableColumn[]; // simple column defs (field/align/width) — canonical table model
   // columns (Notion-style)

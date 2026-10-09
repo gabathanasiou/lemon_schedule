@@ -634,6 +634,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 editorRef={textEditorRef}
                 active={textRtState}
                 chipKey={textChipKey}
+                ctx={ctx}
               />
             )}
             {selectedTableCol && editorMode === 'floating' && !externalDrag && (
@@ -643,6 +644,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 project={project}
                 parentCollection={parentCollection}
                 readOnly={readOnly}
+                ctx={ctx}
                 onPatch={p => onPatch(b.id, p)}
                 onInsertAt={i => onInsertTableColumnAt(b.id, i)}
                 onRemove={() => onRemoveTableColumn(b.id, selectedTableCol.colIndex)}
@@ -1008,7 +1010,9 @@ const BlockChrome: React.FC<{
   editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
   active?: RichTextState;
   chipKey?: string | null;
-}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onToggleEditorMode, relativeTarget, availableLocations, editorRef, active, chipKey }) => (
+  /** Designer context — the rows-mode corner label editor's `@` lookups (199). */
+  ctx: ReportCtx;
+}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onToggleEditorMode, relativeTarget, availableLocations, editorRef, active, chipKey, ctx }) => (
   // anchorMode 'visible' (default): the anchor rect is clipped to the viewport
   // so the panel floats above the VISIBLE part of the card — identical feel
   // for a small text card and a tall repeat/ribbon card.
@@ -1033,6 +1037,7 @@ const BlockChrome: React.FC<{
       editorRef={editorRef}
       active={active}
       chipKey={chipKey}
+      reportCtx={ctx}
     />
   </FloatingChrome>
 );
@@ -1046,6 +1051,7 @@ interface TableColumnChromeProps {
   project: Project;
   parentCollection?: ReportCollection;
   readOnly: boolean;
+  ctx: ReportCtx;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onInsertAt: (colIndex: number) => void;
   onRemove: () => void;
@@ -1053,7 +1059,7 @@ interface TableColumnChromeProps {
   onToggleEditorMode?: () => void;
 }
 
-const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, project, parentCollection, readOnly, onPatch, onInsertAt, onRemove, onMoveCol, onToggleEditorMode }) => {
+const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, project, parentCollection, readOnly, ctx, onPatch, onInsertAt, onRemove, onMoveCol, onToggleEditorMode }) => {
   const columns = block.columns || [];
   const col = columns[colIndex];
   // Anchor the panel to the selected column's header cell (`.report-table-cols
@@ -1079,6 +1085,7 @@ const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, 
             project={project}
             parentCollection={parentCollection}
             readOnly={readOnly}
+            ctx={ctx}
             onPatch={onPatch}
             onInsertAt={onInsertAt}
             onMove={onMoveCol}

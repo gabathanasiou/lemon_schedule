@@ -1387,6 +1387,16 @@
           "type": "string"
         },
         {
+          "name": "headerFieldLabel",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "headerFieldLabelEnabled",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
           "name": "axis",
           "optional": true,
           "type": "'columns' | 'rows'"
@@ -1650,6 +1660,11 @@
           "name": "label",
           "optional": true,
           "type": "string"
+        },
+        {
+          "name": "labelEnabled",
+          "optional": true,
+          "type": "boolean"
         }
       ]
     },

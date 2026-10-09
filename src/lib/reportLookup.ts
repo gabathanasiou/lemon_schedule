@@ -273,6 +273,13 @@ function lookupItemsFor(project: Project, collection: ReportCollection, days: Lo
   }
 }
 
+/** The report ctx's stage-1 (`@`) lookup items — the ONE seam mapping
+ *  `ctx.dayInfos` to the day refs `buildLookupTokens` needs (every rich-text
+ *  editor with item references consumes this). */
+export function buildCtxLookupTokens(ctx: ReportCtx): LookupTokenItem[] {
+  return buildLookupTokens(ctx.project, ctx.dayInfos.map(d => ({ index: d.section.index, chronoDay: d.chronoDay, date: d.date })));
+}
+
 /** Stage-1 (`@`) lookup items: ONE entry per item, keyed by the collection's
  *  identity field. `days` comes from the caller's canonical sections. Stage 2
  *  (the `.` attribute list) comes from `lookupAttributeFields`. */

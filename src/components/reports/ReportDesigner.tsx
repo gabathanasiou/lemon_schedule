@@ -667,6 +667,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     parentCategory: selParentCategory,
     project,
     readOnly,
+    ctx,
     onPatch: (p: Partial<ReportBlock>) => selId && patch(selId, p),
     onSaveTextStyles: (styles: ReportTextStyle[]) => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles }),
     onDuplicate: () => selId && duplicateBlockSelect(selId),

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ReportBlock, ReportCollection, ReportTextStyle, ReportViewMode } from '../../types';
 import { ReportCtx } from '../../lib/reportData';
-import { ReportFieldDef, FieldAux, buildLookupTokens, fieldsForScope, getReportFieldDefs, composeCellRefKey, composeRelativeCellRefKey, parseCellRefKey, cellRefChain } from '../../lib/reportFields';
+import { ReportFieldDef, FieldAux, buildCtxLookupTokens, fieldsForScope, getReportFieldDefs, composeCellRefKey, composeRelativeCellRefKey, parseCellRefKey, cellRefChain } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { IS_COARSE } from '../../lib/device';
 import { useTableColumnReorder } from './useTableColumnReorder';
@@ -83,10 +83,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
   // element fields) only appear where they resolve. `fields` stays the full
   // registry for lookup chip labels + the `.` attribute stage.
   const contextFields = useMemo(() => fieldsForScope(fields, parentCollection, parentCategory), [fields, parentCollection, parentCategory]);
-  const lookupTokens = useMemo(
-    () => buildLookupTokens(ctx.project, ctx.dayInfos.map(d => ({ index: d.section.index, chronoDay: d.chronoDay, date: d.date }))),
-    [ctx.project, ctx.dayInfos],
-  );
+  const lookupTokens = useMemo(() => buildCtxLookupTokens(ctx), [ctx]);
   const cells = useCustomTableCells({
     block,
     patch: onPatchBlock,

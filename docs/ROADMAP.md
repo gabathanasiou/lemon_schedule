@@ -10,10 +10,13 @@ roadmap worker session, so it stays lean.
 - **New asks** go through the triage/dedupe gate (AGENTS.md, §Roadmap Work)
   before becoming an item here.
 
-> **Next session — Reports Designer pass**: **199** (collection-table column
-> headers — custom text + tokens). **198** (designer day picker — All days/Day N
-> scopes canvas + Preview/Print) and **202** (kit `NumberInput` stepper + mouse
-> drag-scrub) shipped 2026-10-09; **203** (Fields/Values mode + block headers +
+> **Next session — Reports Designer pass**: **140** (rich-text table title,
+> opt-in — the same token recipe as 199's per-column headers; then **159**
+> precalls table / **160** page setup). **199** (collection-table column
+> headers — custom text + tokens) and **198** (designer day picker — All
+> days/Day N scopes canvas + Preview/Print) plus **202** (kit `NumberInput`
+> stepper + mouse drag-scrub) shipped 2026-10-09; **203** (Fields/Values mode +
+> block headers +
 > tips star), **191**
 > (inline text blocks + the ONE shared chrome), **194** (resize-tab double-click
 > reset) and **204**/**205** (Duplicate selects the new block; docked-toolbar
@@ -790,48 +793,6 @@ menu pattern), instead of the desktop side-placement that can land off-screen.
   affordance in the child; desktop keeps the Radix side placement.
 - **Verify**: playground spec under the `ipad` project + app iPad manual pass.
 - **Relations**: 165 (positioning engine), 64, 69-71.
-
-## 199. Reports designer — collection-table column headers: custom text + tokens (`[ ]`)
-
-**Request** (user, 2026-10-02): a collection table's column header is hardwired
-to the field label — there is no rename at all. Give each column an optional
-rich-text header (custom text + `{{field}}` tokens and `@` item lookups),
-falling back to the field label when empty. Headers resolve against the
-ENCLOSING repeat item (the table's `item`), not the row item: a crew table
-inside a days repeat can read "Crew — {{dayDate}}"; top level uses
-`{{title}}`/`{{company}}`. Row-matrix mode gets the same for its row labels and
-the top-left `headerField`. Collection tables only — free tables keep their
-existing editable header labels (`columns[].label` is shared: render plain
-labels unchanged and pass HTML through).
-
-**Approach**:
-- Data: reuse `ReportTableColumn.label` (exists; today only free tables consume
-  it). Store token HTML; no migration (plain labels render as text).
-- Renderer: `TableColumnsGrid` header + `TableRowsMatrix` row labels/top-left
-  (`ReportBlockView.tsx:836/932/966`) — when `col.label` is set,
-  `resolveReportTokensHtml(ctx, fieldMap, col.label, item, blockAux)`, else the
-  field label. `showKeys` keeps `{{field}}`. Empty-collection skeleton and
-  per-fragment `repeatTableHeader` behavior unchanged (resolution is
-  deterministic per fragment).
-- Editor: a "Header" `RichTextEditor` field in the selected-column chrome
-  (`reportColumnControls.tsx` `CollectionColumnEditorContent`) — `fields` /
-  `allFields` scoped to the PARENT context (`fieldsForScope(allFields,
-  parentCollection)`), `lookupTokens` from `buildLookupTokens`, so a top-level
-  header never offers `{{sceneNumber}}`; `@` + `.` work, and **195** makes the
-  `.` attributes contextual automatically.
-- NOT in scope: tokenizing cells (the typed grid stays), inline header editing
-  (**191** can layer it later), free-table header rework.
-
-**Verify**: `npm run lint`; rule-7 manual (custom text, `{{token}}`, `@`
-lookup, empty → field label, rows mode + top-left, print header repeat, blank
-collection skeleton); no new e2e unless a silent break (persistence of the
-header HTML) appears uncovered.
-
-**Relations**: same rich-text recipe as **140** (block title above the table —
-per-column sibling, not a duplicate); reuses **191** (shared editor/chrome),
-**121** (`@` picker) and **195** (contextual `.` attrs); docs
-`docs/REPORTS-DESIGNER.md` (§free vs collection tables / Extending) update at
-wrap.
 
 ## 201. Reports designer — fold day-contextual collections into base collections? (`[ ]`, NEEDS CONVERSATION FIRST)
 
