@@ -2,9 +2,11 @@ import React from 'react';
 import { Keyboard, KeyboardOff } from 'lucide-react';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
+import { FloatingToggle } from '@gabriel/ui-kit';
 
 /**
- * Floating keyboard-state button (coarse-pointer devices only).
+ * Floating keyboard-state button (coarse-pointer devices only) — kit
+ * `FloatingToggle` chrome; this module keeps only the device state.
  *
  * Three visual states:
  *  - ON (blue):       software keyboard enabled — entity dropdowns/grid cells accept text entry
@@ -23,33 +25,11 @@ export default function KeyboardToggleButton() {
 
   const active = mode === 'on';
 
-  const frame = hwKeyboard
-    ? {
-        border: '1px solid #f59e0b',
-        background: 'rgba(255, 251, 235, 0.94)',
-        color: '#b45309',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
-        cursor: 'pointer',
-      }
-    : active
-      ? {
-          border: '2px solid #2563eb',
-          background: '#2563eb',
-          color: '#fff',
-          boxShadow: '0 4px 16px rgba(37,99,235,0.4)',
-          cursor: 'pointer',
-        }
-      : {
-          border: '1px solid #d4d4d8',
-          background: 'rgba(255,255,255,0.94)',
-          color: '#52525b',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
-          cursor: 'pointer',
-        };
-
   return (
-    <button
+    <FloatingToggle
       data-no-longpress
+      warn={hwKeyboard}
+      active={active}
       aria-pressed={active}
       aria-label={hwKeyboard ? 'Hardware keyboard detected' : active ? 'Keyboard input on' : 'Keyboard input off'}
       title={
@@ -57,27 +37,13 @@ export default function KeyboardToggleButton() {
           ? `Hardware keyboard detected — toggle has no effect. Software mode: ${active ? 'on' : 'off'}`
           : active ? 'Keyboard input on' : 'Keyboard input off'
       }
+      style={{ bottom: 16, right: 16 }}
       onClick={(e) => {
         e.stopPropagation();
         setMode(active ? 'off' : 'on');
       }}
-      style={{
-        position: 'fixed',
-        bottom: 16,
-        right: 16,
-        zIndex: 100,
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        touchAction: 'manipulation',
-        backdropFilter: 'blur(8px)',
-        ...frame,
-      }}
     >
       {active || hwKeyboard ? <Keyboard className="w-5 h-5" /> : <KeyboardOff className="w-5 h-5" />}
-    </button>
+    </FloatingToggle>
   );
 }

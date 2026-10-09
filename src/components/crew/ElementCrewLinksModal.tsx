@@ -6,10 +6,10 @@ import { crewRoleGroup } from '../../lib/crewCatalog';
 import { getCrewLinksForElement } from '../../lib/crewLinks';
 import { CrewRole } from '../../types';
 import { CardSection } from '@gabriel/ui-kit';
-import { ITEM_ROW_CLASS } from '../cards/ItemRow';
+import Checklist from '../Checklist';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
-import { Check, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 /**
  * Element Manager → Linked crew (roadmap 11, layer 2 reverse view): the crew
@@ -85,29 +85,18 @@ export function ElementCrewLinksModal({ category, elementKey, elementName, onClo
               onToggle={() => toggleCollapse(g.name)}
               dataProps={{ 'data-crew-link-group': g.name }}
             >
-              {g.people.map(p => {
-                const on = linkedIds.has(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => toggle(p.id)}
-                    disabled={readOnly}
-                    aria-pressed={on}
-                    data-crew-person={p.id}
-                    className={`${ITEM_ROW_CLASS} w-full text-left disabled:cursor-not-allowed disabled:opacity-50`}
-                  >
-                    <span className="w-44 shrink-0 text-[11px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors">{p.role.label}</span>
-                    <span className="flex-1 min-w-0 truncate text-[11px] text-zinc-400">{p.name || '(unnamed)'}</span>
-                    <span
-                      aria-hidden
-                      className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center ${on ? 'bg-white border-white' : 'border-zinc-600'}`}
-                    >
-                      {on && <Check className="w-3 h-3 text-zinc-900" />}
-                    </span>
-                  </button>
-                );
-              })}
+              <Checklist
+                checkPosition="trailing"
+                items={g.people.map(p => ({
+                  id: p.id,
+                  label: p.name || '(unnamed)',
+                  leading: <span className="w-44 shrink-0 text-left text-[11px] font-medium text-zinc-300">{p.role.label}</span>,
+                  dataProps: { 'data-crew-person': p.id },
+                }))}
+                selected={linkedIds}
+                onToggle={id => toggle(String(id))}
+                disabled={readOnly}
+              />
             </CardSection>
           );
         })}

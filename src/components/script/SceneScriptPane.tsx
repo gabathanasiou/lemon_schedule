@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { PanelRight } from 'lucide-react';
-import { useProject, useIsCloudProject } from '../../store';
+import { useProject } from '../../store';
+import Button from '../Button';
 import { ScriptSceneText } from './ScriptSceneScript';
 import { ScriptTagOverlay, useScriptTagging } from './ScriptTagging';
 import { scriptSceneOf, normalizeSceneNumber, formatSceneHeading } from '../../lib/script';
@@ -43,19 +44,20 @@ export function useScriptPanePref(host: 'sheet' | 'glide') {
   return { open, setOpen, width: pref.width, setWidth };
 }
 
-/** Toolbar icon-button that shows/hides the pane (icon-only stays bespoke). */
+/** Toolbar icon-button that shows/hides the pane (kit icon-only `Button`). */
 export function ScriptPaneToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const isCloud = useIsCloudProject();
   return (
-    <button
-      type="button"
+    <Button
+      variant="subtle"
+      iconOnly
+      active={open}
       onClick={onToggle}
       title={open ? 'Hide script pane' : 'Show script pane'}
       aria-pressed={open}
-      className={`p-1.5 rounded-md transition-colors ${open ? (isCloud ? 'bg-blue-950 text-blue-50' : 'bg-zinc-900 text-white') : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800'}`}
+      aria-label={open ? 'Hide script pane' : 'Show script pane'}
     >
       <PanelRight className="h-4 w-4" />
-    </button>
+    </Button>
   );
 }
 

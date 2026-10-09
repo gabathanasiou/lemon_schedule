@@ -10,6 +10,7 @@ import DayPicker from './DayPicker';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
 import DropdownSubmenu from '../../DropdownSubmenu';
+import Button from '../../Button';
 
 /**
  * Full-surface per-day call-sheet editor (item 10, D17): the whole design
@@ -140,16 +141,17 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         </DropdownMenu>
         <ToolbarDivider dark />
         {!preview && (
-          <button
-            type="button"
+          <Button
+            theme="dark"
+            variant="subtle"
+            active={showRibbonTimes}
             onClick={() => setShowRibbonTimes(v => !v)}
             title="Preview times & durations"
             aria-label="Preview times & durations"
             aria-pressed={showRibbonTimes}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs hover:bg-zinc-800 ${showRibbonTimes ? 'text-amber-400' : 'text-zinc-400 hover:text-white'}`}
           >
             <Clock className="w-3.5 h-3.5" /> Times
-          </button>
+          </Button>
         )}
         <button
           type="button"

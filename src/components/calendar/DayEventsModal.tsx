@@ -14,7 +14,7 @@ import DropdownDivider from '../DropdownDivider';
 import { RULE_TYPE_META, RULE_TYPES } from '../rules/ruleMeta';
 import { RuleCard } from '../rules/RuleCard';
 import { RuleEditorPanel } from '../rules/RuleEditorPanel';
-import { CardSection } from '@gabriel/ui-kit';
+import { CardSection, Seg } from '@gabriel/ui-kit';
 import { ItemRow, ITEM_ROW_BODY_WRAP } from '../cards/ItemRow';
 import { removeItemsFrom, setNote, computeDayTypeCards } from '../../lib/events';
 import { ELEMENT_CATEGORIES, getLabel, CAT_ICONS, getCustomIcon } from '../../lib/categories';
@@ -247,21 +247,18 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
               ))}
             </DropdownMenu>
           </div>
-          <div className="flex border border-zinc-800 rounded p-0.5 bg-zinc-950 w-fit">
-            {([
-              { key: 'events' as const, label: 'Events' },
-              { key: 'conflicts' as const, label: 'Conflicts' },
-              { key: 'rules' as const, label: 'Rules' },
-            ]).map(t => (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === t.key ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'}`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <Seg
+            variant="track"
+            theme="dark"
+            value={activeTab}
+            options={[
+              { v: 'events', l: 'Events' },
+              { v: 'conflicts', l: 'Conflicts' },
+              { v: 'rules', l: 'Rules' },
+            ]}
+            onChange={v => setActiveTab(v as 'events' | 'conflicts' | 'rules')}
+            ariaLabel="Day events sections"
+          />
         </div>
 
         {activeTab === 'events' && (

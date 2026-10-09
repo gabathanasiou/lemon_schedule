@@ -16,6 +16,7 @@ import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
 import { CategoryDropdown } from '../../rules/CategoryDropdown';
 import Modal, { ModalFooter } from '../../Modal';
 import ModalFooterButton from '../../ModalFooterButton';
+import { Seg } from '@gabriel/ui-kit';
 import { CommitInput } from '../../CommitInput';
 import Button from '../../Button';
 import { ruleModalSizes } from '../../rules/ColorRuleFormParts';
@@ -229,18 +230,15 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
       }
     >
       <div className={sizes.CREM_BODY}>
-        <div className="flex w-full border border-zinc-800 rounded p-0.5 bg-zinc-950">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`flex-1 px-3 py-1.5 rounded text-xs font-semibold transition-colors ${tab === t.key ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Seg
+          variant="track"
+          theme="dark"
+          stretch
+          value={tab}
+          options={TABS.map(t => ({ v: t.key, l: t.label }))}
+          onChange={v => setTab(v as TabKey)}
+          ariaLabel="Call times sections"
+        />
 
         {tab === 'stages' && (
           <div className="space-y-3">

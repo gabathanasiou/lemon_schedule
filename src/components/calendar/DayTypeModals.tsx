@@ -4,6 +4,7 @@ import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import ColorField from '../ColorField';
 import { IconGrid } from '../elements/IconGrid';
+import { Seg } from '@gabriel/ui-kit';
 
 interface DayTypeFormProps {
   open: boolean;
@@ -60,21 +61,16 @@ function DayTypeFormModal({ open, onClose, title, submitLabel, name, onNameChang
             <Link2 className="w-3 h-3" /> Attach cast &amp; elements
           </label>
           <p className="text-[10px] text-zinc-600 mt-0.5">When a day is marked with this type, let it carry per-day cast/element lists (DOODs codes like travel/hold).</p>
-          <div className="mt-1 flex gap-1">
-            <button
-              type="button"
-              onClick={() => onAttachableChange(true)}
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${attachable ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
-            >
-              Yes
-            </button>
-            <button
-              type="button"
-              onClick={() => onAttachableChange(false)}
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${!attachable ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
-            >
-              No
-            </button>
+          <div className="mt-1">
+            <Seg
+              variant="track"
+              theme="dark"
+              stretch
+              value={attachable ? 'yes' : 'no'}
+              options={[{ v: 'yes', l: 'Yes' }, { v: 'no', l: 'No' }]}
+              onChange={v => onAttachableChange(v === 'yes')}
+              ariaLabel="Attach cast & elements"
+            />
           </div>
         </div>
       </div>

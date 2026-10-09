@@ -5,6 +5,7 @@ import ModalFooterButton from '../ModalFooterButton';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { Seg } from '@gabriel/ui-kit';
 import type { HeadingMapping, HeadingValueChoice } from '../../lib/import';
 
 /**
@@ -23,7 +24,6 @@ interface Props {
   onConfirm: (mapping: HeadingMapping) => void;
 }
 
-const SEG_BTN = 'px-3 py-1.5 rounded text-xs font-semibold transition-colors';
 const GROUP_LABEL = 'text-[10px] font-semibold uppercase tracking-wider text-zinc-500';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -74,24 +74,17 @@ function Row({ value, known, choice, onChange }: {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
       <div className="min-w-0 flex-1 text-sm font-semibold text-zinc-100 truncate">{value}</div>
-      <div className="flex border border-zinc-700 rounded p-0.5 bg-zinc-950 w-fit" role="group" aria-label={`How to handle ${value}`}>
-        <button
-          type="button"
-          aria-pressed={!isMatch}
-          onClick={() => onChange({ action: 'add' })}
-          className={`${SEG_BTN} ${!isMatch ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
-        >
-          New option
-        </button>
-        <button
-          type="button"
-          aria-pressed={isMatch}
-          onClick={() => onChange({ action: 'map', mapTo: matchTo })}
-          className={`${SEG_BTN} ${isMatch ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
-        >
-          Replace with
-        </button>
-      </div>
+      <Seg
+        variant="track"
+        theme="dark"
+        value={isMatch ? 'map' : 'add'}
+        options={[
+          { v: 'add', l: 'New option' },
+          { v: 'map', l: 'Replace with' },
+        ]}
+        onChange={a => onChange(a === 'map' ? { action: 'map', mapTo: matchTo } : { action: 'add' })}
+        ariaLabel={`How to handle ${value}`}
+      />
       {isMatch && <ValueMenu value={matchTo} options={known} onChange={v => onChange({ action: 'map', mapTo: v })} />}
     </div>
   );

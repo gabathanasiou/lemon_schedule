@@ -9,6 +9,7 @@ import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '
 import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus, Eye } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
+import { Seg } from '@gabriel/ui-kit';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { computeSectionViolationMap, rulesRelevantToDay } from '../lib/rulesEngine';
@@ -983,18 +984,16 @@ export const CalendarTab: React.FC<{
                   Production Dates
                 </Button>
                 <ToolbarDivider />
-                <div className="flex border border-zinc-200 rounded p-0.5">
-                  {(['strips', 'events'] as const).map(m => (
-                    <button
-                      key={m}
-                      onClick={() => { updateCal({ viewMode: m }); setSelectedEventKeys(new Set()); }}
-                      title={m === 'strips' ? 'Strips view' : 'Events view'}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${viewMode === m ? 'bg-zinc-950 text-white' : 'text-zinc-500 hover:text-zinc-900'}`}
-                    >
-                      {m === 'strips' ? 'Strips' : 'Events'}
-                    </button>
-                  ))}
-                </div>
+                <Seg
+                  variant="track"
+                  value={viewMode}
+                  options={[
+                    { v: 'strips', l: 'Strips', title: 'Strips view' },
+                    { v: 'events', l: 'Events', title: 'Events view' },
+                  ]}
+                  onChange={m => { updateCal({ viewMode: m as 'strips' | 'events' }); setSelectedEventKeys(new Set()); }}
+                  ariaLabel="Calendar view"
+                />
                 <ToolbarDivider />
                 <DropdownMenu
                   open={filterMenuOpen}

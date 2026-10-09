@@ -101,12 +101,15 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `ContextMenuDivider` (fixed-position), `CellInput` (inline text, Enter confirm/Escape cancel;
   **commits on blur only — never per keystroke**), `EntityDropdown` (see below), `PageToolbar`,
   `Button` (ui-kit toolbar button — `subtle`/`primary`/`danger-ghost` variants, `cloud` prop for
-  cloud coloring, `theme="dark"`; icon-only nav + status pills stay bespoke), `ColorField`,
-  `Tooltip`, `FloatingTooltip`.
+  cloud coloring, `theme="dark"`, `iconOnly` for the square icon-only shape; status pills stay
+  bespoke), `Seg` (`variant="track"` — padded-track segmented control with the sliding pill,
+  `theme="light|dark"`, `stretch`, per-option `icon`/`ariaLabel`, `tablist`; `variant="chrome"`
+  stays the Reports Designer look), `FloatingToggle` (the round pinned device toggle),
+  `ColorField`, `Tooltip`, `FloatingTooltip`.
 - **Modal body rules**: wrap body in `<div className="p-6 space-y-5">`; labeled rows
   `flex items-center justify-between py-1` (label `text-xs text-zinc-300`, annotations
-  `text-zinc-500`); segmented toggles `flex border border-zinc-700 rounded p-0.5` (selected
-  `bg-white text-zinc-900`). **Footer buttons — one hero, rest ghost**: every modal footer has
+  `text-zinc-500`); segmented toggles = kit `Seg variant="track" theme="dark"` (the hand-rolled
+  `p-0.5` recipe is retired). **Footer buttons — one hero, rest ghost**: every modal footer has
   exactly ONE hero button = the primary action (kit `ModalFooterButton`, default `variant` — solid
   `bg-zinc-800`, e.g. "+ New Project"); EVERY other button — Cancel, secondary actions, Import — is
   `variant="ghost"` (e.g. "Import"). Destructive: `variant="danger"` (ghost, `mr-auto`) for Delete,

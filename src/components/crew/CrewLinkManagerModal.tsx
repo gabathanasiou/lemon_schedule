@@ -7,7 +7,7 @@ import { getCategoryElements } from '../../lib/elements';
 import { isLinkableCategory } from '../../lib/elementLinks';
 import { CREW_LINK_TARGET } from '../../lib/crewLinks';
 import { crewRoleGroup, resolveRoleCategories } from '../../lib/crewCatalog';
-import { CardSection } from '@gabriel/ui-kit';
+import { CardSection, Seg } from '@gabriel/ui-kit';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { ElementPickerRow } from '../rules/ElementPicker';
@@ -235,24 +235,18 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="p-6 space-y-5">
-        <div className="flex border border-zinc-700 rounded p-0.5 w-fit" role="tablist" aria-label="Crew links view">
-          <button
-            role="tab"
-            aria-selected={tab === 'people'}
-            onClick={() => setTab('people')}
-            className={`px-3 py-1.5 text-xs rounded transition-colors ${tab === 'people' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
-          >
-            People
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'positions'}
-            onClick={() => setTab('positions')}
-            className={`px-3 py-1.5 text-xs rounded transition-colors ${tab === 'positions' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
-          >
-            Positions
-          </button>
-        </div>
+        <Seg
+          variant="track"
+          theme="dark"
+          tablist
+          ariaLabel="Crew links view"
+          value={tab}
+          options={[
+            { v: 'people', l: 'People' },
+            { v: 'positions', l: 'Positions' },
+          ]}
+          onChange={v => setTab(v as 'people' | 'positions')}
+        />
 
         {tab === 'positions' ? (
           <PositionsTab dispatch={dispatch} readOnly={readOnly} groups={positionGroups} options={categoryOptions} />

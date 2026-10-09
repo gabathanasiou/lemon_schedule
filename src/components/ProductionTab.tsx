@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import ToolbarDivider from './ToolbarDivider';
 import { List, Sheet, Table2 } from 'lucide-react';
+import { Seg } from '@gabriel/ui-kit';
 import { ReportBlock, ReportDesign } from '../types';
 import PageToolbar from './PageToolbar';
 import { PopoutPlaceholder } from './PopoutWindow';
@@ -88,30 +89,22 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
    *  Theme-aware: the Call Sheet editor darkens the Days toolbar. */
   const viewToggle = (sub: ProductionSubTab) => {
     const dark = sub === 'days' && daysChromeDark;
-    const seg = (active: boolean) =>
-      `p-1 rounded transition-colors ${active
-        ? (dark ? 'bg-white text-zinc-900' : 'bg-zinc-950 text-white')
-        : (dark ? 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100')}`;
-    const segment = (active: boolean, label: string, title: string, onClick: () => void, Icon: typeof List) => (
-      <button
-        type="button"
-        onClick={onClick}
-        title={title}
-        aria-label={label}
-        aria-pressed={active}
-        className={seg(active)}
-      >
-        <Icon className="w-3.5 h-3.5" />
-      </button>
-    );
     const alt = sub === 'days'
       ? { active: views.days === 'callsheet', label: 'Call Sheet view', title: 'Call sheet editor', icon: Sheet, mode: 'callsheet' }
       : { active: views[sub] === 'glide', label: 'Glide view', title: `${subTabLabels[sub]} Glide view`, icon: Table2, mode: 'glide' };
+    const AltIcon = alt.icon;
     return (
-      <div key={sub} className={`flex items-center rounded p-0.5 border ${dark ? 'border-zinc-700' : 'border-zinc-200'}`} role="group" aria-label={`${subTabLabels[sub]} view`}>
-        {segment(views[sub] === 'manager', 'Manager view', `${subTabLabels[sub]} manager view`, () => views[sub] !== 'manager' && requestViewChange(sub, 'manager'), List)}
-        {segment(alt.active, alt.label, alt.title, () => !alt.active && requestViewChange(sub, alt.mode), alt.icon)}
-      </div>
+      <Seg
+        variant="track"
+        theme={dark ? 'dark' : 'light'}
+        value={views[sub]}
+        options={[
+          { v: 'manager', l: '', title: `${subTabLabels[sub]} manager view`, ariaLabel: 'Manager view', icon: <List className="w-3.5 h-3.5" /> },
+          { v: alt.mode, l: '', title: alt.title, ariaLabel: alt.label, icon: <AltIcon className="w-3.5 h-3.5" /> },
+        ]}
+        onChange={m => { if (views[sub] !== m) requestViewChange(sub, m); }}
+        ariaLabel={`${subTabLabels[sub]} view`}
+      />
     );
   };
 
