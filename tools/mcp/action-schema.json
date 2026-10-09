@@ -1387,6 +1387,21 @@
           "type": "string"
         },
         {
+          "name": "titleBlock",
+          "optional": true,
+          "type": "ReportBlock"
+        },
+        {
+          "name": "showTitle",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "titleRepeat",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
           "name": "axis",
           "optional": true,
           "type": "'columns' | 'rows'"
