@@ -486,6 +486,8 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     mode,
     tableEditing: editingId === b.id,
     focusCell: editingId === b.id ? tableFocusCell : null,
+    // Values-static right-click on a cell: enter editing there (roadmap 219).
+    onEnterTableEdit: (cell: CellRef) => { onSelect(b.id); setTableFocusCell(cell); setEditingId(b.id); },
   });
 
   const renderBlocks = (list: ReportBlock[], depth: number, parentColl?: ReportCollection, parentItem?: any, parentCategory?: string, onceIds?: Set<string>, ancestors?: any, parentItems?: ReportCollectionItem[], parentItemIndex?: number): React.ReactNode[] => {

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   makeReportBlock,
   insertAfter,
+  insertInto,
+  insertScopeFor,
   findBlock,
   removeBlock,
   moveBlock,
@@ -60,6 +62,28 @@ describe('findBlock / insertAfter / removeBlock / moveBlock', () => {
     const blocks = [b('a'), b('b'), b('c')];
     expect(moveBlock(blocks, 'c', -1).map(x => x.id)).toEqual(['a', 'c', 'b']);
     expect(moveBlock(blocks, 'a', -1).map(x => x.id)).toEqual(['a', 'b', 'c']); // clamped
+  });
+});
+
+describe('insertInto (roadmap 219 — tables are leaves)', () => {
+  it('descends into repeats and relatives', () => {
+    const blocks = [b('rep', 'repeat', { children: [] }), b('rel', 'relative', { children: [] })];
+    expect((findBlock(insertInto(blocks, 'rep', b('x')), 'rep')!.block.children || []).map(c => c.id)).toEqual(['x']);
+    expect((findBlock(insertInto(blocks, 'rel', b('y')), 'rel')!.block.children || []).map(c => c.id)).toEqual(['y']);
+  });
+
+  it('a table gets the insert as its SIBLING — never an invisible child', () => {
+    const blocks = [b('t', 'table', { custom: true, collection: 'scenes' }), b('after')];
+    const out = insertInto(blocks, 't', b('x'));
+    expect(out.map(x => x.id)).toEqual(['t', 'x', 'after']);
+    expect(findBlock(out, 't')!.block.children).toBeUndefined();
+  });
+
+  it('insertScopeFor a table is the parent scope (sibling insert)', () => {
+    const nested: ReportBlock[] = [b('rep', 'repeat', { collection: 'days', children: [b('t', 'table', { collection: 'scenes' })] })];
+    expect(insertScopeFor(nested, 't')).toBe('days');
+    expect(insertScopeFor(nested, 'rep')).toBe('days');
+    expect(insertScopeFor([b('t', 'table')], 't')).toBeNull();
   });
 });
 

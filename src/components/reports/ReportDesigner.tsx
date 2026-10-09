@@ -948,6 +948,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           insertScope={insertScope}
           insertCategory={insertCategory}
           parentCollection={selParentCollection}
+          parentCategory={selParentCategory}
           onClose={() => setMenu(null)}
           onChangeField={f => {
             if (menu.colIndex !== undefined && selBlock?.type === 'table') {
@@ -979,10 +980,22 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           onColumnMove={dir => {
             if (menu.colIndex === undefined) return;
             const zone = zoneOf(menu.id);
-            commit(moveTableColumn(listOfZone(zone), menu.id, menu.colIndex, menu.colIndex + dir), zone);
+            // Tables move a column; a Columns block moves one of its columns.
+            if (selBlock?.type === 'table') commit(moveTableColumn(listOfZone(zone), menu.id, menu.colIndex, menu.colIndex + dir), zone);
+            else commit(moveColumnAt(listOfZone(zone), menu.id, menu.colIndex, menu.colIndex + dir), zone);
             setSelCol({ colsId: menu.id, colIndex: menu.colIndex + dir });
             setMenu(null);
           }}
+          onColumnAddText={() => {
+            if (menu.colIndex === undefined) return;
+            const zone = zoneOf(menu.id);
+            const b = makeReportBlock('text');
+            commit(appendToColumn(listOfZone(zone), menu.id, menu.colIndex, b), zone);
+            setSelId(b.id);
+            markAutoEdit(b);
+            setMenu(null);
+          }}
+          onPatch={p => patch(menu.id, p)}
           onColumnRemove={() => {
             if (menu.colIndex === undefined) return;
             const zone = zoneOf(menu.id);

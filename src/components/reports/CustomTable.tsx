@@ -66,9 +66,12 @@ export interface CustomTableProps {
   parentCategory?: string;
   /** Persist named text styles edited from the cell chrome's style menu. */
   onCellSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  /** Values-static right-click on a cell: enter editing at that cell (selects
+   *  the block + focuses the cell) so the cell menu lands in the live table. */
+  onEnterTableEdit?: (cell: CellRef) => void;
 }
 
-const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, mode, tableEditing, focusCell, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, showUnresolved, parentCollection, parentCategory, onCellSaveTextStyles }) => {
+const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, aux, baseStyle, cellPad, border, hint, mode, tableEditing, focusCell, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, showUnresolved, parentCollection, parentCategory, onCellSaveTextStyles, onEnterTableEdit }) => {
   // Designer surfaces can ALWAYS select the card and resize (column strip +
   // row handles); cell EDITING is Fields mode (live) or a Values entry, which
   // makes the whole table live. `=` pick mode keeps the table live on its own
@@ -289,10 +292,13 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
     select(shift && selection ? { anchor: selection.anchor, focus: ref } : { anchor: ref, focus: ref });
   };
   const handleCellContextMenu = (e: React.MouseEvent, ref: CellRef) => {
-    if (!editable) return;
+    if (!designer) return;
     e.preventDefault();
     e.stopPropagation();
     if (pickSource) { setPickSource(null); return; }
+    // Values-static: a right-click on a cell is an editing entry (like the
+    // double-click) — the table goes live at that cell, then the menu opens.
+    if (!editable) onEnterTableEdit?.(ref);
     if (!selectionRect || !rectCovers(rows, columns, selectionRect, ref.rowId, ref.colId)) {
       select({ anchor: ref, focus: ref });
     }
@@ -406,7 +412,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
 
   const shownBands = rowRange ? bands.slice(rowRange[0], rowRange[1]) : bands;
   const shared = {
-    block, columns, merges, cellStyles: cells.cellStyles, baseStyle, cellPad, border, editable, resizable,
+    block, columns, merges, cellStyles: cells.cellStyles, baseStyle, cellPad, border, editable, resizable, cellMenuEnabled: designer,
     selection, selectionRect, focusKey, focusedEditorRef, rtState, onRtStateChange: handleRtState,
     onSelectCell: selectCell, onCellContextMenu: handleCellContextMenu,
     activeCol, colOutline,
@@ -477,7 +483,7 @@ const CustomTable: React.FC<CustomTableProps> = ({ block, ctx, fieldMap, item, a
           />
         </TableCellChrome>
       )}
-      {editable && (
+      {designer && (
         <CustomTableContextMenu
           menu={menu}
           rect={selectionRect}

@@ -33,6 +33,9 @@ export interface CustomTableShared {
   cellPad: React.CSSProperties;
   border: string;
   editable: boolean;
+  /** Designer (hint + patch) — the cell context menu works even while the
+   *  table is Values-static (right-click enters editing via the host). */
+  cellMenuEnabled: boolean;
   /** Designer resize affordances (column strip + row handles) — available in
    *  Values mode too, where cells stay static (roadmap 203). */
   resizable: boolean;
@@ -227,7 +230,7 @@ const CellShell: React.FC<{
         if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); }
         onSelectCell({ rowId, colId }, e.shiftKey);
       } : undefined}
-      onContextMenu={editable ? e => onCellContextMenu(e, { rowId, colId }) : undefined}
+      onContextMenu={shared.cellMenuEnabled ? e => onCellContextMenu(e, { rowId, colId }) : undefined}
     >
       {children}
       {resizable && !IS_COARSE && lastCol < columns.length - 1 && (

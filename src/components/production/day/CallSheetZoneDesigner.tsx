@@ -151,7 +151,9 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
   const menuInsertScope = useMemo(() => {
     if (!menu) return null;
     const target = findBlock(blocks, menu.id)?.block ?? null;
-    if (target && CONTAINER_TYPES.has(target.type)) return target.collection || null;
+    // A relative/Advance has no collection of its own — its "inside" inserts
+    // live in the parent repeat's collection.
+    if (target && CONTAINER_TYPES.has(target.type)) return target.collection || parentCollectionOf(blocks, menu.id) || null;
     return parentCollectionOf(blocks, menu.id) || null;
   }, [menu, blocks]);
   const menuInsertCategory = useMemo(() => {
@@ -162,6 +164,8 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
   }, [menu, blocks]);
 
   const menuSelBlock = menu ? findBlock(blocks, menu.id)?.block ?? null : null;
+  const menuParentCollection = useMemo(() => (menu ? parentCollectionOf(blocks, menu.id) : undefined), [menu, blocks]);
+  const menuParentCategory = useMemo(() => (menu ? parentCategoryOf(blocks, menu.id) : undefined), [menu, blocks]);
 
   return (
     <>
@@ -173,6 +177,8 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
           project={project}
           insertScope={menuInsertScope}
           insertCategory={menuInsertCategory}
+          parentCollection={menuParentCollection}
+          parentCategory={menuParentCategory}
           onClose={() => setMenu(null)}
           onChangeField={f => {
             if (menu.colIndex !== undefined && menuSelBlock.type === 'table') {
@@ -196,9 +202,19 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
           }}
           onColumnMove={dir => {
             if (menu.colIndex === undefined) return;
-            onChange(moveTableColumn(blocks, menu.id, menu.colIndex, menu.colIndex + dir));
+            onChange(menuSelBlock?.type === 'table'
+              ? moveTableColumn(blocks, menu.id, menu.colIndex, menu.colIndex + dir)
+              : moveColumnAt(blocks, menu.id, menu.colIndex, menu.colIndex + dir));
             setMenu(null);
           }}
+          onColumnAddText={() => {
+            if (menu.colIndex === undefined) return;
+            const b = makeReportBlock('text');
+            onChange(appendToColumn(blocks, menu.id, menu.colIndex, b));
+            setSelId(b.id);
+            setMenu(null);
+          }}
+          onPatch={p => onChange(updateBlock(blocks, menu.id, p))}
           onColumnRemove={() => {
             if (menu.colIndex === undefined) return;
             const owner = findBlock(blocks, menu.id)?.block;

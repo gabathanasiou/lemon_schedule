@@ -15,9 +15,10 @@ import { useBlockEditorPanel } from './reportEditorLayout';
 // top-level collection — it's reached via Elements → Cast. Contextual variants
 // (listed for repeats when the caller passes them) render from COLLECTION_LABELS
 // — e.g. "Elements (of this category)" inside a categories repeat; the trigger
-// label surfaces the scoped state ("Scenes (of this day)").
+// label surfaces the scoped state ("Scenes (of this day)"). The ITEM BODY is
+// shared with the block context menu (`CollectionMenuItems`).
 
-interface CollectionMenuProps {
+export interface CollectionMenuItemsProps {
   value: ReportCollection;
   category: string;
   collections: ReportCollection[];
@@ -26,6 +27,96 @@ interface CollectionMenuProps {
   customCategories?: { key: string; icon?: string }[];
   /** Location types for the Locations submenu (roadmap 6 — same shape as the
    *  Elements category submenu, backed by project.locationTypes). */
+  locationTypes?: { key: string; label: string }[];
+  /** Categories grayed out in the Elements submenu (self-redundant picks).
+   *  The current value is always exempted — existing designs stay editable. */
+  disabledCategories?: string[];
+  onPick: (collection: ReportCollection, category?: string) => void;
+  /** Elements/Locations submenu width (the host owns its own menu width). */
+  submenuWidth?: string;
+}
+
+export const CollectionMenuItems: React.FC<CollectionMenuItemsProps> = ({
+  value, category, collections, categoryKeys, categoryLabels, customCategories, locationTypes,
+  disabledCategories, onPick, submenuWidth = 'w-56',
+}) => {
+  // Locations: callers default an unset category to 'props' — for locations
+  // that's the "All types" state (a real type key can never be 'props').
+  const locCategory = value === 'locations' && category === 'props' ? undefined : category;
+
+  const categoryDisabled = (key: string) => {
+    // Always exempt the current value — a self-repeat pick that's already the
+    // block's value must stay selectable so existing designs keep editing.
+    if (value === 'elements' && category === key) return false;
+    return !!disabledCategories?.includes(key);
+  };
+
+  return (
+    <>
+      {collections.map(c => {
+        if (c === 'elements') {
+          return (
+            <React.Fragment key="elements">
+              <DropdownSubmenu id="elements" label="Elements" width={submenuWidth}>
+                {categoryKeys.map(({ key, isCustom }) => {
+                  const Icon = isCustom
+                    ? getCustomIcon(customCategories?.find(x => x.key === key)?.icon || 'Tag')
+                    : CAT_ICONS[key] || null;
+                  return (
+                    <DropdownItem
+                      key={key}
+                      onClick={() => onPick('elements', key)}
+                      disabled={categoryDisabled(key)}
+                      icon={value === 'elements' && category === key ? <Check className="w-3.5 h-3.5" /> : Icon ? <Icon className="w-3.5 h-3.5" /> : undefined}
+                    >
+                      {categoryLabels[key] || key}
+                    </DropdownItem>
+                  );
+                })}
+              </DropdownSubmenu>
+            </React.Fragment>
+          );
+        }
+        if (c === 'locations' && locationTypes && locationTypes.length > 0) {
+          return (
+            <React.Fragment key="locations">
+              <DropdownSubmenu id="locations" label="Locations" width={submenuWidth}>
+                <DropdownItem
+                  onClick={() => onPick('locations', undefined)}
+                  icon={value === 'locations' && !locCategory ? <Check className="w-3.5 h-3.5" /> : undefined}
+                >
+                  All types
+                </DropdownItem>
+                {locationTypes.map(t => (
+                  <DropdownItem
+                    key={t.key}
+                    onClick={() => onPick('locations', t.key)}
+                    icon={value === 'locations' && locCategory === t.key ? <Check className="w-3.5 h-3.5" /> : undefined}
+                  >
+                    {t.label}
+                  </DropdownItem>
+                ))}
+              </DropdownSubmenu>
+            </React.Fragment>
+          );
+        }
+        return (
+          <DropdownItem key={c} onClick={() => onPick(c)} icon={value === c ? <Check className="w-3.5 h-3.5" /> : undefined}>
+            {COLLECTION_LABELS[c] || c}
+          </DropdownItem>
+        );
+      })}
+    </>
+  );
+};
+
+interface CollectionMenuProps {
+  value: ReportCollection;
+  category: string;
+  collections: ReportCollection[];
+  categoryKeys: { key: string; isCustom: boolean }[];
+  categoryLabels: Record<string, string>;
+  customCategories?: { key: string; icon?: string }[];
   locationTypes?: { key: string; label: string }[];
   disabled?: boolean;
   width?: string;
@@ -57,18 +148,6 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
       ? `${scopedCollectionLabel('locations', parentCollection, scoped)}${typeLabel ? ` · ${typeLabel}` : ''}`
       : scopedCollectionLabel(value, parentCollection, scoped);
 
-  const pick = (collection: ReportCollection, cat?: string) => {
-    onChange(collection, cat);
-    setOpen(false);
-  };
-
-  const categoryDisabled = (key: string) => {
-    // Always exempt the current value — a self-repeat pick that's already the
-    // block's value must stay selectable so existing designs keep editing.
-    if (value === 'elements' && category === key) return false;
-    return !!disabledCategories?.includes(key);
-  };
-
   return (
     <DropdownMenu
       open={open}
@@ -86,59 +165,18 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
         </button>
       }
     >
-      {collections.map(c => {
-        if (c === 'elements') {
-          return (
-            <React.Fragment key="elements">
-              <DropdownSubmenu id="elements" label="Elements" width={width}>
-                {categoryKeys.map(({ key, isCustom }) => {
-                  const Icon = isCustom
-                    ? getCustomIcon(customCategories?.find(x => x.key === key)?.icon || 'Tag')
-                    : CAT_ICONS[key] || null;
-                  return (
-                    <DropdownItem
-                      key={key}
-                      onClick={() => pick('elements', key)}
-                      disabled={categoryDisabled(key)}
-                      icon={value === 'elements' && category === key ? <Check className="w-3.5 h-3.5" /> : Icon ? <Icon className="w-3.5 h-3.5" /> : undefined}
-                    >
-                      {categoryLabels[key] || key}
-                    </DropdownItem>
-                  );
-                })}
-              </DropdownSubmenu>
-            </React.Fragment>
-          );
-        }
-        if (c === 'locations' && locationTypes && locationTypes.length > 0) {
-          return (
-            <React.Fragment key="locations">
-              <DropdownSubmenu id="locations" label="Locations" width={width}>
-                <DropdownItem
-                  onClick={() => pick('locations', undefined)}
-                  icon={value === 'locations' && !locCategory ? <Check className="w-3.5 h-3.5" /> : undefined}
-                >
-                  All types
-                </DropdownItem>
-                {locationTypes.map(t => (
-                  <DropdownItem
-                    key={t.key}
-                    onClick={() => pick('locations', t.key)}
-                    icon={value === 'locations' && locCategory === t.key ? <Check className="w-3.5 h-3.5" /> : undefined}
-                  >
-                    {t.label}
-                  </DropdownItem>
-                ))}
-              </DropdownSubmenu>
-            </React.Fragment>
-          );
-        }
-        return (
-          <DropdownItem key={c} onClick={() => pick(c)} icon={value === c ? <Check className="w-3.5 h-3.5" /> : undefined}>
-            {COLLECTION_LABELS[c] || c}
-          </DropdownItem>
-        );
-      })}
+      <CollectionMenuItems
+        value={value}
+        category={category}
+        collections={collections}
+        categoryKeys={categoryKeys}
+        categoryLabels={categoryLabels}
+        customCategories={customCategories}
+        locationTypes={locationTypes}
+        disabledCategories={disabledCategories}
+        submenuWidth={width}
+        onPick={(c, cat) => { onChange(c, cat); setOpen(false); }}
+      />
     </DropdownMenu>
   );
 };

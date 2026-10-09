@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ChromeHeader, StructureControls, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
-import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId, makeReportBlock, supportsTitle, titleRepeatable, reportTitleAutoLabel } from '../../lib/reportBlocks';
+import { baseValidCollections, tableItemCollection, tableFieldScope, COLLECTION_LABELS, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId, makeReportBlock, supportsTitle, titleRepeatable, reportTitleAutoLabel, collectionPickPatch, repeatMenuCollections, tableMenuCollections, selfRepeatDisabledCategories } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, fieldScopeFor, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
@@ -576,15 +576,7 @@ const NestedTableMenu: React.FC<{
   onPatch: (patch: Partial<ReportBlock>) => void;
 }> = ({ block, parentCollection, parentCategory, allCategoryKeys, categoryLabelLookup, customCategories, locationTypes, disabled, onPatch }) => {
   const panel = useBlockEditorPanel();
-  const contextual = contextualCollectionsFor(parentCollection);
-  const collections: ReportCollection[] = [];
-  const preserved = block.collection && !contextual.includes(block.collection) && block.collection !== 'scenes' && block.collection !== 'cast'
-    ? block.collection
-    : null;
-  if (preserved) collections.push(preserved as ReportCollection);
-  for (const c of baseValidCollections(parentCollection)) {
-    if (c !== 'cast' && !isSelfRepeat(parentCollection, c, parentCategory) && !collections.includes(c)) collections.push(c);
-  }
+  const collections = tableMenuCollections(block, parentCollection, parentCategory);
   return (
     <CollectionMenu
       value={tableItemCollection(block, parentCollection)}
@@ -598,39 +590,11 @@ const NestedTableMenu: React.FC<{
       parentCollection={parentCollection}
       scopedToParent={block.scopedToParent !== false}
       width="w-40"
-      disabledCategories={allCategoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
+      disabledCategories={selfRepeatDisabledCategories(parentCollection, parentCategory, allCategoryKeys)}
       onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
     />
   );
 };
-
-/** Patch for a collection pick: `collection` alone would leave the block's
- *  old `category` in place (updateBlock spreads — it never deletes absent
- *  keys), so a category-less pick must clear it explicitly. */
-const collectionPickPatch = (c: ReportCollection, cat?: string): Partial<ReportBlock> =>
-  cat ? { collection: c, category: cat } : { collection: c, category: undefined };
-
-/**
- * Repeat "Repeat over" menu collections — contextual variants first, then the
- * base collections minus self-redundant picks (isSelfRepeat). The block's own
- * effective current collection is ALWAYS re-included (if it was filtered out)
- * so existing self-repeat designs stay editable and keep rendering (no
- * migration). `cast` is never listed here — it's reached via the Elements
- * submenu in CollectionMenu.
- */
-function repeatMenuCollections(
-  current: ReportCollection | undefined,
-  parentCollection: ReportCollection | undefined,
-  parentCategory: string | undefined,
-): ReportCollection[] {
-  const effective = current || 'scenes';
-  const list = [
-    ...contextualCollectionsFor(parentCollection),
-    ...baseValidCollections(parentCollection).filter(c => c !== 'cast' && !isSelfRepeat(parentCollection, c, parentCategory)),
-  ];
-  if (effective !== 'cast' && !list.includes(effective)) list.push(effective);
-  return list;
-}
 
 /** Ribbon design picker for ribbon blocks (module scope — stable identity). */
 const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disabled: boolean; onPatch: (p: Partial<ReportBlock>) => void }> = ({ block, project, disabled, onPatch }) => {
@@ -987,7 +951,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             parentCollection={parentCollection}
             scopedToParent={block.scopedToParent !== false}
             width="w-40"
-            disabledCategories={categoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
+            disabledCategories={selfRepeatDisabledCategories(parentCollection, parentCategory, categoryKeys)}
             onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
           />
         ) : parentCollection ? (

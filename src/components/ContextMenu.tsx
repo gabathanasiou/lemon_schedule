@@ -1,4 +1,4 @@
-import { ContextMenu as KitContextMenu, ContextMenuItem, ContextMenuDivider } from '@gabriel/ui-kit';
+import { ContextMenu as KitContextMenu, ContextMenuItem, ContextMenuDivider, ContextMenuSub } from '@gabriel/ui-kit';
 import type { ContextMenuProps } from '@gabriel/ui-kit';
 import { overlayMorphOptIn } from '../lib/overlayMotion';
 
@@ -12,4 +12,4 @@ export function ContextMenu(props: ContextMenuProps) {
 
 export default ContextMenu;
 
-export { ContextMenuItem, ContextMenuDivider };
+export { ContextMenuItem, ContextMenuDivider, ContextMenuSub };

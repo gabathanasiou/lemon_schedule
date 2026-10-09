@@ -96,6 +96,9 @@ export interface ReportRenderProps {
    *  — the whole table goes live and `focusCell` gets focus. */
   tableEditing?: boolean;
   focusCell?: CellRef | null;
+  /** Values-static right-click on a free-table cell: enter editing there
+   *  (roadmap 219) — the host selects the block and enters at the cell. */
+  onEnterTableEdit?: (cell: CellRef) => void;
   /** The canvas text editor channel — the block publishes its editor handle
    *  here so the chrome/dock Format + Style body targets it. */
   textEditorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
@@ -151,7 +154,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, showBlockTitle, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, editing, textAutoFocus, textEditorRef, onTextStateChange, onTextSelectionChange, onTextEditEnd, onTextFocusChange, tableEditing, focusCell }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, showBlockTitle, unitRange, parentItems, itemIndex, partChildren, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, editing, textAutoFocus, textEditorRef, onTextStateChange, onTextSelectionChange, onTextEditEnd, onTextFocusChange, tableEditing, focusCell, onEnterTableEdit }) => {
     // One mode → key seam: Fields drives today's key↔value behavior; preview
     // and print omit the mode (always values).
     const showKeys = mode === 'fields';
@@ -250,7 +253,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <ReportRelativeView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} mode={mode} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} partChildren={partChildren} parentItems={parentItems} itemIndex={itemIndex} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} mode={mode} showKeys={showKeys} aux={blockAux} showUnresolved={showUnresolved} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} selected={selected} cellSelection={cellSelection} onCellSelectionChange={onCellSelectionChange} cellEditorRef={cellEditorRef} onCellRtStateChange={onCellRtStateChange} cellDocked={cellDocked} onToggleEditorMode={onToggleEditorMode} onCellSaveTextStyles={onCellSaveTextStyles} tableEditing={tableEditing} focusCell={focusCell} title={renderTitle(block, showBlockTitle)} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} mode={mode} showKeys={showKeys} aux={blockAux} showUnresolved={showUnresolved} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} onPatchBlock={onPatchBlock} selected={selected} cellSelection={cellSelection} onCellSelectionChange={onCellSelectionChange} cellEditorRef={cellEditorRef} onCellRtStateChange={onCellRtStateChange} cellDocked={cellDocked} onToggleEditorMode={onToggleEditorMode} onCellSaveTextStyles={onCellSaveTextStyles} tableEditing={tableEditing} focusCell={focusCell} onEnterTableEdit={onEnterTableEdit} title={renderTitle(block, showBlockTitle)} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -437,6 +440,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.textAutoFocus === b.textAutoFocus &&
     a.tableEditing === b.tableEditing &&
     a.focusCell === b.focusCell &&
+    a.onEnterTableEdit === b.onEnterTableEdit &&
     a.textEditorRef === b.textEditorRef &&
     a.onTextStateChange === b.onTextStateChange &&
     a.onTextSelectionChange === b.onTextSelectionChange &&
@@ -728,7 +732,7 @@ const TABLE_ITEM_W = 72;
 /** Preview surfaces cap tables at this many item rows (+N more indicator). */
 const TABLE_PREVIEW_LIMIT = 6;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock; showKeys?: boolean; title?: React.ReactNode }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, tableEditing, focusCell, title }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock; showKeys?: boolean; title?: React.ReactNode }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, mode, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader, onPatchBlock, selected, cellSelection, onCellSelectionChange, cellEditorRef, onCellRtStateChange, cellDocked, onToggleEditorMode, onCellSaveTextStyles, tableEditing, focusCell, onEnterTableEdit, title }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
@@ -768,6 +772,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
         mode={mode ?? 'values'}
         tableEditing={tableEditing}
         focusCell={focusCell}
+        onEnterTableEdit={onEnterTableEdit}
         rowRange={rowRange}
         repeatTableHeader={repeatTableHeader}
         onPatchBlock={onPatchBlock}

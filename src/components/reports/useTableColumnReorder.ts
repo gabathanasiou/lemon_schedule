@@ -21,6 +21,10 @@ export function useTableColumnReorder(opts: {
 
   const startDrag = (e: React.PointerEvent, ci: number) => {
     if (!enabled) return;
+    // Left button only: a right-click (context menu) must never start a drag
+    // session — its pointerup would re-select the column, clear the block
+    // selection and unmount the open context menu.
+    if (e.button !== 0) return;
     // preventDefault stops the block card's native HTML5 drag from swallowing
     // pointer events; selection happens on pointerup instead of click.
     e.preventDefault();

@@ -119,7 +119,7 @@ function mapTree(blocks: ReportBlock[], id: string, fn: (b: ReportBlock) => Repo
   });
 }
 
-/** The block owning the list that contains `id` (repeat/table → children; columns → cols[i].blocks). */
+/** The block owning the list that contains `id` (repeat/relative → children; columns → cols[i].blocks). */
 export interface ListOwner { blockId: string; colIndex?: number; }
 
 export function listOwnerOf(blocks: ReportBlock[], id: string): ListOwner | null {
@@ -183,7 +183,11 @@ export function insertInto(blocks: ReportBlock[], id: string | null, b: ReportBl
   if (!id) return [...blocks, b];
   const f = findBlock(blocks, id);
   if (!f) return blocks;
-  if (f.block.type === 'repeat' || f.block.type === 'table' || f.block.type === 'relative') {
+  // Only repeat/relative render children — a table (collection or free) is a
+  // LEAF surface, so an insert aimed at one lands as its sibling. Descending
+  // into a table would append to a `children` list no renderer ever reads
+  // (invisible, persisted orphan blocks).
+  if (f.block.type === 'repeat' || f.block.type === 'relative') {
     return updateBlock(blocks, id, { children: [...(f.block.children || []), b] });
   }
   return insertSibling(blocks, f, b, f.index + 1);
@@ -307,7 +311,7 @@ export function moveIntoColumn(blocks: ReportBlock[], moveId: string, columnsId:
   return appendToColumn(next, columnsId, colIndex, fm.block);
 }
 
-/** Moves a block from anywhere into a container's children (repeat/table). */
+/** Moves a block from anywhere into a container's children (repeat/relative). */
 export function moveIntoChildren(blocks: ReportBlock[], moveId: string, containerId: string): ReportBlock[] {
   const fm = findBlock(blocks, moveId);
   if (!fm) return blocks;
@@ -571,6 +575,62 @@ export function contextualCollectionsFor(parentCollection?: ReportCollection): R
   return [];
 }
 
+/** Patch for a collection pick: `collection` alone would leave the block's
+ *  old `category` in place (updateBlock spreads — it never deletes absent
+ *  keys), so a category-less pick must clear it explicitly. */
+export function collectionPickPatch(c: ReportCollection, cat?: string): Partial<ReportBlock> {
+  return cat ? { collection: c, category: cat } : { collection: c, category: undefined };
+}
+
+/**
+ * Repeat "Repeat over" menu collections — contextual variants first, then the
+ * base collections minus self-redundant picks (isSelfRepeat). The block's own
+ * effective current collection is ALWAYS re-included (if it was filtered out)
+ * so existing self-repeat designs stay editable and keep rendering (no
+ * migration). `cast` is never listed here — it's reached via the Elements
+ * submenu in CollectionMenu.
+ */
+export function repeatMenuCollections(
+  current: ReportCollection | undefined,
+  parentCollection: ReportCollection | undefined,
+  parentCategory: string | undefined,
+): ReportCollection[] {
+  const effective = current || 'scenes';
+  const list = [
+    ...contextualCollectionsFor(parentCollection),
+    ...baseValidCollections(parentCollection).filter(c => c !== 'cast' && !isSelfRepeat(parentCollection, c, parentCategory)),
+  ];
+  if (effective !== 'cast' && !list.includes(effective)) list.push(effective);
+  return list;
+}
+
+/** Table "Table over" menu collections — BASE collections only, legacy
+ *  explicit contextual picks preserved. */
+export function tableMenuCollections(block: ReportBlock, parentCollection?: ReportCollection, parentCategory?: string): ReportCollection[] {
+  if (!parentCollection) return baseValidCollections().filter(c => c !== 'cast');
+  const contextual = contextualCollectionsFor(parentCollection);
+  const collections: ReportCollection[] = [];
+  const preserved = block.collection && !contextual.includes(block.collection) && block.collection !== 'scenes' && block.collection !== 'cast'
+    ? block.collection
+    : null;
+  if (preserved) collections.push(preserved);
+  for (const c of baseValidCollections(parentCollection)) {
+    if (c !== 'cast' && !isSelfRepeat(parentCollection, c, parentCategory) && !collections.includes(c)) collections.push(c);
+  }
+  return collections;
+}
+
+/** Categories grayed out in the Elements submenu for a parent repeat — the
+ *  parent's own category is a self-repeat (the current value is exempted by
+ *  CollectionMenuItems). Shared by the chrome pickers and the context menu. */
+export function selfRepeatDisabledCategories(
+  parentCollection: ReportCollection | undefined,
+  parentCategory: string | undefined,
+  categoryKeys: { key: string }[],
+): string[] {
+  return categoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key);
+}
+
 export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement']);
 
 /** Collections with NO Lego scene-rule — the "Only … in this …" scope checkbox
@@ -740,7 +800,9 @@ export function insertScopeFor(blocks: ReportBlock[], id: string | null): Report
   if (!id) return null;
   const f = findBlock(blocks, id);
   if (!f) return null;
-  if (f.block.type === 'repeat' || f.block.type === 'table') return f.block.collection || null;
+  // A repeat's children live in its collection; every other block inserts as a
+  // SIBLING, so the scope is its parent's (tables are leaves — never descend).
+  if (f.block.type === 'repeat') return f.block.collection || null;
   return parentCollectionOf(blocks, id) || null;
 }
 
