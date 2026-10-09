@@ -722,7 +722,7 @@ export {
   ITEM_SCOPES, LOOKUP_PREFIX,
   composeLookupKey, parseLookupKey, elementLookupKey, splitElementLookupKey, lookupIdentityField,
   composeLookupPathKey, parseLookupPath, lookupTargetItem, referenceOffer, lookupReferenceLabel,
-  buildLookupTokens, buildCtxLookupTokens, lookupAttributeFields, fieldsForScope, GLOBAL_FIELD_SCOPES, isGlobalField,
+  buildLookupTokens, lookupAttributeFields, fieldsForScope, GLOBAL_FIELD_SCOPES, isGlobalField,
   CHILD_NAVIGATION_ENABLED,
 } from './reportLookup';
 export type {

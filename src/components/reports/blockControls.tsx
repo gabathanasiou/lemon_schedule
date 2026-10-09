@@ -2,16 +2,15 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ChromeHeader, StructureControls, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS, blockId } from '../../lib/reportBlocks';
-import { getReportFieldDefs, fieldsForScope, buildCtxLookupTokens, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { codeForType } from '../../lib/dayTypes';
 import { getTextStyles, getTextStyleById } from '../../lib/reportTextStyles';
 import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
-import RichTextEditor, { RichTextEditorHandle, RichTextState } from './RichTextEditor';
+import { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import RichTextControls from './RichTextControls';
-import type { ReportCtx } from '../../lib/reportData';
 import { TextStyleMenu, TextStylesModal } from './TextStyleMenu';
 import DropdownMenu from '../DropdownMenu';
 import { LiveNumberInput } from '../LiveNumberInput';
@@ -79,9 +78,6 @@ export interface BlockEditorProps {
   active?: RichTextState;
   /** Selected chip key from the canvas editor (drives the affix controls). */
   chipKey?: string | null;
-  /** Designer context (roadmap 199): the rows-mode corner label editor's
-   *  `@` item lookups. Optional — the control degrades to fields-only. */
-  reportCtx?: ReportCtx;
 }
 
 /** "Show location" row — picks WHICH of the item's available locations a
@@ -297,7 +293,7 @@ const SegControl: React.FC<React.ComponentProps<typeof Seg>> = (props) => {
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
   onDuplicate, onRemove, onMove, compact, trailing, panel, relativeTarget, availableLocations,
-  editorRef: editorRefProp, active: activeProp, chipKey: chipKeyProp, reportCtx,
+  editorRef: editorRefProp, active: activeProp, chipKey: chipKeyProp,
 }) => {
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
   const isTextLike = block.type === 'text' || block.type === 'field' || block.type === 'link';
@@ -311,7 +307,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const editorRef = editorRefProp ?? ownEditorRef;
   const [ownActive, setOwnActive] = React.useState<RichTextState>(RICH_TEXT_STATE_IDLE);
   const rtActive = activeProp ?? ownActive;
-  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, panel, relativeTarget, availableLocations, editorRef, active: rtActive, reportCtx };
+  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, panel, relativeTarget, availableLocations, editorRef, active: rtActive };
   // The item-formatting affix follows the editor's chip SELECTION — it shows
   // only while a chip is selected. An optimistic override keeps the panel live
   // right after an affix rewrite until the canvas editor reports the new key.
@@ -460,9 +456,6 @@ export interface BlockCtx {
   relativeTarget?: string | null;
   /** Designer chrome only: the sampled item's available locations. */
   availableLocations?: ReportLocation[];
-  /** Designer context (roadmap 199): the rows-mode corner label editor's
-   *  `@` item lookups. */
-  reportCtx?: ReportCtx;
 }
 
 // ---- named text styles (Word/Pages-like) ---------------------------------------
@@ -715,7 +708,7 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
   );
 };
 
-export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, editorRef, active, panel, relativeTarget, availableLocations, reportCtx }) => {
+export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, editorRef, active, panel, relativeTarget, availableLocations }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
   const fieldPickerCls = panel ? `w-full ${TB_PICKER}` : `w-36 ${TB_PICKER}`;
@@ -724,10 +717,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   const [locationOpen, setLocationOpen] = useState(false);
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
-  // Rows-mode corner label (roadmap 199): resolves against the ENCLOSING
-  // repeat item, so its `@` field list is the parent scope.
-  const headerFields = useMemo(() => fieldsForScope(allFields, parentCollection), [allFields, parentCollection]);
-  const headerLookupTokens = useMemo(() => reportCtx ? buildCtxLookupTokens(reportCtx) : [], [reportCtx]);
 
   // Day-list fields (Work/Hold/Travel + dynamic per-type day lists + the Day
   // Types rollup list): the toolbar's day-format dropdown applies to any block
@@ -911,44 +900,18 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             </EditorGroup>
           </ContentRow>
         ) : (
-          <React.Fragment key="rowsHeader">
-            <ContentRow label="Item header">
-              <FieldPicker
-                value={block.headerField || ''}
-                fields={fieldOptions(tableFieldScope(block, parentCollection))}
-                onChange={f => onPatch({ headerField: f })}
-                disabled={disabled}
-                placeholder="— auto —"
-                scope={tableFieldScope(block, parentCollection)}
-                className={fieldPickerCls}
-              />
-              <EditorCheckbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
-            </ContentRow>
-            <ContentRow label="Corner header">
-              <EditorCheckbox
-                className={panel ? 'flex-1' : undefined}
-                checked={!!block.headerFieldLabelEnabled}
-                disabled={disabled}
-                onChange={on => onPatch({ headerFieldLabelEnabled: on })}
-                label="Custom text"
-              />
-            </ContentRow>
-            {block.headerFieldLabelEnabled && (
-              <div className={`${pw('w-56')} min-w-0`}>
-                <RichTextEditor
-                  value={block.headerFieldLabel || ''}
-                  onChange={html => onPatch({ headerFieldLabel: html })}
-                  placeholder="Corner header…"
-                  disabled={disabled}
-                  fields={headerFields}
-                  allFields={allFields}
-                  lookupTokens={headerLookupTokens}
-                  ctx={reportCtx}
-                  className="w-full"
-                />
-              </div>
-            )}
-          </React.Fragment>
+          <ContentRow key="headerBorders" label="Item header">
+            <FieldPicker
+              value={block.headerField || ''}
+              fields={fieldOptions(tableFieldScope(block, parentCollection))}
+              onChange={f => onPatch({ headerField: f })}
+              disabled={disabled}
+              placeholder="— auto —"
+              scope={tableFieldScope(block, parentCollection)}
+              className={fieldPickerCls}
+            />
+            <EditorCheckbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
+          </ContentRow>
         ),
         hasDayList ? (
           <ContentRow key="dayFormat" label="Day format">

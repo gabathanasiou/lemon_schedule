@@ -11,12 +11,10 @@ roadmap worker session, so it stays lean.
   before becoming an item here.
 
 > **Next session — Reports Designer pass**: **140** (rich-text table title,
-> opt-in — the same token recipe as 199's per-column headers; then **159**
-> precalls table / **160** page setup). **199** (collection-table column
-> headers — custom text + tokens) and **198** (designer day picker — All
-> days/Day N scopes canvas + Preview/Print) plus **202** (kit `NumberInput`
-> stepper + mouse drag-scrub) shipped 2026-10-09; **203** (Fields/Values mode +
-> block headers +
+> top-left, opt-in — the Numbers-style table title; retired **199** was a
+> misread of this ask). **198** (designer day picker — All days/Day N
+> scopes canvas + Preview/Print) and **202** (kit `NumberInput` stepper + mouse
+> drag-scrub) shipped 2026-10-09; **203** (Fields/Values mode + block headers +
 > tips star), **191**
 > (inline text blocks + the ONE shared chrome), **194** (resize-tab double-click
 > reset) and **204**/**205** (Duplicate selects the new block; docked-toolbar
@@ -468,7 +466,9 @@ Add a targeted `report-page-breaks` case ONLY if the title turns out to be
 duplicated/dropped/miscounted across fragments.
 
 **Relations**: 111/112 (grid blocks), 100 (same chrome header), 121 (`@` token
-picker); read `docs/REPORTS-DESIGNER.md` first.
+picker); read `docs/REPORTS-DESIGNER.md` first. **Absorbed 199** (retired
+2026-10-09 — per-column headers were a misread of this ask; the table TITLE is
+what's wanted, Numbers-style, same token recipe).
 
 ## 142. Unified Day workspace — the Call Sheet becomes the Day Manager (`[ ]`, big)
 
@@ -841,10 +841,9 @@ today's synthetic collection output for the built-in templates), design-load
 migration test, `npm run lint` + `test:smart`, rule-7 manual on the built-in
 reports; update `docs/REPORTS-LEGO-CONTEXT.md` + `docs/REPORTS-DESIGNER.md`.
 
-**Relations**: powered by **195/196** (contextual resolution/chaining) and
-**199** (contextual headers); touches **99/111/112** (the collections),
-archive **25** (self-redundant menu hiding); read
-`docs/REPORTS-LEGO-CONTEXT.md` first.
+**Relations**: powered by **195/196** (contextual resolution/chaining);
+touches **99/111/112** (the collections), archive **25** (self-redundant menu
+hiding); read `docs/REPORTS-LEGO-CONTEXT.md` first.
 
 ## 209. Crew database — universal across projects, not per project (`[ ]`, awaiting user detail)
 
