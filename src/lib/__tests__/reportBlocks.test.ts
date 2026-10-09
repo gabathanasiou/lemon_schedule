@@ -15,6 +15,7 @@ import {
   insertCustomRowAt,
   removeCustomRowAt,
   duplicateBlockWithId,
+  dayGridOffenders,
 } from '../reportBlocks';
 import type { ReportBlock } from '../../types';
 
@@ -227,5 +228,20 @@ describe('duplicateBlockWithId (roadmap 204)', () => {
   it('unknown id returns the list unchanged and a null id', () => {
     const list = [b('a')];
     expect(duplicateBlockWithId(list, 'nope')).toEqual({ blocks: list, newId: null });
+  });
+});
+
+describe('dayGridOffenders (day-grid blocks only inside a Days context)', () => {
+  it('accepts grids inside a days repeat (and daysOfCast), flags them elsewhere', () => {
+    expect([...dayGridOffenders([b('d', 'repeat', { collection: 'days', children: [b('g', 'precalls')] })]).keys()]).toEqual([]);
+    // Sibling of the days repeat = outside.
+    expect([...dayGridOffenders([
+      b('d', 'repeat', { collection: 'days', children: [b('g', 'crewTable')] }),
+      b('x', 'callTimes'),
+    ]).keys()]).toEqual(['x']);
+    // A non-days repeat loses the context.
+    expect([...dayGridOffenders([b('r', 'repeat', { collection: 'scenes', children: [b('y', 'callTimes')] })]).keys()]).toEqual(['y']);
+    // Columns pass the ambient context through.
+    expect([...dayGridOffenders([b('c', 'columns', { cols: [{ id: 'c1', width: 50, blocks: [b('z', 'precalls')] }] })]).keys()]).toEqual(['z']);
   });
 });

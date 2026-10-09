@@ -368,7 +368,7 @@ export const TOOL_DEFS = [
       properties: {
         type: {
           type: 'string',
-          enum: ['text', 'field', 'repeat', 'table', 'columns', 'ribbon', 'pageBreak', 'spacer', 'image', 'map', 'link', 'callSheetEdit', 'relative', 'callTimes', 'crewTable'],
+          enum: ['text', 'field', 'repeat', 'table', 'columns', 'ribbon', 'pageBreak', 'spacer', 'image', 'map', 'link', 'callSheetEdit', 'relative', 'callTimes', 'crewTable', 'precalls'],
         },
         block: { type: 'object', description: 'Partial ReportBlock fields merged over the type defaults (e.g. {text,field,collection,category,children,columns}).' },
       },

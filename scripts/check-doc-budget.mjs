@@ -204,7 +204,9 @@ const E2E_SPEC_CAP = 70;
 // (coarse+touch path; no unit/Chromium layer can drive it).
 // 272 → 273: roadmap 198 — designer day picker: the picked day must survive a
 // reload (localStorage pref + designer remount; unit tests can't drive the app).
-const E2E_TEST_CAP = 273;
+// 273 → 274: roadmap 159 — precalls block: the call-sheet precall edit must
+// persist to daybreakMeta.departmentPrecalls (silent loss is plausible).
+const E2E_TEST_CAP = 274;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

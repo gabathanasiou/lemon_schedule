@@ -79,6 +79,11 @@ export interface InlineGlideTableProps {
   /** Base row/header heights at an 11px font (scaled with the font size). */
   baseRowHeight?: number;
   baseHeaderHeight?: number;
+  /** Wrap header titles onto multiple lines inside their column (clipped to
+   *  the cell) instead of Glide's single-line draw. Pair with a taller
+   *  `baseHeaderHeight` — used by the horizontal precalls grid where the
+   *  column titles ARE the department names. */
+  wrapHeaders?: boolean;
   /** DOM data attribute for tests/scoping (e.g. `data-day-times-glide`). */
   dataAttr?: string;
   /** Extra context-menu items shown when the HEADER is right-clicked. Return
@@ -117,6 +122,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   emptyLabel,
   baseRowHeight = DEFAULT_ROW_HEIGHT,
   baseHeaderHeight = DEFAULT_HEADER_HEIGHT,
+  wrapHeaders,
   dataAttr,
   headerMenuItems,
   rowTooltip,
@@ -364,21 +370,52 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   }, [COLUMNS, getCellContent]);
 
   /** Glide draws header text left-aligned only; repaint centered columns so
-   *  each title lines up with its (centered) cells. */
+   *  each title lines up with its (centered) cells. `wrapHeaders` wraps the
+   *  title into the column (word-wrapped, clipped to the cell) — the canvas
+   *  never wraps on its own. */
   const drawHeader = useCallback((args: any, drawContent: () => void) => {
     drawContent();
     const { ctx, rect, column, columnIndex, theme } = args;
     const colDef = COLUMNS[columnIndex];
-    if (!colDef || (colDef.align ?? 'left') !== 'center') return;
+    if (!colDef) return;
+    const centered = (colDef.align ?? 'left') === 'center';
+    if (!centered && !wrapHeaders) return;
     ctx.save();
     ctx.fillStyle = theme.bgHeader;
     ctx.fillRect(rect.x + 1, rect.y, rect.width - 2, rect.height);
     ctx.fillStyle = theme.textHeader;
-    ctx.textAlign = 'center';
+    ctx.textAlign = centered ? 'center' : 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(column.title, rect.x + rect.width / 2, rect.y + rect.height / 2);
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.width, rect.height);
+    ctx.clip();
+    const x = centered ? rect.x + rect.width / 2 : rect.x + 6;
+    if (!wrapHeaders) {
+      ctx.fillText(String(column.title), x, rect.y + rect.height / 2);
+    } else {
+      const lines: string[] = [];
+      let line = '';
+      const maxW = rect.width - 8;
+      for (const word of String(column.title).split(/\s+/)) {
+        const next = line ? `${line} ${word}` : word;
+        if (ctx.measureText(next).width <= maxW) { line = next; continue; }
+        if (line) { lines.push(line); line = ''; }
+        // A single word wider than the column hard-splits by characters —
+        // the same last resort as the static table's CSS `break-word`.
+        let chunk = '';
+        for (const ch of word) {
+          if (chunk && ctx.measureText(chunk + ch).width > maxW) { lines.push(chunk); chunk = ch; }
+          else chunk += ch;
+        }
+        line = chunk;
+      }
+      if (line) lines.push(line);
+      const lh = Math.min(14, rect.height / Math.max(1, lines.length));
+      const startY = rect.y + rect.height / 2 - ((lines.length - 1) * lh) / 2;
+      lines.forEach((l, i) => ctx.fillText(l, x, startY + i * lh));
+    }
     ctx.restore();
-  }, [COLUMNS]);
+  }, [COLUMNS, wrapHeaders]);
 
   /** Draw each row's action glyphs on the synthetic actions column. */
   const drawCell = useCallback((args: any, drawContent: () => void) => {

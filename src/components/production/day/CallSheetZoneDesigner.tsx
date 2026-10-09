@@ -13,6 +13,7 @@ import {
 import ReportDesignerCanvas, { type ColSel } from '../../reports/ReportDesignerCanvas';
 import ReportContextMenu, { type MenuState } from '../../reports/ReportContextMenu';
 import { type PaletteDropPayload } from '../../reports/ReportPalette';
+import { useCallSheetGridGuard } from './useCallSheetGridGuard';
 
 /**
  * Drives the REAL reports-designer canvas over the call-sheet zone's block
@@ -36,6 +37,7 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
   const { state, dispatch } = useProject();
   const project = state.present;
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
+  const guardGridInsert = useCallSheetGridGuard();
   const [selId, setSelId] = useState<string | null>(null);
   const [selCol, setSelCol] = useState<ColSel | null>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -48,6 +50,7 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
       : makeReportBlock((p.type || 'text') as ReportBlock['type']);
 
   const insertAt = (id: string | null, payload: PaletteDropPayload, pos: 'after' | 'before' | 'into' | 'root') => {
+    if (!guardGridInsert(payload)) return;
     const b = makeFromPayload(payload);
     let next: ReportBlock[];
     if (pos === 'into') next = insertInto(blocks, id, b);
@@ -106,6 +109,7 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
     onMoveTo: (moveId: string, targetId: string, pos: 'before' | 'after') => onChange(moveBlockTo(blocks, moveId, targetId, pos)),
     onDuplicateTo: (moveId: string, targetId: string, pos: 'before' | 'after') => onChange(duplicateBlockTo(blocks, moveId, targetId, pos)),
     onWrap: (targetId: string, payload: PaletteDropPayload, side: 'left' | 'right') => {
+      if (!guardGridInsert(payload)) return;
       if (payload.moveId) {
         const fm = findBlock(blocks, payload.moveId);
         if (!fm) return;
@@ -117,16 +121,20 @@ const CallSheetZoneDesigner: React.FC<CallSheetZoneDesignerProps> = ({ blocks, o
         onChange(wrapWithColumns(blocks, targetId, makeFromPayload(payload), side));
       }
     },
-    onInsertIntoColumn: (columnsId: string, colIndex: number, payload: PaletteDropPayload) =>
-      onChange(appendToColumn(blocks, columnsId, colIndex, makeFromPayload(payload))),
+    onInsertIntoColumn: (columnsId: string, colIndex: number, payload: PaletteDropPayload) => {
+      if (!guardGridInsert(payload)) return;
+      onChange(appendToColumn(blocks, columnsId, colIndex, makeFromPayload(payload)));
+    },
     onMoveIntoColumn: (moveId: string, columnsId: string, colIndex: number) =>
       onChange(moveIntoColumn(blocks, moveId, columnsId, colIndex)),
     onDuplicateIntoColumn: (moveId: string, columnsId: string, colIndex: number) => {
       const fm = findBlock(blocks, moveId);
       if (fm) onChange(appendToColumn(blocks, columnsId, colIndex, cloneBlock(fm.block)));
     },
-    onInsertNewColumn: (columnsId: string, colIndex: number, payload: PaletteDropPayload) =>
-      onChange(insertColumnAt(blocks, columnsId, colIndex, makeFromPayload(payload))),
+    onInsertNewColumn: (columnsId: string, colIndex: number, payload: PaletteDropPayload) => {
+      if (!guardGridInsert(payload)) return;
+      onChange(insertColumnAt(blocks, columnsId, colIndex, makeFromPayload(payload)));
+    },
     onMoveToNewColumn: (moveId: string, columnsId: string, colIndex: number) =>
       onChange(moveIntoNewColumn(blocks, moveId, columnsId, colIndex)),
     onDuplicateToNewColumn: (moveId: string, columnsId: string, colIndex: number) =>

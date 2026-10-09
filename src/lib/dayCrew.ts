@@ -190,6 +190,61 @@ export function groupSlotsByDept(
   return out;
 }
 
+/** One department on a day — the canonical unit behind `departmentCallsOfDay`
+ *  and the precalls grid/editor (item 159). */
+export interface DayDepartmentInfo {
+  dept: string;
+  /** Effective pre-call expression (day override → template; '' = none). */
+  precall: string;
+  /** The department call, resolved against the day call (= the day call when
+   *  no pre-call exists). */
+  deptCall: string;
+  excluded: boolean;
+}
+
+/**
+ * The day's departments in display order: every department in the effective
+ * slot list plus any carrying a (day/template) pre-call, deduped. ONE pool for
+ * the report collection and the precalls grid/editor — never re-derive the
+ * department list or the pre-call merge.
+ */
+export function dayDepartments(project: Project, meta: DayMeta, dayCall: string): DayDepartmentInfo[] {
+  const groups = groupSlotsByDept(project, meta, slotsForDay(project, meta), dayCall);
+  const byDept = new Map<string, DayDepartmentInfo>(
+    groups.map(g => [g.dept, { dept: g.dept, precall: g.precall, deptCall: g.deptCall, excluded: g.excluded }]),
+  );
+  const precalls = { ...(project.crewTemplate?.departmentPrecalls || {}), ...(meta.departmentPrecalls || {}) };
+  const excluded = new Set(excludedDeptsForDay(project, meta));
+  for (const dept of Object.keys(precalls)) {
+    if (byDept.has(dept)) continue;
+    const precall = deptPrecallExpr(project, meta, dept);
+    byDept.set(dept, { dept, precall, deptCall: resolveCrewCall(null, precall, dayCall), excluded: excluded.has(dept) });
+  }
+  return departmentOrder(project, [...byDept.keys()]).flatMap(dept => {
+    const d = byDept.get(dept);
+    return d ? [d] : [];
+  });
+}
+
+/** Day-patch for one department's pre-call: '' clears the DAY override (the
+ *  template pre-call then applies again). One write path for the Day Manager
+ *  Crew section and the precalls/crew grids. */
+export function setDeptPrecall(meta: DayMeta, dept: string, expr: string): Partial<DayMeta> {
+  const next = { ...(meta.departmentPrecalls || {}) };
+  const value = expr.trim();
+  if (value) next[dept] = value; else delete next[dept];
+  return { departmentPrecalls: Object.keys(next).length ? next : undefined };
+}
+
+/** Every department represented in the project (crew roles + template pre-call
+ *  keys), in display order — the precalls block's per-block include picker. */
+export function projectDepartments(project: Project): string[] {
+  const present = new Set<string>();
+  for (const role of project.crewRoles || []) present.add(crewRoleGroup(role));
+  for (const dept of Object.keys(project.crewTemplate?.departmentPrecalls || {})) present.add(dept);
+  return departmentOrder(project, [...present]).filter(dept => present.has(dept));
+}
+
 // ---- pure mutations (immutable; callers store via UPDATE_ROW / UPDATE_PROJECT) --
 
 export function addSlot(slots: DayCrewSlot[], role: string, personId?: string): DayCrewSlot[] {

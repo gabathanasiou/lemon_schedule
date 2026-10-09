@@ -350,7 +350,8 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         );
       }
       case 'callTimes':
-      case 'crewTable': {
+      case 'crewTable':
+      case 'precalls': {
         return <ReportGridBlock block={block} ctx={ctx} fieldMap={fieldMap} dayItem={item} hint={hint} mode={mode} showKeys={showKeys} rowRange={rowRange} onPatchBlock={onPatchBlock} showUnresolved={showUnresolved} parentCollection={parentCollection} title={renderTitle(block, showBlockTitle)} />;
       }
       case 'callSheetEdit': {

@@ -213,6 +213,21 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
 
   const relevantRules = rulesRelevantToDay(project.rules || [], selected.date);
 
+  // Item 146 — the shared Add Crew Member modal, hosted here for BOTH the Day
+  // Manager Crew section and the Call Sheet → Edit crew table.
+  const crewMemberModal = addCrew ? (
+    <AddCrewMemberModal
+      defaultRole={addCrew.role}
+      defaultName={addCrew.name}
+      onClose={() => setAddCrew(null)}
+      onCreated={personId => {
+        if (!addCrew.slotId || !selected?.daybreakRow) return;
+        const slots = selected.meta.crewSlots ?? slotsForDay(project, selected.meta);
+        patchMeta({ crewSlots: assignSlotPerson(slots, addCrew.slotId, personId) });
+      }}
+    />
+  ) : null;
+
   if (editCallSheet && callSheetDesign) {
     return (
       <>
@@ -226,6 +241,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           onChangeZone={patchZone}
           patchMeta={patchMeta}
           onEditCallTimesSettings={() => setCallTimesOpen(true)}
+          openAddCrewMember={opts => setAddCrew(opts ?? {})}
           onReset={resetZone}
           onSelectDesign={id => setPrefs(p => ({ ...p, callSheetDesignId: id }))}
           onSelectDay={index => selectDay(index)}
@@ -236,6 +252,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           dayPickerTarget={dayPickerTarget}
         />
         {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
+        {crewMemberModal}
       </>
     );
   }
@@ -392,18 +409,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       {copyOpen && <CopyDayModal target={selected} days={days} onClose={() => setCopyOpen(false)} />}
       {detailsOpen && <ProductionDetailsModal onClose={() => setDetailsOpen(false)} />}
       {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
-      {addCrew && (
-        <AddCrewMemberModal
-          defaultRole={addCrew.role}
-          defaultName={addCrew.name}
-          onClose={() => setAddCrew(null)}
-          onCreated={personId => {
-            if (!addCrew.slotId || !selected?.daybreakRow) return;
-            const slots = selected.meta.crewSlots ?? slotsForDay(project, selected.meta);
-            patchMeta({ crewSlots: assignSlotPerson(slots, addCrew.slotId, personId) });
-          }}
-        />
-      )}
+      {crewMemberModal}
     </div>
   );
 };

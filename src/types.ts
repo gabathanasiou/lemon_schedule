@@ -698,7 +698,7 @@ export interface ReportColumn {
 
 export interface ReportBlock {
   id: string;
-  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative' | 'callTimes' | 'crewTable';
+  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative' | 'callTimes' | 'crewTable' | 'precalls';
   // text / field
   text?: string;                 // static text; may contain {{key}} tokens
   url?: string;                  // link block: href (may contain {{key}} tokens)
@@ -728,6 +728,16 @@ export interface ReportBlock {
   /** "Show location" pick: the TYPE key of the location an item's location
    *  attributes render (roadmap 6/9). Unset = the item's FIRST location. */
   locationChoice?: string;
+  // precalls grid (item 159)
+  /** Precalls block: include departments with no pre-call (showing their
+   *  effective call) — off = only departments carrying a pre-call. */
+  precallsAll?: boolean;
+  /** Precalls block, `precallsAll` mode: include only these departments
+   *  (undefined = every department on the day). */
+  precallsDepts?: string[];
+  /** Precalls block: one column per department with a single call row
+   *  (default) or one department per row. */
+  precallsLayout?: 'vertical' | 'horizontal';
   // table (repeat + table shape)
   repeatAxis?: RepeatAxis;
   colWidths?: number[];          // rows-mode, % summing to 100
@@ -747,7 +757,7 @@ export interface ReportBlock {
   skipEmptyRows?: boolean;        // hide items whose cells are all/partly empty
   headerField?: string;          // columns-mode: item identity row
   /** Optional title rendered top-left ABOVE the table (roadmap 140) for
-   *  table / callTimes / crewTable — a REAL text block (same renderer, same
+   *  table / callTimes / crewTable / precalls — a REAL text block (same renderer, same
    *  chrome controls, default centered). Off unless `showTitle`. */
   titleBlock?: ReportBlock;
   showTitle?: boolean;

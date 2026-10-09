@@ -12,8 +12,9 @@ import {
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock, listOwnerOf,
   insertColumnAt, removeColumnAt, moveColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
   moveTableColumn, insertTableColumnAt, removeTableColumnAt, blockAllowedIn, blockPlacementHint, designIsDayScoped,
-  tableItemCollection,
+  tableItemCollection, dayGridOffenders, isDayGridBlock,
 } from '../../lib/reportBlocks';
+import { fieldScopeFor } from '../../lib/reportLookup';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { useDayViews } from '../../lib/dayView';
 import { useViewMode, usePersistState } from '../../lib/persist';
@@ -242,6 +243,16 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   };
 
   const commit = (next: ReportBlock[], zone: 'header' | 'body' | 'footer' = 'body') => {
+    // Invariant: a day-grid block (Call Times · Crew Table · Precalls) lives
+    // only inside a Days context. The safety net behind the per-path guards —
+    // only NEWLY introduced offenders abort, so a legacy/imported misplaced
+    // block stays editable and deletable.
+    const before = dayGridOffenders(listOfZone(zone));
+    const introduced = [...dayGridOffenders(next)].find(([id]) => !before.has(id));
+    if (introduced) {
+      dialog.alert({ title: 'Can’t drop that here', message: blockPlacementHint(introduced[1]) });
+      return;
+    }
     if (zone === 'header') { setHeaderBlocks(next); headerRef.current = next; }
     else if (zone === 'footer') { setFooterBlocks(next); footerRef.current = next; }
     else { setBlocks(next); blocksRef.current = next; }
@@ -362,6 +373,15 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const guardInsert = (payload: PaletteDropPayload, scope: ReportCollection | null | undefined, insideColumns: boolean, apply: () => void) => {
     if (guardAllowed(payload, scope, insideColumns)) apply();
   };
+  /** Day-grid blocks (items 111/112/159) may only live inside a Days context.
+   *  Checked BEFORE a cross-zone batch (the batch removes from the source
+   *  first — an aborted target commit must not strand the removal). */
+  const canPlaceDayGrid = (type: ReportBlock['type'], scope: ReportCollection | null | undefined): boolean => {
+    if (!isDayGridBlock(type)) return true;
+    if (fieldScopeFor(scope) === 'days') return true;
+    dialog.alert({ title: 'Can’t drop that here', message: blockPlacementHint(type) });
+    return false;
+  };
 
   // Freshly added text / free-table blocks enter editing with the caret inside
   // — the canvas focuses once the block has rendered.
@@ -386,7 +406,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   };
 
   const insertPayload = (payload: PaletteDropPayload, id: string | null = selId) => {
-    guardInsert(payload, insertScope, id ? insideColumnsBlock(allBlocks, id) : false, () => {
+    // A palette insert lands as a SIBLING of the selected block — its context
+    // is the AMBIENT parent collection, never the selected repeat's own items
+    // (`insertScopeFor` would report a repeat target's inner collection and
+    // let a day-grid block slip outside the Days repeat).
+    guardInsert(payload, id ? parentCollectionOf(listOfZone(zoneOf(id)), id) : null, id ? insideColumnsBlock(allBlocks, id) : false, () => {
       const zone = zoneOf(id);
       const list = listOfZone(zone);
       const b = payloadToBlock(payload, insertScopeFor(list, id));
@@ -421,9 +445,10 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     const zone = zoneOf(columnsId);
     const srcZone = zoneOf(moveId);
     if (srcZone !== zone) {
+      const fm = findBlock(listOfZone(srcZone), moveId);
+      if (!fm) return;
+      if (!canPlaceDayGrid(fm.block.type, parentCollectionOf(listOfZone(zone), columnsId))) return;
       batch(() => {
-        const fm = findBlock(listOfZone(srcZone), moveId);
-        if (!fm) return;
         commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
         commit(insertColumnAt(listOfZone(zone), columnsId, colIndex, fm.block), zone);
       });
@@ -782,6 +807,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                   const srcList = listOfZone(srcZone);
                   const fm = findBlock(srcList, payload.moveId);
                   if (!fm) return;
+                  // Target = the ZONE ROOT (not a repeat's inside) — ambient scope.
+                  if (!canPlaceDayGrid(fm.block.type, null)) return;
                   const tgtList = listOfZone(zone);
                   const moving = srcZone !== zone;
                   const next = payload.duplicate
@@ -807,16 +834,18 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               }}
               editorMode={editorMode}
               onMoveTableColumn={moveTableColumnBy}
-              onInsertAfter={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertAfter(list, id, b) : [...list, b], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
-              onInsertBefore={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertBefore(list, id, b) : [b, ...list], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
+              onInsertAfter={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, id ? parentCollectionOf(list, id) : null, id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertAfter(list, id, b) : [...list, b], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
+              onInsertBefore={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, id ? parentCollectionOf(list, id) : null, id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(id ? insertBefore(list, id, b) : [b, ...list], zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
               onInsertInto={(id, payload) => { const zone = zoneOf(id); const list = listOfZone(zone); guardInsert(payload, insertScopeFor(list, id), id ? insideColumnsBlock(allBlocks, id) : false, () => { const b = payloadToBlock(payload, insertScopeFor(list, id)); commit(insertInto(list, id, b), zone); setSelId(b.id); markAutoEdit(b, !!payload.field); }); }}
               onMoveInto={(containerId, moveId) => {
                 const zone = zoneOf(containerId);
                 const srcZone = zoneOf(moveId);
                 if (srcZone !== zone) {
+                  const fm = findBlock(listOfZone(srcZone), moveId);
+                  if (!fm) return;
+                  // Moving INTO a container (a repeat's inside) — that context.
+                  if (!canPlaceDayGrid(fm.block.type, insertScopeFor(listOfZone(zone), containerId))) return;
                   batch(() => {
-                    const fm = findBlock(listOfZone(srcZone), moveId);
-                    if (!fm) return;
                     commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
                     commit(insertInto(listOfZone(zone), containerId, fm.block), zone);
                   });
@@ -837,9 +866,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                 if (srcZone === tgtZone) {
                   commit(moveBlockTo(listOfZone(srcZone), moveId, targetId, pos), srcZone);
                 } else {
+                  const fm = findBlock(listOfZone(srcZone), moveId);
+                  if (!fm) return;
+                  // Before/after a target = SIBLING of it — the ambient context.
+                  if (!canPlaceDayGrid(fm.block.type, parentCollectionOf(listOfZone(tgtZone), targetId))) return;
                   batch(() => {
-                    const fm = findBlock(listOfZone(srcZone), moveId);
-                    if (!fm) return;
                     commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
                     commit(pos === 'before' ? insertBefore(listOfZone(tgtZone), targetId, fm.block) : insertAfter(listOfZone(tgtZone), targetId, fm.block), tgtZone);
                   });
@@ -870,7 +901,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                   }
                   return;
                 }
-                if (!payload.moveId && !guardAllowed(payload, insertScopeFor(list, targetId), true)) return;
+                // Wrapping makes the dropped block a SIBLING of the target —
+                // validate against the target's AMBIENT context, not the
+                // target's own collection (a Days repeat would otherwise let a
+                // day-grid block land beside it, outside the day context).
+                if (!payload.moveId && !guardAllowed(payload, parentCollectionOf(list, targetId), true)) return;
                 const dropped = payload.moveId
                   ? findBlock(listOfZone(zoneOf(payload.moveId)), payload.moveId)?.block ?? null
                   : payloadToBlock(payload, insertScopeFor(list, targetId));

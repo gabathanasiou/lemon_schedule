@@ -10,6 +10,7 @@ import {
   type ReportCtx,
 } from '../reportData';
 import { composeLookupKey, composeLookupPathKey, elementLookupKey, referenceOffer, getReportFieldDefs, getReportFieldMap, resolveReportTokens, resolveReportTokensHtml, type LookupPath } from '../reportFields';
+import { resolveReportGridGroups, skeletonReportGridGroups } from '../reportGrids';
 
 // Resolver-level coverage for the day-scoped report collections, built from the
 // committed hermetic seed via the SAME pure pipeline the app uses
@@ -107,6 +108,49 @@ describe('resolveCollection — day-scoped call-sheet collections', () => {
     // Always an array; each crew item carries a resolved call time.
     expect(Array.isArray(crew)).toBe(true);
     expect(crew.every(c => typeof c.callTime === 'string')).toBe(true);
+  });
+
+  it('precalls grid resolves one flat group over departmentCallsOfDay (item 159)', () => {
+    const project = seedProject((p) => {
+      p.crewTemplate = { departmentPrecalls: { Camera: '-30m' } };
+    });
+    const ctx = buildCtx(project);
+    const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+    const fieldMap = getReportFieldMap(project);
+    const groups = resolveReportGridGroups(ctx, 'departmentCallsOfDay', undefined, days[0], fieldMap);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].columns.map(c => c.field)).toEqual(['departmentLabel', 'departmentCallTime']);
+    // Default: only departments carrying a pre-call.
+    expect(groups[0].items.every((i: any) => i.key === 'Camera')).toBe(true);
+    const camera = groups[0].items.find((i: any) => i.key === 'Camera') as any;
+    expect(camera).toBeTruthy();
+    expect(camera.callTime).toBeTruthy();
+    // includeAll: every department on the day; no pre-call rows show the day call.
+    const all = resolveReportGridGroups(ctx, 'departmentCallsOfDay', undefined, days[0], fieldMap, { includeAll: true });
+    expect(all[0].items.length).toBeGreaterThan(groups[0].items.length);
+    const noPrecall = all[0].items.find((i: any) => i.key !== 'Camera') as any;
+    expect(noPrecall.callTime).toBe(days[0].callTime);
+    // All + include narrows to the picked departments only.
+    const picked = resolveReportGridGroups(ctx, 'departmentCallsOfDay', undefined, days[0], fieldMap, { includeAll: true, include: ['Camera'] });
+    expect(picked[0].items.every((i: any) => i.key === 'Camera')).toBe(true);
+    // No day in scope → designer skeleton keeps the shape, no rows.
+    const skeleton = skeletonReportGridGroups(project, 'departmentCallsOfDay', undefined, fieldMap);
+    expect(skeleton).toHaveLength(1);
+    expect(skeleton[0].items).toEqual([]);
+  });
+
+  it('precalls grid drops day-excluded departments', () => {
+    const project = seedProject((p) => {
+      p.crewTemplate = { departmentPrecalls: { Camera: '-30m' } };
+      for (const v of p.versions || []) {
+        const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+        if (gov) gov.daybreakMeta = { ...(gov.daybreakMeta || {}), excludedCrewDepts: ['Camera'] };
+      }
+    });
+    const ctx = buildCtx(project);
+    const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+    const groups = resolveReportGridGroups(ctx, 'departmentCallsOfDay', undefined, days[0], getReportFieldMap(project), { includeAll: true });
+    expect(groups[0].items.some((i: any) => i.key === 'Camera')).toBe(false);
   });
 });
 

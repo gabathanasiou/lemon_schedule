@@ -55,7 +55,7 @@ export function collectRibbonBlocks(list: ReportBlock[] | undefined, out: Report
  *  enumerate it (the agent/MCP registry read). */
 export const REPORT_BLOCK_TYPES: ReportBlock['type'][] = [
   'text', 'field', 'repeat', 'table', 'columns', 'ribbon', 'pageBreak', 'spacer',
-  'image', 'map', 'link', 'callSheetEdit', 'relative', 'callTimes', 'crewTable',
+  'image', 'map', 'link', 'callSheetEdit', 'relative', 'callTimes', 'crewTable', 'precalls',
 ];
 
 export function makeReportBlock(type: ReportBlock['type'], partial: Partial<ReportBlock> = {}): ReportBlock {  const base: ReportBlock = { id: blockId(), type };
@@ -75,10 +75,15 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
     case 'link': base.text = partial.text ?? 'Open in Maps'; base.url = partial.url ?? '{{locationMapLink}}'; break;
     case 'callSheetEdit': base.children = []; break;
     case 'relative': base.children = []; base.relativeOffset = partial.relativeOffset ?? 1; base.relativeCount = partial.relativeCount ?? 1; break;
-    // Day-scoped grids (items 111/112): fixed-column, editable-in-place tables
-    // over the day call-sheet collections. `collection` is the seam key.
+    // Day-scoped grids (items 111/112/159): fixed-column tables over the day
+    // call-sheet collections. `collection` is the seam key.
     case 'callTimes': base.collection = partial.collection ?? 'elementCallsOfDay'; break;
     case 'crewTable': base.collection = partial.collection ?? 'crewOfDay'; break;
+    case 'precalls':
+      base.collection = partial.collection ?? 'departmentCallsOfDay';
+      base.precallsAll = partial.precallsAll ?? false;
+      base.precallsLayout = partial.precallsLayout ?? 'horizontal';
+      break;
     default: break;
   }
   return { ...base, ...partial, id: base.id, type };
@@ -712,7 +717,7 @@ export function tableOverLabel(parentCollection?: ReportCollection): string {
 
 /** Blocks that support the optional title (item 140): table-shaped blocks,
  *  the repeat (section heading) and image/map (caption below). */
-const TITLED_BLOCK_TYPES = new Set(['table', 'callTimes', 'crewTable', 'repeat', 'image', 'map']);
+const TITLED_BLOCK_TYPES = new Set(['table', 'callTimes', 'crewTable', 'precalls', 'repeat', 'image', 'map']);
 export function supportsTitle(type: ReportBlock['type']): boolean {
   return TITLED_BLOCK_TYPES.has(type);
 }
@@ -720,7 +725,7 @@ export function supportsTitle(type: ReportBlock['type']): boolean {
 /** Block types whose title can repeat on every pagination fragment — only
  *  blocks that actually split across pages (a caption never does). */
 export function titleRepeatable(type: ReportBlock['type']): boolean {
-  return type === 'table' || type === 'callTimes' || type === 'crewTable' || type === 'repeat';
+  return type === 'table' || type === 'callTimes' || type === 'crewTable' || type === 'precalls' || type === 'repeat';
 }
 
 /** The default title text a block seeds with (item 140): grid blocks use their
@@ -729,6 +734,7 @@ export function titleRepeatable(type: ReportBlock['type']): boolean {
 export function reportTitleAutoLabel(block: ReportBlock, parentCollection?: ReportCollection): string {
   if (block.type === 'callTimes') return 'Call Times';
   if (block.type === 'crewTable') return 'Crew Table';
+  if (block.type === 'precalls') return 'Precalls';
   if (block.type === 'image' || block.type === 'map') return '';
   if (block.type === 'repeat') return scopedCollectionLabel(block.collection || 'scenes', parentCollection, block.scopedToParent !== false);
   if (parentCollection) {
@@ -821,6 +827,38 @@ export function insideColumnsBlock(blocks: ReportBlock[], id: string): boolean {
   return false;
 }
 
+/** The day-scoped grid blocks (items 111/112/159) — valid only inside a
+ *  Repeat over Days (any `days` context through the collection→scope map). */
+export const DAY_GRID_BLOCK_TYPES = new Set<ReportBlock['type']>(['callTimes', 'crewTable', 'precalls']);
+
+export function isDayGridBlock(type: ReportBlock['type']): boolean {
+  return DAY_GRID_BLOCK_TYPES.has(type);
+}
+
+/**
+ * Ids → type of every day-grid block (items 111/112/159) sitting OUTSIDE a days
+ * context in a block list — the COMMIT-time invariant for drags/moves (palette
+ * inserts use `blockAllowedIn`; a drag of an EXISTING grid out of the days
+ * repeat must be refused too). Ancestor collections follow `insertScopeFor`:
+ * a repeat supplies its collection to its children, columns pass the ambient
+ * context through. Empty = valid.
+ */
+export function dayGridOffenders(blocks: ReportBlock[], parentCollection?: ReportCollection): Map<string, ReportBlock['type']> {
+  const out = new Map<string, ReportBlock['type']>();
+  for (const b of blocks) {
+    if (isDayGridBlock(b.type) && fieldScopeFor(parentCollection) !== 'days') out.set(b.id, b.type);
+    if (b.children?.length) {
+      for (const [id, type] of dayGridOffenders(b.children, b.collection || parentCollection)) out.set(id, type);
+    }
+    if (b.type === 'columns' && b.cols) {
+      for (const col of b.cols) {
+        for (const [id, type] of dayGridOffenders(col.blocks || [], parentCollection)) out.set(id, type);
+      }
+    }
+  }
+  return out;
+}
+
 /** Whether a block type can be placed in the given context. The palette keeps
  *  EVERY block enabled — a disallowed drop/click explains where the block can
  *  go (`blockPlacementHint`) instead of silently disabling the palette item. */
@@ -829,9 +867,9 @@ export function blockAllowedIn(type: ReportBlock['type'], insertScope?: ReportCo
   if (type === 'columns' && insideColumns) return false;
   // Advance needs a current item — only inside a repeat/relative context.
   if (type === 'relative' && !insertScope) return false;
-  // Day-scoped grids (items 111/112) only make sense inside a days repeat —
+  // Day-scoped grids (items 111/112/159) only make sense inside a days repeat —
   // any day context (days, daysOfCast) through the ONE collection→scope map.
-  if ((type === 'callTimes' || type === 'crewTable') && fieldScopeFor(insertScope) !== 'days') return false;
+  if (isDayGridBlock(type) && fieldScopeFor(insertScope) !== 'days') return false;
   return true;
 }
 
@@ -839,7 +877,7 @@ export function blockAllowedIn(type: ReportBlock['type'], insertScope?: ReportCo
 export function blockPlacementHint(type: ReportBlock['type']): string {
   if (type === 'columns') return 'Columns can’t be nested inside another Columns block — drop it outside the columns.';
   if (type === 'relative') return 'Advance needs a repeating block — put it inside a Repeat (or another Advance).';
-  if (type === 'callTimes' || type === 'crewTable') return 'This block only works inside a Repeat over Days.';
+  if (isDayGridBlock(type)) return 'This block only works inside a Repeat over Days.';
   return 'This block isn’t allowed here.';
 }
 

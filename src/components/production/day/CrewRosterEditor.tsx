@@ -54,6 +54,9 @@ export interface CrewRosterEditorProps {
   /** Fires when an unknown person name is committed in a slot — the host opens
    *  the Add Crew Member modal (role + name + slot prefilled). */
   onCreatePerson?: (roleKey: string, name: string, slotId: string) => void;
+  /** Call-sheet host only: append read-only Phone / Email columns (mirrors the
+   *  static crewTable block's fixed columns, item 156). */
+  contacts?: boolean;
   /** DOM data attribute for tests. */
   dataAttr?: string;
   className?: string;
@@ -74,6 +77,7 @@ interface DeptTableProps {
   onDeptPrecallChange: (dept: string, expr: string) => void;
   excludedDepts: string[];
   onCreatePerson?: (roleKey: string, name: string, slotId: string) => void;
+  contacts?: boolean;
 }
 
 const COLUMNS: InlineGlideColumn[] = [
@@ -82,14 +86,25 @@ const COLUMNS: InlineGlideColumn[] = [
   { key: 'call', label: 'Call', width: 90, align: 'center' },
 ];
 
+/** Contact columns appended in the call-sheet crew table (item 156 parity). */
+const CONTACT_COLUMNS: InlineGlideColumn[] = [
+  { key: 'phone', label: 'Phone', width: 110 },
+  { key: 'email', label: 'Email', width: 150 },
+];
+
 /** Person-dropdown item that opens the Add Crew Member modal. */
 const ADD_NEW_SENTINEL = '__add_new_crew__';
 
 const DeptTable: React.FC<DeptTableProps> = ({
   dept, slots, excluded, precall, templatePrecall, dayCall, project, readOnly,
-  allSlots, onSlotsChange, onExcludedChange, onDeptPrecallChange, excludedDepts, onCreatePerson,
+  allSlots, onSlotsChange, onExcludedChange, onDeptPrecallChange, excludedDepts, onCreatePerson, contacts,
 }) => {
   const crewRoles = project.crewRoles || [];
+
+  const columns = useMemo<InlineGlideColumn[]>(
+    () => (contacts ? [...COLUMNS, ...CONTACT_COLUMNS] : COLUMNS),
+    [contacts],
+  );
 
   const rows = useMemo(
     () => slots.map(slot => {
@@ -103,6 +118,8 @@ const DeptTable: React.FC<DeptTableProps> = ({
         roleKey: slot.role,
         personId: slot.personId || '',
         person: person?.name || '',
+        phone: person?.phone || '',
+        email: person?.email || '',
         role: roleLabel,
         isOverride: slot.callTime ? 'true' : '',
         isNoCall: slot.noCall ? 'true' : '',
@@ -154,6 +171,9 @@ const DeptTable: React.FC<DeptTableProps> = ({
         readonly: !!readOnly,
         cursor: 'pointer',
       });
+    }
+    if (col.key === 'phone' || col.key === 'email') {
+      return textCell(row[col.key], { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#71717a' } });
     }
     // call — the editor seeds the row's OWN override (empty when none) so a
     // double-click never shows the department pre-call; the display shows the
@@ -265,7 +285,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
       {rows.length > 0 && (
         <InlineGlideTable
           dataAttr="data-crew-roster-glide"
-          columns={COLUMNS}
+          columns={columns}
           rows={rows}
           getCellContent={getCellContent}
           onCommit={onCommit}
@@ -365,7 +385,7 @@ export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots
 export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
   slots, excludedDepts, effectivePrecalls, templatePrecalls, dayCall, project,
   readOnly, onSlotsChange, onExcludedChange, onDeptPrecallChange, onAddCrewMember,
-  onCreatePerson,
+  onCreatePerson, contacts,
   dataAttr, className = '',
 }) => {
   const meta: DayMeta = useMemo(
@@ -410,6 +430,7 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
           onDeptPrecallChange={onDeptPrecallChange}
           excludedDepts={excludedDepts}
           onCreatePerson={onCreatePerson}
+          contacts={contacts}
         />
       ))}
     </div>

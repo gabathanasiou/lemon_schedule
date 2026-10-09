@@ -2,18 +2,21 @@ import React, { useMemo } from 'react';
 import type { DayMeta, Project, ReportBlock } from '../../../types';
 import type { DayView } from '../../../lib/dayView';
 import { getCallTimeSettings } from '../../../lib/callTimes';
+import { excludedDeptsForDay, setDeptPrecall, slotsForDay } from '../../../lib/dayCrew';
 import { getLabel } from '../../../lib/categories';
 import { isReportGridCollection } from '../../../lib/reportGrids';
 import DayTimesGlide from './DayTimesGlide';
-import CrewTableGlide from './CrewTableGlide';
+import PrecallsGlide from './PrecallsGlide';
+import CrewRosterEditor, { CrewAddRoleMenu } from './CrewRosterEditor';
 
 /**
- * Interactive host for the day-scoped GRID blocks (items 111/112) in the
+ * Interactive host for the day-scoped GRID blocks (items 111/112/159) in the
  * Call Sheet → Edit canvas. Template-level `days`-repeat children render as the
- * live InlineGlide surfaces (element calls per staged category; the crew
- * `Name | Role | Call` table) writing `daybreakMeta` through `patchMeta` — one
- * dispatch per edit op, so undo restores the prior call times. Blocks placed
- * INSIDE the `callSheetEdit` zone stay static (the generic zone designer).
+ * live surfaces — one InlineGlide per staged element category, the SHARED
+ * `CrewRosterEditor` for the crew table (person swap, add crew/role, remove,
+ * include/exclude, pre-call + call editing — the Day Manager surface, so the
+ * two can never drift) and the `PrecallsGlide` for the precalls table — all
+ * writing `daybreakMeta` through `patchMeta`, one dispatch per edit op.
  */
 export interface InteractiveGridBlockProps {
   block: ReportBlock;
@@ -29,9 +32,12 @@ export interface InteractiveGridBlockProps {
    *  (which show call time/duration context) must not appear. Undefined =
    *  show (other hosts, e.g. the Day Manager). */
   showTimes?: boolean;
+  /** The Day Manager's shared Add Crew Member modal (item 146) — the crew
+   *  table's person swap / Add role flows open it here too. */
+  openAddCrewMember?: (opts?: { role?: string; name?: string; slotId?: string }) => void;
 }
 
-const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes }) => {
+const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes, openAddCrewMember }) => {
   const collection = isReportGridCollection(block.collection) ? block.collection : 'elementCallsOfDay';
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
 
@@ -43,13 +49,54 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
     return block.category ? staged.filter(c => c === block.category) : staged;
   }, [day, settings, block.category]);
 
+  if (collection === 'departmentCallsOfDay') {
+    return (
+      <div className="rounded-lg border border-zinc-200 overflow-hidden bg-white" data-report-grid="precalls">
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
+          <span className="text-[11px] font-semibold text-zinc-700">Precalls</span>
+        </div>
+        <PrecallsGlide
+          day={day}
+          project={project}
+          patchMeta={patchMeta}
+          readOnly={readOnly}
+          includeAll={block.precallsAll}
+          include={block.precallsDepts}
+          layout={block.precallsLayout}
+          onEditCallTimesSettings={onEditCallTimesSettings}
+        />
+      </div>
+    );
+  }
+
   if (collection === 'crewOfDay') {
-    if (day.crew.length === 0) {
-      return <p className="px-2 py-3 text-xs text-zinc-400">No crew on this day.</p>;
-    }
+    const template = project.crewTemplate || {};
+    const slots = day.meta.crewSlots ?? slotsForDay(project, day.meta);
+    const excluded = excludedDeptsForDay(project, day.meta);
+    const effectivePrecalls = { ...(template.departmentPrecalls || {}), ...(day.meta.departmentPrecalls || {}) };
     return (
       <div data-report-grid="crew">
-        <CrewTableGlide day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} showTimes={showTimes} />
+        {!readOnly && (
+          <div className="flex items-center justify-end mb-2">
+            <CrewAddRoleMenu project={project} slots={slots} onSlotsChange={next => patchMeta({ crewSlots: next })} />
+          </div>
+        )}
+        <CrewRosterEditor
+          dataAttr="data-crew-roster"
+          contacts
+          slots={slots}
+          excludedDepts={excluded}
+          effectivePrecalls={effectivePrecalls}
+          templatePrecalls={template.departmentPrecalls || {}}
+          dayCall={day.callTime}
+          project={project}
+          readOnly={readOnly}
+          onSlotsChange={next => patchMeta({ crewSlots: next })}
+          onExcludedChange={next => patchMeta({ excludedCrewDepts: next.length ? next : undefined })}
+          onDeptPrecallChange={(dept, expr) => patchMeta(setDeptPrecall(day.meta, dept, expr))}
+          onAddCrewMember={() => openAddCrewMember?.()}
+          onCreatePerson={(role, name, slotId) => openAddCrewMember?.({ role, name, slotId })}
+        />
       </div>
     );
   }

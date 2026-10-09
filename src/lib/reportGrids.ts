@@ -1,24 +1,27 @@
 import type { Project } from '../types';
-import type { ReportCollectionItem, ReportCtx, ReportCrewItem, ReportElementCallItem } from './reportData';
+import type { ReportCollectionItem, ReportCtx, ReportCrewItem, ReportDayInfo, ReportDepartmentCallItem, ReportElementCallItem } from './reportData';
 import { resolveCollectionItems } from './reportData';
 import { getCallTimeSettings } from './callTimes';
+import { dayDepartments } from './dayCrew';
+import type { DayMeta } from '../types';
 import type { ReportFieldDef } from './reportFields';
 import { getLabel } from './categories';
 
 /**
- * Shared seam for the reports designer's day-scoped GRID blocks (items 111/112).
- * One config/read model feeds BOTH the static print renderer
+ * Shared seam for the reports designer's day-scoped GRID blocks (items 111/112
+ * + 159). One config/read model feeds BOTH the static print renderer
  * (`components/reports/ReportGridBlock`) and the interactive call-sheet grid
  * (`components/production/day/InteractiveGridBlock`) — no fork, and the future
  * editable-day-timings block plugs in here.
  *
- * The blocks reuse the canonical `elementCallsOfDay`/`crewOfDay` collections
- * (item 99) and the field registry's fixed columns; nothing is re-derived.
+ * The blocks reuse the canonical `elementCallsOfDay`/`crewOfDay`/
+ * `departmentCallsOfDay` collections (item 99) and the field registry's fixed
+ * columns; nothing is re-derived.
  */
 
-export type ReportGridCollection = 'elementCallsOfDay' | 'crewOfDay';
+export type ReportGridCollection = 'elementCallsOfDay' | 'crewOfDay' | 'departmentCallsOfDay';
 
-const GRID_COLLECTIONS = new Set<ReportGridCollection>(['elementCallsOfDay', 'crewOfDay']);
+const GRID_COLLECTIONS = new Set<ReportGridCollection>(['elementCallsOfDay', 'crewOfDay', 'departmentCallsOfDay']);
 
 export function isReportGridCollection(collection: string | undefined): collection is ReportGridCollection {
   return !!collection && GRID_COLLECTIONS.has(collection as ReportGridCollection);
@@ -41,9 +44,10 @@ export interface ReportGridGroup {
   columns: ReportGridColumn[];
 }
 
-/** Fixed columns: element calls = ID · Name · SWF · <stages>; crew = Name · Role · Call · Phone · Email. */
+/** Fixed columns: element calls = ID · Name · SWF · <stages>; crew = Name · Role · Call · Phone · Email; precalls = Department · Call. */
 const ELEMENT_CALL_FIXED = ['elementCallId', 'elementCallName', 'elementCallCode'];
 const CREW_FIXED = ['crewName', 'role', 'crewCallTime', 'phone', 'email'];
+const PRECALL_FIXED = ['departmentLabel', 'departmentCallTime'];
 
 function fieldColumn(fieldMap: Record<string, ReportFieldDef>, field: string, fallbackWidth = 10): ReportGridColumn {
   const def = fieldMap[field];
@@ -77,10 +81,20 @@ function crewColumns(fieldMap: Record<string, ReportFieldDef>): ReportGridColumn
   return normalize(CREW_FIXED.map(f => fieldColumn(fieldMap, f)));
 }
 
+function precallColumns(fieldMap: Record<string, ReportFieldDef>): ReportGridColumn[] {
+  // Vertical layout keeps the registry's normal alignment (text left, times
+  // centered); only the horizontal layout centers everything.
+  return normalize(PRECALL_FIXED.map(f => fieldColumn(fieldMap, f)));
+}
+
 /**
  * The day's grid groups for a block. Element calls group per staged category
  * present on the day (cast-first, resolver order); a block `category` narrows
- * to one table. Crew is always one flat group.
+ * to one table. Crew is one flat group. Precalls (item 159) is one flat group
+ * over the canonical `dayDepartments` pool — by default only departments with
+ * a pre-call; `opts.includeAll` adds every department (no pre-call rows show
+ * their effective call), optionally narrowed by `opts.include`. Day-excluded
+ * departments never render.
  */
 export function resolveReportGridGroups(
   ctx: ReportCtx,
@@ -88,8 +102,17 @@ export function resolveReportGridGroups(
   category: string | undefined,
   dayItem: ReportCollectionItem | undefined,
   fieldMap: Record<string, ReportFieldDef>,
+  opts?: { includeAll?: boolean; include?: string[] },
 ): ReportGridGroup[] {
   if (!dayItem) return [];
+  if (collection === 'departmentCallsOfDay') {
+    const day = dayItem as ReportDayInfo;
+    const meta: DayMeta = { crewSlots: day.crewSlots, excludedCrewDepts: day.excludedCrewDepts, departmentPrecalls: day.departmentPrecalls };
+    const items = dayDepartments(ctx.project, meta, day.callTime)
+      .filter(d => !d.excluded && (opts?.includeAll ? (!opts.include || opts.include.includes(d.dept)) : d.precall))
+      .map<ReportDepartmentCallItem>(d => ({ key: d.dept, label: d.dept, callTime: d.deptCall || undefined }));
+    return [{ category: '', label: 'Precalls', items, columns: precallColumns(fieldMap) }];
+  }
   if (collection === 'crewOfDay') {
     const items = resolveCollectionItems(ctx, 'crewOfDay', undefined, dayItem, undefined) as ReportCrewItem[];
     // Item 146 — group by department (department-wise order from the resolver).
@@ -139,6 +162,9 @@ export function skeletonReportGridGroups(
   category: string | undefined,
   fieldMap: Record<string, ReportFieldDef>,
 ): ReportGridGroup[] {
+  if (collection === 'departmentCallsOfDay') {
+    return [{ category: '', label: 'Precalls', items: [], columns: precallColumns(fieldMap) }];
+  }
   if (collection === 'crewOfDay') {
     return [{ category: '', label: 'Crew', items: [], columns: crewColumns(fieldMap) }];
   }

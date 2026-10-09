@@ -31,6 +31,9 @@ export interface CallSheetEditPageProps {
   patchMeta: (patch: Partial<DayMeta>) => void;
   /** Header right-click on a live grid → "Edit Call Time Stages…". */
   onEditCallTimesSettings?: () => void;
+  /** Item 146 — the shared Add Crew Member modal (crew table person swap /
+   *  Add role flows). */
+  openAddCrewMember?: (opts?: { role?: string; name?: string; slotId?: string }) => void;
   onReset: () => void;
   onSelectDesign: (id: string) => void;
   onSelectDay: (sectionIndex: number) => void;
@@ -50,7 +53,7 @@ export interface CallSheetEditPageProps {
 const isCallSheet = (d: ReportDesign) => /call\s*sheet/i.test(d.name);
 
 const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
-  day, days, design, designs, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, onReset, onSelectDesign, onSelectDay, onPrint, onBack, readOnly, hasOverride, headerTarget, dayPickerTarget,
+  day, days, design, designs, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, onReset, onSelectDesign, onSelectDay, onPrint, onBack, readOnly, hasOverride, headerTarget, dayPickerTarget, openAddCrewMember,
 }) => {
   const [nonce, setNonce] = useState(0);
   const [preview, setPreview] = useState(false);
@@ -205,6 +208,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           onEditCallTimesSettings={onEditCallTimesSettings}
           readOnly={readOnly}
           showRibbonTimes={showRibbonTimes}
+          openAddCrewMember={openAddCrewMember}
         />
       )}
     </div>

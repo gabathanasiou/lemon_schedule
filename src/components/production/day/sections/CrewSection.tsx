@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { AlertTriangle, UsersRound } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import CrewRosterEditor, { CrewAddRoleMenu } from '../CrewRosterEditor';
-import { excludedDeptsForDay, slotsForDay } from '../../../../lib/dayCrew';
+import { excludedDeptsForDay, setDeptPrecall as deptPrecallPatch, slotsForDay } from '../../../../lib/dayCrew';
 import { crewLinkWarnings, crewNameMap, targetLabelForLink } from '../../../../lib/crewLinks';
 import Button from '../../../Button';
 
@@ -25,11 +25,8 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
   );
 
   const setDeptPrecall = useCallback((dept: string, expr: string) => {
-    const next = { ...(day.meta.departmentPrecalls || {}) };
-    const value = expr.trim();
-    if (value) next[dept] = value; else delete next[dept];
-    patchMeta({ departmentPrecalls: Object.keys(next).length ? next : undefined });
-  }, [day.meta.departmentPrecalls, patchMeta]);
+    patchMeta(deptPrecallPatch(day.meta, dept, expr));
+  }, [day.meta, patchMeta]);
 
   const applyTemplate = useCallback(() => {
     patchMeta({ crewSlots: undefined, excludedCrewDepts: undefined, departmentPrecalls: undefined });

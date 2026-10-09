@@ -2,7 +2,7 @@ import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShoot
 import { resolveRoleCategories } from './crewCatalog';
 import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, CrewLinkWarning } from './crewLinks';
 import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, ResolvedCall } from './callTimes';
-import { crewPeopleById, departmentOfRole, groupSlotsByDept, resolveSlotCall, slotsForDay } from './dayCrew';
+import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, resolveSlotCall, slotsForDay } from './dayCrew';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
@@ -1070,21 +1070,17 @@ export function resolveCollection(
     case 'departmentCallsOfDay': {
       const day = parentItem as ReportDayInfo | undefined;
       if (!day) return [];
-      const templatePrecalls = ctx.project.crewTemplate?.departmentPrecalls || {};
-      const dayPrecalls = day.departmentPrecalls || {};
+      // ONE department pool (dayCrew.dayDepartments). The generic collection's
+      // semantics stay as before: departments with a person on the day plus
+      // every pre-call-bearing department; `callTime` is blank when no pre-call
+      // exists (day-excluded departments drop out). The precalls GRID block's
+      // All mode fills the general call itself (reportGrids).
       const crew = resolveCollection(ctx, 'crewOfDay', undefined, day, undefined) as ReportCrewItem[];
-      const depts: string[] = [];
-      for (const c of crew) {
-        const dept = c.department || departmentOfRole(ctx.project, c.roleKey);
-        if (dept && !depts.includes(dept)) depts.push(dept);
-      }
-      for (const dept of Object.keys({ ...templatePrecalls, ...dayPrecalls })) {
-        if (!depts.includes(dept)) depts.push(dept);
-      }
-      return depts.map(dept => {
-        const expr = dayPrecalls[dept] ?? templatePrecalls[dept] ?? '';
-        return { key: dept, label: dept, callTime: resolveCallExpression(expr, day.callTime) || undefined };
-      });
+      const crewDepts = new Set(crew.map(c => c.department || departmentOfRole(ctx.project, c.roleKey)).filter(Boolean));
+      const meta: DayMeta = { crewSlots: day.crewSlots, excludedCrewDepts: day.excludedCrewDepts, departmentPrecalls: day.departmentPrecalls };
+      return dayDepartments(ctx.project, meta, day.callTime)
+        .filter(d => !d.excluded && (crewDepts.has(d.dept) || d.precall))
+        .map(d => ({ key: d.dept, label: d.dept, callTime: (d.precall && resolveCallExpression(d.precall, day.callTime)) || undefined }));
     }
     case 'locationsOfDay': {
       const day = parentItem as ReportDayInfo | undefined;

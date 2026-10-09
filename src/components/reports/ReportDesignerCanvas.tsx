@@ -877,7 +877,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 );
               })()
             ) : (
-              <div className={b.type === 'text' || b.type === 'callTimes' || b.type === 'crewTable' ? 'flex flex-col gap-2' : undefined}>
+              <div className={b.type === 'text' || b.type === 'callTimes' || b.type === 'crewTable' || b.type === 'precalls' ? 'flex flex-col gap-2' : undefined}>
                 {b.type === 'text' && (
                   <div className={BLOCK_HEADER_CLS}>
                     {meta.icon}
@@ -885,9 +885,9 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     {hasCalculatedContent(b) && <TipStar />}
                   </div>
                 )}
-                {/* Grid blocks (items 111/112) carry the same little card
+                {/* Grid blocks (items 111/112/159) carry the same little card
                     header as tables — the block name + its staged category. */}
-                {(b.type === 'callTimes' || b.type === 'crewTable') && (
+                {(b.type === 'callTimes' || b.type === 'crewTable' || b.type === 'precalls') && (
                   <div className={BLOCK_HEADER_CLS}>
                     {meta.icon}
                     {meta.label}

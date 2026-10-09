@@ -21,6 +21,8 @@ import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, Ali
 import { LocationPickerModal } from '../location/LocationPickerModal';
 import { SKIP_EMPTY_TEST, SKIP_EMPTY_LABEL } from '../../lib/reportData';
 import { stagedCategoryKeys } from '../../lib/reportGrids';
+import { projectDepartments } from '../../lib/dayCrew';
+import Checklist from '../Checklist';
 import ColorField from '../ColorField';
 import { reportLocationLabel } from '../../lib/reportWeather';
 import type { ReportLocation } from '../../lib/reportWeather';
@@ -42,6 +44,7 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
   relative: { label: 'Advance', icon: <SkipForward className="w-3 h-3" /> },
   callTimes: { label: 'Call Times', icon: <Clock className="w-3 h-3" /> },
   crewTable: { label: 'Crew Table', icon: <Users className="w-3 h-3" /> },
+  precalls: { label: 'Precalls', icon: <Timer className="w-3 h-3" /> },
 };
 
 
@@ -1064,6 +1067,57 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
   } else if (block.type === 'crewTable') {
     push(null, titleSection);
+  } else if (block.type === 'precalls') {
+    // "All" mode can be narrowed to a picked set — the block prints only the
+    // ticked departments (undefined = every department on the day).
+    const deptList = projectDepartments(project);
+    const picked = block.precallsDepts;
+    push(null,
+      <ContentRow key="depts" label="Departments">
+        <SegControl
+          value={block.precallsAll ? 'all' : 'precalls'}
+          options={[
+            { v: 'precalls', l: 'With precalls' },
+            { v: 'all', l: 'All' },
+          ]}
+          onChange={v => onPatch({ precallsAll: v === 'all' })}
+          disabled={disabled}
+        />
+      </ContentRow>,
+      ...(block.precallsAll && deptList.length > 0 ? [
+        <ContentRow key="deptsPick" label="Include" tall>
+          <Checklist
+            theme="dark"
+            className={panel ? 'w-full' : 'w-64'}
+            items={deptList.map(d => ({ id: d, label: d }))}
+            selected={picked ?? deptList}
+            disabled={disabled}
+            maxHeight={160}
+            allSelected={!picked}
+            onToggleAll={() => onPatch({ precallsDepts: picked ? undefined : [] })}
+            onToggle={id => {
+              const cur = new Set(picked ?? deptList);
+              const key = String(id);
+              if (cur.has(key)) cur.delete(key); else cur.add(key);
+              const next = deptList.filter(d => cur.has(d));
+              onPatch({ precallsDepts: next.length === deptList.length ? undefined : next });
+            }}
+          />
+        </ContentRow>,
+      ] : []),
+      <ContentRow key="layout" label="Layout">
+        <SegControl
+          value={block.precallsLayout ?? 'horizontal'}
+          options={[
+            { v: 'horizontal', l: 'Horizontal' },
+            { v: 'vertical', l: 'Vertical' },
+          ]}
+          onChange={v => onPatch({ precallsLayout: v as 'vertical' | 'horizontal' })}
+          disabled={disabled}
+        />
+      </ContentRow>,
+      titleSection,
+    );
   }
 
   if (block.type === 'relative') {

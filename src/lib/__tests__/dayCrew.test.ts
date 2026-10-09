@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildDefaultSlots,
+  dayDepartments,
   groupSlotsByDept,
   resolveSlotCall,
+  setDeptPrecall,
   slotsForDay,
   addSlot,
   removeSlot,
@@ -94,6 +96,39 @@ describe('groupSlotsByDept', () => {
     const project = proj();
     const groups = groupSlotsByDept(project, { excludedCrewDepts: ['Camera'] }, buildDefaultSlots(project), '08:00');
     expect(groups[0].excluded).toBe(true);
+  });
+});
+
+describe('dayDepartments + setDeptPrecall (item 159)', () => {
+  it('unions slot-list departments with pre-call-only departments, resolved', () => {
+    const project = proj({ crewTemplate: { departmentPrecalls: { Camera: '-30m', Sound: '-1h' } } });
+    const depts = dayDepartments(project, {}, '08:00');
+    // Camera (dop/secondAC slots) + Sound (pre-call only), display order.
+    expect(depts.map(d => d.dept)).toContain('Camera');
+    expect(depts.map(d => d.dept)).toContain('Sound');
+    const camera = depts.find(d => d.dept === 'Camera')!;
+    expect(camera.precall).toBe('-30m');
+    expect(camera.deptCall).toBe('07:30');
+    const sound = depts.find(d => d.dept === 'Sound')!;
+    expect(sound.deptCall).toBe('07:00');
+  });
+
+  it('day pre-call overrides the template; no pre-call resolves to the day call', () => {
+    const project = proj({ crewTemplate: { departmentPrecalls: { Camera: '-30m' } } });
+    const depts = dayDepartments(project, { departmentPrecalls: { Camera: '-1h' } }, '08:00');
+    expect(depts.find(d => d.dept === 'Camera')!.deptCall).toBe('07:00');
+  });
+
+  it('carries the excluded flag through the pool', () => {
+    const project = proj();
+    const depts = dayDepartments(project, { excludedCrewDepts: ['Camera'] }, '08:00');
+    expect(depts.find(d => d.dept === 'Camera')!.excluded).toBe(true);
+  });
+
+  it('setDeptPrecall sets, clears and prunes', () => {
+    expect(setDeptPrecall({}, 'Camera', '-30m')).toEqual({ departmentPrecalls: { Camera: '-30m' } });
+    expect(setDeptPrecall({ departmentPrecalls: { Camera: '-30m' } }, 'Camera', '')).toEqual({ departmentPrecalls: undefined });
+    expect(setDeptPrecall({ departmentPrecalls: { Camera: '-30m', Sound: '-1h' } }, 'Camera', '')).toEqual({ departmentPrecalls: { Sound: '-1h' } });
   });
 });
 

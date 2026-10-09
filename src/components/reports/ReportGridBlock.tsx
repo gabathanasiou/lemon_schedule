@@ -52,13 +52,49 @@ const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap,
 
   const groups = useMemo(() => {
     if (!collection) return [];
-    const real = dayItem ? resolveReportGridGroups(ctx, collection, block.category, dayItem, fieldMap) : [];
+    const real = dayItem ? resolveReportGridGroups(ctx, collection, block.category, dayItem, fieldMap, { includeAll: block.precallsAll, include: block.precallsDepts }) : [];
     const withRows = real.filter(g => g.items.length > 0);
     if (withRows.length > 0) return withRows;
     return hint ? skeletonReportGridGroups(ctx.project, collection, block.category, fieldMap) : [];
-  }, [collection, ctx, block.category, dayItem, fieldMap, hint]);
+  }, [collection, ctx, block.category, block.precallsAll, block.precallsDepts, dayItem, fieldMap, hint]);
 
   if (groups.length === 0) return null;
+
+  // Horizontal precalls layout (item 159): one column per department with a
+  // single resolved-call row. Same `.report-table-cols`/`.rm-row` recipe, so
+  // designer, preview, print and the paginator stay on one path.
+  if (collection === 'departmentCallsOfDay' && (block.precallsLayout ?? 'horizontal') === 'horizontal') {
+    const items = (groups[0]?.items ?? []) as unknown as { label: string }[];
+    const w = `${100 / Math.max(1, items.length)}%`;
+    // Department names WRAP inside their column (never clipped/abbreviated) —
+    // the same treatment the editor's wrapped glide headers give (item 159).
+    const wrap: React.CSSProperties = { wordBreak: 'break-word', lineHeight: 1.15 };
+    const head = items.length > 0
+      ? items.map((it, i) => (
+          <div key={`gh${i}`} style={{ ...headerStyle, ...wrap, textAlign: 'center', width: w, borderRight: border, borderBottom: border }}>{it.label}</div>
+        ))
+      : [<div key="gh0" style={{ ...headerStyle, textAlign: 'center', width: '100%', borderRight: border, borderBottom: border }}><span style={keyStyle}>{'{{departmentLabel}}'}</span></div>];
+    const data = items.length > 0
+      ? items.map((it, i) => (
+          <div key={`gd${i}`} style={{ ...baseStyle, ...cellPad, ...wrap, textAlign: 'center', width: w, borderRight: border, borderBottom: border }}>
+            {showKeys
+              ? <span style={keyStyle}>{'{{departmentCallTime}}'}</span>
+              : (reportFieldValueByKey(ctx, fieldMap, 'departmentCallTime', it) || '\u00A0')}
+          </div>
+        ))
+      : [<div key="gd0" style={{ ...baseStyle, ...cellPad, textAlign: 'center', width: '100%', borderRight: border, borderBottom: border }}><span style={keyStyle}>{'{{departmentCallTime}}'}</span></div>];
+    const rows = [
+      <div key="hrow" className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>{head}</div>,
+      <div key="drow" className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>{data}</div>,
+    ];
+    const shownRows = rowRange ? rows.slice(rowRange[0], rowRange[1]) : rows;
+    return (
+      <>
+        {title}
+        <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>{shownRows}</div>
+      </>
+    );
+  }
 
   const multi = groups.length > 1;
   const groupGap = block.gap ?? 8;

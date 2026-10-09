@@ -1,10 +1,11 @@
 import { test, expect, Page } from '@playwright/test';
 import { openSeededProject, seedLeadCast, gotoDayManager, openCallSheetEdit, firstStageLabel, callsFor, stageCellPoint } from './helpers';
 
-// Reports designer — items 111/112: the day-scoped Call Times grid block and
-// its crew sibling. Static print table in the designer/preview, live inline
-// Glide editing in the Call Sheet → Edit canvas (daybreakMeta.elementCalls /
-// crewCalls), offered only inside a days repeat.
+// Reports designer — items 111/112/159: the day-scoped Call Times grid block
+// and its crew + precalls siblings. Static print tables in the designer/
+// preview; live inline Glide editing in the Call Sheet → Edit canvas
+// (daybreakMeta.elementCalls / crewSlots / departmentPrecalls), offered only
+// inside a days repeat.
 
 const design = {
   id: 'grid-test', name: 'Grid Test', createdAt: Date.now(), page: 'portrait' as const,
@@ -14,6 +15,7 @@ const design = {
       children: [
         { id: 'ct', type: 'callTimes', collection: 'elementCallsOfDay' },
         { id: 'crew', type: 'crewTable', collection: 'crewOfDay' },
+        { id: 'pre', type: 'precalls', collection: 'departmentCallsOfDay', precallsLayout: 'vertical' },
         { id: 'zone', type: 'callSheetEdit', children: [] },
       ],
     },
@@ -24,14 +26,15 @@ const design = {
 /** The call-sheet page's first element grid (scope for the shared cell math). */
 const callSheetGrid = (page: Page) => page.locator('[data-report-grid="elementCalls"]');
 
-async function seedGrid(page: Page) {
+async function seedGrid(page: Page, mutate?: (project: any) => void) {
   await openSeededProject(page, (project) => {
     project.reportDesigns = [design];
     project.activeReportId = design.id;
+    mutate?.(project);
   }, { editorMode: 'floating' });
 }
 
-test.describe('Report grid blocks (items 111/112)', () => {
+test.describe('Report grid blocks (items 111/112/159)', () => {
   test('designer renders the fixed-column Call Times + Crew tables; palette is day-gated', async ({ page }) => {
     await seedGrid(page);
     await page.getByRole('button', { name: 'Design', exact: true }).click();
@@ -48,8 +51,9 @@ test.describe('Report grid blocks (items 111/112)', () => {
     if (lead.name) await expect(page.getByText(lead.name, { exact: false }).first()).toBeVisible({ timeout: 8000 });
 
     // Palette UX: the day-gated grid blocks stay ENABLED. At the top level a
-    // click explains they only work inside a days repeat; selecting the days
-    // repeat lets the same click insert.
+    // click explains they only work inside a days repeat; selecting a block
+    // INSIDE the days repeat lets the same click insert (a palette insert lands
+    // as the selected block's sibling — inside the repeat).
     const palette = page.locator('aside').first();
     const callTimesBtn = palette.getByRole('button', { name: 'Call Times', exact: true }).first();
     await expect(callTimesBtn).toBeEnabled();
@@ -57,7 +61,7 @@ test.describe('Report grid blocks (items 111/112)', () => {
     await expect(page.getByText('Can’t drop that here')).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: 'OK' }).click();
     await expect(page.getByText('Can’t drop that here')).toHaveCount(0);
-    await page.locator('[data-block-id="days"]').click();
+    await page.locator('[data-block-id="ct"]').click();
     await palette.getByRole('button', { name: 'Call Times', exact: true }).first().click();
     await expect(page.getByText('Can’t drop that here')).toHaveCount(0);
   });
@@ -108,14 +112,15 @@ test.describe('Report grid blocks (items 111/112)', () => {
     if (stage) await expect(preview.getByText(stage, { exact: true }).first()).toBeVisible({ timeout: 8000 });
   });
 
-  test('crew table block renders and edits crew slot calls in Call Sheet → Edit', async ({ page }) => {
+  test('crew table block renders the Day Manager roster and edits slot calls in Call Sheet → Edit', async ({ page }) => {
     await seedGrid(page);
     await gotoDayManager(page);
     await openCallSheetEdit(page);
 
-    // Item 146 groups the crew table BY DEPARTMENT — one glide per department.
-    const grids = page.locator('[data-report-grid="crew"] [data-crew-table-glide]');
-    const grid = grids.first();
+    // Item 146/159 — the crew block IS the shared CrewRosterEditor (person
+    // swap, add role, remove, include/exclude, pre-call); item 156 appends the
+    // read-only Phone/Email contact columns.
+    const grid = page.locator('[data-report-grid="crew"] [data-crew-roster-glide]').first();
     await expect(grid).toBeAttached({ timeout: 8000 });
 
     const hasCrew = await page.evaluate(() => {
@@ -131,16 +136,17 @@ test.describe('Report grid blocks (items 111/112)', () => {
     const scroller = grid.locator('.dvn-scroller').first();
     await scroller.scrollIntoViewIfNeeded();
     await page.waitForFunction(() => {
-      const el = document.querySelector('[data-report-grid="crew"] [data-crew-table-glide] .dvn-scroller') as HTMLElement | null;
+      const el = document.querySelector('[data-report-grid="crew"] [data-crew-roster-glide] .dvn-scroller') as HTMLElement | null;
       return !!el && el.clientWidth > 0;
     }, undefined, { timeout: 5000 });
 
     const box = (await scroller.boundingBox())!;
-    // Name 140 · Role 110 · Call 90 · Phone 110 · Email 150 (item 156) — the
-    // shared auto-fit flexes the second column; Call's center is the target.
-    const cols = [140, 110, 90, 110, 150];
+    // Role 150 · Person 170 · Call 90 · Phone 110 · Email 150, plus the
+    // trailing row-actions column (34). The shared auto-fit flexes the second
+    // column; Call's center is the target.
+    const cols = [150, 170, 90, 110, 150];
     const total = cols.reduce((a, b) => a + b, 0);
-    const target = Math.max(120, Math.floor(box.width) - 1);
+    const target = Math.max(120, Math.floor(box.width) - 1) - 34;
     const widths = cols.map(w => Math.max(40, Math.floor((w / total) * target)));
     const sum = widths.reduce((a, b) => a + b, 0);
     widths[1] += target - sum;
@@ -163,6 +169,52 @@ test.describe('Report grid blocks (items 111/112)', () => {
       const slots = gov?.daybreakMeta?.crewSlots || [];
       return slots.some((s: any) => s.callTime === '-30m');
     }), { timeout: 5000 }).toBe(true);
+  });
+
+  test('precalls block edits daybreakMeta.departmentPrecalls in Call Sheet → Edit', async ({ page }) => {
+    await seedGrid(page, (project) => {
+      project.crewTemplate = { ...(project.crewTemplate || {}), departmentPrecalls: { Camera: '-30m' } };
+    });
+    await gotoDayManager(page);
+    await openCallSheetEdit(page);
+
+    const grid = page.locator('[data-report-grid="precalls"] [data-precalls-glide]');
+    await expect(grid).toBeAttached({ timeout: 8000 });
+
+    const scroller = grid.locator('.dvn-scroller').first();
+    await scroller.scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => {
+      const el = document.querySelector('[data-report-grid="precalls"] [data-precalls-glide] .dvn-scroller') as HTMLElement | null;
+      return !!el && el.clientWidth > 0;
+    }, undefined, { timeout: 5000 });
+
+    // Default "With precalls" → the single Camera row. Department 180 ·
+    // Precall 90 (second column absorbs the fit remainder).
+    const box = (await scroller.boundingBox())!;
+    const target = Math.max(120, Math.floor(box.width) - 1);
+    const deptW = Math.max(40, Math.floor((180 / 270) * target));
+    const x = box.x + deptW + (target - deptW) / 2;
+    const y = box.y + 30 + 14;
+
+    const dayPrecall = () => page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+      return gov?.daybreakMeta?.departmentPrecalls?.Camera ?? null;
+    });
+
+    await page.mouse.dblclick(x, y);
+    const ta = page.locator('#portal textarea').first();
+    await expect(ta).toBeAttached({ timeout: 4000 });
+    await ta.click();
+    await ta.fill('-45m');
+    await expect(ta).toHaveValue('-45m', { timeout: 4000 });
+    await ta.press('Enter');
+
+    await expect.poll(dayPrecall, { timeout: 5000 }).toBe('-45m');
+    await page.evaluate(() => (window as any).__lemonSchedule.undo());
+    await expect.poll(dayPrecall, { timeout: 5000 }).toBeNull();
   });
 
   test('Call Times block exposes a Table gap control (item 116)', async ({ page }) => {

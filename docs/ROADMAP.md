@@ -616,18 +616,6 @@ data comes from.
   `ReportGridBlock`) — never a new table engine.
 - **Relations**: 111, 112.
 
-## 159. Reports designer — Precalls table block (`[ ]`)
-
-**Request**: a table block showing the day's department precalls (department →
-resolved call), sibling of Call Times / Crew Table (reports designer, user
-decision).
-- Reuse the canonical `departmentCallsOfDay` collection (item 99) + the
-  111/112 grid seam (`reportGrids.ts`, `ReportGridBlock`); palette entry next
-  to Call Times / Crew Table; editable-in-place only if the call-sheet editor
-  should edit precalls (decide at implementation).
-- **Verify**: rule-7 manual + `e2e/report-grid-blocks.spec.ts` only if writes.
-- **Relations**: 99, 111, 112.
-
 ## 160. Reports designer — page setup: margins, document size, scaling (`[ ]`)
 
 **Request**: designer controls for page margins + document size + page scaling
@@ -907,3 +895,58 @@ restores the anchor.
 
 **Relations**: unlocks the gate over **196**; related to **195** (attribute
 parity) and **27** (`relative` context shifter).
+
+## 220. Reports designer — base `departments` collection (pre-calls in tables + `@`) (`[ ]`)
+
+**Request** (item 159 follow-up, user 2026-10-09): expose the project's crew
+departments as a BASE report collection — one item per department (label,
+pre-call expression, resolved call in a day context, crew count) — so pre-calls
+can be listed in plain tables/repeats WITHOUT a days repeat and referenced as
+`@` attributes, not only via the day-scoped `departmentCallsOfDay` and the
+precalls block.
+- **ONLY the new picker category** — it does NOT touch the existing day-scoped
+  collections (`elementCallsOfDay`/`crewOfDay`/`departmentCallsOfDay`, item 99),
+  which stay as-is; those remain the day-contextual data behind the grid blocks.
+- Registry: `ReportCollection` (`types.ts`) + `resolveCollection` branch
+  (`reportData.ts`, reuse `dayCrew.projectDepartments`/`dayDepartments`) +
+  labels/identity (`reportBlocks.ts`) + a `departments` field family
+  (`reportFields.ts`: label, pre-call expression, day-resolved call via the
+  Lego day ancestor, crew count) + lookup identity (`reportLookup.ts`
+  `fieldScopeFor`, `buildLookupTokens`) so `@Camera` offers its attributes.
+- Keep `departmentCallsOfDay` as the day-scoped contextual child — the base
+  collection is the project-level DB (ONE source: the `dayCrew` pool).
+- **Verify**: Vitest for the resolver + lookup identity; `e2e/report-collections.spec.ts`
+  only if a silent break is plausible.
+- **Relations**: extends **159**; overlaps **99**/**146** (pool source); **201**
+  (base-vs-contextual collection direction).
+
+## 221. Production tab — "Open in New Window" opens a blank window (`[ ]`, bugfix)
+
+**Request** (user 2026-10-09): right-click → Open in New Window (or shift+click)
+on the top-level Production tab opens an empty `popout_production` window while
+the main window swaps Production for the "is open in a separate window"
+placeholder — no sub-tab bar anywhere. While flagged, Schedule's
+Day Manager jump silently no-ops; closing the blank window directly leaves the
+placeholder stuck forever; "Bring back" clears the flag but leaves the orphan
+window open.
+
+**Cause**: no `poppedOutTabs.has('production')` frame among the top-level popout
+blocks (`src/App.tsx` ~982-1011 covers breakdown/schedule/calendar/design/rules/
+reports only) — Production postdates the popout feature and the frame never
+existed (repo 217 fixed only the sub-tab pop-outs).
+
+**Approach**: add the missing `PopoutFrame` block rendering `ProductionTab` with
+the same props as the main render (`src/App.tsx` ~1138) plus the sub-tab pop-out
+wiring (`poppedOutSubTabs.production`, `onToggleSubPopout`/`onCloseSubPopout`,
+`shiftHeld`, `subHeaderTargets`). Mounting `PopoutWindow` also restores
+close-detection, so × / "Bring back" close the real window. Same area, if cheap:
+the Days sub-tab popout drops Call Sheet mode (`src/App.tsx` ~1073 omits
+`dayMode`/`onDayModeChange` — `DayManagerPage.tsx:83` falls back to manager).
+
+**Verify**: rule-7 manual only (a screenshot catches a blank window): right-click
+Production → new window shows the Production UI + sub-tab bar; main shows the
+placeholder; "Bring back" restores and closes the window; closing the popout
+directly clears the placeholder. `npm run lint`.
+
+**Relations**: completes **217** (sub-tab pop-outs — this is the missing
+top-level frame); touches **176** (nav/popout wiring).

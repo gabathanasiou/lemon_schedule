@@ -4,7 +4,7 @@ import { ReportCollection } from '../../types';
 import { getReportFieldDefs, fieldsForScope, searchReportFields, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { Project } from '../../types';
-import { Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin, Sheet, SkipForward, Clock, Users } from 'lucide-react';
+import { Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin, Sheet, SkipForward, Clock, Users, Timer } from 'lucide-react';
 
 export interface PaletteDropPayload {
   kind: 'block' | 'field';
@@ -28,11 +28,19 @@ const BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: React.ReactN
   { type: { kind: 'block', type: 'spacer' }, label: 'Spacer', icon: <Ruler className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'image' }, label: 'Image', icon: <ImageIcon className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'map' }, label: 'Map', icon: <MapPin className="w-3.5 h-3.5" /> },
-  { type: { kind: 'block', type: 'callSheetEdit' }, label: 'Call Sheet Edit', icon: <Sheet className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'relative' }, label: 'Advance', icon: <SkipForward className="w-3.5 h-3.5" /> },
+];
+
+/** Call-sheet specific blocks — divider-separated in the palette so the
+ *  day-scoped grids + the per-day edit zone read as their own family. */
+const CALL_SHEET_BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: React.ReactNode }[] = [
+  { type: { kind: 'block', type: 'callSheetEdit' }, label: 'Call Sheet Edit', icon: <Sheet className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'callTimes' }, label: 'Call Times', icon: <Clock className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'crewTable' }, label: 'Crew Table', icon: <Users className="w-3.5 h-3.5" /> },
+  { type: { kind: 'block', type: 'precalls' }, label: 'Precalls', icon: <Timer className="w-3.5 h-3.5" /> },
 ];
+
+const ALL_BLOCK_ITEMS = [...BLOCK_ITEMS, ...CALL_SHEET_BLOCK_ITEMS];
 
 interface ReportPaletteProps {
   project: Project;
@@ -70,8 +78,9 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
   const globalGroups = searching ? [] : groups.filter(g => g.fields.every(isGlobalField));
 
   const matchedBlocks = searching
-    ? BLOCK_ITEMS.filter(i => i.label.toLowerCase().includes(q) || (i.type.type || '').toLowerCase().includes(q))
+    ? ALL_BLOCK_ITEMS.filter(i => i.label.toLowerCase().includes(q) || (i.type.type || '').toLowerCase().includes(q))
     : BLOCK_ITEMS;
+  const matchedCallSheetBlocks = searching ? [] : CALL_SHEET_BLOCK_ITEMS;
 
   const startDrag = (e: React.DragEvent, payload: PaletteDropPayload) => {
     e.dataTransfer.setData(DROP_MIME, JSON.stringify(payload));
@@ -152,6 +161,16 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
           </div>
         ) : (
           !noResults && <div className="px-1 text-[10px] text-zinc-600 italic">No blocks match.</div>
+        )}
+
+        {matchedCallSheetBlocks.length > 0 && (
+          <>
+            <div className="border-t border-zinc-800 my-3" />
+            <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-2">Call Sheet</div>
+            <div className="space-y-0.5">
+              {matchedCallSheetBlocks.map(item => blockButton(item))}
+            </div>
+          </>
         )}
 
         <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mt-4 mb-2 flex items-center justify-between">

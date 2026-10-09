@@ -11,6 +11,7 @@ import { ReportBlockView } from '../../reports/ReportBlockView';
 import ReportPalette from '../../reports/ReportPalette';
 import CallSheetZoneDesigner from './CallSheetZoneDesigner';
 import InteractiveGridBlock from './InteractiveGridBlock';
+import { useCallSheetGridGuard } from './useCallSheetGridGuard';
 import { SceneHighlightContext } from '../../reports/sceneHighlight';
 import type { DayView } from '../../../lib/dayView';
 
@@ -61,13 +62,17 @@ interface CallSheetCanvasProps {
   /** Design-time aid (item 114): force call times + durations visible in every
    *  ribbon block on this canvas. Never saved, never printed. */
   showRibbonTimes?: boolean;
+  /** Item 146 — the shared Add Crew Member modal (crew table person swap /
+   *  Add role flows); owned by the Day Manager composition root. */
+  openAddCrewMember?: (opts?: { role?: string; name?: string; slotId?: string }) => void;
 }
 
-const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, readOnly, showRibbonTimes }) => {
+const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, readOnly, showRibbonTimes, openAddCrewMember }) => {
   const { state } = useProject();
   const project = state.present;
   const ctx = useReportCtx();
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
+  const guardGridInsert = useCallSheetGridGuard();
 
   const dayItem = ctx?.dayInfos.find(d => d.section.index === day.sectionIndex);
   const dayBlocks = useMemo(() => callSheetPageBlocks(design), [design]);
@@ -150,6 +155,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
     <SceneHighlightContext.Provider value={highlightScene}>
     <div className="flex-1 flex min-h-0 min-w-0 bg-zinc-950 text-zinc-300 select-none" data-call-sheet-canvas>
       <ReportPalette project={project} insertScope="days" readOnly={!!readOnly} onInsert={payload => {
+        if (!guardGridInsert(payload)) return;
         const b = (payload as { field?: string }).field
           ? makeReportBlock('text', { text: `{{${(payload as { field?: string }).field}}}` })
           : makeReportBlock((payload.type || 'text') as ReportBlock['type']);
@@ -170,10 +176,10 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
                 {renderTemplateRegion(design.header || [])}
                 {(dayBlocks || []).map((b, i) => {
                   if (b.type === 'pageBreak') return null;
-                  if (b.type === 'callTimes' || b.type === 'crewTable') {
+                  if (b.type === 'callTimes' || b.type === 'crewTable' || b.type === 'precalls') {
                     return (
                       <div key={b.id} className="my-3">
-                        <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={setHighlightScene} showTimes={showRibbonTimes} />
+                        <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={setHighlightScene} showTimes={showRibbonTimes} openAddCrewMember={openAddCrewMember} />
                       </div>
                     );
                   }

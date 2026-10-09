@@ -1219,7 +1219,7 @@
         {
           "name": "type",
           "optional": false,
-          "type": "'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative' | 'callTimes' | 'crewTable'"
+          "type": "'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative' | 'callTimes' | 'crewTable' | 'precalls'"
         },
         {
           "name": "text",
@@ -1330,6 +1330,21 @@
           "name": "locationChoice",
           "optional": true,
           "type": "string"
+        },
+        {
+          "name": "precallsAll",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "precallsDepts",
+          "optional": true,
+          "type": "string[]"
+        },
+        {
+          "name": "precallsLayout",
+          "optional": true,
+          "type": "'vertical' | 'horizontal'"
         },
         {
           "name": "repeatAxis",

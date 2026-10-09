@@ -60,7 +60,7 @@ export interface PageChunk {
  *  container (top-level blocks) AND the fragment walker (nested children), so
  *  a nested repeat is never mistaken for the table it contains. */
 export function splittableKind(type: ReportBlock['type']): 'repeat' | 'table' | 'ribbon' | 'block' {
-  if (type === 'callTimes' || type === 'crewTable') return 'table';
+  if (type === 'callTimes' || type === 'crewTable' || type === 'precalls') return 'table';
   if (type === 'repeat' || type === 'relative') return 'repeat';
   if (type === 'table' || type === 'ribbon') return type;
   return 'block';
