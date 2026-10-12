@@ -263,9 +263,11 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 ## 11. Open questions
 
 - Billing model: per-seat vs per-project vs flat team plan.
-- Supabase session storage (their client persists sessions in localStorage by
-  default) vs the repo's Google-token rule — decide and document in AGENTS.md
-  §Security when S1 lands.
+- Supabase session storage: **DECIDED (2026-10-12) — localStorage** (the
+  supabase-js default). The AGENTS.md §Security rule guards the Google Drive
+  access token only; the Supabase account session is a separate trust domain
+  (it must survive restart to be useful). Documented in AGENTS.md §Security;
+  implemented in `src/lib/supabase/client.ts`.
 - Subscription lapse behaviour (recommended: read-only + export).
 - Guest edit limits; share-link expiry defaults.
 - Script-body concurrency approach (v1 LWW vs later field diff/Yjs text).

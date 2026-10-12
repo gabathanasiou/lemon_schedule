@@ -11,6 +11,8 @@ import DropdownSubmenu from './DropdownSubmenu';
 import Button from './Button';
 import { SaveIndicator } from './SaveIndicator';
 import { useUnsavedGuardState, performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
+import { UserPresenceCluster } from './UserPresenceCluster';
+import { isSupabaseConfigured } from '../lib/supabase/client';
 import type { AgentBridgeStatus } from '../lib/agentBridgeClient';
 import type { AppTabId } from '../lib/appNav';
 
@@ -164,15 +166,19 @@ export default function AppHeader(props: AppHeaderProps) {
                 ))
               )}
             </DropdownSubmenu>
-            <DropdownDivider />
-            {driveCtx.isSignedIn ? (
-              <DropdownItem onClick={() => { setShowFileMenu(false); if (isCloudProject) closeProject(); driveCtx.signOut(); }} icon={<LogOut className="w-3.5 h-3.5" />}>
-                Sign out{driveCtx.user ? ` (${driveCtx.user.name})` : ''}
-              </DropdownItem>
-            ) : (
-              <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signIn(); }} icon={<Cloud className="w-3.5 h-3.5" />}>
-                Sign in with Google Drive...
-              </DropdownItem>
+            {!isSupabaseConfigured && (
+              <>
+                <DropdownDivider />
+                {driveCtx.isSignedIn ? (
+                  <DropdownItem onClick={() => { setShowFileMenu(false); if (isCloudProject) closeProject(); driveCtx.signOut(); }} icon={<LogOut className="w-3.5 h-3.5" />}>
+                    Sign out{driveCtx.user ? ` (${driveCtx.user.name})` : ''}
+                  </DropdownItem>
+                ) : (
+                  <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signIn(); }} icon={<Cloud className="w-3.5 h-3.5" />}>
+                    Sign in with Google Drive...
+                  </DropdownItem>
+                )}
+              </>
             )}
             <DropdownDivider />
             <DropdownItem onClick={() => { setShowFileMenu(false); onShowIntegrity(); }} icon={<ShieldCheck className="w-3.5 h-3.5" />}>
@@ -254,6 +260,7 @@ export default function AppHeader(props: AppHeaderProps) {
             <Redo2 className="w-3.5 h-3.5" />
           </button>
         </div>
+        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} closeProject={closeProject} />
       </div>
     </header>
   );
