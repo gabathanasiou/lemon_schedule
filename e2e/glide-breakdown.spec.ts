@@ -206,6 +206,37 @@ test.describe('Glide Breakdown Tab', () => {
     expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(before + 1);
   });
 
+  test('clicking a panel item in the canvas overlay editor commits (context matrix)', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Glide Breakdown' }).click();
+    await expect(page.locator('.dvn-scroller')).toBeAttached({ timeout: 5000 });
+
+    const sr = (await page.locator('.dvn-scroller').boundingBox())!;
+    const castX = sr.x + 956 + 60; // Cast column: 956 → 1076, centre 1016
+    const y0 = sr.y + 36 + 17;
+
+    await page.mouse.dblclick(castX, y0);
+    const input = page.locator('#portal input').first();
+    await expect(input).toBeAttached({ timeout: 4000 });
+    await input.click(); // open the suggestions panel on the overlay editor
+    await expect(page.locator('.click-outside-ignore')).toBeVisible({ timeout: 4000 });
+
+    const item = page.locator('.click-outside-ignore button:not([data-checked="true"])').first();
+    const pickId = (await item.innerText()).replace(/\n/g, '').match(/^(\d+)\./)?.[1];
+    expect(pickId).toBeTruthy();
+    await item.click();
+
+    // Panel stays open (the pick must not leak into the canvas' handlers) …
+    await expect(page.locator('.click-outside-ignore')).toBeVisible();
+    // … and Enter on the refocused editor input commits the toggled Cast list.
+    await input.click();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.click-outside-ignore')).toHaveCount(0, { timeout: 4000 });
+    await expect.poll(() => page.evaluate(() =>
+      (window as any).__lemonSchedule.getProject().scenes[0].cast,
+    ), { timeout: 5000 }).toContain(pickId);
+  });
+
   test('edits a cell via double-click and commits to store', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
     await ensureProject(page);

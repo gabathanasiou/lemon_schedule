@@ -208,7 +208,10 @@ const E2E_SPEC_CAP = 70;
 // persist to daybreakMeta.departmentPrecalls (silent loss is plausible).
 // 274 → 275: DropdownPanel/SelectDropdown portal isolation — a stripboard
 // entity-dropdown item click unmounted the editor mid-toggle (silent loss).
-const E2E_TEST_CAP = 275;
+// 275 → 278: EntityDropdown context matrix (entity-dropdown-contexts.spec.ts
+// + the Glide canvas overlay case) — panel picks must commit and never leak
+// into host handlers on every host shape (Scene Sheet / popup / Glide).
+const E2E_TEST_CAP = 278;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

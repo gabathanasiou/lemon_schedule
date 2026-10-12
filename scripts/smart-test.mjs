@@ -51,6 +51,11 @@ const GLIDE = ['glide-breakdown', 'glide-clipboard', 'glide-first-edit', 'day-ti
 const ELEM = ['element-manager-merge', 'element-manager-day-columns', 'element-events'];
 const CAST = ['cast-single-source'];
 const NEWCAST = ['new-cast-naming'];
+/* EntityDropdown context matrix (regression): the shared primitive's panel
+   must commit picks and never leak clicks into its host — Scene Sheet cells,
+   popup-window portals and the Glide canvas overlay (stripboard edit mode
+   lives in seeded-smoke; modals in day-types/calendar-travel-hold). */
+const ENTITY_CTX = ['entity-dropdown-contexts'];
 const LINKED = ['linked-elements'];
 const CREW = ['crew-glide', 'crew-manager'];
 const CREWLINKS = ['crew-links'];
@@ -159,10 +164,14 @@ const RULES = [
   // shared numeric box (kit NumberInput shim) — every number surface consumes it
   { g: 'src/components/LiveNumberInput.tsx', s: RIBBON },
   // glide breakdown
-  { g: 'src/components/BreakdownTabGlide.tsx', s: [...GLIDE, ...LINKED] },
+  { g: 'src/components/BreakdownTabGlide.tsx', s: [...GLIDE, ...LINKED, ...ENTITY_CTX] },
   { g: 'src/components/InlineGlideTable.tsx', s: GLIDE },
   { g: 'src/lib/glide*', s: GLIDE },
-  { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED, ...SHEET] },
+  { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED, ...SHEET, ...ENTITY_CTX] },
+  // pop-out windows: the portaled UI lives in a second document (the entity
+  // dropdown's panel target switches to the popup document)
+  { g: 'src/components/PopoutWindow.tsx', s: ENTITY_CTX },
+  { g: 'src/components/popout/**', s: ENTITY_CTX },
   { g: 'src/components/SceneNumberCollisionGuard.tsx', s: [...SHEET, ...GLIDE] },
   { g: 'src/lib/paletteOps.ts', s: [...GLIDE, ...ELEM] },
   { g: 'src/lib/elements.ts', s: [...ELEM, ...REPORT] },

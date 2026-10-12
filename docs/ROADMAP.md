@@ -984,3 +984,25 @@ bars — static flat / live grouped becomes the deliberate asymmetry.
 (columns), **222** (headings parity — crew diverges by design now); related
 **142**, **224**.
 
+## 229. Online collaboration — accounts, sharing, presence, realtime editing (paid add-on, big)
+
+**Vision + stages: `docs/COLLABORATION.md` — read it before starting any stage.** Decided 2026-10: online-only editing for shared projects; **server-authoritative rooms running the existing pure reducer (NOT CRDT)**; Supabase (Auth, Postgres+RLS, Realtime, Edge Functions) + Cloudflare Durable Objects at S4; the free local/Google Drive path stays exactly as today.
+
+**Stages** (detail in the doc): S1 accounts + online projects (Collaborate; the header **user cluster** appears) → S2 sharing/roles/invites/view-only links (**User & sharing** panel) → S3 presence (cursors, follow, **avatar bubbles** in the cluster) → S4 realtime collaborative editing (per-project room, per-user undo, reconnect) → S5 billing (cross-ref **230**; collab = Studio + subscription, invited guests free).
+
+**Non-negotiables**: Drive path untouched; one Project model; `readOnly` (connectivity) ≠ `canEdit` (permission); permissions enforced server-side (RLS + room auth); new features stay multiplayer-by-construction (Action union — no per-feature sync code). Free-tier Supabase pausing handled via keep-alive + Pro trigger (doc §5).
+
+**Verify** (per stage, when built): S1 RLS tests + Copy-to-online round-trip; S2 server rejects viewer writes; S3/S4 two-context e2e via the debug bridge; presence/follow is a rule-7 manual pass. `npm run lint`.
+
+**Relations**: `extends` **97** (concurrency gap + future hosted MCP); `relates to` **125** (storage overhaul — NOT a prerequisite), **145** (desktop app), **209** (universal crew DB / account question), **230** (shared entitlement layer).
+
+## 230. Editions & licensing — Free / Studio one-time / offline verification (big)
+
+**Vision + decisions: `docs/LICENSING.md` — read it first.** Decided 2026-10: Free vs Studio (£150 one-time) vs Collaboration subscription (requires Studio + active sub; guests free); **DIY on Supabase** — Ed25519-signed offline licence files, 3 device activations, no account required for Studio; **one merchant of record** (Polar or Lemon Squeezy) for one-time + subscription (VAT handled); feature gates via one `FEATURE_GATES` registry. Free-tier limit values still open (doc §9).
+
+**Non-negotiables**: no account for offline Studio; signing private key never ships; entitlement state never lives in the Project document; every gate goes through the registry; export of the user's own data always available.
+
+**Verify** (when built): Vitest for signature/expiry/fingerprint + gates + free limits; e2e activation against a mocked endpoint; manual purchase → activate → offline relaunch pass. `npm run lint`.
+
+**Relations**: `relates to` **229** (collab entitlement + shared gating), **145** (desktop app = the true offline host), **209** (account question).
+
