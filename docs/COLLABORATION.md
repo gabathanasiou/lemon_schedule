@@ -118,6 +118,11 @@ Paid projects (Pro, $25/mo) never pause.
 - **Upgrade trigger**: once the paid collaboration tier has real teams, Supabase
   Pro removes pausing and adds daily backups. The free tier has no backups/SLA,
   so paying customers must not run on it.
+- **Beta cost stance**: S1–S3 (and S4's rooms) start entirely on free tiers —
+  Supabase Free + Cloudflare Workers Free (SQLite Durable Objects). Pro/Paid
+  are production-floor expenses triggered by quotas or the first paying
+  customer, not prerequisites (~$30/mo all-in once both land, covered by the
+  first subscription).
 - The free Drive tier never touches Supabase, so pauses can never affect it.
 
 ## 6. Stages (each independently shippable)
@@ -284,8 +289,18 @@ takes effect on next request; guest account needs no entitlement.
   Rules/Trash are `inert`, sort menus no-op); revoke/demote reconcile on the next
   request — no push until S3/S4.
 
-**S3 — Presence.** Who's here (avatars), live cursors, **follow mode**. Rides
-Supabase Realtime (Broadcast + Presence); ephemeral messages only (`§9`).
+**S3 — Presence + live refresh.** Who's here (avatar bubbles), live cursors,
+**follow mode**; rides Supabase Realtime (Broadcast + Presence) on a
+per-project **private** channel with RLS on `realtime.messages` (members
+only). Ephemeral only — never persisted, never in the project (`§9`). Guests
+appear as live watchers ("Anonymous Otter"); the People list keeps hiding
+them (§6 S2 map). Also in this stage — **S3.5, the save ping**: a peer's save
+surfaces without a manual refresh (auto-apply only when the local client has
+no unsaved changes, else a subtle "Changes available · Reload" affordance;
+whole-blob saves stay last-write-wins until S4). Script-body cursors are
+flagged, not faked (ProseMirror relative positions). *Acceptance*: two
+signed-in members see each other's bubbles + cursors and can follow; a save
+ping updates a clean peer; non-members cannot join the channel.
 
 **S4 — Realtime collaborative editing.** Per-project room (DO) running the pure
 reducer: validates, applies, persists (action log + periodic snapshot), broadcasts
