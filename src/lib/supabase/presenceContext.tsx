@@ -4,6 +4,7 @@ import { useDialog } from '../../components/Dialog';
 import { useSupabaseAuth } from './auth';
 import { isSupabaseConfigured } from './client';
 import { getPresenceGridScope } from '../presenceResolvers';
+import { applyPresenceScrollSample } from '../presenceScroll';
 import {
   acceptCursor,
   pointerFractions,
@@ -15,6 +16,7 @@ import {
   type PresenceAnchor,
   type PresenceChannelStatus,
   type PresencePeer,
+  type PresenceScrollSample,
   type PresenceView,
 } from './presence';
 
@@ -43,20 +45,34 @@ export interface PresenceStateValue {
 }
 
 export interface PresenceActionsValue {
-  /** Broadcast our place (called from App on every navigation). */
+  /** Broadcast our place (called from App on every navigation, and from the
+   *  mounted surfaces when an in-page view switch changes). */
   publishView: (view: PresenceView | null) => void;
+  /** Broadcast a scroll sample (throttled in the channel) — no-op without a
+   *  channel, so surfaces can call it unconditionally. */
+  publishScroll: (sample: PresenceScrollSample) => void;
+  /** The local user scrolled or switched the view themselves — exits follow
+   *  (user decision 2026-10-13: touching the view ends follow). */
+  noteUserViewChange: () => void;
+  /** True while the project channel is running (stable, render-free check —
+   *  surfaces skip their sampling work when presence is off). */
+  isActive: () => boolean;
   follow: (userId: string) => void;
   stopFollowing: () => void;
-  /** App registers the one function that applies a followed view. */
-  registerFollowApplier: (fn: ((view: PresenceView) => void) | null) => void;
+  /** App + mounted surfaces register their follow appliers; returns the
+   *  unregister. Every applier receives each distinct followed view. */
+  registerFollowApplier: (fn: (view: PresenceView) => void) => () => void;
 }
 
 const EMPTY_STATE: PresenceStateValue = { peers: [], followingId: null, status: 'idle', active: false };
 const EMPTY_ACTIONS: PresenceActionsValue = {
   publishView: () => {},
+  publishScroll: () => {},
+  noteUserViewChange: () => {},
+  isActive: () => false,
   follow: () => {},
   stopFollowing: () => {},
-  registerFollowApplier: () => {},
+  registerFollowApplier: () => () => {},
 };
 
 const PresenceStateContext = createContext<PresenceStateValue>(EMPTY_STATE);
@@ -173,10 +189,14 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const peersRef = useRef<PresencePeer[]>([]);
   const followingRef = useRef<string | null>(null);
   const viewRef = useRef<PresenceView | null>(null);
-  const applierRef = useRef<((view: PresenceView) => void) | null>(null);
+  // App + mounted surfaces: every applier gets each distinct followed view
+  // (App navigates; surfaces apply their in-page view switches).
+  const appliersRef = useRef(new Set<(view: PresenceView) => void>());
   const lastAppliedFollowRef = useRef('');
   // `${userId}:${clientId}` → latest accepted cursor (stale ts dropped).
   const cursorMapRef = useRef(new Map<string, { userId: string; anchor: PresenceAnchor; ts: number }>());
+  // `${userId}:${clientId}` → latest accepted scroll ts (stale drops).
+  const scrollTsRef = useRef(new Map<string, number>());
   const clientId = useMemo(presenceClientId, []);
   const applyPeerSaveRef = useRef(applyPeerSave);
   applyPeerSaveRef.current = applyPeerSave;
@@ -196,6 +216,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
 
   const clearPeers = useCallback(() => {
     cursorMapRef.current.clear();
+    scrollTsRef.current.clear();
     peersRef.current = [];
     setPeers([]);
     setActive(false);
@@ -252,6 +273,16 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           rebuildPeers(peersRef.current);
         },
         onSavePing: (ping) => { void applyPeerSaveRef.current(ping.revision); },
+        onScroll: (scroll) => {
+          // Only a followed peer's scroll moves us; drop stale/duplicate
+          // samples per client, then hand it to the mounted surface (if any).
+          if (followingRef.current !== scroll.userId) return;
+          const key = `${scroll.userId}:${scroll.clientId}`;
+          const prev = scrollTsRef.current.get(key);
+          if (prev != null && scroll.ts <= prev) return;
+          scrollTsRef.current.set(key, scroll.ts);
+          applyPresenceScrollSample(scroll);
+        },
         onAccess: (event) => {
           const previous = applyAccessPushRef.current(event.role);
           if (!event.role) {
@@ -308,8 +339,9 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   }), []);
 
   // ---- follow mode ---------------------------------------------------------
-  // Applying a followed view is App's job (it owns navigation); we only keep
-  // the "who" and call the registered applier when their place changes.
+  // Applying a followed view is the registered appliers' job (App owns
+  // navigation; mounted surfaces apply their in-page view switches). We only
+  // keep the "who" and call every applier when their place changes.
   useEffect(() => {
     if (!followingId) {
       lastAppliedFollowRef.current = '';
@@ -321,7 +353,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     const key = JSON.stringify(peer.view);
     if (key === lastAppliedFollowRef.current) return;
     lastAppliedFollowRef.current = key;
-    applierRef.current?.(peer.view);
+    for (const apply of [...appliersRef.current]) apply(peer.view);
   }, [followingId, peers]);
 
   // A followed peer who leaves (presence gone for good) ends follow mode; the
@@ -354,20 +386,33 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     viewRef.current = view;
     channelRef.current?.publishView(view);
   }, []);
+  const publishScroll = useCallback((sample: PresenceScrollSample) => {
+    channelRef.current?.publishScroll(sample);
+  }, []);
+  const noteUserViewChange = useCallback(() => {
+    if (followingRef.current) stopFollowingRef.current();
+  }, []);
+  const isActive = useCallback(() => channelRef.current != null, []);
   const follow = useCallback((userId: string) => {
     followingRef.current = userId;
     setFollowingId(userId);
   }, []);
-  const registerFollowApplier = useCallback((fn: ((view: PresenceView) => void) | null) => {
-    applierRef.current = fn;
+  const registerFollowApplier = useCallback((fn: (view: PresenceView) => void) => {
+    appliersRef.current.add(fn);
+    return () => {
+      appliersRef.current.delete(fn);
+    };
   }, []);
 
   const actions = useMemo<PresenceActionsValue>(() => ({
     publishView,
+    publishScroll,
+    noteUserViewChange,
+    isActive,
     follow,
     stopFollowing,
     registerFollowApplier,
-  }), [publishView, follow, stopFollowing, registerFollowApplier]);
+  }), [publishView, publishScroll, noteUserViewChange, isActive, follow, stopFollowing, registerFollowApplier]);
 
   const state = useMemo<PresenceStateValue>(() => ({ peers, followingId, status, active }), [peers, followingId, status, active]);
 

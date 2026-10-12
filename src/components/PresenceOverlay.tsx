@@ -5,6 +5,7 @@ import { sameViewPlace, type PresenceAnchor, type PresencePeer } from '../lib/su
 import type { AppPlace } from '../lib/appNav';
 import { getPresenceGridScope } from '../lib/presenceResolvers';
 import { avatarColor, shortNameOf } from '../lib/avatarIdentity';
+import { cssEscape } from '../lib/utils';
 
 /**
  * Live cursors + the follow pill (roadmap 229 S3, docs/COLLABORATION.md §9).
@@ -35,11 +36,6 @@ interface MarkerPosition {
   top: number;
   /** Near the element's right edge the label flips to the left. */
   flip: boolean;
-}
-
-function cssEscape(value: string): string {
-  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(value);
-  return value.replace(/["\\]/g, '\\$&');
 }
 
 function anchorElement(anchor: PresenceAnchor): HTMLElement | null {
@@ -198,7 +194,7 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
         <button
           data-testid="following-pill"
           onClick={stopFollowing}
-          title="Stop following (Esc, or navigate anywhere)"
+          title="Stop following (Esc, or scroll/navigate anywhere)"
           className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-[11px] font-semibold text-white shadow-lg cursor-pointer transition-[filter] hover:brightness-110"
           style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))', background: avatarColor(followed.userId) }}
         >

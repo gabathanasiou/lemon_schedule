@@ -7,6 +7,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Escape a value for use inside an attribute selector (`[data-x="…"]`). */
+export function cssEscape(value: string): string {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(value);
+  return value.replace(/["\\]/g, '\\$&');
+}
+
 // Convert "1 3/8" or "2/8" or "1" or "1.4" (eighths) or "1.5" (decimal) to number
 export function parsePageCount(fraction: string): number {
   if (!fraction) return 0;

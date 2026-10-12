@@ -24,6 +24,9 @@ export function usePersistState<T>(storageKey: string, defaults: T): [T, (value:
 
 export type ViewMode = 'portrait' | 'landscape' | 'full';
 
+/** The allow-list (also the presence follow wire validation — presence.ts). */
+export const VIEW_MODE_VALUES: readonly ViewMode[] = ['portrait', 'landscape', 'full'];
+
 const VIEW_MODE_KEY = 'lemon_schedule_view_mode';
 export const VIEW_WIDTHS: Record<ViewMode, number | null> = { portrait: 730, landscape: 1060, full: null };
 
@@ -31,7 +34,7 @@ export function useViewMode(): [ViewMode, (m: ViewMode) => void, number | null] 
   const [mode, setMode] = useState<ViewMode>(() => {
     try {
       const stored = localStorage.getItem(VIEW_MODE_KEY);
-      return (stored === 'portrait' || stored === 'landscape' || stored === 'full') ? stored : 'portrait';
+      return VIEW_MODE_VALUES.find(v => v === stored) ?? 'portrait';
     } catch { return 'portrait'; }
   });
 
@@ -81,13 +84,16 @@ export function useKeyboardMode(): [KeyboardMode, (m: KeyboardMode) => void] {
 
 export type CellBorders = 'none' | 'vertical' | 'horizontal' | 'both';
 
+/** The allow-list (also the presence follow wire validation — presence.ts). */
+export const CELL_BORDER_VALUES: readonly CellBorders[] = ['none', 'vertical', 'horizontal', 'both'];
+
 const CELL_BORDERS_KEY = 'lemon_schedule_cell_borders';
 
 export function useCellBorders(): [CellBorders, (m: CellBorders) => void] {
   const [mode, setMode] = useState<CellBorders>(() => {
     try {
       const stored = localStorage.getItem(CELL_BORDERS_KEY);
-      return (stored === 'vertical' || stored === 'horizontal' || stored === 'both') ? stored : 'none';
+      return CELL_BORDER_VALUES.find(v => v === stored) ?? 'none';
     } catch { return 'none'; }
   });
 

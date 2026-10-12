@@ -10,6 +10,7 @@ import {
   parseCursorPayload,
   parsePresenceMeta,
   parseSavePayload,
+  parseScrollPayload,
   parseView,
   placeToPresenceView,
   pointerFractions,
@@ -47,6 +48,20 @@ describe('presence wire helpers', () => {
     expect(parseView({ tab: 'schedule', sub: 'x', mode: 'y', daySection: 2.9 })).toEqual({ tab: 'schedule', sub: 'x', mode: 'y', daySection: 2 });
     expect(parseView({ tab: 'nope' })).toBeNull();
     expect(parseView(null)).toBeNull();
+  });
+
+  it('parses the follow-completeness fields and clamps them to the allow-lists', () => {
+    expect(parseView({ tab: 'breakdown', sub: 'sheet', sceneId: 's3', sheetIndex: 4.7 }))
+      .toEqual({ tab: 'breakdown', sub: 'sheet', sceneId: 's3', sheetIndex: 4 });
+    expect(parseView({ tab: 'breakdown', sub: 'sheet', sheetIndex: -2 }))
+      .toEqual({ tab: 'breakdown', sub: 'sheet', sheetIndex: 0 });
+    expect(parseView({ tab: 'schedule', viewMode: 'landscape', cellBorders: 'both' }))
+      .toEqual({ tab: 'schedule', viewMode: 'landscape', cellBorders: 'both' });
+    expect(parseView({ tab: 'calendar', sub: 'calendar', calendarView: 'events' }))
+      .toEqual({ tab: 'calendar', sub: 'calendar', calendarView: 'events' });
+    // Unknown values are dropped, never trusted.
+    expect(parseView({ tab: 'schedule', viewMode: 'wide', cellBorders: 'dotted', calendarView: 'grid', sheetIndex: 'x' }))
+      .toEqual({ tab: 'schedule' });
   });
 
   it('parses anchors, defaulting/clamping the pointer position', () => {
@@ -93,6 +108,18 @@ describe('presence wire helpers', () => {
     expect(parseSavePayload({ userId: 'u', revision: 4, ts: 9 })).toEqual({ userId: 'u', revision: 4, ts: 9 });
     expect(parseSavePayload({ userId: 'u', revision: 0, ts: 9 })).toBeNull();
     expect(parseSavePayload({ userId: 'u', revision: '4', ts: 9 })).toBeNull();
+  });
+
+  it('parses scroll samples, clamping the offset and allow-listing the surface', () => {
+    expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'schedule', key: 'r1', off: 0.42, ts: 7 }))
+      .toEqual({ userId: 'u', clientId: 'c', surface: 'schedule', key: 'r1', off: 0.42, ts: 7 });
+    // Coarse fallback anchor (the stripboard's day block) rides along.
+    expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'schedule', key: 'r1', off: 2, fkey: '3', foff: -1, ts: 7 }))
+      .toEqual({ userId: 'u', clientId: 'c', surface: 'schedule', key: 'r1', off: 1, fkey: '3', foff: 0, ts: 7 });
+    expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'hacked', key: 'r1', off: 0, ts: 7 })).toBeNull();
+    expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'sheet', off: 0, ts: 7 })).toBeNull(); // no key
+    expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'sheet', key: 'cast', off: 'x', ts: 7 })).toBeNull();
+    expect(parseScrollPayload(null)).toBeNull();
   });
 
   it('parses access events: role changes and revocations (null role)', () => {
@@ -232,6 +259,13 @@ describe('view ↔ place mapping', () => {
     const place = { tab: 'production' as const, sub: 'days', mode: 'callsheet', daySection: 2, sceneId: 's9' };
     const view = placeToPresenceView(place);
     expect(view).toEqual({ tab: 'production', sub: 'days', mode: 'callsheet', daySection: 2, sceneId: 's9' });
+    expect(presenceViewToPlace(view)).toEqual(place);
+  });
+
+  it('carries the Sheet scene + position (picked scene wins on the follower)', () => {
+    const place = { tab: 'breakdown' as const, sub: 'sheet', sceneId: 's3', sheetIndex: 4 };
+    const view = placeToPresenceView(place);
+    expect(view).toEqual({ tab: 'breakdown', sub: 'sheet', sceneId: 's3', sheetIndex: 4 });
     expect(presenceViewToPlace(view)).toEqual(place);
   });
 

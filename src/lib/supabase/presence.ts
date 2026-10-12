@@ -1,11 +1,12 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './client';
 import { isAppTabId, modeOf, type AppPlace, type AppTabId } from '../appNav';
+import { CELL_BORDER_VALUES, VIEW_MODE_VALUES, type CellBorders, type ViewMode } from '../persist';
 
 /**
- * Presence + live refresh (roadmap 229 S3/S3.5) — the ONE module for the
- * per-project Realtime channel, the wire shapes, and the pure merge/throttle
- * logic. Manual: docs/COLLABORATION.md §6/§9.
+ * Presence + live refresh + follow completeness (roadmap 229 S3/S3.5 + follow)
+ * — the ONE module for the per-project Realtime channel, the wire shapes, and
+ * the pure merge/throttle logic. Manual: docs/COLLABORATION.md §6/§9.
  *
  * Rules (docs/COLLABORATION.md §4/§9):
  * - ONE private channel per project id (`project:<uuid>`), members only — the
@@ -16,7 +17,8 @@ import { isAppTabId, modeOf, type AppPlace, type AppTabId } from '../appNav';
  * - Cursors are throttled (~20/s), bursts coalesce into one trailing send
  *   (timer + a next-emit flush, so background-tab timer throttling cannot
  *   freeze the pointer one item behind), and skipped when idle; stale
- *   timestamps are dropped per client.
+ *   timestamps are dropped per client. Scroll samples ride the same channel
+ *   (~8/s, semantic anchors — `src/lib/presenceScroll.ts`).
  * - Multi-window: the same user in two tabs holds two presence entries under
  *   one key; bubbles dedupe by user (newest view wins) and the newest cursor
  *   per user renders. Documented, accepted.
@@ -32,15 +34,30 @@ export function presenceTopic(projectId: string): string {
 // Wire shapes
 // ---------------------------------------------------------------------------
 
-/** The view state a follower applies — the addressable part of AppPlace. */
+/** The Calendar sub-view allow-list (Strips vs Events) — presence wire. */
+export const CALENDAR_VIEW_VALUES = ['strips', 'events'] as const;
+export type CalendarView = (typeof CALENDAR_VIEW_VALUES)[number];
+
+/** The view state a follower applies — the addressable part of AppPlace plus
+ *  the in-page view switches that don't change the place (follow completeness,
+ *  roadmap 229). Pref-shaped fields are validated against their allow-lists;
+ *  the follower's surfaces apply them through their own hooks. */
 export interface PresenceView {
   tab: AppTabId;
   sub?: string;
   mode?: string;
-  /** Schedule jump: the scene the peer is looking at. */
+  /** Schedule jump / Sheet: the scene the peer is looking at. */
   sceneId?: string;
+  /** Sheet: the peer's position among scenes (`sceneId` wins when the
+   *  follower uses a different Sheet order). */
+  sheetIndex?: number;
   /** Day Manager jump: the peer's production day (section index). */
   daySection?: number;
+  /** Stripboard View menu: A4 width / cell borders (per-user prefs). */
+  viewMode?: ViewMode;
+  cellBorders?: CellBorders;
+  /** Calendar sub-view: Strips vs Events. */
+  calendarView?: CalendarView;
 }
 
 /** Semantic cursor anchor — ids that survive scroll, reorder and zoom, plus
@@ -79,6 +96,35 @@ export interface PresenceCursor {
 export interface PresenceSavePing {
   userId: string;
   revision: number;
+  ts: number;
+}
+
+/** The scroll surfaces that mirror their position to followers
+ *  (docs/COLLABORATION.md §9 — follow completeness). */
+export const SCROLL_SURFACES = ['schedule', 'calendar', 'sheet', 'glide'] as const;
+export type ScrollSurface = (typeof SCROLL_SURFACES)[number];
+
+/** What a surface broadcasts: the SEMANTIC item at its top edge (`key` — the
+ *  surface's own data-attribute value, e.g. a row, date cell, field box or
+ *  Glide cell key) and how far into it the container is scrolled (`off` ∈
+ *  0..1). Never pixels: keys survive scroll, reflow, reorder and per-user
+ *  layout settings.
+ *
+ *  `fkey`/`foff` are an optional coarse fallback anchor (the stripboard's day
+ *  blocks): when the primary item isn't mounted on the receiver yet — its
+ *  render window is elsewhere — the fallback lands the view first, the item
+ *  renders, and the receiver re-aligns on it. */
+export interface PresenceScrollSample {
+  surface: ScrollSurface;
+  key: string;
+  off: number;
+  fkey?: string;
+  foff?: number;
+}
+
+export interface PresenceScroll extends PresenceScrollSample {
+  userId: string;
+  clientId: string;
   ts: number;
 }
 
@@ -143,6 +189,15 @@ export function parseView(raw: unknown): PresenceView | null {
   if (sceneId) view.sceneId = sceneId;
   const daySection = num(r.daySection);
   if (daySection != null) view.daySection = Math.trunc(daySection);
+  const sheetIndex = num(r.sheetIndex);
+  if (sheetIndex != null) view.sheetIndex = Math.max(0, Math.trunc(sheetIndex));
+  // In-page view switches: clamp to the allow-lists, drop anything else.
+  const viewMode = VIEW_MODE_VALUES.find(v => v === r.viewMode);
+  if (viewMode) view.viewMode = viewMode;
+  const cellBorders = CELL_BORDER_VALUES.find(v => v === r.cellBorders);
+  if (cellBorders) view.cellBorders = cellBorders;
+  const calendarView = CALENDAR_VIEW_VALUES.find(v => v === r.calendarView);
+  if (calendarView) view.calendarView = calendarView;
   return view;
 }
 
@@ -227,6 +282,26 @@ export function parseSavePayload(raw: unknown): PresenceSavePing | null {
   const ts = num(r.ts);
   if (!userId || revision == null || revision <= 0 || ts == null) return null;
   return { userId, revision: Math.trunc(revision), ts };
+}
+
+export function parseScrollPayload(raw: unknown): PresenceScroll | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const userId = str(r.userId, 64);
+  const clientId = str(r.clientId, 64);
+  const ts = num(r.ts);
+  const key = str(r.key, 128);
+  const off = num(r.off);
+  const surface = SCROLL_SURFACES.find(s => s === r.surface);
+  if (!userId || !clientId || ts == null || !key || off == null || !surface) return null;
+  const scroll: PresenceScroll = { userId, clientId, surface, key, off: clamp01(off), ts };
+  const fkey = str(r.fkey, 128);
+  const foff = num(r.foff);
+  if (fkey && foff != null) {
+    scroll.fkey = fkey;
+    scroll.foff = clamp01(foff);
+  }
+  return scroll;
 }
 
 const ACCESS_ROLES: readonly PresenceAccessRole[] = ['owner', 'editor', 'viewer'];
@@ -402,12 +477,15 @@ export function decidePeerSave(
 }
 
 /** The one-shot target fields travel with the view so a follower lands on the
- *  same scene/day the leader is looking at. */
+ *  same scene/day/sheet the leader is looking at. In-page view switches
+ *  (viewMode/cellBorders/calendarView) are NOT part of the place — the
+ *  mounted surfaces apply those (presence.ts PresenceView doc). */
 export function placeToPresenceView(place: AppPlace): PresenceView {
   const view: PresenceView = { tab: place.tab };
   if (place.sub) view.sub = place.sub;
   if (place.mode) view.mode = place.mode;
   if (place.sceneId) view.sceneId = place.sceneId;
+  if (place.sheetIndex !== undefined) view.sheetIndex = place.sheetIndex;
   if (place.daySection != null) view.daySection = place.daySection;
   return view;
 }
@@ -420,6 +498,7 @@ export function presenceViewToPlace(view: unknown): AppPlace | null {
   if (parsed.sub) place.sub = parsed.sub;
   if (parsed.mode) place.mode = parsed.mode;
   if (parsed.sceneId) place.sceneId = parsed.sceneId;
+  if (parsed.sheetIndex !== undefined) place.sheetIndex = parsed.sheetIndex;
   if (parsed.daySection != null) place.daySection = parsed.daySection;
   return place;
 }
@@ -500,6 +579,8 @@ export interface PresenceChannelHandlers {
   onPeers: (peers: PresencePeer[]) => void;
   onCursor: (cursor: PresenceCursor) => void;
   onSavePing: (ping: PresenceSavePing) => void;
+  /** A followed peer's scroll sample (follow completeness). */
+  onScroll: (scroll: PresenceScroll) => void;
   /** Access-change event addressed to THIS user (role change or revocation). */
   onAccess: (event: PresenceAccessEvent) => void;
   onStatus: (status: PresenceChannelStatus) => void;
@@ -507,6 +588,7 @@ export interface PresenceChannelHandlers {
 
 const CURSOR_EVENT = 'cursor';
 const SAVE_EVENT = 'save';
+const SCROLL_EVENT = 'scroll';
 const ACCESS_EVENT = 'access';
 
 /**
@@ -517,7 +599,9 @@ const ACCESS_EVENT = 'access';
 export class ProjectPresenceChannel {
   private channel: RealtimeChannel | null = null;
   private throttle: Throttle<PresenceCursor> | null = null;
+  private scrollThrottle: Throttle<PresenceScrollSample> | null = null;
   private lastAnchorKey = '';
+  private lastScrollKey = '';
   private lastMeta: PresenceMeta | null = null;
   private stopped = false;
 
@@ -543,6 +627,11 @@ export class ProjectPresenceChannel {
       presenceDiagnostics.lastCursorAt = cursor.ts;
     }, 50); // ~20/s — Canva-smooth gliding without hammering the channel
 
+    this.scrollThrottle = createThrottle<PresenceScrollSample>((sample) => {
+      const payload: PresenceScroll = { ...sample, userId: this.identity.userId, clientId: this.clientId, ts: Date.now() };
+      void this.channel?.send({ type: 'broadcast', event: SCROLL_EVENT, payload });
+    }, 120); // ~8/s — scroll mirroring reads smooth without a flood
+
     const channel = supabase.channel(topic, {
       config: { private: true, presence: { key: this.identity.userId, enabled: true } },
     });
@@ -565,6 +654,11 @@ export class ProjectPresenceChannel {
         if (this.stopped) return;
         const ping = parseSavePayload(payload);
         if (ping && ping.userId !== this.identity.userId) this.handlers.onSavePing(ping);
+      })
+      .on('broadcast', { event: SCROLL_EVENT }, ({ payload }) => {
+        if (this.stopped) return;
+        const scroll = parseScrollPayload(payload);
+        if (scroll && scroll.userId !== this.identity.userId) this.handlers.onScroll(scroll);
       })
       .on('broadcast', { event: ACCESS_EVENT }, ({ payload }) => {
         if (this.stopped) return;
@@ -631,6 +725,15 @@ export class ProjectPresenceChannel {
     });
   }
 
+  /** Broadcast a scroll sample (~8/s with coalescing); skipped when the
+   *  quantized position is unchanged (idle). */
+  publishScroll(sample: PresenceScrollSample): void {
+    const key = `${sample.surface}:${sample.key}:${Math.round(sample.off * 100)}`;
+    if (key === this.lastScrollKey) return;
+    this.lastScrollKey = key;
+    this.scrollThrottle?.emit(sample);
+  }
+
   /** S3.5: tell peers our whole-blob save landed at `revision`. */
   publishSave(revision: number): void {
     void this.channel?.send({
@@ -643,6 +746,7 @@ export class ProjectPresenceChannel {
   stop(): void {
     this.stopped = true;
     this.throttle = null;
+    this.scrollThrottle = null;
     const channel = this.channel;
     this.channel = null;
     if (channel && supabase) {

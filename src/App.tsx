@@ -188,12 +188,20 @@ function AppContent() {
       else if (place.sub === 'locations') setProdViews(p => ({ ...p, locations: place.mode === 'glide' ? 'glide' : 'manager' }));
     }
     if (place.tab === 'schedule' && place.sceneId !== undefined) setScheduleTargetScene(place.sceneId);
-    if (place.tab === 'breakdown' && place.sheetIndex !== undefined) setBrSheetIdx(place.sheetIndex);
+    if (place.tab === 'breakdown') {
+      // Sheet jumps: a scene id wins over the raw position (a follower may
+      // use a different Sheet order — follow completeness).
+      const byScene = place.sub === 'sheet' && place.sceneId
+        ? state.present.scenes.findIndex(s => s.id === place.sceneId)
+        : -1;
+      if (byScene >= 0) setBrSheetIdx(byScene);
+      else if (place.sheetIndex !== undefined) setBrSheetIdx(place.sheetIndex);
+    }
     if (place.tab === 'production' && place.daySection !== undefined) setDayManagerTarget(place.daySection);
     // Presence (S3): every place change broadcasts our view; a late joiner
     // gets it on channel start from viewRef.
     presenceActions.publishView(placeToPresenceView(place));
-  }, [presenceActions]);
+  }, [presenceActions, state.present.scenes]);
 
   /** Writes the history entry — push for a new place, replace when only the
    *  current entry's one-shot target changed (re-clicking the active tab). */
@@ -219,9 +227,10 @@ function AppContent() {
 
   // Follow mode (S3): the presence provider holds WHO we follow; App owns HOW
   // a view becomes a place. Navigating to a peer's view goes through `go` so
-  // history/hash stay correct.
+  // history/hash stay correct. Mounted surfaces register their own appliers
+  // for the in-page view switches (View menu, Calendar sub-view, Sheet scene).
   useEffect(() => {
-    presenceActions.registerFollowApplier((view) => {
+    return presenceActions.registerFollowApplier((view) => {
       const place = presenceViewToPlace(view);
       if (!place) return;
       applyingFollowRef.current = true;
@@ -231,7 +240,6 @@ function AppContent() {
         applyingFollowRef.current = false;
       }
     });
-    return () => presenceActions.registerFollowApplier(null);
   }, [go, presenceActions]);
 
   /** Production sub-sub views (Days Manager/Call Sheet, Crew/Locations
