@@ -11,8 +11,11 @@ interface NewCastNamingContextValue {
    *  them — element dropdowns create cast with an empty name. `names` carries
    *  an already-known name (script tagging highlights one) to prefill;
    *  `onCancel` reverts whatever ELSE the creation commit did (script tagging
-   *  reverts the whole tag) when the user cancels the naming modal. */
-  queue: (ids: string[], names?: Record<string, string>, onCancel?: () => void) => void;
+   *  reverts the whole tag) when the user cancels the naming modal.
+   *  `opts.nameTyped` (roadmap 228) marks an entry created from a typed NAME
+   *  instead of a Board ID: Save re-IDs it to the next free numeric Board ID,
+   *  Cancel deletes it. */
+  queue: (ids: string[], names?: Record<string, string>, onCancel?: () => void, opts?: { nameTyped?: boolean }) => void;
 }
 
 const NewCastNamingContext = createContext<NewCastNamingContextValue>({ queue: () => {} });
@@ -29,15 +32,25 @@ export const useQueueCastNaming = (): NewCastNamingContextValue => useContext(Ne
  *  name as its key. */
 export function addNewElement(
   dispatch: (a: Action) => void,
-  queue: (ids: string[], names?: Record<string, string>, onCancel?: () => void) => void,
+  queue: (ids: string[], names?: Record<string, string>, onCancel?: () => void, opts?: { nameTyped?: boolean }) => void,
   category: string,
   item: string,
   name?: string,
   onCancel?: () => void,
 ): void {
   if (category === 'cast') {
+    /* A segment that isn't a Board ID (digits) is a NAME typed in the wrong
+       place: create it so the committed field keeps matching, prefill the
+       typed text as the NAME, and flag it — Save assigns a real numeric Board
+       ID, Cancel removes it (roadmap 228, the beginner guard). */
+    const nameTyped = !/^\d+$/.test(item.trim());
     dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: item, name: '' } } });
-    queue([item], name ? { [item]: name } : undefined, onCancel);
+    queue(
+      [item],
+      name ? { [item]: name } : (nameTyped ? { [item]: item.trim().toUpperCase() } : undefined),
+      onCancel,
+      nameTyped ? { nameTyped: true } : undefined,
+    );
   } else {
     dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: item, name: item } } });
   }
@@ -51,15 +64,15 @@ const NAME_INPUT_CLASS = 'flex-1 min-w-0 px-3 py-2 bg-zinc-900 border border-zin
 export function NewCastNamingProvider({ children }: { children: React.ReactNode }) {
   const { state, dispatch, readOnly } = useProject();
   const castMembers = state.present.castMembers || [];
-  const [pending, setPending] = useState<{ id: string; name: string; onCancel?: () => void }[]>([]);
+  const [pending, setPending] = useState<{ id: string; name: string; onCancel?: () => void; nameTyped?: boolean }[]>([]);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
 
-  const queue = useCallback((ids: string[], names?: Record<string, string>, onCancel?: () => void) => {
+  const queue = useCallback((ids: string[], names?: Record<string, string>, onCancel?: () => void, opts?: { nameTyped?: boolean }) => {
     setPending(prev => {
       const seen = new Set(prev.map(p => p.id));
       const fresh = ids.filter(id => !seen.has(id));
-      return fresh.length ? [...prev, ...fresh.map(id => ({ id, name: names?.[id] || '', onCancel }))] : prev;
+      return fresh.length ? [...prev, ...fresh.map(id => ({ id, name: names?.[id] || '', onCancel, nameTyped: opts?.nameTyped }))] : prev;
     });
   }, []);
 
@@ -80,25 +93,43 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
 
   const save = useCallback(() => {
     if (readOnly) return;
-    const entries = pendingRef.current.filter(p => p.name.trim());
+    const entries = pendingRef.current.filter(p => p.name.trim() || p.nameTyped);
     if (entries.length > 0) {
       dispatch({ type: 'BATCH_START' });
+      /* Name-typed entries get a REAL Board ID here — sequential from the
+         first free number, never the typed text (roadmap 228). The
+         UPDATE_ELEMENT cast rename cascades scene fields + script tags. */
+      const used = new Set(castMembers.map(m => String(m.id)));
+      let next = 1;
+      const nextFreeId = () => { while (used.has(String(next))) next++; const id = String(next); used.add(id); return id; };
       for (const p of entries) {
-        dispatch({ type: 'UPDATE_CAST_MEMBER', payload: { id: p.id, name: p.name.trim().toUpperCase() } });
+        const name = p.name.trim().toUpperCase();
+        if (p.nameTyped) {
+          dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'cast', id: p.id, updates: { id: nextFreeId(), ...(name ? { name } : {}) } } });
+        } else {
+          dispatch({ type: 'UPDATE_CAST_MEMBER', payload: { id: p.id, name } });
+        }
       }
       dispatch({ type: 'BATCH_COMMIT' });
     }
     setPending([]);
-  }, [dispatch, readOnly]);
+  }, [dispatch, readOnly, castMembers]);
 
   /** Cancel: revert each queued creation that carried a revert (script tags)
    *  once per callback — other entries keep the pre-feature blank-member
-   *  behavior. */
+   *  behavior. Name-typed entries were a mistake (a NAME in an ID field):
+   *  Cancel removes them; DELETE_CAST_MEMBER also strips scene refs. */
   const dismiss = useCallback(() => {
     const cancels = new Set(pendingRef.current.map(p => p.onCancel).filter(Boolean));
     for (const cb of cancels) cb!();
+    const flagged = pendingRef.current.filter(p => p.nameTyped);
+    if (flagged.length > 0 && !readOnly) {
+      dispatch({ type: 'BATCH_START' });
+      for (const p of flagged) dispatch({ type: 'DELETE_CAST_MEMBER', payload: p.id });
+      dispatch({ type: 'BATCH_COMMIT' });
+    }
     setPending([]);
-  }, []);
+  }, [dispatch, readOnly]);
 
   // Drop entries whose member vanished (e.g. the add was undone) so the modal
   // never proposes naming a cast that no longer exists.
@@ -106,6 +137,23 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
     () => pending.filter(p => castMembers.some(m => String(m.id) === String(p.id))),
     [pending, castMembers],
   );
+  const hasNameTyped = visible.some(p => p.nameTyped);
+
+  /* Preview the Board IDs Save will assign to name-typed entries (same
+     sequential next-free walk as `save`, in render order) — the row label
+     shows the REAL future id, never the typed text. */
+  const projectedIds = useMemo(() => {
+    const used = new Set(castMembers.map(m => String(m.id)));
+    let next = 1;
+    const map = new Map<string, string>();
+    for (const p of visible) {
+      if (!p.nameTyped) continue;
+      while (used.has(String(next))) next++;
+      map.set(p.id, String(next));
+      used.add(String(next));
+    }
+    return map;
+  }, [visible, castMembers]);
 
   return (
     <NewCastNamingContext.Provider value={value}>
@@ -124,12 +172,26 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
           }
         >
           <div className="p-6 space-y-3" data-testid={TEST_IDS.newCastNameModal}>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              These new cast members stay blank until you give them a name.
-            </p>
+            {!hasNameTyped && (
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                These new cast members stay blank until you give them a name.
+              </p>
+            )}
+            {hasNameTyped && (
+              <p
+                data-testid={TEST_IDS.newCastNameNotice}
+                className="text-xs text-amber-400 leading-relaxed rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2"
+              >
+                Looks like you typed a cast name, not a board ID. Cast fields expect board IDs —
+                e.g. 2 for “2. MARY”. Save adds the members below with the next free board ID
+                (shown on the left); Cancel removes them.
+              </p>
+            )}
             {visible.map((p, i) => (
               <div key={p.id} className="flex items-center gap-2" data-testid={TEST_IDS.newCastNameRow}>
-                <span className="text-xs text-zinc-400 w-7 shrink-0 tabular-nums text-right">{p.id}.</span>
+                <span className="text-xs text-zinc-400 w-7 shrink-0 tabular-nums text-right">
+                  {p.nameTyped ? projectedIds.get(p.id) : p.id}.
+                </span>
                 <input
                   data-testid={TEST_IDS.newCastNameInput}
                   autoFocus={i === 0}
@@ -139,15 +201,19 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
                   placeholder="CAST MEMBER NAME"
                   className={`${NAME_INPUT_CLASS} uppercase`}
                 />
-                <button
-                  type="button"
-                  data-testid={TEST_IDS.newCastNameUndo}
-                  onClick={() => undoEntry(p.id)}
-                  title="Remove this cast member (undo)"
-                  className="shrink-0 p-1.5 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-900 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {/* Name-typed rows have no per-entry undo — Cancel already
+                    removes them; numeric-id adds keep theirs (roadmap 86). */}
+                {!p.nameTyped && (
+                  <button
+                    type="button"
+                    data-testid={TEST_IDS.newCastNameUndo}
+                    onClick={() => undoEntry(p.id)}
+                    title="Remove this cast member (undo)"
+                    className="shrink-0 p-1.5 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-900 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             ))}
           </div>

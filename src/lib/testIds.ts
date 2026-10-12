@@ -23,6 +23,8 @@ export const TEST_IDS = {
   newCastNameInput: 'new-cast-name-input',
   /** Per-entry undo (remove) button of a pending cast entry. */
   newCastNameUndo: 'new-cast-name-undo',
+  /** Board-ID guidance notice shown when a typed NAME created cast (roadmap 228). */
+  newCastNameNotice: 'new-cast-name-notice',
   /** Reports-designer canvas scroll container (block tree drop surface). */
   reportCanvas: 'report-canvas',
   /** The white report page inside the designer canvas. */

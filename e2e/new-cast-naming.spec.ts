@@ -7,6 +7,9 @@ import { openSeededProject, setCast } from './helpers';
 // brand-new cast id and committing must open the naming modal, where the user
 // can name it or undo the add per entry. Cancel leaves the member blank (the
 // pre-feature behavior).
+// Roadmap 228 — typing a NAME (non-numeric) gets the same modal plus a board-ID
+// guidance notice: Save assigns the next free numeric Board ID (scene refs
+// rewritten), Cancel removes the member.
 
 async function gotoSheet(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
@@ -49,9 +52,10 @@ async function sceneCast(page: import('@playwright/test').Page): Promise<string>
 
 const dialog = (page: import('@playwright/test').Page) => page.getByRole('dialog');
 const modal = (page: import('@playwright/test').Page) => page.locator('[data-testid="new-cast-name-modal"]');
+const notice = (page: import('@playwright/test').Page) => page.locator('[data-testid="new-cast-name-notice"]');
 
 test.describe('new cast naming modal', () => {
-  test('typing a new cast id opens the modal; Save names the member (uppercased)', async ({ page }) => {
+  test('Save: a new cast id gets its name; a typed NAME gets a real board ID', async ({ page }) => {
     await openSeededProject(page);
     await gotoSheet(page);
     const id = await nextCastId(page);
@@ -59,6 +63,7 @@ test.describe('new cast naming modal', () => {
 
     await expect(modal(page)).toBeVisible({ timeout: 5000 });
     await expect(dialog(page)).toContainText(id);
+    await expect(notice(page)).toBeHidden();
 
     const input = modal(page).locator('[data-testid="new-cast-name-input"]').first();
     await input.click();
@@ -71,6 +76,29 @@ test.describe('new cast naming modal', () => {
     expect(added).toBeTruthy();
     expect(added!.name).toBe('GEORGE NAMED');
     expect((await sceneCast(page)).split(',').map((x: string) => x.trim())).toContain(id);
+
+    // Roadmap 228 — a NAME (non-numeric) is a Board-ID mistake: notice +
+    // prefilled name; the row previews the REAL future board id (never the
+    // typed text) and has no per-entry undo (Cancel removes name-typed rows).
+    await setCast(page, 'ZZZ NEWCOMER');
+    await expect(modal(page)).toBeVisible({ timeout: 5000 });
+    await expect(notice(page)).toBeVisible();
+    await expect(modal(page).locator('[data-testid="new-cast-name-input"]').first()).toHaveValue('ZZZ NEWCOMER');
+    const row = modal(page).locator('[data-testid="new-cast-name-row"]').first();
+    const previewId = (await row.locator('span').first().innerText()).replace(/\D/g, '');
+    expect(previewId).toMatch(/^\d+$/);
+    await expect(row.locator('[data-testid="new-cast-name-undo"]')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+    await expect(modal(page)).toBeHidden({ timeout: 5000 });
+    const after = await castMembers(page);
+    expect(after.find(m => m.id === 'ZZZ NEWCOMER')).toBeUndefined();
+    const named = after.find(m => m.name === 'ZZZ NEWCOMER');
+    expect(named).toBeTruthy();
+    expect(named!.id).toBe(previewId);
+    const cast = (await sceneCast(page)).split(',').map((x: string) => x.trim());
+    expect(cast).toContain(named!.id);
+    expect(cast).not.toContain('ZZZ NEWCOMER');
   });
 
   test('per-entry undo removes the cast member and strips it from the scene', async ({ page }) => {
@@ -88,7 +116,7 @@ test.describe('new cast naming modal', () => {
     expect((await sceneCast(page)).split(',').map((x: string) => x.trim())).not.toContain(id);
   });
 
-  test('Cancel leaves the member blank (pre-feature behavior)', async ({ page }) => {
+  test('Cancel: a numeric id stays blank; a typed NAME is removed', async ({ page }) => {
     await openSeededProject(page);
     await gotoSheet(page);
     const id = await nextCastId(page);
@@ -100,6 +128,18 @@ test.describe('new cast naming modal', () => {
     await expect(modal(page)).toBeHidden({ timeout: 5000 });
     const members = await castMembers(page);
     expect(members.find(m => m.id === id)?.name).toBe('');
+
+    // Roadmap 228 — Cancel on a name-typed entry removes the member + refs.
+    await setCast(page, 'ZZZ CANCEL ME');
+    await expect(modal(page)).toBeVisible({ timeout: 5000 });
+    await expect(notice(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+    await expect(modal(page)).toBeHidden({ timeout: 5000 });
+    const after = await castMembers(page);
+    expect(after.find(m => m.id === 'ZZZ CANCEL ME')).toBeUndefined();
+    expect(after.find(m => m.name === 'ZZZ CANCEL ME')).toBeUndefined();
+    expect((await sceneCast(page)).split(',').map((x: string) => x.trim())).not.toContain('ZZZ CANCEL ME');
   });
 
   test('an existing cast id does not open the modal; non-cast categories never do', async ({ page }) => {
