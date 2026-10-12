@@ -1,10 +1,12 @@
-# Online Collaboration — Vision, Architecture & Stages (PLAN — S1 + S2 BUILT)
+# Online Collaboration — Vision, Architecture & Stages (PLAN — S1–S3 BUILT)
 
 Status: planning doc for roadmap 229. **Read this before starting any online-accounts,
 sharing, presence or realtime-editing work.** The free local/Google Drive path must
 stay exactly as it is today. **S1 + S2 are built and verified (2026-10-12)**: accounts +
 shared projects (§6 S1 map) and sharing/roles/invites + view-only links (§6 S2 map);
-RLS acceptance is `supabase/tests/rls_s1.sql` + `rls_s2.sql`. S3 (presence) is next.
+**S3 is built (2026-10-12)**: presence (live pointers + follow) and the S3.5 save
+refresh (§6 S3 map). RLS acceptance is `supabase/tests/rls_s1.sql` + `rls_s2.sql` +
+`rls_s3.sql`. S4 (rooms) is next.
 
 Decisions taken 2026-10 with the user: online-only editing for SHARED projects
 (server-authoritative rooms, NOT CRDT); Supabase + Cloudflare Durable Objects;
@@ -289,18 +291,56 @@ takes effect on next request; guest account needs no entitlement.
   Rules/Trash are `inert`, sort menus no-op); revoke/demote reconcile on the next
   request — no push until S3/S4.
 
-**S3 — Presence + live refresh.** Who's here (avatar bubbles), live cursors,
-**follow mode**; rides Supabase Realtime (Broadcast + Presence) on a
-per-project **private** channel with RLS on `realtime.messages` (members
-only). Ephemeral only — never persisted, never in the project (`§9`). Guests
-appear as live watchers ("Anonymous Otter"); the People list keeps hiding
-them (§6 S2 map). Also in this stage — **S3.5, the save ping**: a peer's save
-surfaces without a manual refresh (auto-apply only when the local client has
-no unsaved changes, else a subtle "Changes available · Reload" affordance;
-whole-blob saves stay last-write-wins until S4). Script-body cursors are
-flagged, not faked (ProseMirror relative positions). *Acceptance*: two
-signed-in members see each other's bubbles + cursors and can follow; a save
-ping updates a clean peer; non-members cannot join the channel.
+**S3 — Presence + live refresh.** Live cursors, **follow mode**; rides Supabase
+Realtime (Broadcast + Presence) on a per-project **private** channel with RLS on
+`realtime.messages` (members only). Ephemeral only — never persisted, never in
+the project (`§9`). Guests appear as live pointers ("Anonymous Otter"); the
+People list keeps hiding them (§6 S2 map). Also in this stage — **S3.5, the save
+ping**: a peer's save surfaces without a manual refresh (auto-apply only when
+the local client has no unsaved changes, else a subtle "Changes available ·
+Reload" affordance; whole-blob saves stay last-write-wins until S4).
+Script-body cursors are flagged, not faked (ProseMirror relative positions).
+*Acceptance*: two signed-in members see each other's live pointers and can
+follow; a save ping updates a clean peer; non-members cannot join the channel.
+
+**S3 implementation map (built + verified 2026-10-12).**
+
+- Migration/RLS: `20261012142846_s3_realtime_presence.sql` — private channel
+  topic `project:<uuid>` (`private.project_id_from_topic` parses it),
+  membership-only `select`/`insert` policies on `realtime.messages` for the
+  `broadcast` + `presence` extensions. Acceptance `supabase/tests/rls_s3.sql`
+  (15 assertions green: member/editor/viewer/guest send+receive; stranger, anon
+  and postgres_changes topics rejected; revoke takes effect on the next
+  request). Verified live 2026-10-12: signed-out and signed-in non-member joins
+  fail `Unauthorized`, a member subscribes/tracks/broadcasts.
+  Dashboard requirement: Realtime → Settings → **"Allow public access" OFF**.
+- ONE client module `src/lib/supabase/presence.ts`: wire shapes, parse/clamp
+  (never trust payloads), `mergePeers` (multi-window dedupe by user, newest
+  wins), stale-ts cursor drops, a ~20/s leading+coalescing throttle, the local
+  save bus (`notifyLocalSave`/`subscribeLocalSaves`) and `ProjectPresenceChannel`
+  (the one channel; start/stop idempotent, untrack+unsubscribe on teardown).
+  `presenceDiagnostics` is the module snapshot the debug bridge reads.
+- `src/lib/supabase/presenceContext.tsx`: `PresenceProvider` (mounted inside
+  `ProjectProvider` in `App.tsx`) owns the channel for the open shared project.
+  Two contexts — STABLE `usePresenceActions()` (publishView/follow) vs
+  `usePresenceState()` (peers/followingId) — so cursor traffic never re-renders
+  the app tree. ONE global `mousemove` tracker resolves the pointer into an
+  anchor: the semantic element under the cursor (row/cell/day section) else a
+  viewport-relative `screen` fallback.
+- UI: `src/components/PresenceOverlay.tsx` — the Canva-style pointer layer
+  (arrow + name label in the peer's deterministic colour) + the "Following X"
+  pill. Clicking a pointer follows that person. `App.tsx` publishes the view on
+  every navigation (the one `go()` entry point exits follow mode; the follow
+  applier guards itself) and registers the follower. No header bubbles — user
+  decision 2026-10-12 (§9).
+- S3.5 provider seam (`src/store/provider.tsx`): `changeCounterRef` /
+  `persistedAtCounterRef` = the clean/dirty gate (LOADs and successful saves
+  re-anchor it; unchanged projects are never re-pushed, so peer LOADs cannot
+  echo). `applyPeerSave(revision)` re-reads and LOADs when clean, else raises
+  `onlineChangesAvailable` (the chip); `reloadOnlineProject()` is the explicit
+  reload. Save success paths call `notifyLocalSave(revision)`.
+- `AccountAvatar` palette/initials moved to `src/lib/avatarIdentity.ts` (one
+  deterministic identity for the People list, avatars and pointers).
 
 **S4 — Realtime collaborative editing.** Per-project room (DO) running the pure
 reducer: validates, applies, persists (action log + periodic snapshot), broadcasts
@@ -364,19 +404,35 @@ concurrency semantics in its doc.
 
 ## 9. Presence & follow mechanics
 
-- Ephemeral message: `{ userId, name, color, view: { tab, dayId, sceneId,
-  rowId, selection }, cursor: { x, y }, ts }` — throttled, never persisted.
-- **Prefer semantic anchors over pixels**: row/scene/cell/day ids survive
-  scrolling, reordering and window sizes (stripboard, calendar, day manager).
-  Glide (DOM canvas) falls back to coordinates mapped through cell rects.
+- Ephemeral shape (built S3): Presence tracks `{ userId, clientId, name,
+  avatarUrl, isGuest, view: { tab, sub, mode, sceneId, daySection }, ts }`;
+  Broadcast carries cursors (`anchor + ts`) and save pings (`revision + ts`).
+  Never persisted, never in the project.
+- **Semantic anchors, never raw pixels**: a cursor anchor is the element under
+  the pointer — stripboard row id, calendar `data-date-key`, Day Manager
+  section — **plus the pointer's position inside it (fx/fy ∈ 0..1)**, so the
+  pointer glides Canva-style while still surviving scroll, reorder, zoom and
+  window size. When the pointer is over nothing shareable (header, toolbars,
+  dialogs, Glide canvas, empty space — and script, flagged not faked) the
+  anchor falls back to **viewport-relative `screen` fractions**, rendered
+  scaled only while that peer is on the same tab. One global mousemove tracker
+  in `presenceContext.tsx` — no per-surface handlers to miss.
+- **Libraries considered (2026-10)**: Liveblocks / Yjs awareness (`y-presence`)
+  / tldraw presence all assume a shared canvas coordinate space; none solve a
+  per-user-layout DOM app, and each adds a second realtime system — the hybrid
+  above is the standard pattern (Supabase's own cursor-tracking guidance is
+  normalized viewport coordinates).
+- Throttling: ~20/s leading + coalesced trailing sends, idle-skip by quantized
+  anchor key, stale-ts drops per client, 20s pointer TTL on top of presence
+  leave. Multi-window: same user = one pointer, newest window wins.
 - Script-body cursors (TipTap) need ProseMirror relative positions — flag, don't
-  fake with indexes.
+  fake with indexes (skipped in S3).
 - **Follow**: follower applies the leader's `view` state; a "Following X" pill
-  exits on any manual navigation.
+  exits on any manual navigation, Esc, or clicking the pill.
 
-**Header user & presence cluster (decided 2026-10).** The user control and
-presence bubbles live in the AppHeader's right group, **after the undo/redo
-pair** (`src/components/AppHeader.tsx:238-257` — append inside that flex group).
+**Header user & presence cluster (decided 2026-10).** The user control lives in
+the AppHeader's right group, **after the undo/redo pair**
+(`src/components/AppHeader.tsx:238-257` — append inside that flex group).
 ONE shared component (`UserPresenceCluster`); never inline it per view.
 
 - Signed out → a muted **Sign in** avatar button; opening it offers
@@ -397,9 +453,12 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   avatar shows their generated "Anonymous <Animal>" name with a **Create
   account...** item (converts in place: same user id, access kept), then
   **Sign out**; Collaborate waits until they have a real account.
-- Presence: live collaborators render as **stacked avatar bubbles** (Canva/Notion
-  style) immediately left of your own avatar — max 3 + a `+N` chip; hover = name;
-  click = follow (`§9`). Viewers appear without edit affordances.
+- Presence: live collaborators render as **Canva-style live pointers** (arrow +
+  name label in their deterministic colour); clicking a pointer follows that
+  person (`§9`). **Decided (user, 2026-10-12): no stacked avatar bubbles** — the
+  room is shown through the live pointers only; the header cluster keeps your
+  own avatar as before. The bubbles are a small re-add later if idle presence
+  matters (the peers state still carries everyone).
 - Surface shape: default to a kit `Modal` (the settings-modal pattern); a
   full page only if the modal proves too small.
 - **Decided (user, 2026-10): the File menu's Google Drive sign-in MOVES into this
@@ -409,10 +468,13 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 
 ## 10. Testing strategy
 
-- Supabase RLS acceptance: `supabase/tests/rls_s1.sql` + `rls_s2.sql` (paste into
-  the SQL editor / psql; single transaction, `SET ROLE authenticated`, every row
-  must come back `ok = true`; run `get_advisors` after DDL). Pure helpers
-  (tokens, gates) are Vitest (`src/lib/__tests__/shareTokens.test.ts`).
+- Supabase RLS acceptance: `supabase/tests/rls_s1.sql` + `rls_s2.sql` +
+  `rls_s3.sql` (paste into the SQL editor / psql; single transaction,
+  `SET ROLE authenticated`, every row must come back `ok = true`; run
+  `get_advisors` after DDL — expect only the anonymous-sign-ins lint 0012 and
+  the pre-existing Auth leaked-password config lint). Pure helpers (tokens,
+  gates, presence shaping/throttle/save decisions) are Vitest
+  (`src/lib/__tests__/shareTokens.test.ts`, `presence.test.ts`).
 - Playwright: two browser contexts in one spec, driven through the debug bridge
   (dispatch on A → assert state on B) — no timing sleeps. The default suite pins
   the Supabase env OFF, so online flows are verified by the RLS tests above +
@@ -446,14 +508,20 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 ## 12. Verification (per stage)
 
 1. `npm run lint` (docs + roadmap hygiene) — this doc must keep its Status line.
-2. S1+: `supabase/tests/rls_s1.sql` + (S2) `supabase/tests/rls_s2.sql` (paste
-   into the SQL editor or psql; every row must be `ok = true`) + `get_advisors`
-   security lint clean after any schema change. Targeted e2e; `npm run
-   test:smart` before done; full suite for store/provider changes (AGENTS.md
-   rule 7).
+2. S1+: `supabase/tests/rls_s1.sql` + (S2) `supabase/tests/rls_s2.sql` + (S3)
+   `supabase/tests/rls_s3.sql` (paste into the SQL editor or psql; every row
+   must be `ok = true`) + `get_advisors` security lint clean after any schema
+   change. Targeted e2e; `npm run test:smart` before done; full suite for
+   store/provider changes (AGENTS.md rule 7).
 3. Never ship a stage that changes the Drive/local flow — regression-check
    `e2e/seeded-smoke.spec.ts` + the persistence specs.
 4. Online UI flows are a rule-7 manual pass (the default e2e suite pins the
    Supabase env off): sign in as owner → Collaborate → Copy Link → open the
    link in a private window → sign up → viewer lands locked with the eye cue;
    invite by email → role change → revoke.
+5. S3 live pass (two clients + a guest): both members see each other's live
+   pointers (names/labels differ per person), pointers glide within a row and
+   fall back to viewport positions over the header; click a pointer → "Following
+   X" pill → their navigation moves you; Esc / any manual navigation exits; a
+   save on one side either silently lands on a clean peer or raises "Changes
+   available · Reload"; closing a window drops its pointer without ghosts.

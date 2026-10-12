@@ -96,11 +96,37 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   (`revoke_share_links` RPC); no-account guests ride Supabase anonymous sign-ins and are identified by
   `profiles.is_anonymous` (hidden from the People list; fun "Anonymous <Animal>" names).
 
+## Presence & live refresh (roadmap 229 S3/S3.5)
+
+- ONE client module `src/lib/supabase/presence.ts` (wire shapes, parse/clamp, `mergePeers` multi-window
+  dedupe, ~20/s cursor throttle, the local save bus, `ProjectPresenceChannel`) + the React seam
+  `src/lib/supabase/presenceContext.tsx` (`PresenceProvider`, mounted inside `ProjectProvider` in
+  `App.tsx`). The channel is the ONE private `project:<uuid>` Realtime channel; server authorization is
+  RLS on `realtime.messages` (`supabase/tests/rls_s3.sql`). Gating: no Supabase env / signed-out /
+  local-Drive project ⇒ no channel, empty peers; teardown untracks + unsubscribes.
+- Two contexts: STABLE `usePresenceActions()` (publishView/follow/stopFollowing/registerFollowApplier) vs
+  `usePresenceState()` (peers/followingId/status). Per-row components MUST NOT subscribe to state —
+  cursor traffic is ~20/s and would re-render everything (same spirit as the memo contract below).
+- Cursors are semantic anchors + a pointer fraction (`fx/fy` inside the anchored element) with a
+  viewport-relative `screen` fallback rendered only while the peer is on the same tab (docs/COLLABORATION.md
+  §9). One global mousemove tracker in the provider publishes; `PresenceOverlay` draws. Follow mode:
+  App registers the one applier (navigation stays in `go()`); any manual navigation exits.
+- **S3.5 save ping seam (store-owned)**: `changeCounterRef`/`persistedAtCounterRef` are the clean/dirty
+  gate — every accepted write dispatch bumps the counter; `loadBaseline(project)` (LOAD + re-anchor) is
+  used by every internal open/import/reload, and successful online saves capture the counter at save
+  time. An online project with no new edits is **never re-pushed** (a peer LOAD cannot echo). On a
+  successful online save the store calls `notifyLocalSave(revision)` (module bus → channel broadcast);
+  on a received ping the presence provider calls `applyPeerSave(revision)`: re-read + silent LOAD when
+  clean, else `onlineChangesAvailable` (the SaveIndicator "Changes available · Reload" chip).
+  `reloadOnlineProject()` is the explicit user action. Saves stay last-write-wins until S4 — never
+  auto-apply over unsaved local edits.
+
 ## `useProject()` API
 
 `{ state, dispatch, projectList, currentProjectId, readOnly, initialized, createProject, openProject,
 deleteProject, renameProject, duplicateProject, importProjectFromData, onlineProjects, onlineLoading,
-onlineError, refetchOnlineProjects, collaborateProject, ... }`.
+onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave,
+reloadOnlineProject, ... }`.
 
 ## Re-render / memo contract (MUST NOT break)
 

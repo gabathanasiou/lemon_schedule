@@ -480,6 +480,21 @@ multi-step wizards (dedicate a page), anything not related to the current task.
 
 **There is no toast system and none should be invented** — pick a mechanism from the table.
 
+### Presence pointers & the follow pill (roadmap 229 S3)
+
+Collaborators' live pointers are the ONE presence visual (user decision 2026-10-12:
+no header avatar bubbles). They live in `PresenceOverlay.tsx` — a single
+`fixed inset-0 z-30 pointer-events-none` layer; each pointer is a small SVG
+arrow in the person's deterministic `avatarColor` (white stroke + `drop-shadow-md`)
+with a rounded name label (`rounded-full px-2 py-[3px] text-[10px] font-semibold
+text-white`, same colour, `left-2.5 top-4`; flips `right-3` near the right edge).
+Guest labels append `· guest`. Clickable (`pointer-events-auto`) to follow.
+The "Following X" pill is a dark floating pill (`fixed top-12 left-1/2
+-translate-x-1/2 z-40 rounded-full border border-sky-500/60 bg-zinc-900/95
+text-[11px] text-white` + a pulsing sky dot) — it must stay below the kit
+overlay bands (menus `z-[200]`, modals `z-[10000]`) and exits on click/Esc/manual
+navigation. Pointers are EPHEMERAL: 20s TTL plus presence leave, never persisted.
+
 ## Message copy rules
 
 Plain language; no error codes/jargon; no blame ("invalid/incorrect" → "enter a time between…");
