@@ -1,10 +1,10 @@
-# Online Collaboration — Vision, Architecture & Stages (PLAN — NOT BUILT)
+# Online Collaboration — Vision, Architecture & Stages (PLAN — S1 + S2 BUILT)
 
 Status: planning doc for roadmap 229. **Read this before starting any online-accounts,
 sharing, presence or realtime-editing work.** The free local/Google Drive path must
-stay exactly as it is today. **S1 in progress (2026-10-12): the Supabase project +
-schema are live** (see the §6 runbook; RLS verified by `supabase/tests/rls_s1.sql`)
-— the app-side S1 code lands next.
+stay exactly as it is today. **S1 + S2 are built and verified (2026-10-12)**: accounts +
+shared projects (§6 S1 map) and sharing/roles/invites + view-only links (§6 S2 map);
+RLS acceptance is `supabase/tests/rls_s1.sql` + `rls_s2.sql`. S3 (presence) is next.
 
 Decisions taken 2026-10 with the user: online-only editing for SHARED projects
 (server-authoritative rooms, NOT CRDT); Supabase + Cloudflare Durable Objects;
@@ -216,16 +216,60 @@ re-derive any of it:
 - Debug bridge: `diagnostics()` adds `supabaseConfigured`, `supabaseSignedIn`,
   `projectIsOnline`, `onlineProjectCount`.
 
-Remaining before S1 is done: dashboard auth setup (steps 3–4 above;
-confirmation + reset emails are rate-limited on Supabase's built-in SMTP —
-switch "Confirm email" off for beta), then the end-to-end pass sign in →
-Collaborate → edit → reopen → verify RLS. Invites/roles stay S2.
+Remaining before S1 is done: **DONE 2026-10-12** — dashboard auth setup (steps 3–4
+above; confirmation + reset emails are rate-limited on Supabase's built-in SMTP —
+"Confirm email" is off for beta), the end-to-end pass sign in → Collaborate → edit →
+reopen → verify RLS. Invites/roles are S2 (built, see the S2 map below).
 
 **S2 — Sharing, roles, invites.** owner/editor/viewer; email + link invites;
 view-only share links (hashed tokens, revocable); "Manage access" UI. Introduce
 `canEdit` derived from membership and thread it through editing surfaces (same
 pattern as `readOnly`). *Acceptance*: server rejects viewer actions; revoke
 takes effect on next request; guest account needs no entitlement.
+
+**S2 implementation map (built + verified 2026-10-12).**
+
+- Schema/RLS: `20261012130425_s2_sharing_roles_invites.sql` +
+  `20261012130452_s2_rpc_invoker_wrappers.sql`; acceptance `supabase/tests/rls_s2.sql`
+  (47 assertions green — viewer writes rejected, redeem/expiry/revoke, pending claim,
+  demote + revoke take effect on the next request; `rls_s1.sql` still green; advisors
+  clean apart from the pre-existing Auth password lint).
+  - `projects.allow_invites` — owner toggle, default OFF; direct UPDATE grants narrowed
+    to (title, data, revision) so it changes ONLY via `set_project_allow_invites`
+    (owner-checked) — which also makes `owner_id` API-immutable.
+  - `memberships` — members read the people list; insert = owner or allow-invites
+    editor (editor/viewer roles only, never the structural owner row); owner-only
+    update/delete with the owner row protected.
+  - `pending_invites` + `claim_pending_invites` (auth.users trigger) — email invites
+    without any mail delivery.
+  - `share_links` — sha256 of the raw token at rest, `role='viewer'` CHECK, optional
+    `expires_at`; `redeem_share_link(hash)` inserts the view-only membership.
+  - `profiles select co-member` feeds the Who-can-access list. RPC bodies live in
+    `private` with public SECURITY INVOKER wrappers (advisor 0029 clean).
+- App: `src/lib/supabase/sharing.ts` (the ONE sharing module) + `src/lib/shareTokens.ts`
+  (token gen / sha256 / URL / hash parse).
+  - Provider seam: `canEdit` (role ≠ viewer) + `locked = readOnly || !canEdit`; role read
+    on open, re-checked on focus + permission-shaped save failures (locks "View only…" /
+    "no longer have access…" on the next request); `guardedDispatch` drops viewer writes;
+    diagnostics adds `onlineRole`/`canEdit`/`editLocked`.
+  - UI: `src/components/sharing/SharingModal.tsx` (+ `sharingParts.tsx`) — Who can access /
+    per-person Permissions / invite by email / Allow others to invite / Copy Link /
+    Expires (never · 7 · 30 days) / Revoke Link / Stop Sharing…; entered from File menu +
+    avatar menu "Manage Shared Project…" (Collaborate flows straight into it). Viewers see
+    the people list + an explanatory line — link rows are inviter-only under RLS.
+  - `src/components/ShareLinkGate.tsx` — `#/share/<token>` capture, invite notice on the
+    account modal, one-shot redeem → opens the project; invalid/expired/revoked links alert.
+  - SaveIndicator shows the view-only eye (with the reason when access changed); editing
+    surfaces gate on `locked` (leaf widgets keep their generic `readOnly` input props).
+- Decisions (user, 2026-10): links are **view-only** (Permissions is per-person); **no
+  email is sent yet** — existing accounts are granted immediately, unknown emails become
+  pending invites claimed at signup (real invite mail = Edge Function + custom SMTP,
+  deferred §11); one active link per project — Copy Link rotates only when the raw token
+  is no longer held in memory (hashes can't re-display it); `allow_invites` defaults OFF.
+- Known gaps (deliberate): Shared-tab cards don't show the caller's role badge; the
+  view-only long tail beyond the gated surfaces relies on the dispatch guard (Color
+  Rules/Trash are `inert`, sort menus no-op); revoke/demote reconcile on the next
+  request — no push until S3/S4.
 
 **S3 — Presence.** Who's here (avatars), live cursors, **follow mode**. Rides
 Supabase Realtime (Broadcast + Presence); ephemeral messages only (`§9`).
@@ -273,15 +317,22 @@ concurrency semantics in its doc.
 
 ## 8. Permission & entitlement model
 
-- Sketch: `memberships(project_id, user_id, role)` where role ∈
-  `owner | editor | viewer`; `share_links(token_hash, project_id, role, expires_at?)`.
-- Owner: manage access, delete project, billing. Editor: write actions. Viewer:
-  read only — server rejects writes; UI hides write affordances.
+- **Built (S2)**: `memberships(project_id, user_id, role)` role ∈
+  `owner | editor | viewer`; `share_links(project_id, token_hash, role='viewer',
+  expires_at?)` (sha256 at rest); `pending_invites(project_id, email, role)`
+  claimed at signup. `projects.allow_invites` gates editor-invites (default off).
+- Owner: manage access, delete project, billing. Editor: write actions (+ invite
+  when allow_invites). Viewer: read only — server rejects writes; UI hides them
+  behind `locked` (`readOnly` connectivity | `!canEdit` permission).
 - Entitlement: the **owner's** active collaboration subscription enables the
   room; invited members never pay. Lapse behaviour is open (`§11`; recommended:
-  project becomes read-only, export always allowed).
+  project becomes read-only, export always allowed). No entitlement checks
+  exist yet — S5.
 - All checks live in RLS policies + room auth (one source of truth); the client
-  reads its own role to drive UI state only.
+  reads its own role to drive UI state only. The owner row is structural
+  (`projects.owner_id`): policies refuse to demote/remove it.
+- Share links are view-only by construction (CHECK on `role`); redemption is a
+  SECURITY DEFINER RPC that inserts the viewer membership idempotently.
 
 ## 9. Presence & follow mechanics
 
@@ -305,11 +356,12 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   plus Google/Apple when the project has them enabled).
 - Signed in → the avatar (photo/initials) opens the account menu: **Edit
   profile...** (display name — email sign-ups capture it at creation, OAuth
-  sign-ups bring the provider name + photo), **Collaborate...**, **Sign out**
-  (+ Drive connect/disconnect). S2 grows this into the full **User & sharing**
-  surface (**Who can access**, **Permissions**, **Allow others to invite**,
-  **Copy Link**, **Manage Shared Project…**, **Stop Sharing…** — `§1`
-  language; on Free it shows the upgrade path instead). Signing out with a
+  sign-ups bring the provider name + photo), **Collaborate...** (copy-up; opens
+  the panel right after), **Manage Shared Project...** (the User & sharing
+  panel — S2, built), **Sign out** (+ Drive connect/disconnect). The panel is
+  the §1 language: **Who can access**, **Permissions**, **Allow others to
+  invite**, **Copy Link**, **Stop Sharing…**; on a viewer account it shows the
+  people list + "Only the owner can change who has access". Signing out with a
   shared project open **closes it and returns to the opening page** (parity
   with Drive disconnect); a silent session expiry only locks the project
   read-only so signing back in resumes it.
@@ -325,11 +377,15 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 
 ## 10. Testing strategy
 
-- Supabase local dev (CLI) for schema/RLS; Vitest for pure helpers (role → gate
-  mapping, presence message shaping).
+- Supabase RLS acceptance: `supabase/tests/rls_s1.sql` + `rls_s2.sql` (paste into
+  the SQL editor / psql; single transaction, `SET ROLE authenticated`, every row
+  must come back `ok = true`; run `get_advisors` after DDL). Pure helpers
+  (tokens, gates) are Vitest (`src/lib/__tests__/shareTokens.test.ts`).
 - Playwright: two browser contexts in one spec, driven through the debug bridge
-  (dispatch on A → assert state on B) — no timing sleeps; presence/follow gets a
-  rule-7 manual pass (docs/TESTING.md §Manual verification).
+  (dispatch on A → assert state on B) — no timing sleeps. The default suite pins
+  the Supabase env OFF, so online flows are verified by the RLS tests above +
+  the manual pass (docs/TESTING.md §Manual verification); a future opt-in online
+  spec must not grow the capped suite.
 - e2e suite stays at its cap: merge online cases into focused specs; never grow
   specs for things a screenshot catches.
 
@@ -341,16 +397,27 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   access token only; the Supabase account session is a separate trust domain
   (it must survive restart to be useful). Documented in AGENTS.md §Security;
   implemented in `src/lib/supabase/client.ts`.
+- **Invite email delivery (S2 built without it)**: share links are fully
+  self-serve; invite-by-email grants existing accounts immediately and stores
+  pending invites for unknown emails (claimed at signup). Sending real invite
+  emails needs an Edge Function + custom SMTP (the built-in mailer is
+  rate-limited and confirms only project-team addresses) — decide the provider
+  + branding when it's worth the setup, then reuse `pending_invites`.
 - Subscription lapse behaviour (recommended: read-only + export).
-- Guest edit limits; share-link expiry defaults.
+- Guest edit limits; share-link expiry defaults (S2 ships never/7/30 days).
 - Script-body concurrency approach (v1 LWW vs later field diff/Yjs text).
 
-## 12. Verification (when coding starts, per stage)
+## 12. Verification (per stage)
 
 1. `npm run lint` (docs + roadmap hygiene) — this doc must keep its Status line.
-2. S1+: `supabase/tests/rls_s1.sql` (paste into the SQL editor or psql; every
-   row must be `ok = true`) + `get_advisors` security lint clean after any
-   schema change. Targeted e2e; `npm run test:smart` before done; full suite
-   for store/provider changes (AGENTS.md rule 7).
+2. S1+: `supabase/tests/rls_s1.sql` + (S2) `supabase/tests/rls_s2.sql` (paste
+   into the SQL editor or psql; every row must be `ok = true`) + `get_advisors`
+   security lint clean after any schema change. Targeted e2e; `npm run
+   test:smart` before done; full suite for store/provider changes (AGENTS.md
+   rule 7).
 3. Never ship a stage that changes the Drive/local flow — regression-check
    `e2e/seeded-smoke.spec.ts` + the persistence specs.
+4. Online UI flows are a rule-7 manual pass (the default e2e suite pins the
+   Supabase env off): sign in as owner → Collaborate → Copy Link → open the
+   link in a private window → sign up → viewer lands locked with the eye cue;
+   invite by email → role change → revoke.

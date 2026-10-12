@@ -88,8 +88,10 @@ MCP client ──stdio──▶ tools/mcp/lemon-mcp.mjs ──WebSocket──▶
 
 Blocked over the bridge: `LOAD` (replaces the project + clears history) and
 `EMPTY_TRASH` (irreversible). Writes are refused while
-`diagnostics().readOnly` (cloud project offline). Reads never expose the undo
-history (`getState`) or the OAuth token/session.
+`diagnostics().readOnly` (cloud project offline) or when the open shared
+project is view-only for the signed-in user (`diagnostics().canEdit === false`
+— a viewer's dispatch is dropped client-side and rejected server-side by RLS).
+Reads never expose the undo history (`getState`) or the OAuth token/session.
 
 ## Bulk edits
 

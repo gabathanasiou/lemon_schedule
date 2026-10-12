@@ -80,6 +80,21 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   never wait for the list fetch. `isSupabaseConfigured` (env present) is the feature flag: without it
   nothing above is reachable and the Drive/local paths are byte-identical.
 
+## Sharing, roles & invites (roadmap 229 S2)
+
+- **`canEdit` is the permission flag; `readOnly` stays connectivity-only** (MUST NOT overload either).
+  `useProject()` exposes both plus `locked = readOnly || !canEdit` — every editing surface gates on
+  `locked`; only SaveIndicator/`OfflineStatus` read the source flags apart.
+- ONE module `src/lib/supabase/sharing.ts` (members, pending invites, share links, stop-sharing,
+  redeem). `openProject` reads the membership role alongside the blob (online projects only); a
+  focus re-check + permission-shaped save failures (RLS rejection / the 0-row retry signature) lock a
+  demoted project ("View only…") and a revoked one ("You no longer have access…") on the next request.
+- `locked` also gates the write dispatch itself (`guardedDispatch`) — the single client-side
+  enforcement point; RLS is the real one (`supabase/tests/rls_s2.sql`, 47 assertions).
+- View-only links store only the sha256 of the raw token; the raw token lives in ShareModal memory +
+  the clipboard (`src/lib/shareTokens.ts`) — an existing link can never be re-displayed, so Copy Link
+  rotates when the in-memory token is gone.
+
 ## `useProject()` API
 
 `{ state, dispatch, projectList, currentProjectId, readOnly, initialized, createProject, openProject,
