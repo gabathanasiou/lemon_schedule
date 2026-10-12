@@ -113,6 +113,15 @@ export default function DropdownPanel({
   const panel = (
     <div
       ref={setRef}
+      /* The panel is PORTALED, but React events still bubble through the
+         React tree into the surface that owns the trigger (a stripboard row
+         sits inside the schedule container whose click clears the per-row
+         editor — the editor unmounted before a multi-select value could
+         commit). Floating panels are self-contained: their presses must
+         never reach the host surface's handlers. */
+      onPointerDown={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
       className={`click-outside-ignore ${dark ? 'bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 flex flex-col pointer-events-auto min-w-[200px]' : 'z-[10010] bg-white border border-zinc-200 rounded-md shadow-lg p-1 min-w-[200px] flex flex-col pointer-events-auto'} ${panelMinWidth || ''}`}
       style={{ position: 'fixed', left: pos.left, width: pos.width, top: pos.top, visibility: pos.ready ? 'visible' : 'hidden' }}
     >

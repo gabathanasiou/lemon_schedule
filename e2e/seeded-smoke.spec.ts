@@ -80,6 +80,45 @@ test.describe('Schedule Tab Toolbar & Context Menu', () => {
     await expect(page.getByRole('menuitem', { name: 'Cell Borders' })).toBeVisible();
     await page.keyboard.press('Escape');
   });
+
+  test('edit mode: an entity-dropdown item click keeps the editor and commits on Enter', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+
+    /* Regression: the portaled panel's click used to bubble through the React
+       tree into the schedule container's clear-editing handler, unmounting the
+       editor before a multi-select value could commit (silent loss). */
+    const castCell = page.locator('[data-ribbon-field="cast"]').first();
+    await castCell.click();
+    const panel = page.locator('.click-outside-ignore');
+    await expect(panel).toBeVisible({ timeout: 5000 });
+
+    const unchecked = panel.locator('button:not([data-checked="true"])').first();
+    const pickId = (await unchecked.innerText()).replace(/\n/g, '').match(/^(\d+)\./)?.[1];
+    expect(pickId).toBeTruthy();
+    await unchecked.click();
+
+    // The panel stays open and the row stays in edit mode (editor mounted).
+    await expect(panel).toBeVisible();
+    await expect(castCell.locator('input, textarea')).toHaveCount(1);
+
+    // Enter commits the toggled value to the scene (cast stores Board IDs).
+    // Focus the dropdown input (mouse-opened panels don't autofocus it), then
+    // the input's Enter handler commits and closes.
+    await castCell.locator('input').click();
+    await page.keyboard.press('Enter');
+    await expect(panel).toBeHidden({ timeout: 5000 });
+    await expect.poll(async () => page.evaluate(() => {
+      const el = document.querySelector('[data-ribbon-field="cast"]');
+      const rid = el?.closest('[data-row-id]')?.getAttribute('data-row-id');
+      const st = (window as any).__lemonSchedule.getState();
+      const version = st.present.versions.find((v: any) => v.id === st.present.activeVersionId);
+      const row = version.rows.find((r: any) => r.id === rid);
+      const scene = st.present.scenes.find((s: any) => s.id === row?.sceneId);
+      return (scene?.cast || '').split(',').map((x: string) => x.trim());
+    })).toContain(pickId);
+  });
 });
 
 test.describe('Design Tab', () => {

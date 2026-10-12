@@ -206,7 +206,9 @@ const E2E_SPEC_CAP = 70;
 // reload (localStorage pref + designer remount; unit tests can't drive the app).
 // 273 → 274: roadmap 159 — precalls block: the call-sheet precall edit must
 // persist to daybreakMeta.departmentPrecalls (silent loss is plausible).
-const E2E_TEST_CAP = 274;
+// 274 → 275: DropdownPanel/SelectDropdown portal isolation — a stripboard
+// entity-dropdown item click unmounted the editor mid-toggle (silent loss).
+const E2E_TEST_CAP = 275;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

@@ -146,6 +146,11 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
         <div
           ref={setPanelRef}
           data-overlay-panel
+          /* Portal isolation (same as DropdownPanel): panel presses must not
+             bubble through the React tree into the host surface's handlers. */
+          onPointerDown={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
           className="z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[120px]"
           style={{ position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxH, visibility: pos.ready ? 'visible' : 'hidden', top: pos.top }}
         >
