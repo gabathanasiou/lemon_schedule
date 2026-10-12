@@ -127,10 +127,23 @@ a plain click.
 - A/B/C: test-only selector/geometry fixes (three commits).
 - D: kit `Modal` re-clamp fix, **kit v0.1.79** + app dep bump.
 - Full suite re-run → **0 failed**.
+- E: test-side select-then-double-click fix in `e2e/crew-glide.spec.ts` (see below).
+
+---
+
+## E. Glide double-click editor never opens right after a commit (fixed, test-side)
+
+**Symptom:** in a Glide spec, `await expect(page.locator('#portal textarea, #portal input')).toBeAttached()` times out on the first double-click after a previous cell commit (seen in `e2e/crew-glide.spec.ts` — "range fill…", failing ~3/4 runs, passing on retry). The portal stays empty and focus sits on the grid canvas / a11y cell.
+
+**Cause (not a regression):** Glide's `cellActivationBehavior="double-click"` activates the editor only when the selection captured at the **second** mousedown matches the clicked cell (`data-editor.js`: `mouse.previousSelection.current.cell === gridSelection.current.cell`). Playwright dispatches a dblclick's two clicks back-to-back with no gap; while a re-render from the previous commit is still pending, the second click sees the stale selection and activation is skipped. Real users' double-clicks are ~100 ms+ apart, so only the zero-gap synthetic dblclick hits it.
+
+**Fix recipe (test-side):** select the cell first, wait for the grid to confirm the selection, then double-click — an **already-selected** cell activates regardless of inter-click render timing. The a11y table exposes the committed selection as `#glide-cell-<col>-<row>[aria-selected="true"]` (debounced ~200 ms; `col` counts the row marker, so the crew Name column is `2`). See `e2e/crew-glide.spec.ts` `addMember`. Typing-based helpers (e.g. that spec's `editCell`) are immune because `editOnType` opens the editor on the first typed character when the dblclick didn't.
 
 ## Takeaway for future runs
 
 If the full suite goes red, check whether it is one of these drift patterns
 before assuming a regression: `wrapValue` entity cells are `<textarea>`, kit
-menu/popup rows are `[role="option"]` / `.ui-item` (not `<button>`), and tall
-content needs `scrollIntoViewIfNeeded` before coordinate clicks.
+menu/popup rows are `[role="option"]` / `.ui-item` (not `<button>`), tall
+content needs `scrollIntoViewIfNeeded` before coordinate clicks, and Glide
+double-clicks that fail right after a commit are the zero-gap synthetic-click
+race described in §E (select first, then double-click).

@@ -52,6 +52,18 @@ test.describe('Crew Glide', () => {
     };
     const addMember = async (row: number, text: string) => {
       const p = await namePoint(row);
+      // Select first, wait for the grid's a11y tree to confirm the selection
+      // committed, then double-click. Playwright dispatches a dblclick's two
+      // clicks back-to-back; Glide's double-click activation compares the
+      // selection captured at the second mousedown against the clicked cell,
+      // so while a re-render is pending (the previous add's commit) the
+      // second click sees a stale selection and the editor never opens —
+      // a flake that fails ~3/4 runs and passes on retry. A cell that is
+      // ALREADY selected activates on the double-click regardless of
+      // inter-click render timing. Name column td = `glide-cell-2-{row}`
+      // (1 = actions; the row marker is not in the a11y table).
+      await page.mouse.click(p.x, p.y);
+      await expect(page.locator(`#glide-cell-2-${row}[aria-selected="true"]`)).toBeAttached({ timeout: 4000 });
       await page.mouse.dblclick(p.x, p.y);
       const input = page.locator('#portal textarea, #portal input').first();
       await expect(input).toBeAttached({ timeout: 4000 });
