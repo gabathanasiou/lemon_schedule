@@ -6,6 +6,7 @@ import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 import { isSupabaseConfigured } from '../lib/supabase/client';
 import { listOnlineProjects, uploadProjectOnline, readOnlineProject, saveOnlineProject, renameOnlineProject, deleteOnlineProject } from '../lib/supabase/onlineProjects';
+import { getMyRole, type CollaboratorRole } from '../lib/supabase/sharing';
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex, formatDriveError } from '../lib/googleDriveStorage';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
@@ -36,6 +37,14 @@ function driveErrorDetail(err: unknown): string {
   return raw && raw !== friendly ? `${friendly} (${raw.slice(0, 100)})` : friendly;
 }
 
+/** A save failure that means "your role no longer allows this" rather than
+ *  "the network hiccuped": an RLS rejection, or the 0-rows retry signature
+ *  of an update policy that no longer matches (demoted/revoked member). */
+function isPermissionFailure(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return /permission|row-level security|42501|changed elsewhere/i.test(msg);
+}
+
 export interface ProjectContextType {
   state: State;
   dispatch: React.Dispatch<Action>;
@@ -46,7 +55,16 @@ export interface ProjectContextType {
   projectList: ProjectMeta[];
   currentProjectId: string | null;
   initialized: boolean;
+  /** Connectivity lock — driven ONLY by the probe/auth events (see the
+   *  connectivity model in docs/STORE-AND-SYNC.md). Never carries permission
+   *  meaning. */
   readOnly: boolean;
+  /** Permission flag (roadmap 229 S2): false when the signed-in user is a
+   *  view-only member of the open shared project. Independent of `readOnly`. */
+  canEdit: boolean;
+  /** The editing gate for UI surfaces: `readOnly || !canEdit`. Use it on
+   *  write affordances; keep the two source flags separate. */
+  locked: boolean;
   createProject: (title?: string, cloud?: boolean) => Promise<string>;
   openProject: (id: string, cloudDriveFileId?: string) => Promise<void>;
   deleteProject: (id: string, cloudDriveFileId?: string) => Promise<void>;
@@ -125,6 +143,41 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [onlineError, setOnlineError] = useState<string | null>(null);
   const onlineProjectsRef = useRef(onlineProjects);
   onlineProjectsRef.current = onlineProjects;
+
+  // The caller's membership role on the OPEN shared project (S2). Keyed by
+  // project id so a stale role can never leak onto the next project. Null =
+  // unknown (local/Drive project, or a role fetch that failed) — the server
+  // still enforces on every write; only a resolved 'viewer' locks editing.
+  const [onlineRole, setOnlineRole] = useState<{ projectId: string; role: CollaboratorRole } | null>(null);
+  const currentMetaForRole = projectList.find(p => p.id === currentProjectId);
+  const currentOnlineRole: CollaboratorRole | null =
+    currentMetaForRole?.onlineId && onlineRole?.projectId === currentProjectId ? onlineRole.role : null;
+  const canEdit = currentOnlineRole !== 'viewer';
+  const canEditRef = useRef(canEdit);
+  canEditRef.current = canEdit;
+  const onlineRoleRef = useRef<CollaboratorRole | null>(currentOnlineRole);
+  onlineRoleRef.current = currentOnlineRole;
+
+  /** Re-read the open shared project's role (focus + after a permission-ish
+   *  save failure): a demotion locks the UI, a revocation locks it AND
+   *  surfaces the reason (role changes take effect on the next request). */
+  const recheckOnlineRole = useCallback(async () => {
+    const meta = projectListRef.current.find(p => p.id === currentProjectIdRef.current);
+    if (!meta?.onlineId || !sbAccountRef.current) return;
+    try {
+      const role = await getMyRole(meta.onlineId);
+      if (role) {
+        setOnlineRole({ projectId: meta.id, role });
+      } else {
+        // Membership row gone (revoked): lock — the server rejects the next write anyway.
+        setOnlineRole({ projectId: meta.id, role: 'viewer' });
+        setDriveErrorMsg('You no longer have access to this shared project.');
+        setDriveSaveError(true);
+      }
+    } catch {
+      // Transient — keep the current role.
+    }
+  }, []);
 
   const refetchOnlineProjects = useCallback(() => {
     if (!sbAuth.account) {
@@ -205,6 +258,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           })
           .catch((err2: any) => {
             console.error('Online save retry failed:', err2);
+            if (isPermissionFailure(err2)) {
+              void recheckOnlineRole();
+              setDriveErrorMsg('View only — you do not have permission to save this shared project.');
+              setDriveRetryPending(false);
+              setDriveSaveError(true);
+              return;
+            }
             setDriveErrorMsg(driveErrorDetail(err2));
             scheduleSaveRetry();
           });
@@ -290,7 +350,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setIsOnline(false);
       if (currentMeta()?.driveFileId || currentMeta()?.onlineId) setRealOnline(false);
     };
-    const onVisibility = () => { if (document.visibilityState === 'visible') probe(); };
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      void probe();
+      // A demotion/promotion/revoke applies on the next request; picking it
+      // up on focus keeps the UI honest without polling.
+      void recheckOnlineRole();
+    };
     const conn = (navigator as any).connection;
     conn?.addEventListener?.('change', probe);
     document.addEventListener('visibilitychange', onVisibility);
@@ -312,10 +378,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const meta = projectListRef.current.find(p => p.id === currentProjectId);
     return !!meta?.driveFileId || !!meta?.onlineId;
   }, [currentProjectId]);
+  /** View-only members of a shared project: every write dispatch is dropped
+   *  (the server rejects them too — this only keeps the client honest). */
+  const isCurrentOnlineProject = useCallback(() => {
+    return !!projectListRef.current.find(p => p.id === currentProjectIdRef.current)?.onlineId;
+  }, []);
   const guardedDispatch = useCallback((action: Action) => {
-    if (!realOnline && action.type !== 'LOAD' && isCurrentCloudProject()) return;
+    if (action.type !== 'LOAD') {
+      if (!realOnline && isCurrentCloudProject()) return;
+      if (isCurrentOnlineProject() && !canEditRef.current) return;
+    }
     dispatch(action);
-  }, [realOnline, isCurrentCloudProject]);
+  }, [realOnline, isCurrentCloudProject, isCurrentOnlineProject]);
 
   // Agentic debug bridge (dev builds or localStorage LEMON_AGENT=1): exposes
   // state reads + dispatch as window.__lemonSchedule — see AGENTS.md.
@@ -347,6 +421,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         onlineProjectCount: onlineProjectsRef.current.length,
         navigatorOnLine: navigator.onLine,
         readOnly: !connStateRef.current.realOnline,
+        onlineRole: onlineRoleRef.current,
+        canEdit: canEditRef.current,
+        editLocked: !canEditRef.current || !connStateRef.current.realOnline,
       }),
     });
     return uninstall;
@@ -431,6 +508,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (isOnlineProject) {
         // Online projects save the whole blob to Supabase (S1) — the source
         // of truth is the online copy; the offline file is not written.
+        // A view-only member (S2) has nothing to write: the dispatch guard
+        // already blocks edits, so a pending save here means the role just
+        // changed — lock via recheck instead of pushing a rejected write.
+        if (!canEditRef.current) return;
         if (sbAuth.account && isOnline) {
           try {
             const nextRevision = await saveOnlineProject(meta!.onlineId!, project, onlineRevisionRef.current);
@@ -451,6 +532,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             setDriveRetryPending(false);
           } catch (err: any) {
             console.error('Online save failed:', err);
+            if (isPermissionFailure(err)) {
+              // Demoted/revoked mid-session — retries cannot succeed. Re-read
+              // the role (locks the UI) and surface the reason instead.
+              void recheckOnlineRole();
+              setDriveErrorMsg('View only — you do not have permission to save this shared project.');
+              lastSaveFailedRef.current = true;
+              setDriveRetryPending(false);
+              setDriveSaveError(true);
+              return;
+            }
             setDriveErrorMsg(driveErrorDetail(err));
             // Same policy as Drive: a failed upload is not proof of being
             // offline — bounded auto-retries self-heal, the probe classifies.
@@ -649,11 +740,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         // The element manager's unsaved edits undo locally first.
-        if (!performLocalUndo()) dispatch({ type: 'UNDO' });
+        if (!performLocalUndo()) guardedDispatch({ type: 'UNDO' });
       }
       if (cmdOrCtrl && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
-        if (!performLocalRedo()) dispatch({ type: 'REDO' });
+        if (!performLocalRedo()) guardedDispatch({ type: 'REDO' });
       }
       if (cmdOrCtrl && e.key === 's') {
         e.preventDefault();
@@ -661,7 +752,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentProjectId]);
+  }, [currentProjectId, guardedDispatch]);
 
   // Flush current project to localStorage immediately (local projects only —
   // Drive and online projects have their own writers).
@@ -730,10 +821,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const resolvedOnlineId = meta?.onlineId || onlineId;
 
     if (resolvedOnlineId) {
-      // Online project: read the blob from Supabase (RLS 404s for non-members).
+      // Online project: read the blob from Supabase (RLS 404s for non-members)
+      // and the caller's membership role (S2) — editing gates off for viewers
+      // from the project's first render.
       try {
-        const { project, revision } = await readOnlineProject(resolvedOnlineId);
+        const [{ project, revision }, myRole] = await Promise.all([
+          readOnlineProject(resolvedOnlineId),
+          getMyRole(resolvedOnlineId).catch(() => null),
+        ]);
         onlineRevisionRef.current = revision;
+        setOnlineRole(myRole ? { projectId: project.id, role: myRole } : null);
         setProjectList(prev => {
           if (prev.find(p => p.id === project.id)) {
             return prev.map(p => p.id === project.id ? { ...p, onlineId: resolvedOnlineId } : p);
@@ -1019,6 +1116,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const meta = projectList.find(p => p.id === currentProjectId);
     if (meta?.onlineId) {
       if (!sbAuth.account) return;
+      if (!canEditRef.current) return;
       try {
         const nextRevision = await saveOnlineProject(meta.onlineId, { ...presentRef.current }, onlineRevisionRef.current);
         onlineRevisionRef.current = nextRevision;
@@ -1030,7 +1128,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         retryCountRef.current = 0;
         syncDiagRef.current.saveRetryCount = 0;
       } catch (err: any) {
-        setDriveErrorMsg(driveErrorDetail(err));
+        if (isPermissionFailure(err)) {
+          void recheckOnlineRole();
+          setDriveErrorMsg('View only — you do not have permission to save this shared project.');
+        } else {
+          setDriveErrorMsg(driveErrorDetail(err));
+        }
         setDriveSaveError(true);
         setDriveRetryPending(false);
       }
@@ -1091,6 +1194,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!project) throw new Error('Could not load the project.');
     await uploadProjectOnline(project);
     onlineRevisionRef.current = 0;
+    // The caller owns the copy it just uploaded.
+    setOnlineRole({ projectId: id, role: 'owner' });
     setProjectList(prev => {
       const exists = prev.find(p => p.id === id);
       const updated = exists
@@ -1114,6 +1219,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     currentProjectId,
     initialized,
     readOnly: !realOnline,
+    canEdit,
+    locked: !realOnline || !canEdit,
     createProject,
     openProject,
     deleteProject,
@@ -1135,7 +1242,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     retryConnectivity,
     closeProject,
     consumeLegacyMigrationNotice,
-  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
 
   return (
     <ProjectContext.Provider value={contextValue}>
