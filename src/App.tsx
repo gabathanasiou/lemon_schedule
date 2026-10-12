@@ -74,6 +74,8 @@ import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
 import AppHeader, { AppTabId } from './components/AppHeader';
 import { AccountModal } from './components/AccountModal';
+import { ShareLinkGate } from './components/ShareLinkGate';
+import { SharingModal } from './components/sharing/SharingModal';
 import { PasswordRecoveryModal } from './components/PasswordRecoveryModal';
 import ProductionTab, { ProductionSubTab, ProdViews } from './components/ProductionTab';
 import { CrewManager } from './components/CrewManager';
@@ -484,6 +486,7 @@ function AppContent() {
   useEffect(() => {
     setShowProjectManager(false);
     setShowAccountModal(false);
+    setShowSharing(false);
     setShowPrintDialog(false);
     setShowDoodDialog(false);
     setShowBreakdownSheetDialog(false);
@@ -507,6 +510,7 @@ function AppContent() {
 
   const [showProjectManager, setShowProjectManager] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showSharing, setShowSharing] = useState(false);
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showDoodDialog, setShowDoodDialog] = useState(false);
@@ -911,6 +915,7 @@ function AppContent() {
       )}
 
       <AccountModal open={showAccountModal} onClose={() => setShowAccountModal(false)} />
+      <SharingModal open={showSharing} onClose={() => setShowSharing(false)} />
       <PasswordRecoveryModal />
 
       {showAgentBridgeHelp && (
@@ -977,6 +982,7 @@ function AppContent() {
         togglePopout={requestTabPopout}
         onTabContextMenu={(e, tabId) => setTabContextMenu({ x: e.clientX, y: e.clientY, tabId })}
         onOpenProjectManager={() => setShowProjectManager(true)}
+        onManageSharing={() => setShowSharing(true)}
         onImportClick={() => importFileRef.current?.click()}
         onImportNewProject={() => newProjectFileRef.current?.click()}
         onUpdateScript={() => updateScriptFileRef.current?.click()}
@@ -1233,6 +1239,7 @@ export default function App() {
     <ProjectProvider>
       <NewCastNamingProvider>
         <SceneDuplicateProvider>
+          <ShareLinkGate />
           <AppContent />
         </SceneDuplicateProvider>
       </NewCastNamingProvider>

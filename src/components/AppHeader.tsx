@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Undo2, Redo2 } from 'lucide-react';
+import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Undo2, Redo2, Users } from 'lucide-react';
 import { useProject } from '../store';
 import { useDialog } from './Dialog';
 import { IS_COARSE } from '../lib/device';
@@ -34,6 +34,8 @@ interface AppHeaderProps {
   togglePopout: (tabId: string) => void;
   onTabContextMenu: (e: React.MouseEvent, tabId: AppTabId) => void;
   onOpenProjectManager: () => void;
+  /** Opens the User & sharing panel for the open shared project (S2). */
+  onManageSharing: () => void;
   onImportClick: () => void;
   onImportNewProject: () => void;
   onUpdateScript: () => void;
@@ -62,7 +64,7 @@ export default function AppHeader(props: AppHeaderProps) {
   const project = state.present;
   const {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
-    onOpenProjectManager, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
+    onOpenProjectManager, onManageSharing, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
     onShowTrash, onShowIntegrity, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
   } = props;
@@ -123,6 +125,11 @@ export default function AppHeader(props: AppHeaderProps) {
             <DropdownItem onClick={() => { setShowFileMenu(false); onOpenProjectManager(); }} icon={<FolderOpen className="w-3.5 h-3.5" />}>
               Project Manager
             </DropdownItem>
+            {isOnlineProject && (
+              <DropdownItem onClick={() => { setShowFileMenu(false); onManageSharing(); }} icon={<Users className="w-3.5 h-3.5" />}>
+                Manage Shared Project...
+              </DropdownItem>
+            )}
             <DropdownDivider />
             <DropdownSubmenu id="import-file" label="Import" icon={<FileUp className="w-3.5 h-3.5" />} width="w-56">
               <DropdownItem onClick={() => { setShowFileMenu(false); onImportClick(); }} disabled={locked}>
@@ -263,7 +270,7 @@ export default function AppHeader(props: AppHeaderProps) {
             <Redo2 className="w-3.5 h-3.5" />
           </button>
         </div>
-        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} />
+        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
       </div>
     </header>
   );

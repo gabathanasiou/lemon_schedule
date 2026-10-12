@@ -16,8 +16,9 @@ const SOCIAL_CLASS = 'w-full flex items-center justify-center gap-2 px-3 py-2 ro
  *  (never a dead button that lands on a raw provider error page).
  *
  *  App-level so the boot screen reaches it too — the signed-out Project
- *  Manager's Online tab and the header user cluster both open this instance. */
-export function AccountModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+ *  Manager's Online tab and the header user cluster both open this instance.
+ *  `notice` carries context (e.g. an invite link waiting to open). */
+export function AccountModal({ open, onClose, notice }: { open: boolean; onClose: () => void; notice?: React.ReactNode }) {
   const auth = useSupabaseAuth();
   const [mode, setMode] = useState<Mode>('signin');
   const [name, setName] = useState('');
@@ -126,6 +127,11 @@ export function AccountModal({ open, onClose }: { open: boolean; onClose: () => 
       }
     >
       <div className="p-6 space-y-3">
+        {notice && (
+          <div className="rounded-md border border-emerald-800/60 bg-emerald-950/40 px-3 py-2 text-xs text-emerald-200">
+            {notice}
+          </div>
+        )}
         {info ? (
           <p className="text-sm text-zinc-300">{info}</p>
         ) : (

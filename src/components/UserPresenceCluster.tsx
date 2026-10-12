@@ -5,7 +5,6 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
-import { useDialog } from './Dialog';
 import { useProject } from '../store';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 import { AccountAvatar } from './AccountAvatar';
@@ -28,6 +27,8 @@ interface UserPresenceClusterProps {
   closeProject: () => void;
   /** Opens the app-level AccountModal (sign in / create account). */
   onOpenAccount: () => void;
+  /** Opens the User & sharing panel for the open shared project (S2). */
+  onManageSharing: () => void;
 }
 
 /** The header user cluster (roadmap 229 S1, docs/COLLABORATION.md §9).
@@ -36,9 +37,8 @@ interface UserPresenceClusterProps {
  *  Google Drive connect/disconnect lives here too (the File menu keeps
  *  project actions only). Renders nothing when the build has no Supabase env
  *  — the File menu then keeps the old Drive items. */
-export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, closeProject, onOpenAccount }: UserPresenceClusterProps) {
+export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, closeProject, onOpenAccount, onManageSharing }: UserPresenceClusterProps) {
   const auth = useSupabaseAuth();
-  const dialog = useDialog();
   const { currentProjectId, projectList, state, collaborateProject } = useProject();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -66,10 +66,8 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
     try {
       await collaborateProject(currentProjectId);
       setCollabOpen(false);
-      void dialog.alert({
-        title: 'Added to shared projects',
-        message: `"${projectTitle}" now saves automatically. Inviting other people arrives in a later update.`,
-      });
+      // Straight into the sharing panel — inviting is the next step.
+      onManageSharing();
     } catch (e: any) {
       setCollabError(e?.message || 'Could not add the project to your shared projects.');
     } finally {
@@ -132,6 +130,14 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
                 icon={<Users className="w-3.5 h-3.5" />}
               >
                 Collaborate...
+              </DropdownItem>
+            )}
+            {account && currentMeta?.onlineId && (
+              <DropdownItem
+                onClick={() => { setMenuOpen(false); onManageSharing(); }}
+                icon={<Users className="w-3.5 h-3.5" />}
+              >
+                Manage Shared Project...
               </DropdownItem>
             )}
             <DropdownItem

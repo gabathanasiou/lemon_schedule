@@ -66,7 +66,7 @@ export interface ProjectContextType {
    *  write affordances; keep the two source flags separate. */
   locked: boolean;
   createProject: (title?: string, cloud?: boolean) => Promise<string>;
-  openProject: (id: string, cloudDriveFileId?: string) => Promise<void>;
+  openProject: (id: string, cloudDriveFileId?: string, onlineId?: string) => Promise<void>;
   deleteProject: (id: string, cloudDriveFileId?: string) => Promise<void>;
   renameProject: (id: string, title: string, driveFileId?: string) => void;
   duplicateProject: (id: string, cloudDriveFileId?: string) => Promise<void>;

@@ -214,8 +214,10 @@ export async function deleteShareLink(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function deleteProjectShareLinks(projectId: string): Promise<void> {
-  const { error } = await client().from('share_links').delete().eq('project_id', projectId);
+export async function deleteProjectShareLinks(projectId: string, exceptId?: string): Promise<void> {
+  let query = client().from('share_links').delete().eq('project_id', projectId);
+  if (exceptId) query = query.neq('id', exceptId);
+  const { error } = await query;
   if (error) throw new Error(error.message);
 }
 
