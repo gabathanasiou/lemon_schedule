@@ -14,10 +14,10 @@ import {
   cancelPendingInvite,
   createShareLink,
   deleteProjectShareLinks,
-  deleteShareLink,
   getSharingState,
   inviteCollaborator,
   removeMember,
+  revokeShareLinks,
   setAllowInvites,
   setMemberRole,
   stopSharing,
@@ -71,9 +71,6 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
   const [notice, setNotice] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
-  /** The raw token is kept in memory only for the session's link (the database
-   *  stores just the hash) — Copy Link re-copies it without rotating. */
-  const [linkToken, setLinkToken] = useState<{ linkId: string; token: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [expiryOpen, setExpiryOpen] = useState(false);
 
@@ -96,7 +93,6 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
 
   useEffect(() => {
     if (open) return;
-    setLinkToken(null);
     setNotice(null);
     setActionError(null);
     setLoadError(null);
@@ -127,36 +123,41 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
   const activeLink = share?.links[0] ?? null;
   const expired = !!activeLink?.expiresAt && Date.parse(activeLink.expiresAt) < Date.now();
   const mode: AccessMode = activeLink ? 'link' : 'invite';
-  const heldToken = linkToken && activeLink && linkToken.linkId === activeLink.id && !expired ? linkToken.token : null;
-  const linkUrl = (token: string) => shareLinkUrl(token, window.location.origin, import.meta.env.BASE_URL);
+  // The raw token is stored (inviter-only) so the link is always displayable;
+  // links created before that change have none — those rotate on Copy.
+  const linkHref = activeLink?.token ? shareLinkUrl(activeLink.token, window.location.origin, import.meta.env.BASE_URL) : '';
+  const needsNewLink = !linkHref || expired;
 
   const handleModeChange = (next: string) => {
-    void run(async () => {
-      if (next === 'link') {
-        if (!activeLink) {
-          const { id, token } = await createShareLink(onlineId, null);
-          setLinkToken({ linkId: id, token });
-        }
-      } else {
-        await deleteProjectShareLinks(onlineId);
-        setLinkToken(null);
-      }
-    });
+    if (next === 'link') {
+      void run(async () => {
+        if (!activeLink) await createShareLink(onlineId, null);
+      });
+      return;
+    }
+    // "Only invited people" = revoke: the link stops working AND the guests
+    // it admitted lose access immediately.
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: 'Only invited people?',
+        message: 'The link stops working, and anyone who joined with it loses access immediately.',
+        danger: true,
+      });
+      if (!ok) return;
+      void run(async () => { await revokeShareLinks(onlineId); });
+    })();
   };
 
   const handleCopyLink = () => {
     void run(async () => {
-      let url: string;
-      if (heldToken) {
-        url = linkUrl(heldToken);
-      } else {
-        // Mint a fresh link (rotating the previous ones) — a stored hash can
-        // never reproduce the raw token.
-        const expiresAt = activeLink?.expiresAt ?? null;
+      let url = linkHref;
+      if (needsNewLink) {
+        // Legacy link without a stored token, or an expired one: mint a fresh
+        // link (rotating the previous ones) and copy that.
+        const expiresAt = expired ? null : (activeLink?.expiresAt ?? null);
         const { id, token } = await createShareLink(onlineId, expiresAt);
         await deleteProjectShareLinks(onlineId, id);
-        setLinkToken({ linkId: id, token });
-        url = linkUrl(token);
+        url = shareLinkUrl(token, window.location.origin, import.meta.env.BASE_URL);
       }
       try {
         await navigator.clipboard.writeText(url);
@@ -174,10 +175,15 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
   };
 
   const handleRevokeLink = () => {
-    void run(async () => {
-      if (activeLink) await deleteShareLink(activeLink.id);
-      setLinkToken(null);
-    });
+    void (async () => {
+      const ok = await dialog.confirm({
+        title: 'Revoke the link?',
+        message: 'The link stops working, and anyone who joined with it loses access immediately.',
+        danger: true,
+      });
+      if (!ok) return;
+      void run(async () => { await revokeShareLinks(onlineId); });
+    })();
   };
 
   const handleInvite = () => {
@@ -220,7 +226,6 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
       if (!ok) return;
       void run(async () => {
         await stopSharing(onlineId);
-        setLinkToken(null);
       });
     })();
   };
@@ -277,31 +282,43 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                   ) : (
                     <>
                       <p className="text-[10px] text-zinc-600">
-                        {expired ? 'The link has expired — Copy Link makes a new one.' : 'Anyone with the link can view this project (view only).'}
+                        {expired ? 'The link has expired — Create New Link replaces it.' : 'Anyone with the link can view this project (view only).'}
                       </p>
-                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                        <Button variant="subtle" theme="dark" onClick={handleCopyLink} disabled={busy}>
-                          <Copy className="w-3.5 h-3.5" /> {copied ? 'Copied' : 'Copy Link'}
-                        </Button>
-                        <DropdownMenu
-                          open={expiryOpen}
-                          onOpenChange={setExpiryOpen}
-                          align="left"
-                          width="w-36"
-                          theme="dark"
-                          trigger={
-                            <button type="button" disabled={busy} className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors disabled:opacity-40">
-                              Expires: {EXPIRY_OPTIONS.find(o => o.v === (activeLink ? expiryValue(activeLink.expiresAt) : 'never'))?.l}
-                            </button>
-                          }
-                        >
-                          {EXPIRY_OPTIONS.map(o => (
-                            <DropdownItem key={o.v} onClick={() => handleExpiry(o.v)}>{o.l}</DropdownItem>
-                          ))}
-                        </DropdownMenu>
-                        <Button variant="danger-ghost" theme="dark" onClick={handleRevokeLink} disabled={busy}>
-                          Revoke Link
-                        </Button>
+                      <div className="space-y-2 pt-0.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            readOnly
+                            aria-label="Invite link"
+                            value={linkHref}
+                            placeholder={needsNewLink ? 'Create a new link to show it here' : ''}
+                            onFocus={e => e.currentTarget.select()}
+                            className={`${INPUT_CLASS} flex-1 min-w-0 font-mono text-[10px] cursor-text`}
+                          />
+                          <Button variant="subtle" theme="dark" onClick={handleCopyLink} disabled={busy} className="shrink-0">
+                            <Copy className="w-3.5 h-3.5" /> {needsNewLink ? 'Create New Link' : (copied ? 'Copied' : 'Copy Link')}
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <DropdownMenu
+                            open={expiryOpen}
+                            onOpenChange={setExpiryOpen}
+                            align="left"
+                            width="w-36"
+                            theme="dark"
+                            trigger={
+                              <button type="button" disabled={busy} className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors disabled:opacity-40">
+                                Expires: {EXPIRY_OPTIONS.find(o => o.v === (activeLink ? expiryValue(activeLink.expiresAt) : 'never'))?.l}
+                              </button>
+                            }
+                          >
+                            {EXPIRY_OPTIONS.map(o => (
+                              <DropdownItem key={o.v} onClick={() => handleExpiry(o.v)}>{o.l}</DropdownItem>
+                            ))}
+                          </DropdownMenu>
+                          <Button variant="danger-ghost" theme="dark" onClick={handleRevokeLink} disabled={busy}>
+                            Revoke Link
+                          </Button>
+                        </div>
                       </div>
                     </>
                   )}

@@ -34,6 +34,9 @@ export interface ShareLinkRow {
   id: string;
   createdAt: string;
   expiresAt: string | null;
+  /** Raw token — RLS keeps it inviter-only, so the panel re-displays the
+   *  link at any time. Null for links created before this landed. */
+  token: string | null;
 }
 
 export interface SharingState {
@@ -93,24 +96,29 @@ export async function getSharingState(projectId: string): Promise<SharingState> 
 
   const [pendingRes, linksRes] = await Promise.all([
     sb.from('pending_invites').select('id, email, role, created_at').eq('project_id', projectId),
-    sb.from('share_links').select('id, created_at, expires_at').eq('project_id', projectId).order('created_at', { ascending: false }),
+    sb.from('share_links').select('id, created_at, expires_at, token').eq('project_id', projectId).order('created_at', { ascending: false }),
   ]);
 
   const rows = (membersRes.data ?? []) as { user_id: string; role: CollaboratorRole }[];
   const myRow = rows.find(r => r.user_id === myUserId);
   if (!myRow) throw new Error('You no longer have access to this project.');
 
-  let profiles: { id: string; display_name: string | null; avatar_url: string | null }[] = [];
+  let profiles: { id: string; display_name: string | null; avatar_url: string | null; is_anonymous: boolean | null }[] = [];
   if (rows.length > 0) {
     const { data } = await sb
       .from('profiles')
-      .select('id, display_name, avatar_url')
+      .select('id, display_name, avatar_url, is_anonymous')
       .in('id', rows.map(r => r.user_id));
     profiles = (data ?? []) as typeof profiles;
   }
   const nameOf = new Map(profiles.map(p => [p.id, p]));
+  // Link guests (anonymous sessions) hold a membership but are NOT invitees:
+  // the People list shows invited people only — guests surface as live
+  // watchers once presence lands (S3).
+  const guestIds = new Set(profiles.filter(p => p.is_anonymous).map(p => p.id));
 
   const members: SharingMember[] = rows
+    .filter(r => !guestIds.has(r.user_id))
     .map(r => ({
       userId: r.user_id,
       name: nameOf.get(r.user_id)?.display_name ?? null,
@@ -135,6 +143,7 @@ export async function getSharingState(projectId: string): Promise<SharingState> 
       id: l.id,
       createdAt: l.created_at,
       expiresAt: l.expires_at,
+      token: l.token ?? null,
     })),
   };
 }
@@ -186,9 +195,8 @@ export async function setAllowInvites(projectId: string, allow: boolean): Promis
 }
 
 /**
- * Mint a view-only link. The raw token is generated + hashed here; only the
- * hash goes to the database, so an existing link can never be re-shown — the
- * caller keeps the token in memory for Copy Link until the panel closes.
+ * Mint a view-only link. Both the raw token (displayed/copied by the panel,
+ * inviter-only via RLS) and its sha256 (redemption key) are stored.
  */
 export async function createShareLink(projectId: string, expiresAt: string | null): Promise<{ id: string; token: string }> {
   const sb = client();
@@ -197,7 +205,7 @@ export async function createShareLink(projectId: string, expiresAt: string | nul
   const tokenHash = await hashShareToken(token);
   const { data, error } = await sb
     .from('share_links')
-    .insert({ project_id: projectId, token_hash: tokenHash, expires_at: expiresAt, created_by: userId })
+    .insert({ project_id: projectId, token, token_hash: tokenHash, expires_at: expiresAt, created_by: userId })
     .select('id')
     .single();
   if (error || !data) throw new Error(error?.message || 'Could not create the link.');
@@ -219,6 +227,15 @@ export async function deleteProjectShareLinks(projectId: string, exceptId?: stri
   if (exceptId) query = query.neq('id', exceptId);
   const { error } = await query;
   if (error) throw new Error(error.message);
+}
+
+/** Revoke every link AND evict the guests they admitted (link-joined
+ *  anonymous viewers). Owner or allow-invites editor — enforced server-side. */
+export async function revokeShareLinks(projectId: string): Promise<{ links: number; guests: number }> {
+  const { data, error } = await client().rpc('revoke_share_links', { p_project: projectId });
+  if (error) throw new Error(error.message);
+  const res = (data ?? {}) as { links?: number; guests?: number };
+  return { links: Number(res.links ?? 0), guests: Number(res.guests ?? 0) };
 }
 
 /** Stop Sharing…: revoke every link + pending invite and remove every member

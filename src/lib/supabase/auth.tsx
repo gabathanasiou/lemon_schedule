@@ -8,6 +8,9 @@ export interface SupabaseAccount {
   email: string | null;
   name: string | null;
   avatarUrl: string | null;
+  /** A guest session created by an invite link (anonymous sign-in) — no
+   *  credentials yet; "Create account" converts it in place (roadmap 229 S2). */
+  isAnonymous: boolean;
 }
 
 /** Sign-up result: `needsEmailConfirm` = the project requires email
@@ -28,6 +31,12 @@ export interface SupabaseAuthValue {
   /** Start the OAuth redirect (full-page; the app comes back here). */
   signInWithGoogle: () => void;
   signInWithApple: () => void;
+  /** Silent guest session for invite links (no account form). Requires the
+   *  project's anonymous sign-ins to be enabled; returns an error otherwise. */
+  signInAnonymously: () => Promise<string | null>;
+  /** Convert the current guest into a full account IN PLACE (same user id —
+   *  memberships survive). Returns a human-readable error, or null. */
+  upgradeAnonymousAccount: (email: string, password: string, name?: string) => Promise<SignUpResult>;
   /** Email + password. Returns a human-readable error, or null on success. */
   signInWithPassword: (email: string, password: string) => Promise<string | null>;
   signUpWithPassword: (email: string, password: string, name?: string) => Promise<SignUpResult>;
@@ -52,6 +61,8 @@ const EMPTY: SupabaseAuthValue = {
   refreshProviders: () => {},
   signInWithGoogle: () => {},
   signInWithApple: () => {},
+  signInAnonymously: async () => 'Not configured',
+  upgradeAnonymousAccount: async () => ({ error: 'Not configured', needsEmailConfirm: false }),
   signInWithPassword: async () => 'Not configured',
   signUpWithPassword: async () => ({ error: 'Not configured', needsEmailConfirm: false }),
   updateProfileName: async () => 'Not configured',
@@ -70,11 +81,14 @@ export function useSupabaseAuth(): SupabaseAuthValue {
 
 function accountFromUser(user: User): SupabaseAccount {
   const meta = user.user_metadata || {};
+  const isAnonymous = user.is_anonymous === true;
   return {
     id: user.id,
     email: user.email ?? null,
-    name: (meta.full_name as string) || (meta.name as string) || null,
+    // Guests get a friendly name so avatars/menus read "Guest" not "?".
+    name: (meta.full_name as string) || (meta.name as string) || (isAnonymous ? 'Guest' : null),
     avatarUrl: (meta.avatar_url as string) || (meta.picture as string) || null,
+    isAnonymous,
   };
 }
 
@@ -127,6 +141,40 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
   const signInWithGoogle = useCallback(() => signInWithOAuth('google'), [signInWithOAuth]);
   const signInWithApple = useCallback(() => signInWithOAuth('apple'), [signInWithOAuth]);
+
+  const signInAnonymously = useCallback(async (): Promise<string | null> => {
+    if (!supabase) return 'Sign-in is not configured on this build.';
+    const { error } = await supabase.auth.signInAnonymously();
+    return error ? error.message : null;
+  }, []);
+
+  /** Convert the current guest to a full account without changing the user id
+   *  (so the shared-project memberships they redeemed survive). With email
+   *  confirmation off, GoTrue applies the email immediately; when the project
+   *  requires confirmation it returns `new_email` and the caller asks the
+   *  guest to confirm. */
+  const upgradeAnonymousAccount = useCallback(async (email: string, password: string, name?: string): Promise<SignUpResult> => {
+    if (!supabase) return { error: 'Sign-in is not configured on this build.', needsEmailConfirm: false };
+    const fullName = name?.trim();
+    const { data, error } = await supabase.auth.updateUser({
+      email,
+      password,
+      data: fullName ? { full_name: fullName } : undefined,
+    });
+    if (error) {
+      if (/already registered|already been registered|email.*in use/i.test(error.message)) {
+        return { error: 'That email already has an account — sign out, then sign in to it.', needsEmailConfirm: false };
+      }
+      return { error: error.message, needsEmailConfirm: false };
+    }
+    const userId = data.user?.id;
+    if (userId && fullName) {
+      const { error: profileError } = await supabase.from('profiles').update({ display_name: fullName }).eq('id', userId);
+      if (profileError) console.warn('profiles.display_name update failed:', profileError.message);
+    }
+    const needsEmailConfirm = !!(data.user as { new_email?: string } | null)?.new_email;
+    return { error: null, needsEmailConfirm };
+  }, []);
 
   const signInWithPassword = useCallback(async (email: string, password: string): Promise<string | null> => {
     if (!supabase) return 'Sign-in is not configured on this build.';
@@ -206,6 +254,8 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     refreshProviders,
     signInWithGoogle,
     signInWithApple,
+    signInAnonymously,
+    upgradeAnonymousAccount,
     signInWithPassword,
     signUpWithPassword,
     updateProfileName,
@@ -214,7 +264,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     pendingRecovery,
     completePasswordRecovery,
     dismissRecovery,
-  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, pendingRecovery, completePasswordRecovery, dismissRecovery]);
+  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInAnonymously, upgradeAnonymousAccount, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, pendingRecovery, completePasswordRecovery, dismissRecovery]);
 
   return (
     <SupabaseAuthContext.Provider value={value}>

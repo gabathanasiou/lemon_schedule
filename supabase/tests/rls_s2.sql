@@ -12,10 +12,12 @@
 -- stay clean (the only expected warning is the pre-existing Auth
 -- leaked-password-protection config lint).
 --
--- Token hashes are sha256 hex of the raw tokens below (the app hashes
--- client-side; the raw token never reaches the database):
+-- Redemption matches the sha256 hex of the tokens below; since S2.5 the raw
+-- token is ALSO stored (inviter-only via RLS) so the panel can re-display and
+-- copy a link at any time:
 --   rls-link-1 -> 13a2387372fa81bfaaf43c8dcc5a9718bba0ae7b73aa5ca91ed4abb9f914a5b0
 --   rls-link-2 -> 5b682c1a1eeeadb375dfab03c69212015b0da18f662ca73586ac7e73381fddfc
+--   rls-link-3 -> 575c197d102f9a299a33fcc0abd5808f1db935226b77ab29be340f58fde7324a
 
 begin;
 
@@ -332,6 +334,64 @@ select 'stop_sharing_turns_off_invites',
   and not (select allow_invites from public.projects where id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), null;
 with d as (delete from public.share_links where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' returning 1)
 insert into private._rls_s2_test (step, ok, detail) select 'stop_sharing_clears_links', count(*)=1, 'rows='||count(*) from d;
+
+-- ---- revoke evicts the guests the link admitted (S2.5) --------------------
+select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}', true);
+with i as (
+  insert into public.share_links (project_id, token_hash, token, created_by)
+  values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','575c197d102f9a299a33fcc0abd5808f1db935226b77ab29be340f58fde7324a','rls-link-3','11111111-1111-4111-8111-111111111111')
+  returning 1
+)
+insert into private._rls_s2_test (step, ok, detail)
+select 'owner_recreates_link_for_guest', count(*)=1, null from i;
+
+reset role;
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, confirmation_token, email_change, email_change_token_new, recovery_token, is_anonymous)
+values
+  ('00000000-0000-0000-0000-000000000000','88888888-8888-4888-8888-888888888888','authenticated','authenticated',null,'x',null,now(),now(),'{"provider":"anonymous","providers":[]}','{}','','','','', true);
+
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"88888888-8888-4888-8888-888888888888","role":"authenticated"}', true);
+insert into _s2_rpc (step, res_uuid)
+select 'guest_redeems_new_link', public.redeem_share_link('575c197d102f9a299a33fcc0abd5808f1db935226b77ab29be340f58fde7324a');
+insert into private._rls_s2_test (step, ok, detail)
+select 'guest_membership_created',
+  (select res_uuid from _s2_rpc where step='guest_redeems_new_link') = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  and exists(select 1 from public.memberships where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and user_id='88888888-8888-4888-8888-888888888888'), null;
+
+do $$
+begin
+  perform public.revoke_share_links('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  insert into private._rls_s2_test values ('viewer_cannot_revoke_links', false, 'revoke succeeded — BAD');
+exception when others then
+  insert into private._rls_s2_test values ('viewer_cannot_revoke_links', true, sqlstate || ' ' || sqlerrm);
+end $$;
+
+select set_config('request.jwt.claims','{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}', true);
+insert into _s2_rpc (step, res)
+select 'owner_revokes_links', public.revoke_share_links('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+insert into private._rls_s2_test (step, ok, detail)
+select 'revoke_evicts_link_guests',
+  ((select res ->> 'guests' from _s2_rpc where step='owner_revokes_links')::int) = 1
+  and not exists(select 1 from public.memberships where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and user_id='88888888-8888-4888-8888-888888888888')
+  and not exists(select 1 from public.share_links where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), null;
+
+-- ---- guest identity for no-account invite links (S2.5) --------------------
+reset role;
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, confirmation_token, email_change, email_change_token_new, recovery_token, is_anonymous)
+values
+  ('00000000-0000-0000-0000-000000000000','77777777-7777-4777-8777-777777777777','authenticated','authenticated',null,'x',null,now(),now(),'{"provider":"anonymous","providers":[]}','{}','','','','', true);
+insert into private._rls_s2_test (step, ok, detail)
+select 'guest_gets_fun_name',
+  (select display_name like 'Anonymous %' from public.profiles where id='77777777-7777-4777-8777-777777777777')
+  and coalesce((select is_anonymous from public.profiles where id='77777777-7777-4777-8777-777777777777'), false),
+  'BEFORE INSERT naming + handle_new_user copy';
+update auth.users set is_anonymous = false, email = 'rls-converted@example.com'
+where id = '77777777-7777-4777-8777-777777777777';
+insert into private._rls_s2_test (step, ok, detail)
+select 'guest_conversion_syncs_profile',
+  coalesce((select not is_anonymous from public.profiles where id='77777777-7777-4777-8777-777777777777'), false),
+  'sync trigger — the converted person joins the People list';
 
 reset role;
 select jsonb_agg(jsonb_build_object('step', step, 'ok', ok, 'detail', detail) order by step) as results from private._rls_s2_test;

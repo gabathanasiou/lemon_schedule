@@ -68,12 +68,14 @@ export function MemberRow({ member, isSelf, canManage, disabled, onRoleChange, o
   onRemove: () => void;
 }) {
   const isOwnerRow = member.role === 'owner';
+  // Anonymous link visitors have no profile name — label them "Guest".
+  const displayName = member.name || 'Guest';
   return (
     <div className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-md hover:bg-zinc-800/50 transition-colors">
-      <AccountAvatar account={{ id: member.userId, name: member.name, email: null, avatarUrl: member.avatarUrl }} className="w-7 h-7" />
+      <AccountAvatar account={{ id: member.userId, name: displayName, email: null, avatarUrl: member.avatarUrl, isAnonymous: !member.name }} className="w-7 h-7" />
       <div className="flex-1 min-w-0">
         <div className="text-xs text-zinc-200 truncate">
-          {member.name || 'Member'}{isSelf ? ' (you)' : ''}
+          {displayName}{isSelf ? ' (you)' : ''}
         </div>
         <div className="text-[10px] text-zinc-500">{ROLE_LABELS[member.role]}</div>
       </div>

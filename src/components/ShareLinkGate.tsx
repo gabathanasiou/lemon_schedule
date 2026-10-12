@@ -10,11 +10,14 @@ import { parseShareTokenFromHash } from '../lib/shareTokens';
 
 /**
  * Invite-link entry (roadmap 229 S2): a `#/share/<token>` URL captures the
- * token before the router sees it, strips the hash, then — once the visitor
- * is signed in — redeems it (server-side hash check + membership) and opens
- * the project. Signed-out visitors get the account modal with an invite
- * notice; redemption resumes automatically after sign-in (the AccountModal
- * closes itself on success — `dismissed` only hides the cancelled prompt).
+ * token before the router sees it, strips the hash, then redeems it
+ * (server-side hash check + membership) and opens the project.
+ *
+ * No account form when the project has anonymous sign-ins enabled: the
+ * visitor gets a silent guest session (device-local; it can be converted to
+ * a real account later from the avatar menu) and is let straight in. When
+ * anonymous sign-ins are off (or fail), the account modal with an invite
+ * notice is the fallback.
  *
  * Mounted app-level AFTER AppContent so its modals stack on top of the boot
  * Project Manager (Radix stack order = DOM order).
@@ -26,10 +29,13 @@ export function ShareLinkGate() {
   const [token, setToken] = useState<string | null>(() => parseShareTokenFromHash(window.location.hash));
   const [dismissed, setDismissed] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
+  const [guestFailed, setGuestFailed] = useState(false);
   // One redemption per captured token: provider state changes after
   // openProject re-create its callback identity, which would restart (and
   // cancel) this effect in a loop.
   const startedRef = useRef(false);
+  const guestTriedRef = useRef(false);
+  const providersTriedRef = useRef(false);
 
   // The router must never adopt `#/share/...` — clear it as soon as captured.
   useEffect(() => {
@@ -37,6 +43,24 @@ export function ShareLinkGate() {
       window.history.replaceState(window.history.state, '', '#/');
     }
   }, []);
+
+  // The gate needs the anonymous-sign-ins flag to pick the no-account path.
+  // Always re-read the settings once per captured token: the value is cached
+  // at app boot, so a toggle flipped while this tab is open must be picked up
+  // without a hard reload.
+  useEffect(() => {
+    if (!token || !auth.isConfigured || providersTriedRef.current) return;
+    providersTriedRef.current = true;
+    auth.refreshProviders();
+  }, [token, auth]);
+
+  // Silent guest session (anonymous sign-in) — no form for link visitors.
+  const anonymousEnabled = !!auth.providers?.anonymousEnabled;
+  useEffect(() => {
+    if (!token || dismissed || !auth.isReady || auth.account || !anonymousEnabled || guestTriedRef.current) return;
+    guestTriedRef.current = true;
+    void auth.signInAnonymously().then(err => { if (err) setGuestFailed(true); });
+  }, [token, auth, dismissed, auth.isReady, auth.account, anonymousEnabled]);
 
   useEffect(() => {
     if (!token || !auth.isReady || !auth.account || startedRef.current) return;
@@ -60,24 +84,24 @@ export function ShareLinkGate() {
 
   if (!token || !auth.isConfigured) return null;
 
-  return (
-    <>
-      {auth.account ? (
-        <Modal open onClose={() => {}} title="Opening shared project" width="max-w-xs" closable={false}>
-          <div className="p-6 flex items-center gap-3 text-xs text-zinc-300">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            {redeeming ? 'Opening the shared project…' : 'Preparing…'}
-          </div>
-        </Modal>
-      ) : (
-        !dismissed && (
-          <AccountModal
-            open
-            onClose={() => setDismissed(true)}
-            notice="You've been invited to collaborate on a shared project. Sign in or create an account to open it."
-          />
-        )
-      )}
-    </>
-  );
+  const waitingForGuest = !auth.account && anonymousEnabled && !guestFailed;
+
+  if (auth.account || waitingForGuest) {
+    return (
+      <Modal open onClose={() => {}} title="Opening shared project" width="max-w-xs" closable={false}>
+        <div className="p-6 flex items-center gap-3 text-xs text-zinc-300">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {redeeming ? 'Opening the shared project…' : 'Letting you in…'}
+        </div>
+      </Modal>
+    );
+  }
+
+  return !dismissed ? (
+    <AccountModal
+      open
+      onClose={() => setDismissed(true)}
+      notice="You've been invited to collaborate on a shared project. Sign in or create an account to open it."
+    />
+  ) : null;
 }

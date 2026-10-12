@@ -49,6 +49,10 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
 
   const emailValid = /.+@.+\..+/.test(email.trim());
   const passwordValid = password.length >= 6;
+  // A guest (anonymous sign-in from an invite link) converts IN PLACE — the
+  // only mode is "create account"; the user id (and their access) survives.
+  const anonymous = !!auth.account?.isAnonymous;
+  const view: Mode = anonymous ? 'signup' : mode;
 
   const socials: { key: string; label: string; icon: React.ReactNode; onClick: () => void }[] = [];
   if (auth.providers?.googleEnabled) {
@@ -63,7 +67,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
     setError(null);
     setInfo(null);
 
-    if (mode === 'signin') {
+    if (view === 'signin') {
       if (!emailValid || !password) { setError('Enter your email and password.'); return; }
       setBusy(true);
       const err = await auth.signInWithPassword(email.trim(), password);
@@ -73,11 +77,13 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
       return;
     }
 
-    if (mode === 'signup') {
-      if (!name.trim()) { setError('Add your name, so collaborators know who you are.'); return; }
+    if (view === 'signup') {
+      if (!name.trim() && !anonymous) { setError('Add your name, so collaborators know who you are.'); return; }
       if (!emailValid || !passwordValid) { setError('Enter an email and a password of at least 6 characters.'); return; }
       setBusy(true);
-      const { error: err, needsEmailConfirm } = await auth.signUpWithPassword(email.trim(), password, name);
+      const { error: err, needsEmailConfirm } = anonymous
+        ? await auth.upgradeAnonymousAccount(email.trim(), password, name)
+        : await auth.signUpWithPassword(email.trim(), password, name);
       setBusy(false);
       if (err) setError(err);
       else if (needsEmailConfirm) setInfo(`Almost there — we sent a confirmation link to ${email.trim()}. Open it to finish creating your account (check spam if it takes a few minutes).`);
@@ -94,8 +100,8 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
     else setInfo(`Reset link sent to ${email.trim()}. Open it on this device to choose a new password.`);
   };
 
-  const title = mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create your account' : 'Reset your password';
-  const heroLabel = mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset link';
+  const title = view === 'signin' ? 'Sign in' : view === 'signup' ? 'Create your account' : 'Reset your password';
+  const heroLabel = view === 'signin' ? 'Sign in' : view === 'signup' ? 'Create account' : 'Send reset link';
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -137,12 +143,14 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
         ) : (
           <>
             <p className="text-xs text-zinc-400">
-              {mode === 'signin' && 'Sign in to collaborate on shared projects.'}
-              {mode === 'signup' && 'Create an account to collaborate on shared projects.'}
-              {mode === 'reset' && "We'll email you a link to choose a new password."}
+              {view === 'signin' && 'Sign in to collaborate on shared projects.'}
+              {view === 'signup' && (anonymous
+                ? 'Create an account to keep access to the projects shared with you.'
+                : 'Create an account to collaborate on shared projects.')}
+              {view === 'reset' && "We'll email you a link to choose a new password."}
             </p>
 
-            {mode !== 'reset' && socials.length > 0 && (
+            {view !== 'reset' && socials.length > 0 && (
               <>
                 <div className="space-y-2">
                   {socials.map(s => (
@@ -160,7 +168,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
               </>
             )}
 
-            {mode === 'signup' && (
+            {view === 'signup' && (
               <input
                 autoFocus
                 type="text"
@@ -175,7 +183,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
             )}
 
             <input
-              autoFocus={mode !== 'signup'}
+              autoFocus={view !== 'signup'}
               type="email"
               autoComplete="email"
               value={email}
@@ -186,14 +194,14 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
               className={INPUT_CLASS}
             />
 
-            {mode !== 'reset' && (
+            {view !== 'reset' && (
               <input
                 type="password"
-                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                autoComplete={view === 'signup' ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') void submit(); }}
-                placeholder={mode === 'signup' ? 'Password (at least 6 characters)' : 'Password'}
+                placeholder={view === 'signup' ? 'Password (at least 6 characters)' : 'Password'}
                 disabled={busy}
                 className={INPUT_CLASS}
               />
@@ -201,7 +209,7 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
 
             {error && <p className="text-xs text-red-400">{error}</p>}
 
-            {mode === 'signin' && (
+            {view === 'signin' && (
               <div className="flex justify-end">
                 <button type="button" onClick={() => switchMode('reset')} className="text-[11px] text-zinc-400 hover:text-zinc-200 underline underline-offset-2">
                   Forgot password?
@@ -210,16 +218,17 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
             )}
 
             <p className="text-xs text-zinc-500 pt-1">
-              {mode === 'signin' && (
+              {view === 'signin' && (
                 auth.providers?.signupDisabled
                   ? 'New accounts are disabled on this deployment.'
                   : <>No account yet?{' '}
                       <button type="button" onClick={() => switchMode('signup')} className="text-emerald-400 hover:underline underline-offset-2">Create one</button>
                     </>
               )}
-              {mode === 'signup' && <>Already have an account?{' '}
+              {view === 'signup' && !anonymous && <>Already have an account?{' '}
                 <button type="button" onClick={() => switchMode('signin')} className="text-emerald-400 hover:underline underline-offset-2">Sign in</button></>}
-              {mode === 'reset' && <>Remembered it?{' '}
+              {view === 'signup' && anonymous && 'You are browsing as a guest — this keeps your access and lets you sign in on other devices.'}
+              {view === 'reset' && <>Remembered it?{' '}
                 <button type="button" onClick={() => switchMode('signin')} className="text-emerald-400 hover:underline underline-offset-2">Back to sign in</button></>}
             </p>
           </>

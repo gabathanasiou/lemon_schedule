@@ -36,10 +36,12 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 /** Which sign-in methods the Supabase project actually has enabled — read
  *  from the public Auth settings endpoint. The account modal shows Google /
  *  Apple buttons ONLY when the project reports them on, so an unconfigured
- *  provider can never dead-end in a raw "provider is not enabled" page. */
+ *  provider can never dead-end in a raw "provider is not enabled" page.
+ *  `anonymousEnabled` drives the no-account invite-link path (S2 guests). */
 export interface AuthProviders {
   googleEnabled: boolean;
   appleEnabled: boolean;
+  anonymousEnabled: boolean;
   signupDisabled: boolean;
 }
 
@@ -52,6 +54,7 @@ export async function fetchAuthSettings(): Promise<AuthProviders | null> {
     return {
       googleEnabled: Boolean(data?.external?.google),
       appleEnabled: Boolean(data?.external?.apple),
+      anonymousEnabled: Boolean(data?.external?.anonymous_users),
       signupDisabled: Boolean(data?.disable_signup),
     };
   } catch {

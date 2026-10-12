@@ -416,7 +416,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         needsReauth: authStateRef.current.needsReauth,
         projectIsCloud: !!projectListRef.current.find(p => p.id === currentProjectIdRef.current)?.driveFileId,
         supabaseConfigured: isSupabaseConfigured,
-        supabaseSignedIn: !!sbAuth.account,
+        supabaseSignedIn: !!sbAccountRef.current,
         projectIsOnline: !!projectListRef.current.find(p => p.id === currentProjectIdRef.current)?.onlineId,
         onlineProjectCount: onlineProjectsRef.current.length,
         navigatorOnLine: navigator.onLine,

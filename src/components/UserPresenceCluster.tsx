@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User as UserIcon, LogIn, LogOut, Cloud, Users, Loader2, Pencil } from 'lucide-react';
+import { User as UserIcon, LogIn, LogOut, Cloud, Users, Loader2, Pencil, UserPlus } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -51,7 +51,9 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
   const account = auth.account;
   const hover = isCloudProject ? 'hover:bg-blue-900/60' : 'hover:bg-zinc-800';
   const currentMeta = projectList.find(p => p.id === currentProjectId);
-  const canCollaborate = !!account && !!currentProjectId && !currentMeta?.onlineId;
+  // Guests (anonymous sessions) can't own shared projects — "Collaborate"
+  // waits until they create an account.
+  const canCollaborate = !!account && !account.isAnonymous && !!currentProjectId && !currentMeta?.onlineId;
   const projectTitle = state.present.title || 'Untitled Project';
 
   const closeCollab = () => {
@@ -103,7 +105,11 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
           <button
             data-testid="user-cluster"
             className={`flex items-center justify-center w-7 h-7 rounded-full border overflow-hidden transition-colors cursor-pointer select-none ${hover} ${account ? 'border-white/25' : 'border-white/15 bg-white/5 text-zinc-400 hover:text-white'}`}
-            title={account ? `${account.name || account.email} — account & sharing` : 'Sign in to collaborate'}
+            title={account
+              ? account.isAnonymous
+                ? 'Guest — create an account to keep your access'
+                : `${account.name || account.email} — account & sharing`
+              : 'Sign in to collaborate'}
           >
             {account ? (
               <AccountAvatar account={account} className="w-full h-full" />
@@ -118,12 +124,21 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
             <DropdownItem onClick={() => {}} disabled>
               {account.name || account.email}
             </DropdownItem>
-            <DropdownItem
-              onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
-              icon={<Pencil className="w-3.5 h-3.5" />}
-            >
-              Edit profile...
-            </DropdownItem>
+            {account.isAnonymous ? (
+              <DropdownItem
+                onClick={() => { setMenuOpen(false); onOpenAccount(); }}
+                icon={<UserPlus className="w-3.5 h-3.5" />}
+              >
+                Create account...
+              </DropdownItem>
+            ) : (
+              <DropdownItem
+                onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
+                icon={<Pencil className="w-3.5 h-3.5" />}
+              >
+                Edit profile...
+              </DropdownItem>
+            )}
             {canCollaborate && (
               <DropdownItem
                 onClick={() => { setMenuOpen(false); setCollabOpen(true); }}
