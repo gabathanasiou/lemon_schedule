@@ -107,10 +107,12 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
 - Two contexts: STABLE `usePresenceActions()` (publishView/follow/stopFollowing/registerFollowApplier) vs
   `usePresenceState()` (peers/followingId/status). Per-row components MUST NOT subscribe to state —
   cursor traffic is ~20/s and would re-render everything (same spirit as the memo contract below).
-- Cursors are semantic anchors + a pointer fraction (`fx/fy` inside the anchored element) with a
-  viewport-relative `screen` fallback rendered only while the peer is on the same tab (docs/COLLABORATION.md
-  §9). One global mousemove tracker in the provider publishes; `PresenceOverlay` draws. Follow mode:
-  App registers the one applier (navigation stays in `go()`); any manual navigation exits.
+- Cursors are semantic anchors + a pointer fraction (`fx/fy` inside the anchored element), a registered
+  canvas-grid cell (`src/lib/presenceResolvers.ts`; the Glide Breakdown's `rowKey`/`colKey`), or a
+  viewport-relative `screen` fallback (global chrome rendered anywhere, tab content only on the same tab);
+  anchors off the local viewport are hidden and pointers glide via a CSS transform transition
+  (docs/COLLABORATION.md §9). One global mousemove tracker in the provider publishes; `PresenceOverlay`
+  draws. Follow mode: App registers the one applier (navigation stays in `go()`); any manual navigation exits.
 - **S3.5 save ping seam (store-owned)**: `changeCounterRef`/`persistedAtCounterRef` are the clean/dirty
   gate — every accepted write dispatch bumps the counter; `loadBaseline(project)` (LOAD + re-anchor) is
   used by every internal open/import/reload, and successful online saves capture the counter at save

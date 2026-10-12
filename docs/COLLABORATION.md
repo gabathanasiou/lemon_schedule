@@ -324,15 +324,19 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   `ProjectProvider` in `App.tsx`) owns the channel for the open shared project.
   Two contexts — STABLE `usePresenceActions()` (publishView/follow) vs
   `usePresenceState()` (peers/followingId) — so cursor traffic never re-renders
-  the app tree. ONE global `mousemove` tracker resolves the pointer into an
-  anchor: the semantic element under the cursor (row/cell/day section) else a
-  viewport-relative `screen` fallback.
+  the app tree. ONE global `mousemove` tracker resolves the pointer: a
+  registered canvas-grid cell (`src/lib/presenceResolvers.ts`; the Glide
+  Breakdown registers `breakdown-glide` in `BreakdownTabGlide.tsx`) → the
+  semantic element (row/cell/day section) → the nearest item within ~40px →
+  global chrome (`<header>`) → viewport-relative `screen` fallback.
 - UI: `src/components/PresenceOverlay.tsx` — the Canva-style pointer layer
   (arrow + name label in the peer's deterministic colour) + the "Following X"
-  pill. Clicking a pointer follows that person. `App.tsx` publishes the view on
-  every navigation (the one `go()` entry point exits follow mode; the follow
-  applier guards itself) and registers the follower. No header bubbles — user
-  decision 2026-10-12 (§9).
+  pill; pointers glide between positions and are hidden when their anchor is
+  off this client's viewport (user decisions 2026-10-12: cell-accurate Glide,
+  no bubbles, hide off-screen, below modals). Clicking a pointer follows that
+  person. `App.tsx` publishes the view on every navigation (the one `go()`
+  entry point exits follow mode; the follow applier guards itself) and
+  registers the follower.
 - S3.5 provider seam (`src/store/provider.tsx`): `changeCounterRef` /
   `persistedAtCounterRef` = the clean/dirty gate (LOADs and successful saves
   re-anchor it; unchanged projects are never re-pushed, so peer LOADs cannot
@@ -412,19 +416,34 @@ concurrency semantics in its doc.
   the pointer — stripboard row id, calendar `data-date-key`, Day Manager
   section — **plus the pointer's position inside it (fx/fy ∈ 0..1)**, so the
   pointer glides Canva-style while still surviving scroll, reorder, zoom and
-  window size. When the pointer is over nothing shareable (header, toolbars,
-  dialogs, Glide canvas, empty space — and script, flagged not faked) the
-  anchor falls back to **viewport-relative `screen` fractions**, rendered
-  scaled only while that peer is on the same tab. One global mousemove tracker
-  in `presenceContext.tsx` — no per-surface handlers to miss.
+  window size.
+- **Canvas grids register a grid scope** (`src/lib/presenceResolvers.ts`):
+  `probe(x, y)` maps a pointer to a cell → stable `rowKey` (scene id) +
+  `colKey` (breakdown column key) + indices; `locate(anchor)` maps that cell
+  back with the receiver's OWN scroll/column widths/font scale (`getBounds`).
+  The Glide Breakdown registers as `breakdown-glide`; a cell scrolled out of
+  the grid's visible area is hidden, never painted over chrome.
+  Crew/Locations/Call Times can register the same way.
+- Everything else falls back in order: **nearest item within ~40px** (gutters
+  and margins snap to the row/cell beside them) → **global chrome** (the app
+  header is shared UI: always rendered, any tab) → **viewport-relative screen
+  fractions** (same tab only). Anchors that resolve off this client's viewport
+  are **hidden** (user decision 2026-10-12 — no edge chips; follow mode is how
+  you jump to a colleague's place). Script-body cursors stay flagged, not
+  faked (TipTap/ProseMirror relative positions — skipped in S3).
+- Motion: pointers glide between positions (CSS transform transition, ~150ms
+  ease-out); `prefers-reduced-motion` snaps instantly. Pointers render BELOW
+  modals (z-30 vs the kit's z-[10000]) — decided 2026-10-12.
 - **Libraries considered (2026-10)**: Liveblocks / Yjs awareness (`y-presence`)
   / tldraw presence all assume a shared canvas coordinate space; none solve a
   per-user-layout DOM app, and each adds a second realtime system — the hybrid
   above is the standard pattern (Supabase's own cursor-tracking guidance is
   normalized viewport coordinates).
-- Throttling: ~20/s leading + coalesced trailing sends, idle-skip by quantized
-  anchor key, stale-ts drops per client, 20s pointer TTL on top of presence
-  leave. Multi-window: same user = one pointer, newest window wins.
+- Throttling: ~20/s leading + coalesced trailing send (**timer + a next-emit
+  flush** — background tabs throttle `setTimeout`, which alone froze the last
+  position one item behind for peers), idle-skip by quantized anchor key,
+  stale-ts drops per client, 20s pointer TTL on top of presence leave.
+  Multi-window: same user = one pointer, newest window wins.
 - Script-body cursors (TipTap) need ProseMirror relative positions — flag, don't
   fake with indexes (skipped in S3).
 - **Follow**: follower applies the leader's `view` state; a "Following X" pill

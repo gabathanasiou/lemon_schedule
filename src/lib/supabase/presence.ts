@@ -13,7 +13,9 @@ import { isAppTabId, type AppPlace, type AppTabId } from '../appNav';
  * - Ephemeral ONLY: never written to the database, never inside the Project.
  * - Payloads are cosmetic identity: parse, clamp, and never trust them for
  *   permissions or for mutating project state beyond the S3.5 LOAD flow.
- * - Cursors are throttled (~20/s), coalesced, and skipped when idle; stale
+ * - Cursors are throttled (~20/s), bursts coalesce into one trailing send
+ *   (timer + a next-emit flush, so background-tab timer throttling cannot
+ *   freeze the pointer one item behind), and skipped when idle; stale
  *   timestamps are dropped per client.
  * - Multi-window: the same user in two tabs holds two presence entries under
  *   one key; bubbles dedupe by user (newest view wins) and the newest cursor
@@ -52,7 +54,8 @@ export type PresenceAnchor =
   | { kind: 'row'; rowId: string; fx: number; fy: number }
   | { kind: 'date'; date: string; fx: number; fy: number }
   | { kind: 'day'; sectionIndex: number; section?: string; fx: number; fy: number }
-  | { kind: 'screen'; xr: number; yr: number };
+  | { kind: 'grid'; scope: string; rowKey: string; colKey: string; rowIndex: number; colIndex: number; fx: number; fy: number }
+  | { kind: 'screen'; xr: number; yr: number; chrome?: boolean };
 
 /** What this tab tracks in Realtime Presence (who's here + where). */
 export interface PresenceMeta {
@@ -138,7 +141,24 @@ export function parseAnchor(raw: unknown): PresenceAnchor | null {
     const xr = num(r.xr);
     const yr = num(r.yr);
     if (xr == null || yr == null) return null;
-    return { kind: 'screen', xr: clamp01(xr), yr: clamp01(yr) };
+    return { kind: 'screen', xr: clamp01(xr), yr: clamp01(yr), ...(r.chrome === true ? { chrome: true } : {}) };
+  }
+  if (r.kind === 'grid') {
+    const scope = str(r.scope, 64);
+    const rowKey = str(r.rowKey, 128);
+    const colKey = str(r.colKey, 128);
+    const rowIndex = num(r.rowIndex);
+    const colIndex = num(r.colIndex);
+    if (!scope || !rowKey || !colKey || rowIndex == null || colIndex == null) return null;
+    return {
+      kind: 'grid',
+      scope,
+      rowKey,
+      colKey,
+      rowIndex: Math.max(0, Math.trunc(rowIndex)),
+      colIndex: Math.max(0, Math.trunc(colIndex)),
+      ...fractions(r),
+    };
   }
   const pos = fractions(r);
   if (r.kind === 'row') {
@@ -250,7 +270,7 @@ export function pointerFractions(
 export function anchorKey(anchor: PresenceAnchor | null): string {
   if (!anchor) return '';
   const q = (v: number) => Math.round(v * 100);
-  if (anchor.kind === 'screen') return `screen:${q(anchor.xr)}:${q(anchor.yr)}`;
+  if (anchor.kind === 'screen') return `screen:${anchor.chrome ? 1 : 0}:${q(anchor.xr)}:${q(anchor.yr)}`;
   const pos = `${q(anchor.fx)}:${q(anchor.fy)}`;
   switch (anchor.kind) {
     case 'row':
@@ -259,6 +279,8 @@ export function anchorKey(anchor: PresenceAnchor | null): string {
       return `date:${anchor.date}:${pos}`;
     case 'day':
       return `day:${anchor.sectionIndex}:${anchor.section ?? ''}:${pos}`;
+    case 'grid':
+      return `grid:${anchor.scope}:${anchor.rowKey}:${anchor.colKey}:${anchor.rowIndex}:${anchor.colIndex}:${pos}`;
   }
 }
 
@@ -271,15 +293,15 @@ export function screenFractions(clientX: number, clientY: number, width: number,
 }
 
 export interface Throttle<T> {
-  /** Leading-edge send, then at most one trailing send per interval. */
+  /** Leading send now when the window elapsed; otherwise queue the sample and
+   *  coalesce — it flushes via a trailing timer AND opportunistically on the
+   *  next emit (background tabs throttle `setTimeout`, which alone could
+   *  freeze the pointer one item behind for peers). */
   emit(value: T): void;
-  /** Send any coalesced value immediately. */
-  flush(): void;
-  cancel(): void;
 }
 
-/** ~20/s cursor throttle: leading send, coalesce the rest, one trailing send.
- *  `now` is injectable so the timing is unit-testable. */
+/** ~20/s cursor throttle: leading send, coalesce the burst, one trailing send
+ *  (timer + next-emit flush). `now` is injectable so the timing is unit-testable. */
 export function createThrottle<T>(send: (value: T) => void, intervalMs = 100, now: () => number = Date.now): Throttle<T> {
   // -Infinity guarantees the very first emit is always a leading send.
   let lastSentAt = Number.NEGATIVE_INFINITY;
@@ -298,6 +320,20 @@ export function createThrottle<T>(send: (value: T) => void, intervalMs = 100, no
   return {
     emit(value: T) {
       const at = now();
+      if (pending !== undefined) {
+        if (at - lastSentAt < intervalMs) {
+          pending = value; // still coalescing
+          return;
+        }
+        // The trailing timer is overdue (hidden-tab throttling) — flush now.
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        send(pending);
+        pending = undefined;
+        lastSentAt = at;
+      }
       if (at - lastSentAt >= intervalMs) {
         lastSentAt = at;
         send(value);
@@ -305,18 +341,6 @@ export function createThrottle<T>(send: (value: T) => void, intervalMs = 100, no
       }
       pending = value;
       if (!timer) timer = setTimeout(fire, Math.max(0, intervalMs - (at - lastSentAt)));
-    },
-    flush() {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      fire();
-    },
-    cancel() {
-      if (timer) clearTimeout(timer);
-      timer = null;
-      pending = undefined;
     },
   };
 }
@@ -565,7 +589,6 @@ export class ProjectPresenceChannel {
 
   stop(): void {
     this.stopped = true;
-    this.throttle?.cancel();
     this.throttle = null;
     const channel = this.channel;
     this.channel = null;

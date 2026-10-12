@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useProject } from '../../store';
 import { useSupabaseAuth } from './auth';
 import { isSupabaseConfigured } from './client';
+import { getPresenceGridScope } from '../presenceResolvers';
 import {
   acceptCursor,
   pointerFractions,
@@ -83,36 +84,78 @@ function presenceClientId(): string {
   }
 }
 
-/** Resolve one pointer event into a shareable cursor anchor: the semantic
- *  element under the cursor when there is one (row / calendar cell / Day
- *  Manager section), else the viewport-relative `screen` fallback so a cursor
- *  exists EVERYWHERE (headers, toolbars, dialogs, Glide canvas, empty space).
- *  Popout windows have their own document/window — the main window's pointer
- *  is what the team shares (documented in docs/COLLABORATION.md §9). */
+/** Any element that carries a shareable item anchor. */
+const ITEM_SELECTOR = '[data-row-id], [data-date-key], [data-section], [data-day-sections]';
+
+/** Build the element-based anchor for a pointer over `el` (null when `el`
+ *  isn't over a shareable item). */
+function elementAnchor(el: Element, clientX: number, clientY: number): PresenceAnchor | null {
+  const row = el.closest('[data-row-id]');
+  const rowId = row?.getAttribute('data-row-id');
+  if (row && rowId && !rowId.startsWith('empty-')) {
+    return { kind: 'row', rowId, ...pointerFractions(clientX, clientY, row.getBoundingClientRect()) };
+  }
+  const cell = el.closest('[data-date-key]');
+  const date = cell?.getAttribute('data-date-key');
+  if (cell && date) {
+    return { kind: 'date', date, ...pointerFractions(clientX, clientY, cell.getBoundingClientRect()) };
+  }
+  const dayManager = el.closest('[data-day-manager]');
+  if (dayManager) {
+    const dayIndex = Number(dayManager.getAttribute('data-day-manager-day'));
+    if (Number.isFinite(dayIndex)) {
+      const sectionEl = el.closest('[data-section]') ?? el.closest('[data-day-sections]') ?? dayManager;
+      const section = sectionEl.getAttribute('data-section') ?? undefined;
+      return { kind: 'day', sectionIndex: dayIndex, section, ...pointerFractions(clientX, clientY, sectionEl.getBoundingClientRect()) };
+    }
+  }
+  return null;
+}
+
+/** Nearest anchored item within ~40px — hovering a gutter/margin lands the
+ *  pointer on the row/cell beside it instead of falling back to raw pixels. */
+function nearestItemElement(x: number, y: number): Element | null {
+  if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') return null;
+  for (const dy of [8, -8, 16, -16, 24, -24, 32, -32, 40, -40]) {
+    for (const dx of [0, 12, -12]) {
+      const el = document.elementFromPoint(x + dx, y + dy);
+      if (!el) continue;
+      const item = el.closest(ITEM_SELECTOR);
+      if (item) return item;
+    }
+  }
+  return null;
+}
+
+/** Resolve one pointer event into a shareable cursor anchor: a registered
+ *  canvas-grid cell; else the semantic element under the cursor (row /
+ *  calendar cell / Day Manager section); else the nearest item within ~40px;
+ *  else the viewport-relative `screen` fallback so a cursor exists EVERYWHERE
+ *  (headers, toolbars, dialogs, empty space). Popout windows have their own
+ *  document/window — the main window's pointer is what the team shares
+ *  (docs/COLLABORATION.md §9). */
 function resolvePointerAnchor(e: MouseEvent): PresenceAnchor {
   const el = e.target as Element | null;
   if (el && typeof el.closest === 'function') {
-    const row = el.closest('[data-row-id]');
-    const rowId = row?.getAttribute('data-row-id');
-    if (row && rowId && !rowId.startsWith('empty-')) {
-      return { kind: 'row', rowId, ...pointerFractions(e.clientX, e.clientY, row.getBoundingClientRect()) };
+    // 1. Canvas grids (Glide): the registered scope maps the pointer to a cell.
+    const gridEl = el.closest('[data-presence-grid]');
+    const scope = gridEl?.getAttribute('data-presence-grid');
+    if (scope) {
+      const hit = getPresenceGridScope(scope)?.probe(e.clientX, e.clientY);
+      if (hit) return { kind: 'grid', scope, ...hit };
     }
-    const cell = el.closest('[data-date-key]');
-    const date = cell?.getAttribute('data-date-key');
-    if (cell && date) {
-      return { kind: 'date', date, ...pointerFractions(e.clientX, e.clientY, cell.getBoundingClientRect()) };
-    }
-    const dayManager = el.closest('[data-day-manager]');
-    if (dayManager) {
-      const dayIndex = Number(dayManager.getAttribute('data-day-manager-day'));
-      if (Number.isFinite(dayIndex)) {
-        const sectionEl = el.closest('[data-section]') ?? el.closest('[data-day-sections]') ?? dayManager;
-        const section = sectionEl.getAttribute('data-section') ?? undefined;
-        return { kind: 'day', sectionIndex: dayIndex, section, ...pointerFractions(e.clientX, e.clientY, sectionEl.getBoundingClientRect()) };
-      }
-    }
+    // 2. The shareable element under the pointer.
+    const direct = elementAnchor(el, e.clientX, e.clientY);
+    if (direct) return direct;
+    // 3. Gutters/margins: snap to the nearest item (≤40px).
+    const near = nearestItemElement(e.clientX, e.clientY);
+    const snapped = near ? elementAnchor(near, e.clientX, e.clientY) : null;
+    if (snapped) return snapped;
   }
-  return { kind: 'screen', ...screenFractions(e.clientX, e.clientY, window.innerWidth, window.innerHeight) };
+  // 4. Free pointer: global chrome is shown to everyone; tab content only to
+  //    peers on the same tab (approximate by design).
+  const chrome = !!(el && typeof el.closest === 'function' && el.closest('header'));
+  return { kind: 'screen', chrome, ...screenFractions(e.clientX, e.clientY, window.innerWidth, window.innerHeight) };
 }
 
 export function PresenceProvider({ children }: { children: React.ReactNode }) {

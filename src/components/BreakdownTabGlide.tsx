@@ -61,6 +61,7 @@ import { useDedupeCellCommit } from '../lib/glideEditGuard';
 import { createBlankScene, getNextSceneNumber } from '../lib/sceneFactory';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
+import { registerPresenceGridScope, type PresenceGridScope } from '../lib/presenceResolvers';
 import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { useGlideFill } from '../lib/glideFill';
@@ -394,6 +395,49 @@ export function GlideBreakdownTab({
   allBreakdownLabelsRef.current = allBreakdownLabels;
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
+
+  // Presence (S3): expose this grid to the live-pointer system. The sender
+  // maps a pointer to a cell (scene id + column key); the receiver maps that
+  // cell back with its OWN scroll/column widths (`getBounds`) — never pixels.
+  useEffect(() => {
+    const scope: PresenceGridScope = {
+      probe: (x, y) => {
+        const args = gridRef.current?.getMouseArgsForPosition(x, y);
+        if (!args || args.kind !== 'cell') return null;
+        const [col, row] = args.location;
+        const scene = scenesRef.current[row];
+        const colDef = COLUMNSRef.current[col];
+        if (!scene || !colDef) return null;
+        const { x: bx, y: by, width: bw, height: bh } = args.bounds;
+        const fx = bw > 0 ? Math.min(Math.max((x - bx) / bw, 0), 1) : 0.5;
+        const fy = bh > 0 ? Math.min(Math.max((y - by) / bh, 0), 1) : 0.5;
+        return { rowKey: scene.id, colKey: colDef.key, rowIndex: row, colIndex: col, fx, fy };
+      },
+      locate: ({ rowKey, colKey, rowIndex, colIndex }) => {
+        const rows = scenesRef.current;
+        const cols = COLUMNSRef.current;
+        if (rows.length === 0 || cols.length === 0) return null;
+        let ri = rows.findIndex(s => s.id === rowKey);
+        if (ri < 0) ri = Math.min(Math.max(rowIndex, 0), rows.length - 1);
+        let ci = cols.findIndex(c => c.key === colKey);
+        if (ci < 0) ci = Math.min(Math.max(colIndex, 0), cols.length - 1);
+        const rect = gridRef.current?.getBounds(ci, ri);
+        if (!rect) return null;
+        // A cell scrolled out of the grid's own visible area (e.g. under the
+        // sticky header / off the frozen column) must NOT paint a pointer over
+        // unrelated chrome — hide it (user decision: hide off-screen).
+        const container = gridContainerRef.current;
+        if (container) {
+          const cb = container.getBoundingClientRect();
+          const overlapX = Math.min(rect.x + rect.width, cb.right) - Math.max(rect.x, cb.left);
+          const overlapY = Math.min(rect.y + rect.height, cb.bottom) - Math.max(rect.y, cb.top);
+          if (overlapX < 6 || overlapY < 6) return null;
+        }
+        return { left: rect.x, top: rect.y, width: rect.width, height: rect.height };
+      },
+    };
+    return registerPresenceGridScope('breakdown-glide', scope);
+  }, []);
 
   const commitEdit = useCallback((sceneId: string, colKey: string, newVal: string, opts?: { cascadeRemovals?: boolean }) => {
     const currentProject = projectRef.current;
@@ -1074,7 +1118,7 @@ export function GlideBreakdownTab({
       )}
 
       {/* Grid */}
-      <div ref={gridContainerRef} style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
+      <div ref={gridContainerRef} data-presence-grid="breakdown-glide" style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
         <DataEditor
           key={fontVersion}
           ref={gridRef}

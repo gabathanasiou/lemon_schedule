@@ -598,3 +598,15 @@ input, textarea, [contenteditable] {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2318181b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cline x1='20' y1='4' x2='8.12' y2='15.88'/%3E%3Cline x1='14.47' y1='14.48' x2='20' y2='20'/%3E%3Cline x1='8.12' y1='8.12' x2='12' y2='12'/%3E%3C/svg%3E") 6 6, crosshair !important;
   user-select: none;
 }
+
+/* Presence pointers (roadmap 229 S3): pop in when a peer's cursor appears.
+   Position gliding itself is a Tailwind transform transition on the wrapper
+   (motion-reduce:transition-none); this only animates the appearance. */
+@keyframes presence-pointer-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.presence-pointer-in { animation: presence-pointer-in 150ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .presence-pointer-in { animation: none; }
+}

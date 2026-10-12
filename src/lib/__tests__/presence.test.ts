@@ -62,7 +62,17 @@ describe('presence wire helpers', () => {
   it('parses the viewport-relative screen fallback and clamps it', () => {
     expect(parseAnchor({ kind: 'screen', xr: 0.25, yr: 0.75 })).toEqual({ kind: 'screen', xr: 0.25, yr: 0.75 });
     expect(parseAnchor({ kind: 'screen', xr: -1, yr: 4 })).toEqual({ kind: 'screen', xr: 0, yr: 1 });
+    expect(parseAnchor({ kind: 'screen', xr: 0.5, yr: 0.5, chrome: true })).toEqual({ kind: 'screen', xr: 0.5, yr: 0.5, chrome: true });
     expect(parseAnchor({ kind: 'screen', xr: 0.5 })).toBeNull();
+  });
+
+  it('parses grid anchors (Glide cell keys + indices + position)', () => {
+    const full = { kind: 'grid', scope: 'breakdown-glide', rowKey: 'scene-1', colKey: 'cast', rowIndex: 3, colIndex: 8, fx: 0.2, fy: 0.7 };
+    expect(parseAnchor(full)).toEqual(full);
+    expect(parseAnchor({ ...full, rowIndex: -4, colIndex: 2.9 })).toEqual({ ...full, rowIndex: 0, colIndex: 2 });
+    expect(parseAnchor({ ...full, fx: 5, fy: -1 })).toEqual({ ...full, fx: 1, fy: 0 });
+    expect(parseAnchor({ ...full, rowKey: undefined })).toBeNull();
+    expect(parseAnchor({ ...full, scope: '' })).toBeNull();
   });
 
   it('parses presence metas with clamped names and required identity', () => {
@@ -131,7 +141,9 @@ describe('cursor dedupe + idle keys', () => {
     expect(anchorKey({ kind: 'date', date: '2026-10-12', fx: 0, fy: 1 })).toBe('date:2026-10-12:0:100');
     expect(anchorKey({ kind: 'day', sectionIndex: 2, fx: 0.5, fy: 0.5 })).toBe('day:2::50:50');
     expect(anchorKey({ kind: 'day', sectionIndex: 2, section: 'scenes', fx: 0.5, fy: 0.5 })).toBe('day:2:scenes:50:50');
-    expect(anchorKey({ kind: 'screen', xr: 0.33, yr: 0.66 })).toBe('screen:33:66');
+    expect(anchorKey({ kind: 'screen', xr: 0.33, yr: 0.66 })).toBe('screen:0:33:66');
+    expect(anchorKey({ kind: 'screen', xr: 0.33, yr: 0.66, chrome: true })).toBe('screen:1:33:66');
+    expect(anchorKey({ kind: 'grid', scope: 'g', rowKey: 'r', colKey: 'c', rowIndex: 1, colIndex: 2, fx: 0.5, fy: 0.5 })).toBe('grid:g:r:c:1:2:50:50');
     expect(anchorKey(null)).toBe('');
   });
 });
@@ -160,7 +172,7 @@ describe('pointer fractions', () => {
 describe('cursor throttle', () => {
   afterEach(() => vi.useRealTimers());
 
-  it('sends leading, coalesces the burst, then sends one trailing value', () => {
+  it('sends leading, coalesces a burst into one trailing send', () => {
     vi.useFakeTimers();
     let clock = 0;
     const sent: number[] = [];
@@ -168,30 +180,29 @@ describe('cursor throttle', () => {
     throttle.emit(1); // leading
     clock = 10;
     throttle.emit(2);
-    throttle.emit(3);
     clock = 20;
-    throttle.emit(4);
-    expect(sent).toEqual([1]);
-    clock = 30;
-    vi.advanceTimersByTime(90); // trailing timer fires (scheduled for 90ms at emit time)
-    expect(sent).toEqual([1, 4]); // burst collapsed to the last value
+    throttle.emit(3);
+    expect(sent).toEqual([1]); // burst still coalescing
+
+    // The trailing timer is overdue (hidden-tab throttling) → the next event
+    // flushes the queued sample, then queues the new one.
     clock = 200;
-    throttle.emit(5); // outside the window → leading again
-    expect(sent).toEqual([1, 4, 5]);
-    throttle.cancel();
-    vi.advanceTimersByTime(1000);
-    expect(sent).toEqual([1, 4, 5]);
+    throttle.emit(4);
+    expect(sent).toEqual([1, 3]);
+    vi.advanceTimersByTime(100);
+    expect(sent).toEqual([1, 3, 4]);
   });
 
-  it('flush sends any pending value immediately', () => {
+  it('never drops a lone sample: a move inside the window flushes right after it', () => {
     vi.useFakeTimers();
     let clock = 0;
     const sent: number[] = [];
     const throttle = createThrottle<number>(v => sent.push(v), 100, () => clock);
-    throttle.emit(1);
-    clock = 5;
-    throttle.emit(2);
-    throttle.flush();
+    throttle.emit(1); // leading (e.g. a click)
+    clock = 20;
+    throttle.emit(2); // lone move within the window — must NOT be lost
+    expect(sent).toEqual([1]);
+    vi.advanceTimersByTime(80); // trailing timer fires
     expect(sent).toEqual([1, 2]);
   });
 });
