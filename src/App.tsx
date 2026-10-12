@@ -110,6 +110,9 @@ function AppContent() {
   // navigation must NOT exit follow mode (any other `go` does).
   const applyingFollowRef = useRef(false);
   const [activeTab, setActiveTab] = useState<AppTabId>('breakdown');
+  // The applied place (tab/sub/mode) — the presence overlay shows a peer's
+  // pointer only while we are on their exact place (sameViewPlace).
+  const [activePlace, setActivePlace] = useState<AppPlace>({ tab: 'breakdown', sub: 'glide' });
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons' | 'designer'>('ribbons');
   const [brSubTab, setBrSubTab] = useState<'elements' | 'sheet' | 'glide' | 'script'>('glide');
   const [brCategory, setBrCategory] = useState('cast');
@@ -168,6 +171,7 @@ function AppContent() {
   const navRef = useRef<NavStack>(initStack({ tab: 'breakdown', sub: 'glide' }));
 
   const applyPlace = useCallback((place: AppPlace) => {
+    setActivePlace(place);
     setActiveTab(place.tab);
     if (place.sub !== undefined) {
       switch (place.tab) {
@@ -1199,7 +1203,7 @@ function AppContent() {
         )}
       </main>
 
-      <PresenceOverlay activeTab={activeTab} />
+      <PresenceOverlay place={activePlace} />
 
       <TrashModal open={showTrash} onClose={() => setShowTrash(false)} project={project} dispatch={dispatch} />
       {showIntegrity && <ScriptIntegrityModal onClose={() => setShowIntegrity(false)} />}

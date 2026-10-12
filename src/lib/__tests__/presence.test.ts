@@ -14,6 +14,7 @@ import {
   pointerFractions,
   presenceTopic,
   presenceViewToPlace,
+  sameViewPlace,
   screenFractions,
 } from '../supabase/presence';
 import { avatarColor, initialsOf, shortNameOf } from '../avatarIdentity';
@@ -62,7 +63,6 @@ describe('presence wire helpers', () => {
   it('parses the viewport-relative screen fallback and clamps it', () => {
     expect(parseAnchor({ kind: 'screen', xr: 0.25, yr: 0.75 })).toEqual({ kind: 'screen', xr: 0.25, yr: 0.75 });
     expect(parseAnchor({ kind: 'screen', xr: -1, yr: 4 })).toEqual({ kind: 'screen', xr: 0, yr: 1 });
-    expect(parseAnchor({ kind: 'screen', xr: 0.5, yr: 0.5, chrome: true })).toEqual({ kind: 'screen', xr: 0.5, yr: 0.5, chrome: true });
     expect(parseAnchor({ kind: 'screen', xr: 0.5 })).toBeNull();
   });
 
@@ -141,8 +141,7 @@ describe('cursor dedupe + idle keys', () => {
     expect(anchorKey({ kind: 'date', date: '2026-10-12', fx: 0, fy: 1 })).toBe('date:2026-10-12:0:100');
     expect(anchorKey({ kind: 'day', sectionIndex: 2, fx: 0.5, fy: 0.5 })).toBe('day:2::50:50');
     expect(anchorKey({ kind: 'day', sectionIndex: 2, section: 'scenes', fx: 0.5, fy: 0.5 })).toBe('day:2:scenes:50:50');
-    expect(anchorKey({ kind: 'screen', xr: 0.33, yr: 0.66 })).toBe('screen:0:33:66');
-    expect(anchorKey({ kind: 'screen', xr: 0.33, yr: 0.66, chrome: true })).toBe('screen:1:33:66');
+    expect(anchorKey({ kind: 'screen', xr: 0.33, yr: 0.66 })).toBe('screen:33:66');
     expect(anchorKey({ kind: 'grid', scope: 'g', rowKey: 'r', colKey: 'c', rowIndex: 1, colIndex: 2, fx: 0.5, fy: 0.5 })).toBe('grid:g:r:c:1:2:50:50');
     expect(anchorKey(null)).toBe('');
   });
@@ -229,5 +228,28 @@ describe('view ↔ place mapping', () => {
   it('rejects remote views with an unknown tab', () => {
     expect(presenceViewToPlace({ tab: 'hacked' })).toBeNull();
     expect(presenceViewToPlace(null)).toBeNull();
+  });
+});
+
+describe('same-view gating (only show a peer on their exact place)', () => {
+  const callsheet = { tab: 'production' as const, sub: 'days', mode: 'callsheet' };
+
+  it('requires the same tab, sub-tab and mode', () => {
+    expect(sameViewPlace({ tab: 'production', sub: 'days', mode: 'callsheet' }, callsheet)).toBe(true);
+    expect(sameViewPlace({ tab: 'production', sub: 'days', mode: 'manager' }, callsheet)).toBe(false);
+    expect(sameViewPlace({ tab: 'production', sub: 'crew', mode: 'callsheet' }, callsheet)).toBe(false);
+    expect(sameViewPlace({ tab: 'schedule' }, callsheet)).toBe(false);
+  });
+
+  it('normalizes missing modes for mode-bearing sub-tabs (manager is the default)', () => {
+    const manager = { tab: 'production' as const, sub: 'days' };
+    expect(sameViewPlace({ tab: 'production', sub: 'days' }, manager)).toBe(true);
+    expect(sameViewPlace({ tab: 'production', sub: 'days', mode: 'manager' }, manager)).toBe(true);
+    expect(sameViewPlace({ tab: 'production', sub: 'days', mode: 'callsheet' }, manager)).toBe(false);
+  });
+
+  it('hides pointers from a peer with no view yet', () => {
+    expect(sameViewPlace(null, callsheet)).toBe(false);
+    expect(sameViewPlace(undefined, callsheet)).toBe(false);
   });
 });

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceContext';
-import type { PresenceAnchor, PresencePeer } from '../lib/supabase/presence';
+import { sameViewPlace, type PresenceAnchor, type PresencePeer } from '../lib/supabase/presence';
+import type { AppPlace } from '../lib/appNav';
 import { getPresenceGridScope } from '../lib/presenceResolvers';
 import { avatarColor, shortNameOf } from '../lib/avatarIdentity';
 
@@ -74,13 +75,16 @@ function clampToViewport(x: number, y: number): { left: number; top: number } {
 
 function markerPosition(
   anchor: PresenceAnchor,
-  activeTab: string | undefined,
+  place: AppPlace,
   peer: PresencePeer,
 ): { left: number; top: number; flip: boolean } | null {
+  // Same-screen rule (user decision 2026-10-12): a peer's pointer shows only
+  // while we are on THEIR place — same tab, sub-tab and sub-sub mode. The
+  // header/toolbar fall back to the same rule, so nothing floats over a view
+  // the peer isn't actually looking at.
+  if (!sameViewPlace(peer.view, place)) return null;
+
   if (anchor.kind === 'screen') {
-    // Global chrome (the app header) is identical for everyone — always show.
-    // Tab content only makes sense while the peer is on the same tab.
-    if (!anchor.chrome && (!activeTab || peer.view?.tab !== activeTab)) return null;
     return {
       left: Math.min(Math.max(anchor.xr * window.innerWidth, 0), window.innerWidth - 4),
       top: Math.min(Math.max(anchor.yr * window.innerHeight, 0), window.innerHeight - 4),
@@ -116,7 +120,7 @@ function markerPosition(
   return { ...pos, flip: fx > 0.65 };
 }
 
-export function PresenceOverlay({ activeTab }: { activeTab?: string }) {
+export function PresenceOverlay({ place }: { place: AppPlace }) {
   const { peers, followingId } = usePresenceState();
   const { follow, stopFollowing } = usePresenceActions();
   const [markers, setMarkers] = useState<MarkerPosition[]>([]);
@@ -133,7 +137,7 @@ export function PresenceOverlay({ activeTab }: { activeTab?: string }) {
       const next: MarkerPosition[] = [];
       for (const peer of cursorPeers) {
         if (!peer.cursor || now - peer.cursorTs > CURSOR_TTL_MS) continue;
-        const pos = markerPosition(peer.cursor, activeTab, peer);
+        const pos = markerPosition(peer.cursor, place, peer);
         if (pos) next.push({ peer, ...pos });
       }
       setMarkers(next);
@@ -149,7 +153,7 @@ export function PresenceOverlay({ activeTab }: { activeTab?: string }) {
       window.removeEventListener('scroll', measure, true);
       window.removeEventListener('resize', measure);
     };
-  }, [cursorPeers, activeTab]);
+  }, [cursorPeers, place]);
 
   const followed = followingId ? peers.find(p => p.userId === followingId) : undefined;
 
@@ -166,7 +170,7 @@ export function PresenceOverlay({ activeTab }: { activeTab?: string }) {
               <button
                 data-testid="presence-cursor"
                 onClick={() => follow(peer.userId)}
-                title={`${peer.name}${peer.isGuest ? ' (guest)' : ''} — click to follow`}
+                title={`${peer.name} — click to follow`}
                 className="presence-pointer-in pointer-events-auto relative block w-4 h-5 cursor-pointer motion-reduce:animate-none"
               >
                 <svg viewBox="0 0 15 19" className="absolute left-0 top-0 w-[15px] h-[19px] drop-shadow-md" aria-hidden>
@@ -182,7 +186,7 @@ export function PresenceOverlay({ activeTab }: { activeTab?: string }) {
                   className={`absolute top-4 whitespace-nowrap rounded-full px-2 py-[3px] text-[10px] font-semibold text-white shadow-md ${flip ? 'right-3' : 'left-2.5'}`}
                   style={{ background: avatarColor(peer.userId) }}
                 >
-                  {shortNameOf(peer.name)}{peer.isGuest ? ' · guest' : ''}
+                  {peer.isGuest ? peer.name : shortNameOf(peer.name)}
                 </span>
               </button>
             </div>

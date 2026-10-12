@@ -1,6 +1,6 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './client';
-import { isAppTabId, type AppPlace, type AppTabId } from '../appNav';
+import { isAppTabId, modeOf, type AppPlace, type AppTabId } from '../appNav';
 
 /**
  * Presence + live refresh (roadmap 229 S3/S3.5) — the ONE module for the
@@ -55,7 +55,7 @@ export type PresenceAnchor =
   | { kind: 'date'; date: string; fx: number; fy: number }
   | { kind: 'day'; sectionIndex: number; section?: string; fx: number; fy: number }
   | { kind: 'grid'; scope: string; rowKey: string; colKey: string; rowIndex: number; colIndex: number; fx: number; fy: number }
-  | { kind: 'screen'; xr: number; yr: number; chrome?: boolean };
+  | { kind: 'screen'; xr: number; yr: number };
 
 /** What this tab tracks in Realtime Presence (who's here + where). */
 export interface PresenceMeta {
@@ -141,7 +141,7 @@ export function parseAnchor(raw: unknown): PresenceAnchor | null {
     const xr = num(r.xr);
     const yr = num(r.yr);
     if (xr == null || yr == null) return null;
-    return { kind: 'screen', xr: clamp01(xr), yr: clamp01(yr), ...(r.chrome === true ? { chrome: true } : {}) };
+    return { kind: 'screen', xr: clamp01(xr), yr: clamp01(yr) };
   }
   if (r.kind === 'grid') {
     const scope = str(r.scope, 64);
@@ -270,7 +270,7 @@ export function pointerFractions(
 export function anchorKey(anchor: PresenceAnchor | null): string {
   if (!anchor) return '';
   const q = (v: number) => Math.round(v * 100);
-  if (anchor.kind === 'screen') return `screen:${anchor.chrome ? 1 : 0}:${q(anchor.xr)}:${q(anchor.yr)}`;
+  if (anchor.kind === 'screen') return `screen:${q(anchor.xr)}:${q(anchor.yr)}`;
   const pos = `${q(anchor.fx)}:${q(anchor.fy)}`;
   switch (anchor.kind) {
     case 'row':
@@ -282,6 +282,21 @@ export function anchorKey(anchor: PresenceAnchor | null): string {
     case 'grid':
       return `grid:${anchor.scope}:${anchor.rowKey}:${anchor.colKey}:${anchor.rowIndex}:${anchor.colIndex}:${pos}`;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Follow / visibility gating
+// ---------------------------------------------------------------------------
+
+/** A peer's pointer is shown ONLY while we are on the SAME place as them:
+ *  same tab, same sub-tab, same sub-sub mode (Day Manager vs Call Sheet,
+ *  Crew/Locations manager vs Glide). The header/toolbar pointers follow the
+ *  same rule (user decision 2026-10-12). */
+export function sameViewPlace(peerView: PresenceView | null | undefined, current: AppPlace): boolean {
+  if (!peerView || !peerView.tab) return false;
+  if (peerView.tab !== current.tab) return false;
+  if ((peerView.sub ?? null) !== (current.sub ?? null)) return false;
+  return modeOf({ tab: peerView.tab, sub: peerView.sub, mode: peerView.mode }) === modeOf(current);
 }
 
 /** Viewport-relative pointer position (the `screen` anchor fallback). */

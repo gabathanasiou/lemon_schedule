@@ -7,8 +7,18 @@ import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { useProject } from '../store';
 import { useSupabaseAuth } from '../lib/supabase/auth';
+import type { SupabaseAccount } from '../lib/supabase/auth';
+import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceContext';
+import type { PresencePeer } from '../lib/supabase/presence';
 import { AccountAvatar } from './AccountAvatar';
 import { ProfileModal } from './ProfileModal';
+
+const MAX_BUBBLES = 3;
+
+/** Presence peers render through the same avatar identity as accounts. */
+function peerAccount(peer: PresencePeer): SupabaseAccount {
+  return { id: peer.userId, email: null, name: peer.name, avatarUrl: peer.avatarUrl, isAnonymous: peer.isGuest };
+}
 
 /** The Google Drive sign-in surface (moved out of the File menu when the
  *  cluster ships — docs/COLLABORATION.md §9). Same shape AppHeader receives. */
@@ -40,7 +50,10 @@ interface UserPresenceClusterProps {
 export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, closeProject, onOpenAccount, onManageSharing }: UserPresenceClusterProps) {
   const auth = useSupabaseAuth();
   const { currentProjectId, projectList, state, collaborateProject } = useProject();
+  const presence = usePresenceState();
+  const presenceActions = usePresenceActions();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [peersMenuOpen, setPeersMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [collabOpen, setCollabOpen] = useState(false);
   const [collabBusy, setCollabBusy] = useState(false);
@@ -55,6 +68,35 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
   // waits until they create an account.
   const canCollaborate = !!account && !account.isAnonymous && !!currentProjectId && !currentMeta?.onlineId;
   const projectTitle = state.present.title || 'Untitled Project';
+
+  // Who's here (S3): collaborator bubbles immediately LEFT of your own avatar
+  // (max 3 + "+N"). They are FOLLOW TOGGLES (Canva-style): click a person to
+  // follow their view; click again (or Esc / navigate) to stop.
+  const visiblePeers = presence.peers.slice(0, MAX_BUBBLES);
+  const overflowPeers = presence.peers.slice(MAX_BUBBLES);
+  const toggleFollow = (peer: PresencePeer) => {
+    if (presence.followingId === peer.userId) presenceActions.stopFollowing();
+    else presenceActions.follow(peer.userId);
+  };
+  const bubbleTitle = (peer: PresencePeer) =>
+    `${peer.name}${peer.isGuest ? ' (guest)' : ''} — ${presence.followingId === peer.userId ? 'stop following' : 'follow'}`;
+  const peerBubble = (peer: PresencePeer) => {
+    const following = presence.followingId === peer.userId;
+    return (
+      <button
+        key={peer.userId}
+        data-testid="presence-bubble"
+        onClick={() => toggleFollow(peer)}
+        title={bubbleTitle(peer)}
+        className={`relative w-6 h-6 rounded-full overflow-hidden transition-transform hover:scale-110 hover:z-10 cursor-pointer select-none ${following ? 'ring-2 ring-white' : 'ring-1 ring-white/25'}`}
+      >
+        <AccountAvatar account={peerAccount(peer)} className="w-full h-full" />
+        {peer.isGuest && (
+          <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-amber-400 border border-zinc-950" title="Guest" />
+        )}
+      </button>
+    );
+  };
 
   const closeCollab = () => {
     setCollabOpen(false);
@@ -95,6 +137,36 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
 
   return (
     <>
+      <div className="flex items-center gap-1">
+        {presence.peers.length > 0 && (
+          <div className="flex items-center -space-x-1.5 mr-0.5" data-testid="presence-bubbles">
+            {visiblePeers.map(peerBubble)}
+            {overflowPeers.length > 0 && (
+              <DropdownMenu
+                open={peersMenuOpen}
+                onOpenChange={setPeersMenuOpen}
+                align="right"
+                width="w-48"
+                theme={isCloudProject ? 'blue' : 'dark'}
+                trigger={
+                  <button
+                    data-testid="presence-overflow"
+                    title={`${overflowPeers.length} more collaborator${overflowPeers.length === 1 ? '' : 's'} — click a name to follow`}
+                    className={`relative w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center cursor-pointer select-none ${isCloudProject ? 'bg-blue-900 text-white ring-1 ring-white/25 hover:bg-blue-800' : 'bg-zinc-800 text-zinc-200 ring-1 ring-white/25 hover:bg-zinc-700'}`}
+                  >
+                    +{overflowPeers.length}
+                  </button>
+                }
+              >
+                {overflowPeers.map(peer => (
+                  <DropdownItem key={peer.userId} onClick={() => { setPeersMenuOpen(false); toggleFollow(peer); }}>
+                    {peer.name}{peer.isGuest ? ' (guest)' : ''}{presence.followingId === peer.userId ? ' · following' : ''}
+                  </DropdownItem>
+                ))}
+              </DropdownMenu>
+            )}
+          </div>
+        )}
       <DropdownMenu
         open={menuOpen}
         onOpenChange={setMenuOpen}
@@ -181,6 +253,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
         <DropdownDivider />
         {driveItem}
     </DropdownMenu>
+      </div>
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
 

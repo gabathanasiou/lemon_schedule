@@ -152,10 +152,9 @@ function resolvePointerAnchor(e: MouseEvent): PresenceAnchor {
     const snapped = near ? elementAnchor(near, e.clientX, e.clientY) : null;
     if (snapped) return snapped;
   }
-  // 4. Free pointer: global chrome is shown to everyone; tab content only to
-  //    peers on the same tab (approximate by design).
-  const chrome = !!(el && typeof el.closest === 'function' && el.closest('header'));
-  return { kind: 'screen', chrome, ...screenFractions(e.clientX, e.clientY, window.innerWidth, window.innerHeight) };
+  // 4. Free pointer: viewport-relative fallback (rendered only while the peer
+  //    is on the same place as us — see sameViewPlace in presence.ts).
+  return { kind: 'screen', ...screenFractions(e.clientX, e.clientY, window.innerWidth, window.innerHeight) };
 }
 
 export function PresenceProvider({ children }: { children: React.ReactNode }) {

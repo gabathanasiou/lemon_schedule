@@ -330,12 +330,15 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   semantic element (row/cell/day section) → the nearest item within ~40px →
   global chrome (`<header>`) → viewport-relative `screen` fallback.
 - UI: `src/components/PresenceOverlay.tsx` — the Canva-style pointer layer
-  (arrow + name label in the peer's deterministic colour) + the "Following X"
-  pill; pointers glide between positions and are hidden when their anchor is
-  off this client's viewport (user decisions 2026-10-12: cell-accurate Glide,
-  no bubbles, hide off-screen, below modals). Clicking a pointer follows that
-  person. `App.tsx` publishes the view on every navigation (the one `go()`
-  entry point exits follow mode; the follow applier guards itself) and
+  (arrow + name label in the peer's deterministic colour) + the bottom-centre
+  "Following X" pill (peer-coloured); pointers glide between positions and are
+  hidden when their anchor is off this client's viewport, and a peer's pointer
+  only renders while you are on their EXACT place (tab + sub-tab + mode)
+  (user decisions 2026-10-12: cell-accurate Glide, hide off-screen, below
+  modals, same-view gate). Clicking a pointer follows that person.
+  `UserPresenceCluster` carries the collaborator bubbles as follow toggles
+  (max 3 + "+N"). `App.tsx` publishes the view on every navigation (the one
+  `go()` entry point exits follow mode; the follow applier guards itself) and
   registers the follower.
 - S3.5 provider seam (`src/store/provider.tsx`): `changeCounterRef` /
   `persistedAtCounterRef` = the clean/dirty gate (LOADs and successful saves
@@ -425,12 +428,15 @@ concurrency semantics in its doc.
   the grid's visible area is hidden, never painted over chrome.
   Crew/Locations/Call Times can register the same way.
 - Everything else falls back in order: **nearest item within ~40px** (gutters
-  and margins snap to the row/cell beside them) → **global chrome** (the app
-  header is shared UI: always rendered, any tab) → **viewport-relative screen
-  fractions** (same tab only). Anchors that resolve off this client's viewport
-  are **hidden** (user decision 2026-10-12 — no edge chips; follow mode is how
-  you jump to a colleague's place). Script-body cursors stay flagged, not
-  faked (TipTap/ProseMirror relative positions — skipped in S3).
+  and margins snap to the row/cell beside them) → **viewport-relative screen
+  fractions**. **Visibility gate (user decision 2026-10-12): a peer's pointer
+  renders ONLY while you are on their exact place — same tab, sub-tab and
+  sub-sub mode (Day Manager vs Call Sheet, Crew/Locations manager vs Glide).
+  The header/toolbar pointers follow the same rule, so nothing floats over a
+  view the peer isn't looking at.** Anchors that resolve off this client's
+  viewport are hidden (no edge chips; the header bubbles are how you jump to a
+  colleague's place). Script-body cursors stay flagged, not faked
+  (TipTap/ProseMirror relative positions — skipped in S3).
 - Motion: pointers glide between positions (CSS transform transition, ~150ms
   ease-out); `prefers-reduced-motion` snaps instantly. Pointers render BELOW
   modals (z-30 vs the kit's z-[10000]) — decided 2026-10-12.
@@ -474,10 +480,14 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   **Sign out**; Collaborate waits until they have a real account.
 - Presence: live collaborators render as **Canva-style live pointers** (arrow +
   name label in their deterministic colour); clicking a pointer follows that
-  person (`§9`). **Decided (user, 2026-10-12): no stacked avatar bubbles** — the
-  room is shown through the live pointers only; the header cluster keeps your
-  own avatar as before. The bubbles are a small re-add later if idle presence
-  matters (the peers state still carries everyone).
+  person (§9). **Header bubbles are BACK (user decision 2026-10-12 — the
+  earlier "pointers only" call was superseded): stacked collaborator bubbles
+  immediately LEFT of your own avatar (max 3 + a "+N" menu), each a FOLLOW
+  TOGGLE — click to follow that person, click again (or Esc / navigate) to
+  stop. Guest bubbles carry an amber dot / "(guest)" label; the header cluster
+  keeps your own avatar as before.** Pointers from peers on another view or
+  sub-tab stay hidden until you are on their place — the bubble is how you get
+  there.
 - Surface shape: default to a kit `Modal` (the settings-modal pattern); a
   full page only if the modal proves too small.
 - **Decided (user, 2026-10): the File menu's Google Drive sign-in MOVES into this

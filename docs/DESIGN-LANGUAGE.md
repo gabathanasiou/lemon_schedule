@@ -488,12 +488,18 @@ no header avatar bubbles). They live in `PresenceOverlay.tsx` — a single
 arrow in the person's deterministic `avatarColor` (white stroke + `drop-shadow-md`)
 with a rounded name label (`rounded-full px-2 py-[3px] text-[10px] font-semibold
 text-white`, same colour, `left-2.5 top-4`; flips `right-3` near the right edge).
-Guest labels append `· guest`. Clickable (`pointer-events-auto`) to follow.
+Labels show the person's first name; anonymous guests show their full generated
+name ("Anonymous Otter"). Clickable (`pointer-events-auto`) to follow.
 Pointers GLIDE between positions (CSS `transform` transition ~150ms ease-out on
 the positioning wrapper; `motion-reduce:transition-none` snaps) and pop in via
 `.presence-pointer-in` (`index.css`, `motion-reduce` disables). They are hidden
 when their anchor is off this client's viewport — never painted over unrelated
-chrome (user decision 2026-10-12: hide, no edge chips). The "Following X" pill
+chrome (user decision 2026-10-12: hide, no edge chips) — and **a peer's pointer
+only renders while you are on their EXACT place (same tab + sub-tab + sub-sub
+mode)**. The **header collaborator bubbles** (`UserPresenceCluster`, max 3 + a
+`+N` menu) are follow TOGGLES — click a person to follow their view, click
+again (or Esc / navigate) to stop; they carry the same deterministic colours
+and an amber dot for guests. The "Following X" pill
 sits at the BOTTOM CENTER (`fixed left-1/2 -translate-x-1/2 z-40
 bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px))`, rounded-full, white
 text + a white pulsing dot) and is painted in the followed person's
