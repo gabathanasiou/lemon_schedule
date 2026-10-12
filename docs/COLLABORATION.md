@@ -242,8 +242,20 @@ takes effect on next request; guest account needs no entitlement.
     update/delete with the owner row protected.
   - `pending_invites` + `claim_pending_invites` (auth.users trigger) — email invites
     without any mail delivery.
-  - `share_links` — sha256 of the raw token at rest, `role='viewer'` CHECK, optional
-    `expires_at`; `redeem_share_link(hash)` inserts the view-only membership.
+  - `share_links` — view-only by construction (`role='viewer'` CHECK); optional
+    `expires_at`; the raw token is stored inviter-only (RLS) so the panel can
+    re-display/copy the link, with its sha256 as the redemption key
+    (`redeem_share_link(hash)` inserts the view-only membership).
+  - Revoking (Revoke Link / switching to Only invited people) also EVICTS the
+    guests the link admitted — `revoke_share_links` (definer RPC, can_invite
+    checked) deletes the links + link-joined anonymous memberships.
+  - **No-account guests**: link visitors sign in anonymously (Supabase
+    anonymous sign-ins; dashboard toggle) — no form, a device-local user id
+    that can be converted to a real account in place ("Create account..." in
+    the avatar menu keeps their access). Guests get a fun `Anonymous <Animal>`
+    name (before-insert trigger → metadata + profiles.display_name) and stay
+    OUT of the People list (`profiles.is_anonymous`, synced on conversion) —
+    they surface as live viewers once presence lands (S3).
   - `profiles select co-member` feeds the Who-can-access list. RPC bodies live in
     `private` with public SECURITY INVOKER wrappers (advisor 0029 clean).
 - App: `src/lib/supabase/sharing.ts` (the ONE sharing module) + `src/lib/shareTokens.ts`
@@ -264,8 +276,9 @@ takes effect on next request; guest account needs no entitlement.
 - Decisions (user, 2026-10): links are **view-only** (Permissions is per-person); **no
   email is sent yet** — existing accounts are granted immediately, unknown emails become
   pending invites claimed at signup (real invite mail = Edge Function + custom SMTP,
-  deferred §11); one active link per project — Copy Link rotates only when the raw token
-  is no longer held in memory (hashes can't re-display it); `allow_invites` defaults OFF.
+  deferred §11); links are always visible/copyable (raw token stored inviter-only;
+  redemption by hash — the S2 draft's hash-only rule was relaxed by user decision);
+  revoke = evict; `allow_invites` defaults OFF.
 - Known gaps (deliberate): Shared-tab cards don't show the caller's role badge; the
   view-only long tail beyond the gated surfaces relies on the dispatch guard (Color
   Rules/Trash are `inert`, sort menus no-op); revoke/demote reconcile on the next
@@ -365,6 +378,10 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   shared project open **closes it and returns to the opening page** (parity
   with Drive disconnect); a silent session expiry only locks the project
   read-only so signing back in resumes it.
+- **Guests (S2.5)**: a link visitor lands signed in anonymously (no form) — the
+  avatar shows their generated "Anonymous <Animal>" name with a **Create
+  account...** item (converts in place: same user id, access kept), then
+  **Sign out**; Collaborate waits until they have a real account.
 - Presence: live collaborators render as **stacked avatar bubbles** (Canva/Notion
   style) immediately left of your own avatar — max 3 + a `+N` chip; hover = name;
   click = follow (`§9`). Viewers appear without edit affordances.
@@ -405,6 +422,10 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   + branding when it's worth the setup, then reuse `pending_invites`.
 - Subscription lapse behaviour (recommended: read-only + export).
 - Guest edit limits; share-link expiry defaults (S2 ships never/7/30 days).
+- **Anonymous guests (S2.5 follow-ups)**: no built-in cleanup for anonymous users
+  (docs suggest a scheduled `delete from auth.users where is_anonymous and created_at <
+  now() - interval '30 days'`); CAPTCHA/Turnstile for the anonymous sign-up endpoint
+  is recommended before a public launch (IP rate limit is 30/h by default).
 - Script-body concurrency approach (v1 LWW vs later field diff/Yjs text).
 
 ## 12. Verification (per stage)

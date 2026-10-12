@@ -994,7 +994,7 @@ bars — static flat / live grouped becomes the deliberate asymmetry.
 
 **Verify** (per stage, built): S1+S2 RLS acceptance — `supabase/tests/rls_s1.sql` + `rls_s2.sql` (non-member read blocked, server rejects viewer writes, link redeem/expiry/revoke, pending claim, role change/revoke on the next request) — plus the manual online pass (doc §12); S3/S4 two-context e2e via the debug bridge; presence/follow is a rule-7 manual pass. `npm run lint`.
 
-**Relations**: `extends` **97** (concurrency gap + future hosted MCP); `relates to` **125** (storage overhaul — NOT a prerequisite), **145** (desktop app), **209** (universal crew DB / account question), **230** (shared entitlement layer).
+**Relations**: `extends` **97** (concurrency gap + future hosted MCP); `relates to` **125** (storage overhaul — NOT a prerequisite), **145** (desktop app), **209** (universal crew DB / account question), **230** (shared entitlement layer); **231** (collaboration avatars).
 
 ## 230. Editions & licensing — Free / Studio one-time / offline verification (big)
 
@@ -1005,4 +1005,15 @@ bars — static flat / live grouped becomes the deliberate asymmetry.
 **Verify** (when built): Vitest for signature/expiry/fingerprint + gates + free limits; e2e activation against a mocked endpoint; manual purchase → activate → offline relaunch pass. `npm run lint`.
 
 **Relations**: `relates to` **229** (collab entitlement + shared gating), **145** (desktop app = the true offline host), **209** (account question).
+
+## 231. Collaboration avatars — generated identities (letter + color; richer styles) (`[ ]`)
+
+**Requested 2026-10:** collaborators and guests need distinct, recognisable avatars (backgrounds + letters differ per person) in the sharing panel, the header cluster and the S3 presence bubbles.
+
+- **Shipped baseline (roadmap 229 S2.5)**: `AccountAvatar` (`src/components/AccountAvatar.tsx`) derives a deterministic flat color (10-tone palette, FNV-1a over the account id) + initials (first letters of first/last words — "Anonymous Otter" → AO), stable on every client. Same component everywhere (`UserPresenceCluster`, `sharingParts` MemberRow).
+- **Open — richer styles**: evaluate a library vs the built-in look: `boring-avatars` (geometric marks) or `@dicebear/core` + `@dicebear/collection` (illustrated styles). Constraints if one lands: locally generated SVG (no network), deterministic per user id, light/dark friendly, one small dependency actually imported by a source file (AGENTS.md §Stack), kit-bundle budget.
+- **Wire into**: presence bubbles (229 S3), the People list, the profile modal; keep the deterministic color available as the dependency-free fallback.
+- **Verify**: manual visual pass (rule 7 — a screenshot catches it); unit test for the palette/initials only if a new pure util lands.
+
+**Relations**: `extends` **229** (S2.5 guests, S3 presence).
 
