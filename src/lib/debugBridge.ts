@@ -22,7 +22,7 @@ import {
 } from './scheduleOps';
 import { createBlankScene } from './sceneFactory';
 import { deserializeProject } from './projectCodec';
-import type { PresenceDiagnostics } from './supabase/presence';
+import type { PresenceDiagnostics } from './supabase/presenceChannel';
 import { auditScriptMap, repairScriptMap, type RepairResult, type ScriptIntegrityReport } from './scriptIntegrity';
 import { formatSceneHeading, normalizeSceneNumber, scriptSceneOf } from './script';
 import {

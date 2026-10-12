@@ -5,16 +5,13 @@ import { useSupabaseAuth } from './auth';
 import { isSupabaseConfigured } from './client';
 import { getPresenceGridScope } from '../presenceResolvers';
 import { applyPresenceScrollSample } from '../presenceScroll';
+import { presenceDiagnostics, ProjectPresenceChannel, subscribeLocalSaves, type PresenceChannelStatus } from './presenceChannel';
 import {
   acceptCursor,
   pointerFractions,
-  presenceDiagnostics,
-  ProjectPresenceChannel,
   presenceViewToPlace,
   screenFractions,
-  subscribeLocalSaves,
   type PresenceAnchor,
-  type PresenceChannelStatus,
   type PresencePeer,
   type PresenceScrollSample,
   type PresenceView,

@@ -7,7 +7,7 @@ import { useSupabaseAuth } from '../lib/supabase/auth';
 import { isSupabaseConfigured } from '../lib/supabase/client';
 import { listOnlineProjects, uploadProjectOnline, readOnlineProject, saveOnlineProject, renameOnlineProject, deleteOnlineProject } from '../lib/supabase/onlineProjects';
 import { getMyRole, type CollaboratorRole } from '../lib/supabase/sharing';
-import { getPresenceDiagnostics, notifyLocalSave } from '../lib/supabase/presence';
+import { getPresenceDiagnostics, notifyLocalSave } from '../lib/supabase/presenceChannel';
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex, formatDriveError } from '../lib/googleDriveStorage';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';

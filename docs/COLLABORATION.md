@@ -317,12 +317,14 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   request). Verified live 2026-10-12: signed-out and signed-in non-member joins
   fail `Unauthorized`, a member subscribes/tracks/broadcasts.
   Dashboard requirement: Realtime → Settings → **"Allow public access" OFF**.
-- ONE client module `src/lib/supabase/presence.ts`: wire shapes, parse/clamp
-  (never trust payloads), `mergePeers` (multi-window dedupe by user, newest
-  wins), stale-ts cursor drops, a ~20/s leading+coalescing throttle, the local
-  save bus (`notifyLocalSave`/`subscribeLocalSaves`) and `ProjectPresenceChannel`
-  (the one channel; start/stop idempotent, untrack+unsubscribe on teardown).
-  `presenceDiagnostics` is the module snapshot the debug bridge reads.
+- TWO client modules under `src/lib/supabase/`: `presence.ts` — wire shapes,
+  parse/clamp (never trust payloads), `mergePeers` (multi-window dedupe by user,
+  newest wins), stale-ts cursor drops, a ~20/s leading+coalescing throttle and
+  the pure follow/scroll helpers; `presenceChannel.ts` — the Supabase transport:
+  the local save bus (`notifyLocalSave`/`subscribeLocalSaves`) and
+  `ProjectPresenceChannel` (the one channel; start/stop idempotent,
+  untrack+unsubscribe on teardown). `presenceDiagnostics` (in `presenceChannel.ts`)
+  is the module snapshot the debug bridge reads.
 - `src/lib/supabase/presenceContext.tsx`: `PresenceProvider` (mounted inside
   `ProjectProvider` in `App.tsx`) owns the channel for the open shared project.
   Two contexts — STABLE `usePresenceActions()` (publishView/follow) vs
