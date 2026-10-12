@@ -1004,9 +1004,11 @@ the **Sheet's scene/sheet number**, the **stripboard View menu** (A4 width + cel
 grid — semantic anchors, never pixels; a throttled `scroll` broadcast (~8/s) via
 `src/lib/presenceScroll.ts` + `usePresenceScrollSurface` (the stripboard carries a day-block
 fallback + re-align for rows outside the receiver's render window; Glide scrolls via its first
-visible cell). **User decision (2026-10-13): the follower's own scroll or view change EXITS
-follow** (one rule: touching the view ends follow); ribbon layout is project state and arrives
-via the S3.5 save ping. Narrative: doc §9; verified by the two-client manual pass (doc §12).
+visible cell). **User decisions (2026-10-13): scrolling yourself never ends follow** (look around;
+the leader's next scroll re-syncs you); **any view-changing click ends follow** (Sheet arrows,
+View menu, Calendar month arrows — same rule as a navigation click). Ribbon layout is project
+state and arrives via the S3.5 save ping. Narrative: doc §9; verified by the two-client manual
+pass (doc §12).
 
 **Non-negotiables**: Drive path untouched; one Project model; `readOnly` (connectivity) ≠ `canEdit` (permission); permissions enforced server-side (RLS + room auth); new features stay multiplayer-by-construction (Action union — no per-feature sync code). Free-tier Supabase pausing handled via keep-alive + Pro trigger (doc §5).
 

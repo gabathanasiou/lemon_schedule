@@ -194,7 +194,7 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
         <button
           data-testid="following-pill"
           onClick={stopFollowing}
-          title="Stop following (Esc, or scroll/navigate anywhere)"
+          title="Stop following (Esc, or navigate anywhere)"
           className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-[11px] font-semibold text-white shadow-lg cursor-pointer transition-[filter] hover:brightness-110"
           style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))', background: avatarColor(followed.userId) }}
         >

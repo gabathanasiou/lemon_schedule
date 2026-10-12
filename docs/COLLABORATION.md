@@ -6,9 +6,9 @@ stay exactly as it is today. **S1 + S2 are built and verified (2026-10-12)**: ac
 shared projects (§6 S1 map) and sharing/roles/invites + view-only links (§6 S2 map);
 **S3 is built (2026-10-12)**: presence (live pointers + follow) and the S3.5 save
 refresh (§6 S3 map); **follow completeness is built (2026-10-13)**: the Sheet scene,
-view switches and scroll mirroring, with the user decision that the follower's own
-scroll/view change exits follow (§9). RLS acceptance is `supabase/tests/rls_s1.sql` +
-`rls_s2.sql` + `rls_s3.sql`. S4 (rooms) is next.
+view switches and scroll mirroring, with the user decision that scrolling yourself
+never ends follow while any view-changing click does (§9). RLS acceptance is
+`supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql`. S4 (rooms) is next.
 
 Decisions taken 2026-10 with the user: online-only editing for SHARED projects
 (server-authoritative rooms, NOT CRDT); Supabase + Cloudflare Durable Objects;
@@ -373,7 +373,7 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   appliers became a registry (`registerFollowApplier` returns its unregister)
   so mounted surfaces apply their own view switches; `App.applyPlace` resolves
   a Sheet scene id to the follower's own order. Details + the user decision
-  (a manual scroll/view change exits follow) in §9.
+  (scrolling yourself never ends follow; a view-changing click does) in §9.
 
 **S4 — Realtime collaborative editing.** Per-project room (DO) running the pure
 reducer: validates, applies, persists (action log + periodic snapshot), broadcasts
@@ -502,11 +502,16 @@ concurrency semantics in its doc.
     (land → render → re-align); the Glide grid uses its first visible cell +
     `scrollTo`. Only the main window publishes/applies surface state — popout
     instances stay out, parity with the live-pointer rule.
-  - **User decision (2026-10-13): the follower's own scroll or view change
-    exits follow** — one rule: touching the view yourself ends follow, like
-    navigating away. Programmatic scrolls never count as the user's (exact
-    applied-scrollTop match for DOM surfaces, a short echo window for the
-    canvas; wheel/touch gestures mark a scroll as the user's).
+  - **User decisions (2026-10-13, corrected same day): scrolling yourself
+    NEVER ends follow** — look around freely; there is no pause state, your
+    scroll is simply your position until the leader's next scroll sample
+    re-syncs you. **Any click that changes your view ENDS follow** — the
+    Sheet's arrows/sheet-number, the stripboard View menu, the Calendar month
+    arrows and Strips/Events switch (each calls `noteUserViewChange`), the
+    same rule as clicking a tab or scene; Esc and the pill end it too.
+    Programmatic applies never count as a click or a user scroll (the applied
+    echo is filtered — exact scrollTop for DOM surfaces, a short window for
+    the canvas).
 
 **Header user & presence cluster (decided 2026-10).** The user control lives in
 the AppHeader's right group, **after the undo/redo pair**
@@ -611,5 +616,7 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
    clients use different Breakdown orders), the stripboard View menu + Calendar
    Strips/Events mirror, and the scroll of the stripboard/Calendar/Sheet/Glide
    mirrors — including a peer deep in the stripboard (rows outside your render
-   window land on the same day via the day-block fallback); scrolling or
-   switching a view yourself drops the pill (follow ends).
+   window land on the same day via the day-block fallback). Scrolling yourself
+   keeps the pill and the leader's next scroll re-syncs you; clicking a view
+   control (Sheet arrows, View menu, Calendar month arrows) or navigating away
+   drops the pill (follow ends).

@@ -20,18 +20,16 @@ import type { PresenceScrollSample, ScrollSurface } from './presence';
  *   popout instances neither apply nor publish, parity with the live-pointer
  *   rule).
  * - Sender: samples the semantic top-edge item and publishes it (throttled in
- *   the channel); a wheel/touch gesture marks the scroll as the USER's, which
- *   exits follow (user decision 2026-10-13 — touching the view yourself ends
- *   follow, like navigating away).
- * - Receiver: applies a followed peer's sample; the resulting scroll event is
- *   recognised as our own echo (exact scrollTop for DOM surfaces, a short
- *   window for canvas surfaces) and neither re-published nor treated as a
- *   user scroll.
+ *   the channel).
+ * - Receiver: applies a followed peer's sample. Your OWN scrolling never ends
+ *   follow (user decision 2026-10-13): you can look around freely, and the
+ *   leader's next scroll re-syncs you. Only the applied echo is filtered, so
+ *   the channel stays clean.
  */
 export interface PresenceScrollSurfaceOptions {
   surface: ScrollSurface;
-  /** DOM surfaces: the scroll container the sample/apply math runs on. For
-   *  canvas surfaces this is only the gesture surface (wheel/touch). */
+  /** DOM surfaces: the scroll container the sample/apply math runs on (omit
+   *  for canvas surfaces that provide `sample`/`apply`). */
   container?: RefObject<HTMLElement | null>;
   /** DOM descriptor — omit when `sample`/`apply` are provided (Glide). */
   selector?: string;
@@ -45,8 +43,6 @@ export interface PresenceScrollSurfaceOptions {
   apply?: (sample: PresenceScrollSample) => void;
 }
 
-/** A wheel/touch gesture within this window marks the next scroll as a user's. */
-const USER_GESTURE_MS = 400;
 /** Canvas region changes this soon after our own apply are its echo. */
 const CANVAS_ECHO_MS = 250;
 
@@ -59,13 +55,10 @@ export function usePresenceScrollSurface(options: PresenceScrollSurfaceOptions):
   // Where our own apply landed (DOM surfaces) / when it happened (canvas).
   const appliedTopRef = useRef<number | null>(null);
   const appliedAtRef = useRef(0);
-  // The last wheel/touch gesture on the surface — the scroll events that
-  // follow it are the user's (programmatic scrolls carry no gesture).
-  const gestureAtRef = useRef(0);
 
   useEffect(() => {
     if (!enabled) return;
-    const unregister = registerPresenceScrollSurface(options.surface, (sample) => {
+    return registerPresenceScrollSurface(options.surface, (sample) => {
       const opts = optionsRef.current;
       appliedAtRef.current = Date.now();
       if (opts.apply) {
@@ -74,17 +67,7 @@ export function usePresenceScrollSurface(options: PresenceScrollSurfaceOptions):
       }
       appliedTopRef.current = applyDomScroll(domDescriptor(opts), sample);
     });
-    const container = options.container?.current ?? null;
-    if (!container) return unregister;
-    const markGesture = () => { gestureAtRef.current = Date.now(); };
-    container.addEventListener('wheel', markGesture, { passive: true });
-    container.addEventListener('touchmove', markGesture, { passive: true });
-    return () => {
-      unregister();
-      container.removeEventListener('wheel', markGesture);
-      container.removeEventListener('touchmove', markGesture);
-    };
-  }, [enabled, options.surface, options.container]);
+  }, [enabled, options.surface]);
 
   const notify = useCallback(() => {
     if (!enabled || !actions.isActive()) return;
@@ -103,7 +86,6 @@ export function usePresenceScrollSurface(options: PresenceScrollSurfaceOptions):
     const sample = opts.sample ? opts.sample() : sampleDomScroll(domDescriptor(opts));
     if (!sample) return;
     actions.publishScroll({ surface: opts.surface, ...sample });
-    if (Date.now() - gestureAtRef.current < USER_GESTURE_MS) actions.noteUserViewChange();
   }, [actions, enabled]);
 
   return { notify, enabled };

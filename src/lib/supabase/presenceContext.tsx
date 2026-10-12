@@ -48,8 +48,10 @@ export interface PresenceActionsValue {
   /** Broadcast a scroll sample (throttled in the channel) — no-op without a
    *  channel, so surfaces can call it unconditionally. */
   publishScroll: (sample: PresenceScrollSample) => void;
-  /** The local user scrolled or switched the view themselves — exits follow
-   *  (user decision 2026-10-13: touching the view ends follow). */
+  /** The local user changed the view with a click (navigation, the View
+   *  menu, a Calendar sub-view/month jump, a Sheet flip) — exits follow.
+   *  Scrolling NEVER does (user decision 2026-10-13): look around freely, the
+   *  leader's next scroll re-syncs you. */
   noteUserViewChange: () => void;
   /** True while the project channel is running (stable, render-free check —
    *  surfaces skip their sampling work when presence is off). */

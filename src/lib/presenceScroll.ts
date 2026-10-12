@@ -15,10 +15,12 @@ import { cssEscape } from './utils';
  * surface's registered `apply` (the surface owns its own DOM/scroll API), so
  * a canvas grid can use its scroll API instead of DOM math.
  *
- * The user-decision rule (2026-10-13) — a manual scroll by the FOLLOWER exits
- * follow — lives in the surface hook (`usePresenceScrollSurface`): DOM
- * surfaces compare the applied scrollTop to filter their own echo, and all
- * surfaces treat a wheel/touch gesture as the user.
+ * The user-decision rule (corrected 2026-10-13): YOUR OWN scrolling never ends
+ * follow — you can look around freely and the leader's next scroll re-syncs
+ * you (only the applied echo is filtered, so the channel stays clean). Any
+ * click that changes your view ends follow (the surfaces call the presence
+ * layer's `noteUserViewChange` from those handlers) — same rule as clicking a
+ * tab or scene.
  */
 
 /** A local sample: the item key + 0..1 into it, plus an optional coarse

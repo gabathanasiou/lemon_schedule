@@ -446,7 +446,6 @@ export function GlideBreakdownTab({
   const glideAnchorRef = useRef<{ rowKey: string; colKey: string } | null>(null);
   const presenceScroll = usePresenceScrollSurface({
     surface: 'glide',
-    container: gridContainerRef,
     sample: () => (glideAnchorRef.current
       ? { key: `${glideAnchorRef.current.rowKey}|${glideAnchorRef.current.colKey}`, off: 0 }
       : null),
