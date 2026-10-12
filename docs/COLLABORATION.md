@@ -1,8 +1,10 @@
 # Online Collaboration — Vision, Architecture & Stages (PLAN — NOT BUILT)
 
 Status: planning doc for roadmap 229. **Read this before starting any online-accounts,
-sharing, presence or realtime-editing work.** Nothing here is implemented; the free
-local/Google Drive path must stay exactly as it is today.
+sharing, presence or realtime-editing work.** The free local/Google Drive path must
+stay exactly as it is today. **S1 in progress (2026-10-12): the Supabase project +
+schema are live** (see the §6 runbook; RLS verified by `supabase/tests/rls_s1.sql`)
+— the app-side S1 code lands next.
 
 Decisions taken 2026-10 with the user: online-only editing for SHARED projects
 (server-authoritative rooms, NOT CRDT); Supabase + Cloudflare Durable Objects;
@@ -131,9 +133,11 @@ preserves the project; Drive/local flows untouched.
    explicitly to `authenticated` only). Save the database password in a password
    manager. Copy the **Project URL** + **anon public key** (Settings → API) —
    never the `service_role` key (server-side only).
-2. SQL Editor → paste the **contents** of
-   `supabase/migrations/20261012000000_init.sql` (open the file, select all,
-   copy — not the file path) and run it; expect "Success. No rows returned".
+2. SQL Editor → paste the **contents** of both migrations, IN ORDER —
+   `supabase/migrations/20261012112752_init_collab_memberships.sql` then
+   `20261012112925_harden_rls_helpers.sql` (open each file, select all, copy —
+   not the file path) — expect "Success. No rows returned" for each. (Both are
+   already applied to the live dev project; the filenames mirror the ledger.)
 3. Auth → Providers: keep Email (magic link); enable **Google** (Google Cloud
    OAuth client with redirect `https://<ref>.supabase.co/auth/v1/callback`).
 4. Auth → URL Configuration: Site URL = the GitHub Pages deploy; add
@@ -269,7 +273,9 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 ## 12. Verification (when coding starts, per stage)
 
 1. `npm run lint` (docs + roadmap hygiene) — this doc must keep its Status line.
-2. S1+: `supabase db test`-style RLS coverage + targeted e2e; `npm run test:smart`
-   before done; full suite for store/provider changes (AGENTS.md rule 7).
+2. S1+: `supabase/tests/rls_s1.sql` (paste into the SQL editor or psql; every
+   row must be `ok = true`) + `get_advisors` security lint clean after any
+   schema change. Targeted e2e; `npm run test:smart` before done; full suite
+   for store/provider changes (AGENTS.md rule 7).
 3. Never ship a stage that changes the Drive/local flow — regression-check
    `e2e/seeded-smoke.spec.ts` + the persistence specs.

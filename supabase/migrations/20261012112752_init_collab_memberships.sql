@@ -1,6 +1,9 @@
 -- Online collaboration S1 (roadmap 229; docs/COLLABORATION.md §6).
--- DRAFT — review before running; test the RLS policies on a scratch project
--- before relying on them. Runs in the Supabase SQL editor or `supabase db push`.
+-- Applied to the live dev project on 2026-10-12 (ledger version 20261012112752 —
+-- the filename mirrors `supabase_migrations.schema_migrations` so a future
+-- `supabase db push` cannot double-apply it). Followed by the hardening
+-- migration `20261012112925_harden_rls_helpers.sql`. RLS coverage:
+-- `supabase/tests/rls_s1.sql`.
 
 -- ---------------------------------------------------------------------------
 -- Tables
