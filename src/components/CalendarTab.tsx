@@ -34,6 +34,7 @@ import ColorField from './ColorField';
 import { DayCell, FillerCell } from './calendar/DayCell';
 import { DayEventsModal } from './calendar/DayEventsModal';
 import { useDialog } from './Dialog';
+import { usePresenceActions } from '../lib/supabase/presenceContext';
 import { ItemManagerDropdown } from './DropdownMenu';
 import { generateUUID } from '../lib/utils';
 import { EventAdderModal } from './calendar/EventAdderModal';
@@ -237,6 +238,14 @@ export const CalendarTab: React.FC<{
   const ctrlOrCmdHeld = useAddMode();
   const marqueeMode = useMarqueeMode();
   const calendarGridRef = useRef<HTMLDivElement>(null);
+  // Presence (S3): hover over a calendar cell publishes its date anchor.
+  const presenceActions = usePresenceActions();
+  const handlePresenceMove = useCallback((e: React.MouseEvent) => {
+    const el = (e.target as HTMLElement).closest('[data-date-key]') as HTMLElement | null;
+    const date = el?.getAttribute('data-date-key');
+    if (!date) return;
+    presenceActions.publishCursor({ kind: 'date', date });
+  }, [presenceActions]);
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
@@ -1109,7 +1118,7 @@ export const CalendarTab: React.FC<{
               </div>
             }
           />
-          <div ref={calendarGridRef} data-marquee-container onClick={(e) => {
+          <div ref={calendarGridRef} data-marquee-container onMouseMove={handlePresenceMove} onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]') || (e.target as HTMLElement).closest('[data-event-key]')) return;
             setSelectedRowIds(new Set());
             setViewMenuOpen(false);

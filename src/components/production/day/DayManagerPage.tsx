@@ -23,6 +23,7 @@ import CopyDayModal from './CopyDayModal';
 import CallSheetEditPage from './CallSheetEditPage';
 import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
 import { findDesignCallSheetZone } from '../../../lib/reportBlocks';
+import { usePresenceActions } from '../../../lib/supabase/presenceContext';
 import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../types';
 
 const PREFS_KEY = 'lemon_schedule_day_manager';
@@ -170,6 +171,17 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     ...p,
     collapsed: p.collapsed.includes(id) ? p.collapsed.filter(x => x !== id) : [...p.collapsed, id],
   }));
+
+  // Presence (S3): hovering a Day Manager section card publishes a semantic
+  // day anchor (the peer's cursor pins to that card; the section index also
+  // drives follow mode's day jump).
+  const presenceActions = usePresenceActions();
+  const handlePresenceMove = useCallback((e: React.MouseEvent) => {
+    if (!selected) return;
+    const el = (e.target as HTMLElement).closest('[data-section]') as HTMLElement | null;
+    const section = el?.getAttribute('data-section') ?? undefined;
+    presenceActions.publishCursor({ kind: 'day', sectionIndex: selected.sectionIndex, section });
+  }, [presenceActions, selected]);
 
   const selectDay = (index: number) => setPrefs(p => ({ ...p, selectedIndex: index }));
 
@@ -395,7 +407,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   );
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-gray-50" data-day-manager>
+    <div className="flex-1 flex overflow-hidden bg-gray-50" data-day-manager onMouseMove={handlePresenceMove}>
       {editor}
       {eventsDate && (
         <DayEventsModal

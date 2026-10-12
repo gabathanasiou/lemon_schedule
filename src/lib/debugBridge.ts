@@ -22,6 +22,7 @@ import {
 } from './scheduleOps';
 import { createBlankScene } from './sceneFactory';
 import { deserializeProject } from './projectCodec';
+import type { PresenceDiagnostics } from './supabase/presence';
 import { auditScriptMap, repairScriptMap, type RepairResult, type ScriptIntegrityReport } from './scriptIntegrity';
 import { formatSceneHeading, normalizeSceneNumber, scriptSceneOf } from './script';
 import {
@@ -73,6 +74,10 @@ export interface AgentBridgeConnectivitySnapshot {
   onlineProjectCount: number;
   navigatorOnLine: boolean;
   readOnly: boolean;
+  /** S3 presence channel snapshot (active project only). */
+  presence: PresenceDiagnostics;
+  /** S3.5 — a peer save is waiting behind unsaved local edits. */
+  onlineChangesAvailable: boolean;
 }
 
 interface AgentBridgeApi {

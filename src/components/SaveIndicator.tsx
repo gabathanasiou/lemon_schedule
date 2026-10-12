@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, WifiOff, Save, Cloud, CloudOff, HardDrive, Eye } from 'lucide-react';
+import { Loader2, WifiOff, Save, Cloud, CloudOff, HardDrive, Eye, RefreshCw } from 'lucide-react';
 import { useProject } from '../store';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 
@@ -48,7 +48,44 @@ export function useSaveIndicator(): SaveState {
     : { status, lastSavedAt: lastSavedRef.current };
 }
 
+/**
+ * The header save control + its S3.5 companion.
+ *
+ * "Changes available · Reload" appears when a collaborator's save ping landed
+ * while this client has unsaved edits (the store never auto-applies over local
+ * work — docs/COLLABORATION.md §6 S3.5). Clicking re-reads and loads the shared
+ * project, discarding the local unsaved edits (the user chose to).
+ */
 export function SaveIndicator({ isCloudProject, isOnlineProject }: { isCloudProject?: boolean; isOnlineProject?: boolean }) {
+  const { onlineChangesAvailable, reloadOnlineProject } = useProject();
+  const [reloading, setReloading] = useState(false);
+  return (
+    <div className="flex items-center gap-2">
+      <SaveIndicatorStatus isCloudProject={isCloudProject} isOnlineProject={isOnlineProject} />
+      {onlineChangesAvailable && (
+        <button
+          data-testid="changes-available"
+          onClick={async () => {
+            setReloading(true);
+            try {
+              await reloadOnlineProject();
+            } finally {
+              setReloading(false);
+            }
+          }}
+          disabled={reloading}
+          title="A collaborator saved changes — reload to see them"
+          className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${isCloudProject ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-amber-100 text-amber-900 hover:bg-amber-200'}`}
+        >
+          <RefreshCw className={`w-3 h-3 ${reloading ? 'animate-spin' : ''}`} />
+          Changes available · Reload
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SaveIndicatorStatus({ isCloudProject, isOnlineProject }: { isCloudProject?: boolean; isOnlineProject?: boolean }) {
   const { status, lastSavedAt } = useSaveIndicator();
   const { canEdit, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync } = useProject();
   const auth = useGoogleAuth();

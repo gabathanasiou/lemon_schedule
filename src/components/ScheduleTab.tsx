@@ -32,6 +32,7 @@ import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
 import { useDialog } from './Dialog';
+import { usePresenceActions } from '../lib/supabase/presenceContext';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import { checkSection } from '../lib/rulesEngine';
 import { formatDateLong } from '../lib/utils';
@@ -274,6 +275,16 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const savedScrollTopRef = useRef(savedScrollTop);
   const mousePosRef = useRef({ y: 0 });
   const autoScrollRafRef = useRef<number | null>(null);
+
+  // Presence (S3): hover over the stripboard publishes a semantic row anchor
+  // (throttled by the presence layer; unchanged anchors are skipped).
+  const presenceActions = usePresenceActions();
+  const handlePresenceMove = useCallback((e: React.MouseEvent) => {
+    const el = (e.target as HTMLElement).closest('[data-row-id]') as HTMLElement | null;
+    const rowId = el?.getAttribute('data-row-id');
+    if (!rowId || rowId.startsWith('empty-')) return;
+    presenceActions.publishCursor({ kind: 'row', rowId });
+  }, [presenceActions]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -1324,7 +1335,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
               })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); if (editingModeRef.current) setEditingTarget({ rowId, fieldKey: null }); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} collapsed={boneyardCollapsed} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} textSize={textSize} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceBoneyardExpanded} />
         
         {/* Main Schedule Area */}
-        <div ref={scheduleScrollRef} data-marquee-container data-edit-mode={effectiveTextEditingEnabled ? '1' : undefined} onScroll={() => { updateRenderWindow(); if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}
+        <div ref={scheduleScrollRef} data-marquee-container data-edit-mode={effectiveTextEditingEnabled ? '1' : undefined} onMouseMove={handlePresenceMove} onScroll={() => { updateRenderWindow(); if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}
           onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
             setSelectedRowIds(new Set());

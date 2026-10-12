@@ -7,6 +7,7 @@ import { useSupabaseAuth } from '../lib/supabase/auth';
 import { isSupabaseConfigured } from '../lib/supabase/client';
 import { listOnlineProjects, uploadProjectOnline, readOnlineProject, saveOnlineProject, renameOnlineProject, deleteOnlineProject } from '../lib/supabase/onlineProjects';
 import { getMyRole, type CollaboratorRole } from '../lib/supabase/sharing';
+import { getPresenceDiagnostics, notifyLocalSave } from '../lib/supabase/presence';
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex, formatDriveError } from '../lib/googleDriveStorage';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
@@ -86,6 +87,13 @@ export interface ProjectContextType {
   /** Copy a project online (Collaborate) — the online copy becomes its
    *  synced identity; the offline original is left untouched. */
   collaborateProject: (id: string) => Promise<void>;
+  /** S3.5: a peer saved while this client has unsaved edits — show the
+   *  "Changes available · Reload" chip (never auto-applied). */
+  onlineChangesAvailable: boolean;
+  /** S3.5: a peer's save ping landed at `revision` (from presence). */
+  applyPeerSave: (revision: number) => void;
+  /** S3.5: re-read + LOAD the open shared project (the reload chip action). */
+  reloadOnlineProject: () => Promise<void>;
   retryDriveSync: () => Promise<void>;
   retryConnectivity: () => Promise<boolean>;
   closeProject: () => void;
@@ -149,6 +157,22 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // unknown (local/Drive project, or a role fetch that failed) — the server
   // still enforces on every write; only a resolved 'viewer' locks editing.
   const [onlineRole, setOnlineRole] = useState<{ projectId: string; role: CollaboratorRole } | null>(null);
+  // S3.5: set when a peer's save ping lands while we have unsaved edits — the
+  // SaveIndicator shows the "Changes available · Reload" chip. Never auto-applies.
+  const [onlineChangesAvailable, setOnlineChangesAvailable] = useState(false);
+  const onlineChangesAvailableRef = useRef(false);
+  onlineChangesAvailableRef.current = onlineChangesAvailable;
+  // S3.5's clean/dirty gate: every accepted write dispatch bumps the change
+  // counter; LOADs and successful online saves re-anchor the baseline. A
+  // counter (not object identity) because the reducer returns fresh objects
+  // for every action — including LOAD (ensureAllScenesHaveRows spreads).
+  const changeCounterRef = useRef(0);
+  const persistedAtCounterRef = useRef(0);
+  /** LOAD + re-anchor the persisted baseline (open/reload/peer apply/import). */
+  const loadBaseline = useCallback((project: Project) => {
+    persistedAtCounterRef.current = changeCounterRef.current;
+    loadBaseline(project);
+  }, []);
   const currentMetaForRole = projectList.find(p => p.id === currentProjectId);
   const currentOnlineRole: CollaboratorRole | null =
     currentMetaForRole?.onlineId && onlineRole?.projectId === currentProjectId ? onlineRole.role : null;
@@ -178,6 +202,54 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       // Transient — keep the current role.
     }
   }, []);
+
+  /**
+   * S3.5 — a peer's whole-blob save landed at `remoteRevision`. When this
+   * client has NO unsaved changes it silently re-reads and applies (LOAD
+   * clears history — acceptable while clean); with local edits it only raises
+   * the "Changes available · Reload" flag — local edits are never clobbered
+   * (saves stay last-write-wins until S4). Saves are the peers' own; revisions
+   * are monotonic so out-of-order reads can't regress.
+   */
+  const applyPeerSave = useCallback(async (remoteRevision: number) => {
+    const meta = projectListRef.current.find(p => p.id === currentProjectIdRef.current);
+    if (!meta?.onlineId || !sbAccountRef.current) return;
+    if (!(remoteRevision > onlineRevisionRef.current)) return;
+    try {
+      const fresh = await readOnlineProject(meta.onlineId);
+      if (!(fresh.revision > onlineRevisionRef.current)) return; // resolved meanwhile
+      if (changeCounterRef.current === persistedAtCounterRef.current) {
+        onlineRevisionRef.current = fresh.revision;
+        setOnlineChangesAvailable(false);
+        loadBaseline(fresh.project);
+      } else {
+        setOnlineChangesAvailable(true);
+      }
+    } catch (e) {
+      // Leave both the flag and the local state alone — the next open/reload
+      // (or the peer's next ping) re-reads from the server.
+      console.warn('[presence] could not re-read the peer save:', e);
+    }
+  }, [loadBaseline]);
+
+  /** The explicit "Changes available · Reload" action: re-read + LOAD the open
+   *  project, discarding local unsaved edits (the user chose to). */
+  const reloadOnlineProject = useCallback(async () => {
+    const meta = projectListRef.current.find(p => p.id === currentProjectIdRef.current);
+    if (!meta?.onlineId || !sbAccountRef.current) return;
+    try {
+      const fresh = await readOnlineProject(meta.onlineId);
+      onlineRevisionRef.current = fresh.revision;
+      setOnlineChangesAvailable(false);
+      loadBaseline(fresh.project);
+    } catch (e: any) {
+      console.warn('[presence] reload failed:', e);
+      setDriveErrorMsg(e?.message || 'Could not reload the shared project.');
+    }
+  }, [loadBaseline]);
+
+  // The S3.5 flag is per project — clear it whenever the open project changes.
+  useEffect(() => { setOnlineChangesAvailable(false); }, [currentProjectId]);
 
   const refetchOnlineProjects = useCallback(() => {
     if (!sbAuth.account) {
@@ -245,9 +317,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         console.warn(`[sync] save retry ${attempt}/${MAX_SAVE_RETRIES}… (online)`);
-        saveOnlineProject(meta.onlineId, { ...presentRef.current }, onlineRevisionRef.current)
+        const project = { ...presentRef.current };
+        const counterAtSave = changeCounterRef.current;
+        saveOnlineProject(meta.onlineId, project, onlineRevisionRef.current)
           .then(nextRevision => {
             onlineRevisionRef.current = nextRevision;
+            persistedAtCounterRef.current = counterAtSave;
+            setOnlineChangesAvailable(false);
+            notifyLocalSave(nextRevision);
             setDriveSaveError(false);
             setDriveErrorMsg(null);
             setDriveRetryPending(false);
@@ -387,6 +464,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (action.type !== 'LOAD') {
       if (!realOnline && isCurrentCloudProject()) return;
       if (isCurrentOnlineProject() && !canEditRef.current) return;
+      changeCounterRef.current++;
+    } else {
+      // A LOAD through the UI/bridge defines the persisted baseline (the store
+      // owns its own LOADs via loadBaseline). Never count it as an edit.
+      persistedAtCounterRef.current = changeCounterRef.current;
     }
     dispatch(action);
   }, [realOnline, isCurrentCloudProject, isCurrentOnlineProject]);
@@ -424,6 +506,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         onlineRole: onlineRoleRef.current,
         canEdit: canEditRef.current,
         editLocked: !canEditRef.current || !connStateRef.current.realOnline,
+        presence: getPresenceDiagnostics(),
+        onlineChangesAvailable: onlineChangesAvailableRef.current,
       }),
     });
     return uninstall;
@@ -454,7 +538,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           const meta: ProjectMeta = { id, title: migrationResult.project.title || 'Project', lastModified: Date.now(), createdAt: Date.now() };
           saveProjectListToStorage([meta]);
           setProjectList([meta]);
-          dispatch({ type: 'LOAD', payload: migrationResult.project });
+          loadBaseline(migrationResult.project);
           setCurrentProjectId(id);
           setInitialized(true);
           return;
@@ -499,6 +583,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const meta = projectList.find(p => p.id === currentProjectId);
       const isCloud = !!meta?.driveFileId;
       const isOnlineProject = !!meta?.onlineId;
+      // S3.5 clean marker for this save episode: any dispatch AFTER this point
+      // (during the in-flight upload) leaves the client dirty again.
+      const counterAtSave = changeCounterRef.current;
 
       // Fresh retry budget per save attempt: retryCountRef must not carry over
       // between episodes, or one bad episode exhausts it permanently and every
@@ -512,10 +599,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         // already blocks edits, so a pending save here means the role just
         // changed — lock via recheck instead of pushing a rejected write.
         if (!canEditRef.current) return;
+        // S3.5: LOADing a peer's save (or reopening) anchors the persisted
+        // baseline — pushing it back would bump the revision and start a
+        // save-ping echo. No new edits since the last persist ⇒ nothing to push.
+        if (changeCounterRef.current === persistedAtCounterRef.current) return;
         if (sbAuth.account && isOnline) {
           try {
             const nextRevision = await saveOnlineProject(meta!.onlineId!, project, onlineRevisionRef.current);
             onlineRevisionRef.current = nextRevision;
+            persistedAtCounterRef.current = counterAtSave;
+            setOnlineChangesAvailable(false);
+            notifyLocalSave(nextRevision);
             lastSaveFailedRef.current = false;
             setRealOnline(true);
             setProjectList(prev => {
@@ -796,7 +890,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           driveFileId: newFileId,
         };
         setProjectList(prev => { const u = [...prev, meta]; return u; });
-        dispatch({ type: 'LOAD', payload: newProject });
+        loadBaseline(newProject);
         setCurrentProjectId(id);
         driveFileIdRef.current = newFileId;
         skipSaveRef.current = true;
@@ -809,7 +903,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     saveProjectToStorage(id, newProject);
     const meta: ProjectMeta = { id, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
     setProjectList(prev => { const u = [...prev, meta]; saveProjectListToStorage(u); return u; });
-    dispatch({ type: 'LOAD', payload: newProject });
+    loadBaseline(newProject);
     setCurrentProjectId(id);
     return id;
   }, [flushCurrentProject, auth.isSignedIn, auth.accessToken]);
@@ -843,7 +937,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             onlineId: resolvedOnlineId,
           }];
         });
-        dispatch({ type: 'LOAD', payload: project });
+        loadBaseline(project);
         setCurrentProjectId(project.id);
       } catch (e) {
         console.error('Failed to open online project:', e);
@@ -868,7 +962,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             driveFileId,
           }];
         });
-        dispatch({ type: 'LOAD', payload: project });
+        loadBaseline(project);
         setCurrentProjectId(project.id);
         driveFileIdRef.current = driveFileId;
       } catch (e) {
@@ -878,7 +972,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     } else {
       const project = loadProjectFromStorage(id);
       if (project) {
-        dispatch({ type: 'LOAD', payload: project });
+        loadBaseline(project);
         setCurrentProjectId(id);
       }
     }
@@ -1071,7 +1165,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     saveProjectToStorage(id, migrationResult.project);
     const meta: ProjectMeta = { id, title: migrationResult.project.title || 'Imported Project', lastModified: Date.now(), createdAt: Date.now() };
     setProjectList(prev => { const u = [...prev, meta]; saveProjectListToStorage(u); return u; });
-    dispatch({ type: 'LOAD', payload: migrationResult.project });
+    loadBaseline(migrationResult.project);
     setCurrentProjectId(id);
     return id;
   }, [flushCurrentProject]);
@@ -1118,8 +1212,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (!sbAuth.account) return;
       if (!canEditRef.current) return;
       try {
-        const nextRevision = await saveOnlineProject(meta.onlineId, { ...presentRef.current }, onlineRevisionRef.current);
+        const project = { ...presentRef.current };
+        const counterAtSave = changeCounterRef.current;
+        const nextRevision = await saveOnlineProject(meta.onlineId, project, onlineRevisionRef.current);
         onlineRevisionRef.current = nextRevision;
+        persistedAtCounterRef.current = counterAtSave;
+        setOnlineChangesAvailable(false);
+        notifyLocalSave(nextRevision);
         setDriveSaveError(false);
         setDriveErrorMsg(null);
         lastSaveFailedRef.current = false;
@@ -1194,6 +1293,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!project) throw new Error('Could not load the project.');
     await uploadProjectOnline(project);
     onlineRevisionRef.current = 0;
+    // The uploaded copy is the persisted baseline for the clean/dirty gate.
+    persistedAtCounterRef.current = changeCounterRef.current;
     // The caller owns the copy it just uploaded.
     setOnlineRole({ projectId: id, role: 'owner' });
     setProjectList(prev => {
@@ -1238,11 +1339,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     onlineError,
     refetchOnlineProjects,
     collaborateProject,
+    onlineChangesAvailable,
+    applyPeerSave,
+    reloadOnlineProject,
     retryDriveSync,
     retryConnectivity,
     closeProject,
     consumeLegacyMigrationNotice,
-  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
 
   return (
     <ProjectContext.Provider value={contextValue}>

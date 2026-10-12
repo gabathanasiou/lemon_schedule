@@ -95,6 +95,9 @@ import { PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar } from './compone
 import { DayTypesTab } from './components/calendar/DayTypesTab';
 import { requestUnsavedSave } from './lib/unsavedGuard';
 import { AppPlace, NavStack, initStack, pushPlace, currentPlace, previousPlace, isNavStack, parsePlaceHash, placeToHash, samePlace } from './lib/appNav';
+import { PresenceProvider, usePresenceActions } from './lib/supabase/presenceContext';
+import { placeToPresenceView, presenceViewToPlace } from './lib/supabase/presence';
+import { PresenceOverlay } from './components/PresenceOverlay';
 import { NewCastNamingProvider } from './lib/newCastNaming';
 import { SceneDuplicateProvider } from './lib/sceneDuplicate';
 
@@ -102,6 +105,10 @@ function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity, activeCalendarVersion } = useProject();
   const dialog = useDialog();
   const agentBridge = useAgentBridge();
+  const presenceActions = usePresenceActions();
+  // Set while a followed peer's view is being applied — that programmatic
+  // navigation must NOT exit follow mode (any other `go` does).
+  const applyingFollowRef = useRef(false);
   const [activeTab, setActiveTab] = useState<AppTabId>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons' | 'designer'>('ribbons');
   const [brSubTab, setBrSubTab] = useState<'elements' | 'sheet' | 'glide' | 'script'>('glide');
@@ -179,7 +186,10 @@ function AppContent() {
     if (place.tab === 'schedule' && place.sceneId !== undefined) setScheduleTargetScene(place.sceneId);
     if (place.tab === 'breakdown' && place.sheetIndex !== undefined) setBrSheetIdx(place.sheetIndex);
     if (place.tab === 'production' && place.daySection !== undefined) setDayManagerTarget(place.daySection);
-  }, []);
+    // Presence (S3): every place change broadcasts our view; a late joiner
+    // gets it on channel start from viewRef.
+    presenceActions.publishView(placeToPresenceView(place));
+  }, [presenceActions]);
 
   /** Writes the history entry — push for a new place, replace when only the
    *  current entry's one-shot target changed (re-clicking the active tab). */
@@ -190,15 +200,35 @@ function AppContent() {
     else window.history.pushState(state, '', url);
   }, [currentProjectId]);
 
-  /** The one navigation entry point: dedupe, record history, apply the place. */
+  /** The one navigation entry point: dedupe, record history, apply the place.
+   *  Any manual navigation exits follow mode (S3); the follow applier sets
+   *  `applyingFollowRef` so its own `go` doesn't. */
   const go = useCallback((place: AppPlace) => {
+    if (!applyingFollowRef.current) presenceActions.stopFollowing();
     const prev = navRef.current;
     const same = samePlace(currentPlace(prev), place);
     const next = pushPlace(prev, place);
     navRef.current = next;
     writeEntry(next, same);
     applyPlace(place);
-  }, [applyPlace, writeEntry]);
+  }, [applyPlace, writeEntry, presenceActions]);
+
+  // Follow mode (S3): the presence provider holds WHO we follow; App owns HOW
+  // a view becomes a place. Navigating to a peer's view goes through `go` so
+  // history/hash stay correct.
+  useEffect(() => {
+    presenceActions.registerFollowApplier((view) => {
+      const place = presenceViewToPlace(view);
+      if (!place) return;
+      applyingFollowRef.current = true;
+      try {
+        go(place);
+      } finally {
+        applyingFollowRef.current = false;
+      }
+    });
+    return () => presenceActions.registerFollowApplier(null);
+  }, [go, presenceActions]);
 
   /** Production sub-sub views (Days Manager/Call Sheet, Crew/Locations
    *  manager/Glide). Leaving a non-default view goes BACK when the previous
@@ -1169,6 +1199,8 @@ function AppContent() {
         )}
       </main>
 
+      <PresenceOverlay />
+
       <TrashModal open={showTrash} onClose={() => setShowTrash(false)} project={project} dispatch={dispatch} />
       {showIntegrity && <ScriptIntegrityModal onClose={() => setShowIntegrity(false)} />}
 
@@ -1237,14 +1269,16 @@ function AppContent() {
 export default function App() {
   return (
     <ProjectProvider>
-      <NewCastNamingProvider>
-        <SceneDuplicateProvider>
-          <AppContent />
-          {/* After AppContent so invite modals stack ON TOP of the boot
-              Project Manager (Radix stack order = DOM order). */}
-          <ShareLinkGate />
-        </SceneDuplicateProvider>
-      </NewCastNamingProvider>
+      <PresenceProvider>
+        <NewCastNamingProvider>
+          <SceneDuplicateProvider>
+            <AppContent />
+            {/* After AppContent so invite modals stack ON TOP of the boot
+                Project Manager (Radix stack order = DOM order). */}
+            <ShareLinkGate />
+          </SceneDuplicateProvider>
+        </NewCastNamingProvider>
+      </PresenceProvider>
     </ProjectProvider>
   );
 }
