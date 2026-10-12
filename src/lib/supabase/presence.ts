@@ -82,6 +82,18 @@ export interface PresenceSavePing {
   ts: number;
 }
 
+/** Access-change push (S3): the server broadcasts a role change or a
+ *  revocation (`role: null`) to the affected user on the project channel. */
+export type PresenceAccessRole = 'owner' | 'editor' | 'viewer';
+
+export interface PresenceAccessEvent {
+  /** The user the event is about (clients ignore events for other people). */
+  userId: string;
+  /** New role, or null when access was revoked. */
+  role: PresenceAccessRole | null;
+  ts: number;
+}
+
 /** A peer as the UI consumes it: identity + latest view + latest cursor. */
 export interface PresencePeer {
   userId: string;
@@ -215,6 +227,22 @@ export function parseSavePayload(raw: unknown): PresenceSavePing | null {
   const ts = num(r.ts);
   if (!userId || revision == null || revision <= 0 || ts == null) return null;
   return { userId, revision: Math.trunc(revision), ts };
+}
+
+const ACCESS_ROLES: readonly PresenceAccessRole[] = ['owner', 'editor', 'viewer'];
+
+export function parseAccessPayload(raw: unknown): PresenceAccessEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const userId = str(r.userId, 64);
+  const ts = num(r.ts);
+  if (!userId || ts == null) return null;
+  const role = r.role;
+  if (role === null) return { userId, role: null, ts };
+  if (typeof role === 'string' && (ACCESS_ROLES as readonly string[]).includes(role)) {
+    return { userId, role: role as PresenceAccessRole, ts };
+  }
+  return null; // unknown role values are ignored (never lock on garbage)
 }
 
 // ---------------------------------------------------------------------------
@@ -472,11 +500,14 @@ export interface PresenceChannelHandlers {
   onPeers: (peers: PresencePeer[]) => void;
   onCursor: (cursor: PresenceCursor) => void;
   onSavePing: (ping: PresenceSavePing) => void;
+  /** Access-change event addressed to THIS user (role change or revocation). */
+  onAccess: (event: PresenceAccessEvent) => void;
   onStatus: (status: PresenceChannelStatus) => void;
 }
 
 const CURSOR_EVENT = 'cursor';
 const SAVE_EVENT = 'save';
+const ACCESS_EVENT = 'access';
 
 /**
  * ONE private Realtime channel for the open shared project. Start/stop is
@@ -534,6 +565,13 @@ export class ProjectPresenceChannel {
         if (this.stopped) return;
         const ping = parseSavePayload(payload);
         if (ping && ping.userId !== this.identity.userId) this.handlers.onSavePing(ping);
+      })
+      .on('broadcast', { event: ACCESS_EVENT }, ({ payload }) => {
+        if (this.stopped) return;
+        const event = parseAccessPayload(payload);
+        // Only act on events addressed to THIS user (a role change for a
+        // colleague is not our business).
+        if (event && event.userId === this.identity.userId) this.handlers.onAccess(event);
       })
       .subscribe((status, err) => {
         if (this.stopped) return;

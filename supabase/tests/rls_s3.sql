@@ -171,6 +171,14 @@ select 'guest_sends_presence', count(*)=1, null from i;
 reset role;
 delete from public.memberships
 where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and user_id='88888888-8888-4888-8888-888888888888';
+insert into private._rls_s3_test (step, ok, detail)
+select 'revoke_pushes_access_event',
+  exists(select 1 from realtime.messages
+         where topic='project:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+           and event='access'
+           and payload->>'userId'='88888888-8888-4888-8888-888888888888'
+           and payload->>'role' is null),
+  'membership delete → realtime.send(access, role=null)';
 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"88888888-8888-4888-8888-888888888888","role":"authenticated"}', true);
@@ -182,6 +190,26 @@ begin
 exception when others then
   insert into private._rls_s3_test values ('revoked_guest_cannot_send', true, sqlstate || ' ' || sqlerrm);
 end $$;
+
+-- ---- access-change push (S3, user request 2026-10-12) ---------------------
+-- The membership trigger broadcasts to the project topic only; a role change
+-- carries the new role, a delete carries role=null (revoked → kicked out).
+reset role;
+with u as (
+  update public.memberships set role='editor'
+  where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and user_id='33333333-3333-4333-8333-333333333333'
+  returning 1
+)
+insert into private._rls_s3_test (step, ok, detail)
+select 'role_change_applied', count(*)=1, null from u;
+insert into private._rls_s3_test (step, ok, detail)
+select 'role_change_pushes_access_event',
+  exists(select 1 from realtime.messages
+         where topic='project:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+           and event='access'
+           and payload->>'userId'='33333333-3333-4333-8333-333333333333'
+           and payload->>'role'='editor'),
+  'membership update → realtime.send(access, role=new)';
 
 -- ---- results ---------------------------------------------------------------
 reset role;

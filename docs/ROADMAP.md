@@ -990,12 +990,23 @@ bars — static flat / live grouped becomes the deliberate asymmetry.
 
 **Stages** (detail in the doc): S1 accounts + online projects (Collaborate; the header **user cluster** appears) — **shipped** → S2 sharing/roles/invites/view-only links, the **User & sharing** panel, `canEdit` vs `readOnly` — **shipped 2026-10-12** (S2.5: no-account guest links, always-visible links, revoke = evict) → S3 presence (**Canva-style live pointers** + follow) + the S3.5 save ping (live refresh without manual reload) — **shipped 2026-10-12** (user decisions: collaborator bubbles in the header as follow toggles; pointers render only while you're on the peer's exact view/sub-tab) → S4 realtime collaborative editing (per-project room, per-user undo, reconnect) → S5 billing (cross-ref **230**; collab = Studio + subscription, invited guests free).
 
-**Access changes are pushed, not polled (user request 2026-10-12 — ships with S4)**:
-when a member's role changes (promote/demote), a share link is revoked, or access is removed, the
-affected client is notified over the live channel with a clear message; a **revoked member is KICKED
-OUT** of the open project (closes back to the opening page — not left in a read-only shell), guests
-admitted by a revoked link included. Until the room lands, the S2 next-request reconcile stays the
-behaviour; RLS stays the enforcement point — the push is UX only.
+**Access changes are pushed, not polled (user request 2026-10-12 — built into S3)**: a definer trigger on
+`memberships` broadcasts an ephemeral `access` event to the project's presence topic (`realtime.send`;
+role change → new role, delete → null). The affected client gets a clear message and the gate applies
+immediately (demote → locked now); a **revoked member is KICKED OUT** of the open project (closes back
+to the opening page — not left in a read-only shell), guests admitted by a revoked link included. RLS
+stays the enforcement point — the push is UX only. Acceptance: `supabase/tests/rls_s3.sql`
+(`role_change_pushes_access_event` / `revoke_pushes_access_event`).
+
+**Follow completeness (user request 2026-10-12 — follow follow-up)**: following already mirrors the
+leader's place (tab/sub-tab/mode) and their one-shot jumps (scene, day). It must ALSO mirror the
+view-state changes that do NOT change the place: the **Sheet's current scene / sheet number** (arrow
+flips, scene jumps), **view switches inside a page** (the stripboard View menu / ribbon-layout choices,
+Calendar sub-views) where the leader changes what they are looking at, and **scroll positions** of the
+main surfaces (stripboard, Calendar, Sheet, Glide grid). These are per-user view state → extend the
+PresenceView payload (never pixels); mirror scroll debounced/throttled. Design decision to settle in
+implementation: the follower scrolling either exits follow (like manual navigation today) or pauses and
+re-syncs to the leader — pick one and document it in COLLABORATION §9.
 
 **Non-negotiables**: Drive path untouched; one Project model; `readOnly` (connectivity) ≠ `canEdit` (permission); permissions enforced server-side (RLS + room auth); new features stay multiplayer-by-construction (Action union — no per-feature sync code). Free-tier Supabase pausing handled via keep-alive + Pro trigger (doc §5).
 

@@ -288,9 +288,9 @@ takes effect on next request; guest account needs no entitlement.
   revoke = evict; `allow_invites` defaults OFF.
 - Known gaps (deliberate): Shared-tab cards don't show the caller's role badge; the
   view-only long tail beyond the gated surfaces relies on the dispatch guard (Color
-  Rules/Trash are `inert`, sort menus no-op); revoke/demote reconcile on the next
-  request — the PUSHED permission message + revocation eviction are an explicit
-  S4 requirement (see the S4 section below; user request 2026-10-12).
+  Rules/Trash are `inert`, sort menus no-op); revoke/demote are ALSO pushed now
+  (S3's `access` event → message + immediate lock; revocation kicks the member
+  out — see the S3 map), with the next-request reconcile as the fallback.
 
 **S3 — Presence + live refresh.** Live cursors, **follow mode**; rides Supabase
 Realtime (Broadcast + Presence) on a per-project **private** channel with RLS on
@@ -347,6 +347,16 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   echo). `applyPeerSave(revision)` re-reads and LOADs when clean, else raises
   `onlineChangesAvailable` (the chip); `reloadOnlineProject()` is the explicit
   reload. Save success paths call `notifyLocalSave(revision)`.
+- Access-change push (built 2026-10-12, user request; **folded into S3** since
+  the presence channel is the push path): migration
+  `20261012161243_s3_access_events.sql` — a definer trigger on `memberships`
+  broadcasts an ephemeral `access` event to the project topic via
+  `realtime.send` (role change → new role; delete → null). The channel delivers
+  it only to the affected user; the client applies the gate immediately
+  (demote → locked now), shows a dialog, and on revocation closes the project
+  (kicked out). Guests admitted by a revoked link are evicted by the same
+  membership delete. RLS remains the enforcement point; acceptance
+  `rls_s3.sql` (`role_change_pushes_access_event` / `revoke_pushes_access_event`).
 - `AccountAvatar` palette/initials moved to `src/lib/avatarIdentity.ts` (one
   deterministic identity for the People list, avatars and pointers).
 
@@ -356,24 +366,6 @@ reducer: validates, applies, persists (action log + periodic snapshot), broadcas
 Per-user undo (each user undoes their own actions only). Shared projects become
 read-only while offline. *Acceptance*: two clients through the debug bridge stay
 convergent; reconnect mid-session loses nothing; undo never reverts a peer's edit.
-
-**S4 also carries the access-change push (user request 2026-10-12)** — the room
-is the natural push channel for permission state:
-
-- **Role changed** (promoted/demoted): the affected client gets the new role
-  pushed and shows a clear message ("You're now an editor" / "You've been
-  moved to view only — you can't make changes"); a demoted client's editing
-  surfaces lock immediately instead of waiting for the next request.
-- **Share link revoked / Stop Sharing**: affected guests are notified ("The
-  owner stopped sharing this project").
-- **Access removed**: the affected client gets the message AND is **kicked
-  out** — the project closes back to the opening page (same as signing out of
-  a shared project), not left in a read-only shell. Same for a link guest
-  whose revoked link admitted them.
-
-Until the room lands, today's next-request reconcile stays the behaviour
-(docs/COLLABORATION.md §6 S2 known gaps). RLS remains the enforcement point;
-the push is UX, never authority.
 
 **S5 — Billing.** See `docs/LICENSING.md`: one merchant of record; collab =
 Studio + active subscription; guests free.
@@ -472,7 +464,13 @@ concurrency semantics in its doc.
 - Script-body cursors (TipTap) need ProseMirror relative positions — flag, don't
   fake with indexes (skipped in S3).
 - **Follow**: follower applies the leader's `view` state; a "Following X" pill
-  exits on any manual navigation, Esc, or clicking the pill.
+  exits on any manual navigation, Esc, or clicking the pill. **Known follow
+  gap (roadmap 229, user request 2026-10-12): in-view state that doesn't change
+  the place is NOT followed yet — the Sheet's current scene/sheet number, view
+  switches (View menu / ribbon layout, Calendar sub-views) and scroll positions
+  of the main surfaces; extending PresenceView with those (never pixels) and
+  settling the follower-scroll interaction (exit follow vs pause + re-sync) is
+  the follow-completeness follow-up.**
 
 **Header user & presence cluster (decided 2026-10).** The user control lives in
 the AppHeader's right group, **after the undo/redo pair**

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useProject } from '../../store';
+import { useDialog } from '../../components/Dialog';
 import { useSupabaseAuth } from './auth';
 import { isSupabaseConfigured } from './client';
 import { getPresenceGridScope } from '../presenceResolvers';
@@ -158,7 +159,8 @@ function resolvePointerAnchor(e: MouseEvent): PresenceAnchor {
 }
 
 export function PresenceProvider({ children }: { children: React.ReactNode }) {
-  const { projectList, currentProjectId, applyPeerSave } = useProject();
+  const { projectList, currentProjectId, applyPeerSave, applyAccessPush, closeProject } = useProject();
+  const dialog = useDialog();
   const auth = useSupabaseAuth();
   const account = auth.account;
 
@@ -178,6 +180,12 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const clientId = useMemo(presenceClientId, []);
   const applyPeerSaveRef = useRef(applyPeerSave);
   applyPeerSaveRef.current = applyPeerSave;
+  const applyAccessPushRef = useRef(applyAccessPush);
+  applyAccessPushRef.current = applyAccessPush;
+  const closeProjectRef = useRef(closeProject);
+  closeProjectRef.current = closeProject;
+  const dialogRef = useRef(dialog);
+  dialogRef.current = dialog;
 
   const stopFollowing = useCallback(() => {
     followingRef.current = null;
@@ -244,6 +252,27 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           rebuildPeers(peersRef.current);
         },
         onSavePing: (ping) => { void applyPeerSaveRef.current(ping.revision); },
+        onAccess: (event) => {
+          const previous = applyAccessPushRef.current(event.role);
+          if (!event.role) {
+            // Revoked: message first, then kicked out (project closes).
+            void dialogRef.current
+              .alert({ title: 'Access removed', message: 'You no longer have access to this shared project.' })
+              .then(() => closeProjectRef.current());
+            return;
+          }
+          if (event.role === 'viewer' && previous && previous !== 'viewer') {
+            void dialogRef.current.alert({
+              title: 'Your access changed',
+              message: 'You have been moved to view only — you cannot make changes to this shared project.',
+            });
+          } else if (event.role !== 'viewer' && previous === 'viewer') {
+            void dialogRef.current.alert({
+              title: 'Your access changed',
+              message: 'You can make changes again — edit access was restored.',
+            });
+          }
+        },
         onStatus: (next) => setStatus(next),
       },
     );

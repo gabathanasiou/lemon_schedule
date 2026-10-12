@@ -5,6 +5,7 @@ import {
   createThrottle,
   decidePeerSave,
   mergePeers,
+  parseAccessPayload,
   parseAnchor,
   parseCursorPayload,
   parsePresenceMeta,
@@ -92,6 +93,15 @@ describe('presence wire helpers', () => {
     expect(parseSavePayload({ userId: 'u', revision: 4, ts: 9 })).toEqual({ userId: 'u', revision: 4, ts: 9 });
     expect(parseSavePayload({ userId: 'u', revision: 0, ts: 9 })).toBeNull();
     expect(parseSavePayload({ userId: 'u', revision: '4', ts: 9 })).toBeNull();
+  });
+
+  it('parses access events: role changes and revocations (null role)', () => {
+    expect(parseAccessPayload({ userId: 'u', role: 'editor', ts: 5 })).toEqual({ userId: 'u', role: 'editor', ts: 5 });
+    expect(parseAccessPayload({ userId: 'u', role: null, ts: 5 })).toEqual({ userId: 'u', role: null, ts: 5 });
+    expect(parseAccessPayload({ userId: 'u', role: 'admin', ts: 5 })).toBeNull(); // unknown role ignored
+    expect(parseAccessPayload({ userId: 'u', role: 'viewer' })).toBeNull(); // no ts
+    expect(parseAccessPayload({ role: 'viewer', ts: 5 })).toBeNull(); // no user
+    expect(parseAccessPayload(null)).toBeNull();
   });
 });
 

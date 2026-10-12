@@ -94,6 +94,10 @@ export interface ProjectContextType {
   applyPeerSave: (revision: number) => void;
   /** S3.5: re-read + LOAD the open shared project (the reload chip action). */
   reloadOnlineProject: () => Promise<void>;
+  /** S3 access push: the server told us our role changed (`null` = revoked).
+   *  Applies the gate immediately and returns the PREVIOUS role (so the
+   *  caller can phrase the message). RLS stays the enforcement point. */
+  applyAccessPush: (role: CollaboratorRole | null) => CollaboratorRole | null;
   retryDriveSync: () => Promise<void>;
   retryConnectivity: () => Promise<boolean>;
   closeProject: () => void;
@@ -250,6 +254,27 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   // The S3.5 flag is per project — clear it whenever the open project changes.
   useEffect(() => { setOnlineChangesAvailable(false); }, [currentProjectId]);
+
+  /**
+   * S3 access push (user request 2026-10-12): the server broadcasts role
+   * changes and revocations on the presence channel. Apply them immediately —
+   * a demoted editor locks now, a revoked member is locked here and the caller
+   * kicks them out (closes the project). No-op for anything but the open
+   * shared project; returns the previous role for the message.
+   */
+  const applyAccessPush = useCallback((role: CollaboratorRole | null): CollaboratorRole | null => {
+    const meta = projectListRef.current.find(p => p.id === currentProjectIdRef.current);
+    if (!meta?.onlineId) return null;
+    const previous = onlineRoleRef.current;
+    if (role) {
+      setOnlineRole({ projectId: meta.id, role });
+    } else {
+      setOnlineRole({ projectId: meta.id, role: 'viewer' });
+      setDriveErrorMsg('You no longer have access to this shared project.');
+      setDriveSaveError(true);
+    }
+    return previous;
+  }, []);
 
   const refetchOnlineProjects = useCallback(() => {
     if (!sbAuth.account) {
@@ -1342,11 +1367,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     onlineChangesAvailable,
     applyPeerSave,
     reloadOnlineProject,
+    applyAccessPush,
     retryDriveSync,
     retryConnectivity,
     closeProject,
     consumeLegacyMigrationNotice,
-  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, applyAccessPush, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
 
   return (
     <ProjectContext.Provider value={contextValue}>
