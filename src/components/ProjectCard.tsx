@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Cloud, CheckCircle2, Pencil, Copy, Save, CloudUpload, HardDriveDownload, Trash2, Check } from 'lucide-react';
+import { Loader2, Cloud, Users, CheckCircle2, Pencil, Copy, Save, CloudUpload, HardDriveDownload, Trash2, Check } from 'lucide-react';
 import { ProjectMeta } from '../store';
 import { useDialog } from './Dialog';
 import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
@@ -7,7 +7,7 @@ import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from
 interface ProjectCardProps {
   p: ProjectMeta;
   isActive: boolean;
-  activeTab: 'local' | 'cloud';
+  activeTab: 'local' | 'cloud' | 'online';
   authSignedIn: boolean;
   renameTitle: string;
   setRenameTitle: (v: string) => void;
@@ -82,9 +82,11 @@ export default function ProjectCard({
                 <Loader2 className={`${PM_ICON_SM} text-zinc-400 animate-spin shrink-0`} />
               )}
               <h3 className={`font-semibold truncate ${PM_TITLE}`}>{p.title}</h3>
-              {p.driveFileId && (
+              {p.onlineId ? (
+                <Users className={`${PM_ICON_SM} text-emerald-500/90 shrink-0`} aria-label="Online project" />
+              ) : p.driveFileId ? (
                 <Cloud className={`${PM_ICON_SM} text-zinc-500 shrink-0`} aria-label="Cloud project" />
-              )}
+              ) : null}
               {isActive && (
                 <CheckCircle2 className={`${PM_ICON} text-emerald-400 shrink-0`} />
               )}

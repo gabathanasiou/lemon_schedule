@@ -85,6 +85,7 @@ export default function AppHeader(props: AppHeaderProps) {
   }, [checkTabScroll]);
 
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
+  const isOnlineProject = !!projectList.find(p => p.id === currentProjectId)?.onlineId;
 
   const tabButtons: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'reports'];
 
@@ -198,7 +199,7 @@ export default function AppHeader(props: AppHeaderProps) {
               </DropdownItem>
             )}
           </DropdownMenu>
-          <SaveIndicator isCloudProject={isCloudProject} />
+          <SaveIndicator isCloudProject={isCloudProject} isOnlineProject={isOnlineProject} />
           {editingTitle ? (
             <input 
               autoFocus
@@ -260,7 +261,7 @@ export default function AppHeader(props: AppHeaderProps) {
             <Redo2 className="w-3.5 h-3.5" />
           </button>
         </div>
-        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} closeProject={closeProject} />
+        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} />
       </div>
     </header>
   );

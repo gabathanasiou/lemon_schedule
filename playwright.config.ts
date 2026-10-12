@@ -59,18 +59,24 @@ export default defineConfig({
   // HMR). To run against the dev server instead: PLAYWRIGHT_DEV=1.
   // Both servers are OWNED (`reuseExistingServer: false`) — see PORT above:
   // a busy port throws "http://localhost:<PORT> is already used" (roadmap 200).
+  // The suite pins the collaboration feature flag OFF (empty env overrides the
+  // developer's .env): CI has no .env, so local runs must match — a configured
+  // Supabase would render the user cluster / Online tab and change the suite's
+  // starting state. Online specs, when they exist, opt in explicitly.
   webServer: process.env.PLAYWRIGHT_DEV
     ? {
         command: `npm run dev -- --port=${PORT} --strictPort`,
         url: `http://localhost:${PORT}`,
         reuseExistingServer: false,
         timeout: 30000,
+        env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' },
       }
     : {
         command: `npm run build && npm run preview -- --port=${PORT} --strictPort`,
         url: `http://localhost:${PORT}`,
         reuseExistingServer: false,
         timeout: 120000,
+        env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' },
       },
   // The perf/memory harnesses have their own configs (playwright.perf*.config.ts)
   // and are NOT part of the default suite — run them explicitly via grep.

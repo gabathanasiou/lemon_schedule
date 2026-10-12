@@ -143,7 +143,8 @@ preserves the project; Drive/local flows untouched.
 4. Auth → URL Configuration: Site URL = the GitHub Pages deploy; add
    `http://localhost:3000` to the redirect allow-list.
 5. Local `.env`: `VITE_SUPABASE_URL=…`, `VITE_SUPABASE_ANON_KEY=…` (gitignored;
-   the names go to `.env.example` when the client lands).
+   names documented in `.env.example`). GitHub repo secrets with the same two
+   names are required for the Pages deploy — `deploy.yml` passes them through.
 6. After it exists: repo secrets for the free-tier keep-alive workflow (`§5`).
 7. Agent tooling (already in `opencode.json`): run `opencode mcp auth supabase`
    once (browser OAuth) and restart opencode — the agent then gets the official
@@ -153,6 +154,43 @@ preserves the project; Drive/local flows untouched.
 
 Then the coding starts: `@supabase/supabase-js`, a client module, an auth hook,
 the project-source seam in `src/store/provider.tsx`, and the Collaborate flow.
+
+**S1 implementation map (built 2026-10-12).** One module per concern; do not
+re-derive any of it:
+
+- `src/lib/supabase/client.ts` — the client + **the S1 feature flag**
+  (`isSupabaseConfigured`: no env ⇒ every online entry point is invisible and
+  the Drive/local flows are byte-identical). PKCE; localStorage session
+  (deliberate, `§11`).
+- `src/lib/supabase/auth.tsx` — `SupabaseAuthProvider` / `useSupabaseAuth`
+  (Google OAuth redirect + email magic link; `account` = id/email/name/avatar).
+  Mounted in `main.tsx`; the callback returns to `origin + BASE_URL`.
+- `src/components/UserPresenceCluster.tsx` — the header user cluster (§9):
+  signed-out avatar → Google / magic link / Drive; signed-in avatar →
+  Collaborate + sign out. AppHeader renders it after undo/redo; the File menu
+  keeps its Drive items ONLY when the cluster is absent (no Supabase env).
+- `src/lib/supabase/onlineProjects.ts` — every `projects`-table operation.
+  `data` = `serializeProject` blob; **row id = project id** (one identity for
+  meta, document and the future S4 room). Saves are whole-blob with an
+  optimistic `revision` check + one LWW retry (S1 has no room; mirrors
+  Drive's concurrency semantics).
+- Provider seam: `ProjectMeta.onlineId` marks an online project; online metas
+  live in session state + `onlineProjects` (fetched, never in the local
+  index — `saveProjectListToStorage` filters them like Drive). `openProject`
+  resolves online: `openProject(id)` or `openProject(id, undefined, onlineId)`
+  (boot auto-open passes the id directly — no list race). `collaborateProject`
+  = the Collaborate copy-up (offline original untouched, Drive link detached).
+  Online projects lock read-only when the probe says offline or the Supabase
+  session is gone; saves surface through the existing driveSaveError/retry UI.
+- Project Manager: **Local / Cloud / Online** tabs — Online appears only when
+  configured; signed-out shows the sign-in state. Session metas win over the
+  fetched list for display.
+- Debug bridge: `diagnostics()` adds `supabaseConfigured`, `supabaseSignedIn`,
+  `projectIsOnline`, `onlineProjectCount`.
+
+Remaining before S1 is done: dashboard auth setup (steps 3–4 above; magic-link
+sending is rate-limited on Supabase's built-in SMTP), then the end-to-end pass
+sign in → Collaborate → edit → reopen → verify RLS. Invites/roles stay S2.
 
 **S2 — Sharing, roles, invites.** owner/editor/viewer; email + link invites;
 view-only share links (hashed tokens, revocable); "Manage access" UI. Introduce

@@ -4,7 +4,10 @@ import { Project } from '../types';
 import { exportProjectFromStorage, exportProjectData } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
 import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData, formatDriveError, getDriveErrorStatus } from '../lib/googleDriveStorage';
-import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, AlertTriangle, Loader2, RefreshCw, Skull, FileUp, Check } from 'lucide-react';
+import { readOnlineProject } from '../lib/supabase/onlineProjects';
+import { useSupabaseAuth } from '../lib/supabase/auth';
+import { isSupabaseConfigured } from '../lib/supabase/client';
+import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, Users, AlertTriangle, Loader2, RefreshCw, Skull, FileUp, Check } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
@@ -25,7 +28,7 @@ interface ProjectManagerProps {
 }
 
 type SortKey = 'lastModified' | 'createdAt' | 'title';
-type ProjectTab = 'local' | 'cloud';
+type ProjectTab = 'local' | 'cloud' | 'online';
 
 const sortOptions: { key: SortKey; label: string }[] = [
   { key: 'lastModified', label: 'Last Modified' },
@@ -56,9 +59,14 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     duplicateProject,
     importProjectFromData,
     updateProjectMeta,
+    onlineProjects,
+    onlineLoading,
+    onlineError,
+    refetchOnlineProjects,
   } = useProject();
   const dialog = useDialog();
   const auth = useGoogleAuth();
+  const sbAuth = useSupabaseAuth();
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
@@ -110,7 +118,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   };
 
   const localProjects = useMemo(
-    () => projectList.filter(p => !p.driveFileId),
+    () => projectList.filter(p => !p.driveFileId && !p.onlineId),
     [projectList]
   );
 
@@ -124,8 +132,18 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     return result;
   }, [projectList, driveMetas]);
 
+  // Session metas (fresher titles/lastModified) override the fetched list.
+  const onlineProjectList = useMemo(() => {
+    const merged = new Map<string, ProjectMeta>();
+    for (const p of onlineProjects) merged.set(p.id, p);
+    for (const p of projectList) {
+      if (p.onlineId) merged.set(p.id, p);
+    }
+    return [...merged.values()];
+  }, [projectList, onlineProjects]);
+
   const sortedList = useMemo(() => {
-    const source = activeTab === 'local' ? localProjects : cloudProjects;
+    const source = activeTab === 'local' ? localProjects : activeTab === 'cloud' ? cloudProjects : onlineProjectList;
     const list = [...source];
     if (sortKey === 'lastModified') {
       list.sort((a, b) => b.lastModified - a.lastModified);
@@ -135,7 +153,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       list.sort((a, b) => a.title.localeCompare(b.title));
     }
     return list;
-  }, [localProjects, cloudProjects, activeTab, sortKey]);
+  }, [localProjects, cloudProjects, onlineProjectList, activeTab, sortKey]);
 
   const hasProjects = sortedList.length > 0;
 
@@ -207,11 +225,37 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       }
       return;
     }
+    if (p.onlineId) {
+      try {
+        setExportingId(p.id);
+        const { project } = await readOnlineProject(p.onlineId);
+        exportProjectData(JSON.stringify(project), p.title);
+      } catch (err: any) {
+        dialog.alert({ title: 'Export Failed', message: err?.message || 'Could not load project from the online workspace.' });
+      } finally {
+        setExportingId(null);
+      }
+      return;
+    }
     exportProjectFromStorage(p.id, p.title);
   };
 
   const handleCardClick = (p: ProjectMeta) => {
     if (renamingId) return;
+    if (p.onlineId) {
+      if (p.id === currentProjectId) {
+        onClose?.();
+        return;
+      }
+      setOpeningId(p.id);
+      openProject(p.id)
+        .then(() => onClose?.())
+        .catch(err => {
+          dialog.alert({ title: 'Could Not Open Project', message: err?.message || 'Could not load the project from the online workspace.' });
+        })
+        .finally(() => setOpeningId(null));
+      return;
+    }
     if (p.driveFileId) {
       setOpeningId(p.id);
       openProject(p.id, p.driveFileId)
@@ -321,7 +365,17 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     <Modal open closable={!!onClose} onClose={() => onClose?.()} title="Project Manager" icon={<FolderOpen className="w-4 h-4" />} width="max-w-lg"
       footer={
         <ModalFooter>
-          {activeTab === 'local' ? (
+          {activeTab === 'online' ? (
+            sbAuth.account ? (
+              <ModalFooterButton variant="ghost" onClick={() => refetchOnlineProjects()} disabled={onlineLoading}>
+                <RefreshCw className={`w-3.5 h-3.5 ${onlineLoading ? 'animate-spin' : ''}`} /> Refresh
+              </ModalFooterButton>
+            ) : (
+              <ModalFooterButton onClick={() => sbAuth.signInWithGoogle()}>
+                <Users className="w-3.5 h-3.5" /> Sign in to collaborate
+              </ModalFooterButton>
+            )
+          ) : activeTab === 'local' ? (
             <>
               <ModalFooterButton
                 variant="ghost"
@@ -410,6 +464,23 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               : <span className="text-[10px] text-zinc-500 ml-0.5">{cloudProjects.length}</span>
             }
           </button>
+          {isSupabaseConfigured && (
+            <button
+              onClick={() => setActiveTab('online')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === 'online'
+                  ? 'bg-emerald-900 text-white'
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'
+              }`}
+            >
+              <Users className="w-3 h-3" />
+              Online
+              {onlineLoading
+                ? <Loader2 className="w-3 h-3 text-zinc-400 animate-spin ml-0.5" />
+                : <span className="text-[10px] text-zinc-500 ml-0.5">{onlineProjectList.length}</span>
+              }
+            </button>
+          )}
         </div>
 
         {/* Debug panel (Shift to reveal) */}
@@ -520,6 +591,35 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             )}
           </div>
           </div>
+        ) : activeTab === 'online' && !sbAuth.account ? (
+          <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
+          <div className="text-center py-12 text-zinc-500">
+            <Users className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
+            <p className="text-sm font-medium text-zinc-400">Sign in required</p>
+            <p className="text-xs mt-1 text-zinc-600">Sign in to see your online projects and collaborate.</p>
+          </div>
+          </div>
+        ) : activeTab === 'online' && onlineLoading ? (
+          <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
+          <div className="text-center py-12 text-zinc-500">
+            <Loader2 className="w-8 h-8 mx-auto mb-3 text-zinc-600 animate-spin" />
+            <p className="text-xs text-zinc-500">Loading online projects...</p>
+          </div>
+          </div>
+        ) : activeTab === 'online' && onlineError ? (
+          <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
+          <div className="text-center py-12 text-zinc-500">
+            <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-amber-600" />
+            <p className="text-sm font-medium text-zinc-400">Failed to load</p>
+            <p className="text-xs mt-1 text-zinc-600 mb-3">{onlineError}</p>
+            <button
+              onClick={() => refetchOnlineProjects()}
+              className="flex items-center gap-1 mx-auto px-3 py-1.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" /> Retry
+            </button>
+          </div>
+          </div>
         ) : !hasProjects ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
           <div className="text-center py-12 text-zinc-500">
@@ -529,11 +629,17 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 <p className="text-sm font-medium text-zinc-400">No local projects</p>
                 <p className="text-xs mt-1 text-zinc-600">Create a new project or import one to get started.</p>
               </>
-            ) : (
+            ) : activeTab === 'cloud' ? (
               <>
                 <Cloud className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
                 <p className="text-sm font-medium text-zinc-400">No cloud projects</p>
                 <p className="text-xs mt-1 text-zinc-600">Create a new cloud project to see it here.</p>
+              </>
+            ) : (
+              <>
+                <Users className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
+                <p className="text-sm font-medium text-zinc-400">No online projects</p>
+                <p className="text-xs mt-1 text-zinc-600">Open a project and choose Collaborate from the account menu to put it online.</p>
               </>
             )}
           </div>
@@ -541,7 +647,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         ) : (
           <>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{sortedList.length} {activeTab === 'cloud' ? 'cloud' : 'local'} project{sortedList.length !== 1 ? 's' : ''}</span>
+              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{sortedList.length} {activeTab === 'cloud' ? 'cloud' : activeTab === 'online' ? 'online' : 'local'} project{sortedList.length !== 1 ? 's' : ''}</span>
               <DropdownMenu
                 open={showSortMenu}
                 onOpenChange={setShowSortMenu}
@@ -593,11 +699,22 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 onCardClick={handleCardClick}
                 onStartRenaming={startRenaming}
                 onConfirmRename={confirmRename}
-                onDuplicate={async (p) => { setDuplicatingId(p.id); await duplicateProject(p.id, p.driveFileId); setDuplicatingId(null); if (p.driveFileId) refetchDrive(); }}
+                onDuplicate={async (p) => { setDuplicatingId(p.id); await duplicateProject(p.id, p.driveFileId); setDuplicatingId(null); if (p.driveFileId) refetchDrive(); if (p.onlineId) refetchOnlineProjects(); }}
                 onExport={handleExportJSON}
                 onMoveToDrive={handleMoveToDrive}
                 onMoveToLocal={handleMoveToLocal}
-                onDelete={async (p) => { setDeletingId(p.id); await deleteProject(p.id, p.driveFileId); setDeletingId(null); refetchDrive(); }}
+                onDelete={async (p) => {
+                  setDeletingId(p.id);
+                  try {
+                    await deleteProject(p.id, p.driveFileId);
+                    if (p.driveFileId) refetchDrive();
+                    if (p.onlineId) refetchOnlineProjects();
+                  } catch (e: any) {
+                    dialog.alert({ title: 'Delete Failed', message: e?.message || 'Could not delete the project.' });
+                  } finally {
+                    setDeletingId(null);
+                  }
+                }}
                 formatDate={formatDate}
               />
               </React.Fragment>

@@ -66,6 +66,11 @@ export interface AgentBridgeConnectivitySnapshot {
   signedIn: boolean;
   needsReauth: boolean;
   projectIsCloud: boolean;
+  /** Online (Supabase) collaboration snapshot — roadmap 229 S1. */
+  supabaseConfigured: boolean;
+  supabaseSignedIn: boolean;
+  projectIsOnline: boolean;
+  onlineProjectCount: number;
   navigatorOnLine: boolean;
   readOnly: boolean;
 }

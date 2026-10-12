@@ -596,7 +596,12 @@ function AppContent() {
   }, [project.customCategories, project.hiddenCategories]);
 
   const noProject = currentProjectId === null;
-  const isCloudProject = !!projectList.find(p => p.id === currentProjectId)?.driveFileId;
+  const currentProjectMeta = projectList.find(p => p.id === currentProjectId);
+  // Theme-level "cloud" = Drive OR online (docs/COLLABORATION.md); the
+  // Drive-specific surfaces (offline sign-in copy, disconnect semantics)
+  // keep their own signal below.
+  const isCloudProject = !!(currentProjectMeta?.driveFileId || currentProjectMeta?.onlineId);
+  const isDriveProject = !!currentProjectMeta?.driveFileId;
 
   // Surface agent-bridge failures as a dialog (once per failure episode) — the
   // File menu only shows the status dot. Skipped on the project-manager boot
@@ -939,7 +944,7 @@ function AppContent() {
 
       <OfflineStatus
         readOnly={readOnly}
-        isCloudProject={isCloudProject}
+        isCloudProject={isDriveProject}
         isSignedIn={driveCtx.isSignedIn}
         needsReauth={driveCtx.needsReauth}
         onSignIn={() => driveCtx.signIn()}

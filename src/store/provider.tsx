@@ -3,6 +3,9 @@ import { flushSync } from 'react-dom';
 import { CalendarVersion, Project } from '../types';
 import { generateUUID } from '../lib/utils';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
+import { useSupabaseAuth } from '../lib/supabase/auth';
+import { isSupabaseConfigured } from '../lib/supabase/client';
+import { listOnlineProjects, uploadProjectOnline, readOnlineProject, saveOnlineProject, renameOnlineProject, deleteOnlineProject } from '../lib/supabase/onlineProjects';
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex, formatDriveError } from '../lib/googleDriveStorage';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
@@ -56,6 +59,15 @@ export interface ProjectContextType {
   driveErrorMsg: string | null;
   driveRetryPending: boolean;
   storageQuotaError: boolean;
+  /** Online (Supabase) projects for the Project Manager's Online tab —
+   *  session state only, never persisted to the local index. */
+  onlineProjects: ProjectMeta[];
+  onlineLoading: boolean;
+  onlineError: string | null;
+  refetchOnlineProjects: () => void;
+  /** Copy a project online (Collaborate) — the online copy becomes its
+   *  synced identity; the offline original is left untouched. */
+  collaborateProject: (id: string) => Promise<void>;
   retryDriveSync: () => Promise<void>;
   retryConnectivity: () => Promise<boolean>;
   closeProject: () => void;
@@ -100,6 +112,39 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   authStateRef.current = { isSignedIn: auth.isSignedIn, needsReauth: auth.needsReauth };
   const probeRef = useRef<() => Promise<boolean>>(async () => false);
 
+  // ---- Online projects (roadmap 229 S1, docs/COLLABORATION.md) --------------
+  // The online copy's optimistic-concurrency counter lives in a ref — the
+  // save pipeline bumps it per accepted write (server-side rooms replace
+  // this at S4).
+  const sbAuth = useSupabaseAuth();
+  const onlineRevisionRef = useRef(0);
+  const sbAccountRef = useRef(sbAuth.account);
+  sbAccountRef.current = sbAuth.account;
+  const [onlineProjects, setOnlineProjects] = useState<ProjectMeta[]>([]);
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+  const onlineProjectsRef = useRef(onlineProjects);
+  onlineProjectsRef.current = onlineProjects;
+
+  const refetchOnlineProjects = useCallback(() => {
+    if (!sbAuth.account) {
+      setOnlineProjects([]);
+      setOnlineError(null);
+      setOnlineLoading(false);
+      return;
+    }
+    setOnlineLoading(true);
+    listOnlineProjects()
+      .then(metas => {
+        setOnlineProjects(metas);
+        setOnlineError(null);
+      })
+      .catch((e: any) => setOnlineError(e?.message || 'Failed to load online projects'))
+      .finally(() => setOnlineLoading(false));
+  }, [sbAuth.account]);
+
+  useEffect(() => { refetchOnlineProjects(); }, [refetchOnlineProjects]);
+
   // Live connectivity/sync snapshot for the agent bridge diagnostics()
   const connStateRef = useRef({
     isOnline: navigator.onLine,
@@ -139,8 +184,33 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     syncDiagRef.current.saveRetryCount = retryCountRef.current;
     setDriveRetryPending(true);
     setTimeout(() => {
-      const token = sessionStorage.getItem('lemon_google_token');
       const meta = projectListRef.current.find(p => p.id === currentProjectIdRef.current);
+      if (meta?.onlineId) {
+        if (!sbAccountRef.current) {
+          setDriveRetryPending(false);
+          setDriveSaveError(true);
+          return;
+        }
+        console.warn(`[sync] save retry ${attempt}/${MAX_SAVE_RETRIES}… (online)`);
+        saveOnlineProject(meta.onlineId, { ...presentRef.current }, onlineRevisionRef.current)
+          .then(nextRevision => {
+            onlineRevisionRef.current = nextRevision;
+            setDriveSaveError(false);
+            setDriveErrorMsg(null);
+            setDriveRetryPending(false);
+            lastSaveFailedRef.current = false;
+            setRealOnline(true);
+            retryCountRef.current = 0;
+            syncDiagRef.current.saveRetryCount = 0;
+          })
+          .catch((err2: any) => {
+            console.error('Online save retry failed:', err2);
+            setDriveErrorMsg(driveErrorDetail(err2));
+            scheduleSaveRetry();
+          });
+        return;
+      }
+      const token = sessionStorage.getItem('lemon_google_token');
       if (!token || !meta?.driveFileId) {
         setDriveRetryPending(false);
         setDriveSaveError(true);
@@ -173,7 +243,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // endpoint (204) — no 401 console spam and no token involvement.
   useEffect(() => {
     const currentMeta = () => projectListRef.current.find(p => p.id === currentProjectIdRef.current);
-    const isCloudContext = () => !!currentMeta()?.driveFileId || authStateRef.current.isSignedIn;
+    const isCloudContext = () => !!currentMeta()?.driveFileId || !!currentMeta()?.onlineId || authStateRef.current.isSignedIn || !!sbAccountRef.current;
     const probe = async (): Promise<boolean> => {
       if (!isCloudContext()) return true;
       try {
@@ -195,10 +265,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setIsOnline(true);
         lastSaveFailedRef.current = false;
         const meta = currentMeta();
-        if (meta?.driveFileId && authStateRef.current.isSignedIn && !authStateRef.current.needsReauth) {
+        if (meta?.onlineId) {
+          if (sbAccountRef.current) setRealOnline(true);
+        } else if (meta?.driveFileId && authStateRef.current.isSignedIn && !authStateRef.current.needsReauth) {
           setRealOnline(true);
         }
-        return !meta?.driveFileId || (authStateRef.current.isSignedIn && !authStateRef.current.needsReauth);
+        return meta?.onlineId
+          ? !!sbAccountRef.current
+          : !meta?.driveFileId || (authStateRef.current.isSignedIn && !authStateRef.current.needsReauth);
       } catch (e) {
         const detail = e instanceof Error ? e.message : String(e);
         syncDiagRef.current.lastProbeAt = Date.now();
@@ -206,7 +280,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         syncDiagRef.current.lastProbeError = detail;
         console.warn('[connectivity] probe failed:', detail);
         setIsOnline(false);
-        if (currentMeta()?.driveFileId) setRealOnline(false);
+        if (currentMeta()?.driveFileId || currentMeta()?.onlineId) setRealOnline(false);
         lastSaveFailedRef.current = true;
         return false;
       }
@@ -214,7 +288,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     probeRef.current = probe;
     const onOffline = () => {
       setIsOnline(false);
-      if (currentMeta()?.driveFileId) setRealOnline(false);
+      if (currentMeta()?.driveFileId || currentMeta()?.onlineId) setRealOnline(false);
     };
     const onVisibility = () => { if (document.visibilityState === 'visible') probe(); };
     const conn = (navigator as any).connection;
@@ -236,7 +310,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const isCurrentCloudProject = useCallback(() => {
     const meta = projectListRef.current.find(p => p.id === currentProjectId);
-    return !!meta?.driveFileId;
+    return !!meta?.driveFileId || !!meta?.onlineId;
   }, [currentProjectId]);
   const guardedDispatch = useCallback((action: Action) => {
     if (!realOnline && action.type !== 'LOAD' && isCurrentCloudProject()) return;
@@ -267,6 +341,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         signedIn: authStateRef.current.isSignedIn,
         needsReauth: authStateRef.current.needsReauth,
         projectIsCloud: !!projectListRef.current.find(p => p.id === currentProjectIdRef.current)?.driveFileId,
+        supabaseConfigured: isSupabaseConfigured,
+        supabaseSignedIn: !!sbAuth.account,
+        projectIsOnline: !!projectListRef.current.find(p => p.id === currentProjectIdRef.current)?.onlineId,
+        onlineProjectCount: onlineProjectsRef.current.length,
         navigatorOnLine: navigator.onLine,
         readOnly: !connStateRef.current.realOnline,
       }),
@@ -343,13 +421,50 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const project = saveProjectRef.current;
       const meta = projectList.find(p => p.id === currentProjectId);
       const isCloud = !!meta?.driveFileId;
+      const isOnlineProject = !!meta?.onlineId;
 
       // Fresh retry budget per save attempt: retryCountRef must not carry over
       // between episodes, or one bad episode exhausts it permanently and every
       // later failure saves without retrying (sticky red cloud).
       retryCountRef.current = 0;
 
-      if (isCloud) {
+      if (isOnlineProject) {
+        // Online projects save the whole blob to Supabase (S1) — the source
+        // of truth is the online copy; the offline file is not written.
+        if (sbAuth.account && isOnline) {
+          try {
+            const nextRevision = await saveOnlineProject(meta!.onlineId!, project, onlineRevisionRef.current);
+            onlineRevisionRef.current = nextRevision;
+            lastSaveFailedRef.current = false;
+            setRealOnline(true);
+            setProjectList(prev => {
+              const updated = prev.map(p =>
+                p.id === currentProjectId
+                  ? { ...p, title: project.title, lastModified: Date.now() }
+                  : p
+              );
+              saveProjectListToStorage(updated);
+              return updated;
+            });
+            setDriveSaveError(false);
+            setDriveErrorMsg(null);
+            setDriveRetryPending(false);
+          } catch (err: any) {
+            console.error('Online save failed:', err);
+            setDriveErrorMsg(driveErrorDetail(err));
+            // Same policy as Drive: a failed upload is not proof of being
+            // offline — bounded auto-retries self-heal, the probe classifies.
+            lastSaveFailedRef.current = true;
+            scheduleSaveRetry();
+          }
+        } else {
+          lastSaveFailedRef.current = true;
+          setRealOnline(false);
+          setDriveSaveError(true);
+          setDriveErrorMsg(sbAuth.account ? 'No internet connection' : 'Sign in to save this online project');
+          setDriveRetryPending(false);
+        }
+      } else if (isCloud) {
         if (skipSaveRef.current) { skipSaveRef.current = false; return; }
         if (auth.isSignedIn && auth.accessToken && isOnline && meta?.driveFileId) {
           try {
@@ -443,7 +558,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
     }, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [state.present, currentProjectId, auth.isSignedIn, auth.accessToken, isOnline]);
+  }, [state.present, currentProjectId, auth.isSignedIn, auth.accessToken, isOnline, sbAuth.account]);
 
   // Clear sync errors and force a fresh sync when the user re-authenticates
   // Also block editing when the user signs out while editing a cloud project
@@ -464,6 +579,25 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
     prevSignedInRef.current = auth.isSignedIn;
   }, [auth.isSignedIn, currentProjectId]);
+
+  // Online projects need the Supabase session: signing out locks editing and
+  // surfaces the reason; signing back in clears it (the probe re-verifies).
+  const prevSbAccountRef = useRef(sbAuth.account);
+  useEffect(() => {
+    const meta = projectListRef.current.find(p => p.id === currentProjectId);
+    if (meta?.onlineId) {
+      if (!sbAuth.account) {
+        setRealOnline(false);
+        setDriveSaveError(true);
+        setDriveErrorMsg('Sign in to keep editing this online project');
+        setDriveRetryPending(false);
+      } else if (!prevSbAccountRef.current) {
+        setDriveSaveError(false);
+        setDriveErrorMsg(null);
+      }
+    }
+    prevSbAccountRef.current = sbAuth.account;
+  }, [sbAuth.account, currentProjectId]);
 
   // When the token becomes invalid (silent refresh failed), block editing
   const prevNeedsReauthRef = useRef(auth.needsReauth);
@@ -529,11 +663,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentProjectId]);
 
-  // Flush current project to localStorage immediately (local projects only)
+  // Flush current project to localStorage immediately (local projects only —
+  // Drive and online projects have their own writers).
   const flushCurrentProject = useCallback(() => {
     if (!currentProjectId) return;
     const meta = projectList.find(p => p.id === currentProjectId);
-    if (!meta || meta.driveFileId) return;
+    if (!meta || meta.driveFileId || meta.onlineId) return;
     try {
       saveProjectToStorage(currentProjectId, state.present);
       setStorageQuotaError(false);
@@ -588,10 +723,37 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return id;
   }, [flushCurrentProject, auth.isSignedIn, auth.accessToken]);
 
-  const openProject = useCallback(async (id: string, cloudDriveFileId?: string) => {
+  const openProject = useCallback(async (id: string, cloudDriveFileId?: string, onlineId?: string) => {
     flushCurrentProject();
-    const meta = projectList.find(p => p.id === id);
+    const meta = projectList.find(p => p.id === id) ?? onlineProjects.find(p => p.id === id);
     const driveFileId = meta?.driveFileId || cloudDriveFileId;
+    const resolvedOnlineId = meta?.onlineId || onlineId;
+
+    if (resolvedOnlineId) {
+      // Online project: read the blob from Supabase (RLS 404s for non-members).
+      try {
+        const { project, revision } = await readOnlineProject(resolvedOnlineId);
+        onlineRevisionRef.current = revision;
+        setProjectList(prev => {
+          if (prev.find(p => p.id === project.id)) {
+            return prev.map(p => p.id === project.id ? { ...p, onlineId: resolvedOnlineId } : p);
+          }
+          return [...prev, {
+            id: project.id,
+            title: project.title,
+            lastModified: Date.now(),
+            createdAt: Date.now(),
+            onlineId: resolvedOnlineId,
+          }];
+        });
+        dispatch({ type: 'LOAD', payload: project });
+        setCurrentProjectId(project.id);
+      } catch (e) {
+        console.error('Failed to open online project:', e);
+        throw e;
+      }
+      return;
+    }
 
     if (driveFileId && auth.accessToken) {
       try {
@@ -623,14 +785,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setCurrentProjectId(id);
       }
     }
-  }, [flushCurrentProject, auth.accessToken, projectList]);
+  }, [flushCurrentProject, auth.accessToken, projectList, onlineProjects]);
 
   // Remember the last successfully-opened project (roadmap 178) so a refresh
   // can auto-open it within the TTL — local and cloud alike.
   useEffect(() => {
     if (!currentProjectId) return;
     const meta = projectList.find(p => p.id === currentProjectId);
-    rememberLastProject(currentProjectId, meta?.driveFileId ?? driveFileIdRef.current);
+    // An online identity wins: never record a stale Drive id alongside it
+    // (the offline/Drive copies are detached from this project's identity).
+    const driveId = meta?.onlineId ? undefined : (meta?.driveFileId ?? driveFileIdRef.current);
+    rememberLastProject(currentProjectId, driveId, meta?.onlineId);
   }, [currentProjectId, projectList]);
 
   // Boot auto-open (once per app load): the last project when it was loaded in
@@ -640,6 +805,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!initialized || currentProjectId || autoOpenTriedRef.current) return;
     const rec = readLastProject();
     if (!rec) return;
+    if (rec.onlineId) {
+      if (!sbAuth.account) return; // wait for the restored Supabase session
+      autoOpenTriedRef.current = true;
+      void openProject(rec.id, undefined, rec.onlineId).catch(() => {});
+      return;
+    }
     if (rec.driveFileId) {
       if (!auth.isSignedIn || !auth.accessToken) return; // wait for the silent restore
       autoOpenTriedRef.current = true;
@@ -648,10 +819,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
     autoOpenTriedRef.current = true;
     void openProject(rec.id).catch(() => {});
-  }, [initialized, currentProjectId, auth.isSignedIn, auth.accessToken, openProject]);
+  }, [initialized, currentProjectId, auth.isSignedIn, auth.accessToken, openProject, sbAuth.account]);
 
-  const deleteProject = useCallback(async (id: string, cloudDriveFileId?: string) => {    const meta = projectList.find(p => p.id === id);
+  const deleteProject = useCallback(async (id: string, cloudDriveFileId?: string) => {    const meta = projectList.find(p => p.id === id) ?? onlineProjects.find(p => p.id === id);
     const driveFileId = meta?.driveFileId || cloudDriveFileId;
+
+    if (meta?.onlineId) {
+      // Owner-only at the server; failures throw so the caller can surface
+      // them (the project stays listed until the server confirms the delete).
+      await deleteOnlineProject(meta.onlineId);
+      setOnlineProjects(prev => prev.filter(p => p.id !== id));
+    }
+
     if (driveFileId && auth.isSignedIn && auth.accessToken) {
       try {
         await removeFromDrive(auth.accessToken, driveFileId);
@@ -679,7 +858,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       clearLastProject();
       setCurrentProjectId(null);
     }
-  }, [currentProjectId, openProject, projectList, auth.isSignedIn, auth.accessToken]);
+  }, [currentProjectId, openProject, projectList, onlineProjects, auth.isSignedIn, auth.accessToken]);
 
   const renameProject = useCallback((id: string, title: string, driveFileId?: string) => {
     if (currentProjectId === id) {
@@ -700,6 +879,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       saveProjectListToStorage(updated);
       return updated;
     });
+    const meta = projectList.find(p => p.id === id) ?? onlineProjects.find(p => p.id === id);
+    if (meta?.onlineId && currentProjectId !== id && sbAuth.account) {
+      // Not open: push the title straight to the row. For the open project
+      // the UPDATE_PROJECT dispatch above rides its next whole-blob save.
+      renameOnlineProject(meta.onlineId, title).catch(e => console.error('Failed to push rename online:', e));
+    }
     if (driveFileId && auth.accessToken) {
       if (currentProjectId === id) {
         pushProjectAndUpdateIndex(auth.accessToken, { ...presentRef.current, title }, driveFileId)
@@ -714,15 +899,26 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           .catch(e => console.error('Failed to read project for rename:', e));
       }
     }
-  }, [currentProjectId, auth.accessToken]);
+  }, [currentProjectId, auth.accessToken, projectList, onlineProjects, sbAuth.account]);
 
   const duplicateProject = useCallback(async (id: string, cloudDriveFileId?: string) => {
-    const meta = projectList.find(p => p.id === id);
+    const meta = projectList.find(p => p.id === id) ?? onlineProjects.find(p => p.id === id);
     const driveFileId = meta?.driveFileId || cloudDriveFileId;
     if (!meta && !driveFileId) return;
 
+    // The original comes from wherever the project actually lives — the copy
+    // comes back to the same place.
     let original: Project | null = null;
-    if (driveFileId && auth.accessToken) {
+    let sourceOnline = false;
+    if (meta?.onlineId) {
+      try {
+        original = (await readOnlineProject(meta.onlineId)).project;
+        sourceOnline = true;
+      } catch (e) {
+        console.error('[duplicate] failed to read online project:', e);
+        return;
+      }
+    } else if (driveFileId && auth.accessToken) {
       try {
         original = await readDriveProject(auth.accessToken, driveFileId);
       } catch (e) {
@@ -749,7 +945,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       activeRibbonId: original.activeRibbonId || '',
     };
 
-    if (driveFileId && auth.accessToken) {
+    if (sourceOnline) {
+      try {
+        await uploadProjectOnline(newProject);
+        refetchOnlineProjects();
+      } catch (e) {
+        console.error('[duplicate] failed to upload online copy:', e);
+      }
+    } else if (driveFileId && auth.accessToken) {
       const newFileId = await pushProjectAndUpdateIndex(auth.accessToken, newProject);
       const newMeta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now(), driveFileId: newFileId };
       setProjectList(prev => [...prev, newMeta]);
@@ -758,7 +961,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const newMeta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
       setProjectList(prev => { const u = [...prev, newMeta]; saveProjectListToStorage(u); return u; });
     }
-  }, [flushCurrentProject, currentProjectId, state.present, projectList, auth.accessToken]);
+  }, [flushCurrentProject, currentProjectId, state.present, projectList, onlineProjects, auth.accessToken, refetchOnlineProjects]);
 
   const importProjectFromData = useCallback((data: Project): string => {
     flushCurrentProject();
@@ -814,6 +1017,25 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const retryDriveSync = useCallback(async () => {
     if (!currentProjectId) return;
     const meta = projectList.find(p => p.id === currentProjectId);
+    if (meta?.onlineId) {
+      if (!sbAuth.account) return;
+      try {
+        const nextRevision = await saveOnlineProject(meta.onlineId, { ...presentRef.current }, onlineRevisionRef.current);
+        onlineRevisionRef.current = nextRevision;
+        setDriveSaveError(false);
+        setDriveErrorMsg(null);
+        lastSaveFailedRef.current = false;
+        setRealOnline(true);
+        setDriveRetryPending(false);
+        retryCountRef.current = 0;
+        syncDiagRef.current.saveRetryCount = 0;
+      } catch (err: any) {
+        setDriveErrorMsg(driveErrorDetail(err));
+        setDriveSaveError(true);
+        setDriveRetryPending(false);
+      }
+      return;
+    }
     if (!meta?.driveFileId) return;
     const token = sessionStorage.getItem('lemon_google_token') ?? auth.accessToken;
     if (!token) return;
@@ -856,7 +1078,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setDriveSaveError(true);
       setDriveRetryPending(false);
     }
-  }, [currentProjectId, auth.accessToken, projectList]);
+  }, [currentProjectId, auth.accessToken, projectList, sbAuth.account]);
+
+  /** The Collaborate action (docs/COLLABORATION.md §1): copy a project to the
+   *  online workspace and make the online copy its synced identity. The
+   *  offline file (and any Drive file) stays untouched on its own. */
+  const collaborateProject = useCallback(async (id: string): Promise<void> => {
+    if (!sbAuth.account) throw new Error('Sign in to collaborate.');
+    const project = id === currentProjectIdRef.current
+      ? { ...presentRef.current }
+      : loadProjectFromStorage(id);
+    if (!project) throw new Error('Could not load the project.');
+    await uploadProjectOnline(project);
+    onlineRevisionRef.current = 0;
+    setProjectList(prev => {
+      const exists = prev.find(p => p.id === id);
+      const updated = exists
+        ? prev.map(p => p.id === id ? { ...p, onlineId: id, driveFileId: undefined } : p)
+        : [...prev, { id, title: project.title, lastModified: Date.now(), createdAt: Date.now(), onlineId: id }];
+      saveProjectListToStorage(updated);
+      return updated;
+    });
+    refetchOnlineProjects();
+  }, [sbAuth.account, refetchOnlineProjects]);
 
   const consumeLegacyMigrationNotice = useCallback((): LegacyMigrationResult | null => {
     return consumePendingLegacyMigrationNotice();
@@ -882,11 +1126,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     driveErrorMsg,
     driveRetryPending,
     storageQuotaError,
+    onlineProjects,
+    onlineLoading,
+    onlineError,
+    refetchOnlineProjects,
+    collaborateProject,
     retryDriveSync,
     retryConnectivity,
     closeProject,
     consumeLegacyMigrationNotice,
-  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
 
   return (
     <ProjectContext.Provider value={contextValue}>
@@ -903,5 +1152,6 @@ export function useProject() {
 
 export function useIsCloudProject(): boolean {
   const { projectList, currentProjectId } = useProject();
-  return !!projectList.find(p => p.id === currentProjectId)?.driveFileId;
+  const meta = projectList.find(p => p.id === currentProjectId);
+  return !!meta?.driveFileId || !!meta?.onlineId;
 }

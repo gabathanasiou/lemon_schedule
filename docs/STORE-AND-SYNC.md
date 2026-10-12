@@ -64,10 +64,27 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   Safari: "Load failed" on every save). Reads auto-detect plain vs base64 by first char.
 - **Never reintroduce binary/FormData upload bodies.**
 
+## Online projects (roadmap 229 S1 — env-gated; manual = `docs/COLLABORATION.md`)
+
+- ONE module `src/lib/supabase/onlineProjects.ts` (list/upload/read/save/delete). `ProjectMeta.onlineId`
+  = Supabase row id = project id; online metas live in provider session state (`onlineProjects`, refreshed
+  on sign-in) and are filtered out of the localStorage index exactly like Drive
+  (`saveProjectListToStorage`).
+- Saves are whole-blob `serializeProject` with an optimistic `revision` check + one last-write-wins retry;
+  failures reuse the `driveSaveError` / `driveRetryPending` / `scheduleSaveRetry` surfaces (online branch
+  in `scheduleSaveRetry` + `retryDriveSync`) and surface "Synced online" copy via `SaveIndicator
+  isOnlineProject`. Online projects lock read-only when the probe is offline or the Supabase session is
+  gone — same rule as Drive (`readOnly` ≠ permission `canEdit`, §S2 later).
+- `collaborateProject(id)` = the Collaborate copy-up (offline original untouched; a Drive link is
+  detached). Boot auto-open passes `openProject(id, undefined, onlineId)` from the last-project record —
+  never wait for the list fetch. `isSupabaseConfigured` (env present) is the feature flag: without it
+  nothing above is reachable and the Drive/local paths are byte-identical.
+
 ## `useProject()` API
 
 `{ state, dispatch, projectList, currentProjectId, readOnly, initialized, createProject, openProject,
-deleteProject, renameProject, duplicateProject, importProjectFromData, ... }`.
+deleteProject, renameProject, duplicateProject, importProjectFromData, onlineProjects, onlineLoading,
+onlineError, refetchOnlineProjects, collaborateProject, ... }`.
 
 ## Re-render / memo contract (MUST NOT break)
 

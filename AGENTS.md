@@ -37,7 +37,7 @@
 - State: Context + `useReducer` with undo/redo (`state.present` = active Project; `state.past/future`). Persistence, sync and the memo contract: **read `docs/STORE-AND-SYNC.md`**.
 - localStorage: index key `lemon_schedule_project_index`, per-project `lemon_schedule_project_v1_{id}`. Cloud projects (Drive) are NOT in localStorage index (filtered on save).
 - Bulk dispatches → wrap in `BATCH_START`/`BATCH_COMMIT` (nestable; outermost commits one undo entry).
-- **Planned (not built)**: online accounts/sharing/realtime collaboration + Free/Studio editions & licensing — read `docs/COLLABORATION.md` + `docs/LICENSING.md` before touching either (roadmap 229/230).
+- **Collaboration S1 in progress** (accounts + online projects; `docs/COLLABORATION.md` is the manual, `isSupabaseConfigured` is the feature flag): sharing/roles (S2), presence (S3) + realtime rooms (S4) + licensing (roadmap 230) are **planned (not built)** — read `docs/COLLABORATION.md` + `docs/LICENSING.md` before touching either.
 
 ## Domain Model (canonical — don't re-derive)
 Deep dives live in `docs/`: daybreak/section model → `docs/SCHEDULING-STRIPBOARD-DAYBREAKS.md`; day types + calendar axis → `docs/DAY-TYPES-AND-CALENDAR.md`; element/crew links → `docs/ELEMENT-LINKS.md`. The summaries + invariants below are the always-loaded contract.

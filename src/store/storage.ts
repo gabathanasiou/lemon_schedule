@@ -15,13 +15,15 @@ export interface LastProjectRecord {
   id: string;
   /** Present for cloud (Drive) projects — re-open needs a silently restored session. */
   driveFileId?: string;
+  /** Present for online (Supabase) projects — re-open needs the account session. */
+  onlineId?: string;
   /** Epoch ms of the last successful open. */
   at: number;
 }
 
-export function rememberLastProject(id: string, driveFileId?: string): void {
+export function rememberLastProject(id: string, driveFileId?: string, onlineId?: string): void {
   try {
-    localStorage.setItem(LAST_PROJECT_KEY, JSON.stringify({ id, driveFileId, at: Date.now() } satisfies LastProjectRecord));
+    localStorage.setItem(LAST_PROJECT_KEY, JSON.stringify({ id, driveFileId, onlineId, at: Date.now() } satisfies LastProjectRecord));
   } catch {
     // Quota — recording is best-effort, never breaks the open.
   }
@@ -75,6 +77,10 @@ export interface ProjectMeta {
   lastModified: number;
   createdAt: number;
   driveFileId?: string;
+  /** Supabase row id (online collaboration projects — roadmap 229 S1).
+   *  Equals the project document id; presence = the project's synced
+   *  identity is the online copy. */
+  onlineId?: string;
 }
 
 export function getProjectStorageKey(id: string): string {
@@ -102,7 +108,7 @@ export function loadProjectListFromStorage(): ProjectMeta[] {
 }
 
 export function saveProjectListToStorage(list: ProjectMeta[]) {
-  const localOnly = list.filter(p => !p.driveFileId);
+  const localOnly = list.filter(p => !p.driveFileId && !p.onlineId);
   localStorage.setItem(INDEX_KEY, JSON.stringify(localOnly));
 }
 

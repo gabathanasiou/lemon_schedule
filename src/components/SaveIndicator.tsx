@@ -43,7 +43,7 @@ export function useSaveIndicator(): SaveState {
     : { status, lastSavedAt: lastSavedRef.current };
 }
 
-export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) {
+export function SaveIndicator({ isCloudProject, isOnlineProject }: { isCloudProject?: boolean; isOnlineProject?: boolean }) {
   const { status, lastSavedAt } = useSaveIndicator();
   const { driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync } = useProject();
   const auth = useGoogleAuth();
@@ -198,7 +198,11 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
     );
   }
 
-  const tooltip = isCloudProject ? `Synced to Drive${ago ? ` ${ago}` : ''}` : `Saved locally${ago ? ` ${ago}` : ''}`;
+  const tooltip = isOnlineProject
+    ? `Synced online${ago ? ` ${ago}` : ''}`
+    : isCloudProject
+      ? `Synced to Drive${ago ? ` ${ago}` : ''}`
+      : `Saved locally${ago ? ` ${ago}` : ''}`;
   return (
     <div
       className="relative"
