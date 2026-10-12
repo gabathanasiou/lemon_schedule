@@ -1037,3 +1037,15 @@ pass (doc §12).
 
 **Relations**: `extends` **229** (S2.5 guests, S3 presence).
 
+## 232. Following a peer while they change Sheet scenes glitches (`[ ]`)
+
+**Reported 2026-10-13** (user, the day follow completeness shipped): following someone who changes Sheet scenes "bugs out". Symptom not yet pinned — reproduce before fixing (two-client pass; watch for a wrong or oscillating scene, follow dropping, or history churn).
+
+**Hypothesis (user's read — likely an S4-rooms problem, not a presence patch):** in the S3.5 world each client holds its OWN whole-blob project — saves are last-write-wins, a dirty peer keeps its older state, and the follower applies mirrored scene ids/positions against a possibly-divergent scene list (`App.applyPlace` resolves `sceneId` and falls back to `sheetIndex` when the id is unknown on this client). Shared, server-authoritative state (S4) makes Sheet following trivially correct. Only patch the presence path for symptoms that survive shared state.
+
+**Files:** `src/components/SceneSheet.tsx` (view publish + `initialIndex` apply), `src/App.tsx` `applyPlace` sheet resolution, `src/lib/supabase/presenceContext.tsx` / `presence.ts` follow path, `docs/COLLABORATION.md` §9.
+
+**Verify:** two-client pass — follow a peer flipping Sheet scenes fast, from the same and from a different Breakdown order, and with the follower dirty (unsaved edits) or on a stale blob: the follower lands on the leader's exact scene with no flicker/oscillation, follow survives, no history churn. `npm run lint`.
+
+**Relations**: `relates to` **229** (reported against follow completeness; likely `resolved by` 229 S4 rooms).
+
