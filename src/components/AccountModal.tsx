@@ -20,6 +20,7 @@ const SOCIAL_CLASS = 'w-full flex items-center justify-center gap-2 px-3 py-2 ro
 export function AccountModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const auth = useSupabaseAuth();
   const [mode, setMode] = useState<Mode>('signin');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -37,6 +38,7 @@ export function AccountModal({ open, onClose }: { open: boolean; onClose: () => 
   const close = () => {
     onClose();
     setMode('signin');
+    setName('');
     setEmail('');
     setPassword('');
     setBusy(false);
@@ -71,9 +73,10 @@ export function AccountModal({ open, onClose }: { open: boolean; onClose: () => 
     }
 
     if (mode === 'signup') {
+      if (!name.trim()) { setError('Add your name, so collaborators know who you are.'); return; }
       if (!emailValid || !passwordValid) { setError('Enter an email and a password of at least 6 characters.'); return; }
       setBusy(true);
-      const { error: err, needsEmailConfirm } = await auth.signUpWithPassword(email.trim(), password);
+      const { error: err, needsEmailConfirm } = await auth.signUpWithPassword(email.trim(), password, name);
       setBusy(false);
       if (err) setError(err);
       else if (needsEmailConfirm) setInfo(`Almost there — we sent a confirmation link to ${email.trim()}. Open it to finish creating your account (check spam if it takes a few minutes).`);
@@ -151,8 +154,22 @@ export function AccountModal({ open, onClose }: { open: boolean; onClose: () => 
               </>
             )}
 
+            {mode === 'signup' && (
+              <input
+                autoFocus
+                type="text"
+                autoComplete="name"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') void submit(); }}
+                placeholder="Your name"
+                disabled={busy}
+                className={INPUT_CLASS}
+              />
+            )}
+
             <input
-              autoFocus
+              autoFocus={mode !== 'signup'}
               type="email"
               autoComplete="email"
               value={email}

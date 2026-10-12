@@ -30,7 +30,9 @@ export interface SupabaseAuthValue {
   signInWithApple: () => void;
   /** Email + password. Returns a human-readable error, or null on success. */
   signInWithPassword: (email: string, password: string) => Promise<string | null>;
-  signUpWithPassword: (email: string, password: string) => Promise<SignUpResult>;
+  signUpWithPassword: (email: string, password: string, name?: string) => Promise<SignUpResult>;
+  /** Rename the signed-in account (auth metadata + the profiles row). */
+  updateProfileName: (name: string) => Promise<string | null>;
   /** Email a password-reset link. Returns a human-readable error, or null. */
   sendPasswordReset: (email: string) => Promise<string | null>;
   /** End the Supabase session (does not touch Google Drive). */
@@ -52,6 +54,7 @@ const EMPTY: SupabaseAuthValue = {
   signInWithApple: () => {},
   signInWithPassword: async () => 'Not configured',
   signUpWithPassword: async () => ({ error: 'Not configured', needsEmailConfirm: false }),
+  updateProfileName: async () => 'Not configured',
   sendPasswordReset: async () => 'Not configured',
   signOut: async () => {},
   pendingRecovery: false,
@@ -135,12 +138,17 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     return error.message;
   }, []);
 
-  const signUpWithPassword = useCallback(async (email: string, password: string): Promise<SignUpResult> => {
+  const signUpWithPassword = useCallback(async (email: string, password: string, name?: string): Promise<SignUpResult> => {
     if (!supabase) return { error: 'Sign-in is not configured on this build.', needsEmailConfirm: false };
+    const fullName = name?.trim();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: appRedirectUrl() },
+      options: {
+        emailRedirectTo: appRedirectUrl(),
+        // handle_new_user copies full_name into profiles.display_name.
+        data: fullName ? { full_name: fullName } : undefined,
+      },
     });
     if (error) {
       if (/already registered/i.test(error.message)) {
@@ -157,6 +165,23 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       redirectTo: appRedirectUrl(),
     });
     return error ? error.message : null;
+  }, []);
+
+  const updateProfileName = useCallback(async (name: string): Promise<string | null> => {
+    if (!supabase) return 'Sign-in is not configured on this build.';
+    const trimmed = name.trim();
+    if (!trimmed) return 'Enter a name.';
+    const { data, error } = await supabase.auth.updateUser({ data: { full_name: trimmed } });
+    if (error) return error.message;
+    // Keep the profiles row in step — it is what co-members will read once
+    // presence/sharing lands (S3). Best-effort: the session metadata is the
+    // UI source of truth.
+    const userId = data.user?.id;
+    if (userId) {
+      const { error: profileError } = await supabase.from('profiles').update({ display_name: trimmed }).eq('id', userId);
+      if (profileError) console.warn('profiles.display_name update failed:', profileError.message);
+    }
+    return null;
   }, []);
 
   const completePasswordRecovery = useCallback(async (newPassword: string): Promise<string | null> => {
@@ -183,12 +208,13 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signInWithApple,
     signInWithPassword,
     signUpWithPassword,
+    updateProfileName,
     sendPasswordReset,
     signOut,
     pendingRecovery,
     completePasswordRecovery,
     dismissRecovery,
-  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInWithPassword, signUpWithPassword, sendPasswordReset, signOut, pendingRecovery, completePasswordRecovery, dismissRecovery]);
+  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, pendingRecovery, completePasswordRecovery, dismissRecovery]);
 
   return (
     <SupabaseAuthContext.Provider value={value}>

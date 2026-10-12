@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User as UserIcon, LogIn, LogOut, Cloud, Users, Loader2 } from 'lucide-react';
+import { User as UserIcon, LogIn, LogOut, Cloud, Users, Loader2, Pencil } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -8,6 +8,8 @@ import ModalFooterButton from './ModalFooterButton';
 import { useDialog } from './Dialog';
 import { useProject } from '../store';
 import { useSupabaseAuth } from '../lib/supabase/auth';
+import { AccountAvatar } from './AccountAvatar';
+import { ProfileModal } from './ProfileModal';
 
 /** The Google Drive sign-in surface (moved out of the File menu when the
  *  cluster ships — docs/COLLABORATION.md §9). Same shape AppHeader receives. */
@@ -39,6 +41,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
   const dialog = useDialog();
   const { currentProjectId, projectList, state, collaborateProject } = useProject();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [collabOpen, setCollabOpen] = useState(false);
   const [collabBusy, setCollabBusy] = useState(false);
   const [collabError, setCollabError] = useState<string | null>(null);
@@ -105,13 +108,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
             title={account ? `${account.name || account.email} — account & sharing` : 'Sign in to collaborate'}
           >
             {account ? (
-              account.avatarUrl ? (
-                <img src={account.avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              ) : (
-                <span className="w-full h-full flex items-center justify-center bg-emerald-700 text-[11px] font-bold text-white">
-                  {(account.name || account.email || '?')[0].toUpperCase()}
-                </span>
-              )
+              <AccountAvatar account={account} className="w-full h-full" />
             ) : (
               <UserIcon className="w-4 h-4" />
             )}
@@ -122,6 +119,12 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
           <>
             <DropdownItem onClick={() => {}} disabled>
               {account.name || account.email}
+            </DropdownItem>
+            <DropdownItem
+              onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
+              icon={<Pencil className="w-3.5 h-3.5" />}
+            >
+              Edit profile...
             </DropdownItem>
             {canCollaborate && (
               <DropdownItem
@@ -157,6 +160,8 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
         <DropdownDivider />
         {driveItem}
       </DropdownMenu>
+
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
 
       <Modal
         open={collabOpen}

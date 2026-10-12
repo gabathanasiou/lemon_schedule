@@ -177,8 +177,13 @@ re-derive any of it:
   `pendingRecovery` (PASSWORD_RECOVERY → new-password modal). Mounted in
   `main.tsx`; links return to `origin + BASE_URL`.
 - `src/components/AccountModal.tsx` — the ONE account surface (sign in /
-  create account / reset). App-level (`App.tsx`) so the boot screen reaches it;
-  the header cluster and the Project Manager's signed-out Shared tab open it.
+  create account / reset). Create account captures the **name** (`full_name`
+  metadata → the `handle_new_user` trigger writes `profiles.display_name`).
+  App-level (`App.tsx`) so the boot screen reaches it; the header cluster and
+  the Project Manager's signed-out Shared tab open it.
+- `src/components/ProfileModal.tsx` — rename the signed-in account (auth
+  metadata + the `profiles` row, best-effort); avatar rendering shared via
+  `AccountAvatar`.
 - `src/components/PasswordRecoveryModal.tsx` — set-a-new-password after a
   reset link (also App-level; may land on a fresh tab).
 - `src/components/UserPresenceCluster.tsx` — the header user cluster (§9):
@@ -292,13 +297,16 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 - Signed out → a muted **Sign in** avatar button; opening it offers
   **Sign in / Create account** (the app-level AccountModal — email+password,
   plus Google/Apple when the project has them enabled).
-- Signed in → the avatar (photo/initials) opens the **User & sharing** surface:
-  profile + **Collaborate**, **Who can access**, **Permissions**, **Allow others
-  to invite**, **Copy Link**, **Manage Shared Project…**, **Stop Sharing…**
-  (`§1` language). On Free, the same surface shows the upgrade path and no
-  collab controls. Signing out with a shared project open **closes it and
-  returns to the opening page** (parity with Drive disconnect); a silent
-  session expiry only locks the project read-only so signing back in resumes it.
+- Signed in → the avatar (photo/initials) opens the account menu: **Edit
+  profile...** (display name — email sign-ups capture it at creation, OAuth
+  sign-ups bring the provider name + photo), **Collaborate...**, **Sign out**
+  (+ Drive connect/disconnect). S2 grows this into the full **User & sharing**
+  surface (**Who can access**, **Permissions**, **Allow others to invite**,
+  **Copy Link**, **Manage Shared Project…**, **Stop Sharing…** — `§1`
+  language; on Free it shows the upgrade path instead). Signing out with a
+  shared project open **closes it and returns to the opening page** (parity
+  with Drive disconnect); a silent session expiry only locks the project
+  read-only so signing back in resumes it.
 - Presence: live collaborators render as **stacked avatar bubbles** (Canva/Notion
   style) immediately left of your own avatar — max 3 + a `+N` chip; hover = name;
   click = follow (`§9`). Viewers appear without edit affordances.
