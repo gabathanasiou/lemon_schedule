@@ -171,7 +171,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   /** LOAD + re-anchor the persisted baseline (open/reload/peer apply/import). */
   const loadBaseline = useCallback((project: Project) => {
     persistedAtCounterRef.current = changeCounterRef.current;
-    loadBaseline(project);
+    dispatch({ type: 'LOAD', payload: project });
   }, []);
   const currentMetaForRole = projectList.find(p => p.id === currentProjectId);
   const currentOnlineRole: CollaboratorRole | null =

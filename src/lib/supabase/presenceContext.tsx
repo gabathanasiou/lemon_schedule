@@ -4,8 +4,11 @@ import { useSupabaseAuth } from './auth';
 import { isSupabaseConfigured } from './client';
 import {
   acceptCursor,
+  pointerFractions,
+  presenceDiagnostics,
   ProjectPresenceChannel,
   presenceViewToPlace,
+  screenFractions,
   subscribeLocalSaves,
   type PresenceAnchor,
   type PresenceChannelStatus,
@@ -20,7 +23,7 @@ import {
  * Two contexts, deliberately split:
  * - `usePresenceActions()` is STABLE — the app shell, the stripboard, the
  *   calendar and the Day Manager publish their view/cursor through it without
- *   re-rendering when cursor traffic arrives (~10/s per peer).
+ *   re-rendering when cursor traffic arrives (~20/s per peer).
  * - `usePresenceState()` changes with presence — only the small UI surfaces
  *   (header cluster, cursor overlay, follow pill) subscribe.
  *
@@ -40,8 +43,6 @@ export interface PresenceStateValue {
 export interface PresenceActionsValue {
   /** Broadcast our place (called from App on every navigation). */
   publishView: (view: PresenceView | null) => void;
-  /** Broadcast a semantic cursor anchor (throttled + idle-skipped). */
-  publishCursor: (anchor: PresenceAnchor | null) => void;
   follow: (userId: string) => void;
   stopFollowing: () => void;
   /** App registers the one function that applies a followed view. */
@@ -51,7 +52,6 @@ export interface PresenceActionsValue {
 const EMPTY_STATE: PresenceStateValue = { peers: [], followingId: null, status: 'idle', active: false };
 const EMPTY_ACTIONS: PresenceActionsValue = {
   publishView: () => {},
-  publishCursor: () => {},
   follow: () => {},
   stopFollowing: () => {},
   registerFollowApplier: () => {},
@@ -81,6 +81,38 @@ function presenceClientId(): string {
   } catch {
     return crypto.randomUUID();
   }
+}
+
+/** Resolve one pointer event into a shareable cursor anchor: the semantic
+ *  element under the cursor when there is one (row / calendar cell / Day
+ *  Manager section), else the viewport-relative `screen` fallback so a cursor
+ *  exists EVERYWHERE (headers, toolbars, dialogs, Glide canvas, empty space).
+ *  Popout windows have their own document/window — the main window's pointer
+ *  is what the team shares (documented in docs/COLLABORATION.md §9). */
+function resolvePointerAnchor(e: MouseEvent): PresenceAnchor {
+  const el = e.target as Element | null;
+  if (el && typeof el.closest === 'function') {
+    const row = el.closest('[data-row-id]');
+    const rowId = row?.getAttribute('data-row-id');
+    if (row && rowId && !rowId.startsWith('empty-')) {
+      return { kind: 'row', rowId, ...pointerFractions(e.clientX, e.clientY, row.getBoundingClientRect()) };
+    }
+    const cell = el.closest('[data-date-key]');
+    const date = cell?.getAttribute('data-date-key');
+    if (cell && date) {
+      return { kind: 'date', date, ...pointerFractions(e.clientX, e.clientY, cell.getBoundingClientRect()) };
+    }
+    const dayManager = el.closest('[data-day-manager]');
+    if (dayManager) {
+      const dayIndex = Number(dayManager.getAttribute('data-day-manager-day'));
+      if (Number.isFinite(dayIndex)) {
+        const sectionEl = el.closest('[data-section]') ?? el.closest('[data-day-sections]') ?? dayManager;
+        const section = sectionEl.getAttribute('data-section') ?? undefined;
+        return { kind: 'day', sectionIndex: dayIndex, section, ...pointerFractions(e.clientX, e.clientY, sectionEl.getBoundingClientRect()) };
+      }
+    }
+  }
+  return { kind: 'screen', ...screenFractions(e.clientX, e.clientY, window.innerWidth, window.innerHeight) };
 }
 
 export function PresenceProvider({ children }: { children: React.ReactNode }) {
@@ -137,6 +169,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
       const c = newest.get(p.userId);
       return c ? { ...p, cursor: c.anchor, cursorTs: c.ts } : p;
     });
+    presenceDiagnostics.cursorCount = next.filter(p => p.cursor).length;
     peersRef.current = next;
     setPeers(next);
   }, []);
@@ -183,6 +216,20 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
       clearPeers();
     };
   }, [onlineId, account?.id, account?.name, account?.avatarUrl, account?.isAnonymous, clientId, rebuildPeers, clearPeers]);
+
+  // ---- global live-pointer tracker -----------------------------------------
+  // ONE listener for the whole app (no per-surface handlers that miss the
+  // header/toolbars/dialogs): every pointer move publishes an anchor — the
+  // semantic element under the cursor when there is one, else the
+  // viewport-relative fallback. Throttling/idle-skip live in the channel.
+  useEffect(() => {
+    if (!active) return;
+    const onMove = (e: MouseEvent) => {
+      channelRef.current?.publishCursor(resolvePointerAnchor(e));
+    };
+    window.addEventListener('mousemove', onMove, { passive: true, capture: true });
+    return () => window.removeEventListener('mousemove', onMove, true);
+  }, [active]);
 
   // ---- S3.5: our successful online saves ride the channel -------------------
   useEffect(() => subscribeLocalSaves((revision) => {
@@ -236,9 +283,6 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     viewRef.current = view;
     channelRef.current?.publishView(view);
   }, []);
-  const publishCursor = useCallback((anchor: PresenceAnchor | null) => {
-    channelRef.current?.publishCursor(anchor);
-  }, []);
   const follow = useCallback((userId: string) => {
     followingRef.current = userId;
     setFollowingId(userId);
@@ -249,11 +293,10 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
 
   const actions = useMemo<PresenceActionsValue>(() => ({
     publishView,
-    publishCursor,
     follow,
     stopFollowing,
     registerFollowApplier,
-  }), [publishView, publishCursor, follow, stopFollowing, registerFollowApplier]);
+  }), [publishView, follow, stopFollowing, registerFollowApplier]);
 
   const state = useMemo<PresenceStateValue>(() => ({ peers, followingId, status, active }), [peers, followingId, status, active]);
 

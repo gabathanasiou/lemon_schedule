@@ -13,7 +13,7 @@ import { isAppTabId, type AppPlace, type AppTabId } from '../appNav';
  * - Ephemeral ONLY: never written to the database, never inside the Project.
  * - Payloads are cosmetic identity: parse, clamp, and never trust them for
  *   permissions or for mutating project state beyond the S3.5 LOAD flow.
- * - Cursors are throttled (~10/s), coalesced, and skipped when idle; stale
+ * - Cursors are throttled (~20/s), coalesced, and skipped when idle; stale
  *   timestamps are dropped per client.
  * - Multi-window: the same user in two tabs holds two presence entries under
  *   one key; bubbles dedupe by user (newest view wins) and the newest cursor
@@ -41,11 +41,18 @@ export interface PresenceView {
   daySection?: number;
 }
 
-/** Semantic cursor anchor — ids that survive scroll, reorder and zoom. */
+/** Semantic cursor anchor — ids that survive scroll, reorder and zoom, plus
+ *  the pointer's position WITHIN the anchored element (`fx`/`fy` ∈ 0..1 of its
+ *  rect). When the pointer is over nothing shareable (headers, toolbars,
+ *  dialogs, Glide canvas, empty space) the anchor is `screen`: viewport-
+ *  relative coordinates (`xr`/`yr` ∈ 0..1), rendered scaled ONLY while that
+ *  peer is on the same tab — approximate by design, but the cursor still
+ *  exists. Raw pixels are never sent (docs/COLLABORATION.md §9). */
 export type PresenceAnchor =
-  | { kind: 'row'; rowId: string }
-  | { kind: 'date'; date: string }
-  | { kind: 'day'; sectionIndex: number; section?: string };
+  | { kind: 'row'; rowId: string; fx: number; fy: number }
+  | { kind: 'date'; date: string; fx: number; fy: number }
+  | { kind: 'day'; sectionIndex: number; section?: string; fx: number; fy: number }
+  | { kind: 'screen'; xr: number; yr: number };
 
 /** What this tab tracks in Realtime Presence (who's here + where). */
 export interface PresenceMeta {
@@ -99,6 +106,15 @@ function num(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
+function clamp01(v: number): number {
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/** Pointer position within the anchor element (defaults to its centre). */
+function fractions(r: Record<string, unknown>): { fx: number; fy: number } {
+  return { fx: clamp01(num(r.fx) ?? 0.5), fy: clamp01(num(r.fy) ?? 0.5) };
+}
+
 export function parseView(raw: unknown): PresenceView | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
@@ -118,19 +134,26 @@ export function parseView(raw: unknown): PresenceView | null {
 export function parseAnchor(raw: unknown): PresenceAnchor | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
+  if (r.kind === 'screen') {
+    const xr = num(r.xr);
+    const yr = num(r.yr);
+    if (xr == null || yr == null) return null;
+    return { kind: 'screen', xr: clamp01(xr), yr: clamp01(yr) };
+  }
+  const pos = fractions(r);
   if (r.kind === 'row') {
     const rowId = str(r.rowId);
-    return rowId ? { kind: 'row', rowId } : null;
+    return rowId ? { kind: 'row', rowId, ...pos } : null;
   }
   if (r.kind === 'date') {
     const date = str(r.date, 10);
-    return date ? { kind: 'date', date } : null;
+    return date ? { kind: 'date', date, ...pos } : null;
   }
   if (r.kind === 'day') {
     const sectionIndex = num(r.sectionIndex);
     if (sectionIndex == null) return null;
     const section = str(r.section);
-    return { kind: 'day', sectionIndex: Math.trunc(sectionIndex), ...(section ? { section } : {}) };
+    return { kind: 'day', sectionIndex: Math.trunc(sectionIndex), ...(section ? { section } : {}), ...pos };
   }
   return null;
 }
@@ -209,17 +232,42 @@ export function acceptCursor(prevTs: number | undefined, incomingTs: number): bo
   return prevTs == null || incomingTs > prevTs;
 }
 
-/** Stable key for idle-skip comparisons. */
+/** Pointer position within the anchor element's rect as 0..1 fractions — the
+ *  durable "where inside this row/cell" half of a live cursor. */
+export function pointerFractions(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; top: number; width: number; height: number },
+): { fx: number; fy: number } {
+  return {
+    fx: rect.width > 0 ? clamp01((clientX - rect.left) / rect.width) : 0.5,
+    fy: rect.height > 0 ? clamp01((clientY - rect.top) / rect.height) : 0.5,
+  };
+}
+
+/** Stable key for idle-skip comparisons; the pointer position is quantized to
+ *  1% of the element so micro-jitter doesn't re-broadcast. */
 export function anchorKey(anchor: PresenceAnchor | null): string {
   if (!anchor) return '';
+  const q = (v: number) => Math.round(v * 100);
+  if (anchor.kind === 'screen') return `screen:${q(anchor.xr)}:${q(anchor.yr)}`;
+  const pos = `${q(anchor.fx)}:${q(anchor.fy)}`;
   switch (anchor.kind) {
     case 'row':
-      return `row:${anchor.rowId}`;
+      return `row:${anchor.rowId}:${pos}`;
     case 'date':
-      return `date:${anchor.date}`;
+      return `date:${anchor.date}:${pos}`;
     case 'day':
-      return `day:${anchor.sectionIndex}:${anchor.section ?? ''}`;
+      return `day:${anchor.sectionIndex}:${anchor.section ?? ''}:${pos}`;
   }
+}
+
+/** Viewport-relative pointer position (the `screen` anchor fallback). */
+export function screenFractions(clientX: number, clientY: number, width: number, height: number): { xr: number; yr: number } {
+  return {
+    xr: width > 0 ? clamp01(clientX / width) : 0.5,
+    yr: height > 0 ? clamp01(clientY / height) : 0.5,
+  };
 }
 
 export interface Throttle<T> {
@@ -230,7 +278,7 @@ export interface Throttle<T> {
   cancel(): void;
 }
 
-/** ~10/s cursor throttle: leading send, coalesce the rest, one trailing send.
+/** ~20/s cursor throttle: leading send, coalesce the rest, one trailing send.
  *  `now` is injectable so the timing is unit-testable. */
 export function createThrottle<T>(send: (value: T) => void, intervalMs = 100, now: () => number = Date.now): Throttle<T> {
   // -Infinity guarantees the very first emit is always a leading send.
@@ -346,7 +394,12 @@ export interface PresenceDiagnostics {
   topic: string | null;
   status: PresenceChannelStatus;
   peerCount: number;
+  /** Peers currently rendering a live pointer. */
+  cursorCount: number;
+  /** Last successful cursor send (ms epoch, 0 = none). */
   lastCursorAt: number;
+  /** Last cursor payload received from a peer (0 = none). */
+  lastCursorRecvAt: number;
   error: string | null;
 }
 
@@ -355,7 +408,9 @@ export const presenceDiagnostics: PresenceDiagnostics = {
   topic: null,
   status: 'idle',
   peerCount: 0,
+  cursorCount: 0,
   lastCursorAt: 0,
+  lastCursorRecvAt: 0,
   error: null,
 };
 
@@ -416,7 +471,7 @@ export class ProjectPresenceChannel {
     this.throttle = createThrottle<PresenceCursor>((cursor) => {
       void this.channel?.send({ type: 'broadcast', event: CURSOR_EVENT, payload: cursor });
       presenceDiagnostics.lastCursorAt = cursor.ts;
-    }, 100);
+    }, 50); // ~20/s — Canva-smooth gliding without hammering the channel
 
     const channel = supabase.channel(topic, {
       config: { private: true, presence: { key: this.identity.userId, enabled: true } },
@@ -431,7 +486,10 @@ export class ProjectPresenceChannel {
       .on('broadcast', { event: CURSOR_EVENT }, ({ payload }) => {
         if (this.stopped) return;
         const cursor = parseCursorPayload(payload);
-        if (cursor && cursor.userId !== this.identity.userId) this.handlers.onCursor(cursor);
+        if (cursor && cursor.userId !== this.identity.userId) {
+          presenceDiagnostics.lastCursorRecvAt = Date.now();
+          this.handlers.onCursor(cursor);
+        }
       })
       .on('broadcast', { event: SAVE_EVENT }, ({ payload }) => {
         if (this.stopped) return;
@@ -483,7 +541,7 @@ export class ProjectPresenceChannel {
   }
 
   /** Broadcast our cursor anchor; skipped when unchanged (idle) and throttled
-   *  to ~10/s with coalescing. */
+   *  to ~20/s with coalescing. */
   publishCursor(anchor: PresenceAnchor | null): void {
     const key = anchorKey(anchor);
     if (!key || key === this.lastAnchorKey) return;

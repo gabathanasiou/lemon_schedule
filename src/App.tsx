@@ -1199,7 +1199,7 @@ function AppContent() {
         )}
       </main>
 
-      <PresenceOverlay />
+      <PresenceOverlay activeTab={activeTab} />
 
       <TrashModal open={showTrash} onClose={() => setShowTrash(false)} project={project} dispatch={dispatch} />
       {showIntegrity && <ScriptIntegrityModal onClose={() => setShowIntegrity(false)} />}

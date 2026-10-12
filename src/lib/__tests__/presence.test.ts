@@ -11,9 +11,29 @@ import {
   parseSavePayload,
   parseView,
   placeToPresenceView,
+  pointerFractions,
   presenceTopic,
   presenceViewToPlace,
+  screenFractions,
 } from '../supabase/presence';
+import { avatarColor, initialsOf, shortNameOf } from '../avatarIdentity';
+
+describe('avatar identity', () => {
+  it('derives the same color for the same seed, different across seeds', () => {
+    expect(avatarColor('user-a')).toBe(avatarColor('user-a'));
+    expect(avatarColor('user-a')).not.toBe(avatarColor('user-b'));
+    expect(avatarColor('user-a')).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('derives initials and a compact label', () => {
+    expect(initialsOf('Sam Fisher')).toBe('SF');
+    expect(initialsOf('Anonymous Otter')).toBe('AO');
+    expect(initialsOf('Prince')).toBe('P');
+    expect(initialsOf('  ')).toBe('?');
+    expect(shortNameOf('Anonymous Otter')).toBe('Anonymous');
+    expect(shortNameOf('')).toBe('Someone');
+  });
+});
 
 describe('presence wire helpers', () => {
   it('builds one topic per project id', () => {
@@ -27,14 +47,22 @@ describe('presence wire helpers', () => {
     expect(parseView(null)).toBeNull();
   });
 
-  it('parses anchors and rejects malformed ones', () => {
-    expect(parseAnchor({ kind: 'row', rowId: 'r1' })).toEqual({ kind: 'row', rowId: 'r1' });
+  it('parses anchors, defaulting/clamping the pointer position', () => {
+    expect(parseAnchor({ kind: 'row', rowId: 'r1' })).toEqual({ kind: 'row', rowId: 'r1', fx: 0.5, fy: 0.5 });
+    expect(parseAnchor({ kind: 'row', rowId: 'r1', fx: 0.2, fy: 0.8 })).toEqual({ kind: 'row', rowId: 'r1', fx: 0.2, fy: 0.8 });
+    expect(parseAnchor({ kind: 'row', rowId: 'r1', fx: -3, fy: 9 })).toEqual({ kind: 'row', rowId: 'r1', fx: 0, fy: 1 });
     expect(parseAnchor({ kind: 'row' })).toBeNull();
-    expect(parseAnchor({ kind: 'date', date: '2026-10-12' })).toEqual({ kind: 'date', date: '2026-10-12' });
-    expect(parseAnchor({ kind: 'day', sectionIndex: 3, section: 'scenes' })).toEqual({ kind: 'day', sectionIndex: 3, section: 'scenes' });
-    expect(parseAnchor({ kind: 'day', sectionIndex: 3 })).toEqual({ kind: 'day', sectionIndex: 3 });
+    expect(parseAnchor({ kind: 'date', date: '2026-10-12' })).toEqual({ kind: 'date', date: '2026-10-12', fx: 0.5, fy: 0.5 });
+    expect(parseAnchor({ kind: 'day', sectionIndex: 3, section: 'scenes' })).toEqual({ kind: 'day', sectionIndex: 3, section: 'scenes', fx: 0.5, fy: 0.5 });
+    expect(parseAnchor({ kind: 'day', sectionIndex: 3 })).toEqual({ kind: 'day', sectionIndex: 3, fx: 0.5, fy: 0.5 });
     expect(parseAnchor({ kind: 'day' })).toBeNull();
     expect(parseAnchor('row:1')).toBeNull();
+  });
+
+  it('parses the viewport-relative screen fallback and clamps it', () => {
+    expect(parseAnchor({ kind: 'screen', xr: 0.25, yr: 0.75 })).toEqual({ kind: 'screen', xr: 0.25, yr: 0.75 });
+    expect(parseAnchor({ kind: 'screen', xr: -1, yr: 4 })).toEqual({ kind: 'screen', xr: 0, yr: 1 });
+    expect(parseAnchor({ kind: 'screen', xr: 0.5 })).toBeNull();
   });
 
   it('parses presence metas with clamped names and required identity', () => {
@@ -48,8 +76,8 @@ describe('presence wire helpers', () => {
   });
 
   it('parses cursor and save payloads', () => {
-    expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'row', rowId: 'r' } }))
-      .toEqual({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'row', rowId: 'r' } });
+    expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'row', rowId: 'r', fx: 0.25, fy: 0.75 } }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'row', rowId: 'r', fx: 0.25, fy: 0.75 } });
     expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'nope' } })).toBeNull();
     expect(parseSavePayload({ userId: 'u', revision: 4, ts: 9 })).toEqual({ userId: 'u', revision: 4, ts: 9 });
     expect(parseSavePayload({ userId: 'u', revision: 0, ts: 9 })).toBeNull();
@@ -97,12 +125,35 @@ describe('cursor dedupe + idle keys', () => {
     expect(acceptCursor(2, 1)).toBe(false);
   });
 
-  it('keys anchors stably for idle comparison', () => {
-    expect(anchorKey({ kind: 'row', rowId: 'r1' })).toBe('row:r1');
-    expect(anchorKey({ kind: 'date', date: '2026-10-12' })).toBe('date:2026-10-12');
-    expect(anchorKey({ kind: 'day', sectionIndex: 2 })).toBe('day:2:');
-    expect(anchorKey({ kind: 'day', sectionIndex: 2, section: 'scenes' })).toBe('day:2:scenes');
+  it('keys anchors stably for idle comparison (positions quantized to 1%)', () => {
+    expect(anchorKey({ kind: 'row', rowId: 'r1', fx: 0.5, fy: 0.5 })).toBe('row:r1:50:50');
+    expect(anchorKey({ kind: 'row', rowId: 'r1', fx: 0.501, fy: 0.499 })).toBe('row:r1:50:50'); // micro-jitter collapses
+    expect(anchorKey({ kind: 'date', date: '2026-10-12', fx: 0, fy: 1 })).toBe('date:2026-10-12:0:100');
+    expect(anchorKey({ kind: 'day', sectionIndex: 2, fx: 0.5, fy: 0.5 })).toBe('day:2::50:50');
+    expect(anchorKey({ kind: 'day', sectionIndex: 2, section: 'scenes', fx: 0.5, fy: 0.5 })).toBe('day:2:scenes:50:50');
+    expect(anchorKey({ kind: 'screen', xr: 0.33, yr: 0.66 })).toBe('screen:33:66');
     expect(anchorKey(null)).toBe('');
+  });
+});
+
+describe('screen fractions', () => {
+  it('maps a client point into 0..1 of the viewport', () => {
+    expect(screenFractions(600, 400, 1200, 800)).toEqual({ xr: 0.5, yr: 0.5 });
+    expect(screenFractions(-50, 9999, 1200, 800)).toEqual({ xr: 0, yr: 1 });
+    expect(screenFractions(10, 10, 0, 0)).toEqual({ xr: 0.5, yr: 0.5 });
+  });
+});
+
+describe('pointer fractions', () => {
+  it('maps a client point into 0..1 of the element rect', () => {
+    const rect = { left: 100, top: 50, width: 200, height: 40 };
+    expect(pointerFractions(200, 70, rect)).toEqual({ fx: 0.5, fy: 0.5 });
+    expect(pointerFractions(0, 0, rect)).toEqual({ fx: 0, fy: 0 });
+    expect(pointerFractions(9999, 9999, rect)).toEqual({ fx: 1, fy: 1 });
+  });
+
+  it('falls back to the centre for a zero-sized rect', () => {
+    expect(pointerFractions(10, 10, { left: 0, top: 0, width: 0, height: 0 })).toEqual({ fx: 0.5, fy: 0.5 });
   });
 });
 
