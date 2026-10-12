@@ -13,11 +13,15 @@ import { CELL_BORDER_VALUES, VIEW_MODE_VALUES, type CellBorders, type ViewMode }
  * - Ephemeral ONLY: never written to the database, never inside the Project.
  * - Payloads are cosmetic identity: parse, clamp, and never trust them for
  *   permissions or for mutating project state beyond the S3.5 LOAD flow.
- * - Cursors are throttled (~20/s), bursts coalesce into one trailing send
- *   (timer + a next-emit flush, so background-tab timer throttling cannot
- *   freeze the pointer one item behind), and skipped when idle; stale
- *   timestamps are dropped per client. Scroll samples ride the same channel
- *   (~8/s, semantic anchors — `src/lib/presenceScroll.ts`).
+ * - Presence `track()` is capped by Supabase at **5 calls per client per
+ *   30 seconds** — past it the server SHUTS THE CHANNEL DOWN
+ *   (`ClientPresenceRateLimitReached`). So views (place + scene + view
+ *   switches) ride a throttled `view` broadcast; `track()` happens only on
+ *   (re)join, carrying the view snapshot for late joiners.
+ * - Cursors (~12/s) and scroll samples (~5/s) are broadcasts too; bursts
+ *   coalesce into one trailing send (timer + a next-emit flush, so
+ *   background-tab timer throttling cannot freeze the pointer one item
+ *   behind), and skip when idle; stale timestamps drop per client.
  * - Multi-window: the same user in two tabs holds two presence entries under
  *   one key; bubbles dedupe by user (newest view wins) and the newest cursor
  *   per user renders. Documented, accepted.
@@ -136,6 +140,19 @@ export interface PresenceAccessEvent {
   userId: string;
   /** New role, or null when access was revoked. */
   role: PresenceAccessRole | null;
+  ts: number;
+}
+
+/** View updates ride a BROADCAST, not presence `track`: Supabase limits a
+ *  client to **5 presence calls per 30 seconds** (free tier) and shuts the
+ *  channel down past it — navigation-paced `track()` blew that instantly
+ *  (Realtime `ClientPresenceRateLimitReached`, user report 2026-10-12).
+ *  `track()` now happens only on (re)join, carrying the view snapshot for
+ *  late joiners; peers learn every later change from these messages. */
+export interface PresenceViewUpdate {
+  userId: string;
+  clientId: string;
+  view: PresenceView | null;
   ts: number;
 }
 
@@ -317,6 +334,16 @@ export function parseAccessPayload(raw: unknown): PresenceAccessEvent | null {
     return { userId, role: role as PresenceAccessRole, ts };
   }
   return null; // unknown role values are ignored (never lock on garbage)
+}
+
+export function parseViewPayload(raw: unknown): PresenceViewUpdate | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const userId = str(r.userId, 64);
+  const clientId = str(r.clientId, 64);
+  const ts = num(r.ts);
+  if (!userId || !clientId || ts == null) return null;
+  return { userId, clientId, view: parseView(r.view), ts };
 }
 
 // ---------------------------------------------------------------------------

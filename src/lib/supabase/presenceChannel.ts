@@ -8,6 +8,7 @@ import {
   parseCursorPayload,
   parseSavePayload,
   parseScrollPayload,
+  parseViewPayload,
   presenceTopic,
   type PresenceAccessEvent,
   type PresenceAnchor,
@@ -18,6 +19,7 @@ import {
   type PresenceScroll,
   type PresenceScrollSample,
   type PresenceView,
+  type PresenceViewUpdate,
   type Throttle,
 } from './presence';
 
@@ -28,6 +30,16 @@ import {
  * `presence.ts` owns the wire shapes + pure logic; this module owns the
  * Supabase-touching side: the channel class, its diagnostics snapshot and the
  * local save bus the store feeds (S3.5).
+ *
+ * Transport split (user bug 2026-10-12 — channels kept dying):
+ * - Presence `track()` = identity + a view snapshot, sent ONLY on (re)join
+ *   (Supabase caps presence calls at 5 per client per 30s; exceeding it
+ *   closes the channel).
+ * - Everything fast is a broadcast: `view` (place/scene/switches, ~7/s cap),
+ *   `cursor` (~12/s), `scroll` (~5/s), `save` (per save). A peer's view on
+ *   the receiver = newest of the meta snapshot vs the latest broadcast.
+ * - On a peer's presence `join`, answer once with our view so new joiners
+ *   see where everyone is without waiting for their next move (debounced).
  */
 
 // ---------------------------------------------------------------------------
@@ -73,6 +85,12 @@ export interface PresenceDiagnostics {
   lastCursorAt: number;
   /** Last cursor payload received from a peer (0 = none). */
   lastCursorRecvAt: number;
+  /** Last view payload received from a peer (0 = none). */
+  lastViewRecvAt: number;
+  /** Presence `track()` calls made by this channel — must stay ≤5 per 30s
+   *  (Supabase caps presence calls per client; past it the channel is
+   *  shut down). One per (re)join by design. */
+  trackCount: number;
   error: string | null;
 }
 
@@ -84,6 +102,8 @@ export const presenceDiagnostics: PresenceDiagnostics = {
   cursorCount: 0,
   lastCursorAt: 0,
   lastCursorRecvAt: 0,
+  lastViewRecvAt: 0,
+  trackCount: 0,
   error: null,
 };
 
@@ -108,6 +128,8 @@ export interface PresenceChannelHandlers {
   onSavePing: (ping: PresenceSavePing) => void;
   /** A followed peer's scroll sample (follow completeness). */
   onScroll: (scroll: PresenceScroll) => void;
+  /** A peer's view update (rides a broadcast — presence `track` is limited). */
+  onView: (update: PresenceViewUpdate) => void;
   /** Access-change event addressed to THIS user (role change or revocation). */
   onAccess: (event: PresenceAccessEvent) => void;
   onStatus: (status: PresenceChannelStatus) => void;
@@ -116,6 +138,7 @@ export interface PresenceChannelHandlers {
 const CURSOR_EVENT = 'cursor';
 const SAVE_EVENT = 'save';
 const SCROLL_EVENT = 'scroll';
+const VIEW_EVENT = 'view';
 const ACCESS_EVENT = 'access';
 
 /**
@@ -127,8 +150,13 @@ export class ProjectPresenceChannel {
   private channel: RealtimeChannel | null = null;
   private throttle: Throttle<PresenceCursor> | null = null;
   private scrollThrottle: Throttle<PresenceScrollSample> | null = null;
+  private viewThrottle: Throttle<PresenceView | null> | null = null;
   private lastAnchorKey = '';
   private lastScrollKey = '';
+  private lastViewKey = '';
+  private lastView: PresenceView | null = null;
+  private viewPublished = false;
+  private lastJoinAnswerAt = 0;
   private lastMeta: PresenceMeta | null = null;
   private stopped = false;
 
@@ -152,12 +180,20 @@ export class ProjectPresenceChannel {
     this.throttle = createThrottle<PresenceCursor>((cursor) => {
       void this.channel?.send({ type: 'broadcast', event: CURSOR_EVENT, payload: cursor });
       presenceDiagnostics.lastCursorAt = cursor.ts;
-    }, 50); // ~20/s — Canva-smooth gliding without hammering the channel
+    }, 80); // ~12/s — smooth Canva-style gliding within the free-tier message budget
 
     this.scrollThrottle = createThrottle<PresenceScrollSample>((sample) => {
       const payload: PresenceScroll = { ...sample, userId: this.identity.userId, clientId: this.clientId, ts: Date.now() };
       void this.channel?.send({ type: 'broadcast', event: SCROLL_EVENT, payload });
-    }, 120); // ~8/s — scroll mirroring reads smooth without a flood
+    }, 200); // ~5/s — scroll mirroring reads smooth without a flood
+
+    // Views ride this throttled broadcast, never `track()`: presence calls are
+    // limited to 5 per client per 30s (Supabase free tier) and exceeding them
+    // shuts the channel down (`ClientPresenceRateLimitReached`).
+    this.viewThrottle = createThrottle<PresenceView | null>((view) => {
+      const payload: PresenceViewUpdate = { userId: this.identity.userId, clientId: this.clientId, view, ts: Date.now() };
+      void this.channel?.send({ type: 'broadcast', event: VIEW_EVENT, payload });
+    }, 150);
 
     const channel = supabase.channel(topic, {
       config: { private: true, presence: { key: this.identity.userId, enabled: true } },
@@ -168,6 +204,17 @@ export class ProjectPresenceChannel {
       .on('presence', { event: 'sync' }, () => {
         if (this.stopped) return;
         this.emitPeers();
+      })
+      .on('presence', { event: 'join' }, (payload) => {
+        if (this.stopped) return;
+        // Someone new joined: they missed our views (tracks only happen on
+        // join). Answer with ours once — debounced so a join burst is not a
+        // broadcast storm.
+        if (payload?.key === this.identity.userId) return;
+        const now = Date.now();
+        if (now - this.lastJoinAnswerAt < 1000) return;
+        this.lastJoinAnswerAt = now;
+        this.broadcastViewNow();
       })
       .on('broadcast', { event: CURSOR_EVENT }, ({ payload }) => {
         if (this.stopped) return;
@@ -187,6 +234,14 @@ export class ProjectPresenceChannel {
         const scroll = parseScrollPayload(payload);
         if (scroll && scroll.userId !== this.identity.userId) this.handlers.onScroll(scroll);
       })
+      .on('broadcast', { event: VIEW_EVENT }, ({ payload }) => {
+        if (this.stopped) return;
+        const update = parseViewPayload(payload);
+        if (update && update.userId !== this.identity.userId) {
+          presenceDiagnostics.lastViewRecvAt = Date.now();
+          this.handlers.onView(update);
+        }
+      })
       .on('broadcast', { event: ACCESS_EVENT }, ({ payload }) => {
         if (this.stopped) return;
         const event = parseAccessPayload(payload);
@@ -199,8 +254,16 @@ export class ProjectPresenceChannel {
         if (status === 'SUBSCRIBED') {
           presenceDiagnostics.status = 'connected';
           this.handlers.onStatus('connected');
-          // Re-track after every (re)join so a reconnect restores our state.
-          if (this.lastMeta) void this.channel?.track(this.lastMeta);
+          // ONE track per (re)join — the meta carries identity + the view
+          // snapshot for late joiners (presence calls are capped at 5 per
+          // client per 30s; navigation never tracks).
+          if (this.lastMeta) {
+            presenceDiagnostics.trackCount += 1;
+            void this.channel?.track(this.lastMeta);
+          }
+          // Peers already on the channel won't see another track from us —
+          // make sure they get our current view, then pick up theirs.
+          this.broadcastViewNow();
           this.emitPeers();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           presenceDiagnostics.status = 'error';
@@ -232,10 +295,30 @@ export class ProjectPresenceChannel {
     this.handlers.onPeers(peers);
   }
 
-  /** Broadcast our place (throttle-free: navigation is user-paced). */
+  /** Broadcast our place/state. Rides the throttled `view` event (with an
+   *  idle skip) — NEVER `track()`, which is capped at 5 calls per client per
+   *  30s and shuts the channel down past it. The meta snapshot is kept fresh
+   *  for the next (re)join track. */
   publishView(view: PresenceView | null): void {
+    this.lastView = view;
+    this.viewPublished = true;
     this.lastMeta = this.buildMeta(view);
-    if (this.channel) void this.channel.track(this.lastMeta);
+    const key = JSON.stringify(view ?? null);
+    if (key === this.lastViewKey) return;
+    this.lastViewKey = key;
+    this.viewThrottle?.emit(view);
+  }
+
+  /** Send our current view right now (join paths — bypasses the idle skip). */
+  private broadcastViewNow(): void {
+    if (!this.viewPublished) return;
+    const payload: PresenceViewUpdate = {
+      userId: this.identity.userId,
+      clientId: this.clientId,
+      view: this.lastView,
+      ts: Date.now(),
+    };
+    void this.channel?.send({ type: 'broadcast', event: VIEW_EVENT, payload });
   }
 
   /** Broadcast our cursor anchor; skipped when unchanged (idle) and throttled
@@ -274,6 +357,7 @@ export class ProjectPresenceChannel {
     this.stopped = true;
     this.throttle = null;
     this.scrollThrottle = null;
+    this.viewThrottle = null;
     const channel = this.channel;
     this.channel = null;
     if (channel && supabase) {

@@ -152,7 +152,7 @@ race described in §E (select first, then double-click).
 
 ## F. rich-text-editor class assertions flake under full-suite load (no fix needed)
 
-**Symptom (seen once, follow-completeness run 2026-10-13):** a full-suite pass
+**Symptom (seen once, follow-completeness run 2026-10-12):** a full-suite pass
 failed `rich-text-editor.spec.ts` on a `toHaveClass(/bg-blue-900\/50/)`
 assertion (line 87, "bold with empty selection lights the button immediately");
 another run of the same spec flaked on line 73 instead. The spec's toggle-class

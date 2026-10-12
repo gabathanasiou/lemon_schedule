@@ -988,7 +988,7 @@ bars — static flat / live grouped becomes the deliberate asymmetry.
 
 **Vision + stages: `docs/COLLABORATION.md` — read it before starting any stage.** Decided 2026-10: online-only editing for shared projects; **server-authoritative rooms running the existing pure reducer (NOT CRDT)**; Supabase (Auth, Postgres+RLS, Realtime, Edge Functions) + Cloudflare Durable Objects at S4; the free local/Google Drive path stays exactly as today.
 
-**Stages** (detail in the doc): S1 accounts + online projects (Collaborate; the header **user cluster** appears) — **shipped** → S2 sharing/roles/invites/view-only links, the **User & sharing** panel, `canEdit` vs `readOnly` — **shipped 2026-10-12** (S2.5: no-account guest links, always-visible links, revoke = evict) → S3 presence (**Canva-style live pointers** + follow) + the S3.5 save ping (live refresh without manual reload) — **shipped 2026-10-12** (user decisions: collaborator bubbles in the header as follow toggles; pointers render only while you're on the peer's exact view/sub-tab; **follow completeness shipped 2026-10-13** — Sheet scene, view switches, scroll mirroring, doc §9) → S4 realtime collaborative editing (per-project room, per-user undo, reconnect) → S5 billing (cross-ref **230**; collab = Studio + subscription, invited guests free).
+**Stages** (detail in the doc): S1 accounts + online projects (Collaborate; the header **user cluster** appears) — **shipped** → S2 sharing/roles/invites/view-only links, the **User & sharing** panel, `canEdit` vs `readOnly` — **shipped 2026-10-12** (S2.5: no-account guest links, always-visible links, revoke = evict) → S3 presence (**Canva-style live pointers** + follow) + the S3.5 save ping (live refresh without manual reload) — **shipped 2026-10-12** (user decisions: collaborator bubbles in the header as follow toggles; pointers render only while you're on the peer's exact view/sub-tab; **follow completeness shipped 2026-10-12** — Sheet scene, view switches, scroll mirroring, doc §9) → S4 realtime collaborative editing (per-project room, per-user undo, reconnect) → S5 billing (cross-ref **230**; collab = Studio + subscription, invited guests free).
 
 **Access changes are pushed, not polled (user request 2026-10-12 — built into S3)**: a definer trigger on
 `memberships` broadcasts an ephemeral `access` event to the project's presence topic (`realtime.send`;
@@ -998,13 +998,13 @@ to the opening page — not left in a read-only shell), guests admitted by a rev
 stays the enforcement point — the push is UX only. Acceptance: `supabase/tests/rls_s3.sql`
 (`role_change_pushes_access_event` / `revoke_pushes_access_event`).
 
-**Follow completeness (user request 2026-10-12) — built 2026-10-13**: following also mirrors
+**Follow completeness (user request 2026-10-12) — built 2026-10-12**: following also mirrors
 the **Sheet's scene/sheet number**, the **stripboard View menu** (A4 width + cell borders), the
 **Calendar Strips/Events sub-view**, and the **scroll** of the stripboard/Calendar/Sheet/Glide
 grid — semantic anchors, never pixels; a throttled `scroll` broadcast (~8/s) via
 `src/lib/presenceScroll.ts` + `usePresenceScrollSurface` (the stripboard carries a day-block
 fallback + re-align for rows outside the receiver's render window; Glide scrolls via its first
-visible cell). **User decisions (2026-10-13): scrolling yourself never ends follow** (look around;
+visible cell). **User decisions (2026-10-12): scrolling yourself never ends follow** (look around;
 the leader's next scroll re-syncs you); **any view-changing click ends follow** (Sheet arrows,
 View menu, Calendar month arrows — same rule as a navigation click). Ribbon layout is project
 state and arrives via the S3.5 save ping. Narrative: doc §9; verified by the two-client manual
@@ -1037,15 +1037,15 @@ pass (doc §12).
 
 **Relations**: `extends` **229** (S2.5 guests, S3 presence).
 
-## 232. Following a peer while they change Sheet scenes glitches (`[ ]`)
+## 232. Following a peer while changing Sheet scenes killed the channel (`[ ]`)
 
-**Reported 2026-10-13** (user, the day follow completeness shipped): following someone who changes Sheet scenes "bugs out". Symptom not yet pinned — reproduce before fixing (two-client pass; watch for a wrong or oscillating scene, follow dropping, or history churn).
+**Reported 2026-10-12** (user, testing follow completeness): following someone who changes Sheet scenes "bugged out" and "the connection kept getting lost".
 
-**Hypothesis (user's read — likely an S4-rooms problem, not a presence patch):** in the S3.5 world each client holds its OWN whole-blob project — saves are last-write-wins, a dirty peer keeps its older state, and the follower applies mirrored scene ids/positions against a possibly-divergent scene list (`App.applyPlace` resolves `sceneId` and falls back to `sheetIndex` when the id is unknown on this client). Shared, server-authoritative state (S4) makes Sheet following trivially correct. Only patch the presence path for symptoms that survive shared state.
+**Root cause found in the live Realtime logs** (`ClientPresenceRateLimitReached: :client_rate_limit_exceeded`, 8× during testing): Supabase caps presence `track()` at **5 calls per client per 30 seconds** and SHUTS THE CHANNEL DOWN past it (any presence/broadcast subscription stops until reconnect). `publishView` tracked on every view change — 5+ sheet flips in 30s did it instantly (applies echoed tracks on both sides), and even plain clicking could exceed it. The pointers/bubbles/follow then died until reconnect — the "super glitched out" report.
 
-**Files:** `src/components/SceneSheet.tsx` (view publish + `initialIndex` apply), `src/App.tsx` `applyPlace` sheet resolution, `src/lib/supabase/presenceContext.tsx` / `presence.ts` follow path, `docs/COLLABORATION.md` §9.
+**Fix (2026-10-12):** transport split in `src/lib/supabase/presenceChannel.ts` — `track()` only on (re)join (identity + a view snapshot for late joiners); every view change rides a throttled `view` broadcast; a peer's presence `join` is answered with our view (debounced). Receive path merges the newest of meta-vs-broadcast view (`presenceContext.tsx` `rebuildPeers`); `presenceDiagnostics.trackCount` + `lastViewRecvAt` expose the accounting. Cursor throttle lowered 20→12/s, scroll 8→5/s for the free-tier 100 msg/s project budget.
 
-**Verify:** two-client pass — follow a peer flipping Sheet scenes fast, from the same and from a different Breakdown order, and with the follower dirty (unsaved edits) or on a stale blob: the follower lands on the leader's exact scene with no flicker/oscillation, follow survives, no history churn. `npm run lint`.
+**Verify** (next two-client pass): flip Sheet scenes fast on the leader while following for several minutes — the follower keeps up, follow never drops, no channel reconnect; `diagnostics().presence.trackCount` stays at 1–2 for the whole session and the Realtime logs show no `ClientPresenceRateLimitReached`. `npm run lint`.
 
-**Relations**: `relates to` **229** (reported against follow completeness; likely `resolved by` 229 S4 rooms).
+**Relations**: `relates to` **229** (reported against follow completeness; fix in the S3 transport). The earlier "maybe S4" read was wrong — shared state was never the issue.
 

@@ -12,6 +12,7 @@ import {
   parseSavePayload,
   parseScrollPayload,
   parseView,
+  parseViewPayload,
   placeToPresenceView,
   pointerFractions,
   presenceTopic,
@@ -120,6 +121,19 @@ describe('presence wire helpers', () => {
     expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'sheet', off: 0, ts: 7 })).toBeNull(); // no key
     expect(parseScrollPayload({ userId: 'u', clientId: 'c', surface: 'sheet', key: 'cast', off: 'x', ts: 7 })).toBeNull();
     expect(parseScrollPayload(null)).toBeNull();
+  });
+
+  it('parses view broadcasts (the presence-rate-limit-safe transport)', () => {
+    expect(parseViewPayload({ userId: 'u', clientId: 'c', ts: 5, view: { tab: 'breakdown', sub: 'sheet', sceneId: 's1', sheetIndex: 2 } }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 5, view: { tab: 'breakdown', sub: 'sheet', sceneId: 's1', sheetIndex: 2 } });
+    // A null view is a valid update (cleared); junk views parse to null.
+    expect(parseViewPayload({ userId: 'u', clientId: 'c', ts: 5, view: null }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 5, view: null });
+    expect(parseViewPayload({ userId: 'u', clientId: 'c', ts: 5, view: { tab: 'hacked' } }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 5, view: null });
+    expect(parseViewPayload({ userId: 'u', clientId: 'c', view: { tab: 'schedule' } })).toBeNull(); // no ts
+    expect(parseViewPayload({ userId: 'u', ts: 5, view: { tab: 'schedule' } })).toBeNull(); // no client
+    expect(parseViewPayload(null)).toBeNull();
   });
 
   it('parses access events: role changes and revocations (null role)', () => {

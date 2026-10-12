@@ -5,7 +5,7 @@ sharing, presence or realtime-editing work.** The free local/Google Drive path m
 stay exactly as it is today. **S1 + S2 are built and verified (2026-10-12)**: accounts +
 shared projects (§6 S1 map) and sharing/roles/invites + view-only links (§6 S2 map);
 **S3 is built (2026-10-12)**: presence (live pointers + follow) and the S3.5 save
-refresh (§6 S3 map); **follow completeness is built (2026-10-13)**: the Sheet scene,
+refresh (§6 S3 map); **follow completeness is built (2026-10-12)**: the Sheet scene,
 view switches and scroll mirroring, with the user decision that scrolling yourself
 never ends follow while any view-changing click does (§9). RLS acceptance is
 `supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql`. S4 (rooms) is next.
@@ -319,12 +319,16 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   Dashboard requirement: Realtime → Settings → **"Allow public access" OFF**.
 - TWO client modules under `src/lib/supabase/`: `presence.ts` — wire shapes,
   parse/clamp (never trust payloads), `mergePeers` (multi-window dedupe by user,
-  newest wins), stale-ts cursor drops, a ~20/s leading+coalescing throttle and
-  the pure follow/scroll helpers; `presenceChannel.ts` — the Supabase transport:
-  the local save bus (`notifyLocalSave`/`subscribeLocalSaves`) and
-  `ProjectPresenceChannel` (the one channel; start/stop idempotent,
-  untrack+unsubscribe on teardown). `presenceDiagnostics` (in `presenceChannel.ts`)
-  is the module snapshot the debug bridge reads.
+  newest wins), stale-ts drops, coalescing throttles and the pure follow/scroll
+  helpers; `presenceChannel.ts` — the Supabase transport: the local save bus
+  (`notifyLocalSave`/`subscribeLocalSaves`) and `ProjectPresenceChannel` (the
+  one channel; start/stop idempotent, untrack+unsubscribe on teardown).
+  `presenceDiagnostics` (in `presenceChannel.ts`) is the module snapshot the
+  debug bridge reads. **Transport split (user bug 2026-10-12):** Supabase caps
+  presence calls at **5 per client per 30s** and SHUTS THE CHANNEL DOWN past it
+  (`ClientPresenceRateLimitReached`) — so `track()` carries identity + a view
+  snapshot on (re)join only; every view change rides a throttled `view`
+  broadcast, answered to each newly joined peer (debounced).
 - `src/lib/supabase/presenceContext.tsx`: `PresenceProvider` (mounted inside
   `ProjectProvider` in `App.tsx`) owns the channel for the open shared project.
   Two contexts — STABLE `usePresenceActions()` (publishView/follow) vs
@@ -363,7 +367,7 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   `rls_s3.sql` (`role_change_pushes_access_event` / `revoke_pushes_access_event`).
 - `AccountAvatar` palette/initials moved to `src/lib/avatarIdentity.ts` (one
   deterministic identity for the People list, avatars and pointers).
-- Follow completeness (built 2026-10-13): `PresenceView` gains `sheetIndex`,
+- Follow completeness (built 2026-10-12): `PresenceView` gains `sheetIndex`,
   `viewMode`, `cellBorders` and `calendarView` (allow-list validated in
   `parseView`), and a `scroll` broadcast (`PresenceScrollSample`) rides the
   same channel (~8/s, coalescing + idle skip). `src/lib/presenceScroll.ts`
@@ -438,9 +442,11 @@ concurrency semantics in its doc.
 ## 9. Presence & follow mechanics
 
 - Ephemeral shape (built S3): Presence tracks `{ userId, clientId, name,
-  avatarUrl, isGuest, view: { tab, sub, mode, sceneId, daySection }, ts }`;
-  Broadcast carries cursors (`anchor + ts`) and save pings (`revision + ts`).
-  Never persisted, never in the project.
+  avatarUrl, isGuest, view, ts }` — tracked ONCE per (re)join (identity + a
+  view snapshot for late joiners; presence is rate-limited to 5 calls per
+  client per 30s — see the §6 transport split). Every later view change rides
+  a throttled `view` broadcast; cursors ride `cursor`, scrolls ride `scroll`,
+  save pings ride `save`. Never persisted, never in the project.
 - **Semantic anchors, never raw pixels**: a cursor anchor is the element under
   the pointer — stripboard row id, calendar `data-date-key`, Day Manager
   section — **plus the pointer's position inside it (fx/fy ∈ 0..1)**, so the
@@ -480,7 +486,7 @@ concurrency semantics in its doc.
   fake with indexes (skipped in S3).
 - **Follow**: follower applies the leader's `view` state; a "Following X" pill
   exits on any manual navigation, Esc, or clicking the pill. **Follow
-  completeness (built 2026-10-13)** also mirrors in-view state that does NOT
+  completeness (built 2026-10-12)** also mirrors in-view state that does NOT
   change the place:
   - the **Sheet's scene / sheet number** (arrow flips, scene jumps) —
     `PresenceView.sceneId` + `sheetIndex`; the Sheet publishes both, the
@@ -502,7 +508,7 @@ concurrency semantics in its doc.
     (land → render → re-align); the Glide grid uses its first visible cell +
     `scrollTo`. Only the main window publishes/applies surface state — popout
     instances stay out, parity with the live-pointer rule.
-  - **User decisions (2026-10-13, corrected same day): scrolling yourself
+  - **User decisions (2026-10-12, corrected same day): scrolling yourself
     NEVER ends follow** — look around freely; there is no pause state, your
     scroll is simply your position until the leader's next scroll sample
     re-syncs you. **Any click that changes your view ENDS follow** — the
@@ -620,3 +626,8 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
    keeps the pill and the leader's next scroll re-syncs you; clicking a view
    control (Sheet arrows, View menu, Calendar month arrows) or navigating away
    drops the pill (follow ends).
+   **Channel stability (the 2026-10-12 transport split):** flip Sheet scenes
+   fast for a few minutes — the follower keeps up with no reconnect, and
+   `diagnostics().presence.trackCount` stays at 1–2 for the whole session
+   (Supabase caps presence calls at 5 per client per 30s and closes the
+   channel past it — the logs must show no `ClientPresenceRateLimitReached`).

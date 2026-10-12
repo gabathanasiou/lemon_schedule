@@ -15,6 +15,7 @@ import {
   type PresencePeer,
   type PresenceScrollSample,
   type PresenceView,
+  type PresenceViewUpdate,
 } from './presence';
 
 /**
@@ -196,6 +197,8 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const cursorMapRef = useRef(new Map<string, { userId: string; anchor: PresenceAnchor; ts: number }>());
   // `${userId}:${clientId}` → latest accepted scroll ts (stale drops).
   const scrollTsRef = useRef(new Map<string, number>());
+  // `${userId}:${clientId}` → latest accepted view broadcast (stale drops).
+  const viewMapRef = useRef(new Map<string, PresenceViewUpdate>());
   const clientId = useMemo(presenceClientId, []);
   const applyPeerSaveRef = useRef(applyPeerSave);
   applyPeerSaveRef.current = applyPeerSave;
@@ -216,6 +219,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const clearPeers = useCallback(() => {
     cursorMapRef.current.clear();
     scrollTsRef.current.clear();
+    viewMapRef.current.clear();
     peersRef.current = [];
     setPeers([]);
     setActive(false);
@@ -224,20 +228,32 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     setFollowingId(null);
   }, []);
 
-  /** Merge the presence list with the latest cursor per user (multi-window:
-   *  one marker per person, newest window wins). */
+  /** Merge the presence list with the latest cursor + view per user
+   *  (multi-window: one marker per person, newest window wins). */
   const rebuildPeers = useCallback((base: PresencePeer[]) => {
     const cursors = cursorMapRef.current;
+    const views = viewMapRef.current;
     const known = new Set(base.map(p => p.userId));
     for (const [key, c] of [...cursors]) if (!known.has(c.userId)) cursors.delete(key);
-    const newest = new Map<string, { anchor: PresenceAnchor; ts: number }>();
+    for (const [key, v] of [...views]) if (!known.has(v.userId)) views.delete(key);
+    const newestCursor = new Map<string, { anchor: PresenceAnchor; ts: number }>();
     for (const c of cursors.values()) {
-      const prev = newest.get(c.userId);
-      if (!prev || c.ts > prev.ts) newest.set(c.userId, { anchor: c.anchor, ts: c.ts });
+      const prev = newestCursor.get(c.userId);
+      if (!prev || c.ts > prev.ts) newestCursor.set(c.userId, { anchor: c.anchor, ts: c.ts });
+    }
+    // Newest VIEW per user: the presence meta's join-time snapshot vs the
+    // latest `view` broadcast — both stamped by the same client's clock, so
+    // comparing them is safe (a rejoin meta wins over older broadcasts).
+    const newestView = new Map<string, { view: PresenceView | null; ts: number }>();
+    for (const v of views.values()) {
+      const prev = newestView.get(v.userId);
+      if (!prev || v.ts > prev.ts) newestView.set(v.userId, { view: v.view, ts: v.ts });
     }
     const next = base.map(p => {
-      const c = newest.get(p.userId);
-      return c ? { ...p, cursor: c.anchor, cursorTs: c.ts } : p;
+      const c = newestCursor.get(p.userId);
+      const v = newestView.get(p.userId);
+      const view = v && v.ts >= p.ts ? v.view : p.view;
+      return { ...p, view, ...(c ? { cursor: c.anchor, cursorTs: c.ts } : {}) };
     });
     presenceDiagnostics.cursorCount = next.filter(p => p.cursor).length;
     peersRef.current = next;
@@ -281,6 +297,13 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           if (prev != null && scroll.ts <= prev) return;
           scrollTsRef.current.set(key, scroll.ts);
           applyPresenceScrollSample(scroll);
+        },
+        onView: (update) => {
+          const key = `${update.userId}:${update.clientId}`;
+          const prev = viewMapRef.current.get(key);
+          if (prev && update.ts <= prev.ts) return;
+          viewMapRef.current.set(key, update);
+          rebuildPeers(peersRef.current);
         },
         onAccess: (event) => {
           const previous = applyAccessPushRef.current(event.role);
