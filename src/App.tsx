@@ -73,6 +73,8 @@ import { IS_COARSE, pickerAccept } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
 import AppHeader, { AppTabId } from './components/AppHeader';
+import { AccountModal } from './components/AccountModal';
+import { PasswordRecoveryModal } from './components/PasswordRecoveryModal';
 import ProductionTab, { ProductionSubTab, ProdViews } from './components/ProductionTab';
 import { CrewManager } from './components/CrewManager';
 import { CrewGlideTab } from './components/CrewGlideTab';
@@ -481,6 +483,7 @@ function AppContent() {
 
   useEffect(() => {
     setShowProjectManager(false);
+    setShowAccountModal(false);
     setShowPrintDialog(false);
     setShowDoodDialog(false);
     setShowBreakdownSheetDialog(false);
@@ -503,6 +506,7 @@ function AppContent() {
   }, [currentProjectId]);
 
   const [showProjectManager, setShowProjectManager] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showDoodDialog, setShowDoodDialog] = useState(false);
@@ -845,7 +849,13 @@ function AppContent() {
   }
 
   if (noProject) {
-    return <ProjectManagerBoot />;
+    return (
+      <>
+        <ProjectManagerBoot onOpenAccount={() => setShowAccountModal(true)} />
+        <AccountModal open={showAccountModal} onClose={() => setShowAccountModal(false)} />
+        <PasswordRecoveryModal />
+      </>
+    );
   }
 
   const handleExportJSON = () => {
@@ -897,8 +907,11 @@ function AppContent() {
     <>
     <div className="h-screen bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden">
       {showProjectManager && (
-        <ProjectManager onClose={() => setShowProjectManager(false)} />
+        <ProjectManager onClose={() => setShowProjectManager(false)} onOpenAccount={() => setShowAccountModal(true)} />
       )}
+
+      <AccountModal open={showAccountModal} onClose={() => setShowAccountModal(false)} />
+      <PasswordRecoveryModal />
 
       {showAgentBridgeHelp && (
         <AgentBridgeHelpModal
@@ -981,6 +994,7 @@ function AppContent() {
         driveCtx={driveCtx}
         closeProject={closeProject}
         createProject={async (title) => { await createProject(title); }}
+        onOpenAccount={() => setShowAccountModal(true)}
       />
 
       {/* POPOUT WINDOWS */}

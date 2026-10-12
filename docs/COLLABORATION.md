@@ -70,7 +70,7 @@ user dispatch ──▶ optimistic local apply (existing reducer)
                                     peers apply via the SAME dispatch (memo contract intact)
 ```
 
-- **Stack**: Supabase = Auth (Google + magic link), Postgres + RLS (projects,
+- **Stack**: Supabase = Auth (email + password, Google, Apple), Postgres + RLS (projects,
   memberships, entitlements), Realtime (presence, S3), Edge Functions (webhooks,
   room tokens, licence signing). Cloudflare **Durable Objects** (PartyKit-style,
   SQLite backend) host the rooms at S4. Cost ladder (2026-10 pricing):
@@ -119,8 +119,8 @@ Paid projects (Pro, $25/mo) never pause.
 
 ## 6. Stages (each independently shippable)
 
-**S1 — Accounts + online projects.** Supabase Auth (Google + magic link);
-tables `profiles`, `projects` (owner, title, compressed JSON blob, revision),
+**S1 — Accounts + online projects.** Supabase Auth (email + password, Google,
+Apple); tables `profiles`, `projects` (owner, title, compressed JSON blob, revision),
 `memberships` (project_id, user_id, role) with RLS from day one. App gains a
 second project source; the **Collaborate** action (Apple language, `§1`) copies
 the project online via the export/import codec (`src/lib/projectCodec.ts` /
@@ -141,8 +141,13 @@ preserves the project; Drive/local flows untouched.
    `20261012112925_harden_rls_helpers.sql` (open each file, select all, copy —
    not the file path) — expect "Success. No rows returned" for each. (Both are
    already applied to the live dev project; the filenames mirror the ledger.)
-3. Auth → Providers: keep Email (magic link); enable **Google** (Google Cloud
-   OAuth client with redirect `https://<ref>.supabase.co/auth/v1/callback`).
+3. Auth → Providers: keep Email on (**password sign-in** + create account +
+   reset; for frictionless beta testing, switch "Confirm email" off — the
+   built-in mailer is rate-limited and confirms only project-team addresses);
+   enable **Google** (Google Cloud OAuth client with redirect
+   `https://<ref>.supabase.co/auth/v1/callback`); optionally **Apple** (needs
+   an Apple Developer Service ID + key). The app reads the project's enabled
+   providers and shows each social button only once it is actually on.
 4. Auth → URL Configuration: Site URL = the GitHub Pages deploy; add
    `http://localhost:3000` to the redirect allow-list.
 5. Local `.env`: `VITE_SUPABASE_URL=…`, `VITE_SUPABASE_ANON_KEY=…` (gitignored;
@@ -165,13 +170,22 @@ re-derive any of it:
   (`isSupabaseConfigured`: no env ⇒ every online entry point is invisible and
   the Drive/local flows are byte-identical). PKCE; localStorage session
   (deliberate, `§11`).
-- `src/lib/supabase/auth.tsx` — `SupabaseAuthProvider` / `useSupabaseAuth`
-  (Google OAuth redirect + email magic link; `account` = id/email/name/avatar).
-  Mounted in `main.tsx`; the callback returns to `origin + BASE_URL`.
+- `src/lib/supabase/auth.tsx` — `SupabaseAuthProvider` / `useSupabaseAuth`:
+  email + password (`signInWithPassword` / `signUpWithPassword` /
+  `sendPasswordReset`), Google + Apple OAuth redirects, `providers` from
+  `/auth/v1/settings` (social buttons appear only when enabled), and
+  `pendingRecovery` (PASSWORD_RECOVERY → new-password modal). Mounted in
+  `main.tsx`; links return to `origin + BASE_URL`.
+- `src/components/AccountModal.tsx` — the ONE account surface (sign in /
+  create account / reset). App-level (`App.tsx`) so the boot screen reaches it;
+  the header cluster and the Project Manager's signed-out Shared tab open it.
+- `src/components/PasswordRecoveryModal.tsx` — set-a-new-password after a
+  reset link (also App-level; may land on a fresh tab).
 - `src/components/UserPresenceCluster.tsx` — the header user cluster (§9):
-  signed-out avatar → Google / magic link / Drive; signed-in avatar →
-  Collaborate + sign out. AppHeader renders it after undo/redo; the File menu
-  keeps its Drive items ONLY when the cluster is absent (no Supabase env).
+  signed-out avatar → **Sign in / Create account** (opens the AccountModal) +
+  Connect Google Drive; signed-in avatar → Collaborate + sign out. AppHeader
+  renders it after undo/redo; the File menu keeps its Drive items ONLY when
+  the cluster is absent (no Supabase env).
 - `src/lib/supabase/onlineProjects.ts` — every `projects`-table operation.
   `data` = `serializeProject` blob; **row id = project id** (one identity for
   meta, document and the future S4 room). Saves are whole-blob with an
@@ -191,9 +205,10 @@ re-derive any of it:
 - Debug bridge: `diagnostics()` adds `supabaseConfigured`, `supabaseSignedIn`,
   `projectIsOnline`, `onlineProjectCount`.
 
-Remaining before S1 is done: dashboard auth setup (steps 3–4 above; magic-link
-sending is rate-limited on Supabase's built-in SMTP), then the end-to-end pass
-sign in → Collaborate → edit → reopen → verify RLS. Invites/roles stay S2.
+Remaining before S1 is done: dashboard auth setup (steps 3–4 above;
+confirmation + reset emails are rate-limited on Supabase's built-in SMTP —
+switch "Confirm email" off for beta), then the end-to-end pass sign in →
+Collaborate → edit → reopen → verify RLS. Invites/roles stay S2.
 
 **S2 — Sharing, roles, invites.** owner/editor/viewer; email + link invites;
 view-only share links (hashed tokens, revocable); "Manage access" UI. Introduce
@@ -274,13 +289,16 @@ presence bubbles live in the AppHeader's right group, **after the undo/redo
 pair** (`src/components/AppHeader.tsx:238-257` — append inside that flex group).
 ONE shared component (`UserPresenceCluster`); never inline it per view.
 
-- Signed out → a muted **Sign in** avatar button; opening it offers Google
-  sign-in / magic link.
+- Signed out → a muted **Sign in** avatar button; opening it offers
+  **Sign in / Create account** (the app-level AccountModal — email+password,
+  plus Google/Apple when the project has them enabled).
 - Signed in → the avatar (photo/initials) opens the **User & sharing** surface:
   profile + **Collaborate**, **Who can access**, **Permissions**, **Allow others
   to invite**, **Copy Link**, **Manage Shared Project…**, **Stop Sharing…**
   (`§1` language). On Free, the same surface shows the upgrade path and no
-  collab controls.
+  collab controls. Signing out with a shared project open **closes it and
+  returns to the opening page** (parity with Drive disconnect); a silent
+  session expiry only locks the project read-only so signing back in resumes it.
 - Presence: live collaborators render as **stacked avatar bubbles** (Canva/Notion
   style) immediately left of your own avatar — max 3 + a `+N` chip; hover = name;
   click = follow (`§9`). Viewers appear without edit affordances.

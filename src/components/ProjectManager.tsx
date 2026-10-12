@@ -25,6 +25,10 @@ import { useDriveProjectList } from '../lib/useDriveProjectList';
 
 interface ProjectManagerProps {
   onClose?: () => void;
+  /** Opens the app-level AccountModal (sign in / create account) — used by
+   *  the signed-out Online tab so email/password sign-in works without the
+   *  header cluster (boot screen). */
+  onOpenAccount?: () => void;
 }
 
 type SortKey = 'lastModified' | 'createdAt' | 'title';
@@ -47,7 +51,7 @@ function formatDate(ts: number): string {
 
 const MAX_DRIVE_ENTRIES = 5000;
 
-export function ProjectManager({ onClose }: ProjectManagerProps) {
+export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) {
   const {
     projectList,
     currentProjectId,
@@ -371,7 +375,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 <RefreshCw className={`w-3.5 h-3.5 ${onlineLoading ? 'animate-spin' : ''}`} /> Refresh
               </ModalFooterButton>
             ) : (
-              <ModalFooterButton onClick={() => sbAuth.signInWithGoogle()}>
+              <ModalFooterButton onClick={() => onOpenAccount ? onOpenAccount() : sbAuth.signInWithGoogle()}>
                 <Users className="w-3.5 h-3.5" /> Sign in to collaborate
               </ModalFooterButton>
             )

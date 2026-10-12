@@ -6,7 +6,7 @@ import { APP_VERSION } from '../lib/appVersion';
    backdrop with a soft lightening ONLY at the bottom edge and the app lockup
    bottom-right. The .pm-boot body class scopes the one-screen modal-dim exception
    (index.css — the item-59 dim is zeroed here so the backdrop reads crisp). */
-export function ProjectManagerBoot() {
+export function ProjectManagerBoot({ onOpenAccount }: { onOpenAccount?: () => void }) {
   useEffect(() => {
     document.body.classList.add('pm-boot');
     return () => document.body.classList.remove('pm-boot');
@@ -23,7 +23,7 @@ export function ProjectManagerBoot() {
         className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-zinc-900/70 to-transparent"
       />
       <div className="relative h-full">
-        <ProjectManager />
+        <ProjectManager onOpenAccount={onOpenAccount} />
       </div>
       <div
         className="pointer-events-none absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] flex items-baseline gap-2 select-none"

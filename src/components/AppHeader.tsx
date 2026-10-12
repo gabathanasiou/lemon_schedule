@@ -51,6 +51,8 @@ interface AppHeaderProps {
   driveCtx: GoogleAuthContextValue;
   closeProject: () => void;
   createProject: (title?: string) => Promise<void>;
+  /** Opens the app-level AccountModal (sign in / create account). */
+  onOpenAccount: () => void;
 }
 
 export default function AppHeader(props: AppHeaderProps) {
@@ -62,7 +64,7 @@ export default function AppHeader(props: AppHeaderProps) {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
     onOpenProjectManager, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
-    onShowTrash, onShowIntegrity, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject,
+    onShowTrash, onShowIntegrity, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
   } = props;
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -261,7 +263,7 @@ export default function AppHeader(props: AppHeaderProps) {
             <Redo2 className="w-3.5 h-3.5" />
           </button>
         </div>
-        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} />
+        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} />
       </div>
     </header>
   );
