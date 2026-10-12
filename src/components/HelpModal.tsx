@@ -185,6 +185,8 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Open Sheet</>} action="Open scene in Breakdown tab (scenes only)" />
           <Row keys={<><Kbd>⇧</Kbd> + Right-click → Open in New Window</>} action="Open scene sheet in a new window (scenes only)" />
           <Row keys={<>Send to Boneyard</>} action="Move the ribbon back to the boneyard" />
+          <Row keys={<>On a day break — START OF header</>} action="Open the Day Manager for the day below («START OF DAY N»); the first break's header also opens Set Production Dates" />
+          <Row keys={<>On a day break — End of Day footer</>} action="Open the Day Manager for the day above («End of Day N»)" />
           <Row keys={<>Delete</>} action="Permanently delete the ribbon" />
         </Section>
 

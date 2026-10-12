@@ -201,7 +201,7 @@ export {
   getIntExtOptions, getDayNightOptions,
   sceneMatchesRule, resolveSceneColor, sceneStyle, getDefaultSceneColors,
   DEFAULT_COLOR_PALETTE, getFallbackStripColors, getSelectedStripColors,
-  getDayHeaderColors, getDayFooterColors, getNoteBannerColors,
+  getDayHeaderColors, getDayFooterColors, getNoteBannerColors, mixHexColors,
 } from './sceneColors';
 export {
   SAMPLE, INT_EXT, DAY_NIGHT, MIN_PCT, cid,

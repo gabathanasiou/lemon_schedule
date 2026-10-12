@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scissors, ClipboardPaste, StickyNote, Coffee, Sunset, Copy, ExternalLink, Eye, Trash2, CheckSquare, Palette, Send, CalendarDays } from 'lucide-react';
+import { Scissors, ClipboardPaste, StickyNote, Coffee, Sunset, Copy, ExternalLink, Eye, Trash2, CheckSquare, Palette, Send, CalendarDays, CalendarRange } from 'lucide-react';
 import { ScheduleVersion, ScheduleRow } from '../../types';
 import { getContainerBlock } from '../../lib/containers';
 import { IS_COARSE } from '../../lib/device';
@@ -10,6 +10,9 @@ export interface ScheduleContextMenuState {
   y: number;
   rowId: string;
   containerId: number | null;
+  /** Which visual region of a DAYBREAK row was right-clicked (roadmap 226):
+   *  the "START OF DAY N" header (day below) or the footer/rest (day above). */
+  daybreakRegion?: 'header' | 'footer';
 }
 
 interface ScheduleContextMenuProps {
@@ -32,13 +35,18 @@ interface ScheduleContextMenuProps {
   /** Open Production → Days with this daybreak's section selected. */
   onOpenDayManager?: (sectionIndex: number) => void;
   daybreakRowToSection?: Map<string, number>;
+  /** Section index → production day number — the contextual "Open Day
+   *  Manager — Day N" label (roadmap 226). */
+  sectionChronoDayMap?: Map<number, number>;
+  /** Open the Production Dates modal (pinned daybreak's header, roadmap 226). */
+  onOpenProductionDates?: () => void;
 }
 
 export default function ScheduleContextMenu({
   contextMenu, setContextMenu, version, selectedRowIds, setSelectedRowIds, setLastClickedId,
   scrollToRow, containerIdsRef, cutSelected, pasteClipboard, handleContextMenuAction,
   selectNextAfterRemove, dispatch, shiftHeld, onOpenScene, onOpenSceneInPopout,
-  onOpenDayManager, daybreakRowToSection,
+  onOpenDayManager, daybreakRowToSection, sectionChronoDayMap, onOpenProductionDates,
 }: ScheduleContextMenuProps) {
   return (
     <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
@@ -121,7 +129,9 @@ export default function ScheduleContextMenu({
             <ContextMenuItem onClick={() => handleContextMenuAction('add_note')} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Note Below</ContextMenuItem>
             <ContextMenuItem onClick={() => handleContextMenuAction('add_break')} icon={<Coffee className="w-3.5 h-3.5" />}>Add Break Below</ContextMenuItem>
             <ContextMenuItem onClick={() => handleContextMenuAction('add_daybreak')} icon={<Sunset className="w-3.5 h-3.5" />}>Add Day Break Below</ContextMenuItem>
-            {row && !row.pinned && <ContextMenuDivider />}
+            {/* Group divider before the row-specific actions — the pinned
+                daybreak included (its Date/Day Manager actions). */}
+            {row && (row.type === 'DAYBREAK' || !row.pinned) && <ContextMenuDivider />}
             {row?.type === 'SCENE' && (
               <>
                 <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate</ContextMenuItem>
@@ -150,13 +160,31 @@ export default function ScheduleContextMenu({
                 {row?.type === 'BREAK' && (
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
                 )}
-                {row?.type === 'DAYBREAK' && onOpenDayManager && !row.pinned && (() => {
+                {row?.type === 'DAYBREAK' && (() => {
                   const idx = daybreakRowToSection?.get(row.id);
-                  return idx != null ? (
-                    <ContextMenuItem onClick={() => { onOpenDayManager(idx); setContextMenu(null); }} icon={<CalendarDays className="w-3.5 h-3.5" />}>Open Day Manager</ContextMenuItem>
-                  ) : null;
+                  if (idx == null) return null;
+                  /* A daybreak carries two days: the header region opens the
+                     day BELOW ("START OF DAY N" — the pinned row's Day 1),
+                     the footer/rest opens the day ABOVE (roadmap 226). */
+                  const isHeaderRegion = row.pinned || contextMenu?.daybreakRegion === 'header';
+                  const target = isHeaderRegion && sectionChronoDayMap?.has(idx + 1) ? idx + 1 : idx;
+                  const dayNum = sectionChronoDayMap?.get(target);
+                  return (
+                    <>
+                      {row.pinned && onOpenProductionDates && (
+                        <ContextMenuItem onClick={() => { onOpenProductionDates(); setContextMenu(null); }} icon={<CalendarRange className="w-3.5 h-3.5" />}>Set Production Dates</ContextMenuItem>
+                      )}
+                      {onOpenDayManager && (
+                        <ContextMenuItem onClick={() => { onOpenDayManager(target); setContextMenu(null); }} icon={<CalendarDays className="w-3.5 h-3.5" />}>
+                          {dayNum ? `Open Day Manager — Day ${dayNum}` : 'Open Day Manager'}
+                        </ContextMenuItem>
+                      )}
+                    </>
+                  );
                 })()}
-                {(row?.type === 'NOTE' || row?.type === 'BREAK' || row?.type === 'DAYBREAK') && <ContextMenuDivider />}
+                {/* Only when an action follows (Delete; pinned daybreaks have
+                    neither a boneyard move nor Delete, so no dangling rule). */}
+                {(row?.type !== 'DAYBREAK' || !row.pinned) && <ContextMenuDivider />}
             {row && row?.type !== 'DAYBREAK' && getContainerBlock(row) === 'stripboard' && (
                   <ContextMenuItem onClick={() => handleContextMenuAction('boneyard')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
                 )}

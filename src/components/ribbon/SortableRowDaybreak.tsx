@@ -1,11 +1,16 @@
-import React from 'react';
-import { ComputedRowInput } from '../../lib/daybreakUtils';
+import React, { useState, useEffect, useRef } from 'react';
+import { ComputedRowInput, daybreakRegionFromTarget } from '../../lib/daybreakUtils';
 import { formatDuration, formatPageCount } from '../../lib/utils';
-import { getRibbonCellBaseStyle, ribCellTextSize, getNoteBreakPad, getDayHeaderColors, getDayFooterColors, getSelectedStripColors } from '../../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, ribCellTextSize, getNoteBreakPad, getDayHeaderColors, getDayFooterColors, getSelectedStripColors, mixHexColors } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
 import { CellInput } from '../CellInput';
 import { RowRenderCtx } from './rowRenderTypes';
 import { TEST_IDS } from '../../lib/testIds';
+
+/** How bright the non-clicked half of a selected daybreak stays (1 = the full
+ *  selection color). The SAME hue at reduced brightness — never blended with
+ *  the region's own palette color, since header/footer colors differ. */
+const SELECTION_DIM_FACTOR = 0.75;
 
 export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInput; ctx: RowRenderCtx }) {
   const {
@@ -16,8 +21,36 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
   const dh = getDayHeaderColors(palette);
   const df = getDayFooterColors(palette);
   const sel = getSelectedStripColors(palette);
-  const daybreakStyle: React.CSSProperties = { background: df.background, color: df.color };
-  if (isSelected && !isFaded) { daybreakStyle.background = sel.background; daybreakStyle.color = sel.color; }
+  const selected = isSelected && !isFaded;
+
+  /* Which half of the row was clicked/right-clicked. A daybreak carries two
+     days (footer above / header below), so when selected the clicked half
+     keeps the full selection color and the other half dims toward its own
+     palette color — otherwise you can't tell which part you hit. */
+  const [clickedRegion, setClickedRegion] = useState<'header' | 'footer' | null>(null);
+  const prevSelectedRef = useRef(selected);
+  useEffect(() => {
+    if (prevSelectedRef.current && !selected) setClickedRegion(null);
+    prevSelectedRef.current = selected;
+  }, [selected]);
+  const handleRegionPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.button !== 2) return;
+    setClickedRegion(daybreakRegionFromTarget(e.target));
+  };
+  const dimmedRegion = selected && !row.pinned && clickedRegion
+    ? (clickedRegion === 'header' ? 'footer' : 'header')
+    : null;
+  const dimToward = (): React.CSSProperties => ({
+    background: mixHexColors(sel.background, '#000000', SELECTION_DIM_FACTOR),
+    color: sel.color,
+  });
+  const selStyle: React.CSSProperties = { background: sel.background, color: sel.color };
+  const daybreakStyle: React.CSSProperties = selected
+    ? (dimmedRegion === 'footer' ? dimToward() : selStyle)
+    : { background: df.background, color: df.color };
+  const headerStyle: React.CSSProperties = selected
+    ? (dimmedRegion === 'header' ? dimToward() : selStyle)
+    : { background: dh.background, color: dh.color };
 
   const sectionTotal = row.sectionTotal || 0;
   const sectionPages = row.sectionPages || 0;
@@ -68,7 +101,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
     const estColIdx = mainCellIdx === cells.length - 1 && durationColIdx >= 0 ? durationColIdx : lastCellIdx;
 
     return (
-      <div data-testid={TEST_IDS.daybreakRow} className="flex items-stretch min-w-0">
+      <div data-testid={TEST_IDS.daybreakRow} className="flex items-stretch min-w-0" onPointerDown={handleRegionPointerDown}>
         <div className="flex-1 min-w-0 flex flex-col">
             {!row.pinned && (
             <div className="flex-1 min-w-0 flex flex-col" style={{
@@ -159,7 +192,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
           )}
 
           {row.hasNextDaybreak && (
-            <div style={{ background: (isSelected && !isFaded) ? sel.background : dh.background, color: (isSelected && !isFaded) ? sel.color : dh.color, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+            <div style={{ ...headerStyle, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
               <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
                 {cells.map((cell, ci) => {
                   if (ci === mainCellIdx) {
@@ -226,7 +259,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
   }
 
   return (
-    <div data-testid={TEST_IDS.daybreakRow} className="flex items-stretch min-w-0">
+    <div data-testid={TEST_IDS.daybreakRow} className="flex items-stretch min-w-0" onPointerDown={handleRegionPointerDown}>
       <div className="flex-1 min-w-0 flex flex-col">
         {!row.pinned && (
         <table className="schedule-table flex-1 min-w-0">
@@ -263,7 +296,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
         {nextDaybreakNum > 0 && (
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
-              <tr data-testid={TEST_IDS.nextDayHeader} className="row-note" style={{ background: (isSelected && !isFaded) ? sel.background : dh.background, color: (isSelected && !isFaded) ? sel.color : dh.color, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
+              <tr data-testid={TEST_IDS.nextDayHeader} className="row-note" style={{ ...headerStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
                 <td className="col-sc" />
                 <td className="col-call">
                   <CellInput

@@ -7,7 +7,7 @@ import { SortableRibbon } from './SortableRibbon';
 import { StackedGhosts } from './StripBlock';
 import { useProject, useIsCloudProject } from '../store';
 import { generateUUID } from '../lib/utils';
-import { StickyNote, Coffee } from 'lucide-react';
+import { StickyNote, Coffee, Clapperboard } from 'lucide-react';
 import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
 import { IS_COARSE } from '../lib/device';
 import { useCurrentDocument } from '../lib/popoutTarget';
@@ -17,6 +17,7 @@ import SortDropdown from './SortDropdown';
 import { compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown';
 import { useBoneyardSort } from './schedule/useBoneyardSort';
 import { CustomOrderSortModal } from './CustomOrderSortModal';
+import { NewSceneModal } from './NewSceneModal';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
 export const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
@@ -76,6 +77,8 @@ export const BoneyardBlock: React.FC<{
   const isCloud = useIsCloudProject();
   const currentDocument = useCurrentDocument();
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [newSceneOpen, setNewSceneOpen] = useState(false);
+  const [pendingRevealSceneId, setPendingRevealSceneId] = useState<string | null>(null);
 
   useEffect(() => {
     if (forceExpanded && collapsed) {
@@ -124,6 +127,19 @@ export const BoneyardBlock: React.FC<{
     customOrderModal, closeCustomOrderModal,
   } = useBoneyardSort(state.present, dispatch);
 
+  /* New Scene (roadmap 227): once the created row lands in `rows`, select it
+     and scroll the boneyard to it — same select path as row navigation. */
+  useEffect(() => {
+    if (!pendingRevealSceneId) return;
+    const row = rows.find(r => r.type === 'SCENE' && r.sceneId === pendingRevealSceneId);
+    if (!row) return;
+    setPendingRevealSceneId(null);
+    onRowNavigate?.(row.id);
+    requestAnimationFrame(() => {
+      boneyardMarqueeRef.current?.querySelector(`[data-row-id="${row.id}"]`)?.scrollIntoView({ block: 'nearest' });
+    });
+  }, [pendingRevealSceneId, rows, onRowNavigate]);
+
   const addRow = (type: 'NOTE' | 'BREAK') => {
     const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
     if (!activeVersion) return;
@@ -148,6 +164,7 @@ export const BoneyardBlock: React.FC<{
   };
 
   return (
+    <>
     <BoneyardPanel
       collapsed={collapsed}
       onToggleCollapsed={() => onCollapseChange?.(!collapsed)}
@@ -183,6 +200,10 @@ export const BoneyardBlock: React.FC<{
           <button onClick={() => addRow('BREAK')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Break Ribbon">
             <Coffee className="w-3.5 h-3.5 shrink-0" />
             Break
+          </button>
+          <button onClick={() => setNewSceneOpen(true)} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Scene — opens the New Scene form">
+            <Clapperboard className="w-3.5 h-3.5 shrink-0" />
+            Scene
           </button>
         </>
       }
@@ -253,5 +274,7 @@ export const BoneyardBlock: React.FC<{
         }}
       />
     </BoneyardPanel>
+    {newSceneOpen && <NewSceneModal onClose={() => setNewSceneOpen(false)} onCreated={setPendingRevealSceneId} />}
+    </>
   );
 }, boneyardBlockPropsEqual);

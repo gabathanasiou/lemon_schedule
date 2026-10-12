@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { ScheduleRow, ScheduleVersion, Project } from '../types';
 import { generateUUID } from './utils';
-import { renumberRows, insertionOrder } from './daybreakUtils';
+import { renumberRows, insertionOrder, daybreakRegionFromTarget } from './daybreakUtils';
 import { useSceneDuplicate } from './sceneDuplicate';
 import { isEmptyDayMeta } from './dayMeta';
 import { getMarqueeMode } from './useLongPressMenu';
@@ -13,6 +13,10 @@ interface ContextMenuState {
   y: number;
   rowId: string;
   containerId: number | null;
+  /** Which visual region of a DAYBREAK row was right-clicked: the
+   *  "START OF DAY N" header (opens the day BELOW) or the footer/rest
+   *  ("End of Day N" — the day above). Roadmap 226. */
+  daybreakRegion?: 'header' | 'footer';
 }
 
 interface ColorPickerState {
@@ -330,8 +334,9 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       }
       const containerIdAttr = rowEl.getAttribute('data-container-id');
       const containerId = containerIdAttr === 'null' ? null : parseInt(containerIdAttr!, 10);
+      const daybreakRegion = daybreakRegionFromTarget(e.target);
       options?.prependSelect?.();
-      setContextMenu({ x: e.clientX, y: e.clientY, rowId, containerId });
+      setContextMenu({ x: e.clientX, y: e.clientY, rowId, containerId, daybreakRegion });
     } else {
       setContextMenu(null);
     }

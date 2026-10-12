@@ -76,6 +76,19 @@ The header input edits **this daybreak's own** `daybreakCallTime` — the daybre
 row is the source of truth for the call time of the day *below* it.
 `StripBlock.tsx:174-178` (`updateDaybreakRow`) + `:252-259` (`nextDaybreakMap`).
 
+Right-clicking a daybreak row is region-aware (roadmap 226): the `daybreakRegion`
+flag (`useStripboardContextMenu.ts`, set from `closest('[data-testid="next-day-header"]')` via the shared
+`daybreakRegionFromTarget`) makes `ScheduleContextMenu` open "Open Day Manager — Day N" for the day
+**below** on the header region and for the day **above** elsewhere (same
+`daybreakRowToSection` mapping, +1 for the below section / the pinned row → Day 1);
+the pinned row's header also offers **Set Production Dates**. The item now shows
+on the pinned row too (it used to be non-pinned only). The same region flag drives
+selection dimming: the clicked half keeps the full selection colors, the other
+half keeps the SAME selection hue at reduced brightness (75%,
+`mixHexColors(sel.background, '#000000', 0.75)`, `sceneColors.ts`;
+`SortableRowDaybreak` pointer state) so the two halves stay consistent even
+though header/footer palette colors differ.
+
 ### 4.3 How sections split
 
 `splitSections(rows)` (`daybreakUtils.ts:96-110`) pushes `{ index, rows, daybreakRow }`

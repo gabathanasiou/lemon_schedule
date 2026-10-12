@@ -38,6 +38,7 @@ import { formatDateLong } from '../lib/utils';
 import { ShootViolationsModal } from './ViolationModal';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import AddBannerModal, { AddBannerConfig } from './AddBannerModal';
+import { ProductionDatesModal } from './calendar/ProductionDatesModal';
 import { getContainerBlock, makeEmptyContainerIds, ContainerIds, LastSelectedByContainer } from '../lib/containers';
 import PageToolbar from './PageToolbar';
 import ScheduleToolbar from './schedule/ScheduleToolbar';
@@ -129,6 +130,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const [autoDaybreakBreaksAction, setAutoDaybreakBreaksAction] = useState<'boneyard' | 'delete'>('boneyard');
   const [bannerMenuOpen, setBannerMenuOpen] = useState(false);
   const [bannerModalOpen, setBannerModalOpen] = useState(false);
+  const [prodDatesOpen, setProdDatesOpen] = useState(false);
   const [bannerDelete, setBannerDelete] = useState<{ type: 'NOTE' | 'BREAK' } | null>(null);
   const [bannerDeleteChecked, setBannerDeleteChecked] = useState<Set<string>>(new Set());
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -1419,6 +1421,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         onOpenScene={onOpenScene}
         onOpenDayManager={onOpenDayManager}
         daybreakRowToSection={daybreakRowToSection}
+        sectionChronoDayMap={sectionChronoDayMap}
+        onOpenProductionDates={() => setProdDatesOpen(true)}
         onOpenSceneInPopout={onOpenSceneInPopout}
       />
 
@@ -1471,6 +1475,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         dayViolations={shootViolations}
         castMembers={project.castMembers || []}
       />
+      {prodDatesOpen && <ProductionDatesModal onClose={() => setProdDatesOpen(false)} />}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </DndContext>
   </div>

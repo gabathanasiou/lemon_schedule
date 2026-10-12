@@ -13,6 +13,25 @@ export function getDayNightOptions(palette?: SceneColorPalette): string[] {
   return palette?.dayNightOptions || DAY_NIGHT_OPTIONS;
 }
 
+function parseHexColor(hex: string): [number, number, number] | null {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return null;
+  return [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
+}
+
+/** Linear blend of two hex colors — `t` is the weight of `a`:
+ *  `mixHexColors('#d13131', '#ffffff', 0.6)` = 60% a, 40% b. Falls back to
+ *  `b` when either color isn't a #rgb/#rrggbb hex. Used by the daybreak
+ *  renderer to dim the half of a selected daybreak that wasn't clicked. */
+export function mixHexColors(a: string, b: string, t: number): string {
+  const pa = parseHexColor(a);
+  const pb = parseHexColor(b);
+  if (!pa || !pb) return b;
+  const mix = (i: number) => Math.round(pa[i] * t + pb[i] * (1 - t));
+  return `#${[0, 1, 2].map(i => mix(i).toString(16).padStart(2, '0')).join('')}`;
+}
+
 const SCENE_COLOR_FALLBACKS: Record<string, { background: string; color: string }> = {
   'INT|DAY':    { background: '#ffffff', color: '#000000' },
   'EXT|DAY':    { background: '#d7da50', color: '#000000' },

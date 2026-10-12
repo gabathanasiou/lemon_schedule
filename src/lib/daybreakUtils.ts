@@ -1,6 +1,15 @@
 import { ScheduleRow, Scene, NonShootDate } from '../types';
 import { addMinutesToTime, formatDuration } from './utils';
+import { TEST_IDS } from './testIds';
 import type { AddBannerConfig } from '../components/AddBannerModal';
+
+/** Which visual half of a daybreak row a pointer event landed on: the
+ *  "START OF DAY N" header region or the footer/rest ("End of Day N").
+ *  Shared by the context menu and the daybreak selection dimming. */
+export function daybreakRegionFromTarget(target: EventTarget | null): 'header' | 'footer' {
+  const el = target as HTMLElement | null;
+  return el && typeof el.closest === 'function' && el.closest(`[data-testid="${TEST_IDS.nextDayHeader}"]`) ? 'header' : 'footer';
+}
 
 export interface ProductionDay {
   index: number;

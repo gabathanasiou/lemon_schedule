@@ -37,3 +37,13 @@ export function createBlankScene(partial?: Partial<Scene>): Scene {
     ...(partial || {}),
   };
 }
+
+/** Next number after a scene number: "12A" → "13"; '' when it doesn't start
+ *  with digits. Shared by the Breakdown Glide new-row flow and the Boneyard
+ *  New Scene modal (roadmap 227). */
+export function getNextSceneNumber(prevSceneNumber?: string): string {
+  if (!prevSceneNumber) return '';
+  const match = prevSceneNumber.match(/^(\d+)/);
+  if (!match) return '';
+  return String(parseInt(match[1], 10) + 1);
+}

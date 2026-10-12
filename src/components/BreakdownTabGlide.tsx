@@ -58,7 +58,7 @@ import { createGlideCellEditor, type GlideColumnEditor, type GlideEditorOptions 
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { useGlideColumnWidths } from '../lib/glideColumns';
 import { useDedupeCellCommit } from '../lib/glideEditGuard';
-import { createBlankScene } from '../lib/sceneFactory';
+import { createBlankScene, getNextSceneNumber } from '../lib/sceneFactory';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
@@ -473,13 +473,6 @@ export function GlideBreakdownTab({
     return textCell(val, selectLock || (kbLocked && !isEntityCol(colKey)) ? { readonly: true, allowOverlay: false } : undefined);
   }, [COLUMNS, getSceneValue, isEntityCol, kbLocked, marqueeMode]);
 
-  const getNextSceneNumber = useCallback((prevSceneNumber?: string): string => {
-    if (!prevSceneNumber) return '';
-    const match = prevSceneNumber.match(/^(\d+)/);
-    if (!match) return '';
-    return String(parseInt(match[1], 10) + 1);
-  }, []);
-
   const dedupeCellCommit = useDedupeCellCommit();
   const dialog = useDialog();
 
@@ -579,7 +572,7 @@ export function GlideBreakdownTab({
       }
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog, linkGuard]);
+  }, [COLUMNS, dispatch, commitEdit, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog, linkGuard]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const anchoredByCategory = new Map<string, Set<string>>();
@@ -674,14 +667,14 @@ export function GlideBreakdownTab({
     const prev = scenesRef.current[scenesRef.current.length - 1];
     const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
     dispatch({ type: 'ADD_SCENE', payload: createBlankScene({ sceneNumber: nextNum, containerId: null } as any) });
-  }, [dispatch, getNextSceneNumber]);
+  }, [dispatch]);
 
   const insertSceneAt = useCallback((index: number) => {
     const prev = scenesRef.current[index - 1];
     const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
     const newScene: Scene = createBlankScene({ sceneNumber: nextNum } as any);
     dispatch({ type: 'INSERT_SCENE_AT', payload: { index, scene: newScene } });
-  }, [dispatch, getNextSceneNumber]);
+  }, [dispatch]);
 
   const duplicateSceneAt = useCallback((index: number) => {
     const original = scenes[index];

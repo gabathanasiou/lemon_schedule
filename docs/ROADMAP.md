@@ -949,3 +949,38 @@ grid) in the dashed edit treatment, (b) tint the live cards (e.g. the
 **Verify**: rule-7 manual on the call sheet canvas; preview/print byte-equal
 visually; `npm run lint`.
 
+## 225. Crew table (print/preview) — one flat table, no department sections (`[ ]`)
+
+**Request** (user, 2026-10-09): the **rendered** crew table — Reports designer
+canvas/preview/print and the Call Sheet's preview/print — must be ONE flat
+table: Name · Role · Call · Phone · Email. No per-department separator bars
+("Above the Line", "Camera", …) and no repeated column-header row per
+department. The editable live grid (Call Sheet → Edit) and the Day Manager Crew
+section keep their per-department cards (they carry include/exclude + department
+pre-calls).
+
+**Approach**: the split lives in the static read model —
+`resolveReportGridGroups`'s `crewOfDay` branch (`src/lib/reportGrids.ts:116-134`)
+returns one group per department, so `reports/ReportGridBlock.tsx:99-155` draws
+a department bar + a fresh header row per group. Return ONE flat group (same
+canonical `crewOfDay` order, fixed `CREW_FIXED` columns); `multi` goes false and
+the renderer emits a single header row with no bars —
+`skeletonReportGridGroups` (line 168) is already flat. The live path does NOT
+consume this function (its grouping is `groupSlotsByDept` inside
+`CrewRosterEditor`), so the editor is untouched — grep to confirm before
+changing. No new block option: one flat shape is the decision (no toggle).
+
+**Verify**: Vitest — add a `resolveReportGridGroups(ctx, 'crewOfDay', …)` case
+to `src/lib/__tests__/reportResolve.test.ts` (exactly one group; columns
+`crewName`/`role`/`crewCallTime`/`phone`/`email`); rule-7 manual — designer +
+preview + print show one header and no department bars, Call Sheet → Edit
+unchanged. `e2e/report-grid-blocks.spec.ts` crew test targets the EDITOR (must
+stay green untouched). Update `docs/REPORTS-DESIGNER.md` §What already exists
+(grid blocks): the static crew table no longer mirrors the live per-department
+bars — static flat / live grouped becomes the deliberate asymmetry.
+
+**Relations**: narrows **146**'s department-grouping decision to the live editor
+(146's call-sheet crew table stays grouped); touches **112** (the block), **156**
+(columns), **222** (headings parity — crew diverges by design now); related
+**142**, **224**.
+
