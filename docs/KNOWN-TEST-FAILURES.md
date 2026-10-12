@@ -147,3 +147,18 @@ menu/popup rows are `[role="option"]` / `.ui-item` (not `<button>`), tall
 content needs `scrollIntoViewIfNeeded` before coordinate clicks, and Glide
 double-clicks that fail right after a commit are the zero-gap synthetic-click
 race described in §E (select first, then double-click).
+
+---
+
+## F. rich-text-editor class assertions flake under full-suite load (no fix needed)
+
+**Symptom (seen once, follow-completeness run 2026-10-13):** a full-suite pass
+failed `rich-text-editor.spec.ts` on a `toHaveClass(/bg-blue-900\/50/)`
+assertion (line 87, "bold with empty selection lights the button immediately");
+another run of the same spec flaked on line 73 instead. The spec's toggle-class
+checks give the editor 3s to repaint and are sensitive to worker load.
+
+**Triage:** identical on clean HEAD (`npm run test:baseline -- e2e/rich-text-editor.spec.ts`
+— flaked there too) and green in isolation (6/6, then 12/12 with
+`--repeat-each=2`). Not a regression; retries=1 absorbs it. If it recurs,
+raise the assertion timeout rather than chasing the app.

@@ -988,7 +988,7 @@ bars — static flat / live grouped becomes the deliberate asymmetry.
 
 **Vision + stages: `docs/COLLABORATION.md` — read it before starting any stage.** Decided 2026-10: online-only editing for shared projects; **server-authoritative rooms running the existing pure reducer (NOT CRDT)**; Supabase (Auth, Postgres+RLS, Realtime, Edge Functions) + Cloudflare Durable Objects at S4; the free local/Google Drive path stays exactly as today.
 
-**Stages** (detail in the doc): S1 accounts + online projects (Collaborate; the header **user cluster** appears) — **shipped** → S2 sharing/roles/invites/view-only links, the **User & sharing** panel, `canEdit` vs `readOnly` — **shipped 2026-10-12** (S2.5: no-account guest links, always-visible links, revoke = evict) → S3 presence (**Canva-style live pointers** + follow) + the S3.5 save ping (live refresh without manual reload) — **shipped 2026-10-12** (user decisions: collaborator bubbles in the header as follow toggles; pointers render only while you're on the peer's exact view/sub-tab) → S4 realtime collaborative editing (per-project room, per-user undo, reconnect) → S5 billing (cross-ref **230**; collab = Studio + subscription, invited guests free).
+**Stages** (detail in the doc): S1 accounts + online projects (Collaborate; the header **user cluster** appears) — **shipped** → S2 sharing/roles/invites/view-only links, the **User & sharing** panel, `canEdit` vs `readOnly` — **shipped 2026-10-12** (S2.5: no-account guest links, always-visible links, revoke = evict) → S3 presence (**Canva-style live pointers** + follow) + the S3.5 save ping (live refresh without manual reload) — **shipped 2026-10-12** (user decisions: collaborator bubbles in the header as follow toggles; pointers render only while you're on the peer's exact view/sub-tab; **follow completeness shipped 2026-10-13** — Sheet scene, view switches, scroll mirroring, doc §9) → S4 realtime collaborative editing (per-project room, per-user undo, reconnect) → S5 billing (cross-ref **230**; collab = Studio + subscription, invited guests free).
 
 **Access changes are pushed, not polled (user request 2026-10-12 — built into S3)**: a definer trigger on
 `memberships` broadcasts an ephemeral `access` event to the project's presence topic (`realtime.send`;
@@ -998,15 +998,15 @@ to the opening page — not left in a read-only shell), guests admitted by a rev
 stays the enforcement point — the push is UX only. Acceptance: `supabase/tests/rls_s3.sql`
 (`role_change_pushes_access_event` / `revoke_pushes_access_event`).
 
-**Follow completeness (user request 2026-10-12 — follow follow-up)**: following already mirrors the
-leader's place (tab/sub-tab/mode) and their one-shot jumps (scene, day). It must ALSO mirror the
-view-state changes that do NOT change the place: the **Sheet's current scene / sheet number** (arrow
-flips, scene jumps), **view switches inside a page** (the stripboard View menu / ribbon-layout choices,
-Calendar sub-views) where the leader changes what they are looking at, and **scroll positions** of the
-main surfaces (stripboard, Calendar, Sheet, Glide grid). These are per-user view state → extend the
-PresenceView payload (never pixels); mirror scroll debounced/throttled. Design decision to settle in
-implementation: the follower scrolling either exits follow (like manual navigation today) or pauses and
-re-syncs to the leader — pick one and document it in COLLABORATION §9.
+**Follow completeness (user request 2026-10-12) — built 2026-10-13**: following also mirrors
+the **Sheet's scene/sheet number**, the **stripboard View menu** (A4 width + cell borders), the
+**Calendar Strips/Events sub-view**, and the **scroll** of the stripboard/Calendar/Sheet/Glide
+grid — semantic anchors, never pixels; a throttled `scroll` broadcast (~8/s) via
+`src/lib/presenceScroll.ts` + `usePresenceScrollSurface` (the stripboard carries a day-block
+fallback + re-align for rows outside the receiver's render window; Glide scrolls via its first
+visible cell). **User decision (2026-10-13): the follower's own scroll or view change EXITS
+follow** (one rule: touching the view ends follow); ribbon layout is project state and arrives
+via the S3.5 save ping. Narrative: doc §9; verified by the two-client manual pass (doc §12).
 
 **Non-negotiables**: Drive path untouched; one Project model; `readOnly` (connectivity) ≠ `canEdit` (permission); permissions enforced server-side (RLS + room auth); new features stay multiplayer-by-construction (Action union — no per-feature sync code). Free-tier Supabase pausing handled via keep-alive + Pro trigger (doc §5).
 

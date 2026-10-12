@@ -5,8 +5,10 @@ sharing, presence or realtime-editing work.** The free local/Google Drive path m
 stay exactly as it is today. **S1 + S2 are built and verified (2026-10-12)**: accounts +
 shared projects (§6 S1 map) and sharing/roles/invites + view-only links (§6 S2 map);
 **S3 is built (2026-10-12)**: presence (live pointers + follow) and the S3.5 save
-refresh (§6 S3 map). RLS acceptance is `supabase/tests/rls_s1.sql` + `rls_s2.sql` +
-`rls_s3.sql`. S4 (rooms) is next.
+refresh (§6 S3 map); **follow completeness is built (2026-10-13)**: the Sheet scene,
+view switches and scroll mirroring, with the user decision that the follower's own
+scroll/view change exits follow (§9). RLS acceptance is `supabase/tests/rls_s1.sql` +
+`rls_s2.sql` + `rls_s3.sql`. S4 (rooms) is next.
 
 Decisions taken 2026-10 with the user: online-only editing for SHARED projects
 (server-authoritative rooms, NOT CRDT); Supabase + Cloudflare Durable Objects;
@@ -359,6 +361,17 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   `rls_s3.sql` (`role_change_pushes_access_event` / `revoke_pushes_access_event`).
 - `AccountAvatar` palette/initials moved to `src/lib/avatarIdentity.ts` (one
   deterministic identity for the People list, avatars and pointers).
+- Follow completeness (built 2026-10-13): `PresenceView` gains `sheetIndex`,
+  `viewMode`, `cellBorders` and `calendarView` (allow-list validated in
+  `parseView`), and a `scroll` broadcast (`PresenceScrollSample`) rides the
+  same channel (~8/s, coalescing + idle skip). `src/lib/presenceScroll.ts`
+  (semantic anchors + the surface registry) and
+  `src/lib/supabase/usePresenceScrollSurface.ts` (the per-surface hook) wire
+  the stripboard, Calendar, Sheet and Glide grid; the provider's follow
+  appliers became a registry (`registerFollowApplier` returns its unregister)
+  so mounted surfaces apply their own view switches; `App.applyPlace` resolves
+  a Sheet scene id to the follower's own order. Details + the user decision
+  (a manual scroll/view change exits follow) in §9.
 
 **S4 — Realtime collaborative editing.** Per-project room (DO) running the pure
 reducer: validates, applies, persists (action log + periodic snapshot), broadcasts
@@ -464,13 +477,34 @@ concurrency semantics in its doc.
 - Script-body cursors (TipTap) need ProseMirror relative positions — flag, don't
   fake with indexes (skipped in S3).
 - **Follow**: follower applies the leader's `view` state; a "Following X" pill
-  exits on any manual navigation, Esc, or clicking the pill. **Known follow
-  gap (roadmap 229, user request 2026-10-12): in-view state that doesn't change
-  the place is NOT followed yet — the Sheet's current scene/sheet number, view
-  switches (View menu / ribbon layout, Calendar sub-views) and scroll positions
-  of the main surfaces; extending PresenceView with those (never pixels) and
-  settling the follower-scroll interaction (exit follow vs pause + re-sync) is
-  the follow-completeness follow-up.**
+  exits on any manual navigation, Esc, or clicking the pill. **Follow
+  completeness (built 2026-10-13)** also mirrors in-view state that does NOT
+  change the place:
+  - the **Sheet's scene / sheet number** (arrow flips, scene jumps) —
+    `PresenceView.sceneId` + `sheetIndex`; the Sheet publishes both, the
+    follower resolves the scene id, so a different Breakdown order still
+    lands on the right scene.
+  - the **stripboard View menu** (A4 width, cell borders) and the **Calendar
+    Strips/Events** switch — pref-shaped `PresenceView` fields applied by the
+    mounted surfaces through the same setters the UI uses (they stick after
+    unfollowing, like Figma keeping your last zoom). **Ribbon layout** is
+    project state (`activeRibbonId`) and reaches peers through the S3.5 save
+    ping, not presence.
+  - the **scroll position** of the stripboard, Calendar, Sheet and Glide grid —
+    a separate `scroll` broadcast (~8/s, coalescing + idle skip) with SEMANTIC
+    anchors (never pixels): the top-edge item's key + a 0..1 offset, sampled
+    and applied by `src/lib/presenceScroll.ts` (binary search over item
+    offsetTops + one calibration rect) through the surface registry that
+    `usePresenceScrollSurface` wires per surface. The stripboard carries a
+    coarse day-block fallback for rows outside the receiver's render window
+    (land → render → re-align); the Glide grid uses its first visible cell +
+    `scrollTo`. Only the main window publishes/applies surface state — popout
+    instances stay out, parity with the live-pointer rule.
+  - **User decision (2026-10-13): the follower's own scroll or view change
+    exits follow** — one rule: touching the view yourself ends follow, like
+    navigating away. Programmatic scrolls never count as the user's (exact
+    applied-scrollTop match for DOM surfaces, a short echo window for the
+    canvas; wheel/touch gestures mark a scroll as the user's).
 
 **Header user & presence cluster (decided 2026-10).** The user control lives in
 the AppHeader's right group, **after the undo/redo pair**
@@ -571,3 +605,9 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
    X" pill → their navigation moves you; Esc / any manual navigation exits; a
    save on one side either silently lands on a clean peer or raises "Changes
    available · Reload"; closing a window drops its pointer without ghosts.
+   Follow completeness: the Sheet's scene flips mirror (also when the two
+   clients use different Breakdown orders), the stripboard View menu + Calendar
+   Strips/Events mirror, and the scroll of the stripboard/Calendar/Sheet/Glide
+   mirrors — including a peer deep in the stripboard (rows outside your render
+   window land on the same day via the day-block fallback); scrolling or
+   switching a view yourself drops the pill (follow ends).
