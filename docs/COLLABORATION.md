@@ -110,8 +110,11 @@ project" as the way to prevent a pause after the warning email. Paused ≠ delet
 **1-year restore window**, project returns with data and configuration intact.
 Paid projects (Pro, $25/mo) never pause.
 
-- **Keep-alive** (dev/beta): a scheduled GitHub Actions cron workflow pinging the
-  REST endpoint with the anon key a few times a day — sanctioned, zero cost.
+- **Keep-alive** (dev/beta): `.github/workflows/supabase-keep-alive.yml` — a
+  scheduled GitHub Actions cron pinging the REST endpoint with the anon key
+  three times a day (sanctioned, zero cost); it also fails loudly when the
+  project is paused/unreachable. Uses the same `VITE_SUPABASE_*` repo secrets
+  as the Pages deploy and skips when they are absent.
 - **Upgrade trigger**: once the paid collaboration tier has real teams, Supabase
   Pro removes pausing and adds daily backups. The free tier has no backups/SLA,
   so paying customers must not run on it.
@@ -153,7 +156,10 @@ preserves the project; Drive/local flows untouched.
 5. Local `.env`: `VITE_SUPABASE_URL=…`, `VITE_SUPABASE_ANON_KEY=…` (gitignored;
    names documented in `.env.example`). GitHub repo secrets with the same two
    names are required for the Pages deploy — `deploy.yml` passes them through.
-6. After it exists: repo secrets for the free-tier keep-alive workflow (`§5`).
+6. Repo secrets (set 2026-10-12): `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
+   — both the Pages deploy and the `supabase-keep-alive` workflow (`§5`) read
+   them. ("Automatically expose new tables" OFF means the anon key 401s on
+   tables by design; the keep-alive ping treats that as healthy.)
 7. Agent tooling (already in `opencode.json`): run `opencode mcp auth supabase`
    once (browser OAuth) and restart opencode — the agent then gets the official
    Supabase MCP tools (schema/migrations/SQL/docs). The official Supabase skills

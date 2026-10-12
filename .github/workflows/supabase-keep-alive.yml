@@ -1,0 +1,50 @@
+name: Supabase keep-alive
+
+# Free-tier Supabase projects pause after 7 days of low database activity
+# (docs/COLLABORATION.md §5). This scheduled ping is the sanctioned keep-alive:
+# one small REST request a few times a day. It also doubles as a pause DETECTOR
+# — when the project is paused or unreachable the run fails loudly.
+#
+# Notes:
+# - GitHub may delay scheduled runs under load; three pings a day leaves ample
+#   slack under the 7-day window.
+# - Scheduled workflows auto-disable after ~60 days without repo activity —
+#   re-enable from the Actions tab if the repo ever goes quiet.
+# - Uses the same two secrets as the Pages deploy. Missing secrets = skip, so
+#   forks and first-time clones never fail.
+
+on:
+  schedule:
+    - cron: '17 7,13,19 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Supabase secrets are not configured — skipping."
+            exit 0
+          fi
+          # 401/403 are HEALTHY responses: the anon key has no table grants BY
+          # DESIGN (the project is created with 'Automatically expose new
+          # tables' OFF), yet the request still reaches the database stack —
+          # exactly the activity the free tier needs. Only 5xx / no response
+          # (paused or unreachable) fails the run.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
+            "$SUPABASE_URL/rest/v1/projects?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY") || code=000
+          echo "Supabase REST responded: $code"
+          case "$code" in
+            2*|4*) exit 0 ;;
+            *)
+              echo "Keep-alive check failed (paused or unreachable) — check the Supabase dashboard." >&2
+              exit 1
+              ;;
+          esac
