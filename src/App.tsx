@@ -1239,8 +1239,10 @@ export default function App() {
     <ProjectProvider>
       <NewCastNamingProvider>
         <SceneDuplicateProvider>
-          <ShareLinkGate />
           <AppContent />
+          {/* After AppContent so invite modals stack ON TOP of the boot
+              Project Manager (Radix stack order = DOM order). */}
+          <ShareLinkGate />
         </SceneDuplicateProvider>
       </NewCastNamingProvider>
     </ProjectProvider>

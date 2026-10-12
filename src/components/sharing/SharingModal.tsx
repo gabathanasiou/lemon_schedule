@@ -258,52 +258,56 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
             {/* Who can access ------------------------------------------------ */}
             <section className="space-y-2">
               <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Who can access</div>
-              <Seg
-                variant="track"
-                theme="dark"
-                stretch
-                value={mode}
-                disabled={!canInvite || busy || loading}
-                options={[
-                  { v: 'invite', l: 'Only invited people' },
-                  { v: 'link', l: 'Anyone with the link' },
-                ]}
-                onChange={handleModeChange}
-              />
-              {mode === 'invite' ? (
-                <p className="text-[10px] text-zinc-600">Only the people below can open this project.</p>
-              ) : (
+              {canInvite ? (
                 <>
-                  <p className="text-[10px] text-zinc-600">
-                    {expired ? 'The link has expired — Copy Link makes a new one.' : 'Anyone with the link can view this project (view only).'}
-                  </p>
-                  {canInvite && (
-                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                      <Button variant="subtle" theme="dark" onClick={handleCopyLink} disabled={busy}>
-                        <Copy className="w-3.5 h-3.5" /> {copied ? 'Copied' : 'Copy Link'}
-                      </Button>
-                      <DropdownMenu
-                        open={expiryOpen}
-                        onOpenChange={setExpiryOpen}
-                        align="left"
-                        width="w-36"
-                        theme="dark"
-                        trigger={
-                          <button type="button" disabled={busy} className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors disabled:opacity-40">
-                            Expires: {EXPIRY_OPTIONS.find(o => o.v === (activeLink ? expiryValue(activeLink.expiresAt) : 'never'))?.l}
-                          </button>
-                        }
-                      >
-                        {EXPIRY_OPTIONS.map(o => (
-                          <DropdownItem key={o.v} onClick={() => handleExpiry(o.v)}>{o.l}</DropdownItem>
-                        ))}
-                      </DropdownMenu>
-                      <Button variant="danger-ghost" theme="dark" onClick={handleRevokeLink} disabled={busy}>
-                        Revoke Link
-                      </Button>
-                    </div>
+                  <Seg
+                    variant="track"
+                    theme="dark"
+                    stretch
+                    value={mode}
+                    disabled={busy || loading}
+                    options={[
+                      { v: 'invite', l: 'Only invited people' },
+                      { v: 'link', l: 'Anyone with the link' },
+                    ]}
+                    onChange={handleModeChange}
+                  />
+                  {mode === 'invite' ? (
+                    <p className="text-[10px] text-zinc-600">Only the people below can open this project.</p>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-zinc-600">
+                        {expired ? 'The link has expired — Copy Link makes a new one.' : 'Anyone with the link can view this project (view only).'}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        <Button variant="subtle" theme="dark" onClick={handleCopyLink} disabled={busy}>
+                          <Copy className="w-3.5 h-3.5" /> {copied ? 'Copied' : 'Copy Link'}
+                        </Button>
+                        <DropdownMenu
+                          open={expiryOpen}
+                          onOpenChange={setExpiryOpen}
+                          align="left"
+                          width="w-36"
+                          theme="dark"
+                          trigger={
+                            <button type="button" disabled={busy} className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors disabled:opacity-40">
+                              Expires: {EXPIRY_OPTIONS.find(o => o.v === (activeLink ? expiryValue(activeLink.expiresAt) : 'never'))?.l}
+                            </button>
+                          }
+                        >
+                          {EXPIRY_OPTIONS.map(o => (
+                            <DropdownItem key={o.v} onClick={() => handleExpiry(o.v)}>{o.l}</DropdownItem>
+                          ))}
+                        </DropdownMenu>
+                        <Button variant="danger-ghost" theme="dark" onClick={handleRevokeLink} disabled={busy}>
+                          Revoke Link
+                        </Button>
+                      </div>
+                    </>
                   )}
                 </>
+              ) : (
+                <p className="text-xs text-zinc-500">Only the owner can change who has access to this project.</p>
               )}
             </section>
 
@@ -369,9 +373,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                   No email is sent yet — existing accounts get access right away, new emails activate when they create an account (send them the link to be sure).
                 </p>
               </section>
-            ) : (
-              <p className="text-xs text-zinc-500">Only the owner can change who has access to this project.</p>
-            )}
+            ) : null}
 
             {/* Allow others to invite ---------------------------------------- */}
             <section>

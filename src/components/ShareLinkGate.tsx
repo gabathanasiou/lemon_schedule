@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import Modal from './Modal';
 import { AccountModal } from './AccountModal';
@@ -13,17 +13,23 @@ import { parseShareTokenFromHash } from '../lib/shareTokens';
  * token before the router sees it, strips the hash, then — once the visitor
  * is signed in — redeems it (server-side hash check + membership) and opens
  * the project. Signed-out visitors get the account modal with an invite
- * notice; redemption resumes automatically after sign-in.
+ * notice; redemption resumes automatically after sign-in (the AccountModal
+ * closes itself on success — `dismissed` only hides the cancelled prompt).
  *
- * Mounted app-level (inside the providers) so it survives the boot-screen →
- * project transition.
+ * Mounted app-level AFTER AppContent so its modals stack on top of the boot
+ * Project Manager (Radix stack order = DOM order).
  */
 export function ShareLinkGate() {
   const { openProject, refetchOnlineProjects } = useProject();
   const auth = useSupabaseAuth();
   const dialog = useDialog();
   const [token, setToken] = useState<string | null>(() => parseShareTokenFromHash(window.location.hash));
+  const [dismissed, setDismissed] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
+  // One redemption per captured token: provider state changes after
+  // openProject re-create its callback identity, which would restart (and
+  // cancel) this effect in a loop.
+  const startedRef = useRef(false);
 
   // The router must never adopt `#/share/...` — clear it as soon as captured.
   useEffect(() => {
@@ -33,8 +39,8 @@ export function ShareLinkGate() {
   }, []);
 
   useEffect(() => {
-    if (!token || !auth.isReady || !auth.account) return;
-    let cancelled = false;
+    if (!token || !auth.isReady || !auth.account || startedRef.current) return;
+    startedRef.current = true;
     setRedeeming(true);
     void (async () => {
       try {
@@ -42,17 +48,14 @@ export function ShareLinkGate() {
         if (!projectId) throw new Error('This invite link is no longer valid — ask for a new one.');
         await openProject(projectId, undefined, projectId);
         refetchOnlineProjects();
-        if (!cancelled) setToken(null);
+        setToken(null);
       } catch (e: any) {
-        if (!cancelled) {
-          setToken(null);
-          await dialog.alert({ title: 'Could not open the shared project', message: e?.message || 'Something went wrong.' });
-        }
+        setToken(null);
+        await dialog.alert({ title: 'Could not open the shared project', message: e?.message || 'Something went wrong.' });
       } finally {
-        if (!cancelled) setRedeeming(false);
+        setRedeeming(false);
       }
     })();
-    return () => { cancelled = true; };
   }, [token, auth.isReady, auth.account, openProject, refetchOnlineProjects, dialog]);
 
   if (!token || !auth.isConfigured) return null;
@@ -67,11 +70,13 @@ export function ShareLinkGate() {
           </div>
         </Modal>
       ) : (
-        <AccountModal
-          open
-          onClose={() => setToken(null)}
-          notice="You've been invited to collaborate on a shared project. Sign in or create an account to open it."
-        />
+        !dismissed && (
+          <AccountModal
+            open
+            onClose={() => setDismissed(true)}
+            notice="You've been invited to collaborate on a shared project. Sign in or create an account to open it."
+          />
+        )
       )}
     </>
   );
