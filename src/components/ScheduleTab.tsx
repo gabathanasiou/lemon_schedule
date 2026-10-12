@@ -27,7 +27,7 @@ import HelpModal from './HelpModal';
 import { FloatingTooltip } from './FloatingTooltip';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { useViewMode, useCellBorders } from '../lib/persist';
+import { useViewMode, useCellBorders, type ViewMode, type CellBorders } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
@@ -52,6 +52,8 @@ import { applyChunkVisibility, useChunkResize } from '../lib/virtualChunk';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { useScheduleKeyboard } from './schedule/useScheduleKeyboard';
 import { useScheduleDrag } from './schedule/useScheduleDrag';
+import { usePresenceActions } from '../lib/supabase/presenceContext';
+import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onOpenDayManager?: (sectionIndex: number) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, locked } = useProject();
   const currentWindow = useCurrentWindow();
@@ -62,6 +64,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const { sections, sectionDateMap: hookSectionDateMap, daybreakRowToSection, nextSectionDateMap: hookNextSectionDateMap, productionSections, chronoDayMap: sectionChronoDayMap } = useDaybreakSections();
   const [viewMode, setViewMode, viewWidth] = useViewMode();
   const [cellBorders, setCellBorders] = useCellBorders();
+  // First publish marks the mount — the stripboard only republishes its View
+  // prefs when they CHANGE, so entering the tab never overwrites the App's
+  // one-shot scene jump target in the presence view.
+  const viewPrefsPublishedRef = useRef(false);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
@@ -274,6 +280,43 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const savedScrollTopRef = useRef(savedScrollTop);
   const mousePosRef = useRef({ y: 0 });
   const autoScrollRafRef = useRef<number | null>(null);
+
+  // Follow completeness (roadmap 229, docs COLLABORATION §9): the stripboard
+  // mirrors its scroll (day-block fallback for rows outside the peer's render
+  // window) and its View-menu prefs to followers. A local scroll gesture or a
+  // View-menu change exits follow (user decision 2026-10-13).
+  const presenceActions = usePresenceActions();
+  const presenceScroll = usePresenceScrollSurface({
+    surface: 'schedule',
+    container: scheduleScrollRef,
+    selector: '[data-row-id]',
+    keyAttr: 'data-row-id',
+    fallback: { selector: '[data-cal-day]', keyAttr: 'data-cal-day' },
+  });
+  useEffect(() => {
+    if (!presenceScroll.enabled) return;
+    if (!viewPrefsPublishedRef.current) {
+      viewPrefsPublishedRef.current = true;
+      return;
+    }
+    presenceActions.publishView({ tab: 'schedule', viewMode, cellBorders });
+  }, [presenceActions, presenceScroll.enabled, viewMode, cellBorders]);
+  useEffect(() => {
+    if (!presenceScroll.enabled) return;
+    return presenceActions.registerFollowApplier((view) => {
+      if (view.tab !== 'schedule') return;
+      if (view.viewMode) setViewMode(view.viewMode);
+      if (view.cellBorders) setCellBorders(view.cellBorders);
+    });
+  }, [presenceActions, presenceScroll.enabled, setViewMode, setCellBorders]);
+  const onUserViewModeChange = useCallback((m: ViewMode) => {
+    presenceActions.noteUserViewChange();
+    setViewMode(m);
+  }, [presenceActions, setViewMode]);
+  const onUserCellBordersChange = useCallback((m: CellBorders) => {
+    presenceActions.noteUserViewChange();
+    setCellBorders(m);
+  }, [presenceActions, setCellBorders]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -1241,9 +1284,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         ribbonDesigns={project.ribbonDesigns}
         activeRibbonId={project.activeRibbonId}
         viewMode={viewMode}
-        setViewMode={setViewMode}
+        setViewMode={onUserViewModeChange}
         cellBorders={cellBorders}
-        setCellBorders={setCellBorders}
+        setCellBorders={onUserCellBordersChange}
         textEditingEnabled={textEditingEnabled}
         setTextEditingEnabled={setTextEditingEnabled}
         isEditPending={showEditSpinner}
@@ -1324,7 +1367,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
               })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); if (editingModeRef.current) setEditingTarget({ rowId, fieldKey: null }); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} collapsed={boneyardCollapsed} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} textSize={textSize} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceBoneyardExpanded} />
         
         {/* Main Schedule Area */}
-        <div ref={scheduleScrollRef} data-marquee-container data-edit-mode={effectiveTextEditingEnabled ? '1' : undefined} onScroll={() => { updateRenderWindow(); if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}
+        <div ref={scheduleScrollRef} data-marquee-container data-edit-mode={effectiveTextEditingEnabled ? '1' : undefined} onScroll={() => { updateRenderWindow(); if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; presenceScroll.notify(); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}
           onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
             setSelectedRowIds(new Set());
@@ -1343,11 +1386,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
                   const est = estimateDayHeight(dayInt);
                   if (!inWindow) {
                     return (
-                      <div key={dayInt} data-cal-day style={{ height: cached ?? est }} />
+                      <div key={dayInt} data-cal-day={dayInt} style={{ height: cached ?? est }} />
                     );
                   }
                   return (
-                    <div key={dayInt} data-cal-day ref={dayMeasureRef(dayInt)}>
+                    <div key={dayInt} data-cal-day={dayInt} ref={dayMeasureRef(dayInt)}>
                 <StripBlock 
                   dayInt={dayInt} 
                   rows={scheduledRows[dayInt] || []}

@@ -20,6 +20,8 @@ import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/
 import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
+import { usePresenceActions } from '../lib/supabase/presenceContext';
+import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
@@ -237,6 +239,42 @@ export const CalendarTab: React.FC<{
   const ctrlOrCmdHeld = useAddMode();
   const marqueeMode = useMarqueeMode();
   const calendarGridRef = useRef<HTMLDivElement>(null);
+
+  // Follow completeness (roadmap 229, docs COLLABORATION §9): the Calendar
+  // mirrors its scroll + its Strips/Events sub-view to followers; a local
+  // scroll gesture, a sub-view change or a month jump exits follow.
+  const calendarStickyHeight = useCallback(() => {
+    const el = calendarGridRef.current?.querySelector('[data-cal-sticky]');
+    return el instanceof HTMLElement ? el.offsetHeight : 28;
+  }, []);
+  const presenceActions = usePresenceActions();
+  const presenceScroll = usePresenceScrollSurface({
+    surface: 'calendar',
+    container: calendarGridRef,
+    selector: '[data-date-key]',
+    keyAttr: 'data-date-key',
+    sticky: calendarStickyHeight,
+  });
+  // First publish marks the mount — the Calendar only republishes its
+  // sub-view when it CHANGES (never overwrites a one-shot jump target).
+  const subViewPublishedRef = useRef(false);
+  useEffect(() => {
+    if (!presenceScroll.enabled || subTab !== 'calendar') return;
+    if (!subViewPublishedRef.current) {
+      subViewPublishedRef.current = true;
+      return;
+    }
+    presenceActions.publishView({ tab: 'calendar', sub: 'calendar', calendarView: viewMode });
+  }, [presenceActions, presenceScroll.enabled, subTab, viewMode]);
+  useEffect(() => {
+    if (!presenceScroll.enabled) return;
+    return presenceActions.registerFollowApplier((view) => {
+      if (view.tab !== 'calendar' || view.sub !== 'calendar') return;
+      const calendarView = view.calendarView;
+      if (calendarView) setCalSettings(prev => ({ ...prev, viewMode: calendarView }));
+    });
+  }, [presenceActions, presenceScroll.enabled, setCalSettings]);
+
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
@@ -709,11 +747,9 @@ export const CalendarTab: React.FC<{
       if (!container) return;
       const el = container.querySelectorAll('[data-cal-month]')[index] as HTMLElement | undefined;
       if (!el) return;
-      const stickyEl = container.querySelector('[data-cal-sticky]');
-      const stickyH = stickyEl instanceof HTMLElement ? stickyEl.offsetHeight : 28;
-      smoothScrollTo(el.offsetTop - stickyH - 6);
+      smoothScrollTo(el.offsetTop - calendarStickyHeight() - 6);
     }));
-  }, [calendarMonths, smoothScrollTo]);
+  }, [calendarMonths, smoothScrollTo, calendarStickyHeight]);
 
   const goPrevMonth = useCallback(() => scrollToMonthIndex(Math.max(0, viewAnchorRef.current - 1)), [scrollToMonthIndex]);
   const goNextMonth = useCallback(() => scrollToMonthIndex(Math.min(calendarMonths.length - 1, viewAnchorRef.current + 1)), [scrollToMonthIndex, calendarMonths.length]);
@@ -967,10 +1003,10 @@ export const CalendarTab: React.FC<{
                 {viewMode === 'strips' && boneyardCollapsed && (
                   <BoneyardExpandButton onClick={() => setBoneyardCollapsed(false)} />
                 )}
-                <button onClick={goPrevMonth} title="Previous month" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
+                <button onClick={() => { presenceActions.noteUserViewChange(); goPrevMonth(); }} title="Previous month" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
                 <h2 className="font-semibold text-sm whitespace-nowrap">{rangeLabel}</h2>
-                <button onClick={goNextMonth} title="Next month" className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
-                <button onClick={goToday} title="Jump to today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
+                <button onClick={() => { presenceActions.noteUserViewChange(); goNextMonth(); }} title="Next month" className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
+                <button onClick={() => { presenceActions.noteUserViewChange(); goToday(); }} title="Jump to today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
                   Today
                 </button>
               </div>
@@ -992,7 +1028,7 @@ export const CalendarTab: React.FC<{
                     { v: 'strips', l: 'Strips', title: 'Strips view' },
                     { v: 'events', l: 'Events', title: 'Events view' },
                   ]}
-                  onChange={m => { updateCal({ viewMode: m as 'strips' | 'events' }); setSelectedEventKeys(new Set()); }}
+                  onChange={m => { presenceActions.noteUserViewChange(); updateCal({ viewMode: m as 'strips' | 'events' }); setSelectedEventKeys(new Set()); }}
                   ariaLabel="Calendar view"
                 />
                 <ToolbarDivider />
@@ -1115,7 +1151,7 @@ export const CalendarTab: React.FC<{
             setViewMenuOpen(false);
             setContextMenuDate(null);
             setContextMenu(null);
-          }} onScroll={() => { updateViewAnchor(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); }} className="flex-1 overflow-y-auto min-h-0 relative overscroll-contain" data-cal-grid style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
+          }} onScroll={() => { updateViewAnchor(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); presenceScroll.notify(); }} className="flex-1 overflow-y-auto min-h-0 relative overscroll-contain" data-cal-grid style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
             <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50" data-cal-sticky>
               {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
             </div>

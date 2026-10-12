@@ -62,6 +62,7 @@ import { createBlankScene, getNextSceneNumber } from '../lib/sceneFactory';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import { registerPresenceGridScope, type PresenceGridScope } from '../lib/presenceResolvers';
+import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { useGlideFill } from '../lib/glideFill';
@@ -438,6 +439,27 @@ export function GlideBreakdownTab({
     };
     return registerPresenceGridScope('breakdown-glide', scope);
   }, []);
+
+  // Follow completeness (roadmap 229, docs COLLABORATION §9): mirror the grid
+  // scroll — the first visible cell (scene id + column key, never pixels) —
+  // and exit follow on a local scroll gesture.
+  const glideAnchorRef = useRef<{ rowKey: string; colKey: string } | null>(null);
+  const presenceScroll = usePresenceScrollSurface({
+    surface: 'glide',
+    container: gridContainerRef,
+    sample: () => (glideAnchorRef.current
+      ? { key: `${glideAnchorRef.current.rowKey}|${glideAnchorRef.current.colKey}`, off: 0 }
+      : null),
+    apply: (sample) => {
+      const [rowKey, colKey] = sample.key.split('|');
+      const rows = scenesRef.current;
+      const cols = COLUMNSRef.current;
+      const ri = rows.findIndex(s => s.id === rowKey);
+      if (ri < 0 || !gridRef.current) return;
+      const ci = cols.findIndex(c => c.key === colKey);
+      gridRef.current.scrollTo(ci >= 0 ? ci : 0, ri, 'both', 0, 0, { vAlign: 'start', hAlign: 'start' });
+    },
+  });
 
   const commitEdit = useCallback((sceneId: string, colKey: string, newVal: string, opts?: { cascadeRemovals?: boolean }) => {
     const currentProject = projectRef.current;
@@ -1141,6 +1163,12 @@ export function GlideBreakdownTab({
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
           onHeaderContextMenu={onHeaderContextMenu}
+          onVisibleRegionChanged={(range) => {
+            const row = scenesRef.current[range.y];
+            const col = COLUMNSRef.current[range.x];
+            if (row && col) glideAnchorRef.current = { rowKey: row.id, colKey: col.key };
+            presenceScroll.notify();
+          }}
           drawCell={drawCell}
           provideEditor={provideEditor}
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}

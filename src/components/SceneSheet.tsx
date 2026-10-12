@@ -18,6 +18,8 @@ import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { useSceneDuplicate } from '../lib/sceneDuplicate';
+import { usePresenceActions } from '../lib/supabase/presenceContext';
+import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { resolvedLocationName } from '../lib/locations';
 import { usePersistState } from '../lib/persist';
 import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/SceneScriptPane';
@@ -119,8 +121,31 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   editsRef.current = edits;
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Follow completeness (roadmap 229, docs COLLABORATION §9): the Sheet
+  // mirrors the scene it is on (a follower with a different Sheet order
+  // resolves the scene id) + its scroll; flipping the sheet locally exits
+  // follow (user decision 2026-10-13).
+  const presenceActions = usePresenceActions();
+  const presenceScroll = usePresenceScrollSurface({
+    surface: 'sheet',
+    container: containerRef,
+    selector: '[data-scene-field]',
+    keyAttr: 'data-scene-field',
+    sticky: () => containerRef.current?.querySelector<HTMLElement>('[data-sheet-sticky]')?.offsetHeight ?? 30,
+  });
+
   const scene = orderedScenes[index];
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
+  const sceneId = scene?.id;
+  // The wire `sheetIndex` is the SCENES index (the sheet number), not this
+  // client's view-order position, so a follower in another Sheet order maps
+  // it correctly (see SceneSheet's initialIndex effect).
+  const sceneSheetIndex = scene ? scenes.indexOf(scene) : -1;
+
+  useEffect(() => {
+    if (!presenceScroll.enabled || !sceneId || sceneSheetIndex < 0) return;
+    presenceActions.publishView({ tab: 'breakdown', sub: 'sheet', sceneId, sheetIndex: sceneSheetIndex });
+  }, [presenceActions, presenceScroll.enabled, sceneId, sceneSheetIndex]);
 
   const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
   const { trySetSceneNumber, modal: sceneNumberCollisionModal } = useSceneNumberCollisionGuard(dispatch, scenes);
@@ -234,12 +259,13 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   }, []);
 
   const goTo = useCallback((n: number) => {
+    presenceActions.noteUserViewChange();
     commitTextEdits();
     const idx = Math.max(0, Math.min(orderedScenes.length - 1, n));
     setIndex(idx); setSheetInput(String(idx + 1));
     lastReportedIndexRef.current = idx;
     onIndexChange?.(idx);
-  }, [orderedScenes.length, onIndexChange, commitTextEdits]);
+  }, [orderedScenes.length, onIndexChange, commitTextEdits, presenceActions]);
 
   // A scene inserted by New/Duplicate is revealed once it lands in the view
   // order — `orderedScenes` in the dispatch render is still the old list, so
@@ -476,13 +502,14 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
 
   return (
     <div className="flex-1 flex h-full min-h-0 w-full">
-    <div ref={containerRef} className="flex-1 flex flex-col h-full min-w-0 bg-zinc-100 overflow-y-auto" style={{ paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
+    <div ref={containerRef} onScroll={presenceScroll.notify} className="flex-1 flex flex-col h-full min-w-0 bg-zinc-100 overflow-y-auto" style={{ paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
 
       {scene && (() => {
         const colors = sceneStyle(scene, project.colorPalette?.sceneColors, getFallbackStripColors(project.colorPalette), project.colorPalette?.colorRules);
         return (
           <div
+            data-sheet-sticky
             className="sticky top-0 z-10 shrink-0 w-full flex items-center gap-3 px-4 py-1.5 cursor-pointer select-none"
             style={{ background: colors.background, color: colors.color }}
             onClick={(e) => { if (e.shiftKey && onOpenScheduleInPopout) { onOpenScheduleInPopout(scene.id); } else { onOpenSchedule?.(scene.id); } }}
