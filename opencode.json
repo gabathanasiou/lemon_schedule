@@ -1,5 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "urls": ["https://supabase.com/.well-known/agent-skills/"]
+  },
   "mcp": {
     "playwright": {
       "type": "local",
@@ -10,6 +13,11 @@
       "type": "local",
       "command": ["node", "tools/mcp/lemon-mcp.mjs"],
       "environment": {}
+    },
+    "supabase": {
+      "type": "remote",
+      "url": "https://mcp.supabase.com/mcp?features=database,debugging,development,docs",
+      "enabled": true
     }
   }
 }

@@ -119,15 +119,21 @@ tables `profiles`, `projects` (owner, title, compressed JSON blob, revision),
 `memberships` (project_id, user_id, role) with RLS from day one. App gains a
 second project source; the **Collaborate** action (Apple language, `§1`) copies
 the project online via the export/import codec (`src/lib/projectCodec.ts` /
-`src/lib/utils.ts` export). Feature-flagged; no realtime. *Acceptance*: RLS tests
-(non-member cannot read; viewer cannot write); Collaborate round-trip preserves
-the project; Drive/local flows untouched.
+`src/lib/utils.ts` export). Feature-flagged; no realtime. The header **user
+cluster** appears and absorbs the Google Drive sign-in (`§9`). *Acceptance*: RLS
+tests (non-member cannot read; viewer cannot write); Collaborate round-trip
+preserves the project; Drive/local flows untouched.
 
 **S1 setup runbook (user side, ~15 min — do this first):**
-1. Create the Supabase project (region closest to you, e.g. London); copy the
-   **Project URL** + **anon public key** (Settings → API).
-2. SQL Editor → paste and run `supabase/migrations/20261012000000_init.sql`
-   (draft schema + RLS — review before running).
+1. Create the Supabase project (region: Europe/London). Security checkboxes:
+   **Enable Data API** ON, **Enable automatic RLS** ON, **Automatically expose
+   new tables** OFF (Supabase's own recommendation — the migration grants
+   explicitly to `authenticated` only). Save the database password in a password
+   manager. Copy the **Project URL** + **anon public key** (Settings → API) —
+   never the `service_role` key (server-side only).
+2. SQL Editor → paste the **contents** of
+   `supabase/migrations/20261012000000_init.sql` (open the file, select all,
+   copy — not the file path) and run it; expect "Success. No rows returned".
 3. Auth → Providers: keep Email (magic link); enable **Google** (Google Cloud
    OAuth client with redirect `https://<ref>.supabase.co/auth/v1/callback`).
 4. Auth → URL Configuration: Site URL = the GitHub Pages deploy; add
@@ -135,6 +141,11 @@ the project; Drive/local flows untouched.
 5. Local `.env`: `VITE_SUPABASE_URL=…`, `VITE_SUPABASE_ANON_KEY=…` (gitignored;
    the names go to `.env.example` when the client lands).
 6. After it exists: repo secrets for the free-tier keep-alive workflow (`§5`).
+7. Agent tooling (already in `opencode.json`): run `opencode mcp auth supabase`
+   once (browser OAuth) and restart opencode — the agent then gets the official
+   Supabase MCP tools (schema/migrations/SQL/docs). The official Supabase skills
+   load automatically via `skills.urls`
+   (`https://supabase.com/.well-known/agent-skills/`).
 
 Then the coding starts: `@supabase/supabase-js`, a client module, an auth hook,
 the project-source seam in `src/store/provider.tsx`, and the Collaborate flow.
@@ -230,8 +241,10 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   click = follow (`§9`). Viewers appear without edit affordances.
 - Surface shape: default to a kit `Modal` (the settings-modal pattern); a
   full page only if the modal proves too small.
-- Open: whether the File menu's Google Drive sign-in moves into this cluster
-  when S1 lands (`§11`).
+- **Decided (user, 2026-10): the File menu's Google Drive sign-in MOVES into this
+  cluster** when it lands (S1). The File menu keeps project actions only
+  (Open/New/Import/Export/Print/Trash). Until the cluster ships, the File-menu
+  item stays as-is.
 
 ## 10. Testing strategy
 
@@ -250,8 +263,6 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   default) vs the repo's Google-token rule — decide and document in AGENTS.md
   §Security when S1 lands.
 - Subscription lapse behaviour (recommended: read-only + export).
-- Whether the File-menu Google Drive sign-in moves into the header user cluster
-  when S1 lands (`§9`).
 - Guest edit limits; share-link expiry defaults.
 - Script-body concurrency approach (v1 LWW vs later field diff/Yjs text).
 
