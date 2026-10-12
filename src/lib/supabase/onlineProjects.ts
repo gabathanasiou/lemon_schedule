@@ -44,15 +44,21 @@ export async function listOnlineProjects(): Promise<ProjectMeta[]> {
 
 /** First copy of a project to the online workspace (the Collaborate action).
  *  Row id = project id, so meta.id, the document id and (S4) the room id are
- *  one identity. */
+ *  one identity. `owner_id` must be the signed-in user — the insert RLS
+ *  (`with check (owner_id = auth.uid())`) rejects anything else, and the
+ *  `handle_new_project` trigger creates the owner membership row. */
 export async function uploadProjectOnline(project: Project): Promise<void> {
   if (!supabase) throw new Error('Sign-in is not configured on this build.');
+  const { data: sessionData } = await supabase.auth.getSession();
+  const ownerId = sessionData.session?.user.id;
+  if (!ownerId) throw new Error('Sign in to add a project to your shared projects.');
   const { error } = await supabase.from('projects').insert({
     id: project.id,
+    owner_id: ownerId,
     title: project.title,
     data: serializeProject(project),
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(`Could not add the project to your shared projects (${error.message}).`);
 }
 
 export async function readOnlineProject(id: string): Promise<OnlineReadResult> {

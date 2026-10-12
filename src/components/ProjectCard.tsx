@@ -83,7 +83,7 @@ export default function ProjectCard({
               )}
               <h3 className={`font-semibold truncate ${PM_TITLE}`}>{p.title}</h3>
               {p.onlineId ? (
-                <Users className={`${PM_ICON_SM} text-emerald-500/90 shrink-0`} aria-label="Online project" />
+                <Users className={`${PM_ICON_SM} text-emerald-500/90 shrink-0`} aria-label="Shared project" />
               ) : p.driveFileId ? (
                 <Cloud className={`${PM_ICON_SM} text-zinc-500 shrink-0`} aria-label="Cloud project" />
               ) : null}

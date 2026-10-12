@@ -199,7 +199,7 @@ export function SaveIndicator({ isCloudProject, isOnlineProject }: { isCloudProj
   }
 
   const tooltip = isOnlineProject
-    ? `Synced online${ago ? ` ${ago}` : ''}`
+    ? `Synced to shared projects${ago ? ` ${ago}` : ''}`
     : isCloudProject
       ? `Synced to Drive${ago ? ` ${ago}` : ''}`
       : `Saved locally${ago ? ` ${ago}` : ''}`;

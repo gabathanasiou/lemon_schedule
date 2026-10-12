@@ -30,6 +30,9 @@ Numbers guide):**
 - Management: **Manage Shared Project…** (File menu), **Share With More People**,
   **Copy Link**, **Stop Sharing…**.
 - A shared project shows a person icon + tick; opening it lists who's collaborating.
+- Projects on the collaboration backend live in the Project Manager's
+  **Shared** tab — the UI calls them **shared projects**, never "online projects"
+  ("online" stays architecture language for the docs).
 - Internals/docs may say "copy/move online" — the UI never does. (Apple "moves the
   spreadsheet to iCloud"; we copy it to the hosted backend the first time.)
 
@@ -182,7 +185,7 @@ re-derive any of it:
   = the Collaborate copy-up (offline original untouched, Drive link detached).
   Online projects lock read-only when the probe says offline or the Supabase
   session is gone; saves surface through the existing driveSaveError/retry UI.
-- Project Manager: **Local / Cloud / Online** tabs — Online appears only when
+- Project Manager: **Local / Cloud / Shared** tabs — Shared appears only when
   configured; signed-out shows the sign-in state. Session metas win over the
   fetched list for display.
 - Debug bridge: `diagnostics()` adds `supabaseConfigured`, `supabaseSignedIn`,

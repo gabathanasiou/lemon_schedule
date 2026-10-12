@@ -59,7 +59,7 @@ export interface ProjectContextType {
   driveErrorMsg: string | null;
   driveRetryPending: boolean;
   storageQuotaError: boolean;
-  /** Online (Supabase) projects for the Project Manager's Online tab —
+  /** Shared (Supabase) projects for the Project Manager's Shared tab —
    *  session state only, never persisted to the local index. */
   onlineProjects: ProjectMeta[];
   onlineLoading: boolean;
@@ -461,7 +461,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           lastSaveFailedRef.current = true;
           setRealOnline(false);
           setDriveSaveError(true);
-          setDriveErrorMsg(sbAuth.account ? 'No internet connection' : 'Sign in to save this online project');
+          setDriveErrorMsg(sbAuth.account ? 'No internet connection' : 'Sign in to save this shared project');
           setDriveRetryPending(false);
         }
       } else if (isCloud) {
@@ -589,7 +589,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (!sbAuth.account) {
         setRealOnline(false);
         setDriveSaveError(true);
-        setDriveErrorMsg('Sign in to keep editing this online project');
+        setDriveErrorMsg('Sign in to keep editing this shared project');
         setDriveRetryPending(false);
       } else if (!prevSbAccountRef.current) {
         setDriveSaveError(false);

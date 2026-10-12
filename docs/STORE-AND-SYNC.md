@@ -64,7 +64,7 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   Safari: "Load failed" on every save). Reads auto-detect plain vs base64 by first char.
 - **Never reintroduce binary/FormData upload bodies.**
 
-## Online projects (roadmap 229 S1 — env-gated; manual = `docs/COLLABORATION.md`)
+## Online projects (roadmap 229 S1 — env-gated; UI name: **Shared**; manual = `docs/COLLABORATION.md`)
 
 - ONE module `src/lib/supabase/onlineProjects.ts` (list/upload/read/save/delete). `ProjectMeta.onlineId`
   = Supabase row id = project id; online metas live in provider session state (`onlineProjects`, refreshed

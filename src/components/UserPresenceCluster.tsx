@@ -64,11 +64,11 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
       await collaborateProject(currentProjectId);
       setCollabOpen(false);
       void dialog.alert({
-        title: 'Project is online',
-        message: `"${projectTitle}" is now copied online — changes save automatically. Other people can be invited once sharing lands.`,
+        title: 'Added to shared projects',
+        message: `"${projectTitle}" now saves automatically. Inviting other people arrives in a later update.`,
       });
     } catch (e: any) {
-      setCollabError(e?.message || 'Could not copy the project online.');
+      setCollabError(e?.message || 'Could not add the project to your shared projects.');
     } finally {
       setCollabBusy(false);
     }
@@ -179,12 +179,12 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
       >
         <div className="p-6 space-y-3">
           <p className="text-sm text-zinc-300">
-            <span className="font-medium text-white">{projectTitle}</span> will be copied to your
-            online workspace and start saving online, so it can be shared with other people.
+            <span className="font-medium text-white">{projectTitle}</span> will be added to your
+            shared projects and kept in sync automatically.
           </p>
           <p className="text-xs text-zinc-400">
-            The copy on this device stays exactly as it is. You can keep working offline from it
-            any time.
+            Shared projects sync over the internet — you'll need a connection while you work on
+            this one.
           </p>
           {collabError && <p className="text-xs text-red-400">{collabError}</p>}
         </div>

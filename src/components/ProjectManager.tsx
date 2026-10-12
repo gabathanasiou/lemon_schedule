@@ -231,7 +231,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         const { project } = await readOnlineProject(p.onlineId);
         exportProjectData(JSON.stringify(project), p.title);
       } catch (err: any) {
-        dialog.alert({ title: 'Export Failed', message: err?.message || 'Could not load project from the online workspace.' });
+        dialog.alert({ title: 'Export Failed', message: err?.message || 'Could not load the shared project.' });
       } finally {
         setExportingId(null);
       }
@@ -251,7 +251,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       openProject(p.id)
         .then(() => onClose?.())
         .catch(err => {
-          dialog.alert({ title: 'Could Not Open Project', message: err?.message || 'Could not load the project from the online workspace.' });
+          dialog.alert({ title: 'Could Not Open Project', message: err?.message || 'Could not load the shared project.' });
         })
         .finally(() => setOpeningId(null));
       return;
@@ -474,7 +474,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               }`}
             >
               <Users className="w-3 h-3" />
-              Online
+              Shared
               {onlineLoading
                 ? <Loader2 className="w-3 h-3 text-zinc-400 animate-spin ml-0.5" />
                 : <span className="text-[10px] text-zinc-500 ml-0.5">{onlineProjectList.length}</span>
@@ -596,14 +596,14 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
           <div className="text-center py-12 text-zinc-500">
             <Users className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
             <p className="text-sm font-medium text-zinc-400">Sign in required</p>
-            <p className="text-xs mt-1 text-zinc-600">Sign in to see your online projects and collaborate.</p>
+            <p className="text-xs mt-1 text-zinc-600">Sign in to see your shared projects and collaborate.</p>
           </div>
           </div>
         ) : activeTab === 'online' && onlineLoading ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
           <div className="text-center py-12 text-zinc-500">
             <Loader2 className="w-8 h-8 mx-auto mb-3 text-zinc-600 animate-spin" />
-            <p className="text-xs text-zinc-500">Loading online projects...</p>
+            <p className="text-xs text-zinc-500">Loading shared projects...</p>
           </div>
           </div>
         ) : activeTab === 'online' && onlineError ? (
@@ -638,8 +638,8 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             ) : (
               <>
                 <Users className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
-                <p className="text-sm font-medium text-zinc-400">No online projects</p>
-                <p className="text-xs mt-1 text-zinc-600">Open a project and choose Collaborate from the account menu to put it online.</p>
+                <p className="text-sm font-medium text-zinc-400">No shared projects</p>
+                <p className="text-xs mt-1 text-zinc-600">Open a project and choose Collaborate from the account menu to add it here.</p>
               </>
             )}
           </div>
@@ -647,7 +647,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         ) : (
           <>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{sortedList.length} {activeTab === 'cloud' ? 'cloud' : activeTab === 'online' ? 'online' : 'local'} project{sortedList.length !== 1 ? 's' : ''}</span>
+              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{sortedList.length} {activeTab === 'cloud' ? 'cloud' : activeTab === 'online' ? 'shared' : 'local'} project{sortedList.length !== 1 ? 's' : ''}</span>
               <DropdownMenu
                 open={showSortMenu}
                 onOpenChange={setShowSortMenu}
