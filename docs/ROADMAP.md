@@ -990,9 +990,16 @@ bars — static flat / live grouped becomes the deliberate asymmetry.
 
 **Stages** (detail in the doc): S1 accounts + online projects (Collaborate; the header **user cluster** appears) — **shipped** → S2 sharing/roles/invites/view-only links, the **User & sharing** panel, `canEdit` vs `readOnly` — **shipped 2026-10-12** (S2.5: no-account guest links, always-visible links, revoke = evict) → S3 presence (**Canva-style live pointers** + follow) + the S3.5 save ping (live refresh without manual reload) — **shipped 2026-10-12** (user decisions: collaborator bubbles in the header as follow toggles; pointers render only while you're on the peer's exact view/sub-tab) → S4 realtime collaborative editing (per-project room, per-user undo, reconnect) → S5 billing (cross-ref **230**; collab = Studio + subscription, invited guests free).
 
+**Access changes are pushed, not polled (user request 2026-10-12 — ships with S4)**:
+when a member's role changes (promote/demote), a share link is revoked, or access is removed, the
+affected client is notified over the live channel with a clear message; a **revoked member is KICKED
+OUT** of the open project (closes back to the opening page — not left in a read-only shell), guests
+admitted by a revoked link included. Until the room lands, the S2 next-request reconcile stays the
+behaviour; RLS stays the enforcement point — the push is UX only.
+
 **Non-negotiables**: Drive path untouched; one Project model; `readOnly` (connectivity) ≠ `canEdit` (permission); permissions enforced server-side (RLS + room auth); new features stay multiplayer-by-construction (Action union — no per-feature sync code). Free-tier Supabase pausing handled via keep-alive + Pro trigger (doc §5).
 
-**Verify** (per stage, built): S1+S2+S3 RLS acceptance — `supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql` (non-member read blocked, server rejects viewer writes, link redeem/expiry/revoke, pending claim, role change/revoke on the next request, Realtime channels members-only) — plus the manual online pass (doc §12); S4 two-context e2e via the debug bridge; presence/follow is a rule-7 manual pass (pure presence helpers are Vitest). `npm run lint`.
+**Verify** (per stage, built): S1+S2+S3 RLS acceptance — `supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql` (non-member read blocked, server rejects viewer writes, link redeem/expiry/revoke, pending claim, role change/revoke on the next request, Realtime channels members-only) — plus the manual online pass (doc §12); S4 two-context e2e via the debug bridge; presence/follow is a rule-7 manual pass (pure presence helpers are Vitest); the S4 access-change push/eviction gets a two-client pass (demote → message + immediate lock; revoke → message + kicked out). `npm run lint`.
 
 **Relations**: `extends` **97** (concurrency gap + future hosted MCP); `relates to` **125** (storage overhaul — NOT a prerequisite), **145** (desktop app), **209** (universal crew DB / account question), **230** (shared entitlement layer); **231** (collaboration avatars).
 

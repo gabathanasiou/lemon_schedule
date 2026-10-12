@@ -289,7 +289,8 @@ takes effect on next request; guest account needs no entitlement.
 - Known gaps (deliberate): Shared-tab cards don't show the caller's role badge; the
   view-only long tail beyond the gated surfaces relies on the dispatch guard (Color
   Rules/Trash are `inert`, sort menus no-op); revoke/demote reconcile on the next
-  request — no push until S3/S4.
+  request — the PUSHED permission message + revocation eviction are an explicit
+  S4 requirement (see the S4 section below; user request 2026-10-12).
 
 **S3 — Presence + live refresh.** Live cursors, **follow mode**; rides Supabase
 Realtime (Broadcast + Presence) on a per-project **private** channel with RLS on
@@ -355,6 +356,24 @@ reducer: validates, applies, persists (action log + periodic snapshot), broadcas
 Per-user undo (each user undoes their own actions only). Shared projects become
 read-only while offline. *Acceptance*: two clients through the debug bridge stay
 convergent; reconnect mid-session loses nothing; undo never reverts a peer's edit.
+
+**S4 also carries the access-change push (user request 2026-10-12)** — the room
+is the natural push channel for permission state:
+
+- **Role changed** (promoted/demoted): the affected client gets the new role
+  pushed and shows a clear message ("You're now an editor" / "You've been
+  moved to view only — you can't make changes"); a demoted client's editing
+  surfaces lock immediately instead of waiting for the next request.
+- **Share link revoked / Stop Sharing**: affected guests are notified ("The
+  owner stopped sharing this project").
+- **Access removed**: the affected client gets the message AND is **kicked
+  out** — the project closes back to the opening page (same as signing out of
+  a shared project), not left in a read-only shell. Same for a link guest
+  whose revoked link admitted them.
+
+Until the room lands, today's next-request reconcile stays the behaviour
+(docs/COLLABORATION.md §6 S2 known gaps). RLS remains the enforcement point;
+the push is UX, never authority.
 
 **S5 — Billing.** See `docs/LICENSING.md`: one merchant of record; collab =
 Studio + active subscription; guests free.
