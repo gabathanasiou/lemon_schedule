@@ -195,11 +195,12 @@ export function PresenceOverlay({ activeTab }: { activeTab?: string }) {
           data-testid="following-pill"
           onClick={stopFollowing}
           title="Stop following (Esc, or navigate anywhere)"
-          className="fixed top-12 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-sky-500/60 bg-zinc-900/95 px-3 py-1 text-[11px] font-medium text-white shadow-lg backdrop-blur-sm cursor-pointer hover:bg-zinc-800"
+          className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-[11px] font-semibold text-white shadow-lg cursor-pointer transition-[filter] hover:brightness-110"
+          style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))', background: avatarColor(followed.userId) }}
         >
-          <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+          <span className="w-2 h-2 rounded-full bg-white/90 animate-pulse" />
           Following {followed.name}
-          <X className="w-3 h-3 text-zinc-400" />
+          <X className="w-3 h-3 text-white/75" />
         </button>
       )}
     </>

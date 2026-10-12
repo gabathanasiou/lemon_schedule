@@ -494,11 +494,12 @@ the positioning wrapper; `motion-reduce:transition-none` snaps) and pop in via
 `.presence-pointer-in` (`index.css`, `motion-reduce` disables). They are hidden
 when their anchor is off this client's viewport — never painted over unrelated
 chrome (user decision 2026-10-12: hide, no edge chips). The "Following X" pill
-is a dark floating pill (`fixed top-12 left-1/2 -translate-x-1/2 z-40
-rounded-full border border-sky-500/60 bg-zinc-900/95 text-[11px] text-white` +
-a pulsing sky dot) — it must stay below the kit overlay bands (menus `z-[200]`,
-modals `z-[10000]`) and exits on click/Esc/manual navigation. Pointers are
-EPHEMERAL: 20s TTL plus presence leave, never persisted.
+sits at the BOTTOM CENTER (`fixed left-1/2 -translate-x-1/2 z-40
+bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px))`, rounded-full, white
+text + a white pulsing dot) and is painted in the followed person's
+`avatarColor` (matching their pointer); it must stay below the kit overlay
+bands (menus `z-[200]`, modals `z-[10000]`) and exits on click/Esc/manual
+navigation. Pointers are EPHEMERAL: 20s TTL plus presence leave, never persisted.
 
 ## Message copy rules
 
