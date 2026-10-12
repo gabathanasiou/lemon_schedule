@@ -44,7 +44,7 @@ interface CategoryDiff {
 }
 
 export function ElementManager({ initialCategory, onCategoryChange, headerTarget }: { initialCategory?: string; onCategoryChange?: (cat: string) => void; headerTarget?: HTMLElement | null }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const isCloud = useIsCloudProject();
   const dialog = useDialog();
   const project = state.present;
@@ -361,7 +361,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           rows={1}
           data-manager-name=""
           value={val}
-          readOnly={readOnly}
+          readOnly={locked}
           onChange={e => onChange(transform(e.target.value))}
           onKeyDown={handleKey}
           onFocus={buf.noteFocusStart}
@@ -376,7 +376,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         ref={el => buf.registerInput(key, field, el)}
         type="text"
         value={val}
-        readOnly={readOnly}
+        readOnly={locked}
         onChange={e => onChange(transform(e.target.value))}
         onKeyDown={handleKey}
         onFocus={buf.noteFocusStart}
@@ -414,13 +414,13 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }, [project.customCategories, hiddenSet]);
 
   const revertButton = hasChanges ? (
-    <Button variant="subtle" onClick={doRevert} disabled={readOnly}>
+    <Button variant="subtle" onClick={doRevert} disabled={locked}>
       <Undo2 className="w-3 h-3" /> Revert
     </Button>
   ) : null;
 
   const saveButton = (
-    <Button variant="primary" cloud={isCloud} onClick={doSave} disabled={readOnly || !hasChanges}>
+    <Button variant="primary" cloud={isCloud} onClick={doSave} disabled={locked || !hasChanges}>
       <Save className="w-3 h-3" /> {hasChanges ? 'Save' : 'Saved'}
     </Button>
   );
@@ -436,7 +436,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
   const actionBar = (
     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap shrink-0">
-      <Button onClick={() => setShowLinks(true)} disabled={readOnly} title="Link elements so adding the anchor adds its linked elements too">
+      <Button onClick={() => setShowLinks(true)} disabled={locked} title="Link elements so adding the anchor adds its linked elements too">
         <Link2 className="w-3 h-3" />
         Links
       </Button>
@@ -448,7 +448,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       {revertButton}
       {saveButton}
       <ToolbarDivider />
-      <Button onClick={() => setShowLinks(true)} disabled={readOnly}>
+      <Button onClick={() => setShowLinks(true)} disabled={locked}>
         <Link2 className="w-3 h-3" /> Links
       </Button>
       <DropdownMenu open={showSortMenu} onOpenChange={setShowSortMenu} width="w-40" theme="light"
@@ -479,7 +479,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             if (!ok) return;
             buf.mutateRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() || lockedIds.has(r.key) ? r : { ...r, id: String(n++) }); });
           }}
-          disabled={readOnly}
+          disabled={locked}
         >
           Auto-ID
         </Button>
@@ -497,16 +497,16 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     const hoverCls = active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300';
     // Inner actions are spans (role=button), NOT <button>s — they live inside
     // the row's own <button> and nested buttons are invalid HTML.
-    const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${readOnly ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
+    const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${locked ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
     return (
       <>
         <span
           role="button"
           tabIndex={-1}
-          aria-disabled={readOnly}
+          aria-disabled={locked}
           onClick={(e) => {
             e.stopPropagation();
-            if (readOnly) return;
+            if (locked) return;
             if (isCustom) {
               const cat = project.customCategories.find(c => c.key === key);
               setEditCatKey(key); setNewCatName(cat?.label || row.label); setNewCatIcon(cat?.icon || 'Tag'); setNewCatMultiValue(cat?.multiValue ?? true); setShowEditCustom(true);
@@ -523,10 +523,10 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           <span
             role="button"
             tabIndex={-1}
-            aria-disabled={readOnly}
+            aria-disabled={locked}
             onClick={async (e) => {
               e.stopPropagation();
-              if (readOnly) return;
+              if (locked) return;
               const ok = await dialog.confirm({ title: `Hide "${row.label}"?`, message: 'Category will be hidden from all views.', danger: true, suppressKey: 'lemon_schedule_dnwa_hide_category' });
               if (ok) {
                 dispatch({ type: 'HIDE_CATEGORY', payload: key });
@@ -542,10 +542,10 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           <span
             role="button"
             tabIndex={-1}
-            aria-disabled={readOnly}
+            aria-disabled={locked}
             onClick={(e) => {
               e.stopPropagation();
-              if (readOnly) return;
+              if (locked) return;
               dispatch({ type: 'SHOW_CATEGORY', payload: key });
             }}
             className={actionCls(hoverCls)}
@@ -558,10 +558,10 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           <span
             role="button"
             tabIndex={-1}
-            aria-disabled={readOnly}
+            aria-disabled={locked}
             onClick={async (e) => {
               e.stopPropagation();
-              if (readOnly) return;
+              if (locked) return;
               const ok = await dialog.confirm({ title: `Delete "${row.label}"?`, message: 'Category and all its data will be permanently deleted.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_category' });
               if (ok) {
                 dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: key });
@@ -596,7 +596,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         onSelect={switchCategory}
         onAdd={() => { setShowAddCustom(true); setNewCatName(''); setNewCatIcon('Tag'); }}
         addLabel="Add Custom"
-        addDisabled={readOnly}
+        addDisabled={locked}
         renderRowActions={renderRowActions}
       />
 
@@ -638,7 +638,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                             </div>
                             <button
                               onClick={() => dispatch({ type: 'TOGGLE_ELEMENT_LOCK', payload: { category, id: r.key } })}
-                              disabled={readOnly}
+                              disabled={locked}
                               title={lockedIds.has(r.key) ? 'Unlock Board ID — Auto-ID may renumber it' : 'Lock Board ID — Auto-ID never changes it'}
                               className="p-1 rounded-md shrink-0 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                             >
@@ -676,7 +676,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                         </button>
                       </td>
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
-                        <button onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1.5 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed align-middle">
+                        <button onClick={() => buf.deleteRow(r.key)} disabled={locked} className="p-1.5 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed align-middle">
                           <Trash2 style={{ width: sizes.icon, height: sizes.icon }} className="text-red-400" />
                         </button>
                       </td>
@@ -686,7 +686,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                 </tbody>
               </table>
 
-              <button onClick={buf.addNew} disabled={readOnly} style={sizes.add} className={`${MT_ADD}`}>
+              <button onClick={buf.addNew} disabled={locked} style={sizes.add} className={`${MT_ADD}`}>
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add {getLabel(category, 'element', project.categoryLabels)}</span>
               </button>

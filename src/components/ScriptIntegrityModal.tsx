@@ -13,10 +13,10 @@ import { TEST_IDS } from '../lib/testIds';
  * projects can still audit.
  */
 export default function ScriptIntegrityModal({ onClose }: { onClose: () => void }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const report = useMemo(() => auditScriptMap(project), [project]);
-  const canRepair = report.counts.repairable > 0 && !readOnly;
+  const canRepair = report.counts.repairable > 0 && !locked;
 
   const errors = report.issues.filter(i => i.severity === 'error');
   const warnings = report.issues.filter(i => i.severity === 'warning');

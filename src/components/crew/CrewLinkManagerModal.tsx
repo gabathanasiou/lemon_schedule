@@ -42,7 +42,7 @@ const REMOVE_BTN = `${ICON_BTN} text-zinc-600 hover:text-red-400 hover:bg-zinc-8
  * Manager's "Linked crew" is the mirror view).
  */
 export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const { queue } = useQueueCastNaming();
 
@@ -249,7 +249,7 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
         />
 
         {tab === 'positions' ? (
-          <PositionsTab dispatch={dispatch} readOnly={readOnly} groups={positionGroups} options={categoryOptions} />
+          <PositionsTab dispatch={dispatch} readOnly={locked} groups={positionGroups} options={categoryOptions} />
         ) : (
           <>
         <p className="text-xs text-zinc-400 leading-relaxed">

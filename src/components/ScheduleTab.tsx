@@ -53,7 +53,7 @@ import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { useScheduleKeyboard } from './schedule/useScheduleKeyboard';
 import { useScheduleDrag } from './schedule/useScheduleDrag';
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onOpenDayManager?: (sectionIndex: number) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const currentWindow = useCurrentWindow();
   const currentDocument = useCurrentDocument();
   const isCloud = useIsCloudProject();
@@ -77,7 +77,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   lastClickedIdRef.current = lastClickedId;
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [editingTarget, setEditingTarget] = useState<{ rowId: string; fieldKey: string | null } | null>(null);
-  const effectiveTextEditingEnabled = textEditingEnabled && !readOnly;
+  const effectiveTextEditingEnabled = textEditingEnabled && !locked;
   // Read by handleRowClick via ref: SortableRibbon's memo comparator ignores
   // onSelectToggle, so row click handlers keep a pre-toggle closure - a stale
   // captured value would never enter per-row edit mode.
@@ -504,7 +504,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
 
   const isMarqueeActive = useMarqueeActive();
 
-  const dragDisabled = ctrlOrCmdHeld || textEditingEnabled || marqueeMode !== 'off' || isMarqueeActive || readOnly;
+  const dragDisabled = ctrlOrCmdHeld || textEditingEnabled || marqueeMode !== 'off' || isMarqueeActive || locked;
   const sensors = useAppDragSensors(dragDisabled, 5);
 
   if (!activeVersion) return <div>No active version</div>;
@@ -1248,7 +1248,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         setTextEditingEnabled={setTextEditingEnabled}
         isEditPending={showEditSpinner}
         onToggleEdit={toggleEditMode}
-        readOnly={readOnly}
+        readOnly={locked}
         onPrint={onPrint}
         onShowHelp={() => setShowHelp(true)}
       />

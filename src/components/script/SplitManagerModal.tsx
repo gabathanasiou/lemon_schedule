@@ -22,7 +22,7 @@ import { TEST_IDS } from '../../lib/testIds';
  * drifted tag; Merge back reverses the cut. Each is ONE undo batch.
  */
 export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (sceneId: string) => void; onClose: () => void }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const dialog = useDialog();
   const project = state.present;
   const groups = useMemo(() => splitGroups(project.scenes), [project.scenes]);
@@ -76,7 +76,7 @@ export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (scene
                     variant="subtle"
                     theme="dark"
                     type="button"
-                    disabled={readOnly || !needsRenumber || renumberClash}
+                    disabled={locked || !needsRenumber || renumberClash}
                     title={renumberClash ? 'A target number is already used by another scene' : 'Normalize the group’s scene numbers'}
                     onClick={() => renumberSplitGroup(dispatch, project, group.original.id)}
                   >
@@ -86,7 +86,7 @@ export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (scene
                     variant="subtle"
                     theme="dark"
                     type="button"
-                    disabled={readOnly || !canMoveBreak}
+                    disabled={locked || !canMoveBreak}
                     title={canMoveBreak ? 'Move the cut break' : 'Needs every member’s script body'}
                     onClick={() => setBreakGroup(group)}
                   >
@@ -96,13 +96,13 @@ export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (scene
                     variant="subtle"
                     theme="dark"
                     type="button"
-                    disabled={readOnly}
+                    disabled={locked}
                     title="Rebuild a missing body / re-anchor drifted tags"
                     onClick={() => resolveSplitGroup(dispatch, project, group.original.id)}
                   >
                     <Wrench className="w-3.5 h-3.5" /> Resolve
                   </Button>
-                  <Button variant="subtle" theme="dark" type="button" disabled={readOnly} onClick={() => mergeBack(group.original.id, label)}>
+                  <Button variant="subtle" theme="dark" type="button" disabled={locked} onClick={() => mergeBack(group.original.id, label)}>
                     <GitMerge className="w-3.5 h-3.5" /> Merge back
                   </Button>
                 </div>

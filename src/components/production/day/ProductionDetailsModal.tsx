@@ -65,7 +65,7 @@ const Menu: React.FC<{ trigger: React.ReactNode; width?: string; searchable?: bo
 };
 
 export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const dialog = useDialog();
   const sizes = ruleModalSizes();
@@ -125,7 +125,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 <CommitInput
                   value={String(productionInfo[f.key as keyof typeof productionInfo] ?? '')}
                   onCommit={v => commitInfo({ [f.key]: v })}
-                  readOnly={readOnly}
+                  readOnly={locked}
                   placeholder={f.label}
                   className={INPUT_CLS}
                 />
@@ -141,7 +141,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               {rowLabel('Production Start')}
-              {readOnly ? (
+              {locked ? (
                 <span className={`${CREM_TEXT} text-zinc-300`}>{activeCalendarVersion?.productionStart || '—'}</span>
               ) : (
                 <div className="flex-1 min-w-0">
@@ -164,7 +164,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 <Menu
                   width="w-56"
                   trigger={
-                    <button type="button" disabled={readOnly} className={PICKER_TRIGGER}>
+                    <button type="button" disabled={locked} className={PICKER_TRIGGER}>
                       <span className="truncate">{DATE_FORMAT_OPTIONS.find(o => o.key === (productionInfo.dateFormat || 'short'))?.label}</span>
                       <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
                     </button>
@@ -181,7 +181,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
             <div className="flex items-center gap-3">
               {rowLabel('Timezone')}
               <div className="flex-1 min-w-0">
-                {readOnly ? (
+                {locked ? (
                   <span className={`${CREM_TEXT} text-zinc-300`}>{productionInfo.timezone || '—'}</span>
                 ) : (
                   <Menu
@@ -222,7 +222,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                   <span className={`flex-1 min-w-0 truncate ${CREM_TEXT} ${people.length ? 'text-zinc-200' : 'text-zinc-600 italic'}`}>
                     {people.length > 0 ? people.map((p: CrewPerson) => p.name).join(', ') : '— unassigned —'}
                   </span>
-                  {!readOnly && (
+                  {!locked && (
                     <Menu
                       onClose={() => setAddingName(null)}
                       trigger={
@@ -247,7 +247,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                     <CommitInput
                       value=""
                       onCommit={v => { addPersonToRole(kp.key, v); setAddingName(null); }}
-                      readOnly={readOnly}
+                      readOnly={locked}
                       placeholder="Name"
                       className="w-40 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 outline-none placeholder:text-zinc-500"
                     />

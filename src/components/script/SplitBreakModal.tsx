@@ -15,7 +15,7 @@ import { TEST_IDS } from '../../lib/testIds';
  * into the first fragment; later fragments are untouched. One undo batch.
  */
 export default function SplitBreakModal({ group, onClose }: { group: SplitGroup; onClose: () => void }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const stream = useMemo(() => mergedGroupStream(project.scriptDocument, group), [project.scriptDocument, group]);
   const members = splitGroupMembers(group);
@@ -38,7 +38,7 @@ export default function SplitBreakModal({ group, onClose }: { group: SplitGroup;
   const changed = boundary !== current && boundary >= 1 && boundary <= max;
 
   const apply = () => {
-    if (readOnly) return;
+    if (locked) return;
     if (moveSplitBreak(dispatch, project, group.original.id, boundary)) onClose();
     else setError(true);
   };
@@ -56,7 +56,7 @@ export default function SplitBreakModal({ group, onClose }: { group: SplitGroup;
       footer={
         <ModalFooter>
           <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
-          <ModalFooterButton variant="hero" onClick={apply} disabled={readOnly || !changed}>Move break</ModalFooterButton>
+          <ModalFooterButton variant="hero" onClick={apply} disabled={locked || !changed}>Move break</ModalFooterButton>
         </ModalFooter>
       }
     >

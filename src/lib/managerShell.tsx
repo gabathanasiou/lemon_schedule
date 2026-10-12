@@ -199,7 +199,7 @@ export const DatabaseManagerView: React.FC<{
   initialCategory?: string | null;
   onCategoryChange?: (key: string) => void;
 }> = ({ config, headerTarget, initialCategory, onCategoryChange }) => {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const isCloud = useIsCloudProject();
   const dialog = useDialog();
   const project = state.present;
@@ -347,7 +347,7 @@ export const DatabaseManagerView: React.FC<{
     <>
       <button
         onClick={(e) => { e.stopPropagation(); setRenamingKey(row.key); setRenameDraft(row.label); }}
-        disabled={readOnly}
+        disabled={locked}
         title={`Rename ${config.categorySingular}`}
         className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'} disabled:opacity-30 disabled:cursor-not-allowed`}
       >
@@ -355,7 +355,7 @@ export const DatabaseManagerView: React.FC<{
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); void deleteCategory(row.key); }}
-        disabled={readOnly}
+        disabled={locked}
         title={`Delete ${config.categorySingular}`}
         className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} disabled:opacity-30 disabled:cursor-not-allowed`}
       >
@@ -382,7 +382,7 @@ export const DatabaseManagerView: React.FC<{
           data-manager-name=""
           value={val}
           placeholder={placeholder}
-          readOnly={readOnly}
+          readOnly={locked}
           onChange={e => { const v = e.target.value.replace(/\n/g, ' '); onChange(uppercase ? v.toUpperCase() : v); }}
           onKeyDown={handleKey}
           onFocus={buf.noteFocusStart}
@@ -398,7 +398,7 @@ export const DatabaseManagerView: React.FC<{
         type="text"
         value={val}
         placeholder={placeholder}
-        readOnly={readOnly}
+        readOnly={locked}
         onChange={e => onChange(uppercase ? e.target.value.toUpperCase() : e.target.value)}
         onKeyDown={handleKey}
         onFocus={buf.noteFocusStart}
@@ -419,24 +419,24 @@ export const DatabaseManagerView: React.FC<{
     renderInput(r.key, field.key, r[field.key] || '', v => update(field.key, v), field.label, wrap, !!field.uppercase);
 
   const revertButton = hasChanges ? (
-    <Button variant="subtle" onClick={doRevert} disabled={readOnly}>
+    <Button variant="subtle" onClick={doRevert} disabled={locked}>
       <Undo2 className="w-3 h-3" /> Revert
     </Button>
   ) : null;
 
   const saveButton = (
-    <Button variant="primary" cloud={isCloud} onClick={doSave} disabled={readOnly || !hasChanges}>
+    <Button variant="primary" cloud={isCloud} onClick={doSave} disabled={locked || !hasChanges}>
       <Save className="w-3 h-3" /> {hasChanges ? 'Save' : 'Saved'}
     </Button>
   );
 
   const addButton = (
-    <Button variant="primary" cloud={isCloud} onClick={openAdd} disabled={!category || readOnly}>
+    <Button variant="primary" cloud={isCloud} onClick={openAdd} disabled={!category || locked}>
       <UserPlus className="w-3.5 h-3.5" /> Add {config.addNoun}
     </Button>
   );
 
-  const headerActions = config.renderHeaderActions?.({ dispatch, readOnly, project });
+  const headerActions = config.renderHeaderActions?.({ dispatch, readOnly: locked, project });
 
   const headerContent = (
     <>
@@ -480,7 +480,7 @@ export const DatabaseManagerView: React.FC<{
         onSelect={switchCategory}
         onAdd={() => { setNewCategoryName(''); setNewCategoryGroup('Other'); setShowAddCategory(true); }}
         addLabel={config.addScopeLabel}
-        addDisabled={readOnly}
+        addDisabled={locked}
         renderRowActions={renderRowActions}
       />
 
@@ -510,12 +510,12 @@ export const DatabaseManagerView: React.FC<{
                         {config.fields.map((f, fi) => (
                           <td key={f.key} style={sizes.cell} className={`${fi === 0 ? `sticky left-0 z-10 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : ''} ${MT_CELL}`}>
                             {f.render
-                              ? f.render(r, (field, val) => buf.updateRow(r.key, field, val), readOnly, { project })
-                              : defaultInput(f, r, (field, val) => buf.updateRow(r.key, field, val), readOnly, fi === 0)}
+                              ? f.render(r, (field, val) => buf.updateRow(r.key, field, val), locked, { project })
+                              : defaultInput(f, r, (field, val) => buf.updateRow(r.key, field, val), locked, fi === 0)}
                           </td>
                         ))}
                         <td style={sizes.cell} className={`${MT_CELL} text-center`}>
-                          <button title={`Delete ${config.nounSingular}`} onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
+                          <button title={`Delete ${config.nounSingular}`} onClick={() => buf.deleteRow(r.key)} disabled={locked} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
                             <Trash2 style={{ width: sizes.icon, height: sizes.icon }} className="text-red-400" />
                           </button>
                         </td>
@@ -526,7 +526,7 @@ export const DatabaseManagerView: React.FC<{
               )}
               <button
                 onClick={openAdd}
-                disabled={!category || readOnly}
+                disabled={!category || locked}
                 style={sizes.add}
                 className={`${MT_ADD}`}
               >

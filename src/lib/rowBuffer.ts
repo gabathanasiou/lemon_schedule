@@ -63,7 +63,7 @@ export interface RowBufferResult<T extends BufferedRow> {
  */
 export function useRowBuffer<T extends BufferedRow>(opts: RowBufferOptions<T>): RowBufferResult<T> {
   const { projectId, scope, loadRows, makeBlankRow, fieldsPerRow, reloadDeps, onSave, hasPendingConfirmation } = opts;
-  const { readOnly } = useProject();
+  const { locked } = useProject();
   const currentDocument = useCurrentDocument();
   const dialog = useDialog();
 
@@ -298,13 +298,13 @@ export function useRowBuffer<T extends BufferedRow>(opts: RowBufferOptions<T>): 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey) {
-        if (e.key === 'n' && e.shiftKey) { e.preventDefault(); if (!readOnly) addNew(); }
-        if (e.key === 's') { e.preventDefault(); if (!readOnly) doSave(); }
+        if (e.key === 'n' && e.shiftKey) { e.preventDefault(); if (!locked) addNew(); }
+        if (e.key === 's') { e.preventDefault(); if (!locked) doSave(); }
       }
     };
     currentDocument.addEventListener('keydown', onKey);
     return () => currentDocument.removeEventListener('keydown', onKey);
-  }, [addNew, doSave, currentDocument, readOnly]);
+  }, [addNew, doSave, currentDocument, locked]);
 
   const hasChangesRef = useRef(hasChanges);
   hasChangesRef.current = hasChanges;

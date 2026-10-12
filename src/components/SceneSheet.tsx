@@ -45,7 +45,7 @@ const ORDER_LABELS: Record<BreakdownOrder, string> = {
 };
 
 export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule, onOpenScheduleInPopout }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void; onOpenScheduleInPopout?: (sceneId: string) => void }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const { request: requestSceneDuplicate } = useSceneDuplicate();
   const isCloud = useIsCloudProject();
   const project = state.present;
@@ -256,12 +256,12 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   }, [orderedScenes, goTo]);
 
   const update = useCallback((field: string, value: any) => {
-    if (!scene || readOnly) return;
+    if (!scene || locked) return;
     setEdits(prev => {
       const existing = prev[scene.id] || {} as Partial<Scene>;
       return { ...prev, [scene.id]: { ...existing, [field]: value } };
     });
-  }, [scene, readOnly]);
+  }, [scene, locked]);
 
   const val = useCallback((field: string): any => {
     if (!scene) return '';
@@ -392,7 +392,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       <p className="text-sm text-zinc-500">No scenes defined yet.</p>
       <button
         onClick={createNewScene}
-        disabled={readOnly}
+        disabled={locked}
         className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <Plus className="w-4 h-4" />
@@ -415,14 +415,14 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         </div>
         <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
         <ToolbarDivider />
-        <Button onClick={createNewScene} disabled={readOnly} title="New Scene Sheet" aria-label="New">
+        <Button onClick={createNewScene} disabled={locked} title="New Scene Sheet" aria-label="New">
           <Plus className="w-3.5 h-3.5" />
         </Button>
-        <Button onClick={duplicateScene} disabled={readOnly} title="Duplicate Scene Sheet" aria-label="Duplicate">
+        <Button onClick={duplicateScene} disabled={locked} title="Duplicate Scene Sheet" aria-label="Duplicate">
           <Copy className="w-3.5 h-3.5" />
         </Button>
       </div>
-      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={readOnly} title="Delete Scene Sheet" aria-label="Delete">
+      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={locked} title="Delete Scene Sheet" aria-label="Delete">
         <Trash2 className="w-3.5 h-3.5" />
       </Button>
     </div>
@@ -460,13 +460,13 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       <span className="text-[11px] text-zinc-500">of {scenes.length}</span>
       <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-500" /></button>
       <ToolbarDivider />
-      <Button variant="primary" cloud={isCloud} onClick={createNewScene} disabled={readOnly} title="New Scene Sheet" aria-label="New">
+      <Button variant="primary" cloud={isCloud} onClick={createNewScene} disabled={locked} title="New Scene Sheet" aria-label="New">
         <Plus className="w-3 h-3" />
       </Button>
-      <Button onClick={duplicateScene} disabled={readOnly} title="Duplicate Scene Sheet" aria-label="Duplicate">
+      <Button onClick={duplicateScene} disabled={locked} title="Duplicate Scene Sheet" aria-label="Duplicate">
         <Copy className="w-3 h-3" />
       </Button>
-      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={readOnly} title="Delete Scene Sheet" aria-label="Delete">
+      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={locked} title="Delete Scene Sheet" aria-label="Delete">
         <Trash2 className="w-3 h-3" />
       </Button>
       <ToolbarDivider />
@@ -511,7 +511,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           update={update}
           commitField={commitField}
           commitTextEdits={commitTextEdits}
-          readOnly={readOnly}
+          readOnly={locked}
           inputCls={inputCls}
           blurOnEnter={blurOnEnter}
           setItems={setItems}

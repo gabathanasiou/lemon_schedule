@@ -39,7 +39,7 @@ function slugifyRole(label: string, existing: Set<string>): string {
 }
 
 export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose, defaultRole, defaultName, onCreated }) => {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const crewRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
 
@@ -71,7 +71,7 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
   );
   const selectedRoleLabel = allRoles.find(r => r.key === roleKey)?.label || '';
 
-  const canSave = !readOnly && name.trim().length > 0 && !!roleKey;
+  const canSave = !locked && name.trim().length > 0 && !!roleKey;
 
   const submitNewRole = () => {
     const label = newRoleName.trim();
@@ -131,7 +131,7 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
               searchPlaceholder="Search roles…"
               width="w-72"
               trigger={
-                <button type="button" disabled={readOnly} className={`mt-1 w-full justify-between text-xs ${DD_CHIP_TRIGGER_CLASS}`}>
+                <button type="button" disabled={locked} className={`mt-1 w-full justify-between text-xs ${DD_CHIP_TRIGGER_CLASS}`}>
                   <span className={selectedRoleLabel ? '' : 'text-zinc-500'}>{selectedRoleLabel || 'Select a role…'}</span>
                   <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
                 </button>
@@ -150,7 +150,7 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
             </DropdownMenu>
             <button
               type="button"
-              disabled={readOnly}
+              disabled={locked}
               onClick={() => setNewRoleOpen(true)}
               className="mt-1 text-[11px] text-zinc-500 hover:text-zinc-300 disabled:opacity-40"
             >

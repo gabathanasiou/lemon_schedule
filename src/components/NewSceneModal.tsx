@@ -20,7 +20,7 @@ import { Clapperboard, ChevronDown } from 'lucide-react';
  *  EntityDropdown auto-creates a typed Set via the shared `addNewElement`
  *  flow. `onCreated` lets the host reveal (scroll + select) the new strip. */
 export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (sceneId: string) => void }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const { queue } = useQueueCastNaming();
   const portalTarget = usePortalTarget();
   const project = state.present;
@@ -60,7 +60,7 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
       footer={
         <ModalFooter>
           <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
-          <ModalFooterButton onClick={create} disabled={readOnly}>Create</ModalFooterButton>
+          <ModalFooterButton onClick={create} disabled={locked}>Create</ModalFooterButton>
         </ModalFooter>
       }
     >
@@ -74,7 +74,7 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
             type="text"
             value={sceneNumber}
             onChange={(e) => setSceneNumber(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !readOnly) create(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !locked) create(); }}
             placeholder="e.g. 12A"
             className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
             autoFocus

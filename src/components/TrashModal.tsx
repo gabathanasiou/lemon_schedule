@@ -5,7 +5,7 @@ import ModalFooterButton from './ModalFooterButton';
 import { CardSection } from '@gabriel/ui-kit';
 import { useDialog } from './Dialog';
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './rules/ruleMeta';
-import { DEFAULT_CATEGORY_LABELS } from '../store';
+import { DEFAULT_CATEGORY_LABELS, useProject } from '../store';
 import type { Action } from '../store';
 import type { Project } from '../types';
 
@@ -52,6 +52,7 @@ export interface TrashModalProps {
 
 export default function TrashModal({ open, onClose, project, dispatch }: TrashModalProps) {
   const dialog = useDialog();
+  const { locked } = useProject();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const sections = useMemo<TrashSection[]>(() => {
@@ -210,14 +211,14 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
       width="max-w-xl"
       footer={
         <ModalFooter>
-          <ModalFooterButton variant="danger" className="mr-auto" onClick={emptyTrash} disabled={totalItems === 0}>
+          <ModalFooterButton variant="danger" className="mr-auto" onClick={emptyTrash} disabled={totalItems === 0 || locked}>
             Empty
           </ModalFooterButton>
           <ModalFooterButton onClick={onClose}>Close</ModalFooterButton>
         </ModalFooter>
       }
     >
-      <div className="p-5 space-y-3">
+      <div className="p-5 space-y-3" inert={locked || undefined}>
         <p className="text-[11px] text-zinc-500">Items expire after 30 days</p>
         {totalItems === 0 ? (
           <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>

@@ -41,7 +41,7 @@ export const DayCell: React.FC<{
   dropState?: DayDropState;
   flashColor?: 'a' | 'b';
 }> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onContextMenu, nonShootStatus, dayTypeVisual, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
-  const { readOnly, state } = useProject();
+  const { locked, state } = useProject();
   const project = state.present;
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -51,7 +51,7 @@ export const DayCell: React.FC<{
   const { setNodeRef: setDragRef, attributes: dragAttributes, listeners: dragListeners, isDragging } = useDraggable({
     id: `day-section-${sectionIndex ?? -1}`,
     data: { type: 'DAY', sectionIndex },
-    disabled: !sectionLabel || readOnly,
+    disabled: !sectionLabel || locked,
   });
 
   const { setNodeRef: setEndRef } = useDroppable({

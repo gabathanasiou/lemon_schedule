@@ -53,12 +53,12 @@ export const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displ
 };
 
 export const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string, shiftKey?: boolean) => void; onContextMenu?: (e: React.MouseEvent) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, onToggle, onDoubleClick, onContextMenu }) => {
-  const { state, readOnly } = useProject();
+  const { state, locked } = useProject();
   const sel = getSelectedStripColors(state.present.colorPalette);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
-    disabled: readOnly,
+    disabled: locked,
   });
   const style = {
     transform: CSS.Transform.toString(transform),

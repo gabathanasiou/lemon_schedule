@@ -69,7 +69,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   onPopOutDay,
   onChromeModeChange,
 }) => {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { days, byIndex } = useDayViews();
@@ -247,7 +247,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           onSelectDay={index => selectDay(index)}
           onPrint={() => onPrintCallSheet?.(selected, callSheetDesign, hasZoneOverride ? zoneBlocks : undefined)}
           onBack={() => setEditCallSheet(false)}
-          readOnly={readOnly}
+          readOnly={locked}
           headerTarget={headerTarget}
           dayPickerTarget={dayPickerTarget}
         />
@@ -275,7 +275,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             day={selected}
             patchMeta={patchMeta}
             patchRow={patchRow}
-            readOnly={readOnly}
+            readOnly={locked}
             project={project}
             dispatch={dispatch}
             actions={actions}

@@ -10,7 +10,7 @@ import Modal from './Modal';
 import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
 
 export const RulesTab: React.FC = () => {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const rules = project.rules || [];
   const scenes = project.scenes;
@@ -100,7 +100,7 @@ export const RulesTab: React.FC = () => {
               </div>
               <button
                 onClick={handleAdd}
-                disabled={readOnly}
+                disabled={locked}
                 className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4" />
@@ -161,7 +161,7 @@ export const RulesTab: React.FC = () => {
                 </p>
                 <button
                   onClick={handleAdd}
-                  disabled={readOnly}
+                  disabled={locked}
                   className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
@@ -213,7 +213,7 @@ export const RulesTab: React.FC = () => {
                               key={rule.id}
                               rule={rule}
                               castMembers={castMembers}
-                              onEdit={readOnly ? () => {} : () => handleEdit(rule)}
+                              onEdit={locked ? () => {} : () => handleEdit(rule)}
                             />
                           ))}
                         </div>

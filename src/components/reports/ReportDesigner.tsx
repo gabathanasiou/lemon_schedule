@@ -68,7 +68,7 @@ interface ReportDesignerProps {
 }
 
 export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDesignerProps) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const dialog = useDialog();
   const project = state.present;
   const ctx = useReportCtx();
@@ -351,7 +351,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       objectMixed={cellOps.rangeMixed}
       editorRef={cellEditorRef}
       active={cellRtState}
-      readOnly={readOnly}
+      readOnly={locked}
       panel
       onMerge={cellOps.merge}
       onUnmerge={cellOps.unmerge}
@@ -543,7 +543,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       <DesignsMenu
         designs={project.reportDesigns || []}
         activeId={activeDesign?.id || ''}
-        readOnly={readOnly}
+        readOnly={locked}
         onSelect={id => dispatch({ type: 'SET_ACTIVE_REPORT', payload: id })}
         onRename={(id, name) => dispatch({ type: 'RENAME_REPORT_DESIGN', payload: { id, name } })}
         onDuplicate={id => {
@@ -591,7 +591,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             onClick={() => {
               setViewMode(m);
               setViewMenuOpen(false);
-              if (m !== 'full' && activeDesign && activeDesign.page !== m && !readOnly) {
+              if (m !== 'full' && activeDesign && activeDesign.page !== m && !locked) {
                 dispatch({ type: 'UPDATE_REPORT_PAGE', payload: { id: activeDesign.id, page: m } });
               }
             }}
@@ -696,7 +696,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     parentCollection: selParentCollection,
     parentCategory: selParentCategory,
     project,
-    readOnly,
+    readOnly: locked,
     onPatch: (p: Partial<ReportBlock>) => selId && patch(selId, p),
     onSaveTextStyles: (styles: ReportTextStyle[]) => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles }),
     onDuplicate: () => selId && duplicateBlockSelect(selId),
@@ -744,7 +744,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                       <div className="shrink-0 border-b border-zinc-800 px-3 py-2">
                         <span className="text-[10px] text-zinc-600">Select a block to edit it. Click an item in the palette to add it.</span>
                       </div>
-                      <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={readOnly} fill />
+                      <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={locked} fill />
                     </>
                   )}
                 </aside>
@@ -768,7 +768,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               </div>
             )
           ) : (
-            <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={readOnly} />
+            <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={locked} />
           )}
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
             <ReportDesignerCanvas
@@ -783,7 +783,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               selCol={selCol}
               ctx={ctx}
               fieldMap={fieldMap}
-              readOnly={readOnly}
+              readOnly={locked}
               mode={reportMode}
               previewSectionIndex={dayScoped && effectiveDay != null ? effectiveDay : undefined}
               autoEditId={autoEditId}

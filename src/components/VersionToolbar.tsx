@@ -13,7 +13,7 @@ interface VersionToolbarProps {
 }
 
 export default function VersionToolbar({ projectTitle, onProjectTitleChange, tabName, onClose }: VersionToolbarProps) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const dialog = useDialog();
   const guardState = useUnsavedGuardState();
   const isCloudProject = useIsCloudProject();
@@ -27,7 +27,7 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
 
   return (
     <div className={`shrink-0 ${cloudBg} text-zinc-300 select-none print:hidden`}>
-      {readOnly && (
+      {locked && (
         <div className="bg-red-600 text-white px-4 py-1.5 flex items-center justify-between text-xs">
           <span className="font-medium">No Internet Connection - editing disabled</span>
         </div>

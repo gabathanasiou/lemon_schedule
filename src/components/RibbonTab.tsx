@@ -70,7 +70,7 @@ function rowsEqualContent(a: RibbonRow[], b: RibbonRow[]): boolean {
 }
 
 export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement | null }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const dialog = useDialog();
   const project = state.present;
   const activeDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId)
@@ -619,12 +619,12 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           dispatch({ type: 'SET_RIBBON_TEXT_SIZE', payload: { id: activeDesign.id, textSize: 10 } });
           dispatch({ type: 'BATCH_COMMIT' });
         }}
-        readOnly={readOnly}
+        readOnly={locked}
         label="Editing"
         header="RIBBON DESIGNS"
         itemLabel="Design"
         trigger={
-          <Button theme="dark" className={readOnly ? 'opacity-40 cursor-not-allowed' : ''}>
+          <Button theme="dark" className={locked ? 'opacity-40 cursor-not-allowed' : ''}>
             <span className="text-xs font-semibold text-zinc-500">Editing:</span>
             <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
             <ChevronDown className="w-3 h-3 text-zinc-500" />
@@ -675,7 +675,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           placed={placed}
           total={total}
           customCategories={project.customCategories || []}
-          readOnly={readOnly}
+          readOnly={locked}
           selId={selId}
           assign={assign}
         />
@@ -684,7 +684,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         <div ref={canvasRef} className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12" onClick={() => setSelId(null)}>
           {/* Toolbar */}
           <RibbonToolbar
-            readOnly={readOnly}
+            readOnly={locked}
             selCell={selCell}
             selId={selId}
             numCols={numCols}
@@ -716,7 +716,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
             <RibbonDesignerGrid
-              readOnly={readOnly}
+              readOnly={locked}
               rows={rows}
               colWidths={colWidths}
               numCols={numCols}

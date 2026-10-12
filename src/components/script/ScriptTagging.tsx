@@ -66,7 +66,7 @@ export interface ScriptTaggingApi {
 }
 
 export function useScriptTagging(): ScriptTaggingApi {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const { queue: queueCastNaming } = useQueueCastNaming();
   const [showSuggestions, setShowSuggestions] = usePersistState('lemon_schedule_script_suggestions', true);
@@ -113,7 +113,7 @@ export function useScriptTagging(): ScriptTaggingApi {
 
   const handleSelectionEnd = useCallback(() => {
     window.setTimeout(() => {
-      if (readOnly) return;
+      if (locked) return;
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
         selectionRangeRef.current = null;
@@ -150,7 +150,7 @@ export function useScriptTagging(): ScriptTaggingApi {
         source: 'selection',
       });
     }, 0);
-  }, [readOnly, project.scriptAnnotations, derived]);
+  }, [locked, project.scriptAnnotations, derived]);
 
   // Keep the native selection highlighted while the selection menu is open:
   // the kit menu focuses its search input on open, which clears the browser
@@ -182,7 +182,7 @@ export function useScriptTagging(): ScriptTaggingApi {
   }, [tagMenu]);
 
   const openAnnotation = useCallback((annotation: ScriptAnnotation, event?: React.MouseEvent) => {
-    if (readOnly) return;
+    if (locked) return;
     setHovered(null);
     selectionRangeRef.current = null;
     const existing = (project.scriptAnnotations || []).find(a => a.id === annotation.id);
@@ -197,7 +197,7 @@ export function useScriptTagging(): ScriptTaggingApi {
       suggestion: !existing && !isAttached && isSuggestion ? annotation : undefined,
       source: 'annotation',
     });
-  }, [readOnly, project.scriptAnnotations]);
+  }, [locked, project.scriptAnnotations]);
 
   const handleAnnotationHover = useCallback((annotation: ScriptAnnotation | null, event?: React.MouseEvent) => {
     if (!annotation) { setHovered(null); return; }
@@ -205,7 +205,7 @@ export function useScriptTagging(): ScriptTaggingApi {
   }, []);
 
   const onCommit = useCallback((category: string) => {
-    if (!tagMenu || readOnly) return;
+    if (!tagMenu || locked) return;
     const { target, existing, derived, suggestion } = tagMenu;
     // Reuse the anchored element (stored annotation, attached span or
     // suggestion); a fresh selection becomes a new element from its text.
@@ -218,14 +218,14 @@ export function useScriptTagging(): ScriptTaggingApi {
           : undefined;
     commitTag(dispatch, project, target, category, previous, queueCastNaming);
     setTagMenu(null);
-  }, [tagMenu, readOnly, dispatch, project, queueCastNaming]);
+  }, [tagMenu, locked, dispatch, project, queueCastNaming]);
 
   const onRemove = useCallback(() => {
     if (!tagMenu) return;
     const anchor = tagMenu.existing || tagMenu.derived;
-    if (anchor && !readOnly) detachTag(dispatch, project, tagMenu.target.sceneId, anchor.category, anchor.elementKey);
+    if (anchor && !locked) detachTag(dispatch, project, tagMenu.target.sceneId, anchor.category, anchor.elementKey);
     setTagMenu(null);
-  }, [tagMenu, readOnly, dispatch, project]);
+  }, [tagMenu, locked, dispatch, project]);
 
   const closeMenu = useCallback(() => setTagMenu(null), []);
 

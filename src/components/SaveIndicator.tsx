@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, WifiOff, Save, Cloud, CloudOff, HardDrive } from 'lucide-react';
+import { Loader2, WifiOff, Save, Cloud, CloudOff, HardDrive, Eye } from 'lucide-react';
 import { useProject } from '../store';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 
 export interface SaveState {
-  status: 'idle' | 'saving' | 'saved' | 'offline';
+  status: 'idle' | 'saving' | 'saved' | 'offline' | 'viewOnly';
   lastSavedAt: number | null;
 }
 
 export function useSaveIndicator(): SaveState {
-  const { readOnly, state } = useProject();
+  const { readOnly, canEdit, state } = useProject();
   const [status, setStatus] = useState<SaveState['status']>('idle');
   const lastSavedRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -25,6 +25,11 @@ export function useSaveIndicator(): SaveState {
       setStatus('offline');
       return;
     }
+    // View-only members never write — the eye reads their permission, not sync.
+    if (!canEdit) {
+      setStatus('viewOnly');
+      return;
+    }
 
     setStatus('saving');
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -36,7 +41,7 @@ export function useSaveIndicator(): SaveState {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [state.present, readOnly]);
+  }, [state.present, readOnly, canEdit]);
 
   return status === 'offline'
     ? { status: 'offline', lastSavedAt: null }
@@ -45,7 +50,7 @@ export function useSaveIndicator(): SaveState {
 
 export function SaveIndicator({ isCloudProject, isOnlineProject }: { isCloudProject?: boolean; isOnlineProject?: boolean }) {
   const { status, lastSavedAt } = useSaveIndicator();
-  const { driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync } = useProject();
+  const { canEdit, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync } = useProject();
   const auth = useGoogleAuth();
   const [showTooltip, setShowTooltip] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -53,6 +58,26 @@ export function SaveIndicator({ isCloudProject, isOnlineProject }: { isCloudProj
   const iconColor = isCloudProject ? 'text-white' : 'text-zinc-500';
 
   if (status === 'idle') return null;
+
+  // Permission beats sync state: a view-only member sees the eye (with the
+  // reason when access changed mid-session), never a broken retry affordance.
+  if (!canEdit) {
+    return (
+      <div
+        className="relative"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        data-testid="view-only-indicator"
+      >
+        <Eye className={`w-3.5 h-3.5 ${iconColor}`} />
+        {showTooltip && (
+          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+            {driveErrorMsg || 'View only — you can’t make changes to this shared project'}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (status === 'offline') {
     const tooltipText = !isCloudProject

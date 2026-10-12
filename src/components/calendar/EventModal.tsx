@@ -45,7 +45,7 @@ function formatDateLabel(dateKey: string): string {
  *  element events manager the element + category stay locked. Delete
  *  removes the card. Never the whole-day editor — other cards untouched. */
 export function EventModal({ dateKey, statusKey, category, elementKey, editableElement, onClose }: EventModalProps) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const { queue } = useQueueCastNaming();
   const project = state.present;
   const portalTarget = usePortalTarget();
@@ -112,7 +112,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
   }, [project.elementLinks]);
 
   const save = () => {
-    if (readOnly) return;
+    if (locked) return;
     const trimmed = note.trim();
     const changed = date !== dateKey || type !== statusKey || cat !== category || key !== elementKey;
 
@@ -145,7 +145,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
   };
 
   const remove = () => {
-    if (readOnly) return;
+    if (locked) return;
     // Delete the ORIGINAL card wherever it sits (the All-card deletes its
     // whole-category mark).
     let entry = entryByDate.get(dateKey);

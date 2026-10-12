@@ -134,7 +134,7 @@ export const GlideGridShell: React.FC<{
   headerTarget?: HTMLElement | null;
   onGoToManager?: (categoryKey: string) => void;
 }> = ({ config, headerTarget, onGoToManager }) => {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const currentDocument = useCurrentDocument();
   const project = state.present;
 
@@ -144,8 +144,8 @@ export const GlideGridShell: React.FC<{
   rowsRef.current = rows;
   const categoriesRef = useRef(categories);
   categoriesRef.current = categories;
-  const readOnlyRef = useRef(readOnly);
-  readOnlyRef.current = readOnly;
+  const readOnlyRef = useRef(locked);
+  readOnlyRef.current = locked;
   const projectRef = useRef(project);
   projectRef.current = project;
 
@@ -577,7 +577,7 @@ export const GlideGridShell: React.FC<{
   const [infoOpen, setInfoOpen] = useState(false);
 
   const infoCounts = useMemo(() => config.labels.infoCounts(rows, project), [config, rows, project]);
-  const headerActions = config.renderHeaderActions?.({ dispatch, readOnly, project });
+  const headerActions = config.renderHeaderActions?.({ dispatch, readOnly: locked, project });
 
   const headerContent = (
     <div className="flex items-center justify-end gap-1">
@@ -590,7 +590,7 @@ export const GlideGridShell: React.FC<{
           </Button>
         }
       >
-        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />} disabled={readOnly}>
+        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />} disabled={locked}>
           Import {config.labels.importTitle.replace(/^Import\s+/, '')} CSV
         </DropdownItem>
         <DropdownDivider />
@@ -686,7 +686,7 @@ export const GlideGridShell: React.FC<{
           smoothScrollX={smoothScroll}
           smoothScrollY={smoothScroll}
           portalElementRef={gridPortalRef}
-          readonly={readOnly}
+          readonly={locked}
           {...({ experimental: { eventTarget: currentDocument } } as any)}
         />
       </div>
@@ -698,13 +698,13 @@ export const GlideGridShell: React.FC<{
             <ContextMenuItem onClick={() => void handleCopy()} icon={<Copy className="w-3.5 h-3.5" />}>
               Copy
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => void handleCut()} icon={<Scissors className="w-3.5 h-3.5" />} disabled={readOnly}>
+            <ContextMenuItem onClick={() => void handleCut()} icon={<Scissors className="w-3.5 h-3.5" />} disabled={locked}>
               Cut
             </ContextMenuItem>
-            <ContextMenuItem onClick={() => void handlePasteFromMenu()} icon={<ClipboardPaste className="w-3.5 h-3.5" />} disabled={readOnly}>
+            <ContextMenuItem onClick={() => void handlePasteFromMenu()} icon={<ClipboardPaste className="w-3.5 h-3.5" />} disabled={locked}>
               Paste
             </ContextMenuItem>
-            <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3.5 h-3.5 text-zinc-400" />} disabled={!hasSelection || readOnly}>
+            <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3.5 h-3.5 text-zinc-400" />} disabled={!hasSelection || locked}>
               Clear
             </ContextMenuItem>
             <ContextMenuDivider />
@@ -736,14 +736,14 @@ export const GlideGridShell: React.FC<{
             <ContextMenuItem
               onClick={() => { config.sortAction(dispatch, sortMenu.colKey, 'asc'); setSortMenu(null); }}
               icon={<ArrowUp className="w-3 h-3 text-zinc-400" />}
-              disabled={readOnly}
+              disabled={locked}
             >
               Sort A to Z
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => { config.sortAction(dispatch, sortMenu.colKey, 'desc'); setSortMenu(null); }}
               icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}
-              disabled={readOnly}
+              disabled={locked}
             >
               Sort Z to A
             </ContextMenuItem>

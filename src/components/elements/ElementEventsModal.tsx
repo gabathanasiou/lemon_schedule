@@ -49,7 +49,7 @@ function formatDateLabel(dateKey: string): string {
  *  Rules (Add Rule pre-scoped to the element). Add Event picks a date in a
  *  collapsed calendar and opens the shared day editor pre-seeded. */
 export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }: ElementEventsModalProps) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const { productionSections, sectionDateMap, activeVersion } = useDaybreakSections();
   const sizes = ruleModalSizes();
@@ -156,7 +156,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
   const openAddEvent = () => setNested({ kind: 'adder' });
 
   const removeGroup = (date: string, status: string, groups: ElementEventGroup[]) => {
-    if (readOnly) return;
+    if (locked) return;
     let entry = entryByDate.get(date);
     for (const g of groups) {
       if (isAllKeys(g.keys)) continue;
@@ -218,7 +218,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
               <CalendarDays className="w-3 h-3 text-zinc-400" />
               Events
             </span>
-            <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={openAddEvent} disabled={readOnly}>
+            <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={openAddEvent} disabled={locked}>
               <Plus className="w-3 h-3" /> Add Event
             </Button>
           </div>
@@ -252,7 +252,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                           title={formatDateLabel(date)}
                           bodyClass={ITEM_ROW_BODY_WRAP}
                           dataProps={{ 'data-element-event-date': date }}
-                          trailing={!readOnly && (
+                          trailing={!locked && (
                             <button
                               onClick={() => removeGroup(date, status, groups)}
                               disabled={wholeOnly}
@@ -264,7 +264,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                             </button>
                           )}
                         >
-                          {noteDate === date && noteCategory && !readOnly ? (
+                          {noteDate === date && noteCategory && !locked ? (
                             <input
                               autoFocus
                               type="text"
@@ -281,14 +281,14 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                           ) : note ? (
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); !readOnly && setNoteDate(date); }}
-                              title={readOnly ? note : 'Edit note'}
+                              onClick={(e) => { e.stopPropagation(); !locked && setNoteDate(date); }}
+                              title={locked ? note : 'Edit note'}
                               className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-text"
                             >
                               <span className="text-zinc-500 shrink-0 font-medium">Notes:</span>
                               <span className="truncate italic">"{note}"</span>
                             </button>
-                          ) : !readOnly ? (
+                          ) : !locked ? (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setNoteDate(date); }}
@@ -342,7 +342,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                 <Clock4 className="w-3 h-3" />
                 Rules
               </span>
-              {isCast && !readOnly && (
+              {isCast && !locked && (
                 <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'rule', rule: addRuleSkeleton })}>
                   <Plus className="w-3 h-3" /> Add Rule
                 </Button>
@@ -367,8 +367,8 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
                 >
                   {rules.map(r => (
                     <RuleCard key={r.id} rule={r} castMembers={project.castMembers || []} theme="dark" compact
-                      onEdit={readOnly ? () => {} : () => setNested({ kind: 'rule', rule: r })}
-                      onDelete={readOnly ? undefined : () => dispatch({ type: 'DELETE_RULE', payload: r.id })} />
+                      onEdit={locked ? () => {} : () => setNested({ kind: 'rule', rule: r })}
+                      onDelete={locked ? undefined : () => dispatch({ type: 'DELETE_RULE', payload: r.id })} />
                   ))}
                 </CardSection>
               );

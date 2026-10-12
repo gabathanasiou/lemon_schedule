@@ -27,13 +27,13 @@ export default function SceneDuplicateModal({ scene, onConfirm, onClose }: {
   onConfirm: (duplicate: Scene) => void;
   onClose: () => void;
 }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const [mode, setMode] = useState<DuplicateMode>('plain');
   const [number, setNumber] = useState(() => nextLetterSceneNumber(project.scenes, scene.sceneNumber));
 
   const confirm = () => {
-    if (readOnly) return;
+    if (locked) return;
     const result = buildSceneDuplicate(project, scene, mode);
     if (mode !== 'coverage' && number.trim()) result.scene.sceneNumber = number.trim();
     dispatch({ type: 'BATCH_START' });
@@ -59,7 +59,7 @@ export default function SceneDuplicateModal({ scene, onConfirm, onClose }: {
       footer={
         <ModalFooter>
           <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
-          <ModalFooterButton variant="hero" onClick={confirm} disabled={readOnly || (mode !== 'coverage' && !number.trim())}>Duplicate</ModalFooterButton>
+          <ModalFooterButton variant="hero" onClick={confirm} disabled={locked || (mode !== 'coverage' && !number.trim())}>Duplicate</ModalFooterButton>
         </ModalFooter>
       }
     >

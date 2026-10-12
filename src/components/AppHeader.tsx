@@ -56,7 +56,7 @@ interface AppHeaderProps {
 }
 
 export default function AppHeader(props: AppHeaderProps) {
-  const { state, dispatch, projectList, currentProjectId, renameProject } = useProject();
+  const { state, dispatch, projectList, currentProjectId, renameProject, locked } = useProject();
   const dialog = useDialog();
   const guardState = useUnsavedGuardState();
   const project = state.present;
@@ -125,13 +125,13 @@ export default function AppHeader(props: AppHeaderProps) {
             </DropdownItem>
             <DropdownDivider />
             <DropdownSubmenu id="import-file" label="Import" icon={<FileUp className="w-3.5 h-3.5" />} width="w-56">
-              <DropdownItem onClick={() => { setShowFileMenu(false); onImportClick(); }}>
+              <DropdownItem onClick={() => { setShowFileMenu(false); onImportClick(); }} disabled={locked}>
                 .fdx, .fountain, .csv, .txt
               </DropdownItem>
               <DropdownItem onClick={() => { setShowFileMenu(false); onImportNewProject(); }}>
                 New project (.lemon, .msd, .sex, scripts)
               </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); onUpdateScript(); }}>
+              <DropdownItem onClick={() => { setShowFileMenu(false); onUpdateScript(); }} disabled={locked}>
                 Update script (diff)…
               </DropdownItem>
             </DropdownSubmenu>
@@ -218,8 +218,8 @@ export default function AppHeader(props: AppHeaderProps) {
             />
           ) : (
             <span
-              onClick={() => setEditingTitle(true)}
-              className="text-white font-medium px-1 truncate max-w-[60px] md:max-w-[120px] cursor-pointer hover:opacity-80"
+              onClick={() => { if (!locked) setEditingTitle(true); }}
+              className={`text-white font-medium px-1 truncate max-w-[60px] md:max-w-[120px] ${locked ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
               title={project.title}
             >
               {project.title}

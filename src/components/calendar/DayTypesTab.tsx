@@ -20,7 +20,7 @@ import { AddDayTypeModal, EditDayTypeModal } from './DayTypeModals';
  *  Edits dispatch SET_DAY_TYPES immediately (one undo entry per modal save);
  *  the reducer prunes statuses whose key vanished. */
 export const DayTypesTab: React.FC = () => {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const dialog = useDialog();
   const project = state.present;
   const sizes = useManagerTableSizes();
@@ -189,14 +189,14 @@ export const DayTypesTab: React.FC = () => {
     const hoverCls = active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300';
     // Inner actions are spans (role=button) — they live inside the row's own
     // <button> and nested buttons are invalid HTML.
-    const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${readOnly ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
+    const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${locked ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
     return (
       <>
         <span
           role="button"
           tabIndex={-1}
-          aria-disabled={readOnly}
-          onClick={(e) => { e.stopPropagation(); if (!readOnly) openEdit(row.key); }}
+          aria-disabled={locked}
+          onClick={(e) => { e.stopPropagation(); if (!locked) openEdit(row.key); }}
           title="Edit"
           className={actionCls(hoverCls)}
         >
@@ -205,8 +205,8 @@ export const DayTypesTab: React.FC = () => {
         <span
           role="button"
           tabIndex={-1}
-          aria-disabled={readOnly}
-          onClick={async (e) => { e.stopPropagation(); if (!readOnly) await remove(row.key); }}
+          aria-disabled={locked}
+          onClick={async (e) => { e.stopPropagation(); if (!locked) await remove(row.key); }}
           className={actionCls(active ? 'hover:bg-red-900/50' : 'hover:bg-red-100')}
         >
           <Trash2 style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-red-400" />
@@ -224,7 +224,7 @@ export const DayTypesTab: React.FC = () => {
         onSelect={setSelectedKey}
         onAdd={openAdd}
         addLabel="Add Day Type"
-        addDisabled={readOnly}
+        addDisabled={locked}
         renderRowActions={renderRowActions}
       />
 

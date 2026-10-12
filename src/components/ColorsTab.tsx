@@ -29,7 +29,7 @@ interface EditState {
 }
 
 export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ headerTarget }) => {
-  const { state, dispatch } = useProject();
+  const { state, dispatch, locked } = useProject();
   const palette = state.present.colorPalette || DEFAULT_COLOR_PALETTE;
   const ieOptions = getIntExtOptions(palette);
   const dnOptions = getDayNightOptions(palette);
@@ -337,7 +337,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           <DropdownItem onClick={handleExport} icon={<Download className="w-3.5 h-3.5" />}>
             Export Palette & Rules
           </DropdownItem>
-          <DropdownItem onClick={() => { importRef.current?.click(); setDropdownOpen(false); }} icon={<Upload className="w-3.5 h-3.5" />}>
+          <DropdownItem onClick={() => { importRef.current?.click(); setDropdownOpen(false); }} icon={<Upload className="w-3.5 h-3.5" />} disabled={locked}>
             Import Palette & Rules
           </DropdownItem>
         </DropdownMenu>,
@@ -371,8 +371,10 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
         </Modal>
       )}
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto p-6 pr-12 pb-20 bg-zinc-950 space-y-5">
+      {/* Body — `inert` when view-only (S2): the whole editing pane is
+          non-interactive (clicks, focus, keyboard) without looking broken;
+          the header's View-only eye carries the explanation. */}
+      <div className="flex-1 overflow-y-auto p-6 pr-12 pb-20 bg-zinc-950 space-y-5" inert={locked || undefined}>
 
         {/* Scene Color Matrix Section */}
         {/* Color Rules Section */}

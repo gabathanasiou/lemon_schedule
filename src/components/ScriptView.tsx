@@ -84,7 +84,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   cutMode?: boolean;
   onCutModeChange?: (v: boolean) => void;
 }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const doc = project.scriptDocument;
   const projectScenes = project.scenes;
@@ -116,9 +116,9 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
 
   /** Merge a cut back (the junction handle). Instant + undoable, fragment → Trash. */
   const mergeCut = useCallback((sceneId: string) => {
-    if (readOnly) return;
+    if (locked) return;
     mergeSceneWithNext(dispatch, project, sceneId);
-  }, [readOnly, dispatch, project]);
+  }, [locked, dispatch, project]);
 
   // Script scene number → the live Scene it belongs to (for sets / navigation).
   const sceneByIdentity = useMemo(() => {
@@ -169,10 +169,10 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
 
   const performCut = useCallback((sceneIndex: number, blockIndex: number, options?: boolean) => {
     const live = liveSceneForDocIndex(sceneIndex);
-    if (!live || readOnly) return;
+    if (!live || locked) return;
     if (options) { onCutScene?.(live.id, blockIndex); return; }
     if (cutSceneAt(dispatch, project, live.id, blockIndex)) onCutModeChange?.(false);
-  }, [liveSceneForDocIndex, readOnly, onCutScene, dispatch, project, onCutModeChange]);
+  }, [liveSceneForDocIndex, locked, onCutScene, dispatch, project, onCutModeChange]);
 
   /** Top of the page's padding box in viewport coords (absolute-position origin). */
   const pageOriginTop = useCallback(() => {
@@ -507,7 +507,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                     <CutHandle
                       label={`${prevLive.sceneNumber} / ${scene.sceneNumber}`}
                       onMerge={() => mergeCut(prevLive.id)}
-                      disabled={readOnly}
+                      disabled={locked}
                     />
                   )}
                   <section

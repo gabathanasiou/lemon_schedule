@@ -59,7 +59,7 @@ function formatDateLabel(dateKey: string): string {
  *  day's entry; each element renders as its own card. A "Create Rule
  *  instead" swap builds a rule on the same date via the shared editor. */
 export function EventAdderModal({ date: preseedDate, preseed, status: statusProp, onClose }: EventAdderModalProps) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, canEdit } = useProject();
   const { queue } = useQueueCastNaming();
   const project = state.present;
   const portalTarget = usePortalTarget();
@@ -155,7 +155,7 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
   };
 
   const create = () => {
-    if (dateKeys.length === 0 || !activeCalendarVersion || readOnly) return;
+    if (dateKeys.length === 0 || !activeCalendarVersion || !canEdit) return;
     const created: { date: string; entry: NonShootDate }[] = [];
     for (const d of dateKeys) {
       const entry = buildEntry(d);

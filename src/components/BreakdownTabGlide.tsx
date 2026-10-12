@@ -101,7 +101,7 @@ export function GlideBreakdownTab({
   onOpenSheetInPopout?: (rowIndex: number) => void;
   headerTarget?: HTMLElement | null;
 }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const { request: requestSceneDuplicate } = useSceneDuplicate();
   const isCloud = useIsCloudProject();
   const project = state.present;
@@ -381,8 +381,8 @@ export function GlideBreakdownTab({
 
   const scenesRef = useRef(scenes);
   scenesRef.current = scenes;
-  const readOnlyRef = useRef(readOnly);
-  readOnlyRef.current = readOnly;
+  const readOnlyRef = useRef(locked);
+  readOnlyRef.current = locked;
   const selectModeRef = useRef(false);
   selectModeRef.current = marqueeMode === 'tool';
   const projectRef = useRef(project);
@@ -989,7 +989,7 @@ export function GlideBreakdownTab({
 
   const headerContent = (
     <div className="flex items-center justify-end gap-1">
-      <Button variant="primary" cloud={isCloud} onClick={addScene} disabled={readOnly}>
+      <Button variant="primary" cloud={isCloud} onClick={addScene} disabled={locked}>
         + Add Scene
       </Button>
       <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-44" theme="light"
@@ -1000,14 +1000,14 @@ export function GlideBreakdownTab({
           </Button>
         }
       >
-        <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<Search className="w-3.5 h-3.5" />} disabled={readOnly}>
+        <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<Search className="w-3.5 h-3.5" />} disabled={locked}>
           Sort by #
         </DropdownItem>
-        <DropdownItem onClick={() => { setActionsOpen(false); cleanEmptyRows(); }} icon={<RotateCcw className="w-3.5 h-3.5" />} disabled={readOnly}>
+        <DropdownItem onClick={() => { setActionsOpen(false); cleanEmptyRows(); }} icon={<RotateCcw className="w-3.5 h-3.5" />} disabled={locked}>
           Clean Empty
         </DropdownItem>
         <DropdownDivider />
-        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />} disabled={readOnly}>
+        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />} disabled={locked}>
           Import CSV
         </DropdownItem>
         <DropdownItem onClick={() => { setActionsOpen(false); exportBreakdownCSV(project); }} icon={<Download className="w-3.5 h-3.5" />}>
@@ -1108,7 +1108,7 @@ export function GlideBreakdownTab({
           smoothScrollX={smoothScroll}
           smoothScrollY={smoothScroll}
           portalElementRef={gridPortalRef}
-          readonly={readOnly}
+          readonly={locked}
           {...({ experimental: { eventTarget: currentDocument } } as any)}
         />
       </div>
@@ -1120,19 +1120,19 @@ export function GlideBreakdownTab({
             {contextMenu.col !== undefined && (
               <>
                 <ContextMenuItem onClick={handleCopy} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection}>Copy</ContextMenuItem>
-                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || readOnly || marqueeMode === 'tool'}>Cut</ContextMenuItem>
+                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || locked || marqueeMode === 'tool'}>Cut</ContextMenuItem>
                 {contextMenu.col >= 0 ? (
-                  <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!hasActiveCell || readOnly || marqueeMode === 'tool'}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!hasActiveCell || locked || marqueeMode === 'tool'}>Paste</ContextMenuItem>
                 ) : (
-                  <ContextMenuItem onClick={() => handlePasteAtRow(contextMenu.row)} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={readOnly || marqueeMode === 'tool'}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handlePasteAtRow(contextMenu.row)} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={locked || marqueeMode === 'tool'}>Paste</ContextMenuItem>
                 )}
-                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || readOnly || marqueeMode === 'tool'}>Clear</ContextMenuItem>
+                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || locked || marqueeMode === 'tool'}>Clear</ContextMenuItem>
                 <ContextMenuDivider />
               </>
             )}
-            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />} disabled={readOnly || marqueeMode === 'tool'}>Insert Above</ContextMenuItem>
-            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />} disabled={readOnly || marqueeMode === 'tool'}>Insert Below</ContextMenuItem>
-            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={readOnly || marqueeMode === 'tool'}>Duplicate</ContextMenuItem>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />} disabled={locked || marqueeMode === 'tool'}>Insert Above</ContextMenuItem>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />} disabled={locked || marqueeMode === 'tool'}>Insert Below</ContextMenuItem>
+            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={locked || marqueeMode === 'tool'}>Duplicate</ContextMenuItem>
             <ContextMenuDivider />
             {!IS_COARSE && shiftHeld && onOpenSheetInPopout ? (
               <ContextMenuItem onClick={() => { if (onOpenSheetInPopout) onOpenSheetInPopout(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-zinc-400" />}>Open in New Window</ContextMenuItem>
@@ -1158,7 +1158,7 @@ export function GlideBreakdownTab({
               }}
               variant="danger"
               icon={<Trash2 className="w-3 h-3" />}
-              disabled={readOnly || marqueeMode === 'tool'}
+              disabled={locked || marqueeMode === 'tool'}
             >
               {(() => {
                 const range = getEffectiveRange();
@@ -1187,7 +1187,7 @@ export function GlideBreakdownTab({
           </>
         )}
         {contextMenu && contextMenu.row === scenes.length && (
-          <ContextMenuItem onClick={handlePasteToAddRow} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Paste</ContextMenuItem>
+          <ContextMenuItem onClick={handlePasteToAddRow} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={locked}>Paste</ContextMenuItem>
         )}
       </ContextMenu>
 
@@ -1201,14 +1201,14 @@ export function GlideBreakdownTab({
               <ContextMenuItem
                 onClick={() => { dispatch({ type: 'SORT_SCENES_BY', payload: { key: sortMenu.colKey, direction: 'asc' } }); setSortMenu(null); }}
                 icon={<ArrowUp className="w-3 h-3 text-zinc-400" />}
-                disabled={readOnly}
+                disabled={locked}
               >
                 {isNumeric ? 'Sort Smallest to Largest' : 'Sort A to Z'}
               </ContextMenuItem>
               <ContextMenuItem
                 onClick={() => { dispatch({ type: 'SORT_SCENES_BY', payload: { key: sortMenu.colKey, direction: 'desc' } }); setSortMenu(null); }}
                 icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}
-                disabled={readOnly}
+                disabled={locked}
               >
                 {isNumeric ? 'Sort Largest to Smallest' : 'Sort Z to A'}
               </ContextMenuItem>

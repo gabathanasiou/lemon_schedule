@@ -127,7 +127,7 @@ const StageRow: React.FC<StageRowProps> = ({ stage, index, count, readOnly, onCh
 };
 
 export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const sizes = ruleModalSizes();
   const { CREM_TEXT } = sizes;
@@ -263,7 +263,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                           stage={stage}
                           index={i}
                           count={settings.stages.length}
-                          readOnly={readOnly}
+                          readOnly={locked}
                           onChange={setStage}
                           onRemove={removeStage}
                         />
@@ -273,7 +273,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 </DndContext>
               </table>
             </div>
-            <Button theme="dark" variant="subtle" onClick={addStage} disabled={readOnly} className="flex items-center gap-1">
+            <Button theme="dark" variant="subtle" onClick={addStage} disabled={locked} className="flex items-center gap-1">
               <Plus className="w-3 h-3" /> Add stage
             </Button>
           </div>
@@ -299,7 +299,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                     items={stageItems}
                     mode="multi"
                     selectedIds={keys}
-                    disabled={readOnly}
+                    disabled={locked}
                     placeholder="No stages"
                     onChange={ids => setCategoryStages(category, ids)}
                   />
@@ -308,7 +308,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                   ) : (
                     <button
                       type="button"
-                      disabled={readOnly}
+                      disabled={locked}
                       onClick={() => setCategoryStages(category, [])}
                       className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 disabled:opacity-30 transition-colors shrink-0"
                       aria-label={`Remove ${getLabel(category, category, project.categoryLabels)} default`}
@@ -320,7 +320,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 </div>
               ))}
             </div>
-            {!readOnly && (
+            {!locked && (
               <CategoryDropdown
                 value=""
                 onChange={addCategory}
@@ -356,7 +356,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                       if (v.trim()) next[dept.name] = v.trim(); else delete next[dept.name];
                       setTemplate({ departmentPrecalls: Object.keys(next).length ? next : undefined });
                     }}
-                    readOnly={readOnly}
+                    readOnly={locked}
                     placeholder="-30m"
                     className="w-28"
                   />
@@ -377,7 +377,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 project={project}
                 slots={templateSlotsList}
                 onSlotsChange={slots => setTemplate({ slots })}
-                readOnly={readOnly}
+                readOnly={locked}
               />
             </div>
             <CrewRosterEditor
@@ -388,7 +388,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
               templatePrecalls={template.departmentPrecalls || {}}
               dayCall=""
               project={project}
-              readOnly={readOnly}
+              readOnly={locked}
               onSlotsChange={slots => setTemplate({ slots })}
               onExcludedChange={depts => setTemplate({ excludedCrewDepts: depts.length ? depts : undefined })}
               onDeptPrecallChange={(dept, expr) => {

@@ -62,7 +62,7 @@ const NAME_INPUT_CLASS = 'flex-1 min-w-0 px-3 py-2 bg-zinc-900 border border-zin
  *  the tabs so it fires wherever a brand-new cast id is typed — stripboard,
  *  Glide breakdown and Scene Sheet. */
 export function NewCastNamingProvider({ children }: { children: React.ReactNode }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const castMembers = state.present.castMembers || [];
   const [pending, setPending] = useState<{ id: string; name: string; onCancel?: () => void; nameTyped?: boolean }[]>([]);
   const pendingRef = useRef(pending);
@@ -85,14 +85,14 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
   /** Per-entry undo: the cast was added by mistake — delete it everywhere,
    *  plus revert whatever else the creation commit did (a script tag). */
   const undoEntry = useCallback((id: string) => {
-    if (readOnly) return;
+    if (locked) return;
     dispatch({ type: 'DELETE_CAST_MEMBER', payload: id });
     pendingRef.current.find(p => p.id === id)?.onCancel?.();
     setPending(prev => prev.filter(p => p.id !== id));
-  }, [dispatch, readOnly]);
+  }, [dispatch, locked]);
 
   const save = useCallback(() => {
-    if (readOnly) return;
+    if (locked) return;
     const entries = pendingRef.current.filter(p => p.name.trim() || p.nameTyped);
     if (entries.length > 0) {
       dispatch({ type: 'BATCH_START' });
@@ -113,7 +113,7 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
       dispatch({ type: 'BATCH_COMMIT' });
     }
     setPending([]);
-  }, [dispatch, readOnly, castMembers]);
+  }, [dispatch, locked, castMembers]);
 
   /** Cancel: revert each queued creation that carried a revert (script tags)
    *  once per callback — other entries keep the pre-feature blank-member
@@ -123,13 +123,13 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
     const cancels = new Set(pendingRef.current.map(p => p.onCancel).filter(Boolean));
     for (const cb of cancels) cb!();
     const flagged = pendingRef.current.filter(p => p.nameTyped);
-    if (flagged.length > 0 && !readOnly) {
+    if (flagged.length > 0 && !locked) {
       dispatch({ type: 'BATCH_START' });
       for (const p of flagged) dispatch({ type: 'DELETE_CAST_MEMBER', payload: p.id });
       dispatch({ type: 'BATCH_COMMIT' });
     }
     setPending([]);
-  }, [dispatch, readOnly]);
+  }, [dispatch, locked]);
 
   // Drop entries whose member vanished (e.g. the add was undone) so the modal
   // never proposes naming a cast that no longer exists.

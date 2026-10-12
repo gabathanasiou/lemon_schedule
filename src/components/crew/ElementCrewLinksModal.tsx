@@ -23,7 +23,7 @@ export function ElementCrewLinksModal({ category, elementKey, elementName, onClo
   elementName: string;
   onClose: () => void;
 }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -45,7 +45,7 @@ export function ElementCrewLinksModal({ category, elementKey, elementName, onClo
   }, [project.crewRoles, project.crew]);
 
   const toggle = (personId: string) => {
-    if (readOnly) return;
+    if (locked) return;
     const current = project.crewLinks || [];
     const next = linkedIds.has(personId)
       ? current.filter(l => !(l.personId === personId && l.category === category && l.elementKey.toLowerCase() === elementKey.toLowerCase()))
@@ -95,7 +95,7 @@ export function ElementCrewLinksModal({ category, elementKey, elementName, onClo
                 }))}
                 selected={linkedIds}
                 onToggle={id => toggle(String(id))}
-                disabled={readOnly}
+                disabled={locked}
               />
             </CardSection>
           );

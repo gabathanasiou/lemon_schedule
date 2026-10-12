@@ -58,7 +58,7 @@ function formatDateLabel(dateKey: string): string {
  *  day-status picker dispatches immediately too — the footer is just Done.
  *  Read-only Conflicts + date-scoped Rules (per-type cards) complete it. */
 export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violations, rules = [], initialStatus, initialRule, onClose, onOpenDayManager }) => {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const portalTarget = usePortalTarget();
 
@@ -174,7 +174,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
   /** Removes ONE element's group of a type (the day's whole-category mark
    *  when `all`). A fully-emptied entry prunes the date row. */
   const removeGroup = (status: string, category: string, refKey: string, all: boolean) => {
-    if (readOnly || !activeCalendarVersion) return;
+    if (locked || !activeCalendarVersion) return;
     const next = removeItemsFrom(entryByDate.get(dateKey), status, category, all ? [NON_SHOOT_ALL] : [refKey]);
     dispatch({
       type: 'UPDATE_CALENDAR_VERSION',
@@ -268,7 +268,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                 <Link2 className={`${XSZ} text-zinc-400`} />
                 Events
               </span>
-              <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'adder' })} disabled={readOnly}>
+              <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'adder' })} disabled={locked}>
                 <Plus className="w-3 h-3" /> Add Event
               </Button>
             </div>
@@ -310,7 +310,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                             </>
                           }
                           dataProps={{ 'data-event-row': `${status}|${row.category}|${row.refKey}` }}
-                          trailing={!readOnly && (
+                          trailing={!locked && (
                             <button
                               onClick={() => removeGroup(status, row.category, row.refKey, row.all)}
                               aria-label={`Remove ${row.name} from this day`}
@@ -321,7 +321,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                             </button>
                           )}
                         >
-                          {noteFor && noteFor.status === status && noteFor.category === row.category && noteFor.refKey === row.refKey && !readOnly ? (
+                          {noteFor && noteFor.status === status && noteFor.category === row.category && noteFor.refKey === row.refKey && !locked ? (
                             <input
                               autoFocus
                               type="text"
@@ -339,13 +339,13 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setNoteFor({ status, category: row.category, refKey: row.refKey }); }}
-                              title={readOnly ? row.comment : 'Edit note'}
+                              title={locked ? row.comment : 'Edit note'}
                               className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-text"
                             >
                               <span className="text-zinc-500 shrink-0 font-medium">Notes:</span>
                               <span className="truncate italic">"{row.comment}"</span>
                             </button>
-                          ) : !readOnly ? (
+                          ) : !locked ? (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setNoteFor({ status, category: row.category, refKey: row.refKey }); }}
@@ -423,7 +423,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                           theme="dark"
                           compact
                           onEdit={() => openRuleEditor(r)}
-                          onDelete={readOnly ? undefined : () => dispatch({ type: 'DELETE_RULE', payload: r.id })}
+                          onDelete={locked ? undefined : () => dispatch({ type: 'DELETE_RULE', payload: r.id })}
                         />
                       ))}
                     </CardSection>

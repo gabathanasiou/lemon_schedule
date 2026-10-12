@@ -22,7 +22,7 @@ const FIELD_INPUT = 'w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded
  * (+ tag re-anchoring when "move tags" is on) — a single undo step.
  */
 export default function SceneCutModal({ sceneId, initialSplitIndex, onClose }: { sceneId: string; initialSplitIndex?: number; onClose: () => void }) {
-  const { state, dispatch, readOnly } = useProject();
+  const { state, dispatch, locked } = useProject();
   const project = state.present;
   const live = project.scenes.find(s => s.id === sceneId);
   const doc = project.scriptDocument;
@@ -43,7 +43,7 @@ export default function SceneCutModal({ sceneId, initialSplitIndex, onClose }: {
   const blockLabel = (b?: ScriptBlock) => (b ? (b[1] || (b[0] === 'page_break' ? '— page break —' : `(${b[0]})`)) : '');
 
   const confirm = () => {
-    if (!live || !doc || !docScene || readOnly) return;
+    if (!live || !doc || !docScene || locked) return;
     const k = clampSplitIndex(blocks.length, splitIndex);
     const number = newNumber.trim() || defaultNumber;
     const upperSet = set.trim().toUpperCase();
@@ -61,7 +61,7 @@ export default function SceneCutModal({ sceneId, initialSplitIndex, onClose }: {
     onClose();
   };
 
-  const canCut = !!live && !!docScene && blocks.length >= 2 && !readOnly;
+  const canCut = !!live && !!docScene && blocks.length >= 2 && !locked;
 
   return (
     <Modal
