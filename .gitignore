@@ -15,3 +15,7 @@ node_modules
 
 # Playwright MCP artifacts
 .playwright-mcp/
+
+# Wrangler dev state + local dev vars (workers/rooms)
+.wrangler/
+.dev.vars*
