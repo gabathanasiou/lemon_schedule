@@ -1037,15 +1037,5 @@ pass (doc §12).
 
 **Relations**: `extends` **229** (S2.5 guests, S3 presence).
 
-## 232. Following a peer while changing Sheet scenes killed the channel (`[ ]`)
 
-**Reported 2026-10-12** (user, testing follow completeness): following someone who changes Sheet scenes "bugged out" and "the connection kept getting lost".
-
-**Root cause found in the live Realtime logs** (`ClientPresenceRateLimitReached: :client_rate_limit_exceeded`, 8× during testing): Supabase caps presence `track()` at **5 calls per client per 30 seconds** and SHUTS THE CHANNEL DOWN past it (any presence/broadcast subscription stops until reconnect). `publishView` tracked on every view change — 5+ sheet flips in 30s did it instantly (applies echoed tracks on both sides), and even plain clicking could exceed it. The pointers/bubbles/follow then died until reconnect — the "super glitched out" report.
-
-**Fix (2026-10-12):** transport split in `src/lib/supabase/presenceChannel.ts` — `track()` only on (re)join (identity + a view snapshot for late joiners); every view change rides a throttled `view` broadcast; a peer's presence `join` is answered with our view (debounced). Receive path merges the newest of meta-vs-broadcast view (`presenceContext.tsx` `rebuildPeers`); `presenceDiagnostics.trackCount` + `lastViewRecvAt` expose the accounting. Cursor throttle lowered 20→12/s, scroll 8→5/s for the free-tier 100 msg/s project budget.
-
-**Verify** (next two-client pass): flip Sheet scenes fast on the leader while following for several minutes — the follower keeps up, follow never drops, no channel reconnect; `diagnostics().presence.trackCount` stays at 1–2 for the whole session and the Realtime logs show no `ClientPresenceRateLimitReached`. `npm run lint`.
-
-**Relations**: `relates to` **229** (reported against follow completeness; fix in the S3 transport). The earlier "maybe S4" read was wrong — shared state was never the issue.
 
