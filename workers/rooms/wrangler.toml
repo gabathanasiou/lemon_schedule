@@ -1,0 +1,15 @@
+name = "lemon-rooms"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# One Durable Object per shared project — the S4 realtime room (docs/COLLABORATION.md §6 S4).
+# The room runs the SAME pure reducer the app runs, so an action means exactly the same
+# thing everywhere (multiplayer by construction, no per-feature sync code).
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
