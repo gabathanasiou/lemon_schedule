@@ -125,6 +125,24 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   `reloadOnlineProject()` is the explicit user action. Saves stay last-write-wins until S4 — never
   auto-apply over unsaved local edits.
 
+## Realtime rooms (roadmap 229 S4 — client transport, stage 1)
+
+- ONE client module `src/lib/rooms/roomClient.ts` (WS transport: hello/token, snapshot + replay,
+  own-echo dedupe by `actionId`, rejection → auto-resync, backoff reconnect) + the React seam
+  `src/lib/rooms/useRoomTransport.ts` (mounted in `ProjectProvider`; inert without
+  `VITE_ROOMS_URL`). The room worker runs the SAME reducer (`workers/rooms`).
+- While the room transport is connected (status ≠ `closed`) it owns the open shared project's
+  writes: every accepted write dispatch streams an action (`guardedDispatch`; `LOAD`/`UNDO`/`REDO`
+  excluded — the room's own refuse-set), welcome/remote messages apply through the RAW dispatch
+  (never counted as local changes, never pushed back), and the whole-blob Supabase save + S3.5
+  peer-save reloads are skipped — the blob is staging-only until the S4 persistence cutover.
+  Per-user undo is the next S4 unit; until it lands, local undo is local-only while connected
+  (flag-gated internal staging — no user ever sees it yet).
+- Not yet: room tokens are dev-only (`dev:<user>:<role>`, DEV builds + `wrangler dev`); the
+  deployed path calls the Supabase `room-token` function (`src/lib/rooms/tokenClient.ts`), which
+  is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 17 checks) and
+  `room-client-probe.ts` (the real `RoomClient`, 13 checks) against `wrangler dev`.
+
 ## `useProject()` API
 
 `{ state, dispatch, projectList, currentProjectId, readOnly, initialized, createProject, openProject,

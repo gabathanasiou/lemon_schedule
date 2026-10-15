@@ -12,6 +12,10 @@ import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex, formatDriveError } from '../lib/googleDriveStorage';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
 import { performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
+import { useRoomTransport } from '../lib/rooms/useRoomTransport';
+import { fetchRoomToken } from '../lib/rooms/tokenClient';
+import type { RoomStatus } from '../lib/rooms/roomClient';
+import { serializeProject } from '../lib/projectCodec';
 import {
   LEGACY_KEY,
   INDEX_KEY,
@@ -186,6 +190,42 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const onlineRoleRef = useRef<CollaboratorRole | null>(currentOnlineRole);
   onlineRoleRef.current = currentOnlineRole;
 
+  // ── S4 room transport (stage 1: actions + sync; per-user undo is the next
+  // unit). One socket for the open shared project; hooked into the write path
+  // (guardedDispatch sends, welcome/remote apply) and the save pipeline below.
+  const currentOnlineId = currentMetaForRole?.onlineId ?? null;
+  const sbUserId = sbAuth.account?.id ?? null;
+  const { clientRef: roomClientRef, status: roomStatus } = useRoomTransport({
+    onlineId: currentOnlineId,
+    userId: sbUserId,
+    getToken: async (projectId) => {
+      // Local dev (`npm run dev`) talks to `wrangler dev` with dev tokens; the
+      // deployed build fetches a signed token from the Supabase function.
+      if (import.meta.env.DEV) return `dev:${sbUserId}:${onlineRoleRef.current ?? 'editor'}`;
+      return fetchRoomToken(projectId);
+    },
+    getInitProject: () => (canEditRef.current ? serializeProject(presentRef.current) : null),
+    onWelcome: (welcome) => {
+      // The room's snapshot is the truth while connected: rebaseline, then fold
+      // the replay as REMOTE applies — raw dispatch, never counted as local
+      // changes, never pushed back (the room already has them).
+      loadBaseline(welcome.project);
+      for (const entry of welcome.replay) {
+        dispatch(entry.action);
+        notifyAgentBridge(entry.action);
+      }
+    },
+    onRemote: (remote) => {
+      dispatch(remote.action);
+      notifyAgentBridge(remote.action);
+    },
+    onError: (message) => console.warn('[rooms]', message),
+  });
+  const roomStatusRef = useRef<RoomStatus>('closed');
+  roomStatusRef.current = roomStatus;
+  /** True while the room owns this project's writes (connected / reconnecting). */
+  const roomActive = useCallback(() => roomStatusRef.current !== 'closed', []);
+
   /** Re-read the open shared project's role (focus + after a permission-ish
    *  save failure): a demotion locks the UI, a revocation locks it AND
    *  surfaces the reason (role changes take effect on the next request). */
@@ -218,6 +258,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const applyPeerSave = useCallback(async (remoteRevision: number) => {
     const meta = projectListRef.current.find(p => p.id === currentProjectIdRef.current);
     if (!meta?.onlineId || !sbAccountRef.current) return;
+    // S4: while the room owns the writes, peer save pings are moot — the room
+    // broadcasts every accepted edit, a blob reload would only regress state.
+    if (roomActive()) return;
     if (!(remoteRevision > onlineRevisionRef.current)) return;
     try {
       const fresh = await readOnlineProject(meta.onlineId);
@@ -496,6 +539,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       persistedAtCounterRef.current = changeCounterRef.current;
     }
     dispatch(action);
+    // S4: every accepted local edit streams to the room (optimistic local apply
+    // above; the room is the ordering authority). LOAD/UNDO/REDO match the
+    // room's own refuse-set — undo becomes a room operation in the per-user
+    // undo unit, so it is deliberately not sent yet.
+    if (action.type !== 'LOAD' && action.type !== 'UNDO' && action.type !== 'REDO') {
+      roomClientRef.current?.sendAction(generateUUID(), action);
+    }
   }, [realOnline, isCurrentCloudProject, isCurrentOnlineProject]);
 
   // Agentic debug bridge (dev builds or localStorage LEMON_AGENT=1): exposes
@@ -533,6 +583,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         editLocked: !canEditRef.current || !connStateRef.current.realOnline,
         presence: getPresenceDiagnostics(),
         onlineChangesAvailable: onlineChangesAvailableRef.current,
+        roomsConfigured: !!import.meta.env.VITE_ROOMS_URL,
+        roomStatus: roomStatusRef.current,
       }),
     });
     return uninstall;
@@ -624,6 +676,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         // already blocks edits, so a pending save here means the role just
         // changed — lock via recheck instead of pushing a rejected write.
         if (!canEditRef.current) return;
+        // S4: while the room transport is connected it is the writer — the room
+        // persists actions + snapshots; the Supabase blob is staging-only until
+        // the S4 persistence cutover. Reconnecting counts as active: the room
+        // re-syncs us, a stale blob push would only fight it.
+        if (roomActive()) return;
         // S3.5: LOADing a peer's save (or reopening) anchors the persisted
         // baseline — pushing it back would bump the revision and start a
         // save-ping echo. No new edits since the last persist ⇒ nothing to push.
