@@ -1045,50 +1045,6 @@ the home for support-style items later.
   identity. No secrets in the client.
 - **Relations:** `extends` **260** (File → Help submenu introduced there).
 
-## 268. File menu clean-up — Close project, drop Script integrity + Manage Shared, Custom Reports under Print (`[ ]`)
-
-**Requested 2026-10-15 (user):** four small `src/components/AppHeader.tsx` tweaks
-in one pass:
-
-- **Add "Close project"** — File menu top group, next to Project Manager; call
-  the existing `closeProject()` (`useProject()` — `provider.tsx:1476`: clears
-  the last-project pointer, `currentProjectId` → null, App shows the opening
-  page `ProjectManagerBoot`, `App.tsx:938`). The prop is already threaded into
-  AppHeader (`:71`) — render-only wiring. Today only the sign-out flows call it
-  (`UserPresenceCluster.tsx:146,261`). Build-time check: a Drive project whose
-  save retries are exhausted (`driveSaveError`) would drop pending changes on
-  close — warn or flush first (SaveIndicator already surfaces the state).
-- **Remove "Manage Shared Project…"** — a duplicate of the avatar/account-menu
-  entry that stays (`UserPresenceCluster.tsx:246-253`); delete the File copy
-  (`AppHeader.tsx:185-189`, `isOnlineProject` gate) plus its now-orphaned
-  `isOnlineProject`/`useIsOnlineProject`/`Users` in AppHeader. The
-  `onManageSharing` prop itself stays (passed through to the cluster).
-- **Remove "Script integrity…"** — delete the File item (`AppHeader.tsx:251-253`),
-  the modal mount (`App.tsx:1265`), `ScriptIntegrityModal.tsx` and the
-  `onShowIntegrity` plumbing (`AppHeader.tsx:65`, `App.tsx:1082`); KEEP
-  `src/lib/scriptIntegrity.ts` + the debug bridge `auditScript()`/`repairScript()`
-  (agent tooling — AGENTS.md §Agentic Debug Bridge).
-- **Custom Reports under Print** — move the sibling submenu
-  (`AppHeader.tsx:225-235`) inside the Print submenu (Print → Custom Reports →
-  design names; restores the plan sketch in
-  `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md` §6). Nests `DropdownSubmenu` inside
-  `DropdownSubmenu` — verify Radix nesting + the 165 positioning engine and the
-  iPad touch pass; fallback if nesting misbehaves: the flat list inside Print.
-
-**Verify:** rule-7 manual pass on the open menu (no e2e — menu
-structure/visuals; `docs/TESTING.md` §Manual verification); `npm run lint`.
-No spec touches these items today.
-
-**Docs on close:** `docs/COLLABORATION.md:38` (drops the "(File menu)" Manage
-Shared pointer); `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md` §6 (sketch matches
-as-built); `docs/REPORTS-DESIGNER.md:90,121` (File → Print → Custom Reports
-paths).
-
-**Relations:** `extends` **247** (File menu chrome pass); `relates to` **262**
-(Help group in the same menu), **182** (nested submenus on touch), **135**
-(introduced Script integrity), **229** (sharing surfaces), **3/5** (custom-report
-print — the menu entry those built).
-
 ## 267. iPhone portrait — Schedule-first chrome, edge-to-edge stripboard (PoC, `[~]`)
 
 **Requested 2026-10-15 (user, PoC):** on a phone held in **portrait** the app
