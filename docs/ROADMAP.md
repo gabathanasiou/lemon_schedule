@@ -1071,7 +1071,7 @@ Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work
 
 **Relations**: `extends` **229** (S2.5 guests, S3 presence).
 
-## 243. Follow — mirror view toggles/state (manager sidebar category, designer Fields/Values + Preview) (`[ ]`)
+## 243. Follow — mirror view toggles/state (manager sidebar category, designer Fields/Values + Preview) (`[~]`)
 
 **Requested 2026-10-15 (user):** following mirrors the place, but not enough of the peer's
 LENS. While following, also mirror: (a) the **manager pages' selected sidebar category**
@@ -1084,6 +1084,13 @@ state in `reports/ReportDesigner.tsx` and `production/day/CallSheetEditPage.tsx`
 also mirror **modal/dropdown open state**?
 
 **Order:** #3 of the remaining collab work (229's priority list) — the easiest remaining code item (~½ day).
+
+- **Built 2026-10-15, pending the two-client manual pass:** `managerCategory` /
+  `preview` / `reportViewMode` on the wire (`parseView` clamps + Vitest);
+  publishes + appliers in ElementManager (`breakdown/elements`), `managerShell`
+  (Crew/Locations, via `presenceSub`), ReportDesigner (same-design gate) and
+  CallSheetEditPage (carries `daySection`); user paths call
+  `noteUserViewChange`, appliers stay raw. `npm run lint` + `test:smart` green.
 
 - **The seam exists (S3 follow completeness pattern):** each toggle = one validated
   `PresenceView` field (`src/lib/supabase/presence.ts` / `parseView`) + publish on the user's
