@@ -1336,33 +1336,3 @@ Breakdown Sheet / Element Breakdown print, DOOD, call sheets, and widening
   and **143** (report ordering by Board ID — candidate to widen, second pass);
   `relates to` **228** (name-typed cast guard), **157** (cast details),
   **40/41** (MSD/SEX import — real BoardIDs).
-
-## 259. Public changelog — `CHANGELOG.md`, the `/changelog` writer, and the in-app **What's New** viewer (`[ ]`)
-
-**Requested 2026-10-15 (user):** a public-facing `CHANGELOG.md` — the app's
-story day by day, written for the people using it (film production), not for
-developers: plain human language, focused on features, bug fixes and changes
-("'roadmap item 43 done' isn't right"). Plus a way to read it in the app:
-**File → Help → What's New** (the Help submenu is the future home of support
-and similar items).
-
-- **`CHANGELOG.md` (repo root):** newest-first `## YYYY-MM-DD` sections,
-  bullets under **Features** / **Bug fixes** / **Changes** (only the headings
-  that apply); days with nothing user-visible are skipped (the git history
-  stays the complete record). Banned: roadmap/item numbers, commit hashes,
-  version numbers, file or library names, tests, refactors, internal tooling;
-  security fixes = one high-level sentence.
-- **Writer:** `.opencode/commands/changelog.md` — `/changelog`, on demand
-  (`agent: build`, `model: deepseek/deepseek-flash`, `subagent: true`): its
-  shell block prints the commits since the newest entry; the command writes
-  only the missing days; two appended dates fill an explicit backfill range.
-  **Nothing automatic** — no plugin, session hook, cron or CI (user call:
-  many sessions/day must not each check; cheapest wins).
-- **Reader:** the What's New modal — `CHANGELOG.md` bundled at build time
-  (raw import), parsed by a pure helper (Vitest), rendered as collapsible day
-  sections (newest open by default, expand/collapse all), styled per the
-  design language; reachable from the File menu's new `Help` submenu.
-- **Backfill:** full history 2026-06-03 → 2026-10-15, written in parallel
-  chunks, newest first.
-- **Verify:** `npm run lint` + unit tests; rule-7 manual pass (menu item and
-  modal are visual — no e2e). Visible feature → patch bump.
