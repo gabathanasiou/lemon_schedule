@@ -5,10 +5,13 @@
  * The callbacks are read through a ref, so the socket survives re-renders and
  * only reconnects when the TARGET changes (project, user, or the rooms URL).
  * `status` feeds `diagnostics()` and the header room-status badge; pending
- * counts feed the badge's offline-queue tooltip (roadmap 239).
+ * counts feed the badge's offline-queue tooltip (roadmap 239). Dev builds
+ * ensure the local worker first (`roomsEnv.ensureRoomsWorkerInDev`, roadmap
+ * 246) — with `roomsUrl()` as the ONE read of VITE_ROOMS_URL + its dev fallback.
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { RoomClient, type RoomQueueInfo, type RoomRemote, type RoomStatus, type RoomWelcome } from './roomClient';
+import { ensureRoomsWorkerInDev, roomsUrl } from './roomsEnv';
 import type { Action } from '../../store/reducer';
 
 export interface UseRoomTransportOptions {
@@ -37,7 +40,7 @@ export function useRoomTransport(opts: UseRoomTransportOptions): {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
-  const url = import.meta.env.VITE_ROOMS_URL as string | undefined;
+  const url = roomsUrl();
   const { onlineId, userId } = opts;
 
   useEffect(() => {
@@ -46,23 +49,34 @@ export function useRoomTransport(opts: UseRoomTransportOptions): {
       return;
     }
     const base = url.replace(/\/+$/, '');
-    const client = new RoomClient({
-      url: `${base}/room/${encodeURIComponent(onlineId)}`,
-      projectId: onlineId,
-      getToken: () => optsRef.current.getToken(onlineId),
-      getInitProject: () => optsRef.current.getInitProject(),
-      onWelcome: (welcome) => optsRef.current.onWelcome(welcome),
-      onRemote: (remote) => optsRef.current.onRemote(remote),
-      onReplayQueued: (action) => optsRef.current.onReplayQueued?.(action),
-      onPendingChange: (info) => optsRef.current.onPendingChange?.(info),
-      onUndoState: (s) => optsRef.current.onUndoState?.(s),
-      onError: (message) => optsRef.current.onError?.(message),
-      onStatus: setStatus,
-    });
-    clientRef.current = client;
-    client.start();
+    let cancelled = false;
+    const start = async () => {
+      // Dev: the local worker is brought up (or confirmed) BEFORE the client
+      // connects — the dev server owns the launcher (roadmap 246). Failures
+      // are ignored here; the client's reconnect loop + the header badge are
+      // the degraded path.
+      await ensureRoomsWorkerInDev(base).catch(() => {});
+      if (cancelled) return;
+      const client = new RoomClient({
+        url: `${base}/room/${encodeURIComponent(onlineId)}`,
+        projectId: onlineId,
+        getToken: () => optsRef.current.getToken(onlineId),
+        getInitProject: () => optsRef.current.getInitProject(),
+        onWelcome: (welcome) => optsRef.current.onWelcome(welcome),
+        onRemote: (remote) => optsRef.current.onRemote(remote),
+        onReplayQueued: (action) => optsRef.current.onReplayQueued?.(action),
+        onPendingChange: (info) => optsRef.current.onPendingChange?.(info),
+        onUndoState: (s) => optsRef.current.onUndoState?.(s),
+        onError: (message) => optsRef.current.onError?.(message),
+        onStatus: setStatus,
+      });
+      clientRef.current = client;
+      client.start();
+    };
+    void start();
     return () => {
-      client.stop();
+      cancelled = true;
+      clientRef.current?.stop();
       clientRef.current = null;
       setStatus('closed');
     };

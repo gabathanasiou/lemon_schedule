@@ -15,6 +15,7 @@ import { hasInFlightEdits } from '../lib/inFlightEdits';
 import { useRoomTransport } from '../lib/rooms/useRoomTransport';
 import { fetchRoomToken } from '../lib/rooms/tokenClient';
 import { ROOM_NOTE_MS } from '../lib/rooms/roomNotes';
+import { roomsConfigured } from '../lib/rooms/roomsEnv';
 import type { RoomQueueInfo, RoomStatus } from '../lib/rooms/roomClient';
 import type { RoomRole } from '../lib/rooms/protocol';
 import { serializeProject } from '../lib/projectCodec';
@@ -729,7 +730,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         editLocked: !canEditRef.current || !connStateRef.current.realOnline,
         presence: getPresenceDiagnostics(),
         onlineChangesAvailable: onlineChangesAvailableRef.current,
-        roomsConfigured: !!import.meta.env.VITE_ROOMS_URL,
+        roomsConfigured: roomsConfigured(),
         roomStatus: roomStatusRef.current,
         roomPending: roomQueueRef.current,
         roomUserId: roomIdentityRef.current?.userId ?? null,
