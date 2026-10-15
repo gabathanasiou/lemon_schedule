@@ -193,3 +193,7 @@ running on the machine. **Triage:** re-ran the spec alone immediately after —
 5/5 passed (8.9s). Same load-sensitivity class as section F (Glide overlay
 editor interactions under CPU contention), not a regression; retries=1 absorbs
 it. If it recurs, re-check with `--workers=1` before touching the app.
+
+**Recurrence — 2026-10-15, the roadmap-252 merge suite flaked the same spec once**
+(1 flaky, retry passed, 272 passed); solo re-run `--workers=1 --repeat-each=2` green
+(10/10). Same load-sensitivity class, still no fix needed.
