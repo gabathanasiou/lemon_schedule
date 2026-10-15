@@ -62,7 +62,17 @@ export default function WhatsNewModal({ onClose }: WhatsNewModalProps) {
   const days = useMemo(() => parseChangelog(changelogRaw), []);
   const [openDate, setOpenDate] = useState<string | null>(() => days[0]?.date ?? null);
 
-  const toggle = (date: string) => setOpenDate(prev => (prev === date ? null : date));
+  const toggle = (date: string, el: HTMLElement) => {
+    const willOpen = openDate !== date;
+    setOpenDate(willOpen ? date : null);
+    if (!willOpen) return;
+    // The accordion swap shifts the clicked day (the previously open day above
+    // folds away) — once the fold settles, bring it back into view minimally.
+    window.setTimeout(() => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    }, 220);
+  };
 
   return (
     <Modal
@@ -90,7 +100,7 @@ export default function WhatsNewModal({ onClose }: WhatsNewModalProps) {
             return (
               <div key={day.date} className="border-b border-zinc-800/70 last:border-b-0">
                 <button
-                  onClick={() => toggle(day.date)}
+                  onClick={e => toggle(day.date, e.currentTarget)}
                   aria-expanded={isOpen}
                   className="w-full flex items-center gap-2 px-5 py-2.5 text-left hover:bg-zinc-800/40 transition-colors"
                 >
