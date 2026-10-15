@@ -1327,12 +1327,13 @@ also mirror **modal/dropdown open state**?
   sibling "local state made visible" work), **240** (the overlay cue — this item's
   modal/dropdown answer).
 
-## 244. Presence — peer-pointer comfort: freeze while they're in a modal + fade a colliding pointer (`[ ]`)
+## 244. Presence — peer-pointer comfort: freeze + window glyph while in a modal, fade a colliding pointer (`[ ]`)
 
 **Requested 2026-10-15 (user):**
 1. **While a peer is inside a modal, stop moving their pointer** — their mouse wanders over
    a surface you can't see, so the pointer freezes at its last position until the modal
-   closes, and the **dots cue keeps showing** on the frozen tag + header bubble.
+   closes, the **dots cue keeps showing** on the frozen tag + header bubble, and their
+   cursor icon becomes a **little modal-window glyph** while they're in there.
 2. **When your pointer and theirs sit on top of each other for a few seconds, fade theirs**
    (a bit transparent) so you can see what's behind it; restore on separation.
 
@@ -1347,6 +1348,13 @@ also mirror **modal/dropdown open state**?
   hub already knows — saves the ~12/s while typing in a modal); the receiver-side ignore
   stays the fallback for multi-window cases (per-user cue, newest window wins — parity with
   pointers).
+- **Window glyph (user ask 2026-10-15):** while the cue says `modal`, the frozen pointer
+  renders the **modal-window icon** instead of the arrow/hand/pen — one more variant of
+  241's glyph (`PointerGlyph`, `src/lib/supabase/presence.ts`; rendered in
+  `PresenceOverlay.tsx`), selected by the OVERLAY cue, not the input kind (so the glyph
+  returns to the pointer-kind icon on close). Small lucide window icon — pick in
+  implementation (the 241 `Hand` precedent); dots + name tag unchanged. Menus keep the
+  normal glyph (see the freeze rule).
 - **Collision fade — receiver-side, in `PresenceOverlay`:** the overlay already measures
   per-frame and the local pointer is tracked globally for publishing — compute the distance
   between the LOCAL pointer and the rendered peer point; sustained proximity (~≤30px for
@@ -1355,8 +1363,9 @@ also mirror **modal/dropdown open state**?
   pointers included.
 - **Verify:** pure helpers as Vitest (freeze gate: cue kind/freshness → ignore/apply;
   collision dwell state machine with hysteresis); two-client manual pass — peer opens a
-  modal → their pointer freezes with dots, resumes on close; park your pointer on theirs
-  ~2s → theirs fades, move apart → full opacity (rule-7 visuals).
+  modal → their pointer freezes with the window glyph + dots, resumes (pointer-kind glyph)
+  on close; park your pointer on theirs ~2s → theirs fades, move apart → full opacity
+  (rule-7 visuals).
 - **Relations:** `extends` **240** (the overlay cue + its kind), `relates to` **241**
   (pointer glyph), **236** (pointer coverage/gating), **234**/**235** (sibling pointer
   polish), **229** (presence transport).
