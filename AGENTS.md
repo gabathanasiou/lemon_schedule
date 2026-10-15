@@ -163,8 +163,8 @@ New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Secti
 ## Reports Designer
 Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. **The "Editing:" design pick is a per-user pref** (roadmap 233, `useActiveDesignId`) — contents are project state; the designer never dispatches `SET_ACTIVE_REPORT`. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation. Day grid blocks (`callTimes`/`crewTable`, items 111/112) share `lib/reportGrids.ts` + `ReportGridBlock`/`InteractiveGridBlock` — never fork the table recipe.
 
-## Roadmap Work (single agent)
-- **One agent per item, on the current branch, in this tree** — no worktrees, no orchestrator, no parallel workers. Just ask and the agent works until the item is done.
+## Roadmap Work
+- **One agent per item** — by default on the current branch, in this tree. When several items are in flight the user may hand you a worktree ("another agent is working rn"): load the `parallel-work` skill (worktree setup, merge conflict recipes, ff-only into `main`, the flake-triage ladder). Just ask and the agent works until the item is done.
 - The agent: reads `AGENTS.md` + domain docs FIRST, implements with small focused commits, asks you blocking questions directly (question tool — no decisions channel), then **self-reviews**: verifies its diff against the documented invariants (canonical models in AGENTS.md/docs — no re-derivation), checks for duplicated logic/monoliths, runs `npm run lint` + `npx playwright test`.
 - Then it **updates the docs itself**: loads the `write-agent-docs` + `manage-roadmap` skills, applies the `docs/*.md`/AGENTS.md updates its change calls for, and **closes the roadmap item** — flip `[ ]` → `[x]`, add its one-line row to `docs/ROADMAP-ARCHIVE.md`, then delete the live section (git keeps the narrative). Completed narratives never stay in the live roadmap.
 
