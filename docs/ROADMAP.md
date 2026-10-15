@@ -1108,11 +1108,13 @@ presence colour, live — a persistent highlight, distinct from S3's floating po
 - **Relations**: `extends` **229** (S3 presence). `relates to` **172** (Glide jump/flash —
   share the highlight visuals), **235** (sibling presence polish), **231** (peer colours).
 
-## 235. Presence — show a peer's in-progress drag as a ghost (`[ ]`, big)
+## 235. Presence — peer drags: ghost + soft lock of the held item (`[ ]`, big)
 
 **Requested 2026-10-15 (user):** while another user drags something (stripboard rows/scenes,
 Calendar cards, whole-day blocks), show their drag in my view — a translucent ghost at their
-pointer in their colour, "X is moving this"-style.
+pointer in their colour, "X is moving this"-style. **Addendum (user, 2026-10-15):** also
+**lock the item(s) being dragged** — other users can't pick them up, so the stripboard /
+Calendar feel like single-user editing while a peer drags.
 
 - **Assessment (agent, 2026-10-15) — no correctness risk; the cost is rendering, per surface.**
   Drags stay transient local state; only the DROP becomes a room action, so the room keeps its
@@ -1124,13 +1126,32 @@ pointer in their colour, "X is moving this"-style.
   `ribbon/SortableRow*`), then Calendar cards (`calendar/useCalendarDrag.ts`). Ghosts render
   BELOW modals (z-30 parity with pointers) and are pointer-events-none so they can never block
   interactions.
+- **Soft lock — same payload, no room change (user addendum 2026-10-15):** the active drag IS
+  the claim: while a peer's drag is live, the held item(s) render in their colour with a
+  "held" ring/dim, and the local drag START is refused for a selection containing any held
+  item (`useScheduleDrag` / `useCalendarDrag` guards). Release on drop/cancel/Esc/blur +
+  heartbeat + TTL — exactly the 240 overlay-signal pattern (open/close edges, TTL,
+  newest-window-wins per user). UX-only by design: the room stays the drop authority, so a
+  stale/lost claim degrades to today's last-drop-wins, never corruption. Clicking, selecting
+  and editing a held item stay allowed (only the conflicting operation — dragging it — is
+  blocked); revisit if it feels wrong. The ghost stays `pointer-events-none`; the LOCK is what
+  refuses interactions, never the ghost.
+- **Easiest win (user ask 2026-10-15): the stripboard, rows only.** The local ghost renderer
+  already exists — dnd-kit `DragOverlay` (`schedule/ScheduleOverlays.tsx`) — so a remote ghost
+  is that component positioned at the peer's cursor; the lock is the same broadcast + one
+  drag-start guard. One new `publishDrag` on the presence channel
+  (`src/lib/supabase/presenceChannel.ts`, the `publishOverlay` pattern), one overlay layer, one
+  surface. Calendar cards next (`CalendarTab.tsx` `DragOverlay`); whole-day and
+  cross-container drags later. Do NOT attempt "freeze every interaction of the held item"
+  (true 1-person parity) for v1 — blocking the DRAG is the 90% win.
 - **Explicitly out of scope until the first two surfaces feel right**: Reports/Call-Sheet
   designer drags, Glide internal drags, fancy cross-container (Boneyard↔stripboard) cases.
 - **Verify**: two-window manual pass (ghost follows with the peer's colour, vanishes on
-  drop/cancel/Esc, never blocks interactions); pure helpers (drag payload shape/throttle) as
-  Vitest.
+  drop/cancel/Esc; the held item refuses the other user's drag start and shows the held
+  styling; a killed tab's claim expires via TTL; the ghost itself never blocks interactions);
+  pure helpers (drag payload shape/throttle + the claim TTL) as Vitest.
 - **Relations**: `extends` **229** (S3 presence transport). `relates to` **234** (sibling
-  presence polish), **231**.
+  presence polish), **240** (the edge/heartbeat/TTL signal pattern the claim reuses), **231**.
 
 ## 236. Presence — pointer magnetism v2: every surface + gate by the open document (`[ ]`, big)
 
