@@ -12,7 +12,8 @@ import DataEditor, {
   CompactSelection,
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
-import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store';
+import { useProject, DEFAULT_CATEGORY_LABELS, useProjectTheme } from '../store';
+import { projectAccentOf } from '../lib/projectTheme';
 import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount, clipboardWrite, clipboardRead } from '../lib/utils';
 import { useSceneDuplicate } from '../lib/sceneDuplicate';
@@ -107,7 +108,7 @@ export function GlideBreakdownTab({
 }) {
   const { state, dispatch, locked } = useProject();
   const { request: requestSceneDuplicate } = useSceneDuplicate();
-  const isCloud = useIsCloudProject();
+  const accent = projectAccentOf(useProjectTheme());
   const project = state.present;
   const scenes = project.scenes;
 
@@ -1068,7 +1069,7 @@ export function GlideBreakdownTab({
 
   const headerContent = (
     <div className="flex items-center justify-end gap-1">
-      <Button variant="primary" cloud={isCloud} onClick={addScene} disabled={locked} data-presence-anchor="toolbar:glide:add-scene">
+      <Button variant="primary" cloud={accent} onClick={addScene} disabled={locked} data-presence-anchor="toolbar:glide:add-scene">
         + Add Scene
       </Button>
       <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-44" theme="light"

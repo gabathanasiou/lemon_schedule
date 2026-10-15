@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ProjectProvider, useProject, useIsCloudProject } from './store';
+import { ProjectProvider, useProject } from './store';
 import { useDialog } from './components/Dialog';
 import { Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
@@ -643,10 +643,8 @@ function AppContent() {
 
   const noProject = currentProjectId === null;
   const currentProjectMeta = projectList.find(p => p.id === currentProjectId);
-  // Theme-level "cloud" = Drive OR online (docs/COLLABORATION.md); the
-  // Drive-specific surfaces (offline sign-in copy, disconnect semantics)
-  // keep their own signal below.
-  const isCloudProject = !!(currentProjectMeta?.driveFileId || currentProjectMeta?.onlineId);
+  // Drive-specific surfaces (offline sign-in copy, disconnect semantics) keep
+  // their own signal; project-chrome colors come from `useProjectTheme()`.
   const isDriveProject = !!currentProjectMeta?.driveFileId;
 
   // Surface agent-bridge failures as a dialog (once per failure episode) — the
@@ -669,9 +667,6 @@ function AppContent() {
     agentBridgeErrorShownRef.current = true;
     void dialog.alert({ title: 'Agent bridge', message: agentBridge.error });
   }, [noProject, agentBridge.available, agentBridge.enabled, agentBridge.status, agentBridge.error, dialog]);
-
-  const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800';
-  const activeTabClass = isCloudProject ? 'bg-white text-blue-950' : 'bg-white text-zinc-900';
 
   const storage = useStorage();
   const ctx = useProject();
@@ -1015,7 +1010,6 @@ function AppContent() {
       <AppHeader
         activeTab={activeTab}
         setActiveTab={requestTabSwitch}
-        isCloudProject={isCloudProject}
         shiftHeld={shiftHeld}
         togglePopout={requestTabPopout}
         onTabContextMenu={(e, tabId) => setTabContextMenu({ x: e.clientX, y: e.clientY, tabId })}

@@ -14,6 +14,7 @@ import DropdownSubmenu from '../DropdownSubmenu';
 import { ItemManagerDropdown } from '../DropdownMenu';
 import SortDropdown, { SortCriterion } from '../SortDropdown';
 import { formatDuration, generateUUID } from '../../lib/utils';
+import type { ProjectAccent } from '../../lib/projectTheme';
 import { BoneyardExpandButton, BoneyardCollapseButton } from '../BoneyardExpandButton';
 
 interface SelectionSummary {
@@ -39,7 +40,9 @@ interface ScheduleToolbarProps {
   onShowViolations: () => void;
   selectionSummary: SelectionSummary | null;
   bufferSummary: BufferSummary | null;
-  isCloud: boolean;
+  /** Kit Button accent (`cloud`): false = zinc, true = Drive blue,
+   *  'emerald' = shared. From `projectAccentOf(useProjectTheme())` (248). */
+  accent: ProjectAccent;
   boneyardCollapsed: boolean;
   onExpandBoneyard: () => void;
   onCollapseBoneyard: () => void;
@@ -84,7 +87,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const {
-    shootViolations, onShowViolations, selectionSummary, bufferSummary, isCloud,
+    shootViolations, onShowViolations, selectionSummary, bufferSummary, accent,
     boneyardCollapsed, onExpandBoneyard, onCollapseBoneyard,
     autoDaybreakOpen, setAutoDaybreakOpen, handleAutoDaybreak, handleDeleteAllDaybreaks, hasDaybreakDays,
     bannerMenuOpen, setBannerMenuOpen, setBannerModalOpen, openBannerDeleteModal,
@@ -177,7 +180,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         width="w-44"
         theme="light"
         trigger={
-          <Button variant="primary" cloud={isCloud} data-presence-anchor="toolbar:schedule:day-breaks">
+          <Button variant="primary" cloud={accent} data-presence-anchor="toolbar:schedule:day-breaks">
             <Sunset className="w-3.5 h-3.5 shrink-0" />
              Day Breaks
             <ChevronDown className="w-3 h-3 shrink-0" />
@@ -197,7 +200,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         trigger={
           <Button
             variant="primary"
-            cloud={isCloud}
+            cloud={accent}
             title="Add note/break banners to every day, or delete banners"
             data-presence-anchor="toolbar:schedule:banners"
           >
@@ -276,7 +279,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       </DropdownMenu>
       <Button
         variant="primary"
-        cloud={isCloud}
+        cloud={accent}
         onClick={() => !readOnly && onToggleEdit()}
         disabled={readOnly}
         title="Edit"
@@ -292,7 +295,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       </Button>
       <ToolbarDivider />
       {onPrint && (
-        <Button variant="primary" cloud={isCloud} onClick={onPrint} title="Print" aria-label="Print" data-presence-anchor="toolbar:schedule:print">
+        <Button variant="primary" cloud={accent} onClick={onPrint} title="Print" aria-label="Print" data-presence-anchor="toolbar:schedule:print">
           <Printer className="w-3.5 h-3.5 shrink-0" />
         </Button>
       )}

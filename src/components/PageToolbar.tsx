@@ -1,5 +1,6 @@
 import React from 'react';
-import { useIsCloudProject } from '../store';
+import { useProjectTheme } from '../store';
+import { projectAccentOf } from '../lib/projectTheme';
 import { ExternalLink } from 'lucide-react';
 import { IS_COARSE, isTouchLike } from '../lib/device';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
@@ -41,7 +42,8 @@ const JUSTIFY = {
 
 export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shiftHeld = false, children, rightContent, justify = 'between', theme = 'light' }: PageToolbarProps) {
   const t = THEME[theme];
-  const isCloud = useIsCloudProject();
+  const projectTheme = useProjectTheme();
+  const accent = projectAccentOf(projectTheme);
 
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; tabId: string } | null>(null);
 
@@ -131,7 +133,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
                 key={tab.id}
                 variant="tab"
                 theme={theme}
-                cloud={isCloud}
+                cloud={accent}
                 active={active}
                 data-presence-anchor={`nav:subtab:${tab.id}`}
                 onClick={() => {
@@ -145,7 +147,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
                 } : undefined}
-                className={`shrink-0 ${theme === 'dark' && active && !isCloud ? 'bg-white! text-zinc-900!' : ''}`}
+                className={`shrink-0 ${theme === 'dark' && active && projectTheme === 'local' ? 'bg-white! text-zinc-900!' : ''}`}
               >
                 {tab.label}
               </Button>
