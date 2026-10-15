@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus, Eye, Tags } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
 import { Seg } from '@gabriel/ui-kit';
@@ -958,8 +958,8 @@ export const CalendarTab: React.FC<{
     `}</style>
     <PageToolbar
       tabs={[
-        { id: 'calendar', label: 'Calendar' },
-        { id: 'dayTypes', label: 'Day Types' },
+        { id: 'calendar', label: 'Calendar', icon: <CalendarDays className="w-3.5 h-3.5" /> },
+        { id: 'dayTypes', label: 'Day Types', icon: <Tags className="w-3.5 h-3.5" /> },
       ]}
       activeTab={subTab}
       onChange={(t) => onSubTabChange?.(t as 'calendar' | 'dayTypes')}

@@ -4,7 +4,7 @@ import { CustomCategoryDef } from '../types';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
 import DoodsTab from './DoodsTab';
 import ElementBreakdownView from './ElementBreakdownView';
-import { PanelLeftOpen, PanelLeftClose, Printer } from 'lucide-react';
+import { PanelLeftOpen, PanelLeftClose, Printer, GanttChart, Layers } from 'lucide-react';
 import PageToolbar from './PageToolbar';
 import Button from './Button';
 import { PopoutPlaceholder } from './PopoutWindow';
@@ -57,8 +57,8 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
       <PageToolbar
         theme="dark"
         tabs={[
-          { id: 'doods', label: 'Day Out of Days' },
-          { id: 'elementBreakdown', label: 'Element Breakdown' },
+          { id: 'doods', label: 'Day Out of Days', icon: <GanttChart className="w-3.5 h-3.5" /> },
+          { id: 'elementBreakdown', label: 'Element Breakdown', icon: <Layers className="w-3.5 h-3.5" /> },
         ]}
         activeTab={subTab}
         onChange={onSubTabChange}

@@ -234,6 +234,7 @@ const RULES = [
   { g: 'src/components/ScriptUpdateModal.tsx', s: IMPORT },
   { g: 'src/components/ProjectManager.tsx', s: 'ALL' },
   { g: 'src/components/AppHeader.tsx', s: 'ALL' },
+  { g: 'src/components/PageToolbar.tsx', s: 'ALL' },
   { g: 'src/components/DoodsTab.tsx', s: REPORT },
   { g: 'src/components/map/MapPrimitives.tsx', s: ['report-sun-weather-map'] },
   { g: 'src/lib/debugBridge.ts', s: ['debug-bridge'] },
