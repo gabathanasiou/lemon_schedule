@@ -122,7 +122,7 @@ export default function AppHeader(props: AppHeaderProps) {
             trigger={
               <button
                 data-presence-anchor="toolbar:header:file"
-                className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 font-sans font-semibold cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                className={`flex items-center space-x-1.5 rounded transition-colors -ml-3 px-3 py-1.5 font-sans font-medium cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
               >
                 <span className="hidden md:inline">File</span>
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -231,13 +231,13 @@ export default function AppHeader(props: AppHeaderProps) {
                 if (titleDraft !== project.title) renameProject(currentProjectId!, titleDraft, currentDriveFileId);
               }}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
-              className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans max-w-[60px] md:max-w-[120px] ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
+              className={`bg-transparent border-none text-white font-medium rounded px-1 mr-2 outline-none font-sans max-w-[60px] md:max-w-[120px] ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
             />
           ) : (
             <span
               onClick={() => { if (!locked) { setTitleDraft(project.title); setEditingTitle(true); } }}
               data-presence-anchor="header:project-title"
-              className={`text-white font-medium px-1 truncate max-w-[60px] md:max-w-[120px] ${locked ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
+              className={`text-white font-medium px-1 mr-2 truncate max-w-[60px] md:max-w-[120px] ${locked ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
               title={project.title}
             >
               {project.title}
