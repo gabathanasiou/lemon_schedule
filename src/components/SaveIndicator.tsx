@@ -3,6 +3,7 @@ import { Loader2, WifiOff, Save, Cloud, CloudOff, HardDrive, Eye, RefreshCw } fr
 import { useProject, useIsOnlineProject } from '../store';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { roomBadgeState, roomBadgeText } from '../lib/rooms/roomBadge';
+import { roomsConfigured } from '../lib/rooms/roomsEnv';
 
 export interface SaveState {
   status: 'idle' | 'saving' | 'saved' | 'offline' | 'viewOnly';
@@ -122,7 +123,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
 
   // Roadmap 239 stage 1: the room badge (a pure mapping in lib/rooms/roomBadge).
   const roomBadge = roomBadgeState({
-    roomsConfigured: !!import.meta.env.VITE_ROOMS_URL,
+    roomsConfigured: roomsConfigured(),
     onlineProject: isOnlineProject,
     networkOnline: !readOnly,
     status: roomStatus,

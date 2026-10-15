@@ -1,8 +1,12 @@
 /**
  * Local S4 room probe — proves the room end-to-end against `wrangler dev`.
  *
- *   cd workers/rooms && npx wrangler dev --port 8787        (background)
  *   npx tsx workers/rooms/test/room-probe.ts
+ *
+ * The worker comes up through the shared launcher (tools/rooms-dev.mjs, roadmap
+ * 246) — reuse when one is already running, otherwise it is spawned from the
+ * main tree and stopped again on exit. `ROOMS_PORT` picks another port
+ * (parallel work); `ROOM_URL` overrides the base URL (no local ensure then).
  *
  * Flow: A (editor) seeds the room via init → acts; B (editor) joins and must land
  * on A's state by folding snapshot + replay; B acts and A must see it; a viewer is
@@ -23,9 +27,11 @@ import {
 } from '../../../src/lib/rooms/protocol';
 import { deserializeProject, serializeProject } from '../../../src/lib/projectCodec';
 import { ROOM_REDO_BLOCKED, ROOM_UNDO_BLOCKED } from '../../../src/lib/rooms/roomNotes';
+import { ensureRoomsWorker, isLoopbackRoomsUrl } from '../../../tools/rooms-dev.mjs';
 import type { Project } from '../../../src/types';
 
-const BASE = process.env.ROOM_URL ?? 'http://127.0.0.1:8787';
+const PORT = Number(process.env.ROOMS_PORT || 8787);
+const BASE = process.env.ROOM_URL ?? `http://127.0.0.1:${PORT}`;
 // A fresh room per run: local Durable Object state persists in .wrangler/ across
 // `wrangler dev` restarts, so a fixed id would hit the previous run's room.
 const PROJECT_ID = process.env.ROOM_PROBE_ID ?? `probe-${Date.now().toString(36)}`;
@@ -157,6 +163,12 @@ function expectRejectedOrigin(): Promise<boolean> {
 }
 
 async function main(): Promise<void> {
+  // The shared launcher brings the worker up (or reuses the one already
+  // serving the port — parallel dev servers share ONE worker, roadmap 246).
+  if (isLoopbackRoomsUrl(BASE)) {
+    const ready = await ensureRoomsWorker({ port: PORT });
+    if (!ready.ok) throw new Error(`room worker unavailable: ${ready.error}`);
+  }
   await waitForServer();
   const project = makeBlankProject('Probe');
 

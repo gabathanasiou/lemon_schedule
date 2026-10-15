@@ -1,5 +1,6 @@
 import React from 'react';
-import { useIsCloudProject } from '../store';
+import { useProjectTheme } from '../store';
+import { projectAccentOf } from '../lib/projectTheme';
 import { ExternalLink } from 'lucide-react';
 import { IS_COARSE, isTouchLike } from '../lib/device';
 import { useSlidingPill, TAB_PILL } from '@gabriel/ui-kit';
@@ -44,7 +45,8 @@ const JUSTIFY = {
 
 export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shiftHeld = false, children, rightContent, justify = 'between', theme = 'light' }: PageToolbarProps) {
   const t = THEME[theme];
-  const isCloud = useIsCloudProject();
+  const projectTheme = useProjectTheme();
+  const accent = projectAccentOf(projectTheme);
 
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; tabId: string } | null>(null);
 
@@ -80,7 +82,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
      TAB_PILL — the Seg mechanism), so the selection box glides (roadmap 258). */
   const activeTabIdx = Math.max(0, (tabs ?? []).findIndex(t => t.id === activeTab));
   const tabPill = useSlidingPill(stripRef, tabRefs, activeTabIdx);
-  const tabPillFill = TAB_PILL[theme][isCloud ? 'blue' : 'plain'];
+  const tabPillFill = TAB_PILL[theme][accent === 'emerald' ? 'emerald' : accent ? 'blue' : 'plain'];
   const requiredStripWidthRef = React.useRef<number | null>(null);
   const syncTabsDock = React.useCallback(() => {
     const el = scrollRef.current;
@@ -176,7 +178,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
                 ref={el => { tabRefs.current[i] = el; }}
                 variant="tab"
                 theme={theme}
-                cloud={isCloud}
+                cloud={accent}
                 active={active}
                 icon={tab.icon}
                 collapse={tabsDock}

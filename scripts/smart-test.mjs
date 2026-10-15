@@ -294,6 +294,11 @@ const RULES = [
   // account settings modal (roadmap 256 — profile + team tabs): same story,
   // account-only surface, never mounted with Supabase off.
   { g: 'src/components/AccountSettingsModal.tsx', s: [] },
+  // What's New viewer (roadmap 259) — rule-7 visual; the modal shows the
+  // bundled CHANGELOG.md (Vitest covers the parser + the real-file seam).
+  { g: 'src/components/WhatsNewModal.tsx', s: [] },
+  { g: 'src/lib/changelog.ts', s: [] },
+  { g: 'CHANGELOG.md', s: [] },
 ];
 
 // ---- tiny glob: supports `**` (any depth), `*` (within a segment) ----

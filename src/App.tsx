@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ProjectProvider, useProject, useIsCloudProject } from './store';
+import { ProjectProvider, useProject } from './store';
 import { useDialog } from './components/Dialog';
 import { Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
@@ -62,6 +62,7 @@ import { useAgentBridge } from './lib/useAgentBridge';
 import { AGENT_BRIDGE_HELP_SUPPRESS_KEY } from './lib/agentBridgeClient';
 import { isWarningSuppressed, suppressWarningFor24h } from './lib/warnings';
 import AgentBridgeHelpModal from './components/AgentBridgeHelpModal';
+import WhatsNewModal from './components/WhatsNewModal';
 import { Download, Printer, Plus, ChevronDown, Undo2, Redo2, FolderOpen, HardDrive, FileUp, WifiOff, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose, Loader2 } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import DayManagerPage from './components/production/day/DayManagerPage';
@@ -621,6 +622,7 @@ function AppContent() {
   const [customReportPrint, setCustomReportPrint] = useState<{ design: ReportDesign; daySectionIndex?: number } | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showIntegrity, setShowIntegrity] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const driveCtx = useGoogleAuth();
   const topTabContainerRef = useRef<HTMLDivElement>(null);
@@ -658,10 +660,8 @@ function AppContent() {
 
   const noProject = currentProjectId === null;
   const currentProjectMeta = projectList.find(p => p.id === currentProjectId);
-  // Theme-level "cloud" = Drive OR online (docs/COLLABORATION.md); the
-  // Drive-specific surfaces (offline sign-in copy, disconnect semantics)
-  // keep their own signal below.
-  const isCloudProject = !!(currentProjectMeta?.driveFileId || currentProjectMeta?.onlineId);
+  // Drive-specific surfaces (offline sign-in copy, disconnect semantics) keep
+  // their own signal; project-chrome colors come from `useProjectTheme()`.
   const isDriveProject = !!currentProjectMeta?.driveFileId;
 
   // Surface agent-bridge failures as a dialog (once per failure episode) — the
@@ -684,9 +684,6 @@ function AppContent() {
     agentBridgeErrorShownRef.current = true;
     void dialog.alert({ title: 'Agent bridge', message: agentBridge.error });
   }, [noProject, agentBridge.available, agentBridge.enabled, agentBridge.status, agentBridge.error, dialog]);
-
-  const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800';
-  const activeTabClass = isCloudProject ? 'bg-white text-blue-950' : 'bg-white text-zinc-900';
 
   const storage = useStorage();
   const ctx = useProject();
@@ -1030,7 +1027,6 @@ function AppContent() {
       <AppHeader
         activeTab={activeTab}
         setActiveTab={requestTabSwitch}
-        isCloudProject={isCloudProject}
         shiftHeld={shiftHeld}
         togglePopout={requestTabPopout}
         onTabContextMenu={(e, tabId) => setTabContextMenu({ x: e.clientX, y: e.clientY, tabId })}
@@ -1048,6 +1044,7 @@ function AppContent() {
         onPrintReport={(design) => setCustomReportPrint({ design })}
         onShowTrash={() => setShowTrash(true)}
         onShowIntegrity={() => setShowIntegrity(true)}
+        onShowWhatsNew={() => setShowWhatsNew(true)}
         agentBridge={agentBridge}
         onToggleAgentBridge={handleToggleAgentBridge}
         driveCtx={driveCtx}
@@ -1226,6 +1223,7 @@ function AppContent() {
 
       <TrashModal open={showTrash} onClose={() => setShowTrash(false)} project={project} dispatch={dispatch} />
       {showIntegrity && <ScriptIntegrityModal onClose={() => setShowIntegrity(false)} />}
+      {showWhatsNew && <WhatsNewModal onClose={() => setShowWhatsNew(false)} />}
 
       {showRestoreModal && (
         <Modal open onClose={() => setShowRestoreModal(null)} title="Restore from Folder" icon={<HardDrive className="w-4 h-4" />} width="max-w-xl"

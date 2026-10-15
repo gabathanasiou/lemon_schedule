@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
-import { useProject, useIsCloudProject } from '../store';
+import { useProject, useProjectTheme } from '../store';
+import { projectAccentOf } from '../lib/projectTheme';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { DndContext, closestCorners, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
@@ -68,7 +69,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const { state, dispatch, locked } = useProject();
   const currentWindow = useCurrentWindow();
   const currentDocument = useCurrentDocument();
-  const isCloud = useIsCloudProject();
+  const accent = projectAccentOf(useProjectTheme());
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { sections, sectionDateMap: hookSectionDateMap, daybreakRowToSection, nextSectionDateMap: hookNextSectionDateMap, productionSections, chronoDayMap: sectionChronoDayMap } = useDaybreakSections();
@@ -1284,7 +1285,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         onShowViolations={() => setShowShootViolations(true)}
         selectionSummary={selectionSummary}
         bufferSummary={bufferSummary}
-        isCloud={isCloud}
+        accent={accent}
         boneyardCollapsed={boneyardCollapsed}
         onExpandBoneyard={() => setBoneyardCollapsed(false)}
         onCollapseBoneyard={() => handleCollapseChange(true)}

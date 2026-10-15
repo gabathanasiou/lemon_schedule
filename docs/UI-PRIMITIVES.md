@@ -58,8 +58,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   the TRUE sheet number (array index + 1). `naturalSortSceneStrings`; stripboard order = active
   version's SCENE rows, boneyard scenes appended. `initialIndex` echo-guarded
   (`lastReportedIndexRef`) so the App→prop feedback doesn't yoyo the position in non-sheet orders.
-- **Cloud coloring**: cloud projects switch light PageToolbars to `bg-blue-950` (active
-  tabs/buttons); derive via `useIsCloudProject()`. Dark toolbars unaffected.
+- **Project chrome (roadmap 248)**: ONE source — `useProjectTheme()` → `local` (zinc) /
+  `drive` (blue) / `shared` (emerald); class tokens + kit accent values live in
+  `src/lib/projectTheme.ts` (`PROJECT_CHROME`, `projectAccentOf`, `projectMenuThemeOf`,
+  `projectSegThemeOf`). Cloud/shared projects tint light PageToolbars' pills + segmented
+  tracks (dark toolbars keep their bar, the active pill tints). Never branch on an ad-hoc
+  blue check.
 
 ## App Navigation (roadmap 176)
 

@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useProject, useIsCloudProject } from '../store';
+import { useProject, useProjectTheme } from '../store';
+import { projectAccentOf } from './projectTheme';
 import { useDialog } from '../components/Dialog';
 import { useFollowView } from './supabase/useFollowView';
 import { generateUUID } from './utils';
@@ -207,7 +208,7 @@ export const DatabaseManagerView: React.FC<{
   presenceSub?: string;
 }> = ({ config, headerTarget, initialCategory, onCategoryChange, presenceSub }) => {
   const { state, dispatch, locked } = useProject();
-  const isCloud = useIsCloudProject();
+  const accent = projectAccentOf(useProjectTheme());
   const dialog = useDialog();
   const project = state.present;
   const sizes = useManagerTableSizes();
@@ -435,7 +436,7 @@ export const DatabaseManagerView: React.FC<{
     renderInput(r.key, field.key, r[field.key] || '', v => update(field.key, v), field.label, wrap, !!field.uppercase);
 
   const addButton = (
-    <Button variant="primary" cloud={isCloud} onClick={openAdd} disabled={!category || locked}>
+    <Button variant="primary" cloud={accent} onClick={openAdd} disabled={!category || locked}>
       <UserPlus className="w-3.5 h-3.5" /> Add {config.addNoun}
     </Button>
   );

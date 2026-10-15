@@ -5,7 +5,8 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
-import { useProject } from '../store';
+import { useProject, useProjectTheme } from '../store';
+import { PROJECT_CHROME, projectMenuThemeOf } from '../lib/projectTheme';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 import type { SupabaseAccount } from '../lib/supabase/auth';
 import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceContext';
@@ -32,7 +33,6 @@ interface DriveAuth {
 
 interface UserPresenceClusterProps {
   driveCtx: DriveAuth;
-  isCloudProject: boolean;
   /** The open project is Drive-backed — disconnecting Drive must close it. */
   driveBacked: boolean;
   closeProject: () => void;
@@ -48,9 +48,11 @@ interface UserPresenceClusterProps {
  *  Google Drive connect/disconnect lives here too (the File menu keeps
  *  project actions only). Renders nothing when the build has no Supabase env
  *  — the File menu then keeps the old Drive items. */
-export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, closeProject, onOpenAccount, onManageSharing }: UserPresenceClusterProps) {
+export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpenAccount, onManageSharing }: UserPresenceClusterProps) {
   const auth = useSupabaseAuth();
   const { currentProjectId, projectList, state, collaborateProject } = useProject();
+  const projectTheme = useProjectTheme();
+  const chrome = PROJECT_CHROME[projectTheme];
   const presence = usePresenceState();
   const presenceActions = usePresenceActions();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -63,7 +65,8 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
   if (!auth.isConfigured || !auth.isReady) return null;
 
   const account = auth.account;
-  const hover = isCloudProject ? 'hover:bg-blue-900/60' : 'hover:bg-zinc-800';
+  const menuTheme = projectMenuThemeOf(projectTheme);
+  const hover = chrome.barHover;
   const currentMeta = projectList.find(p => p.id === currentProjectId);
   // Guests (anonymous sessions) can't own shared projects — "Collaborate"
   // waits until they create an account.
@@ -162,12 +165,12 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
                 onOpenChange={setPeersMenuOpen}
                 align="right"
                 width="w-48"
-                theme={isCloudProject ? 'blue' : 'dark'}
+                theme={menuTheme}
                 trigger={
                   <button
                     data-testid="presence-overflow"
                     title={`${overflowPeers.length} more collaborator${overflowPeers.length === 1 ? '' : 's'} — click a name to follow`}
-                    className={`relative w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center cursor-pointer select-none transition-all duration-200 ease-out motion-reduce:transition-none ${isCloudProject ? 'bg-blue-900 text-white ring-1 ring-white/25 hover:bg-blue-800' : 'bg-zinc-800 text-zinc-200 ring-1 ring-white/25 hover:bg-zinc-700'}`}
+                    className={`relative w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center cursor-pointer select-none transition-all duration-200 ease-out motion-reduce:transition-none ${chrome.bubble}`}
                   >
                     +{overflowPeers.length}
                   </button>
@@ -187,7 +190,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
         onOpenChange={setMenuOpen}
         align="right"
         width="w-64"
-        theme={isCloudProject ? 'blue' : 'dark'}
+        theme={menuTheme}
         trigger={
           <button
             data-testid="user-cluster"

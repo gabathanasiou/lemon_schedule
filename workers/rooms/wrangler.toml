@@ -6,9 +6,13 @@ compatibility_date = "2026-10-01"
 # The room runs the SAME pure reducer the app runs, so an action means exactly the same
 # thing everywhere (multiplayer by construction, no per-feature sync code).
 #
-# Local dev: `npx wrangler dev` from this folder. `.dev.vars` (gitignored) sets DEV_AUTH=1,
-# which accepts `dev:<userId>:<role>` tokens; deployed envs use ROOM_TOKEN_SECRET instead
-# (`npx wrangler secret put ROOM_TOKEN_SECRET`, shared with the Supabase Edge Function).
+# Local dev: the dev server auto-starts the worker through the shared launcher
+# (tools/rooms-dev.mjs — reuse or spawn from the MAIN tree, so parallel
+# worktrees share ONE worker, this .dev.vars and the DO state). Manual foreground
+# equivalent: `node tools/rooms-dev.mjs serve` from the repo root. `.dev.vars`
+# (gitignored) sets DEV_AUTH=1, which accepts `dev:<userId>:<role>` tokens;
+# deployed envs use ROOM_TOKEN_SECRET instead (`npx wrangler secret put
+# ROOM_TOKEN_SECRET`, shared with the Supabase Edge Function).
 
 [[durable_objects.bindings]]
 name = "ROOMS"

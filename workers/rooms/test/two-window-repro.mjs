@@ -1,13 +1,15 @@
 /**
  * S4 per-user undo — two-window peer-sync repro (MANUAL tool, not a CI test).
  *
- *   npx wrangler dev --port 8787        # in workers/rooms (background)
  *   npm run dev                         # repo root (:3000)
  *   node workers/rooms/test/two-window-repro.mjs
  *
- * Parallel-agent friendly: set `ROOMS_PORT` (default 8787) to run the local room
- * worker on another port, and point the app's `VITE_ROOMS_URL` at it — the
- * harness kills + restarts wrangler on THAT port only.
+ * The room worker comes up through the shared launcher (tools/rooms-dev.mjs,
+ * roadmap 246): reused when one already runs, spawned otherwise, killed +
+ * restarted around the offline-queue section, and released (detached) at the
+ * end so the dev machine keeps a worker. Parallel-agent friendly: set
+ * `ROOMS_PORT` (default 8787) to run on another port and point the app's
+ * `VITE_ROOMS_URL` at it — only THAT port is touched.
  *
  * Proves (or refutes) that a peer window converges after another window
  * presses Cmd+Z. It drives the REAL app in two isolated browser contexts:
@@ -36,7 +38,7 @@
  * once: it creates the pair (or re-creates a deleted one) and writes `.env`.
  * Cleanup:
  * a throwaway `projects` row (+ memberships) IS created each run, and DELETED
- * again in a finally block; the local room DB it leaves under
+ * again in a finally block; the local room DB it leaves under the MAIN tree's
  * `workers/rooms/.wrangler/state/v3/do/lemon-rooms-Room/` is a few KB of dev
  * state (wipe that folder to reclaim it).
  *
@@ -44,17 +46,17 @@
  * local room worker via VITE_ROOMS_URL. Exits 0 always (prints checks).
  */
 import { readFileSync } from 'node:fs';
-import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { ensureRoomsWorker, killRoomsWorker, releaseRoomsWorker } from '../../../tools/rooms-dev.mjs';
 
 const REPO = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/, '');
 const require = createRequire(`${REPO}/package.json`);
 const { chromium } = require('@playwright/test');
 
 const APP = process.env.APP_URL || 'http://localhost:3000/lemon_schedule/';
-/** Local room-worker port (see the header): the harness kills/restarts wrangler
- *  on THIS port only, so a parallel agent's worker on the default stays safe. */
+/** Local room-worker port (see the header): the harness only ever touches THIS
+ *  port, so a parallel agent's worker on the default stays safe. */
 const ROOMS_PORT = Number(process.env.ROOMS_PORT || 8787);
 
 function envFile() {
@@ -118,30 +120,6 @@ function check(label, ok, detail) {
   log(`${ok ? '  ok ' : 'FAIL '} ${label}${detail === undefined ? '' : ` — ${JSON.stringify(detail)}`}`);
   if (!ok) failures++;
 }
-
-/** Run a process to completion (kill/restart helpers below). */
-const run = (cmd, args) => new Promise((resolve) => {
-  try {
-    const child = spawn(cmd, args, { stdio: 'ignore' });
-    child.on('exit', resolve);
-    child.on('error', () => resolve(-1));
-  } catch {
-    resolve(-1);
-  }
-});
-async function killWrangler() {
-  await run('pkill', ['-f', `wrangler dev --port ${ROOMS_PORT}`]);
-  await run('sh', ['-c', `lsof -ti :${ROOMS_PORT} | xargs kill -9 2>/dev/null; true`]);
-}
-function startWrangler() {
-  const child = spawn('npx', ['wrangler', 'dev', '--port', String(ROOMS_PORT)], {
-    cwd: `${REPO}/workers/rooms`,
-    detached: true,
-    stdio: 'ignore',
-  });
-  child.unref();
-}
-let wranglerKilled = false;
 
 const project = JSON.parse(readFileSync(`${REPO}/e2e/fixtures/seed.lemon`, 'utf8'));
 const PROJECT_ID = crypto.randomUUID();
@@ -208,6 +186,10 @@ async function waitForRoomOpen(page, who) {
 const browser = await chromium.launch({ headless: true });
 let sessionA = null;
 try {
+  // The shared launcher reuses a running worker or brings one up (roadmap 246).
+  log('• ensuring the room worker…');
+  const rooms = await ensureRoomsWorker({ port: ROOMS_PORT });
+  if (!rooms.ok) log(`  [!] room worker not ready: ${rooms.error}`);
   log('• signing in as the reusable robot accounts…');
   sessionA = await account('a');
   const sessionB = await account('b');
@@ -568,7 +550,7 @@ try {
 
   // 240: a MODAL is the other kind — click through the OPEN menu (a modal
   // opened from a just-closed menu must still read as 'modal').
-  await A.page.getByRole('menuitem', { name: 'Edit profile...' }).click();
+  await A.page.getByRole('menuitem', { name: 'Settings...' }).click();
   const modalBubble = await waitFor(async () => (await B.page.locator('[data-testid="presence-bubble-overlay"]').count()) > 0);
   const modalTag = await waitFor(async () => (await B.page.locator(cursorSel('[data-overlay="modal"]')).count()) > 0);
   const aModal = await diag(A.page).then((d) => d.presence?.localOverlay ?? null).catch(() => null);
@@ -942,9 +924,8 @@ try {
   // ── Offline queue (roadmap 239 stage 2): kill the room worker mid-session,
   // edit in A (buffered locally + badge), restart the worker → A replays the
   // buffer right after the welcome and B converges with no lost edit.
-  log('• killing wrangler to exercise the offline buffer…');
-  wranglerKilled = true;
-  await killWrangler();
+  log('• killing the room worker to exercise the offline buffer…');
+  await killRoomsWorker({ port: ROOMS_PORT });
   const roomDown = async (page, who) => {
     for (let i = 0; i < 80; i++) {
       const d = await diag(page).catch(() => null);
@@ -969,9 +950,8 @@ try {
   for (let i = 0; i < 40; i++) { if ((await A.page.getByTestId('room-status-badge').count()) > 0) { badgeSeen = true; break; } await sleep(250); }
   check('A: header badge shows the offline state', badgeSeen, null);
 
-  log('• restarting wrangler…');
-  startWrangler();
-  wranglerKilled = false;
+  log('• restarting the room worker…');
+  await ensureRoomsWorker({ port: ROOMS_PORT });
   const roomUp = async (page) => {
     for (let i = 0; i < 240; i++) {
       const d = await diag(page).catch(() => null);
@@ -1004,12 +984,9 @@ try {
 } catch (e) {
   console.error('repro crashed:', e);
 } finally {
-  // Never leave the machine without its dev room worker (the offline-queue
-  // section kills it — restart even after a crash).
-  if (wranglerKilled) {
-    log('• restarting wrangler (crash recovery)…');
-    startWrangler();
-  }
+  // Hand the worker off so the dev machine keeps one after this run (the
+  // offline-queue section killed it mid-session) — detached from this process.
+  await releaseRoomsWorker({ port: ROOMS_PORT });
   // Leave no throwaway project behind: delete the row this run created (owner
   // A's token; memberships/share links cascade). If it fails, the dashboard is
   // the fallback — see the header.
