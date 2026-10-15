@@ -65,7 +65,9 @@ function client() {
   return supabase;
 }
 
-async function currentUserId(): Promise<string> {
+/** The signed-in account id — one source of "who am I" for the online
+ *  modules (sharing, teams). Throws when signed out. */
+export async function currentUserId(): Promise<string> {
   const { data } = await client().auth.getSession();
   const id = data.session?.user.id;
   if (!id) throw new Error('Sign in to manage sharing.');
@@ -171,20 +173,26 @@ export async function inviteCollaborator(projectId: string, email: string, role:
   return ((data as { status?: InviteState } | null)?.status) ?? 'added';
 }
 
-/** The caller's invitable people — everyone they already collaborate with,
- *  minus this project's members, the owner and guests (all server-side in
- *  the definer RPC). Same permission gate as inviting: owner, or an editor
- *  while Allow others to invite is on. */
-export async function listInviteSuggestions(projectId: string): Promise<InviteSuggestion[]> {
-  const { data, error } = await client().rpc('list_invite_suggestions', { p_project: projectId });
-  if (error) throw new Error(error.message);
+/** Shape the suggestion RPC rows (shared by the project picker and the Team
+ *  modal's picker — one mapper, one source label contract). */
+export function mapInviteSuggestions(data: unknown): InviteSuggestion[] {
   return ((data ?? []) as any[]).map(r => ({
     userId: r.user_id as string,
     name: (r.display_name as string | null) ?? null,
     avatarUrl: (r.avatar_url as string | null) ?? null,
     email: (r.email as string | null) ?? null,
-    source: 'collaborator' as const,
+    source: r.source === 'team' ? 'team' : 'collaborator',
   }));
+}
+
+/** The caller's invitable people — everyone they already collaborate with
+ *  plus their teammates, minus this project's members, the owner and guests
+ *  (all server-side in the definer RPC). Same permission gate as inviting:
+ *  owner, or an editor while Allow others to invite is on. */
+export async function listInviteSuggestions(projectId: string): Promise<InviteSuggestion[]> {
+  const { data, error } = await client().rpc('list_invite_suggestions', { p_project: projectId });
+  if (error) throw new Error(error.message);
+  return mapInviteSuggestions(data);
 }
 
 /** Invite the account the picker resolved (the email path's twin — the

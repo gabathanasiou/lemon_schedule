@@ -30,10 +30,8 @@ import {
 } from '../../lib/supabase/sharing';
 import type { InviteTarget } from '../../lib/inviteTargets';
 import { shareLinkUrl } from '../../lib/shareTokens';
-import { MemberRow, PendingRow } from './sharingParts';
+import { MemberRow, PendingRow, PANEL_INPUT_CLASS, SectionLabel } from './sharingParts';
 import { PeoplePicker } from './PeoplePicker';
-
-const INPUT_CLASS = 'px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50';
 
 type AccessMode = 'invite' | 'link';
 const EXPIRY_OPTIONS = [
@@ -288,7 +286,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
           <>
             {/* Who can access ------------------------------------------------ */}
             <section className="space-y-2">
-              <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Who can access</div>
+              <SectionLabel>Who can access</SectionLabel>
               {canInvite ? (
                 <>
                   <Seg
@@ -318,7 +316,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                             value={linkHref}
                             placeholder={needsNewLink ? 'Create a new link to show it here' : ''}
                             onFocus={e => e.currentTarget.select()}
-                            className={`${INPUT_CLASS} flex-1 min-w-0 font-mono text-[10px] cursor-text`}
+                            className={`${PANEL_INPUT_CLASS} flex-1 min-w-0 font-mono text-[10px] cursor-text`}
                           />
                           <Button variant="subtle" theme="dark" onClick={handleCopyLink} disabled={busy} className="shrink-0">
                             <Copy className="w-3.5 h-3.5" /> {needsNewLink ? 'Create New Link' : (copied ? 'Copied' : 'Copy Link')}
@@ -356,9 +354,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
 
             {/* People -------------------------------------------------------- */}
             <section>
-              <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">
-                People ({share.members.length + share.pendingInvites.length})
-              </div>
+              <SectionLabel>People ({share.members.length + share.pendingInvites.length})</SectionLabel>
               <div className="divide-y divide-zinc-800/60">
                 {share.members.map(member => (
                   <MemberRow
@@ -386,7 +382,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
             {/* Invite -------------------------------------------------------- */}
             {canInvite ? (
               <section>
-                <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Invite</div>
+                <SectionLabel>Invite</SectionLabel>
                 <div className="flex flex-wrap items-center gap-2">
                   <PeoplePicker suggestions={suggestions} onCommit={handleInviteTarget} />
                   <Seg
