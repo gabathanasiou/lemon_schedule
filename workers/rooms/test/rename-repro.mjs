@@ -1,9 +1,12 @@
 /**
  * Collab rename sync — two-window repro (MANUAL tool, not a CI test).
  *
- *   npx wrangler dev --port 8787        # in workers/rooms (background)
  *   npm run dev                         # repo root (:3000, VITE_ROOMS_URL set)
  *   node workers/rooms/test/rename-repro.mjs
+ *
+ * The room worker rides the shared launcher (tools/rooms-dev.mjs, roadmap
+ * 246): reused when one already runs, spawned otherwise and stopped again on
+ * exit. `ROOMS_PORT` picks another port for parallel work.
  *
  * Roadmap 253/249 diagnosis: A (owner) and B (editor) share ONE project;
  * every rename entry point is driven through the REAL UI —
@@ -20,17 +23,20 @@
  *      session metas in `projectList`, and a stale session meta wins.
  *
  * Reuses the two-window-repro harness pattern (robot accounts from .env,
- * throwaway project row deleted in the finally block). Never kills wrangler.
+ * throwaway project row deleted in the finally block).
  */
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { ensureRoomsWorker } from '../../../tools/rooms-dev.mjs';
 
 const REPO = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/, '');
 const require = createRequire(`${REPO}/package.json`);
 const { chromium } = require('@playwright/test');
 
 const APP = process.env.APP_URL || 'http://localhost:3000/lemon_schedule/';
+/** Local room-worker port (see the header): parallel-run isolation. */
+const ROOMS_PORT = Number(process.env.ROOMS_PORT || 8787);
 
 function envFile() {
   const out = {};
@@ -195,6 +201,10 @@ async function renameViaPM(page, next) {
 const browser = await chromium.launch({ headless: true });
 let sessionA = null;
 try {
+  // The shared launcher reuses a running worker or brings one up (roadmap 246).
+  log('• ensuring the room worker…');
+  const rooms = await ensureRoomsWorker({ port: ROOMS_PORT });
+  if (!rooms.ok) log(`  [!] room worker not ready: ${rooms.error}`);
   log('• signing in as the reusable robot accounts…');
   sessionA = await account('a');
   const sessionB = await account('b');
