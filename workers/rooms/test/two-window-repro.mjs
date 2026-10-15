@@ -16,9 +16,13 @@
  *   • captures every WebSocket frame in both windows,
  *   • A edits a stripboard scene, then presses Meta+z.
  *
- * SIDE EFFECTS (why it is not a test): each run creates 2 Supabase auth users
- * and 1 `projects` row + membership in the configured project. Run against a
- * throwaway/local Supabase and clean up rows when done.
+ * ACCOUNTS: signs in as the REUSABLE robot accounts held in the gitignored
+ * `.env` (`LEMON_TEST_SB_USER_A/PASS_A` + `_B`) — no new users are created per
+ * run (the account is created once, on the first run, if missing). Cleanup:
+ * a throwaway `projects` row (+ memberships) IS created each run, and DELETED
+ * again in a finally block; the local room DB it leaves under
+ * `workers/rooms/.wrangler/state/v3/do/lemon-rooms-Room/` is a few KB of dev
+ * state (wipe that folder to reclaim it).
  *
  * Reads `.env` (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) and points at the
  * local room worker via VITE_ROOMS_URL. Exits 0 always (prints checks).
@@ -54,12 +58,26 @@ async function auth(path, body) {
   });
   return { ok: res.ok, json: await res.json().catch(() => ({})) };
 }
+/**
+ * The REUSABLE robot account for a role letter. Credentials come from the
+ * gitignored `.env` (set once — see the file header); if the account does not
+ * exist yet it is created here, so a fresh machine self-heals on the first run.
+ * Reusing fixed identities keeps runs from littering the Supabase project with
+ * auth users.
+ */
 async function account(tag) {
-  const email = `lemon-s4-${tag}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4)}@example.com`;
-  const password = 'password123';
+  const suffix = tag.toUpperCase();
+  const email = env[`LEMON_TEST_SB_USER_${suffix}`] ?? `lemon-agent-${tag}@example.com`;
+  const password = env[`LEMON_TEST_SB_PASS_${suffix}`];
+  if (!password) {
+    throw new Error(
+      `LEMON_TEST_SB_PASS_${suffix} is missing from .env — create the robot accounts once ` +
+        `(Supabase signup) and store their credentials there before running this harness.`
+    );
+  }
   let r = await auth('signup', { email, password });
   if (!r.json.access_token) r = await auth('token?grant_type=password', { email, password });
-  if (!r.json.access_token) throw new Error(`auth failed for ${tag}: ${JSON.stringify(r.json).slice(0, 300)}`);
+  if (!r.json.access_token) throw new Error(`auth failed for ${tag} (${email}): ${JSON.stringify(r.json).slice(0, 300)}`);
   const { access_token, token_type, expires_in, expires_at, refresh_token, user } = r.json;
   return { email, access_token, token_type, expires_in, expires_at, refresh_token, user };
 }
@@ -141,9 +159,11 @@ async function waitForRoomOpen(page, who) {
 }
 
 const browser = await chromium.launch({ headless: true });
+let sessionA = null;
 try {
-  log('• creating two throwaway accounts…');
-  const [sessionA, sessionB] = await Promise.all([account('a'), account('b')]);
+  log('• signing in as the reusable robot accounts…');
+  sessionA = await account('a');
+  const sessionB = await account('b');
   log(`  A=${sessionA.user.id.slice(0, 8)}  B=${sessionB.user.id.slice(0, 8)}`);
 
   // A: local project → Collaborate.
@@ -382,6 +402,22 @@ try {
 } catch (e) {
   console.error('repro crashed:', e);
 } finally {
+  // Leave no throwaway project behind: delete the row this run created (owner
+  // A's token; memberships/share links cascade). If it fails, the dashboard is
+  // the fallback — see the header.
+  if (sessionA) {
+    try {
+      const res = await fetch(`${SB_URL}/rest/v1/projects?id=eq.${PROJECT_ID}`, {
+        method: 'DELETE',
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${sessionA.access_token}`, Prefer: 'return=minimal' },
+      });
+      log(res.ok
+        ? `• cleaned up the throwaway project row (${PROJECT_ID.slice(0, 8)}…)`
+        : `• project-row cleanup failed (${res.status}) — delete ${PROJECT_ID} manually`);
+    } catch (e) {
+      log(`• project-row cleanup failed — delete ${PROJECT_ID} manually (${e.message})`);
+    }
+  }
   await browser.close();
 }
 process.exit(0);
