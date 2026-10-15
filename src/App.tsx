@@ -76,7 +76,6 @@ import AppHeader, { AppTabId } from './components/AppHeader';
 import { AccountModal } from './components/AccountModal';
 import { ShareLinkGate } from './components/ShareLinkGate';
 import { SharingModal } from './components/sharing/SharingModal';
-import { TeamModal } from './components/sharing/TeamModal';
 import { PasswordRecoveryModal } from './components/PasswordRecoveryModal';
 import ProductionTab, { ProductionSubTab, ProdViews } from './components/ProductionTab';
 import { CrewManager } from './components/CrewManager';
@@ -550,7 +549,6 @@ function AppContent() {
   const [showProjectManager, setShowProjectManager] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showSharing, setShowSharing] = useState(false);
-  const [showTeam, setShowTeam] = useState(false);
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showDoodDialog, setShowDoodDialog] = useState(false);
@@ -956,7 +954,6 @@ function AppContent() {
 
       <AccountModal open={showAccountModal} onClose={() => setShowAccountModal(false)} />
       <SharingModal open={showSharing} onClose={() => setShowSharing(false)} />
-      <TeamModal open={showTeam} onClose={() => setShowTeam(false)} />
       <PasswordRecoveryModal />
 
       {showAgentBridgeHelp && (
@@ -1024,7 +1021,6 @@ function AppContent() {
         onTabContextMenu={(e, tabId) => setTabContextMenu({ x: e.clientX, y: e.clientY, tabId })}
         onOpenProjectManager={() => setShowProjectManager(true)}
         onManageSharing={() => setShowSharing(true)}
-        onManageTeam={() => setShowTeam(true)}
         onImportClick={() => importFileRef.current?.click()}
         onImportNewProject={() => newProjectFileRef.current?.click()}
         onUpdateScript={() => updateScriptFileRef.current?.click()}

@@ -37,8 +37,6 @@ interface AppHeaderProps {
   onOpenProjectManager: () => void;
   /** Opens the User & sharing panel for the open shared project (S2). */
   onManageSharing: () => void;
-  /** Opens the Team panel — the account-level roster (roadmap 254). */
-  onManageTeam: () => void;
   onImportClick: () => void;
   onImportNewProject: () => void;
   onUpdateScript: () => void;
@@ -67,7 +65,7 @@ export default function AppHeader(props: AppHeaderProps) {
   const project = state.present;
   const {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
-    onOpenProjectManager, onManageSharing, onManageTeam, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
+    onOpenProjectManager, onManageSharing, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
     onShowTrash, onShowIntegrity, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
   } = props;
@@ -261,7 +259,7 @@ export default function AppHeader(props: AppHeaderProps) {
       <div className="flex items-center space-x-3 font-mono text-xs shrink-0 ml-auto">
         <RoomNote />
         <UndoRedoButtons isCloudProject={isCloudProject} />
-        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} onManageTeam={onManageTeam} />
+        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
       </div>
     </header>
   );
