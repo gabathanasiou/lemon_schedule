@@ -1174,6 +1174,21 @@ several simultaneous movers can approach the 100/s and monthly quotas — Pro (5
 **Broader magnetism is traffic-neutral**: same rate, same payload size — only the anchor's
 meaning improves.
 
+**Coverage boundary (be explicit when building):** after phase 4, coverage is "everything
+structural" — every tab/sub-tab, toolbar item, menu/dropdown item, palette entry and
+registered surface, because keys live in SHARED components (coverage grows per component, not
+per instance). Deliberately OUTSIDE:
+- **Popouts** — only the main window publishes (S3 rule, parity with pointers/scroll).
+- **The TipTap script body** — needs ProseMirror relative positions; S3 flagged it, never
+  fake it with indexes.
+- **Canvas internals beyond a registered scope** (a Glide cell is pixels to the DOM — only the
+  grid scope can map it; `InlineGlideTable` grids use the same registration).
+- **Non-interactive content** (text, whitespace, empty space) — the ≤40px nearest-item snap
+  and the screen fallback cover it; nothing is ever faked.
+Add a dev aid while building phase 4: a bridge inspector (`presenceAnchorAt(x, y)` returning
+the anchor that WOULD be published) so coverage is auditable by hovering — it makes the
+manual passes (and future surface additions) verifiable instead of hopeful.
+
 **Verify**: two-client manual pass per surface (pointer sticks to the block/cell under it,
 glides within it, hides when the anchor resolves off-viewport, and vanishes entirely while the
 two clients are on different documents); Vitest for new pure helpers (clamp/fallback/doc-gate
