@@ -139,6 +139,7 @@ the screenplay body (`ImportResult.script` → `project.scriptDocument` /
 - Secrets/tokens MUST come from `import.meta.env.VITE_*` — never literals. `.env` gitignored; `.env.example` placeholders only. New Vite vars go in `.env.example`.
 - OAuth token: `useRef` + `sessionStorage` only (never localStorage); exposed via `useGoogleAuth().accessToken`; never log it (log `error?.message` only) or expose in URLs/DOM. A localStorage FLAG (`lemon_google_was_signed_in`) records prior sign-in so fresh tabs can silently restore the GIS session (`prompt:''`) — the token itself never touches localStorage. **Supabase account sessions are the one deliberate localStorage exception** (`src/lib/supabase/client.ts` — decided in docs/COLLABORATION.md §11); this rule guards the Drive token only.
 - Don't add `@google/genai`, `dotenv`, or `express`. New deps must be imported by ≥1 source file.
+- **Full model, owner checklist + known gaps: `docs/SECURITY.md`; the working review checklist is the `security-review` skill (`.opencode/skills/`).**
 
 ## Agentic Debug Bridge
 `window.__lemonSchedule` (`src/lib/debugBridge.ts`, installed in `provider.tsx`) — a read/write window over the store so agents can inspect and drive the app via `page.evaluate()`. **Not a product feature — dev tooling.**
