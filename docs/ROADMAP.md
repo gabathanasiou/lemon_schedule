@@ -1084,31 +1084,3 @@ Breakdown Sheet / Element Breakdown print, DOOD, call sheets, and widening
   and **143** (report ordering by Board ID — candidate to widen, second pass);
   `relates to` **228** (name-typed cast guard), **157** (cast details),
   **40/41** (MSD/SEX import — real BoardIDs).
-
-## 260. What's New — colour-coded groups, inline emphasis, day titles + lead tags (`[ ]`)
-
-**Requested 2026-10-15 (user):** Features / Bug fixes / Changes are hard to
-tell apart in the viewer; let the writer carry light emphasis and show it;
-give every day a short playful title; and let a reader see which tab or modal
-each change belongs to.
-
-- **Renderer (retroactive — every existing day):** each group gets a 2px
-  colour rail + Lucide icon + tinted uppercase label — Features
-  `Sparkles`/emerald, Bug fixes `Bug`/red, Changes `SlidersHorizontal`/blue;
-  day dates step up one size; the parsed title renders right-aligned in the
-  header row; a bullet leading with a short bold tag (`**Schedule** — …`)
-  renders the tag as a chip (`parseLeadTag`, `src/lib/changelog.ts`).
-- **Writer (forward-only, two sides of one contract):** `/changelog` gains an
-  emphasis rule (one per bullet), a title rule (`## YYYY-MM-DD — Short
-  playful title`, distinct), and an area rule (bold the app surface first,
-  2-4 words). It also stops re-reading the whole file: the shell block prints
-  only the existing headings, the file head (insertion anchor) and the commits
-  since the newest day, with a NO-NEW-COMMITS short-circuit for repeat calls —
-  the full-read path stays only for an explicit backlog range.
-- **Backlog polish (one-off):** a subagent pass over the 50 existing days
-  adds titles + bold lead-ins, validated by a strip-diff (`*` removed,
-  day-heading tails normalised — must be byte-identical), so no wording
-  changes.
-- **Verify:** `npm run lint` + unit + canaries; rule-7 manual pass (modal
-  visuals). Patch bump (0.3.97).
-
