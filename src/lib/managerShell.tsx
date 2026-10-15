@@ -1,7 +1,8 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject, useIsCloudProject } from '../store';
 import { useDialog } from '../components/Dialog';
+import { usePresenceActions } from './supabase/presenceContext';
 import { generateUUID } from './utils';
 import { Plus, Trash2, UserPlus, Pencil, Save, Undo2, Check } from 'lucide-react';
 import SidebarNav, { SidebarNavRow } from '../components/SidebarNav';
@@ -198,7 +199,10 @@ export const DatabaseManagerView: React.FC<{
   headerTarget?: HTMLElement | null;
   initialCategory?: string | null;
   onCategoryChange?: (key: string) => void;
-}> = ({ config, headerTarget, initialCategory, onCategoryChange }) => {
+  /** The production sub-tab this manager lives under (roadmap 243) — the
+   *  presence place for category follow (`production/<sub>/manager`). */
+  presenceSub?: string;
+}> = ({ config, headerTarget, initialCategory, onCategoryChange, presenceSub }) => {
   const { state, dispatch, locked } = useProject();
   const isCloud = useIsCloudProject();
   const dialog = useDialog();
@@ -253,11 +257,39 @@ export const DatabaseManagerView: React.FC<{
 
   const category = categories.find(c => c.key === categoryKey);
 
-  const switchCategory = (newKey: string) => {
+  // Follow (roadmap 243): the selected sidebar category is part of the peer's
+  // LENS. Publish it and mirror it while following — category keys are project
+  // data, so a key this client does not have is ignored.
+  const presenceActions = usePresenceActions();
+  const categoryKeyRef = useRef(categoryKey);
+  categoryKeyRef.current = categoryKey;
+  const categoriesRef = useRef(categories);
+  categoriesRef.current = categories;
+  const switchCategoryRaw = useCallback((newKey: string) => {
     buf.switchScope(newKey);
     setCategoryKey(newKey);
     onCategoryChange?.(newKey);
-  };
+  }, [buf.switchScope, onCategoryChange]);
+  const switchCategory = useCallback((newKey: string) => {
+    // A category click is a view-changing click: it ends follow (S3 rule).
+    presenceActions.noteUserViewChange();
+    switchCategoryRaw(newKey);
+  }, [presenceActions, switchCategoryRaw]);
+  useEffect(() => {
+    if (!presenceSub) return;
+    presenceActions.publishView({ tab: 'production', sub: presenceSub, mode: 'manager', managerCategory: categoryKey });
+  }, [presenceActions, presenceSub, categoryKey]);
+  useEffect(() => {
+    if (!presenceSub) return;
+    return presenceActions.registerFollowApplier((view) => {
+      if (view.tab !== 'production' || view.sub !== presenceSub) return;
+      if ((view.mode ?? 'manager') !== 'manager') return;
+      const key = view.managerCategory;
+      if (!key || key === categoryKeyRef.current) return;
+      if (!categoriesRef.current.some(c => c.key === key)) return;
+      switchCategoryRaw(key);
+    });
+  }, [presenceActions, presenceSub, switchCategoryRaw]);
 
   /** Add button: appends an inline blank row (user decision — no modal in the
    *  Crew Manager; the Add Crew Member modal stays on the day-slot/template

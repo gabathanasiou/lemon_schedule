@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject } from '../../store';
 import { useCurrentWindow } from '../../lib/popoutTarget';
@@ -145,11 +145,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const [reportMode, setReportMode] = useState<ReportViewMode>(() => {
     try { return localStorage.getItem('lemon_schedule_report_view_mode') === 'fields' ? 'fields' : 'values'; } catch { return 'values'; }
   });
-  const setReportModePersisted = (mode: ReportViewMode) => {
+  const setReportModePersisted = useCallback((mode: ReportViewMode) => {
     setReportMode(mode);
     setSelCell(null);
     try { localStorage.setItem('lemon_schedule_report_view_mode', mode); } catch { /* ignore */ }
-  };
+  }, []);
   // Designer day picker (roadmap 198): for a day-scoped design, pin which
   // production day the canvas sample AND the Preview/Print resolve against.
   // Persisted per design (localStorage); null = All days (the default).
@@ -169,12 +169,24 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   // Presence (roadmap 236): publish the OPEN design so peers on another design
   // are hidden (the pointer document gate) — and so pointers can anchor to
   // this design's blocks. App publishes the plain `design/designer` place on
-  // navigation; this effect refines it with the document identity.
+  // navigation; this effect refines it with the document identity + the
+  // follow-lens toggles (roadmap 243: Preview, Fields/Values).
   const presenceActions = usePresenceActions();
   useEffect(() => {
     if (zoneMode) return;
-    presenceActions.publishView({ tab: 'design', sub: 'designer', ...(designId ? { designId } : {}) });
-  }, [presenceActions, zoneMode, designId]);
+    presenceActions.publishView({ tab: 'design', sub: 'designer', ...(designId ? { designId } : {}), preview, reportViewMode: reportMode });
+  }, [presenceActions, zoneMode, designId, preview, reportMode]);
+  // Follow (roadmap 243): Preview + Fields/Values mirror from a followed peer —
+  // only while both clients are on the SAME design (per-user identity, 233).
+  useEffect(() => {
+    if (zoneMode) return;
+    return presenceActions.registerFollowApplier((view) => {
+      if (view.tab !== 'design' || view.sub !== 'designer') return;
+      if (view.designId && view.designId !== designId) return;
+      if (typeof view.preview === 'boolean') setPreview(view.preview);
+      if (view.reportViewMode) setReportModePersisted(view.reportViewMode);
+    });
+  }, [presenceActions, zoneMode, designId, setReportModePersisted]);
 
   useEffect(() => {
     if (!ctx || ctx.dayInfos.length === 0) return;
@@ -612,7 +624,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           { v: 'fields', l: 'Fields', title: 'Fields — chips everywhere; text and tables edit in place', dataProps: { 'data-presence-anchor': 'toolbar:designer:fields' } },
           { v: 'values', l: 'Values', title: 'Values — the final look; double-click or tap again to edit', dataProps: { 'data-presence-anchor': 'toolbar:designer:values' } },
         ]}
-        onChange={v => setReportModePersisted(v as ReportViewMode)}
+        onChange={v => { presenceActions.noteUserViewChange(); setReportModePersisted(v as ReportViewMode); }}
       />
       <DropdownMenu
         open={viewMenuOpen}
@@ -658,7 +670,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         )}
       </DropdownMenu>
       <button
-        onClick={() => setPreview(v => !v)}
+        onClick={() => { presenceActions.noteUserViewChange(); setPreview(v => !v); }}
         data-presence-anchor="toolbar:designer:preview"
         className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
       >

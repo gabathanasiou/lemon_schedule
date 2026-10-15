@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ToolbarDivider from '../../ToolbarDivider';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Check, ChevronDown, Clock, Eye, EyeOff, Printer, RotateCcw, Sheet } from 'lucide-react';
@@ -11,6 +11,7 @@ import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
 import DropdownSubmenu from '../../DropdownSubmenu';
 import Button from '../../Button';
+import { usePresenceActions } from '../../../lib/supabase/presenceContext';
 
 /**
  * Full-surface per-day call-sheet editor (item 10, D17): the whole design
@@ -61,6 +62,20 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
   // Design-time aid only: force call times + durations visible in every ribbon
   // block on the editor canvas. Never saved, never printed (item 114).
   const [showRibbonTimes, setShowRibbonTimes] = useState(true);
+
+  // Follow (roadmap 243): Preview mirrors from a followed peer; the current
+  // day rides along so the `daySection` jump stays truthful for this surface.
+  const presenceActions = usePresenceActions();
+  const daySectionIndex = day.sectionIndex;
+  useEffect(() => {
+    presenceActions.publishView({ tab: 'production', sub: 'days', mode: 'callsheet', daySection: daySectionIndex, preview });
+  }, [presenceActions, daySectionIndex, preview]);
+  useEffect(() => {
+    return presenceActions.registerFollowApplier((view) => {
+      if (view.tab !== 'production' || view.sub !== 'days' || view.mode !== 'callsheet') return;
+      if (typeof view.preview === 'boolean') setPreview(view.preview);
+    });
+  }, [presenceActions]);
 
   // Only call-sheet designs can be per-day edited here.
   const callSheetDesigns = useMemo(() => {
@@ -161,7 +176,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         )}
         <button
           type="button"
-          onClick={() => setPreview(v => !v)}
+          onClick={() => { presenceActions.noteUserViewChange(); setPreview(v => !v); }}
           title={preview ? 'Edit the call sheet' : 'Preview the day call sheet'}
           aria-label={preview ? 'Edit' : 'Preview'}
           data-presence-anchor="toolbar:callsheet:preview"

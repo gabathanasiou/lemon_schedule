@@ -114,7 +114,10 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   (tab + sub-tab + sub-sub mode; `sameViewPlace`)**; the header collaborator bubbles
   (`UserPresenceCluster`, follow toggles) are how you jump to their view (docs/COLLABORATION.md §9).
   One global mousemove tracker in the provider publishes; `PresenceOverlay` draws. Follow mode: App
-  registers the one applier (navigation stays in `go()`); any manual navigation exits.
+  registers the one applier (navigation stays in `go()`); mounted surfaces register their own appliers
+  for in-page lens state (Sheet scene, the stripboard/Calendar switches, and roadmap 243's manager
+  category / designer + call-sheet Preview / Fields-Values — the designer ones same-design-gated); any
+  manual navigation exits.
 - **Overlay cue + input glyph + pointer comfort (roadmaps 240/241/244)**: the peer's input modality
   (`mouse|touch|pen`) rides the cursor payload (re-sent only on change) and selects the pointer glyph; a
   separate `overlay` broadcast announces "this user is inside a menu/modal" (edges + a 6s heartbeat from
