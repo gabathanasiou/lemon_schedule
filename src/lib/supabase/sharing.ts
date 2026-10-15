@@ -30,6 +30,17 @@ export interface PendingInvite {
   createdAt: string;
 }
 
+/** One invitable person in the sharing picker (roadmap 254): a non-anonymous
+ *  account the caller can already see — a co-member across their projects,
+ *  and (phase 2) a teammate. `source` drives the picker's group header. */
+export interface InviteSuggestion {
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  email: string | null;
+  source: 'team' | 'collaborator';
+}
+
 export interface ShareLinkRow {
   id: string;
   createdAt: string;
@@ -154,6 +165,34 @@ export async function inviteCollaborator(projectId: string, email: string, role:
   const { data, error } = await client().rpc('invite_collaborator', {
     p_project: projectId,
     p_email: email,
+    p_role: role,
+  });
+  if (error) throw new Error(error.message);
+  return ((data as { status?: InviteState } | null)?.status) ?? 'added';
+}
+
+/** The caller's invitable people — everyone they already collaborate with,
+ *  minus this project's members, the owner and guests (all server-side in
+ *  the definer RPC). Same permission gate as inviting: owner, or an editor
+ *  while Allow others to invite is on. */
+export async function listInviteSuggestions(projectId: string): Promise<InviteSuggestion[]> {
+  const { data, error } = await client().rpc('list_invite_suggestions', { p_project: projectId });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as any[]).map(r => ({
+    userId: r.user_id as string,
+    name: (r.display_name as string | null) ?? null,
+    avatarUrl: (r.avatar_url as string | null) ?? null,
+    email: (r.email as string | null) ?? null,
+    source: 'collaborator' as const,
+  }));
+}
+
+/** Invite the account the picker resolved (the email path's twin — the
+ *  server only accepts people the caller can already see). */
+export async function inviteCollaboratorById(projectId: string, userId: string, role: CollaboratorRole): Promise<InviteState> {
+  const { data, error } = await client().rpc('invite_collaborator_by_id', {
+    p_project: projectId,
+    p_user: userId,
     p_role: role,
   });
   if (error) throw new Error(error.message);

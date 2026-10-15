@@ -284,6 +284,11 @@ const RULES = [
   // (the suite pins Supabase off, so the cluster/AccountAvatar never mount).
   { g: 'src/components/AccountAvatar.tsx', s: [] },
   { g: 'src/lib/avatarIdentity.ts', s: [] },
+  // sharing surfaces (roadmap 254) — online-only: the suite pins Supabase off,
+  // so the panel never mounts; verified by supabase/tests/rls_s254.sql + the
+  // rule-7 manual pass (inviteTargets has Vitest coverage).
+  { g: 'src/components/sharing/**', s: [] },
+  { g: 'src/lib/inviteTargets.ts', s: [] },
 ];
 
 // ---- tiny glob: supports `**` (any depth), `*` (within a segment) ----
