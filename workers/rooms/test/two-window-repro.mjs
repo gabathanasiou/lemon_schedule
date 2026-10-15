@@ -709,7 +709,13 @@ try {
       && Math.abs(o.rect.x - o.target.x) < 6 && Math.abs(o.rect.y - o.target.y) < 6
       && Math.abs(o.rect.w - o.target.w) < 8 && Math.abs(o.rect.h - o.target.h) < 8, o);
     check(`B: the ${tag} outline wears the peer colour`, rgbClose(outlineRgb(o), peerRgb), { shadow: o?.shadow, peerRgb });
-    return o;
+    // PERSISTENCE: A's pointer marker lands ON the item they just clicked — the
+    // ring must survive it (the first build's centre hit test counted the
+    // marker as an occluder and the ring flickered off a beat later).
+    await sleep(1600);
+    const still = await outlineOf(B.page, item, targetSel);
+    check(`B: the ${tag} outline survives the peer's marker landing on the item`, !!still, still);
+    return still ?? o;
   };
   /** A leaves the surface (tab switch) → B's outline goes + the clear edge. */
   const expectOutlineCleared = async (tag, item) => {
@@ -830,6 +836,24 @@ try {
     !!colRings && colRings.cells.length > 0 && colRings.rings.length === colRings.cells.length
       && colRings.rings.every((r) => colRings.cells.some((c) => boxEq(r, c))),
     colRings);
+  // Persistence (the marker lands on the clicked cell): all cell rings stay.
+  await sleep(1600);
+  const colRingsLater = await B.page.evaluate(({ block, ci, item }) => {
+    const onScreen = (r) => {
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      return r.width > 0 && r.height > 0 && cx > 0 && cy > 0 && cx < window.innerWidth && cy < window.innerHeight;
+    };
+    const box = (el) => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; };
+    const cells = [...document.querySelectorAll(`[data-presence-surface="report-designer"] [data-block-id="${block}"] [data-table-col-ci="${ci}"]`)]
+      .filter((el) => onScreen(el.getBoundingClientRect())).map(box);
+    const rings = [...document.querySelectorAll(`[data-testid="peer-selection-outline"][data-item="${item}"]`)].map(box);
+    return { cells, rings };
+  }, { block: colPick.block, ci: colPick.ci, item: colItem });
+  check("B: the column rings survive the peer's marker landing on a cell",
+    colRingsLater.rings.length === colRingsLater.cells.length
+      && colRingsLater.rings.every((r) => colRingsLater.cells.some((c) => boxEq(r, c))),
+    colRingsLater);
   // A leaves the surface once — both the block and the column rings must go.
   await A.page.getByRole('button', { name: 'Breakdown', exact: true }).first().click();
   let reportGone = false;

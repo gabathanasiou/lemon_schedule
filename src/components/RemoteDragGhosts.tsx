@@ -118,7 +118,7 @@ export function RemoteDragGhostLayer({
 
   if (popout || ghosts.length === 0) return null;
   return (
-    <div className="fixed inset-0 z-30 pointer-events-none overflow-hidden" aria-hidden>
+    <div className="fixed inset-0 z-30 pointer-events-none overflow-hidden" data-presence-chrome aria-hidden>
       {ghosts.map(drag => (
         <div
           key={drag.userId}

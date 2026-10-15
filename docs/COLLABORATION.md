@@ -549,8 +549,14 @@ concurrency semantics in its doc.
     `data-presence-grid`), so pop-outs resolve with their own geometry. Rings
     are `inset 0 0 0 2px <peer colour>` in a fixed z-30 `pointer-events-none`
     layer (the pointer/ghost z-order, below modals); a rect that is scrolled
-    out of its container or under sticky chrome is HIDDEN, not faked (centre
-    hit test — same rule as pointers). The stripboard/Calendar mount per view
+    out of its container or under sticky chrome/menus is HIDDEN, not faked —
+    the centre hit test must find the item at the top of the stack, EXCEPT
+    presence chrome (peer markers, drag ghosts, the rings themselves carry
+    `data-presence-chrome`), which paints over content but never counts as
+    covering it: the peer's own pointer sits exactly on what they just
+    clicked, and treating it as an occluder made rings flicker off a beat
+    after appearing (caught by the harness's persistence check). The
+    stripboard/Calendar mount per view
     mode (a strips-mode selection clears when Events is what's mounted); the
     Report Designer publishes the block OR the column (selecting a column
     clears the block) and the zone/Call-Sheet canvas keeps its own scope for
