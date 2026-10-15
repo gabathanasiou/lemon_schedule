@@ -13,7 +13,8 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   effect in `App.tsx`).
   **Icon dock**: when the FULL labels do not fit the row, the tabs dock — only the active tab shows
   text (the kit `Button` drops the icon whenever the label shows: `iconWithLabel={false}`), the rest
-  rest as icon-only pills and reveal their label on hover/focus. The label stays in the DOM while
+  rest as icon-only pills and reveal their label on hover/focus; icon and label are NEVER combined.
+  The label stays in the DOM while
   collapsed, so role/name queries and screen readers keep working. `requiredTabWidth` is measured
   once at mount while expanded (`syncTabLayout`) — **MUST NOT** re-measure the docked row when
   deciding (the mode would feed back into itself and oscillate). The white selection pill is the kit
