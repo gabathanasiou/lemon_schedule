@@ -27,5 +27,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["node_modules", "workers"]
+  "exclude": ["node_modules", "workers", "supabase/functions"]
 }

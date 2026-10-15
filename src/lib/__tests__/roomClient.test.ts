@@ -348,15 +348,67 @@ describe('RoomClient', () => {
     expect(sockets[0].sent.some((s) => JSON.parse(s).t === 'sync')).toBe(false);
   });
 
-  it('stops with an error when no token can be obtained', async () => {
-    const { client, sockets, events } = makeClient({
-      getToken: async () => {
-        throw new Error('not signed in');
-      },
-    });
-    client.start();
-    await vi.waitFor(() => expect(client.getStatus()).toBe('closed'));
-    expect(sockets).toHaveLength(0);
-    expect(events).toContain('error:could not obtain a room token: not signed in');
+  it('retries a failed token fetch on the reconnect backoff (one note per outage)', async () => {
+    vi.useFakeTimers();
+    try {
+      const { client, sockets, events } = makeClient({
+        getToken: async () => {
+          throw new Error('not signed in');
+        },
+      });
+      client.start();
+      await vi.advanceTimersByTimeAsync(0);
+      // NOT terminal: the token fetch is part of connecting, so it rides the
+      // same backoff as a dropped socket (the deployed pass hit a transient
+      // 401 that used to kill the room for the rest of the session).
+      expect(client.getStatus()).toBe('reconnecting');
+      expect(sockets).toHaveLength(0);
+      expect(events).toContain('error:could not obtain a room token: not signed in');
+
+      // The note does not repeat on every retry — the badge carries the state…
+      await vi.advanceTimersByTimeAsync(10);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(events.filter((e) => e.startsWith('error:could not obtain'))).toHaveLength(1);
+
+      // …and stop() ends the retry loop.
+      client.stop();
+      expect(client.getStatus()).toBe('closed');
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(sockets).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('connects after a TRANSIENT token failure without a reload', async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      const { client, sockets, events } = makeClient({
+        getToken: async () => {
+          calls += 1;
+          if (calls === 1) throw new Error('room token request failed (503)');
+          return 'tok-2';
+        },
+      });
+      client.start();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(sockets).toHaveLength(0);
+
+      await vi.advanceTimersByTimeAsync(10);
+      expect(sockets).toHaveLength(1);
+      sockets[0].onopen?.();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(JSON.parse(sockets[0].sent[0]).t).toBe('hello');
+
+      sockets[0].receive({ t: 'welcome', userId: 'u-1', role: 'editor', rev: 0, project: PROJECT_BLOB, replay: [] });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(client.getStatus()).toBe('open');
+      // Recovery clears the note latch: a LATER outage notes again.
+      expect(events.filter((e) => e.startsWith('error:could not obtain'))).toHaveLength(1);
+      client.stop();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

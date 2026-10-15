@@ -25,8 +25,8 @@ this doc is the model it checks against. Update BOTH whenever the model changes.
 | Supabase URL + publishable/anon key | `VITE_SUPABASE_*` (+ repo secrets) | yes by design — RLS is the gate |
 | Supabase account session | browser `localStorage` (deliberate; COLLABORATION.md §11) | session tokens — the one web-storage exception |
 | Google Drive access token | `useRef` + `sessionStorage` only | no — never logged, never localStorage |
-| `ROOM_TOKEN_SECRET` (when deployed) | Cloudflare worker secret + Supabase Edge Function secret | no — both server-side stores only |
-| `service_role` key | never in the client; future Edge Functions only | no |
+| `ROOM_TOKEN_SECRET` | Cloudflare worker secret (`lemon-rooms`) + Supabase function secret (`room-token`) — both set 2026-10-15 | no — both server-side stores only |
+| `service_role` key | never in the client; Edge Functions only — none use it today (`room-token` reads with the caller's own token under RLS) | no |
 
 Rules:
 - `VITE_*` variables are **public by definition** (they ship in the bundle). Only
@@ -37,7 +37,7 @@ Rules:
 - Local overrides: `.env*` and `.dev.vars*` are gitignored; placeholders only in
   `.env.example`. The repo is PUBLIC — treat every commit as world-readable.
 
-## 3. S4 rooms — the worker's own checklist (all implemented)
+## 3. S4 rooms — the worker's + token-issuance checklists (all implemented)
 
 `workers/rooms/src/` — every item below is enforced there; re-check it when touching
 the room:
@@ -66,6 +66,22 @@ the room:
   from "port taken".
 - **Proof**: `workers/rooms/test/room-probe.ts` (31 checks) includes the negatives —
   fake origin, no auth, wrong room, oversized frame, message flood.
+
+**The `room-token` issuance path (deployed 2026-10-15, roadmap 229).** The Supabase
+Edge Function `supabase/functions/room-token/index.ts` mints what the worker verifies,
+using the ONE shared format `src/lib/rooms/roomToken.ts`:
+
+- Gateway `verify_jwt` stays ON (`supabase/config.toml`) — missing/invalid JWTs never
+  reach the function; the function then verifies the caller AGAIN (`auth.getUser`)
+  and never trusts one gate alone.
+- The membership-role read uses the CALLER's token through RLS ("memberships select
+  own or owner") — no `service_role` anywhere; a non-member sees no row and gets 403
+  (indistinguishable from a nonexistent project, by design).
+- Tokens ride the RESPONSE BODY (never URLs), are HMAC-bound to one project id and
+  expire in 1 h; the secret lives only in the two server-side stores.
+- **Proof**: `workers/rooms/test/deployed-probe.mjs` — the minted token is accepted by
+  the DEPLOYED worker over a real WebSocket; garbage and cross-project tokens are
+  refused (1008); non-member → 403, no session → 401, CORS preflight 204.
 
 ## 4. Client rules (touching auth, network, or storage)
 
@@ -98,7 +114,7 @@ the room:
   collab backend; passwords alone are not acceptable protection for them.
 - Supabase dashboard: keep "Automatically expose new tables" OFF (done 2026-10-12);
   never paste the `service_role` key anywhere shared.
-- Rotating the room secret (when the room is deployed): set the new value in BOTH
+- Rotating the room secret (deployed 2026-10-15 — see §3): set the new value in BOTH
   stores (Cloudflare worker + Supabase Edge Function), redeploy the function, then
   `npx wrangler deploy` the worker — in-flight sockets reconnect with fresh tokens.
 

@@ -1,0 +1,12 @@
+# Supabase project configuration (roadmap 229). Scope: the S4 `room-token`
+# Edge Function + the migration ledger under `supabase/migrations/`. The app
+# never runs the local Docker stack (`supabase start`), so this stays minimal.
+# `project_id` is the local-stack identity — keep it stable across worktrees.
+project_id = "lemon_schedule"
+
+[functions.room-token]
+# The app sends the caller's Supabase access token (`src/lib/rooms/tokenClient.ts`);
+# the gateway rejects missing/invalid JWTs before the function runs, and the
+# function verifies the caller again itself (never trusts one gate alone).
+# Deploy: `npx supabase functions deploy room-token --project-ref <ref> --use-api`
+verify_jwt = true

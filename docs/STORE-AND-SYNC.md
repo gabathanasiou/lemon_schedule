@@ -248,11 +248,27 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   through the real UI; peer headers update in realtime, both Managers and the server row stay
   fresh — display rules in `docs/COLLABORATION.md` §S1 map + `onlineProjectListForDisplay`,
   `src/lib/supabase/onlineProjectList.ts`).
-- Not yet: room tokens are dev-only (`dev:<user>:<role>`, DEV builds + `wrangler dev`); the
-  deployed path calls the Supabase `room-token` function (`src/lib/rooms/tokenClient.ts`), which
-  is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 47 checks — incl.
-  the blocked-undo room + redo safety, roadmap 242) and
-  `room-client-probe.ts` (the real `RoomClient`, 17 checks) against `wrangler dev`.
+- **Deployed (2026-10-15, S4 go-live).** Room worker `lemon-rooms` at
+  `https://lemon-rooms.gabathanasiou.workers.dev` (secret `ROOM_TOKEN_SECRET` set) + the Supabase
+  Edge Function `room-token` (`supabase/functions/room-token/index.ts` — resolves the caller and
+  their membership role through a caller-scoped RLS client, then mints with the ONE shared format
+  `src/lib/rooms/roomToken.ts`). Prod builds fetch tokens via `src/lib/rooms/tokenClient.ts`; DEV
+  builds keep `dev:` tokens. **Token failures are CONNECTION failures** (2026-10-15 deployed-pass
+  fix): `RoomClient` retries a failed token fetch on the same reconnect backoff (one header note
+  per outage, self-heals without a reload), and the function answers **503** for a transient auth
+  server failure vs **401** for a rejected token. Deployed-path proof:
+  `workers/rooms/test/deployed-probe.ts` (run with `npx tsx` + `ROOMS_URL`) — mint → real WS hello
+  accepted; the REAL `RoomClient` seeds/joins/syncs/undoes across two real accounts; a REAL 401
+  recovers to `open` with one note; garbage/cross-project tokens refused; 403/401/CORS gates.
+  Local probes: `workers/rooms/test/room-probe.ts` (room, 47 checks — incl. the blocked-undo room
+  + redo safety, roadmap 242) and `room-client-probe.ts` (the real `RoomClient`, 17 checks)
+  against `wrangler dev`.
+- **Room-token Edge Function gotchas.** Deploys go through the remote Deno bundler
+  (`supabase functions deploy --use-api` — no Docker); modules it imports must use explicit `.ts`
+  extensions, and the CLI's import-walk uploads files outside `supabase/functions` (up to the git
+  root) — that is how the function shares `src/lib/rooms/roomToken.ts` + `protocol.ts` with the
+  worker and the app. `verify_jwt` stays ON (config in `supabase/config.toml`); the function
+  additionally verifies the caller itself.
 - **Header room-status badge (roadmap 239 stage 1, built 2026-10-15).** `roomStatus` is exposed
   reactively on `useProject()` (`useIsOnlineProject()` marks shared projects); `src/lib/rooms/roomBadge.ts`
   maps the transport status → `hidden | connecting | unreachable` + tooltip copy, rendered as an amber

@@ -153,7 +153,12 @@ export default function AppHeader(props: AppHeaderProps) {
     : 'bg-zinc-600';
 
   return (
-    <header data-chrome-bar="app-header" className={`flex items-center ${chrome.bar} text-zinc-300 ${CHROME_BAR_INSET} py-2 select-none print:hidden`}>
+    /* Sticky top-0 z-20 (roadmap 265): iOS 26+ Safari tints the status bar from
+       the fixed/sticky element at the viewport's top edge — the header must BE
+       that element (it carries the theme `bar` fill). z-20 sits above `main`
+       (z-auto — header-hung tooltips keep painting over content) and below the
+       presence pointers (z-30) and the portaled menus. */
+    <header data-chrome-bar="app-header" className={`sticky top-0 z-20 flex items-center ${chrome.bar} text-zinc-300 ${CHROME_BAR_INSET} py-2 select-none print:hidden`}>
       <div className={`flex items-center ${CHROME_ITEM_GAP} shrink-0`}>
           <DropdownMenu
             open={showFileMenu}

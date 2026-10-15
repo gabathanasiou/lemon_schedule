@@ -99,6 +99,8 @@ const RULES = [
   { g: 'src/lib/useDaybreakSections.ts', s: 'ALL' },
   { g: 'src/lib/persistentStorage.ts', s: 'ALL' },
   { g: 'src/lib/persist.ts', s: 'ALL' },
+  { g: 'src/lib/projectTheme.ts', s: 'ALL' },
+  { g: 'src/lib/useStatusBarTheme.ts', s: 'ALL' },
   { g: 'src/lib/syncManager.ts', s: 'ALL' },
   { g: 'src/lib/googleDrive*.ts', s: 'ALL' },
   { g: 'src/lib/useDriveProjectList.ts', s: 'ALL' },
