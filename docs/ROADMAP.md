@@ -1069,13 +1069,12 @@ switching designs switches everyone's editor.
   sub-decision: whether the stripboard's DISPLAY layout follows the personal choice or stays
   a shared "document look" (if unsure, split the field: shared `activeRibbonId` for display +
   a per-user editing id for the designer). COLLABORATION.md §9's "ribbon layout is project
-  state" line updates with this item; the pointer doc-gate of **236** keys off the same ids.
+  state" line updates with this item.
 - **Verify**: two-window pass — each window selects a different design with no cross-switching;
   refresh keeps the per-user choice; selector no longer rides the room; Vitest for the pref
   helper if a new pure util lands.
 - **Relations**: `relates to` **229** (S4 made the project-wide sync instant — the reason this
-  surfaced), **212** (call-sheet/designer parity), **231**, **236** (pointer doc-gating uses
-  these ids).
+  surfaced), **212** (call-sheet/designer parity), **231**.
 
 ## 234. Presence — highlight the cells a peer has selected (spreadsheet-style) (`[ ]`)
 
@@ -1095,9 +1094,10 @@ presence colour, live — a persistent highlight, distinct from S3's floating po
 - **Renderer per surface (user ask 2026-10-15 — designer blocks etc.)**: canvas grids draw
   the highlight through their registered grid scope (as Glide does); DOM surfaces render a
   peer-coloured outline on the element's stable id — for the designer that is `ReportBlock.id`
-  with the existing selected block/column state (`selId`/`selCol` in `reports/ReportDesigner*.tsx`),
-  reusing the data attributes item 236 phase 3 adds. Same peer colours, `pointer-events-none`,
-  same z-order as the other presence chrome.
+  with the existing selected block/column state (`selId`/`selCol` in `reports/ReportDesigner*.tsx`);
+  add stable id-based data attributes where this item needs them (the old 236 plan that proposed
+  them was removed — see the archive). Same peer colours, `pointer-events-none`, same z-order
+  as the other presence chrome.
 - **Rules**: ephemeral only (never persisted, never a room action); multi-window = one
   selection per user, newest window wins (parity with pointers and item 232's transport
   split — selections are `view`-ish traffic and must ride broadcasts, never `track()`);
@@ -1162,100 +1162,6 @@ styling).
   as Vitest.
 - **Relations**: `extends` **229** (S3 presence transport). `relates to` **234** (sibling
   presence polish), **240** (the edge/heartbeat/TTL pattern reused), **231**.
-
-## 236. Presence — pointer magnetism v2: every surface + gate by the open document (`[ ]`, big)
-
-**Requested 2026-10-15 (user):** the magnetic pointers magnetise "only to certain things" —
-the Reports Designer (and relatives) feel weird; in document-scoped pages (Scene Sheet,
-Reports Designer, Ribbon Designer) a peer's pointer should show ONLY while you are both on
-the same document (same sheet scene / report design / ribbon design); and in the Glide
-Breakdown the pointer "unsticks" the moment it leaves populated cells.
-
-**Research findings (agent, 2026-10-15 — mechanism verified in code):**
-- Sender chain (`src/lib/supabase/presenceContext.tsx` `resolvePointerAnchor`): registered
-  grid-scope probe → `data-row-id` / `data-date-key` / `data-day-manager` element anchor →
-  nearest `ITEM_SELECTOR` item within ~40px → viewport-relative `screen` fractions.
-- Registered TODAY: stripboard/boneyard rows + Calendar cards (`data-row-id`), Calendar
-  cells (`data-date-key`), Day Manager (`data-day-manager`/`data-section`), Glide Breakdown
-  (`data-presence-grid="breakdown-glide"`). **NOT registered: Scene Sheet, Reports Designer,
-  Ribbon Designer, and the Element/Crew/Locations/Day-Times grids** — their pointers are raw
-  screen fractions, so they drift and read as weird on both clients.
-- Visibility gate (`sameViewPlace`, `src/lib/supabase/presence.ts:424`) checks tab + sub-tab
-  + sub-sub mode ONLY. `PresenceView` already carries `sceneId`/`sheetIndex` (added for
-  follow) but the POINTER gate ignores them — a peer on sheet scene 5 draws over your scene 9,
-  a peer in report design A draws over your design B.
-- Glide: `probe` returns a cell only when the row/column resolves — over empty trailing grid
-  area the chain falls to `screen` and the pointer jumps off the grid (`locate` correctly
-  hides cells scrolled out of view — keep that).
-
-**Plan (phases, each independently shippable):**
-1. **Glide edge magnetism (small)**: pointer over the grid but probe misses (empty trailing
-   area / chrome) → clamp to the nearest existing cell (last row/col) instead of `screen`;
-   optional grid-container fallback rect. Two-client verify.
-2. **Document gate (small-medium)**: extend the pointer gate with the open-document identity —
-   Sheet: `peer.view.sceneId` vs the local sheet's scene; Reports Designer: a new `designId`
-   in `PresenceView`/`AppPlace` (per-user after **233**); Ribbon Designer: same with the ribbon
-   design id. User decision 2026-10-15: pointers show only while both clients are on the same
-   document; the header bubbles remain the way to jump to a peer.
-3. **Surface registration (medium-big, per surface)**: give Scene Sheet scene blocks, Reports
-   Designer blocks and Ribbon Designer cells stable id-based data attributes (the existing
-   `data-row-id` chain then magnetises to them), and register the remaining canvas grids
-   (Element/Crew/Locations/Day-Times `InlineGlideTable`) via `registerPresenceGridScope`,
-   exactly like `breakdown-glide`. If the surface count keeps growing, consider one generic
-   anchor registry instead of per-surface branches in `PresenceOverlay`.
-4. **Generic chrome coverage — the "everything" ask (future-proof)**: add a generic DOM anchor
-   (`kind: 'dom'` — one stable key + fx/fy) to the chain, and assign keys in the SHARED
-   primitives instead of per instance (PageToolbar items, tab/sub-tab buttons, palette items;
-   the kit's menu items ride a ui-kit release) so every FUTURE control inherits coverage
-   automatically. **User decision 2026-10-15 (with 244's widened freeze): menu/dropdown/
-   context-menu items need NO anchors** — while any overlay is open the peer's cursor freezes
-   at the trigger (`freezeCursorFor`, item 244), so there is nothing inside to magnetise;
-   phase 4 therefore covers NON-overlay chrome only (a persistent palette still counts).
-   Do NOT auto-derive keys from DOM structure/text — cross-client keys must be explicit and
-   stable. Anything unregistered keeps the screen fallback (hide-don't-fake), so coverage
-   grows per component without breakage.
-
-**Traffic note (Supabase Realtime, verified 2026-10-15):** pointers ride Realtime Broadcast —
-the Cloudflare room is untouched by presence. Free plan: 100 messages/s, 2M messages/month,
-200 concurrent connections; a broadcast counts once per sender **plus once per receiving
-client**. Our throttles (cursor ≈12/s while moving — `presenceChannel.ts` 80ms interval,
-scroll ≈5/s + idle-skip + quantized drops) keep a small team well inside; a larger room with
-several simultaneous movers can approach the 100/s and monthly quotas — Pro (500/s,
-5M/month) covers production, and the cursor throttle can become peer-count-aware if needed.
-**Broader magnetism is traffic-neutral**: same rate, same payload size — only the anchor's
-meaning improves.
-
-**Coverage boundary (be explicit when building):** after phase 4, coverage is "everything
-structural" — every tab/sub-tab, toolbar item, menu/dropdown item, palette entry and
-registered surface, because keys live in SHARED components (coverage grows per component, not
-per instance). Deliberately OUTSIDE:
-- **Popouts** — only the main window publishes (S3 rule, parity with pointers/scroll).
-- **The TipTap script body** — needs ProseMirror relative positions; S3 flagged it, never
-  fake it with indexes.
-- **Canvas internals beyond a registered scope** (a Glide cell is pixels to the DOM — only the
-  grid scope can map it; `InlineGlideTable` grids use the same registration).
-- **Non-interactive content** (text, whitespace, empty space) — the ≤40px nearest-item snap
-  and the screen fallback cover it; nothing is ever faked.
-- **Asymmetric layouts are expected, not an error** — the two clients may differ (one side
-  collapsed/expanded, different scroll, different zoom). Today: an element anchor lands on the
-  shared container with proportional fractions (a peer on a collapsed section header shows on
-  your expanded section, slightly off inside it). Off-viewport anchors are hidden until you
-  scroll them into view — no edge chips (user decision 2026-10-12); the header bubbles are the
-  way to jump, and follow mirrors the peer's scroll so you land on their view. Phase-4 keys
-  make these cases exact when the spot exists on both sides, and hide when it doesn't (a
-  folded-away control is never faked).
-Add a dev aid while building phase 4: a bridge inspector (`presenceAnchorAt(x, y)` returning
-the anchor that WOULD be published) so coverage is auditable by hovering — it makes the
-manual passes (and future surface additions) verifiable instead of hopeful.
-
-**Verify**: two-client manual pass per surface (pointer sticks to the block/cell under it,
-glides within it, hides when the anchor resolves off-viewport, and vanishes entirely while the
-two clients are on different documents); Vitest for new pure helpers (clamp/fallback/doc-gate
-comparisons).
-
-**Relations**: `extends` **229** (S3 presence). `relates to` **233** (per-user active designs —
-the document ids this gate keys off), **234**/**235** (sibling presence polish), **244**
-(freeze-on-overlay removes the menu/dropdown-item coverage from phase 4), **231**.
 
 ## 242. Collaboration — blocked undo: tell the user when a peer built on their edit (`[ ]`, no text merge)
 
@@ -1322,8 +1228,7 @@ also mirror **modal/dropdown open state**?
   `ScheduleTab.tsx`, Calendar `calendarView` in `CalendarTab.tsx`, Sheet scene in `App.tsx`).
   Manager categories: validate as a short string and IGNORE unknown keys on the applier
   (categories are project data and may have been renamed/removed). Designer toggles mirror
-  only while both clients are on the same design (the document gate, item 236 phase 2; the
-  design identity is per-user after 233).
+  only while both clients are on the same design (the design identity is per-user after 233).
 - **Modals/dropdowns — cue only, NEVER auto-open (decision):** item 240 already ships the
   "peer is in a local overlay" cue (dots on the pointer + collaborator bubble). Replicating
   open state on the follower's screen is the wrong trade — overlays are transient local
@@ -1337,7 +1242,7 @@ also mirror **modal/dropdown open state**?
   manual pass per toggle — follow → the follower's view flips with the peer (category,
   Preview, Fields/Values) while follow stays on; designer toggles do not mirror across two
   different designs.
-- **Relations:** `extends` **229** (S3 follow completeness). `relates to` **236** (document
-  gate + anchors), **233** (per-user active design), **234** (peer selection highlights —
+- **Relations:** `extends` **229** (S3 follow completeness). `relates to` **233** (per-user
+  active design), **234** (peer selection highlights —
   sibling "local state made visible" work), **240** (the overlay cue — this item's
   modal/dropdown answer).
