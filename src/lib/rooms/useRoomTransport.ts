@@ -4,7 +4,8 @@
  *
  * The callbacks are read through a ref, so the socket survives re-renders and
  * only reconnects when the TARGET changes (project, user, or the rooms URL).
- * The status is exposed for diagnostics; UI surfaces come later.
+ * `status` feeds `diagnostics()` and the header room-status badge; pending
+ * counts feed the badge's offline-queue tooltip (roadmap 239).
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { RoomClient, type RoomQueueInfo, type RoomRemote, type RoomStatus, type RoomWelcome } from './roomClient';
