@@ -265,6 +265,19 @@ const RULES = [
   { g: 'src/components/SelectDropdown.tsx', s: 'ALL' },
   { g: 'src/components/AutocompleteDropdown.tsx', s: 'ALL' },
   { g: 'src/lib/overlayMotion.ts', s: 'ALL' },
+  // rooms (S4) + their presence sidecars: verified by the wrangler probe
+  // (`workers/rooms/test/room-probe.ts`) and the two-window harness
+  // (`workers/rooms/test/two-window-repro.mjs`) — the e2e suite cannot reach
+  // them (local Durable Object + two real accounts), so no spec mapping.
+  { g: 'src/lib/rooms/**', s: [] },
+  { g: 'src/components/RoomNote.tsx', s: [] },
+  { g: 'src/lib/supabase/**', s: [] },
+  { g: 'src/components/RemoteDragGhosts.tsx', s: [] },
+  { g: 'src/components/HeldItemHint.tsx', s: [] },
+  { g: 'src/lib/presencePoint.ts', s: [] },
+  { g: 'src/lib/glideMotion.ts', s: [] },
+  { g: 'src/components/PresenceOverlay.tsx', s: [] },
+  { g: 'src/components/UserPresenceCluster.tsx', s: [] },
 ];
 
 // ---- tiny glob: supports `**` (any depth), `*` (within a segment) ----
