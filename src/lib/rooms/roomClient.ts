@@ -136,6 +136,8 @@ export class RoomClient {
    * loses those edits — the pre-queue behavior, preferred over corruption.
    */
   private initSeeded = false;
+  /** One header note per token outage — the retry loop must not spam it. */
+  private tokenFailureNoted = false;
 
   constructor(private readonly opts: RoomClientOptions) {}
 
@@ -231,11 +233,21 @@ export class RoomClient {
     let token: string;
     try {
       token = await this.opts.getToken();
+      this.tokenFailureNoted = false;
     } catch (e) {
-      // No token = nothing to retry with; the owner of this client re-creates
-      // it when the auth context changes.
-      this.setStatus('closed');
-      this.opts.onError?.(`could not obtain a room token: ${e instanceof Error ? e.message : String(e)}`);
+      // A token fetch is part of connecting — fail it like a dropped socket and
+      // RETRY on the same backoff. A single transient failure here (edge blip,
+      // auth-server hiccup, session-refresh race) must never kill the room for
+      // the rest of the session: returning without a retry did exactly that,
+      // and the deployed two-machine pass hit it (a lone transient 401 left one
+      // device amber and stale until a reload). The note fires ONCE per outage;
+      // the badge carries the ongoing state, and the token re-fetch makes a
+      // recovered session self-heal without a reload.
+      if (!this.tokenFailureNoted) {
+        this.tokenFailureNoted = true;
+        this.opts.onError?.(`could not obtain a room token: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      this.scheduleReconnect();
       return;
     }
     if (this.stopped) return;

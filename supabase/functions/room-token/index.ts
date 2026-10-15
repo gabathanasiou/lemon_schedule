@@ -14,7 +14,7 @@
  * `workers/rooms`). Never logged, never returned.
  */
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, isAuthRetryableFetchError } from 'npm:@supabase/supabase-js@2';
 import { mintRoomToken } from '../../../src/lib/rooms/roomToken.ts';
 import { ROOM_ROLES, type RoomRole } from '../../../src/lib/rooms/protocol.ts';
 
@@ -57,7 +57,18 @@ Deno.serve(async (req) => {
   });
 
   const { data: userData, error: userError } = await client.auth.getUser(jwt);
-  if (userError || !userData.user) return json({ error: 'invalid session' }, 401);
+  if (userError || !userData.user) {
+    // A transient auth-server failure (fetch error, 5xx) is a SERVER condition:
+    // answer 503 so it reads as retryable, and say so in the logs — the deployed
+    // two-machine pass hit one silent 401 that was impossible to diagnose after
+    // the fact (the client used to give up on it; it now retries). A rejected
+    // token is the CALLER's problem: 401.
+    if (userError && isAuthRetryableFetchError(userError)) {
+      console.warn(`room-token: auth server unreachable (${userError.message})`);
+      return json({ error: 'auth server unreachable' }, 503);
+    }
+    return json({ error: 'invalid session' }, 401);
+  }
 
   const { data: membership, error: membershipError } = await client
     .from('memberships')
