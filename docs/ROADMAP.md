@@ -963,61 +963,11 @@ bars — static flat / live grouped becomes the deliberate asymmetry.
 (columns), **222** (headings parity — crew diverges by design now); related
 **142**, **224**.
 
-## 229. Online collaboration — accounts, sharing, presence, realtime editing (paid add-on, big)
-
-**Vision + stages: `docs/COLLABORATION.md` — read it before starting any stage.** Decided 2026-10: online-only editing for shared projects; **server-authoritative rooms running the existing pure reducer (NOT CRDT)**; Supabase (Auth, Postgres+RLS, Realtime, Edge Functions) + Cloudflare Durable Objects at S4; the free local/Google Drive path stays exactly as today.
-
-**Stages** (detail in the doc): S1 accounts + online projects (Collaborate; the header **user cluster** appears) — **shipped** → S2 sharing/roles/invites/view-only links, the **User & sharing** panel, `canEdit` vs `readOnly` — **shipped 2026-10-12** (S2.5: no-account guest links, always-visible links, revoke = evict) → S3 presence (**Canva-style live pointers** + follow) + the S3.5 save ping (live refresh without manual reload) — **shipped 2026-10-12** (user decisions: collaborator bubbles in the header as follow toggles; pointers render only while you're on the peer's exact view/sub-tab; **follow completeness shipped 2026-10-12** — Sheet scene, view switches, scroll mirroring, doc §9) → S4 realtime collaborative editing (per-project room, per-user undo, reconnect) → S5 billing (cross-ref **230**; collab = Studio + subscription, invited guests free).
-
-**Access changes are pushed, not polled (user request 2026-10-12 — built into S3)**: a definer trigger on
-`memberships` broadcasts an ephemeral `access` event to the project's presence topic (`realtime.send`;
-role change → new role, delete → null). The affected client gets a clear message and the gate applies
-immediately (demote → locked now); a **revoked member is KICKED OUT** of the open project (closes back
-to the opening page — not left in a read-only shell), guests admitted by a revoked link included. RLS
-stays the enforcement point — the push is UX only. Acceptance: `supabase/tests/rls_s3.sql`
-(`role_change_pushes_access_event` / `revoke_pushes_access_event`).
-
-**Follow completeness (user request 2026-10-12) — built 2026-10-12**: following also mirrors
-the **Sheet's scene/sheet number**, the **stripboard View menu** (A4 width + cell borders), the
-**Calendar Strips/Events sub-view**, and the **scroll** of the stripboard/Calendar/Sheet/Glide
-grid — semantic anchors, never pixels; a throttled `scroll` broadcast (~8/s) via
-`src/lib/presenceScroll.ts` + `usePresenceScrollSurface` (the stripboard carries a day-block
-fallback + re-align for rows outside the receiver's render window; Glide scrolls via its first
-visible cell). **User decisions (2026-10-12): scrolling yourself never ends follow** (look around;
-the leader's next scroll re-syncs you); **any view-changing click ends follow** (Sheet arrows,
-View menu, Calendar month arrows — same rule as a navigation click). Ribbon layout is project
-state and arrives via the S3.5 save ping. Narrative: doc §9; verified by the two-client manual
-pass (doc §12).
-
-**S4 progress + resume notes (2026-10-15):** the room worker (`workers/rooms` — DO + action log + snapshots + replay + hardening; probe `workers/rooms/test/room-probe.ts`, 31 checks) and the app-side transport (`src/lib/rooms/*`, flag-gated by `VITE_ROOMS_URL`; probe `room-client-probe.ts`, 17 checks) are BUILT and verified locally; live two-window updates confirmed by the user, full e2e green (0 failures). Local test loop: `npx wrangler dev` in `workers/rooms` + `.env` `VITE_ROOMS_URL="http://127.0.0.1:8787"` (DEV tokens via the gitignored `.dev.vars`). Security pass: `docs/SECURITY.md` + the `security-review` skill.
-
-**Per-user undo — BUILT 2026-10-15, delivered as a NEW EDIT (revised later same day).** Server half = REBASE in the room (`{t:'undo'}`/`{t:'redo'}`): the caller's latest unit (one action, or one whole client batch via its `batch_id` rows) is removed by rebuilding `present` from the newest retained snapshot older than the unit while skipping those rows, writing a fresh snapshot at a NEW rev and deleting the undone rows (persistence); the rebased state is then **broadcast as ONE new `LOAD` action at that rev through the normal `remote` path** — no `welcome` re-sync in the undo path, so undo rides exactly the delivery every normal edit uses. `redo` re-applies the undone unit as fresh actions through the same path; the redo stack is in-memory (lost on hibernation) and a new accepted action from that user clears it. Undo depth = the retained snapshot window (`SNAPSHOTS_KEPT` = 4 × `SNAPSHOT_EVERY`); no base snapshot → `action too old to undo`. Client half: `RoomClient.sendUndo/sendRedo` + ONE shared `undo()`/`redo()` in the provider used by Cmd+Z/Cmd+Shift+Z, the header + popout toolbar buttons (`src/components/UndoRedoButtons.tsx`) and popout windows (element-manager local undo still runs first). The room pushes **`{t:'undoState', canUndo, canRedo}`** to the caller whenever it changes (join / own action / undo / redo), which is the per-user button enablement; a shared project's LOCAL transcript never gates the buttons (it accumulates peer edits — a transcript undo would revert a peer in this window alone). Semantics: `docs/STORE-AND-SYNC.md` §Realtime rooms.
-
-**Peer-sync bug investigation (2026-10-15, later) — NOT reproduced; delivery hardened.** Reported: "A's Cmd+Z lands on A but B doesn't reflect it", "A moves a strip → A undoes → no change on B", "different users share one undo", "stripboard completely broken". A scripted two-window repro (`workers/rooms/test/two-window-repro.mjs` — two real accounts + `invite_collaborator`, WS-frame capture, dev server + `wrangler dev`) exercises all of it against the REAL UI: A types in a stripboard cell → B types → A undoes (only A's edit reverts; B's later edit survives), the reverse order, and a strip MOVE (a drop's `UPDATE_VERSION`) with **store AND screen-order** assertions — all converge, including after the Durable Object hibernates and is re-created. Both probes pass. **Undo is per ROOM USER = per Supabase ACCOUNT**: two windows of the same account share one history BY DESIGN (that is the likeliest reading of "shared undo"), and `diagnostics()` now reports `roomUserId`/`roomRole` so the two windows can be compared in one line. **ROOT CAUSE (found 2026-10-15, after the user asked for the button path): the header/toolbar undo-redo BUTTONS bypassed the room.** They dispatched a LOCAL transcript `UNDO`/`REDO` (never transported, `guardedDispatch` excludes it) — and on a shared project the transcript ALSO accumulates every peer edit, so the buttons were always "enabled" and clicking one reverted the last edit *in that window alone*, leaving it diverged from the room. Cmd+Z was already room-routed, which is why the scripted Cmd+Z repro passed. Fixed: ONE shared `undo()`/`redo()` (provider) + ONE `UndoRedoButtons` component (AppHeader + VersionToolbar + PopoutWindow) + the room's per-user `undoState` enablement. Hardening kept: (1) shared-project undo never falls back to the diverging local transcript (warns when the room is not connected); (2) `RoomClient` re-syncs on a **`rev` gap** so a peer that misses one update self-heals instead of drifting; (3) the worker warns on failed sends. Debug order for any recurrence: `diagnostics()` → compare `roomStatus` AND `roomUserId` in both windows (both `open`, two different ids); a window whose stripboard looks wrong hard-reloads back to the room's state.
-
-**Remaining before/with deploy:** nothing on the undo path — ⌘Z/⌘⇧Z, the header + toolbar buttons and popout windows all share ONE room-routed affordance, and the buttons' enablement comes from the room's per-user `undoState`. The deploy checklist below is DONE (see the Deploy entry).
-
-**Deploy — DONE 2026-10-15 (evening).** Worker `lemon-rooms` deployed (`https://lemon-rooms.gabathanasiou.workers.dev`; `ROOM_TOKEN_SECRET` set via stdin, never printed) + the `room-token` Supabase Edge Function deployed (`npx supabase functions deploy room-token --use-api`; the same secret set project-wide; `supabase/config.toml` commits the `verify_jwt` intent) + repo secret `VITE_ROOMS_URL` + the deploy.yml env line. The deployed path is PROVEN by `workers/rooms/test/deployed-probe.mjs`: mint → real WebSocket hello accepted by the deployed worker; garbage + cross-project tokens refused (1008); non-member 403, no session 401, CORS preflight 204. **Still open: the two-machine live pass on the Pages build** (must cover undo/redo + follow) — the real-world proof.
-
-**Rename sync — the realtime gap found + fixed (2026-10-15, evening).** The report ("A renames → B's header never updates; B opens the Manager → still the old name") reproduced in a NEW focused harness (`workers/rooms/test/rename-repro.mjs` — two robot accounts, every rename entry point driven through the real UI, assertions on BOTH headers, BOTH Manager rows and the server row). TWO root causes: (1) `renameProject` dispatched the title with the RAW reducer dispatch, bypassing `guardedDispatch` — the rename applied in the renaming window only and never reached the room (the row push kept the server honest, so the same user's Manager looked fine while the peer's document never moved); fixed — the title rides the same write path as every other edit. (2) The Project Manager's Shared list merged the server fetch with SESSION metas and a stale meta always won — a peer's rename never showed, even after Refresh (roadmap 249 fixed the list: server truth only, refetch on every Manager open, and the open project's row overlays the open document's title so a rename lands in place while the Manager is open). The repro is all-green in both directions.
-
-**Remaining collab work — priority order (updated 2026-10-15, night):**
-1. **Two-machine live pass** on the deployed Pages app (undo/redo + follow + a normal edit both ways).
-2. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
-   (`docs/LICENSING.md` §9) — decisions conversation needed before planning.
-Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work.
-
-**Non-negotiables**: Drive path untouched; one Project model; `readOnly` (connectivity) ≠ `canEdit` (permission); permissions enforced server-side (RLS + room auth); new features stay multiplayer-by-construction (Action union — no per-feature sync code). Free-tier Supabase pausing handled via keep-alive + Pro trigger (doc §5).
-
-**Verify** (per stage, built): S1+S2+S3 RLS acceptance — `supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql` (non-member read blocked, server rejects viewer writes, link redeem/expiry/revoke, pending claim, role change/revoke on the next request, Realtime channels members-only) — plus the manual online pass (doc §12); S4 two-context e2e via the debug bridge; presence/follow is a rule-7 manual pass (pure presence helpers are Vitest); the S4 access-change push/eviction gets a two-client pass (demote → message + immediate lock; revoke → message + kicked out). `npm run lint`.
-
-**Relations**: `extends` **97** (concurrency gap + future hosted MCP); `relates to` **125** (storage overhaul — NOT a prerequisite), **145** (desktop app), **209** (universal crew DB / account question), **230** (shared entitlement layer); **231** (collaboration avatars).
-
 ## 230. Editions & licensing — Free / Studio one-time / offline verification (big)
 
 **Vision + decisions: `docs/LICENSING.md` — read it first.** Decided 2026-10: Free vs Studio (£150 one-time) vs Collaboration subscription (requires Studio + active sub; guests free); **DIY on Supabase** — Ed25519-signed offline licence files, 3 device activations, no account required for Studio; **one merchant of record** (Polar or Lemon Squeezy) for one-time + subscription (VAT handled); feature gates via one `FEATURE_GATES` registry. Free-tier limit values still open (doc §9).
 
-**Order:** the last open item of 229's remaining collab list — blocked on the free-tier limit values (`docs/LICENSING.md` §9).
+**Order:** the last remaining collaboration item (S5 — 229 stages S1–S4 are shipped and deployed) — blocked on the free-tier limit values (`docs/LICENSING.md` §9).
 
 **Non-negotiables**: no account for offline Studio; signing private key never ships; entitlement state never lives in the Project document; every gate goes through the registry; export of the user's own data always available.
 
