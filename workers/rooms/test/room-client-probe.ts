@@ -2,8 +2,12 @@
  * Local S4 room CLIENT probe — drives the app's own `RoomClient` class (the
  * exact transport the provider mounts) against `wrangler dev`, end to end:
  *
- *   cd workers/rooms && npx wrangler dev --port 8787      (background)
  *   npx tsx workers/rooms/test/room-client-probe.ts
+ *
+ * The worker comes up through the shared launcher (tools/rooms-dev.mjs, roadmap
+ * 246) — reuse when one is already running, otherwise it is spawned from the
+ * main tree and stopped again on exit. `ROOMS_PORT` picks another port
+ * (parallel work); `ROOM_URL` overrides the base URL (no local ensure then).
  *
  * Two editors + one viewer: editor 1 seeds the empty room through the client's
  * `needInit` path, editor 2 lands on the room state (welcome + replay), actions
@@ -16,10 +20,12 @@ import { WebSocket as NodeWebSocket } from 'ws';
 import { RoomClient, type WebSocketLike } from '../../../src/lib/rooms/roomClient';
 import { makeBlankProject, reducer, type Action, type State } from '../../../src/store/reducer';
 import { serializeProject } from '../../../src/lib/projectCodec';
+import { ensureRoomsWorker, isLoopbackRoomsUrl } from '../../../tools/rooms-dev.mjs';
 import type { RevisionedAction } from '../../../src/lib/rooms/protocol';
 import type { Project } from '../../../src/types';
 
-const BASE = process.env.ROOM_URL ?? 'http://127.0.0.1:8787';
+const PORT = Number(process.env.ROOMS_PORT || 8787);
+const BASE = process.env.ROOM_URL ?? `http://127.0.0.1:${PORT}`;
 const PROJECT_ID = process.env.ROOM_PROBE_ID ?? `client-${Date.now().toString(36)}`;
 const WS_URL = BASE.replace(/^http/, 'ws') + `/room/${PROJECT_ID}`;
 
@@ -132,6 +138,12 @@ async function waitForServer(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // The shared launcher brings the worker up (or reuses the one already
+  // serving the port — parallel dev servers share ONE worker, roadmap 246).
+  if (isLoopbackRoomsUrl(BASE)) {
+    const ready = await ensureRoomsWorker({ port: PORT });
+    if (!ready.ok) throw new Error(`room worker unavailable: ${ready.error}`);
+  }
   await waitForServer();
   const seed = makeBlankProject('Client probe');
 
