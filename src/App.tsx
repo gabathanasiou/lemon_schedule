@@ -62,6 +62,7 @@ import { useAgentBridge } from './lib/useAgentBridge';
 import { AGENT_BRIDGE_HELP_SUPPRESS_KEY } from './lib/agentBridgeClient';
 import { isWarningSuppressed, suppressWarningFor24h } from './lib/warnings';
 import AgentBridgeHelpModal from './components/AgentBridgeHelpModal';
+import WhatsNewModal from './components/WhatsNewModal';
 import { Download, Printer, Plus, ChevronDown, Undo2, Redo2, FolderOpen, HardDrive, FileUp, WifiOff, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose, Loader2 } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import DayManagerPage from './components/production/day/DayManagerPage';
@@ -606,6 +607,7 @@ function AppContent() {
   const [customReportPrint, setCustomReportPrint] = useState<{ design: ReportDesign; daySectionIndex?: number } | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showIntegrity, setShowIntegrity] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const driveCtx = useGoogleAuth();
   const topTabContainerRef = useRef<HTMLDivElement>(null);
@@ -1027,6 +1029,7 @@ function AppContent() {
         onPrintReport={(design) => setCustomReportPrint({ design })}
         onShowTrash={() => setShowTrash(true)}
         onShowIntegrity={() => setShowIntegrity(true)}
+        onShowWhatsNew={() => setShowWhatsNew(true)}
         agentBridge={agentBridge}
         onToggleAgentBridge={handleToggleAgentBridge}
         driveCtx={driveCtx}
@@ -1205,6 +1208,7 @@ function AppContent() {
 
       <TrashModal open={showTrash} onClose={() => setShowTrash(false)} project={project} dispatch={dispatch} />
       {showIntegrity && <ScriptIntegrityModal onClose={() => setShowIntegrity(false)} />}
+      {showWhatsNew && <WhatsNewModal onClose={() => setShowWhatsNew(false)} />}
 
       {showRestoreModal && (
         <Modal open onClose={() => setShowRestoreModal(null)} title="Restore from Folder" icon={<HardDrive className="w-4 h-4" />} width="max-w-xl"

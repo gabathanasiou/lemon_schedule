@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Users } from 'lucide-react';
+import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Users, CircleHelp, Sparkles } from 'lucide-react';
 import { useProject, useIsOnlineProject, useProjectTheme } from '../store';
 import { PROJECT_CHROME, projectAccentOf, projectMenuThemeOf } from '../lib/projectTheme';
 import { useDialog } from './Dialog';
@@ -49,6 +49,8 @@ interface AppHeaderProps {
   onPrintReport: (design: ReportDesign) => void;
   onShowTrash: () => void;
   onShowIntegrity: () => void;
+  /** Opens the What's New viewer (File → Help → What's New). */
+  onShowWhatsNew: () => void;
   agentBridge: { enabled: boolean; status: AgentBridgeStatus; available: boolean };
   onToggleAgentBridge: () => void;
   driveCtx: GoogleAuthContextValue;
@@ -67,7 +69,7 @@ export default function AppHeader(props: AppHeaderProps) {
     activeTab, setActiveTab, shiftHeld, togglePopout, onTabContextMenu,
     onOpenProjectManager, onManageSharing, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
-    onShowTrash, onShowIntegrity, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
+    onShowTrash, onShowIntegrity, onShowWhatsNew, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
   } = props;
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -210,6 +212,11 @@ export default function AppHeader(props: AppHeaderProps) {
             <DropdownItem onClick={() => { setShowFileMenu(false); onShowTrash(); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
               Trash...
             </DropdownItem>
+            <DropdownSubmenu id="help-file" label="Help" icon={<CircleHelp className="w-3.5 h-3.5" />} width="w-56">
+              <DropdownItem onClick={() => { setShowFileMenu(false); onShowWhatsNew(); }} icon={<Sparkles className="w-3.5 h-3.5" />}>
+                What's New
+              </DropdownItem>
+            </DropdownSubmenu>
             <DropdownDivider />
             {agentBridge.available && (
               <DropdownItem
