@@ -2,7 +2,7 @@
 
 What's new in Lemon Schedule — one section per day, newest first: **Features**, **Bug fixes** and **Changes**, in plain language.
 
-## 2026-10-15 — Ghosts in the grid
+## 2026-10-15 — Pointers, undo and account settings
 
 **Features**
 - **Account settings**, with Profile and Team tabs, reachable from the avatar in the header without opening a project. Team holds your roster and email invites, with suggestions from people you have already worked with, and the Project Manager's Shared tab now shows who you are signed in as, with sign out.
@@ -26,7 +26,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - The **Script tab** is much faster in long screenplays: opening, hovering, selecting, searching and scrolling no longer crawl.
 - Accounts wear generated avatars now: your initials in a circle on your identity colour.
 
-## 2026-10-12 — Everyone, get in here
+## 2026-10-12 — Sign in, share and follow along
 
 **Features**
 - **Accounts**: create one with email and password (or a provider when it is available), sign in and reset your password from one place, with your name captured at sign-up and editable later from the avatar menu.
@@ -47,7 +47,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Right-click a day's Start of Day header or End of Day footer: the menu opens that day in the Day Manager and names it, the first day's header adds Set Production Dates, and the half you clicked highlights so the action cannot land on the wrong day.
 - The boneyard has a Scene button: New Scene takes the number, INT/EXT, day or night and set up front, and drops the new strip in selected.
 
-## 2026-10-09 — The one with the precalls
+## 2026-10-09 — Call sheets get precalls and crew
 
 **Features**
 - **Call sheet designs** gained a Precalls block, one column per department or a vertical list with a Departments filter, and a crew roster block that edits the day's people, calls and precalls right on the page.
@@ -64,7 +64,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Number fields** everywhere gained steppers and drag-to-scrub: drag a number sideways to change it quickly.
 - **Toolbar switches, tabs and on/off toggles** were unified across Call Times, Day Events, Calendar Strips/Events, the Day Manager to Call Sheet switch and the Script tab's pane toggle, compact and all the same height in toolbars.
 
-## 2026-10-08 — References get a clue
+## 2026-10-08 — References learn what they point at
 
 **Features**
 - In the Reports Designer, the attribute list behind a reference now follows that reference's item, so a scene reference offers scene fields and a day reference day fields, and the values it prints respect where the block sits (a props list inside a day shows that day's props).
@@ -75,7 +75,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - The **"pick a cell" menu** on a free table no longer drops you out of editing when you click it, and call-sheet designs built without an editable zone print the day page instead of a blank sheet.
 - On an iPad, scrolling a long suggestion list with your finger no longer closes the dropdown and loses the field.
 
-## 2026-10-06 — Type where you look
+## 2026-10-06 — Type directly in the report
 
 **Features**
 - **Text blocks and free-table cells** are edited right on the page now: double-click (or tap again on a tablet) and start typing in place, with the formatting bar following the text you're in.
@@ -88,7 +88,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Clicks and double-clicks in the canvas are no longer swallowed, so selecting a block and stepping into its text works first time — including right after editing something else — and a freshly added block opens ready to type.
 - **Empty rows in a free table** keep a normal row height instead of collapsing into a squashed line.
 
-## 2026-10-02 — Cells that point
+## 2026-10-02 — Free tables learn to reference cells
 
 **Features**
 - **Free tables in the report designer**: type headers in place, add and remove rows and columns, drag the column borders, and merge cells — with per-cell formatting and a cell toolbar that follows your selection.
@@ -102,7 +102,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Cell edits in custom-row tables** stick, and the designer reopens in the mode you last used — Day or Call Sheet.
 - The cell hint reads "@ for tokens · = for references", hides while you're typing, and follows the cell's alignment.
 
-## 2026-10-01 — Inspector takes the rail
+## 2026-10-01 — Designer inspector moves into the rail
 
 **Features**
 - **The report designer's inspector** docks into the side rail: nothing selected shows the palette, a selected block or column shows its settings, and the rail collapses or drag-resizes like the other side panes.
@@ -112,7 +112,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Bug fixes**
 - **A scene ribbon** in a report or call sheet keeps side-by-side cells on one line again instead of squeezing the second one onto two.
 
-## 2026-09-30 — Menus find room
+## 2026-09-30 — Menus stay fully on screen
 
 **Features**
 - **Menus and dropdowns** are never cut off any more: they flip above the field when there's no room below — including with an iPad keyboard up — and open fully inside tall windows and dialogs.
@@ -130,7 +130,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - Adding someone from the Crew Manager goes back to an inline blank row; the Add Crew Member form stays on the day roster and the crew template.
 
-## 2026-09-29 — Browser buttons remembered
+## 2026-09-29 — Back and forward steer the app
 
 **Features**
 - **Browser back and forward** now move through Lemon: tabs, sub-tabs and the Production views are proper places, a reload puts you back where you were, and the project you were last in reopens when you return within the hour.
@@ -143,7 +143,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - A scene you create or duplicate in the Scene Sheet is brought straight into view.
 - The Calendar no longer pops a screenplay preview when you hover a scene card.
 
-## 2026-09-16 — Razor meets the script
+## 2026-09-16 — Script tags, razors and scene splits
 
 **Features**
 - Every production day has a crew roster built by department: each slot is a role plus a person and its own call, the call stays with the slot when you swap the person, department pre-calls stack underneath, and a dash means no call at all. The same editor fills the Crew template in Call Times, and Add Crew Member adds someone on the spot.
@@ -161,7 +161,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **The scene ribbon's cell menu** is tightened up — narrower, with more breathing room when it scrolls, and dark styling over dark surfaces.
 
-## 2026-09-11 — Drafts arrive whole
+## 2026-09-11 — Screenplays import with the script
 
 **Features**
 - **Importing a Final Draft or Fountain screenplay** keeps the script itself, not just the breakdown: the Script tab reads it Final-Draft style — scene numbers in the margin, an eighths ruler, full-text search — with a scene list down the side and a right-hand pane that follows what you've selected in the Scene Sheet or the breakdown grid. Bold, italic and underline survive the import.
@@ -172,7 +172,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - Projects take a fraction of the browser space they used to, and empty fields are left out of the saved copy.
 
-## 2026-09-09 — Everything under one roof
+## 2026-09-09 — Day Manager gathers the whole day
 
 **Features**
 - **The Day Manager** is now the home for a production day — details, locations, events, conflicts, scenes, call times and crew on one page, with the wide tables underneath. Copy a day from another, park a day on the clipboard, or pop it out into its own window.
@@ -195,13 +195,13 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **The Days page** is now the Day Manager — details band on top, a friendlier empty state, and the active tab in a dark toolbar reads as a white pill.
 
-## 2026-09-02 — Type it into being
+## 2026-09-02 — Type a name, an element appears
 
 **Features**
 - **Scene Sheet cells** for elements wrap long values instead of clipping them, the whole cell is clickable, and notes grow as you type.
 - Typing a name that doesn't exist yet into an element picker now creates that element on the spot, wherever you are in the app.
 
-## 2026-09-01 — Calendar learns to breathe
+## 2026-09-01 — Calendars stretch to fit their strips
 
 **Features**
 - A single click on a day header in the Calendar strips opens the Day Manager (it used to take a double click).
@@ -223,7 +223,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **Version pickers** follow the page they sit on instead of turning blue for cloud projects.
 
-## 2026-08-29 — Calendars of their own
+## 2026-08-29 — Production dates move to their own calendars
 
 **Features**
 - **Production dates, events, prep and post windows** now live on their own calendar versions, so you can switch between them without touching the schedule.
@@ -242,7 +242,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **Date and event-type pickers** in the event windows fill their columns, and notes moved out of the adder into the day and element managers where they belong.
 
-## 2026-08-28 — Events join the count
+## 2026-08-28 — Every event starts counting everywhere
 
 **Features**
 - **The Scene Sheet** can be ordered by sheet, scene number or stripboard order, and the ribbon toolbar takes numbers you type.
@@ -261,7 +261,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Scheduling to day N lands inside that day, and a stale shift+click selection no longer anchors to the wrong row.
 - **Date fields**: swapping a single date and clearing it now work.
 
-## 2026-08-27 — Anchors and their echoes
+## 2026-08-27 — Element links keep edits in step
 
 **Features**
 - **Element links**: link a scene's anchors one way, and edits to an anchored field follow through to everything linked to it. A link manager shows and edits those links, and pickers mark which entries are anchors.
@@ -278,7 +278,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Bug fixes**
 - Automatic numbering no longer overwrites a Board ID you've locked.
 
-## 2026-08-26 — Movie Magic round trip
+## 2026-08-26 — Movie Magic files go both ways
 
 **Features**
 - Start a new project from a Movie Magic Scheduling file: the boards arrive as schedule versions with their days and breaks intact, banners become notes, undated strips land in the boneyard, calendars become non-shoot days, and cast, crew roles, script page numbers and strip colours all come across.
@@ -293,7 +293,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **New Project** left the File menu — the Project Manager is where projects are created.
 
-## 2026-08-24 — A home for day types
+## 2026-08-24 — Day types move into the Calendar
 
 **Features**
 - The Calendar has a Day Breakdown sub-tab where day types live: a sidebar of every type with how many days each covers, the dates it's used on, and a window to edit its name, icon and colour. It pops out into its own window like the other tabs.
@@ -305,7 +305,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **The Day Types manager** moved out of the Calendar's View menu — it's the Day Breakdown sub-tab now.
 
-## 2026-08-23 — Days of your own
+## 2026-08-23 — Design your own kinds of day
 
 **Features**
 - **Day types**: you can create your own kinds of day — a name, a colour and an icon — and mark calendar days with them from a day's right-click menu or the travel/hold window. Built-in Hold, Travel and Day Off keep their icons; your own types show a colour dot.
@@ -325,7 +325,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **The map block's settings** show the location name as a link instead of a separate address line.
 
-## 2026-08-16 — Ribbons off the press
+## 2026-08-16 — Print reports, strip by strip
 
 **Features**
 - Printing a custom report opens a proper print window: page size is remembered for the project, repeat items can be ticked in or out, and ribbon blocks get their own options — layout, cell borders, call times, durations, notes, breaks and day breaks — with a live strip preview beside them. Tables always print every item.
@@ -345,7 +345,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - The "+N more" cut-off on tall tables now only applies while designing — previews and printed reports render every row.
 
-## 2026-08-15 — Chip off the old block
+## 2026-08-15 — Field chips get their own wording
 
 **Features**
 - Click a field chip inside a text block to give just that item a prefix, suffix or separator — "Day 3" instead of "3", or a slash between values instead of a comma. A customised chip is marked so you can see it.
@@ -364,7 +364,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Tables in the designer** show their first six rows with a "+N more" marker.
 - **Print in the Reports Designer** opens the print window instead of printing straight away.
 
-## 2026-08-14 — Everybody gets a file
+## 2026-08-14 — Crew roles and a locations database
 
 **Features**
 - **The Crew tab** is built around roles now: a sidebar lists every role on the roster, selecting one shows its people, and you add members or whole new roles from there. Edits are held until you save, so you can batch them, revert, merge duplicate people, sort and undo — and removed people go to the trash like everything else.
@@ -383,7 +383,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Print windows** use the app's standard checklists and radio lists, and the text style window is more compact.
 - In the crew spreadsheet, the name column comes before the role column.
 
-## 2026-08-13 — Rich text moves in
+## 2026-08-13 — Rich text and smarter field pickers
 
 **Features**
 - **Text blocks in the Reports Designer** are real rich text: bold, italic, underline and lists, a Word-style set of named text styles you can apply and override, and fields that appear as labelled chips wherever you type or pick them.
@@ -406,7 +406,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Spacers** lost their solid style; the "when empty" choice for a block is simply show or hide.
 - Duplicate cast fields, manually entered production dates and the unused scene Duration field left the field list.
 
-## 2026-08-12 — Reports, roles and road trips
+## 2026-08-12 — Build reports, mark who travels
 
 **Features**
 - **The Reports tab** gains a Reports Designer: drag blocks onto the page (text, attributes, repeats, tables, columns, a scene ribbon, page breaks, spacers), drop the report's fields into them, switch a table between rows and columns, preview as you go, and print with your page breaks respected. Report layouts are saved with the project, so you can keep more than one.
@@ -423,13 +423,13 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - Collapsing the boneyard now happens from the schedule toolbar, with the toggle sitting alongside the other view controls.
 
-## 2026-08-11 — Element edits learn to merge
+## 2026-08-11 — Renames and merges, one clean save
 
 **Bug fixes**
 - Saving element edits is one reliable step again: renames rewrite every scene in one go, duplicates merge instead of piling up, and a half-applied save is no longer possible.
 - **Names** that differ only in capitalisation (FISHING BOAT and fishing boat) now both show, so you can merge them deliberately.
 
-## 2026-08-04 — Taps, drags and dropdowns
+## 2026-08-04 — Touch taps land, drops get faster
 
 **Bug fixes**
 - On touch screens, tapping a breakdown cell selects it and double-tapping opens the editor again; drag-selection and keyboard editing in the Breakdown grid on an iPad match the desktop.
@@ -440,7 +440,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - Dragging and pasting strips only redraws the rows whose times actually change, so drops on long schedules are much faster.
 
-## 2026-08-03 — The great input round-up
+## 2026-08-03 — Tap a strip, edit that one
 
 **Features**
 - **Edit mode** reworked: tapping a strip makes that one strip editable and focuses the field you touched, instead of switching the whole stripboard into edit mode at once.
@@ -460,7 +460,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Tab cycles through every field of a strip and then moves on to the next strip; the stripboard scrolls to follow the field you're on, and the focused field darkens.
 - Strips snap into place on drop instead of sliding.
 
-## 2026-08-01 — The calendar that keeps going
+## 2026-08-01 — The calendar scrolls the whole shoot
 
 **Features**
 - **The Calendar** is now one continuous view of the whole production, month block after month block in a single scroll, with jump-to-first/last, previous/next month, Today, and it remembers where you were when you come back.
@@ -479,7 +479,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Working offline is handled thoroughly: the connection is checked every few seconds even while you're idle, editing is blocked while you're offline or signed out, the notice says which with a Retry or Sign in button, it clears itself when you're back, and save errors read like sentences instead of raw error text.
 - Clicking into a text box keeps the text selected instead of collapsing to a caret, and clicking off the stripboard clears the selection with it.
 
-## 2026-07-17 — Sorting, pasting and plain talk
+## 2026-07-17 — Sorting upgrades, pasting lands right
 
 **Features**
 - Right-click empty space on a Calendar day for Paste below, Add note below or Add break below, with the row landing at the end of that day where you'd expect.
@@ -498,7 +498,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Renaming an item in a dropdown list commits when the menu closes instead of losing the new name.
 - **Cloud projects** block editing the moment the browser goes offline.
 
-## 2026-07-16 — Keyboard takes the wheel
+## 2026-07-16 — Arrow keys drive the schedule
 
 **Features**
 - **Keyboard navigation** reaches the whole schedule: arrows and Shift+arrows move and extend the selection in the stripboard and the boneyard, Cmd+A selects all, and the Calendar's boneyard and strips answer to the same keys plus Cmd+X, Cmd+V, Delete and Enter. The Calendar also has its own right-click menu: Cut, Paste, Duplicate, Open Scene Sheet, Send to Boneyard, Delete.
@@ -517,7 +517,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **A day break's call time** no longer bleeds into other sections, and violation labels count days the way you do.
 - Cutting rows no longer leaves copies behind inside day sections.
 
-## 2026-07-14 — The day that won't budge
+## 2026-07-14 — Opening day is here to stay
 
 **Features**
 - Every schedule now opens with the first day's START OF DAY row pinned in place. It can't be dragged away or deleted, and it doesn't count as one of your shooting days.
@@ -540,7 +540,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **The Scene Sheet header** is a flat banner again — a nested dark box inside it was removed.
 - **Strips** no longer get a shadow when they're selected, and day breaks are marked with a clean black line.
 
-## 2026-07-13 — Every tab gets a window
+## 2026-07-13 — Tabs break out into windows
 
 **Features**
 - **Day breaks** in the stripboard are proper ribbon rows now: the row that closes a day shows that day's page count, shoot time and break time, and the day-break rows are where the call times are set.
@@ -563,7 +563,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - On iPad and iPhone, copy and paste work, and dialogs and buttons have bigger tap targets.
 - **Delete confirmations** now offer a "Don't ask again (24 hours)" option.
 
-## 2026-07-12 — Cloud nine for projects
+## 2026-07-12 — Projects learn to live in Drive
 
 **Features**
 - Projects can be kept in Google Drive now: sign in with Google from the File menu and your projects sync to your Drive as you work — a cloud badge shows which ones they are.
@@ -579,7 +579,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - Right-clicking a row number in the breakdown grid keeps your selection, the row menu only opens on right-click or touch, and the delete column shows a pointer.
 
-## 2026-07-11 — The grid takes over
+## 2026-07-11 — The breakdown grid takes the stage
 
 **Features**
 - **The Breakdown tab's main view** is now the new spreadsheet-style grid: every scene and every breakdown column in one grid you type straight into, with the Scene Sheet and Element Manager beside it.
@@ -595,7 +595,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - On touch devices range selection is off (it fought with scrolling), the row numbers are bigger, and selecting cells no longer drags the page along.
 
-## 2026-07-10 — Pick a cell, any cell
+## 2026-07-10 — Cells open on a double-click
 
 **Features**
 - **Cells** in the breakdown grid open on a double-click, and the field pickers open inside the cell you're on.
@@ -605,12 +605,12 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Pickers** were opening on the wrong columns, and edits could be dropped: they now land in the cell you opened, and undo/redo redraws the grid.
 - Deleting, cutting, pasting and clearing a range of cells now happen in one step.
 
-## 2026-07-09 — A fresh pair of cells
+## 2026-07-09 — A spreadsheet sneaks into the breakdown
 
 **Features**
 - First look at the new spreadsheet-style breakdown grid, sitting beside the existing Breakdown views: type in cells, copy and paste, right-click a row for actions, add scenes from the empty row at the bottom, and change the text size.
 
-## 2026-07-08 — Repaint the strips
+## 2026-07-08 — Colour rules repaint your strips
 
 **Features**
 - **Scene colour rules**: build rules that repaint a strip when it matches what you choose — a category, a specific element, a cast member — and they show up everywhere the strip does: the stripboard, Calendar, Scene Sheet and print. Rules drag to reorder, duplicate in one click, and deleted ones rest in the trash for 30 days if you want them back.
@@ -631,7 +631,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **The Keyboard toggle** takes effect straight away, in every tab.
 - **The Colors tab, Element Manager and ribbon designer** no longer cut off their last row behind the screen edge, and the Categories heading sticks while you scroll.
 
-## 2026-07-07 — The one with no signal
+## 2026-07-07 — Dropping offline locks your edits
 
 **Features**
 - The app is safe to leave open without a connection: if you drop offline it switches to read-only — every editing surface locks so nothing can be lost — with a banner explaining the state and a Retry connection button, and a green notice that clears itself when you're back.
@@ -643,7 +643,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Going offline again while the "connection restored" banner is showing clears the banner immediately.
 - **Resize handles in the ribbon designer** sit exactly on the column boundary they resize.
 
-## 2026-07-01 — Built for fingers
+## 2026-07-01 — Touch controls for the whole app
 
 **Features**
 - Editing a duration on iPad opens a keypad beside the strip instead of the system keyboard: it shows the scene you're editing, gives colour feedback as you type, updates the strip live, and understands shorthand like "1h25" without the "m". On desktop you keep typing straight into the cell.
@@ -662,7 +662,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Native text selection and the iPad's magnifier** no longer get in the way when you tap and hold on the board.
 - In single-value dropdowns, choosing a value replaces what was there instead of adding to it.
 
-## 2026-06-30 — Right-click joins the party
+## 2026-06-30 — Right-click menus reach the Calendar
 
 **Features**
 - **The Calendar** now has the stripboard's right-click menu: right-click or press and hold a scene card or a day for copy, cut, paste, insert, banner edits and more — with icons, so it scans at a glance.
@@ -680,7 +680,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Buttons in some dialog footers** were invisible against the dark footer — they're back.
 - **Column selection in the breakdown grid** shows clearly, and copy, cut and paste fall back to the cell you're on when you haven't selected a range.
 
-## 2026-06-29 — The great ribbon rebuild
+## 2026-06-29 — Ribbon designer finds its grid
 
 **Features**
 - **The ribbon designer** is now the Design tab's default view, rebuilt around one shared column grid: resizing a column resizes it across every row together, cells merge across columns, text can sit top, middle or bottom, Delete clears the selected cell, and there's a Sheet # column.
@@ -698,7 +698,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **The show/hide grid lines option** is gone — cell borders are always drawn.
 
-## 2026-06-16 — The big category shuffle
+## 2026-06-16 — Breakdown categories get a reshuffle
 
 **Features**
 - **The breakdown** was rebuilt around a real element list: Camera, Special Effects, Set Dressing, Special Equipment, Security, Additional Labor, Visual Effects, Mechanical Effects and Miscellaneous joined the categories, Animals and Animal Wrangler became separate, SFX and VFX were renamed Special Effects and Visual Effects, and Weapons was retired. Scenes also gained Sequence, Unit and Location columns.
@@ -721,7 +721,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **Exports** are .lemon files, ribbon designs are .ribbon files, and the wording follows: Export Project, Project Manager.
 
-## 2026-06-11 — The one with the screenplay
+## 2026-06-11 — Import a screenplay, get a breakdown
 
 **Features**
 - Import a screenplay — Final Draft or Fountain — and get a breakdown out of it: scene headings, page counts, characters and elements sorted into your categories, with a prompt for anything the file leaves unmapped.
@@ -746,7 +746,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Breakdown categories follow Final Draft's names — Extras are Background Actors, Animals are Animals & Wranglers.
 - One dialog style across the app now, with the main button pinned to the bottom.
 
-## 2026-06-10 — Ribbons of your own
+## 2026-06-10 — Design your own scene ribbons
 
 **Features**
 - Design your own scene ribbon: a Ribbons sub-tab in the Schedule lists every field you can put on a strip, in the order you want, with a live preview. New designs are named for you, and a design can be duplicated, exported to share, imported back, or deleted — deleted ones wait in the trash.
@@ -764,7 +764,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Ribbon cells** got wider defaults, and the set, day/night and duration columns are slimmer.
 - **The Ribbon tab** no longer appears in the Breakdown.
 
-## 2026-06-09 — Counting in eighths
+## 2026-06-09 — Page counts learn eighths and decimals
 
 **Features**
 - **Page counts** show a pgs suffix wherever they appear — stripboard, Scene Sheet and every printed page — and take either eighths (1 4/8) or decimals (1.5).
@@ -778,7 +778,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Day headers, scene numbers and page counts are left-aligned in the stripboard and print.
 - **Non-working and status days** are underlined with a dashed line.
 
-## 2026-06-06 — Sets join the party
+## 2026-06-06 — Sets join the element family
 
 **Features**
 - **Sets** are managed like every other category: the set field uses the same dropdown as props and wardrobe, lists everything kept in the element manager, and typing a new set adds it.
@@ -791,7 +791,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - In the element manager, Auto-ID and Sort by ID are cast-only, Clear Zero is gone, and merging duplicates keeps the fuller name.
 - Pressing Enter in an element dropdown commits the choice and leaves the cursor in the field.
 
-## 2026-06-05 — The big breakdown
+## 2026-06-05 — Elements, scene sheets and reports arrive
 
 **Features**
 - **The Element Manager**: every breakdown category in one place, cast included, with Board IDs, a count of how many scenes each element appears in, a button to number new cast members and a button to sort by ID. It replaces the old Cast sub-tab.
@@ -814,7 +814,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - **Rules** can name several cast members at once, and date restrictions take several dates from a calendar.
 - **Printing** can include status days.
 
-## 2026-06-04 — Scenes on the move
+## 2026-06-04 — Cut, paste and drag whole groups
 
 **Features**
 - **The Calendar**: drag scenes from day to day and back to the unscheduled list, with ghosts showing exactly where they'll land. Days sort by date with shooting order numbers, empty days take up no space, the unscheduled list has its own sort, and only days that have dates show up — a new day starts on today.
@@ -838,7 +838,7 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 **Changes**
 - **Rules** got a makeover: grouped cards, filters by type, and a cleaner editor.
 
-## 2026-06-03 — Where it all began
+## 2026-06-03 — Projects multiply, scenes get colour
 
 **Features**
 - Keep more than one project and switch between them from the opening screen.
