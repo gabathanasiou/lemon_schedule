@@ -136,9 +136,11 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   excluded — the room's own refuse-set), welcome/remote messages apply through the RAW dispatch
   (never counted as local changes, never pushed back), and the whole-blob Supabase save + S3.5
   peer-save reloads are skipped — the blob is staging-only until the S4 persistence cutover.
-- **Per-user undo (built)** is a ROOM operation, never a transported action: Cmd+Z / Cmd+Shift+Z
-  while connected sends `undo`/`redo` (the local transcript UNDO/REDO is skipped). The room removes
-  the caller's latest unit — one action, or one whole client batch (its `batch_id` rows) — rebuilds
+- **Per-user undo (built)** is a ROOM operation, never a transported action: for a **shared**
+  project Cmd+Z / Cmd+Shift+Z ALWAYS sends `undo`/`redo` — never the local transcript (a local
+  transcript UNDO never reaches the room, so it would silently diverge this window from every peer;
+  when the room is not connected the keystroke warns instead of diverging). The room removes the
+  caller's latest unit — one action, or one whole client batch (its `batch_id` rows) — rebuilds
   `present` from the newest retained snapshot older than the unit while skipping its rows, writes a
   fresh snapshot at a NEW rev, deletes the undone rows, and re-syncs EVERY client through the
   existing `welcome` (no new server→client shape). Redo re-applies the undone unit as fresh actions
@@ -147,6 +149,15 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   snapshot window (`SNAPSHOTS_KEPT` = 4 snapshots ≈ 4 × `SNAPSHOT_EVERY` actions); a unit with no
   base snapshot answers "action too old to undo". The header undo/redo buttons still use the local
   transcript while connected (Cmd+Z is the room-routed path) — polish alongside the deploy.
+- **Delivery safety net (`RoomClient`).** The room stamps every `remote` with a CONTIGUOUS `rev`, so
+  the client tracks the last applied rev: a jump (a dropped `remote`, or the whole-project `welcome`
+  an undo emits) makes it `sync` for a full snapshot instead of applying the delta against the wrong
+  base — a peer that ever misses one update reconciles on the next one, and the welcome re-anchors
+  the rev. This is why undo need not be a first-class action event: the existing `welcome` + an
+  ordered rev are enough. The worker also WARNS (never silently swallows) on a failed `send`/peer
+  broadcast — that silence once hid a whole class of "the peer never re-synced" reports. Manual
+  two-window proof: `workers/rooms/test/two-window-repro.mjs` (real accounts + invite, WS-frame
+  capture; asserts the peer receives the `welcome` and its stripboard DOM reverts).
 - Not yet: room tokens are dev-only (`dev:<user>:<role>`, DEV builds + `wrangler dev`); the
   deployed path calls the Supabase `room-token` function (`src/lib/rooms/tokenClient.ts`), which
   is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 31 checks) and
