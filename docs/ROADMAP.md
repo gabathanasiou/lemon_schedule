@@ -1020,6 +1020,23 @@ pass (doc §12).
 
 **NEXT — deploy:** `npx wrangler login` → `npx wrangler deploy` (workers/rooms); Supabase CLI login → the `room-token` Edge Function + the shared `ROOM_TOKEN_SECRET` (worker secret + function secret); repo secret `VITE_ROOMS_URL` + the deploy.yml env line; two-machine live pass (must cover undo/redo).
 
+**Remaining collab work — priority order (ease + logic, set 2026-10-15):**
+1. **Close 231 + 245** — user visual pass only, no dev work; both are already on `main`
+   (v0.3.85). Look, then flip `[~]` → done + archive.
+2. **S4 deploy** (checklist above, unchanged) — ops, not code; the two-machine live pass is
+   the real-world proof for undo/redo + follow.
+3. **243 — follow view toggles** — easiest remaining CODE item (~½ day): repeats the shipped
+   stripboard-view precedent (PresenceView field + `parseView` clamp + publish/
+   `noteUserViewChange` + `registerFollowApplier`) across ElementManager, `managerShell`
+   (Crew/Locations), ReportDesigner (Preview + Fields/Values), CallSheetEditPage (Preview).
+   Independent of the deploy; its two-client check rides #2's live pass.
+4. **246 — rooms-dev launcher** — medium dev-tooling (~1–2 days: process lifecycle + the
+   first `playwright.rooms.config.ts` + probe rewiring). Local dev QoL only, nothing
+   user-visible. Pick up when local collab-testing friction justifies it.
+5. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
+   (`docs/LICENSING.md` §9) — decisions conversation needed before planning.
+Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work.
+
 **Non-negotiables**: Drive path untouched; one Project model; `readOnly` (connectivity) ≠ `canEdit` (permission); permissions enforced server-side (RLS + room auth); new features stay multiplayer-by-construction (Action union — no per-feature sync code). Free-tier Supabase pausing handled via keep-alive + Pro trigger (doc §5).
 
 **Verify** (per stage, built): S1+S2+S3 RLS acceptance — `supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql` (non-member read blocked, server rejects viewer writes, link redeem/expiry/revoke, pending claim, role change/revoke on the next request, Realtime channels members-only) — plus the manual online pass (doc §12); S4 two-context e2e via the debug bridge; presence/follow is a rule-7 manual pass (pure presence helpers are Vitest); the S4 access-change push/eviction gets a two-client pass (demote → message + immediate lock; revoke → message + kicked out). `npm run lint`.
@@ -1030,6 +1047,8 @@ pass (doc §12).
 
 **Vision + decisions: `docs/LICENSING.md` — read it first.** Decided 2026-10: Free vs Studio (£150 one-time) vs Collaboration subscription (requires Studio + active sub; guests free); **DIY on Supabase** — Ed25519-signed offline licence files, 3 device activations, no account required for Studio; **one merchant of record** (Polar or Lemon Squeezy) for one-time + subscription (VAT handled); feature gates via one `FEATURE_GATES` registry. Free-tier limit values still open (doc §9).
 
+**Order:** #5 of the remaining collab work (229's priority list) — blocked on the free-tier limit values (`docs/LICENSING.md` §9).
+
 **Non-negotiables**: no account for offline Studio; signing private key never ships; entitlement state never lives in the Project document; every gate goes through the registry; export of the user's own data always available.
 
 **Verify** (when built): Vitest for signature/expiry/fingerprint + gates + free limits; e2e activation against a mocked endpoint; manual purchase → activate → offline relaunch pass. `npm run lint`.
@@ -1039,6 +1058,8 @@ pass (doc §12).
 ## 231. Collaboration avatars — generated identities (letter + color; richer styles) (`[~]`)
 
 **Requested 2026-10:** collaborators and guests need distinct, recognisable avatars (backgrounds + letters differ per person) in the sharing panel, the header cluster and the S3 presence bubbles.
+
+**Order:** #1 of the remaining collab work (229's priority list) — visual pass + close (already on `main`, v0.3.85).
 
 - **Shipped baseline (roadmap 229 S2.5)**: `AccountAvatar` (`src/components/AccountAvatar.tsx`) derives a deterministic flat color (10-tone palette, FNV-1a over the account id) + initials (first letters of first/last words — "Anonymous Otter" → AO), stable on every client. Same component everywhere (`UserPresenceCluster`, `sharingParts` MemberRow).
 - **Evaluated 2026-10-15** (real-import esbuild probe, min+gzip; visual contact sheet):
@@ -1061,6 +1082,8 @@ state in `reports/ReportDesigner.tsx` and `production/day/CallSheetEditPage.tsx`
 **Fields/Values mode** (`lemon_schedule_report_view_mode`, `reports/ReportDesigner.tsx`), and
 (d) in general **view toggles should sync** (user, 2026-10-15). Explicit question: can follow
 also mirror **modal/dropdown open state**?
+
+**Order:** #3 of the remaining collab work (229's priority list) — the easiest remaining code item (~½ day).
 
 - **The seam exists (S3 follow completeness pattern):** each toggle = one validated
   `PresenceView` field (`src/lib/supabase/presence.ts` / `parseView`) + publish on the user's
@@ -1093,6 +1116,8 @@ also mirror **modal/dropdown open state**?
 **Requested 2026-10-15 (user):** the header "people viewing" bubbles take the full
 row; they should sit more collapsed at rest and spread apart on hover.
 
+**Order:** #1 of the remaining collab work (229's priority list) — visual pass + close (already on `main`, v0.3.85).
+
 - **Built 2026-10-15, shipped on main in 0.3.85:** the bubble strip
   (`src/components/UserPresenceCluster.tsx`) is ONE tight
   overlapped stack at rest (`-space-x-2.5`, was `-space-x-1.5`) and spreads into full
@@ -1118,6 +1143,8 @@ row; they should sit more collapsed at rest and spread apart on hover.
 the local emulator (`wrangler dev` = Miniflare/workerd + DO SQLite state) should come
 up on demand — from `npm run dev`, when a collab session starts, and when tests run —
 instead of the manual background command.
+
+**Order:** #4 of the remaining collab work (229's priority list) — dev-tooling, independent of the deploy.
 
 - **Today (manual):** `npx wrangler dev --port 8787` in `workers/rooms` + gitignored
   `.dev.vars` (`DEV_AUTH=1` accepts `dev:<userId>:<role>` —
