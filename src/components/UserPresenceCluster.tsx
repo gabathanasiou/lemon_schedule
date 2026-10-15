@@ -87,6 +87,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
       <button
         key={peer.userId}
         data-testid="presence-bubble"
+        data-presence-anchor={`header:user:${peer.userId}`}
         onClick={() => toggleFollow(peer)}
         title={bubbleTitle(peer)}
         className={`relative w-6 h-6 rounded-full overflow-hidden transition-transform hover:scale-110 hover:z-10 cursor-pointer select-none ${following ? 'ring-2 ring-white' : 'ring-1 ring-white/25'}`}

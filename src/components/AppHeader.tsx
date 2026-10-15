@@ -227,6 +227,7 @@ export default function AppHeader(props: AppHeaderProps) {
           ) : (
             <span
               onClick={() => { if (!locked) setEditingTitle(true); }}
+              data-presence-anchor="header:project-title"
               className={`text-white font-medium px-1 truncate max-w-[60px] md:max-w-[120px] ${locked ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
               title={project.title}
             >

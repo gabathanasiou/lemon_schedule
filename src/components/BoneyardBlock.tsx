@@ -215,7 +215,7 @@ export const BoneyardBlock: React.FC<{
     >
       <div ref={boneyardMarqueeRef} data-marquee-container className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
         <MarqueeOverlay box={marqueeBox} />
-        <div id="boneyard_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
+        <div id="boneyard_rows_container" data-presence-anchor="region:schedule:boneyard" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
           <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
             {rows.map((r, i, arr) => (
               <React.Fragment key={r.id}>

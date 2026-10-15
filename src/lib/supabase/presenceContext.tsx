@@ -4,6 +4,7 @@ import { useDialog } from '../../components/Dialog';
 import { useSupabaseAuth } from './auth';
 import { isSupabaseConfigured } from './client';
 import { resolvePointerAnchor } from '../presenceAnchors';
+import { startAutoAnchorStamps } from '../presenceAutoAnchors';
 import { applyPresenceScrollSample } from '../presenceScroll';
 import { getLocalOverlayKind, subscribeLocalOverlays } from '../localOverlaySignal';
 import { presenceDiagnostics, ProjectPresenceChannel, subscribeLocalSaves, type PresenceChannelStatus } from './presenceChannel';
@@ -529,6 +530,15 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
       clearPeers();
     };
   }, [onlineId, account?.id, account?.name, account?.avatarUrl, account?.isAnonymous, clientId, rebuildPeers, clearPeers]);
+
+  // ---- automatic chrome anchors (roadmap 236) ------------------------------
+  // Every button-ish control that has an authored identity (data-testid,
+  // aria-label, title or its own text) gets a stable pointer key stamped
+  // automatically — "all buttons everywhere" without per-site wiring.
+  // Explicit `data-presence-anchor` keys always win (see presenceAutoAnchors).
+  // Inert without a shared project (nothing reads the attributes), and the
+  // main window only — popout documents never publish.
+  useEffect(() => startAutoAnchorStamps(), []);
 
   // ---- global live-pointer tracker -----------------------------------------
   // ONE listener for the whole app (no per-surface handlers that miss the

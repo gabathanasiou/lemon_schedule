@@ -25,8 +25,21 @@ import { pointerFractions, screenFractions, type PresenceAnchor } from './supaba
  *  Assign it in the SHARED component that renders the element (roadmap 236). */
 export const PRESENCE_ANCHOR_ATTR = 'data-presence-anchor';
 
+/** Region-fallback keys (roadmap 236, user request 2026-10-15): containers that
+ *  hold arbitrary content (boards, grids, canvases, form columns) wear
+ *  `data-presence-anchor="region:<id>"`. A pointer over their unanchored space
+ *  maps WITHIN that container on the other client — far more accurate than
+ *  whole-viewport fractions when the two layouts differ (a collapsed boneyard,
+ *  another window width) and hidden when the container doesn't exist there.
+ *  Regions are the LAST anchored tier: small anchors and the ~40px nearest-item
+ *  snap always win over them. */
+export const PRESENCE_REGION_PREFIX = 'region:';
+
+/** Element anchors that are NOT region containers (the precise tier). */
+const PRECISE_ANCHOR_SELECTOR = `[${PRESENCE_ANCHOR_ATTR}]:not([${PRESENCE_ANCHOR_ATTR}^="${PRESENCE_REGION_PREFIX}"])`;
+
 /** Any element that carries a shareable item anchor. */
-const ITEM_SELECTOR = `[data-row-id], [data-date-key], [data-section], [data-day-sections], [${PRESENCE_ANCHOR_ATTR}]`;
+const ITEM_SELECTOR = `[data-row-id], [data-date-key], [data-section], [data-day-sections], ${PRECISE_ANCHOR_SELECTOR}`;
 
 /** Build the element-based anchor for a pointer over `el` (null when `el`
  *  isn't over a shareable item). */
@@ -50,7 +63,7 @@ function elementAnchor(el: Element, clientX: number, clientY: number): PresenceA
       return { kind: 'day', sectionIndex: dayIndex, section, ...pointerFractions(clientX, clientY, sectionEl.getBoundingClientRect()) };
     }
   }
-  const dom = el.closest(`[${PRESENCE_ANCHOR_ATTR}]`);
+  const dom = el.closest(PRECISE_ANCHOR_SELECTOR);
   const key = dom?.getAttribute(PRESENCE_ANCHOR_ATTR);
   if (dom && key) {
     return { kind: 'dom', key, ...pointerFractions(clientX, clientY, dom.getBoundingClientRect()) };
@@ -96,8 +109,15 @@ export function resolvePointerAnchor(clientX: number, clientY: number, target?: 
     const near = nearestItemElement(clientX, clientY);
     const snapped = near ? elementAnchor(near, clientX, clientY) : null;
     if (snapped) return snapped;
+    // 4. The closest region container — the pointer stays WITHIN the same
+    //    board/grid/canvas on the other client instead of the whole viewport.
+    const region = el.closest(`[${PRESENCE_ANCHOR_ATTR}^="${PRESENCE_REGION_PREFIX}"]`);
+    const regionKey = region?.getAttribute(PRESENCE_ANCHOR_ATTR);
+    if (region && regionKey) {
+      return { kind: 'dom', key: regionKey, ...pointerFractions(clientX, clientY, region.getBoundingClientRect()) };
+    }
   }
-  // 4. Free pointer: viewport-relative fallback (rendered only while the peer
+  // 5. Free pointer: viewport-relative fallback (rendered only while the peer
   //    is on the same place as us — see sameViewPlace in presence.ts).
   return { kind: 'screen', ...screenFractions(clientX, clientY, window.innerWidth, window.innerHeight) };
 }

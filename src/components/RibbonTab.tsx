@@ -736,7 +736,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             edgePadding={activeDesign.edgePadding}
             setTextSizeOffset={setTextSizeOffset}
           />
-          <div className="mx-auto space-y-6" data-presence-surface="ribbon-designer" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
+          <div className="mx-auto space-y-6" data-presence-anchor="region:ribbons:canvas" data-presence-surface="ribbon-designer" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
             <RibbonDesignerGrid
               readOnly={locked}

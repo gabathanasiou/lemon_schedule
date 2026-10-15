@@ -1192,7 +1192,7 @@ export const CalendarTab: React.FC<{
               </div>
             }
           />
-          <div ref={calendarGridRef} data-marquee-container onClick={(e) => {
+          <div ref={calendarGridRef} data-presence-anchor="region:calendar:grid" data-marquee-container onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]') || (e.target as HTMLElement).closest('[data-event-key]')) return;
             setSelectedRowIds(new Set());
             setViewMenuOpen(false);

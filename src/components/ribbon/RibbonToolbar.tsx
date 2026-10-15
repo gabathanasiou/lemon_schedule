@@ -75,12 +75,14 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
         <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Structure</span>
         <Tooltip content="Add Column After">
           <Button theme="dark" onClick={() => selCell && onAddColumn(selCell.ci)} disabled={readOnly || !selCell}
+            data-presence-anchor="ribbons:tb:add-column"
             className={BTN_LABEL}>
             <Plus className="w-3 h-3" /> Column
           </Button>
         </Tooltip>
         <Tooltip content="Delete Column">
           <Button theme="dark" onClick={() => selCell && removeColumn(selCell.ci)} disabled={readOnly || !selCell || numCols <= 1}
+            data-presence-anchor="ribbons:tb:delete-column"
             className={BTN_LABEL_DANGER}>
             <Trash2 className="w-3 h-3" /> Column
           </Button>
@@ -88,12 +90,14 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
         <ToolbarDivider dark />
         <Tooltip content="Add Row">
           <Button theme="dark" onClick={() => selCell && addRow()} disabled={readOnly || !selCell}
+            data-presence-anchor="ribbons:tb:add-row"
             className={BTN_LABEL}>
             <Plus className="w-3 h-3" /> Row
           </Button>
         </Tooltip>
         <Tooltip content="Delete Row">
           <Button theme="dark" onClick={() => selCell && removeRow(selCell.row.id)} disabled={readOnly || !selCell || rows.length <= 1}
+            data-presence-anchor="ribbons:tb:delete-row"
             className={BTN_LABEL_DANGER}>
             <Trash2 className="w-3 h-3" /> Row
           </Button>
@@ -101,24 +105,28 @@ export default function RibbonToolbar(props: RibbonToolbarProps) {
         <ToolbarDivider dark />
         <Tooltip content="Move Column Left">
           <Button theme="dark" onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci - 1)} disabled={readOnly || !selCell || selCell.ci === 0}
+            data-presence-anchor="ribbons:tb:move-column-left"
             className={BTN_MOVE}>
             <ArrowLeft className="w-2.5 h-2.5" /> Move
           </Button>
         </Tooltip>
         <Tooltip content="Move Column Right">
           <Button theme="dark" onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci + 1)} disabled={readOnly || !selCell || (selCell && selCell.ci >= numCols - 1)}
+            data-presence-anchor="ribbons:tb:move-column-right"
             className={BTN_MOVE}>
             <ArrowRight className="w-2.5 h-2.5" /> Move
           </Button>
         </Tooltip>
         <Tooltip content="Move Row Up">
           <Button theme="dark" onClick={() => selCell && moveRow(selCell.row.id, -1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
+            data-presence-anchor="ribbons:tb:move-row-up"
             className={BTN_MOVE}>
             <ArrowUp className="w-2.5 h-2.5" /> Move
           </Button>
         </Tooltip>
         <Tooltip content="Move Row Down">
           <Button theme="dark" onClick={() => selCell && moveRow(selCell.row.id, 1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
+            data-presence-anchor="ribbons:tb:move-row-down"
             className={BTN_MOVE}>
             <ArrowDown className="w-2.5 h-2.5" /> Move
           </Button>

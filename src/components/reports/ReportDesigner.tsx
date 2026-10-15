@@ -791,7 +791,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           ) : (
             <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={locked} />
           )}
-          <div className="flex-1 flex flex-col min-w-0 min-h-0" data-presence-surface={zoneMode ? undefined : 'report-designer'}>
+          <div className="flex-1 flex flex-col min-w-0 min-h-0" data-presence-anchor={zoneMode ? undefined : 'region:designer:canvas'} data-presence-surface={zoneMode ? undefined : 'report-designer'}>
             <ReportDesignerCanvas
               blocks={blocks}
               headerBlocks={headerBlocks}

@@ -185,7 +185,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
   );
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-zinc-950 text-zinc-300" data-call-sheet-edit>
+    <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-zinc-950 text-zinc-300" data-presence-anchor="region:callsheet:doc" data-call-sheet-edit>
       {headerTarget ? createPortal(controls, headerTarget) : (
         <header className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{controls}</header>
       )}
