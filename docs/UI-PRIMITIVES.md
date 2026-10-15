@@ -94,6 +94,21 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - Pure model: `src/lib/appNav.ts` (`AppPlace`, `placeToHash`/`parsePlaceHash`, `placeLabel`, stack
   helpers, unit-tested). The stack rides in `history.state` (`{ lemon, pid }`) so reload-restore
   works; the route is adopted on project open and left untouched on the boot screen.
+- **The mounted surface lags the pill by one painted frame** (roadmap 263, `useLaggingValue` in
+  `src/lib/useLaggingValue.ts`). The tab/sub-tab state is the URGENT truth — the sliding pill,
+  `go`/history and presence publishing all read it directly — while the content area renders from
+  a mirror (`contentView` in `App.tsx`) committed one rAF later inside a transition. Reason: React
+  flushes discrete clicks synchronously, so mounting the new surface used to land in the SAME task
+  as the click; building the stripboard (~200 rows + dnd-kit registration) blocked the pill's own
+  position update and starved its glide (measured: first pill movement 176ms after the click,
+  after the content was already on screen — "the animation is missing"). Time-slicing the mount
+  lets the pill finish its glide while the surface builds; the click task stays ~5ms.
+  **MUST NOT** route the pill/nav state, presence publishing, or data-only props (targets,
+  indices, categories, popped-out sets) through the lag — surface IDENTITY only (`tab`, sub-tabs,
+  `prodViews` modes). While the mirror is behind, the outgoing surface is `inert` (`<main inert>`
+  in `App.tsx`): a click must never land on the stale surface (the Glide toolbar's Edit/View sit
+  where the Schedule's do) and role queries must wait for the incoming surface. Measure with the
+  `@perf tab switch` harness (`docs/PERF-DIAGNOSIS.md`).
 - Editing surfaces commit on blur (roadmap 250/251): the manager pages, the
   Report Designer text and the project-title field dispatch when the edit
   finishes (blur / Enter / Escape / leaving the page), so browser back, tab

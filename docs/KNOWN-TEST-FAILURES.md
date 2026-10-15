@@ -222,3 +222,11 @@ preload + first-keystroke timing under CPU contention), not a regression — the
 branch touches the File menu only. If it recurs, re-check with `--workers=1`
 before touching the app.
 
+**Recurrence — 2026-10-15, the roadmap-263 suite failed `locations.spec.ts:20`
+on the attempt AND the retry** (at the second Glide canvas edit — creating the
+`Studio` type off the add-row Type cell; 268 passed / 1 failed / 4 flaky). The
+first canvas edit in the same test had already committed, so the surface swap
+was long done. **Triage:** the spec alone `--workers=1 --repeat-each=2` → 6/6
+green (30.1s, incl. the failing test twice). Same class as §H — Glide
+overlay-editor timing under full-suite CPU contention, not a regression.
+

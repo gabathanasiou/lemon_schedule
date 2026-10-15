@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, waitForPersistedProject, writeTempFile as writeFdx, importScenesViaMenu as importFile, bridgeProject } from './helpers';
+import { openSeededProject, waitForPersistedProject, writeTempFile as writeFdx, importScenesViaMenu as importFile, bridgeProject, openScriptTab } from './helpers';
 import { TEST_IDS } from '../src/lib/testIds';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -136,7 +136,7 @@ test.describe('Script sub-tab (roadmap 123 Phase 1)', () => {
     await importFile(page, writeFdx('lemon-script-view.fdx', FDX_A));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
 
-    await page.getByRole('button', { name: 'Script', exact: true }).click();
+    await openScriptTab(page);
 
     const view = page.getByTestId('script-view');
     await expect(view).toBeVisible();
@@ -154,7 +154,7 @@ test.describe('Script sub-tab (roadmap 123 Phase 1)', () => {
     await importFile(page, writeFdx('lemon-script-styled.fdx', FDX_STYLED));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 1)");
 
-    await page.getByRole('button', { name: 'Script', exact: true }).click();
+    await openScriptTab(page);
 
     const view = page.getByTestId('script-view');
     await expect(view.locator('strong')).toHaveText('slams');
@@ -199,7 +199,7 @@ test.describe('script tagging — selection menu (roadmap 136)', () => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-tag.fdx', FDX_A));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
-    await page.getByRole('button', { name: 'Script', exact: true }).click();
+    await openScriptTab(page);
 
     // Select "coffee" in the action block — the category menu opens. (Walk text
     // nodes: attached elements are highlighted as inline spans.)
@@ -261,7 +261,7 @@ test.describe('script tagging — selection menu (roadmap 136)', () => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-tag-cast.fdx', FDX_A));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
-    await page.getByRole('button', { name: 'Script', exact: true }).click();
+    await openScriptTab(page);
 
     // Highlight a word in the screenplay body and open the category menu.
     const selectWord = async (word: string) => {
@@ -335,7 +335,7 @@ test.describe('script tagging — selection menu (roadmap 136)', () => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-tagged-menu.fdx', FDX_TAGGED));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptAnnotations && p.scriptAnnotations.length === 1)");
-    await page.getByRole('button', { name: 'Script', exact: true }).click();
+    await openScriptTab(page);
 
     // The imported element is attached to the scene, so it shows SOLID (not wavy).
     await expect(page.locator('[data-annotation-recognized="1"]')).toHaveCount(0);
@@ -412,7 +412,7 @@ test.describe('scene cut (roadmap 132 Part C)', () => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-cut.fdx', FDX_A));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
-    await page.getByRole('button', { name: 'Script', exact: true }).click();
+    await openScriptTab(page);
 
     const firstSection = page.getByTestId('script-scene').first();
     const parentNumber = (await firstSection.getAttribute('data-scene-number'))!;
@@ -463,7 +463,7 @@ test.describe('split manager (roadmap 132 Part E)', () => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-splitmgr.fdx', FDX_A));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
-    await page.getByRole('button', { name: 'Script', exact: true }).click();
+    await openScriptTab(page);
 
     const firstSection = page.getByTestId(TEST_IDS.scriptScene).first();
     const bodyBefore = (await bridgeProject(page)).scriptDocument.scenes.length;
@@ -556,7 +556,7 @@ test.describe('Script viewer tools (roadmap 123 Phase 1)', () => {
     await openSeededProject(page);
     await importFile(page, writeFdx('lemon-script-tools.fdx', FDX_A));
     await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
-    await page.getByRole('button', { name: 'Script', exact: true }).click();
+    await openScriptTab(page);
 
     // Eighths ruler is visible on the right.
     await expect(page.getByTestId('script-eighths')).toBeVisible();
