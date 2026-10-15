@@ -21,6 +21,7 @@ import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
 import { usePresenceActions, useHeldItems } from '../lib/supabase/presenceContext';
+import { useFollowView } from '../lib/supabase/useFollowView';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { RemoteDragGhostLayer } from './RemoteDragGhosts';
@@ -256,8 +257,9 @@ export const CalendarTab: React.FC<{
   const calendarGridRef = useRef<HTMLDivElement>(null);
 
   // Follow completeness (roadmap 229, docs COLLABORATION §9): the Calendar
-  // mirrors its scroll + its Strips/Events sub-view to followers; a local
-  // scroll gesture, a sub-view change or a month jump exits follow.
+  // mirrors its scroll + its Strips/Events sub-view to followers; a sub-view
+  // change or a month jump exits follow — your own scroll does NOT (user
+  // decision 2026-10-12, corrected same day).
   const calendarStickyHeight = useCallback(() => {
     const el = calendarGridRef.current?.querySelector('[data-cal-sticky]');
     return el instanceof HTMLElement ? el.offsetHeight : 28;
@@ -276,25 +278,19 @@ export const CalendarTab: React.FC<{
     keyAttr: 'data-date-key',
     sticky: calendarStickyHeight,
   });
-  // First publish marks the mount — the Calendar only republishes its
-  // sub-view when it CHANGES (never overwrites a one-shot jump target).
-  const subViewPublishedRef = useRef(false);
-  useEffect(() => {
-    if (!presenceScroll.enabled || subTab !== 'calendar') return;
-    if (!subViewPublishedRef.current) {
-      subViewPublishedRef.current = true;
-      return;
-    }
-    presenceActions.publishView({ tab: 'calendar', sub: 'calendar', calendarView: viewMode });
-  }, [presenceActions, presenceScroll.enabled, subTab, viewMode]);
-  useEffect(() => {
-    if (!presenceScroll.enabled) return;
-    return presenceActions.registerFollowApplier((view) => {
-      if (view.tab !== 'calendar' || view.sub !== 'calendar') return;
-      const calendarView = view.calendarView;
-      if (calendarView) setCalSettings(prev => ({ ...prev, viewMode: calendarView }));
-    });
-  }, [presenceActions, presenceScroll.enabled, setCalSettings]);
+  // Follow (roadmap 229/243): the Strips/Events sub-view mirrors through the
+  // shared registration — only while the Calendar sub-view is what's shown,
+  // and mount values are not re-published (never overwrites a one-shot jump
+  // target).
+  const follow = useFollowView({
+    place: { tab: 'calendar', sub: 'calendar' },
+    fields: [{ key: 'calendarView', value: viewMode }],
+    apply: (view) => {
+      if (view.calendarView) setCalSettings(prev => ({ ...prev, viewMode: view.calendarView }));
+    },
+    enabled: presenceScroll.enabled && subTab === 'calendar',
+    publishOnMount: false,
+  });
 
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
@@ -1049,10 +1045,10 @@ export const CalendarTab: React.FC<{
                 {viewMode === 'strips' && boneyardCollapsed && (
                   <BoneyardExpandButton onClick={() => setBoneyardCollapsed(false)} />
                 )}
-                <button onClick={() => { presenceActions.noteUserViewChange(); goPrevMonth(); }} title="Previous month" data-presence-anchor="toolbar:calendar:prev" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
+                <button onClick={() => { follow.noteUserChange(); goPrevMonth(); }} title="Previous month" data-presence-anchor="toolbar:calendar:prev" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
                 <h2 className="font-semibold text-sm whitespace-nowrap">{rangeLabel}</h2>
-                <button onClick={() => { presenceActions.noteUserViewChange(); goNextMonth(); }} title="Next month" data-presence-anchor="toolbar:calendar:next" className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
-                <button onClick={() => { presenceActions.noteUserViewChange(); goToday(); }} title="Jump to today" data-presence-anchor="toolbar:calendar:today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
+                <button onClick={() => { follow.noteUserChange(); goNextMonth(); }} title="Next month" data-presence-anchor="toolbar:calendar:next" className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
+                <button onClick={() => { follow.noteUserChange(); goToday(); }} title="Jump to today" data-presence-anchor="toolbar:calendar:today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
                   Today
                 </button>
               </div>
@@ -1075,7 +1071,7 @@ export const CalendarTab: React.FC<{
                     { v: 'strips', l: 'Strips', title: 'Strips view', dataProps: { 'data-presence-anchor': 'toolbar:calendar:strips' } },
                     { v: 'events', l: 'Events', title: 'Events view', dataProps: { 'data-presence-anchor': 'toolbar:calendar:events' } },
                   ]}
-                  onChange={m => { presenceActions.noteUserViewChange(); updateCal({ viewMode: m as 'strips' | 'events' }); setSelectedEventKeys(new Set()); }}
+                  onChange={m => { follow.noteUserChange(); updateCal({ viewMode: m as 'strips' | 'events' }); setSelectedEventKeys(new Set()); }}
                   ariaLabel="Calendar view"
                 />
                 <ToolbarDivider />

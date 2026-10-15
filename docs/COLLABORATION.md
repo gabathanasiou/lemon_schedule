@@ -380,11 +380,15 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   same channel (~8/s, coalescing + idle skip). `src/lib/presenceScroll.ts`
   (semantic anchors + the surface registry) and
   `src/lib/supabase/usePresenceScrollSurface.ts` (the per-surface hook) wire
-  the stripboard, Calendar, Sheet and Glide grid; the provider's follow
-  appliers became a registry (`registerFollowApplier` returns its unregister)
-  so mounted surfaces apply their own view switches; `App.applyPlace` resolves
-  a Sheet scene id to the follower's own order. Details + the user decision
-  (scrolling yourself never ends follow; a view-changing click does) in §9.
+  the stripboard, Calendar, Sheet and Glide grid; the provider keeps a
+  follow-applier registry (`registerFollowApplier`) that every surface joins
+  through ONE shared hook — `src/lib/supabase/useFollowView.ts`: declare the
+  place + lens fields, and the hook publishes, applies, and re-applies to
+  surfaces that mount mid-follow — while `App.applyPlace` resolves a Sheet
+  scene id to the follower's own order and re-publishes the mirrored view as
+  ours (a peer-driven `go` has no surface publish to restore the lens
+  fields). Details + the user decision (scrolling yourself never ends follow;
+  a view-changing click does) in §9.
 
 **S4 — Realtime collaborative editing.** Per-project room (DO) running the pure
 reducer: validates, applies, persists (action log + periodic snapshot), broadcasts
@@ -657,30 +661,39 @@ concurrency semantics in its doc.
 - Script-body cursors (TipTap) need ProseMirror relative positions — flag, don't
   fake with indexes (skipped in S3).
 - **Follow**: follower applies the leader's `view` state; a "Following X" pill
-  exits on any manual navigation, Esc, or clicking the pill. **Follow
-  completeness (built 2026-10-12)** also mirrors in-view state that does NOT
-  change the place:
+  exits on any manual navigation, Esc, or clicking the pill. Every surface
+  registers through ONE shared hook — `src/lib/supabase/useFollowView.ts`
+  (`useFollowView`: declare the place + the lens fields; it publishes them,
+  applies the peer's back, and re-applies immediately to surfaces that MOUNT
+  mid-follow). Adding a future toggle or viewport = one more field entry,
+  never new plumbing. **Follow completeness** also mirrors in-view state that
+  does NOT change the place:
   - the **Sheet's scene / sheet number** (arrow flips, scene jumps) —
     `PresenceView.sceneId` + `sheetIndex`; the Sheet publishes both, the
     follower resolves the scene id, so a different Breakdown order still
     lands on the right scene.
   - the **stripboard View menu** (A4 width, cell borders) and the **Calendar
-    Strips/Events** switch — pref-shaped `PresenceView` fields applied by the
-    mounted surfaces through the same setters the UI uses (they stick after
-    unfollowing, like Figma keeping your last zoom). The stripboard's **ribbon
-    layout** (the shared display look) is project state (`activeRibbonId`) and
-    reaches peers through the S3.5 save ping, not presence — while the
-    DESIGNERS' editing focus (Reports Designer + Ribbon Designer, roadmap 233)
-    is a per-user pref (`src/lib/persist.ts`, `useActiveDesignId`) that never
-    leaves the browser: design contents are shared, what you are editing is not.
+    Strips/Events** switch — pref-shaped `PresenceView` fields applied through
+    the same setters the UI uses (they stick after unfollowing, like Figma
+    keeping your last zoom). The stripboard's **ribbon layout** (the shared
+    display look) is project state (`activeRibbonId`) and reaches peers
+    through the S3.5 save ping, not presence.
+  - the **design editing focus** (roadmap 243) — the Reports Designer's open
+    design (`designId`), the Ribbon Designer's (`ribbonId`, plus its A4 width
+    / cell borders), the report **Preview** (`preview`) and **Fields/Values**
+    mode (`reportViewMode`): per-user prefs (roadmap 233, `src/lib/persist.ts`
+    `useActiveDesignId`) that DO mirror while following — the peer's pick wins
+    until you unfollow, then yours sticks.
   - the **manager pages' selected sidebar category** (Element Manager,
-    `breakdown/elements`; Crew/Locations, `production/<sub>/manager`) and the
-    **Report Designer / Call Sheet editor Preview** + **Reports Fields/Values
-    mode** (roadmap 243) — one validated `PresenceView` field each
-    (`managerCategory` / `preview` / `reportViewMode`), applied through the
-    surface's own setter; category keys are project data (a key this client
-    does not have is ignored) and the designer toggles mirror only while both
-    clients are on the SAME design (`designId`).
+    `breakdown/elements`; Crew/Locations, `production/<sub>/manager`) —
+    `managerCategory`; category keys are project data (a key this client does
+    not have is ignored) — plus the **Day Manager's selected day** and the
+    **Call Sheet editor's day + Preview** (`daySection` / `preview`; the day
+    itself resolves through the App place).
+  - the **Script page's viewed scene** (roadmap 243) — published as the live
+    scene id + scenes index and resolved back through scene NUMBERS, so a
+    different doc order still lands right; the jump is rAF-deferred past the
+    mount-time scroll-memory restore.
   - the **scroll position** of the stripboard, Calendar, Sheet and Glide grid —
     a separate `scroll` broadcast (~8/s, coalescing + idle skip) with SEMANTIC
     anchors (never pixels): the top-edge item's key + a 0..1 offset, sampled
@@ -696,8 +709,9 @@ concurrency semantics in its doc.
     scroll is simply your position until the leader's next scroll sample
     re-syncs you. **Any click that changes your view ENDS follow** — the
     Sheet's arrows/sheet-number, the stripboard View menu, the Calendar month
-    arrows and Strips/Events switch (each calls `noteUserViewChange`), the
-    same rule as clicking a tab or scene; Esc and the pill end it too.
+    arrows and Strips/Events switch (each calls the surface's
+    `noteUserChange()` — the shared hook's wrapper over `noteUserViewChange`),
+    the same rule as clicking a tab or scene; Esc and the pill end it too.
     Programmatic applies never count as a click or a user scroll (the applied
     echo is filtered — exact scrollTop for DOM surfaces, a short window for
     the canvas).

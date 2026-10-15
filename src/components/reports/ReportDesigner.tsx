@@ -28,7 +28,7 @@ import ReportToolbar from './ReportToolbar';
 import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import { PeerItemOutlines } from '../PeerItemOutlines';
 import { reportSelectionItems, resolveReportItem } from '../../lib/reportSelectionItems';
-import { usePresenceActions } from '../../lib/supabase/presenceContext';
+import { useFollowView } from '../../lib/supabase/useFollowView';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
 import { dayScopeFilter } from './DayReportPreview';
@@ -166,27 +166,28 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   activeDesignRef.current = activeDesign;
   const designId = activeDesign?.id;
 
-  // Presence (roadmap 236): publish the OPEN design so peers on another design
-  // are hidden (the pointer document gate) — and so pointers can anchor to
-  // this design's blocks. App publishes the plain `design/designer` place on
-  // navigation; this effect refines it with the document identity + the
-  // follow-lens toggles (roadmap 243: Preview, Fields/Values).
-  const presenceActions = usePresenceActions();
-  useEffect(() => {
-    if (zoneMode) return;
-    presenceActions.publishView({ tab: 'design', sub: 'designer', ...(designId ? { designId } : {}), preview, reportViewMode: reportMode });
-  }, [presenceActions, zoneMode, designId, preview, reportMode]);
-  // Follow (roadmap 243): Preview + Fields/Values mirror from a followed peer —
-  // only while both clients are on the SAME design (per-user identity, 233).
-  useEffect(() => {
-    if (zoneMode) return;
-    return presenceActions.registerFollowApplier((view) => {
-      if (view.tab !== 'design' || view.sub !== 'designer') return;
-      if (view.designId && view.designId !== designId) return;
+  // Presence (roadmap 236 + follow 243): publish the OPEN design so peers on
+  // another design are hidden (the pointer document gate) — and mirror the
+  // follow-lens state through the shared registration: the edited DESIGN
+  // (per-user pref, mirrored through its own setter like the stripboard view
+  // fields), Preview, and Fields/Values. The design switches first so the
+  // toggles land on the peer's design.
+  const follow = useFollowView({
+    place: { tab: 'design', sub: 'designer' },
+    fields: [
+      { key: 'designId', value: designId },
+      { key: 'preview', value: preview },
+      { key: 'reportViewMode', value: reportMode },
+    ],
+    apply: (view) => {
+      if (view.designId && view.designId !== editingDesignId && (project.reportDesigns || []).some(d => d.id === view.designId)) {
+        setEditingDesignId(view.designId);
+      }
       if (typeof view.preview === 'boolean') setPreview(view.preview);
       if (view.reportViewMode) setReportModePersisted(view.reportViewMode);
-    });
-  }, [presenceActions, zoneMode, designId, setReportModePersisted]);
+    },
+    enabled: !zoneMode,
+  });
 
   useEffect(() => {
     if (!ctx || ctx.dayInfos.length === 0) return;
@@ -587,7 +588,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         designs={project.reportDesigns || []}
         activeId={activeDesign?.id || ''}
         readOnly={locked}
-        onSelect={id => setEditingDesignId(id)}
+        onSelect={id => { follow.noteUserChange(); setEditingDesignId(id); }}
         onRename={(id, name) => dispatch({ type: 'RENAME_REPORT_DESIGN', payload: { id, name } })}
         onDuplicate={id => {
           const d = project.reportDesigns?.find(x => x.id === id);
@@ -624,7 +625,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           { v: 'fields', l: 'Fields', title: 'Fields — chips everywhere; text and tables edit in place', dataProps: { 'data-presence-anchor': 'toolbar:designer:fields' } },
           { v: 'values', l: 'Values', title: 'Values — the final look; double-click or tap again to edit', dataProps: { 'data-presence-anchor': 'toolbar:designer:values' } },
         ]}
-        onChange={v => { presenceActions.noteUserViewChange(); setReportModePersisted(v as ReportViewMode); }}
+        onChange={v => { follow.noteUserChange(); setReportModePersisted(v as ReportViewMode); }}
       />
       <DropdownMenu
         open={viewMenuOpen}
@@ -670,7 +671,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         )}
       </DropdownMenu>
       <button
-        onClick={() => { presenceActions.noteUserViewChange(); setPreview(v => !v); }}
+        onClick={() => { follow.noteUserChange(); setPreview(v => !v); }}
         data-presence-anchor="toolbar:designer:preview"
         className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
       >

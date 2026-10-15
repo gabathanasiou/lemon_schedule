@@ -18,7 +18,7 @@ import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { useSceneDuplicate } from '../lib/sceneDuplicate';
-import { usePresenceActions } from '../lib/supabase/presenceContext';
+import { useFollowView } from '../lib/supabase/useFollowView';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { resolvedLocationName } from '../lib/locations';
 import { usePersistState } from '../lib/persist';
@@ -125,7 +125,6 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   // mirrors the scene it is on (a follower with a different Sheet order
   // resolves the scene id) + its scroll; flipping the sheet locally exits
   // follow (user decision 2026-10-13).
-  const presenceActions = usePresenceActions();
   const presenceScroll = usePresenceScrollSurface({
     surface: 'sheet',
     container: containerRef,
@@ -142,10 +141,16 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   // it correctly (see SceneSheet's initialIndex effect).
   const sceneSheetIndex = scene ? scenes.indexOf(scene) : -1;
 
-  useEffect(() => {
-    if (!presenceScroll.enabled || !sceneId || sceneSheetIndex < 0) return;
-    presenceActions.publishView({ tab: 'breakdown', sub: 'sheet', sceneId, sheetIndex: sceneSheetIndex });
-  }, [presenceActions, presenceScroll.enabled, sceneId, sceneSheetIndex]);
+  // Follow (roadmap 229): publish the scene the peer is on — the App applier
+  // carries sceneId/sheetIndex in the place, so no surface apply is needed.
+  const follow = useFollowView({
+    place: { tab: 'breakdown', sub: 'sheet' },
+    fields: [
+      { key: 'sceneId', value: sceneId },
+      { key: 'sheetIndex', value: sceneSheetIndex },
+    ],
+    enabled: presenceScroll.enabled && !!sceneId && sceneSheetIndex >= 0,
+  });
 
   const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
   const { trySetSceneNumber, modal: sceneNumberCollisionModal } = useSceneNumberCollisionGuard(dispatch, scenes);
@@ -259,13 +264,13 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   }, []);
 
   const goTo = useCallback((n: number) => {
-    presenceActions.noteUserViewChange();
+    follow.noteUserChange();
     commitTextEdits();
     const idx = Math.max(0, Math.min(orderedScenes.length - 1, n));
     setIndex(idx); setSheetInput(String(idx + 1));
     lastReportedIndexRef.current = idx;
     onIndexChange?.(idx);
-  }, [orderedScenes.length, onIndexChange, commitTextEdits, presenceActions]);
+  }, [orderedScenes.length, onIndexChange, commitTextEdits, follow]);
 
   // A scene inserted by New/Duplicate is revealed once it lands in the view
   // order — `orderedScenes` in the dispatch render is still the old list, so

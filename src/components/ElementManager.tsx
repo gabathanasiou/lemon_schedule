@@ -13,7 +13,7 @@ import { getDayTypes } from '../lib/dayTypes';
 import { formatDateShort } from '../lib/utils';
 import { useRowBuffer } from '../lib/rowBuffer';
 import { useScrolledLeft } from '../lib/useScrolledLeft';
-import { usePresenceActions } from '../lib/supabase/presenceContext';
+import { useFollowView } from '../lib/supabase/useFollowView';
 import { setPendingTab } from '../lib/unsavedGuard';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
 import { MergeRowsModal } from './elements/MergeRowsModal';
@@ -116,10 +116,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   });
   const { rows, hasChanges, doSave, doRevert } = buf;
 
-  // Follow (roadmap 243): the selected category is part of the peer's LENS.
-  // Publish it (a follower lands on the same category) and mirror it while
-  // following; category keys are project data, so unknown keys are ignored.
-  const presenceActions = usePresenceActions();
+  // Follow (roadmap 243): the selected category mirrors through the shared
+  // registration — category keys are project data, so a key this client does
+  // not have is ignored.
   const categoryRef = useRef(category);
   categoryRef.current = category;
   const allCategoryKeysRef = useRef<{ key: string; isCustom: boolean; isHidden: boolean }[]>([]);
@@ -128,23 +127,21 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     setCategory(newCat);
     onCategoryChange?.(newCat);
   }, [buf.switchScope, onCategoryChange]);
-  const switchCategory = useCallback((newCat: string) => {
-    // A category click is a view-changing click: it ends follow (S3 rule).
-    presenceActions.noteUserViewChange();
-    switchCategoryRaw(newCat);
-  }, [presenceActions, switchCategoryRaw]);
-  useEffect(() => {
-    presenceActions.publishView({ tab: 'breakdown', sub: 'elements', managerCategory: category });
-  }, [presenceActions, category]);
-  useEffect(() => {
-    return presenceActions.registerFollowApplier((view) => {
-      if (view.tab !== 'breakdown' || view.sub !== 'elements') return;
+  const follow = useFollowView({
+    place: { tab: 'breakdown', sub: 'elements' },
+    fields: [{ key: 'managerCategory', value: category }],
+    apply: (view) => {
       const key = view.managerCategory;
       if (!key || key === categoryRef.current) return;
       if (!allCategoryKeysRef.current.some(c => c.key === key)) return;
       switchCategoryRaw(key);
-    });
-  }, [presenceActions, switchCategoryRaw]);
+    },
+  });
+  const switchCategory = useCallback((newCat: string) => {
+    // A category click is a view-changing click: it ends follow (S3 rule).
+    follow.noteUserChange();
+    switchCategoryRaw(newCat);
+  }, [follow, switchCategoryRaw]);
 
   const sortByIdFn = () => buf.sortRows((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
   const sortByNameFn = () => buf.sortRows((a, b) => (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase()));

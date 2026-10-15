@@ -5,6 +5,7 @@ import ProductionDetailsModal from './ProductionDetailsModal';
 import CallTimesSettingsModal from './CallTimesSettingsModal';
 import { useProject } from '../../../store';
 import { useDayViews, type DayView } from '../../../lib/dayView';
+import { useFollowView } from '../../../lib/supabase/useFollowView';
 import { patchDayMeta } from '../../../lib/dayMeta';
 import { assignSlotPerson, slotsForDay } from '../../../lib/dayCrew';
 import { rulesRelevantToDay } from '../../../lib/rulesEngine';
@@ -107,6 +108,15 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     if (initialDayIndex != null) onTargetSeen?.();
   }, [initialDayIndex, onTargetSeen]);
 
+  // Follow (roadmap 243): publish the day the peer is viewing (manager mode —
+  // the call-sheet editor publishes its own view while it is open). The App
+  // applier carries `daySection` in the place, so a follower's day follows.
+  const follow = useFollowView({
+    place: { tab: 'production', sub: 'days', mode: 'manager' },
+    fields: [{ key: 'daySection', value: selected?.sectionIndex }],
+    enabled: !editCallSheet,
+  });
+
   // Darken the surrounding sub-tab chrome while the call-sheet editor is open
   // (and restore it on close / unmount).
   useEffect(() => {
@@ -171,7 +181,12 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     collapsed: p.collapsed.includes(id) ? p.collapsed.filter(x => x !== id) : [...p.collapsed, id],
   }));
 
-  const selectDay = (index: number) => setPrefs(p => ({ ...p, selectedIndex: index }));
+  const selectDay = (index: number) => {
+    // A day click is a view-changing click: it ends follow (S3 rule — parity
+    // with the Sheet arrows / Calendar month arrows).
+    follow.noteUserChange();
+    setPrefs(p => ({ ...p, selectedIndex: index }));
+  };
 
   if (!selected) {
     return (

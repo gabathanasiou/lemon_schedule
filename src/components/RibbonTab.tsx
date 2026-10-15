@@ -39,7 +39,7 @@ import RibbonContextMenu from './ribbon/RibbonContextMenu';
 import { useColumnResize, splitBoundaryEven } from './columnResize';
 import { PeerItemOutlines } from './PeerItemOutlines';
 import { itemsByAttribute } from '../lib/itemSelection';
-import { usePresenceActions } from '../lib/supabase/presenceContext';
+import { useFollowView } from '../lib/supabase/useFollowView';
 
 /** Peer-selection items (roadmap 234 stage 2) resolve to the designer's cells
  *  (`data-cell-id`). Module-level: a fresh function identity per render would
@@ -94,7 +94,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const activeDesignRef = useRef(activeDesign);
   activeDesignRef.current = activeDesign;
   const [viewMode, setViewMode, viewWidth] = useViewMode();
-  const [cellBorders] = useCellBorders();
+  const [cellBorders, setCellBorders] = useCellBorders();
   const currentWindow = useCurrentWindow();
   const currentDocument = useCurrentDocument();
 
@@ -139,17 +139,29 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     }
   }, [project.ribbonDesigns, editingDesignId, resetRows]);
 
-  // Presence (roadmap 236): publish the OPEN ribbon design so peers on another
-  // design are hidden (the pointer document gate) and pointers can anchor to
-  // this design's cells. App publishes the plain `design/ribbons` place on
-  // navigation; this effect refines it with the document identity. The
-  // id-less fallback design (legacy projects) publishes no id — its cell ids
-  // are regenerated per mount and must never anchor across clients.
-  const presenceActions = usePresenceActions();
+  // Presence + follow (roadmaps 236/243): publish the OPEN ribbon design (the
+  // pointer document gate) and mirror it back through the shared follow
+  // registration — the edited DESIGN (per-user pref, mirrored through its own
+  // setter) and the canvas view switches (A4 width / cell borders, the same
+  // pref fields as the stripboard). The id-less fallback design (legacy
+  // projects) publishes no id — its cell ids are regenerated per mount and
+  // must never anchor across clients.
   const activeRibbonDesignId = activeDesign.id;
-  useEffect(() => {
-    presenceActions.publishView({ tab: 'design', sub: 'ribbons', ...(activeRibbonDesignId ? { ribbonId: activeRibbonDesignId } : {}) });
-  }, [presenceActions, activeRibbonDesignId]);
+  const follow = useFollowView({
+    place: { tab: 'design', sub: 'ribbons' },
+    fields: [
+      { key: 'ribbonId', value: activeRibbonDesignId },
+      { key: 'viewMode', value: viewMode },
+      { key: 'cellBorders', value: cellBorders },
+    ],
+    apply: (view) => {
+      if (view.ribbonId && view.ribbonId !== editingDesignId && project.ribbonDesigns.some(d => d.id === view.ribbonId)) {
+        setEditingDesignId(view.ribbonId);
+      }
+      if (view.viewMode) setViewMode(view.viewMode);
+      if (view.cellBorders) setCellBorders(view.cellBorders);
+    },
+  });
 
   const saveToStore = useCallback((rws: RibbonRow[], cws: number[]) => {
     if (!activeDesign || !activeDesign.id) return;
@@ -596,7 +608,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         onClose={(open) => setDesignMenuOpen(open)}
         items={project.ribbonDesigns.map(d => ({ id: d.id, name: d.name }))}
         activeId={activeDesign.id}
-        onSelect={async (id) => { saveDefaultAsDesign(); setEditingDesignId(id); }}
+        onSelect={async (id) => { saveDefaultAsDesign(); follow.noteUserChange(); setEditingDesignId(id); }}
         onRename={(id, name) => dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id, name } })}
         onDuplicate={(id) => {
           const d = project.ribbonDesigns.find(x => x.id === id);

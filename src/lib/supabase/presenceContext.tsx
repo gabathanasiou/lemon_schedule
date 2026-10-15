@@ -728,6 +728,12 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const registerFollowApplier = useCallback((fn: (view: PresenceView) => void) => {
     appliersRef.current.add(fn);
+    // A surface that MOUNTS while following (App navigated to the peer's place
+    // first) must receive the current view immediately — the follow loop only
+    // re-runs when the peer's view CHANGES, which may never come. Appliers
+    // guard against re-applying their own state, so this is safe.
+    const peer = followingRef.current ? peersRef.current.find(p => p.userId === followingRef.current) : undefined;
+    if (peer?.view) fn(peer.view);
     return () => {
       appliersRef.current.delete(fn);
     };

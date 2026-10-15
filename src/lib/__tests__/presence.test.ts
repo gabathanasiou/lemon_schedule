@@ -26,6 +26,7 @@ import {
   parseSelectionPayload,
   parseView,
   parseViewPayload,
+  followPlaceMatches,
   placeToPresenceView,
   pointerFractions,
   pointerGlyph,
@@ -690,5 +691,27 @@ describe('same-view gating (only show a peer on their exact place)', () => {
 
     // Non-document pages ignore the extra identity fields.
     expect(sameViewPlace({ tab: 'schedule' }, { tab: 'schedule' })).toBe(true);
+  });
+});
+
+describe('followPlaceMatches (roadmap 243 — one place gate for follow surfaces)', () => {
+  it('matches the exact place; lens fields never matter', () => {
+    expect(followPlaceMatches({ tab: 'breakdown', sub: 'elements', managerCategory: 'props' }, { tab: 'breakdown', sub: 'elements' })).toBe(true);
+    expect(followPlaceMatches({ tab: 'schedule', viewMode: 'landscape', cellBorders: 'both' }, { tab: 'schedule' })).toBe(true);
+    expect(followPlaceMatches({ tab: 'breakdown', sub: 'script' }, { tab: 'breakdown', sub: 'sheet' })).toBe(false);
+    expect(followPlaceMatches({ tab: 'calendar', sub: 'calendar' }, { tab: 'schedule' })).toBe(false);
+  });
+
+  it('normalizes the mode (omitted = the default) and checks it only when declared', () => {
+    expect(followPlaceMatches({ tab: 'production', sub: 'days' }, { tab: 'production', sub: 'days', mode: 'manager' })).toBe(true);
+    expect(followPlaceMatches({ tab: 'production', sub: 'days', mode: 'callsheet' }, { tab: 'production', sub: 'days', mode: 'callsheet' })).toBe(true);
+    expect(followPlaceMatches({ tab: 'production', sub: 'days', mode: 'callsheet' }, { tab: 'production', sub: 'days', mode: 'manager' })).toBe(false);
+    // A place without a declared mode ignores the peer's mode entirely.
+    expect(followPlaceMatches({ tab: 'schedule', mode: 'x' }, { tab: 'schedule' })).toBe(true);
+  });
+
+  it('does not check a sub the surface did not declare', () => {
+    expect(followPlaceMatches({ tab: 'design', sub: 'designer' }, { tab: 'design' })).toBe(true);
+    expect(followPlaceMatches({ tab: 'design', sub: 'ribbons' }, { tab: 'design', sub: 'designer' })).toBe(false);
   });
 });
