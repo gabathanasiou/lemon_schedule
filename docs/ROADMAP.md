@@ -1256,54 +1256,6 @@ access — it should reflect reality.
   Supabase-off, `playwright.config.ts:72`).
 - **Relations**: `relates to` **229** (S1/S2.5 sharing surfaces).
 
-## 252. Presence — per-block pointer anchoring wherever the script renders (`[ ]`)
-
-**Requested 2026-10-15 (user):** proper cursor anchoring "in any view that has the
-script in — like per-block anchoring … whenever the script is being rendered. It's
-important because one user might want to show something to the other one." Today a
-peer's pointer over screenplay text falls through the anchor chain to the `screen`
-fraction fallback (`src/lib/presenceAnchors.ts`): it lands on the right line only
-when both clients happen to share width, font size AND scroll — exactly the case a
-"look at this" moment is not. The fix belongs in the screenplay RENDERER, not in a
-view: anchor every block line, and every surface that renders the script inherits it.
-(236's coverage boundary deliberately left the script body out — commit `64a7ed6f`;
-this closes it for the rendered block coordinate. The doc's "Script-body cursors —
-flag, don't fake" note is about a future editable text caret's ProseMirror relative
-position — a different thing, not contradicted here.)
-
-- **One seam — the shared renderer.** Every script surface renders through
-  `ScriptSceneText` → `ScriptBlocks` → `BlockLine`
-  (`src/components/script/ScriptSceneScript.tsx`) — today the Script sub-tab
-  (`ScriptView.tsx`) and the scene script pane (`script/SceneScriptPane.tsx`, Sheet +
-  Glide). `BlockLine` already stamps `data-script-scene`/`data-script-block` (`:209`)
-  for the tagging overlay; the SAME `attrs` object adds the explicit presence key
-  `data-presence-anchor="script:<sceneId>:block:<blockIndex>"` when both exist —
-  guarded exactly like the `data-script-*` pair, so the diff review's toned lines (no
-  real scene/index) stay unanchored and ride 240's overlay cue.
-- **No chain or wire changes needed:** the sender resolves it as the generic `dom`
-  kind (`presenceAnchors.ts`), the receiver via `querySelector`
-  (`src/lib/presencePoint.ts`). Keys are unique: `sceneId` is the LIVE scene id
-  (split parts carry their own id + their own `ScriptScene`, roadmap 132) and
-  `blockIndex` is the index within that scene's own `blocks`; `fx/fy` already covers
-  the position inside multi-line paragraphs.
-- **Hide, don't fake (existing rule, unchanged):** the pointer shows only while the
-  block is rendered AND in this client's viewport (`inViewport`, `presencePoint.ts`);
-  a closed pane, a scrolled-away line, a scene left unmounted (future
-  virtualization — 163) or an orphan body with no live scene match simply hides it —
-  no edge chips, no clamped stand-ins. Follow/scroll mirroring is how a peer brings
-  the other to the line.
-- **Verify:** rule-7 two-client manual pass — different widths and scroll positions:
-  a peer hovering line N in the Script tab lands on line N for the other, same in
-  the Sheet/Glide pane; `window.__lemonSchedule.presenceAnchorAt(x, y)` over a script
-  line returns `script:<sceneId>:block:<blockIndex>`; no new e2e (presence stays a
-  manual pass, 229's verify line).
-- **Relations:** `extends` **236** (the semantic-anchor chain whose coverage boundary
-  this closes) and **229** (S3 presence). `relates to` **163** (Script tab perf /
-  possible virtualization — keep the key DOM-derived), **243** (follow mirrors the
-  Script's viewed scene), **240** (local-overlay cue — covers the diff-review modal),
-  **234** (peer selection highlights — the script body has no selection shape today;
-  this block coordinate is the natural key if one ever lands).
-
 ## 253. Collab rename — the Project Manager's Shared list kept the old name (`[~]`)
 
 **Reported 2026-10-15 (user):** renaming a collab project updates the app header
