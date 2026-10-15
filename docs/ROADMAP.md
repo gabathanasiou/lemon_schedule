@@ -1213,5 +1213,39 @@ comparisons).
 **Relations**: `extends` **229** (S3 presence). `relates to` **233** (per-user active designs —
 the document ids this gate keys off), **234**/**235** (sibling presence polish), **231**.
 
+## 238. Keyboard redo (⌘⇧Z) is dead — Shift makes `e.key` uppercase (`Z`) (`[ ]`)
+
+**Bug (user report 2026-10-15, reproduced):** undo with **⌘Z** works, but **⌘⇧Z**
+never redoes — the header/toolbar Redo buttons are the only way. Advertised in the
+buttons' tooltips + `HelpModal` (`⌘⇧Z`).
+
+**Root cause (verified 2026-10-15 in the live app):** the global handlers compare
+the lowercase key, but with Shift a real keyboard reports `e.key === 'Z'` — the
+branch is unreachable:
+- `src/store/provider.tsx:926` — `if (cmdOrCtrl && e.key === 'z' && e.shiftKey)`
+- `src/components/PopoutWindow.tsx:41` — same pattern (popout windows).
+Repro trace (local project, real key events): ⌘Z → past 2→1, future 0→1 (undo
+fires); ⌘⇧**Z** → nothing (no handler — `preventDefault` not even called); header
+Redo button → past 1→2, future 1→0 (works).
+
+**Why the suite missed it:** `e2e/element-manager-merge.spec.ts:228` +
+`e2e/perf-diagnosis.spec.ts:141` press `'Meta+Shift+z'` — Playwright synthesizes
+`key:'z', shiftKey:true`, a payload real keyboards never produce (`'Meta+Shift+Z'`
+produces `key:'Z'`; same on Win/Linux Ctrl). The element-manager spec passed
+because its redo target is the guard's LOCAL history, not the global transcript.
+
+**Fix**: normalize in both handlers (`e.key.toLowerCase() === 'z'` or
+`e.code === 'KeyZ'`), keep `preventDefault`; retarget both specs to the real
+payload (`Meta+Shift+Z`) so this class of bug can't recur. The undo branches are
+fine. While a room is connected the same handler routes undo/redo to the room
+(229) — the fix covers both paths; don't change that routing here.
+
+**Verify**: e2e — press real `Meta+Shift+Z` after an edit → undo→redo round trip
+applies; the two updated specs (real payload) + `npm run lint`.
+
+**Relations**: `touches` **229** (S4 room-routed undo/redo rides the same handler;
+the known buttons-vs-room transcript divergence is a separate, already-documented
+229 gap).
+
 
 
