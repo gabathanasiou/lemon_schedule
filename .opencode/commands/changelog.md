@@ -38,10 +38,12 @@ its neighbours in date order.
 
 Rules:
 
-- Give every day a short playful title, the way a TV episode is named
-  ("The one with the call sheet", "Cast guard patrol"). 2-5 words, tied to
-  what the day actually changed, distinct from every earlier title. The
-  heading is `## YYYY-MM-DD — Title`; never a number, date or jargon in it.
+- Give every day a title that plainly says what changed, with a light turn of
+  phrase — 3-6 words, the way a good episode title works, but never at the
+  cost of clarity ("Call sheets get precalls and crew", "Import a screenplay,
+  get a breakdown" — not vague poetic ones). Distinct from every earlier
+  title; the heading is `## YYYY-MM-DD — Title`; never a number, date or
+  jargon in it.
 - Lead each bullet with the app surface it belongs to, in bold, when it has
   one — `- **Schedule** — drag a scene onto a day.` Keep the tag 2-4 words
   and use the surface names the app shows: Schedule, Calendar, Breakdown,
