@@ -222,8 +222,11 @@ re-derive any of it:
   Online projects lock read-only when the probe says offline or the Supabase
   session is gone; saves surface through the existing driveSaveError/retry UI.
 - Project Manager: **Local / Cloud / Shared** tabs — Shared appears only when
-  configured; signed-out shows the sign-in state. Session metas win over the
-  fetched list for display.
+  configured; signed-out shows the sign-in state (the footer's "Sign in to
+  collaborate" is the ONE sign-in CTA — no duplicate inline buttons). Signed-in
+  shows the account bar — avatar + "Signed in as …" (click → `ProfileModal`;
+  guests → create-account) + **Sign out** (closes an open shared project, parity
+  with the header cluster). Session metas win over the fetched list for display.
 - Debug bridge: `diagnostics()` adds `supabaseConfigured`, `supabaseSignedIn`,
   `projectIsOnline`, `onlineProjectCount`.
 

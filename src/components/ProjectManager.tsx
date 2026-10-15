@@ -7,13 +7,15 @@ import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFrom
 import { readOnlineProject } from '../lib/supabase/onlineProjects';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 import { isSupabaseConfigured } from '../lib/supabase/client';
-import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, Users, AlertTriangle, Loader2, RefreshCw, Skull, FileUp, Check } from 'lucide-react';
+import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, Users, AlertTriangle, Loader2, RefreshCw, Skull, FileUp, Check, LogOut } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import ProjectCard from './ProjectCard';
+import { AccountAvatar } from './AccountAvatar';
+import { ProfileModal } from './ProfileModal';
 import NewProjectModal from './NewProjectModal';
 import ImportDialog from './ImportDialog';
 import { parseNewProjectFile, NEW_PROJECT_ACCEPT } from '../lib/import';
@@ -67,6 +69,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
     onlineLoading,
     onlineError,
     refetchOnlineProjects,
+    closeProject,
   } = useProject();
   const dialog = useDialog();
   const auth = useGoogleAuth();
@@ -91,6 +94,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('Untitled Project');
   const [newProjectCloud, setNewProjectCloud] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const {
     driveMetas, driveLoading, driveError, driveAuthError, driveCorrupt,
     driveTotalCount, lastRefreshedAt, refetchDrive,
@@ -343,6 +347,14 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
     }
   };
 
+  // Parity with the header cluster: signing out with a shared project open
+  // returns to the opening page (a silent session expiry only locks it).
+  const handleSignOut = () => {
+    const currentMeta = projectList.find(p => p.id === currentProjectId);
+    if (currentMeta?.onlineId) closeProject();
+    void sbAuth.signOut();
+  };
+
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
     if (newProjectCloud) setCreatingCloud(true);
@@ -439,6 +451,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
           onCancel={() => { setShowNewProjectModal(false); setCreatingCloud(false); }}
           onCreate={handleCreateProject}
         />
+        <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
         <div className="px-5 py-3">
         <div className="flex gap-0.5 mb-3">
           <button
@@ -554,6 +567,26 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
                 <RefreshCw className={`w-3 h-3 text-blue-200/60 ${driveLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'online' && sbAuth.account && (
+          <div className="flex items-center justify-between gap-2 px-3 py-2 mb-3 -mx-1 rounded-md bg-emerald-950/50 border border-emerald-900/50">
+            <button
+              onClick={() => sbAuth.account?.isAnonymous ? onOpenAccount?.() : setProfileOpen(true)}
+              className="flex items-center gap-2 min-w-0 rounded px-1 -mx-1 py-0.5 text-[10px] text-emerald-200/60 hover:text-emerald-100 hover:bg-white/10 transition-colors"
+              title={sbAuth.account.isAnonymous ? 'Guest — create an account to keep your access' : 'Edit your profile'}
+            >
+              <AccountAvatar account={sbAuth.account} className="w-5 h-5" />
+              <span className="truncate">Signed in as <strong className="text-emerald-100 font-semibold">{sbAuth.account.name || sbAuth.account.email}</strong>{sbAuth.account.isAnonymous ? ' (guest)' : ''}</span>
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium text-emerald-200/70 hover:text-emerald-100 hover:bg-white/10 transition-colors shrink-0"
+              title="Sign out of your account"
+            >
+              <LogOut className="w-3 h-3" /> Sign out
+            </button>
           </div>
         )}
 
