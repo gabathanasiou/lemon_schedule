@@ -40,13 +40,18 @@ function InlineText({ text }: { text: string }) {
   );
 }
 
-/** A short bold lead (`**Schedule** — …`) becomes a chip so items scan by surface. */
+/**
+ * A short bold lead (`**Schedule** — …`) keeps its emphasis and gets a plain
+ * dash before the note where one reads — no boxes; the emphasis alone is the
+ * separation (roadmap 260).
+ */
 function BulletText({ text }: { text: string }) {
   const lead = parseLeadTag(text);
   if (!lead) return <InlineText text={text} />;
   return (
     <>
-      <span className="mr-1.5 inline-block rounded border border-zinc-700/60 bg-zinc-800/90 px-1.5 py-px align-middle text-[10px] font-semibold text-zinc-300">{lead.tag}</span>
+      <strong className="font-semibold text-zinc-100">{lead.tag}</strong>
+      {!!lead.rest && /^[A-Za-z0-9]/.test(lead.rest) && <span className="text-zinc-500"> — </span>}
       <InlineText text={lead.rest} />
     </>
   );
