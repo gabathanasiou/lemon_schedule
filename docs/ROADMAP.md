@@ -1185,6 +1185,14 @@ per instance). Deliberately OUTSIDE:
   grid scope can map it; `InlineGlideTable` grids use the same registration).
 - **Non-interactive content** (text, whitespace, empty space) — the ≤40px nearest-item snap
   and the screen fallback cover it; nothing is ever faked.
+- **Asymmetric layouts are expected, not an error** — the two clients may differ (one side
+  collapsed/expanded, different scroll, different zoom). Today: an element anchor lands on the
+  shared container with proportional fractions (a peer on a collapsed section header shows on
+  your expanded section, slightly off inside it). Off-viewport anchors are hidden until you
+  scroll them into view — no edge chips (user decision 2026-10-12); the header bubbles are the
+  way to jump, and follow mirrors the peer's scroll so you land on their view. Phase-4 keys
+  make these cases exact when the spot exists on both sides, and hide when it doesn't (a
+  folded-away control is never faked).
 Add a dev aid while building phase 4: a bridge inspector (`presenceAnchorAt(x, y)` returning
 the anchor that WOULD be published) so coverage is auditable by hovering — it makes the
 manual passes (and future surface additions) verifiable instead of hopeful.
