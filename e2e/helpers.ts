@@ -101,6 +101,18 @@ export function seedTitle(): string {
 /** Escape a string for use inside a `RegExp` (locator text filters, etc.). */
 export const escRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/**
+ * Chrome symmetry audit (roadmap 264): every rendered `data-chrome-bar`
+ * (app header, PageToolbar mini bars, popout toolbar) must match the shared
+ * spacing scale — 16px edge rails, 4/8/16px gaps. A new toolbar item that
+ * drifts fails here instead of shipping; `window.__lemonSchedule.auditChrome()`
+ * reports the same violations interactively.
+ */
+export async function expectChromeAligned(page: Page) {
+  const violations = await page.evaluate(() => (window as any).__lemonSchedule?.auditChrome() ?? []);
+  expect(violations).toEqual([]);
+}
+
 /** Clicks a kit menu/popover row by its exact text via a deferred native click
  *  (the row is often a non-button element the role locator can't reach). */
 export async function clickMenuText(page: Page, text: string) {

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, reloadProject } from './helpers';
+import { openSeededProject, reloadProject, expectChromeAligned } from './helpers';
 
 test.describe('Seeded Project Smoke Tests', () => {
   test.describe.configure({ mode: 'serial' });
@@ -17,6 +17,8 @@ test.describe('Seeded Project Smoke Tests', () => {
 
     const boneyard = page.locator('text=BONEYARD').first();
     await expect(boneyard).toBeVisible({ timeout: 3000 });
+
+    await expectChromeAligned(page);
   });
 
   test('calendar shows month cells for the project', async ({ page }) => {
@@ -26,6 +28,8 @@ test.describe('Seeded Project Smoke Tests', () => {
 
     await expect(page.locator('.dvn-underlay')).not.toBeAttached();
     await expect(page.locator('[data-cal-month]').first()).toBeAttached({ timeout: 5000 });
+
+    await expectChromeAligned(page);
   });
 
   test('glide breakdown shows seeded scenes and scene count persists', async ({ page }) => {
@@ -130,6 +134,7 @@ test.describe('Design Tab', () => {
   await expect(page.getByText('Structure', { exact: true })).toBeVisible();
   await expect(page.getByText('Designer', { exact: true })).toBeVisible();
   await expect(page.getByText('Live Preview')).toBeVisible();
+  await expectChromeAligned(page);
 });
 });
 
@@ -231,6 +236,8 @@ test.describe('App Navigation (roadmap 176)', () => {
     await page.getByRole('button', { name: 'Call Sheet view' }).click();
     await expect(page.locator('[data-call-sheet-edit]')).toBeVisible();
     await expect(page).toHaveURL(/#\/production\/days\/callsheet$/);
+    // The dark Call Sheet toolbar uses the same rails/scale as the light bars.
+    await expectChromeAligned(page);
     await page.goBack();
     await expect(page).toHaveURL(/#\/production\/days$/);
     await page.goForward();
