@@ -91,7 +91,7 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
             </button>
           </div>
         ) : (
-          <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto group-data-[island=left]:pl-safe">
+          <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto island-inset-l">
             <div className="p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>

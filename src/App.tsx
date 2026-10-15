@@ -1100,7 +1100,7 @@ function AppContent() {
         safe areas live on the header/PageToolbar CONTENT (landscape island),
         not on the shell, so bars keep the full width. The html/body/#root
         clip that used to cut everything at the toolbar is gone (index.css). */}
-    <div className={`${phoneDevice ? 'h-(--app-h)' : 'h-screen'} pt-safe bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden group`} data-island={islandSide ?? undefined}>
+    <div className={`${phoneDevice ? 'h-(--app-h)' : 'h-screen'} pt-safe bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden`} data-island={islandSide ?? undefined}>
       {showProjectManager && (
         <ProjectManager onClose={() => setShowProjectManager(false)} onOpenAccount={() => setShowAccountModal(true)} />
       )}

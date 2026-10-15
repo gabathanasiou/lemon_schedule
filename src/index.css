@@ -38,6 +38,16 @@ html, body {
   --app-h: 100lvh;
 }
 
+/* Dynamic-Island edge insets (roadmap 267): the shell stamps `data-island`
+   and any edge surface marks itself with `island-inset-l` / `island-inset-r`
+   — ONLY the side with the island insets (the island flips with the rotation
+   direction; see `useIslandSide`). Deliberately plain attribute CSS: a
+   Tailwind anonymous `group` on the shell makes every nested `group-hover:`
+   match whenever the pointer sits anywhere in the app — it re-expanded the
+   docked toolbar tab labels (2026-10-16). Never use `group` at this level. */
+[data-island="left"] .island-inset-l { padding-left: env(safe-area-inset-left); }
+[data-island="right"] .island-inset-r { padding-right: env(safe-area-inset-right); }
+
 /* Leaflet's panes carry z-index 400–700 inside the container. The container
    gets no position/z-index from leaflet.css, so without this the panes escape
    into the root stacking context and paint OVER app UI (floating chrome,

@@ -26,7 +26,7 @@ export default function RibbonPalette({
   allCategories, allFields, used, placed, total, customCategories, readOnly, selId, assign,
 }: RibbonPaletteProps) {
   return (
-    <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto group-data-[island=left]:pl-safe">
+    <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto island-inset-l">
       <div className="p-3 pb-20">
         <div className="flex items-center gap-1.5 mb-3">
           <Eye className="w-3.5 h-3.5 text-zinc-500" />

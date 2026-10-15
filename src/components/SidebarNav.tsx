@@ -64,7 +64,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
 
   if (collapsed) {
     return (
-      <div style={{ width: sizes.railW }} className="shrink-0 bg-zinc-50 border-r border-zinc-200 flex flex-col items-center pt-3 group-data-[island=left]:pl-safe">
+      <div style={{ width: sizes.railW }} className="shrink-0 bg-zinc-50 border-r border-zinc-200 flex flex-col items-center pt-3 island-inset-l">
         <button
           onClick={() => setCollapsed(false)}
           className="text-zinc-400 hover:text-zinc-700 transition-colors"
@@ -78,7 +78,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
 
   return (
     <div className="relative flex shrink-0" style={{ width: resizable ? w : sizes.sidebarW, maxWidth: '70%' }}>
-      <aside data-theme="light" className="min-w-0 flex-1 bg-zinc-50 border-r border-zinc-200 overflow-y-auto group-data-[island=left]:pl-safe">
+      <aside data-theme="light" className="min-w-0 flex-1 bg-zinc-50 border-r border-zinc-200 overflow-y-auto island-inset-l">
       <div className="sticky top-0 z-10 bg-zinc-50 px-3 pt-3 pb-1.5">
         <div className="flex items-center justify-between gap-2">
           <span style={{ fontSize: sizes.title.fontSize }} className={MT_TITLE}>{title}</span>

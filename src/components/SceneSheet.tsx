@@ -527,7 +527,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
 
   return (
     <div className="flex-1 flex h-full min-h-0 w-full">
-    <div ref={containerRef} onScroll={presenceScroll.notify} className={`flex-1 flex flex-col h-full min-w-0 bg-zinc-100 overflow-y-auto group-data-[island=left]:pl-safe group-data-[island=right]:pr-safe ${phone ? 'pb-safe-or-16' : ''}`} style={phone ? undefined : { paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
+    <div ref={containerRef} onScroll={presenceScroll.notify} className={`flex-1 flex flex-col h-full min-w-0 bg-zinc-100 overflow-y-auto island-inset-l island-inset-r ${phone ? 'pb-safe-or-16' : ''}`} style={phone ? undefined : { paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
 
       {scene && (() => {

@@ -64,7 +64,7 @@ export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ collapsed, onToggl
 
   return (
     <div ref={panelRef}
-      className={`${TONE_CLASSES[tone]} border-r flex flex-col shrink-0 relative overflow-hidden group-data-[island=left]:pl-safe ${className ?? ''}`}
+      className={`${TONE_CLASSES[tone]} border-r flex flex-col shrink-0 relative overflow-hidden island-inset-l ${className ?? ''}`}
       style={{ width: `${width}px` }}
     >
       <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200">

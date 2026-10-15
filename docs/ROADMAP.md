@@ -1204,3 +1204,35 @@ unit on iOS 26 Safari (WebKit 301108: no unit reaches the physical bottom).
   `npm run lint`; full Playwright suite before closing; rule-7 manual list.
 - **Relations:** follows **267** (PoC + mechanism); reuses **17**/**182**
   (touch audits); chrome/status-bar notes in **265**.
+
+## 270. iPhone app on the App Store — Capacitor/Tauri shell around the web UI (`[ ]`)
+
+**Asked 2026-10-16 (user):** can Lemon Schedule ship as an iOS app — and does
+that make the browser-chrome/safe-area work easier? Yes to both; this records
+the path. Extends **145** (the Tauri desktop shell).
+
+- **Route (pick ONE, don't build both):** **Capacitor** is the fast path —
+  the app already builds to static files and Capacitor's iOS host loads them
+  in a WKWebView; ~all UI code ships unchanged. **Tauri v2 mobile** is the
+  sibling (system WebView; one shell story shared with 145).
+- **What gets EASIER:** every Safari-chrome problem disappears — no floating
+  toolbar, no layout-viewport cap (WebKit 301108 does not apply to a WKWebView
+  that owns the window), no glass band, no `vh`/`lvh` roulette, no
+  `?phone=1`. Safe areas become one static system (`viewport-fit=cover` +
+  `env()`); the `data-island` + `tailwindcss-safe-area` stack from 267 carries
+  over as-is, and `--app-h` may collapse back to a plain 100% height.
+- **What is NEW work:** WKWebView keyboard behaviour (input accessory views,
+  `visualViewport`); native status-bar colour + splash + icons; signing /
+  provisioning / App Store Connect + review cycles; App Review 4.2 "minimum
+  functionality" (fine here — offline tool, local data, collaboration — but
+  import/export should feel native via Files/share sheet); push notifications
+  if collab alerts are wanted.
+- **Non-negotiables:** ONE build, ONE UI — the wrapper loads the same `dist/`;
+  any native bridge goes through existing seams (provider / debug bridge),
+  never a parallel state path.
+- **Verify (when built):** the app launches the existing UI end-to-end on a
+  device (open project, edit, persist, rotate); safe areas + keyboard pass;
+  TestFlight build; `npm run lint` + full suite unchanged.
+- **Relations:** `extends` **145** (desktop shell — same decision, shared
+  wrapper tooling); informs **269** (the in-Safari sweep still matters for
+  the hosted web app); reuses the 267 safe-area mechanism.

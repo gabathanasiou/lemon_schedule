@@ -99,7 +99,7 @@ export function SceneScriptPane({ sceneNumber, open, width, onWidthChange }: {
   return (
     <div
       data-testid={TEST_IDS.scriptPane}
-      className="flex h-full min-h-0 shrink-0 border-l border-zinc-200 bg-white group-data-[island=right]:pr-safe"
+      className="flex h-full min-h-0 shrink-0 border-l border-zinc-200 bg-white island-inset-r"
       style={{ width }}
     >
       {/* Real flex item (not an overlapping absolute strip) so the Glide grid

@@ -164,7 +164,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
       onPointerDownCapture={onPointerDownCapture}
       onPointerMoveCapture={onPointerMoveCapture}
       onClickCapture={onClickCapture}
-      className={`overflow-x-auto overscroll-x-contain border-b shrink-0 group-data-[island=left]:pl-safe group-data-[island=right]:pr-safe ${t.bar} [&::-webkit-scrollbar]:hidden touch-pan-x`}
+      className={`overflow-x-auto overscroll-x-contain border-b shrink-0 island-inset-l island-inset-r ${t.bar} [&::-webkit-scrollbar]:hidden touch-pan-x`}
       style={{ scrollbarWidth: 'none', WebkitMaskImage: scrollMask, maskImage: scrollMask }}>
       <div data-chrome-bar="page-toolbar" className={`flex items-center ${JUSTIFY[justify]} ${CHROME_CLUSTER_GAP} shrink-0 w-fit min-w-full ${CHROME_BAR_INSET} py-2`}>
         {tabs && tabs.length > 0 && (

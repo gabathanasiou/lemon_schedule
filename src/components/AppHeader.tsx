@@ -212,7 +212,7 @@ export default function AppHeader(props: AppHeaderProps) {
        (z-auto — header-hung tooltips keep painting over content) and below the
        presence pointers (z-30) and the portaled menus. */
     <header data-chrome-bar="app-header" className={`sticky top-0 z-20 flex items-center ${chrome.bar} text-zinc-300 ${CHROME_BAR_INSET} py-2 select-none print:hidden`}>
-      <div className={`flex items-center ${CHROME_ITEM_GAP} shrink-0 group-data-[island=left]:pl-safe`}>
+      <div className={`flex items-center ${CHROME_ITEM_GAP} shrink-0 island-inset-l`}>
           <DropdownMenu
             open={showFileMenu}
             onOpenChange={setShowFileMenu}
@@ -373,7 +373,7 @@ export default function AppHeader(props: AppHeaderProps) {
           so it keeps the same 16px of air on its left as the bar's edge rail
           gives it on the right. Phone portrait (roadmap 267): the identity
           cluster is the only survivor. */}
-      <div className="flex items-center font-mono text-xs shrink-0 ml-auto group-data-[island=right]:pr-safe">
+      <div className="flex items-center font-mono text-xs shrink-0 ml-auto island-inset-r">
         {!hasPhoneChrome && (
           <div className={`flex items-center ${CHROME_ITEM_GAP}`}>
             <RoomNote />
