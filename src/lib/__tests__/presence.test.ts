@@ -402,17 +402,18 @@ describe('presence comfort — modal freeze + collision fade (roadmap 244)', () 
     expect(cursorGlyph('touch', null)).toBe('hand');
   });
 
-  it('freezes cursor frames only for a FRESH modal cue', () => {
+  it('freezes cursor frames for ANY fresh overlay cue (menus included)', () => {
     const signals = [
       { userId: 'u1', kind: 'modal' as const, at: 1_000 },
       { userId: 'u2', kind: 'menu' as const, at: 1_000 },
     ];
     expect(freezeCursorFor(signals, 'u1', 1_400, 800)).toBe(true);
+    expect(freezeCursorFor(signals, 'u2', 1_400, 800)).toBe(true); // menus freeze too (user decision 2026-10-15)
     expect(freezeCursorFor(signals, 'u1', 1_900, 800)).toBe(false); // stale — tab gone
-    expect(freezeCursorFor(signals, 'u2', 1_400, 800)).toBe(false); // menus keep moving
     expect(freezeCursorFor(signals, 'u3', 1_400, 800)).toBe(false); // unknown user
-    // Newest window wins: a newer menu / close edge from the other window unfreezes.
-    expect(freezeCursorFor([{ userId: 'u1', kind: 'modal' as const, at: 1_000 }, { userId: 'u1', kind: 'menu' as const, at: 1_200 }], 'u1', 1_300, 800)).toBe(false);
+    // Newest window wins: a close edge unfreezes; a newer MODAL from the other
+    // window keeps the freeze (every cue freezes now).
+    expect(freezeCursorFor([{ userId: 'u1', kind: 'menu' as const, at: 1_000 }, { userId: 'u1', kind: 'modal' as const, at: 1_200 }], 'u1', 1_300, 800)).toBe(true);
     expect(freezeCursorFor([{ userId: 'u1', kind: 'modal' as const, at: 1_000 }, { userId: 'u1', kind: null, at: 1_100 }], 'u1', 1_200, 800)).toBe(false);
   });
 

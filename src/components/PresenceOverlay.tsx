@@ -30,10 +30,11 @@ import { PresenceDots } from './PresenceDots';
  *   2026-10-12: hide, no edge chips).
  * - the glyph renders per input kind — arrow / hand (touch) / pen dot
  *   (roadmap 241) — and the tag carries animated dots while the peer is inside
- *   a local overlay only they can see (menu/modal, roadmap 240). While the
- *   peer is inside a MODAL their pointer FREEZES at its last position (their
- *   moves are over a surface nobody else can see) and renders the
- *   modal-window glyph (roadmap 244); menus keep moving.
+ *   a local overlay only they can see (menu/modal, roadmap 240). While ANY
+ *   overlay is open (menu, dropdown, context menu, modal) their pointer
+ *   FREEZES at its last position (their moves are over a surface nobody else
+ *   can see, roadmap 244); a modal additionally renders the modal-window
+ *   glyph while a menu keeps the input-kind glyph.
  * - when the local and a peer's pointer stay on top of each other for a
  *   couple of seconds, the peer's marker fades until they separate
  *   (roadmap 244 — read what is underneath).
@@ -196,9 +197,10 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
       const targets = new Map<string, { left: number; top: number }>();
       for (const peer of cursorPeers) {
         if (!peer.cursor) continue;
-        // A FROZEN pointer (peer in a modal, roadmap 244) never idles out
-        // while the cue is fresh — the dots cue stays on its tag there.
-        if (peer.overlay !== 'modal' && now - peer.cursorTs > CURSOR_TTL_MS) continue;
+        // A FROZEN pointer (peer in any local overlay — menu/dropdown/modal,
+        // roadmap 244) never idles out while the cue is fresh — the dots cue
+        // stays on its tag there.
+        if (peer.overlay == null && now - peer.cursorTs > CURSOR_TTL_MS) continue;
         const pos = markerPosition(peer.cursor, place, peer);
         if (!pos) continue;
         // Collision fade: distance from the LOCAL pointer to the rendered

@@ -17,8 +17,8 @@
  *   • A edits a stripboard scene, then presses Meta+z,
  *   • extra sections: the peer PRESENCE cursor (renders + follows), the
  *     input-modality glyph (touch = hand, roadmap 241), the local-overlay
- *     dots cue (menu/modal, roadmap 240 + the 244 modal freeze / window
- *     glyph / collision fade), and the OFFLINE BUFFER (roadmap 239
+ *     dots cue (menu/modal, roadmap 240 + the 244 freeze for ANY overlay /
+ *     window glyph / collision fade), and the OFFLINE BUFFER (roadmap 239
  *     stage 2 — kills wrangler mid-session, edits buffer in A, restart replays
  *     them; the script restarts wrangler itself).
  *
@@ -491,6 +491,19 @@ try {
   check('B: peer-in-menu shows the dots on the header bubble', menuBubble, null);
   check('B: peer-in-menu shows the dots on the pointer tag', menuTag, null);
   check('A: the window announces the menu cue', aMenu === 'menu', aMenu);
+
+  // ── 244 (widened 2026-10-15): MENUS freeze too — while A is in the account
+  // menu, wandering inside it must not move B's marker (B sees only dots).
+  await sleep(1200); // let the glide settle on the frozen target
+  const menuFrozen = await cursorAt();
+  await A.page.mouse.move(760, 560, { steps: 8 }); // wander INSIDE the menu
+  await sleep(700);
+  const menuStillFrozen = await cursorAt();
+  check(
+    'B: pointer stays frozen while the peer moves inside the menu',
+    !!menuFrozen && !!menuStillFrozen && Math.abs(menuStillFrozen.tx - menuFrozen.tx) < 2 && Math.abs(menuStillFrozen.ty - menuFrozen.ty) < 2,
+    { menuFrozen, menuStillFrozen }
+  );
 
   // 240: a MODAL is the other kind — click through the OPEN menu (a modal
   // opened from a just-closed menu must still read as 'modal').

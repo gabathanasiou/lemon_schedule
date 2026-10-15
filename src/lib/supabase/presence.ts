@@ -109,10 +109,9 @@ export function pointerGlyph(pointer: PointerKind): PointerGlyph {
 
 /** The glyph a peer's marker renders (roadmap 244): the modal-window icon
  *  while their overlay cue says `modal` — the frozen pointer, aimed at a
- *  surface nobody else can see — otherwise their input-kind glyph. Menus keep
- *  the pointer-kind glyph (they are small and the pointer there is
- *  meaningful). The cue wins over the modality; on close the glyph returns to
- *  the input-kind icon. */
+ *  dialog nobody else can see — otherwise their input-kind glyph. Menus keep
+ *  the input-kind glyph (their cue is the dots); the cue wins over the
+ *  modality, so on close the glyph returns to the input-kind icon. */
 export function cursorGlyph(pointer: PointerKind, overlay: LocalOverlayKind | null): PointerGlyph {
   return overlay === 'modal' ? 'window' : pointerGlyph(pointer);
 }
@@ -483,19 +482,18 @@ export function resolveOverlayCues(
   return cues;
 }
 
-/** Cursor-freeze gate (roadmap 244): while a user's newest overlay cue is a
- *  FRESH `modal`, their incoming cursor frames are ignored — the pointer
- *  stays where it last was, because the peer is aiming at a surface nobody
- *  else can see (and typing there moves the mouse over it). Menus keep
- *  moving: they are small and the pointer over them is meaningful. A stale
- *  cue (killed tab) unfreezes like a close edge. */
+/** Cursor-freeze gate (roadmap 244, widened 2026-10-15 on user request): while
+ *  a user's newest overlay cue is FRESH — menu, dropdown, context menu or
+ *  modal — their incoming cursor frames are ignored: the pointer stays where
+ *  it last was, because everything they aim at now lives on a surface only
+ *  they can see. A stale cue (killed tab) unfreezes like a close edge. */
 export function freezeCursorFor(
   overlays: Iterable<PresenceOverlaySample>,
   userId: string,
   now: number,
   ttlMs = OVERLAY_TTL_MS,
 ): boolean {
-  return resolveOverlayCues(overlays, now, ttlMs).get(userId) === 'modal';
+  return resolveOverlayCues(overlays, now, ttlMs).has(userId);
 }
 
 /** Pointer-collision fade (roadmap 244): while the local pointer and a peer's

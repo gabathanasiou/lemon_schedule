@@ -337,9 +337,10 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           const key = `${cursor.userId}:${cursor.clientId}`;
           const prev = cursorMapRef.current.get(key);
           if (!acceptCursor(prev?.ts, cursor.ts)) return;
-          // Roadmap 244: while this user's newest cue is a fresh `modal`
-          // their pointer is FROZEN — frames are not applied (the peer is
-          // aiming at a surface we cannot see). Menus keep moving.
+          // Roadmap 244: while this user's newest overlay cue is fresh (menu,
+          // dropdown, context menu or modal) their pointer is FROZEN — frames
+          // are not applied (everything they aim at now lives on a surface we
+          // cannot see).
           if (freezeCursorFor(overlayMapRef.current.values(), cursor.userId, Date.now())) return;
           cursorMapRef.current.set(key, { userId: cursor.userId, anchor: cursor.anchor, pointer: cursor.pointer, ts: cursor.ts });
           rebuildPeers(peersRef.current);
@@ -425,15 +426,16 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // Pointer events (not mouse events) also carry the input MODALITY
   // (roadmap 241) — a tap publishes the switch to touch even though no move
   // follows it. The same listener records the local position for the overlay's
-  // collision fade (roadmap 244) — and pauses PUBLISHING while a modal is open
-  // (the receiver-side freeze is the fallback for multi-window cases): the
-  // peer is aiming at a surface others cannot see, so cursor traffic while
-  // typing there is noise. Menus keep publishing.
+  // collision fade (roadmap 244) — and pauses PUBLISHING while the local hub
+  // reports ANY local overlay (menu, dropdown, context menu, modal — user
+  // decision 2026-10-15): traffic while the pointer is over a surface nobody
+  // else can see is noise, and the receiver-side freeze is the fallback for
+  // multi-window cases.
   useEffect(() => {
     if (!active) return;
     const track = (e: PointerEvent) => {
       localPointerRef.current = { x: e.clientX, y: e.clientY };
-      if (getLocalOverlayKind() === 'modal') return;
+      if (getLocalOverlayKind() !== null) return;
       channelRef.current?.publishCursor(resolvePointerAnchor(e), pointerKindOf(e.pointerType));
     };
     window.addEventListener('pointermove', track, { passive: true, capture: true });
