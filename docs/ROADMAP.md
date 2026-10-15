@@ -1123,3 +1123,45 @@ StrictMode's double-mount + unminified transforms, re-measure against the prod p
 
 **Verify:** prod-preview numbers for Breakdown↔Schedule, Sheet→Script, Script→Glide; add a
 `@perf` harness entry if a stable metric emerges (`docs/PERF-DIAGNOSIS.md`).
+
+## 264. Chrome symmetry — one edge rail across the app header + every mini tab bar (`[ ]`)
+
+**Requested 2026-10-15 (user):** the top toolbar's items don't line up — "the user icon has
+different margin on the left than on the right". Everything (app header + every mini tab bar,
+and the items inside them) should have Apple-like symmetry: equal optical insets on both
+edges, one spacing scale, nothing off the rail.
+
+**Audit (verified against the code 2026-10-15):**
+- `AppHeader.tsx:155` — bar `px-4 py-2`; left group `gap-2` with the File trigger's
+  `-ml-3 px-3` edge-rail trick (roadmap 247); title `px-1 mr-2`; center tabs `gap-1`;
+  right group `:314` `space-x-3 ml-auto` has **no mirrored edge compensation** — the 28px
+  avatar (`UserPresenceCluster.tsx:195`) ends 16px from the bar edge while its left gap is
+  12px, and the neighbours' inner paddings differ (`UndoRedoButtons.tsx:28` bordered `p-1.5`
+  group, `RoomNote.tsx:26` `px-2.5` pill) — no shared optical rail.
+- `PageToolbar.tsx:167` — every mini tab bar uses `px-3` while the header uses `px-4`;
+  strip `gap-1`, sibling groups `gap-2`.
+- `VersionToolbar.tsx` (popout chrome) — `px-4`, left `gap-3`, right `space-x-3`.
+- **Dock math hardcodes today's spacing**: `AppHeader.syncTabLayout` (`:102-114`, the
+  `clientWidth - 4` fudge) and `PageToolbar.syncTabsDock` (`:87-96`, `+24 +
+  (groups-1)*8`) assume the current padding/gap numbers — any spacing change MUST move
+  these constants with it or the icon dock trips at the wrong width.
+
+**Approach:**
+1. Settle ONE chrome spacing scale (bar inset / intra-group / inter-group) + the edge-rail
+   rule (edge items carry a negative margin equal to their own inner padding — 247's File
+   trigger recipe) and express it in shared constants the header and PageToolbar both read.
+2. Header: mirror the rail on the right cluster (avatar, UndoRedoButtons, RoomNote,
+   SaveIndicator land on the same inset with equal gaps around the avatar); audit the
+   center tab strip against both rails.
+3. Sweep every mini tab bar + its items onto the same scale: each tab's PageToolbar
+   (Breakdown / Schedule / Calendar ×2 / Design / Reports / Production), the popout frames +
+   VersionToolbar, the dark Call Sheet editor toolbar, the ribbon toolbar.
+4. Update `docs/DESIGN-LANGUAGE.md` §Toolbar composition with the rail + scale and the
+   dock-math MUST-NOT.
+
+**Verify:** rule 7 — visual only: screenshot pass at desktop + iPad widths, dock on/off,
+every tab's toolbar + one popout; numbered manual checklist for the user (no e2e).
+`npm run lint`.
+
+**Relations:** `extends` **247** (the header rail, File + title only), **49**;
+`relates to` **258** (dock measurement code), **177** (shared Production toolbar).
