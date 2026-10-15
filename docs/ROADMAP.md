@@ -1281,3 +1281,58 @@ the row kept the old name.
 - **Relations:** `extends` **229** (S1 rows/listing); `relates to` **249** (same
   panel — stale Shared count), **251** (title commit-on-blur rides this rename
   path).
+
+## 257. Element Manager — Board IDs for every element category (MMS parity, Option A) (`[ ]`)
+
+**Requested 2026-10-15 (user):** Movie Magic numbers every element — its
+`<Element>` records carry `BoardID` + `LockBoardID` + `SortOrder` (the
+`wonderful-life.msd` fixture: Cast 1..59, all 99 Props and 11 Vehicles numbered,
+other categories blank; `CategoryMgr` has a per-category `AutoAssignIds` flag) —
+while Lemon only numbers cast. Give every category MMS-style Board IDs and stop
+discarding the file's real numbers on import.
+
+**Model — numbers as labels, references unchanged (Option A, user's pick).** Cast
+keeps `CastMember.id` as its Board ID; `ProjectElement` (every other category)
+gains `boardId` (numeric string, per-category from 1). Scenes keep referencing
+non-cast categories by NAME — MMS's own `ElementRef`s carry only
+`CategoryName`+`ElementName` (`msd.ts:174-186`), so numbers are registry-side
+identity, not the reference. Consequence (accepted): renames still cascade and
+duplicate names still merge (the `MergeRowsModal` flow stays), and cast stays the
+one id-keyed category for refs (`isIdKeyed`, `elements.ts:16`) — no key-space
+change.
+
+**Decisions (user, 2026-10-15).**
+- Per-category numbering starting at 1 (Props 1..n, Vehicles 1..n, …).
+- Auto-assign the next free number on element create — editable + lockable in
+  the Element Manager for EVERY category. Reuse the cast machinery, don't fork:
+  `lockedElementIds` is already per-category (`types.ts:869-870`),
+  `TOGGLE_ELEMENT_LOCK` is generic (`actions/breakdown.ts:487-499`); only the
+  column / lock / Auto-ID UI and the allocator are gated on `isCast`
+  (`ElementManager.tsx:313-363` `commitCast`, `:454-481` sort + Auto-ID,
+  `:609,628-645` column + lock). Auto-ID contract verbatim: fill empty ids
+  (continuing after the highest), never touch locked ones, one undo batch.
+- Typing a NUMBER does NOT select an element — numbers are display-only for now.
+- Existing projects: one-time migration assigns sequential numbers per category
+  in stored order (idempotent, no scene rewrites).
+- MMS import reads real ids: `msd.ts` currently ignores `BoardID` (cast ids are
+  re-derived by counting ElementMgr order at `:352-384` — coincidence in the
+  fixture, unvalidated) and drops Props/Vehicles numbers. Read
+  `BoardID`/`LockBoardID` per element; cast ids come from the attribute (keep
+  the counting fallback for blank ids).
+
+**"N. NAME" display surfaces — DEFERRED (user: discuss later).** Candidate list
+for the follow-up pass only, do not build now: `EntityDropdown` prefixes,
+Breakdown Sheet / Element Breakdown print, DOOD, call sheets, and widening
+`sortReportElements` (`reportData.ts:813`, cast-by-id today) + the `dayView`
+`boardId` field (cast-only) to all categories.
+
+- **Verify:** Vitest — per-category allocator (next free, gaps, locked skipped),
+  migration (stable, idempotent), msd mapping (cast from `BoardID`, Props/
+  Vehicles preserved, blank fallback); e2e only where silence would hurt:
+  renumbering a boardId must never rewrite `scene.*` (debug-bridge assertion),
+  plus the manager commit paths (`e2e/new-cast-naming.spec.ts` is the template).
+  Column/prefix UI = rule-7 manual pass (deferred surfaces anyway).
+- **Relations:** `extends` **122** (cast-only lock/Auto-ID — generalized here)
+  and **143** (report ordering by Board ID — candidate to widen, second pass);
+  `relates to` **228** (name-typed cast guard), **157** (cast details),
+  **40/41** (MSD/SEX import — real BoardIDs).
