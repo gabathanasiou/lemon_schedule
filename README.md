@@ -1,120 +1,184 @@
 # Lemon Schedule
 
-A **film production breakdown & scheduling app** that runs entirely in the browser with local-first storage. Break down scripts scene-by-scene, build shoot schedules on a drag-and-drop stripboard organized by day sections, manage the production calendar, and print professional schedules — with optional Google Drive sync.
+A film production breakdown & scheduling app that runs entirely in the browser. Break down the screenplay scene by scene, schedule the shoot on a drag-and-drop stripboard split into shooting days, plan the production calendar, run each day from the Day Manager and Call Sheets, and print schedules, breakdowns and custom reports. Local-first — projects save to your browser, no account required; Google Drive sync and online collaboration are optional.
+
+**Status:** pre-1.0, under active development — the version shows on the boot screen. The local/Drive app is the primary path; online collaboration is newer and evolving. It's a breakdown and scheduling tool, not a screenwriting editor or a budgeting package: import the script, plan the shoot, print the paperwork.
+
+## Getting started
+
+**Hosted:** [gabathanasiou.github.io/lemon_schedule](https://gabathanasiou.github.io/lemon_schedule/) — nothing to install. Sign-in for Google Drive sync and for collaboration lives in the Project Manager.
+
+**Local:**
+
+```bash
+npm install
+npm run dev        # http://localhost:3000/lemon_schedule/
+```
+
+Requires **Node 20 or newer** (CI builds on Node 20; run the unit tests on **Node 22.12+**, which Vitest 5 requires). There is no backend — the app works fully offline. Every cloud integration is optional and configured through Vite env vars (see `.env.example`):
+
+| Variable | Purpose |
+|---|---|
+| `VITE_GOOGLE_CLIENT_ID` | Google Drive sync |
+| `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` | Accounts, shared projects, live presence |
+| `VITE_ROOMS_URL` | Realtime co-editing rooms |
+| `VITE_GOOGLE_MAPS_API_KEY` | Google Places address search (falls back to OpenStreetMap) |
 
 ## Features
 
 ### Breakdown
-- **Scene Sheet** — per-scene form (scene number, page count, INT/EXT, day/night, set, synopsis, cast, notes) matching the print layout.
-- **Glide Breakdown** — fast canvas spreadsheet over every breakdown category with inline dropdown editing, copy/paste, cut, and multi-select.
-- **Element Manager** — maintain cast, sets, props, wardrobe, and custom categories; merge duplicates, auto-register elements found in scenes, save/revert with change tracking.
-- **Import** — screenplays via **FDX** (Final Draft), **Fountain**, or **CSV** (script breakdown sheets), with automatic category mapping and unknown-category handling.
-- **Export** — full breakdown to CSV.
+- **Sheet** — a per-scene form (number, page eighths, INT/EXT, day/night, set, location, synopsis, cast, every element category, notes) matching the print layout, with an optional screenplay pane and a scene-number collision guard.
+- **Script** — the screenplay body retained from FDX/Fountain imports: scene sidebar, full-text search, eighths ruler. Tag selected text into any breakdown category (with cast suggestions), cut and merge scenes, and manage split scenes (`5` → `5` + `5A`). **Update script (diff)** reviews a new screenplay revision change by change.
+- **Glide Breakdown** — a spreadsheet over every scene × every category: inline dropdown editing, copy/cut/paste, multi-select and range fill.
+- **Element Manager** — cast and every category, built-in or custom: merge duplicates, per-day-type stats, events, element links, Board-ID locking.
 
-### Schedule Stripboard
-- **Day sections** — the stripboard is split into days by **Day Break** separators; each day gets its own call time, running clock, and totals (pages, shoot time, breaks, end time).
-- **Drag & drop** — reorder scenes within a day, move rows between days, drag whole days, multi-select + drag, drop to the unscheduled **Boneyard**.
-- **Banners** — note/break ribbons with colors, placed at top/middle/bottom of every day at once, or auto-split by duration/pages.
-- **Auto Day Breaks** — split the stripboard into days automatically by duration or page-count thresholds.
-- **Ribbon Designer** — design the stripboard row layout itself: columns, fields, prefixes/suffixes, alignment, overflow, merges, padding; live preview with sample data.
-- **Keyboard workflow** — arrows, shift-range select, Cmd+A select-all, Tab between stripboard/boneyard, digit buffer to jump rows to a section, inline editing mode.
+### Schedule
+- **Day sections** — the stripboard is split into shooting days by Day Break separators; each day has its own call time ("START OF DAY N"), a running clock and totals (pages, shoot time, breaks, estimated wrap).
+- **Drag & drop** — reorder scenes and whole days, move scenes between days, drop to the unscheduled Boneyard; multi-select and drag as a block.
+- **Banners** — colored note/break ribbons placed top, middle or bottom of every day at once, or auto-split by duration or pages.
+- **Auto Day Breaks** — split the stripboard into days automatically by duration or page count.
+- **Sort & custom order** — one-click sorts with lockable tie-breaks and a manual-order editor.
+- **Keyboard workflow** — arrows, range selection, Cmd/Ctrl+A, Tab between stripboard and Boneyard, a digit buffer to schedule rows to a day, and inline edit mode. Help lists every shortcut.
+- **Schedule versions** — clone, rename and switch named versions; deleted versions sit in Trash for 30 days (newest 10 kept).
 
 ### Calendar
-- Monthly production calendar with scenes on their scheduled dates, day sections labeled, holds/travel/day-offs, and drag-to-reschedule.
-- **Auto Day Off** — bulk-mark weekdays as non-shoot.
-- **DOODs** (Day Out of Days) report with per-cast-member availability grid.
+- **Month view** — scenes on their scheduled days with drag-to-reschedule, a Boneyard sidebar, expandable day cells and filters.
+- **Events** — per-day cards for holds, travel, days off, element events (with comments) and rule violations; add and edit them from the day.
+- **Day Types** — the day-status registry: name, icon, color and attachment rules for travel/hold/day-off/custom statuses, with usage counts per date.
+- **Production Dates** — prep start, production start, post end and a weekly days-off pattern applied across the schedule.
+- **Calendar versions** — production dates, days off, statuses and events live in their own versioned axis (C01, C02…), independent of schedule versions.
 
-### Rules Engine
-- Per-cast rules: **max hours**, **date restrictions**, **time windows**, **cast conflicts**, **scene flags**. Violations appear as red flags on day headers and scene strips in both Schedule and Calendar.
+### Production
+**Days** — the Day Manager and the Call Sheet editor:
+- **Day Manager** — one page per shooting day: date and day type, master location and key locations, events and conflicts, scenes, call times and crew, plus breaks/notes and a live call-sheet preview.
+- **Call times** — a reusable stage model (stage list, per-category stage sets, department precalls, crew template). Element calls compute backwards from the element's first scene; absolute or relative overrides are stored per day and edited in an inline grid.
+- **Call Sheet editor** — edit a day's Call Sheet design in place: live call-time/crew grids in the day's zone, a times toggle, preview, reset to template, print.
+- **Copy from day** — copy chosen sections (call times, crew, locations, notes…) from another shooting day.
 
-### Versions & Trash
-- Multiple named schedule versions per project (clone, rename, delete) — all trash (scenes, versions, rules, elements, categories, ribbon designs, color rules) expires after 30 days.
+**Crew** — roles grouped by department (drag to reorder), people with phones/emails, duplicate merging, crew links to elements and positions, plus a Glide grid view.
 
-### Color Rules
-- Override scene strip colors with conditional rules (e.g. "all Stills Unit scenes blue"), plus a customizable INT/EXT × day/night color matrix.
+**Locations** — location types, name/address/contact details/notes, nearby hospital and police pickups, a map picker (address search, drag-to-place pin, center on current location), plus a Glide grid view.
+
+### Design
+- **Ribbon Designer** — design the stripboard's row layout itself: columns, fields, prefixes/suffixes, alignment, overflow, merges, padding, per-cell text size — with multiple designs and a live preview.
+- **Colors** — the scene color matrix (INT/EXT × day/night, editable labels and colors) plus conditional color rules.
+- **Reports Designer** — build custom reports from blocks: text, field, repeat, table, columns, ribbon strips, map, image, spacer, page break, relative "advance" blocks, and day-grid blocks (Call Times, Crew Table, Precalls) for call sheets. Collections and scopes, row filters, item/attribute reference tokens in rich text, and page-break pagination. Ships with templates (one-liner, cast list, breakdowns, crew contact sheet, call sheet) and prints to PDF.
+
+### Reports
+- **Day Out of Days** — an element-by-day grid with work/start/finish/hold/travel codes and totals; printable per category.
+- **Element Breakdown** — per-element scene lists, days worked and page totals; printable.
+
+### Rules
+Per-cast rules — **max hours**, **date restrictions**, **time windows**, **cast conflicts**, **scene flags** — with violations as red flags on day headers and scene strips in Schedule and Calendar, plus a violations popup.
 
 ### Print
-- Landscape stripboard print with color-coded scene rows, day headers/footers with totals, optional cast list, page numbers, and export-date.
-- Also prints: **Scene Breakdown** sheets and **Element Breakdown** sheets.
+Stripboard (A4 portrait/landscape or full width) with color-coded strips, day headers/footers, totals, an optional cast list and page numbers; DOODs; Scene Breakdown sheets; Element Breakdown sheets; custom reports and Call Sheets — all through the print dialog with page-break control.
 
-### Power features
-- **Pop-out windows** — open any tab or sub-tab in its own browser window (desktop), sharing live state.
-- **Google Drive sync** — optional cloud storage with offline detection and auto-reconnect.
-- **Undo/Redo** — full history (`Cmd+Z` / `Cmd+Shift+Z`, 50 states), batched for bulk operations.
-- **Local-first** — everything persists to localStorage instantly; no server required.
+### Import & export
+| Format | Notes |
+|---|---|
+| **FDX** (Final Draft), **Fountain** | Append into the project with category mapping; keeps the screenplay body for the Script tab |
+| **CSV** | Script-breakdown exports with header mapping; unknown columns become custom categories |
+| **MSD** (Movie Magic Scheduling), **SEX** (Scheduling Exchange) | New-project import: builds a complete project with schedule and calendar versions |
+| **.lemon** | Project file — export and import |
 
-## Tech Stack
+- **New-project import** runs the same review dialog as append import: rename, cast Board IDs, categories, heading mapping.
+- **Update script (diff)** — review a revised screenplay against the project, change by change.
+- **Export** — breakdown to CSV, schedule to SEX, project to `.lemon`.
+- **Script integrity…** (File menu) audits the project↔screenplay map and repairs it.
+
+### Collaboration
+Online features need the Supabase configuration. The Project Manager gains a **Shared** tab.
+
+- **Accounts** — email/password, Google or Apple sign-in.
+- **Sharing & roles** — invite people as editors or viewers, or share a view-only link (expiry: never, 7 or 30 days). Manage members, copy links, stop sharing.
+- **Live presence** — live cursors with names and colors, follow mode, peer selection highlights (stripboard, calendar, Glide grids, designers), drag ghosts with a soft lock on the item a peer is moving, and overlay cues when someone is in a menu or modal.
+- **Realtime rooms** — server-authoritative editing: a Cloudflare Durable Object per project runs the same reducer, with per-user undo/redo (a blocked-undo note when a peer built on your edit), an offline action buffer and a room-status badge. Enabled by `VITE_ROOMS_URL`; the hosted demo runs without it.
+
+### Data & storage
+- **Local projects** — saved per project in the browser (gzip-compressed); cloud projects are excluded from the local index.
+- **Google Drive** — optional sync with a connectivity probe, bounded save retries, and automatic catch-up when the connection returns. Offline editing is locked read-only until then.
+- **Save folder** — point a project at a local folder ("Set save folder") and every save also writes a project file there; "Restore from Folder" brings projects back (File System Access API, supported browsers).
+- **Undo/redo** — 50 steps, batched for bulk operations (imports, paste, auto day breaks).
+- **Trash** — scenes, versions, calendar plans, rules, elements, categories, crew, ribbon designs and color rules restore from the Trash dialog; 30-day expiry (versions keep the newest 10).
+- **Auto-open** — the last project reopens on boot shortly after closing.
+
+### Platform
+- **Pop-out windows** — desktop: shift-click or right-click any tab, sub-tab or day to open it in its own window with live shared state.
+- **Navigation** — tabs and sub-tabs are URL-backed; browser back/forward (and iPad swipe) navigate the app.
+- **iPad & touch** — coarse-pointer sizing, long-press context menus, marquee selection, keyboard toggle; covered by WebKit iPad tests.
+- **Offline status** — a banner and read-only lock when the connection drops, with a retry.
+
+## Tech stack
 
 | Layer | |
 |---|---|
-| **Framework** | React 19 |
-| **Language** | TypeScript |
-| **Build** | Vite 6 (deploy base `/lemon_schedule/`) |
-| **Styling** | Tailwind CSS v4 |
-| **State** | React Context + `useReducer` with undo/redo stacks |
-| **Drag & Drop** | @dnd-kit |
-| **Spreadsheet** | @glideapps/glide-data-grid |
-| **Dialogs/Menus** | Radix UI |
-| **Icons** | Lucide React |
-| **Parsing** | PapaParse (CSV), fountain-js (Fountain), DOMParser (FDX) |
-| **Cloud** | Google Drive API |
-
-## Getting Started
-
-```bash
-npm install
-npm run dev          # http://localhost:3000
-```
-
-No backend, no database — data lives in your browser's localStorage. Sign in with Google Drive (File → Sign in) to sync projects to the cloud.
+| **Framework** | React 19 + TypeScript |
+| **Build** | Vite 6 — static build, deploy base `/lemon_schedule/` (GitHub Pages) |
+| **Styling** | Tailwind CSS v4 + `@gabriel/ui-kit` |
+| **State** | React Context + `useReducer` with undo/redo, persisted to localStorage |
+| **Grids** | `@glideapps/glide-data-grid` |
+| **Drag & drop** | `@dnd-kit` |
+| **Menus & dialogs** | Radix UI |
+| **Rich text** | TipTap (report text blocks) |
+| **Maps** | Leaflet |
+| **Cloud** | Supabase (accounts, sharing, presence) · Cloudflare Workers + Durable Objects (realtime rooms) · Google Drive API |
+| **Icons** | Lucide |
+| **Testing** | Vitest + Playwright |
 
 ## Scripts
 
 | Command | |
 |---|---|
 | `npm run dev` | Dev server (port 3000) |
-| `npm run lint` | Typecheck (`tsc --noEmit`) |
-| `npm run build` | Production build |
-| `npm run preview` | Preview the production build |
-| `npx playwright test` | E2E suite (auto-starts dev server on 3001) |
-| `npm run mcp` | Local MCP helper for AI agents (see below) |
-| `npm run mcp:install` | Register the MCP server with installed AI clients |
+| `npm run build` / `npm run preview` | Production build / preview |
+| `npm run lint` | Typecheck + repo hygiene checks (docs budget, roadmap, e2e lint) |
+| `npm run test:unit` | Unit tests (`:watch` / `:coverage` variants) |
+| `npm run test:smart` | E2E subset mapped from the changed files, plus canaries |
+| `npm run test:full` | Full Playwright suite (`test:baseline` compares against clean HEAD) |
+| `npm run mcp`, `npm run mcp:install`, `npm run mcp:schema` | Local MCP server for AI agents (see below) |
 
-## E2E Testing
+## Testing
 
-The Playwright suite includes smoke tests that load a real production project ("IT'S A WONDERFUL LIFE") from `~/Downloads/IT'S A WONDERFUL LIFE.lemon` (override with `LEMON_SEED_PATH`) to exercise the stripboard, calendar, glide breakdown, ribbon designer, and print flow with real data. Specs resolve their data from the debug bridge, so the seed file can be re-exported from the app at any time without breaking the suite.
+The Playwright suite runs against the **production preview build** by default (`PLAYWRIGHT_DEV=1` switches to the dev server) — 70 specs / 280 tests. It seeds a committed demo project from `e2e/fixtures/seed.lemon` (override with `LEMON_SEED_PATH`) and resolves its data through the debug bridge, so the seed can be re-exported at any time without breaking specs. `npm run test:smart` maps changed files to specs and adds canaries; perf/memory harnesses are `@perf`-tagged and excluded, and iPad specs run under `playwright.ipad.config.ts`. Strategy and flake policy: [`docs/TESTING.md`](docs/TESTING.md).
 
-## Developer API / MCP
+## Developer tools
 
 An AI agent can read and edit the project open in the app through a local MCP
-server (roadmap 97). It is loopback-only, off by default, and — for now —
-**only offered when the app runs on localhost** (roadmap 145 will ship it as a
-desktop app that hosts the UI + MCP server together).
+server. It is loopback-only, off by default, and — for now — **only offered when
+the app runs on localhost**:
 
 - Register the server: `npm run mcp:install` (detects opencode, Codex/ChatGPT,
   Claude Desktop, Cursor; `--dry-run` to preview).
-- Open a project and click **File → Connect agent bridge** (a short how-to shows
-  the first time), then let the agent call tools like `get_project`,
-  `get_schedule`, `get_schema`, `apply_actions`.
+- Open a project and click **File → Connect agent bridge**, then let the agent
+  call tools like `get_project`, `get_schedule`, `get_schema`, `apply_actions`.
 - Writes go through the same reducer the UI uses (undoable); `LOAD` and
   `EMPTY_TRASH` stay UI-only.
+- **Realtime rooms worker** — `workers/rooms` (Cloudflare Worker + Durable
+  Object) runs the shared-project reducer; run it locally with
+  `npx wrangler dev` and point `VITE_ROOMS_URL` at it.
 
-Full details: [`docs/API.md`](docs/API.md).
+Dev builds also expose `window.__lemonSchedule`, a read/write bridge over the
+store used by agents and tests. Full details: [`docs/API.md`](docs/API.md).
 
-## Data & Storage
+## Documentation
 
-- **Local projects**: stored per-project under `lemon_schedule_project_v1_{id}`; project index in `lemon_schedule_project_index`.
-- **Cloud projects** (Google Drive): stored in Drive app data, indexed separately, and excluded from the local index.
-- **Trash**: every deleted entity type has its own trash array with 30-day expiry, restorable from the Trash dialog.
+The working manuals live in [`docs/`](docs/):
 
-## Import Formats
-
-| Format | Notes |
-|---|---|
-| **FDX** | Final Draft XML (incl. tagged element categories) |
-| **Fountain** | Plain-text screenwriting |
-| **CSV** | Script breakdown exports (auto header mapping; unknown columns become custom categories) |
+- [Scheduling, stripboard & daybreaks](docs/SCHEDULING-STRIPBOARD-DAYBREAKS.md)
+- [Day types & the calendar axis](docs/DAY-TYPES-AND-CALENDAR.md)
+- [Store, sync & realtime rooms](docs/STORE-AND-SYNC.md)
+- [Online collaboration](docs/COLLABORATION.md)
+- [Glide Breakdown](docs/GLIDE-BREAKDOWN.md)
+- [Ribbon cells & the ribbon designer](docs/RIBBON.md)
+- [Reports Designer](docs/REPORTS-DESIGNER.md)
+- [Element & crew links](docs/ELEMENT-LINKS.md)
+- [Import/export pipelines](docs/IMPORT-EXPORT.md)
+- [Report printing & page breaks](docs/REPORT_PRINTING_AND_PAGE_BREAKS.md)
+- [Design language](docs/DESIGN-LANGUAGE.md)
+- [Security model](docs/SECURITY.md)
+- [Roadmap](docs/ROADMAP.md)
 
 ## License
 
-Apache-2.0
+Apache-2.0 — see [`LICENSE`](LICENSE).
