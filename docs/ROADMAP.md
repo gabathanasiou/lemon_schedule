@@ -1108,50 +1108,53 @@ presence colour, live — a persistent highlight, distinct from S3's floating po
 - **Relations**: `extends` **229** (S3 presence). `relates to` **172** (Glide jump/flash —
   share the highlight visuals), **235** (sibling presence polish), **231** (peer colours).
 
-## 235. Presence — peer drags: ghost + soft lock of the held item (`[ ]`, big)
+## 235. Presence — peer drags: ghost + soft lock of the held item (stripboard + Calendar) (`[ ]`, big)
 
 **Requested 2026-10-15 (user):** while another user drags something (stripboard rows/scenes,
-Calendar cards, whole-day blocks), show their drag in my view — a translucent ghost at their
-pointer in their colour, "X is moving this"-style. **Addendum (user, 2026-10-15):** also
-**lock the item(s) being dragged** — other users can't pick them up, so the stripboard /
-Calendar feel like single-user editing while a peer drags.
+daybreak/whole-day rows, Calendar cards, whole-day blocks), show their drag in my view — a
+translucent ghost at their pointer in their colour, "X is moving this"-style. **And lock the
+item(s) being dragged** — other users can't pick them up, so the stripboard / Calendar feel
+like single-user editing while a peer drags. **User decision 2026-10-15: BOTH surfaces in
+scope** (not phased — the protocol is built once; each surface adds positioning + held
+styling).
 
-- **Assessment (agent, 2026-10-15) — no correctness risk; the cost is rendering, per surface.**
-  Drags stay transient local state; only the DROP becomes a room action, so the room keeps its
-  serialised last-drop-wins outcome — a ghost makes that outcome legible instead of
-  surprising (two people may drag the same strip; both ghosts show, one drop lands). The work:
-  publish `{ kind, itemIds, anchor }` on the presence channel (reuse the cursor throttle +
-  idle-skip — drags emit at pointer rate), render ghost overlays per surface — stripboard
-  FIRST (rows + whole-day; `src/components/schedule/useScheduleDrag.ts` +
-  `ribbon/SortableRow*`), then Calendar cards (`calendar/useCalendarDrag.ts`). Ghosts render
-  BELOW modals (z-30 parity with pointers) and are pointer-events-none so they can never block
-  interactions.
-- **Soft lock — same payload, no room change (user addendum 2026-10-15):** the active drag IS
-  the claim: while a peer's drag is live, the held item(s) render in their colour with a
-  "held" ring/dim, and the local drag START is refused for a selection containing any held
-  item (`useScheduleDrag` / `useCalendarDrag` guards). Release on drop/cancel/Esc/blur +
-  heartbeat + TTL — exactly the 240 overlay-signal pattern (open/close edges, TTL,
-  newest-window-wins per user). UX-only by design: the room stays the drop authority, so a
-  stale/lost claim degrades to today's last-drop-wins, never corruption. Clicking, selecting
-  and editing a held item stay allowed (only the conflicting operation — dragging it — is
-  blocked); revisit if it feels wrong. The ghost stays `pointer-events-none`; the LOCK is what
-  refuses interactions, never the ghost.
-- **Easiest win (user ask 2026-10-15): the stripboard, rows only.** The local ghost renderer
-  already exists — dnd-kit `DragOverlay` (`schedule/ScheduleOverlays.tsx`) — so a remote ghost
-  is that component positioned at the peer's cursor; the lock is the same broadcast + one
-  drag-start guard. One new `publishDrag` on the presence channel
-  (`src/lib/supabase/presenceChannel.ts`, the `publishOverlay` pattern), one overlay layer, one
-  surface. Calendar cards next (`CalendarTab.tsx` `DragOverlay`); whole-day and
-  cross-container drags later. Do NOT attempt "freeze every interaction of the held item"
-  (true 1-person parity) for v1 — blocking the DRAG is the 90% win.
-- **Explicitly out of scope until the first two surfaces feel right**: Reports/Call-Sheet
-  designer drags, Glide internal drags, fancy cross-container (Boneyard↔stripboard) cases.
-- **Verify**: two-window manual pass (ghost follows with the peer's colour, vanishes on
-  drop/cancel/Esc; the held item refuses the other user's drag start and shows the held
-  styling; a killed tab's claim expires via TTL; the ghost itself never blocks interactions);
-  pure helpers (drag payload shape/throttle + the claim TTL) as Vitest.
+- **Assessment — no correctness risk; UX-only.** Drags stay transient local state; only the
+  DROP becomes a room action, so the room keeps its serialised last-drop-wins outcome — ghost
+  + lock make that outcome predictable instead of surprising.
+- **Protocol — a clone of the 240 signal (small):** `publishDrag({ surface, itemIds })` on the
+  presence channel (`src/lib/supabase/presenceChannel.ts`, the `publishOverlay` pattern):
+  START/END edge frames + a ~5s heartbeat while held + TTL (~10-12s), newest-window-wins per
+  user. POSITION rides the existing cursor frames — a `drag: true` flag on frames already
+  being broadcast, zero extra messages; the item-id list is sent once (capped). Ghosts render
+  BELOW modals (z-30 parity with pointers) and are `pointer-events-none`; the ghost NEVER
+  blocks — the lock does.
+- **Ghost per surface:** stripboard — the local ghost renderer already exists (dnd-kit
+  `DragOverlay` + `SortableRibbon` `isOverlay`, `schedule/ScheduleOverlays.tsx`); a remote
+  ghost is that component in a fixed overlay at the peer's cursor, covering everything
+  `useScheduleDrag` drags today (scene rows, daybreak/whole-day rows, multi-select). Calendar
+  — the same recipe on `CalendarTab.tsx`'s `DragOverlay` (`calendar/useCalendarDrag.ts`:
+  cards + whole-day drags).
+- **Soft lock — ONE predicate, few call sites:** while a peer's drag is live, the held item(s)
+  render in their colour ("held" ring/dim) and a shared `heldByPeer(itemIds)` check refuses
+  every MOVE/REMOVE path for them: dnd `useSortable({ disabled })` + drag-start guards
+  (`useScheduleDrag`/`useCalendarDrag`), the right-click context menu (do NOT open on a held
+  item — show a small "X is moving this" hint; `useStripboardContextMenu`), and the
+  Delete/Cmd+X/cut shortcuts. Selecting, scrolling and field edits stay allowed (no conflict).
+  Release on drop/cancel/Esc/blur; a stale claim degrades to today's last-drop-wins, never
+  corruption.
+- **Runtime cost (user asked 2026-10-15): presence-only, effectively free.** No room/DO
+  messages, no storage — a 5s drag adds ~3-4 messages total (start/end/heartbeat) plus a
+  ~30-byte flag on cursor frames that are already broadcast (~12/s); well under quota even at
+  hundreds of drags/day. The lock must NOT go through the room (claim stays presence; the
+  drop is the only room action).
+- **Out of scope (own follow-ups once these two surfaces feel right)**: Reports/Call-Sheet
+  designer drags, Glide internal drags, cross-container (Boneyard↔stripboard) drags.
+- **Verify**: two-window manual pass on BOTH surfaces (ghost follows with the peer's colour,
+  vanishes on drop/cancel/Esc; the held item refuses the other user's drag/menu/delete and
+  shows the held styling; a killed tab's claim expires via TTL; the ghost itself never blocks
+  interactions); pure helpers (drag payload shape/throttle + the claim TTL) as Vitest.
 - **Relations**: `extends` **229** (S3 presence transport). `relates to` **234** (sibling
-  presence polish), **240** (the edge/heartbeat/TTL signal pattern the claim reuses), **231**.
+  presence polish), **240** (the edge/heartbeat/TTL pattern reused), **231**.
 
 ## 236. Presence — pointer magnetism v2: every surface + gate by the open document (`[ ]`, big)
 
@@ -1249,7 +1252,7 @@ the document ids this gate keys off), **234**/**235** (sibling presence polish),
 
 **Why NOT the naive blob fallback (decided):** the fallback half-exists already — `saveOnlineProject` + the S3.5 peer reload resume as soon as `roomActive()` is false (`provider.tsx` save pipeline / `applyPeerSave`) — but it is the UNSAFE half: while the room is live nothing pushes the Supabase blob (it is staging-only), so it is **stale**, whole-blob saves are **last-write-wins** (two editors during an outage clobber each other), and edits made through blob saves are **wiped when the room's `welcome` returns** (the room log never saw them). So the fallback must stay server-authoritative; the blob path only becomes a real fallback after a room → blob mirror exists (Stage 3).
 
-**Progress (stage 1, built 2026-10-15):** `roomStatus` is now reactive on `useProject()` (+ `useIsOnlineProject()` for the shared-project predicate); `src/lib/rooms/roomBadge.ts` maps the transport status → `hidden | connecting | unreachable` and its copy; the header cloud (`SaveIndicator`) renders the amber "!" with a 2.5s grace (a normal join never flashes), hover tooltip + click-pin, `data-testid="room-status-badge"`. Copy stays stage-1 honest ("changes aren’t reaching your collaborators right now") — the "queued locally (N)" wording lands with stage 2. Verified live: badge absent while the room is open, appears ~3s after the worker is killed, clears when it restarts.
+**Progress (stages 1+2, built 2026-10-15):** stage 1 — `roomStatus` is reactive on `useProject()` (+ `useIsOnlineProject()` for the shared-project predicate); `src/lib/rooms/roomBadge.ts` maps the transport status → `hidden | connecting | unreachable`; the header cloud (`SaveIndicator`) renders the amber "!" with a 2.5s grace (a normal join never flashes), hover tooltip + click-pin, `data-testid="room-status-badge"`. Stage 2 — `RoomClient` BUFFERS accepted actions while the room is not `open` (`MAX_QUEUED_ACTIONS` = 1000, oldest dropped and surfaced as `dropped`), re-applies each locally (`onReplayQueued`) and replays them IN ORDER right after the next welcome (normal optimistic path, echo deduped); the buffer is DROPPED when our own `init` seeded the room (an `ADD_*` replay would duplicate what the blob carries), CLEARED on `stop()` (project switch — no bleed), and reported via `diagnostics().roomPending` + the badge tooltip ("N changes queued locally"). No whole-blob save is ever pushed for a room-owned project (any status — the old `status !== 'closed'` gate let a stale blob clobber during an outage); the undo/redo buttons now require `open`. Verified: unit (order/drain/bound/stop/init/failed-flush) + the two-window harness's new kill/restart section (2 edits buffer → badge → restart → replay → both windows converge, no lost edit). Stage 3 (the room → Supabase blob mirror) remains.
 
 **Stage 1 — header badge (small, pure UI, no behavior change):** `roomStatus` (already in `useRoomTransport` + `diagnostics().roomStatus`) drives an indicator on the header cloud/user cluster: amber "!" dot when a SHARED project's room is not `open` while the connectivity probe says online; hover/click popover explains the state ("Collaboration server unreachable — changes are queued locally"). Reuse the kit `DropdownMenu`/tooltip + `OfflineStatus`/`SaveIndicator` patterns (one badge component, no forked chrome).
 
