@@ -515,6 +515,30 @@ concurrency semantics in its doc.
     separation restores. All receiver-side and ephemeral.
   - Both are ephemeral only: never persisted, never a room action, never
     `track()`; the cue is `pointer-events-none`.
+- **Peer selection highlights (roadmap 234, built 2026-10-15)**: a peer's
+  grid SELECTION renders in their presence colour on every matching grid
+  instance — the cursor-anchor seam one level coarser. The selection rides a
+  throttled `selection` broadcast of `{ scope, anchor, extent }`: two grid
+  hits in data coordinates — stable row/column KEYS plus the sender's indices
+  as the clamp fallback — never `track()`, never persisted, never a room
+  action. `scope` names the LOGICAL grid and IS the visibility gate
+  (`breakdown-glide`, `crew-glide`, `locations-glide`,
+  `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`), so a
+  highlight can never land on another day's table or another database. Every
+  MOUNTED instance publishes its own selection (multi-window = newest window
+  wins per user) and paints the peers' ones itself from its own geometry via
+  Glide's native `highlightRegions` (peer-colour fill + solid ring) — one
+  shared hook (`useGlidePeerSelection`), so it works in the main window AND in
+  pop-out windows / portalled canvases, correct through differing scroll,
+  column widths and font scale. Clear edges: deselect, blur, hidden document,
+  unmount — and only the instance that last held a non-empty selection may
+  clear (provider owner check), so closing one window never wipes another
+  window's live selection; a closed window's entry is pruned by clientId on
+  the next presence sync. Opt-out = no `scope` (grids inside modals, e.g. the
+  crew-template editor). Manual: docs/GLIDE-BREAKDOWN.md §Peer selection
+  highlights; pure encode/parse/clamp helpers are Vitest; the two-window
+  harness (`workers/rooms/test/two-window-repro.mjs`) asserts the broadcast
+  AND the painted highlight (peer-colour pixels on the grid canvas).
 - Motion: pointers glide between positions with a **rAF glide loop inside
   `PresenceOverlay`** (exponential approach toward the anchor-resolved target,
   τ ≈ 110ms; targets refresh on a ~80ms measure tick + scroll/resize).

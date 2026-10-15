@@ -107,3 +107,37 @@ auto-repaint.
   `onEscape` into EntityDropdown/AutocompleteDropdown (`createGlideCellEditor`): one Esc closes the
   dropdown AND cancels the whole cell-edit overlay (`onFinishedEditing(undefined, [0,0])` — no
   commit), so the edit popout never lingers.
+
+## Peer selection highlights (roadmap 234)
+
+Every Glide grid participates in peer-selection presence through ONE shared seam — never per-surface
+copies:
+
+- **`useGlidePeerSelection({ scope, selection, rowKeys, colKeys })`**
+  (`src/lib/useGlidePeerSelection.ts`) publishes this instance's selection (via the presence
+  channel's throttled/idle-skipped `selection` broadcast) and resolves the peers' selections for the
+  same scope into Glide's native `highlightRegions` (peer colour fill + solid ring). Geometry lives
+  in `src/lib/glideSelection.ts` (`effectiveGridRange` — also the shared copy/cut/clear rectangle —
+  plus the wire encode/decode and `withAlpha`); wire shapes + parsers in
+  `src/lib/supabase/presence.ts` (`PresenceGridSelection`, `parseSelectionPayload`, `selectionKey`).
+- **`scope` names the LOGICAL grid, never the instance** — `breakdown-glide`, `crew-glide`,
+  `locations-glide`, `day:<sectionIndex>:times:<category>`, `day:<sectionIndex>:crew:<dept>`,
+  `callsheet:<sectionIndex>:…`. It must match across clients; the day/place identity in the scope is
+  what keeps the highlight off a different day's table (there is no separate same-view gate).
+- **Every mounted instance renders its own highlights with its own geometry**, so the highlight is
+  correct through differing scroll/column widths/font scale and shows in pop-out windows and
+  portalled canvases too; a selection made in ANY instance publishes (newest window wins per user).
+- **Lifecycle**: deselect, `window.blur`, a hidden document and unmount all publish the clear edge;
+  only the instance that last held a non-empty selection may clear (owner check in the presence
+  provider), so closing one window never wipes another window's live selection. A closed window's
+  selection is pruned by clientId on the next presence sync.
+- **Opt-out**: omit `presenceScope` (`InlineGlideTable`) / `GlideShellConfig.presenceScope`
+  (required there) — used for grids that live in a modal (template editors).
+- Ranges are GRID/data coordinates; never add the row-marker offset yourself (Glide shifts
+  `highlightRegions` internally). `Highlight.style: 'solid'` = fill + solid outline.
+- Verify: pure helpers are Vitest (`src/lib/__tests__/glideSelection.test.ts`,
+  `presence.test.ts`); the two-window harness (`workers/rooms/test/two-window-repro.mjs`, the
+  selection section) drives a real drag-select in one window and asserts the other receives the
+  frame AND paints the peer colour on the grid canvas (clears on the tab switch); the visual
+  look is a rule-7 manual pass (docs/COLLABORATION.md §9).
+
