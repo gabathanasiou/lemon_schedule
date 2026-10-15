@@ -484,15 +484,21 @@ multi-step wizards (dedicate a page), anything not related to the current task.
 
 Collaborators' live pointers are the ONE presence visual (user decision 2026-10-12:
 no header avatar bubbles). They live in `PresenceOverlay.tsx` — a single
-`fixed inset-0 z-30 pointer-events-none` layer; each pointer is a small SVG
-arrow in the person's deterministic `avatarColor` (white stroke + `drop-shadow-md`)
-with a rounded name label (`rounded-full px-2 py-[3px] text-[10px] font-semibold
+`fixed inset-0 z-30 pointer-events-none` layer; each pointer is a small glyph in
+the person's deterministic `avatarColor` (white outline + `drop-shadow-md`) —
+an arrow, a hand for touch input, a pen dot, or the modal-window icon while
+that peer is frozen inside a modal (roadmaps 241/244) — with a rounded name
+label (`rounded-full px-2 py-[3px] text-[10px] font-semibold
 text-white`, same colour, `left-2.5 top-4`; flips `right-3` near the right edge).
 Labels show the person's first name; anonymous guests show their full generated
 name ("Anonymous Otter"). Clickable (`pointer-events-auto`) to follow.
-Pointers GLIDE between positions (CSS `transform` transition ~150ms ease-out on
-the positioning wrapper; `motion-reduce:transition-none` snaps) and pop in via
-`.presence-pointer-in` (`index.css`, `motion-reduce` disables). They are hidden
+Pointers GLIDE between positions via the overlay's rAF loop (exponential
+approach, τ ≈ 110ms; `prefers-reduced-motion` snaps) and pop in via
+`.presence-pointer-in` (`index.css`, `motion-reduce` disables). **NEVER put a CSS
+`transition` on the positioning wrapper** — the ~12/s cursor feed restarted it
+mid-flight and pointers stuttered (reported 2026-10-15). A peer inside a
+menu/modal shows animated dots on the tag (240); a marker the local pointer has
+rested on for ~2s fades to 30% until separation (244). They are hidden
 when their anchor is off this client's viewport — never painted over unrelated
 chrome (user decision 2026-10-12: hide, no edge chips) — and **a peer's pointer
 only renders while you are on their EXACT place (same tab + sub-tab + sub-sub
