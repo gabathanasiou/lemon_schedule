@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, waitForPersistedProject } from './helpers';
+import { loadSeedProject, openSeededProject, waitForPersistedProject } from './helpers';
 
 type Project = any;
 
@@ -68,4 +68,65 @@ test.describe('ribbon design default save', () => {
     const fields = active.rows.flatMap((r: any) => r.cells.map((c: any) => c.field));
     expect(fields).toContain('wardrobe');
   });
+});
+
+// Roadmap 233: the designer's EDITING focus is a per-user pref; the stripboard
+// DISPLAY layout stays the shared `activeRibbonId` (the split decided for 233).
+// A designer pick must therefore never write the project — with two clients
+// that write would move the other person's stripboard (silent without one).
+test('picking a design in the designer is a per-user pref — the shared stripboard layout is untouched', async ({ page }) => {
+  // A second layout whose only distinctive cell is a probe: it renders while
+  // it is the EDITED design, never on the stripboard (which shows the shared
+  // display layout).
+  await openSeededProject(page, (project) => {
+    project.ribbonDesigns.push({
+      id: 'focus-probe-design',
+      name: 'Focus Probe',
+      createdAt: Date.now(),
+      colWidths: [50, 50],
+      rows: [{ id: 'focus-probe-row', name: 'Scene', cells: [{ id: 'focus-probe-a', field: 'sceneNumber' }, { id: 'focus-probe-b', field: 'text', textContent: 'RIBBON PROBE' }] }],
+    });
+  });
+  const before = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    return {
+      activeRibbonId: p.activeRibbonId,
+      activeName: p.ribbonDesigns.find((d: any) => d.id === p.activeRibbonId)?.name || '',
+    };
+  });
+
+  await openDesignTab(page);
+  await page.getByRole('button', { name: 'Ribbon Designer', exact: true }).click();
+  const editing = page.getByRole('button', { name: /Editing:/ });
+  // First open edits the layout the stripboard displays (the fallback).
+  await expect(editing).toContainText(before.activeName);
+
+  await page.evaluate(() => {
+    const b: any = (window as any).__lemonSchedule;
+    (window as any).__seen = [];
+    (window as any).__off = b.onAction((a: any) => (window as any).__seen.push(a.type));
+  });
+  await editing.click();
+  await page.getByRole('menuitem', { name: 'Focus Probe' }).click();
+  await expect(page.getByText('RIBBON PROBE').first()).toBeVisible();
+
+  const after = await page.evaluate(() => {
+    const b: any = (window as any).__lemonSchedule;
+    const off = (window as any).__off;
+    if (off) off();
+    const p = b.getProject();
+    return {
+      pref: localStorage.getItem('lemon_schedule_ribbon_active_design'),
+      activeRibbonId: p.activeRibbonId,
+      seen: (window as any).__seen as string[],
+    };
+  });
+  expect(after.pref).toBe('focus-probe-design');
+  expect(after.activeRibbonId).toBe(before.activeRibbonId);
+  expect(after.seen.filter(t => /RIBBON|REPORT/.test(t))).toEqual([]);
+
+  // The stripboard keeps wearing the shared layout — no probe cell anywhere.
+  await page.getByRole('button', { name: 'Schedule', exact: true }).click();
+  await expect(page.locator('[data-ribbon-field]').first()).toBeVisible({ timeout: 8000 });
+  await expect(page.getByText('RIBBON PROBE')).toHaveCount(0);
 });
