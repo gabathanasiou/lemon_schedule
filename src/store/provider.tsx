@@ -11,7 +11,7 @@ import { getPresenceDiagnostics, notifyLocalSave } from '../lib/supabase/presenc
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex, formatDriveError } from '../lib/googleDriveStorage';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
-import { performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
+import { hasInFlightEdits } from '../lib/inFlightEdits';
 import { useRoomTransport } from '../lib/rooms/useRoomTransport';
 import { fetchRoomToken } from '../lib/rooms/tokenClient';
 import { ROOM_NOTE_MS } from '../lib/rooms/roomNotes';
@@ -342,10 +342,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   /**
    * S3.5 — a peer's whole-blob save landed at `remoteRevision`. When this
    * client has NO unsaved changes it silently re-reads and applies (LOAD
-   * clears history — acceptable while clean); with local edits it only raises
-   * the "Changes available · Reload" flag — local edits are never clobbered
-   * (saves stay last-write-wins until S4). Saves are the peers' own; revisions
-   * are monotonic so out-of-order reads can't regress.
+   * clears history — acceptable while clean); with local edits — committed or
+   * still in flight (a manager field / Report Designer text being typed,
+   * `inFlightEdits`) — it only raises the "Changes available · Reload" flag:
+   * local edits are never clobbered (saves stay last-write-wins until S4).
+   * Saves are the peers' own; revisions are monotonic so out-of-order reads
+   * can't regress.
    */
   const applyPeerSave = useCallback(async (remoteRevision: number) => {
     const meta = projectListRef.current.find(p => p.id === currentProjectIdRef.current);
@@ -357,7 +359,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     try {
       const fresh = await readOnlineProject(meta.onlineId);
       if (!(fresh.revision > onlineRevisionRef.current)) return; // resolved meanwhile
-      if (changeCounterRef.current === persistedAtCounterRef.current) {
+      if (changeCounterRef.current === persistedAtCounterRef.current && !hasInFlightEdits()) {
         onlineRevisionRef.current = fresh.revision;
         setOnlineChangesAvailable(false);
         loadBaseline(fresh.project);
@@ -642,16 +644,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * The ONE undo/redo routing for EVERY affordance — Cmd+Z / Cmd+Shift+Z, the
-   * header + popout-toolbar buttons, and popout windows: the element manager's
-   * unsaved local history first, then — for a SHARED project — the room, else
-   * the local transcript. A shared project NEVER falls back to the local
-   * transcript: that UNDO is deliberately not transported (`guardedDispatch`
-   * excludes it), so it would revert this window alone and silently diverge it
-   * from every peer — the "undo lands on me but not my peer" report. Returns
-   * true when the affordance ran (or warned).
+   * header + popout-toolbar buttons, and popout windows: for a SHARED project
+   * the room (per-user undo), else the local transcript. A shared project NEVER
+   * falls back to the local transcript: that UNDO is deliberately not
+   * transported (`guardedDispatch` excludes it), so it would revert this window
+   * alone and silently diverge it from every peer — the "undo lands on me but
+   * not my peer" report. Returns true when the affordance ran (or warned).
+   *
+   * Roadmap 250/251: every edit is dispatched when it finishes (commit on
+   * blur), so there is no surface-local history to consult first — undo
+   * granularity is one committed edit.
    */
   const undo = useCallback((): boolean => {
-    if (performLocalUndo()) return true;
     if (isCurrentOnlineProject()) {
       if (!roomClientRef.current?.sendUndo()) {
         console.warn('[rooms] undo unavailable — the shared project is not connected to the room');
@@ -663,7 +667,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [guardedDispatch, isCurrentOnlineProject]);
   const redo = useCallback((): boolean => {
-    if (performLocalRedo()) return true;
     if (isCurrentOnlineProject()) {
       if (!roomClientRef.current?.sendRedo()) {
         console.warn('[rooms] redo unavailable — the shared project is not connected to the room');

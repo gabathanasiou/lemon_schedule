@@ -5,8 +5,6 @@ import { Seg } from '@gabriel/ui-kit';
 import { ReportBlock, ReportDesign } from '../types';
 import PageToolbar from './PageToolbar';
 import { PopoutPlaceholder } from './PopoutWindow';
-import { useDialog } from './Dialog';
-import { requestUnsavedSave } from '../lib/unsavedGuard';
 import DayManagerPage from './production/day/DayManagerPage';
 import { CrewManager } from './CrewManager';
 import { CrewGlideTab } from './CrewGlideTab';
@@ -52,8 +50,6 @@ interface ProductionTabProps {
  *  Details and the Call Times settings live in the Day Manager header as
  *  draggable modals (ProductionDetailsModal / CallTimesSettingsModal). */
 export default function ProductionTab({ subTab, onSubTabChange, views, onViewChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, onOpenScene, onPrintCallSheet, onPopOutDay }: ProductionTabProps) {
-  const dialog = useDialog();
-
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
   // Second slot, immediately left of the view switcher: the day selector is
@@ -66,20 +62,19 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
   const [daysChromeDark, setDaysChromeDark] = useState(false);
   const handleDaysChrome = useCallback((dark: boolean) => setDaysChromeDark(dark), []);
 
-  // Sub-tab switches/popouts that would unmount the crew manager go through
-  // the unsaved-changes guard so the prompt fires before leaving.
+  // Sub-tab switches/popouts and manager ↔ alternate-view toggles run directly:
+  // the click blurs and commits any focused field first (roadmap 250).
   const requestSubTabChange = useCallback((id: string) => {
-    void requestUnsavedSave(dialog, () => onSubTabChange(id as ProductionSubTab));
-  }, [dialog, onSubTabChange]);
+    onSubTabChange(id as ProductionSubTab);
+  }, [onSubTabChange]);
 
   const requestSubTabPopout = useCallback((id: string) => {
-    void requestUnsavedSave(dialog, () => onToggleSubPopout(id));
-  }, [dialog, onToggleSubPopout]);
+    onToggleSubPopout(id);
+  }, [onToggleSubPopout]);
 
-  // Manager ↔ alternate view toggles unmount the manager too — same guard.
   const requestViewChange = useCallback((sub: ProductionSubTab, view: string) => {
-    void requestUnsavedSave(dialog, () => onViewChange(sub, view));
-  }, [dialog, onViewChange]);
+    onViewChange(sub, view);
+  }, [onViewChange]);
 
   const subTabLabels: Record<string, string> = { days: 'Day Manager', crew: 'Crew', locations: 'Locations' };
 

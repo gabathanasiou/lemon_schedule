@@ -18,8 +18,8 @@ export interface MergeGroup {
   merges: MergeItem[];
 }
 
-/** Shared merge-confirmation modal for buffered managers (Element Manager, Crew Manager). */
-export function MergeRowsModal({ title, intro, groups, confirmLabel = 'Merge & Save', onConfirm, onCancel }: {
+/** Shared merge-confirmation modal for the commit-on-blur managers (Element Manager, Crew Manager). */
+export function MergeRowsModal({ title, intro, groups, confirmLabel = 'Merge', onConfirm, onCancel }: {
   title: string;
   intro: string;
   groups: MergeGroup[];

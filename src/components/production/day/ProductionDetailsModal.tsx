@@ -4,8 +4,6 @@ import { useProject } from '../../../store';
 import { generateUUID, formatDateShort, DATE_FORMAT_OPTIONS } from '../../../lib/utils';
 import { useDaybreakSections } from '../../../lib/useDaybreakSections';
 import { getBrowserTimeZone, COMMON_TIMEZONES } from '../../../lib/timezones';
-import { useDialog } from '../../Dialog';
-import { requestUnsavedSave } from '../../../lib/unsavedGuard';
 import Modal, { ModalFooter } from '../../Modal';
 import ModalFooterButton from '../../ModalFooterButton';
 import DropdownMenu from '../../DropdownMenu';
@@ -67,7 +65,6 @@ const Menu: React.FC<{ trigger: React.ReactNode; width?: string; searchable?: bo
 export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { state, dispatch, locked } = useProject();
   const project = state.present;
-  const dialog = useDialog();
   const sizes = ruleModalSizes();
   const { CREM_LABEL, CREM_TEXT, CREM_BODY } = sizes;
   const activeCalendarVersion = project.calendarVersions.find(v => v.id === project.activeCalendarVersionId);
@@ -100,7 +97,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
 
   const movePersonToRole = (person: CrewPerson, fromRole: string, toRole: string) => {
     if (fromRole === toRole) return;
-    void requestUnsavedSave(dialog, () => dispatch({ type: 'UPDATE_CREW_PERSON', payload: { role: fromRole, id: person.id, updates: {}, toRole } }));
+    dispatch({ type: 'UPDATE_CREW_PERSON', payload: { role: fromRole, id: person.id, updates: {}, toRole } });
   };
 
   const rowLabel = (text: string) => <span className={`${CREM_LABEL} text-zinc-400 w-40 shrink-0`}>{text}</span>;
