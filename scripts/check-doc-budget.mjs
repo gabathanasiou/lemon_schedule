@@ -219,7 +219,9 @@ const E2E_SPEC_CAP = 70;
 // 281 → 282: roadmap 255 — the Glide's NEW rows (add row + paste) skipped the
 // cast creation guard, silently writing a NAME into scene.cast; that path can
 // only be driven through the real grid overlay.
-const E2E_TEST_CAP = 282;
+// 282 → 283: roadmap 263 — tab-switch perf harness (click→surface + pill glide
+// frames); the before/after evidence IS a real client with the pill on screen.
+const E2E_TEST_CAP = 283;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

@@ -87,6 +87,7 @@ import ReportDesigner from './components/reports/ReportDesigner';
 import { useDaybreakSections } from './lib/useDaybreakSections';
 import { useKeyboardDismissOnScroll } from './lib/useKeyboardDismissOnScroll';
 import { usePersistState } from './lib/persist';
+import { useLaggingValue } from './lib/useLaggingValue';
 import { ReportBlock, ReportDesign } from './types';
 import { dayScopeFilter } from './components/reports/DayReportPreview';
 import { ReportDaybreakData } from './lib/reportData';
@@ -646,6 +647,28 @@ function AppContent() {
   const version = project.versions.find(v => v.id === project.activeVersionId);
   const { sections, computedRows } = useDaybreakSections();
 
+  // ---- Content mirror (roadmap 263) -----------------------------------------
+  // The header pill / nav state above is urgent (the pill must start moving on
+  // the click frame); which SURFACE is mounted lags one painted frame behind
+  // it so the click task never carries the mount — see `useLaggingValue`.
+  // Data-only props (targets, indices, categories, popped-out sets) stay
+  // urgent: they don't identify a surface, so they can't remount one.
+  const contentView = useMemo(
+    () => ({
+      tab: activeTab,
+      br: brSubTab,
+      calendar: calendarSubTab,
+      design: designSubTab,
+      reports: reportsSubTab,
+      production: prodSubTab,
+    }),
+    [activeTab, brSubTab, calendarSubTab, designSubTab, reportsSubTab, prodSubTab],
+  );
+  const view = useLaggingValue(contentView);
+  // Production holds three independent manager/glide (and days/callsheet)
+  // modes — each one swaps the mounted surface, so the whole record lags.
+  const mountedProdViews = useLaggingValue(prodViews);
+
   const allReportCategoryKeys = useMemo(() => {
     const hidden = new Set(project.hiddenCategories || []);
     const keys: { key: string; isCustom: boolean }[] = [];
@@ -1204,7 +1227,11 @@ function AppContent() {
       )}
 
       {/* CONTENT */}
-      <main key={currentProjectId} className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      {/* The outgoing surface stays on screen until the next one mounts
+          (roadmap 263) — `inert` for that window so a click can never land on
+          the stale surface (e.g. the Glide toolbar's Edit under the Schedule
+          tab's) and role queries skip it entirely. */}
+      <main key={currentProjectId} inert={view !== contentView || mountedProdViews !== prodViews} className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         onClick={(e) => {
           if ((e.target as HTMLElement).closest('button, input, select, [role="button"], [role="menuitem"]')) return;
           setShowFileMenu(false);
@@ -1212,10 +1239,10 @@ function AppContent() {
           setTabContextMenu(null);
         }}
       >
-        {poppedOutTabs.has(activeTab) ? (
-          <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
+        {poppedOutTabs.has(view.tab) ? (
+          <PopoutPlaceholder title={tabLabels[view.tab]} onBringBack={() => closePopout(view.tab)} />
         ) : (
-          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={goBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} onUpdateScript={() => updateScriptFileRef.current?.click()} onCutScene={handleCutScene} shiftHeld={shiftHeld} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> :           activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} subTab={calendarSubTab} onSubTabChange={goCalSubTab} poppedOutSubTabs={poppedOutSubTabs.calendar || new Set()} onToggleSubPopout={(id) => toggleSubPopout('calendar', id)} onCloseSubPopout={(id) => closeSubPopout('calendar', id)} shiftHeld={shiftHeld} /> :           activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={goDesignSubTab} onReportPrint={(design, daySectionIndex) => setCustomReportPrint({ design, daySectionIndex })} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> :           activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={goReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> :           activeTab === 'production' ? <ProductionTab subTab={prodSubTab} onSubTabChange={goProdSubTab} views={prodViews} onViewChange={goProdView} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} shiftHeld={shiftHeld} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} dayTarget={dayManagerTarget} onDayTargetSeen={() => setDayManagerTarget(null)} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} /> : <RulesTab />
+          view.tab === 'breakdown' ? <BreakdownTab subTab={view.br} onSubTabChange={goBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} onUpdateScript={() => updateScriptFileRef.current?.click()} onCutScene={handleCutScene} shiftHeld={shiftHeld} /> : view.tab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> :           view.tab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} subTab={view.calendar} onSubTabChange={goCalSubTab} poppedOutSubTabs={poppedOutSubTabs.calendar || new Set()} onToggleSubPopout={(id) => toggleSubPopout('calendar', id)} onCloseSubPopout={(id) => closeSubPopout('calendar', id)} shiftHeld={shiftHeld} /> :           view.tab === 'design' ? <DesignTab subTab={view.design} onSubTabChange={goDesignSubTab} onReportPrint={(design, daySectionIndex) => setCustomReportPrint({ design, daySectionIndex })} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> :           view.tab === 'reports' ? <ReportsTab subTab={view.reports} onSubTabChange={goReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (view.reports === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> :           view.tab === 'production' ? <ProductionTab subTab={view.production} onSubTabChange={goProdSubTab} views={mountedProdViews} onViewChange={goProdView} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} shiftHeld={shiftHeld} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} dayTarget={dayManagerTarget} onDayTargetSeen={() => setDayManagerTarget(null)} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} /> : <RulesTab />
         )}
       </main>
 

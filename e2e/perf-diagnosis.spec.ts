@@ -222,6 +222,247 @@ test('@perf diagnosis: memory + cpu over repeated workflows (Town project)', asy
   console.log(verdict);
 });
 
+/**
+ * Roadmap 263 — tab / sub-tab switching responsiveness.
+ *
+ * Measures, per switch, two user-facing numbers plus the main-thread stall:
+ *  - `firstFrame`: click → first animation frame — the length of the click
+ *    task itself, i.e. how long the pill feedback is stuck behind any
+ *    synchronous render the click triggers (before roadmap 263 that included
+ *    the whole new-surface mount).
+ *  - `content`: click → the new surface's anchor is in the DOM + one frame.
+ *  - `maxTask` / `blocking`: longest longtask (>50ms) and total blocking time
+ *    (sum of the over-50ms parts) between the click and the content landing.
+ *
+ * Run against the prod preview with a heavy real project:
+ *   LEMON_SEED_PATH="/path/Lair (perf test).lemon" \
+ *     npx playwright test --config=playwright.perf-prod.config.ts --grep "tab switch"
+ */
+test('@perf tab switch: click feedback + content mount (roadmap 263)', async ({ page }) => {
+  test.setTimeout(600000);
+  // The bridge drives the project-change round; the perf configs don't preset
+  // the prod agent flag the suite's storageState normally sets.
+  await page.addInitScript(() => { try { localStorage.setItem('LEMON_AGENT', '1'); } catch { /* ignore */ } });
+  // The pill trace must run with motion ON — the perf configs force
+  // reducedMotion:'reduce' (matching the main suite), which disables the
+  // pill's transition and would make every trace look like a jump.
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await openSeededProject(page);
+
+  const size = await page.evaluate(() => {
+    const b = (window as any).__lemonSchedule;
+    const p = b.getProject();
+    const rows = b.getRows();
+    return {
+      title: p.title,
+      scenes: p.scenes.length,
+      rows: rows.rows.length,
+      sections: rows.sections.length,
+      scriptScenes: p.scriptDocument?.scenes?.length ?? 0,
+      annotations: (p.scriptAnnotations || []).length,
+    };
+  });
+  console.log(`[tab-switch] project: ${size.title} — ${size.scenes} scenes / ${size.rows} rows / ${size.sections} sections / ${size.scriptScenes} script scenes / ${size.annotations} annotations`);
+
+  interface SwitchSample {
+    label: string;
+    run: number;
+    error?: string;
+    firstFrame?: number;
+    content?: number;
+    maxTask?: number;
+    blocking?: number;
+  }
+
+  const measure = async (label: string, run: number, target: { tab?: string; sub?: string; anchor: string }): Promise<SwitchSample> => {
+    const r = await page.evaluate(async ({ tab, sub, anchor }) => {
+      const raf = () => new Promise<void>((res) => requestAnimationFrame(() => res()));
+      const findBtn = (name: string) =>
+        Array.from(document.querySelectorAll<HTMLElement>('button'))
+          .find((b) => (b.textContent || '').trim() === name && b.getBoundingClientRect().width > 0
+            // skip the outgoing surface while it is inert (roadmap 263)
+            && !b.closest('[inert]')) || null;
+      const name = tab || sub || '';
+      const btn = findBtn(name);
+      if (!btn) return { error: `no visible button "${name}"` };
+      const tasks: number[] = [];
+      let po: PerformanceObserver | null = null;
+      try {
+        po = new PerformanceObserver((list) => { for (const e of list.getEntries()) tasks.push(e.duration); });
+        po.observe({ type: 'longtask' });
+      } catch { /* longtask unsupported */ }
+      const t0 = performance.now();
+      btn.click();
+      // The click's task (incl. any synchronous React render it caused) is done
+      // and the browser is about to paint — the pill's visible frame.
+      await raf();
+      const firstFrame = performance.now() - t0;
+      const found = () => !!document.querySelector(anchor);
+      if (!found()) {
+        await new Promise<void>((resolve) => {
+          const mo = new MutationObserver(() => { if (found()) { mo.disconnect(); resolve(); } });
+          mo.observe(document.body, { childList: true, subtree: true });
+          setTimeout(() => { mo.disconnect(); resolve(); }, 30000);
+        });
+      }
+      await raf();
+      const content = performance.now() - t0;
+      po?.disconnect();
+      const maxTask = tasks.length ? Math.max(...tasks) : 0;
+      const blocking = tasks.filter((d) => d > 50).reduce((n, d) => n + (d - 50), 0);
+      return { firstFrame: Math.round(firstFrame), content: Math.round(content), maxTask: Math.round(maxTask), blocking: Math.round(blocking) };
+    }, target);
+    return { label, run, ...(r as any) };
+  };
+
+  const samples: SwitchSample[] = [];
+  const log = (s: SwitchSample) => {
+    if (s.error) { console.log(`[tab-switch] ${s.label} #${s.run}: SKIPPED (${s.error})`); return; }
+    console.log(
+      `[tab-switch] ${s.label} #${s.run}: firstFrame=${s.firstFrame}ms content=${s.content}ms ` +
+      `maxTask=${s.maxTask}ms blocking=${s.blocking}ms`,
+    );
+  };
+  /** Samples the header pill's per-frame geometry across a tap so we can tell
+   *  an actual glide (many intermediate positions) from a jump (the transition
+   *  starved by the mount, first sample already at the destination). */
+  const pillTrace = async (label: string, target: { tab?: string; sub?: string; anchor: string }) => {
+    // `useSlidingPill` drops the transition for 250ms after any observed
+    // resize (boot/observe counts) — wait until the pill actually carries one,
+    // or the trace measures a motionless element on purpose.
+    await page.waitForFunction(() => {
+      const el = document.querySelector('header [aria-hidden="true"].absolute');
+      return !!el && el.className.includes('transition-');
+    }, null, { timeout: 5000 }).catch(() => {});
+    const trace = await page.evaluate(async ({ tab, sub, anchor }) => {
+      const pill = () => document.querySelector<HTMLElement>('header [aria-hidden="true"].absolute');
+      const findBtn = (name: string) =>
+        Array.from(document.querySelectorAll<HTMLElement>('button'))
+          .find((b) => (b.textContent || '').trim() === name && b.getBoundingClientRect().width > 0
+            // skip the outgoing surface while it is inert (roadmap 263)
+            && !b.closest('[inert]')) || null;
+      const btn = findBtn(tab || sub || '');
+      if (!btn || !pill()) return { error: `pill or button missing (${tab || sub})` };
+      const frames: { t: number; left: number; width: number }[] = [];
+      let stop = false;
+      const tick = () => {
+        if (stop) return;
+        const r = pill()!.getBoundingClientRect();
+        frames.push({ t: performance.now(), left: r.left, width: r.width });
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      await new Promise((r) => setTimeout(r, 100));
+      const contentFound = () => !!document.querySelector(anchor);
+      const contentAt = new Promise<number>((resolve) => {
+        if (contentFound()) return resolve(performance.now());
+        const mo = new MutationObserver(() => { if (contentFound()) { mo.disconnect(); resolve(performance.now()); } });
+        mo.observe(document.body, { childList: true, subtree: true });
+        setTimeout(() => { mo.disconnect(); resolve(-1); }, 30000);
+      });
+      const clickAt = performance.now();
+      btn.click();
+      const content = await contentAt;
+      await new Promise((r) => setTimeout(r, 600));
+      stop = true;
+      return { frames, clickAt, content };
+    }, target);
+    if ((trace as any).error) { console.log(`[tab-switch] pill trace ${label}: ${(trace as any).error}`); return; }
+    const { frames, clickAt, content } = trace as { frames: { t: number; left: number; width: number }[]; clickAt: number; content: number };
+    if (!frames.length) { console.log(`[tab-switch] pill trace ${label}: no frames sampled`); return; }
+    const before = [...frames].reverse().find((f) => f.t < clickAt) ?? frames[0];
+    const after = frames.filter((f) => f.t >= clickAt);
+    // Distinct-position sequence with each move's arrival time (ms after click).
+    const seq: { dt: number; left: number }[] = [];
+    let lastLeft = Math.round(before.left);
+    seq.push({ dt: Math.round((before.t - clickAt) * 10) / 10, left: lastLeft });
+    for (const f of after) {
+      const l = Math.round(f.left);
+      if (l !== lastLeft) { seq.push({ dt: Math.round((f.t - clickAt) * 10) / 10, left: l }); lastLeft = l; }
+    }
+    const intermediates = Math.max(0, seq.length - 2);
+    console.log(
+      `[tab-switch] pill trace ${label}: ${seq.map((s) => `${s.dt}ms:${s.left}`).join(' → ')} ` +
+      `(${intermediates} intermediate frame${intermediates === 1 ? '' : 's'}), content=${Math.round(content - clickAt)}ms`,
+    );
+  };
+
+  /** First visit + repeat visit of `go`, with an unmeasured switch back in
+   *  between so the second visit genuinely re-visits an already-mounted tab.
+   *  Leaves the page on `go`'s target. */
+  const measureVisitPair = async (
+    label: string,
+    go: { tab?: string; sub?: string; anchor: string },
+    back: { tab?: string; sub?: string; anchor: string },
+  ) => {
+    const first = await measure(label, 1, go);
+    samples.push(first);
+    log(first);
+    await page.waitForTimeout(400);
+    const reset = await measure('(reset)', 0, back);
+    if (reset.error) console.log(`[tab-switch] reset for ${label}: ${reset.error}`);
+    await page.waitForTimeout(400);
+    const repeat = await measure(label, 2, go);
+    samples.push(repeat);
+    log(repeat);
+    await page.waitForTimeout(400);
+  };
+
+  // Reality check + pill trace on the FIRST visit to Schedule (the worst
+  // case): the trace tells a real glide from a starved transition, the DOM
+  // counts prove the heavy surface actually rendered.
+  await pillTrace('Breakdown→Schedule', { tab: 'Schedule', anchor: '[data-presence-surface="schedule"]' });
+  const settled = await page.evaluate(() => ({
+    days: document.querySelectorAll('[data-testid="stripboard-day"]').length,
+    rows: document.querySelectorAll('[data-row-id]').length,
+    dom: document.querySelectorAll('*').length,
+  }));
+  console.log(`[tab-switch] schedule settled: ${settled.days} day blocks / ${settled.rows} row els / ${settled.dom} DOM nodes`);
+  await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+  await page.waitForSelector('[data-presence-grid="breakdown-glide"]');
+  await page.waitForTimeout(300);
+
+  // Breakdown (Glide) is the boot sub-tab; boot → Schedule is the first
+  // "leaving the boot tab" switch the user ever sees.
+  await measureVisitPair('Breakdown→Schedule',
+    { tab: 'Schedule', anchor: '[data-presence-surface="schedule"]' },
+    { tab: 'Breakdown', anchor: '[data-presence-grid="breakdown-glide"]' });
+  await measureVisitPair('Schedule→Calendar',
+    { tab: 'Calendar', anchor: '[data-cal-grid]' },
+    { tab: 'Schedule', anchor: '[data-presence-surface="schedule"]' });
+  await measureVisitPair('Calendar→Breakdown',
+    { tab: 'Breakdown', anchor: '[data-presence-grid="breakdown-glide"]' },
+    { tab: 'Calendar', anchor: '[data-cal-grid]' });
+
+  // Sub-tabs within Breakdown: Glide → Sheet → Script → Glide.
+  await measureVisitPair('Glide→Sheet',
+    { sub: 'Sheet', anchor: '[data-sheet-sticky]' },
+    { sub: 'Glide Breakdown', anchor: '[data-presence-grid="breakdown-glide"]' });
+  if (size.scriptScenes > 0) {
+    // Only meaningful with a retained screenplay (the demo seed has none —
+    // point LEMON_SEED_PATH at a real project for the script numbers).
+    await measureVisitPair('Sheet→Script',
+      { sub: 'Script', anchor: '[data-testid="script-scene"]' },
+      { sub: 'Sheet', anchor: '[data-sheet-sticky]' });
+    await measureVisitPair('Script→Glide',
+      { sub: 'Glide Breakdown', anchor: '[data-presence-grid="breakdown-glide"]' },
+      { sub: 'Script', anchor: '[data-testid="script-scene"]' });
+  } else {
+    console.log('[tab-switch] no screenplay in this project — Script sub-tab pairs skipped');
+  }
+
+  console.log('\n=== TAB-SWITCH SUMMARY (first visit -> repeat) ===');
+  const byLabel = new Map<string, SwitchSample[]>();
+  for (const s of samples) {
+    if (!byLabel.has(s.label)) byLabel.set(s.label, []);
+    byLabel.get(s.label)!.push(s);
+  }
+  for (const [label, runs] of byLabel) {
+    const fmt = (s: SwitchSample) => s.error ? 'n/a' : `${s.content}ms(blk ${s.blocking})`;
+    console.log(`${label}: ${runs.map(fmt).join(' -> ')}`);
+  }
+});
+
 test('@perf script tab: open + interactions with a full screenplay (roadmap 163)', async ({ page }) => {
   test.setTimeout(600000);
   // The bridge drives the project-change round; the perf configs don't preset
