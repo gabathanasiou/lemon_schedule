@@ -1076,52 +1076,6 @@ switching designs switches everyone's editor.
 - **Relations**: `relates to` **229** (S4 made the project-wide sync instant — the reason this
   surfaced), **212** (call-sheet/designer parity), **231**.
 
-## 242. Collaboration — blocked undo: tell the user when a peer built on their edit (`[ ]`, no text merge)
-
-**Requested 2026-10-15 (user):** keep room undo simple and honest. A types "hello" in a
-text field (the Sheet's Description or any other text area), B extends it to "hello world" —
-A's ⌘Z currently does *nothing*, silently, and it is worse than silent: the undo still
-consumes A's change and offers a redo that re-applies the stale value OVER B's text. **User
-decision: stay in Figma's school** — no text-level merging (the Google Docs/Canva school is
-explicitly OUT for now): the built-upon edit simply can't be undone while the later edit
-stands. Only the *honesty* is missing.
-
-- **Why (verified in `workers/rooms/src/room.ts`):** `handleUndo` removes the caller's latest
-  unit and rebuilds `present` from the newest snapshot while replaying every other row — a
-  peer's later whole-value commit (`UPDATE_SCENE { description }`, `UPDATE_REPORT_DESIGN`, …)
-  restores their full string, so the rebased state EQUALS the pre-undo state. The unit is
-  still pushed onto the caller's redo stack, and `handleRedo` re-applies its original actions
-  as fresh actions — wiping the peer's later text.
-- **Approach (room-side, small):** in `handleUndo`, compare the rebuilt project with
-  `present` (deep-equal helper; both states are plain JSON). Identical → BLOCKED: reply
-  through the existing `error` path with a distinct user-facing message ("Can't undo —
-  someone edited this after you"; peer name via the client's presence map is a nice-to-have),
-  do NOT push the redo entry. Delete the unit rows as today (so the next ⌘Z moves on to the
-  caller's earlier units instead of re-blocking forever) but skip the snapshot/LOAD/broadcast
-  — the state is unchanged. `undoState` is already re-pushed after every `undo`.
-- **Partial units** (some fields still revertible): state differs → the normal undo path runs
-  unchanged; the built-upon fields simply survive. **Redo safety:** never re-apply a stale
-  unit over a peer's later work — if the project changed since that undo, refuse the redo
-  with the same message (minimal whole-state compare; no per-field merging).
-- **Known edge (pin it in the probe, don't build around it):** consuming the blocked row
-  means a later peer undo rebuilds without it (the exact fallback depends on snapshot
-  placement — may drop A's text too, not just the peer's). Acceptable v1; revisit with a
-  non-destructive per-user skip only if the two-window pass flags it.
-- **Client (message surface):** there is no toast system — add ONE minimal transient message
-  near the header undo/redo buttons (reuse the status-chip pattern) and route the existing
-  silent room errors through it (`RoomClient.onError` is `console.warn`-only today,
-  `src/store/provider.tsx` — "nothing to undo" / "action too old to undo" become visible too).
-- **Non-negotiables:** no text merge, no per-action field introspection; the room stays the
-  single ordering authority; the message never blocks editing; local (non-collab) undo
-  unchanged.
-- **Verify:** extend `workers/rooms/test/room-probe.ts` — A types, B extends, A undo →
-  blocked message + state unchanged + no redo offered; B undo → their edit reverts; A undo
-  then succeeds. Extend `workers/rooms/test/two-window-repro.mjs` with the same scenario
-  (message visible, B's text intact, redo unavailable). Message look = rule-7 manual.
-- **Relations:** `extends` **229** (S4 rooms — per-user undo). `relates to` **239** (same
-  header room-status chrome / message surface), **233** (whole-array designer edits ride this
-  rule unchanged).
-
 ## 243. Follow — mirror view toggles/state (manager sidebar category, designer Fields/Values + Preview) (`[ ]`)
 
 **Requested 2026-10-15 (user):** following mirrors the place, but not enough of the peer's

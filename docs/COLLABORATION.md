@@ -387,7 +387,12 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
 **S4 — Realtime collaborative editing.** Per-project room (DO) running the pure
 reducer: validates, applies, persists (action log + periodic snapshot), broadcasts
 `(action, revision)`. Reconnect/late-join = latest snapshot + action replay.
-Per-user undo (each user undoes their own actions only). **Offline buffer
+Per-user undo (each user undoes their own actions only). **Undo honesty (roadmap
+242, built 2026-10-15)**: when a peer's later whole-value edit absorbed your
+unit, the undo would revert nothing — the room says so (a transient note by the
+header undo/redo buttons) instead of silently doing nothing, consumes the unit so
+your next ⌘Z moves on, and offers no stale redo that could clobber the peer's
+text; a redo over a peer's later edit is refused the same way. **Offline buffer
 (stage 2, built)**: while the room is unreachable, edits apply locally and
 buffer in the client (bounded, oldest dropped past the cap) — the buffer
 replays IN ORDER right after the welcome, so a reconnect loses nothing; the
