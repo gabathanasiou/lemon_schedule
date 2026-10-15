@@ -1076,42 +1076,6 @@ switching designs switches everyone's editor.
 - **Relations**: `relates to` **229** (S4 made the project-wide sync instant — the reason this
   surfaced), **212** (call-sheet/designer parity), **231**.
 
-## 234. Presence — highlight the cells a peer has selected (spreadsheet-style) (`[~]`, stage 2 open)
-
-**Requested 2026-10-15 (user):** when another user has cells selected, show their selection in
-their presence colour, live — a persistent highlight, distinct from S3's floating pointers.
-
-**Stage 1 — every Glide grid, every instance: BUILT 2026-10-15.** The selection protocol
-(anchor + extent grid hits, throttled `selection` broadcast, clear edges, per-user newest-window
-wins, per-clientId pruning) and the shared per-instance renderer
-(`useGlidePeerSelection` → Glide's native `highlightRegions`, resolved from the instance's own
-geometry, so it works in the main window, pop-outs and portalled canvases) are wired into the
-Breakdown (`breakdown-glide`), the Crew/Locations manager grids (`crew-glide`/`locations-glide`)
-and every date-bearing card table (`day:<sectionIndex>:…`, `callsheet:<sectionIndex>:…`).
-Manual: `docs/COLLABORATION.md` §9, `docs/GLIDE-BREAKDOWN.md` §Peer selection highlights; pure
-helpers Vitest (`src/lib/__tests__/glideSelection.test.ts`, `presence.test.ts`); two-window
-harness `workers/rooms/test/two-window-repro.mjs` (drag-select in A → B receives the frame +
-paints the peer colour on the grid canvas; the clear edge wipes it).
-
-**Stage 2 — DOM surfaces (open)**: stripboard rows, Calendar cards and day cards, Report
-Designer blocks + the selected table column (the Call Sheet editor inherits once item 212 lands)
-and Ribbon Designer cells — peer-coloured outline on the element's stable id, `pointer-events-none`,
-same z-order as the other presence chrome. For the designer that is `ReportBlock.id` with the
-existing selected block/column state (`selId`/`selCol` in `reports/ReportDesigner*.tsx`); add
-stable id-based data attributes where needed (the old 236 plan that proposed them was removed —
-see the archive). Reuse the stage-1 protocol (a DOM surface publishes a set of item ids in the
-same `selection` frame / its own scope; the renderer resolves ids → element rects per instance)
-rather than a parallel channel.
-
-- **Rules (both stages)**: ephemeral only (never persisted, never a room action); multi-window =
-  one selection per user, newest window wins (parity with pointers and item 232's transport
-  split — selections are `view`-ish traffic and must ride broadcasts, never `track()`); clear on
-  blur/window switch; the scope string (not a separate gate) carries the place/day identity.
-- **Verify (stage 2)**: two-client manual pass per surface (select in one window → peer-coloured
-  outline in the other, correct through scroll/zoom, clears on deselect).
-- **Relations**: `extends` **229** (S3 presence). `relates to` **172** (Glide jump/flash —
-  share the highlight visuals), **235** (sibling presence polish), **231** (peer colours).
-
 ## 242. Collaboration — blocked undo: tell the user when a peer built on their edit (`[ ]`, no text merge)
 
 **Requested 2026-10-15 (user):** keep room undo simple and honest. A types "hello" in a
