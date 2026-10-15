@@ -42,6 +42,25 @@ export function itemsByAttribute(attr: string): ItemResolver {
   };
 }
 
+/** Presence chrome — the layers that paint OVER content but must never count
+ *  as COVERING it in the ring's visibility test: the pointer-marker layer
+ *  (`PresenceOverlay`), the drag-ghost layer (`RemoteDragGhosts`) and the ring
+ *  layer itself (`PeerItemOutlines`) each carry the marker. The peer's own
+ *  marker sits exactly on the item they just selected, so treating it as an
+ *  occluder made rings flicker off a beat after appearing. */
+const PRESENCE_CHROME_SELECTOR = '[data-presence-chrome]';
+
+/** The topmost element at a point that is NOT presence chrome — what the ring
+ *  must resolve to for its rect to be shown. Real chrome (sticky headers,
+ *  open menus) still hides the rect: covered means hidden, never faked. */
+export function topVisibleElementAt(doc: Document, x: number, y: number): Element | null {
+  if (typeof doc.elementsFromPoint !== 'function') return doc.elementFromPoint(x, y);
+  for (const el of doc.elementsFromPoint(x, y)) {
+    if (!el.closest(PRESENCE_CHROME_SELECTOR)) return el;
+  }
+  return null;
+}
+
 /** One measured outline, in viewport coordinates (the layer is `fixed`). */
 export interface PeerOutlineRect {
   userId: string;

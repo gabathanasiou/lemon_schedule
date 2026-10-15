@@ -41,7 +41,7 @@ import {
 } from '../supabase/presence';
 import { createOverlaySignalHub } from '../localOverlaySignal';
 import { glideStep, SMOOTH_TAU_MS } from '../glideMotion';
-import { avatarColor, initialsOf, shortNameOf } from '../avatarIdentity';
+import { avatarColor, shortNameOf } from '../avatarIdentity';
 
 describe('avatar identity', () => {
   it('derives the same color for the same seed, different across seeds', () => {
@@ -50,11 +50,7 @@ describe('avatar identity', () => {
     expect(avatarColor('user-a')).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it('derives initials and a compact label', () => {
-    expect(initialsOf('Sam Fisher')).toBe('SF');
-    expect(initialsOf('Anonymous Otter')).toBe('AO');
-    expect(initialsOf('Prince')).toBe('P');
-    expect(initialsOf('  ')).toBe('?');
+  it('derives a compact label', () => {
     expect(shortNameOf('Anonymous Otter')).toBe('Anonymous');
     expect(shortNameOf('')).toBe('Someone');
   });

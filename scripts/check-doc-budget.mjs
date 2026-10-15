@@ -211,7 +211,10 @@ const E2E_SPEC_CAP = 70;
 // 275 → 278: EntityDropdown context matrix (entity-dropdown-contexts.spec.ts
 // + the Glide canvas overlay case) — panel picks must commit and never leak
 // into host handlers on every host shape (Scene Sheet / popup / Glide).
-const E2E_TEST_CAP = 278;
+// 278 → 280: roadmap 233 — the designers' editing focus moved to a per-user
+// localStorage pref; "the pick must not write the project (a room action) and
+// must survive a reload" needs a real client (designer remount + onAction spy).
+const E2E_TEST_CAP = 280;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

@@ -169,3 +169,11 @@ the recommended remedy was applied:** every `timeout: 3000` in
 HTML reads use `expect.poll(..., { timeout: 8000 })` instead of unpinned
 reads. Verified 18/18 with `--repeat-each=3`; the entry stays in case it
 recurs under heavier load.
+
+**2026-10-15 (later) — recursed once more during the roadmap-233 merge suite**
+(`:84` failed the attempt AND the retry under 2-worker load; the re-run was
+green). Re-triaged to be sure it wasn't the merge: clean `main` gives
+1 flaky/2 passed with `--repeat-each=3`, the merged tree 1 failed/1 flaky/1
+passed with 2 workers and 3/3 passed with `--workers=1` (file-only 6/6).
+Same load-sensitivity, not a regression — if it recurs again, `@quarantine`
+it (`docs/TESTING.md`) rather than chasing the app.

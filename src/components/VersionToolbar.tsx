@@ -3,6 +3,7 @@ import { useProject, useIsCloudProject } from '../store';
 import { useDialog } from './Dialog';
 import { SaveIndicator } from './SaveIndicator';
 import { UndoRedoButtons } from './UndoRedoButtons';
+import { RoomNote } from './RoomNote';
 
 interface VersionToolbarProps {
   projectTitle: string;
@@ -46,6 +47,7 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
         </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs">
+          <RoomNote />
           <UndoRedoButtons isCloudProject={isCloudProject} />
         </div>
       </div>

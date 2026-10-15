@@ -482,8 +482,7 @@ multi-step wizards (dedicate a page), anything not related to the current task.
 
 ### Presence pointers & the follow pill (roadmap 229 S3)
 
-Collaborators' live pointers are the ONE presence visual (user decision 2026-10-12:
-no header avatar bubbles). They live in `PresenceOverlay.tsx` — a single
+Collaborators' live pointers live in `PresenceOverlay.tsx` — a single
 `fixed inset-0 z-30 pointer-events-none` layer; each pointer is a small glyph in
 the person's deterministic `avatarColor` (white outline + `drop-shadow-md`) —
 an arrow, a hand for touch input, a pen dot, or the modal-window icon while
@@ -514,7 +513,12 @@ docs/COLLABORATION.md §9, inspector
 collaborator bubbles** (`UserPresenceCluster`, max 3 + a
 `+N` menu) are follow TOGGLES — click a person to follow their view, click
 again (or Esc / navigate) to stop; they carry the same deterministic colours
-and an amber dot for guests. The "Following X" pill
+and an amber dot for guests. Avatar circles render DiceBear `initials` letters
+on the person's identity colour (roadmap 231). At rest they form ONE tight overlapped stack
+(`-space-x-2.5`); hovering or focusing the strip spreads them into full circles
+(`hover:space-x-1 focus-within:space-x-1`, `transition-all duration-200
+ease-out`, `motion-reduce:transition-none` — roadmap 245) so every person is
+fully visible and easy to hit. The "Following X" pill
 sits at the BOTTOM CENTER (`fixed left-1/2 -translate-x-1/2 z-40
 bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px))`, rounded-full, white
 text + a white pulsing dot) and is painted in the followed person's

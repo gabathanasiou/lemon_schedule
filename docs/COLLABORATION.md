@@ -370,8 +370,10 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   (kicked out). Guests admitted by a revoked link are evicted by the same
   membership delete. RLS remains the enforcement point; acceptance
   `rls_s3.sql` (`role_change_pushes_access_event` / `revoke_pushes_access_event`).
-- `AccountAvatar` palette/initials moved to `src/lib/avatarIdentity.ts` (one
-  deterministic identity for the People list, avatars and pointers).
+- `AccountAvatar` (provider photo, else DiceBear `initials` letters on the
+  `avatarColor` circle — user pick 2026-10-15, roadmap 231) + the shared
+  palette in `src/lib/avatarIdentity.ts` (one deterministic identity for the
+  People list, avatars and pointers).
 - Follow completeness (built 2026-10-12): `PresenceView` gains `sheetIndex`,
   `viewMode`, `cellBorders` and `calendarView` (allow-list validated in
   `parseView`), and a `scroll` broadcast (`PresenceScrollSample`) rides the
@@ -387,7 +389,12 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
 **S4 — Realtime collaborative editing.** Per-project room (DO) running the pure
 reducer: validates, applies, persists (action log + periodic snapshot), broadcasts
 `(action, revision)`. Reconnect/late-join = latest snapshot + action replay.
-Per-user undo (each user undoes their own actions only). **Offline buffer
+Per-user undo (each user undoes their own actions only). **Undo honesty (roadmap
+242, built 2026-10-15)**: when a peer's later whole-value edit absorbed your
+unit, the undo would revert nothing — the room says so (a transient note by the
+header undo/redo buttons) instead of silently doing nothing, consumes the unit so
+your next ⌘Z moves on, and offers no stale redo that could clobber the peer's
+text; a redo over a peer's later edit is refused the same way. **Offline buffer
 (stage 2, built)**: while the room is unreachable, edits apply locally and
 buffer in the client (bounded, oldest dropped past the cap) — the buffer
 replays IN ORDER right after the welcome, so a reconnect loses nothing; the
@@ -575,8 +582,14 @@ concurrency semantics in its doc.
     `data-presence-grid`), so pop-outs resolve with their own geometry. Rings
     are `inset 0 0 0 2px <peer colour>` in a fixed z-30 `pointer-events-none`
     layer (the pointer/ghost z-order, below modals); a rect that is scrolled
-    out of its container or under sticky chrome is HIDDEN, not faked (centre
-    hit test — same rule as pointers). The stripboard/Calendar mount per view
+    out of its container or under sticky chrome/menus is HIDDEN, not faked —
+    the centre hit test must find the item at the top of the stack, EXCEPT
+    presence chrome (peer markers, drag ghosts, the rings themselves carry
+    `data-presence-chrome`), which paints over content but never counts as
+    covering it: the peer's own pointer sits exactly on what they just
+    clicked, and treating it as an occluder made rings flicker off a beat
+    after appearing (caught by the harness's persistence check). The
+    stripboard/Calendar mount per view
     mode (a strips-mode selection clears when Events is what's mounted); the
     Report Designer publishes the block OR the column (selecting a column
     clears the block) and the zone/Call-Sheet canvas keeps its own scope for
@@ -654,9 +667,12 @@ concurrency semantics in its doc.
   - the **stripboard View menu** (A4 width, cell borders) and the **Calendar
     Strips/Events** switch — pref-shaped `PresenceView` fields applied by the
     mounted surfaces through the same setters the UI uses (they stick after
-    unfollowing, like Figma keeping your last zoom). **Ribbon layout** is
-    project state (`activeRibbonId`) and reaches peers through the S3.5 save
-    ping, not presence.
+    unfollowing, like Figma keeping your last zoom). The stripboard's **ribbon
+    layout** (the shared display look) is project state (`activeRibbonId`) and
+    reaches peers through the S3.5 save ping, not presence — while the
+    DESIGNERS' editing focus (Reports Designer + Ribbon Designer, roadmap 233)
+    is a per-user pref (`src/lib/persist.ts`, `useActiveDesignId`) that never
+    leaves the browser: design contents are shared, what you are editing is not.
   - the **scroll position** of the stripboard, Calendar, Sheet and Glide grid —
     a separate `scroll` broadcast (~8/s, coalescing + idle skip) with SEMANTIC
     anchors (never pixels): the top-edge item's key + a 0..1 offset, sampled
@@ -708,7 +724,10 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   immediately LEFT of your own avatar (max 3 + a "+N" menu), each a FOLLOW
   TOGGLE — click to follow that person, click again (or Esc / navigate) to
   stop. Guest bubbles carry an amber dot / "(guest)" label; the header cluster
-  keeps your own avatar as before.** Bubbles also carry the animated
+  keeps your own avatar as before.** At rest the bubbles form one tight
+  overlapped stack; hovering or focusing the strip spreads them into full
+  circles (`hover:space-x-1 focus-within:space-x-1`, 200ms, reduced-motion
+  aware) so each person is fully visible and clickable (roadmap 245). Bubbles also carry the animated
   local-overlay dots while that person is inside a menu/modal the others
   cannot see (roadmap 240; the pointer tag shows the same cue while you are on
   their view). Pointers from peers on another view or

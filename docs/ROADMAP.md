@@ -1036,91 +1036,18 @@ pass (doc §12).
 
 **Relations**: `relates to` **229** (collab entitlement + shared gating), **145** (desktop app = the true offline host), **209** (account question).
 
-## 231. Collaboration avatars — generated identities (letter + color; richer styles) (`[ ]`)
+## 231. Collaboration avatars — generated identities (letter + color; richer styles) (`[~]`)
 
 **Requested 2026-10:** collaborators and guests need distinct, recognisable avatars (backgrounds + letters differ per person) in the sharing panel, the header cluster and the S3 presence bubbles.
 
 - **Shipped baseline (roadmap 229 S2.5)**: `AccountAvatar` (`src/components/AccountAvatar.tsx`) derives a deterministic flat color (10-tone palette, FNV-1a over the account id) + initials (first letters of first/last words — "Anonymous Otter" → AO), stable on every client. Same component everywhere (`UserPresenceCluster`, `sharingParts` MemberRow).
-- **Open — richer styles**: evaluate a library vs the built-in look: `boring-avatars` (geometric marks) or `@dicebear/core` + `@dicebear/collection` (illustrated styles). Constraints if one lands: locally generated SVG (no network), deterministic per user id, light/dark friendly, one small dependency actually imported by a source file (AGENTS.md §Stack), kit-bundle budget.
-- **Wire into**: presence bubbles (229 S3), the People list, the profile modal; keep the deterministic color available as the dependency-free fallback.
+- **Evaluated 2026-10-15** (real-import esbuild probe, min+gzip; visual contact sheet):
+  - `boring-avatars` 2.0.4 (MIT, React component, 5 variants) — **2.8 KB gzip** measured; the gradient look reads muddy at 24px bubble size, and multi-colour marks ignore the flat identity colour (the avatar would no longer match the person's pointer/label colour).
+  - `@dicebear/core` + ONE style package — seed-deterministic (verified), **4.0–6.6 KB gzip** tree-shaken (initials 4.0 / identicon 4.3 / shapes 4.7 / rings 5.0 / thumbs 6.6); `shapes`/`thumbs`/`rings` read clearly at bubble size, `pixel-art` noisy, transparent-bg styles (notionists/lorelei/glass) need an explicit `backgroundColor` on the dark chrome. Licences MIT except `dylan`/`micah`/`personas`/`fun-emoji` (MIT AND CC-BY-4.0 — attribution) and `bottts` (own licence). Import standalone style packages (`@dicebear/core` + `@dicebear/shapes`) — `@dicebear/collection` drags ~30 style packages into node_modules (the bundle tree-shakes either way).
+  - **Decided + built 2026-10-15 (user pick, in the `presence-avatars` worktree — pending the visual pass + merge):** DiceBear `initials` — the library's letters/font (Arial), circle background forced to `avatarColor(account id)` via `backgroundColor`, white letters (library default); `@dicebear/core` + `@dicebear/initials` standalone packages. `AccountAvatar` renders `toDataUri()` through an `<img>` (no innerHTML); letters seed = display name (`name || email || id`); `avatarIdentity.ts` keeps the palette + `shortNameOf` (`initialsOf` removed, tests updated). Every `AccountAvatar` surface inherits it (bubbles, People list, profile modal, Project Manager bar).
 - **Verify**: manual visual pass (rule 7 — a screenshot catches it); unit test for the palette/initials only if a new pure util lands.
 
 **Relations**: `extends` **229** (S2.5 guests, S3 presence).
-
-## 233. Reports Designer — per-user active design (two people edit two different reports) (`[ ]`)
-
-**Requested 2026-10-15 (user):** two collaborators must be able to edit DIFFERENT report designs
-at the same time. Today the designer's design selector dispatches `SET_ACTIVE_REPORT`
-(`src/components/reports/ReportDesigner.tsx` — `DesignsMenu onSelect`) into
-`Project.activeReportId` — project state, now streamed live by the S4 room — so one person
-switching designs switches everyone's editor.
-
-- **Approach**: the EDITING FOCUS becomes a per-user pref; the DESIGN CONTENT stays project
-  state (shared edits to one design are already multiplayer). Precedent to copy: the Day
-  Manager already prefers its per-user `prefs.callSheetDesignId` and only falls back to
-  `activeReportId` (`src/components/production/day/DayManagerPage.tsx:134`; the pref type is
-  in `production/day/daySectionTypes.ts`).
-- **Audit every `activeReportId` consumer** and give each the right source: ReportDesigner
-  (per-user), DayManagerPage call-sheet (already pref-first — retire the fallback?), print +
-  Reports-tab flows (`reports/ReportPrintDialog` etc. — per-user last-used vs an explicit pick
-  in the dialog), reducer `LOAD` defaults (keep a valid project-level value for older files).
-- **Decision (user, 2026-10-15): the Ribbon Designer's editing view becomes per-user as
-  well** — same pattern, same pass (design contents shared, editing focus personal). Open
-  sub-decision: whether the stripboard's DISPLAY layout follows the personal choice or stays
-  a shared "document look" (if unsure, split the field: shared `activeRibbonId` for display +
-  a per-user editing id for the designer). COLLABORATION.md §9's "ribbon layout is project
-  state" line updates with this item.
-- **Verify**: two-window pass — each window selects a different design with no cross-switching;
-  refresh keeps the per-user choice; selector no longer rides the room; Vitest for the pref
-  helper if a new pure util lands.
-- **Relations**: `relates to` **229** (S4 made the project-wide sync instant — the reason this
-  surfaced), **212** (call-sheet/designer parity), **231**.
-
-## 242. Collaboration — blocked undo: tell the user when a peer built on their edit (`[ ]`, no text merge)
-
-**Requested 2026-10-15 (user):** keep room undo simple and honest. A types "hello" in a
-text field (the Sheet's Description or any other text area), B extends it to "hello world" —
-A's ⌘Z currently does *nothing*, silently, and it is worse than silent: the undo still
-consumes A's change and offers a redo that re-applies the stale value OVER B's text. **User
-decision: stay in Figma's school** — no text-level merging (the Google Docs/Canva school is
-explicitly OUT for now): the built-upon edit simply can't be undone while the later edit
-stands. Only the *honesty* is missing.
-
-- **Why (verified in `workers/rooms/src/room.ts`):** `handleUndo` removes the caller's latest
-  unit and rebuilds `present` from the newest snapshot while replaying every other row — a
-  peer's later whole-value commit (`UPDATE_SCENE { description }`, `UPDATE_REPORT_DESIGN`, …)
-  restores their full string, so the rebased state EQUALS the pre-undo state. The unit is
-  still pushed onto the caller's redo stack, and `handleRedo` re-applies its original actions
-  as fresh actions — wiping the peer's later text.
-- **Approach (room-side, small):** in `handleUndo`, compare the rebuilt project with
-  `present` (deep-equal helper; both states are plain JSON). Identical → BLOCKED: reply
-  through the existing `error` path with a distinct user-facing message ("Can't undo —
-  someone edited this after you"; peer name via the client's presence map is a nice-to-have),
-  do NOT push the redo entry. Delete the unit rows as today (so the next ⌘Z moves on to the
-  caller's earlier units instead of re-blocking forever) but skip the snapshot/LOAD/broadcast
-  — the state is unchanged. `undoState` is already re-pushed after every `undo`.
-- **Partial units** (some fields still revertible): state differs → the normal undo path runs
-  unchanged; the built-upon fields simply survive. **Redo safety:** never re-apply a stale
-  unit over a peer's later work — if the project changed since that undo, refuse the redo
-  with the same message (minimal whole-state compare; no per-field merging).
-- **Known edge (pin it in the probe, don't build around it):** consuming the blocked row
-  means a later peer undo rebuilds without it (the exact fallback depends on snapshot
-  placement — may drop A's text too, not just the peer's). Acceptable v1; revisit with a
-  non-destructive per-user skip only if the two-window pass flags it.
-- **Client (message surface):** there is no toast system — add ONE minimal transient message
-  near the header undo/redo buttons (reuse the status-chip pattern) and route the existing
-  silent room errors through it (`RoomClient.onError` is `console.warn`-only today,
-  `src/store/provider.tsx` — "nothing to undo" / "action too old to undo" become visible too).
-- **Non-negotiables:** no text merge, no per-action field introspection; the room stays the
-  single ordering authority; the message never blocks editing; local (non-collab) undo
-  unchanged.
-- **Verify:** extend `workers/rooms/test/room-probe.ts` — A types, B extends, A undo →
-  blocked message + state unchanged + no redo offered; B undo → their edit reverts; A undo
-  then succeeds. Extend `workers/rooms/test/two-window-repro.mjs` with the same scenario
-  (message visible, B's text intact, redo unavailable). Message look = rule-7 manual.
-- **Relations:** `extends` **229** (S4 rooms — per-user undo). `relates to` **239** (same
-  header room-status chrome / message surface), **233** (whole-array designer edits ride this
-  rule unchanged).
 
 ## 243. Follow — mirror view toggles/state (manager sidebar category, designer Fields/Values + Preview) (`[ ]`)
 
@@ -1159,3 +1086,71 @@ also mirror **modal/dropdown open state**?
   active design), **234** (peer selection highlights —
   sibling "local state made visible" work), **240** (the overlay cue — this item's
   modal/dropdown answer).
+
+## 245. Presence cluster — collapsed bubbles that spread on hover (`[~]`)
+
+**Requested 2026-10-15 (user):** the header "people viewing" bubbles take the full
+row; they should sit more collapsed at rest and spread apart on hover.
+
+- **Built 2026-10-15 in the `presence-avatars` worktree** (pending the visual pass
+  + merge): the bubble strip (`src/components/UserPresenceCluster.tsx`) is ONE tight
+  overlapped stack at rest (`-space-x-2.5`, was `-space-x-1.5`) and spreads into full
+  circles on hover/focus (`hover:space-x-1 focus-within:space-x-1` on the container;
+  `transition-all duration-200 ease-out` + `motion-reduce:transition-none` on the
+  bubbles and the `+N` chip). No JS, no state; no new hover mechanics (un-gated hover
+  — iOS first tap = sticky spread, second tap = follow, the app-wide hover-reveal
+  model).
+- **Decisions:** spread only (no name labels); keep max 3 + `+N`; the strip grows
+  leftwards, so the undo/redo pair slides with it (~40px, animated) — called out in
+  the manual pass.
+- **Verify (rule 7 — visual, no e2e):** two online clients → bubbles overlap tightly;
+  hover the strip → every bubble fully visible and clickable; move away → collapse;
+  follow toggle, guest dot, overlay dots and the `+N` menu all still work;
+  `prefers-reduced-motion` → no animation.
+- **Relations:** `extends` **229** (S3 presence chrome). `relates to` **231**
+  (avatar identities — same bubbles), **234**/**235** (sibling presence visuals).
+
+## 246. Local dev — auto-start the rooms worker (`wrangler dev`) for dev servers, collab sessions and tests (`[ ]`)
+
+**Requested 2026-10-15 (user):** with the room worker deploying to Cloudflare soon,
+the local emulator (`wrangler dev` = Miniflare/workerd + DO SQLite state) should come
+up on demand — from `npm run dev`, when a collab session starts, and when tests run —
+instead of the manual background command.
+
+- **Today (manual):** `npx wrangler dev --port 8787` in `workers/rooms` + gitignored
+  `.dev.vars` (`DEV_AUTH=1` accepts `dev:<userId>:<role>` —
+  `workers/rooms/wrangler.toml:9`, `src/lib/rooms/roomToken.ts:121`) + `.env`
+  `VITE_ROOMS_URL` (`.env.example:14-20`). Client gate: `useRoomTransport.ts:40` —
+  unset = rooms inert; `roomBadge.ts` shows `unreachable` when the worker is down.
+  Wrangler is NOT pinned (`npx` fetches latest each run) — add `wrangler@4` to
+  devDependencies.
+- **One launcher `tools/rooms-dev.mjs`:** `ensure()` = health-probe 8787 → reuse
+  (so N worktree dev servers share ONE worker, `.dev.vars` and DO state) else spawn
+  `npx wrangler dev` from the MAIN working tree's `workers/rooms` (resolve via
+  `git worktree list`), wait for ready, `[rooms]`-prefixed logs; `stop()` kills only
+  what it spawned. The worker has no health route today — add `GET /health` to
+  `workers/rooms/src/index.ts` (no auth, no data).
+- **Dev server:** a serve-only Vite plugin (`vite.config.ts`; precedent:
+  `hubStorageBridge`) — `ensure()` after listen, stop its own spawn on exit; when
+  `VITE_ROOMS_URL` is unset, default the client to the loopback URL (no `.env` edit);
+  a worker failure never blocks the dev server (badge shows unreachable).
+- **On-demand (the "collab session starts" ask):** the browser cannot spawn
+  processes — the DEV SERVER does: dev-only middleware `GET /__rooms-dev/ensure`;
+  `useRoomTransport` fetches it once before `client.start()`, only when
+  `import.meta.env.DEV` and the URL is loopback (prod builds never call it). Debug
+  bridge may expose `roomsDev.status()` for agents.
+- **Tests:** `playwright.rooms.config.ts` (precedent: `playwright.perf*.config.ts`)
+  extends the base config with a second `webServer` entry for the worker
+  (`reuseExistingServer: true`, `--persist-to` a temp dir for clean DO state) +
+  `VITE_ROOMS_URL` + the room specs; the default suite stays Supabase-off
+  (`playwright.config.ts:62-80`). Point `room-probe.ts` / `room-client-probe.ts` /
+  `two-window-repro.mjs` at the same launcher (two-window-repro's private
+  pkill/restart is the duplication to remove).
+- **Out of scope:** Supabase locally (`supabase start`, Docker) — dev keeps the
+  hosted project; a fully-offline collab stack is its own future item.
+- **Verify:** `npm run dev` with a shared project open → room connects with no manual
+  wrangler; kill the worker → badge `unreachable` + offline buffer, relaunch via the
+  ensure endpoint → replays; two worktree dev servers share ONE worker; `npx
+  playwright test --config=playwright.rooms.config.ts` green.
+- **Relations:** `extends` **229** (S4 local loop + deploy prep); `relates to` **145**
+  (desktop app = the eventual no-terminal host).

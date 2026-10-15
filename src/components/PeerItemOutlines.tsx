@@ -5,6 +5,7 @@ import {
   itemSelectionOf,
   outlineRectSignature,
   PRESENCE_SURFACE_ATTR,
+  topVisibleElementAt,
   type ItemResolver,
   type PeerOutlineRect,
 } from '../lib/itemSelection';
@@ -31,8 +32,10 @@ import { cssEscape } from '../lib/utils';
  * THIS window's document (pop-outs resolve with their own geometry), so the
  * scope string is the visibility gate — parity with the grids' `scope` rule.
  * A rect that is scrolled out of its container or covered by sticky chrome is
- * HIDDEN, not faked (the centre hit test — parity with the pointer rule).
- * The `resolve` vocabulary is the surface's own: `itemsByAttribute('data-row-id')`
+ * HIDDEN, not faked (the centre hit test — parity with the pointer rule);
+ * presence chrome (peer markers, drag ghosts, these rings) is exempt, so the
+ * peer's own pointer never hides the ring of what they just selected. The
+ * `resolve` vocabulary is the surface's own: `itemsByAttribute('data-row-id')`
  * for the stripboard/calendar cards, a composite id for the Report Designer's
  * selected table column, etc.
  *
@@ -133,12 +136,13 @@ export function PeerItemOutlines({
           for (const el of resolve(id, root)) {
             const r = el.getBoundingClientRect();
             if (r.width < 2 || r.height < 2) continue;
-            // Centre hit test: scrolled out of its container, or under sticky
-            // chrome, resolves to another element (or nothing, off-viewport).
-            // The layer itself is pointer-events-none, so it never occludes
-            // its own hit test.
-            const hit = doc.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-            if (!hit || (hit !== el && !el.contains(hit))) continue;
+            // Visibility: the topmost element at the centre that is NOT
+            // presence chrome must be the item. Scrolled out of its container
+            // or under sticky chrome/menus → hidden, never faked (parity with
+            // the pointer rule). Presence chrome — the peer's pointer marker
+            // sits exactly on what they just clicked — never hides a ring.
+            const top = topVisibleElementAt(doc, r.left + r.width / 2, r.top + r.height / 2);
+            if (!top || (top !== el && !el.contains(top))) continue;
             next.push({ userId: peer.userId, item: id, left: r.left, top: r.top, width: r.width, height: r.height });
           }
         }
@@ -159,7 +163,7 @@ export function PeerItemOutlines({
 
   if (rects.length === 0) return null;
   return (
-    <div className="fixed inset-0 z-30 pointer-events-none overflow-hidden" aria-hidden>
+    <div className="fixed inset-0 z-30 pointer-events-none overflow-hidden" data-presence-chrome aria-hidden>
       {rects.map(r => (
         <div
           key={`${r.userId}:${r.item}:${Math.round(r.left)},${Math.round(r.top)}`}

@@ -27,7 +27,7 @@ import { ItemManagerDropdown } from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
-import { useViewMode, useCellBorders } from '../lib/persist';
+import { useViewMode, useCellBorders, useActiveDesignId, RIBBON_ACTIVE_DESIGN_KEY } from '../lib/persist';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { Tooltip } from './Tooltip';
 import RibbonPalette from './ribbon/RibbonPalette';
@@ -81,7 +81,15 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const { state, dispatch, locked } = useProject();
   const dialog = useDialog();
   const project = state.present;
-  const activeDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId)
+  // The design being EDITED is a per-user pref (roadmap 233) — the design
+  // contents stay project state (`ribbonDesigns`), while the stripboard's
+  // DISPLAY layout keeps reading the shared `activeRibbonId` (one document
+  // look for the team). Two collaborators can edit two layouts without
+  // switching each other's designer or stripboard.
+  const [editingDesignId, setEditingDesignId] = useActiveDesignId(
+    RIBBON_ACTIVE_DESIGN_KEY, project.ribbonDesigns, project.activeRibbonId,
+  );
+  const activeDesign = project.ribbonDesigns.find(d => d.id === editingDesignId)
     || { id: '', name: 'Default', colWidths: getDefaultColWidths(), rows: getDefaultRibbonRows(), createdAt: 0 };
   const activeDesignRef = useRef(activeDesign);
   activeDesignRef.current = activeDesign;
@@ -125,11 +133,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   }, []);
 
   useEffect(() => {
-    const design = project.ribbonDesigns.find(d => d.id === project.activeRibbonId);
+    const design = project.ribbonDesigns.find(d => d.id === editingDesignId);
     if (design) {
       resetRows(design.rows);
     }
-  }, [project.ribbonDesigns, project.activeRibbonId, resetRows]);
+  }, [project.ribbonDesigns, editingDesignId, resetRows]);
 
   // Presence (roadmap 236): publish the OPEN ribbon design so peers on another
   // design are hidden (the pointer document gate) and pointers can anchor to
@@ -149,15 +157,16 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   }, [activeDesign, dispatch]);
 
   const saveDefaultAsDesign = useCallback(() => {
-    // No active design (project without designs or stale active id): if the
-    // default layout was actually modified, save it automatically as a design
-    // named "Default" — no dialog, the user sees it appear in the design menu.
+    // No editing design (project without designs): if the default layout was
+    // actually modified, save it automatically as a design named "Default" —
+    // no dialog, the user sees it appear in the design menu. ADD_RIBBON_DESIGN
+    // also promotes it to the project's display layout (activeRibbonId).
     if (activeDesignRef.current.id) return;
     if (rowsEqualContent(rowsRef.current, getDefaultRibbonRows())) return;
     const newId = generateUUID();
-    dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: 'Default', rows: cloneRows(rowsRef.current), colWidths: [...colWidthsRef.current] } });
-    dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
-  }, [dispatch]);
+    dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { id: newId, name: 'Default', rows: cloneRows(rowsRef.current), colWidths: [...colWidthsRef.current] } });
+    setEditingDesignId(newId);
+  }, [dispatch, setEditingDesignId]);
 
   const saveDefaultAsDesignRef = useRef(saveDefaultAsDesign);
   saveDefaultAsDesignRef.current = saveDefaultAsDesign;
@@ -586,24 +595,30 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         open={designMenuOpen}
         onClose={(open) => setDesignMenuOpen(open)}
         items={project.ribbonDesigns.map(d => ({ id: d.id, name: d.name }))}
-        activeId={project.activeRibbonId}
-        onSelect={async (id) => { saveDefaultAsDesign(); dispatch({ type: 'SET_ACTIVE_RIBBON', payload: id }); }}
+        activeId={activeDesign.id}
+        onSelect={async (id) => { saveDefaultAsDesign(); setEditingDesignId(id); }}
         onRename={(id, name) => dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id, name } })}
         onDuplicate={(id) => {
           const d = project.ribbonDesigns.find(x => x.id === id);
           if (!d) return;
           const newId = generateUUID();
           dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { id: newId, name: `${d.name} Copy`, cloneFromId: id } });
+          setEditingDesignId(newId);
           return newId;
         }}
         onDelete={async (id) => {
           const ok = await dialog.confirm({ title: 'Delete Design?', message: 'This can be restored from Trash.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_design' });
-          if (ok) dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: id });
+          if (!ok) return;
+          dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: id });
+          // Dropping the design you were editing: clear the pick — it resolves
+          // to the surviving design the reducer promoted.
+          if (id === editingDesignId) setEditingDesignId('');
         }}
         onCreate={() => {
           const name = `Design ${project.ribbonDesigns.length + 1}`;
           const newId = generateUUID();
-          dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { id: newId, name, cloneFromId: project.activeRibbonId } });
+          dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { id: newId, name, cloneFromId: activeDesign.id } });
+          setEditingDesignId(newId);
           return newId;
         }}
         onImport={() => {

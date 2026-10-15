@@ -17,7 +17,8 @@ import {
 import { fieldScopeFor } from '../../lib/reportLookup';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { useDayViews } from '../../lib/dayView';
-import { useViewMode, usePersistState } from '../../lib/persist';
+import { useViewMode, usePersistState, useActiveDesignId, REPORT_ACTIVE_DESIGN_KEY } from '../../lib/persist';
+import { generateUUID } from '../../lib/utils';
 import { usePaneResize } from '../../lib/usePaneResize';
 import { ItemManagerDropdown } from '../DropdownMenu';
 import DropdownMenu from '../DropdownMenu';
@@ -80,7 +81,15 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const [viewMode, setViewMode, viewWidth] = useViewMode();
   const zoneMode = !!zone;
 
-  const activeDesign: ReportDesign | undefined = project.reportDesigns?.find(d => d.id === (zone?.designId || project.activeReportId)) || project.reportDesigns?.[0];
+  // The design being EDITED is a per-user pref (roadmap 233) — the design
+  // contents stay project state (`reportDesigns`), so two collaborators edit
+  // two different designs without switching each other. The project-level
+  // `activeReportId` is only the fallback (older files, first run); nothing in
+  // the UI writes it anymore. In zone mode the host owns the design.
+  const [editingDesignId, setEditingDesignId] = useActiveDesignId(
+    REPORT_ACTIVE_DESIGN_KEY, project.reportDesigns || [], project.activeReportId,
+  );
+  const activeDesign: ReportDesign | undefined = project.reportDesigns?.find(d => d.id === (zone?.designId || editingDesignId)) || project.reportDesigns?.[0];
 
   const [blocks, setBlocks] = useState<ReportBlock[]>(() => (zone?.blocks ? JSON.parse(JSON.stringify(zone.blocks)) : activeDesign?.blocks || []));
   const [headerBlocks, setHeaderBlocks] = useState<ReportBlock[]>(() => activeDesign?.header || []);
@@ -540,9 +549,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       try {
         const parsed = JSON.parse(String(reader.result));
         if (!Array.isArray(parsed.blocks)) throw new Error('bad format');
+        const newId = generateUUID();
         dispatch({
           type: 'ADD_REPORT_DESIGN',
           payload: {
+            id: newId,
             name: parsed.name || 'Imported Report',
             blocks: parsed.blocks,
             header: parsed.header || [],
@@ -550,6 +561,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             page: parsed.page === 'landscape' ? 'landscape' : 'portrait',
           },
         });
+        setEditingDesignId(newId);
       } catch {
         // ignore invalid files
       }
@@ -563,14 +575,25 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         designs={project.reportDesigns || []}
         activeId={activeDesign?.id || ''}
         readOnly={locked}
-        onSelect={id => dispatch({ type: 'SET_ACTIVE_REPORT', payload: id })}
+        onSelect={id => setEditingDesignId(id)}
         onRename={(id, name) => dispatch({ type: 'RENAME_REPORT_DESIGN', payload: { id, name } })}
         onDuplicate={id => {
           const d = project.reportDesigns?.find(x => x.id === id);
-          dispatch({ type: 'ADD_REPORT_DESIGN', payload: { name: `${d?.name || 'Report'} Copy`, cloneFromId: id } });
+          const newId = generateUUID();
+          dispatch({ type: 'ADD_REPORT_DESIGN', payload: { id: newId, name: `${d?.name || 'Report'} Copy`, cloneFromId: id } });
+          setEditingDesignId(newId);
         }}
-        onDelete={id => dispatch({ type: 'DELETE_REPORT_DESIGN', payload: id })}
-        onCreate={() => dispatch({ type: 'ADD_REPORT_DESIGN', payload: { name: `Report ${(project.reportDesigns?.length || 0) + 1}` } })}
+        onDelete={id => {
+          dispatch({ type: 'DELETE_REPORT_DESIGN', payload: id });
+          // Dropping the design you were editing: clear the pick — it resolves
+          // to the surviving design the reducer promoted.
+          if (id === editingDesignId) setEditingDesignId('');
+        }}
+        onCreate={() => {
+          const newId = generateUUID();
+          dispatch({ type: 'ADD_REPORT_DESIGN', payload: { id: newId, name: `Report ${(project.reportDesigns?.length || 0) + 1}` } });
+          setEditingDesignId(newId);
+        }}
         onImport={() => importFileRef.current?.click()}
         onExport={exportDesign}
         onReset={() => {

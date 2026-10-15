@@ -14,6 +14,7 @@ import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } 
 import { performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 import { useRoomTransport } from '../lib/rooms/useRoomTransport';
 import { fetchRoomToken } from '../lib/rooms/tokenClient';
+import { ROOM_NOTE_MS } from '../lib/rooms/roomNotes';
 import type { RoomQueueInfo, RoomStatus } from '../lib/rooms/roomClient';
 import type { RoomRole } from '../lib/rooms/protocol';
 import { serializeProject } from '../lib/projectCodec';
@@ -75,6 +76,10 @@ export interface ProjectContextType {
   /** The room's offline buffer (roadmap 239 stage 2): edits accepted while the
    *  room is not open are queued and replayed after the next welcome. */
   roomPending: RoomQueueInfo;
+  /** The room's latest advisory message (roadmap 242) — a blocked undo, an
+   *  empty stack, a refusal. Shown as ONE transient note near the header
+   *  undo/redo buttons; never blocks editing. */
+  roomNote: { id: number; message: string } | null;
   /** The active calendar version (production window + day statuses/events) —
    *  drives every calendar surface AND the stripboard's dates. Independent of
    *  the active schedule version (item 66). */
@@ -228,11 +233,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // The room's offline buffer (roadmap 239 stage 2) — edits accepted while the
   // room is not open queue in the client and replay after the next welcome.
   const [roomQueue, setRoomQueue] = useState<RoomQueueInfo>({ pending: 0, dropped: 0 });
+  // Roadmap 242: every room error becomes ONE transient note near the header
+  // undo/redo buttons (blocked undo/redo, empty stacks, refusals). Advisory —
+  // never blocks editing; the `id` re-arms the auto-hide on repeats.
+  const [roomNote, setRoomNote] = useState<{ id: number; message: string } | null>(null);
+  const roomNoteSeqRef = useRef(0);
+  const roomNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showRoomNote = useCallback((message: string) => {
+    roomNoteSeqRef.current += 1;
+    setRoomNote({ id: roomNoteSeqRef.current, message });
+    if (roomNoteTimerRef.current) clearTimeout(roomNoteTimerRef.current);
+    roomNoteTimerRef.current = setTimeout(() => setRoomNote(null), ROOM_NOTE_MS);
+  }, []);
+  const showRoomNoteRef = useRef(showRoomNote);
+  showRoomNoteRef.current = showRoomNote;
   useEffect(() => {
     roomIdentityRef.current = null;
     setRoomUndoState({ canUndo: false, canRedo: false });
     setRoomQueue({ pending: 0, dropped: 0 });
+    setRoomNote(null);
   }, [currentOnlineId, sbUserId]);
+  useEffect(() => () => {
+    if (roomNoteTimerRef.current) clearTimeout(roomNoteTimerRef.current);
+  }, []);
   const { clientRef: roomClientRef, status: roomStatus } = useRoomTransport({
     onlineId: currentOnlineId,
     userId: sbUserId,
@@ -274,7 +297,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       else dispatch(remote.action);
       notifyAgentBridge(remote.action);
     },
-    onError: (message) => console.warn('[rooms]', message),
+    onError: (message) => {
+      console.warn('[rooms]', message);
+      // Roadmap 242: room errors are advisory UI now (blocked undo, empty
+      // stacks, refusals) — the ONE transient note near the undo/redo buttons.
+      showRoomNoteRef.current(message);
+    },
   });
   const roomStatusRef = useRef<RoomStatus>('closed');
   roomStatusRef.current = roomStatus;
@@ -627,6 +655,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (isCurrentOnlineProject()) {
       if (!roomClientRef.current?.sendUndo()) {
         console.warn('[rooms] undo unavailable — the shared project is not connected to the room');
+        showRoomNoteRef.current('Undo needs a live room connection');
       }
       return true;
     }
@@ -638,6 +667,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (isCurrentOnlineProject()) {
       if (!roomClientRef.current?.sendRedo()) {
         console.warn('[rooms] redo unavailable — the shared project is not connected to the room');
+        showRoomNoteRef.current('Redo needs a live room connection');
       }
       return true;
     }
@@ -1532,6 +1562,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     canLocalRedo,
     roomStatus,
     roomPending: roomQueue,
+    roomNote,
     activeCalendarVersion: state.present.calendarVersions.find(v => v.id === state.present.activeCalendarVersionId),
     projectList,
     currentProjectId,
@@ -1564,7 +1595,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     retryConnectivity,
     closeProject,
     consumeLegacyMigrationNotice,
-  }), [state, guardedDispatch, undo, redo, canRoomUndo, canRoomRedo, canLocalUndo, canLocalRedo, roomStatus, roomQueue, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, applyAccessPush, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+  }), [state, guardedDispatch, undo, redo, canRoomUndo, canRoomRedo, canLocalUndo, canLocalRedo, roomStatus, roomQueue, roomNote, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, applyAccessPush, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
 
   return (
     <ProjectContext.Provider value={contextValue}>

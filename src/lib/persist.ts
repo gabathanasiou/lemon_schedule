@@ -129,6 +129,52 @@ export function useSpreadsheetFontSize(defaultSize?: number): [number, (n: numbe
   return [size, setFontSize];
 }
 
+// ---- per-user design editing focus (roadmap 233) -----------------------------
+// A design surface has TWO identities: the design CONTENTS (project state —
+// `project.reportDesigns` / `project.ribbonDesigns`, synced by the room like
+// any other data) and the per-user EDITING FOCUS (which design this person is
+// editing). The focus lives here, never in the project, so one collaborator
+// switching designs never switches anyone else's editor.
+
+export const REPORT_ACTIVE_DESIGN_KEY = 'lemon_schedule_report_active_design';
+export const RIBBON_ACTIVE_DESIGN_KEY = 'lemon_schedule_ribbon_active_design';
+
+/** Resolve an editing focus against the designs that actually exist: the
+ *  stored pick wins; else the project-level default (`activeReportId` /
+ *  `activeRibbonId` — kept valid on LOAD for older files and first runs);
+ *  else the first design. A pick that belongs to another project (or a
+ *  deleted design) never resolves and is never rewritten, so switching
+ *  projects and back restores it. */
+export function resolveActiveDesignId(
+  stored: string | null | undefined,
+  designIds: readonly string[],
+  fallback?: string | null,
+): string {
+  if (stored && designIds.includes(stored)) return stored;
+  if (fallback && designIds.includes(fallback)) return fallback;
+  return designIds[0] || '';
+}
+
+/** The per-user editing focus for a design surface.
+ *  `setActiveDesignId('')` clears the pick (resolve to the project's default). */
+export function useActiveDesignId(
+  storageKey: string,
+  designs: readonly { id: string }[],
+  fallback?: string | null,
+): [string, (id: string) => void] {
+  const [stored, setStored] = useState<string | null>(() => {
+    try { return localStorage.getItem(storageKey); } catch { return null; }
+  });
+  const setActiveDesignId = useCallback((id: string) => {
+    setStored(id || null);
+    try {
+      if (id) localStorage.setItem(storageKey, id);
+      else localStorage.removeItem(storageKey);
+    } catch { /* ignore */ }
+  }, [storageKey]);
+  return [resolveActiveDesignId(stored, designs.map(d => d.id), fallback), setActiveDesignId];
+}
+
 const GLIDE_SMOOTH_SCROLL_KEY = 'lemon_schedule_glide_smooth_scroll';
 
 export function useGlideSmoothScroll(isCoarse: boolean): [boolean, (v: boolean) => void] {
