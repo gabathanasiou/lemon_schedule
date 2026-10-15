@@ -474,9 +474,17 @@ concurrency semantics in its doc.
   viewport are hidden (no edge chips; the header bubbles are how you jump to a
   colleague's place). Script-body cursors stay flagged, not faked
   (TipTap/ProseMirror relative positions — skipped in S3).
-- Motion: pointers glide between positions (CSS transform transition, ~150ms
-  ease-out); `prefers-reduced-motion` snaps instantly. Pointers render BELOW
-  modals (z-30 vs the kit's z-[10000]) — decided 2026-10-12.
+- Motion: pointers glide between positions with a **rAF glide loop inside
+  `PresenceOverlay`** (exponential approach toward the anchor-resolved target,
+  τ ≈ 110ms; targets refresh on a ~80ms measure tick + scroll/resize).
+  `prefers-reduced-motion` snaps instantly. **Do NOT go back to a CSS
+  `transition` on the pointer wrapper** — the cursor feed is ~12/s, so each
+  update restarted the transition mid-flight and the pointer stuttered instead
+  of gliding (reported 2026-10-15; worst while anchored, where the sender's
+  thinned feed also travels through the anchor mapping). Transforms are written
+  per frame through refs (React state holds only the marker SET/flip), so
+  re-renders never clobber the smoothed position. Pointers render BELOW modals
+  (z-30 vs the kit's z-[10000]) — decided 2026-10-12.
 - **Libraries considered (2026-10)**: Liveblocks / Yjs awareness (`y-presence`)
   / tldraw presence all assume a shared canvas coordinate space; none solve a
   per-user-layout DOM app, and each adds a second realtime system — the hybrid

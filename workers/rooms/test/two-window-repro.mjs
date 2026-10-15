@@ -401,6 +401,34 @@ try {
     a: await descOf(A.page), b: await descOf(B.page),
   });
 
+  // ── Presence pointer: renders and FOLLOWS after the glide-loop rewrite
+  // (transforms are written via refs — a broken ref would pin it at 0,0).
+  for (const page of [A.page, B.page]) {
+    await page.getByRole('button', { name: 'Schedule', exact: true }).first().click();
+    await sleep(500);
+  }
+  const cursorAt = () => B.page.evaluate(() => {
+    const el = document.querySelector('[data-testid="presence-cursor"]');
+    if (!el) return null;
+    const m = /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/.exec(el.parentElement?.style.transform ?? '');
+    const r = el.getBoundingClientRect();
+    return { tx: m ? Number(m[1]) : -1, ty: m ? Number(m[2]) : -1, domX: Math.round(r.x), domY: Math.round(r.y) };
+  });
+  await A.page.mouse.move(420, 320);
+  await A.page.mouse.move(460, 340, { steps: 8 });
+  let seen = null;
+  for (let i = 0; i < 40; i++) { seen = await cursorAt(); if (seen) break; await sleep(250); }
+  check('B: peer presence cursor rendered', !!seen, seen);
+  const first = seen;
+  await A.page.mouse.move(820, 420, { steps: 15 });
+  await sleep(700);
+  const after = await cursorAt();
+  check(
+    'B: peer cursor followed the move (glide loop writes transforms)',
+    !!first && !!after && Math.abs(after.tx - first.tx) > 50 && after.domX > 0 && after.domY > 0,
+    { first, after }
+  );
+
   log(failures === 0 ? '\nNO DIVERGENCE — undo/redo reach peers as normal updates' : `\n${failures} problem(s) observed`);
 } catch (e) {
   console.error('repro crashed:', e);

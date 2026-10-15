@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceContext';
 import { sameViewPlace, type PresenceAnchor, type PresencePeer } from '../lib/supabase/presence';
@@ -50,6 +50,12 @@ const TAG_FLIP_MARGIN_PX = 130;
 function tagFlips(x: number): boolean {
   return x > window.innerWidth - TAG_FLIP_MARGIN_PX;
 }
+
+/** Glide smoothing: time constant to close 63% of the distance to the target
+ *  (~110ms reads as a smooth chase against the ~12/s cursor feed) and the
+ *  distance below which the pointer is simply ON target. */
+const SMOOTH_TAU_MS = 110;
+const SNAP_PX = 0.4;
 
 function anchorElement(anchor: PresenceAnchor): HTMLElement | null {
   switch (anchor.kind) {
@@ -131,27 +137,53 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
   const { peers, followingId } = usePresenceState();
   const { follow, stopFollowing } = usePresenceActions();
   const [markers, setMarkers] = useState<MarkerPosition[]>([]);
+  /**
+   * Motion model: `measure()` resolves each peer's TARGET position (the
+   * anchor-mapped rect + fraction) from a ~12/s cursor feed; a rAF loop glides
+   * the rendered node toward that target. A plain CSS transition cannot do this
+   * — every update RESTARTS it mid-flight, so the pointer stutters instead of
+   * gliding (the reported choppiness, worst while anchored, where the sender's
+   * thinned feed also has to travel through the anchor mapping).
+   */
+  const targetsRef = useRef(new Map<string, { left: number; top: number }>());
+  const smoothRef = useRef(new Map<string, { left: number; top: number }>());
+  const nodeRefs = useRef(new Map<string, HTMLDivElement>());
+  /** Marker SET signature — React re-renders only when a pointer or its flip
+   *  side actually changes; positions never go through state. */
+  const sigRef = useRef('');
 
   const cursorPeers = useMemo(() => peers.filter(p => p.cursor), [peers]);
 
   useEffect(() => {
     if (cursorPeers.length === 0) {
+      targetsRef.current = new Map();
+      smoothRef.current.clear();
+      sigRef.current = '';
       setMarkers([]);
       return;
     }
     const measure = () => {
       const now = Date.now();
       const next: MarkerPosition[] = [];
+      const targets = new Map<string, { left: number; top: number }>();
       for (const peer of cursorPeers) {
         if (!peer.cursor || now - peer.cursorTs > CURSOR_TTL_MS) continue;
         const pos = markerPosition(peer.cursor, place, peer);
-        if (pos) next.push({ peer, ...pos });
+        if (!pos) continue;
+        next.push({ peer, ...pos });
+        targets.set(peer.userId, { left: pos.left, top: pos.top });
       }
-      setMarkers(next);
+      targetsRef.current = targets;
+      for (const id of [...smoothRef.current.keys()]) {
+        if (!targets.has(id)) smoothRef.current.delete(id);
+      }
+      const sig = next.map(m => `${m.peer.userId}:${m.flip ? 'L' : 'R'}`).sort().join('|');
+      if (sig !== sigRef.current) {
+        sigRef.current = sig;
+        setMarkers(next);
+      }
     };
     measure();
-    // Reposition on scroll/resize and on a fast tick (pointer updates arrive
-    // ~20/s; 80ms keeps the glide chasing without a per-frame loop).
     const interval = setInterval(measure, 80);
     window.addEventListener('scroll', measure, true);
     window.addEventListener('resize', measure);
@@ -162,6 +194,43 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
     };
   }, [cursorPeers, place]);
 
+  useEffect(() => {
+    if (markers.length === 0) return;
+    // rAF pauses on its own while the tab is hidden.
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let raf = 0;
+    let last = performance.now();
+    const step = (now: number) => {
+      const dt = Math.min(64, now - last);
+      last = now;
+      for (const m of markers) {
+        const id = m.peer.userId;
+        const node = nodeRefs.current.get(id);
+        const target = targetsRef.current.get(id);
+        if (!node || !target) continue;
+        let cur = smoothRef.current.get(id);
+        if (!cur) {
+          // First frame of a new pointer: snap to the target (never glide in
+          // from the corner), then chase from there.
+          cur = { left: target.left, top: target.top };
+          smoothRef.current.set(id, cur);
+        } else {
+          const k = reduced ? 1 : 1 - Math.exp(-dt / SMOOTH_TAU_MS);
+          cur.left += (target.left - cur.left) * k;
+          cur.top += (target.top - cur.top) * k;
+          if (Math.abs(target.left - cur.left) < SNAP_PX && Math.abs(target.top - cur.top) < SNAP_PX) {
+            cur.left = target.left;
+            cur.top = target.top;
+          }
+        }
+        node.style.transform = `translate3d(${cur.left}px, ${cur.top}px, 0)`;
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [markers]);
+
   const followed = followingId ? peers.find(p => p.userId === followingId) : undefined;
 
   return (
@@ -171,8 +240,19 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
           {markers.slice(0, MAX_POINTERS).map(({ peer, left, top, flip }) => (
             <div
               key={peer.userId}
-              className="absolute left-0 top-0 will-change-transform transition-transform duration-150 ease-out motion-reduce:transition-none"
-              style={{ transform: `translate3d(${left}px, ${top}px, 0)` }}
+              // The transform is driven per frame by the glide loop above (no
+              // CSS transition — it would restart on every cursor update); the
+              // ref only seeds the node so React re-renders never clobber it.
+              ref={(el) => {
+                if (!el) {
+                  nodeRefs.current.delete(peer.userId);
+                  return;
+                }
+                nodeRefs.current.set(peer.userId, el);
+                const c = smoothRef.current.get(peer.userId) ?? targetsRef.current.get(peer.userId) ?? { left, top };
+                el.style.transform = `translate3d(${c.left}px, ${c.top}px, 0)`;
+              }}
+              className="absolute left-0 top-0 will-change-transform"
             >
               <button
                 data-testid="presence-cursor"
