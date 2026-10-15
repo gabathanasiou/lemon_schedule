@@ -342,6 +342,13 @@ export function reducer(state: State, action: Action): State {
       if (!p.colorPalette.dayFooterText) p.colorPalette.dayFooterText = '#000000';
     }
     p = ensureAllScenesHaveRows(p);
+    // Stale activeVersionId (points to a missing version) — fall back to the
+    // first version, the same repair as the ribbon + calendar axes: the
+    // Schedule tab and every schedule compute assume the active version
+    // exists (a dangling id used to crash ScheduleTab on mount).
+    if (!p.activeVersionId || !p.versions.some((v: any) => v.id === p.activeVersionId)) {
+      p.activeVersionId = p.versions[0]?.id || '';
+    }
     // Crew names are stored UPPERCASE everywhere (cast convention).
     migrateCrewNamesToUpper(p);
 

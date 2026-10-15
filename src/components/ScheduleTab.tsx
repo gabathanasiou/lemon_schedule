@@ -485,7 +485,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
     createOnContextMenu, selectNextAfterRemove, heldHint,
   } = useStripboardContextMenu({
     selectedRowIds, setSelectedRowIds,
-    rows: activeVersion.rows,
+    // Tolerant read: the "No active version" guard below sits AFTER this hook,
+    // so a dangling activeVersionId must not crash the render before it.
+    rows: activeVersion?.rows ?? [],
     activeVersion,
     activeDragIds,
     textEditingEnabled: effectiveTextEditingEnabled,
