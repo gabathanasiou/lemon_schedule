@@ -34,8 +34,21 @@ interface MarkerPosition {
   peer: PresencePeer;
   left: number;
   top: number;
-  /** Near the element's right edge the label flips to the left. */
+  /** Near the VIEWPORT's right edge the label flips to the left. */
   flip: boolean;
+}
+
+/**
+ * The name tag flips to the pointer's LEFT when it would overflow the
+ * VIEWPORT's right edge (130px clears the longest realistic short-name tag at
+ * the 10px label size). ONE rule for every anchor kind: scoping the flip to a
+ * fraction of the ANCHOR element (the old `fx > 0.65`) flipped the tag
+ * mid-screen on wide rows — a stripboard row spans most of the window, so the
+ * label hopped sides while the peer merely moved across the row.
+ */
+const TAG_FLIP_MARGIN_PX = 130;
+function tagFlips(x: number): boolean {
+  return x > window.innerWidth - TAG_FLIP_MARGIN_PX;
 }
 
 function anchorElement(anchor: PresenceAnchor): HTMLElement | null {
@@ -81,11 +94,9 @@ function markerPosition(
   if (!sameViewPlace(peer.view, place)) return null;
 
   if (anchor.kind === 'screen') {
-    return {
-      left: Math.min(Math.max(anchor.xr * window.innerWidth, 0), window.innerWidth - 4),
-      top: Math.min(Math.max(anchor.yr * window.innerHeight, 0), window.innerHeight - 4),
-      flip: anchor.xr > 0.65,
-    };
+    const x = Math.min(Math.max(anchor.xr * window.innerWidth, 0), window.innerWidth - 4);
+    const y = Math.min(Math.max(anchor.yr * window.innerHeight, 0), window.innerHeight - 4);
+    return { left: x, top: y, flip: tagFlips(x) };
   }
 
   let rect: { left: number; top: number; width: number; height: number } | null = null;
@@ -113,7 +124,7 @@ function markerPosition(
   const x = rect.left + fx * rect.width;
   const y = rect.top + fy * rect.height;
   const pos = clampToViewport(x, y);
-  return { ...pos, flip: fx > 0.65 };
+  return { ...pos, flip: tagFlips(pos.left) };
 }
 
 export function PresenceOverlay({ place }: { place: AppPlace }) {

@@ -1238,7 +1238,7 @@ the document ids this gate keys off), **234**/**235** (sibling presence polish),
 **Requested 2026-10-15 (user):** when a peer has a dropdown / entity dropdown / modal open — anything that is a LOCAL surface the other users cannot see — their pointer should show some activity cue ("loading animation or something") instead of looking parked.
 
 **Assessment (agent, 2026-10-15) — small-to-medium, no new transport; the cost is the signal wiring, and the cue's semantics.** The presence channel already carries per-peer `view` state plus the pointer/anchor (S3), and pointers are `pointer-events-none` chrome, so this is one more ephemeral field on existing `view`-ish traffic plus a badge on the existing pointer component. Two caveats to decide in implementation:
-- **Do NOT use a spinner.** "Loading" reads as a network wait; the peer is *busy in a local surface*. Use a distinct cue — a soft pulsing halo on the pointer plus the pointer tag reading `⋯ menu` / `modal` (and the same glyph on their header collaborator bubble).
+- **Do NOT use a spinner.** "Loading" reads as a network wait; the peer is *busy in a local surface*. **User decision 2026-10-15: animated DOTS** — `⋯` with a gentle step/opacity animation (no halo, no spinner) in the pointer tag (`⋯ menu` / `modal`) and the same dots on their header collaborator bubble.
 - **Pointers only render while the peer is on the SAME view/sub-tab** — so the cue must ALSO badge the header collaborator bubble, or a peer in a modal on another view is invisible again.
 
 **Approach:** ONE signal bus/hook (`useLocalOverlaySignal(kind)` or a tiny module-level emitter) called ONLY from the shared primitives — `DropdownMenu`/`DropdownPanel`, `Modal`, and the `useDropdown` consumers (`EntityDropdown`/`AutocompleteDropdown`) — never per call site, so every menu/modal in the app is covered by construction. Broadcast open/close EDGES (never per keystroke) on the presence `view` path with a ~5-10s TTL heartbeat so a killed tab clears without a close event; multi-window = newest wins (parity with 232's transport split — `view`-ish traffic rides broadcasts, never `track()`). Render the cue in `PresenceOverlay` (pointer) + `UserPresenceCluster` (bubble); follow mode unaffected.
@@ -1248,3 +1248,15 @@ the document ids this gate keys off), **234**/**235** (sibling presence polish),
 **Verify:** Vitest for the TTL/reduce helper (open → closes on TTL, newest-window-wins, clear on blur/window switch); rule-7 manual two-client pass (peer opens an entity dropdown → cue appears on their pointer + bubble in your window, clears on close/Esc and on tab-kill after the TTL, never blocks clicks).
 
 **Relations:** `extends` **229** (S3 presence transport + follow). `relates to` **234** (peer selections — also a "local state made visible" signal), **235** (drag ghosts — same ghost/badge layer + z-order rules), **236** (pointer coverage/gating), **231** (avatars/bubbles).
+
+## 241. Presence — pointer glyph per input type (touch hand, mouse arrow, pen) (`[ ]`)
+
+**Requested 2026-10-15 (user):** when a peer is on a TOUCH device (or is interacting by touch), their pointer should render as a little HAND rather than the mouse arrow, so the input modality is legible at a glance.
+
+**Assessment — small.** The app knows the LOCAL device (`src/lib/device.ts` `IS_COARSE`), but the PEER's input type must travel: track the last pointer event's `pointerType` (`'mouse' | 'touch' | 'pen'`) centrally — one window-level `pointerdown`/`pointermove` listener feeding a tiny module (mount it with the presence provider) — and piggyback the field on the existing cursor payload (it changes per interaction, not per frame, so it rides the current throttle with no extra traffic). Render a glyph variant in `PresenceOverlay`: mouse → today's arrow SVG; touch → a small hand/fingertip glyph; pen → a pen dot (optional, same seam). Compose with item 240's dots cue; the name tag is unchanged.
+
+**Non-negotiables:** ephemeral only — never persisted, never a room action; the field is PER USER, not per window (newest interaction wins, parity with 232's multi-window transport rule); no per-event broadcasts (only when the type actually changes).
+
+**Verify:** rule-7 manual two-client pass (tap a stripboard row on a coarse-pointer/iPad session → the peer's pointer shows the hand; move with a mouse → back to the arrow; pen if available); the mapping helper (`pointerType` → glyph kind) as Vitest.
+
+**Relations:** `extends` **229** (S3 presence). `relates to` **240** (same pointer chrome — build together), **236** (pointer coverage/gating), **234**/**235** (sibling presence signals).
