@@ -458,28 +458,56 @@ concurrency semantics in its doc.
   client per 30s — see the §6 transport split). Every later view change rides
   a throttled `view` broadcast; cursors ride `cursor`, scrolls ride `scroll`,
   save pings ride `save`. Never persisted, never in the project.
-- **Semantic anchors, never raw pixels**: a cursor anchor is the element under
-  the pointer — stripboard row id, calendar `data-date-key`, Day Manager
-  section — **plus the pointer's position inside it (fx/fy ∈ 0..1)**, so the
-  pointer glides Canva-style while still surviving scroll, reorder, zoom and
-  window size.
+- **Semantic anchors, never raw pixels** (roadmap 236, extended 2026-10-15): a
+  cursor anchor is the element under the pointer — stripboard row id, calendar
+  `data-date-key`, Day Manager section, a registered grid cell, or a generic
+  `dom` element key — **plus the pointer's position inside it (fx/fy ∈ 0..1)**,
+  so the pointer glides Canva-style while still surviving scroll, reorder,
+  zoom and window size. The chain (`src/lib/presenceAnchors.ts`) tries, in
+  order: grid scope probe → row/date/day → precise `dom` anchor → nearest
+  item ≤40px → closest region container → viewport-relative screen fractions.
+  - **Every authored control is anchored automatically** (user request: "all
+    buttons everywhere"): `src/lib/presenceAutoAnchors.ts` stamps any
+    `button` / `[role="button"]` / link / input that lacks an explicit key
+    from its authored identity — `data-testid` → `aria-label` → `title` → its
+    own text (`ui:…` keys; ONE live MutationObserver). Explicit
+    `data-presence-anchor` keys always WIN; use them where a label repeats on
+    one page (`ribbons:tb:*`), is per-user dynamic, or describes a surface
+    (sheet fields, designer blocks/cells, nav, palettes, regions). A label
+    that changes per user derives different keys per client and the pointer
+    hides (hide-don't-fake, like an unknown row id).
+  - **Regions beat the viewport fallback**: containers holding arbitrary
+    content wear `data-presence-anchor="region:<id>"` — Schedule board and
+    boneyard, Calendar grid, Sheet body, Report/Ribbon designer canvases,
+    Elements table, Call-Sheet doc. A pointer over a region's unanchored space
+    maps WITHIN that container on the other client (never whole-viewport
+    fractions when a real container exists) and hides when that container does
+    not exist there.
+  - Coverage is auditable: `window.__lemonSchedule.presenceAnchorAt(x, y)`
+    returns the anchor that WOULD be published at a viewport point.
 - **Canvas grids register a grid scope** (`src/lib/presenceResolvers.ts`):
-  `probe(x, y)` maps a pointer to a cell → stable `rowKey` (scene id) +
-  `colKey` (breakdown column key) + indices; `locate(anchor)` maps that cell
+  `probe(x, y)` maps a pointer to a cell → stable `rowKey` (scene id / element
+  key / crew slot id) + `colKey` + indices; `locate(anchor)` maps that cell
   back with the receiver's OWN scroll/column widths/font scale (`getBounds`).
-  The Glide Breakdown registers as `breakdown-glide`; a cell scrolled out of
+  Registered today: `breakdown-glide`, every `InlineGlideTable` instance (Day
+  Manager Call Times/Crew, Precalls, the Call Sheet grids — scopes like
+  `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`) and
+  `GlideGridShell` (`crew-glide`, `locations-glide`). A cell scrolled out of
   the grid's visible area is hidden, never painted over chrome.
-  Crew/Locations/Call Times can register the same way.
-- Everything else falls back in order: **nearest item within ~40px** (gutters
-  and margins snap to the row/cell beside them) → **viewport-relative screen
-  fractions**. **Visibility gate (user decision 2026-10-12): a peer's pointer
-  renders ONLY while you are on their exact place — same tab, sub-tab and
-  sub-sub mode (Day Manager vs Call Sheet, Crew/Locations manager vs Glide).
-  The header/toolbar pointers follow the same rule, so nothing floats over a
-  view the peer isn't looking at.** Anchors that resolve off this client's
-  viewport are hidden (no edge chips; the header bubbles are how you jump to a
-  colleague's place). Script-body cursors stay flagged, not faked
-  (TipTap/ProseMirror relative positions — skipped in S3).
+- **Visibility gates** — a peer's pointer renders ONLY while:
+  - you are on their exact PLACE: same tab, sub-tab and sub-sub mode (Day
+    Manager vs Call Sheet, Crew/Locations manager vs Glide) — and
+  - you have the same DOCUMENT open on document-scoped pages (roadmap 236,
+    user decision 2026-10-15): the Sheet scene, the open Reports Designer
+    design, the open Ribbon Designer design. The gate compares the peer's
+    view against the LOCAL published view (`usePresenceActions().getLocalView`,
+    `sameViewPlace`), so it follows live scene/design switches; a missing id on
+    either side falls back to the place rule. The header/toolbar pointers
+    follow the same gates — nothing floats over a view the peer isn't looking
+    at, and the header bubbles remain the way to jump to a colleague's place.
+  Anchors that resolve off this client's viewport are hidden (no edge chips).
+  Script-body cursors stay flagged, not faked (TipTap/ProseMirror relative
+  positions — skipped in S3).
 - **Local-overlay cue + input glyph (roadmaps 240/241, built 2026-10-15)**: two
   more ephemeral signals on the same presence channel.
   - **Overlay cue (240)**: while a peer is inside a surface only THEY can see —
