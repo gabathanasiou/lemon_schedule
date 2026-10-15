@@ -120,9 +120,10 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   separate `overlay` broadcast announces "this user is inside a menu/modal" (edges + a 6s heartbeat from
   `src/lib/localOverlaySignal.ts`, fed ONLY by the shared primitives) with a 12s receiver TTL — the dots
   render on the pointer tag + the header bubble (`PresenceDots`, `peer.overlay`). 244 adds the comfort
-  rules, receiver-side: a FRESH `modal` cue freezes that peer's pointer (`freezeCursorFor` ignores their
-  cursor frames; the marker is exempt from the 20s idle TTL while frozen) and renders the modal-window
-  glyph (`cursorGlyph`), the sender pauses cursor publishing while its own hub reports a modal, and a
+  rules, receiver-side: a FRESH overlay cue of ANY kind (menu/dropdown/context menu/modal) freezes that
+  peer's pointer (`freezeCursorFor` ignores their cursor frames; the marker is exempt from the 20s idle
+  TTL while frozen), a `modal` cue renders the modal-window glyph (`cursorGlyph`; menus keep the
+  input-kind glyph), the sender pauses cursor publishing while its own hub reports any overlay, and a
   peer's marker the local pointer rested on for ~2s fades until they separate (`stepCollisionDwell`).
 - **S3.5 save ping seam (store-owned)**: `changeCounterRef`/`persistedAtCounterRef` are the clean/dirty
   gate — every accepted write dispatch bumps the counter; `loadBaseline(project)` (LOAD + re-anchor) is

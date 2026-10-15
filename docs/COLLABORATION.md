@@ -501,17 +501,18 @@ concurrency semantics in its doc.
     (`pointer: mouse|touch|pen`, re-sent only when it changes — one central
     pointer-event tracker, no extra traffic). The pointer renders the arrow,
     a little HAND for touch, or a pen dot; the name tag is unchanged.
-  - **Pointer comfort (244)**: while the cue says a fresh `modal`, the peer's
-    pointer FREEZES — incoming cursor frames are ignored (`freezeCursorFor`;
-    the marker is exempt from the 20s idle TTL while the cue is fresh, so the
-    dots stay on its tag) and the glyph becomes a little modal-WINDOW icon
-    (`cursorGlyph` — the cue wins over the input kind, so it returns to
-    arrow/hand/pen on close). Menus keep moving with their input glyph. The
-    sender ALSO pauses publishing while its own hub reports a modal (the
-    receiver gate is the multi-window fallback). Fade: when the local pointer
-    rests within 30px of a peer's marker for 2s, the marker + tag fade to 30%
-    opacity (`stepCollisionDwell`, hysteresis to 60px); separation restores.
-    All receiver-side and ephemeral.
+  - **Pointer comfort (244, widened 2026-10-15 on user request)**: while ANY
+    overlay cue is fresh — menu, dropdown, entity picker, context menu, modal —
+    the peer's pointer FREEZES: incoming cursor frames are ignored
+    (`freezeCursorFor`; the marker is exempt from the 20s idle TTL while the
+    cue is fresh, so the dots stay on its tag). A `modal` cue additionally
+    swaps the glyph to the little modal-WINDOW icon (`cursorGlyph`; menus keep
+    the input-kind glyph), and on close the glyph returns to arrow/hand/pen and
+    frames resume. The sender ALSO pauses publishing while its own hub reports
+    any overlay (the receiver gate is the multi-window fallback). Fade: when
+    the local pointer rests within 30px of a peer's marker for 2s, the marker +
+    tag fade to 30% opacity (`stepCollisionDwell`, hysteresis to 60px);
+    separation restores. All receiver-side and ephemeral.
   - Both are ephemeral only: never persisted, never a room action, never
     `track()`; the cue is `pointer-events-none`.
 - Motion: pointers glide between positions with a **rAF glide loop inside

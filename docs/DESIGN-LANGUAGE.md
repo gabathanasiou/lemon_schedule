@@ -496,9 +496,11 @@ Pointers GLIDE between positions via the overlay's rAF loop (exponential
 approach, τ ≈ 110ms; `prefers-reduced-motion` snaps) and pop in via
 `.presence-pointer-in` (`index.css`, `motion-reduce` disables). **NEVER put a CSS
 `transition` on the positioning wrapper** — the ~12/s cursor feed restarted it
-mid-flight and pointers stuttered (reported 2026-10-15). A peer inside a
-menu/modal shows animated dots on the tag (240); a marker the local pointer has
-rested on for ~2s fades to 30% until separation (244). They are hidden
+mid-flight and pointers stuttered (reported 2026-10-15). A peer inside any
+menu/dropdown/context menu/modal shows animated dots on the tag (240) and their
+pointer FREEZES there until it closes (244); a modal additionally renders the
+window glyph, and a marker the local pointer has rested on for ~2s fades to 30%
+until separation (244). They are hidden
 when their anchor is off this client's viewport — never painted over unrelated
 chrome (user decision 2026-10-12: hide, no edge chips) — and **a peer's pointer
 only renders while you are on their EXACT place (same tab + sub-tab + sub-sub

@@ -1205,12 +1205,15 @@ Breakdown the pointer "unsticks" the moment it leaves populated cells.
    anchor registry instead of per-surface branches in `PresenceOverlay`.
 4. **Generic chrome coverage — the "everything" ask (future-proof)**: add a generic DOM anchor
    (`kind: 'dom'` — one stable key + fx/fy) to the chain, and assign keys in the SHARED
-   primitives instead of per instance (PageToolbar items, tab/sub-tab buttons, palette/menu
-   items; the kit's menu items ride a ui-kit release) so every FUTURE control inherits
-   coverage automatically. Do NOT auto-derive keys from DOM structure/text — cross-client keys
-   must be explicit and stable. Anything unregistered keeps the screen fallback
-   (hide-don't-fake), so coverage grows per component without breakage; dropdown items display
-   only while both clients have the same menu open (correct — otherwise they hide).
+   primitives instead of per instance (PageToolbar items, tab/sub-tab buttons, palette items;
+   the kit's menu items ride a ui-kit release) so every FUTURE control inherits coverage
+   automatically. **User decision 2026-10-15 (with 244's widened freeze): menu/dropdown/
+   context-menu items need NO anchors** — while any overlay is open the peer's cursor freezes
+   at the trigger (`freezeCursorFor`, item 244), so there is nothing inside to magnetise;
+   phase 4 therefore covers NON-overlay chrome only (a persistent palette still counts).
+   Do NOT auto-derive keys from DOM structure/text — cross-client keys must be explicit and
+   stable. Anything unregistered keeps the screen fallback (hide-don't-fake), so coverage
+   grows per component without breakage.
 
 **Traffic note (Supabase Realtime, verified 2026-10-15):** pointers ride Realtime Broadcast —
 the Cloudflare room is untouched by presence. Free plan: 100 messages/s, 2M messages/month,
@@ -1251,7 +1254,8 @@ two clients are on different documents); Vitest for new pure helpers (clamp/fall
 comparisons).
 
 **Relations**: `extends` **229** (S3 presence). `relates to` **233** (per-user active designs —
-the document ids this gate keys off), **234**/**235** (sibling presence polish), **231**.
+the document ids this gate keys off), **234**/**235** (sibling presence polish), **244**
+(freeze-on-overlay removes the menu/dropdown-item coverage from phase 4), **231**.
 
 ## 242. Collaboration — blocked undo: tell the user when a peer built on their edit (`[ ]`, no text merge)
 
