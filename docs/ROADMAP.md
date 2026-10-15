@@ -1054,15 +1054,18 @@ switching designs switches everyone's editor.
   (per-user), DayManagerPage call-sheet (already pref-first — retire the fallback?), print +
   Reports-tab flows (`reports/ReportPrintDialog` etc. — per-user last-used vs an explicit pick
   in the dialog), reducer `LOAD` defaults (keep a valid project-level value for older files).
-- **Sibling question (settle with this item)**: `Project.activeRibbonId` (design tab) has the
-  same project-wide behaviour — is the stripboard's active ribbon a shared "document look"
-  that should stay shared, or per-user view state? (COLLABORATION.md §9 currently treats
-  ribbon layout as project state that travels via save/room.)
+- **Decision (user, 2026-10-15): the Ribbon Designer's editing view becomes per-user as
+  well** — same pattern, same pass (design contents shared, editing focus personal). Open
+  sub-decision: whether the stripboard's DISPLAY layout follows the personal choice or stays
+  a shared "document look" (if unsure, split the field: shared `activeRibbonId` for display +
+  a per-user editing id for the designer). COLLABORATION.md §9's "ribbon layout is project
+  state" line updates with this item; the pointer doc-gate of **236** keys off the same ids.
 - **Verify**: two-window pass — each window selects a different design with no cross-switching;
   refresh keeps the per-user choice; selector no longer rides the room; Vitest for the pref
   helper if a new pure util lands.
 - **Relations**: `relates to` **229** (S4 made the project-wide sync instant — the reason this
-  surfaced), **212** (call-sheet/designer parity), **231**.
+  surfaced), **212** (call-sheet/designer parity), **231**, **236** (pointer doc-gating uses
+  these ids).
 
 ## 234. Presence — highlight the cells a peer has selected (spreadsheet-style) (`[ ]`)
 
@@ -1111,6 +1114,55 @@ pointer in their colour, "X is moving this"-style.
   Vitest.
 - **Relations**: `extends` **229** (S3 presence transport). `relates to` **234** (sibling
   presence polish), **231**.
+
+## 236. Presence — pointer magnetism v2: every surface + gate by the open document (`[ ]`, big)
+
+**Requested 2026-10-15 (user):** the magnetic pointers magnetise "only to certain things" —
+the Reports Designer (and relatives) feel weird; in document-scoped pages (Scene Sheet,
+Reports Designer, Ribbon Designer) a peer's pointer should show ONLY while you are both on
+the same document (same sheet scene / report design / ribbon design); and in the Glide
+Breakdown the pointer "unsticks" the moment it leaves populated cells.
+
+**Research findings (agent, 2026-10-15 — mechanism verified in code):**
+- Sender chain (`src/lib/supabase/presenceContext.tsx` `resolvePointerAnchor`): registered
+  grid-scope probe → `data-row-id` / `data-date-key` / `data-day-manager` element anchor →
+  nearest `ITEM_SELECTOR` item within ~40px → viewport-relative `screen` fractions.
+- Registered TODAY: stripboard/boneyard rows + Calendar cards (`data-row-id`), Calendar
+  cells (`data-date-key`), Day Manager (`data-day-manager`/`data-section`), Glide Breakdown
+  (`data-presence-grid="breakdown-glide"`). **NOT registered: Scene Sheet, Reports Designer,
+  Ribbon Designer, and the Element/Crew/Locations/Day-Times grids** — their pointers are raw
+  screen fractions, so they drift and read as weird on both clients.
+- Visibility gate (`sameViewPlace`, `src/lib/supabase/presence.ts:424`) checks tab + sub-tab
+  + sub-sub mode ONLY. `PresenceView` already carries `sceneId`/`sheetIndex` (added for
+  follow) but the POINTER gate ignores them — a peer on sheet scene 5 draws over your scene 9,
+  a peer in report design A draws over your design B.
+- Glide: `probe` returns a cell only when the row/column resolves — over empty trailing grid
+  area the chain falls to `screen` and the pointer jumps off the grid (`locate` correctly
+  hides cells scrolled out of view — keep that).
+
+**Plan (phases, each independently shippable):**
+1. **Glide edge magnetism (small)**: pointer over the grid but probe misses (empty trailing
+   area / chrome) → clamp to the nearest existing cell (last row/col) instead of `screen`;
+   optional grid-container fallback rect. Two-client verify.
+2. **Document gate (small-medium)**: extend the pointer gate with the open-document identity —
+   Sheet: `peer.view.sceneId` vs the local sheet's scene; Reports Designer: a new `designId`
+   in `PresenceView`/`AppPlace` (per-user after **233**); Ribbon Designer: same with the ribbon
+   design id. User decision 2026-10-15: pointers show only while both clients are on the same
+   document; the header bubbles remain the way to jump to a peer.
+3. **Surface registration (medium-big, per surface)**: give Scene Sheet scene blocks, Reports
+   Designer blocks and Ribbon Designer cells stable id-based data attributes (the existing
+   `data-row-id` chain then magnetises to them), and register the remaining canvas grids
+   (Element/Crew/Locations/Day-Times `InlineGlideTable`) via `registerPresenceGridScope`,
+   exactly like `breakdown-glide`. If the surface count keeps growing, consider one generic
+   anchor registry instead of per-surface branches in `PresenceOverlay`.
+
+**Verify**: two-client manual pass per surface (pointer sticks to the block/cell under it,
+glides within it, hides when the anchor resolves off-viewport, and vanishes entirely while the
+two clients are on different documents); Vitest for new pure helpers (clamp/fallback/doc-gate
+comparisons).
+
+**Relations**: `extends` **229** (S3 presence). `relates to` **233** (per-user active designs —
+the document ids this gate keys off), **234**/**235** (sibling presence polish), **231**.
 
 
 
