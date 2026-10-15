@@ -198,9 +198,11 @@ re-derive any of it:
   metadata → the `handle_new_user` trigger writes `profiles.display_name`).
   App-level (`App.tsx`) so the boot screen reaches it; the header cluster and
   the Project Manager's signed-out Shared tab open it.
-- `src/components/ProfileModal.tsx` — rename the signed-in account (auth
-  metadata + the `profiles` row, best-effort); avatar rendering shared via
-  `AccountAvatar`.
+- `src/components/AccountSettingsModal.tsx` (roadmap 256; grew out of the old
+  `ProfileModal`) — the account settings modal: **Profile** tab = rename the
+  signed-in account (auth metadata + the `profiles` row, best-effort; avatar
+  rendering shared via `AccountAvatar`) and **Team** tab = `TeamPanel`. The
+  avatar menu's **Settings…** and the PM account bar both open it.
 - `src/components/PasswordRecoveryModal.tsx` — set-a-new-password after a
   reset link (also App-level; may land on a fresh tab).
 - `src/components/UserPresenceCluster.tsx` — the header user cluster (§9):
@@ -224,8 +226,8 @@ re-derive any of it:
 - Project Manager: **Local / Cloud / Shared** tabs — Shared appears only when
   configured; signed-out shows the sign-in state (the footer's "Sign in to
   collaborate" is the ONE sign-in CTA — no duplicate inline buttons). Signed-in
-  shows the account bar — avatar + "Signed in as …" (click → `ProfileModal`;
-  guests → create-account) + **Sign out** (closes an open shared project, parity
+  shows the account bar — avatar + "Signed in as …" (click → the account
+  settings modal; guests → create-account) + **Sign out** (closes an open shared project, parity
   with the header cluster). Session metas win over the fetched list for display.
 - Debug bridge: `diagnostics()` adds `supabaseConfigured`, `supabaseSignedIn`,
   `projectIsOnline`, `onlineProjectCount`.
@@ -311,8 +313,9 @@ takes effect on next request; guest account needs no entitlement.
     UI: `PeoplePicker` (`src/components/sharing/PeoplePicker.tsx`) — a thin wrapper over
     `EntityDropdown` (mode single, variant chip: avatar left, name over the smaller
     email, keyboard-first, `EntityItem.group` headers, the synthetic "Add …" row = the
-    email path) in the SharingModal invite row AND the avatar menu's new **Team...**
-    modal (`TeamModal.tsx`: create/rename, members, pending invites, remove, reuse the
+    email path) in the SharingModal invite row AND the account settings modal's
+    **Team** tab (`AccountSettingsModal.tsx` → `TeamPanel.tsx`: create/rename,
+    members, pending invites, remove, reuse the
     picker); `src/lib/inviteTargets.ts` (`classifyInviteTarget`) routes every commit —
     member id / email / ignore (Vitest). Teams are the future seat unit for the S5
     subscription (roadmap 230).
@@ -754,11 +757,14 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 - Signed out → a muted **Sign in** avatar button; opening it offers
   **Sign in / Create account** (the app-level AccountModal — email+password,
   plus Google/Apple when the project has them enabled).
-- Signed in → the avatar (photo/initials) opens the account menu: **Edit
-  profile...** (display name — email sign-ups capture it at creation, OAuth
-  sign-ups bring the provider name + photo), **Collaborate...** (copy-up; opens
+- Signed in → the avatar (photo/initials) opens the account menu: **Settings...**
+  (roadmap 256 — the account settings modal: **Profile** tab = display name, email
+  sign-ups capture it at creation, OAuth sign-ups bring the provider name + photo;
+  **Team** tab = the 254 roster, `TeamPanel`), **Collaborate...** (copy-up; opens
   the panel right after), **Manage Shared Project...** (the User & sharing
-  panel — S2, built), **Sign out** (+ Drive connect/disconnect). The panel is
+  panel — S2, built), **Sign out** (+ Drive connect/disconnect). The settings modal
+  is ALSO opened by the Project Manager's Shared-tab account bar — the team is
+  manageable with no project open. The panel is
   the §1 language: **Who can access**, **Permissions**, **Allow others to
   invite**, **Copy Link**, **Stop Sharing…**; on a viewer account it shows the
   people list + "Only the owner can change who has access". Signing out with a
