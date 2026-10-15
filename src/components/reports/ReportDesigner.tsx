@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject } from '../../store';
-import { useCurrentWindow } from '../../lib/popoutTarget';
+import { useCurrentDocument, useCurrentWindow } from '../../lib/popoutTarget';
+import { registerInFlightEdits } from '../../lib/inFlightEdits';
+import { isTextEditingElement } from '../../lib/textEditing';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap } from '../../lib/reportFields';
 import { prepareSunWeatherForCtx } from '../../lib/reportWeather';
@@ -172,6 +174,9 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   // (per-user pref, mirrored through its own setter like the stripboard view
   // fields), Preview, and Fields/Values. The design switches first so the
   // toggles land on the peer's design.
+  // Follow can switch the edited design from under in-flight text — flush
+  // first (through a ref: `flushPendingText` is declared below this hook).
+  const flushPendingTextRef = useRef<() => void>(() => {});
   const follow = useFollowView({
     place: { tab: 'design', sub: 'designer' },
     fields: [
@@ -181,6 +186,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     ],
     apply: (view) => {
       if (view.designId && view.designId !== editingDesignId && (project.reportDesigns || []).some(d => d.id === view.designId)) {
+        flushPendingTextRef.current();
         setEditingDesignId(view.designId);
       }
       if (typeof view.preview === 'boolean') setPreview(view.preview);
@@ -198,6 +204,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
 
   useEffect(() => {
     if (zoneMode) return;
+    // In-flight text belongs to the design it was typed into; a switch flushes
+    // it first (the switch sites flush explicitly) — never re-home it.
     setBlocks(activeDesign?.blocks ? JSON.parse(JSON.stringify(activeDesign.blocks)) : []);
     setHeaderBlocks(activeDesign?.header ? JSON.parse(JSON.stringify(activeDesign.header)) : []);
     setFooterBlocks(activeDesign?.footer ? JSON.parse(JSON.stringify(activeDesign.footer)) : []);
@@ -222,6 +230,9 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
 
   useEffect(() => {
     if (zoneMode || !activeDesign) return;
+    // An un-flushed text edit owns the local blocks; a store change must not
+    // clobber it (ours re-syncs right after the flush).
+    if (pendingTextRef.current) return;
     const fresh = activeDesign.blocks || [];
     const freshHeader = activeDesign.header || [];
     const freshFooter = activeDesign.footer || [];
@@ -250,6 +261,45 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const selColRef = useRef(selCol);
   selColRef.current = selCol;
 
+  // ---- Commit-on-blur for text (roadmap 251) --------------------------------
+  // Typing patches the LOCAL design per keystroke — Tab/cell navigation, the
+  // `=`/`@` reference menus and the formatting chrome all read those fresh
+  // props — but the store dispatch is deferred while a text editor (contentEditable)
+  // or a text input inside the designer has focus. The edit commits when it
+  // finishes: focus leaves the editor, Escape ends editing, any structural edit
+  // (or the toolbar) commits everything with it, or the designer unmounts.
+  // Everything else (checkbox/dropdown/colour picks, drags, inserts) dispatches
+  // immediately — those never originate from a text-editing element.
+  const currentDocument = useCurrentDocument();
+  const pendingTextRef = useRef(false);
+  const commitAllRef = useRef<(force?: boolean) => void>(() => {});
+  const flushPendingText = useCallback(() => {
+    if (!pendingTextRef.current) return;
+    // FORCE past the focus gate: the flush is the commit point (blur, Escape,
+    // pagehide, unmount) and the editor may still hold focus (Escape ends the
+    // session before anything blurs).
+    commitAllRef.current(true);
+  }, []);
+  flushPendingTextRef.current = flushPendingText;
+  const isTextEditingRef = useRef(isTextEditingElement);
+  isTextEditingRef.current = isTextEditingElement;
+  // Un-flushed text counts as "in flight" for the S3.5 peer-save gate: a peer's
+  // save must raise "Changes available" instead of LOADing over it.
+  useEffect(() => {
+    if (zoneMode) return;
+    return registerInFlightEdits(() => pendingTextRef.current);
+  }, [zoneMode]);
+  // Last-resort flush: the tab is going away (the click paths all blur first).
+  useEffect(() => {
+    const win = currentDocument.defaultView;
+    const onPageHide = () => flushPendingText();
+    win?.addEventListener('pagehide', onPageHide);
+    return () => {
+      win?.removeEventListener('pagehide', onPageHide);
+      flushPendingText();
+    };
+  }, [currentDocument, flushPendingText]);
+
   const selectBlock = (id: string | null) => {
     setSelId(id);
     if (id) setSelCol(null);
@@ -267,9 +317,17 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const listOfZone = (zone: 'header' | 'body' | 'footer') =>
     zone === 'header' ? headerRef.current : zone === 'footer' ? footerRef.current : blocksRef.current;
 
-  const commitAll = () => {
+  const commitAll = (force = false) => {
     if (zoneMode) { zone!.onChange(blocksRef.current); return; }
     if (!activeDesign) return;
+    // Roadmap 251: defer while a text editor / text input has focus inside the
+    // designer — the local state is already current; the store follows on the
+    // flush (blur / Escape / structural edit / unmount).
+    if (!force && isTextEditingRef.current(currentDocument.activeElement)) {
+      pendingTextRef.current = true;
+      return;
+    }
+    pendingTextRef.current = false;
     dispatch({
       type: 'UPDATE_REPORT_DESIGN',
       payload: {
@@ -282,6 +340,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       },
     });
   };
+  commitAllRef.current = commitAll;
 
   const commit = (next: ReportBlock[], zone: 'header' | 'body' | 'footer' = 'body') => {
     // Invariant: a day-grid block (Call Times · Crew Table · Precalls) lives
@@ -574,6 +633,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             page: parsed.page === 'landscape' ? 'landscape' : 'portrait',
           },
         });
+        flushPendingText();
         setEditingDesignId(newId);
       } catch {
         // ignore invalid files
@@ -588,21 +648,24 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         designs={project.reportDesigns || []}
         activeId={activeDesign?.id || ''}
         readOnly={locked}
-        onSelect={id => { follow.noteUserChange(); setEditingDesignId(id); }}
+        onSelect={id => { flushPendingText(); follow.noteUserChange(); setEditingDesignId(id); }}
         onRename={(id, name) => dispatch({ type: 'RENAME_REPORT_DESIGN', payload: { id, name } })}
         onDuplicate={id => {
+          flushPendingText();
           const d = project.reportDesigns?.find(x => x.id === id);
           const newId = generateUUID();
           dispatch({ type: 'ADD_REPORT_DESIGN', payload: { id: newId, name: `${d?.name || 'Report'} Copy`, cloneFromId: id } });
           setEditingDesignId(newId);
         }}
         onDelete={id => {
+          flushPendingText();
           dispatch({ type: 'DELETE_REPORT_DESIGN', payload: id });
           // Dropping the design you were editing: clear the pick — it resolves
           // to the surviving design the reducer promoted.
           if (id === editingDesignId) setEditingDesignId('');
         }}
         onCreate={() => {
+          flushPendingText();
           const newId = generateUUID();
           dispatch({ type: 'ADD_REPORT_DESIGN', payload: { id: newId, name: `Report ${(project.reportDesigns?.length || 0) + 1}` } });
           setEditingDesignId(newId);
@@ -776,7 +839,14 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   );
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 select-none min-h-0 min-w-0">
+    <div
+      className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 select-none min-h-0 min-w-0"
+      // Commit-on-blur (roadmap 251): a text editor losing focus — or Escape
+      // ending an edit session (capture: the editor stops propagation) — is the
+      // commit point for the deferred store write.
+      onBlur={e => { if (isTextEditingElement(e.target as Element)) flushPendingText(); }}
+      onKeyDownCapture={e => { if (e.key === 'Escape') flushPendingText(); }}
+    >
       <DelegatedTooltip />
       {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{headerContent}</header>)}
 

@@ -1012,7 +1012,10 @@ pass (doc §12).
 4. **246 — rooms-dev launcher** — medium dev-tooling (~1–2 days: process lifecycle + the
    first `playwright.rooms.config.ts` + probe rewiring). Local dev QoL only, nothing
    user-visible. Pick up when local collab-testing friction justifies it.
-5. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
+5. **254 — invite suggestions + teams** — medium (SQL + the SharingModal picker + a Team
+   modal; independent of the deploy): autocomplete invites from your team and the people
+   you collaborate with. User-requested 2026-10-15.
+6. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
    (`docs/LICENSING.md` §9) — decisions conversation needed before planning.
 Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work.
 
@@ -1256,93 +1259,6 @@ access — it should reflect reality.
   Supabase-off, `playwright.config.ts:72`).
 - **Relations**: `relates to` **229** (S1/S2.5 sharing surfaces).
 
-## 250. Managers — automatic commit, drop the Save button (`[~]`)
-
-**Requested 2026-10-15 (user):** the Element / Crew / Locations managers are the last
-manual-save surface — field edits stage in a local buffer behind Save/Revert while every
-other surface commits on blur (`CellInput`, SceneSheet, Glide). Remove the manual save:
-each field commits on blur/Enter/leaving the field; the merge confirmation still fires
-(at commit time), the Save/Revert buttons, local undo history, Cmd+S and the
-unsaved-changes prompts all go. User decisions: commit point = blur/Enter (NOT
-per keystroke, NOT debounce-while-typing); collision keeps the confirmation modal;
-all three managers at once.
-
-- **Why it was manual (history, not collab):** the first Element Manager auto-populated
-  elements from a dispatching effect — infinite loops + save flicker (`b9894dfb`,
-  `64142c85`) — so "elements are saved on the user's first Save" became the escape, and
-  the save grew into the atomic merge/rename-cascade commit (`MERGE_ELEMENTS` rewrites
-  scenes once; "Save then ⌘Z = one step"). Commit-on-blur needs neither: it is
-  event-driven (no effects) and one commit per finished field keeps the scene rewrite
-  to ONE per rename. (Per-keystroke would stream an intermediate rename + undo entry
-  per character to the room — that is the thing to keep out.)
-- **Collab bug folded in (item decision):** buffered edits never bump
-  `changeCounterRef`, so the S3.5 save ping (`applyPeerSave`, `provider.tsx:350-372`)
-  reads the client as CLEAN and silently LOADs the peer blob → `useRowBuffer`'s
-  `reloadDeps` reset (`rowBuffer.ts:125-138`) drops the user's unsaved manager edits.
-  Fix: an in-flight edit marks the client dirty (the peer save raises "Changes
-  available" instead of auto-applying) and the buffer preserves uncommitted field text
-  across any reload.
-- **Engine (`src/lib/rowBuffer.ts` v2):** keep the local row buffer, input registry and
-  Tab order; delete snapshots/local undo/redo/save/revert/Cmd+S/the unsaved guard. Blur
-  calls ONE manager-provided `commit()` per finished field; the `reloadDeps` reload
-  reconciles committed fields with the store — preserving in-flight field text and
-  uncommitted new rows, dropping rows a merge absorbed. Blank rows stay local (never
-  dispatched); Sort stays a local view op (order is not persisted today).
-- **Managers:** `ElementManager.tsx` (its own diff/save copy; cast = per-row
-  ADD/UPDATE/DELETE with the roadmap-228 name→ID resolution) and `managerShell.tsx`
-  (Crew/Locations; `computeManagerDiff` + `commitPlan`). The diff is computed at commit
-  against store truth (`loadRows`) instead of a snapshot; a colliding rename opens the
-  existing `MergeRowsModal` at commit time (cancel restores the committed field); row
-  deletes commit immediately (trash + undo parity unchanged); header drops
-  Save/Revert.
-- **Chrome/undo:** `unsavedGuard.ts` deleted (App popstate/tab/popout prompts and the
-  pre-switch merge flow go with it); new tiny `inFlightEdits.ts` registry consulted by
-  `applyPeerSave`; `UndoRedoButtons` + `undo()`/`redo()` (provider) drop the
-  local-history-first routing and its enablement — Cmd+Z is the store/room undo at
-  per-commit granularity. HelpModal rows updated (no Save/Revert/local-undo copy).
-- **Verify:** update `e2e/element-manager-merge.spec.ts` (rename commits on Enter; the
-  collision dialog fires at commit; no Save button; guard specs replaced), plus the
-  Save-click specs `crew-manager`, `locations`, `cast-single-source`,
-  `new-cast-naming`, `script-retention`; full suite + `npm run lint`; smart-test RULES
-  for the new module. Manual pass: type + click away → edit committed and visible to a
-  peer; peer reload while typing does not eat the focused text (two-window).
-- **Relations:** `relates to` **229** (S3.5 save ping + S4 rooms — the in-flight edit
-  rule), **243** (manager sidebar follow), **228** (cast naming modal).
-
-## 251. Text commit-on-blur — project title + Report Designer text (`[~]`)
-
-**Requested 2026-10-15 (user, while 250 was in flight):** the header project-title field
-dispatches `UPDATE_PROJECT` on every character; typing in the Report Designer (text
-blocks, embedded titles, free-table cells, the inspector's text inputs) dispatches the
-whole `UPDATE_REPORT_DESIGN` per character. Both should commit when the edit finishes
-(blur / Enter / edit end) — the same convention as 250.
-
-- **Title (`AppHeader.tsx:214-227`):** keep a local draft while editing; commit ONCE on
-  blur/Enter through the existing `renameProject()` (it dispatches `UPDATE_PROJECT`,
-  updates the index meta and pushes Drive/online) — no per-character project dispatch
-  and no per-character Drive/online push.
-- **Report Designer (`ReportDesigner.tsx`):** ONE seam — `commitAll()` defers the store
-  dispatch while a text-editing element (contentEditable / text input / textarea) has
-  focus inside the designer; the local design state still updates per keystroke
-  (Tab/cell navigation, formatting, ref menus keep reading fresh props — the
-  draft-buffer route would break them). Flush on: any non-deferred (structural) commit,
-  focusout of a text editor, the editor's Escape/edit-end, unmount (SceneSheet's
-  `useEffect(() => () => commitTextEdits(), [])` precedent) and `pagehide`. The
-  `[project.reportDesigns]` re-sync effect skips while pending (a peer change must not
-  clobber unflushed text); the pending state registers with `inFlightEdits` (250) so the
-  S3.5 peer-save auto-reload defers instead of wiping it.
-- **Zone mode is out of scope** (`zone!.onChange` is the Call Sheet editor's own draft
-  seam) — no behavior change there.
-- **Verify:** existing specs `report-page-breaks` ("filter values commit on blur, one
-  undo entry"), `report-editor-polish` (type → Escape → resolved text), `report-xmlns`
-  (persistence — add the commit point), `rich-text-editor`, `report-chrome`,
-  `call-sheet-day`; plus a manual pass (type in a text block/cell/inspector input →
-  click away → one undo entry; ⌘Z after blur undoes the burst; peer/store see the
-  final text). No new spec (single-field UX; automate only if a silent break is
-  plausible).
-- **Relations:** `relates to` **250** (same commit-on-blur convention + `inFlightEdits`);
-  `reports designer` canonical doc: `docs/REPORTS-DESIGNER.md`.
-
 ## 252. Presence — per-block pointer anchoring wherever the script renders (`[ ]`)
 
 **Requested 2026-10-15 (user):** proper cursor anchoring "in any view that has the
@@ -1416,3 +1332,77 @@ the row kept the old name.
 - **Relations:** `extends` **229** (S1 rows/listing); `relates to` **249** (same
   panel — stale Shared count), **251** (title commit-on-blur rides this rename
   path).
+
+## 254. Sharing — teams + invite suggestions (autocomplete from your team and collaborators) (`[ ]`)
+
+**Requested 2026-10-15 (user):** inviting someone is blind email typing. An account
+should have a **team**, and the invite field should **autocomplete** from team
+members and people the account has previously collaborated with. **User
+clarification (2026-10-15):** the team is the subscriber's **seat group** — one
+payer covers non-paying members — so this roster is also the future seat unit for
+S5 billing (user's seat model, recorded as input to §11 of the collab doc;
+free-tier values stay open in `docs/LICENSING.md` §9).
+
+**Decisions (user, 2026-10-15):** team = **address book only** (grants NO access;
+sharing stays per person; "share with whole team" deliberately out of scope);
+**one team per account**; suggestions = team + **live co-members** (derived, no new
+personal data stored — invite history/Recents can be layered later if needed); the
+picker's feel = **the EntityDropdown picker** (input + panel below, keyboard-first).
+
+**Why a team is needed at all:** there is no global user directory — profiles are
+readable only when you share a project (`private.shares_project_with`,
+`supabase/migrations/20261012130425_s2_sharing_roles_invites.sql:99`), deliberately.
+Suggestions must come from data the caller may legitimately see: their own
+collaborations and their own team. Never add a public user search.
+
+**Phase 1 — "People you collaborate with" (no new tables).** Definer RPC
+`list_invite_suggestions(p_project)` (same `private.can_invite` gate as invites):
+distinct non-anonymous profiles sharing ≥1 project with the caller, excluding the
+caller, the structural owner and anyone already on the project — id + display_name +
+avatar + **email** (the deliberate, scoped exposure that makes the row's second line
+possible; co-member/teammate-visible only, never which project). Picking a person
+invites by user id — `invite_collaborator_by_id(p_project, p_user, p_role)` with the
+email path's rules (existing-member role change = owner-only) plus one guard: the
+target must be reachable (co-member now; + teammate in phase 2) so ids can't be
+granted at random. The email path stays for people without accounts.
+
+**Phase 2 — teams (one per real account).** `teams (id, name, owner_id)` +
+`team_members (team_id, user_id, created_at)` + `team_invites` (emails claimed by
+the existing signup trigger — same pattern as `pending_invites`); teammates read
+each other's profiles via a new `private.in_same_team(id)` policy branch. Guests
+must convert to a real account first (parity with Collaborate). Management = a Team
+modal from the avatar menu (name, members, invite by email, remove) — its
+add-member row reuses `PeoplePicker`. Schema stays seat-ready for 230 (member rows =
+seats; owner = payer) without shipping billing.
+
+**UI:** ONE new component — `PeoplePicker` (`src/components/sharing/PeoplePicker.tsx`) —
+a thin wrapper over the EXISTING `EntityDropdown` + `DropdownPanel` pair (the app's
+shared autocomplete: input + panel below; arrows/Enter/Tab/Escape with the
+single-highlight + hover rules, keyboard-only scroll, touch/wheel handling,
+kit-owned morph/positioner). Wiring: `mode="single"` + `displayMode="id"`
+(`EntityItem.id` = account id, so a pick commits the user id), `variant="chip"` (the
+dark modal-row recipe — Link Manager / Color Rules precedent), `renderItem` giving
+the row shape — **AccountAvatar left, name on top, smaller email below** —
+`filterItem` matching name + email, `sortItems` grouping team-first, `group` per
+item for the "Team" / "People you collaborate with" panel headers, `itemBadge` for
+the seed marker. Typing an unknown email lands on the panel's existing synthetic
+**Add "email"** row → the current email/pending invite; the separate email input and
+Invite button are absorbed into this one field. `onChange` = "attempt invite with
+this text": a suggestion id → invite by id; a valid email → email invite; anything
+else (a half-typed blur commit) is ignored silently. Shared by the SharingModal
+invite row AND the Team modal's add-member row. No new primitive, no kit change, no
+forked dropdown internals.
+
+**Verify:** extend RLS acceptance (`supabase/tests/rls_s2.sql` or a new file) —
+suggestions refused without `can_invite`; a stranger can neither list nor invite by
+id; non-reachable target rejected; team roster + profile read scoped to teammates;
+team invite claimed at signup; advisors clean after DDL. Rule-7 manual pass (two
+accounts + one team: teammate appears under "Team" → Enter invites → People list
+updates; unknown email → Add row → pending; arrows/Enter/Tab/Escape behave exactly
+like the cast pickers, Escape never closes the modal; non-inviter sees no picker).
+`npm run lint`. Load the `security-review` skill (auth/RLS surface); update
+`docs/COLLABORATION.md` §6 (S2 map) + §11/§12 in the same change.
+
+**Relations:** `extends` **229** (S2 sharing); `relates to` **230** (team = future
+seat boundary for the S5 subscription — no dependency in either direction now),
+**231** (avatar identities in the picker), **249** (Shared-list panel).

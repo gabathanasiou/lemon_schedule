@@ -30,20 +30,20 @@ test.describe('Locations', () => {
     // Add a location to the first type (buffered → save)
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('Studio One');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByPlaceholder('Name').last().press('Enter');
         await expect(nameCell(page, 'Studio One')).toBeVisible();
 
     // A second, different-named location saves cleanly (no merge dialog)
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('Studio Two');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByPlaceholder('Name').last().press('Enter');
     await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(2);
 
     // A same-name duplicate in the same type saves as its OWN row — locations
     // never merge on save (identical names are distinct locations).
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('Studio One');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByPlaceholder('Name').last().press('Enter');
     await expect(page.getByText('Merge Locations', { exact: true })).not.toBeVisible({ timeout: 3000 });
     await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(3);
 
@@ -51,7 +51,7 @@ test.describe('Locations', () => {
     await page.locator('button', { hasText: 'Unit Base' }).first().click();
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('River Lot');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByPlaceholder('Name').last().press('Enter');
     await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(4);
 
     // ---- Glide ----
@@ -179,7 +179,7 @@ test.describe('Locations', () => {
 
     // Edit the second duplicate row's phone and save — no merge dialog, no deletion.
     await page.getByRole('textbox', { name: 'Phone' }).nth(1).fill('555-1234');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Phone' }).nth(1).press('Enter');
     await expect(page.getByText('Merge Locations', { exact: true })).not.toBeVisible({ timeout: 3000 });
     await expect.poll(async () => {
       const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
@@ -198,7 +198,7 @@ test.describe('Locations', () => {
 
     // A second save on the sibling must stay merge-free too.
     await page.getByRole('textbox', { name: 'Phone' }).nth(0).fill('111-2222');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Phone' }).nth(0).press('Enter');
     await expect(page.getByText('Merge Locations', { exact: true })).not.toBeVisible({ timeout: 3000 });
     await expect.poll(async () => {
       const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
@@ -246,7 +246,7 @@ test.describe('Locations', () => {
 
     // ---- saving an untouched blank-name row persists the resolved name ----
     await page.getByPlaceholder('Phone').last().fill('555-1234');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByPlaceholder('Phone').last().press('Enter');
     await expect.poll(async () => {
       const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
       return (p.locations || []).find((l: any) => l.id === 'loc-pin');
@@ -257,7 +257,6 @@ test.describe('Locations', () => {
     await page.locator('tr', { has: nameCell(page, 'St Mary') }).getByTitle('Set nearest hospital').click();
     await page.getByRole('menuitem', { name: 'City Gen' }).click();
     await expect(page.locator('tr', { has: nameCell(page, 'St Mary') }).getByTitle('Set nearest hospital')).toContainText('City Gen');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect.poll(async () => {
       const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
       return (p.locations || []).find((l: any) => l.id === 'loc-h1');

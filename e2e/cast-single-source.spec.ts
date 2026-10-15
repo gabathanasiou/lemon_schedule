@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, loadSeedProject, waitForPersistedProject, nameCell, importScenesViaMenu } from './helpers';
+import { openSeededProject, loadSeedProject, waitForPersistedProject, nameCell, importScenesViaMenu, bridgeProject } from './helpers';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -92,7 +92,6 @@ test.describe('cast single source of truth (castMembers)', () => {
     await page.keyboard.type(`${m1().name} II`, { delay: 15 });
     await page.keyboard.press('Enter');
 
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await waitForPersistedProject(page, `(p.castMembers.find(m => String(m.id) === '${m1().id}') || {}).name === '${m1().name} II'`);
 
     const project = await getProject(page);
@@ -103,6 +102,29 @@ test.describe('cast single source of truth (castMembers)', () => {
     // scene cast references still by id
     const castVals = project.scenes.map((s: any) => s.cast || '').join(', ');
     expect(castVals.includes(String(m1().id))).toBe(true);
+  });
+
+  test('adding several cast rows gives each the next free Board ID (no overwrite)', async ({ page }) => {
+    await openElementManagerCast(page);
+
+    const before = ((await bridgeProject(page)).castMembers || []).length;
+    for (const name of ['FIRST NEW', 'SECOND NEW']) {
+      await page.getByRole('button', { name: 'Add Cast' }).click();
+      const blank = page.locator('tbody textarea[data-manager-name]').last();
+      await blank.fill(name);
+      await blank.press('Enter');
+      await expect(nameCell(page, name)).toBeVisible({ timeout: 5000 });
+    }
+
+    const project = await bridgeProject(page);
+    const members = project.castMembers || [];
+    const added = members.filter((m: any) => m.name === 'FIRST NEW' || m.name === 'SECOND NEW');
+    // Roadmap 250: cast is id-keyed — blank-id adds used to collide and the
+    // second member silently OVERWROTE the first.
+    expect(members.length).toBe(before + 2);
+    expect(added.length).toBe(2);
+    expect(new Set(added.map((m: any) => String(m.id))).size).toBe(2);
+    for (const m of added) expect(String(m.id)).toMatch(/^\d+$/);
   });
 
   test('scene sheet cast dropdown lists members from castMembers', async ({ page }) => {

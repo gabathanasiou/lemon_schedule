@@ -204,7 +204,7 @@ export const locationManagerConfig: ManagerShellConfig = {
   addScopeLabel: 'Add Type',
   renameScopeLabel: 'Rename Type',
   mergeTitle: 'Merge Locations',
-  mergeIntro: 'The following locations now share a name within this type. Saving will merge each set into a single location and combine their details.',
+  mergeIntro: 'The following locations now share a name within this type. Merging collapses each set into a single location and combines their details.',
   mergeSummary: 'details combined',
   fields: [
     { key: 'name', label: 'Name', width: 'min-w-44 max-w-56' },

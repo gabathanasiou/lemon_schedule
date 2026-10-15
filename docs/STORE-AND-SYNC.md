@@ -143,6 +143,10 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   successful online save the store calls `notifyLocalSave(revision)` (module bus → channel broadcast);
   on a received ping the presence provider calls `applyPeerSave(revision)`: re-read + silent LOAD when
   clean, else `onlineChangesAvailable` (the SaveIndicator "Changes available · Reload" chip).
+  **"Clean" includes un-flushed text (roadmap 250/251)**: while a manager field or Report Designer
+  text is being typed, the change counter has not moved yet, so `applyPeerSave` also consults
+  `hasInFlightEdits()` (`src/lib/inFlightEdits.ts`) — a peer's save then raises the chip instead of a
+  LOAD that would silently drop the text.
   `reloadOnlineProject()` is the explicit user action. Saves stay last-write-wins until S4 — never
   auto-apply over unsaved local edits.
 
@@ -174,8 +178,9 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   reload during an outage loses the buffer (stage 3's blob mirror is the persistence answer).
 - **Per-user undo (built) — delivered as a NEW EDIT.** EVERY undo/redo affordance goes through ONE
   shared pair, `undo()` / `redo()` in the provider: Cmd+Z / Cmd+Shift+Z, the header + popout-toolbar
-  buttons (`src/components/UndoRedoButtons.tsx` — the only copy) and popout windows. The element
-  manager's unsaved local history still runs first; then, for a **shared** project, the ROOM —
+  buttons (`src/components/UndoRedoButtons.tsx` — the only copy) and popout windows. Every edit is
+  dispatched when it finishes (commit on blur — roadmap 250/251), so undo granularity is per committed
+  edit; there is no surface-local history any more. For a **shared** project the ROOM owns undo —
   never the local transcript (a local transcript UNDO is not transported, so it would revert this
   window alone; when the room is not connected the affordance warns instead of diverging). The
   buttons' enablement is per USER: `{t:'undoState', canUndo, canRedo}` is pushed to ONE socket

@@ -305,8 +305,9 @@ Realtime (Broadcast + Presence) on a per-project **private** channel with RLS on
 the project (`§9`). Guests appear as live pointers ("Anonymous Otter"); the
 People list keeps hiding them (§6 S2 map). Also in this stage — **S3.5, the save
 ping**: a peer's save surfaces without a manual refresh (auto-apply only when
-the local client has no unsaved changes, else a subtle "Changes available ·
-Reload" affordance; whole-blob saves stay last-write-wins until S4).
+the local client has no unsaved changes — edits, or text still being typed
+(roadmap 250/251, `src/lib/inFlightEdits.ts`) — else a subtle "Changes
+available · Reload" affordance; whole-blob saves stay last-write-wins until S4).
 Script-body cursors are flagged, not faked (ProseMirror relative positions).
 *Acceptance*: two signed-in members see each other's live pointers and can
 follow; a save ping updates a clean peer; non-members cannot join the channel.

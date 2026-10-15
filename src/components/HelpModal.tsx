@@ -191,19 +191,18 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
         </Section>
 
         <Section title="Element Manager">
-          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>S</Kbd></>} action="Save changes (or the Save button). Merges are confirmed before saving" />
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>N</Kbd></>} action="Add a new row" />
-          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>Z</Kbd> / <Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>Z</Kbd></>} action="Undo / redo unsaved edits (one step per operation: rename, add, delete, sort, Auto-ID) — same as the top Undo/Redo buttons" />
-          <Row keys={<>Revert</>} action="Discard all unsaved edits back to the last save" />
-          <Row keys={<>Save then <Kbd>⌘</Kbd> + <Kbd>Z</Kbd></>} action="Undoes the whole save as one step" />
+          <Row keys={<>Type, then leave the field</>} action="Every edit saves when you finish it — Enter, Tab or clicking away. Nothing to save and no Save button" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>Z</Kbd> / <Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>Z</Kbd></>} action="Undo / redo the last committed edit (rename, add, delete, Auto-ID) — same as the top Undo/Redo buttons" />
+          <Row keys={<>Merging duplicates</>} action="Renaming a row onto an existing name asks before merging — the confirmation lists the affected scenes" />
           <Row keys={<>Day columns</>} action="Start Date, Finish Date and Total Days from the schedule, plus a column per day type — built-ins (Work, Hold, Travel, Day Off) and every custom type from the Calendar's Day Types tab; scroll the table horizontally to see them all" />
         </Section>
 
         <Section title="Crew Manager">
-          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>S</Kbd></>} action="Save crew changes (or the Save button). Same-name merges are confirmed before saving" />
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>N</Kbd></>} action="Add a new member row" />
-          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>Z</Kbd> / <Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>Z</Kbd></>} action="Undo / redo unsaved crew edits (one step per operation) — same as the top Undo/Redo buttons" />
-          <Row keys={<>Revert</>} action="Discard all unsaved edits back to the last save" />
+          <Row keys={<>Type, then leave the field</>} action="Every edit saves when you finish it — Enter, Tab or clicking away" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>Z</Kbd> / <Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>Z</Kbd></>} action="Undo / redo the last committed edit — same as the top Undo/Redo buttons" />
+          <Row keys={<>Merging people</>} action="Giving two members in a role the same name asks before merging their contact details into one" />
           <Row keys={<>Deleted members go to Trash</>} action="Restore from the File menu's Trash; a role is recreated automatically if it was deleted" />
         </Section>
 
