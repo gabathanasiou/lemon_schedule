@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { RoomClient, type WebSocketLike } from '../rooms/roomClient';
+import { MAX_QUEUED_ACTIONS, RoomClient, type WebSocketLike } from '../rooms/roomClient';
 import { makeBlankProject, type Action } from '../../store/reducer';
 import { serializeProject } from '../projectCodec';
 import { encodeRoomMessage, type RoomServerMessage } from '../rooms/protocol';
@@ -53,6 +53,8 @@ function makeClient(overrides: Record<string, unknown> = {}) {
     onRejected: (id, reason) => events.push(`rejected:${id}:${reason}`),
     onError: (m) => events.push(`error:${m}`),
     onStatus: (s) => events.push(`status:${s}`),
+    onReplayQueued: (a) => events.push(`replay:${a.type}`),
+    onPendingChange: (i) => events.push(`queue:${i.pending}:${i.dropped}`),
     createSocket: (url) => {
       const socket = new FakeSocket(url);
       sockets.push(socket);
@@ -91,18 +93,32 @@ describe('RoomClient', () => {
     expect(events).toContain('welcome:3:editor');
   });
 
-  it('streams actions only while open, and dedupes its own echo', async () => {
+  it('queues actions before the handshake and replays them in order after the welcome', async () => {
     const { client, sockets, events } = makeClient();
     client.start();
     await vi.waitFor(() => expect(sockets).toHaveLength(1));
-    // Not open yet — an action would be refused (and close the socket) server-side.
-    expect(client.sendAction('early-1', { type: 'BATCH_START' })).toBe(false);
+    // Not open yet — buffered, never sent (the room closes unauthenticated sockets).
+    expect(client.sendAction('early-1', { type: 'BATCH_START' })).toBe(true);
+    expect(client.sendAction('early-2', { type: 'BATCH_COMMIT' })).toBe(true);
+    expect(sockets[0].sent).toHaveLength(0);
+    expect(client.getQueueInfo()).toEqual({ pending: 2, dropped: 0 });
 
     sockets[0].onopen?.();
     await vi.waitFor(() => expect(sockets[0].sent).toHaveLength(1));
     sockets[0].receive({ t: 'welcome', userId: 'u-1', role: 'editor', rev: 0, project: PROJECT_BLOB, replay: [] });
     await vi.waitFor(() => expect(client.getStatus()).toBe('open'));
 
+    // The buffer re-applies locally (onReplayQueued) and replays IN ORDER, then drains.
+    expect(events).toContain('replay:BATCH_START');
+    expect(events).toContain('replay:BATCH_COMMIT');
+    expect(sockets[0].sent.slice(1).map((s) => JSON.parse(s))).toEqual([
+      { t: 'act', actionId: 'early-1', action: { type: 'BATCH_START' } },
+      { t: 'act', actionId: 'early-2', action: { type: 'BATCH_COMMIT' } },
+    ]);
+    expect(events).toContain('queue:0:0');
+    expect(client.getQueueInfo()).toEqual({ pending: 0, dropped: 0 });
+
+    // While open an action streams immediately (nothing buffered).
     expect(client.sendAction('a-1', { type: 'BATCH_START' })).toBe(true);
     expect(sockets[0].lastSent()).toEqual({ t: 'act', actionId: 'a-1', action: { type: 'BATCH_START' } });
 
@@ -113,6 +129,102 @@ describe('RoomClient', () => {
     // A peer's action is applied.
     sockets[0].receive({ t: 'remote', rev: 2, userId: 'u-2', actionId: 'b-1', action: { type: 'BATCH_COMMIT' } });
     expect(events).toContain('remote:b-1');
+  });
+
+  it('drops the OLDEST buffered actions past the cap and surfaces the drops', async () => {
+    const { client, sockets } = makeClient();
+    client.start();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    for (let i = 0; i <= MAX_QUEUED_ACTIONS; i++) client.sendAction(`q-${i}`, { type: 'BATCH_COMMIT' });
+    expect(client.getQueueInfo()).toEqual({ pending: MAX_QUEUED_ACTIONS, dropped: 1 });
+
+    sockets[0].onopen?.();
+    await vi.waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    sockets[0].receive({ t: 'welcome', userId: 'u-1', role: 'editor', rev: 0, project: PROJECT_BLOB, replay: [] });
+    await vi.waitFor(() => expect(client.getStatus()).toBe('open'));
+    // q-0 was the drop; everything after it replayed in order.
+    const acts = sockets[0].sent.slice(1).map((s) => JSON.parse(s));
+    expect(acts).toHaveLength(MAX_QUEUED_ACTIONS);
+    expect(acts[0]).toEqual({ t: 'act', actionId: 'q-1', action: { type: 'BATCH_COMMIT' } });
+    expect(acts[acts.length - 1].actionId).toBe(`q-${MAX_QUEUED_ACTIONS}`);
+    // A drained buffer resets the drop warning.
+    expect(client.getQueueInfo()).toEqual({ pending: 0, dropped: 0 });
+  });
+
+  it('clears the buffer on stop — a project switch never bleeds edits', async () => {
+    const { client, sockets } = makeClient();
+    client.start();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    client.sendAction('q-1', { type: 'BATCH_START' });
+    expect(client.getQueueInfo().pending).toBe(1);
+    client.stop();
+    expect(client.getQueueInfo()).toEqual({ pending: 0, dropped: 0 });
+
+    client.start();
+    await vi.waitFor(() => expect(sockets).toHaveLength(2));
+    sockets[1].onopen?.();
+    await vi.waitFor(() => expect(sockets[1].sent).toHaveLength(1));
+    sockets[1].receive({ t: 'welcome', userId: 'u-1', role: 'editor', rev: 0, project: PROJECT_BLOB, replay: [] });
+    await vi.waitFor(() => expect(client.getStatus()).toBe('open'));
+    expect(sockets[1].sent).toHaveLength(1); // hello only — the old buffer is gone
+  });
+
+  it('drops the buffer when OUR init seeded the room (the blob already carries it)', async () => {
+    const { client, sockets, events } = makeClient();
+    client.start();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    client.sendAction('q-1', { type: 'UPDATE_PROJECT', payload: {} } as Action);
+    sockets[0].onopen?.();
+    await vi.waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    sockets[0].receive({ t: 'needInit' });
+    expect(sockets[0].lastSent()).toEqual({ t: 'init', project: PROJECT_BLOB });
+    sockets[0].receive({ t: 'welcome', userId: 'u-1', role: 'editor', rev: 0, project: PROJECT_BLOB, replay: [] });
+    await vi.waitFor(() => expect(client.getStatus()).toBe('open'));
+    // No act replay (ADD_* would duplicate what the init contains), buffer dropped.
+    expect(sockets[0].sent).toHaveLength(2);
+    expect(events).not.toContain('replay:UPDATE_PROJECT');
+    expect(client.getQueueInfo()).toEqual({ pending: 0, dropped: 0 });
+  });
+
+  it('keeps unflushed actions buffered when a write fails mid-flush', async () => {
+    const sockets: FakeSocket[] = [];
+    let failSends = false;
+    const { client, events } = makeClient({
+      createSocket: (url: string) => {
+        const socket = new FakeSocket(url);
+        const send = socket.send.bind(socket);
+        socket.send = (data: string) => {
+          if (failSends) throw new Error('socket closed');
+          send(data);
+        };
+        sockets.push(socket);
+        return socket;
+      },
+    });
+    client.start();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    client.sendAction('q-1', { type: 'BATCH_START' });
+    client.sendAction('q-2', { type: 'BATCH_COMMIT' });
+    sockets[0].onopen?.();
+    await vi.waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    failSends = true; // the socket dies as the welcome lands
+    sockets[0].receive({ t: 'welcome', userId: 'u-1', role: 'editor', rev: 0, project: PROJECT_BLOB, replay: [] });
+    expect(client.getQueueInfo()).toEqual({ pending: 2, dropped: 0 });
+    // q-1 was re-applied locally before its failed write; q-2 was never reached.
+    expect(events).toContain('replay:BATCH_START');
+    expect(events).not.toContain('replay:BATCH_COMMIT');
+
+    // Reconnect: the same instance retries the whole buffer in order.
+    failSends = false;
+    sockets[0].onclose?.();
+    await vi.waitFor(() => expect(sockets).toHaveLength(2));
+    sockets[1].onopen?.();
+    await vi.waitFor(() => expect(sockets[1].sent).toHaveLength(1));
+    sockets[1].receive({ t: 'welcome', userId: 'u-1', role: 'editor', rev: 0, project: PROJECT_BLOB, replay: [] });
+    await vi.waitFor(() => expect(client.getStatus()).toBe('open'));
+    expect(events).toContain('replay:BATCH_COMMIT');
+    expect(sockets[1].sent.slice(1).map((s) => JSON.parse(s).actionId)).toEqual(['q-1', 'q-2']);
+    expect(client.getQueueInfo()).toEqual({ pending: 0, dropped: 0 });
   });
 
   it('seeds an empty room when asked, and stays quiet when it may not', async () => {

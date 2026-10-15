@@ -133,14 +133,29 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
 ## Realtime rooms (roadmap 229 S4 — room worker + client transport)
 
 - ONE client module `src/lib/rooms/roomClient.ts` (WS transport: hello/token, snapshot + replay,
-  own-echo dedupe by `actionId`, rejection → auto-resync, backoff reconnect, `sendUndo`/`sendRedo`)
-  + the React seam `src/lib/rooms/useRoomTransport.ts` (mounted in `ProjectProvider`; inert without
-  `VITE_ROOMS_URL`). The room worker runs the SAME reducer (`workers/rooms`).
-- While the room transport is connected (status ≠ `closed`) it owns the open shared project's
-  writes: every accepted write dispatch streams an action (`guardedDispatch`; `LOAD`/`UNDO`/`REDO`
-  excluded — the room's own refuse-set), welcome/remote messages apply through the RAW dispatch
-  (never counted as local changes, never pushed back), and the whole-blob Supabase save + S3.5
-  peer-save reloads are skipped — the blob is staging-only until the S4 persistence cutover.
+  own-echo dedupe by `actionId`, rejection → auto-resync, backoff reconnect, `sendUndo`/`sendRedo`,
+  bounded offline buffer) + the React seam `src/lib/rooms/useRoomTransport.ts` (mounted in
+  `ProjectProvider`; inert without `VITE_ROOMS_URL`). The room worker runs the SAME reducer
+  (`workers/rooms`).
+- **While a room transport is MOUNTED for the open shared project (any status) it owns the
+  project's writes**: every accepted write dispatch streams an action (`guardedDispatch`;
+  `LOAD`/`UNDO`/`REDO` excluded — the room's own refuse-set), welcome/remote messages apply
+  through the RAW dispatch (never counted as local changes, never pushed back), and the
+  whole-blob Supabase save is skipped — the blob is staging-only until the S4 persistence
+  cutover. Shared projects WITHOUT a transport (rooms not configured / signed out) keep the
+  pre-S4 blob path.
+- **Offline buffer (roadmap 239 stage 2).** While the room is not `open`, `RoomClient.sendAction`
+  BUFFERS accepted actions instead of dropping them (`MAX_QUEUED_ACTIONS`, oldest dropped past
+  the cap and surfaced as `dropped`): the edit already applied locally via `guardedDispatch`.
+  Right after the next `welcome` the buffer replays IN ORDER — each action is re-applied locally
+  (`onReplayQueued`; the welcome reset the state to the room's snapshot, so the UI never flashes
+  the edit away) and then sent through the normal optimistic path (echo deduped by `actionId`).
+  A failed write keeps that entry and every later one buffered for the next welcome; the buffer
+  is DROPPED (not replayed) when our own `init` seeded an empty room — that blob already carries
+  it, and `ADD_*` replays are not idempotent (`ADD_SCENE` appends + pushes a fresh row). `stop()`
+  clears the buffer (project switch — no cross-project bleed) and `diagnostics().roomPending`
+  reports `{pending, dropped}`; the header badge's tooltip shows the count. In-memory only — a
+  reload during an outage loses the buffer (stage 3's blob mirror is the persistence answer).
 - **Per-user undo (built) — delivered as a NEW EDIT.** EVERY undo/redo affordance goes through ONE
   shared pair, `undo()` / `redo()` in the provider: Cmd+Z / Cmd+Shift+Z, the header + popout-toolbar
   buttons (`src/components/UndoRedoButtons.tsx` — the only copy) and popout windows. The element
@@ -161,8 +176,10 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   through the same normal path; the redo stack lives in room memory only (lost on hibernation) and a
   new accepted action from that user clears it. Undo depth = the retained snapshot window
   (`SNAPSHOTS_KEPT` = 4 snapshots ≈ 4 × `SNAPSHOT_EVERY` actions); a unit with no base snapshot
-  answers "action too old to undo". The header undo/redo buttons still use the local transcript while
-  connected (Cmd+Z is the room-routed path) — polish alongside the deploy.
+  answers "action too old to undo". The header + popout-toolbar buttons use the SAME room-routed
+  pair (not a transcript undo — that was the "buttons bypassed the room" report); their enablement
+  additionally requires the room to be **open**, so while it is connecting/unreachable the buttons
+  are refused — there is nothing to rebase, and the offline buffer holds edits, never undo.
 - **Delivery safety net (`RoomClient`).** The room stamps every `remote` with a CONTIGUOUS `rev`, so
   the client tracks the last applied rev: a jump (a dropped update — an undo `LOAD` included) makes
   it `sync` for a full snapshot instead of applying the delta against the wrong base — a peer that

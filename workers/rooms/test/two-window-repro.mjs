@@ -16,8 +16,10 @@
  *   • captures every WebSocket frame in both windows,
  *   • A edits a stripboard scene, then presses Meta+z,
  *   • extra sections: the peer PRESENCE cursor (renders + follows), the
- *     input-modality glyph (touch = hand, roadmap 241) and the local-overlay
- *     dots cue (menu/modal, roadmap 240).
+ *     input-modality glyph (touch = hand, roadmap 241), the local-overlay
+ *     dots cue (menu/modal, roadmap 240), and the OFFLINE BUFFER (roadmap 239
+ *     stage 2 — kills wrangler mid-session, edits buffer in A, restart replays
+ *     them; the script restarts wrangler itself).
  *
  * ACCOUNTS: signs in as the REUSABLE robot accounts held in the gitignored
  * `.env` (`LEMON_TEST_SB_USER_A/PASS_A` + `_B`) — no new users are created per
@@ -33,6 +35,7 @@
  * local room worker via VITE_ROOMS_URL. Exits 0 always (prints checks).
  */
 import { readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -103,6 +106,30 @@ function check(label, ok, detail) {
   log(`${ok ? '  ok ' : 'FAIL '} ${label}${detail === undefined ? '' : ` — ${JSON.stringify(detail)}`}`);
   if (!ok) failures++;
 }
+
+/** Run a process to completion (kill/restart helpers below). */
+const run = (cmd, args) => new Promise((resolve) => {
+  try {
+    const child = spawn(cmd, args, { stdio: 'ignore' });
+    child.on('exit', resolve);
+    child.on('error', () => resolve(-1));
+  } catch {
+    resolve(-1);
+  }
+});
+async function killWrangler() {
+  await run('pkill', ['-f', 'wrangler dev --port 8787']);
+  await run('sh', ['-c', 'lsof -ti :8787 | xargs kill -9 2>/dev/null; true']);
+}
+function startWrangler() {
+  const child = spawn('npx', ['wrangler', 'dev', '--port', '8787'], {
+    cwd: `${REPO}/workers/rooms`,
+    detached: true,
+    stdio: 'ignore',
+  });
+  child.unref();
+}
+let wranglerKilled = false;
 
 const project = JSON.parse(readFileSync(`${REPO}/e2e/fixtures/seed.lemon`, 'utf8'));
 const PROJECT_ID = crypto.randomUUID();
@@ -490,10 +517,77 @@ try {
     (await B.page.locator(cursorSel('[data-overlay]')).count()) === 0);
   check('B: cue clears when the menu closes', menuCleared, null);
 
+  // ── Offline queue (roadmap 239 stage 2): kill the room worker mid-session,
+  // edit in A (buffered locally + badge), restart the worker → A replays the
+  // buffer right after the welcome and B converges with no lost edit.
+  log('• killing wrangler to exercise the offline buffer…');
+  wranglerKilled = true;
+  await killWrangler();
+  const roomDown = async (page, who) => {
+    for (let i = 0; i < 80; i++) {
+      const d = await diag(page).catch(() => null);
+      if (d && d.roomStatus !== 'open') return true;
+      await sleep(250);
+    }
+    return false;
+  };
+  check('A: room left the open state', await roomDown(A.page, 'A'), null);
+  check('B: room left the open state', await roomDown(B.page, 'B'), null);
+
+  const OFFLINE_1 = 'S4QUEUE-OFFLINE-ONE';
+  const OFFLINE_2 = 'S4QUEUE-OFFLINE-TWO';
+  const actsBefore = A.frames.filter((f) => f.dir === 'sent' && f.t === 'act').length;
+  await bridge(A.page, `b.dispatch({ type: 'UPDATE_SCENE', payload: { id: '${sceneId}', description: '${OFFLINE_1}' } })`);
+  await bridge(A.page, `b.dispatch({ type: 'UPDATE_SCENE', payload: { id: '${sceneId}', description: '${OFFLINE_2}' } })`);
+  const aQueue = await diag(A.page).then((d) => d.roomPending).catch(() => null);
+  check('A: edits queue while the room is down', !!aQueue && aQueue.pending === 2, aQueue);
+  check('A: the offline edit applied locally', (await descOf(A.page)) === OFFLINE_2, await descOf(A.page));
+  check('B: did not receive the offline edit', (await descOf(B.page)) !== OFFLINE_2, await descOf(B.page));
+  let badgeSeen = false;
+  for (let i = 0; i < 40; i++) { if ((await A.page.getByTestId('room-status-badge').count()) > 0) { badgeSeen = true; break; } await sleep(250); }
+  check('A: header badge shows the offline state', badgeSeen, null);
+
+  log('• restarting wrangler…');
+  startWrangler();
+  wranglerKilled = false;
+  const roomUp = async (page) => {
+    for (let i = 0; i < 240; i++) {
+      const d = await diag(page).catch(() => null);
+      if (d && d.roomStatus === 'open') return true;
+      await sleep(500);
+    }
+    return false;
+  };
+  check('A: room reopened after the restart', await roomUp(A.page), null);
+  check('B: room reopened after the restart', await roomUp(B.page), null);
+
+  let drained = false;
+  for (let i = 0; i < 80; i++) {
+    const d = await diag(A.page).catch(() => null);
+    if (d && d.roomPending && d.roomPending.pending === 0) { drained = true; break; }
+    await sleep(250);
+  }
+  check('A: offline buffer drained after the welcome', drained, await diag(A.page).then((d) => d.roomPending).catch(() => null));
+  let bConverged = false;
+  for (let i = 0; i < 80; i++) { if ((await descOf(B.page)) === OFFLINE_2) { bConverged = true; break; } await sleep(100); }
+  check('B: received the replayed offline edit (no lost edit)', bConverged, await descOf(B.page));
+  check('A: kept the offline edit', (await descOf(A.page)) === OFFLINE_2, await descOf(A.page));
+  const actsAfter = A.frames.filter((f) => f.dir === 'sent' && f.t === 'act').length;
+  check('A: replayed the buffer as normal act messages', actsAfter >= actsBefore + 2, { actsBefore, actsAfter });
+  let badgeGone = false;
+  for (let i = 0; i < 40; i++) { if ((await A.page.getByTestId('room-status-badge').count()) === 0) { badgeGone = true; break; } await sleep(250); }
+  check('A: badge clears once the room is live again', badgeGone, null);
+
   log(failures === 0 ? '\nNO DIVERGENCE — undo/redo reach peers as normal updates' : `\n${failures} problem(s) observed`);
 } catch (e) {
   console.error('repro crashed:', e);
 } finally {
+  // Never leave the machine without its dev room worker (the offline-queue
+  // section kills it — restart even after a crash).
+  if (wranglerKilled) {
+    log('• restarting wrangler (crash recovery)…');
+    startWrangler();
+  }
   // Leave no throwaway project behind: delete the row this run created (owner
   // A's token; memberships/share links cascade). If it fails, the dashboard is
   // the fallback — see the header.

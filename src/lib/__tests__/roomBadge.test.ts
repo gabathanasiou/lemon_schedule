@@ -30,12 +30,22 @@ describe('room status badge (roadmap 239 stage 1)', () => {
     expect(roomBadgeState({ ...base, status: 'closed' })).toBe('unreachable');
   });
 
-  it('carries copy per state and never promises a queue', () => {
+  it('carries the queue counts and promises the sync (stage 2 buffer)', () => {
     expect(roomBadgeText('hidden')).toBe('');
     expect(roomBadgeText('connecting')).toMatch(/connecting/i);
-    const unreachable = roomBadgeText('unreachable');
-    expect(unreachable).toMatch(/unreachable/i);
-    expect(unreachable).not.toMatch(/queued|saved locally|will sync/i);
+    expect(roomBadgeText('connecting', { pending: 3, dropped: 0 })).toMatch(/3 changes queued/i);
+    expect(roomBadgeText('connecting', { pending: 1, dropped: 0 })).toMatch(/1 change queued/i);
+
+    // Unreachable: nothing buffered yet → "keep working"; buffered → the count.
+    expect(roomBadgeText('unreachable')).toMatch(/keep working/i);
+    const one = roomBadgeText('unreachable', { pending: 1, dropped: 0 });
+    expect(one).toMatch(/1 change queued locally/i);
+    expect(one).toMatch(/syncing when the connection returns/i);
+
+    // A full buffer surfaces its drops.
+    const dropped = roomBadgeText('unreachable', { pending: 2, dropped: 3 });
+    expect(dropped).toMatch(/2 changes queued locally/i);
+    expect(dropped).toMatch(/3 changes dropped/i);
   });
 
   it('covers every transport status', () => {

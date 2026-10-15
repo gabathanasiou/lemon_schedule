@@ -5,6 +5,13 @@
  * accepted local actions, and dedupes its own echo by `actionId` (the local
  * apply already happened optimistically).
  *
+ * Offline buffer (roadmap 239 stage 2): while the room is not open, accepted
+ * local actions are APPLIED LOCALLY (the caller does that) and BUFFERED here
+ * (bounded) instead of being dropped; the buffer replays in order right after
+ * the next welcome, riding the normal optimistic path. The same client
+ * instance survives reconnects (so the buffer does too), and `stop()` clears
+ * it — a project switch must never bleed the old room's edits into the new one.
+ *
  * The socket interface is the `on*`-property slice both the browser WebSocket
  * and Node's `ws` satisfy, and `createSocket` is injectable so Vitest and the
  * `room-client-probe` can drive it without a browser.
@@ -21,6 +28,24 @@ import type { Action } from '../../store/reducer';
 import type { Project } from '../../types';
 
 export type RoomStatus = 'idle' | 'connecting' | 'syncing' | 'open' | 'reconnecting' | 'closed';
+
+/** Bounded offline action buffer (roadmap 239 stage 2): actions accepted while
+ *  the room is not open are applied locally and queued, then replayed in ORDER
+ *  right after the next welcome. A pathological outage drops the OLDEST past
+ *  this cap (the newest intent wins) and the drop is surfaced. */
+export const MAX_QUEUED_ACTIONS = 1000;
+
+export interface RoomQueueInfo {
+  /** Actions waiting to be replayed after the next welcome. */
+  pending: number;
+  /** Oldest-first drops after the buffer hit `MAX_QUEUED_ACTIONS`. */
+  dropped: number;
+}
+
+interface QueuedAction {
+  actionId: string;
+  action: Action;
+}
 
 export interface RoomWelcome {
   userId: string;
@@ -61,6 +86,13 @@ export interface RoomClientOptions {
   getInitProject: () => string | null;
   onWelcome: (welcome: RoomWelcome) => void;
   onRemote: (remote: RoomRemote) => void;
+  /** A buffered (offline) action is being replayed after a welcome — apply it
+   *  locally too: the welcome reset the state to the room's snapshot, and the
+   *  transport sends the action right after, so the UI never flashes the edit
+   *  away and the echo is deduped like every optimistic local apply. */
+  onReplayQueued?: (action: Action) => void;
+  /** The offline buffer changed (enqueue / drain / drop / clear). */
+  onPendingChange?: (info: RoomQueueInfo) => void;
   /** This user's room-side undo/redo availability (header button enablement). */
   onUndoState?: (state: { canUndo: boolean; canRedo: boolean }) => void;
   /** Our own action was refused; the transport re-syncs automatically. */
@@ -92,6 +124,18 @@ export class RoomClient {
   private lastRev: number | null = null;
   /** A re-sync is in flight — its `welcome` will carry everything we missed. */
   private syncPending = false;
+  /** Offline buffer (roadmap 239 stage 2) — see the module header. */
+  private queue: QueuedAction[] = [];
+  private queueDropped = 0;
+  /**
+   * We seeded an EMPTY room with our current project (`needInit` → `init`) —
+   * that blob already contains every queued edit, so the welcome that follows
+   * must DROP the buffer, never replay it: an ADD_* replay would duplicate
+   * what the init already carries (`ADD_SCENE` appends the scene + pushes a
+   * fresh row; it is NOT idempotent). A seed RACE (another client's init won)
+   * loses those edits — the pre-queue behavior, preferred over corruption.
+   */
+  private initSeeded = false;
 
   constructor(private readonly opts: RoomClientOptions) {}
 
@@ -114,19 +158,42 @@ export class RoomClient {
     } catch {
       // already closed
     }
+    // The buffer is per-room-instance — never let it bleed into another
+    // project (a switch stops this client and mounts a fresh one).
+    const hadQueue = this.queue.length > 0 || this.queueDropped > 0;
+    this.queue = [];
+    this.queueDropped = 0;
+    this.initSeeded = false;
     this.setStatus('closed');
+    if (hadQueue) this.notifyQueue();
   }
 
   getStatus(): RoomStatus {
     return this.status;
   }
 
-  /** Send one accepted local action. False = not connected right now. */
+  getQueueInfo(): RoomQueueInfo {
+    return { pending: this.queue.length, dropped: this.queueDropped };
+  }
+
+  /**
+   * Accept one local action (roadmap 239 stage 2): sent immediately while the
+   * room is open, otherwise QUEUED for replay right after the next welcome
+   * (never sent before the handshake — the room closes unauthenticated
+   * sockets). Returns false only when the client is stopped.
+   */
   sendAction(actionId: string, action: Action): boolean {
-    // Only once the room has welcomed us — a non-hello message before that is
-    // refused and the socket closed, so never race the handshake.
-    if (this.status !== 'open') return false;
-    if (!this.rawSend({ t: 'act', actionId, action })) return false;
+    if (this.stopped) return false;
+    if (this.status !== 'open') {
+      this.enqueue(actionId, action);
+      return true;
+    }
+    if (!this.rawSend({ t: 'act', actionId, action })) {
+      // The socket died between the status flip and the write — buffer it;
+      // the next welcome replays it instead of losing it.
+      this.enqueue(actionId, action);
+      return true;
+    }
     this.pendingOwn.add(actionId);
     return true;
   }
@@ -235,11 +302,23 @@ export class RoomClient {
           project,
           replay: msg.replay,
         });
+        // Roadmap 239 stage 2: the offline buffer replays right after the
+        // welcome — re-applied locally, then sent in order (the welcome reset
+        // the state to the room's snapshot; the flush keeps the edits visible).
+        if (this.initSeeded) {
+          // We seeded this room with our current project, which already
+          // contains every buffered edit — dropping beats replaying
+          // (`ADD_SCENE` is not idempotent; see `initSeeded`).
+          this.initSeeded = false;
+          this.clearQueue();
+        } else {
+          this.flushQueue();
+        }
         return;
       }
       case 'needInit': {
         const blob = this.opts.getInitProject();
-        if (blob) this.rawSend({ t: 'init', project: blob });
+        if (blob && this.rawSend({ t: 'init', project: blob })) this.initSeeded = true;
         // else: wait — an editor elsewhere seeds the room and the welcome follows
         return;
       }
@@ -291,6 +370,52 @@ export class RoomClient {
       // socket racing closed — onclose will handle reconnection
       return false;
     }
+  }
+
+  // ---- offline buffer (roadmap 239 stage 2) --------------------------------
+
+  private enqueue(actionId: string, action: Action): void {
+    this.queue.push({ actionId, action });
+    if (this.queue.length > MAX_QUEUED_ACTIONS) {
+      this.queue.shift();
+      this.queueDropped += 1;
+    }
+    this.notifyQueue();
+  }
+
+  /**
+   * Replay the offline buffer after a welcome: re-apply each action locally
+   * (the welcome reset the state to the room's snapshot), then send it in
+   * ORDER. A write that fails keeps that entry and every later one buffered
+   * for the next welcome — an entry leaves the buffer only after its write
+   * was handed to the socket (the same delivery guarantee as an online edit).
+   */
+  private flushQueue(): void {
+    if (this.queue.length === 0) return;
+    const queued = this.queue;
+    this.queue = [];
+    for (let i = 0; i < queued.length; i++) {
+      const entry = queued[i];
+      this.opts.onReplayQueued?.(entry.action);
+      if (!this.rawSend({ t: 'act', actionId: entry.actionId, action: entry.action })) {
+        this.queue = queued.slice(i);
+        break;
+      }
+      this.pendingOwn.add(entry.actionId);
+    }
+    if (this.queue.length === 0) this.queueDropped = 0;
+    this.notifyQueue();
+  }
+
+  private clearQueue(): void {
+    if (this.queue.length === 0 && this.queueDropped === 0) return;
+    this.queue = [];
+    this.queueDropped = 0;
+    this.notifyQueue();
+  }
+
+  private notifyQueue(): void {
+    this.opts.onPendingChange?.({ pending: this.queue.length, dropped: this.queueDropped });
   }
 
   private setStatus(status: RoomStatus): void {

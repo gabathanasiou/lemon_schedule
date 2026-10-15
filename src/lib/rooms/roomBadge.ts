@@ -1,15 +1,14 @@
-import type { RoomStatus } from './roomClient';
+import type { RoomQueueInfo, RoomStatus } from './roomClient';
 
 /**
- * The header room-status badge state (roadmap 239 stage 1) — a pure mapping
- * from the transport status to what the cloud indicator should show. The
- * badge is PURE UI: it explains the degraded state, it changes no behavior.
+ * The header room-status badge state (roadmap 239) — a pure mapping from the
+ * transport status to what the cloud indicator should show. The badge is PURE
+ * UI: it explains the degraded state, it changes no behavior.
  *
- * Stage 1 has no offline queue, so the 'unreachable' copy must not promise
- * one — while the room is not `open` on a shared project, edits still apply
- * locally but are not streamed (guardedDispatch's sendAction returns false)
- * and the room's next `welcome` replaces them. The header badge is the
- * honest warning for that window (stage 2 adds the queue + the pending count).
+ * Stage 2 (built) buffers edits made while the room is not open in the client
+ * and replays them after the next welcome, so the 'unreachable' copy may
+ * promise the sync and show the PENDING COUNT ("N changes queued"). A full
+ * buffer drops the oldest and the drop is surfaced in the same tooltip.
  */
 export type RoomBadgeState = 'hidden' | 'connecting' | 'unreachable';
 
@@ -36,13 +35,20 @@ export function roomBadgeState({ roomsConfigured, onlineProject, networkOnline, 
   return status === 'idle' || status === 'connecting' || status === 'syncing' ? 'connecting' : 'unreachable';
 }
 
-/** The badge tooltip text (empty for 'hidden'). */
-export function roomBadgeText(state: RoomBadgeState): string {
+/** The badge tooltip text (empty for 'hidden'). `queue` carries the offline
+ *  buffer's pending/dropped counts (roadmap 239 stage 2). */
+export function roomBadgeText(state: RoomBadgeState, queue: RoomQueueInfo = { pending: 0, dropped: 0 }): string {
+  const changes = (n: number) => `${n} change${n === 1 ? '' : 's'}`;
+  const droppedNote = queue.dropped > 0 ? ` (${changes(queue.dropped)} dropped — the queue was full)` : '';
   switch (state) {
     case 'connecting':
-      return 'Connecting to collaborators…';
+      return queue.pending > 0
+        ? `Connecting to collaborators — ${changes(queue.pending)} queued to sync.${droppedNote}`
+        : 'Connecting to collaborators…';
     case 'unreachable':
-      return 'Collaboration server unreachable — changes aren\u2019t reaching your collaborators right now.';
+      return queue.pending > 0
+        ? `Collaboration server unreachable — ${changes(queue.pending)} queued locally, syncing when the connection returns.${droppedNote}`
+        : 'Collaboration server unreachable — keep working; changes queue locally until the connection returns.';
     default:
       return '';
   }

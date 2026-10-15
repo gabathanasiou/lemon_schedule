@@ -14,7 +14,7 @@ import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } 
 import { performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 import { useRoomTransport } from '../lib/rooms/useRoomTransport';
 import { fetchRoomToken } from '../lib/rooms/tokenClient';
-import type { RoomStatus } from '../lib/rooms/roomClient';
+import type { RoomQueueInfo, RoomStatus } from '../lib/rooms/roomClient';
 import type { RoomRole } from '../lib/rooms/protocol';
 import { serializeProject } from '../lib/projectCodec';
 import {
@@ -72,6 +72,9 @@ export interface ProjectContextType {
    *  'open' = live editing; any other value on a shared project means the
    *  room is connecting/unreachable (the header badge reflects it). */
   roomStatus: RoomStatus;
+  /** The room's offline buffer (roadmap 239 stage 2): edits accepted while the
+   *  room is not open are queued and replayed after the next welcome. */
+  roomPending: RoomQueueInfo;
   /** The active calendar version (production window + day statuses/events) —
    *  drives every calendar surface AND the stripboard's dates. Independent of
    *  the active schedule version (item 66). */
@@ -222,9 +225,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // Per-USER room undo/redo availability, pushed by the room (join, own action,
   // undo, redo) — enables/disables the header buttons for THIS user only.
   const [roomUndoState, setRoomUndoState] = useState({ canUndo: false, canRedo: false });
+  // The room's offline buffer (roadmap 239 stage 2) — edits accepted while the
+  // room is not open queue in the client and replay after the next welcome.
+  const [roomQueue, setRoomQueue] = useState<RoomQueueInfo>({ pending: 0, dropped: 0 });
   useEffect(() => {
     roomIdentityRef.current = null;
     setRoomUndoState({ canUndo: false, canRedo: false });
+    setRoomQueue({ pending: 0, dropped: 0 });
   }, [currentOnlineId, sbUserId]);
   const { clientRef: roomClientRef, status: roomStatus } = useRoomTransport({
     onlineId: currentOnlineId,
@@ -248,6 +255,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
     },
     onUndoState: (state) => setRoomUndoState(state),
+    onReplayQueued: (action) => {
+      // Roadmap 239 stage 2: the welcome reset the state to the room's
+      // snapshot; re-apply the buffered edit locally so the UI never flashes
+      // it away, then streamAction sends it right after (its echo is deduped
+      // like every optimistic local apply).
+      dispatch(action);
+      notifyAgentBridge(action);
+    },
+    onPendingChange: (info) => setRoomQueue(prev =>
+      prev.pending === info.pending && prev.dropped === info.dropped ? prev : info),
     onRemote: (remote) => {
       // A peer's room undo arrives as a normal update carrying the rebased
       // state as a `LOAD` action — re-anchor the persisted baseline instead of
@@ -261,8 +278,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   });
   const roomStatusRef = useRef<RoomStatus>('closed');
   roomStatusRef.current = roomStatus;
+  const roomQueueRef = useRef(roomQueue);
+  roomQueueRef.current = roomQueue;
   /** True while the room owns this project's writes (connected / reconnecting). */
   const roomActive = useCallback(() => roomStatusRef.current !== 'closed', []);
+  /** True while a room transport is MOUNTED for this project (any status):
+   *  the room's action log + offline buffer are then the ONE write path — the
+   *  Supabase blob must never be pushed while a room owns the project (a stale
+   *  whole-blob save is last-write-wins, and the room's next welcome/undo
+   *  would drop it — roadmap 239). Shared projects WITHOUT a transport (rooms
+   *  not configured / signed out) keep the pre-S4 blob path. */
+  const roomOwnsProject = useCallback(() => roomClientRef.current != null, []);
 
   /** Re-read the open shared project's role (focus + after a permission-ish
    *  save failure): a demotion locks the UI, a revocation locks it AND
@@ -618,10 +644,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     guardedDispatch({ type: 'REDO' });
     return true;
   }, [guardedDispatch, isCurrentOnlineProject]);
-  /** The room's per-USER availability, gated by a live connection and write
-   *  permission — the undo/redo buttons are enabled when EITHER the local
-   *  transcript OR the room has something for THIS user. */
-  const roomCanUndoRedo = !!currentOnlineId && roomStatus !== 'closed' && canEdit;
+  /** The room's per-USER availability, gated by a LIVE room (open only — while
+   *  the room is connecting/unreachable the buttons are refused: there is
+   *  nothing to rebase, and the offline buffer holds edits, never undo) and
+   *  write permission. */
+  const roomCanUndoRedo = !!currentOnlineId && roomStatus === 'open' && canEdit;
   const canRoomUndo = roomCanUndoRedo && roomUndoState.canUndo;
   const canRoomRedo = roomCanUndoRedo && roomUndoState.canRedo;
   /**
@@ -671,6 +698,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         onlineChangesAvailable: onlineChangesAvailableRef.current,
         roomsConfigured: !!import.meta.env.VITE_ROOMS_URL,
         roomStatus: roomStatusRef.current,
+        roomPending: roomQueueRef.current,
         roomUserId: roomIdentityRef.current?.userId ?? null,
         roomRole: roomIdentityRef.current?.role ?? null,
       }),
@@ -764,11 +792,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         // already blocks edits, so a pending save here means the role just
         // changed — lock via recheck instead of pushing a rejected write.
         if (!canEditRef.current) return;
-        // S4: while the room transport is connected it is the writer — the room
-        // persists actions + snapshots; the Supabase blob is staging-only until
-        // the S4 persistence cutover. Reconnecting counts as active: the room
-        // re-syncs us, a stale blob push would only fight it.
-        if (roomActive()) return;
+        // S4: the room transport OWNS this project's writes whenever it is
+        // mounted — connected or not. Offline edits buffer in the client and
+        // replay after the welcome (roadmap 239 stage 2), so the stale
+        // Supabase blob must never be pushed: whole-blob saves during an
+        // outage are last-write-wins (two editors clobber each other) and the
+        // room's next welcome/undo would drop them. A shared project WITHOUT
+        // a room transport (rooms not configured / signed out) keeps the
+        // pre-S4 blob path below.
+        if (roomOwnsProject()) return;
         // S3.5: LOADing a peer's save (or reopening) anchors the persisted
         // baseline — pushing it back would bump the revision and start a
         // save-ping echo. No new edits since the last persist ⇒ nothing to push.
@@ -1499,6 +1531,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     canLocalUndo,
     canLocalRedo,
     roomStatus,
+    roomPending: roomQueue,
     activeCalendarVersion: state.present.calendarVersions.find(v => v.id === state.present.activeCalendarVersionId),
     projectList,
     currentProjectId,
@@ -1531,7 +1564,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     retryConnectivity,
     closeProject,
     consumeLegacyMigrationNotice,
-  }), [state, guardedDispatch, undo, redo, canRoomUndo, canRoomRedo, canLocalUndo, canLocalRedo, roomStatus, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, applyAccessPush, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+  }), [state, guardedDispatch, undo, redo, canRoomUndo, canRoomRedo, canLocalUndo, canLocalRedo, roomStatus, roomQueue, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, applyAccessPush, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
 
   return (
     <ProjectContext.Provider value={contextValue}>

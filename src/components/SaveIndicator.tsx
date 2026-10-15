@@ -57,9 +57,10 @@ export function useSaveIndicator(): SaveState {
  * work — docs/COLLABORATION.md §6 S3.5). Clicking re-reads and loads the shared
  * project, discarding the local unsaved edits (the user chose to).
  *
- * The cloud also carries the room-status badge (roadmap 239 stage 1): on a
- * shared project whose collaboration room is not live, an amber "!" explains
- * that changes aren't reaching collaborators (stage 2 will add the queue).
+ * The cloud also carries the room-status badge (roadmap 239): on a shared
+ * project whose collaboration room is not live, an amber "!" explains that
+ * changes queue locally and will sync when the connection returns (stage 2
+ * buffer — the tooltip shows the pending count).
  */
 export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) {
   const { onlineChangesAvailable, reloadOnlineProject } = useProject();
@@ -110,7 +111,7 @@ function useSustained(flag: boolean, ms: number): boolean {
 
 function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
   const { status, lastSavedAt } = useSaveIndicator();
-  const { canEdit, readOnly, roomStatus, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync } = useProject();
+  const { canEdit, readOnly, roomStatus, roomPending, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync } = useProject();
   const isOnlineProject = useIsOnlineProject();
   const auth = useGoogleAuth();
   const [showTooltip, setShowTooltip] = useState(false);
@@ -181,7 +182,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
   // not live — the cloud gets an amber "!" with the reason. Click pins the
   // tooltip open (touch); clicking again closes it.
   if (roomBadge !== 'hidden' && roomDegraded) {
-    const text = roomBadgeText(roomBadge);
+    const text = roomBadgeText(roomBadge, roomPending);
     return (
       <div
         className="relative"

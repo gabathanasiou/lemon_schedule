@@ -7,7 +7,8 @@
  * The status is exposed for diagnostics; UI surfaces come later.
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { RoomClient, type RoomRemote, type RoomStatus, type RoomWelcome } from './roomClient';
+import { RoomClient, type RoomQueueInfo, type RoomRemote, type RoomStatus, type RoomWelcome } from './roomClient';
+import type { Action } from '../../store/reducer';
 
 export interface UseRoomTransportOptions {
   /** The open project's Supabase row id; null = not a shared project. */
@@ -18,6 +19,10 @@ export interface UseRoomTransportOptions {
   getInitProject: () => string | null;
   onWelcome: (welcome: RoomWelcome) => void;
   onRemote: (remote: RoomRemote) => void;
+  /** A buffered offline action is being replayed — apply it locally too. */
+  onReplayQueued?: (action: Action) => void;
+  /** The offline buffer changed (pending/dropped counts). */
+  onPendingChange?: (info: RoomQueueInfo) => void;
   onUndoState?: (state: { canUndo: boolean; canRedo: boolean }) => void;
   onError?: (message: string) => void;
 }
@@ -47,6 +52,8 @@ export function useRoomTransport(opts: UseRoomTransportOptions): {
       getInitProject: () => optsRef.current.getInitProject(),
       onWelcome: (welcome) => optsRef.current.onWelcome(welcome),
       onRemote: (remote) => optsRef.current.onRemote(remote),
+      onReplayQueued: (action) => optsRef.current.onReplayQueued?.(action),
+      onPendingChange: (info) => optsRef.current.onPendingChange?.(info),
       onUndoState: (s) => optsRef.current.onUndoState?.(s),
       onError: (message) => optsRef.current.onError?.(message),
       onStatus: setStatus,

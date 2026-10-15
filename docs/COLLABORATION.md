@@ -387,9 +387,15 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
 **S4 — Realtime collaborative editing.** Per-project room (DO) running the pure
 reducer: validates, applies, persists (action log + periodic snapshot), broadcasts
 `(action, revision)`. Reconnect/late-join = latest snapshot + action replay.
-Per-user undo (each user undoes their own actions only). Shared projects become
-read-only while offline. *Acceptance*: two clients through the debug bridge stay
-convergent; reconnect mid-session loses nothing; undo never reverts a peer's edit.
+Per-user undo (each user undoes their own actions only). **Offline buffer
+(stage 2, built)**: while the room is unreachable, edits apply locally and
+buffer in the client (bounded, oldest dropped past the cap) — the buffer
+replays IN ORDER right after the welcome, so a reconnect loses nothing; the
+header badge shows the pending count. Whole-blob Supabase saves are skipped
+for any project the room transport owns — a stale blob push during an outage
+would clobber (last-write-wins) and be dropped by the room's next welcome.
+*Acceptance*: two clients through the debug bridge stay convergent; reconnect
+mid-session loses nothing; undo never reverts a peer's edit.
 
 **S5 — Billing.** See `docs/LICENSING.md`: one merchant of record; collab =
 Studio + active subscription; guests free.
