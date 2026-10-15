@@ -1134,6 +1134,11 @@ styling).
   `useScheduleDrag` drags today (scene rows, daybreak/whole-day rows, multi-select). Calendar
   — the same recipe on `CalendarTab.tsx`'s `DragOverlay` (`calendar/useCalendarDrag.ts`:
   cards + whole-day drags).
+- **Scale — remote ghosts are awareness cues, not previews (user ask 2026-10-15):** render
+  the STRIPBOARD ghost ~2× smaller (≈0.5 scale) so a peer's wide rows don't cover the board
+  while you work; the LOCAL drag preview stays full size. Scale on an INNER wrapper (the rAF
+  loop keeps writing translate on the outer one), scaled around the cursor point. Calendar
+  may render full size (user: "calendar might be fine") — shrink there only if it covers.
 - **Soft lock — ONE predicate, few call sites:** while a peer's drag is live, the held item(s)
   render in their colour ("held" ring/dim) and a shared `heldByPeer(itemIds)` check refuses
   every MOVE/REMOVE path for them: dnd `useSortable({ disabled })` + drag-start guards
@@ -1150,9 +1155,11 @@ styling).
 - **Out of scope (own follow-ups once these two surfaces feel right)**: Reports/Call-Sheet
   designer drags, Glide internal drags, cross-container (Boneyard↔stripboard) drags.
 - **Verify**: two-window manual pass on BOTH surfaces (ghost follows with the peer's colour,
-  vanishes on drop/cancel/Esc; the held item refuses the other user's drag/menu/delete and
-  shows the held styling; a killed tab's claim expires via TTL; the ghost itself never blocks
-  interactions); pure helpers (drag payload shape/throttle + the claim TTL) as Vitest.
+  vanishes on drop/cancel/Esc; the stripboard ghost renders ~half-size and never covers the
+  board — the local preview stays full size; the held item refuses the other user's
+  drag/menu/delete and shows the held styling; a killed tab's claim expires via TTL; the ghost
+  itself never blocks interactions); pure helpers (drag payload shape/throttle + the claim TTL)
+  as Vitest.
 - **Relations**: `extends` **229** (S3 presence transport). `relates to` **234** (sibling
   presence polish), **240** (the edge/heartbeat/TTL pattern reused), **231**.
 
