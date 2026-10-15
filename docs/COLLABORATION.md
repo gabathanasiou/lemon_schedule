@@ -387,7 +387,12 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
 **S4 — Realtime collaborative editing.** Per-project room (DO) running the pure
 reducer: validates, applies, persists (action log + periodic snapshot), broadcasts
 `(action, revision)`. Reconnect/late-join = latest snapshot + action replay.
-Per-user undo (each user undoes their own actions only). **Offline buffer
+Per-user undo (each user undoes their own actions only). **Undo honesty (roadmap
+242, built 2026-10-15)**: when a peer's later whole-value edit absorbed your
+unit, the undo would revert nothing — the room says so (a transient note by the
+header undo/redo buttons) instead of silently doing nothing, consumes the unit so
+your next ⌘Z moves on, and offers no stale redo that could clobber the peer's
+text; a redo over a peer's later edit is refused the same way. **Offline buffer
 (stage 2, built)**: while the room is unreachable, edits apply locally and
 buffer in the client (bounded, oldest dropped past the cap) — the buffer
 replays IN ORDER right after the welcome, so a reconnect loses nothing; the
@@ -515,30 +520,59 @@ concurrency semantics in its doc.
     separation restores. All receiver-side and ephemeral.
   - Both are ephemeral only: never persisted, never a room action, never
     `track()`; the cue is `pointer-events-none`.
-- **Peer selection highlights (roadmap 234, built 2026-10-15)**: a peer's
-  grid SELECTION renders in their presence colour on every matching grid
-  instance — the cursor-anchor seam one level coarser. The selection rides a
-  throttled `selection` broadcast of `{ scope, anchor, extent }`: two grid
-  hits in data coordinates — stable row/column KEYS plus the sender's indices
-  as the clamp fallback — never `track()`, never persisted, never a room
-  action. `scope` names the LOGICAL grid and IS the visibility gate
-  (`breakdown-glide`, `crew-glide`, `locations-glide`,
-  `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`), so a
-  highlight can never land on another day's table or another database. Every
-  MOUNTED instance publishes its own selection (multi-window = newest window
-  wins per user) and paints the peers' ones itself from its own geometry via
-  Glide's native `highlightRegions` (peer-colour fill + solid ring) — one
-  shared hook (`useGlidePeerSelection`), so it works in the main window AND in
-  pop-out windows / portalled canvases, correct through differing scroll,
-  column widths and font scale. Clear edges: deselect, blur, hidden document,
+- **Peer selection highlights (roadmap 234, stages 1+2 built 2026-10-15)**: a
+  peer's SELECTION renders in their presence colour on every matching surface
+  — the cursor-anchor seam one level coarser. ONE throttled `selection`
+  broadcast carries both shapes; never `track()`, never persisted, never a
+  room action. `scope` names the LOGICAL surface and IS the visibility gate,
+  so a highlight can never land on another day's table, another database or
+  another designer canvas. Clear edges: deselect, blur, hidden document,
   unmount — and only the instance that last held a non-empty selection may
   clear (provider owner check), so closing one window never wipes another
   window's live selection; a closed window's entry is pruned by clientId on
-  the next presence sync. Opt-out = no `scope` (grids inside modals, e.g. the
-  crew-template editor). Manual: docs/GLIDE-BREAKDOWN.md §Peer selection
-  highlights; pure encode/parse/clamp helpers are Vitest; the two-window
-  harness (`workers/rooms/test/two-window-repro.mjs`) asserts the broadcast
-  AND the painted highlight (peer-colour pixels on the grid canvas).
+  the next presence sync.
+  - **Glide grids (stage 1)**: `{ scope, anchor, extent }` — two grid hits in
+    data coordinates (stable row/column KEYS plus the sender's indices as the
+    clamp fallback). `breakdown-glide`, `crew-glide`, `locations-glide`,
+    `day:<sectionIndex>:times:<category>`, `callsheet:<sectionIndex>:…`. Every
+    MOUNTED instance publishes its own selection (multi-window = newest window
+    wins per user) and paints the peers' ones itself from its own geometry via
+    Glide's native `highlightRegions` (peer-colour fill + solid ring) — one
+    shared hook (`useGlidePeerSelection`), so it works in the main window AND
+    in pop-out windows / portalled canvases, correct through differing scroll,
+    column widths and font scale. Opt-out = no `scope` (grids inside modals,
+    e.g. the crew-template editor). Manual: docs/GLIDE-BREAKDOWN.md §Peer
+    selection highlights.
+  - **DOM surfaces (stage 2)**: `{ scope, items }` — the stable element ids the
+    surface's own DOM already wears (`data-row-id` on stripboard rows and
+    Calendar cards, `data-event-key` on events-mode cards, `data-block-id` on
+    Report Designer blocks plus a composite `col:<blockId>:<colIndex>` for the
+    selected table column, `data-cell-id` on Ribbon Designer cells). ONE
+    shared component per surface (`PeerItemOutlines`) publishes its ids and
+    paints the peers' ones: ids resolve ONLY inside the window's own root
+    wearing `data-presence-surface="<scope>"` (parity with the grids'
+    `data-presence-grid`), so pop-outs resolve with their own geometry. Rings
+    are `inset 0 0 0 2px <peer colour>` in a fixed z-30 `pointer-events-none`
+    layer (the pointer/ghost z-order, below modals); a rect that is scrolled
+    out of its container or under sticky chrome/menus is HIDDEN, not faked —
+    the centre hit test must find the item at the top of the stack, EXCEPT
+    presence chrome (peer markers, drag ghosts, the rings themselves carry
+    `data-presence-chrome`), which paints over content but never counts as
+    covering it: the peer's own pointer sits exactly on what they just
+    clicked, and treating it as an occluder made rings flicker off a beat
+    after appearing (caught by the harness's persistence check). The
+    stripboard/Calendar mount per view
+    mode (a strips-mode selection clears when Events is what's mounted); the
+    Report Designer publishes the block OR the column (selecting a column
+    clears the block) and the zone/Call-Sheet canvas keeps its own scope for
+    item 212; the Ribbon Designer publishes its selected cell.
+  - Vitest: the pure encode/parse/cap/key helpers on both halves
+    (`src/lib/__tests__/presence.test.ts`, `glideSelection.test.ts`,
+    `itemSelection.test.ts`). Two-window harness
+    (`workers/rooms/test/two-window-repro.mjs`): the grid selection paints the
+    peer colour on the grid canvas; the DOM selection gets one pass per
+    surface — the peer resolves the ids to ITS OWN element rect, in the peer
+    colour, and clears when the selecter leaves the surface.
 - **Peer drags — ghost + soft lock (roadmap 235, built 2026-10-15)**: while a
   peer drags (stripboard rows/scenes/notes/breaks/daybreaks incl. multi-select,
   calendar cards, a whole day), their held items show as a translucent ghost at

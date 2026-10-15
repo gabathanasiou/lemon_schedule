@@ -25,6 +25,8 @@ import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurfa
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { RemoteDragGhostLayer } from './RemoteDragGhosts';
 import { HeldItemHint } from './HeldItemHint';
+import { PeerItemOutlines } from './PeerItemOutlines';
+import { itemsByAttribute } from '../lib/itemSelection';
 import { dayDragItemId, parseDayDragItemId } from '../lib/supabase/presence';
 import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
@@ -61,6 +63,12 @@ import { BoneyardExpandButton } from './BoneyardExpandButton';
 import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
 const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
+/** Peer-selection items (roadmap 234 stage 2) resolve inside this window's
+ *  calendar surface: scene cards by `data-row-id`, event cards by
+ *  `data-event-key`. Module-level: a fresh function identity per render would
+ *  restart the outline measure loop. */
+const cardItemResolver = itemsByAttribute('data-row-id');
+const eventItemResolver = itemsByAttribute('data-event-key');
 
 export const CalendarTab: React.FC<{
   onOpenScene?: (sceneId: string) => void;
@@ -155,6 +163,10 @@ export const CalendarTab: React.FC<{
   const [selectedEventKeys, setSelectedEventKeys] = useState<Set<string>>(new Set());
   const selectedEventKeysRef = useRef(selectedEventKeys);
   selectedEventKeysRef.current = selectedEventKeys;
+  // Peer selection (roadmap 234 stage 2): the selected cards / event cards
+  // publish as item ids (the Sets are re-created per change → memo on identity).
+  const cardSelectionItems = useMemo(() => [...selectedRowIds], [selectedRowIds]);
+  const eventSelectionItems = useMemo(() => [...selectedEventKeys], [selectedEventKeys]);
   const [lastClickedEventKey, setLastClickedEventKey] = useState<string | null>(null);
   const lastClickedEventKeyRef = useRef(lastClickedEventKey);
   lastClickedEventKeyRef.current = lastClickedEventKey;
@@ -1015,7 +1027,7 @@ export const CalendarTab: React.FC<{
       resetEventsDrag();
       handleDragCancel();
     }}>
-      <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}
+      <div className="flex-1 flex overflow-hidden min-h-0" data-presence-surface="calendar" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}
         onClick={(e) => {
           if (marqueeJustEndedRef.current) { marqueeJustEndedRef.current = false; return; }
           if ((e.target as HTMLElement).closest('[data-row-id], [data-event-key], button, input, select, [role="button"], [role="menuitem"]')) return;
@@ -1388,6 +1400,15 @@ export const CalendarTab: React.FC<{
           return heldRows.length > 0 ? cardGhost(heldRows) : null;
         }}
       />
+
+      {/* Peer selection (roadmap 234 stage 2): selected scene cards / event
+          cards publish as item ids; peers' selections paint as their-coloured
+          rings — one layer per view mode (the mode's cards are what resolve). */}
+      {viewMode === 'strips' ? (
+        <PeerItemOutlines scope="calendar" items={cardSelectionItems} resolve={cardItemResolver} />
+      ) : (
+        <PeerItemOutlines scope="calendar-events" items={eventSelectionItems} resolve={eventItemResolver} />
+      )}
 
       {ruleCardMenu && (
         <ContextMenu open x={ruleCardMenu.x} y={ruleCardMenu.y} onClose={() => setRuleCardMenu(null)}>

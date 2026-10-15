@@ -26,6 +26,8 @@ import DropdownItem from '../DropdownItem';
 import ReportPalette, { PaletteDropPayload } from './ReportPalette';
 import ReportToolbar from './ReportToolbar';
 import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
+import { PeerItemOutlines } from '../PeerItemOutlines';
+import { reportSelectionItems, resolveReportItem } from '../../lib/reportSelectionItems';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
 import { dayScopeFilter } from './DayReportPreview';
@@ -107,6 +109,12 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   };
   const [selId, setSelId] = useState<string | null>(null);
   const [selCol, setSelCol] = useState<ColSel | null>(null);
+  // Peer selection (roadmap 234 stage 2): the designer's selected block — or
+  // the selected table column — publishes as item ids.
+  const reportSelection = useMemo(
+    () => (zoneMode ? [] : reportSelectionItems(selId, selCol)),
+    [zoneMode, selId, selCol],
+  );
   // Free-table cell selection (roadmap 189) — lifted here so the docked
   // inspector mirrors the canvas selection and shares its editor target.
   const [selCell, setSelCell] = useState<(CustomCellSelection & { blockId: string }) | null>(null);
@@ -793,7 +801,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           ) : (
             <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={locked} />
           )}
-          <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0" data-presence-surface={zoneMode ? undefined : 'report-designer'}>
             <ReportDesignerCanvas
               blocks={blocks}
               headerBlocks={headerBlocks}
@@ -994,6 +1002,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               textChipKey={textChipKey}
               onTextSelectionChange={sel => setTextChipKey(sel?.key ?? null)}
             />
+
+            {/* Peer selection (roadmap 234 stage 2): the selected block (or
+                table column) publishes as an item id; peers' selections paint
+                as their-coloured rings on the same cards. */}
+            <PeerItemOutlines scope="report-designer" items={reportSelection} resolve={resolveReportItem} />
           </div>
         </div>
       )}

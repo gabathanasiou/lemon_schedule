@@ -217,7 +217,7 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
   return (
     <>
       {markers.length > 0 && (
-        <div className="fixed inset-0 z-30 pointer-events-none overflow-hidden" aria-hidden>
+        <div className="fixed inset-0 z-30 pointer-events-none overflow-hidden" data-presence-chrome aria-hidden>
           {markers.slice(0, MAX_POINTERS).map(({ peer, left, top, flip, faded }) => {
             const color = avatarColor(peer.userId);
             const glyph = cursorGlyph(peer.pointer, peer.overlay);
