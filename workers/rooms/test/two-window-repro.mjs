@@ -19,8 +19,10 @@
  *     input-modality glyph (touch = hand, roadmap 241), the local-overlay
  *     dots cue (menu/modal, roadmap 240 + the 244 freeze for ANY overlay /
  *     window glyph / collision fade), the peer GRID-SELECTION highlight
- *     (roadmap 234 — broadcast + painted on the peer's grid canvas), and the
- *     OFFLINE BUFFER (roadmap 239
+ *     (roadmap 234 — broadcast + painted on the peer's grid canvas) and the
+ *     peer DOM-SURFACE selection (roadmap 234 stage 2 — a stripboard row
+ *     publishes item ids; the peer paints the outline on ITS row element),
+ *     and the OFFLINE BUFFER (roadmap 239
  *     stage 2 — kills wrangler mid-session, edits buffer in A, restart replays
  *     them; the script restarts wrangler itself).
  *
@@ -649,6 +651,212 @@ try {
     .then((d) => (d.presence && 'localSelection' in d.presence ? d.presence.localSelection : 'absent'))
     .catch(() => 'error');
   check('A: the selection clear edge is published', aCleared === null, aCleared);
+
+  // ── Roadmap 234 stage 2: DOM-SURFACE peer selection. A selects an item on a
+  // DOM surface; B must (a) receive the item ids and (b) resolve them to ITS
+  // OWN element and paint the peer-coloured ring (rect ≈ B's element rect),
+  // then drop it when A leaves the surface (the clear edge). One pass per
+  // surface: stripboard rows, Calendar cards, events-mode cards, Report
+  // Designer blocks (+ the selected table column), Ribbon Designer cells.
+
+  /** Items rendered AND on-screen by BOTH windows on one surface — each
+   *  window has its own scroll / render window, so a shared id whose centre is
+   *  in both viewports is the honest pick (the ring's hit test hides
+   *  off-screen rects, by design). */
+  const sharedItems = async (surface, attr) => {
+    const ids = (page) => page.evaluate(({ surface, attr }) => {
+      const out = [];
+      for (const el of document.querySelectorAll(`[data-presence-surface="${surface}"] [${attr}]`)) {
+        const v = el.getAttribute(attr) || '';
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const visible = r.width > 0 && r.height > 0 && cx > 0 && cy > 0 && cx < window.innerWidth && cy < window.innerHeight;
+        if (v && !v.startsWith('empty-') && visible) out.push(v);
+      }
+      return out;
+    }, { surface, attr });
+    const a = await ids(A.page);
+    const b = new Set(await ids(B.page));
+    return a.find(v => b.has(v)) ?? null;
+  };
+  /** A's published selection key, or null when it holds none. */
+  const localSelection = (page) => diag(page)
+    .then((d) => (d.presence && 'localSelection' in d.presence ? d.presence.localSelection : 'absent'))
+    .catch(() => 'error');
+  /** B's outline for one item id + the target element's own rect. */
+  const outlineOf = (page, item, targetSel) => page.evaluate(({ item, targetSel }) => {
+    const el = document.querySelector(`[data-testid="peer-selection-outline"][data-item="${item}"]`);
+    if (!el) return null;
+    const target = targetSel ? document.querySelector(targetSel) : null;
+    const r = el.getBoundingClientRect();
+    const t = target ? target.getBoundingClientRect() : null;
+    return {
+      rect: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+      target: t ? { x: Math.round(t.x), y: Math.round(t.y), w: Math.round(t.width), h: Math.round(t.height) } : null,
+      peer: el.getAttribute('data-peer'),
+      shadow: getComputedStyle(el).boxShadow,
+    };
+  }, { item, targetSel });
+  const rgbClose = (a, b) => !!a && !!b && Math.abs(a[0] - b[0]) <= 2 && Math.abs(a[1] - b[1]) <= 2 && Math.abs(a[2] - b[2]) <= 2;
+  const outlineRgb = (o) => { const m = o ? /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(o.shadow) : null; return m ? m.slice(1).map(Number) : null; };
+  /** B's outline of `item` appears and tracks its own element, in the peer's colour. */
+  const expectOutline = async (tag, item, targetSel) => {
+    let o = null;
+    for (let i = 0; i < 40; i++) { o = await outlineOf(B.page, item, targetSel); if (o) break; await sleep(200); }
+    check(`B: painted the peer ${tag} selection`, !!o, o);
+    check(`B: the ${tag} outline tracks B's own element`, !!o && !!o.target
+      && Math.abs(o.rect.x - o.target.x) < 6 && Math.abs(o.rect.y - o.target.y) < 6
+      && Math.abs(o.rect.w - o.target.w) < 8 && Math.abs(o.rect.h - o.target.h) < 8, o);
+    check(`B: the ${tag} outline wears the peer colour`, rgbClose(outlineRgb(o), peerRgb), { shadow: o?.shadow, peerRgb });
+    return o;
+  };
+  /** A leaves the surface (tab switch) → B's outline goes + the clear edge. */
+  const expectOutlineCleared = async (tag, item) => {
+    await A.page.getByRole('button', { name: 'Breakdown', exact: true }).first().click();
+    let gone = false;
+    for (let i = 0; i < 60; i++) { if ((await outlineOf(B.page, item, null)) === null) { gone = true; break; } await sleep(200); }
+    check(`B: the ${tag} outline clears when the peer leaves the surface`, gone, null);
+    check(`A: the ${tag} clear edge is published`, (await localSelection(A.page)) === null, await localSelection(A.page));
+  };
+
+  // Stripboard rows (the Schedule tab).
+  for (const page of [A.page, B.page]) {
+    await page.getByRole('button', { name: 'Schedule', exact: true }).first().click();
+  }
+  await Promise.all([A.page, B.page].map((p) => p.waitForSelector('[data-presence-surface="schedule"]', { timeout: 20000 })));
+  await sleep(900);
+  const rowSel = await sharedItems('schedule', 'data-row-id');
+  check('A: picked a stripboard row rendered in BOTH windows', !!rowSel, rowSel);
+  await A.page.locator(`[data-presence-surface="schedule"] [data-row-id="${rowSel}"]`).first().click();
+  check('A: the row selection is published (schedule item scope)', (await localSelection(A.page) || '').startsWith('schedule|i|'), await localSelection(A.page));
+  await expectOutline('row', rowSel, `[data-presence-surface="schedule"] [data-row-id="${rowSel}"]`);
+  await expectOutlineCleared('row', rowSel);
+
+  // Calendar cards (strips mode).
+  for (const page of [A.page, B.page]) {
+    await page.getByRole('button', { name: 'Calendar', exact: true }).first().click();
+  }
+  await Promise.all([A.page, B.page].map((p) => p.waitForSelector('[data-presence-surface="calendar"]', { timeout: 20000 })));
+  await sleep(900);
+  const cardSel = await sharedItems('calendar', 'data-row-id');
+  check('A: picked a calendar card rendered in BOTH windows', !!cardSel, cardSel);
+  await A.page.locator(`[data-presence-surface="calendar"] [data-row-id="${cardSel}"]`).first().click();
+  check('A: the card selection is published (calendar item scope)', (await localSelection(A.page) || '').startsWith('calendar|i|'), await localSelection(A.page));
+  await expectOutline('calendar card', cardSel, `[data-presence-surface="calendar"] [data-row-id="${cardSel}"]`);
+  await expectOutlineCleared('calendar card', cardSel);
+
+  // Events-mode day cards: seed an attachment card on a rendered non-shoot day
+  // (the fixture has none), switch BOTH windows to Events, select it.
+  const eventDate = await bridge(A.page, `(() => {
+    const p = b.getProject();
+    const cal = p.calendarVersions.find(v => v.id === p.activeCalendarVersionId);
+    const start = cal.productionStart || cal.prepStart || '';
+    const entry = (cal.nonShootDates || []).find(n => n.date >= start);
+    const castId = (p.castMembers || [])[0]?.id;
+    if (!entry || !castId) return null;
+    const lists = { ...(entry.lists || {}) };
+    lists.fitting = { ...(lists.fitting || {}), cast: [...((lists.fitting || {}).cast || []), castId] };
+    b.dispatch({ type: 'UPDATE_CALENDAR_VERSION', payload: { id: cal.id, nonShootDates: (cal.nonShootDates || []).map(n => n.date === entry.date ? { ...n, lists } : n) } });
+    return entry.date;
+  })()`);
+  check('A: seeded an attachment card on a rendered day', !!eventDate, eventDate);
+  await sleep(700);
+  for (const page of [A.page, B.page]) {
+    await page.getByRole('button', { name: 'Calendar', exact: true }).first().click();
+    await page.getByTitle('Events view').first().click();
+  }
+  await sleep(900);
+  const eventSel = await sharedItems('calendar', 'data-event-key');
+  check('A: picked an events-mode card rendered in BOTH windows', !!eventSel, eventSel);
+  await A.page.locator(`[data-presence-surface="calendar"] [data-event-key="${eventSel}"]`).first().click();
+  check('A: the event-card selection is published (calendar-events item scope)', (await localSelection(A.page) || '').startsWith('calendar-events|i|'), await localSelection(A.page));
+  await expectOutline('event card', eventSel, `[data-presence-surface="calendar"] [data-event-key="${eventSel}"]`);
+  await expectOutlineCleared('event card', eventSel);
+
+  // Report Designer: a block, then the selected table column (a composite id
+  // resolving to every cell of that column).
+  for (const page of [A.page, B.page]) {
+    await page.getByRole('button', { name: 'Design', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Reports Designer', exact: true }).first().click();
+  }
+  await Promise.all([A.page, B.page].map((p) => p.waitForSelector('[data-presence-surface="report-designer"]', { timeout: 20000 })));
+  await sleep(900);
+  const blockSel = await sharedItems('report-designer', 'data-block-id');
+  check('A: picked a designer block rendered in BOTH windows', !!blockSel, blockSel);
+  await A.page.locator(`[data-presence-surface="report-designer"] [data-block-id="${blockSel}"]`).first().click();
+  check('A: the block selection is published (report-designer scope)', (await localSelection(A.page) || '').startsWith('report-designer|i|'), await localSelection(A.page));
+  await expectOutline('report block', blockSel, `[data-presence-surface="report-designer"] [data-block-id="${blockSel}"]`);
+
+  const colCellSel = (page) => page.evaluate(() => {
+    for (const cell of document.querySelectorAll('[data-presence-surface="report-designer"] [data-block-id] [data-table-col-ci]')) {
+      const card = cell.closest('[data-block-id]');
+      const r = cell.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      if (card && r.width > 0 && r.height > 0 && cx > 0 && cy > 0 && cx < window.innerWidth && cy < window.innerHeight) {
+        return { block: card.getAttribute('data-block-id'), ci: cell.getAttribute('data-table-col-ci') };
+      }
+    }
+    return null;
+  });
+  const colPick = await colCellSel(A.page);
+  check('A: picked a designer table column', !!colPick, colPick);
+  await A.page.locator(`[data-presence-surface="report-designer"] [data-block-id="${colPick.block}"] [data-table-col-ci="${colPick.ci}"]`).first().click();
+  const aColSel = await localSelection(A.page);
+  check('A: the column selection is published as a composite item', typeof aColSel === 'string' && aColSel.startsWith(`report-designer|i|col:${colPick.block}:${colPick.ci}`), aColSel);
+  const colItem = typeof aColSel === 'string' ? aColSel.split('|i|')[1] : '';
+  // B paints one ring per VISIBLE cell of that column — the rect set must
+  // match B's own cells (the ring skips occluded/off-screen cells by design).
+  let colRings = null;
+  for (let i = 0; i < 40; i++) {
+    colRings = await B.page.evaluate(({ block, ci, item }) => {
+      const onScreen = (r) => {
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        return r.width > 0 && r.height > 0 && cx > 0 && cy > 0 && cx < window.innerWidth && cy < window.innerHeight;
+      };
+      const box = (el) => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; };
+      const cells = [...document.querySelectorAll(`[data-presence-surface="report-designer"] [data-block-id="${block}"] [data-table-col-ci="${ci}"]`)]
+        .filter((el) => onScreen(el.getBoundingClientRect())).map(box);
+      const rings = [...document.querySelectorAll(`[data-testid="peer-selection-outline"][data-item="${item}"]`)].map(box);
+      return { cells, rings };
+    }, { block: colPick.block, ci: colPick.ci, item: colItem });
+    if (colRings && colRings.rings.length > 0) break;
+    await sleep(200);
+  }
+  const boxEq = (a, b) => a.length === 4 && b.length === 4 && a.every((v, i) => Math.abs(v - b[i]) <= 1.5);
+  check('B: painted the peer table column (one ring per visible cell)',
+    !!colRings && colRings.cells.length > 0 && colRings.rings.length === colRings.cells.length
+      && colRings.rings.every((r) => colRings.cells.some((c) => boxEq(r, c))),
+    colRings);
+  // A leaves the surface once — both the block and the column rings must go.
+  await A.page.getByRole('button', { name: 'Breakdown', exact: true }).first().click();
+  let reportGone = false;
+  for (let i = 0; i < 60; i++) {
+    const left = await B.page.evaluate(({ col, block }) => ({
+      col: !!document.querySelector(`[data-testid="peer-selection-outline"][data-item="${col}"]`),
+      block: !!document.querySelector(`[data-testid="peer-selection-outline"][data-item="${block}"]`),
+    }), { col: colItem, block: blockSel });
+    if (!left.col && !left.block) { reportGone = true; break; }
+    await sleep(200);
+  }
+  check('B: the report outlines clear when the peer leaves the surface', reportGone, null);
+  check('A: the report clear edge is published', (await localSelection(A.page)) === null, await localSelection(A.page));
+
+  // Ribbon Designer: the selected cell.
+  for (const page of [A.page, B.page]) {
+    await page.getByRole('button', { name: 'Design', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Ribbon Designer', exact: true }).first().click();
+  }
+  await Promise.all([A.page, B.page].map((p) => p.waitForSelector('[data-presence-surface="ribbon-designer"]', { timeout: 20000 })));
+  await sleep(900);
+  const cellSel = await sharedItems('ribbon-designer', 'data-cell-id');
+  check('A: picked a ribbon cell rendered in BOTH windows', !!cellSel, cellSel);
+  await A.page.locator(`[data-presence-surface="ribbon-designer"] [data-cell-id="${cellSel}"]`).first().click();
+  check('A: the cell selection is published (ribbon-designer scope)', (await localSelection(A.page) || '').startsWith('ribbon-designer|i|'), await localSelection(A.page));
+  await expectOutline('ribbon cell', cellSel, `[data-presence-surface="ribbon-designer"] [data-cell-id="${cellSel}"]`);
+  await expectOutlineCleared('ribbon cell', cellSel);
 
   // ── Offline queue (roadmap 239 stage 2): kill the room worker mid-session,
   // edit in A (buffered locally + badge), restart the worker → A replays the

@@ -55,6 +55,14 @@ import { useScheduleDrag } from './schedule/useScheduleDrag';
 import { usePresenceActions, useHeldItems } from '../lib/supabase/presenceContext';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { HeldItemHint } from './HeldItemHint';
+import { PeerItemOutlines } from './PeerItemOutlines';
+import { itemsByAttribute } from '../lib/itemSelection';
+
+/** Peer-selection items (roadmap 234) resolve to the row elements
+ *  (`data-row-id`) — stripboard and boneyard alike. Module-level: a fresh
+ *  function identity per render would restart the outline measure loop. */
+const rowItemResolver = itemsByAttribute('data-row-id');
+
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onOpenDayManager?: (sectionIndex: number) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, locked } = useProject();
   const currentWindow = useCurrentWindow();
@@ -281,6 +289,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const savedScrollTopRef = useRef(savedScrollTop);
   const mousePosRef = useRef({ y: 0 });
   const autoScrollRafRef = useRef<number | null>(null);
+
+  // Peer selection (roadmap 234 stage 2): the selected rows publish as item
+  // ids (a Set re-created on every selection change → memo on identity).
+  const selectionItems = useMemo(() => [...selectedRowIds], [selectedRowIds]);
 
   // Follow completeness (roadmap 229, docs COLLABORATION §9): the stripboard
   // mirrors its scroll (day-block fallback for rows outside the peer's render
@@ -1266,7 +1278,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   }, [activeId, activeType, activeDragIds, activeVersion.rows, activeDragRow]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden" data-presence-surface="schedule">
       <ScheduleToolbar
         shootViolations={shootViolations}
         onShowViolations={() => setShowShootViolations(true)}
@@ -1486,6 +1498,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
 
       {/* "X is moving this" — shown instead of the menu on a peer-held row */}
       <HeldItemHint hint={heldHint} />
+
+      {/* Peer selection (roadmap 234 stage 2): the selected rows publish as
+          item ids; peers' selections paint as their-coloured rings. */}
+      <PeerItemOutlines scope="schedule" items={selectionItems} resolve={rowItemResolver} />
 
       <ScheduleModals
         colorPicker={colorPicker}

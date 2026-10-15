@@ -4,7 +4,7 @@ import { usePresenceActions, usePresenceSelections } from './supabase/presenceCo
 import { useCurrentWindow } from './popoutTarget';
 import { avatarColor } from './avatarIdentity';
 import { effectiveGridRange, resolveSelectionRange, selectionRangeToWire, withAlpha } from './glideSelection';
-import { selectionKey } from './supabase/presence';
+import { isItemSelection, selectionKey } from './supabase/presence';
 
 /**
  * Peer selection highlights on ONE Glide grid instance (roadmap 234).
@@ -97,11 +97,11 @@ export function useGlidePeerSelection(opts: {
 
   // Signature of the peers selecting on THIS scope only — the highlight array
   // keeps its identity (no needless canvas redraw) when another grid's
-  // selection changed.
+  // selection changed. Item selections (DOM surfaces, stage 2) are skipped.
   const signature = useMemo(() => {
     if (!scope) return '';
     return peers
-      .filter(p => p.selection.scope === scope)
+      .filter(p => p.selection.scope === scope && !isItemSelection(p.selection))
       .map(p => `${p.userId}§${selectionKey(p.selection)}`)
       .sort()
       .join('|');
@@ -114,7 +114,7 @@ export function useGlidePeerSelection(opts: {
     if (!scope || !signature) return undefined;
     const out: Highlight[] = [];
     for (const p of peersRef.current) {
-      if (p.selection.scope !== scope) continue;
+      if (p.selection.scope !== scope || isItemSelection(p.selection)) continue;
       const range = resolveSelectionRange(p.selection, rowKeys, colKeys);
       if (!range) continue;
       out.push({ color: withAlpha(avatarColor(p.userId), PEER_SELECTION_ALPHA), range, style: 'solid' });

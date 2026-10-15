@@ -37,6 +37,13 @@ import RibbonDesignerGrid from './ribbon/RibbonDesignerGrid';
 import RibbonLivePreview from './ribbon/RibbonLivePreview';
 import RibbonContextMenu from './ribbon/RibbonContextMenu';
 import { useColumnResize, splitBoundaryEven } from './columnResize';
+import { PeerItemOutlines } from './PeerItemOutlines';
+import { itemsByAttribute } from '../lib/itemSelection';
+
+/** Peer-selection items (roadmap 234 stage 2) resolve to the designer's cells
+ *  (`data-cell-id`). Module-level: a fresh function identity per render would
+ *  restart the outline measure loop. */
+const cellItemResolver = itemsByAttribute('data-cell-id');
 
 function cloneRows(rs: RibbonRow[]): RibbonRow[] {
   return JSON.parse(JSON.stringify(rs));
@@ -83,6 +90,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const currentDocument = useCurrentDocument();
 
   const [selId, setSelId] = useState<string | null>(null);
+  // Peer selection (roadmap 234 stage 2): the selected designer cell publishes
+  // as an item id.
+  const cellSelectionItems = useMemo(() => (selId ? [selId] : []), [selId]);
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
   const [dropHover, setDropHover] = useState<string | null>(null);
   const [cellDrag, setCellDrag] = useState<{ rowId: string; cellId: string } | null>(null);
@@ -713,7 +723,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             edgePadding={activeDesign.edgePadding}
             setTextSizeOffset={setTextSizeOffset}
           />
-          <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
+          <div className="mx-auto space-y-6" data-presence-surface="ribbon-designer" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
             <RibbonDesignerGrid
               readOnly={locked}
@@ -756,6 +766,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               textSize={activeDesign.textSize}
               edgePadding={activeDesign.edgePadding}
             />
+
+            {/* Peer selection (roadmap 234 stage 2): the selected cell
+                publishes as an item id; peers' selections paint as
+                their-coloured rings on the same cells. */}
+            <PeerItemOutlines scope="ribbon-designer" items={cellSelectionItems} resolve={cellItemResolver} />
 
           </div>
         </div>

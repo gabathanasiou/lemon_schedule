@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   acceptCursor,
   anchorKey,
+  capSelectionItems,
   COLLISION_DWELL_IDLE,
   COLLISION_FAR_PX,
   createThrottle,
@@ -10,6 +11,8 @@ import {
   decidePeerSave,
   freezeCursorFor,
   heldItemsOf,
+  isItemSelection,
+  MAX_SELECTION_ITEMS,
   mergePeers,
   parseAccessPayload,
   parseAnchor,
@@ -224,8 +227,9 @@ describe('presence wire helpers', () => {
     expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'breakdown-glide', anchor: ref('s1', 'cast', 0, 8), extent: ref('s3', 'props', 2, 9) } }))
       .toEqual({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'breakdown-glide', anchor: ref('s1', 'cast', 0, 8), extent: ref('s3', 'props', 2, 9) } });
     // Indices clamp; the keys are required strings.
-    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'g', anchor: ref('r', 'c', -4, 2.9), extent: ref('r', 'c', 1, 1) } })!.selection!.anchor)
-      .toEqual({ rowKey: 'r', colKey: 'c', rowIndex: 0, colIndex: 2 });
+    const clamped = parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'g', anchor: ref('r', 'c', -4, 2.9), extent: ref('r', 'c', 1, 1) } })!.selection!;
+    expect(isItemSelection(clamped)).toBe(false);
+    expect(clamped).toEqual({ scope: 'g', anchor: { rowKey: 'r', colKey: 'c', rowIndex: 0, colIndex: 2 }, extent: ref('r', 'c', 1, 1) });
     // A null selection is the CLEAR edge.
     expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: null }))
       .toEqual({ userId: 'u', clientId: 'c', ts: 5, selection: null });
@@ -237,6 +241,33 @@ describe('presence wire helpers', () => {
     expect(parseSelectionPayload(null)).toBeNull();
   });
 
+  it('parses DOM-surface item selections (roadmap 234 stage 2) — capped, junk-safe', () => {
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'schedule', items: ['r1', 'r2'] } }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'schedule', items: ['r1', 'r2'] } });
+    // The list is a cosmetic payload: capped, junk entries dropped.
+    const many = parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'schedule', items: Array.from({ length: 140 }, (_, i) => `r${i}`) } })!.selection!;
+    expect(isItemSelection(many)).toBe(true);
+    expect((many as { items: string[] }).items.length).toBe(MAX_SELECTION_ITEMS);
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'schedule', items: ['r1', 7, null, ''] } })!.selection)
+      .toEqual({ scope: 'schedule', items: ['r1'] });
+    // An EMPTY list is dropped, never trusted as a clear (an explicit deselect
+    // publishes the null edge).
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'schedule', items: [] } })).toBeNull();
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'schedule', items: 'r1' } })).toBeNull();
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { items: ['r1'] } })).toBeNull();
+  });
+
+  it('caps an item selection on send and keys both selection shapes', () => {
+    const items = (n: number) => Array.from({ length: n }, (_, i) => `r${i}`);
+    const capped = capSelectionItems({ scope: 'schedule', items: items(MAX_SELECTION_ITEMS + 20) });
+    expect((capped as { items: string[] }).items.length).toBe(MAX_SELECTION_ITEMS);
+    // Short lists and grid rectangles pass through untouched (same identity).
+    const short = { scope: 'schedule', items: items(3) };
+    expect(capSelectionItems(short)).toBe(short);
+    const grid = { scope: 'g', anchor: { rowKey: 'r', colKey: 'c', rowIndex: 0, colIndex: 0 }, extent: { rowKey: 'r', colKey: 'c', rowIndex: 1, colIndex: 1 } };
+    expect(capSelectionItems(grid)).toBe(grid);
+  });
+
   it('keys a selection stably for the idle-skip (null clears to the same key)', () => {
     const sel = {
       scope: 'g',
@@ -246,6 +277,11 @@ describe('presence wire helpers', () => {
     expect(selectionKey(sel)).toBe('g|r1|c1|0|0|r2|c3|1|2');
     expect(selectionKey(sel)).toBe(selectionKey({ ...sel }));
     expect(selectionKey({ ...sel, scope: 'h' })).not.toBe(selectionKey(sel));
+    // Item selections key by scope + ids, distinct from a grid selection on
+    // the same scope.
+    expect(selectionKey({ scope: 'schedule', items: ['r1', 'r2'] })).toBe('schedule|i|r1\u0001r2');
+    expect(selectionKey({ scope: 'schedule', items: ['r2', 'r1'] })).not.toBe(selectionKey({ scope: 'schedule', items: ['r1', 'r2'] }));
+    expect(selectionKey({ scope: 'schedule', items: ['r1'] })).not.toBe(selectionKey({ scope: 'schedule', anchor: { rowKey: 'r1', colKey: 'c', rowIndex: 0, colIndex: 0 }, extent: { rowKey: 'r1', colKey: 'c', rowIndex: 0, colIndex: 0 } }));
     expect(selectionKey(null)).toBe('');
   });
 
