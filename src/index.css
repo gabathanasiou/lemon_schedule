@@ -201,6 +201,11 @@ input, textarea, [contenteditable] {
 .cv-chunk.cv-visible {
   content-visibility: visible;
 }
+/* Script tab: the section itself is the chunk (one scene each) — screenplay
+   scene heights vary wildly, so the remembered `auto` size is per scene. */
+.cv-chunk--script {
+  contain-intrinsic-size: auto 700px;
+}
 
 /* ---- Reports Designer canvas ---- */
 

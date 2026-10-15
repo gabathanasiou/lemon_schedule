@@ -301,7 +301,12 @@ export function ScriptBlocks({ blocks, theme = 'dark', highlight, sceneNumber, a
   return <ScriptBlocksToned lines={lines} theme={theme} highlight={highlight} sceneNumber={sceneNumber} onAnnotationClick={onAnnotationClick} onAnnotationHover={onAnnotationHover} />;
 }
 
-export function ScriptSceneText({ scene, className = '', theme = 'dark', fontClass = 'text-[12.5px] leading-[1.45]', highlight, sceneNumber, annotations, sceneId, onAnnotationClick, onAnnotationHover }: {
+/**
+ * Memoized so a parent re-render that doesn't change this scene's inputs
+ * (hover, selection, scroll-sidebar tracking, an unrelated edit elsewhere)
+ * skips the whole block tree — the single biggest Script-tab win (roadmap 163).
+ */
+export const ScriptSceneText = React.memo(function ScriptSceneText({ scene, className = '', theme = 'dark', fontClass = 'text-[12.5px] leading-[1.45]', highlight, sceneNumber, annotations, sceneId, onAnnotationClick, onAnnotationHover }: {
   scene: ScriptScene;
   className?: string;
   theme?: ScriptTheme;
@@ -321,7 +326,7 @@ export function ScriptSceneText({ scene, className = '', theme = 'dark', fontCla
       <ScriptBlocks blocks={scene.blocks} theme={theme} highlight={highlight} sceneNumber={sceneNumber} annotations={annotations} sceneId={sceneId} onAnnotationClick={onAnnotationClick} onAnnotationHover={onAnnotationHover} />
     </div>
   );
-}
+});
 
 /** One aligned review row: the left (current) and/or right (incoming) block at
  *  the same vertical position (roadmap 128). A side is absent when the block
