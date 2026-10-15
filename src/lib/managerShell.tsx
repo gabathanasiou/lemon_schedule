@@ -4,25 +4,25 @@ import { useProject, useIsCloudProject } from '../store';
 import { useDialog } from '../components/Dialog';
 import { useFollowView } from './supabase/useFollowView';
 import { generateUUID } from './utils';
-import { Plus, Trash2, UserPlus, Pencil, Save, Undo2, Check } from 'lucide-react';
+import { Plus, Trash2, UserPlus, Pencil, Check } from 'lucide-react';
 import SidebarNav, { SidebarNavRow } from '../components/SidebarNav';
-import { useRowBuffer } from './rowBuffer';
+import { useRowBuffer, type CommitResult } from './rowBuffer';
 import { useScrolledLeft } from './useScrolledLeft';
 import { LabelModal } from '../components/elements/CategoryModals';
 import { MergeRowsModal } from '../components/elements/MergeRowsModal';
 import DropdownMenu from '../components/DropdownMenu';
 import DropdownItem from '../components/DropdownItem';
 import Button from '../components/Button';
-import { setPendingTab } from './unsavedGuard';
 import { MT_INPUT, MT_HEADER, MT_CELL, MT_ADD, useManagerTableSizes } from './managerTable';
 import type { CrewRole, Project } from '../types';
 
-// ---- Generic buffered database manager --------------------------------------
+// ---- Generic commit-on-blur database manager ---------------------------------
 //
-// One manager engine (sidebar of categories + buffered table + merge-on-save
-// + sort + undo) shared by every database (crew, locations, future DBs).
+// One manager engine (sidebar of categories + buffered table + commit-on-blur
+// + merges + sort) shared by every database (crew, locations, future DBs).
 // Database-specific behavior lives in a config; this shell owns the buffer,
-// the save/merge pipeline and the chrome.
+// the commit/merge pipeline and the chrome. Roadmap 250: every field commits
+// when it finishes (blur / Enter / Tab) — no Save button, no local undo.
 
 export interface ManagerRow extends Record<string, string> {
   key: string;
@@ -97,7 +97,7 @@ const cellInputCls = MT_INPUT;
  *  non-empty values; blanked/removed rows delete to the database trash.
  *  `canMerge` (default true) switches the merge machinery off entirely — e.g.
  *  locations: same-named rows are distinct records and always save as-is. */
-export function computeManagerDiff(snap: ManagerRow[], current: ManagerRow[], identityField: string, mergeableFields: string[], canMerge = true): ManagerSavePlan {
+export function computeManagerDiff(snap: ManagerRow[], current: ManagerRow[], identityField: string, mergeableFields: string[], canMerge = true, editedKey?: string): ManagerSavePlan {
   const snapByKey = new Map<string, ManagerRow>(snap.map(r => [r.key, r]));
   const snapByIdentity = canMerge
     ? new Map<string, ManagerRow>(snap.map(r => [r[identityField].trim().toLowerCase(), r]))
@@ -122,6 +122,9 @@ export function computeManagerDiff(snap: ManagerRow[], current: ManagerRow[], id
 
   for (const [name, group] of groups) {
     if (group.length <= 1) continue;
+    // Only the collision THIS edit caused (or joined) asks to merge —
+    // pre-existing same-name rows must not hijack an unrelated edit.
+    if (editedKey !== undefined && !group.some(r => r.key === editedKey)) continue;
     const target = group.find(r => snapByKey.get(r.key)?.name.trim().toLowerCase() === name)
       || group.find(r => snapByKey.has(r.key))
       || group[0];
@@ -225,13 +228,37 @@ export const DatabaseManagerView: React.FC<{
 
   const categoryLabel = (key: string) => categories.find(c => c.key === key)?.label || key;
 
-  const [mergeDialog, setMergeDialog] = useState<{ labels: { label: string; merges: ManagerSavePlan['merges'] }[] } | null>(null);
-  const pendingDiffsRef = React.useRef<Record<string, ManagerSavePlan> | null>(null);
+  const [mergeDialog, setMergeDialog] = useState<{ label: string; merges: ManagerSavePlan['merges'] } | null>(null);
+  const pendingPlanRef = useRef<{ scope: string; plan: ManagerSavePlan } | null>(null);
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const tableScrolled = useScrolledLeft(scrollRef);
 
-  const doSaveRef = React.useRef<() => void>(() => {});
+  /** Apply a computed diff (dispatch only when it carries changes). */
+  const applyPlan = useCallback((scopeKey: string, plan: ManagerSavePlan): CommitResult => {
+    if (plan.updates.length === 0 && plan.adds.length === 0 && plan.removes.length === 0) return { status: 'none' };
+    dispatch({ type: 'BATCH_START' });
+    config.commitPlan(dispatch, plan, scopeKey, project);
+    dispatch({ type: 'BATCH_COMMIT' });
+    return { status: 'committed' };
+  }, [config, dispatch, project]);
+  const applyPlanRef = useRef(applyPlan);
+  applyPlanRef.current = applyPlan;
+
+  /** One finished field edit: diff the buffer against store truth and commit
+   *  it; a same-name collision hands over to the merge confirmation. */
+  const commit = useCallback((scopeKey: string, buffered: ManagerRow[], editedKey?: string): CommitResult => {
+    const snap = config.loadRows(project, scopeKey);
+    const identityField = config.fields[0]?.key || 'name';
+    const plan = computeManagerDiff(snap, buffered, identityField, config.mergeableFields, config.canMerge, editedKey);
+    if (plan.merges.length > 0) {
+      pendingPlanRef.current = { scope: scopeKey, plan };
+      setMergeDialog({ label: categoryLabel(scopeKey), merges: plan.merges });
+      return { status: 'pending' };
+    }
+    return applyPlanRef.current(scopeKey, plan);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, project]);
 
   const buf = useRowBuffer<ManagerRow>({
     projectId: project.id,
@@ -240,10 +267,11 @@ export const DatabaseManagerView: React.FC<{
     makeBlankRow: () => config.makeBlankRow(),
     fieldsPerRow: () => config.fields.map(f => f.key),
     reloadDeps: [project],
-    onSave: () => doSaveRef.current(),
-    hasPendingConfirmation: () => pendingDiffsRef.current !== null,
+    commit,
+    hasPendingConfirmation: () => pendingPlanRef.current !== null,
+    hasContent: row => !!String(row[config.fields[0]?.key || 'name'] ?? '').trim(),
   });
-  const { rows, hasChanges, doSave, doRevert } = buf;
+  const { rows } = buf;
 
   useEffect(() => {
     if (!categories.some(c => c.key === categoryKey)) {
@@ -265,6 +293,9 @@ export const DatabaseManagerView: React.FC<{
   const categoriesRef = useRef(categories);
   categoriesRef.current = categories;
   const switchCategoryRaw = useCallback((newKey: string) => {
+    // A merge confirmation from a just-blurred field owns the commit — a
+    // switch that raced the blur would desync the sidebar from the buffer.
+    if (pendingPlanRef.current) return;
     buf.switchScope(newKey);
     setCategoryKey(newKey);
     onCategoryChange?.(newKey);
@@ -300,7 +331,8 @@ export const DatabaseManagerView: React.FC<{
   };
 
   const deleteCategory = async (key: string) => {
-    const itemCount = (buf.cachedRows(key) || config.loadRows(project, key)).length;
+    if (pendingPlanRef.current) return; // a merge confirmation owns the commit
+    const itemCount = config.loadRows(project, key).length;
     const cat = categories.find(c => c.key === key) || { key, label: key };
     const conf = config.deleteCategoryConfirm(cat, itemCount);
     const ok = await dialog.confirm({ ...conf });
@@ -316,48 +348,6 @@ export const DatabaseManagerView: React.FC<{
     }
   };
 
-  function commitSaves(diffs: Record<string, ManagerSavePlan>) {
-    let willDispatch = false;
-    for (const scope of buf.bufferedScopes()) {
-      const d = diffs[scope];
-      if (d && (d.updates.length > 0 || d.adds.length > 0 || d.removes.length > 0)) willDispatch = true;
-    }
-    if (willDispatch) {
-      dispatch({ type: 'BATCH_START' });
-      for (const scope of buf.bufferedScopes()) {
-        const d = diffs[scope];
-        if (!d) continue;
-        config.commitPlan(dispatch, d, scope, project);
-      }
-      dispatch({ type: 'BATCH_COMMIT' });
-    }
-    for (const scope of buf.bufferedScopes()) {
-      const d = diffs[scope];
-      if (d && d.dropKeys.length > 0) buf.commitDroppedRows(scope, d.dropKeys);
-    }
-    pendingDiffsRef.current = null;
-    setMergeDialog(null);
-    buf.commitSaved();
-  }
-
-  const save = () => {
-    const diffs: Record<string, ManagerSavePlan> = {};
-    const dialogLabels: { label: string; merges: ManagerSavePlan['merges'] }[] = [];
-    const identityField = config.fields[0]?.key || 'name';
-    for (const scope of buf.bufferedScopes()) {
-      const d = computeManagerDiff(buf.cachedSnapshot(scope) || [], buf.cachedRows(scope) || [], identityField, config.mergeableFields, config.canMerge);
-      diffs[scope] = d;
-      if (d.merges.length > 0) dialogLabels.push({ label: categoryLabel(scope), merges: d.merges });
-    }
-    if (dialogLabels.length > 0) {
-      pendingDiffsRef.current = diffs;
-      setMergeDialog({ labels: dialogLabels });
-      return;
-    }
-    commitSaves(diffs);
-  };
-  doSaveRef.current = save;
-
   const sidebarRows: SidebarNavRow[] = useMemo(() =>
     categories.map(c => ({ key: c.key, label: c.label, count: countTotal(c.key), group: config.categoryGroup?.(c) })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -365,8 +355,7 @@ export const DatabaseManagerView: React.FC<{
   );
 
   function countTotal(key: string): number {
-    const r = buf.cachedRows(key);
-    if (r) return r.length;
+    if (key === categoryKey) return rows.length;
     return config.loadRows(project, key).length;
   }
 
@@ -394,10 +383,10 @@ export const DatabaseManagerView: React.FC<{
   const renderInput = (key: string, field: string, val: string, onChange: (v: string) => void, placeholder?: string, wrap = false, uppercase = false) => {
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        buf.focusNext(key, field);
-      }
+      // Tab moves to the next field/cell (committing this one on the blur);
+      // with nowhere to go it falls through to the browser's Tab — focus
+      // leaves the table and the field still commits.
+      if (e.key === 'Tab' && buf.focusNext(key, field)) e.preventDefault();
     };
     // The identity/name field wraps to a second line on long names (auto-sized
     // textarea, same `field-sizing: content` pattern as the day-modal notes).
@@ -412,8 +401,8 @@ export const DatabaseManagerView: React.FC<{
           readOnly={locked}
           onChange={e => { const v = e.target.value.replace(/\n/g, ' '); onChange(uppercase ? v.toUpperCase() : v); }}
           onKeyDown={handleKey}
-          onFocus={buf.noteFocusStart}
-          onBlur={buf.noteFocusEnd}
+          onFocus={() => buf.noteFocus(key, field)}
+          onBlur={buf.commitEdit}
           style={sizes.input}
           className={`${cellInputCls} [field-sizing:content] resize-none overflow-hidden leading-snug align-middle`}
         />
@@ -428,8 +417,8 @@ export const DatabaseManagerView: React.FC<{
         readOnly={locked}
         onChange={e => onChange(uppercase ? e.target.value.toUpperCase() : e.target.value)}
         onKeyDown={handleKey}
-        onFocus={buf.noteFocusStart}
-        onBlur={buf.noteFocusEnd}
+        onFocus={() => buf.noteFocus(key, field)}
+        onBlur={buf.commitEdit}
         style={sizes.input}
         className={cellInputCls}
       />
@@ -445,18 +434,6 @@ export const DatabaseManagerView: React.FC<{
   const defaultInput = (field: ManagerFieldDef, r: ManagerRow, update: (f: string, v: string) => void, ro: boolean, wrap = false) =>
     renderInput(r.key, field.key, r[field.key] || '', v => update(field.key, v), field.label, wrap, !!field.uppercase);
 
-  const revertButton = hasChanges ? (
-    <Button variant="subtle" onClick={doRevert} disabled={locked}>
-      <Undo2 className="w-3 h-3" /> Revert
-    </Button>
-  ) : null;
-
-  const saveButton = (
-    <Button variant="primary" cloud={isCloud} onClick={doSave} disabled={locked || !hasChanges}>
-      <Save className="w-3 h-3" /> {hasChanges ? 'Save' : 'Saved'}
-    </Button>
-  );
-
   const addButton = (
     <Button variant="primary" cloud={isCloud} onClick={openAdd} disabled={!category || locked}>
       <UserPlus className="w-3.5 h-3.5" /> Add {config.addNoun}
@@ -467,8 +444,6 @@ export const DatabaseManagerView: React.FC<{
 
   const headerContent = (
     <>
-      {revertButton}
-      {saveButton}
       {headerActions}
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
       <DropdownMenu open={showSortMenu} onOpenChange={setShowSortMenu} width="w-40" theme="light"
@@ -489,8 +464,6 @@ export const DatabaseManagerView: React.FC<{
   const topBar = (
     <div className="flex items-center justify-end px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm shrink-0">
       <div className="flex items-center gap-1.5">
-        {revertButton}
-        {saveButton}
         {headerActions}
         {addButton}
       </div>
@@ -568,12 +541,27 @@ export const DatabaseManagerView: React.FC<{
           <MergeRowsModal
             title={config.mergeTitle}
             intro={config.mergeIntro}
-            groups={mergeDialog.labels.map(g => ({
-              label: g.label,
-              merges: g.merges.map(m => ({ sourceNames: m.sourceNames, targetName: m.targetName, summary: config.mergeSummary })),
-            }))}
-            onCancel={() => { setMergeDialog(null); pendingDiffsRef.current = null; setPendingTab(null); }}
-            onConfirm={() => commitSaves(pendingDiffsRef.current || {})}
+            groups={[{
+              label: mergeDialog.label,
+              merges: mergeDialog.merges.map(m => ({ sourceNames: m.sourceNames, targetName: m.targetName, summary: config.mergeSummary })),
+            }]}
+            onCancel={() => {
+              pendingPlanRef.current = null;
+              setMergeDialog(null);
+              buf.revertUncommitted();
+            }}
+            onConfirm={() => {
+              const pending = pendingPlanRef.current;
+              pendingPlanRef.current = null;
+              setMergeDialog(null);
+              if (pending) {
+                // The plan is resolved either way — a merge that dispatches
+                // nothing (a duplicate name carrying no new details) still
+                // absorbs its local-only row.
+                applyPlanRef.current(pending.scope, pending.plan);
+                buf.settleCommit();
+              }
+            }}
           />
         )}
 

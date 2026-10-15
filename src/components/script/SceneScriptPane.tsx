@@ -127,7 +127,7 @@ export function SceneScriptPane({ sceneNumber, open, width, onWidthChange }: {
               <ScriptSceneText
                 scene={scene}
                 theme="light"
-                annotations={tagging.annotations}
+                annotations={tagging.annotationsForScene(liveScene?.id)}
                 sceneId={liveScene?.id}
                 onAnnotationClick={tagging.openAnnotation}
                 onAnnotationHover={tagging.handleAnnotationHover}

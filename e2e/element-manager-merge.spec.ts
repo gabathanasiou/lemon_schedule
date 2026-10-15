@@ -13,6 +13,7 @@ async function openElementManagerCategory(page: import('@playwright/test').Page,
   await page.locator('aside').getByRole('button', { name: new RegExp(category) }).click();
 }
 
+/** Replace a row's name: Enter commits the field (commit-on-blur, roadmap 250). */
 async function renameRow(page: import('@playwright/test').Page, from: string, to: string) {
   const input = nameCell(page, from);
   await input.click();
@@ -74,23 +75,28 @@ async function seedControlledData(page: import('@playwright/test').Page) {
   });
 }
 
-test.describe('Element Manager merge/save', () => {
+test.describe('Element Manager commit-on-blur', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('renaming an element to an existing name merges and replaces it in scenes', async ({ page }) => {
+  test('there is no Save/Revert button anymore', async ({ page }) => {
+    await openElementManagerCategory(page, 'Vehicles');
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Saved', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Revert', exact: true })).toHaveCount(0);
+  });
+
+  test('renaming an element to an existing name commits and asks to merge', async ({ page }) => {
     await openElementManagerCategory(page, 'Vehicles');
 
-    // FISHING BOAT (element, 0 scenes) -> fishing boat (element, 3 scenes)
+    // FISHING BOAT (element, 0 scenes) -> fishing boat (element, 3 scenes).
+    // Enter blurs the field: the commit fires and the collision asks to merge.
     await renameRow(page, 'FISHING BOAT', 'fishing boat');
 
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
-
-    // Warning dialog lists the merge with the affected scene count
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('dialog')).toContainText('Merge Elements');
     await expect(page.getByRole('dialog')).toContainText('fishing boat');
 
-    await page.getByRole('button', { name: 'Merge & Save' }).click();
+    await page.getByRole('button', { name: 'Merge', exact: true }).click();
 
     const project = await getProject(page);
     const ids = vehicleNames(project);
@@ -98,20 +104,17 @@ test.describe('Element Manager merge/save', () => {
     expect(ids.filter(i => i.toLowerCase() === 'fishing boat').length).toBe(1);
     const counts = sceneCounts(project);
     expect(counts['fishing boat']).toBe(3);
-    expect(counts['fishing boat']).toBe(counts['fishing boat']); // case-collapsed
     expect(Object.keys(counts).some(k => k === 'fishing boat')).toBe(true);
   });
 
-  test('a plain unique rename saves without the merge dialog', async ({ page }) => {
-    // Props has no pre-existing duplicates — a unique rename must save directly
+  test('a plain unique rename commits on Enter without the merge dialog', async ({ page }) => {
+    // Props has no pre-existing duplicates — a unique rename commits directly
     await openElementManagerCategory(page, 'Props');
 
     await renameRow(page, 'gun', 'cannon');
 
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
-
     await expect(page.getByRole('dialog')).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible({ timeout: 5000 });
+    await expect(nameCell(page, 'cannon')).toBeVisible({ timeout: 5000 });
 
     const project = await getProject(page);
     const names = (project.breakdownElements?.props || []).map((e: any) => e.name);
@@ -128,99 +131,61 @@ test.describe('Element Manager merge/save', () => {
     expect(counts['gun']).toBeUndefined();
   });
 
-  test('switching tabs with unsaved changes prompts BEFORE leaving; merge modal completes and switches', async ({ page }) => {
+  test('tabbing out of the name field commits it too', async ({ page }) => {
     await openElementManagerCategory(page, 'Vehicles');
 
-    await renameRow(page, 'FISHING BOAT', 'fishing boat');
-
-    // click a top tab -> the prompt fires while the element manager is still mounted
-    await page.getByRole('button', { name: 'Schedule' }).click();
-    await expect(page.getByRole('dialog')).toContainText('Unsaved Changes', { timeout: 5000 });
-    await expect(page.locator('main')).toContainText('Element Manager');
-
-    // confirm -> the save runs in place, so the merge modal can appear
-    await page.getByRole('button', { name: 'Confirm' }).click();
-    await expect(page.getByRole('dialog')).toContainText('Merge Elements', { timeout: 5000 });
-
-    // merge & save -> merge applies AND the pending tab switch completes
-    await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await expect(page.locator('main')).toContainText('Day Breaks');
+    const input = nameCell(page, 'ship');
+    await input.click();
+    await page.keyboard.press('Meta+A');
+    await page.keyboard.type('schooner', { delay: 20 });
+    await page.keyboard.press('Tab');
 
     const project = await getProject(page);
-    const vehicles = (project.breakdownElements.vehicles || []).filter((e: any) => /fishing boat/i.test(e.name));
-    expect(vehicles.length).toBe(1);
-    expect(vehicles[0].name.toLowerCase()).toBe('fishing boat');
+    expect(vehicleNames(project)).toContain('schooner');
+    expect(vehicleNames(project)).not.toContain('ship');
+    expect((project.scenes || []).some((s: any) => (s.vehicles || '').includes('schooner'))).toBe(true);
   });
 
-  test('cancelling the unsaved-changes prompt discards and switches without a second prompt', async ({ page }) => {
+  test('cancelling the merge restores the committed name', async ({ page }) => {
     await openElementManagerCategory(page, 'Vehicles');
 
     await renameRow(page, 'FISHING BOAT', 'fishing boat');
-
-    await page.getByRole('button', { name: 'Calendar' }).click();
-    await expect(page.getByRole('dialog')).toContainText('Unsaved Changes');
+    await expect(page.getByRole('dialog')).toContainText('Merge Elements');
     await page.getByRole('button', { name: 'Cancel' }).click();
-
     await expect(page.getByRole('dialog')).not.toBeVisible();
-    await expect(page.locator('main')).toContainText('Boneyard');
+
+    // The edit was never committed; the store and the field show the old name.
     const project = await getProject(page);
-    expect(project.breakdownElements.vehicles.some((e: any) => e.name === 'FISHING BOAT')).toBe(true);
+    expect(vehicleNames(project)).toContain('FISHING BOAT');
+    await expect(nameCell(page, 'FISHING BOAT')).toBeVisible({ timeout: 5000 });
   });
 
-  test('a clean save confirmed from the prompt switches to the tab immediately', async ({ page }) => {
-    await openElementManagerCategory(page, 'Props');
-
-    await renameRow(page, 'gun', 'cannon');
-
-    await page.getByRole('button', { name: 'Schedule' }).click();
-    await expect(page.getByRole('dialog')).toContainText('Unsaved Changes');
-    await page.getByRole('button', { name: 'Confirm' }).click();
-
-    await expect(page.locator('main')).toContainText('Day Breaks');
-    const project = await getProject(page);
-    const names = (project.breakdownElements?.props || []).map((e: any) => e.name);
-    expect(names).toContain('cannon');
-    expect(names).not.toContain('gun');
-  });
-
-  test('switching sub-tabs prompts before leaving the element manager', async ({ page }) => {
+  test('switching sub-tabs no longer prompts — the rename already committed', async ({ page }) => {
     await openElementManagerCategory(page, 'Vehicles');
 
-    await renameRow(page, 'FISHING BOAT', 'fishing boat');
+    await renameRow(page, 'FISHING BOAT', 'ski boat');
+
+    const project0 = await getProject(page);
+    expect(vehicleNames(project0)).toContain('ski boat');
 
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();
-    await expect(page.getByRole('dialog')).toContainText('Unsaved Changes');
-    await expect(page.locator('main')).toContainText('Element Manager');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    // the Sheet sub-tab is showing (the rename left without a prompt)
+    await expect(page.getByText('Sheet Order')).toBeVisible({ timeout: 5000 });
+
+    // and the committed rename survived the round trip
+    await page.getByRole('button', { name: 'Element Manager' }).click();
+    await expect(nameCell(page, 'ski boat')).toBeVisible({ timeout: 5000 });
   });
 
-  test('top Undo button undoes unsaved edits as one step per operation, Redo re-applies', async ({ page }) => {
+  test('Cmd+Z / Cmd+Shift+Z undo and redo the committed rename (one step)', async ({ page }) => {
     await openElementManagerCategory(page, 'Vehicles');
 
-    // a multi-character rename is ONE undoable operation
     await renameRow(page, 'FISHING BOAT', 'ski boat');
 
     const undoBtn = page.getByRole('button', { name: 'Undo (Cmd+Z)' });
     const redoBtn = page.getByRole('button', { name: 'Redo (Cmd+Shift+Z)' });
-    // enabled even though the store history is empty (local history exists)
     await expect(undoBtn).toBeEnabled();
-    await expect(redoBtn).toBeDisabled();
-
-    await undoBtn.click();
-    await expect(nameCell(page, 'FISHING BOAT')).toBeVisible({ timeout: 5000 });
-    await expect(nameCell(page, 'ski boat')).toHaveCount(0);
-    await expect(undoBtn).toBeDisabled();
-    await expect(redoBtn).toBeEnabled();
-
-    await redoBtn.click();
-    await expect(nameCell(page, 'ski boat')).toBeVisible({ timeout: 5000 });
-    await expect(nameCell(page, 'FISHING BOAT')).toHaveCount(0);
-    await expect(undoBtn).toBeEnabled();
-  });
-
-  test('Cmd+Z / Cmd+Shift+Z undo and redo unsaved element manager edits', async ({ page }) => {
-    await openElementManagerCategory(page, 'Vehicles');
-
-    await renameRow(page, 'FISHING BOAT', 'ski boat');
 
     await page.keyboard.press('Meta+z');
     await expect(nameCell(page, 'FISHING BOAT')).toBeVisible({ timeout: 5000 });
@@ -229,28 +194,43 @@ test.describe('Element Manager merge/save', () => {
     // payload so the handler's normalization is what is under test (roadmap 238).
     await page.keyboard.press('Meta+Shift+Z');
     await expect(nameCell(page, 'ski boat')).toBeVisible({ timeout: 5000 });
+    // the redo consumed the future stack
+    await expect(redoBtn).toBeDisabled();
+    await expect(undoBtn).toBeEnabled();
   });
 
-  test('adding and deleting rows each undo as one step', async ({ page }) => {
+  test('adding and deleting rows commit immediately and undo as one step each', async ({ page }) => {
     await openElementManagerCategory(page, 'Props');
 
     const undoBtn = page.getByRole('button', { name: 'Undo (Cmd+Z)' });
     const beforeCount = await page.locator('tbody tr').count();
 
+    // A new row is local until it gets a name — naming it commits it.
     await page.getByRole('button', { name: 'Add Props' }).click();
-    await expect(page.locator('tbody tr')).toHaveCount(beforeCount + 1);
-    await undoBtn.click();
-    await expect(page.locator('tbody tr')).toHaveCount(beforeCount);
+    const blank = page.locator('tbody textarea[data-manager-name]').last();
+    await blank.fill('torch');
+    await blank.press('Enter');
+    await expect(nameCell(page, 'torch')).toBeVisible({ timeout: 5000 });
+    expect((await getProject(page)).breakdownElements?.props?.some((e: any) => e.name === 'torch')).toBe(true);
 
-    // delete the 'gun' row, then undo brings it back
+    await undoBtn.click();
+    await expect(nameCell(page, 'torch')).toHaveCount(0);
+    expect((await getProject(page)).breakdownElements?.props?.some((e: any) => e.name === 'torch')).toBe(false);
+
+    // delete the 'gun' row: the removal commits at once; undo brings it back
     const gunRow = page.locator('tr', { has: nameCell(page, 'gun') });
     await gunRow.locator('button').last().click();
     await expect(nameCell(page, 'gun')).toHaveCount(0);
+    expect((await getProject(page)).breakdownElements?.props?.some((e: any) => e.name === 'gun')).toBe(false);
+
     await undoBtn.click();
     await expect(nameCell(page, 'gun')).toBeVisible({ timeout: 5000 });
+    expect((await getProject(page)).breakdownElements?.props?.some((e: any) => e.name === 'gun')).toBe(true);
+
+    await expect(page.locator('tbody tr')).toHaveCount(beforeCount);
   });
 
-  test('sorting undoes as one step', async ({ page }) => {
+  test('sorting is a view-only op — no undo entry, order kept', async ({ page }) => {
     await openElementManagerCategory(page, 'Vehicles');
 
     const namesBefore = await page.locator('tbody textarea[data-manager-name]').evaluateAll(inputs => inputs.map(i => (i as HTMLTextAreaElement).value));
@@ -263,9 +243,8 @@ test.describe('Element Manager merge/save', () => {
     const namesSorted = await page.locator('tbody textarea[data-manager-name]').evaluateAll(inputs => inputs.map(i => (i as HTMLTextAreaElement).value));
     expect(namesSorted).not.toEqual(namesBefore);
 
-    await undoBtn.click();
-    await expect(page.locator('tbody textarea[data-manager-name]').first()).toHaveValue(firstValue, { timeout: 5000 });
-    const namesAfter = await page.locator('tbody textarea[data-manager-name]').evaluateAll(inputs => inputs.map(i => (i as HTMLTextAreaElement).value));
-    expect(namesAfter).toEqual(namesBefore);
+    // the seed LOAD cleared history and sorting dispatches nothing → no undo
+    await expect(undoBtn).toBeDisabled();
+    await expect(page.locator('tbody textarea[data-manager-name]').first()).not.toHaveValue(firstValue);
   });
 });

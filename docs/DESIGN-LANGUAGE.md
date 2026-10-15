@@ -459,8 +459,13 @@ multi-step wizards (dedicate a page), anything not related to the current task.
   frequent-but-serious (e.g. delete-from-trash), never for one-off confirms.
 - **Undo-first rule**: if the action is reversible (undo history, Boneyard vs delete), prefer a
   lighter confirm or none. Confirming the same thing every time teaches users to click through it.
-- Unsaved-changes guard: `dialog.confirm({title:'Unsaved Changes', message:'You have unsaved
-  changes. Save before leaving?'})` — `src/lib/unsavedGuard.ts:128`.
+- **Commit-on-blur rule (roadmap 250/251)**: every editing surface commits when the edit
+  FINISHES — blur / Enter / Tab / Escape / leaving the page — never per keystroke and with
+  no Save button. The manager pages (`useRowBuffer`) and the Report Designer's text defer
+  the store write while you type; dropdown/address-modal edits commit on the next tick
+  (coalesced). Un-flushed text counts as dirty for the S3.5 peer-save check
+  (`src/lib/inFlightEdits.ts`), so a peer's save raises "Changes available" instead of
+  reloading over it. There is no unsaved-changes guard any more.
 
 ## Feedback taxonomy (severity → mechanism)
 

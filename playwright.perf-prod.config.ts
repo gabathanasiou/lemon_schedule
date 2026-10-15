@@ -5,6 +5,13 @@ export default defineConfig({
   timeout: 600000,
   retries: 0,
   workers: 1,
-  use: { baseURL: 'http://localhost:4173', headless: true, screenshot: 'only-on-failure' },
+  use: {
+    baseURL: 'http://localhost:4173',
+    headless: true,
+    screenshot: 'only-on-failure',
+    // Match the main suite's conditions: the kit overlay morph self-disables
+    // under reduced motion (same reason as playwright.config.ts).
+    contextOptions: { reducedMotion: 'reduce' },
+  },
   webServer: { command: 'npm run preview -- --port=4173 --strictPort', url: 'http://localhost:4173', reuseExistingServer: true, timeout: 30000 },
 });

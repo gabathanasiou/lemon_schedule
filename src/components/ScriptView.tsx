@@ -15,8 +15,9 @@ import { cutSceneAt, mergeSceneWithNext } from '../lib/scriptSceneOps';
 import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
 import { useFollowView } from '../lib/supabase/useFollowView';
+import { applyChunkVisibility, useChunkResize } from '../lib/virtualChunk';
 import { TEST_IDS } from '../lib/testIds';
-import type { ScriptScene } from '../types';
+import type { ScriptAnnotation, ScriptScene } from '../types';
 
 /** A razor-cut junction between two split scenes — hover reveals Merge. */
 function CutHandle({ label, onMerge, disabled }: { label: string; onMerge: () => void; disabled?: boolean }) {
@@ -41,6 +42,8 @@ const READ_FONT_CLASS = 'text-[15px] leading-[1.7]';
 /** Must match READ_FONT_CLASS (15px × 1.7) — drives the eighths ruler scale. */
 const READ_LINE_HEIGHT = 15 * 1.7;
 const SCROLL_KEY = 'lemon_schedule_script_scroll';
+/** Stable empty prop so a memoized scene doesn't re-render on identity churn. */
+const NO_ANNOTATIONS: ScriptAnnotation[] = [];
 
 const headingText = (scene: ScriptScene) => scene.blocks.find(b => b[0] === 'heading')?.[1] || '';
 
@@ -262,13 +265,44 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
       .filter(m => m.count > 0);
   }, [q, doc]);
 
+  // Only scenes that actually contain the query get a `highlight` prop — the
+  // rest keep `undefined` and their memoized block tree bails out, so typing in
+  // the search box re-renders matching scenes only (roadmap 163).
+  const matchIndexSet = useMemo(() => new Set(matches.map(m => m.i)), [matches]);
+
   // A programmatic jump must not be re-detected as the neighbor above it while
   // the scroll settles; suppress the detector briefly.
   const suppressActiveUntil = useRef(0);
+  /** Mirrors `activeIndex` for the incremental scroll walk (no stale closure). */
+  const activeIndexRef = useRef(0);
   const jumpTo = useCallback((index: number) => {
+    activeIndexRef.current = index;
     setActiveIndex(index);
     suppressActiveUntil.current = Date.now() + 500;
+    const deltaToTarget = () => {
+      const scroller = scrollRef.current;
+      const node = sectionRefs.current.get(index);
+      if (!scroller || !node) return 0;
+      return node.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16;
+    };
     sectionRefs.current.get(index)?.scrollIntoView({ block: 'start' });
+    // Foveated chunks above the target carry estimated heights until they
+    // render, so the first scroll lands short and each reveal shifts again —
+    // re-align for a few frames until the position is stable.
+    let frames = 0;
+    let stable = 0;
+    const align = () => {
+      const scroller = scrollRef.current;
+      const delta = deltaToTarget();
+      if (Math.abs(delta) > 2) {
+        if (scroller) scroller.scrollTop += delta;
+        stable = 0;
+      } else {
+        stable++;
+      }
+      if (++frames < 30 && stable < 3) requestAnimationFrame(align);
+    };
+    requestAnimationFrame(align);
   }, []);
 
   // Follow (roadmap 243): the scene the peer is READING. Published as the live
@@ -288,8 +322,8 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
   const activeDocScene = doc?.scenes[activeIndex];
   const activeLive = activeDocScene ? sceneByIdentity.get(normalizeSceneNumber(activeDocScene.sceneNumber)) : undefined;
   const followJumpRaf = useRef<number | null>(null);
-  const activeIndexRef = useRef(activeIndex);
-  activeIndexRef.current = activeIndex;
+  // `activeIndexRef` (declared above beside `jumpTo`) mirrors the active index
+  // for both the incremental scroll walk and this follow callback.
   const follow = useFollowView({
     place: { tab: 'breakdown', sub: 'script' },
     fields: [
@@ -346,13 +380,15 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     // Tolerance must exceed the section's scroll-mt (16px) so a section that
     // just scrolled to the top still counts as active (otherwise the neighbor
     // above wins).
-    const top = el.getBoundingClientRect().top + 24;
-    let idx = 0;
-    for (let i = 0; i < doc.scenes.length; i++) {
-      const node = sectionRefs.current.get(i);
-      if (!node) continue;
-      if (node.getBoundingClientRect().top <= top) idx = i; else break;
-    }
+    const fold = el.getBoundingClientRect().top + 24;
+    const topAt = (i: number) => sectionRefs.current.get(i)?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY;
+    // Walk from the current section instead of scanning from the document top —
+    // scroll frames move a few sections at most, and the full scan was one of
+    // the per-frame scroll costs on long scripts (roadmap 163).
+    let idx = Math.min(activeIndexRef.current, doc.scenes.length - 1);
+    while (idx > 0 && topAt(idx) > fold) idx--;
+    while (idx + 1 < doc.scenes.length && topAt(idx + 1) <= fold) idx++;
+    activeIndexRef.current = idx;
     setActiveIndex(idx);
   }, [doc]);
 
@@ -378,7 +414,12 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     tagging.handleAnnotationHover(null);
     tagging.closeMenu();
     if (activeRaf.current == null) {
-      activeRaf.current = requestAnimationFrame(() => { activeRaf.current = null; updateActive(); });
+      activeRaf.current = requestAnimationFrame(() => {
+        activeRaf.current = null;
+        const el = scrollRef.current;
+        if (el) applyChunkVisibility(el, 'rect');
+        updateActive();
+      });
     }
     if (saveTimer.current != null) return;
     saveTimer.current = window.setTimeout(() => {
@@ -387,6 +428,16 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
       if (el) { try { localStorage.setItem(SCROLL_KEY, String(el.scrollTop)); } catch { /* ignore */ } }
     }, 150);
   }, [updateActive, tagging]);
+
+  // Foveated rendering: scenes carry `content-visibility: auto` (the section IS
+  // the chunk), so offscreen scenes skip layout/paint while staying in the DOM
+  // (find-in-page, selection and accessibility keep working). Mark the chunks
+  // inside the viewport buffer once on mount and on every viewport resize.
+  useChunkResize(scrollRef, 'rect');
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) applyChunkVisibility(el, 'rect');
+  }, [doc, showTags, showEighths]);
 
   // Measure the page so the eighths ruler scales to the real content.
   useEffect(() => {
@@ -561,7 +612,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                     data-scene-number={scene.sceneNumber}
                     data-scene-index={i}
                     id={`script-scene-${i}`}
-                    className="group relative scroll-mt-4 pb-6"
+                    className="cv-chunk cv-chunk--script group relative scroll-mt-4 pb-6"
                   >
                     {!cutActive && match && (onOpenSchedule || onOpenSheet) && (
                       <div className="hover-reveal absolute right-0 top-3 z-10 flex items-center gap-1 rounded bg-white/90">
@@ -581,9 +632,9 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
                       scene={scene}
                       theme="light"
                       fontClass={READ_FONT_CLASS}
-                      highlight={q}
+                      highlight={matchIndexSet.has(i) ? q : undefined}
                       sceneNumber={scene.sceneNumber}
-                      annotations={showTags ? tagging.annotations : []}
+                      annotations={showTags ? tagging.annotationsForScene(match?.id) : NO_ANNOTATIONS}
                       sceneId={match?.id}
                       onAnnotationClick={tagging.openAnnotation}
                       onAnnotationHover={tagging.handleAnnotationHover}

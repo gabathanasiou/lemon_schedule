@@ -94,7 +94,6 @@ import { prepareSunWeatherForDesign } from './lib/reportWeather';
 import OfflineStatus from './components/OfflineStatus';
 import { PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar } from './components/popout/PopoutFrames';
 import { DayTypesTab } from './components/calendar/DayTypesTab';
-import { requestUnsavedSave } from './lib/unsavedGuard';
 import { AppPlace, NavStack, initStack, pushPlace, currentPlace, previousPlace, isNavStack, parsePlaceHash, placeToHash, samePlace } from './lib/appNav';
 import { PresenceProvider, usePresenceActions } from './lib/supabase/presenceContext';
 import { placeToPresenceView, presenceViewToPlace } from './lib/supabase/presence';
@@ -277,21 +276,18 @@ function AppContent() {
   // Native .onDrag-style keyboard dismissal on touch (see the hook).
   useKeyboardDismissOnScroll();
 
-  // Browser back/forward: apply the incoming entry through the unsaved guard
-  // (which prompts AND proceeds — cancel means discard, the same as a tab
-  // click), without re-pushing.
+  // Browser back/forward: apply the incoming entry. Route through the
+  // history stack without re-pushing.
   useEffect(() => {
     const onPopState = (e: PopStateEvent) => {
       const incoming = (e.state as { lemon?: unknown } | null)?.lemon;
       if (!isNavStack(incoming)) return;
-      void requestUnsavedSave(dialog, () => {
-        navRef.current = incoming;
-        applyPlace(currentPlace(incoming));
-      });
+      navRef.current = incoming;
+      applyPlace(currentPlace(incoming));
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [dialog, applyPlace]);
+  }, [applyPlace]);
 
   // Seed the history entry when a project opens — adopting the reloaded stack
   // for the same project. The boot screen leaves the route untouched so it can
@@ -311,19 +307,19 @@ function AppContent() {
     window.history.replaceState({ lemon: nav, pid: currentProjectId }, '', `#/${placeToHash(base)}`);
   }, [currentProjectId, applyPlace]);
 
-  // Tab actions consult the element manager's unsaved-changes guard first:
-  // the prompt (and any merge confirmation from the save) happens while the
-  // element manager is still mounted, before the switch/popout.
+  // Tab actions: a tab click blurs and commits any focused field first, so the
+  // switch/popout runs directly (roadmap 250 — the manager pages no longer hold
+  // unsaved edits behind a Save button).
   const requestTabSwitch = useCallback((tab: AppTabId) => {
     const sub = currentSubOf(tab);
     const place: AppPlace = { tab, sub };
     if (tab === 'production' && (sub === 'days' || sub === 'crew' || sub === 'locations')) place.mode = prodViews[sub];
-    void requestUnsavedSave(dialog, () => go(place));
-  }, [dialog, go, currentSubOf, prodViews]);
+    go(place);
+  }, [go, currentSubOf, prodViews]);
 
   const requestTabPopout = useCallback((tab: AppTabId) => {
-    void requestUnsavedSave(dialog, () => togglePopout(tab));
-  }, [dialog, togglePopout]);
+    togglePopout(tab);
+  }, [togglePopout]);
 
   const tabLabels: Record<string, string> = {
     breakdown: 'Breakdown', schedule: 'Schedule', calendar: 'Calendar',

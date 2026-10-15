@@ -215,18 +215,48 @@ export interface ElementOccurrence {
   text: string;
 }
 
+// Compiled per-name probes are reused across blocks/scenes — the old code built
+// a fresh RegExp per element × block, which dominated full-document scans
+// (roadmap 163). Bounded: names come from the project's element lists.
+const proseRegexCache = new Map<string, RegExp>();
+const PROSE_REGEX_CACHE_MAX = 2048;
+
+function proseNameRegex(clean: string): RegExp {
+  let re = proseRegexCache.get(clean);
+  if (!re) {
+    re = new RegExp(`\\b${escapeRegExp(clean)}\\b`, 'gi');
+    if (proseRegexCache.size >= PROSE_REGEX_CACHE_MAX) proseRegexCache.clear();
+    proseRegexCache.set(clean, re);
+  }
+  re.lastIndex = 0;
+  return re;
+}
+
+/** Lowercased block texts of a scene — the cheap miss test shared by every
+ *  element scan in `attachedRanges`/`suggestionRanges` (one pass per scene,
+ *  instead of a regex per element × block). */
+export function lowerBlockTexts(docScene: ScriptScene): string[] {
+  return docScene.blocks.map(([, text]) => (text || '').toLowerCase());
+}
+
 /**
  * Every body occurrence of an element's display name in a scene. Cast also
  * matches a whole `character` cue (trailing `(O.S.)/(V.O.)/(CONT'D)…` stripped);
  * all categories match whole words in action/dialogue. Numeric names never match.
+ *
+ * `lowerTexts` (from `lowerBlockTexts`) is an optional prefilter: blocks whose
+ * lowercase text cannot contain the name skip the regex entirely. A regex match
+ * always implies a literal substring, so results are identical with or without it.
  */
-export function elementOccurrences(docScene: ScriptScene, category: string, name: string): ElementOccurrence[] {
+export function elementOccurrences(docScene: ScriptScene, category: string, name: string, lowerTexts?: string[]): ElementOccurrence[] {
   const clean = (name || '').trim();
   if (!clean || isNumericName(clean)) return [];
+  const lowerName = clean.toLowerCase();
   const out: ElementOccurrence[] = [];
   docScene.blocks.forEach((block, blockIndex) => {
     const [type, text] = block;
     if (!text) return;
+    if (lowerTexts && !lowerTexts[blockIndex].includes(lowerName)) return;
     if (category === 'cast' && type === 'character') {
       const cue = text.trim().replace(/(\s*\([^)]*\)\s*)+$/g, '').trim();
       if (cue.toUpperCase() === clean.toUpperCase()) {
@@ -235,7 +265,7 @@ export function elementOccurrences(docScene: ScriptScene, category: string, name
       }
     }
     if (!PROSE_BLOCK_TYPES.has(type)) return;
-    const re = new RegExp(`\\b${escapeRegExp(clean)}\\b`, 'gi');
+    const re = proseNameRegex(clean);
     let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
       out.push({ blockIndex, start: m.index, end: m.index + m[0].length, text: m[0] });
@@ -385,6 +415,7 @@ export function detachTag(
 export function attachedRanges(project: Project, scene: Scene): ScriptAnnotation[] {
   const docScene = scriptSceneOf(project.scriptDocument, scene.sceneNumber);
   if (!docScene) return [];
+  const lower = lowerBlockTexts(docScene);
   const out: ScriptAnnotation[] = [];
   for (const cat of tagCategories(project)) {
     if (cat.key === 'set') continue;
@@ -398,7 +429,7 @@ export function attachedRanges(project: Project, scene: Scene): ScriptAnnotation
         elementKey = member.id;
         name = member.name;
       }
-      for (const occ of elementOccurrences(docScene, cat.key, name)) {
+      for (const occ of elementOccurrences(docScene, cat.key, name, lower)) {
         out.push({
           id: `attached:${cat.key}:${elementKey}:${occ.blockIndex}:${occ.start}`,
           sceneId: scene.id,
@@ -425,6 +456,7 @@ export function attachedRanges(project: Project, scene: Scene): ScriptAnnotation
 export function suggestionRanges(project: Project, scene: Scene, attached: ScriptAnnotation[] = []): ScriptAnnotation[] {
   const docScene = scriptSceneOf(project.scriptDocument, scene.sceneNumber);
   if (!docScene) return [];
+  const lower = lowerBlockTexts(docScene);
 
   const stored = (project.scriptAnnotations || []).filter(a => a.sceneId === scene.id);
   const attachedKeys = new Set(attached.map(a => `${a.category}\u0000${a.elementKey.toLowerCase()}`));
@@ -442,7 +474,7 @@ export function suggestionRanges(project: Project, scene: Scene, attached: Scrip
       if (!name || isNumericName(name)) continue;
       const elementKey = cat.key === 'cast' ? e.id : (e.name || e.id);
       if (attachedKeys.has(`${cat.key}\u0000${elementKey.toLowerCase()}`)) continue;
-      for (const occ of elementOccurrences(docScene, cat.key, name)) {
+      for (const occ of elementOccurrences(docScene, cat.key, name, lower)) {
         if (claimed(occ.blockIndex, occ.start, occ.end)) continue;
         out.push({
           id: `suggest:${cat.key}:${elementKey}:${occ.blockIndex}:${occ.start}`,
@@ -459,4 +491,61 @@ export function suggestionRanges(project: Project, scene: Scene, attached: Scrip
     }
   }
   return out;
+}
+
+/** Every span for ONE scene + its parts, in render priority order. */
+export interface SceneSpans {
+  /** Solid spans for elements attached to the scene that appear in its body. */
+  attached: ScriptAnnotation[];
+  /** Wavy ephemeral suggestions (empty when the Suggestions toggle is off). */
+  suggestions: ScriptAnnotation[];
+  /** What the renderer takes: stored committed → attached → recognized →
+   *  suggestions — the per-scene shape of the old global array, so every
+   *  consumer sees exactly the spans it saw before (roadmap 163). */
+  annotations: ScriptAnnotation[];
+}
+
+/**
+ * The complete tag view of one scene. The Script surfaces derive this LAZILY
+ * per scene (memoized until a tagging input changes) instead of re-deriving the
+ * whole document on every project change — a 120-page script × the full element
+ * list is the cross-product that made the tab unbearably heavy.
+ *
+ * `stored` (this scene's stored annotations) may be passed by a caller that
+ * keeps per-scene arrays identity-stable; without it the filter runs here.
+ */
+export function sceneSpans(project: Project, scene: Scene, showSuggestions: boolean, stored?: ScriptAnnotation[]): SceneSpans {
+  const sceneStored = stored ?? (project.scriptAnnotations || []).filter(a => a.sceneId === scene.id);
+  const committed = sceneStored.filter(a => !a.recognized);
+  const recognized = showSuggestions ? sceneStored.filter(a => a.recognized) : [];
+  const attached = attachedRanges(project, scene);
+  const suggestions = showSuggestions ? suggestionRanges(project, scene, attached) : [];
+  return {
+    attached,
+    suggestions,
+    annotations: [...committed, ...attached, ...recognized, ...suggestions],
+  };
+}
+
+function sameSpan(a: ScriptAnnotation, b: ScriptAnnotation): boolean {
+  return a.id === b.id && a.sceneId === b.sceneId && a.blockIndex === b.blockIndex
+    && a.start === b.start && a.end === b.end && a.text === b.text
+    && a.category === b.category && a.elementKey === b.elementKey
+    && !!a.recognized === !!b.recognized;
+}
+
+const sameSpans = (a: ScriptAnnotation[], b: ScriptAnnotation[]) =>
+  a.length === b.length && a.every((x, i) => sameSpan(x, b[i]));
+
+/**
+ * Field-level equality of two `sceneSpans` results. The view cache recomputes a
+ * scene when a global tagging slice (elements, cast) changes, but reuses the
+ * OLD arrays when the output is identical — otherwise every span in the
+ * document would get a new identity and every memoized scene would re-render
+ * for a tag committed in one scene (roadmap 163).
+ */
+export function sceneSpansEqual(a: SceneSpans, b: SceneSpans): boolean {
+  return sameSpans(a.annotations, b.annotations)
+    && sameSpans(a.attached, b.attached)
+    && sameSpans(a.suggestions, b.suggestions);
 }

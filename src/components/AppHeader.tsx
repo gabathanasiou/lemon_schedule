@@ -73,6 +73,9 @@ export default function AppHeader(props: AppHeaderProps) {
   } = props;
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
+  // Local draft while renaming: the store (and the index meta / Drive / online
+  // push) see ONE commit on blur/Enter, never a per-character UPDATE_PROJECT.
+  const [titleDraft, setTitleDraft] = useState('');
   const [tabScrollMask, setTabScrollMask] = useState('none');
   const topTabContainerRef = useRef<HTMLDivElement>(null);
   const checkTabScroll = useCallback(() => {
@@ -216,20 +219,18 @@ export default function AppHeader(props: AppHeaderProps) {
           {editingTitle ? (
             <input 
               autoFocus
-              value={project.title} 
-              onChange={e => {
-                dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}});
-              }}
-              onBlur={e => {
+              value={titleDraft} 
+              onChange={e => setTitleDraft(e.target.value)}
+              onBlur={() => {
                 setEditingTitle(false);
-                renameProject(currentProjectId!, e.target.value, currentDriveFileId);
+                if (titleDraft !== project.title) renameProject(currentProjectId!, titleDraft, currentDriveFileId);
               }}
-              onKeyDown={e => { if (e.key === 'Enter') { setEditingTitle(false); (e.target as HTMLInputElement).blur(); } }}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
               className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans max-w-[60px] md:max-w-[120px] ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
             />
           ) : (
             <span
-              onClick={() => { if (!locked) setEditingTitle(true); }}
+              onClick={() => { if (!locked) { setTitleDraft(project.title); setEditingTitle(true); } }}
               data-presence-anchor="header:project-title"
               className={`text-white font-medium px-1 truncate max-w-[60px] md:max-w-[120px] ${locked ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
               title={project.title}

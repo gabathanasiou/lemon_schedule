@@ -62,8 +62,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - Pure model: `src/lib/appNav.ts` (`AppPlace`, `placeToHash`/`parsePlaceHash`, `placeLabel`, stack
   helpers, unit-tested). The stack rides in `history.state` (`{ lemon, pid }`) so reload-restore
   works; the route is adopted on project open and left untouched on the boot screen.
-- The element manager's unsaved guard (`requestUnsavedSave`) runs for browser back too (cancel =
-  discard, same contract as a tab click); pop-out windows never push main-window history.
+- Editing surfaces commit on blur (roadmap 250/251): the manager pages, the
+  Report Designer text and the project-title field dispatch when the edit
+  finishes (blur / Enter / Escape / leaving the page), so browser back, tab
+  clicks and sub-tab switches need no unsaved-changes guard — there are no
+  buffer-held edits to prompt about. Pop-out windows never push main-window
+  history.
 
 ## UI Primitives (use these, not raw HTML)
 

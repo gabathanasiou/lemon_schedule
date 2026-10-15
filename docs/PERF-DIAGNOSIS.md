@@ -188,9 +188,79 @@ toggle/blur faster, not slower. The keyboard-detection heuristic does not fire w
 typing in stripboard cells (CellInput's `stopPropagation` blocks the window
 keydown listener) — 0 state flips measured.
 
+## Follow-up: Script tab — full-length screenplay (2026-10-15, roadmap 163)
+
+Measured with the Script-tab harness (`e2e/perf-diagnosis.spec.ts`, "@perf script
+tab", 4× CPU throttle ≈ tablet-class) against the real production project
+"Lair (LOCKED) V17 Copy": 172 scenes · 2 876 script blocks · ~1 750 rendered tag
+spans. Before → after:
+
+| Workload | Before | After |
+|---|---|---|
+| Open the Script sub-tab (wall / script CPU) | 1 030 / 733 ms | 574 / 393 ms |
+| Hover tags ×24 | 1 755 ms | 187 ms |
+| Select text ×6 (menu) | 954 ms | 273 ms |
+| Search typing (6 chars) | 1 573 ms | 567 ms |
+| Edit elsewhere while open ×20 (task) | 5 557 ms | 554 ms |
+| Add tag (existing element) ×5 | ~530 ms/op | ~205 ms/op |
+| Remove tag ×5 | ~615 ms/op | ~280 ms/op |
+| Add tag (new element) ×5 | ~560 ms/op | ~300 ms/op |
+| Wheel scroll ×40 | 2 983 ms | 848 ms |
+
+(Tag-op walls include driver IPC + fixed waits; the app-side commit/remove is
+≈ 30-60 ms/op unthrottled.)
+
+### Root causes
+
+1. `useScriptTagging` re-derived attached + suggestion spans for **every scene**
+   on every `project` identity change — an elements × blocks × scenes regex
+   cross-product (and one `new RegExp` per element × block).
+2. `ScriptSceneText` was not memoized: hover/selection/scroll re-rendered all
+   ~2 900 blocks, and `rangesForBlock` filtered the whole document's annotation
+   array per block.
+
+### Fixes — invariants to keep
+
+- **Per-scene lazy spans**: `sceneSpans()` (`src/lib/scriptTagging.ts`) is the ONE
+  combiner; the hook cache (`src/components/script/ScriptTagging.tsx`) validates
+  each entry against the tagging slices (script document, cast, elements,
+  labels, suggestions toggle, the scene's own stored array, scene identity).
+  **MUST NOT** re-derive the whole document on a project change.
+- **Identity-preserving per-scene inputs**: `storedByScene` (stable arrays for
+  untouched scenes) + `sceneSpansEqual` output reuse — a tag committed in one
+  scene must not change `annotations` identity anywhere else, or the memoized
+  document re-renders.
+- **`React.memo(ScriptSceneText)`** (`src/components/script/ScriptSceneScript.tsx`)
+  + stable props (per-scene span arrays, `NO_ANNOTATIONS` in `ScriptView.tsx`);
+  search passes `highlight` only to matching scenes (`matchIndexSet`).
+- **Cached word-boundary regexes + lowercase prefilter** in
+  `elementOccurrences`/`lowerBlockTexts` — a regex match always implies the
+  literal substring, so the prefilter changes nothing but the cost.
+- **Foveated chunks**: each scene `<section>` is a `cv-chunk cv-chunk--script`
+  (`src/index.css`); `applyChunkVisibility(el, 'rect')` (`src/lib/virtualChunk.ts`,
+  two-phase reads-then-writes) runs from the scroller's scroll handler + resize.
+  Content stays in the DOM — **MUST NOT** switch this reading surface to
+  unmount-based virtualization (breaks find-in-page/selection).
+- **Scroll walks**: `updateActive` walks from the current section; `jumpTo`
+  re-aligns for a few frames (unrendered chunks above carry estimated heights —
+  a single `scrollIntoView` lands short).
+- The perf configs set `contextOptions.reducedMotion` like the main suite.
+
+### How to re-run
+
+The harness prefers the project's own screenplay; point it at a heavy project
+(or the committed demo seed, which gets a deterministic generated screenplay via
+`e2e/perfScriptFixture.ts`):
+
+```bash
+LEMON_SEED_PATH=/path/to/project.lemon PLAYWRIGHT_PORT=4173 \
+  npx playwright test --config=playwright.perf-prod.config.ts --grep "script tab"
+```
+
 ## How to re-run
 
 ```bash
 npx playwright test --config=playwright.perf.config.ts      # dev server :3001
 npx playwright test --config=playwright.perf-prod.config.ts # prod preview :4173
 ```
+

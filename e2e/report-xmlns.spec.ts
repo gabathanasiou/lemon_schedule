@@ -67,6 +67,9 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
   await expect(propsCard.locator('.tiptap')).toBeFocused({ timeout: 3000 });
   await page.keyboard.press('End');
   await page.keyboard.type('x');
+  // roadmap 251: text commits when the edit finishes (Escape ends the edit
+  // session) — the store write no longer happens per keystroke.
+  await page.keyboard.press('Escape');
   await waitForPersistedProject(page, "(p.reportDesigns || []).some(d => JSON.stringify(d.blocks).includes('{{props}}x') && !JSON.stringify(d.blocks).includes('xmlns'))");
     const stored = await page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1_'));

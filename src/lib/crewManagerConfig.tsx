@@ -48,7 +48,7 @@ export const crewManagerConfig: ManagerShellConfig = {
   addScopeLabel: 'Add Role',
   renameScopeLabel: 'Rename Role',
   mergeTitle: 'Merge Members',
-  mergeIntro: 'The following crew members now share a name within this role. Saving will merge each set into a single member and combine their contact details.',
+  mergeIntro: 'The following crew members now share a name within this role. Merging collapses each set into a single member and combines their contact details.',
   mergeSummary: 'contacts combined',
   fields: [
     { key: 'name', label: 'Name', width: 'min-w-44 max-w-56', uppercase: true },
