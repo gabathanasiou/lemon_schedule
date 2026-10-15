@@ -1,7 +1,6 @@
 ---
 description: Write the missing days in the public CHANGELOG.md from git history
 agent: build
-model: deepseek/deepseek-flash
 subagent: true
 ---
 
