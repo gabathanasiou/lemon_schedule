@@ -42,6 +42,9 @@ export const TAB_LABELS: Record<AppTabId, string> = {
   reports: 'Reports',
 };
 
+/** Header tab order — the AppHeader tab row and the ⌘/Ctrl+1..7 shortcuts. */
+export const TAB_ORDER: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'reports'];
+
 /** Sub-tab id → label, per tab. Also the parse allow-list. */
 export const SUB_TAB_LABELS: Partial<Record<AppTabId, Record<string, string>>> = {
   breakdown: { sheet: 'Sheet', script: 'Script', elements: 'Element Manager', glide: 'Glide Breakdown' },

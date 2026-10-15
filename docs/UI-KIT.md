@@ -63,6 +63,14 @@ Before building any of these by hand again, check the kit first:
 - **v0.1.104**: the **`chrome` variant animates too** — the blue `bg-blue-900/50` highlight glides between the joined cells (the container carries `bg-zinc-800`, cells are transparent, dividers untouched). Every `Seg` now animates.
 - Playground `seg.spec.ts` (pill position, palettes, tablist, FloatingToggle, Checklist trailing); suite caps raised 13/73 → 14/78 with the ledger note.
 
+**v0.1.109-111 (icon-first tab face + shared sliding pill — roadmap 258)**: the tab-dock pass.
+- `Button` gained `icon` + `collapse` + `iconWithLabel` (v0.1.109): tab variants can rest as icon-only pills whose label animates back over hover / `focus-visible` / `active` / an open dropdown (the label rides a `grid-template-columns` 0fr↔1fr column; ~150ms in / 200ms out, skipped under `prefers-reduced-motion`). **The label stays in the DOM while collapsed** — the accessible name (role/name queries, screen readers) never disappears. `iconWithLabel={false}` swaps the pair (the label replaces the icon; a labeled non-collapsing tab drops its icon entirely). `tab-header`'s active fill moved to the row's pill — the variant carries only the dark text, so the selection can glide.
+- `TabFace` (v0.1.110): that face extracted as a shared component — `Seg` options (or any custom tab shell) can adopt the same mechanics; the shell owns the `group` class + `gap: 0` while collapsing.
+- `useSlidingPill` (v0.1.109): the measured-highlight mechanism extracted from `Seg` and exported — glides `transform`/`width` ~200ms between measured items (relative container + the active item's `offsetLeft`/`offsetWidth`) and **chases the live geometry while the container reflows** (label animations, dock shifts) so it never lags; reduced motion jumps instantly. `Seg` now rides it.
+- `ButtonProps.ref` (v0.1.111): React 19 ref-as-prop typed (the ref lands on the underlying `<button>`; tab rows measure their own buttons for the pill).
+- Playground: header-tabs demo + `header-tabs.spec.ts`; suite caps raised 14/78 → 15/82 (ledger note in `scripts/check-test-hygiene.mjs`). App wiring: `docs/UI-PRIMITIVES.md` §Tabs & Toolbars.
+- **v0.1.112**: `useSlidingPill` observes the ITEMS too — a row that clamps to its scroller (`w-fit` inside `overflow-x-auto`) never resizes its container while a label animates, so the pill's target went stale and it settled off the active tab. `TAB_PILL` (exported fill table: `light/dark` × `plain/blue/emerald`) is the mini-tab row's moving fill; the `tab` variant's active classes are text-only now (same move as `tab-header`).
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Users } from 'lucide-react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Users, NotebookText, Rows3, Calendar1, Palette, Scale, Clapperboard, FileChartColumn } from 'lucide-react';
 import { useProject, useIsOnlineProject } from '../store';
+import { useSlidingPill } from '@gabriel/ui-kit';
 import { useDialog } from './Dialog';
 import { IS_COARSE } from '../lib/device';
 import { ReportDesign } from '../types';
@@ -15,9 +16,21 @@ import { RoomNote } from './RoomNote';
 import { UserPresenceCluster } from './UserPresenceCluster';
 import { isSupabaseConfigured } from '../lib/supabase/client';
 import type { AgentBridgeStatus } from '../lib/agentBridgeClient';
+import { TAB_LABELS, TAB_ORDER } from '../lib/appNav';
 import type { AppTabId } from '../lib/appNav';
 
 export type { AppTabId };
+
+/** Header tab icons (roadmap 258) — the resting face of docked tabs. */
+const TAB_ICONS: Record<AppTabId, React.ReactNode> = {
+  breakdown: <NotebookText className="w-3.5 h-3.5" />,
+  schedule: <Rows3 className="w-3.5 h-3.5" />,
+  calendar: <Calendar1 className="w-3.5 h-3.5" />,
+  design: <Palette className="w-3.5 h-3.5" />,
+  rules: <Scale className="w-3.5 h-3.5" />,
+  production: <Clapperboard className="w-3.5 h-3.5" />,
+  reports: <FileChartColumn className="w-3.5 h-3.5" />,
+};
 
 interface GoogleAuthContextValue {
   isSignedIn: boolean;
@@ -75,10 +88,21 @@ export default function AppHeader(props: AppHeaderProps) {
   // push) see ONE commit on blur/Enter, never a per-character UPDATE_PROJECT.
   const [titleDraft, setTitleDraft] = useState('');
   const [tabScrollMask, setTabScrollMask] = useState('none');
+  // Dock mode (roadmap 258): icon-first tabs collapse their labels ONLY when
+  // the full labels have no room. `requiredTabWidth` is measured once at
+  // mount while the row is expanded; every later decision is that single
+  // comparison — the mode never feeds back into itself, so it cannot oscillate.
+  const [tabDock, setTabDock] = useState(false);
   const topTabContainerRef = useRef<HTMLDivElement>(null);
-  const checkTabScroll = useCallback(() => {
+  const tabContentRef = useRef<HTMLDivElement>(null);
+  const tabButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const requiredTabWidthRef = useRef<number | null>(null);
+  const syncTabLayout = useCallback(() => {
     const el = topTabContainerRef.current;
-    if (!el) return;
+    const content = tabContentRef.current;
+    if (!el || !content) return;
+    if (requiredTabWidthRef.current == null) requiredTabWidthRef.current = Math.ceil(content.scrollWidth);
+    setTabDock(requiredTabWidthRef.current > el.clientWidth - 4);
     const atLeft = el.scrollLeft <= 2;
     const atRight = el.scrollLeft >= el.scrollWidth - el.clientWidth - 2;
     if (atLeft && atRight) setTabScrollMask('none');
@@ -86,16 +110,25 @@ export default function AppHeader(props: AppHeaderProps) {
     else if (atRight) setTabScrollMask('linear-gradient(to right, transparent, black 12px)');
     else setTabScrollMask('linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)');
   }, []);
-  useEffect(() => {
-    checkTabScroll();
-    window.addEventListener('resize', checkTabScroll);
-    return () => window.removeEventListener('resize', checkTabScroll);
-  }, [checkTabScroll]);
+  // Layout effect: the first paint already knows whether the labels fit (no
+  // flash of the overflowing expanded row on a narrow window).
+  useLayoutEffect(() => {
+    syncTabLayout();
+    const el = topTabContainerRef.current;
+    const content = tabContentRef.current;
+    if (!el || !content) return;
+    const ro = new ResizeObserver(syncTabLayout);
+    ro.observe(el);
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, [syncTabLayout]);
 
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
   const isOnlineProject = useIsOnlineProject();
 
-  const tabButtons: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'reports'];
+  /* The white selection pill glides between tabs (useSlidingPill — the Seg
+     mechanism) and chases the row's live geometry while labels expand. */
+  const tabPill = useSlidingPill(tabContentRef, tabButtonRefs, Math.max(0, TAB_ORDER.indexOf(activeTab)));
 
   const agentBridgeLabel =
     agentBridge.status === 'connected' ? 'Agent bridge: connected'
@@ -237,20 +270,27 @@ export default function AppHeader(props: AppHeaderProps) {
             </span>
           )}
         </div>
-        <div ref={topTabContainerRef} onScroll={checkTabScroll} className="overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
-          <div className="flex items-center gap-1 mx-auto shrink-0 w-fit">
-            {tabButtons.map(tabId => (
+        <div ref={topTabContainerRef} onScroll={syncTabLayout} className="overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
+          <div ref={tabContentRef} className="relative flex items-center gap-1 mx-auto shrink-0 w-fit">
+            {tabPill.style && (
+              <span aria-hidden className={`absolute top-0 bottom-0 rounded bg-white pointer-events-none ${tabPill.motionClass}`} style={tabPill.style} />
+            )}
+            {TAB_ORDER.map((tabId, i) => (
               <Button
                 key={tabId}
+                ref={el => { tabButtonRefs.current[i] = el; }}
                 variant="tab-header"
                 cloud={isCloudProject}
                 active={activeTab === tabId}
+                icon={TAB_ICONS[tabId]}
+                collapse={tabDock}
+                iconWithLabel={false}
                 data-presence-anchor={`nav:tab:${tabId}`}
                 onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout(tabId); } else { setActiveTab(tabId); } }}
                 onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); onTabContextMenu(e, tabId); }}
-                className="shrink-0"
+                className="shrink-0 relative z-10"
               >
-                {tabId === 'breakdown' ? 'Breakdown' : tabId === 'schedule' ? 'Schedule' : tabId === 'calendar' ? 'Calendar' : tabId === 'design' ? 'Design' : tabId === 'rules' ? 'Rules' : tabId === 'production' ? 'Production' : 'Reports'}
+                {TAB_LABELS[tabId]}
               </Button>
             ))}
           </div>
