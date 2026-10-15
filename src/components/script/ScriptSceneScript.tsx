@@ -206,7 +206,15 @@ function BlockLine({ type, text, tone, parts, runs, ranges, sceneId, blockIndex,
       ? <InlineRuns runs={runs} highlight={highlight} theme={theme} />
       : <Highlighted text={text} query={highlight} theme={theme} />));
   const attrs = blockIndex != null
-    ? { 'data-script-block': String(blockIndex), 'data-script-scene': sceneId }
+    ? {
+        'data-script-block': String(blockIndex),
+        'data-script-scene': sceneId,
+        // Roadmap 252: cross-client pointer anchor, one per block line — added
+        // only when BOTH a live scene id and the block index exist, so orphan
+        // bodies (no live scene match) and the diff review's toned lines stay
+        // unanchored and ride 240's overlay cue (hide, don't fake).
+        ...(sceneId != null ? { 'data-presence-anchor': `script:${sceneId}:block:${blockIndex}` } : {}),
+      }
     : {};
   switch (type) {
     case 'page_break':

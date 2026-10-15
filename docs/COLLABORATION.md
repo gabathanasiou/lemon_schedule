@@ -337,7 +337,9 @@ ping**: a peer's save surfaces without a manual refresh (auto-apply only when
 the local client has no unsaved changes — edits, or text still being typed
 (roadmap 250/251, `src/lib/inFlightEdits.ts`) — else a subtle "Changes
 available · Reload" affordance; whole-blob saves stay last-write-wins until S4).
-Script-body cursors are flagged, not faked (ProseMirror relative positions).
+Script-body cursors shipped flagged in S3; the rendered block
+coordinate is anchored since roadmap 252 — a future editable caret
+(ProseMirror relative positions) stays flagged.
 *Acceptance*: two signed-in members see each other's live pointers and can
 follow; a save ping updates a clean peer; non-members cannot join the channel.
 
@@ -522,6 +524,15 @@ concurrency semantics in its doc.
     snap grabbed the pointer from outside a button and hopped between
     neighbours — "so much more jumpy"). Snapping stays for rows/cells and the
     explicitly keyed surfaces, where it was tuned.
+  - **The screenplay renderer anchors every block line** (roadmap 252): the
+    shared `BlockLine` (`src/components/script/ScriptSceneScript.tsx`) stamps
+    `data-presence-anchor="script:<sceneId>:block:<blockIndex>"` — the live
+    scene id + the index within that scene's own blocks — so a pointer over
+    script text lands per-block in EVERY surface that renders the script (the
+    Script sub-tab, the Sheet/Glide scene pane), however different the two
+    clients' widths, font scale and scroll are. Orphan bodies (no live scene
+    match) and the diff review's toned lines stay unanchored; a closed pane
+    or a scrolled-away line hides the pointer (hide, don't fake).
   - Coverage is auditable: `window.__lemonSchedule.presenceAnchorAt(x, y)`
     returns the anchor that WOULD be published at a viewport point.
 - **Canvas grids register a grid scope** (`src/lib/presenceResolvers.ts`):
@@ -545,8 +556,9 @@ concurrency semantics in its doc.
     follow the same gates — nothing floats over a view the peer isn't looking
     at, and the header bubbles remain the way to jump to a colleague's place.
   Anchors that resolve off this client's viewport are hidden (no edge chips).
-  Script-body cursors stay flagged, not faked (TipTap/ProseMirror relative
-  positions — skipped in S3).
+  Rendered script lines are anchored per block (roadmap 252, above); a future
+  editable script CARET stays flagged, not faked (TipTap/ProseMirror relative
+  positions are a different coordinate from the rendered block).
 - **Local-overlay cue + input glyph (roadmaps 240/241, built 2026-10-15)**: two
   more ephemeral signals on the same presence channel.
   - **Overlay cue (240)**: while a peer is inside a surface only THEY can see —
@@ -688,8 +700,9 @@ concurrency semantics in its doc.
   position one item behind for peers), idle-skip by quantized anchor key,
   stale-ts drops per client, 20s pointer TTL on top of presence leave.
   Multi-window: same user = one pointer, newest window wins.
-- Script-body cursors (TipTap) need ProseMirror relative positions — flag, don't
-  fake with indexes (skipped in S3).
+- A future editable script CARET (TipTap) needs ProseMirror relative positions —
+  flag, don't fake with indexes. The RENDERED script block coordinate IS
+  anchored (roadmap 252, §9 anchors above).
 - **Follow**: follower applies the leader's `view` state; a "Following X" pill
   exits on any manual navigation, Esc, or clicking the pill. Every surface
   registers through ONE shared hook — `src/lib/supabase/useFollowView.ts`
