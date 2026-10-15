@@ -111,7 +111,7 @@ export default function WhatsNewModal({ onClose }: WhatsNewModalProps) {
                   <span className="shrink-0 text-sm font-semibold text-zinc-100">{formatChangelogDate(day.date)}</span>
                   <span className="shrink-0 text-[10px] text-zinc-500">{day.groups.reduce((n, g) => n + g.items.length, 0)}</span>
                   <span className="flex-1" />
-                  {day.title && <span className="min-w-0 truncate text-right text-sm text-zinc-400">{day.title}</span>}
+                  {day.title && <span className="min-w-0 truncate text-right text-xs text-zinc-400">{day.title}</span>}
                 </button>
                 {isOpen && (
                   <div className="px-5 pb-4 pl-10 space-y-3.5">
