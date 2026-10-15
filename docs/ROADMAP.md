@@ -1183,3 +1183,22 @@ instead of the manual background command.
   playwright test --config=playwright.rooms.config.ts` green.
 - **Relations:** `extends` **229** (S4 local loop + deploy prep); `relates to` **145**
   (desktop app = the eventual no-terminal host).
+
+## 247. App header — File menu edge rail + weight (`[ ]`)
+
+**Requested 2026-10-15 (user):** the header's File menu has a weird left margin — its
+label sits inset from the header's left edge, not matching the margin the rightmost
+header items sit at — and it reads bold; it shouldn't be.
+
+- **Where**: `src/components/AppHeader.tsx` — the header rail is `px-4` (line 109) and
+  the File trigger adds `px-3 py-1.5 font-semibold` (lines 118-124), so the label
+  starts ≈28px from the left edge while the right cluster (`UndoRedoButtons` /
+  presence cluster) is flush at the 16px rail. `font-semibold` has no counterpart on
+  the right rail.
+- **Fix**: align the trigger's label with the header's edge rail (negate the extra
+  left inset — keep the hover pill's full hit area) and drop the bold weight to the
+  header chrome's weight.
+- **Verify (rule 7 — visual, no e2e):** both header themes (dark / cloud blue) — the
+  File label's left edge lines up with the rightmost items' rail; hover/active pill
+  still encloses the label; weight matches the rest of the toolbar.
+- **Relations**: `relates to` **245** (header chrome visual pass).
