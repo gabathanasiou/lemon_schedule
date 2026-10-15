@@ -466,7 +466,7 @@ multi-step wizards (dedicate a page), anything not related to the current task.
 
 | Situation | Mechanism | Example |
 |---|---|---|
-| Continuous save/offline state | Header icons + hover tooltip | `SaveIndicator.tsx` (`Loader2` spin=saving, `Cloud`=synced, `WifiOff`=offline, `CloudOff` rose=fail, `HardDrive` rose=storage full) |
+| Continuous save/offline state | Header icons + hover tooltip | `SaveIndicator.tsx` (`Loader2` spin=saving, `Cloud`=synced, `WifiOff`=offline, `CloudOff` rose=fail, `HardDrive` rose=storage full, amber "!" dot on the `Cloud`=shared project's collaboration room unreachable — hover/click tooltip, roadmap 239) |
 | Folder backup state | Color-coded pill in header + menu | `StorageStatus.tsx` (sky=saving, emerald=saved, rose=error) |
 | Offline / auth / read-only | Full-width colored bar `px-4 py-1.5 text-xs` | `OfflineStatus.tsx:24-58` (green=restored, amber=auth, red=offline) |
 | Transient selection/buffer summary | Floating dark panel near cursor + amber pills | `ScheduleOverlays.tsx:92-105`, `ScheduleToolbar.tsx:105` |

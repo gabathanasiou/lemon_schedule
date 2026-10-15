@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Users } from 'lucide-react';
-import { useProject } from '../store';
+import { useProject, useIsOnlineProject } from '../store';
 import { useDialog } from './Dialog';
 import { IS_COARSE } from '../lib/device';
 import { ReportDesign } from '../types';
@@ -89,7 +89,7 @@ export default function AppHeader(props: AppHeaderProps) {
   }, [checkTabScroll]);
 
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
-  const isOnlineProject = !!projectList.find(p => p.id === currentProjectId)?.onlineId;
+  const isOnlineProject = useIsOnlineProject();
 
   const tabButtons: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'reports'];
 
@@ -208,7 +208,7 @@ export default function AppHeader(props: AppHeaderProps) {
               </DropdownItem>
             )}
           </DropdownMenu>
-          <SaveIndicator isCloudProject={isCloudProject} isOnlineProject={isOnlineProject} />
+          <SaveIndicator isCloudProject={isCloudProject} />
           {editingTitle ? (
             <input 
               autoFocus

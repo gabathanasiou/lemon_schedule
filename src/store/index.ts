@@ -2,6 +2,7 @@ export {
   ProjectProvider,
   useProject,
   useIsCloudProject,
+  useIsOnlineProject,
 } from './provider';
 export type { ProjectContextType } from './provider';
 

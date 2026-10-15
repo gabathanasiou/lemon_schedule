@@ -68,6 +68,10 @@ export interface ProjectContextType {
    *  (its transcript holds peer edits too; the room owns that history). */
   canLocalUndo: boolean;
   canLocalRedo: boolean;
+  /** The S4 room transport status for the open shared project (roadmap 239) —
+   *  'open' = live editing; any other value on a shared project means the
+   *  room is connecting/unreachable (the header badge reflects it). */
+  roomStatus: RoomStatus;
   /** The active calendar version (production window + day statuses/events) —
    *  drives every calendar surface AND the stripboard's dates. Independent of
    *  the active schedule version (item 66). */
@@ -1494,6 +1498,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     canRoomRedo,
     canLocalUndo,
     canLocalRedo,
+    roomStatus,
     activeCalendarVersion: state.present.calendarVersions.find(v => v.id === state.present.activeCalendarVersionId),
     projectList,
     currentProjectId,
@@ -1526,7 +1531,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     retryConnectivity,
     closeProject,
     consumeLegacyMigrationNotice,
-  }), [state, guardedDispatch, undo, redo, canRoomUndo, canRoomRedo, canLocalUndo, canLocalRedo, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, applyAccessPush, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+  }), [state, guardedDispatch, undo, redo, canRoomUndo, canRoomRedo, canLocalUndo, canLocalRedo, roomStatus, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, applyAccessPush, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
 
   return (
     <ProjectContext.Provider value={contextValue}>
@@ -1545,4 +1550,11 @@ export function useIsCloudProject(): boolean {
   const { projectList, currentProjectId } = useProject();
   const meta = projectList.find(p => p.id === currentProjectId);
   return !!meta?.driveFileId || !!meta?.onlineId;
+}
+
+/** Is the open project SHARED (S1 onlineId)? One predicate for every surface
+ *  that distinguishes shared chrome (roadmap 229 S1). */
+export function useIsOnlineProject(): boolean {
+  const { projectList, currentProjectId } = useProject();
+  return !!projectList.find(p => p.id === currentProjectId)?.onlineId;
 }

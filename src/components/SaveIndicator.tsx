@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, WifiOff, Save, Cloud, CloudOff, HardDrive, Eye, RefreshCw } from 'lucide-react';
-import { useProject } from '../store';
+import { useProject, useIsOnlineProject } from '../store';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
+import { roomBadgeState, roomBadgeText } from '../lib/rooms/roomBadge';
 
 export interface SaveState {
   status: 'idle' | 'saving' | 'saved' | 'offline' | 'viewOnly';
@@ -55,13 +56,17 @@ export function useSaveIndicator(): SaveState {
  * while this client has unsaved edits (the store never auto-applies over local
  * work — docs/COLLABORATION.md §6 S3.5). Clicking re-reads and loads the shared
  * project, discarding the local unsaved edits (the user chose to).
+ *
+ * The cloud also carries the room-status badge (roadmap 239 stage 1): on a
+ * shared project whose collaboration room is not live, an amber "!" explains
+ * that changes aren't reaching collaborators (stage 2 will add the queue).
  */
-export function SaveIndicator({ isCloudProject, isOnlineProject }: { isCloudProject?: boolean; isOnlineProject?: boolean }) {
+export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) {
   const { onlineChangesAvailable, reloadOnlineProject } = useProject();
   const [reloading, setReloading] = useState(false);
   return (
     <div className="flex items-center gap-2">
-      <SaveIndicatorStatus isCloudProject={isCloudProject} isOnlineProject={isOnlineProject} />
+      <SaveIndicatorStatus isCloudProject={isCloudProject} />
       {onlineChangesAvailable && (
         <button
           data-testid="changes-available"
@@ -85,14 +90,46 @@ export function SaveIndicator({ isCloudProject, isOnlineProject }: { isCloudProj
   );
 }
 
-function SaveIndicatorStatus({ isCloudProject, isOnlineProject }: { isCloudProject?: boolean; isOnlineProject?: boolean }) {
+/** A normal join (connect → sync) and the role fetch must never flash the
+ *  room badge — show it only once the degraded state has PERSISTED this long. */
+const ROOM_BADGE_GRACE_MS = 2500;
+
+/** True once `flag` has been continuously true for `ms`; resets instantly. */
+function useSustained(flag: boolean, ms: number): boolean {
+  const [sustained, setSustained] = useState(false);
+  useEffect(() => {
+    if (!flag) {
+      setSustained(false);
+      return;
+    }
+    const timer = setTimeout(() => setSustained(true), ms);
+    return () => clearTimeout(timer);
+  }, [flag, ms]);
+  return sustained;
+}
+
+function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
   const { status, lastSavedAt } = useSaveIndicator();
-  const { canEdit, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync } = useProject();
+  const { canEdit, readOnly, roomStatus, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, retryDriveSync } = useProject();
+  const isOnlineProject = useIsOnlineProject();
   const auth = useGoogleAuth();
   const [showTooltip, setShowTooltip] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
   const iconColor = isCloudProject ? 'text-white' : 'text-zinc-500';
+
+  // Roadmap 239 stage 1: the room badge (a pure mapping in lib/rooms/roomBadge).
+  const roomBadge = roomBadgeState({
+    roomsConfigured: !!import.meta.env.VITE_ROOMS_URL,
+    onlineProject: isOnlineProject,
+    networkOnline: !readOnly,
+    status: roomStatus,
+  });
+  const roomDegraded = useSustained(roomBadge !== 'hidden', ROOM_BADGE_GRACE_MS);
+  useEffect(() => {
+    if (roomBadge === 'hidden') setPinned(false);
+  }, [roomBadge]);
 
   if (status === 'idle') return null;
 
@@ -134,6 +171,38 @@ function SaveIndicatorStatus({ isCloudProject, isOnlineProject }: { isCloudProje
         {showTooltip && (
           <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
             {tooltipText}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Room-status badge (roadmap 239 stage 1): a shared project whose room is
+  // not live — the cloud gets an amber "!" with the reason. Click pins the
+  // tooltip open (touch); clicking again closes it.
+  if (roomBadge !== 'hidden' && roomDegraded) {
+    const text = roomBadgeText(roomBadge);
+    return (
+      <div
+        className="relative"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        <button
+          type="button"
+          data-testid="room-status-badge"
+          onClick={() => setPinned(p => !p)}
+          className="relative cursor-pointer"
+          title={text}
+        >
+          <Cloud className={`w-3.5 h-3.5 ${iconColor}`} />
+          <span className="absolute -top-1 -right-1 flex items-center justify-center w-2.5 h-2.5 rounded-full bg-amber-400 text-[7px] font-bold text-black leading-none">
+            !
+          </span>
+        </button>
+        {(showTooltip || pinned) && (
+          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 w-56 whitespace-normal z-50">
+            {text}
           </div>
         )}
       </div>

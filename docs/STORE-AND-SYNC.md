@@ -175,13 +175,20 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   deployed path calls the Supabase `room-token` function (`src/lib/rooms/tokenClient.ts`), which
   is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 31 checks) and
   `room-client-probe.ts` (the real `RoomClient`, 17 checks) against `wrangler dev`.
+- **Header room-status badge (roadmap 239 stage 1, built 2026-10-15).** `roomStatus` is exposed
+  reactively on `useProject()` (`useIsOnlineProject()` marks shared projects); `src/lib/rooms/roomBadge.ts`
+  maps the transport status → `hidden | connecting | unreachable` + tooltip copy, rendered as an amber
+  "!" on the header cloud (`SaveIndicator`, 2.5s grace so a normal join never flashes, hover tooltip +
+  click-pin). Pure UI — stage 2 adds the offline action queue and the pending count (never blob-save a
+  shared project while its room is down).
 
 ## `useProject()` API
 
 `{ state, dispatch, projectList, currentProjectId, readOnly, initialized, createProject, openProject,
 deleteProject, renameProject, duplicateProject, importProjectFromData, onlineProjects, onlineLoading,
 onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave,
-reloadOnlineProject, ... }`.
+reloadOnlineProject, roomStatus, ... }` — shared-project chrome also has the `useIsCloudProject()` /
+`useIsOnlineProject()` selectors (the store barrel).
 
 ## Re-render / memo contract (MUST NOT break)
 
