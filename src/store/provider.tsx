@@ -1313,10 +1313,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
     const meta = projectList.find(p => p.id === id) ?? onlineProjects.find(p => p.id === id);
-    if (meta?.onlineId && currentProjectId !== id && sbAuth.account) {
-      // Not open: push the title straight to the row. For the open project
-      // the UPDATE_PROJECT dispatch above rides its next whole-blob save.
-      renameOnlineProject(meta.onlineId, title).catch(e => console.error('Failed to push rename online:', e));
+    if (meta?.onlineId && sbAuth.account) {
+      // Push the title straight to the ROW — for the OPEN project too: its next
+      // whole-blob save is NOT guaranteed (the room transport owns the writes
+      // while mounted, so there are no blob saves at all; without a room the
+      // save debounce can still lose to a reload/close), and online entries are
+      // dropped from the persisted project list — the row title is what the
+      // Project Manager's Shared list shows after any reload. Refresh the list
+      // so the manager reflects the rename immediately.
+      renameOnlineProject(meta.onlineId, title)
+        .then(() => refetchOnlineProjects())
+        .catch(e => console.error('Failed to push rename online:', e));
     }
     if (driveFileId && auth.accessToken) {
       if (currentProjectId === id) {
@@ -1332,7 +1339,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           .catch(e => console.error('Failed to read project for rename:', e));
       }
     }
-  }, [currentProjectId, auth.accessToken, projectList, onlineProjects, sbAuth.account]);
+  }, [currentProjectId, auth.accessToken, projectList, onlineProjects, sbAuth.account, refetchOnlineProjects]);
 
   const duplicateProject = useCallback(async (id: string, cloudDriveFileId?: string) => {
     const meta = projectList.find(p => p.id === id) ?? onlineProjects.find(p => p.id === id);

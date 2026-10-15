@@ -1033,7 +1033,10 @@ pass (doc §12).
 4. **246 — rooms-dev launcher** — medium dev-tooling (~1–2 days: process lifecycle + the
    first `playwright.rooms.config.ts` + probe rewiring). Local dev QoL only, nothing
    user-visible. Pick up when local collab-testing friction justifies it.
-5. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
+5. **254 — invite suggestions + teams** — medium (SQL + the SharingModal picker + a Team
+   modal; independent of the deploy): autocomplete invites from your team and the people
+   you collaborate with. User-requested 2026-10-15.
+6. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
    (`docs/LICENSING.md` §9) — decisions conversation needed before planning.
 Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work.
 
@@ -1363,3 +1366,151 @@ whole `UPDATE_REPORT_DESIGN` per character. Both should commit when the edit fin
   plausible).
 - **Relations:** `relates to` **250** (same commit-on-blur convention + `inFlightEdits`);
   `reports designer` canonical doc: `docs/REPORTS-DESIGNER.md`.
+
+## 252. Presence — per-block pointer anchoring wherever the script renders (`[ ]`)
+
+**Requested 2026-10-15 (user):** proper cursor anchoring "in any view that has the
+script in — like per-block anchoring … whenever the script is being rendered. It's
+important because one user might want to show something to the other one." Today a
+peer's pointer over screenplay text falls through the anchor chain to the `screen`
+fraction fallback (`src/lib/presenceAnchors.ts`): it lands on the right line only
+when both clients happen to share width, font size AND scroll — exactly the case a
+"look at this" moment is not. The fix belongs in the screenplay RENDERER, not in a
+view: anchor every block line, and every surface that renders the script inherits it.
+(236's coverage boundary deliberately left the script body out — commit `64a7ed6f`;
+this closes it for the rendered block coordinate. The doc's "Script-body cursors —
+flag, don't fake" note is about a future editable text caret's ProseMirror relative
+position — a different thing, not contradicted here.)
+
+- **One seam — the shared renderer.** Every script surface renders through
+  `ScriptSceneText` → `ScriptBlocks` → `BlockLine`
+  (`src/components/script/ScriptSceneScript.tsx`) — today the Script sub-tab
+  (`ScriptView.tsx`) and the scene script pane (`script/SceneScriptPane.tsx`, Sheet +
+  Glide). `BlockLine` already stamps `data-script-scene`/`data-script-block` (`:209`)
+  for the tagging overlay; the SAME `attrs` object adds the explicit presence key
+  `data-presence-anchor="script:<sceneId>:block:<blockIndex>"` when both exist —
+  guarded exactly like the `data-script-*` pair, so the diff review's toned lines (no
+  real scene/index) stay unanchored and ride 240's overlay cue.
+- **No chain or wire changes needed:** the sender resolves it as the generic `dom`
+  kind (`presenceAnchors.ts`), the receiver via `querySelector`
+  (`src/lib/presencePoint.ts`). Keys are unique: `sceneId` is the LIVE scene id
+  (split parts carry their own id + their own `ScriptScene`, roadmap 132) and
+  `blockIndex` is the index within that scene's own `blocks`; `fx/fy` already covers
+  the position inside multi-line paragraphs.
+- **Hide, don't fake (existing rule, unchanged):** the pointer shows only while the
+  block is rendered AND in this client's viewport (`inViewport`, `presencePoint.ts`);
+  a closed pane, a scrolled-away line, a scene left unmounted (future
+  virtualization — 163) or an orphan body with no live scene match simply hides it —
+  no edge chips, no clamped stand-ins. Follow/scroll mirroring is how a peer brings
+  the other to the line.
+- **Verify:** rule-7 two-client manual pass — different widths and scroll positions:
+  a peer hovering line N in the Script tab lands on line N for the other, same in
+  the Sheet/Glide pane; `window.__lemonSchedule.presenceAnchorAt(x, y)` over a script
+  line returns `script:<sceneId>:block:<blockIndex>`; no new e2e (presence stays a
+  manual pass, 229's verify line).
+- **Relations:** `extends` **236** (the semantic-anchor chain whose coverage boundary
+  this closes) and **229** (S3 presence). `relates to` **163** (Script tab perf /
+  possible virtualization — keep the key DOM-derived), **243** (follow mirrors the
+  Script's viewed scene), **240** (local-overlay cue — covers the diff-review modal),
+  **234** (peer selection highlights — the script body has no selection shape today;
+  this block coordinate is the natural key if one ever lands).
+
+## 253. Collab rename — the Project Manager's Shared list kept the old name (`[~]`)
+
+**Reported 2026-10-15 (user):** renaming a collab project updates the app header
+but NOT its row in the Project Manager (Shared tab).
+
+**Why the two names diverged:** the header shows the open document's
+`project.title`; the Shared list shows the Supabase `projects` ROW title — online
+entries are filtered OUT of the persisted localStorage index
+(`saveProjectListToStorage`, `src/store/storage.ts:110`), so after any reload the
+row is the only source. `renameProject` (`src/store/provider.tsx`) pushed the row
+title only for a project that was NOT open ("the open project rides its next
+whole-blob save") — but a room-attached shared project NEVER blob-saves (S4: the
+room owns the writes) and a reload beats the save debounce even without one, so
+the row kept the old name.
+
+- **Fixed 2026-10-15:** `renameProject` now always pushes the title to the row
+  (`renameOnlineProject` — the open project included) + `refetchOnlineProjects()`
+  so the manager updates immediately; knowledge recorded in
+  `docs/STORE-AND-SYNC.md` §Online projects.
+- **Verify:** rule-7 collab manual pass — rename a shared project (open, room
+  attached) → Project Manager → Shared shows the new name, also after reload;
+  `npm run lint` + full suite green.
+- **Relations:** `extends` **229** (S1 rows/listing); `relates to` **249** (same
+  panel — stale Shared count), **251** (title commit-on-blur rides this rename
+  path).
+
+## 254. Sharing — teams + invite suggestions (autocomplete from your team and collaborators) (`[ ]`)
+
+**Requested 2026-10-15 (user):** inviting someone is blind email typing. An account
+should have a **team**, and the invite field should **autocomplete** from team
+members and people the account has previously collaborated with. **User
+clarification (2026-10-15):** the team is the subscriber's **seat group** — one
+payer covers non-paying members — so this roster is also the future seat unit for
+S5 billing (user's seat model, recorded as input to §11 of the collab doc;
+free-tier values stay open in `docs/LICENSING.md` §9).
+
+**Decisions (user, 2026-10-15):** team = **address book only** (grants NO access;
+sharing stays per person; "share with whole team" deliberately out of scope);
+**one team per account**; suggestions = team + **live co-members** (derived, no new
+personal data stored — invite history/Recents can be layered later if needed); the
+picker's feel = **the EntityDropdown picker** (input + panel below, keyboard-first).
+
+**Why a team is needed at all:** there is no global user directory — profiles are
+readable only when you share a project (`private.shares_project_with`,
+`supabase/migrations/20261012130425_s2_sharing_roles_invites.sql:99`), deliberately.
+Suggestions must come from data the caller may legitimately see: their own
+collaborations and their own team. Never add a public user search.
+
+**Phase 1 — "People you collaborate with" (no new tables).** Definer RPC
+`list_invite_suggestions(p_project)` (same `private.can_invite` gate as invites):
+distinct non-anonymous profiles sharing ≥1 project with the caller, excluding the
+caller, the structural owner and anyone already on the project — id + display_name +
+avatar + **email** (the deliberate, scoped exposure that makes the row's second line
+possible; co-member/teammate-visible only, never which project). Picking a person
+invites by user id — `invite_collaborator_by_id(p_project, p_user, p_role)` with the
+email path's rules (existing-member role change = owner-only) plus one guard: the
+target must be reachable (co-member now; + teammate in phase 2) so ids can't be
+granted at random. The email path stays for people without accounts.
+
+**Phase 2 — teams (one per real account).** `teams (id, name, owner_id)` +
+`team_members (team_id, user_id, created_at)` + `team_invites` (emails claimed by
+the existing signup trigger — same pattern as `pending_invites`); teammates read
+each other's profiles via a new `private.in_same_team(id)` policy branch. Guests
+must convert to a real account first (parity with Collaborate). Management = a Team
+modal from the avatar menu (name, members, invite by email, remove) — its
+add-member row reuses `PeoplePicker`. Schema stays seat-ready for 230 (member rows =
+seats; owner = payer) without shipping billing.
+
+**UI:** ONE new component — `PeoplePicker` (`src/components/sharing/PeoplePicker.tsx`) —
+a thin wrapper over the EXISTING `EntityDropdown` + `DropdownPanel` pair (the app's
+shared autocomplete: input + panel below; arrows/Enter/Tab/Escape with the
+single-highlight + hover rules, keyboard-only scroll, touch/wheel handling,
+kit-owned morph/positioner). Wiring: `mode="single"` + `displayMode="id"`
+(`EntityItem.id` = account id, so a pick commits the user id), `variant="chip"` (the
+dark modal-row recipe — Link Manager / Color Rules precedent), `renderItem` giving
+the row shape — **AccountAvatar left, name on top, smaller email below** —
+`filterItem` matching name + email, `sortItems` grouping team-first, `group` per
+item for the "Team" / "People you collaborate with" panel headers, `itemBadge` for
+the seed marker. Typing an unknown email lands on the panel's existing synthetic
+**Add "email"** row → the current email/pending invite; the separate email input and
+Invite button are absorbed into this one field. `onChange` = "attempt invite with
+this text": a suggestion id → invite by id; a valid email → email invite; anything
+else (a half-typed blur commit) is ignored silently. Shared by the SharingModal
+invite row AND the Team modal's add-member row. No new primitive, no kit change, no
+forked dropdown internals.
+
+**Verify:** extend RLS acceptance (`supabase/tests/rls_s2.sql` or a new file) —
+suggestions refused without `can_invite`; a stranger can neither list nor invite by
+id; non-reachable target rejected; team roster + profile read scoped to teammates;
+team invite claimed at signup; advisors clean after DDL. Rule-7 manual pass (two
+accounts + one team: teammate appears under "Team" → Enter invites → People list
+updates; unknown email → Add row → pending; arrows/Enter/Tab/Escape behave exactly
+like the cast pickers, Escape never closes the modal; non-inviter sees no picker).
+`npm run lint`. Load the `security-review` skill (auth/RLS surface); update
+`docs/COLLABORATION.md` §6 (S2 map) + §11/§12 in the same change.
+
+**Relations:** `extends` **229** (S2 sharing); `relates to` **230** (team = future
+seat boundary for the S5 subscription — no dependency in either direction now),
+**231** (avatar identities in the picker), **249** (Shared-list panel).
