@@ -18,7 +18,9 @@
  *
  * ACCOUNTS: signs in as the REUSABLE robot accounts held in the gitignored
  * `.env` (`LEMON_TEST_SB_USER_A/PASS_A` + `_B`) — no new users are created per
- * run (the account is created once, on the first run, if missing). Cleanup:
+ * run. If those vars are missing, run `node workers/rooms/test/ensure-test-accounts.mjs`
+ * once: it creates the pair (or re-creates a deleted one) and writes `.env`.
+ * Cleanup:
  * a throwaway `projects` row (+ memberships) IS created each run, and DELETED
  * again in a finally block; the local room DB it leaves under
  * `workers/rooms/.wrangler/state/v3/do/lemon-rooms-Room/` is a few KB of dev
@@ -71,8 +73,9 @@ async function account(tag) {
   const password = env[`LEMON_TEST_SB_PASS_${suffix}`];
   if (!password) {
     throw new Error(
-      `LEMON_TEST_SB_PASS_${suffix} is missing from .env — create the robot accounts once ` +
-        `(Supabase signup) and store their credentials there before running this harness.`
+      `LEMON_TEST_SB_PASS_${suffix} is missing from .env — run ` +
+        `\`node workers/rooms/test/ensure-test-accounts.mjs\` once to create the robot accounts ` +
+        `and record their credentials, then re-run this harness.`
     );
   }
   let r = await auth('signup', { email, password });
