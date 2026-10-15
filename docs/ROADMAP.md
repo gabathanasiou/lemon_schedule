@@ -1047,35 +1047,6 @@ pass (doc §12).
 
 **Relations**: `extends` **229** (S2.5 guests, S3 presence).
 
-## 233. Reports Designer — per-user active design (two people edit two different reports) (`[ ]`)
-
-**Requested 2026-10-15 (user):** two collaborators must be able to edit DIFFERENT report designs
-at the same time. Today the designer's design selector dispatches `SET_ACTIVE_REPORT`
-(`src/components/reports/ReportDesigner.tsx` — `DesignsMenu onSelect`) into
-`Project.activeReportId` — project state, now streamed live by the S4 room — so one person
-switching designs switches everyone's editor.
-
-- **Approach**: the EDITING FOCUS becomes a per-user pref; the DESIGN CONTENT stays project
-  state (shared edits to one design are already multiplayer). Precedent to copy: the Day
-  Manager already prefers its per-user `prefs.callSheetDesignId` and only falls back to
-  `activeReportId` (`src/components/production/day/DayManagerPage.tsx:134`; the pref type is
-  in `production/day/daySectionTypes.ts`).
-- **Audit every `activeReportId` consumer** and give each the right source: ReportDesigner
-  (per-user), DayManagerPage call-sheet (already pref-first — retire the fallback?), print +
-  Reports-tab flows (`reports/ReportPrintDialog` etc. — per-user last-used vs an explicit pick
-  in the dialog), reducer `LOAD` defaults (keep a valid project-level value for older files).
-- **Decision (user, 2026-10-15): the Ribbon Designer's editing view becomes per-user as
-  well** — same pattern, same pass (design contents shared, editing focus personal). Open
-  sub-decision: whether the stripboard's DISPLAY layout follows the personal choice or stays
-  a shared "document look" (if unsure, split the field: shared `activeRibbonId` for display +
-  a per-user editing id for the designer). COLLABORATION.md §9's "ribbon layout is project
-  state" line updates with this item.
-- **Verify**: two-window pass — each window selects a different design with no cross-switching;
-  refresh keeps the per-user choice; selector no longer rides the room; Vitest for the pref
-  helper if a new pure util lands.
-- **Relations**: `relates to` **229** (S4 made the project-wide sync instant — the reason this
-  surfaced), **212** (call-sheet/designer parity), **231**.
-
 ## 234. Presence — highlight the cells a peer has selected (spreadsheet-style) (`[~]`, stage 2 open)
 
 **Requested 2026-10-15 (user):** when another user has cells selected, show their selection in

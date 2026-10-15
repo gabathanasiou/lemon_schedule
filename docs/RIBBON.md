@@ -36,6 +36,12 @@ cell styling — never hardcode cell padding/font/text styles.
 
 ## Ribbon designer (`RibbonTab`)
 
-- Designs in `project.ribbonDesigns`, active `activeRibbonId`; live preview uses `PREVIEW_SAMPLES` +
+- Designs in `project.ribbonDesigns`; live preview uses `PREVIEW_SAMPLES` +
   merge groups. The cell context menu re-targets via `elementFromPoint` behind a
   `pointer-events: none` backdrop.
+- **Editing focus vs display (roadmap 233)**: the designer's "Editing:" pick is the per-user pref
+  `lemon_schedule_ribbon_active_design` (`useActiveDesignId`, `src/lib/persist.ts`) — two collaborators
+  edit two layouts without switching each other, and the designer never dispatches `SET_ACTIVE_RIBBON`.
+  The stripboard's DISPLAY layout stays the shared `project.activeRibbonId` (Schedule toolbar → View →
+  Ribbon Layout; one document look for the team, and the schedule-print default). A user who never picked
+  edits the displayed layout (the pref falls back to `activeRibbonId`, then the first design).

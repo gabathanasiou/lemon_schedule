@@ -107,6 +107,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 
 ## Ribbon Cells
 - **Read `docs/RIBBON.md`.** ALL cells use `getRibbonCellBaseStyle(...)` — never hardcode cell padding/font/text styles; per-cell size = `ribCellTextSize(master, cell)`; padding/edge/textSize are per-`RibbonDesign` (`SET_RIBBON_*`), thread the master through every renderer; toolbar numeric boxes are `LiveNumberInput`.
+- **Editing focus is per-user, display is shared** (roadmap 233): the stripboard shows the shared `activeRibbonId`; the Ribbon Designer edits the per-user pref (`useActiveDesignId`) and never dispatches `SET_ACTIVE_RIBBON`.
 
 ## Glide Breakdown
 - **Read `docs/GLIDE-BREAKDOWN.md`** before touching `BreakdownTabGlide.tsx` or `InlineGlideTable` (raw `provideEditor` indices, no canvas auto-repaint, the `@glide-overlay-editor` boot preload, the shared `InlineGlideTable` recipe).
@@ -160,7 +161,7 @@ the screenplay body (`ImportResult.script` → `project.scriptDocument` /
 New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Section>`/`<Row>`/`<Kbd>`; Unicode keys ⌘ ⌥ ⇧ ⌫ ⏎ ⎋ ↹).
 
 ## Reports Designer
-Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation. Day grid blocks (`callTimes`/`crewTable`, items 111/112) share `lib/reportGrids.ts` + `ReportGridBlock`/`InteractiveGridBlock` — never fork the table recipe.
+Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. **The "Editing:" design pick is a per-user pref** (roadmap 233, `useActiveDesignId`) — contents are project state; the designer never dispatches `SET_ACTIVE_REPORT`. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation. Day grid blocks (`callTimes`/`crewTable`, items 111/112) share `lib/reportGrids.ts` + `ReportGridBlock`/`InteractiveGridBlock` — never fork the table recipe.
 
 ## Roadmap Work (single agent)
 - **One agent per item, on the current branch, in this tree** — no worktrees, no orchestrator, no parallel workers. Just ask and the agent works until the item is done.

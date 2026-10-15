@@ -10,6 +10,7 @@ canonical implementation. Never re-derive them.
 - The **Reports Designer is a sub-tab of the Design tab** (`DesignTab.tsx`, sub-tab `designer: 'Reports Designer'`), NOT the Reports tab. It also has a pop-out slot in `App.tsx`.
 - The **Reports tab is a different feature**: hand-built DOODs + Element Breakdown views (`DoodsTab.tsx`, `ElementBreakdownView.tsx`). They are NOT block-based and don't use the designer pipeline.
 - Rendering is shared: the same `ReportBlockView` tree renders in designer canvas, `ReportPreview`, and print (`ReportPrint.tsx`). One change renders everywhere.
+- **The editing focus is a per-user pref (roadmap 233)** — which design the "Editing:" picker shows is YOURS (`lemon_schedule_report_active_design`, `useActiveDesignId` in `src/lib/persist.ts`); the design CONTENTS stay project state. Picking a design never dispatches `SET_ACTIVE_REPORT`, so two collaborators edit two different designs without switching each other. The project-level `activeReportId` is only the FALLBACK (older files, a user who never picked — ADD/DELETE keep it valid; no UI writes it). Audit of the other `activeReportId` consumers: the Day Manager call-sheet pick is already its own pref (`lemon_schedule_day_manager` → `callSheetDesignId`, keeping `activeReportId` as its last-resort fallback), and print flows take an EXPLICIT design (File → Print → Custom Reports lists every design; the designer's Print button prints the design you are editing) — no change needed.
 
 ## The three pillars (canonical — don't re-derive)
 
