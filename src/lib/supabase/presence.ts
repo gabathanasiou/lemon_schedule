@@ -61,6 +61,13 @@ export interface PresenceView {
   /** Sheet: the peer's position among scenes (`sceneId` wins when the
    *  follower uses a different Sheet order). */
   sheetIndex?: number;
+  /** Reports Designer (roadmap 236): the report design the peer has open.
+   *  Document-scoped surfaces gate pointers on it — a peer drawing over a
+   *  design you are not looking at is hidden. */
+  designId?: string;
+  /** Ribbon Designer (roadmap 236): the ribbon design the peer has open (same
+   *  document gate as `designId`). */
+  ribbonId?: string;
   /** Day Manager jump: the peer's production day (section index). */
   daySection?: number;
   /** Stripboard View menu: A4 width / cell borders (per-user prefs). */
@@ -76,12 +83,20 @@ export interface PresenceView {
  *  dialogs, Glide canvas, empty space) the anchor is `screen`: viewport-
  *  relative coordinates (`xr`/`yr` ∈ 0..1), rendered scaled ONLY while that
  *  peer is on the same tab — approximate by design, but the cursor still
- *  exists. Raw pixels are never sent (docs/COLLABORATION.md §9). */
+ *  exists. Raw pixels are never sent (docs/COLLABORATION.md §9).
+ *
+ *  `dom` (roadmap 236) is the generic element anchor: the element wearing
+ *  `data-presence-anchor` with an explicit, namespaced, cross-client key
+ *  (`report:<designId>:block:<id>`, `nav:tab:<tabId>`, …) — used by every
+ *  surface that has no row/date/day/grid semantic of its own. Keys are chosen
+ *  in the SHARED component that renders the element, never derived from DOM
+ *  structure or text; an unresolved key hides the pointer (hide-don't-fake). */
 export type PresenceAnchor =
   | { kind: 'row'; rowId: string; fx: number; fy: number }
   | { kind: 'date'; date: string; fx: number; fy: number }
   | { kind: 'day'; sectionIndex: number; section?: string; fx: number; fy: number }
   | { kind: 'grid'; scope: string; rowKey: string; colKey: string; rowIndex: number; colIndex: number; fx: number; fy: number }
+  | { kind: 'dom'; key: string; fx: number; fy: number }
   | { kind: 'screen'; xr: number; yr: number };
 
 /** What this tab tracks in Realtime Presence (who's here + where). */
@@ -343,6 +358,10 @@ export function parseView(raw: unknown): PresenceView | null {
   if (mode) view.mode = mode;
   const sceneId = str(r.sceneId);
   if (sceneId) view.sceneId = sceneId;
+  const designId = str(r.designId);
+  if (designId) view.designId = designId;
+  const ribbonId = str(r.ribbonId);
+  if (ribbonId) view.ribbonId = ribbonId;
   const daySection = num(r.daySection);
   if (daySection != null) view.daySection = Math.trunc(daySection);
   const sheetIndex = num(r.sheetIndex);
@@ -397,6 +416,10 @@ export function parseAnchor(raw: unknown): PresenceAnchor | null {
     if (sectionIndex == null) return null;
     const section = str(r.section);
     return { kind: 'day', sectionIndex: Math.trunc(sectionIndex), ...(section ? { section } : {}), ...pos };
+  }
+  if (r.kind === 'dom') {
+    const key = str(r.key, 200);
+    return key ? { kind: 'dom', key, ...pos } : null;
   }
   return null;
 }
@@ -698,6 +721,8 @@ export function anchorKey(anchor: PresenceAnchor | null): string {
       return `date:${anchor.date}:${pos}`;
     case 'day':
       return `day:${anchor.sectionIndex}:${anchor.section ?? ''}:${pos}`;
+    case 'dom':
+      return `dom:${anchor.key}:${pos}`;
     case 'grid':
       return `grid:${anchor.scope}:${anchor.rowKey}:${anchor.colKey}:${anchor.rowIndex}:${anchor.colIndex}:${pos}`;
   }
@@ -709,13 +734,34 @@ export function anchorKey(anchor: PresenceAnchor | null): string {
 
 /** A peer's pointer is shown ONLY while we are on the SAME place as them:
  *  same tab, same sub-tab, same sub-sub mode (Day Manager vs Call Sheet,
- *  Crew/Locations manager vs Glide). The header/toolbar pointers follow the
- *  same rule (user decision 2026-10-12). */
-export function sameViewPlace(peerView: PresenceView | null | undefined, current: AppPlace): boolean {
-  if (!peerView || !peerView.tab) return false;
-  if (peerView.tab !== current.tab) return false;
-  if ((peerView.sub ?? null) !== (current.sub ?? null)) return false;
-  return modeOf({ tab: peerView.tab, sub: peerView.sub, mode: peerView.mode }) === modeOf(current);
+ *  Crew/Locations manager vs Glide), AND the same DOCUMENT on document-scoped
+ *  pages (roadmap 236 — the Sheet scene, the open report design, the open
+ *  ribbon design; user decision 2026-10-15: a peer on sheet scene 5 draws
+ *  over your scene 9 otherwise). The header/toolbar pointers follow the same
+ *  rule; the collaborator bubbles remain the way to jump to a peer.
+ *
+ *  `localView` is the LOCAL published view (`usePresenceActions().getLocalView`)
+ *  — the same shape the peer's view arrives in, so the comparison is
+ *  symmetric. A missing document id on either side is not a mismatch (falls
+ *  back to the place rule — nothing is hidden on a transient). */
+export function sameViewPlace(peerView: PresenceView | null | undefined, localView: PresenceView | null | undefined): boolean {
+  if (!peerView || !localView || !peerView.tab) return false;
+  if (peerView.tab !== localView.tab) return false;
+  if ((peerView.sub ?? null) !== (localView.sub ?? null)) return false;
+  if (modeOf(peerView) !== modeOf(localView)) return false;
+  return sameViewDocument(peerView, localView);
+}
+
+/** The document half of `sameViewPlace` (roadmap 236): on document-scoped
+ *  pages the two clients must be looking at the SAME document. */
+function sameViewDocument(peerView: PresenceView, localView: PresenceView): boolean {
+  const both = (a: string | undefined, b: string | undefined) => !a || !b || a === b;
+  if (peerView.tab === 'breakdown' && peerView.sub === 'sheet') return both(peerView.sceneId, localView.sceneId);
+  if (peerView.tab === 'design') {
+    if (peerView.sub === 'designer') return both(peerView.designId, localView.designId);
+    if (peerView.sub === 'ribbons') return both(peerView.ribbonId, localView.ribbonId);
+  }
+  return true;
 }
 
 /** Viewport-relative pointer position (the `screen` anchor fallback). */

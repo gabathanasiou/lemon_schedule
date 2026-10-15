@@ -81,8 +81,13 @@ describe('presence wire helpers', () => {
       .toEqual({ tab: 'schedule', viewMode: 'landscape', cellBorders: 'both' });
     expect(parseView({ tab: 'calendar', sub: 'calendar', calendarView: 'events' }))
       .toEqual({ tab: 'calendar', sub: 'calendar', calendarView: 'events' });
+    // Document identities (roadmap 236): Reports Designer / Ribbon Designer.
+    expect(parseView({ tab: 'design', sub: 'designer', designId: 'd1' }))
+      .toEqual({ tab: 'design', sub: 'designer', designId: 'd1' });
+    expect(parseView({ tab: 'design', sub: 'ribbons', ribbonId: 'r1' }))
+      .toEqual({ tab: 'design', sub: 'ribbons', ribbonId: 'r1' });
     // Unknown values are dropped, never trusted.
-    expect(parseView({ tab: 'schedule', viewMode: 'wide', cellBorders: 'dotted', calendarView: 'grid', sheetIndex: 'x' }))
+    expect(parseView({ tab: 'schedule', viewMode: 'wide', cellBorders: 'dotted', calendarView: 'grid', sheetIndex: 'x', designId: '', ribbonId: 7 }))
       .toEqual({ tab: 'schedule' });
   });
 
@@ -95,6 +100,10 @@ describe('presence wire helpers', () => {
     expect(parseAnchor({ kind: 'day', sectionIndex: 3, section: 'scenes' })).toEqual({ kind: 'day', sectionIndex: 3, section: 'scenes', fx: 0.5, fy: 0.5 });
     expect(parseAnchor({ kind: 'day', sectionIndex: 3 })).toEqual({ kind: 'day', sectionIndex: 3, fx: 0.5, fy: 0.5 });
     expect(parseAnchor({ kind: 'day' })).toBeNull();
+    expect(parseAnchor({ kind: 'dom', key: 'report:d1:block:b1' })).toEqual({ kind: 'dom', key: 'report:d1:block:b1', fx: 0.5, fy: 0.5 });
+    expect(parseAnchor({ kind: 'dom', key: 'x'.repeat(300) })).toEqual({ kind: 'dom', key: 'x'.repeat(200), fx: 0.5, fy: 0.5 });
+    expect(parseAnchor({ kind: 'dom', key: '' })).toBeNull();
+    expect(parseAnchor({ kind: 'dom' })).toBeNull();
     expect(parseAnchor('row:1')).toBeNull();
   });
 
@@ -408,6 +417,7 @@ describe('cursor dedupe + idle keys', () => {
     expect(anchorKey({ kind: 'date', date: '2026-10-12', fx: 0, fy: 1 })).toBe('date:2026-10-12:0:100');
     expect(anchorKey({ kind: 'day', sectionIndex: 2, fx: 0.5, fy: 0.5 })).toBe('day:2::50:50');
     expect(anchorKey({ kind: 'day', sectionIndex: 2, section: 'scenes', fx: 0.5, fy: 0.5 })).toBe('day:2:scenes:50:50');
+    expect(anchorKey({ kind: 'dom', key: 'nav:tab:schedule', fx: 0.25, fy: 0.75 })).toBe('dom:nav:tab:schedule:25:75');
     expect(anchorKey({ kind: 'screen', xr: 0.33, yr: 0.66 })).toBe('screen:33:66');
     expect(anchorKey({ kind: 'grid', scope: 'g', rowKey: 'r', colKey: 'c', rowIndex: 1, colIndex: 2, fx: 0.5, fy: 0.5 })).toBe('grid:g:r:c:1:2:50:50');
     expect(anchorKey(null)).toBe('');
@@ -643,5 +653,28 @@ describe('same-view gating (only show a peer on their exact place)', () => {
   it('hides pointers from a peer with no view yet', () => {
     expect(sameViewPlace(null, callsheet)).toBe(false);
     expect(sameViewPlace(undefined, callsheet)).toBe(false);
+    expect(sameViewPlace(callsheet, null)).toBe(false);
+  });
+
+  it('gates document-scoped pages on the open document (roadmap 236)', () => {
+    const sheet5 = { tab: 'breakdown' as const, sub: 'sheet', sceneId: 's5' };
+    expect(sameViewPlace(sheet5, { tab: 'breakdown', sub: 'sheet', sceneId: 's5' })).toBe(true);
+    expect(sameViewPlace(sheet5, { tab: 'breakdown', sub: 'sheet', sceneId: 's9' })).toBe(false);
+    // A missing id on either side falls back to the place rule (transient
+    // publishes must not flash every pointer away).
+    expect(sameViewPlace(sheet5, { tab: 'breakdown', sub: 'sheet' })).toBe(true);
+    expect(sameViewPlace({ tab: 'breakdown', sub: 'sheet' }, sheet5)).toBe(true);
+
+    const designerA = { tab: 'design' as const, sub: 'designer', designId: 'dA' };
+    expect(sameViewPlace(designerA, { tab: 'design', sub: 'designer', designId: 'dA' })).toBe(true);
+    expect(sameViewPlace(designerA, { tab: 'design', sub: 'designer', designId: 'dB' })).toBe(false);
+    expect(sameViewPlace(designerA, { tab: 'design', sub: 'colors' })).toBe(false);
+
+    const ribbonsA = { tab: 'design' as const, sub: 'ribbons', ribbonId: 'rA' };
+    expect(sameViewPlace(ribbonsA, { tab: 'design', sub: 'ribbons', ribbonId: 'rA' })).toBe(true);
+    expect(sameViewPlace(ribbonsA, { tab: 'design', sub: 'ribbons', ribbonId: 'rB' })).toBe(false);
+
+    // Non-document pages ignore the extra identity fields.
+    expect(sameViewPlace({ tab: 'schedule' }, { tab: 'schedule' })).toBe(true);
   });
 });

@@ -3,7 +3,7 @@ import { useProject } from '../../store';
 import { useDialog } from '../../components/Dialog';
 import { useSupabaseAuth } from './auth';
 import { isSupabaseConfigured } from './client';
-import { getPresenceGridScope } from '../presenceResolvers';
+import { resolvePointerAnchor } from '../presenceAnchors';
 import { applyPresenceScrollSample } from '../presenceScroll';
 import { getLocalOverlayKind, subscribeLocalOverlays } from '../localOverlaySignal';
 import { presenceDiagnostics, ProjectPresenceChannel, subscribeLocalSaves, type PresenceChannelStatus } from './presenceChannel';
@@ -14,12 +14,10 @@ import {
   freezeCursorFor,
   heldItemsOf,
   OVERLAY_TTL_MS,
-  pointerFractions,
   pointerKindOf,
   presenceViewToPlace,
   resolveDragClaims,
   resolveOverlayCues,
-  screenFractions,
   type DragSurface,
   type LocalOverlayKind,
   type PresenceAnchor,
@@ -99,6 +97,11 @@ export interface PresenceActionsValue {
    *  before the first event — the collision fade reads it (roadmap 244).
    *  Never leaves this window. */
   getLocalPointer: () => { x: number; y: number } | null;
+  /** The LOCAL published view — what this window last broadcast (App place +
+   *  the mounted surface's overrides). The pointer overlay's document gate
+   *  compares a peer's view against it (roadmap 236); stable, ref-read, so
+   *  nothing re-renders on navigation. */
+  getLocalView: () => PresenceView | null;
 }
 
 const EMPTY_STATE: PresenceStateValue = { peers: [], followingId: null, status: 'idle', active: false };
@@ -115,6 +118,7 @@ const EMPTY_ACTIONS: PresenceActionsValue = {
   stopFollowing: () => {},
   registerFollowApplier: () => () => {},
   getLocalPointer: () => null,
+  getLocalView: () => null,
 };
 
 const PresenceStateContext = createContext<PresenceStateValue>(EMPTY_STATE);
@@ -170,79 +174,6 @@ function presenceClientId(): string {
   } catch {
     return crypto.randomUUID();
   }
-}
-
-/** Any element that carries a shareable item anchor. */
-const ITEM_SELECTOR = '[data-row-id], [data-date-key], [data-section], [data-day-sections]';
-
-/** Build the element-based anchor for a pointer over `el` (null when `el`
- *  isn't over a shareable item). */
-function elementAnchor(el: Element, clientX: number, clientY: number): PresenceAnchor | null {
-  const row = el.closest('[data-row-id]');
-  const rowId = row?.getAttribute('data-row-id');
-  if (row && rowId && !rowId.startsWith('empty-')) {
-    return { kind: 'row', rowId, ...pointerFractions(clientX, clientY, row.getBoundingClientRect()) };
-  }
-  const cell = el.closest('[data-date-key]');
-  const date = cell?.getAttribute('data-date-key');
-  if (cell && date) {
-    return { kind: 'date', date, ...pointerFractions(clientX, clientY, cell.getBoundingClientRect()) };
-  }
-  const dayManager = el.closest('[data-day-manager]');
-  if (dayManager) {
-    const dayIndex = Number(dayManager.getAttribute('data-day-manager-day'));
-    if (Number.isFinite(dayIndex)) {
-      const sectionEl = el.closest('[data-section]') ?? el.closest('[data-day-sections]') ?? dayManager;
-      const section = sectionEl.getAttribute('data-section') ?? undefined;
-      return { kind: 'day', sectionIndex: dayIndex, section, ...pointerFractions(clientX, clientY, sectionEl.getBoundingClientRect()) };
-    }
-  }
-  return null;
-}
-
-/** Nearest anchored item within ~40px — hovering a gutter/margin lands the
- *  pointer on the row/cell beside it instead of falling back to raw pixels. */
-function nearestItemElement(x: number, y: number): Element | null {
-  if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') return null;
-  for (const dy of [8, -8, 16, -16, 24, -24, 32, -32, 40, -40]) {
-    for (const dx of [0, 12, -12]) {
-      const el = document.elementFromPoint(x + dx, y + dy);
-      if (!el) continue;
-      const item = el.closest(ITEM_SELECTOR);
-      if (item) return item;
-    }
-  }
-  return null;
-}
-
-/** Resolve one pointer event into a shareable cursor anchor: a registered
- *  canvas-grid cell; else the semantic element under the cursor (row /
- *  calendar cell / Day Manager section); else the nearest item within ~40px;
- *  else the viewport-relative `screen` fallback so a cursor exists EVERYWHERE
- *  (headers, toolbars, dialogs, empty space). Popout windows have their own
- *  document/window — the main window's pointer is what the team shares
- *  (docs/COLLABORATION.md §9). */
-function resolvePointerAnchor(e: MouseEvent): PresenceAnchor {
-  const el = e.target as Element | null;
-  if (el && typeof el.closest === 'function') {
-    // 1. Canvas grids (Glide): the registered scope maps the pointer to a cell.
-    const gridEl = el.closest('[data-presence-grid]');
-    const scope = gridEl?.getAttribute('data-presence-grid');
-    if (scope) {
-      const hit = getPresenceGridScope(scope)?.probe(e.clientX, e.clientY);
-      if (hit) return { kind: 'grid', scope, ...hit };
-    }
-    // 2. The shareable element under the pointer.
-    const direct = elementAnchor(el, e.clientX, e.clientY);
-    if (direct) return direct;
-    // 3. Gutters/margins: snap to the nearest item (≤40px).
-    const near = nearestItemElement(e.clientX, e.clientY);
-    const snapped = near ? elementAnchor(near, e.clientX, e.clientY) : null;
-    if (snapped) return snapped;
-  }
-  // 4. Free pointer: viewport-relative fallback (rendered only while the peer
-  //    is on the same place as us — see sameViewPlace in presence.ts).
-  return { kind: 'screen', ...screenFractions(e.clientX, e.clientY, window.innerWidth, window.innerHeight) };
 }
 
 export function PresenceProvider({ children }: { children: React.ReactNode }) {
@@ -617,7 +548,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     const track = (e: PointerEvent) => {
       localPointerRef.current = { x: e.clientX, y: e.clientY };
       if (getLocalOverlayKind() !== null) return;
-      channelRef.current?.publishCursor(resolvePointerAnchor(e), pointerKindOf(e.pointerType));
+      channelRef.current?.publishCursor(resolvePointerAnchor(e.clientX, e.clientY, e.target as Element | null), pointerKindOf(e.pointerType));
     };
     window.addEventListener('pointermove', track, { passive: true, capture: true });
     window.addEventListener('pointerdown', track, { passive: true, capture: true });
@@ -780,6 +711,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const isActive = useCallback(() => channelRef.current != null, []);
   const getLocalPointer = useCallback(() => localPointerRef.current, []);
+  const getLocalView = useCallback(() => viewRef.current, []);
   const follow = useCallback((userId: string) => {
     followingRef.current = userId;
     setFollowingId(userId);
@@ -804,7 +736,8 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     stopFollowing,
     registerFollowApplier,
     getLocalPointer,
-  }), [publishView, publishScroll, publishSelection, releaseSelection, publishDrag, releaseDrag, noteUserViewChange, isActive, follow, stopFollowing, registerFollowApplier, getLocalPointer]);
+    getLocalView,
+  }), [publishView, publishScroll, publishSelection, releaseSelection, publishDrag, releaseDrag, noteUserViewChange, isActive, follow, stopFollowing, registerFollowApplier, getLocalPointer, getLocalView]);
 
   // Newest selection per user (multi-window: newest window wins), self
   // excluded, clears already dropped. Only re-derived when a selection changed.

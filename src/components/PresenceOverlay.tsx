@@ -9,8 +9,8 @@ import {
   type CollisionDwellState,
   type PresenceAnchor,
   type PresencePeer,
+  type PresenceView,
 } from '../lib/supabase/presence';
-import type { AppPlace } from '../lib/appNav';
 import { resolveAnchorPoint } from '../lib/presencePoint';
 import { glideStep } from '../lib/glideMotion';
 import { avatarColor, shortNameOf } from '../lib/avatarIdentity';
@@ -20,9 +20,11 @@ import { PresenceDots } from './PresenceDots';
  * Live cursors + the follow pill (roadmap 229 S3, docs/COLLABORATION.md §9).
  *
  * Canva-style pointers with a name label, resolved SEMANTICALLY:
- * - element anchors (stripboard row, calendar cell, Day Manager section) and
- *   grid anchors (Glide cell → scene id + column key) resolve to the same item
- *   on this client's layout — scroll, column widths, row order all free;
+ * - element anchors (stripboard row, calendar cell, Day Manager section, and
+ *   the generic `data-presence-anchor` elements of roadmap 236 — sheet fields,
+ *   designer blocks/cells, nav chrome, palette items) and grid anchors (Glide
+ *   cell → scene id + column key) resolve to the same item on this client's
+ *   layout — scroll, column widths, row order all free;
  * - a viewport-relative `screen` fallback covers everything else, rendered
  *   everywhere for the global header (shared chrome) and only while the peer
  *   is on the same tab for tab content;
@@ -38,6 +40,10 @@ import { PresenceDots } from './PresenceDots';
  * - when the local and a peer's pointer stay on top of each other for a
  *   couple of seconds, the peer's marker fades until they separate
  *   (roadmap 244 — read what is underneath).
+ * - on DOCUMENT-scoped pages (Sheet, Report/Ribbon Designer) the pointer shows
+ *   only while both clients have the SAME document open (roadmap 236) — the
+ *   local side of the gate is the view THIS window last published
+ *   (`getLocalView`, so Sheet scene flips and design switches count).
  *
  * Motion: pointers glide between positions with a rAF loop (exponential
  * approach toward the ~80ms measure target; `prefers-reduced-motion` snaps).
@@ -88,14 +94,15 @@ function clampToViewport(x: number, y: number): { left: number; top: number } {
 
 function markerPosition(
   anchor: PresenceAnchor,
-  place: AppPlace,
+  localView: PresenceView | null,
   peer: PresencePeer,
 ): { left: number; top: number; flip: boolean } | null {
   // Same-screen rule (user decision 2026-10-12): a peer's pointer shows only
-  // while we are on THEIR place — same tab, sub-tab and sub-sub mode. The
-  // header/toolbar fall back to the same rule, so nothing floats over a view
-  // the peer isn't actually looking at.
-  if (!sameViewPlace(peer.view, place)) return null;
+  // while we are on THEIR place — same tab, sub-tab and sub-sub mode — and,
+  // on document-scoped pages, the same open document (roadmap 236: Sheet
+  // scene, report design, ribbon design). The header/toolbar fall back to the
+  // same rule, so nothing floats over a view the peer isn't looking at.
+  if (!sameViewPlace(peer.view, localView)) return null;
   // The shared anchor geometry (presencePoint.ts) resolves the SEMANTIC anchor
   // with THIS client's layout; screen anchors come back viewport-scaled.
   const point = resolveAnchorPoint(anchor);
@@ -104,9 +111,9 @@ function markerPosition(
   return { ...pos, flip: tagFlips(pos.left) };
 }
 
-export function PresenceOverlay({ place }: { place: AppPlace }) {
+export function PresenceOverlay() {
   const { peers, followingId } = usePresenceState();
-  const { follow, stopFollowing, getLocalPointer } = usePresenceActions();
+  const { follow, stopFollowing, getLocalPointer, getLocalView } = usePresenceActions();
   const [markers, setMarkers] = useState<MarkerPosition[]>([]);
   /**
    * Motion model: `measure()` resolves each peer's TARGET position (the
@@ -139,6 +146,7 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
     const measure = () => {
       const now = Date.now();
       const local = getLocalPointer();
+      const localView = getLocalView();
       const next: MarkerPosition[] = [];
       const targets = new Map<string, { left: number; top: number }>();
       for (const peer of cursorPeers) {
@@ -147,7 +155,7 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
         // roadmap 244) never idles out while the cue is fresh — the dots cue
         // stays on its tag there.
         if (peer.overlay == null && now - peer.cursorTs > CURSOR_TTL_MS) continue;
-        const pos = markerPosition(peer.cursor, place, peer);
+        const pos = markerPosition(peer.cursor, localView, peer);
         if (!pos) continue;
         // Collision fade: distance from the LOCAL pointer to the rendered
         // marker (Infinity before the first local pointer event — never fades).
@@ -179,7 +187,7 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
       window.removeEventListener('scroll', measure, true);
       window.removeEventListener('resize', measure);
     };
-  }, [cursorPeers, place, getLocalPointer]);
+  }, [cursorPeers, getLocalPointer, getLocalView]);
 
   useEffect(() => {
     if (markers.length === 0) return;

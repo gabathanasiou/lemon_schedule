@@ -1,11 +1,12 @@
 import { getPresenceGridScope } from './presenceResolvers';
+import { PRESENCE_ANCHOR_ATTR } from './presenceAnchors';
 import type { PresenceAnchor } from './supabase/presence';
 import { cssEscape } from './utils';
 
 /**
  * Presence anchor geometry (roadmap 229 S3, shared with the peer drag ghosts
  * of roadmap 235) — resolving a peer's SEMANTIC anchor (`row` / `date` / `day`
- * / `grid` / `screen`) into a viewport point on THIS client, with this
+ * / `grid` / `dom` / `screen`) into a viewport point on THIS client, with this
  * client's own scroll, column widths and font scale. Raw pixels are never
  * sent; the point is derived here for rendering only.
  */
@@ -25,6 +26,8 @@ export function anchorElement(anchor: PresenceAnchor): HTMLElement | null {
       return document.querySelector<HTMLElement>('[data-day-manager] [data-day-sections]')
         ?? document.querySelector<HTMLElement>('[data-day-manager]');
     }
+    case 'dom':
+      return document.querySelector<HTMLElement>(`[${PRESENCE_ANCHOR_ATTR}="${cssEscape(anchor.key)}"]`);
     default:
       return null;
   }

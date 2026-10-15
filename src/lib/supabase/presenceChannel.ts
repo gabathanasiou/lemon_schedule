@@ -100,6 +100,9 @@ export interface PresenceDiagnostics {
   cursorPointer: PointerKind | null;
   /** The local-overlay cue this window is announcing (roadmap 240). */
   localOverlay: LocalOverlayKind | null;
+  /** The view this window last PUBLISHED (place + surface overrides — the
+   *  pointer document gate compares peers against it, roadmap 236), or null. */
+  localView: PresenceView | null;
   /** The selection this window last PUBLISHED, as its wire key (`scope|…`),
    *  or null when it holds none (roadmap 234; grids + DOM surfaces). */
   localSelection: string | null;
@@ -132,6 +135,7 @@ export const presenceDiagnostics: PresenceDiagnostics = {
   lastCursorAt: 0,
   cursorPointer: null,
   localOverlay: null,
+  localView: null,
   localSelection: null,
   localDrag: null,
   lastCursorRecvAt: 0,

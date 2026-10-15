@@ -23,6 +23,8 @@ import {
 import { createBlankScene } from './sceneFactory';
 import { deserializeProject } from './projectCodec';
 import type { PresenceDiagnostics } from './supabase/presenceChannel';
+import type { PresenceAnchor } from './supabase/presence';
+import { probeAnchorAt } from './presenceAnchors';
 import { auditScriptMap, repairScriptMap, type RepairResult, type ScriptIntegrityReport } from './scriptIntegrity';
 import { formatSceneHeading, normalizeSceneNumber, scriptSceneOf } from './script';
 import {
@@ -276,6 +278,9 @@ export interface LemonAgentBridge {
     byScene: { sceneId: string; violations: unknown[] }[];
   };
   getElementStats: (category: string) => { category: string; elements: AgentBridgeElementStats[] };
+  /** Presence anchor inspector (roadmap 236): the cursor anchor that WOULD be
+   *  published for a viewport point — hover a surface and audit its coverage. */
+  presenceAnchorAt: (x: number, y: number) => PresenceAnchor;
   historyDepth: () => { past: number; future: number };
   newId: () => string;
 }
@@ -373,6 +378,7 @@ function buildBridge(): LemonAgentBridge {
     '  getSceneScript(num)          → ONE scene: breakdown row + retained screenplay blocks (matched by scene number; null if unknown)',
     '  decodeProject(raw)           → decode a persisted localStorage/Drive project string (gzip/base64 OR legacy plain JSON)',
     '  diagnostics()                → connectivity/sync snapshot (probe result, Drive save error, payload size, retries, readOnly)',
+    '  presenceAnchorAt(x, y)       → the cursor anchor that WOULD be published at a viewport point (pointer-anchor coverage inspector)',
     '  auditScript()                → project↔scriptDocument integrity report (duplicate numbers, orphan/dangling bodies, missing rows)',
     '  pastCount() / futureCount()  → undo/redo stack depths',
     '',
@@ -734,6 +740,7 @@ function buildBridge(): LemonAgentBridge {
       const { type, ...partial } = params;
       return deepClone(createReportBlock(type, partial));
     },
+    presenceAnchorAt: (x: number, y: number) => probeAnchorAt(x, y),
     newId: () => generateUUID(),
   };
 }
