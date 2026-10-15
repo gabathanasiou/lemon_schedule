@@ -1,4 +1,4 @@
-# Online Collaboration — Vision, Architecture & Stages (PLAN — S1–S3 BUILT; S4 BUILT LOCALLY)
+# Online Collaboration — Vision, Architecture & Stages (PLAN — S1–S4 BUILT; S4 DEPLOYED 2026-10-15)
 
 Status: planning doc for roadmap 229. **Read this before starting any online-accounts,
 sharing, presence or realtime-editing work.** The free local/Google Drive path must
@@ -8,9 +8,11 @@ shared projects (§6 S1 map) and sharing/roles/invites + view-only links (§6 S2
 refresh (§6 S3 map); **follow completeness is built (2026-10-12)**: the Sheet scene,
 view switches and scroll mirroring, with the user decision that scrolling yourself
 never ends follow while any view-changing click does (§9). RLS acceptance is
-`supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql`. **S4 (rooms) is built locally**
-(worker + client transport + per-user undo; flag-gated by `VITE_ROOMS_URL`) — deploy and the
-live two-machine pass are next; runtime semantics: `docs/STORE-AND-SYNC.md` §Realtime rooms.
+`supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql`. **S4 (rooms) is deployed
+(2026-10-15)**: the room worker `lemon-rooms` + the Supabase Edge Function `room-token`
++ the shared `ROOM_TOKEN_SECRET` in both stores (client transport + per-user undo
+unchanged; flag-gated by `VITE_ROOMS_URL`) — the live two-machine pass confirms the
+deployed path; deploy facts and semantics: `docs/STORE-AND-SYNC.md` §Realtime rooms.
 
 Decisions taken 2026-10 with the user: online-only editing for SHARED projects
 (server-authoritative rooms, NOT CRDT); Supabase + Cloudflare Durable Objects;
@@ -459,6 +461,13 @@ mid-session loses nothing; undo never reverts a peer's edit.
 (reuse-first, shared across worktrees; pinned `wrangler@4`) and the dev client
 defaults to it — see `docs/STORE-AND-SYNC.md` §Realtime rooms. Room specs:
 `npx playwright test --config=playwright.rooms.config.ts`.
+
+**Deployed (S4 go-live, 2026-10-15).** Worker `lemon-rooms` at
+`https://lemon-rooms.gabathanasiou.workers.dev` + the Supabase Edge Function
+`room-token` (caller-scoped role resolution, `supabase/functions/room-token/`),
+sharing `ROOM_TOKEN_SECRET`; the Pages build gets the worker URL through the
+`VITE_ROOMS_URL` repo secret. Deploy steps + the deployed-path proof:
+`docs/STORE-AND-SYNC.md` §Realtime rooms, `workers/rooms/test/deployed-probe.mjs`.
 
 **S5 — Billing.** See `docs/LICENSING.md`: one merchant of record; collab =
 Studio + active subscription; guests free.
