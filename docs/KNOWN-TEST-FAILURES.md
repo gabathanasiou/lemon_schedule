@@ -184,6 +184,12 @@ machine (271 passed / 1 failed / 1 flaky overall; the day-times flake passed on
 retry, §G). Same load-sensitivity class — the branch touches cast naming only.
 If it recurs a third time, take the documented remedy and `@quarantine` it.
 
+**2026-10-15 (roadmap-264 worktree suite) — recursed: `:137` flaked once**
+(suite 272 passed / 1 flaky / 7 skipped, retry passed) while two peer worktrees
+and three dev servers were running on the machine. **Triage:** solo re-run
+`--workers=1` green 6/6 on an isolated port; the diff touches chrome bar
+spacing only (no editor/canvas code). Same load-sensitivity, not a regression.
+
 ## G. day-times-glide editor spec flake under full-suite load (no fix needed)
 
 **2026-10-15 — the roadmap-236 merge suite flaked once** on
@@ -193,6 +199,11 @@ running on the machine. **Triage:** re-ran the spec alone immediately after —
 5/5 passed (8.9s). Same load-sensitivity class as section F (Glide overlay
 editor interactions under CPU contention), not a regression; retries=1 absorbs
 it. If it recurs, re-check with `--workers=1` before touching the app.
+
+**2026-10-15 (roadmap-264 merge suite) — same line, same shape:** `:27` failed
+the attempt (`#portal textarea` not attached in 4s — the double-click editor
+race) and passed on retry (271 passed / 2 flaky / 0 failed overall; §F's
+`:137` was the other). Chrome-spacing diff only; no Glide editor code touched.
 
 **Recurrence — 2026-10-15, the roadmap-252 merge suite flaked the same spec once**
 (1 flaky, retry passed, 272 passed); solo re-run `--workers=1 --repeat-each=2` green

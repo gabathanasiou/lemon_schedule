@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { useProject } from '../../store';
 import { useCurrentDocument, useCurrentWindow } from '../../lib/popoutTarget';
+import { CHROME_BAR_INSET, CHROME_ITEM_GAP } from '../../lib/chromeSpacing';
 import { registerInFlightEdits } from '../../lib/inFlightEdits';
 import { isTextEditingElement } from '../../lib/textEditing';
 import { useReportCtx } from '../../lib/useReportCtx';
@@ -678,7 +679,6 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         }}
       />
       <div className="flex-1" />
-      <div className="flex-1" />
       <Seg
         variant="track"
         theme="dark"
@@ -848,7 +848,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       onKeyDownCapture={e => { if (e.key === 'Escape') flushPendingText(); }}
     >
       <DelegatedTooltip />
-      {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{headerContent}</header>)}
+      {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header data-chrome-bar="report-designer-header" className={`flex items-center ${CHROME_ITEM_GAP} ${CHROME_BAR_INSET} py-2 border-b border-zinc-800 bg-zinc-900`}>{headerContent}</header>)}
 
       {preview ? (
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} scopeFilter={previewScopeFilter} onExit={() => setPreview(false)} />

@@ -75,6 +75,10 @@ const DROPDOWN_POS = ['dropdown-positioning'];
 const IPAD = ['ipad-touch-scroll', 'ipad-modal-drag-menu'];
 const MANAGERS = [...ELEM, ...CREW, ...LOC];
 const CANARY = ['seeded-smoke', 'debug-bridge'];
+/* Chrome bars (roadmap 264): the app header, every PageToolbar mini tab bar and
+   the popout toolbar share the chromeSpacing scale; the rendered-geometry audit
+   (`auditChrome()`) is asserted in the seeded-smoke canary, which always runs. */
+const CHROME = ['seeded-smoke'];
 
 // ---- Source -> specs map. First match wins per file. s: 'ALL' = full suite. ----
 const RULES = [
@@ -104,6 +108,16 @@ const RULES = [
   { g: 'src/types.ts', s: 'ALL' },
   { g: 'src/App.tsx', s: 'ALL' },
   { g: 'src/main.tsx', s: 'ALL' },
+  // chrome bars + their shared scale (roadmap 264) — the seeded-smoke canary
+  { g: 'src/lib/chromeSpacing.ts', s: CHROME },
+  { g: 'src/lib/chromeAudit.ts', s: CHROME },
+  { g: 'src/components/AppHeader.tsx', s: CHROME },
+  { g: 'src/components/PageToolbar.tsx', s: CHROME },
+  { g: 'src/components/VersionToolbar.tsx', s: CHROME },
+  { g: 'src/components/UserPresenceCluster.tsx', s: CHROME },
+  { g: 'src/components/UndoRedoButtons.tsx', s: CHROME },
+  { g: 'src/components/RoomNote.tsx', s: CHROME },
+  { g: 'src/components/SaveIndicator.tsx', s: CHROME },
   // config / harness files — full suite
   { g: 'package*.json', s: 'ALL' },
   { g: 'vite.config.*', s: 'ALL' },

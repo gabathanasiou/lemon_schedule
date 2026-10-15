@@ -19,6 +19,7 @@ import { isSupabaseConfigured } from '../lib/supabase/client';
 import type { AgentBridgeStatus } from '../lib/agentBridgeClient';
 import { TAB_LABELS, TAB_ORDER } from '../lib/appNav';
 import type { AppTabId } from '../lib/appNav';
+import { CHROME_BAR_INSET, CHROME_CLUSTER_GAP, CHROME_CLUSTER_MARGIN, CHROME_ITEM_GAP, CHROME_TAB_GAP } from '../lib/chromeSpacing';
 
 export type { AppTabId };
 
@@ -157,8 +158,8 @@ export default function AppHeader(props: AppHeaderProps) {
        that element (it carries the theme `bar` fill). z-20 sits above `main`
        (z-auto — header-hung tooltips keep painting over content) and below the
        presence pointers (z-30) and the portaled menus. */
-    <header className={`sticky top-0 z-20 flex items-center ${chrome.bar} text-zinc-300 px-4 py-2 select-none print:hidden`}>
-      <div className="flex items-center gap-2 shrink-0">
+    <header data-chrome-bar="app-header" className={`sticky top-0 z-20 flex items-center ${chrome.bar} text-zinc-300 ${CHROME_BAR_INSET} py-2 select-none print:hidden`}>
+      <div className={`flex items-center ${CHROME_ITEM_GAP} shrink-0`}>
           <DropdownMenu
             open={showFileMenu}
             onOpenChange={setShowFileMenu}
@@ -168,6 +169,9 @@ export default function AppHeader(props: AppHeaderProps) {
             trigger={
               <button
                 data-presence-anchor="toolbar:header:file"
+                /* Edge rail (roadmap 247/264): the trigger's own px-3 padding
+                   hangs -ml-3 into the bar margin, so the LABEL starts on the
+                   16px rail while the hover box keeps its full size. */
                 className={`flex items-center space-x-1.5 rounded transition-colors -ml-3 px-3 py-1.5 font-sans font-medium cursor-pointer select-none ${fileTriggerText} ${chrome.barHover}`}
               >
                 <span className="hidden md:inline">File</span>
@@ -291,7 +295,7 @@ export default function AppHeader(props: AppHeaderProps) {
           )}
         </div>
         <div ref={topTabContainerRef} onScroll={syncTabLayout} className="overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
-          <div ref={tabContentRef} className="relative flex items-center gap-1 mx-auto shrink-0 w-fit">
+          <div ref={tabContentRef} className={`relative flex items-center ${CHROME_TAB_GAP} mx-auto shrink-0 w-fit`}>
             {tabPill.style && (
               <span aria-hidden className={`absolute top-0 bottom-0 rounded bg-white pointer-events-none ${tabPill.motionClass}`} style={tabPill.style} />
             )}
@@ -316,10 +320,16 @@ export default function AppHeader(props: AppHeaderProps) {
           </div>
         </div>
 
-      <div className="flex items-center space-x-3 font-mono text-xs shrink-0 ml-auto">
-        <RoomNote />
-        <UndoRedoButtons />
-        <UserPresenceCluster driveCtx={driveCtx} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
+      {/* Trailing cluster (roadmap 264): controls and identity are separate
+          clusters — 8px inside each, the 16px cluster gap before the avatar,
+          so it keeps the same 16px of air on its left as the bar's edge rail
+          gives it on the right. */}
+      <div className="flex items-center font-mono text-xs shrink-0 ml-auto">
+        <div className={`flex items-center ${CHROME_ITEM_GAP}`}>
+          <RoomNote />
+          <UndoRedoButtons />
+        </div>
+        <UserPresenceCluster className={CHROME_CLUSTER_MARGIN} driveCtx={driveCtx} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
       </div>
     </header>
   );

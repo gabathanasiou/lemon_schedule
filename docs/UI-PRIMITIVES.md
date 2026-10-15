@@ -53,6 +53,15 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   scope with shared controls in a fixed right slot, and divide groups with the shared
   `ToolbarDivider` (`src/components/ToolbarDivider.tsx`; light `bg-zinc-200` / dark `bg-zinc-700`)
   — never hand-write divider strings.
+- **Chrome spacing scale — 16 outside, 8 inside** (roadmap 264): every bar (app header, every
+  `PageToolbar`, the popout `VersionToolbar`) shares `src/lib/chromeSpacing.ts` (`CHROME_BAR_INSET`
+  16px rail · `CHROME_CLUSTER_GAP` between clusters · `CHROME_ITEM_GAP` inside one, incl. around
+  dividers · `CHROME_TAB_GAP` for joined tab strips), and marks itself `data-chrome-bar="<name>"`.
+  `auditChrome()` (`src/lib/chromeAudit.ts`, on the debug bridge) checks the rendered geometry —
+  rails + 4/8/16 gaps — and the seeded-smoke spec asserts it clean, so a new toolbar item that
+  drifts fails a test. An edge control whose padding would push its content inward hangs a
+  negative margin equal to that padding (the File trigger's `-ml-3 px-3`); a deliberate overlap
+  opts out with `data-chrome-skip`; icon-dock math derives from the `_PX` twins, never hand-copied.
 - **Scene sheet view order** (`SceneSheet.tsx`): view-only pref `lemon_schedule_breakdown_order`
   (`sheet | sceneNumber | stripboard`, `usePersistState` — the object form `{order}`). A sorted COPY
   drives rendering/navigation — `project.scenes` is never reordered; the Sheet # column always shows

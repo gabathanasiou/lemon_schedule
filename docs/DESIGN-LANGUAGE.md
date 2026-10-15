@@ -175,6 +175,34 @@ page/sub-tab toolbar (Schedule, Calendar, Breakdown header controls, Production,
    sub-tab + the 2-segment switcher (recipe above), pinned rightmost; the view mode travels in the
    history place (roadmap 176), and the switcher follows the toolbar theme.
 
+#### The chrome spacing scale — 16 outside, 8 inside (roadmap 264)
+
+ONE scale for every chrome bar — the app header, every `PageToolbar` mini tab bar (each tab's
+sub-tabs, popout frames, the dark Call Sheet variant) and the popout `VersionToolbar`. The
+constants live in `src/lib/chromeSpacing.ts` (`CHROME_BAR_INSET` · `CHROME_CLUSTER_GAP` ·
+`CHROME_ITEM_GAP` · `CHROME_TAB_GAP` + their `_PX` twins) — **bars read them, never re-type the
+padding**:
+
+- **Edge rail 16px** (`px-4`): a bar's outer inset. The first/last item's CONTENT edge sits on it.
+- **Cluster gap 16px** (`gap-4`): between clusters inside a bar (e.g. the header's
+  controls cluster ↔ the identity cluster, so the user avatar keeps the same air on its left as
+  the rail gives it on the right — the exact asymmetry behind 264).
+- **Item gap 8px** (`gap-2`): between items inside one cluster, and on both sides of a
+  `ToolbarDivider`.
+- **Tab gap 4px** (`gap-1`): tab strips are joined pills — their own tighter rhythm.
+- **Edge-item rail compensation**: a control whose own padding would push its content inward hangs
+  a negative margin equal to that padding — the File trigger's `-ml-3 px-3` puts the LABEL on the
+  16px rail while the hover box keeps its size. A deliberately overlapping stack (the presence
+  bubble cluster) opts out with `data-chrome-skip`.
+
+**Guarded, not just documented:** every bar carries `data-chrome-bar="<name>"`; the rendered
+geometry is checked by `auditChrome()` (`src/lib/chromeAudit.ts` — rails + 4/8/16 gaps; skips
+layout-driven spacing and primitive internals like Seg groups) exposed on the debug bridge, and
+the seeded-smoke spec asserts it clean on every tab. Adding a toolbar item that drifts fails that
+test; call `window.__lemonSchedule.auditChrome()` to see violations interactively.
+**MUST NOT**: hand-copy an inset or gap into the icon-dock math — `AppHeader.syncTabLayout` and
+`PageToolbar.syncTabsDock` derive from the `_PX` values, so a spacing change moves them together.
+
 ### Forms (dark modals)
 | Element | Classes | Source |
 |---|---|---|

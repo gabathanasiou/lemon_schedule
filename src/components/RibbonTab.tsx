@@ -39,6 +39,7 @@ import RibbonContextMenu from './ribbon/RibbonContextMenu';
 import { useColumnResize, splitBoundaryEven } from './columnResize';
 import { PeerItemOutlines } from './PeerItemOutlines';
 import { itemsByAttribute } from '../lib/itemSelection';
+import { CHROME_BAR_INSET, CHROME_ITEM_GAP } from '../lib/chromeSpacing';
 import { useFollowView } from '../lib/supabase/useFollowView';
 
 /** Peer-selection items (roadmap 234 stage 2) resolve to the designer's cells
@@ -710,7 +711,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
    return (
      <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
        {headerTarget ? createPortal(headerContent, headerTarget) : (
-         <header className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none">
+         <header data-chrome-bar="ribbon-header" className={`flex items-center ${CHROME_ITEM_GAP} ${CHROME_BAR_INSET} py-2 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none`}>
            {headerContent}
          </header>
        )}
