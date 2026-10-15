@@ -6,6 +6,10 @@ import { availableParallelism } from 'node:os';
 // (a stray `npm run dev` fallback, another project's server) fails fast with
 // "already used" instead of being silently tested (roadmap 200:
 // glide-first-edit waited for a prod chunk a dev server never serves).
+// GOTCHA: ~a dozen specs hardcode http://localhost:3001/lemon_schedule/
+// (legacy — they bypass baseURL), so a PLAYWRIGHT_PORT override leaves THOSE
+// failing with ERR_CONNECTION_REFUSED. Run the full suite on the default port;
+// the override is only safe for baseURL-relative specs.
 const PORT = Number(process.env.PLAYWRIGHT_PORT) || 3001;
 
 export default defineConfig({

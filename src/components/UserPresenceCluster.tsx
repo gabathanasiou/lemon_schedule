@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User as UserIcon, LogIn, LogOut, Cloud, Users, Loader2, Pencil, UserPlus, UsersRound } from 'lucide-react';
+import { User as UserIcon, LogIn, LogOut, Cloud, Users, Loader2, Settings, UserPlus } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -12,7 +12,7 @@ import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceCo
 import type { PresencePeer } from '../lib/supabase/presence';
 import { AccountAvatar } from './AccountAvatar';
 import { PresenceDots } from './PresenceDots';
-import { ProfileModal } from './ProfileModal';
+import { AccountSettingsModal } from './AccountSettingsModal';
 
 const MAX_BUBBLES = 3;
 
@@ -40,8 +40,6 @@ interface UserPresenceClusterProps {
   onOpenAccount: () => void;
   /** Opens the User & sharing panel for the open shared project (S2). */
   onManageSharing: () => void;
-  /** Opens the Team panel — the account-level roster (roadmap 254). */
-  onManageTeam: () => void;
 }
 
 /** The header user cluster (roadmap 229 S1, docs/COLLABORATION.md §9).
@@ -50,14 +48,14 @@ interface UserPresenceClusterProps {
  *  Google Drive connect/disconnect lives here too (the File menu keeps
  *  project actions only). Renders nothing when the build has no Supabase env
  *  — the File menu then keeps the old Drive items. */
-export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, closeProject, onOpenAccount, onManageSharing, onManageTeam }: UserPresenceClusterProps) {
+export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, closeProject, onOpenAccount, onManageSharing }: UserPresenceClusterProps) {
   const auth = useSupabaseAuth();
   const { currentProjectId, projectList, state, collaborateProject } = useProject();
   const presence = usePresenceState();
   const presenceActions = usePresenceActions();
   const [menuOpen, setMenuOpen] = useState(false);
   const [peersMenuOpen, setPeersMenuOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [collabOpen, setCollabOpen] = useState(false);
   const [collabBusy, setCollabBusy] = useState(false);
   const [collabError, setCollabError] = useState<string | null>(null);
@@ -222,18 +220,10 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
               </DropdownItem>
             ) : (
               <DropdownItem
-                onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
-                icon={<Pencil className="w-3.5 h-3.5" />}
+                onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}
+                icon={<Settings className="w-3.5 h-3.5" />}
               >
-                Edit profile...
-              </DropdownItem>
-            )}
-            {!account.isAnonymous && (
-              <DropdownItem
-                onClick={() => { setMenuOpen(false); onManageTeam(); }}
-                icon={<UsersRound className="w-3.5 h-3.5" />}
-              >
-                Team...
+                Settings...
               </DropdownItem>
             )}
             {canCollaborate && (
@@ -280,7 +270,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
     </DropdownMenu>
       </div>
 
-      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <AccountSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <Modal
         open={collabOpen}

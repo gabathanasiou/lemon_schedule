@@ -290,6 +290,9 @@ const RULES = [
   // rule-7 manual pass (inviteTargets has Vitest coverage).
   { g: 'src/components/sharing/**', s: [] },
   { g: 'src/lib/inviteTargets.ts', s: [] },
+  // account settings modal (roadmap 256 — profile + team tabs): same story,
+  // account-only surface, never mounted with Supabase off.
+  { g: 'src/components/AccountSettingsModal.tsx', s: [] },
 ];
 
 // ---- tiny glob: supports `**` (any depth), `*` (within a segment) ----
