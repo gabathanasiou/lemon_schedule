@@ -366,6 +366,15 @@ export async function openReportPrintView(page: Page, minPages = 1) {
 
 /** Navigates Production → Day Manager from an already-open project and waits
  *  for the page shell (use when the spec seeded its own custom project). */
+/** Opens Breakdown → Script and waits for the screenplay body to be mounted.
+ *  The surface mounts a frame after the click (roadmap 263 — the pill glide
+ *  keeps its frame), so a raw `page.evaluate` right after the click can beat
+ *  the canvas; web-first assertions wait on their own, DOM walks do not. */
+export async function openScriptTab(page: Page) {
+  await page.getByRole('button', { name: 'Script', exact: true }).click();
+  await expect(page.locator('[data-script-block]').first()).toBeAttached({ timeout: 10000 });
+}
+
 export async function gotoDayManager(page: Page) {
   await page.getByRole('button', { name: 'Production' }).click();
   await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
