@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Check, ChevronDown, Mail, X } from 'lucide-react';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
-import DropdownDivider from '../DropdownDivider';
 import { AccountAvatar } from '../AccountAvatar';
 import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
 import type { CollaboratorRole, PendingInvite, SharingMember } from '../../lib/supabase/sharing';
@@ -28,12 +27,12 @@ export const ROLE_LABELS: Record<CollaboratorRole, string> = {
   viewer: 'View only',
 };
 
-/** Per-person permission menu (owner only; editors/viewers never see it). */
-export function RoleMenu({ role, disabled, onSelect, onRemove }: {
+/** Per-person permission menu (owner only; editors/viewers never see it).
+ *  Removal lives on the row's X button — one affordance per action. */
+export function RoleMenu({ role, disabled, onSelect }: {
   role: CollaboratorRole;
   disabled?: boolean;
   onSelect: (role: CollaboratorRole) => void;
-  onRemove: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -61,8 +60,6 @@ export function RoleMenu({ role, disabled, onSelect, onRemove }: {
       <DropdownItem onClick={() => onSelect('viewer')} trailing={role === 'viewer' ? <Check className="w-3 h-3" /> : undefined}>
         View only
       </DropdownItem>
-      <DropdownDivider />
-      <DropdownItem onClick={onRemove} variant="danger">Remove</DropdownItem>
     </DropdownMenu>
   );
 }
@@ -90,7 +87,7 @@ export function MemberRow({ member, isSelf, canManage, disabled, onRoleChange, o
       </div>
       {!isOwnerRow && canManage && (
         <>
-          <RoleMenu role={member.role} disabled={disabled} onSelect={onRoleChange} onRemove={onRemove} />
+          <RoleMenu role={member.role} disabled={disabled} onSelect={onRoleChange} />
           <button
             type="button"
             onClick={onRemove}
