@@ -257,6 +257,73 @@ LEMON_SEED_PATH=/path/to/project.lemon PLAYWRIGHT_PORT=4173 \
   npx playwright test --config=playwright.perf-prod.config.ts --grep "script tab"
 ```
 
+## Follow-up: tab / sub-tab switching (2026-10-15, roadmap 263)
+
+Status: fixed — click tasks no longer carry the mount; the pill glide is visible
+again. Harness: `e2e/perf-diagnosis.spec.ts`, `@perf tab switch` — measures click →
+first frame, click → surface on screen, long tasks, and a **per-frame trace of the
+header pill** (intermediate glide frames vs a jump). Run against the prod preview
+with a heavy real project:
+
+```bash
+LEMON_SEED_PATH="/path/Lair (perf test).lemon" PLAYWRIGHT_PORT=4173 \
+  npx playwright test --config=playwright.perf-prod.config.ts --grep "tab switch"
+```
+
+Measured (Lair perf test — 172 scenes / 206 rows / 172 script scenes; prod build):
+
+| Workload | Before | After |
+|---|---|---|
+| Breakdown→Schedule click task | 99ms (long task 95-107ms) | **4-5ms (no long task)** |
+| Breakdown→Schedule pill first movement | 176ms after click | **13-17ms** |
+| Breakdown→Schedule surface on screen | 104ms (94ms repeat) | 102-120ms |
+| Sheet→Script click task | 86ms (long task 65-80ms) | **3ms (no long task)** |
+| Schedule→Calendar click task | 43ms | 9-11ms |
+| Calendar→Breakdown / Glide→Sheet / Script→Glide | 5-17ms | 4-11ms |
+
+### Root cause
+
+The click handler runs `go(place)` → `setActiveTab(...)`, and React flushes discrete
+clicks synchronously — so the newly selected surface MOUNTED inside the click task.
+The Schedule tab builds every stripboard row there (~200 rows × row component +
+dnd-kit `useSortable` registration + per-cell inline styles ≈ 5.6k DOM nodes). The
+pill's own style update and its CSS transition (`useSlidingPill` animates width +
+transform) were queued behind that one uninterruptible task: the pill only started
+moving AFTER the content was already on screen — which is what "the animation is
+missing" looked like (on iPad / dev builds the task is several hundred ms, so the
+glide was skipped outright).
+
+### Fix — invariants to keep
+
+- `useLaggingValue` (`src/lib/useLaggingValue.ts`): nav state stays urgent (pill,
+  `go`, history, presence publishing); the surface-selecting values (`contentView`
+  in `App.tsx`) mirror into the content **one rAF later, inside
+  `startTransition`**. React then time-slices the mount, the browser keeps painting
+  the pill's glide through it, and the click task stays ~5ms.
+  - **MUST NOT** put the pill/nav state, presence publishing, or data-only props
+    (targets, indices, categories, popped-out sets) behind the lag — the lag is for
+    surface IDENTITY only (tab, sub-tabs, `prodViews` modes).
+  - ONE rAF (not two) is deliberate: rAF callbacks run before the frame's
+    style/layout/paint, and transition work is a fresh macrotask — the click frame
+    always paints first. A second rAF only delays the surface.
+  - The outgoing surface is `inert` while the mirror is behind (`<main inert=…>` in
+    `App.tsx`). Without it a click in that window can land on the STALE surface —
+    the Glide toolbar's Edit/View buttons sit at the same spots as the Schedule's,
+    so whole e2e specs failed resolving the wrong one. `inert` also removes the
+    stale tree from the accessibility tree, which is what makes role queries wait
+    for the incoming surface instead of grabbing the outgoing one.
+- Re-run the harness (at least the pill trace) when touching `App.tsx` tab/sub-tab
+  state, the `AppHeader` pill, or when adding an `AppTabId`.
+
+### Keep-alive — evaluated, not taken
+
+Repeat visits still pay the full mount (~100ms, same as first). `<Activity>`
+keep-alive would leave every visited surface alive, and per the React docs hidden
+children "still re-render in response to new props" — our project context changes
+on every dispatch/keystroke, so the tax lands on EDITING, the exact area the
+earlier perf passes optimized. Not worth it while the mount already runs behind an
+already-gliding pill, time-sliced and non-blocking.
+
 ## How to re-run
 
 ```bash
