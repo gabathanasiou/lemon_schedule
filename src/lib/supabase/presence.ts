@@ -101,10 +101,20 @@ export function pointerKindOf(raw: unknown): PointerKind {
 }
 
 /** Pointer glyph per input kind — one mapping for the overlay (Vitest'd). */
-export type PointerGlyph = 'arrow' | 'hand' | 'pen';
+export type PointerGlyph = 'arrow' | 'hand' | 'pen' | 'window';
 
 export function pointerGlyph(pointer: PointerKind): PointerGlyph {
   return pointer === 'touch' ? 'hand' : pointer === 'pen' ? 'pen' : 'arrow';
+}
+
+/** The glyph a peer's marker renders (roadmap 244): the modal-window icon
+ *  while their overlay cue says `modal` — the frozen pointer, aimed at a
+ *  surface nobody else can see — otherwise their input-kind glyph. Menus keep
+ *  the pointer-kind glyph (they are small and the pointer there is
+ *  meaningful). The cue wins over the modality; on close the glyph returns to
+ *  the input-kind icon. */
+export function cursorGlyph(pointer: PointerKind, overlay: LocalOverlayKind | null): PointerGlyph {
+  return overlay === 'modal' ? 'window' : pointerGlyph(pointer);
 }
 
 export interface PresenceCursor {
@@ -471,6 +481,51 @@ export function resolveOverlayCues(
     if (s.kind && now - s.at <= ttlMs) cues.set(userId, s.kind);
   }
   return cues;
+}
+
+/** Cursor-freeze gate (roadmap 244): while a user's newest overlay cue is a
+ *  FRESH `modal`, their incoming cursor frames are ignored — the pointer
+ *  stays where it last was, because the peer is aiming at a surface nobody
+ *  else can see (and typing there moves the mouse over it). Menus keep
+ *  moving: they are small and the pointer over them is meaningful. A stale
+ *  cue (killed tab) unfreezes like a close edge. */
+export function freezeCursorFor(
+  overlays: Iterable<PresenceOverlaySample>,
+  userId: string,
+  now: number,
+  ttlMs = OVERLAY_TTL_MS,
+): boolean {
+  return resolveOverlayCues(overlays, now, ttlMs).get(userId) === 'modal';
+}
+
+/** Pointer-collision fade (roadmap 244): while the local pointer and a peer's
+ *  marker stay within the NEAR threshold for the dwell time, the peer's
+ *  marker + tag fade so the surface beneath stays readable; separation past
+ *  the FAR threshold restores full opacity. The gap between the thresholds is
+ *  hysteresis — a pointer hovering the boundary never flickers. */
+export const COLLISION_NEAR_PX = 30;
+export const COLLISION_FAR_PX = 60;
+export const COLLISION_DWELL_MS = 2_000;
+
+export interface CollisionDwellState {
+  /** When proximity began (null while apart) and whether to fade. */
+  since: number | null;
+  faded: boolean;
+}
+
+export const COLLISION_DWELL_IDLE: CollisionDwellState = { since: null, faded: false };
+
+/** One step of the per-peer dwell state machine. `Infinity` distance = no
+ *  local pointer yet (never fades). Pure; returns the same state object when
+ *  nothing changed so the caller can skip re-renders cheaply. */
+export function stepCollisionDwell(state: CollisionDwellState, distancePx: number, now: number): CollisionDwellState {
+  if (distancePx >= COLLISION_FAR_PX) {
+    return state.since === null && !state.faded ? state : { since: null, faded: false };
+  }
+  if (distancePx > COLLISION_NEAR_PX) return state; // hysteresis band
+  const since = state.since ?? now;
+  const faded = state.faded || now - since >= COLLISION_DWELL_MS;
+  return since === state.since && faded === state.faded ? state : { since, faded };
 }
 
 /** Pointer position within the anchor element's rect as 0..1 fractions — the

@@ -17,7 +17,8 @@
  *   • A edits a stripboard scene, then presses Meta+z,
  *   • extra sections: the peer PRESENCE cursor (renders + follows), the
  *     input-modality glyph (touch = hand, roadmap 241), the local-overlay
- *     dots cue (menu/modal, roadmap 240), and the OFFLINE BUFFER (roadmap 239
+ *     dots cue (menu/modal, roadmap 240 + the 244 modal freeze / window
+ *     glyph / collision fade), and the OFFLINE BUFFER (roadmap 239
  *     stage 2 — kills wrangler mid-session, edits buffer in A, restart replays
  *     them; the script restarts wrangler itself).
  *
@@ -501,12 +502,50 @@ try {
   check('B: peer-in-modal shows the dots on the pointer tag', modalTag, null);
   check('A: the window announces the modal cue', aModal === 'modal', aModal);
 
+  // ── 244: while A is inside the modal their pointer FREEZES on B (their
+  // moves happen over a dialog B cannot see) and renders the window glyph.
+  const windowGlyph = await waitFor(async () => (await B.page.locator(cursorSel('[data-glyph="window"]')).count()) > 0);
+  check('B: peer-in-modal renders the window glyph', windowGlyph, null);
+  await sleep(1200); // let the glide settle on the frozen target
+  const frozen = await cursorAt();
+  await A.page.mouse.move(980, 620, { steps: 10 }); // wander INSIDE the modal
+  await sleep(700);
+  const stillFrozen = await cursorAt();
+  check(
+    'B: pointer stays frozen while the peer moves inside the modal',
+    !!frozen && !!stillFrozen && Math.abs(stillFrozen.tx - frozen.tx) < 2 && Math.abs(stillFrozen.ty - frozen.ty) < 2,
+    { frozen, stillFrozen }
+  );
+
   // The close EDGE clears the cue (no waiting for the TTL).
   await A.page.keyboard.press('Escape');
   const modalCleared = await waitFor(async () =>
     (await B.page.locator('[data-testid="presence-bubble-overlay"]').count()) === 0 &&
     (await B.page.locator(cursorSel('[data-overlay]')).count()) === 0);
   check('B: cue clears when the modal closes', modalCleared, null);
+
+  // ── 244: after the cue clears the pointer resumes — input-kind glyph back,
+  // and frames move the marker again.
+  const glyphBack = await waitFor(async () => (await B.page.locator(cursorSel('[data-glyph="arrow"]')).count()) > 0);
+  check('B: glyph returns to the pointer kind after the modal closes', glyphBack, null);
+  await A.page.mouse.move(300, 250, { steps: 8 });
+  await sleep(700);
+  const afterResume = await cursorAt();
+  check(
+    'B: pointer follows again after the modal closes',
+    !!stillFrozen && !!afterResume && Math.abs(afterResume.tx - stillFrozen.tx) > 50,
+    { stillFrozen, afterResume }
+  );
+
+  // ── 244: parking B's OWN pointer on A's marker for ~2s fades A's marker
+  // (see what is underneath); moving apart restores full opacity.
+  const anchorAt = afterResume ?? frozen ?? { domX: 400, domY: 400 };
+  await B.page.mouse.move(anchorAt.domX, anchorAt.domY, { steps: 4 });
+  const fadedSeen = await waitFor(async () => (await B.page.locator(cursorSel('[data-faded="1"]')).count()) > 0);
+  check("B: resting on A's pointer fades it", fadedSeen, null);
+  await B.page.mouse.move(anchorAt.domX + 260, anchorAt.domY + 160, { steps: 6 });
+  const fadeRestored = await waitFor(async () => (await B.page.locator(cursorSel('[data-faded="1"]')).count()) === 0);
+  check('B: moving apart restores full opacity', fadeRestored, null);
 
   // And the plain menu close edge (open → Esc, nothing else).
   await A.page.getByTestId('user-cluster').click();

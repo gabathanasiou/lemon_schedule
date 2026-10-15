@@ -9,6 +9,7 @@ import { getLocalOverlayKind, subscribeLocalOverlays } from '../localOverlaySign
 import { presenceDiagnostics, ProjectPresenceChannel, subscribeLocalSaves, type PresenceChannelStatus } from './presenceChannel';
 import {
   acceptCursor,
+  freezeCursorFor,
   OVERLAY_TTL_MS,
   pointerFractions,
   pointerKindOf,
@@ -69,6 +70,10 @@ export interface PresenceActionsValue {
   /** App + mounted surfaces register their follow appliers; returns the
    *  unregister. Every applier receives each distinct followed view. */
   registerFollowApplier: (fn: (view: PresenceView) => void) => () => void;
+  /** The local window's latest pointer position (viewport coords) or null
+   *  before the first event — the collision fade reads it (roadmap 244).
+   *  Never leaves this window. */
+  getLocalPointer: () => { x: number; y: number } | null;
 }
 
 const EMPTY_STATE: PresenceStateValue = { peers: [], followingId: null, status: 'idle', active: false };
@@ -80,6 +85,7 @@ const EMPTY_ACTIONS: PresenceActionsValue = {
   follow: () => {},
   stopFollowing: () => {},
   registerFollowApplier: () => () => {},
+  getLocalPointer: () => null,
 };
 
 const PresenceStateContext = createContext<PresenceStateValue>(EMPTY_STATE);
@@ -202,6 +208,8 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const lastAppliedFollowRef = useRef('');
   // `${userId}:${clientId}` → latest accepted cursor (stale ts dropped).
   const cursorMapRef = useRef(new Map<string, { userId: string; anchor: PresenceAnchor; pointer: PointerKind; ts: number }>());
+  // The local pointer position (viewport coords; roadmap 244 collision fade).
+  const localPointerRef = useRef<{ x: number; y: number } | null>(null);
   // `${userId}:${clientId}` → latest overlay signal (stale ts dropped). `at`
   // is the local RECEIPT time — TTL/ordering never compare sender clocks.
   const overlayMapRef = useRef(new Map<string, { userId: string; kind: PresenceOverlayState['kind']; ts: number; at: number }>());
@@ -329,6 +337,10 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           const key = `${cursor.userId}:${cursor.clientId}`;
           const prev = cursorMapRef.current.get(key);
           if (!acceptCursor(prev?.ts, cursor.ts)) return;
+          // Roadmap 244: while this user's newest cue is a fresh `modal`
+          // their pointer is FROZEN — frames are not applied (the peer is
+          // aiming at a surface we cannot see). Menus keep moving.
+          if (freezeCursorFor(overlayMapRef.current.values(), cursor.userId, Date.now())) return;
           cursorMapRef.current.set(key, { userId: cursor.userId, anchor: cursor.anchor, pointer: cursor.pointer, ts: cursor.ts });
           rebuildPeers(peersRef.current);
         },
@@ -412,17 +424,23 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // viewport-relative fallback. Throttling/idle-skip live in the channel.
   // Pointer events (not mouse events) also carry the input MODALITY
   // (roadmap 241) — a tap publishes the switch to touch even though no move
-  // follows it.
+  // follows it. The same listener records the local position for the overlay's
+  // collision fade (roadmap 244) — and pauses PUBLISHING while a modal is open
+  // (the receiver-side freeze is the fallback for multi-window cases): the
+  // peer is aiming at a surface others cannot see, so cursor traffic while
+  // typing there is noise. Menus keep publishing.
   useEffect(() => {
     if (!active) return;
-    const publish = (e: PointerEvent) => {
+    const track = (e: PointerEvent) => {
+      localPointerRef.current = { x: e.clientX, y: e.clientY };
+      if (getLocalOverlayKind() === 'modal') return;
       channelRef.current?.publishCursor(resolvePointerAnchor(e), pointerKindOf(e.pointerType));
     };
-    window.addEventListener('pointermove', publish, { passive: true, capture: true });
-    window.addEventListener('pointerdown', publish, { passive: true, capture: true });
+    window.addEventListener('pointermove', track, { passive: true, capture: true });
+    window.addEventListener('pointerdown', track, { passive: true, capture: true });
     return () => {
-      window.removeEventListener('pointermove', publish, true);
-      window.removeEventListener('pointerdown', publish, true);
+      window.removeEventListener('pointermove', track, true);
+      window.removeEventListener('pointerdown', track, true);
     };
   }, [active]);
 
@@ -507,6 +525,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     if (followingRef.current) stopFollowingRef.current();
   }, []);
   const isActive = useCallback(() => channelRef.current != null, []);
+  const getLocalPointer = useCallback(() => localPointerRef.current, []);
   const follow = useCallback((userId: string) => {
     followingRef.current = userId;
     setFollowingId(userId);
@@ -526,7 +545,8 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     follow,
     stopFollowing,
     registerFollowApplier,
-  }), [publishView, publishScroll, noteUserViewChange, isActive, follow, stopFollowing, registerFollowApplier]);
+    getLocalPointer,
+  }), [publishView, publishScroll, noteUserViewChange, isActive, follow, stopFollowing, registerFollowApplier, getLocalPointer]);
 
   const state = useMemo<PresenceStateValue>(() => ({ peers, followingId, status, active }), [peers, followingId, status, active]);
 

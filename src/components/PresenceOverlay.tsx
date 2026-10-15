@@ -1,7 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Hand, X } from 'lucide-react';
+import { AppWindow, Hand, X } from 'lucide-react';
 import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceContext';
-import { pointerGlyph, sameViewPlace, type PresenceAnchor, type PresencePeer } from '../lib/supabase/presence';
+import {
+  COLLISION_DWELL_IDLE,
+  cursorGlyph,
+  sameViewPlace,
+  stepCollisionDwell,
+  type CollisionDwellState,
+  type PresenceAnchor,
+  type PresencePeer,
+} from '../lib/supabase/presence';
 import type { AppPlace } from '../lib/appNav';
 import { getPresenceGridScope } from '../lib/presenceResolvers';
 import { avatarColor, shortNameOf } from '../lib/avatarIdentity';
@@ -22,11 +30,19 @@ import { PresenceDots } from './PresenceDots';
  *   2026-10-12: hide, no edge chips).
  * - the glyph renders per input kind — arrow / hand (touch) / pen dot
  *   (roadmap 241) — and the tag carries animated dots while the peer is inside
- *   a local overlay only they can see (menu/modal, roadmap 240).
+ *   a local overlay only they can see (menu/modal, roadmap 240). While the
+ *   peer is inside a MODAL their pointer FREEZES at its last position (their
+ *   moves are over a surface nobody else can see) and renders the
+ *   modal-window glyph (roadmap 244); menus keep moving.
+ * - when the local and a peer's pointer stay on top of each other for a
+ *   couple of seconds, the peer's marker fades until they separate
+ *   (roadmap 244 — read what is underneath).
  *
- * Motion: pointers glide between positions (CSS transform transition) so
- * snapped ↔ free transitions read as one movement; `prefers-reduced-motion`
- * snaps instantly. The layer sits below modals (z-30 vs the kit's z-[10000]).
+ * Motion: pointers glide between positions with a rAF loop (exponential
+ * approach toward the ~80ms measure target; `prefers-reduced-motion` snaps).
+ * NEVER go back to a CSS `transition` on the pointer wrapper — the ~12/s
+ * cursor feed restarted it mid-flight and the pointer stuttered. The layer
+ * sits below modals (z-30 vs the kit's z-[10000]).
  */
 
 const MAX_POINTERS = 6;
@@ -40,6 +56,9 @@ interface MarkerPosition {
   top: number;
   /** Near the VIEWPORT's right edge the label flips to the left. */
   flip: boolean;
+  /** The local pointer has rested on this marker long enough — fade it so
+   *  what is underneath stays readable (roadmap 244). */
+  faded: boolean;
 }
 
 /**
@@ -140,7 +159,7 @@ function markerPosition(
 
 export function PresenceOverlay({ place }: { place: AppPlace }) {
   const { peers, followingId } = usePresenceState();
-  const { follow, stopFollowing } = usePresenceActions();
+  const { follow, stopFollowing, getLocalPointer } = usePresenceActions();
   const [markers, setMarkers] = useState<MarkerPosition[]>([]);
   /**
    * Motion model: `measure()` resolves each peer's TARGET position (the
@@ -153,8 +172,10 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
   const targetsRef = useRef(new Map<string, { left: number; top: number }>());
   const smoothRef = useRef(new Map<string, { left: number; top: number }>());
   const nodeRefs = useRef(new Map<string, HTMLDivElement>());
+  /** Per-peer collision dwell (roadmap 244) — the fade state machine. */
+  const dwellRef = useRef(new Map<string, CollisionDwellState>());
   /** Marker SET signature — React re-renders only when a pointer or its flip
-   *  side actually changes; positions never go through state. */
+   *  side / glyph / fade actually changes; positions never go through state. */
   const sigRef = useRef('');
 
   const cursorPeers = useMemo(() => peers.filter(p => p.cursor), [peers]);
@@ -163,26 +184,39 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
     if (cursorPeers.length === 0) {
       targetsRef.current = new Map();
       smoothRef.current.clear();
+      dwellRef.current.clear();
       sigRef.current = '';
       setMarkers([]);
       return;
     }
     const measure = () => {
       const now = Date.now();
+      const local = getLocalPointer();
       const next: MarkerPosition[] = [];
       const targets = new Map<string, { left: number; top: number }>();
       for (const peer of cursorPeers) {
-        if (!peer.cursor || now - peer.cursorTs > CURSOR_TTL_MS) continue;
+        if (!peer.cursor) continue;
+        // A FROZEN pointer (peer in a modal, roadmap 244) never idles out
+        // while the cue is fresh — the dots cue stays on its tag there.
+        if (peer.overlay !== 'modal' && now - peer.cursorTs > CURSOR_TTL_MS) continue;
         const pos = markerPosition(peer.cursor, place, peer);
         if (!pos) continue;
-        next.push({ peer, ...pos });
+        // Collision fade: distance from the LOCAL pointer to the rendered
+        // marker (Infinity before the first local pointer event — never fades).
+        const distance = local ? Math.hypot(local.x - pos.left, local.y - pos.top) : Number.POSITIVE_INFINITY;
+        const dwell = stepCollisionDwell(dwellRef.current.get(peer.userId) ?? COLLISION_DWELL_IDLE, distance, now);
+        dwellRef.current.set(peer.userId, dwell);
+        next.push({ peer, ...pos, faded: dwell.faded });
         targets.set(peer.userId, { left: pos.left, top: pos.top });
       }
       targetsRef.current = targets;
       for (const id of [...smoothRef.current.keys()]) {
         if (!targets.has(id)) smoothRef.current.delete(id);
       }
-      const sig = next.map(m => `${m.peer.userId}:${m.flip ? 'L' : 'R'}:${m.peer.pointer}:${m.peer.overlay ?? ''}`).sort().join('|');
+      for (const id of [...dwellRef.current.keys()]) {
+        if (!targets.has(id)) dwellRef.current.delete(id);
+      }
+      const sig = next.map(m => `${m.peer.userId}:${m.flip ? 'L' : 'R'}:${m.peer.pointer}:${m.peer.overlay ?? ''}:${m.faded ? 'F' : ''}`).sort().join('|');
       if (sig !== sigRef.current) {
         sigRef.current = sig;
         setMarkers(next);
@@ -197,7 +231,7 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
       window.removeEventListener('scroll', measure, true);
       window.removeEventListener('resize', measure);
     };
-  }, [cursorPeers, place]);
+  }, [cursorPeers, place, getLocalPointer]);
 
   useEffect(() => {
     if (markers.length === 0) return;
@@ -242,9 +276,9 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
     <>
       {markers.length > 0 && (
         <div className="fixed inset-0 z-30 pointer-events-none overflow-hidden" aria-hidden>
-          {markers.slice(0, MAX_POINTERS).map(({ peer, left, top, flip }) => {
+          {markers.slice(0, MAX_POINTERS).map(({ peer, left, top, flip, faded }) => {
             const color = avatarColor(peer.userId);
-            const glyph = pointerGlyph(peer.pointer);
+            const glyph = cursorGlyph(peer.pointer, peer.overlay);
             return (
             <div
               key={peer.userId}
@@ -266,11 +300,16 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
                 data-testid="presence-cursor"
                 data-pointer={peer.pointer}
                 data-overlay={peer.overlay ?? undefined}
+                data-glyph={glyph}
+                data-faded={faded ? '1' : undefined}
                 onClick={() => follow(peer.userId)}
-                title={peer.overlay
-                  ? `${peer.name} — in a ${peer.overlay} (click to follow)`
-                  : `${peer.name} — click to follow`}
-                className="presence-pointer-in pointer-events-auto relative block w-4 h-5 cursor-pointer motion-reduce:animate-none"
+                title={peer.overlay === 'modal'
+                  ? `${peer.name} — in a dialog (click to follow)`
+                  : peer.overlay
+                    ? `${peer.name} — in a menu (click to follow)`
+                    : `${peer.name} — click to follow`}
+                className="presence-pointer-in pointer-events-auto relative block w-4 h-5 cursor-pointer motion-reduce:animate-none transition-opacity duration-300 motion-reduce:transition-none"
+                style={{ opacity: faded ? 0.3 : 1 }}
               >
                 {glyph === 'arrow' && (
                   <svg viewBox="0 0 15 19" className="absolute left-0 top-0 w-[15px] h-[19px] drop-shadow-md" aria-hidden>
@@ -299,6 +338,14 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
                     style={{ background: color }}
                     aria-hidden
                   />
+                )}
+                {glyph === 'window' && (
+                  // Modal frozen (roadmap 244): the little window glyph. Same
+                  // white under-stroke outline recipe as the Hand glyph.
+                  <span className="absolute left-0 top-0 block w-[18px] h-[18px] drop-shadow-md" aria-hidden>
+                    <AppWindow className="absolute inset-0 w-[18px] h-[18px]" stroke="white" strokeWidth={4.4} />
+                    <AppWindow className="absolute inset-0 w-[18px] h-[18px]" stroke={color} strokeWidth={2.3} />
+                  </span>
                 )}
                 <span
                   className={`absolute top-4 whitespace-nowrap flex items-center gap-1 rounded-full px-2 py-[3px] text-[10px] font-semibold text-white shadow-md ${flip ? 'right-3' : 'left-2.5'}`}

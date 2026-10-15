@@ -2,8 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   acceptCursor,
   anchorKey,
+  COLLISION_DWELL_IDLE,
+  COLLISION_FAR_PX,
   createThrottle,
+  cursorGlyph,
   decidePeerSave,
+  freezeCursorFor,
   mergePeers,
   parseAccessPayload,
   parseAnchor,
@@ -23,6 +27,7 @@ import {
   resolveOverlayCues,
   sameViewPlace,
   screenFractions,
+  stepCollisionDwell,
 } from '../supabase/presence';
 import { createOverlaySignalHub } from '../localOverlaySignal';
 import { avatarColor, initialsOf, shortNameOf } from '../avatarIdentity';
@@ -382,6 +387,53 @@ describe('local-overlay signal hub (roadmap 240)', () => {
     expect(seen).toEqual(['change', 'heartbeat', 'heartbeat']); // resume re-announces an open overlay
     close();
     expect(seen).toEqual(['change', 'heartbeat', 'heartbeat', 'change']);
+  });
+});
+
+describe('presence comfort — modal freeze + collision fade (roadmap 244)', () => {
+  it('selects the modal-window glyph from the cue, not the input kind', () => {
+    expect(cursorGlyph('mouse', 'modal')).toBe('window');
+    expect(cursorGlyph('touch', 'modal')).toBe('window');
+    expect(cursorGlyph('pen', 'modal')).toBe('window');
+    // Menus keep moving, so they keep the pointer-kind glyph.
+    expect(cursorGlyph('mouse', 'menu')).toBe('arrow');
+    expect(cursorGlyph('touch', 'menu')).toBe('hand');
+    expect(cursorGlyph('pen', null)).toBe('pen');
+    expect(cursorGlyph('touch', null)).toBe('hand');
+  });
+
+  it('freezes cursor frames only for a FRESH modal cue', () => {
+    const signals = [
+      { userId: 'u1', kind: 'modal' as const, at: 1_000 },
+      { userId: 'u2', kind: 'menu' as const, at: 1_000 },
+    ];
+    expect(freezeCursorFor(signals, 'u1', 1_400, 800)).toBe(true);
+    expect(freezeCursorFor(signals, 'u1', 1_900, 800)).toBe(false); // stale — tab gone
+    expect(freezeCursorFor(signals, 'u2', 1_400, 800)).toBe(false); // menus keep moving
+    expect(freezeCursorFor(signals, 'u3', 1_400, 800)).toBe(false); // unknown user
+    // Newest window wins: a newer menu / close edge from the other window unfreezes.
+    expect(freezeCursorFor([{ userId: 'u1', kind: 'modal' as const, at: 1_000 }, { userId: 'u1', kind: 'menu' as const, at: 1_200 }], 'u1', 1_300, 800)).toBe(false);
+    expect(freezeCursorFor([{ userId: 'u1', kind: 'modal' as const, at: 1_000 }, { userId: 'u1', kind: null, at: 1_100 }], 'u1', 1_200, 800)).toBe(false);
+  });
+
+  it('steps the collision dwell: near+dwell fades, far restores, the band holds', () => {
+    const t0 = 10_000;
+    // No local pointer yet (Infinity) — never fades, same state object back.
+    expect(stepCollisionDwell(COLLISION_DWELL_IDLE, Number.POSITIVE_INFINITY, t0)).toBe(COLLISION_DWELL_IDLE);
+    // Within the near threshold the dwell starts; the fade needs the full time.
+    const near = stepCollisionDwell(COLLISION_DWELL_IDLE, 10, t0);
+    expect(near).toEqual({ since: t0, faded: false });
+    expect(stepCollisionDwell(near, 20, t0 + 1_000).faded).toBe(false);
+    expect(stepCollisionDwell(near, 20, t0 + 2_000).faded).toBe(true);
+    // The hysteresis band keeps the accumulation / the fade (no flicker at the edge).
+    expect(stepCollisionDwell(near, 45, t0 + 1_500)).toEqual(near);
+    expect(stepCollisionDwell({ since: t0, faded: true }, 45, t0 + 5_000).faded).toBe(true);
+    // Separation past the far threshold restores immediately.
+    expect(stepCollisionDwell({ since: t0, faded: true }, COLLISION_FAR_PX, t0 + 5_000)).toEqual({ since: null, faded: false });
+    // …and a later proximity starts a FRESH dwell (no instant re-fade).
+    const again = stepCollisionDwell({ since: null, faded: false }, 10, t0 + 6_000);
+    expect(stepCollisionDwell(again, 10, t0 + 6_500).faded).toBe(false);
+    expect(stepCollisionDwell(again, 10, t0 + 8_000).faded).toBe(true);
   });
 });
 

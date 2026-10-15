@@ -600,8 +600,10 @@ input, textarea, [contenteditable] {
 }
 
 /* Presence pointers (roadmap 229 S3): pop in when a peer's cursor appears.
-   Position gliding itself is a Tailwind transform transition on the wrapper
-   (motion-reduce:transition-none); this only animates the appearance. */
+   Position gliding is the rAF loop in PresenceOverlay (never a CSS transition
+   — the ~12/s feed restarted it mid-flight); this only animates the
+   appearance, and the opacity transition on the button is the 244 collision
+   fade. */
 @keyframes presence-pointer-in {
   from { opacity: 0; }
   to { opacity: 1; }
