@@ -230,3 +230,16 @@ was long done. **Triage:** the spec alone `--workers=1 --repeat-each=2` → 6/6
 green (30.1s, incl. the failing test twice). Same class as §H — Glide
 overlay-editor timing under full-suite CPU contention, not a regression.
 
+## I. glide-breakdown persistence spec flake under full-suite load (no fix needed)
+
+**2026-10-16 — the roadmap-268 merge suite flaked once on
+`glide-breakdown.spec.ts:45:3`** ("adds scene via button and verifies
+persistence between views"; 272 passed / 1 flaky / 7 skipped — the retry
+passed). **Triage:** solo `--repeat-each=3` green on the merged worktree (3/3)
+AND on clean `main` (3/3) — same load-sensitivity class as §F–§H, not a
+regression (the branch touches the File menu + the local flush in
+`closeProject`). **Caveat:** `test:baseline` cannot triage this spec — it
+hardcodes `http://localhost:3001` while the baseline runs an isolated port, so
+it fails `ERR_CONNECTION_REFUSED` on HEAD and in a working tree alike; compare
+against clean `main` on the normal port instead (see `docs/TESTING.md` §triage).
+
