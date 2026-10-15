@@ -36,7 +36,11 @@ export type RoomClientMessage =
   | { t: 'hello'; token: string; projectId: string }
   | { t: 'init'; project: string }
   | { t: 'act'; actionId: string; action: Action }
-  | { t: 'sync' };
+  | { t: 'sync' }
+  /** Per-user undo/redo (S4): the room rebases the caller's own latest unit
+   *  and re-syncs everyone through `welcome` — no new server→client shape. */
+  | { t: 'undo' }
+  | { t: 'redo' };
 
 /** room → client */
 export type RoomServerMessage =
@@ -100,6 +104,10 @@ export function parseRoomClientMessage(raw: string): RoomClientMessage | null {
       return { t: 'act', actionId: v.actionId, action: v.action };
     case 'sync':
       return { t: 'sync' };
+    case 'undo':
+      return { t: 'undo' };
+    case 'redo':
+      return { t: 'redo' };
     default:
       return null;
   }

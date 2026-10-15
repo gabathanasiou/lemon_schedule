@@ -53,6 +53,14 @@ interface ConnectionInfo {
   batchId: string | null;
 }
 
+/** One per-user undo unit: a single action, or every row of one client batch. */
+interface UndoUnit {
+  /** The client batch id (null = a single action) — reused when the unit is redone. */
+  batchId: string | null;
+  /** Stored rows, ascending rev. */
+  rows: Array<{ rev: number; action: Action }>;
+}
+
 /**
  * One shared project's room (docs/COLLABORATION.md §6 S4).
  *
@@ -77,6 +85,12 @@ export class Room extends DurableObject<Env> {
   private chain: Promise<unknown> = Promise.resolve();
   /** Per-socket message budget (in-memory; resets on hibernation — acceptable for abuse control). */
   private rate = new Map<WebSocket, { tokens: number; last: number }>();
+  /**
+   * Per-user redo stacks (LIFO of undone units). IN-MEMORY ONLY — a hibernated,
+   * evicted or redeployed room loses them (`redo` then answers 'nothing to redo').
+   * Undo itself is durable (log + snapshots); only the redo convenience is not.
+   */
+  private redoStacks = new Map<string, UndoUnit[]>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -150,25 +164,37 @@ export class Room extends DurableObject<Env> {
     const blob = serializeProject(this.present);
     const rev = this.headRev;
     this.ctx.storage.transactionSync(() => {
-      this.ctx.storage.sql.exec(
-        `INSERT INTO room_snapshots (rev, blob, created_at) VALUES (?, ?, ?)
-         ON CONFLICT(rev) DO UPDATE SET blob = excluded.blob`,
-        rev,
-        blob,
-        Date.now()
-      );
-      this.ctx.storage.sql.exec(
-        `DELETE FROM room_snapshots WHERE rev NOT IN (SELECT rev FROM room_snapshots ORDER BY rev DESC LIMIT ?)`,
-        SNAPSHOTS_KEPT
-      );
-      const oldest = this.ctx.storage.sql
-        .exec<{ rev: number | null }>(`SELECT MIN(rev) AS rev FROM room_snapshots`)
-        .one();
-      // Actions older than the oldest kept snapshot can no longer be undone (nor replayed).
-      this.ctx.storage.sql.exec(`DELETE FROM room_actions WHERE rev <= ?`, oldest.rev ?? rev);
+      this.writeSnapshotRow(rev, blob);
+      this.pruneStorage();
     });
     this.snapshotRev = rev;
     this.snapshotBlob = blob;
+  }
+
+  private writeSnapshotRow(rev: number, blob: string): void {
+    this.ctx.storage.sql.exec(
+      `INSERT INTO room_snapshots (rev, blob, created_at) VALUES (?, ?, ?)
+       ON CONFLICT(rev) DO UPDATE SET blob = excluded.blob`,
+      rev,
+      blob,
+      Date.now()
+    );
+  }
+
+  /** Keep the newest SNAPSHOTS_KEPT snapshots, and drop log rows at or below the
+   *  oldest one — the retained window every rebuild (late join, undo) replays. */
+  private pruneStorage(): void {
+    this.ctx.storage.sql.exec(
+      `DELETE FROM room_snapshots WHERE rev NOT IN (SELECT rev FROM room_snapshots ORDER BY rev DESC LIMIT ?)`,
+      SNAPSHOTS_KEPT
+    );
+    const oldest = this.ctx.storage.sql
+      .exec<{ rev: number | null }>(`SELECT MIN(rev) AS rev FROM room_snapshots`)
+      .one();
+    if (oldest.rev !== null) {
+      // Actions older than the oldest kept snapshot can no longer be undone (nor replayed).
+      this.ctx.storage.sql.exec(`DELETE FROM room_actions WHERE rev <= ?`, oldest.rev);
+    }
   }
 
   // ---- sockets -------------------------------------------------------------
@@ -267,6 +293,12 @@ export class Room extends DurableObject<Env> {
         return;
       case 'act':
         this.handleAction(ws, info, msg.actionId, msg.action);
+        return;
+      case 'undo':
+        this.handleUndo(ws, info);
+        return;
+      case 'redo':
+        this.handleRedo(ws, info);
         return;
     }
   }
@@ -379,10 +411,7 @@ export class Room extends DurableObject<Env> {
          ON CONFLICT(key) DO UPDATE SET value = '0'`
       );
     });
-    for (const socket of this.ctx.getWebSockets()) {
-      const socketInfo = this.connectionInfo(socket);
-      if (socketInfo) this.sendWelcome(socket, socketInfo);
-    }
+    this.rewelcome();
   }
 
   private handleAction(ws: WebSocket, info: ConnectionInfo, actionId: string, action: Action): void {
@@ -398,23 +427,44 @@ export class Room extends DurableObject<Env> {
       this.send(ws, { t: 'rejected', actionId, reason: 'action not allowed in rooms' });
       return;
     }
+    // Undo-unit grouping: every row of one client batch shares a batch id.
+    let rowBatchId = info.batchId;
+    if (action.type === 'BATCH_START' && info.batchDepth === 0) rowBatchId = crypto.randomUUID();
+    const rev = this.commitAction(info.userId, actionId, action, rowBatchId);
+    if (rev === null) {
+      this.send(ws, { t: 'rejected', actionId, reason: 'apply failed' });
+      return;
+    }
+    // A new accepted action invalidates the sender's undone units.
+    this.redoStacks.delete(info.userId);
+    if (action.type === 'BATCH_START') {
+      if (info.batchDepth === 0) info.batchId = rowBatchId;
+      info.batchDepth += 1;
+    } else if (action.type === 'BATCH_COMMIT') {
+      info.batchDepth = Math.max(0, info.batchDepth - 1);
+      if (info.batchDepth === 0) info.batchId = null;
+    }
+    ws.serializeAttachment(info);
+  }
+
+  /** The accept path shared by `act` and `redo`: fold, append to the log, bump
+   *  the head rev, broadcast `remote`, snapshot on cadence. Returns the new rev,
+   *  or null when the action does not apply (nothing written, never broadcast). */
+  private commitAction(userId: string, actionId: string, action: Action, batchId: string | null): number | null {
+    if (this.present === null) return null;
     let next: Project;
     try {
       next = this.applyAction(this.present, action);
     } catch {
-      this.send(ws, { t: 'rejected', actionId, reason: 'apply failed' });
-      return;
+      return null;
     }
-    // Undo-unit grouping: every row of one client batch shares a batch id.
-    let rowBatchId = info.batchId;
-    if (action.type === 'BATCH_START' && info.batchDepth === 0) rowBatchId = crypto.randomUUID();
     const rev = this.headRev + 1;
     this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec(
         `INSERT INTO room_actions (rev, user_id, batch_id, action_json) VALUES (?, ?, ?, ?)`,
         rev,
-        info.userId,
-        rowBatchId,
+        userId,
+        batchId,
         JSON.stringify(action)
       );
       this.ctx.storage.sql.exec(
@@ -425,16 +475,157 @@ export class Room extends DurableObject<Env> {
     });
     this.present = next;
     this.headRev = rev;
-    if (action.type === 'BATCH_START') {
-      if (info.batchDepth === 0) info.batchId = rowBatchId;
-      info.batchDepth += 1;
-    } else if (action.type === 'BATCH_COMMIT') {
-      info.batchDepth = Math.max(0, info.batchDepth - 1);
-      if (info.batchDepth === 0) info.batchId = null;
-    }
-    ws.serializeAttachment(info);
-    this.broadcast({ t: 'remote', rev, userId: info.userId, actionId, action });
+    this.broadcast({ t: 'remote', rev, userId, actionId, action });
     if (rev % SNAPSHOT_EVERY === 0) this.writeSnapshot();
+    return rev;
+  }
+
+  // ---- per-user undo (the room rebases the shared log) ----------------------
+
+  /**
+   * `undo` removes the CALLER's latest remaining unit — one action, or one whole
+   * client batch (rows sharing a batch id) — rebuilds `present` from the newest
+   * snapshot older than the unit while skipping its rows, writes a fresh snapshot
+   * at a NEW rev (so a hibernated room reloads the rebased state), deletes the
+   * undone rows (no future rebuild replays them) and re-welcomes every socket —
+   * clients converge through the existing `welcome`, there is no undo broadcast.
+   * Undo depth = the retained snapshot window (SNAPSHOTS_KEPT × SNAPSHOT_EVERY).
+   */
+  private handleUndo(ws: WebSocket, info: ConnectionInfo): void {
+    if (!roleCanWrite(info.role)) {
+      this.send(ws, { t: 'error', message: 'view-only' });
+      return;
+    }
+    if (this.present === null) {
+      this.send(ws, { t: 'error', message: 'room not initialized' });
+      return;
+    }
+    const unit = this.latestUnit(info.userId);
+    if (!unit) {
+      this.send(ws, { t: 'error', message: 'nothing to undo' });
+      return;
+    }
+    const base = this.ctx.storage.sql
+      .exec<{ rev: number; blob: string }>(
+        `SELECT rev, blob FROM room_snapshots WHERE rev < ? ORDER BY rev DESC LIMIT 1`,
+        unit.rows[0].rev
+      )
+      .toArray()[0];
+    if (!base) {
+      this.send(ws, { t: 'error', message: 'action too old to undo' });
+      return;
+    }
+    let project: Project;
+    try {
+      project = this.rebuildFrom(base, new Set(unit.rows.map((row) => row.rev)));
+    } catch {
+      this.send(ws, { t: 'error', message: 'undo failed' });
+      return;
+    }
+    const blob = serializeProject(project);
+    const rev = this.headRev + 1;
+    this.ctx.storage.transactionSync(() => {
+      for (const row of unit.rows) {
+        this.ctx.storage.sql.exec(`DELETE FROM room_actions WHERE rev = ?`, row.rev);
+      }
+      this.writeSnapshotRow(rev, blob);
+      this.pruneStorage();
+      this.ctx.storage.sql.exec(
+        `INSERT INTO room_meta (key, value) VALUES ('headRev', ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+        String(rev)
+      );
+    });
+    this.present = project;
+    this.headRev = rev;
+    this.snapshotRev = rev;
+    this.snapshotBlob = blob;
+    const stack = this.redoStacks.get(info.userId) ?? [];
+    stack.push({ batchId: unit.batchId, rows: unit.rows });
+    this.redoStacks.set(info.userId, stack);
+    this.rewelcome();
+  }
+
+  /** `redo` pops the caller's most recently undone unit and re-applies it as
+   *  FRESH actions through the normal apply + log + broadcast path. */
+  private handleRedo(ws: WebSocket, info: ConnectionInfo): void {
+    if (!roleCanWrite(info.role)) {
+      this.send(ws, { t: 'error', message: 'view-only' });
+      return;
+    }
+    if (this.present === null) {
+      this.send(ws, { t: 'error', message: 'room not initialized' });
+      return;
+    }
+    const unit = this.redoStacks.get(info.userId)?.pop();
+    if (!unit) {
+      this.send(ws, { t: 'error', message: 'nothing to redo' });
+      return;
+    }
+    // All-or-nothing: fold the unit on a scratch copy first, so a unit that no
+    // longer applies changes nothing (the room is not left half-redone).
+    let scratch = this.present;
+    try {
+      for (const row of unit.rows) scratch = this.applyAction(scratch, row.action);
+    } catch {
+      this.send(ws, { t: 'error', message: 'redo failed' });
+      return;
+    }
+    for (const row of unit.rows) {
+      // Fresh client ids — the log stores actions, not ids. The caller reads its
+      // own redo through the same `remote` as everyone else (nothing was applied
+      // optimistically client-side).
+      this.commitAction(info.userId, crypto.randomUUID(), row.action, unit.batchId);
+    }
+  }
+
+  /** The caller's newest remaining undo unit: their latest log row, widened to
+   *  its whole client batch when it belongs to one. */
+  private latestUnit(userId: string): UndoUnit | null {
+    const latest = this.ctx.storage.sql
+      .exec<{ rev: number; batch_id: string | null; action_json: string }>(
+        `SELECT rev, batch_id, action_json FROM room_actions WHERE user_id = ? ORDER BY rev DESC LIMIT 1`,
+        userId
+      )
+      .toArray()[0];
+    if (!latest) return null;
+    const stored = latest.batch_id === null
+      ? [latest]
+      : this.ctx.storage.sql
+          .exec<{ rev: number; batch_id: string | null; action_json: string }>(
+            `SELECT rev, batch_id, action_json FROM room_actions WHERE user_id = ? AND batch_id = ? ORDER BY rev ASC`,
+            userId,
+            latest.batch_id
+          )
+          .toArray();
+    const rows: UndoUnit['rows'] = [];
+    for (const row of stored) {
+      rows.push({ rev: row.rev, action: JSON.parse(row.action_json) as Action });
+    }
+    return { batchId: latest.batch_id, rows };
+  }
+
+  /** Re-fold the retained log from `base` (a snapshot row), skipping `skipRevs`. */
+  private rebuildFrom(base: { rev: number; blob: string }, skipRevs: ReadonlySet<number>): Project {
+    let project = deserializeProject(base.blob);
+    const rows = this.ctx.storage.sql
+      .exec<{ rev: number; action_json: string }>(
+        `SELECT rev, action_json FROM room_actions WHERE rev > ? ORDER BY rev ASC`,
+        base.rev
+      )
+      .toArray();
+    for (const row of rows) {
+      if (skipRevs.has(row.rev)) continue;
+      project = this.applyAction(project, JSON.parse(row.action_json) as Action);
+    }
+    return project;
+  }
+
+  private rewelcome(): void {
+    for (const socket of this.ctx.getWebSockets()) {
+      const socketInfo = this.connectionInfo(socket);
+      if (socketInfo) this.sendWelcome(socket, socketInfo);
+    }
   }
 
   // ---- plumbing ------------------------------------------------------------

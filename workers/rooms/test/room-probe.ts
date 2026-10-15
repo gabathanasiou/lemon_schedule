@@ -8,7 +8,9 @@
  * on A's state by folding snapshot + replay; B acts and A must see it; a viewer is
  * rejected; a reconnect must replay everything; the security negatives (fake origin,
  * no auth, wrong room, oversized frame, message flood) must be refused; HTTP info
- * reports the head rev. Exits non-zero on the first failure.
+ * reports the head rev; and a dedicated room proves per-user undo/redo (rebase via
+ * fresh welcome, whole-batch units, empty-stack + viewer refusals). Exits non-zero
+ * on the first failure.
  */
 import WebSocket from 'ws';
 import { makeBlankProject, reducer, type Action, type State } from '../../../src/store/reducer';
@@ -38,12 +40,18 @@ function check(label: string, ok: boolean, detail?: unknown): void {
   }
 }
 
+function applyOne(project: Project, action: Action): Project {
+  return reducer({ past: [], present: project, future: [], _batchDepth: 0 } as State, action).present;
+}
+
 function fold(project: Project, replay: RevisionedAction[]): Project {
   let p = project;
-  for (const entry of replay) {
-    p = reducer({ past: [], present: p, future: [], _batchDepth: 0 } as State, entry.action).present;
-  }
+  for (const entry of replay) p = applyOne(p, entry.action);
   return p;
+}
+
+function foldWelcome(m: RoomServerMessage): Project | null {
+  return m.t === 'welcome' ? fold(deserializeProject(m.project), m.replay) : null;
 }
 
 class Client {
@@ -222,9 +230,103 @@ async function main(): Promise<void> {
   const info = (await (await fetch(`${BASE}/room/${PROJECT_ID}`)).json()) as { rev: number; initialized: boolean };
   check('HTTP info: rev 3, initialized', info.rev === 3 && info.initialized === true, info);
 
+  // --- per-user undo/redo (a dedicated room keeps the revs above stable) ---
+  const UNDO_ROOM = `${PROJECT_ID}-undo`;
+  const UNDO_WS_URL = BASE.replace(/^http/, 'ws') + `/room/${UNDO_ROOM}`;
+  const ua = new Client(UNDO_WS_URL);
+  await ua.open();
+  ua.send({ t: 'hello', token: 'dev:alice:editor', projectId: UNDO_ROOM });
+  await ua.waitFor((m) => m.t === 'needInit');
+  ua.send({ t: 'init', project: serializeProject(makeBlankProject('Undo probe')) });
+  await ua.waitFor((m) => m.t === 'welcome');
+
+  const ub = new Client(UNDO_WS_URL);
+  await ub.open();
+  ub.send({ t: 'hello', token: 'dev:bob:editor', projectId: UNDO_ROOM });
+  await ub.waitFor((m) => m.t === 'welcome');
+
+  // Alice acts, Bob acts, Alice undoes her OWN latest action.
+  ua.send({ t: 'act', actionId: 'u-a1', action: { type: 'UPDATE_PROJECT', payload: { title: 'UA' } } });
+  await ua.waitFor((m) => m.t === 'remote' && m.actionId === 'u-a1');
+  ub.send({ t: 'act', actionId: 'u-b1', action: { type: 'UPDATE_PROJECT', payload: { title: 'UB' } } });
+  await ub.waitFor((m) => m.t === 'remote' && m.actionId === 'u-b1');
+  ua.send({ t: 'undo' });
+  const undoWelcomeA = await ua.waitFor((m) => m.t === 'welcome' && m.rev === 3);
+  const undoWelcomeB = await ub.waitFor((m) => m.t === 'welcome' && m.rev === 3);
+  check('UA: undo re-welcomes every client at the rebased rev', undoWelcomeA.t === 'welcome' && undoWelcomeB.t === 'welcome');
+  check('UA: Alice converged to the Bob-only state', foldWelcome(undoWelcomeA)?.title === 'UB', foldWelcome(undoWelcomeA)?.title);
+  check('UB: Bob converged to the Bob-only state', foldWelcome(undoWelcomeB)?.title === 'UB', foldWelcome(undoWelcomeB)?.title);
+
+  // Alice redoes it — the unit streams back as a fresh action.
+  const afterUndo = foldWelcome(undoWelcomeA);
+  ua.send({ t: 'redo' });
+  const redoAtA = await ua.waitFor((m) => m.t === 'remote' && m.rev === 4);
+  const redoAtB = await ub.waitFor((m) => m.t === 'remote' && m.rev === 4);
+  check('UA: redo streams to the caller too', redoAtA.t === 'remote' && redoAtA.userId === 'alice');
+  check('UB: redo streams to peers', redoAtB.t === 'remote' && redoAtB.userId === 'alice');
+  check(
+    'UA: redo restored the state',
+    afterUndo !== null && redoAtA.t === 'remote' && applyOne(afterUndo, redoAtA.action).title === 'UA'
+  );
+
+  // Empty stacks and viewers.
+  ua.send({ t: 'redo' });
+  check('UA: empty redo errors', (await ua.waitFor((m) => m.t === 'error' && m.message === 'nothing to redo')).t === 'error');
+
+  const ue = new Client(UNDO_WS_URL);
+  await ue.open();
+  ue.send({ t: 'hello', token: 'dev:erin:editor', projectId: UNDO_ROOM });
+  await ue.waitFor((m) => m.t === 'welcome');
+  ue.send({ t: 'undo' });
+  check('UE: empty undo errors', (await ue.waitFor((m) => m.t === 'error' && m.message === 'nothing to undo')).t === 'error');
+
+  const uv = new Client(UNDO_WS_URL);
+  await uv.open();
+  uv.send({ t: 'hello', token: 'dev:carol:viewer', projectId: UNDO_ROOM });
+  await uv.waitFor((m) => m.t === 'welcome');
+  uv.send({ t: 'undo' });
+  check('UV: viewer undo refused', (await uv.waitFor((m) => m.t === 'error' && m.message === 'view-only')).t === 'error');
+
+  // A client batch is ONE undo unit (revs 5-7), undone and redone as one.
+  ub.send({ t: 'act', actionId: 'u-b2s', action: { type: 'BATCH_START' } });
+  ub.send({ t: 'act', actionId: 'u-b2', action: { type: 'UPDATE_PROJECT', payload: { title: 'UB2' } } });
+  ub.send({ t: 'act', actionId: 'u-b2c', action: { type: 'BATCH_COMMIT' } });
+  await ub.waitFor((m) => m.t === 'remote' && m.actionId === 'u-b2c');
+  await ua.waitFor((m) => m.t === 'remote' && m.actionId === 'u-b2c');
+  ub.send({ t: 'undo' });
+  const batchWelcomeA = await ua.waitFor((m) => m.t === 'welcome' && m.rev === 8);
+  const batchWelcomeB = await ub.waitFor((m) => m.t === 'welcome' && m.rev === 8);
+  check('UB: a batch undoes as ONE unit (one welcome at rev 8)', batchWelcomeA.t === 'welcome' && batchWelcomeB.t === 'welcome');
+  check('UB: batch undo reverted the batch update', foldWelcome(batchWelcomeA)?.title === 'UA', foldWelcome(batchWelcomeA)?.title);
+
+  ub.send({ t: 'redo' });
+  const batchRedone: RevisionedAction[] = [];
+  for (const rev of [9, 10, 11]) {
+    const m = await ua.waitFor((x) => x.t === 'remote' && x.rev === rev);
+    if (m.t === 'remote') batchRedone.push({ rev: m.rev, userId: m.userId, action: m.action });
+  }
+  check(
+    'UB: batch redo re-applies all three rows as one unit',
+    batchRedone.map((e) => e.action.type).join(',') === 'BATCH_START,UPDATE_PROJECT,BATCH_COMMIT',
+    batchRedone.map((e) => e.action.type)
+  );
+  const batchState = foldWelcome(batchWelcomeA);
+  check(
+    'UB: batch redo restored the state',
+    batchState !== null && fold(batchState, batchRedone).title === 'UB2',
+    batchState && fold(batchState, batchRedone).title
+  );
+
+  const undoInfo = (await (await fetch(`${BASE}/room/${UNDO_ROOM}`)).json()) as { rev: number };
+  check('undo room info: head rev 11 after undo + batch redo', undoInfo.rev === 11, undoInfo);
+
   a.close();
   b2.close();
   c.close();
+  ua.close();
+  ub.close();
+  ue.close();
+  uv.close();
   console.log(failures === 0 ? '\nPROBE PASSED' : `\nPROBE FAILED — ${failures} failure(s)`);
   process.exit(failures === 0 ? 0 : 1);
 }

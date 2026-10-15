@@ -12,6 +12,8 @@ const CLIENT_MESSAGES: RoomClientMessage[] = [
   { t: 'init', project: 'H4sIAAAAAAAA' },
   { t: 'act', actionId: 'a-1', action: { type: 'BATCH_START' } },
   { t: 'sync' },
+  { t: 'undo' },
+  { t: 'redo' },
 ];
 
 const SERVER_MESSAGES: RoomServerMessage[] = [
@@ -56,6 +58,8 @@ describe('room protocol — client messages', () => {
 
   it('strips extra fields and does not reject unknown action TYPES (semantics are the room\'s job)', () => {
     expect(parseRoomClientMessage('{"t":"sync","extra":true}')).toEqual({ t: 'sync' });
+    expect(parseRoomClientMessage('{"t":"undo","extra":true}')).toEqual({ t: 'undo' });
+    expect(parseRoomClientMessage('{"t":"redo","extra":true}')).toEqual({ t: 'redo' });
     expect(parseRoomClientMessage('{"t":"act","actionId":"a","action":{"type":"NOT_REAL"}}')).toEqual({
       t: 'act',
       actionId: 'a',
