@@ -1165,34 +1165,3 @@ every tab's toolbar + one popout; numbered manual checklist for the user (no e2e
 
 **Relations:** `extends` **247** (the header rail, File + title only), **49**;
 `relates to` **258** (dock measurement code), **177** (shared Production toolbar).
-
-## 265. iPadOS 27 — the status bar takes the project-chrome colour (`[ ]`)
-
-**Requested 2026-10-15 (user, iPadOS 27):** the status bar renders as a white/grey strip
-above the dark header — "make the white status bar get the actual colour of the header bar?
-like green in this case, and match the theme".
-
-**Why it's white** (researched 2026-10-15 — WebKit bugs 317153/301994/316008, WebKit
-`LocalFrameView::fixedContainerEdges`, iOS 27.0 device runs):
-- **Safari tab:** iOS 26+ samples ONE point (centre-x, 4px inside the page's top edge) and
-  walks up to the first **fixed/sticky** element ≥90% wide / >10px deep with its own
-  `background-color`. The app header is static, so the sample falls through to `<body>`
-  (`bg-gray-50`) → the white bar. Fallback chain: element → body → html.
-- **Home Screen web app:** `apple-mobile-web-app-status-bar-style` is deprecated (Apple:
-  remove the key — the opaque bar takes the page colour, and the page cannot draw under it;
-  `env(safe-area-inset-top)` is 0 since 26.1). `meta[theme-color]` still colours the
-  opaque bar. MUST NOT (re-)add the meta / `black-translucent` / `viewport-fit=cover`.
-
-**Approach:**
-1. `AppHeader` root → `sticky top-0 z-20` so the header itself is the sampled element
-   (it carries the theme `bar` fill). z-20: above `main` (z-auto — header-hung tooltips
-   keep painting over content), below presence chrome (z-30) and portaled menus.
-2. `PROJECT_CHROME[...].barHex` (new field, `src/lib/projectTheme.ts`) + the
-   `useStatusBarTheme()` hook (`src/lib/useStatusBarTheme.ts`) writes it into
-   `meta[name=theme-color]` per project theme; `index.html` carries the boot/zinc default.
-
-**Verify:** rule 7 — device-only visual (no e2e): iPadOS 27 Safari tab + Home Screen web
-app, shared=emerald / drive=blue / local=zinc; `npm run test:unit`; `npm run lint`.
-
-**Relations:** `extends` **248** (project chrome — `barHex` is a new token of the ONE
-source); `relates to` **264** (header spacing audit — sticky must not disturb it).
