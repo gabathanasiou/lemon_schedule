@@ -37,7 +37,7 @@
 - State: Context + `useReducer` with undo/redo (`state.present` = active Project; `state.past/future`). Persistence, sync and the memo contract: **read `docs/STORE-AND-SYNC.md`**.
 - localStorage: index key `lemon_schedule_project_index`, per-project `lemon_schedule_project_v1_{id}`. Cloud projects (Drive) are NOT in localStorage index (filtered on save).
 - Bulk dispatches → wrap in `BATCH_START`/`BATCH_COMMIT` (nestable; outermost commits one undo entry).
-- **Collaboration S1–S3 built** (accounts + shared projects; sharing/roles/invites + view-only links; presence — Canva-style live pointers, follow, peer grid-selection highlights, peer drag ghosts + soft lock, the S3.5 save ping; `docs/COLLABORATION.md` is the manual, `isSupabaseConfigured` is the feature flag). `canEdit` (permission) and `readOnly` (connectivity) are separate flags — `locked = readOnly || !canEdit` gates editing surfaces; never overload either. Realtime rooms (S4) are **built locally, not deployed** (flag `VITE_ROOMS_URL`; room worker + transport + per-user undo) and licensing (roadmap 230) is **planned** — read `docs/COLLABORATION.md` + `docs/LICENSING.md` before touching either.
+- **Collaboration S1–S3 built** (accounts + shared projects; sharing/roles/invites + view-only links; presence — Canva-style live pointers, follow, peer selection highlights (Glide grids + DOM surfaces), peer drag ghosts + soft lock, the S3.5 save ping; `docs/COLLABORATION.md` is the manual, `isSupabaseConfigured` is the feature flag). `canEdit` (permission) and `readOnly` (connectivity) are separate flags — `locked = readOnly || !canEdit` gates editing surfaces; never overload either. Realtime rooms (S4) are **built locally, not deployed** (flag `VITE_ROOMS_URL`; room worker + transport + per-user undo) and licensing (roadmap 230) is **planned** — read `docs/COLLABORATION.md` + `docs/LICENSING.md` before touching either.
 
 ## Domain Model (canonical — don't re-derive)
 Deep dives live in `docs/`: daybreak/section model → `docs/SCHEDULING-STRIPBOARD-DAYBREAKS.md`; day types + calendar axis → `docs/DAY-TYPES-AND-CALENDAR.md`; element/crew links → `docs/ELEMENT-LINKS.md`. The summaries + invariants below are the always-loaded contract.
@@ -107,6 +107,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 
 ## Ribbon Cells
 - **Read `docs/RIBBON.md`.** ALL cells use `getRibbonCellBaseStyle(...)` — never hardcode cell padding/font/text styles; per-cell size = `ribCellTextSize(master, cell)`; padding/edge/textSize are per-`RibbonDesign` (`SET_RIBBON_*`), thread the master through every renderer; toolbar numeric boxes are `LiveNumberInput`.
+- **Editing focus is per-user, display is shared** (roadmap 233): the stripboard shows the shared `activeRibbonId`; the Ribbon Designer edits the per-user pref (`useActiveDesignId`) and never dispatches `SET_ACTIVE_RIBBON`.
 
 ## Glide Breakdown
 - **Read `docs/GLIDE-BREAKDOWN.md`** before touching `BreakdownTabGlide.tsx` or `InlineGlideTable` (raw `provideEditor` indices, no canvas auto-repaint, the `@glide-overlay-editor` boot preload, the shared `InlineGlideTable` recipe).
@@ -160,10 +161,10 @@ the screenplay body (`ImportResult.script` → `project.scriptDocument` /
 New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Section>`/`<Row>`/`<Kbd>`; Unicode keys ⌘ ⌥ ⇧ ⌫ ⏎ ⎋ ↹).
 
 ## Reports Designer
-Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation. Day grid blocks (`callTimes`/`crewTable`, items 111/112) share `lib/reportGrids.ts` + `ReportGridBlock`/`InteractiveGridBlock` — never fork the table recipe.
+Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. **The "Editing:" design pick is a per-user pref** (roadmap 233, `useActiveDesignId`) — contents are project state; the designer never dispatches `SET_ACTIVE_REPORT`. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation. Day grid blocks (`callTimes`/`crewTable`, items 111/112) share `lib/reportGrids.ts` + `ReportGridBlock`/`InteractiveGridBlock` — never fork the table recipe.
 
-## Roadmap Work (single agent)
-- **One agent per item, on the current branch, in this tree** — no worktrees, no orchestrator, no parallel workers. Just ask and the agent works until the item is done.
+## Roadmap Work
+- **One agent per item** — by default on the current branch, in this tree. When several items are in flight the user may hand you a worktree ("another agent is working rn"): load the `parallel-work` skill (worktree setup, merge conflict recipes, ff-only into `main`, the flake-triage ladder). Just ask and the agent works until the item is done.
 - The agent: reads `AGENTS.md` + domain docs FIRST, implements with small focused commits, asks you blocking questions directly (question tool — no decisions channel), then **self-reviews**: verifies its diff against the documented invariants (canonical models in AGENTS.md/docs — no re-derivation), checks for duplicated logic/monoliths, runs `npm run lint` + `npx playwright test`.
 - Then it **updates the docs itself**: loads the `write-agent-docs` + `manage-roadmap` skills, applies the `docs/*.md`/AGENTS.md updates its change calls for, and **closes the roadmap item** — flip `[ ]` → `[x]`, add its one-line row to `docs/ROADMAP-ARCHIVE.md`, then delete the live section (git keeps the narrative). Completed narratives never stay in the live roadmap.
 

@@ -179,24 +179,55 @@ export interface PresenceGridSelection {
   extent: PresenceGridRef;
 }
 
+/** A peer's DOM-surface selection (roadmap 234 stage 2) — the stable element
+ *  ids of the items they have selected on one named surface (`schedule`,
+ *  `calendar`, `report-designer`, …), the same frame as the grid rectangle.
+ *  Ids are OPAQUE to the protocol: each surface defines its own vocabulary and
+ *  resolves them to its own elements (`data-row-id`, `data-block-id`, …) per
+ *  instance, inside the root wearing `data-presence-surface="<scope>"`
+ *  (docs/COLLABORATION.md §9). Ephemeral, broadcast-only, never `track()`. */
+export interface PresenceItemSelection {
+  scope: string;
+  items: string[];
+}
+
+export type PresenceSelection = PresenceGridSelection | PresenceItemSelection;
+
+/** Item selections carry `items`; grid selections carry the rectangle. */
+export function isItemSelection(selection: PresenceSelection): selection is PresenceItemSelection {
+  return Array.isArray((selection as PresenceItemSelection).items);
+}
+
+/** Cap on the item ids one DOM-surface selection frame carries (a cosmetic
+ *  awareness payload, never trusted) — a huge multi-select still highlights
+ *  its first N items. Enforced on send AND on parse. */
+export const MAX_SELECTION_ITEMS = 100;
+
+/** Sender-side cap; grid rectangles pass through untouched. */
+export function capSelectionItems(selection: PresenceSelection): PresenceSelection {
+  if (!isItemSelection(selection) || selection.items.length <= MAX_SELECTION_ITEMS) return selection;
+  return { scope: selection.scope, items: selection.items.slice(0, MAX_SELECTION_ITEMS) };
+}
+
 /** A selection update as it travels the wire; `selection: null` is the CLEAR
- *  edge (deselect, blur, the grid unmounting, a window switch). */
+ *  edge (deselect, blur, the surface unmounting, a window switch). */
 export interface PresenceSelectionUpdate {
   userId: string;
   clientId: string;
-  selection: PresenceGridSelection | null;
+  selection: PresenceSelection | null;
   ts: number;
 }
 
 /** A peer's current selection, resolved per user (newest window wins). */
 export interface PresencePeerSelection {
   userId: string;
-  selection: PresenceGridSelection;
+  selection: PresenceSelection;
 }
 
 /** Stable key for the selection idle-skip (identical = nothing to send). */
-export function selectionKey(selection: PresenceGridSelection | null): string {
+export function selectionKey(selection: PresenceSelection | null): string {
   if (!selection) return '';
+  if (isItemSelection(selection)) return `${selection.scope}|i|${selection.items.join('\u0001')}`;
   const ref = (r: PresenceGridRef) => `${r.rowKey}|${r.colKey}|${r.rowIndex}|${r.colIndex}`;
   return `${selection.scope}|${ref(selection.anchor)}|${ref(selection.extent)}`;
 }
@@ -436,8 +467,9 @@ function parseGridRef(raw: unknown): PresenceGridRef | null {
   };
 }
 
-/** Parse a grid selection (roadmap 234): `selection: null` is a valid CLEAR;
- *  a malformed rectangle is dropped (never trusted as a clear). */
+/** Parse a selection (roadmap 234): a grid rectangle OR a DOM surface's item
+ *  list; `selection: null` is a valid CLEAR; a malformed payload — including
+ *  an EMPTY item list — is dropped (never trusted as a clear). */
 export function parseSelectionPayload(raw: unknown): PresenceSelectionUpdate | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
@@ -449,9 +481,19 @@ export function parseSelectionPayload(raw: unknown): PresenceSelectionUpdate | n
   if (!r.selection || typeof r.selection !== 'object') return null;
   const s = r.selection as Record<string, unknown>;
   const scope = str(s.scope, 64);
+  if (!scope) return null;
+  if (Array.isArray(s.items)) {
+    const items: string[] = [];
+    for (const v of s.items) {
+      if (items.length >= MAX_SELECTION_ITEMS) break;
+      const id = str(v, 128);
+      if (id) items.push(id);
+    }
+    return items.length > 0 ? { userId, clientId, ts, selection: { scope, items } } : null;
+  }
   const anchor = parseGridRef(s.anchor);
   const extent = parseGridRef(s.extent);
-  if (!scope || !anchor || !extent) return null;
+  if (!anchor || !extent) return null;
   return { userId, clientId, selection: { scope, anchor, extent }, ts };
 }
 

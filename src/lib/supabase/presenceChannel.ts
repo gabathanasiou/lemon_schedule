@@ -2,6 +2,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './client';
 import {
   anchorKey,
+  capSelectionItems,
   createThrottle,
   MAX_DRAG_ITEMS,
   mergePeers,
@@ -22,13 +23,13 @@ import {
   type PresenceAnchor,
   type PresenceCursor,
   type PresenceDragState,
-  type PresenceGridSelection,
   type PresenceMeta,
   type PresenceOverlayState,
   type PresencePeer,
   type PresenceSavePing,
   type PresenceScroll,
   type PresenceScrollSample,
+  type PresenceSelection,
   type PresenceSelectionUpdate,
   type PresenceView,
   type PresenceViewUpdate,
@@ -99,8 +100,8 @@ export interface PresenceDiagnostics {
   cursorPointer: PointerKind | null;
   /** The local-overlay cue this window is announcing (roadmap 240). */
   localOverlay: LocalOverlayKind | null;
-  /** The grid selection this window last PUBLISHED, as its wire key (`scope|…`),
-   *  or null when it holds none (roadmap 234). */
+  /** The selection this window last PUBLISHED, as its wire key (`scope|…`),
+   *  or null when it holds none (roadmap 234; grids + DOM surfaces). */
   localSelection: string | null;
   /** The drag claim this window is announcing (roadmap 235), or null. */
   localDrag: DragSurface | null;
@@ -110,7 +111,8 @@ export interface PresenceDiagnostics {
   lastViewRecvAt: number;
   /** Last overlay signal received from a peer (0 = none). */
   lastOverlayRecvAt: number;
-  /** Last grid-selection update received from a peer (0 = none, roadmap 234). */
+  /** Last selection update received from a peer (0 = none, roadmap 234 —
+   *  grid rectangles and DOM-surface item lists). */
   lastSelectionRecvAt: number;
   /** Last drag signal received from a peer (0 = none, roadmap 235). */
   lastDragRecvAt: number;
@@ -194,7 +196,7 @@ export class ProjectPresenceChannel {
   private throttle: Throttle<PresenceCursor> | null = null;
   private scrollThrottle: Throttle<PresenceScrollSample> | null = null;
   private viewThrottle: Throttle<PresenceView | null> | null = null;
-  private selectionThrottle: Throttle<PresenceGridSelection | null> | null = null;
+  private selectionThrottle: Throttle<PresenceSelection | null> | null = null;
   private lastAnchorKey = '';
   private lastAnchor: PresenceAnchor | null = null;
   private lastPointerKind: PointerKind | null = null;
@@ -247,10 +249,11 @@ export class ProjectPresenceChannel {
       void this.channel?.send({ type: 'broadcast', event: VIEW_EVENT, payload });
     }, 150);
 
-    // Grid selections (roadmap 234) change at user pace, far slower than
-    // cursors — the same throttle/coalesce recipe keeps a drag-select to a few
-    // messages per second. A clear (`null`) always rides the newest frame.
-    this.selectionThrottle = createThrottle<PresenceGridSelection | null>((selection) => {
+    // Selections (roadmap 234; grid rectangles + DOM-surface item lists) change
+    // at user pace, far slower than cursors — the same throttle/coalesce recipe
+    // keeps a drag-select to a few messages per second. A clear (`null`) always
+    // rides the newest frame.
+    this.selectionThrottle = createThrottle<PresenceSelection | null>((selection) => {
       const payload: PresenceSelectionUpdate = { userId: this.identity.userId, clientId: this.clientId, selection, ts: Date.now() };
       void this.channel?.send({ type: 'broadcast', event: SELECTION_EVENT, payload });
     }, 150);
@@ -488,15 +491,17 @@ export class ProjectPresenceChannel {
     this.scrollThrottle?.emit(sample);
   }
 
-  /** Broadcast our grid selection (roadmap 234) — a rectangle on a registered
-   *  surface, or `null` to clear (deselect / blur / unmount). Skipped when the
-   *  key is unchanged (idle); throttled like views. */
-  publishSelection(selection: PresenceGridSelection | null): void {
-    const key = selectionKey(selection);
+  /** Broadcast our selection (roadmap 234) — a grid rectangle or a DOM
+   *  surface's item list (roadmap 234 stage 2), or `null` to clear (deselect /
+   *  blur / unmount). Skipped when the key is unchanged (idle); throttled like
+   *  views; the item list is capped on send. */
+  publishSelection(selection: PresenceSelection | null): void {
+    const capped = selection ? capSelectionItems(selection) : null;
+    const key = selectionKey(capped);
     if (key === this.lastSelectionKey) return;
     this.lastSelectionKey = key;
     presenceDiagnostics.localSelection = key || null;
-    this.selectionThrottle?.emit(selection);
+    this.selectionThrottle?.emit(capped);
   }
 
   /** S3.5: tell peers our whole-blob save landed at `revision`. */

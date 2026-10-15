@@ -24,13 +24,13 @@ import {
   type LocalOverlayKind,
   type PresenceAnchor,
   type PresenceDragState,
-  type PresenceGridSelection,
   type PresenceHeldItem,
   type PresenceOverlayState,
   type PresencePeer,
   type PresencePeerDrag,
   type PresencePeerSelection,
   type PresenceScrollSample,
+  type PresenceSelection,
   type PresenceView,
   type PresenceViewUpdate,
   type PointerKind,
@@ -67,11 +67,12 @@ export interface PresenceActionsValue {
   /** Broadcast a scroll sample (throttled in the channel) — no-op without a
    *  channel, so surfaces can call it unconditionally. */
   publishScroll: (sample: PresenceScrollSample) => void;
-  /** Broadcast a grid selection (roadmap 234) — throttled/idle-skipped in the
-   *  channel. Only the CURRENT owner (the grid that last held a non-empty
-   *  selection) may clear it; a non-owner's clear is ignored so closing one
-   *  window cannot wipe another window's live selection. */
-  publishSelection: (owner: object, selection: PresenceGridSelection | null) => void;
+  /** Broadcast a selection (roadmap 234; a grid rectangle or a DOM surface's
+   *  item list) — throttled/idle-skipped in the channel. Only the CURRENT
+   *  owner (the surface that last held a non-empty selection) may clear it; a
+   *  non-owner's clear is ignored so closing one window cannot wipe another
+   *  window's live selection. */
+  publishSelection: (owner: object, selection: PresenceSelection | null) => void;
   /** Release the selection ownership on blur/unmount — publishes the clear
    *  ONLY when `owner` is the current owner. */
   releaseSelection: (owner: object) => void;
@@ -278,13 +279,14 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // `${userId}:${clientId}` → latest overlay signal (stale ts dropped). `at`
   // is the local RECEIPT time — TTL/ordering never compare sender clocks.
   const overlayMapRef = useRef(new Map<string, { userId: string; kind: PresenceOverlayState['kind']; ts: number; at: number }>());
-  // `${userId}:${clientId}` → latest grid selection (roadmap 234). Ordering by
-  // the sender's ts within one client; the user-level newest wins on resolve.
-  const selectionMapRef = useRef(new Map<string, { userId: string; selection: PresenceGridSelection | null; ts: number }>());
-  // Who owns the local OUTGOING selection — the grid that last published a
+  // `${userId}:${clientId}` → latest selection (roadmap 234; grid rectangle or
+  // DOM-surface item list). Ordering by the sender's ts within one client; the
+  // user-level newest wins on resolve.
+  const selectionMapRef = useRef(new Map<string, { userId: string; selection: PresenceSelection | null; ts: number }>());
+  // Who owns the local OUTGOING selection — the surface that last published a
   // non-empty one. Only the owner may clear (blur/unmount/deselect), so
   // closing a second window cannot wipe the first window's live selection.
-  const selectionOwnerRef = useRef<{ owner: object; selection: PresenceGridSelection } | null>(null);
+  const selectionOwnerRef = useRef<{ owner: object; selection: PresenceSelection } | null>(null);
   // `${userId}:${clientId}` → latest drag claim (roadmap 235). Ordering by the
   // sender's ts within one client (newest window wins on resolve); `at` is the
   // local RECEIPT time and the TTL compares against it.
@@ -733,7 +735,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const publishScroll = useCallback((sample: PresenceScrollSample) => {
     channelRef.current?.publishScroll(sample);
   }, []);
-  const publishSelection = useCallback((owner: object, selection: PresenceGridSelection | null) => {
+  const publishSelection = useCallback((owner: object, selection: PresenceSelection | null) => {
     if (selection) {
       selectionOwnerRef.current = { owner, selection };
       channelRef.current?.publishSelection(selection);
@@ -807,7 +809,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // Newest selection per user (multi-window: newest window wins), self
   // excluded, clears already dropped. Only re-derived when a selection changed.
   const peerSelections = useMemo<PresencePeerSelection[]>(() => {
-    const newest = new Map<string, { selection: PresenceGridSelection | null; ts: number }>();
+    const newest = new Map<string, { selection: PresenceSelection | null; ts: number }>();
     for (const s of selectionMapRef.current.values()) {
       const prev = newest.get(s.userId);
       if (!prev || s.ts >= prev.ts) newest.set(s.userId, { selection: s.selection, ts: s.ts });

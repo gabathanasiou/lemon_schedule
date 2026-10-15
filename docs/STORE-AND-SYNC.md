@@ -181,7 +181,26 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   through the same normal path; the redo stack lives in room memory only (lost on hibernation) and a
   new accepted action from that user clears it. Undo depth = the retained snapshot window
   (`SNAPSHOTS_KEPT` = 4 snapshots ≈ 4 × `SNAPSHOT_EVERY` actions); a unit with no base snapshot
-  answers "action too old to undo". The header + popout-toolbar buttons use the SAME room-routed
+  answers "action too old to undo". **Blocked undo + redo safety (roadmap 242, built
+  2026-10-15).** A peer's later whole-value edit can absorb your unit (they extend the text you
+  had just typed): the rebuild then lands EXACTLY on the current state, so the undo cannot
+  revert anything. The room compares the two whole states (`projectsEqual`,
+  `src/lib/rooms/projectCompare.ts` — structural, because JSON key order is a fold artefact)
+  and is honest about it: it answers the blocked message (shared constant,
+  `src/lib/rooms/roomNotes.ts`), DELETES the unit's rows (so the next ⌘Z moves on to the
+  caller's earlier units instead of re-blocking forever) and writes no snapshot, bumps no rev
+  and broadcasts nothing — the state is unchanged, so every client is already correct. No redo
+  entry is pushed: the stale redo that would later clobber the peer's text never exists. REDO
+  gets the same treatment — an undone unit remembers the rev its undo snapshot landed at and
+  only re-applies while the room is still at that state (`atUndoBaseline`: the snapshot read
+  back + the same whole-state compare); a peer edit in between refuses the redo ("Can't redo —
+  someone edited this after you") and drops the unit. Known edge, pinned by the probe and
+  accepted for v1: consuming a unit's rows means a LATER peer undo rebuilds without them — the
+  absorbed text goes with it. **Client surface:** every room error (blocked undo/redo,
+  "nothing to undo/redo", "too old", refusals, a lost connection on undo) is shown as ONE
+  transient note beside the header undo/redo buttons (`src/components/RoomNote.tsx` — also in
+  the popout toolbar; 6s auto-hide, repeats re-arm; copy mapping `roomNoteText`) — advisory
+  only, never a dialog, never blocking. The header + popout-toolbar buttons use the SAME room-routed
   pair (not a transcript undo — that was the "buttons bypassed the room" report); their enablement
   additionally requires the room to be **open**, so while it is connecting/unreachable the buttons
   are refused — there is nothing to rebase, and the offline buffer holds edits, never undo.
@@ -195,7 +214,8 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   update with no welcome, and that its stripboard store AND DOM revert.
 - Not yet: room tokens are dev-only (`dev:<user>:<role>`, DEV builds + `wrangler dev`); the
   deployed path calls the Supabase `room-token` function (`src/lib/rooms/tokenClient.ts`), which
-  is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 31 checks) and
+  is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 47 checks — incl.
+  the blocked-undo room + redo safety, roadmap 242) and
   `room-client-probe.ts` (the real `RoomClient`, 17 checks) against `wrangler dev`.
 - **Header room-status badge (roadmap 239 stage 1, built 2026-10-15).** `roomStatus` is exposed
   reactively on `useProject()` (`useIsOnlineProject()` marks shared projects); `src/lib/rooms/roomBadge.ts`

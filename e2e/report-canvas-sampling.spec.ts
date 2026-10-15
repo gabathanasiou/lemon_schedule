@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { openSeededReportsDesigner, selectReportDesign, openReportsDesigner, reloadProject, waitForOverlaySettle } from './helpers';
-
 async function openSceneBreakdown(page: any, mutate: (project: any) => void) {
   await openSeededReportsDesigner(page, mutate);
   await selectReportDesign(page, 'Scene Breakdown');
@@ -96,4 +95,53 @@ test('canvas falls back to the first item when no scene has data', async ({ page
   );
   // still renders the template (raw tokens for the empty values), no crash
   expect(text).toContain('SC ');
+});
+
+// Roadmap 233: the design being EDITED is a per-user pref; the design contents
+// stay project state. A pick must switch MY editor, survive a reload, and never
+// write the project (a project write would ride the room and move a peer's
+// editor — the bug this item fixes; invisible with a single client).
+test('the editing design is a per-user pref — the pick never rides the project and survives reload', async ({ page }) => {
+  await openSeededReportsDesigner(page);
+  const before = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const designs = p.reportDesigns as any[];
+    const fallback = designs.find(d => d.id === p.activeReportId) || designs[0];
+    const target = designs.find(d => d.id !== fallback.id)!;
+    return { activeReportId: p.activeReportId, fallbackName: fallback.name, target: { id: target.id, name: target.name } };
+  });
+
+  const editing = page.getByRole('button', { name: /Editing:/ });
+  // First open follows the project-level default (the fallback for a user who
+  // never picked a design).
+  await expect(editing).toContainText(before.fallbackName);
+
+  // Observe every dispatch while picking another design.
+  await page.evaluate(() => {
+    const b: any = (window as any).__lemonSchedule;
+    (window as any).__seen = [];
+    (window as any).__off = b.onAction((a: any) => (window as any).__seen.push(a.type));
+  });
+  await selectReportDesign(page, before.target.name);
+  await expect(editing).toContainText(before.target.name);
+
+  const after = await page.evaluate(() => {
+    const b: any = (window as any).__lemonSchedule;
+    const off = (window as any).__off;
+    if (off) off();
+    const p = b.getProject();
+    return {
+      pref: localStorage.getItem('lemon_schedule_report_active_design'),
+      activeReportId: p.activeReportId,
+      seen: (window as any).__seen as string[],
+    };
+  });
+  expect(after.pref).toBe(before.target.id);
+  expect(after.activeReportId).toBe(before.activeReportId);
+  expect(after.seen.filter(t => /REPORT|RIBBON/.test(t))).toEqual([]);
+
+  // The same person's choice survives a reload (localStorage, not the project).
+  await reloadProject(page);
+  await openReportsDesigner(page);
+  await expect(page.getByRole('button', { name: /Editing:/ })).toContainText(before.target.name);
 });

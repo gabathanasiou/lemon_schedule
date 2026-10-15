@@ -22,6 +22,7 @@ import {
   type RevisionedAction,
 } from '../../../src/lib/rooms/protocol';
 import { deserializeProject, serializeProject } from '../../../src/lib/projectCodec';
+import { ROOM_REDO_BLOCKED, ROOM_UNDO_BLOCKED } from '../../../src/lib/rooms/roomNotes';
 import type { Project } from '../../../src/types';
 
 const BASE = process.env.ROOM_URL ?? 'http://127.0.0.1:8787';
@@ -90,10 +91,33 @@ class Client {
   waitFor(pred: (m: RoomServerMessage) => boolean, timeoutMs = 10000): Promise<RoomServerMessage> {
     const existing = this.messages.find(pred);
     if (existing) return Promise.resolve(existing);
+    return this.waitForNext(pred, timeoutMs);
+  }
+
+  /** How many messages this client has received — pair with `waitForAfter` to
+   *  assert on messages that arrive AFTER a point (an earlier message with the
+   *  same shape must not satisfy the predicate). */
+  mark(): number {
+    return this.messages.length;
+  }
+
+  /** Like `waitFor`, but only messages at/after `mark` count — race-free for
+   *  back-to-back frames (the room writes `error` + `undoState` in one turn). */
+  waitForAfter(mark: number, pred: (m: RoomServerMessage) => boolean, timeoutMs = 10000): Promise<RoomServerMessage> {
+    const existing = this.messages.slice(mark).find(pred);
+    if (existing) return Promise.resolve(existing);
+    return this.waitForNext(pred, timeoutMs);
+  }
+
+  /** Wait for a message matching `pred` that arrives AFTER this call — history
+   *  is ignored (for assertions whose predicate an EARLIER message already
+   *  satisfies, e.g. a second `undoState`). Prefer `mark` + `waitForAfter`
+   *  when the send and the assertion are not separated by other turns. */
+  waitForNext(pred: (m: RoomServerMessage) => boolean, timeoutMs = 10000): Promise<RoomServerMessage> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.waiters = this.waiters.filter((w) => w.resolve !== wrapped);
-        reject(new Error('timeout waiting for message'));
+        reject(new Error('timeout waiting for next message'));
       }, timeoutMs);
       const wrapped = (m: RoomServerMessage) => {
         clearTimeout(timer);
@@ -245,14 +269,16 @@ async function main(): Promise<void> {
   ub.send({ t: 'hello', token: 'dev:bob:editor', projectId: UNDO_ROOM });
   await ub.waitFor((m) => m.t === 'welcome');
 
-  // Alice acts, Bob acts, Alice undoes her OWN latest action.
+  // Alice acts, Bob acts on a DISJOINT field, Alice undoes her OWN latest
+  // action — the rebuild must replay Bob's later commit on top (a same-field
+  // overwrite is the BLOCKED case, covered by the dedicated room further down).
   ua.send({ t: 'act', actionId: 'u-a1', action: { type: 'UPDATE_PROJECT', payload: { title: 'UA' } } });
   await ua.waitFor((m) => m.t === 'remote' && m.actionId === 'u-a1');
   check(
     'UA: undo availability pushed after its own action (undo yes, redo no)',
     (await ua.waitFor((m) => m.t === 'undoState' && m.canUndo && !m.canRedo)).t === 'undoState'
   );
-  ub.send({ t: 'act', actionId: 'u-b1', action: { type: 'UPDATE_PROJECT', payload: { title: 'UB' } } });
+  ub.send({ t: 'act', actionId: 'u-b1', action: { type: 'UPDATE_PROJECT', payload: { draftNumber: 'UB' } } });
   await ub.waitFor((m) => m.t === 'remote' && m.actionId === 'u-b1');
   ua.send({ t: 'undo' });
   // The undo is delivered as ONE new action at the rebased rev — the normal
@@ -267,8 +293,8 @@ async function main(): Promise<void> {
   );
   const afterUndo = undoLoadA?.type === 'LOAD' ? undoLoadA.payload : null;
   const afterUndoB = undoLoadB?.type === 'LOAD' ? undoLoadB.payload : null;
-  check('UA: Alice converged to the Bob-only state', afterUndo?.title === 'UB', afterUndo?.title);
-  check('UB: Bob converged to the Bob-only state', afterUndoB?.title === 'UB', afterUndoB?.title);
+  check("UA: Alice converged to the state with her title reverted", afterUndo?.title === 'Undo probe', afterUndo?.title);
+  check("UB: Bob's disjoint edit SURVIVED Alice's undo", afterUndoB?.draftNumber === 'UB', afterUndoB?.draftNumber);
   check(
     'UA: after undo — undo exhausted, redo available (per-user)',
     (await ua.waitFor((m) => m.t === 'undoState' && !m.canUndo && m.canRedo)).t === 'undoState'
@@ -345,6 +371,97 @@ async function main(): Promise<void> {
   const undoInfo = (await (await fetch(`${BASE}/room/${UNDO_ROOM}`)).json()) as { rev: number };
   check('undo room info: head rev 11 after undo + batch redo', undoInfo.rev === 11, undoInfo);
 
+  // --- blocked undo + redo safety (roadmap 242) ------------------------------
+  // A types, B extends: A's undo rebuilds to the SAME state (B's whole-value
+  // edit absorbed A's unit) — the room must answer with the blocked message,
+  // consume the unit (so A's next undo moves on), and change NOTHING: no rev
+  // bump, no broadcast, no redo entry.
+  const BLOCKED_ROOM = `${PROJECT_ID}-blocked`;
+  const BLOCKED_WS_URL = BASE.replace(/^http/, 'ws') + `/room/${BLOCKED_ROOM}`;
+  const blockedInfo = async () => (await (await fetch(`${BASE}/room/${BLOCKED_ROOM}`)).json()) as { rev: number };
+  const ka = new Client(BLOCKED_WS_URL);
+  await ka.open();
+  ka.send({ t: 'hello', token: 'dev:alice:editor', projectId: BLOCKED_ROOM });
+  await ka.waitFor((m) => m.t === 'needInit');
+  ka.send({ t: 'init', project: serializeProject(makeBlankProject('Blocked probe')) });
+  await ka.waitFor((m) => m.t === 'welcome');
+  const kb = new Client(BLOCKED_WS_URL);
+  await kb.open();
+  kb.send({ t: 'hello', token: 'dev:bob:editor', projectId: BLOCKED_ROOM });
+  await kb.waitFor((m) => m.t === 'welcome');
+
+  ka.send({ t: 'act', actionId: 'k-a1', action: { type: 'UPDATE_PROJECT', payload: { title: 'A first' } } });
+  await ka.waitFor((m) => m.t === 'remote' && m.actionId === 'k-a1');
+  ka.send({ t: 'act', actionId: 'k-a2', action: { type: 'UPDATE_PROJECT', payload: { title: 'hello' } } });
+  await ka.waitFor((m) => m.t === 'remote' && m.actionId === 'k-a2');
+  kb.send({ t: 'act', actionId: 'k-b1', action: { type: 'UPDATE_PROJECT', payload: { title: 'hello world' } } });
+  await ka.waitFor((m) => m.t === 'remote' && m.actionId === 'k-b1');
+
+  const blockedMark = ka.mark();
+  ka.send({ t: 'undo' });
+  const blockedError = await ka.waitForAfter(blockedMark, (m) => m.t === 'error');
+  check('KA: undo absorbed by a peer edit is BLOCKED with the message', blockedError.t === 'error' && blockedError.message === ROOM_UNDO_BLOCKED, blockedError);
+  const blockedState = await ka.waitForAfter(blockedMark, (m) => m.t === 'undoState');
+  check(
+    'KA: blocked undo offers NO redo — and no undo was consumed beyond the blocked unit',
+    blockedState.t === 'undoState' && !blockedState.canRedo && blockedState.canUndo,
+    blockedState
+  );
+  const afterBlocked = await blockedInfo();
+  check('KA: blocked undo changed nothing (head rev still 3)', afterBlocked.rev === 3, afterBlocked);
+  const kw = new Client(BLOCKED_WS_URL);
+  await kw.open();
+  kw.send({ t: 'hello', token: 'dev:dave:editor', projectId: BLOCKED_ROOM });
+  const welcomeKw = await kw.waitFor((m) => m.t === 'welcome');
+  if (welcomeKw.t === 'welcome') {
+    check('KA: the room state still carries the peer text', fold(deserializeProject(welcomeKw.project), welcomeKw.replay).title === 'hello world');
+  }
+
+  // B's undo: their unit reverts — and A's CONSUMED text goes with it (the
+  // documented edge: the rebuild cannot replay a row the blocked undo deleted).
+  const bUndoMark = kb.mark();
+  kb.send({ t: 'undo' });
+  const bUndo = await kb.waitForAfter(bUndoMark, (m) => m.t === 'remote' && m.rev === 4);
+  check(
+    "KB: B's own undo reverts B's edit (A's absorbed text is gone too — pinned edge)",
+    bUndo.t === 'remote' && bUndo.action.type === 'LOAD' && bUndo.action.payload.title === 'A first',
+    bUndo.t === 'remote' ? bUndo.action : bUndo
+  );
+
+  // A's next undo moves ON to their earlier unit and succeeds.
+  ka.send({ t: 'undo' });
+  const aUndo = await ka.waitFor((m) => m.t === 'remote' && m.rev === 5);
+  check(
+    "KA: A's earlier unit still undoes (the blocked one was consumed)",
+    aUndo.t === 'remote' && aUndo.action.type === 'LOAD' && aUndo.action.payload.title === 'Blocked probe',
+    aUndo.t === 'remote' ? aUndo.action : aUndo
+  );
+  const aUndoState = await ka.waitFor((m) => m.t === 'undoState' && !m.canUndo && m.canRedo);
+  check('KA: after the successful undo — redo is offered, undo exhausted', aUndoState.t === 'undoState' && aUndoState.canRedo, aUndoState);
+
+  // Redo safety: a redo that is still at its baseline is allowed (it re-applies
+  // the stored ACTIONS as fresh rows — a normal `remote`, never a LOAD)…
+  ka.send({ t: 'redo' });
+  const aRedo = await ka.waitFor((m) => m.t === 'remote' && m.rev === 6);
+  check('KA: redo at the undo baseline re-applies the unit', aRedo.t === 'remote' && aRedo.action.type === 'UPDATE_PROJECT' && aRedo.action.payload.title === 'A first', aRedo);
+  ka.send({ t: 'undo' });
+  await ka.waitFor((m) => m.t === 'remote' && m.rev === 7);
+  // …but a peer edit AFTER the undo makes it stale: refuse and drop it.
+  kb.send({ t: 'act', actionId: 'k-b2', action: { type: 'UPDATE_PROJECT', payload: { title: 'B after' } } });
+  await ka.waitFor((m) => m.t === 'remote' && m.actionId === 'k-b2');
+  const staleMark = ka.mark();
+  ka.send({ t: 'redo' });
+  const staleRedo = await ka.waitForAfter(staleMark, (m) => m.t === 'error');
+  check('KA: a redo over a peer\'s later edit is BLOCKED', staleRedo.t === 'error' && staleRedo.message === ROOM_REDO_BLOCKED, staleRedo);
+  const staleState = await ka.waitForAfter(staleMark, (m) => m.t === 'undoState');
+  check('KA: the stale redo was dropped (nothing to redo now)', staleState.t === 'undoState' && !staleState.canRedo, staleState);
+  const afterRefusal = await blockedInfo();
+  check("KA: the peer's later text survived the refused redo (rev 8)", afterRefusal.rev === 8, afterRefusal);
+  const againMark = ka.mark();
+  ka.send({ t: 'redo' });
+  const nothingToRedo = await ka.waitForAfter(againMark, (m) => m.t === 'error');
+  check('KA: redoing again answers nothing to redo', nothingToRedo.t === 'error' && nothingToRedo.message === 'nothing to redo');
+
   a.close();
   b2.close();
   c.close();
@@ -352,6 +469,9 @@ async function main(): Promise<void> {
   ub.close();
   ue.close();
   uv.close();
+  ka.close();
+  kb.close();
+  kw.close();
   console.log(failures === 0 ? '\nPROBE PASSED' : `\nPROBE FAILED — ${failures} failure(s)`);
   process.exit(failures === 0 ? 0 : 1);
 }

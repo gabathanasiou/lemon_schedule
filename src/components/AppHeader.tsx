@@ -11,6 +11,7 @@ import DropdownSubmenu from './DropdownSubmenu';
 import Button from './Button';
 import { SaveIndicator } from './SaveIndicator';
 import { UndoRedoButtons } from './UndoRedoButtons';
+import { RoomNote } from './RoomNote';
 import { UserPresenceCluster } from './UserPresenceCluster';
 import { isSupabaseConfigured } from '../lib/supabase/client';
 import type { AgentBridgeStatus } from '../lib/agentBridgeClient';
@@ -252,6 +253,7 @@ export default function AppHeader(props: AppHeaderProps) {
         </div>
 
       <div className="flex items-center space-x-3 font-mono text-xs shrink-0 ml-auto">
+        <RoomNote />
         <UndoRedoButtons isCloudProject={isCloudProject} />
         <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
       </div>
