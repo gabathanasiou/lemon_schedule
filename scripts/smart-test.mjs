@@ -167,6 +167,7 @@ const RULES = [
   { g: 'src/components/BreakdownTabGlide.tsx', s: [...GLIDE, ...LINKED, ...ENTITY_CTX] },
   { g: 'src/components/InlineGlideTable.tsx', s: GLIDE },
   { g: 'src/lib/glide*', s: GLIDE },
+  { g: 'src/lib/useGlidePeerSelection.ts', s: GLIDE },
   { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED, ...SHEET, ...ENTITY_CTX] },
   // pop-out windows: the portaled UI lives in a second document (the entity
   // dropdown's panel target switches to the popup document)

@@ -18,8 +18,10 @@ import {
   screenFractions,
   type LocalOverlayKind,
   type PresenceAnchor,
+  type PresenceGridSelection,
   type PresenceOverlayState,
   type PresencePeer,
+  type PresencePeerSelection,
   type PresenceScrollSample,
   type PresenceView,
   type PresenceViewUpdate,
@@ -57,6 +59,14 @@ export interface PresenceActionsValue {
   /** Broadcast a scroll sample (throttled in the channel) — no-op without a
    *  channel, so surfaces can call it unconditionally. */
   publishScroll: (sample: PresenceScrollSample) => void;
+  /** Broadcast a grid selection (roadmap 234) — throttled/idle-skipped in the
+   *  channel. Only the CURRENT owner (the grid that last held a non-empty
+   *  selection) may clear it; a non-owner's clear is ignored so closing one
+   *  window cannot wipe another window's live selection. */
+  publishSelection: (owner: object, selection: PresenceGridSelection | null) => void;
+  /** Release the selection ownership on blur/unmount — publishes the clear
+   *  ONLY when `owner` is the current owner. */
+  releaseSelection: (owner: object) => void;
   /** The local user changed the view with a click (navigation, the View
    *  menu, a Calendar sub-view/month jump, a Sheet flip) — exits follow.
    *  Scrolling NEVER does (user decision 2026-10-13): look around freely, the
@@ -80,6 +90,8 @@ const EMPTY_STATE: PresenceStateValue = { peers: [], followingId: null, status: 
 const EMPTY_ACTIONS: PresenceActionsValue = {
   publishView: () => {},
   publishScroll: () => {},
+  publishSelection: () => {},
+  releaseSelection: () => {},
   noteUserViewChange: () => {},
   isActive: () => false,
   follow: () => {},
@@ -90,6 +102,12 @@ const EMPTY_ACTIONS: PresenceActionsValue = {
 
 const PresenceStateContext = createContext<PresenceStateValue>(EMPTY_STATE);
 const PresenceActionsContext = createContext<PresenceActionsValue>(EMPTY_ACTIONS);
+/**
+ * Peer grid selections (roadmap 234) — a SEPARATE context: its value changes
+ * only when a selection does, so the grid surfaces (which re-render with
+ * `highlightRegions`) never subscribe to the ~12/s cursor feed.
+ */
+const PresenceSelectionsContext = createContext<PresencePeerSelection[]>([]);
 
 export function usePresenceState(): PresenceStateValue {
   return useContext(PresenceStateContext);
@@ -97,6 +115,11 @@ export function usePresenceState(): PresenceStateValue {
 
 export function usePresenceActions(): PresenceActionsValue {
   return useContext(PresenceActionsContext);
+}
+
+/** One entry per user who currently has a grid selection (newest window wins). */
+export function usePresenceSelections(): PresencePeerSelection[] {
+  return useContext(PresenceSelectionsContext);
 }
 
 /** Per-tab client id (sessionStorage): two windows of one user are two clients,
@@ -197,6 +220,9 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const [followingId, setFollowingId] = useState<string | null>(null);
   const [status, setStatus] = useState<PresenceChannelStatus>('idle');
   const [active, setActive] = useState(false);
+  // Grid selections are kept in a ref + a VERSION counter so the value handed
+  // to the grids changes only when a selection does (never on cursor traffic).
+  const [selectionVersion, setSelectionVersion] = useState(0);
 
   const channelRef = useRef<ProjectPresenceChannel | null>(null);
   const peersRef = useRef<PresencePeer[]>([]);
@@ -213,6 +239,13 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // `${userId}:${clientId}` → latest overlay signal (stale ts dropped). `at`
   // is the local RECEIPT time — TTL/ordering never compare sender clocks.
   const overlayMapRef = useRef(new Map<string, { userId: string; kind: PresenceOverlayState['kind']; ts: number; at: number }>());
+  // `${userId}:${clientId}` → latest grid selection (roadmap 234). Ordering by
+  // the sender's ts within one client; the user-level newest wins on resolve.
+  const selectionMapRef = useRef(new Map<string, { userId: string; selection: PresenceGridSelection | null; ts: number }>());
+  // Who owns the local OUTGOING selection — the grid that last published a
+  // non-empty one. Only the owner may clear (blur/unmount/deselect), so
+  // closing a second window cannot wipe the first window's live selection.
+  const selectionOwnerRef = useRef<{ owner: object; selection: PresenceGridSelection } | null>(null);
   // Re-render when the newest overlay signal goes stale (TTL clear).
   const overlayExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The last overlay kind this window published — redundant edge frames are
@@ -242,6 +275,9 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const clearPeers = useCallback(() => {
     cursorMapRef.current.clear();
     overlayMapRef.current.clear();
+    selectionMapRef.current.clear();
+    selectionOwnerRef.current = null;
+    setSelectionVersion(v => v + 1);
     if (overlayExpiryRef.current) {
       clearTimeout(overlayExpiryRef.current);
       overlayExpiryRef.current = null;
@@ -266,6 +302,18 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     for (const [key, c] of [...cursors]) if (!known.has(c.userId)) cursors.delete(key);
     for (const [key, o] of [...overlays]) if (!known.has(o.userId)) overlays.delete(key);
     for (const [key, v] of [...views]) if (!known.has(v.userId)) views.delete(key);
+    // Selections are pruned per CLIENT, not per user: a closed window must not
+    // leave its selection behind while another window of the same user stays.
+    const liveClients = new Set<string>();
+    for (const p of base) for (const clientId of p.clientIds) liveClients.add(`${p.userId}:${clientId}`);
+    let selectionPruned = false;
+    for (const key of [...selectionMapRef.current.keys()]) {
+      if (!liveClients.has(key)) {
+        selectionMapRef.current.delete(key);
+        selectionPruned = true;
+      }
+    }
+    if (selectionPruned) setSelectionVersion(v => v + 1);
     const newestCursor = new Map<string, { anchor: PresenceAnchor; pointer: PointerKind; ts: number }>();
     for (const c of cursors.values()) {
       const prev = newestCursor.get(c.userId);
@@ -358,6 +406,15 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           overlayMapRef.current.set(key, { userId: state.userId, kind: state.kind, ts: state.ts, at: Date.now() });
           rebuildPeers(peersRef.current);
         },
+        onSelection: (update) => {
+          const key = `${update.userId}:${update.clientId}`;
+          const prev = selectionMapRef.current.get(key);
+          // Equal timestamps accepted (last write wins), frames per client
+          // arrive in send order — the same recipe as the overlay cue.
+          if (prev && update.ts < prev.ts) return;
+          selectionMapRef.current.set(key, { userId: update.userId, selection: update.selection, ts: update.ts });
+          setSelectionVersion(v => v + 1);
+        },
         onSavePing: (ping) => { void applyPeerSaveRef.current(ping.revision); },
         onScroll: (scroll) => {
           // Only a followed peer's scroll moves us; drop stale/duplicate
@@ -410,6 +467,10 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     if (overlayKind) {
       lastPublishedOverlayRef.current = overlayKind;
       channel.publishOverlay(overlayKind);
+    }
+    // …and our live grid selection, if a grid is holding one (late joiner).
+    if (selectionOwnerRef.current) {
+      channel.publishSelection(selectionOwnerRef.current.selection);
     }
     return () => {
       channel.stop();
@@ -523,6 +584,23 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const publishScroll = useCallback((sample: PresenceScrollSample) => {
     channelRef.current?.publishScroll(sample);
   }, []);
+  const publishSelection = useCallback((owner: object, selection: PresenceGridSelection | null) => {
+    if (selection) {
+      selectionOwnerRef.current = { owner, selection };
+      channelRef.current?.publishSelection(selection);
+      return;
+    }
+    // A clear only counts from the owner — a second window closing must not
+    // wipe the selection the first window is still holding.
+    if (selectionOwnerRef.current?.owner !== owner) return;
+    selectionOwnerRef.current = null;
+    channelRef.current?.publishSelection(null);
+  }, []);
+  const releaseSelection = useCallback((owner: object) => {
+    if (selectionOwnerRef.current?.owner !== owner) return;
+    selectionOwnerRef.current = null;
+    channelRef.current?.publishSelection(null);
+  }, []);
   const noteUserViewChange = useCallback(() => {
     if (followingRef.current) stopFollowingRef.current();
   }, []);
@@ -542,20 +620,41 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const actions = useMemo<PresenceActionsValue>(() => ({
     publishView,
     publishScroll,
+    publishSelection,
+    releaseSelection,
     noteUserViewChange,
     isActive,
     follow,
     stopFollowing,
     registerFollowApplier,
     getLocalPointer,
-  }), [publishView, publishScroll, noteUserViewChange, isActive, follow, stopFollowing, registerFollowApplier, getLocalPointer]);
+  }), [publishView, publishScroll, publishSelection, releaseSelection, noteUserViewChange, isActive, follow, stopFollowing, registerFollowApplier, getLocalPointer]);
+
+  // Newest selection per user (multi-window: newest window wins), self
+  // excluded, clears already dropped. Only re-derived when a selection changed.
+  const peerSelections = useMemo<PresencePeerSelection[]>(() => {
+    const newest = new Map<string, { selection: PresenceGridSelection | null; ts: number }>();
+    for (const s of selectionMapRef.current.values()) {
+      const prev = newest.get(s.userId);
+      if (!prev || s.ts >= prev.ts) newest.set(s.userId, { selection: s.selection, ts: s.ts });
+    }
+    const out: PresencePeerSelection[] = [];
+    for (const [userId, s] of newest) {
+      if (s.selection) out.push({ userId, selection: s.selection });
+    }
+    return out;
+    // The version counter is the change signal (the map itself is a ref).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionVersion]);
 
   const state = useMemo<PresenceStateValue>(() => ({ peers, followingId, status, active }), [peers, followingId, status, active]);
 
   return (
     <PresenceActionsContext.Provider value={actions}>
       <PresenceStateContext.Provider value={state}>
-        {children}
+        <PresenceSelectionsContext.Provider value={peerSelections}>
+          {children}
+        </PresenceSelectionsContext.Provider>
       </PresenceStateContext.Provider>
     </PresenceActionsContext.Provider>
   );

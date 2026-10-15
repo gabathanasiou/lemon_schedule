@@ -81,6 +81,7 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
 
       <CrewRosterEditor
         dataAttr="data-crew-roster"
+        presenceScopePrefix={`day:${day.sectionIndex}:crew`}
         slots={slots}
         excludedDepts={excluded}
         effectivePrecalls={effectivePrecalls}

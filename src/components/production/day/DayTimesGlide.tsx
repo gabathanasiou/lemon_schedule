@@ -36,6 +36,9 @@ export interface DayTimesGlideProps {
   /** Item 169: hide the first-scene hover preview while the Call Sheet's Times
    *  toggle is off (the preview is a times/durations affordance). */
   showTimes?: boolean;
+  /** Peer-selection scope (roadmap 234) — the host names the LOGICAL grid
+   *  (`day:3:times:cast`, `callsheet:3:times:cast`); omitted = out of presence. */
+  presenceScope?: string;
 }
 
 interface SheetColumn extends InlineGlideColumn {}
@@ -46,7 +49,7 @@ const ID_COL = 'id';
 const NAME_COL = 'name';
 const SWF_COL = 'swf';
 
-const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes = true }) => {
+const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes = true, presenceScope }) => {
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
   const stageKeys = useMemo(() => settings.categoryStages[category] || [], [settings, category]);
   const stageDefs = useMemo(
@@ -147,6 +150,7 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
   return (
     <InlineGlideTable
       dataAttr="data-day-times-glide"
+      presenceScope={presenceScope}
       columns={columns}
       rows={rows}
       getCellContent={getCellContent}

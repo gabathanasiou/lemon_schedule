@@ -147,6 +147,49 @@ export interface PresenceOverlayState {
   ts: number;
 }
 
+/** One endpoint of a peer's grid selection, in wire form (roadmap 234): the
+ *  stable row/column KEYS plus the sender's indices as the fallback for a
+ *  client whose row/column set differs (clamped on resolve). */
+export interface PresenceGridRef {
+  rowKey: string;
+  colKey: string;
+  rowIndex: number;
+  colIndex: number;
+}
+
+/** A peer's selection on one registered grid surface (roadmap 234) — the
+ *  rectangle bounded by two cells (anchor + extent; equal = a single cell),
+ *  spreadsheet-style. `scope` is the surface's stable id (e.g.
+ *  `breakdown-glide`, `day:3:crew:Electric`) so the highlight only renders on
+ *  the same logical grid; ephemeral, broadcast-only, never `track()`. */
+export interface PresenceGridSelection {
+  scope: string;
+  anchor: PresenceGridRef;
+  extent: PresenceGridRef;
+}
+
+/** A selection update as it travels the wire; `selection: null` is the CLEAR
+ *  edge (deselect, blur, the grid unmounting, a window switch). */
+export interface PresenceSelectionUpdate {
+  userId: string;
+  clientId: string;
+  selection: PresenceGridSelection | null;
+  ts: number;
+}
+
+/** A peer's current selection, resolved per user (newest window wins). */
+export interface PresencePeerSelection {
+  userId: string;
+  selection: PresenceGridSelection;
+}
+
+/** Stable key for the selection idle-skip (identical = nothing to send). */
+export function selectionKey(selection: PresenceGridSelection | null): string {
+  if (!selection) return '';
+  const ref = (r: PresenceGridRef) => `${r.rowKey}|${r.colKey}|${r.rowIndex}|${r.colIndex}`;
+  return `${selection.scope}|${ref(selection.anchor)}|${ref(selection.extent)}`;
+}
+
 export interface PresenceSavePing {
   userId: string;
   revision: number;
@@ -221,6 +264,11 @@ export interface PresencePeer {
   /** The peer's local-overlay cue (roadmap 240): 'menu' | 'modal' while open
    *  and fresh (TTL), else null. */
   overlay: LocalOverlayKind | null;
+  /** Every window (clientId) this user currently has on the channel — the
+   *  per-client liveness set the selection map prunes against (roadmap 234:
+   *  a closed window's selection must not linger while another window of the
+   *  same user stays open). */
+  clientIds: string[];
   ts: number;
 }
 
@@ -360,6 +408,41 @@ export function parseOverlayPayload(raw: unknown): PresenceOverlayState | null {
   return kind ? { userId, clientId, kind, ts } : null;
 }
 
+function parseGridRef(raw: unknown): PresenceGridRef | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const rowKey = str(r.rowKey, 128);
+  const colKey = str(r.colKey, 128);
+  const rowIndex = num(r.rowIndex);
+  const colIndex = num(r.colIndex);
+  if (!rowKey || !colKey || rowIndex == null || colIndex == null) return null;
+  return {
+    rowKey,
+    colKey,
+    rowIndex: Math.max(0, Math.trunc(rowIndex)),
+    colIndex: Math.max(0, Math.trunc(colIndex)),
+  };
+}
+
+/** Parse a grid selection (roadmap 234): `selection: null` is a valid CLEAR;
+ *  a malformed rectangle is dropped (never trusted as a clear). */
+export function parseSelectionPayload(raw: unknown): PresenceSelectionUpdate | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const userId = str(r.userId, 64);
+  const clientId = str(r.clientId, 64);
+  const ts = num(r.ts);
+  if (!userId || !clientId || ts == null) return null;
+  if (r.selection === null) return { userId, clientId, selection: null, ts };
+  if (!r.selection || typeof r.selection !== 'object') return null;
+  const s = r.selection as Record<string, unknown>;
+  const scope = str(s.scope, 64);
+  const anchor = parseGridRef(s.anchor);
+  const extent = parseGridRef(s.extent);
+  if (!scope || !anchor || !extent) return null;
+  return { userId, clientId, selection: { scope, anchor, extent }, ts };
+}
+
 export function parseSavePayload(raw: unknown): PresenceSavePing | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
@@ -421,19 +504,25 @@ export function parseViewPayload(raw: unknown): PresenceViewUpdate | null {
 // ---------------------------------------------------------------------------
 
 /** Presence state (key → metas) → one peer per user, newest meta wins (the
- *  multi-window dedupe), self excluded, deterministic order. */
+ *  multi-window dedupe), self excluded, deterministic order. `clientIds`
+ *  carries every live window of that user (selection pruning). */
 export function mergePeers(state: Record<string, unknown[]>, selfUserId: string): PresencePeer[] {
-  const byUser = new Map<string, PresenceMeta>();
+  const byUser = new Map<string, { meta: PresenceMeta; clientIds: string[] }>();
   for (const metas of Object.values(state ?? {})) {
     for (const raw of metas ?? []) {
       const meta = parsePresenceMeta(raw);
       if (!meta || meta.userId === selfUserId) continue;
       const prev = byUser.get(meta.userId);
-      if (!prev || meta.ts > prev.ts) byUser.set(meta.userId, meta);
+      if (!prev) {
+        byUser.set(meta.userId, { meta, clientIds: [meta.clientId] });
+      } else {
+        if (!prev.clientIds.includes(meta.clientId)) prev.clientIds.push(meta.clientId);
+        if (meta.ts > prev.meta.ts) prev.meta = meta;
+      }
     }
   }
   return [...byUser.values()]
-    .map((m): PresencePeer => ({
+    .map(({ meta: m, clientIds }): PresencePeer => ({
       userId: m.userId,
       name: m.name,
       avatarUrl: m.avatarUrl,
@@ -443,6 +532,7 @@ export function mergePeers(state: Record<string, unknown[]>, selfUserId: string)
       cursorTs: 0,
       pointer: 'mouse',
       overlay: null,
+      clientIds,
       ts: m.ts,
     }))
     .sort((a, b) => a.name.localeCompare(b.name) || a.userId.localeCompare(b.userId));

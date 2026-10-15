@@ -32,6 +32,8 @@ import { useGlideColumnWidths } from './glideColumns';
 import { useDedupeCellCommit } from './glideEditGuard';
 import { planGridPaste, type PasteEdit, type PasteColumn, type PasteRange } from './glidePaste';
 import { useGlideFill } from './glideFill';
+import { useGlidePeerSelection } from './useGlidePeerSelection';
+import { effectiveGridRange } from './glideSelection';
 import Button from '../components/Button';
 import type { Project } from '../types';
 
@@ -101,6 +103,10 @@ export interface GlideInfoCount {
 export interface GlideShellConfig {
   /** Storage-key fragment for per-database column widths, e.g. 'crew'. */
   widthStorageKey: string;
+  /** Presence scope (roadmap 234): the stable id of this logical grid shared
+   *  by every client (`crew-glide`, `locations-glide`) — peer selections
+   *  publish/render per instance under it. */
+  presenceScope: string;
   columnDefs: GlideColumnDef[];
   buildRows(project: Project): GlideRow[];
   categories(project: Project): GlideCategory[];
@@ -196,6 +202,17 @@ export const GlideGridShell: React.FC<{
   const gridRef = useRef<DataEditorRef>(null);
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
+
+  // Peer selections (roadmap 234) — every mounted instance publishes its own
+  // selection and paints the peers' ones under `config.presenceScope`.
+  const presenceRowKeys = useMemo(() => rows.map(r => r.key), [rows]);
+  const presenceColKeys = useMemo(() => COLUMNS.map(c => c.key), [COLUMNS]);
+  const peerHighlights = useGlidePeerSelection({
+    scope: config.presenceScope,
+    selection: gridSelection,
+    rowKeys: presenceRowKeys,
+    colKeys: presenceColKeys,
+  });
 
   // Full repaint when the underlying data or columns change (Glide caches cells).
   useEffect(() => {
@@ -356,21 +373,9 @@ export const GlideGridShell: React.FC<{
     }));
   }, [COLUMNS, config, dispatch]);
 
-  const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null => {
-    const sel = gridSelection.current;
-    if (sel?.range) return sel.range;
-    if (gridSelection.rows.length > 0) {
-      const selectedRows = Array.from({ length: rows.length }, (_, i) => i).filter(i => gridSelection.rows.hasIndex(i));
-      if (selectedRows.length === 0) return null;
-      return { x: 0, y: selectedRows[0], width: COLUMNS.length, height: selectedRows.length };
-    }
-    if (gridSelection.columns.length > 0) {
-      const selectedCols = Array.from({ length: COLUMNS.length }, (_, i) => i).filter(i => gridSelection.columns.hasIndex(i));
-      if (selectedCols.length === 0) return null;
-      return { x: selectedCols[0], y: 0, width: selectedCols.length, height: rows.length };
-    }
-    return null;
-  }, [gridSelection, rows.length, COLUMNS.length]);
+  const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null =>
+    effectiveGridRange(gridSelection, rows.length, COLUMNS.length),
+  [gridSelection, rows.length, COLUMNS.length]);
 
   const handleCopy = useCallback(async () => {
     const range = getEffectiveRange();
@@ -666,6 +671,7 @@ export const GlideGridShell: React.FC<{
           getCellsForSelection={true}
           gridSelection={gridSelection}
           onGridSelectionChange={setGridSelection}
+          highlightRegions={peerHighlights}
           theme={createGlideTheme(fontSize)}
           rowHeight={Math.round(34 * fontSize / SS_FONT_SIZE_DEFAULT)}
           headerHeight={Math.round(36 * fontSize / SS_FONT_SIZE_DEFAULT)}

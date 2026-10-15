@@ -9,19 +9,23 @@ import {
   parseOverlayPayload,
   parseSavePayload,
   parseScrollPayload,
+  parseSelectionPayload,
   parseViewPayload,
   presenceTopic,
+  selectionKey,
   type LocalOverlayKind,
   type PointerKind,
   type PresenceAccessEvent,
   type PresenceAnchor,
   type PresenceCursor,
+  type PresenceGridSelection,
   type PresenceMeta,
   type PresenceOverlayState,
   type PresencePeer,
   type PresenceSavePing,
   type PresenceScroll,
   type PresenceScrollSample,
+  type PresenceSelectionUpdate,
   type PresenceView,
   type PresenceViewUpdate,
   type Throttle,
@@ -91,12 +95,17 @@ export interface PresenceDiagnostics {
   cursorPointer: PointerKind | null;
   /** The local-overlay cue this window is announcing (roadmap 240). */
   localOverlay: LocalOverlayKind | null;
+  /** The grid selection this window last PUBLISHED, as its wire key (`scope|…`),
+   *  or null when it holds none (roadmap 234). */
+  localSelection: string | null;
   /** Last cursor payload received from a peer (0 = none). */
   lastCursorRecvAt: number;
   /** Last view payload received from a peer (0 = none). */
   lastViewRecvAt: number;
   /** Last overlay signal received from a peer (0 = none). */
   lastOverlayRecvAt: number;
+  /** Last grid-selection update received from a peer (0 = none, roadmap 234). */
+  lastSelectionRecvAt: number;
   /** Presence `track()` calls made by this channel — must stay ≤5 per 30s
    *  (Supabase caps presence calls per client; past it the channel is
    *  shut down). One per (re)join by design. */
@@ -113,9 +122,11 @@ export const presenceDiagnostics: PresenceDiagnostics = {
   lastCursorAt: 0,
   cursorPointer: null,
   localOverlay: null,
+  localSelection: null,
   lastCursorRecvAt: 0,
   lastViewRecvAt: 0,
   lastOverlayRecvAt: 0,
+  lastSelectionRecvAt: 0,
   trackCount: 0,
   error: null,
 };
@@ -145,6 +156,8 @@ export interface PresenceChannelHandlers {
   onView: (update: PresenceViewUpdate) => void;
   /** A peer's local-overlay cue edge/heartbeat (roadmap 240). */
   onOverlay: (state: PresenceOverlayState) => void;
+  /** A peer's grid-selection update — `selection: null` clears (roadmap 234). */
+  onSelection: (update: PresenceSelectionUpdate) => void;
   /** Access-change event addressed to THIS user (role change or revocation). */
   onAccess: (event: PresenceAccessEvent) => void;
   onStatus: (status: PresenceChannelStatus) => void;
@@ -154,6 +167,7 @@ const CURSOR_EVENT = 'cursor';
 const OVERLAY_EVENT = 'overlay';
 const SAVE_EVENT = 'save';
 const SCROLL_EVENT = 'scroll';
+const SELECTION_EVENT = 'selection';
 const VIEW_EVENT = 'view';
 const ACCESS_EVENT = 'access';
 
@@ -167,10 +181,12 @@ export class ProjectPresenceChannel {
   private throttle: Throttle<PresenceCursor> | null = null;
   private scrollThrottle: Throttle<PresenceScrollSample> | null = null;
   private viewThrottle: Throttle<PresenceView | null> | null = null;
+  private selectionThrottle: Throttle<PresenceGridSelection | null> | null = null;
   private lastAnchorKey = '';
   private lastPointerKind: PointerKind | null = null;
   private lastScrollKey = '';
   private lastViewKey = '';
+  private lastSelectionKey = '';
   private lastView: PresenceView | null = null;
   private viewPublished = false;
   private lastJoinAnswerAt = 0;
@@ -212,6 +228,14 @@ export class ProjectPresenceChannel {
       void this.channel?.send({ type: 'broadcast', event: VIEW_EVENT, payload });
     }, 150);
 
+    // Grid selections (roadmap 234) change at user pace, far slower than
+    // cursors — the same throttle/coalesce recipe keeps a drag-select to a few
+    // messages per second. A clear (`null`) always rides the newest frame.
+    this.selectionThrottle = createThrottle<PresenceGridSelection | null>((selection) => {
+      const payload: PresenceSelectionUpdate = { userId: this.identity.userId, clientId: this.clientId, selection, ts: Date.now() };
+      void this.channel?.send({ type: 'broadcast', event: SELECTION_EVENT, payload });
+    }, 150);
+
     const channel = supabase.channel(topic, {
       config: { private: true, presence: { key: this.identity.userId, enabled: true } },
     });
@@ -247,6 +271,14 @@ export class ProjectPresenceChannel {
         if (state && state.userId !== this.identity.userId) {
           presenceDiagnostics.lastOverlayRecvAt = Date.now();
           this.handlers.onOverlay(state);
+        }
+      })
+      .on('broadcast', { event: SELECTION_EVENT }, ({ payload }) => {
+        if (this.stopped) return;
+        const update = parseSelectionPayload(payload);
+        if (update && update.userId !== this.identity.userId) {
+          presenceDiagnostics.lastSelectionRecvAt = Date.now();
+          this.handlers.onSelection(update);
         }
       })
       .on('broadcast', { event: SAVE_EVENT }, ({ payload }) => {
@@ -385,6 +417,17 @@ export class ProjectPresenceChannel {
     this.scrollThrottle?.emit(sample);
   }
 
+  /** Broadcast our grid selection (roadmap 234) — a rectangle on a registered
+   *  surface, or `null` to clear (deselect / blur / unmount). Skipped when the
+   *  key is unchanged (idle); throttled like views. */
+  publishSelection(selection: PresenceGridSelection | null): void {
+    const key = selectionKey(selection);
+    if (key === this.lastSelectionKey) return;
+    this.lastSelectionKey = key;
+    presenceDiagnostics.localSelection = key || null;
+    this.selectionThrottle?.emit(selection);
+  }
+
   /** S3.5: tell peers our whole-blob save landed at `revision`. */
   publishSave(revision: number): void {
     void this.channel?.send({
@@ -399,6 +442,8 @@ export class ProjectPresenceChannel {
     this.throttle = null;
     this.scrollThrottle = null;
     this.viewThrottle = null;
+    this.selectionThrottle = null;
+    this.lastSelectionKey = '';
     const channel = this.channel;
     this.channel = null;
     if (channel && supabase) {
@@ -411,6 +456,7 @@ export class ProjectPresenceChannel {
     presenceDiagnostics.peerCount = 0;
     presenceDiagnostics.cursorPointer = null;
     presenceDiagnostics.localOverlay = null;
+    presenceDiagnostics.localSelection = null;
     presenceDiagnostics.error = null;
     this.handlers.onStatus('idle');
   }

@@ -26,7 +26,7 @@ const FALLBACK_EDITABLE = new Set<string>();
 /** The stage-less fallback — a read-only inline Glide grid (roadmap 107), so
  *  every category panel reads in the spreadsheet language, never the old HTML
  *  table. */
-const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; onEditCallTimesSettings?: () => void }> = ({ entries, onEditCallTimesSettings }) => {
+const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; presenceScope?: string; onEditCallTimesSettings?: () => void }> = ({ entries, presenceScope, onEditCallTimesSettings }) => {
   const rows = useMemo(() => entries.map(e => ({
     key: e.key,
     id: e.boardId || '',
@@ -73,6 +73,7 @@ const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; onEditCallTime
       onCommit={() => {}}
       editableKeys={FALLBACK_EDITABLE}
       readOnly
+      presenceScope={presenceScope}
       createTheme={createDayTimesTheme}
       headerMenuItems={onEditCallTimesSettings ? close => (
         <ContextMenuItem
@@ -136,9 +137,14 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
                 project={project}
                 readOnly={readOnly}
                 onEditCallTimesSettings={actions.openCallTimesSettings}
+                presenceScope={`day:${day.sectionIndex}:times:${category}`}
               />
             ) : (
-              <FallbackElementGrid entries={entries} onEditCallTimesSettings={actions.openCallTimesSettings} />
+              <FallbackElementGrid
+                entries={entries}
+                presenceScope={`day:${day.sectionIndex}:elements:${category}`}
+                onEditCallTimesSettings={actions.openCallTimesSettings}
+              />
             )}
           </div>
         );

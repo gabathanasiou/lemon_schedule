@@ -59,6 +59,11 @@ export interface CrewRosterEditorProps {
   contacts?: boolean;
   /** DOM data attribute for tests. */
   dataAttr?: string;
+  /** Peer-selection scope PREFIX (roadmap 234) — the host names the logical
+   *  grid (`day:3:crew`, `callsheet:3:crew`); each department's table gets
+   *  `${prefix}:${dept}`. Omitted = out of presence (e.g. template editing in
+   *  a modal). */
+  presenceScopePrefix?: string;
   className?: string;
 }
 
@@ -78,6 +83,8 @@ interface DeptTableProps {
   excludedDepts: string[];
   onCreatePerson?: (roleKey: string, name: string, slotId: string) => void;
   contacts?: boolean;
+  /** Peer-selection scope for this department's grid (roadmap 234). */
+  presenceScope?: string;
 }
 
 const COLUMNS: InlineGlideColumn[] = [
@@ -98,6 +105,7 @@ const ADD_NEW_SENTINEL = '__add_new_crew__';
 const DeptTable: React.FC<DeptTableProps> = ({
   dept, slots, excluded, precall, templatePrecall, dayCall, project, readOnly,
   allSlots, onSlotsChange, onExcludedChange, onDeptPrecallChange, excludedDepts, onCreatePerson, contacts,
+  presenceScope,
 }) => {
   const crewRoles = project.crewRoles || [];
 
@@ -285,6 +293,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
       {rows.length > 0 && (
         <InlineGlideTable
           dataAttr="data-crew-roster-glide"
+          presenceScope={presenceScope}
           columns={columns}
           rows={rows}
           getCellContent={getCellContent}
@@ -386,7 +395,7 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
   slots, excludedDepts, effectivePrecalls, templatePrecalls, dayCall, project,
   readOnly, onSlotsChange, onExcludedChange, onDeptPrecallChange, onAddCrewMember,
   onCreatePerson, contacts,
-  dataAttr, className = '',
+  dataAttr, presenceScopePrefix, className = '',
 }) => {
   const meta: DayMeta = useMemo(
     () => ({ crewSlots: slots, excludedCrewDepts: excludedDepts, departmentPrecalls: effectivePrecalls }),
@@ -431,6 +440,7 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
           excludedDepts={excludedDepts}
           onCreatePerson={onCreatePerson}
           contacts={contacts}
+          presenceScope={presenceScopePrefix ? `${presenceScopePrefix}:${g.dept}` : undefined}
         />
       ))}
     </div>

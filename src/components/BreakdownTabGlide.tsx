@@ -63,6 +63,8 @@ import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import { registerPresenceGridScope, type PresenceGridScope } from '../lib/presenceResolvers';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
+import { useGlidePeerSelection } from '../lib/useGlidePeerSelection';
+import { effectiveGridRange } from '../lib/glideSelection';
 import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { useGlideFill } from '../lib/glideFill';
@@ -313,6 +315,18 @@ export function GlideBreakdownTab({
   // The pane follows the grid's active cell (first row of the selection).
   const activeRow = gridSelection.current?.cell?.[1];
   const activeSceneNumber = activeRow != null && activeRow >= 0 && activeRow < scenes.length ? scenes[activeRow].sceneNumber : undefined;
+  // Peer selections (roadmap 234): this instance publishes its own selection
+  // and paints the peers' ones via Glide's native highlight regions. Every
+  // mounted instance does this with its own geometry, so a peer's selection
+  // shows in the main grid AND in a popped-out/portalled one.
+  const presenceRowKeys = useMemo(() => scenes.map(s => s.id), [scenes]);
+  const presenceColKeys = useMemo(() => COLUMNS.map(c => c.key), [COLUMNS]);
+  const peerHighlights = useGlidePeerSelection({
+    scope: 'breakdown-glide',
+    selection: gridSelection,
+    rowKeys: presenceRowKeys,
+    colKeys: presenceColKeys,
+  });
   const gridRef = useRef<DataEditorRef>(null);
   const portalTarget = usePortalTarget();
   const currentDocument = useCurrentDocument();
@@ -753,21 +767,9 @@ export function GlideBreakdownTab({
     dispatch({ type: 'DELETE_SCENE', payload: id });
   }, [dispatch]);
 
-  const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null => {
-    const sel = gridSelection.current;
-    if (sel?.range) return sel.range;
-    if (gridSelection.rows.length > 0) {
-      const selectedRows = Array.from({ length: scenes.length }, (_, i) => i).filter(i => gridSelection.rows.hasIndex(i));
-      if (selectedRows.length === 0) return null;
-      return { x: 0, y: selectedRows[0], width: COLUMNS.length, height: selectedRows.length };
-    }
-    if (gridSelection.columns.length > 0) {
-      const selectedCols = Array.from({ length: COLUMNS.length }, (_, i) => i).filter(i => gridSelection.columns.hasIndex(i));
-      if (selectedCols.length === 0) return null;
-      return { x: selectedCols[0], y: 0, width: selectedCols.length, height: scenes.length };
-    }
-    return null;
-  }, [gridSelection, scenes.length, COLUMNS.length]);
+  const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null =>
+    effectiveGridRange(gridSelection, scenes.length, COLUMNS.length),
+  [gridSelection, scenes.length, COLUMNS.length]);
 
   const handleCopy = useCallback(async () => {
     const range = getEffectiveRange();
@@ -1152,6 +1154,7 @@ export function GlideBreakdownTab({
           getCellsForSelection={true}
           gridSelection={gridSelection}
           onGridSelectionChange={setGridSelection}
+          highlightRegions={peerHighlights}
           theme={createGlideTheme(fontSize)}
           rowHeight={Math.round(34 * fontSize / SS_FONT_SIZE_DEFAULT)}
           headerHeight={Math.round(36 * fontSize / SS_FONT_SIZE_DEFAULT)}

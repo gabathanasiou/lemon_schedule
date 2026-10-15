@@ -20,6 +20,8 @@ import { expandRangeFill, planGridPaste, type PasteEdit } from '../lib/glidePast
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { createGlideCellEditor, useGlideEscapeCancel, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
+import { useGlidePeerSelection } from '../lib/useGlidePeerSelection';
+import { effectiveGridRange } from '../lib/glideSelection';
 import { clipboardRead, clipboardWrite } from '../lib/utils';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { FloatingTooltip } from './FloatingTooltip';
@@ -104,12 +106,23 @@ export interface InlineGlideTableProps {
   /** Optional trailing actions column: shows each row's action glyphs and
    *  dispatches the one clicked. */
   rowActions?: (rowIndex: number) => InlineGlideRowAction[];
+  /** Presence scope (roadmap 234): the stable id of THIS logical table shared
+   *  by every client (e.g. `day:3:times:cast`). Every mounted instance — main
+   *  window, popped-out sheet, portalled canvas — publishes its own selection
+   *  and paints peers' ones under it. Omit for grids that must not participate
+   *  (e.g. modal-owned template editors). */
+  presenceScope?: string;
+  /** Row keys for presence; defaults to `row.key`, then the row index. Keys
+   *  must be stable across clients (they survive client-side reordering). */
+  presenceRowKey?: (row: Record<string, string>, index: number) => string;
 }
 
 const DEFAULT_ROW_HEIGHT = 28;
 const DEFAULT_HEADER_HEIGHT = 30;
 /** Synthetic trailing row-actions column (key `actions` — skipped by copy/cut). */
 const ACTIONS_COLUMN: InlineGlideColumn = { key: 'actions', label: '', width: 34 };
+/** Stable identity for the "no presence scope" key lists (memo deps). */
+const NO_KEYS: string[] = [];
 
 export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   columns,
@@ -130,6 +143,8 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   editors,
   getEditor,
   rowActions,
+  presenceScope,
+  presenceRowKey,
 }) => {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -275,6 +290,21 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   });
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
+  // Peer selections (roadmap 234) — see the props' docs. Inert without a scope.
+  const presenceRowKeys = useMemo(
+    () => (presenceScope ? rows.map((r, i) => presenceRowKey?.(r, i) ?? r.key ?? String(i)) : NO_KEYS),
+    [presenceScope, rows, presenceRowKey],
+  );
+  const presenceColKeys = useMemo(
+    () => (presenceScope ? COLUMNS.map(c => c.key) : NO_KEYS),
+    [presenceScope, COLUMNS],
+  );
+  const peerHighlights = useGlidePeerSelection({
+    scope: presenceScope,
+    selection: gridSelection,
+    rowKeys: presenceRowKeys,
+    colKeys: presenceColKeys,
+  });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col: number; header?: boolean } | null>(null);
   const [tooltip, setTooltip] = useState<{ row: number } | null>(null);
   const [tooltipAnchor, setTooltipAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -464,21 +494,9 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     if (out.length > 0) onCommit(out);
   }, [editableKeys, onCommit]);
 
-  const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null => {
-    const sel = gridSelectionRef.current;
-    if (sel?.current?.range) return sel.current.range;
-    if (sel.rows.length > 0) {
-      const selected = Array.from({ length: rows.length }, (_, i) => i).filter(i => sel.rows.hasIndex(i));
-      if (selected.length === 0) return null;
-      return { x: 0, y: selected[0], width: COLUMNS.length, height: selected.length };
-    }
-    if (sel.columns.length > 0) {
-      const selected = Array.from({ length: COLUMNS.length }, (_, i) => i).filter(i => sel.columns.hasIndex(i));
-      if (selected.length === 0) return null;
-      return { x: selected[0], y: 0, width: selected.length, height: rows.length };
-    }
-    return null;
-  }, [rows.length, COLUMNS.length]);
+  const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null =>
+    effectiveGridRange(gridSelectionRef.current, rows.length, COLUMNS.length),
+  [rows.length, COLUMNS.length]);
 
   const onCellsEdited = useCallback((edits: readonly { location: Item; value: EditableGridCell }[]) => {
     if (readOnlyRef.current) return false;
@@ -677,6 +695,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             getCellsForSelection={true}
             gridSelection={gridSelection}
             onGridSelectionChange={setGridSelection}
+            highlightRegions={peerHighlights}
             theme={createTheme(fontSize)}
             rowHeight={rowH}
             headerHeight={headerH}

@@ -16,6 +16,7 @@ import {
   parsePresenceMeta,
   parseSavePayload,
   parseScrollPayload,
+  parseSelectionPayload,
   parseView,
   parseViewPayload,
   placeToPresenceView,
@@ -27,6 +28,7 @@ import {
   resolveOverlayCues,
   sameViewPlace,
   screenFractions,
+  selectionKey,
   stepCollisionDwell,
 } from '../supabase/presence';
 import { createOverlaySignalHub } from '../localOverlaySignal';
@@ -139,6 +141,36 @@ describe('presence wire helpers', () => {
     expect(pointerGlyph('pen')).toBe('pen');
   });
 
+  it('parses grid selections: a rectangle, the clear edge, and junk', () => {
+    const ref = (rowKey: string, colKey: string, rowIndex: number, colIndex: number) => ({ rowKey, colKey, rowIndex, colIndex });
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'breakdown-glide', anchor: ref('s1', 'cast', 0, 8), extent: ref('s3', 'props', 2, 9) } }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'breakdown-glide', anchor: ref('s1', 'cast', 0, 8), extent: ref('s3', 'props', 2, 9) } });
+    // Indices clamp; the keys are required strings.
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'g', anchor: ref('r', 'c', -4, 2.9), extent: ref('r', 'c', 1, 1) } })!.selection!.anchor)
+      .toEqual({ rowKey: 'r', colKey: 'c', rowIndex: 0, colIndex: 2 });
+    // A null selection is the CLEAR edge.
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: null }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 5, selection: null });
+    // Junk is dropped, never treated as a clear.
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5 })).toBeNull();
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: '', anchor: ref('r', 'c', 0, 0), extent: ref('r', 'c', 0, 0) } })).toBeNull();
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: { scope: 'g', anchor: { rowIndex: 0, colIndex: 0 }, extent: ref('r', 'c', 0, 0) } })).toBeNull();
+    expect(parseSelectionPayload({ userId: 'u', clientId: 'c', ts: 5, selection: 'x' })).toBeNull();
+    expect(parseSelectionPayload(null)).toBeNull();
+  });
+
+  it('keys a selection stably for the idle-skip (null clears to the same key)', () => {
+    const sel = {
+      scope: 'g',
+      anchor: { rowKey: 'r1', colKey: 'c1', rowIndex: 0, colIndex: 0 },
+      extent: { rowKey: 'r2', colKey: 'c3', rowIndex: 1, colIndex: 2 },
+    };
+    expect(selectionKey(sel)).toBe('g|r1|c1|0|0|r2|c3|1|2');
+    expect(selectionKey(sel)).toBe(selectionKey({ ...sel }));
+    expect(selectionKey({ ...sel, scope: 'h' })).not.toBe(selectionKey(sel));
+    expect(selectionKey(null)).toBe('');
+  });
+
   it('parses overlay signals: kinds, the close edge, and junk', () => {
     expect(parseOverlayPayload({ userId: 'u', clientId: 'c', kind: 'menu', ts: 5 }))
       .toEqual({ userId: 'u', clientId: 'c', kind: 'menu', ts: 5 });
@@ -221,6 +253,17 @@ describe('mergePeers (who is here)', () => {
     expect(peers.map(p => p.userId)).toEqual(['u1', 'u2']);
     expect(peers[0].view).toEqual({ tab: 'calendar' }); // newest ts wins (window dedupe)
     expect(peers[1].ts).toBe(5);
+  });
+
+  it('keeps every live window of a user in clientIds (selection pruning)', () => {
+    const peers = mergePeers({
+      u1: [
+        { userId: 'u1', clientId: 'a', name: 'Alice', ts: 10 },
+        { userId: 'u1', clientId: 'b', name: 'Alice', ts: 20 },
+        { userId: 'u1', clientId: 'a', name: 'Alice', ts: 30 }, // repeat meta → no duplicate
+      ],
+    }, 'self');
+    expect(peers[0].clientIds.sort()).toEqual(['a', 'b']);
   });
 
   it('sorts deterministically by name', () => {

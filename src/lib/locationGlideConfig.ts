@@ -119,6 +119,7 @@ function deleteLocationRow(dispatch: (action: any) => void, row: GlideRow) {
 
 export const locationGlideConfig: GlideShellConfig = {
   widthStorageKey: 'locations',
+  presenceScope: 'locations-glide',
   columnDefs: [
     { key: 'actions', label: '', width: 36 },
     { key: 'name', label: 'Name', width: 200 },

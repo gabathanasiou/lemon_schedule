@@ -177,6 +177,7 @@ function deleteCrewRow(dispatch: (action: any) => void, row: GlideRow) {
 
 export const crewGlideConfig: GlideShellConfig = {
   widthStorageKey: 'crew',
+  presenceScope: 'crew-glide',
   columnDefs: [
     { key: 'actions', label: '', width: 36 },
     { key: 'name', label: 'Name', width: 200, kind: 'text', uppercase: true, placeholder: 'Full name' },

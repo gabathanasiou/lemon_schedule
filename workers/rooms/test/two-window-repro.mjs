@@ -18,7 +18,9 @@
  *   • extra sections: the peer PRESENCE cursor (renders + follows), the
  *     input-modality glyph (touch = hand, roadmap 241), the local-overlay
  *     dots cue (menu/modal, roadmap 240 + the 244 freeze for ANY overlay /
- *     window glyph / collision fade), and the OFFLINE BUFFER (roadmap 239
+ *     window glyph / collision fade), the peer GRID-SELECTION highlight
+ *     (roadmap 234 — broadcast + painted on the peer's grid canvas), and the
+ *     OFFLINE BUFFER (roadmap 239
  *     stage 2 — kills wrangler mid-session, edits buffer in A, restart replays
  *     them; the script restarts wrangler itself).
  *
@@ -568,6 +570,85 @@ try {
     (await B.page.locator('[data-testid="presence-bubble-overlay"]').count()) === 0 &&
     (await B.page.locator(cursorSel('[data-overlay]')).count()) === 0);
   check('B: cue clears when the menu closes', menuCleared, null);
+
+  // ── Roadmap 234: peer GRID-SELECTION highlights. Both windows open the
+  // Breakdown grid; A selects a block with a real drag; B must (a) receive the
+  // selection broadcast and (b) PAINT it — proven by counting the peer's
+  // colour (read from their header bubble) on B's grid canvases: absent
+  // before, present after the select, gone after the clear edge.
+  for (const page of [A.page, B.page]) {
+    await page.getByRole('button', { name: 'Breakdown', exact: true }).first().click();
+  }
+  await Promise.all([A.page, B.page].map((p) => p.waitForSelector('[data-presence-grid="breakdown-glide"]', { timeout: 20000 })));
+  await sleep(900);
+
+  const peerRgb = await B.page.evaluate(() => {
+    const el = document.querySelector('[data-testid="presence-bubble"] span[style*="background"]')
+      ?? document.querySelector('[data-testid="presence-cursor"] span[style*="background"]');
+    if (!el) return null;
+    const m = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(getComputedStyle(el).backgroundColor);
+    return m ? [+m[1], +m[2], +m[3]] : null;
+  });
+  check('B: the peer colour is readable (bubble/tag)', !!peerRgb, peerRgb);
+
+  const countPeerPixels = (page, rgb, tol = 26) => page.evaluate(({ rgb, tol }) => {
+    const grid = document.querySelector('[data-presence-grid="breakdown-glide"]');
+    if (!grid) return -1;
+    const [r, g, b] = rgb;
+    let count = 0;
+    for (const canvas of grid.querySelectorAll('canvas')) {
+      if (!canvas.width || !canvas.height) continue;
+      let data;
+      try { data = canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height).data; } catch { continue; }
+      if (!data) continue;
+      for (let i = 0; i < data.length; i += 4) {
+        if (Math.abs(data[i] - r) <= tol && Math.abs(data[i + 1] - g) <= tol && Math.abs(data[i + 2] - b) <= tol) count++;
+      }
+    }
+    return count;
+  }, { rgb, tol });
+
+  const basePixels = await countPeerPixels(B.page, peerRgb);
+  const gridBox = await A.page.locator('[data-presence-grid="breakdown-glide"]').boundingBox();
+  const gx = gridBox.x + 380;
+  const gy = gridBox.y + 110;
+  await A.page.mouse.move(gx, gy);
+  await sleep(150);
+  await A.page.mouse.down();
+  await A.page.mouse.move(gx + 320, gy + 70, { steps: 12 });
+  await A.page.mouse.up();
+  await sleep(400);
+  const aSel = await diag(A.page).then((d) => d.presence?.localSelection ?? null).catch(() => null);
+  check('A: the grid selection is published (breakdown-glide scope)', typeof aSel === 'string' && aSel.startsWith('breakdown-glide'), aSel);
+  let recvAt = 0;
+  for (let i = 0; i < 60; i++) {
+    recvAt = (await diag(B.page).catch(() => null))?.presence?.lastSelectionRecvAt ?? 0;
+    if (recvAt > 0) break;
+    await sleep(150);
+  }
+  check('B: received the peer selection frame', recvAt > 0, { recvAt });
+  let traced = basePixels;
+  for (let i = 0; i < 40; i++) {
+    traced = await countPeerPixels(B.page, peerRgb);
+    if (traced > basePixels + 120) break;
+    await sleep(200);
+  }
+  check('B: painted the peer selection (peer colour on the grid canvas)', traced > basePixels + 120, { basePixels, traced });
+
+  // The clear edge: A leaves the grid (tab switch → unmount) — B, still on the
+  // Breakdown, must drop the highlight and A must report no selection.
+  await A.page.getByRole('button', { name: 'Schedule', exact: true }).first().click();
+  let cleared = traced;
+  for (let i = 0; i < 60; i++) {
+    cleared = await countPeerPixels(B.page, peerRgb);
+    if (cleared <= basePixels + 40) break;
+    await sleep(200);
+  }
+  check('B: the highlight clears when the peer leaves the grid', cleared <= basePixels + 40, { basePixels, cleared });
+  const aCleared = await diag(A.page)
+    .then((d) => (d.presence && 'localSelection' in d.presence ? d.presence.localSelection : 'absent'))
+    .catch(() => 'error');
+  check('A: the selection clear edge is published', aCleared === null, aCleared);
 
   // ── Offline queue (roadmap 239 stage 2): kill the room worker mid-session,
   // edit in A (buffered locally + badge), restart the worker → A replays the

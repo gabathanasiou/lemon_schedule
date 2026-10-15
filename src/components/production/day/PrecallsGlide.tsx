@@ -34,9 +34,12 @@ export interface PrecallsGlideProps {
   /** Header right-click → "Edit Call Time Stages…" (template pre-calls live
    *  in the settings modal owned by the composition root). */
   onEditCallTimesSettings?: () => void;
+  /** Peer-selection scope (roadmap 234) — the host names the LOGICAL grid;
+   *  omitted = out of presence. */
+  presenceScope?: string;
 }
 
-const PrecallsGlide: React.FC<PrecallsGlideProps> = ({ day, project, patchMeta, readOnly, includeAll, include, layout = 'horizontal', onEditCallTimesSettings }) => {
+const PrecallsGlide: React.FC<PrecallsGlideProps> = ({ day, project, patchMeta, readOnly, includeAll, include, layout = 'horizontal', onEditCallTimesSettings, presenceScope }) => {
   const departments = useMemo(
     () => dayDepartments(project, day.meta, day.callTime).filter(d => !d.excluded && (includeAll ? (!include || include.includes(d.dept)) : d.precall)),
     [project, day.meta, day.callTime, includeAll, include],
@@ -116,6 +119,7 @@ const PrecallsGlide: React.FC<PrecallsGlideProps> = ({ day, project, patchMeta, 
   return (
     <InlineGlideTable
       dataAttr="data-precalls-glide"
+      presenceScope={presenceScope}
       columns={columns}
       rows={rows}
       getCellContent={getCellContent}
