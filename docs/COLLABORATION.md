@@ -228,7 +228,14 @@ re-derive any of it:
   collaborate" is the ONE sign-in CTA — no duplicate inline buttons). Signed-in
   shows the account bar — avatar + "Signed in as …" (click → the account
   settings modal; guests → create-account) + **Sign out** (closes an open shared project, parity
-  with the header cluster). Session metas win over the fetched list for display.
+  with the header cluster). The Shared list is **server truth**
+  (`onlineProjectListForDisplay`, `src/lib/supabase/onlineProjectList.ts`): refetched on
+  every open, `null` — no rows, no count — while signed out or after a failed fetch, so a
+  stale count is never presented as truth; the session metas in `projectList` are
+  lookup-only and never merged into the list (they used to resurrect externally revoked
+  projects and pin stale titles — a peer's rename showed nowhere, even after Refresh).
+  The OPEN project's row follows the open document's title, so a peer's rename lands in
+  place while the manager is open.
 - Debug bridge: `diagnostics()` adds `supabaseConfigured`, `supabaseSignedIn`,
   `projectIsOnline`, `onlineProjectCount`.
 
@@ -440,6 +447,11 @@ replays IN ORDER right after the welcome, so a reconnect loses nothing; the
 header badge shows the pending count. Whole-blob Supabase saves are skipped
 for any project the room transport owns — a stale blob push during an outage
 would clobber (last-write-wins) and be dropped by the room's next welcome.
+**Renames ride the room (roadmap 253, fixed 2026-10-15)**: `renameProject`
+sends `UPDATE_PROJECT` via `guardedDispatch` like every other edit — a raw
+reducer dispatch applies in one window only and never moves a peer's document
+(the peer's header and the Manager's row both follow the room; the Manager's
+freshness rules are in the S1 map bullet).
 *Acceptance*: two clients through the debug bridge stay convergent; reconnect
 mid-session loses nothing; undo never reverts a peer's edit.
 
