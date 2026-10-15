@@ -163,4 +163,72 @@ test.describe('new cast naming modal', () => {
     await page.keyboard.press('Tab');
     await expect(modal(page)).toBeHidden({ timeout: 3000 });
   });
+
+  // Roadmap 255 — the Glide's NEW rows (the add row + paste-created rows)
+  // skipped the element-creation flow: a NAME typed there landed raw in
+  // scene.cast with no member and no modal. Both paths must run the same
+  // create-missing-elements pass as an existing row's edit.
+  test('Glide new rows: add row and paste run the cast guard (no raw NAME in scene.cast)', async ({ page }) => {
+    await openSeededProject(page);
+    // Shrink the project so the add row (one past the last scene) is on screen.
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      const scenes = b.getProject().scenes;
+      b.batch(() => { for (const s of scenes.slice(2)) b.dispatch({ type: 'DELETE_SCENE', payload: s.id }); });
+    });
+    const firstId = await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      return String((b.getProject().castMembers || [])[0].id);
+    });
+    const scenesCast = () => page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      return (b.getProject().scenes || []).map((s: any) => String(s.cast || ''));
+    });
+
+    await page.getByRole('button', { name: 'Glide Breakdown' }).click();
+    await expect(page.locator('.dvn-scroller')).toBeAttached({ timeout: 5000 });
+    const sr = (await page.locator('.dvn-scroller').boundingBox())!;
+    const castX = sr.x + 956 + 60; // Cast column centre (glide-breakdown.spec.ts math)
+    const addRowY = (row: number) => sr.y + 36 + 34 * row + 17;
+
+    // Add row: type "id, NAME" → a scene is created AND the naming modal opens.
+    // Tab commits the cell (the multi-value synthetic flow commits on Tab),
+    // same commit path as Enter/click-away.
+    await page.mouse.dblclick(castX, addRowY(2));
+    const input = page.locator('#portal input').first();
+    await expect(input).toBeAttached({ timeout: 4000 });
+    await input.fill(`${firstId}, ZZZ ADDROW NAME`);
+    await page.keyboard.press('Tab');
+    await expect(modal(page)).toBeVisible({ timeout: 5000 });
+    await expect(notice(page)).toBeVisible();
+    await expect(modal(page).locator('[data-testid="new-cast-name-input"]').first()).toHaveValue('ZZZ ADDROW NAME');
+
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(modal(page)).toBeHidden({ timeout: 5000 });
+    const members = await castMembers(page);
+    const named = members.find(m => m.name === 'ZZZ ADDROW NAME');
+    expect(named).toBeTruthy();
+    expect(named!.id).toMatch(/^\d+$/);
+    const afterAdd = await scenesCast();
+    expect(afterAdd.length).toBe(3);
+    expect(afterAdd[2].split(',').map((x: string) => x.trim())).toEqual([firstId, named!.id]);
+    expect(afterAdd[2]).not.toContain('ZZZ ADDROW NAME');
+
+    // Paste: a pasted NEW row takes the same path; Cancel removes the member
+    // and strips its id from the row.
+    await page.mouse.click(castX, addRowY(3));
+    await page.evaluate(() => {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', 'ZZZ PASTED NAME');
+      document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    });
+    await expect(modal(page)).toBeVisible({ timeout: 5000 });
+    await expect(notice(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(modal(page)).toBeHidden({ timeout: 5000 });
+    const afterPaste = await scenesCast();
+    expect(afterPaste.length).toBe(4);
+    expect(afterPaste[3]).not.toContain('ZZZ PASTED NAME');
+    expect((await castMembers(page)).find(m => m.name === 'ZZZ PASTED NAME')).toBeUndefined();
+  });
 });

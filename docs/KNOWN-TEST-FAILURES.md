@@ -178,6 +178,12 @@ passed with 2 workers and 3/3 passed with `--workers=1` (file-only 6/6).
 Same load-sensitivity, not a regression — if it recurs again, `@quarantine`
 it (`docs/TESTING.md`) rather than chasing the app.
 
+**2026-10-15 (roadmap-255 suite) — recursed: `:77` failed the attempt AND the
+retry** with a peer agent's preview server and a dev server running on the
+machine (271 passed / 1 failed / 1 flaky overall; the day-times flake passed on
+retry, §G). Same load-sensitivity class — the branch touches cast naming only.
+If it recurs a third time, take the documented remedy and `@quarantine` it.
+
 ## G. day-times-glide editor spec flake under full-suite load (no fix needed)
 
 **2026-10-15 — the roadmap-236 merge suite flaked once** on

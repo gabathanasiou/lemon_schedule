@@ -15,7 +15,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import ProjectCard from './ProjectCard';
 import { AccountAvatar } from './AccountAvatar';
-import { ProfileModal } from './ProfileModal';
+import { AccountSettingsModal } from './AccountSettingsModal';
 import NewProjectModal from './NewProjectModal';
 import ImportDialog from './ImportDialog';
 import { parseNewProjectFile, NEW_PROJECT_ACCEPT } from '../lib/import';
@@ -451,7 +451,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
           onCancel={() => { setShowNewProjectModal(false); setCreatingCloud(false); }}
           onCreate={handleCreateProject}
         />
-        <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+        <AccountSettingsModal open={profileOpen} onClose={() => setProfileOpen(false)} />
         <div className="px-5 py-3">
         <div className="flex gap-0.5 mb-3">
           <button
@@ -575,7 +575,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
             <button
               onClick={() => sbAuth.account?.isAnonymous ? onOpenAccount?.() : setProfileOpen(true)}
               className="flex items-center gap-2 min-w-0 rounded px-1 -mx-1 py-0.5 text-[10px] text-emerald-200/60 hover:text-emerald-100 hover:bg-white/10 transition-colors"
-              title={sbAuth.account.isAnonymous ? 'Guest — create an account to keep your access' : 'Edit your profile'}
+              title={sbAuth.account.isAnonymous ? 'Guest — create an account to keep your access' : 'Profile & team settings'}
             >
               <AccountAvatar account={sbAuth.account} className="w-5 h-5" />
               <span className="truncate">Signed in as <strong className="text-emerald-100 font-semibold">{sbAuth.account.name || sbAuth.account.email}</strong>{sbAuth.account.isAnonymous ? ' (guest)' : ''}</span>

@@ -7,7 +7,7 @@ import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, ribCellTextSize, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
-import { getFieldItems, isMultiValue } from '../lib/categories';
+import { isMultiValue } from '../lib/categories';
 import { usePortalTarget } from '../lib/popoutTarget';
 import { CellInput } from './CellInput';
 import { advanceRibbonFocus } from '../lib/ribbonEditNav';
@@ -26,7 +26,7 @@ import SortableRowScene from './ribbon/SortableRowScene';
 import { RowRenderCtx } from './ribbon/rowRenderTypes';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
-import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
+import { useQueueCastNaming, addNewElements } from '../lib/newCastNaming';
 import { avatarColor } from '../lib/avatarIdentity';
 import type { PresenceHeldItem } from '../lib/supabase/presence';
 
@@ -140,14 +140,7 @@ const SortableRowContent: React.FC<{
       if (key === 'id') continue;
       if (typeof val === 'string' && val.trim() && (ENTITY_KEYS.has(key) || key.startsWith('_cat_'))) {
         entityKeys.push(key);
-        const existing = key === 'cast' ? (castMembers ?? []) : (breakdownElements?.[key] || []);
-        const existingNames = new Set(existing.map(e => (key === 'cast' ? e.id : (e.name || e.id)).toUpperCase()));
-        const items = getFieldItems(key, val);
-        for (const item of items) {
-          if (!existingNames.has(item.toUpperCase())) {
-            addNewElement(dispatch, queue, key, item);
-          }
-        }
+        addNewElements(dispatch, queue, key, val, key === 'cast' ? (castMembers ?? []) : (breakdownElements?.[key] || []));
       }
     }
     if (entityKeys.length > 0) {

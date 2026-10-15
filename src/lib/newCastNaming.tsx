@@ -5,6 +5,15 @@ import Modal, { ModalFooter } from '../components/Modal';
 import ModalFooterButton from '../components/ModalFooterButton';
 import { Trash2 } from 'lucide-react';
 import { TEST_IDS } from './testIds';
+import { getFieldItems } from './categories';
+import { isIdKeyed } from './elements';
+
+export type QueueCastNaming = (
+  ids: string[],
+  names?: Record<string, string>,
+  onCancel?: () => void,
+  opts?: { nameTyped?: boolean },
+) => void;
 
 interface NewCastNamingContextValue {
   /** Queue newly-created (blank-named) cast member ids so the user can name
@@ -53,6 +62,33 @@ export function addNewElement(
     );
   } else {
     dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: item, name: item } } });
+  }
+}
+
+/**
+ * Creates every segment of a committed entity value that has no element yet —
+ * the ONE seam shared by the stripboard, Glide breakdown and Scene Sheet
+ * commit paths (existing-row edits AND the Glide rows the add row / a paste
+ * creates). Cast segments route through `addNewElement` (blank member + the
+ * naming modal; a typed NAME is flagged by the roadmap-228 guard); name-keyed
+ * categories create by name. A name repeated within one value creates one
+ * element. Cast keys match by exact Board ID (AGENTS.md §Cast & Entities);
+ * name-keyed keys match case-insensitively.
+ */
+export function addNewElements(
+  dispatch: (a: Action) => void,
+  queue: QueueCastNaming,
+  category: string,
+  value: string,
+  existing: { id: string; name: string }[],
+): void {
+  const idKeyed = isIdKeyed(category);
+  const known = new Set(existing.map(e => (idKeyed ? e.id : (e.name || e.id).toLowerCase())));
+  for (const item of getFieldItems(category, value)) {
+    const key = idKeyed ? item : item.toLowerCase();
+    if (known.has(key)) continue;
+    known.add(key);
+    addNewElement(dispatch, queue, category, item);
   }
 }
 

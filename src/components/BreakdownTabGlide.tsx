@@ -21,7 +21,7 @@ import {
   ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search, Download, ExternalLink,
 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
-import { getFieldItems, isMultiValue } from '../lib/categories';
+import { isMultiValue } from '../lib/categories';
 import { getCategoryElements } from '../lib/elements';
 import DropdownMenu from './DropdownMenu';
 import Button from './Button';
@@ -66,7 +66,7 @@ import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurfa
 import { useGlidePeerSelection } from '../lib/useGlidePeerSelection';
 import { effectiveGridRange } from '../lib/glideSelection';
 import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
-import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
+import { useQueueCastNaming, addNewElements } from '../lib/newCastNaming';
 import { useGlideFill } from '../lib/glideFill';
 import { isWarningSuppressed, suppressWarningFor24h } from '../lib/warnings';
 
@@ -474,6 +474,16 @@ export function GlideBreakdownTab({
     },
   });
 
+  /* Creates the elements a committed entity value references but that don't
+     exist yet — the SAME seam the add row and paste-created rows use, so a
+     cast NAME can never land in a brand-new row unguarded (the naming modal
+     fires for every Glide path). */
+  const ensureElements = useCallback((colKey: string, value: string) => {
+    if (colKey === 'cast' || allBreakdownCategories.includes(colKey)) {
+      addNewElements(dispatch, queue, colKey, value, getCategoryElements(projectRef.current, colKey));
+    }
+  }, [allBreakdownCategories, dispatch, queue]);
+
   const commitEdit = useCallback((sceneId: string, colKey: string, newVal: string, opts?: { cascadeRemovals?: boolean }) => {
     const currentProject = projectRef.current;
     const updates: any = { [colKey]: newVal };
@@ -486,21 +496,13 @@ export function GlideBreakdownTab({
       updates.set = newVal.toUpperCase();
     }
     if (colKey === 'cast' || allBreakdownCategories.includes(colKey)) {
-      const isCast = colKey === 'cast';
-      const existing = isCast ? (currentProject.castMembers || []) : (currentProject.breakdownElements || {})[colKey] || [];
-      const existingSet = new Set(existing.map((e: any) => (isCast ? e.id : e.name.toLowerCase())));
-      const newItems = getFieldItems(colKey, newVal).filter(
-        v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase())
-      );
-      for (const item of newItems) {
-        addNewElement(dispatch, queue, colKey, item);
-      }
+      ensureElements(colKey, newVal);
       const scene = currentProject.scenes.find((s: Scene) => s.id === sceneId);
       if (scene) linkGuard.tryCommitSceneEdit(scene, { [colKey]: updates[colKey] }, opts);
       return;
     }
     dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, ...updates } });
-  }, [dispatch, allBreakdownCategories, linkGuard, queue]);
+  }, [dispatch, allBreakdownCategories, linkGuard, queue, ensureElements]);
 
   const getSceneValue = useCallback((scene: Scene, colKey: string): string => {
     if (colKey === 'intExt' || colKey === 'dayNight') return (scene as any)[colKey] || '';
@@ -577,6 +579,10 @@ export function GlideBreakdownTab({
         const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
         newScene.sceneNumber = nextNum;
       }
+      /* A new row's entity cells run the same create-missing-elements pass as
+         an existing row's edit — without it a cast NAME typed into the add
+         row landed raw in scene.cast (no member, no naming modal). */
+      ensureElements(colDef.key, val);
       dispatch({ type: 'ADD_SCENE', payload: newScene });
       return;
     }
@@ -651,7 +657,7 @@ export function GlideBreakdownTab({
       }
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog, linkGuard]);
+  }, [COLUMNS, dispatch, commitEdit, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog, linkGuard, ensureElements]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const anchoredByCategory = new Map<string, Set<string>>();
@@ -726,6 +732,12 @@ export function GlideBreakdownTab({
 
     dispatch({ type: 'BATCH_START' });
     for (const s of newScenes) {
+      /* A pasted row is a NEW row: its entity cells get the same
+         create-missing-elements pass as an edit (cast → member + naming
+         modal), never a raw name in scene.cast. */
+      for (const c of COLUMNS) {
+        if (c.key !== 'actions') ensureElements(c.key, String((s as any)[c.key] ?? ''));
+      }
       dispatch({ type: 'ADD_SCENE', payload: s });
     }
     for (const edit of editRows) {
@@ -740,7 +752,7 @@ export function GlideBreakdownTab({
     }
     gridRef.current?.updateCells(damageList);
     return false;
-  }, [COLUMNS, dispatch, commitEdit]);
+  }, [COLUMNS, dispatch, commitEdit, ensureElements]);
 
   const addScene = useCallback(() => {
     const prev = scenesRef.current[scenesRef.current.length - 1];
