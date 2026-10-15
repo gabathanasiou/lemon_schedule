@@ -9,7 +9,7 @@
 - The suite opens agent mode in prod builds (`LEMON_AGENT=1` via `storageState` in `playwright.config.ts`) so specs can read `window.__lemonSchedule` state — prefer the bridge over localStorage reads (sync, no debounced-save waits). Prefer `expect`/`expect.poll`/`waitForFunction` over `waitForTimeout` (web-first; remaining waits are true interaction pacing: drags, canvas settles).
 - `e2e/helpers.ts`: `ensureProject(page)`, `openSeededProject(page)` (seeds the committed `e2e/fixtures/seed.lemon` pre-boot; override via `LEMON_SEED_PATH`; boots to the header anchor — no sleeps), `waitForPersistedProject(page, expr)` (polls localStorage for a normalized state — use before reads when persistence is under test). **Specs must be seed-agnostic** — resolve cast/dates/elements/counts from the debug bridge (`seedLeadCast`, `seedDayDates`, `seedElement`, `activeCalendar`, `seedTitle`) — never hardcode seed content (it can change).
 - `DISABLE_HMR=true` — disable HMR/file watching (AI Studio sets this).
-- `/changelog` — on-demand command: writes the missing public `CHANGELOG.md` days from git history; never hand-edit it.
+- `/changelog` — on-demand: writes missing public `CHANGELOG.md` days from git history; never hand-edit it.
 
 ## Core Rules (read first — these override convenience)
 1. **Think in components & shared modules first.** Reuse existing primitives (`DropdownMenu`, `Modal`, `EntityDropdown`, `PageToolbar`, hooks in `src/lib/`) before writing new UI or logic. When you find yourself writing the second copy of anything (component, helper, class string, literal), extract it into a shared file and use it in both places.
@@ -99,7 +99,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 ## UI Primitives (read the docs before building UI)
 - **`docs/DESIGN-LANGUAGE.md` is the canonical design booklet — read it before building/changing ANY UI, and update it in the same commit as a shared-pattern change or ui-kit bump.** `docs/UI-PRIMITIVES.md` holds the working summary: tabs/toolbars + header-portal/scene-sheet-view details, the primitive list + modal-body/footer rules, EntityDropdown gotchas, and the hover/tap model.
 - Never write a second copy of a primitive — reuse kit primitives (`DropdownMenu`, `Modal`+`ModalFooter`, `EntityDropdown`, `PageToolbar`, `Button`, `CellInput`, …). Modal footer = exactly one hero (`ModalFooterButton`), every other button `variant="ghost"`. Every floating surface uses the kit overlay morph (`useOverlayMorph`); async pickers use the shared `DropdownPanel`, not the kit menu.
-- Hover styles are **un-gated** (iOS tap-to-hover) — never wrap in `(hover: hover)`/`(any-hover: hover)`; pen = finger = touch. Cloud projects color light PageToolbars `bg-blue-950` (`useIsCloudProject()`); dark toolbars unaffected.
+- Hover styles are **un-gated** (iOS tap-to-hover) — never wrap in `(hover: hover)`/`(any-hover: hover)`; pen = finger = touch. Project chrome: ONE source `useProjectTheme()` (`src/lib/projectTheme.ts`) — zinc / blue / emerald, no blue checks.
 - **App navigation is history-backed** (roadmap 176, `docs/UI-PRIMITIVES.md` §App Navigation): tabs/sub-tabs (+ the Production → Days Day Manager/Call Sheet mode) are hash places via `src/lib/appNav.ts` + `go()` in `App.tsx` — route all user navigation through `go` (never raw `setActiveTab`); browser back/forward drives it.
 
 ## Store & Sync

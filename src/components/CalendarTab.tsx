@@ -2,7 +2,8 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import ToolbarDivider from './ToolbarDivider';
 import { DndContext, useDraggable, DragOverlay, closestCorners, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useProject } from '../store';
+import { useProject, useProjectTheme } from '../store';
+import { projectSegThemeOf } from '../lib/projectTheme';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
@@ -84,6 +85,9 @@ export const CalendarTab: React.FC<{
   shiftHeld?: boolean;
 }> = ({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, subTab = 'calendar', onSubTabChange, poppedOutSubTabs = new Set(), onToggleSubPopout, onCloseSubPopout, shiftHeld: poppedShiftHeld = false }) => {
   const { state, dispatch } = useProject();
+  /* Light-toolbar palette follows the project theme (248): zinc / blue /
+   * emerald. */
+  const segTheme = projectSegThemeOf(useProjectTheme());
   const dialog = useDialog();
   const currentWindow = useCurrentWindow();
   const project = state.present;
@@ -1065,6 +1069,7 @@ export const CalendarTab: React.FC<{
                 <ToolbarDivider />
                 <Seg
                   variant="track"
+                  theme={segTheme}
                   dense
                   value={viewMode}
                   options={[

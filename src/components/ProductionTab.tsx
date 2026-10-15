@@ -11,6 +11,8 @@ import { CrewGlideTab } from './CrewGlideTab';
 import { LocationsManager } from './LocationsManager';
 import { LocationsGlideTab } from './LocationsGlideTab';
 import type { DayView } from '../lib/dayView';
+import { useProjectTheme } from '../store';
+import { projectSegThemeOf } from '../lib/projectTheme';
 
 export type ProductionSubTab = 'days' | 'crew' | 'locations';
 
@@ -61,6 +63,9 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
   // the dark editor.
   const [daysChromeDark, setDaysChromeDark] = useState(false);
   const handleDaysChrome = useCallback((dark: boolean) => setDaysChromeDark(dark), []);
+  /* Light-chrome palette follows the project theme (248): zinc / blue /
+   * emerald; the dark Call Sheet chrome keeps its own dark palette. */
+  const segTheme = projectSegThemeOf(useProjectTheme());
 
   // Sub-tab switches/popouts and manager ↔ alternate-view toggles run directly:
   // the click blurs and commits any focused field first (roadmap 250).
@@ -91,7 +96,7 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
     return (
       <Seg
         variant="track"
-        theme={dark ? 'dark' : 'light'}
+        theme={dark ? 'dark' : segTheme}
         dense
         value={views[sub]}
         options={[

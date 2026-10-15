@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import ToolbarDivider from './ToolbarDivider';
 import { createPortal } from 'react-dom';
-import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store';
+import { useProject, DEFAULT_CATEGORY_LABELS, useProjectTheme } from '../store';
+import { projectAccentOf } from '../lib/projectTheme';
 import { Scene } from '../types';
 import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Check, ChevronDown, ListOrdered } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
@@ -49,7 +50,7 @@ const ORDER_LABELS: Record<BreakdownOrder, string> = {
 export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule, onOpenScheduleInPopout }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void; onOpenScheduleInPopout?: (sceneId: string) => void }) {
   const { state, dispatch, locked } = useProject();
   const { request: requestSceneDuplicate } = useSceneDuplicate();
-  const isCloud = useIsCloudProject();
+  const accent = projectAccentOf(useProjectTheme());
   const project = state.present;
   const scenes = project.scenes;
   const breakdownElements = project.breakdownElements || {};
@@ -483,7 +484,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       <span className="text-[11px] text-zinc-500">of {scenes.length}</span>
       <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-500" /></button>
       <ToolbarDivider />
-      <Button variant="primary" cloud={isCloud} onClick={createNewScene} disabled={locked} title="New Scene Sheet" aria-label="New">
+      <Button variant="primary" cloud={accent} onClick={createNewScene} disabled={locked} title="New Scene Sheet" aria-label="New">
         <Plus className="w-3 h-3" />
       </Button>
       <Button onClick={duplicateScene} disabled={locked} title="Duplicate Scene Sheet" aria-label="Duplicate">

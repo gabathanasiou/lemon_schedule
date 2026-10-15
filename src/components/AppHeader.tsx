@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Users, CircleHelp, Sparkles } from 'lucide-react';
-import { useProject, useIsOnlineProject } from '../store';
+import { useProject, useIsOnlineProject, useProjectTheme } from '../store';
+import { PROJECT_CHROME, projectAccentOf, projectMenuThemeOf } from '../lib/projectTheme';
 import { useDialog } from './Dialog';
 import { IS_COARSE } from '../lib/device';
 import { ReportDesign } from '../types';
@@ -30,7 +31,6 @@ interface GoogleAuthContextValue {
 interface AppHeaderProps {
   activeTab: AppTabId;
   setActiveTab: (tab: AppTabId) => void;
-  isCloudProject: boolean;
   shiftHeld: boolean;
   togglePopout: (tabId: string) => void;
   onTabContextMenu: (e: React.MouseEvent, tabId: AppTabId) => void;
@@ -66,7 +66,7 @@ export default function AppHeader(props: AppHeaderProps) {
 
   const project = state.present;
   const {
-    activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
+    activeTab, setActiveTab, shiftHeld, togglePopout, onTabContextMenu,
     onOpenProjectManager, onManageSharing, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
     onShowTrash, onShowIntegrity, onShowWhatsNew, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
@@ -97,6 +97,14 @@ export default function AppHeader(props: AppHeaderProps) {
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
   const isOnlineProject = useIsOnlineProject();
 
+  /* Project chrome (roadmap 248): local zinc / Drive blue / shared emerald. */
+  const projectTheme = useProjectTheme();
+  const chrome = PROJECT_CHROME[projectTheme];
+  const accent = projectAccentOf(projectTheme);
+  const menuTheme = projectMenuThemeOf(projectTheme);
+  const isCloud = projectTheme !== 'local';
+  const fileTriggerText = projectTheme === 'local' ? 'text-zinc-400 hover:text-white' : 'text-white';
+
   const tabButtons: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'reports'];
 
   const agentBridgeLabel =
@@ -111,18 +119,18 @@ export default function AppHeader(props: AppHeaderProps) {
     : 'bg-zinc-600';
 
   return (
-    <header className={`flex items-center ${isCloudProject ? 'bg-blue-950' : 'bg-zinc-950'} text-zinc-300 px-4 py-2 select-none print:hidden`}>
+    <header className={`flex items-center ${chrome.bar} text-zinc-300 px-4 py-2 select-none print:hidden`}>
       <div className="flex items-center gap-2 shrink-0">
           <DropdownMenu
             open={showFileMenu}
             onOpenChange={setShowFileMenu}
             width="w-56"
             align="left"
-            theme={isCloudProject ? 'blue' : 'dark'}
+            theme={menuTheme}
             trigger={
               <button
                 data-presence-anchor="toolbar:header:file"
-                className={`flex items-center space-x-1.5 rounded transition-colors -ml-3 px-3 py-1.5 font-sans font-medium cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                className={`flex items-center space-x-1.5 rounded transition-colors -ml-3 px-3 py-1.5 font-sans font-medium cursor-pointer select-none ${fileTriggerText} ${chrome.barHover}`}
               >
                 <span className="hidden md:inline">File</span>
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -187,7 +195,7 @@ export default function AppHeader(props: AppHeaderProps) {
               <>
                 <DropdownDivider />
                 {driveCtx.isSignedIn ? (
-                  <DropdownItem onClick={() => { setShowFileMenu(false); if (isCloudProject) closeProject(); driveCtx.signOut(); }} icon={<LogOut className="w-3.5 h-3.5" />}>
+                  <DropdownItem onClick={() => { setShowFileMenu(false); if (isCloud) closeProject(); driveCtx.signOut(); }} icon={<LogOut className="w-3.5 h-3.5" />}>
                     Sign out{driveCtx.user ? ` (${driveCtx.user.name})` : ''}
                   </DropdownItem>
                 ) : (
@@ -220,7 +228,7 @@ export default function AppHeader(props: AppHeaderProps) {
               </DropdownItem>
             )}
           </DropdownMenu>
-          <SaveIndicator isCloudProject={isCloudProject} />
+          <SaveIndicator isCloudProject={isCloud} />
           {editingTitle ? (
             <input 
               autoFocus
@@ -231,7 +239,7 @@ export default function AppHeader(props: AppHeaderProps) {
                 if (titleDraft !== project.title) renameProject(currentProjectId!, titleDraft, currentDriveFileId);
               }}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
-              className={`bg-transparent border-none text-white font-medium rounded px-1 mr-2 outline-none font-sans max-w-[60px] md:max-w-[120px] ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
+              className={`bg-transparent border-none text-white font-medium rounded px-1 mr-2 outline-none font-sans max-w-[60px] md:max-w-[120px] ${chrome.titleRing}`}
             />
           ) : (
             <span
@@ -250,7 +258,7 @@ export default function AppHeader(props: AppHeaderProps) {
               <Button
                 key={tabId}
                 variant="tab-header"
-                cloud={isCloudProject}
+                cloud={accent}
                 active={activeTab === tabId}
                 data-presence-anchor={`nav:tab:${tabId}`}
                 onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout(tabId); } else { setActiveTab(tabId); } }}
@@ -265,8 +273,8 @@ export default function AppHeader(props: AppHeaderProps) {
 
       <div className="flex items-center space-x-3 font-mono text-xs shrink-0 ml-auto">
         <RoomNote />
-        <UndoRedoButtons isCloudProject={isCloudProject} />
-        <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
+        <UndoRedoButtons />
+        <UserPresenceCluster driveCtx={driveCtx} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
       </div>
     </header>
   );

@@ -18,6 +18,7 @@ import { ROOM_NOTE_MS } from '../lib/rooms/roomNotes';
 import type { RoomQueueInfo, RoomStatus } from '../lib/rooms/roomClient';
 import type { RoomRole } from '../lib/rooms/protocol';
 import { serializeProject } from '../lib/projectCodec';
+import { projectThemeOf, type ProjectTheme } from '../lib/projectTheme';
 import {
   LEGACY_KEY,
   INDEX_KEY,
@@ -1642,15 +1643,18 @@ export function useProject() {
   return context;
 }
 
-export function useIsCloudProject(): boolean {
-  const { projectList, currentProjectId } = useProject();
-  const meta = projectList.find(p => p.id === currentProjectId);
-  return !!meta?.driveFileId || !!meta?.onlineId;
-}
-
-/** Is the open project SHARED (S1 onlineId)? One predicate for every surface
- *  that distinguishes shared chrome (roadmap 229 S1). */
+/** Is the open project SHARED (S1 onlineId)? The semantic predicate (chrome
+ *  colors come from `useProjectTheme()`). */
 export function useIsOnlineProject(): boolean {
   const { projectList, currentProjectId } = useProject();
-  return !!projectList.find(p => p.id === currentProjectId)?.onlineId;
+  return projectThemeOf(projectList.find(p => p.id === currentProjectId)) === 'shared';
+}
+
+/** The open project's chrome theme (roadmap 248): local zinc / Drive blue /
+ *  shared emerald. ONE source for every colored-chrome surface — derive
+ *  colors through `lib/projectTheme` (tokens + kit accent values), never from
+ *  ad-hoc `isCloud` checks. */
+export function useProjectTheme(): ProjectTheme {
+  const { projectList, currentProjectId } = useProject();
+  return projectThemeOf(projectList.find(p => p.id === currentProjectId));
 }
