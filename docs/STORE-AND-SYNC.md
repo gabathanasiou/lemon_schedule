@@ -253,8 +253,13 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   Edge Function `room-token` (`supabase/functions/room-token/index.ts` — resolves the caller and
   their membership role through a caller-scoped RLS client, then mints with the ONE shared format
   `src/lib/rooms/roomToken.ts`). Prod builds fetch tokens via `src/lib/rooms/tokenClient.ts`; DEV
-  builds keep `dev:` tokens. Deployed-path proof: `workers/rooms/test/deployed-probe.mjs`
-  (mint → real WS hello accepted; garbage and wrong-project tokens refused; 403/401/CORS gates).
+  builds keep `dev:` tokens. **Token failures are CONNECTION failures** (2026-10-15 deployed-pass
+  fix): `RoomClient` retries a failed token fetch on the same reconnect backoff (one header note
+  per outage, self-heals without a reload), and the function answers **503** for a transient auth
+  server failure vs **401** for a rejected token. Deployed-path proof:
+  `workers/rooms/test/deployed-probe.ts` (run with `npx tsx` + `ROOMS_URL`) — mint → real WS hello
+  accepted; the REAL `RoomClient` seeds/joins/syncs/undoes across two real accounts; a REAL 401
+  recovers to `open` with one note; garbage/cross-project tokens refused; 403/401/CORS gates.
   Local probes: `workers/rooms/test/room-probe.ts` (room, 47 checks — incl. the blocked-undo room
   + redo safety, roadmap 242) and `room-client-probe.ts` (the real `RoomClient`, 17 checks)
   against `wrangler dev`.
