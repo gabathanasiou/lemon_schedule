@@ -130,9 +130,9 @@ complete `Project` via `importProjectFromData` — no append, no review stage);
 reference parsers live in `tools/` / `e2e/fixtures/`. FDX/Fountain also retain
 the screenplay body (`ImportResult.script` → `project.scriptDocument` /
 `scriptBaseline` via `src/lib/script/` + `SET_SCRIPT_DOCUMENT`; item 123 Phase 0).
-**Script-tab perf invariants: `docs/PERF_DIAGNOSIS.md` §Script tab** — per-scene
-`sceneSpans` cache + memoized `ScriptSceneText` + per-scene `cv-chunk` sections;
-never re-derive the whole document, never window-mount the reading surface.
+**Script-tab perf: `docs/PERF_DIAGNOSIS.md` §Script tab** — per-scene `sceneSpans`
+cache, memoized renderer, `cv-chunk` sections; never re-derive the whole
+document, never window-mount the reading surface.
 
 ## Pop-out Windows (`PopoutWindow.tsx`)
 - Desktop-only (`!IS_COARSE`): tabs/sub-tabs open in separate windows sharing state via `createPortal` (window opened synchronously in the click handler to dodge popup blockers; `cascadePosition()` tiles).
