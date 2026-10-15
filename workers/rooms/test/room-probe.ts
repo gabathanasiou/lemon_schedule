@@ -248,17 +248,35 @@ async function main(): Promise<void> {
   // Alice acts, Bob acts, Alice undoes her OWN latest action.
   ua.send({ t: 'act', actionId: 'u-a1', action: { type: 'UPDATE_PROJECT', payload: { title: 'UA' } } });
   await ua.waitFor((m) => m.t === 'remote' && m.actionId === 'u-a1');
+  check(
+    'UA: undo availability pushed after its own action (undo yes, redo no)',
+    (await ua.waitFor((m) => m.t === 'undoState' && m.canUndo && !m.canRedo)).t === 'undoState'
+  );
   ub.send({ t: 'act', actionId: 'u-b1', action: { type: 'UPDATE_PROJECT', payload: { title: 'UB' } } });
   await ub.waitFor((m) => m.t === 'remote' && m.actionId === 'u-b1');
   ua.send({ t: 'undo' });
-  const undoWelcomeA = await ua.waitFor((m) => m.t === 'welcome' && m.rev === 3);
-  const undoWelcomeB = await ub.waitFor((m) => m.t === 'welcome' && m.rev === 3);
-  check('UA: undo re-welcomes every client at the rebased rev', undoWelcomeA.t === 'welcome' && undoWelcomeB.t === 'welcome');
-  check('UA: Alice converged to the Bob-only state', foldWelcome(undoWelcomeA)?.title === 'UB', foldWelcome(undoWelcomeA)?.title);
-  check('UB: Bob converged to the Bob-only state', foldWelcome(undoWelcomeB)?.title === 'UB', foldWelcome(undoWelcomeB)?.title);
-
-  // Alice redoes it — the unit streams back as a fresh action.
-  const afterUndo = foldWelcome(undoWelcomeA);
+  // The undo is delivered as ONE new action at the rebased rev — the normal
+  // update path, not a join-shaped welcome.
+  const undoUpdateA = await ua.waitFor((m) => m.t === 'remote' && m.rev === 3);
+  const undoUpdateB = await ub.waitFor((m) => m.t === 'remote' && m.rev === 3);
+  const undoLoadA = undoUpdateA.t === 'remote' ? undoUpdateA.action : null;
+  const undoLoadB = undoUpdateB.t === 'remote' ? undoUpdateB.action : null;
+  check(
+    'UA: undo broadcasts ONE LOAD action to every client at the rebased rev',
+    undoUpdateA.t === 'remote' && undoUpdateB.t === 'remote' && undoLoadA?.type === 'LOAD' && undoLoadB?.type === 'LOAD'
+  );
+  const afterUndo = undoLoadA?.type === 'LOAD' ? undoLoadA.payload : null;
+  const afterUndoB = undoLoadB?.type === 'LOAD' ? undoLoadB.payload : null;
+  check('UA: Alice converged to the Bob-only state', afterUndo?.title === 'UB', afterUndo?.title);
+  check('UB: Bob converged to the Bob-only state', afterUndoB?.title === 'UB', afterUndoB?.title);
+  check(
+    'UA: after undo — undo exhausted, redo available (per-user)',
+    (await ua.waitFor((m) => m.t === 'undoState' && !m.canUndo && m.canRedo)).t === 'undoState'
+  );
+  check(
+    'UB: Bob still has his own undo available after Alice\u2019s undo',
+    (await ub.waitFor((m) => m.t === 'undoState' && m.canUndo)).t === 'undoState'
+  );
   ua.send({ t: 'redo' });
   const redoAtA = await ua.waitFor((m) => m.t === 'remote' && m.rev === 4);
   const redoAtB = await ub.waitFor((m) => m.t === 'remote' && m.rev === 4);
@@ -286,6 +304,10 @@ async function main(): Promise<void> {
   await uv.waitFor((m) => m.t === 'welcome');
   uv.send({ t: 'undo' });
   check('UV: viewer undo refused', (await uv.waitFor((m) => m.t === 'error' && m.message === 'view-only')).t === 'error');
+  check(
+    'UV: a viewer is never told it can undo/redo',
+    (await uv.waitFor((m) => m.t === 'undoState' && !m.canUndo && !m.canRedo)).t === 'undoState'
+  );
 
   // A client batch is ONE undo unit (revs 5-7), undone and redone as one.
   ub.send({ t: 'act', actionId: 'u-b2s', action: { type: 'BATCH_START' } });
@@ -294,10 +316,14 @@ async function main(): Promise<void> {
   await ub.waitFor((m) => m.t === 'remote' && m.actionId === 'u-b2c');
   await ua.waitFor((m) => m.t === 'remote' && m.actionId === 'u-b2c');
   ub.send({ t: 'undo' });
-  const batchWelcomeA = await ua.waitFor((m) => m.t === 'welcome' && m.rev === 8);
-  const batchWelcomeB = await ub.waitFor((m) => m.t === 'welcome' && m.rev === 8);
-  check('UB: a batch undoes as ONE unit (one welcome at rev 8)', batchWelcomeA.t === 'welcome' && batchWelcomeB.t === 'welcome');
-  check('UB: batch undo reverted the batch update', foldWelcome(batchWelcomeA)?.title === 'UA', foldWelcome(batchWelcomeA)?.title);
+  const batchUpdateA = await ua.waitFor((m) => m.t === 'remote' && m.rev === 8);
+  const batchUpdateB = await ub.waitFor((m) => m.t === 'remote' && m.rev === 8);
+  check(
+    'UB: a batch undoes as ONE unit (one LOAD update at rev 8)',
+    batchUpdateA.t === 'remote' && batchUpdateB.t === 'remote' && batchUpdateA.action.type === 'LOAD'
+  );
+  const batchState = batchUpdateA.t === 'remote' && batchUpdateA.action.type === 'LOAD' ? batchUpdateA.action.payload : null;
+  check('UB: batch undo reverted the batch update', batchState?.title === 'UA', batchState?.title);
 
   ub.send({ t: 'redo' });
   const batchRedone: RevisionedAction[] = [];
@@ -310,7 +336,6 @@ async function main(): Promise<void> {
     batchRedone.map((e) => e.action.type).join(',') === 'BATCH_START,UPDATE_PROJECT,BATCH_COMMIT',
     batchRedone.map((e) => e.action.type)
   );
-  const batchState = foldWelcome(batchWelcomeA);
   check(
     'UB: batch redo restored the state',
     batchState !== null && fold(batchState, batchRedone).title === 'UB2',

@@ -110,8 +110,13 @@ async function openWindow(browser, session, seedOpts, tag) {
       const raw = (s && typeof s === 'object' && !Buffer.isBuffer(s) && 'payload' in s) ? s.payload : s;
       const str = typeof raw === 'string' ? raw : Buffer.isBuffer(raw) ? raw.toString() : JSON.stringify(raw);
       let t = '?';
-      try { t = JSON.parse(str).t; } catch { /* ignore */ }
-      return { t, bytes: str.length };
+      let action = null;
+      try {
+        const parsed = JSON.parse(str);
+        t = parsed.t;
+        action = parsed.action?.type ?? null;
+      } catch { /* ignore */ }
+      return { t, action, bytes: str.length };
     };
     ws.on('framesent', (d) => frames.push({ dir: 'sent', ...info(d) }));
     ws.on('framereceived', (d) => frames.push({ dir: 'recv', ...info(d) }));
@@ -165,6 +170,13 @@ try {
     { a: dA.roomUserId, b: dB.roomUserId });
   check('A is owner, B is editor', dA.roomRole === 'owner' && dB.roomRole === 'editor', { a: dA.roomRole, b: dB.roomRole });
 
+  // Button enablement is per USER — the room pushes this user's availability.
+  const undoButton = (page) => page.getByRole('button', { name: 'Undo (Cmd+Z)' }).first();
+  const redoButton = (page) => page.getByRole('button', { name: 'Redo (Cmd+Shift+Z)' }).first();
+  check('A: undo button DISABLED with an empty history', await undoButton(A.page).isDisabled(), null);
+  check('A: redo button DISABLED with nothing to redo', await redoButton(A.page).isDisabled(), null);
+  check('B: undo button DISABLED with an empty history', await undoButton(B.page).isDisabled(), null);
+
   // Stripboard (Boot lands on the Glide canvas; ribbon cells are inputs).
   const domHas = (page, val) => page.evaluate((v) => {
     if (document.body.innerText.includes(v)) return true;
@@ -193,17 +205,42 @@ try {
   for (let i = 0; i < 60; i++) { if ((await descOf(B.page)) === EDIT) { bGot = true; break; } await sleep(100); }
   check("B: received A's stripboard edit", bGot, await descOf(B.page));
   check("B: stripboard DOM shows A's edit", await domHas(B.page, EDIT), null);
+  check('A: undo button ENABLED after A edits', !(await undoButton(A.page).isDisabled()), null);
+  check("B: undo button still DISABLED (A's edit is not B's to undo)", await undoButton(B.page).isDisabled(), null);
+  check('A: redo button DISABLED right after a fresh edit', await redoButton(A.page).isDisabled(), null);
 
   const before = B.frames.length;
   await A.page.keyboard.press('Meta+z');
   let reverted = false;
   for (let i = 0; i < 80; i++) { if ((await descOf(B.page)) !== EDIT) { reverted = true; break; } await sleep(100); }
   const newFrames = B.frames.slice(before);
+  // The undo must arrive as a NORMAL update (remote + LOAD), never a welcome.
+  const gotUndoUpdate = newFrames.some((f) => f.dir === 'recv' && f.t === 'remote' && f.action === 'LOAD');
   const gotWelcome = newFrames.some((f) => f.dir === 'recv' && f.t === 'welcome');
   check("A: undo reverted A's own state", (await descOf(A.page)) !== EDIT, await descOf(A.page));
-  check('B: received a welcome frame after A undo', gotWelcome, newFrames.map((f) => `${f.dir}:${f.t}`));
+  check('B: received the undo as a normal remote update (LOAD)', gotUndoUpdate, newFrames.map((f) => `${f.dir}:${f.t}${f.action ? ':' + f.action : ''}`));
+  check('B: undo did NOT depend on a welcome re-sync', gotWelcome === false, newFrames.map((f) => `${f.dir}:${f.t}`));
   check('B: state reverted (undo visible)', reverted, await descOf(B.page));
   check('B: stripboard DOM reverted too', !(await domHas(B.page, EDIT)), null);
+  check('A: undo button DISABLED once the room has nothing left for A', await undoButton(A.page).isDisabled(), null);
+  check('A: redo button ENABLED after the undo', !(await redoButton(A.page).isDisabled()), null);
+  check("B: redo button still DISABLED (A's undo created nothing for B)", await redoButton(B.page).isDisabled(), null);
+
+  // ── The HEADER UNDO BUTTON must take the SAME room-routed path as Cmd+Z.
+  // (It used to do a local-only transcript undo — this window reverted, peers
+  // never did, and the window drifted off the room's state.)
+  const BTN_EDIT = 'S4REPRO-BUTTON-SCENE';
+  await bridge(A.page, `b.dispatch({ type: 'UPDATE_SCENE', payload: { id: '${sceneId}', description: '${BTN_EDIT}' } })`);
+  for (let i = 0; i < 60; i++) { if ((await descOf(B.page)) === BTN_EDIT) break; await sleep(100); }
+  check('B: saw the edit before the button undo', (await descOf(B.page)) === BTN_EDIT, await descOf(B.page));
+  check('A: header undo button ENABLED after the edit', !(await undoButton(A.page).isDisabled()), null);
+  await undoButton(A.page).click();
+  let bBtnReverted = false;
+  for (let i = 0; i < 80; i++) { if ((await descOf(B.page)) !== BTN_EDIT) { bBtnReverted = true; break; } await sleep(100); }
+  check('B: HEADER BUTTON undo reached the peer (room-routed)', bBtnReverted, await descOf(B.page));
+  check("A: HEADER BUTTON undo reverted A's own state too", (await descOf(A.page)) !== BTN_EDIT, await descOf(A.page));
+  check('A: after the button undo — redo ENABLED, undo DISABLED',
+    !(await redoButton(A.page).isDisabled()) && (await undoButton(A.page).isDisabled()), null);
 
   // ── Strip MOVE (user report): a drop is ONE `UPDATE_VERSION` that rewrites
   // the rows array. A moves a strip → A undoes → B's store AND screen order
@@ -304,6 +341,7 @@ try {
   check("both windows converged on B's later UI edit", (await descOf(A.page)) === B_EDIT && (await descOf(B.page)) === B_EDIT, {
     a: await descOf(A.page), b: await descOf(B.page),
   });
+  check("B: undo button ENABLED after B's own edit", !(await undoButton(B.page).isDisabled()), null);
 
   await A.page.keyboard.press('Meta+z');
   for (let i = 0; i < 80; i++) {
@@ -340,7 +378,7 @@ try {
     a: await descOf(A.page), b: await descOf(B.page),
   });
 
-  log(failures === 0 ? '\nNO DIVERGENCE — the welcome re-sync reached the peer' : `\n${failures} problem(s) observed`);
+  log(failures === 0 ? '\nNO DIVERGENCE — undo/redo reach peers as normal updates' : `\n${failures} problem(s) observed`);
 } catch (e) {
   console.error('repro crashed:', e);
 } finally {

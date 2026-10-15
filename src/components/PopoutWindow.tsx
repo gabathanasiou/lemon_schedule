@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PopoutWindowContext } from '../lib/popoutTarget';
 import { useProject } from '../store';
-import { performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
+
 
 interface PopoutWindowProps {
   title: string;
@@ -24,7 +24,7 @@ export function cascadePosition(width = 1200, height = 800) {
 
 export default function PopoutWindow({ title, win, onClose, children }: PopoutWindowProps) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
-  const { state, dispatch } = useProject();
+  const { state, undo, redo } = useProject();
   const currentProjectIdRef = useRef(state.present.id);
   currentProjectIdRef.current = state.present.id;
 
@@ -34,21 +34,23 @@ export default function PopoutWindow({ title, win, onClose, children }: PopoutWi
       if (!id) return;
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
-      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+      // Shift uppercases e.key ('Z') — normalize first (roadmap 238).
+      const key = e.key.toLowerCase();
+      if (cmdOrCtrl && key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        if (!performLocalUndo()) dispatch({ type: 'UNDO' });
+        undo();
       }
-      if (cmdOrCtrl && e.key === 'z' && e.shiftKey) {
+      if (cmdOrCtrl && key === 'z' && e.shiftKey) {
         e.preventDefault();
-        if (!performLocalRedo()) dispatch({ type: 'REDO' });
+        redo();
       }
-      if (cmdOrCtrl && e.key === 's') {
+      if (cmdOrCtrl && key === 's') {
         e.preventDefault();
       }
     };
     win.addEventListener('keydown', handler);
     return () => win.removeEventListener('keydown', handler);
-  }, [win, dispatch]);
+  }, [win, undo, redo]);
 
   useEffect(() => {
     if (!win) return;

@@ -48,6 +48,10 @@ export type RoomServerMessage =
   | { t: 'needInit' }
   | { t: 'remote'; rev: number; userId: string; actionId: string; action: Action }
   | { t: 'rejected'; actionId: string; reason: string }
+  /** Per-USER undo/redo availability, pushed to ONE socket whenever it changes
+   *  (join, that user's own action, undo, redo) — drives the header buttons'
+   *  enablement without the client modelling the room's log. */
+  | { t: 'undoState'; canUndo: boolean; canRedo: boolean }
   | { t: 'error'; message: string };
 
 export function encodeRoomMessage(msg: RoomClientMessage | RoomServerMessage): string {
@@ -138,6 +142,9 @@ export function parseRoomServerMessage(raw: string): RoomServerMessage | null {
     case 'rejected':
       if (!isNonEmptyString(v.actionId) || !isNonEmptyString(v.reason)) return null;
       return { t: 'rejected', actionId: v.actionId, reason: v.reason };
+    case 'undoState':
+      if (typeof v.canUndo !== 'boolean' || typeof v.canRedo !== 'boolean') return null;
+      return { t: 'undoState', canUndo: v.canUndo, canRedo: v.canRedo };
     case 'error':
       if (!isNonEmptyString(v.message)) return null;
       return { t: 'error', message: v.message };

@@ -138,7 +138,8 @@ test('@perf diagnosis: memory + cpu over repeated workflows (Town project)', asy
         await page.waitForTimeout(80);
       }
       for (let r = 0; r < 8; r++) {
-        await page.keyboard.press('Meta+Shift+z');
+        // key:'Z' — the real Shift payload (roadmap 238).
+        await page.keyboard.press('Meta+Shift+Z');
         await page.waitForTimeout(80);
       }
     }

@@ -291,14 +291,20 @@ export class Room extends DurableObject<Env> {
       case 'init':
         this.handleInit(ws, info, msg.project);
         return;
+      // After every write-shaped message the CALLER's undo/redo availability may
+      // have changed (a new action clears their redo stack; undo/redo swap the
+      // two) — one push here keeps the client's buttons honest.
       case 'act':
         this.handleAction(ws, info, msg.actionId, msg.action);
+        this.sendUndoState(ws, info);
         return;
       case 'undo':
         this.handleUndo(ws, info);
+        this.sendUndoState(ws, info);
         return;
       case 'redo':
         this.handleRedo(ws, info);
+        this.sendUndoState(ws, info);
         return;
     }
   }
@@ -328,6 +334,7 @@ export class Room extends DurableObject<Env> {
     } else {
       this.sendWelcome(ws, info);
     }
+    this.sendUndoState(ws, info);
   }
 
   private async authenticate(token: string): Promise<VerifiedRoomToken | null> {
@@ -486,9 +493,15 @@ export class Room extends DurableObject<Env> {
    * `undo` removes the CALLER's latest remaining unit — one action, or one whole
    * client batch (rows sharing a batch id) — rebuilds `present` from the newest
    * snapshot older than the unit while skipping its rows, writes a fresh snapshot
-   * at a NEW rev (so a hibernated room reloads the rebased state), deletes the
-   * undone rows (no future rebuild replays them) and re-welcomes every socket —
-   * clients converge through the existing `welcome`, there is no undo broadcast.
+   * at a NEW rev (so a hibernated room reloads the rebased state) and deletes the
+   * undone rows (no future rebuild replays them).
+   *
+   * DELIVERY: the rebased state is broadcast as ONE new `LOAD` action at the new
+   * rev — the SAME path every normal edit takes (`remote` → client applies it),
+   * not a join-shaped `welcome` re-sync. Every client, the caller included,
+   * converges through the delta path; the fresh actionId means nobody dedupes it
+   * (nothing was applied optimistically). A client that misses the broadcast
+   * self-heals via RoomClient's rev-gap re-sync.
    * Undo depth = the retained snapshot window (SNAPSHOTS_KEPT × SNAPSHOT_EVERY).
    */
   private handleUndo(ws: WebSocket, info: ConnectionInfo): void {
@@ -543,7 +556,17 @@ export class Room extends DurableObject<Env> {
     const stack = this.redoStacks.get(info.userId) ?? [];
     stack.push({ batchId: unit.batchId, rows: unit.rows });
     this.redoStacks.set(info.userId, stack);
-    this.rewelcome();
+    // The undo IS a new edit: one `LOAD` carrying the rebased state, at a fresh
+    // rev, broadcast to every socket through the normal update path. The caller
+    // never applied it optimistically, so the fresh actionId is not in its
+    // `pendingOwn` — it applies it like any peer edit.
+    this.broadcast({
+      t: 'remote',
+      rev,
+      userId: info.userId,
+      actionId: crypto.randomUUID(),
+      action: { type: 'LOAD', payload: project },
+    });
   }
 
   /** `redo` pops the caller's most recently undone unit and re-applies it as
@@ -577,6 +600,31 @@ export class Room extends DurableObject<Env> {
       // optimistically client-side).
       this.commitAction(info.userId, crypto.randomUUID(), row.action, unit.batchId);
     }
+  }
+
+  /** Whether `userId` has a removable unit inside the retained undo window —
+   *  i.e. a latest unit AND a snapshot older than it to rebuild from. Mirrors
+   *  exactly what `handleUndo` will accept. */
+  private canUndoFor(userId: string): boolean {
+    const unit = this.latestUnit(userId);
+    if (!unit) return false;
+    const base = this.ctx.storage.sql
+      .exec<{ rev: number }>(
+        `SELECT rev FROM room_snapshots WHERE rev < ? ORDER BY rev DESC LIMIT 1`,
+        unit.rows[0].rev
+      )
+      .toArray()[0];
+    return !!base;
+  }
+
+  /** Push ONE socket's per-user undo/redo availability (drives button
+   *  enablement). Owners/editors only — a viewer can never write. */
+  private sendUndoState(ws: WebSocket, info: ConnectionInfo): void {
+    this.send(ws, {
+      t: 'undoState',
+      canUndo: roleCanWrite(info.role) && this.present !== null && this.canUndoFor(info.userId),
+      canRedo: roleCanWrite(info.role) && (this.redoStacks.get(info.userId)?.length ?? 0) > 0,
+    });
   }
 
   /** The caller's newest remaining undo unit: their latest log row, widened to

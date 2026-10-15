@@ -54,6 +54,20 @@ function isPermissionFailure(err: unknown): boolean {
 export interface ProjectContextType {
   state: State;
   dispatch: React.Dispatch<Action>;
+  /** The ONE undo/redo affordance (keyboard, header + popout toolbar buttons,
+   *  popout windows): element-manager local history first, then the room for a
+   *  shared project, else the local transcript. Never a local-only undo on a
+   *  shared project — that diverges this window from its peers. */
+  undo: () => boolean;
+  redo: () => boolean;
+  /** The room's per-USER undo/redo availability (a live room + something to
+   *  undo/redo for this user) — the second enablement source for the buttons. */
+  canRoomUndo: boolean;
+  canRoomRedo: boolean;
+  /** Local-transcript availability for the buttons — false on a shared project
+   *  (its transcript holds peer edits too; the room owns that history). */
+  canLocalUndo: boolean;
+  canLocalRedo: boolean;
   /** The active calendar version (production window + day statuses/events) —
    *  drives every calendar surface AND the stripboard's dates. Independent of
    *  the active schedule version (item 66). */
@@ -201,8 +215,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // roomUserId share one undo history by design (same account), and two
   // accounts must show two different ids.
   const roomIdentityRef = useRef<{ userId: string; role: RoomRole } | null>(null);
+  // Per-USER room undo/redo availability, pushed by the room (join, own action,
+  // undo, redo) — enables/disables the header buttons for THIS user only.
+  const [roomUndoState, setRoomUndoState] = useState({ canUndo: false, canRedo: false });
   useEffect(() => {
     roomIdentityRef.current = null;
+    setRoomUndoState({ canUndo: false, canRedo: false });
   }, [currentOnlineId, sbUserId]);
   const { clientRef: roomClientRef, status: roomStatus } = useRoomTransport({
     onlineId: currentOnlineId,
@@ -225,8 +243,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         notifyAgentBridge(entry.action);
       }
     },
+    onUndoState: (state) => setRoomUndoState(state),
     onRemote: (remote) => {
-      dispatch(remote.action);
+      // A peer's room undo arrives as a normal update carrying the rebased
+      // state as a `LOAD` action — re-anchor the persisted baseline instead of
+      // counting it as a local change (it is never pushed back; the room owns
+      // the log). Everything else folds through the plain dispatch path.
+      if (remote.action.type === 'LOAD') loadBaseline(remote.action.payload);
+      else dispatch(remote.action);
       notifyAgentBridge(remote.action);
     },
     onError: (message) => console.warn('[rooms]', message),
@@ -557,6 +581,54 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       roomClientRef.current?.sendAction(generateUUID(), action);
     }
   }, [realOnline, isCurrentCloudProject, isCurrentOnlineProject]);
+
+  /**
+   * The ONE undo/redo routing for EVERY affordance — Cmd+Z / Cmd+Shift+Z, the
+   * header + popout-toolbar buttons, and popout windows: the element manager's
+   * unsaved local history first, then — for a SHARED project — the room, else
+   * the local transcript. A shared project NEVER falls back to the local
+   * transcript: that UNDO is deliberately not transported (`guardedDispatch`
+   * excludes it), so it would revert this window alone and silently diverge it
+   * from every peer — the "undo lands on me but not my peer" report. Returns
+   * true when the affordance ran (or warned).
+   */
+  const undo = useCallback((): boolean => {
+    if (performLocalUndo()) return true;
+    if (isCurrentOnlineProject()) {
+      if (!roomClientRef.current?.sendUndo()) {
+        console.warn('[rooms] undo unavailable — the shared project is not connected to the room');
+      }
+      return true;
+    }
+    guardedDispatch({ type: 'UNDO' });
+    return true;
+  }, [guardedDispatch, isCurrentOnlineProject]);
+  const redo = useCallback((): boolean => {
+    if (performLocalRedo()) return true;
+    if (isCurrentOnlineProject()) {
+      if (!roomClientRef.current?.sendRedo()) {
+        console.warn('[rooms] redo unavailable — the shared project is not connected to the room');
+      }
+      return true;
+    }
+    guardedDispatch({ type: 'REDO' });
+    return true;
+  }, [guardedDispatch, isCurrentOnlineProject]);
+  /** The room's per-USER availability, gated by a live connection and write
+   *  permission — the undo/redo buttons are enabled when EITHER the local
+   *  transcript OR the room has something for THIS user. */
+  const roomCanUndoRedo = !!currentOnlineId && roomStatus !== 'closed' && canEdit;
+  const canRoomUndo = roomCanUndoRedo && roomUndoState.canUndo;
+  const canRoomRedo = roomCanUndoRedo && roomUndoState.canRedo;
+  /**
+   * The LOCAL transcript only backs undo/redo on a LOCAL/Drive project. On a
+   * shared project the transcript also accumulates PEER edits (every `remote`
+   * folds through the reducer), so a transcript undo would revert someone
+   * else's work in this window alone — the buttons must ignore it there (the
+   * unsaved element-manager history stays valid for both kinds).
+   */
+  const canLocalUndo = !currentOnlineId && state.past.length > 0;
+  const canLocalRedo = !currentOnlineId && state.future.length > 0;
 
   // Agentic debug bridge (dev builds or localStorage LEMON_AGENT=1): exposes
   // state reads + dispatch as window.__lemonSchedule — see AGENTS.md.
@@ -925,44 +997,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (!currentProjectId) return;
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+      // Shift makes e.key uppercase ('Z'), so normalize BEFORE comparing — the
+      // old `e.key === 'z' && e.shiftKey` branch was unreachable on real
+      // keyboards (roadmap 238).
+      const key = e.key.toLowerCase();
       // The room owns undo for a connected shared project: per-user undo is a
-      // ROOM operation (rebase + welcome re-sync) — a local transcript UNDO
-      // would diverge from the room's log. Local behaviour is unchanged when
-      // no room is active. The element manager's unsaved edits stay local-first.
-      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+      // ROOM operation (rebase) — a local transcript UNDO would diverge from
+      // the room's log. Local behaviour is unchanged when no room is active.
+      // The element manager's unsaved edits stay local-first.
+      if (cmdOrCtrl && key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        if (performLocalUndo()) return;
-        // A SHARED project's undo is ALWAYS a room operation. A local transcript
-        // UNDO never reaches the room (`guardedDispatch` excludes UNDO), so it
-        // would silently diverge this window from every peer — the "undo landed
-        // on me but not my peer" report. With no live room connection, say so
-        // instead of diverging quietly.
-        if (isCurrentOnlineProject()) {
-          if (!roomClientRef.current?.sendUndo()) {
-            console.warn('[rooms] undo unavailable — the shared project is not connected to the room');
-          }
-          return;
-        }
-        guardedDispatch({ type: 'UNDO' });
+        undo();
       }
-      if (cmdOrCtrl && e.key === 'z' && e.shiftKey) {
+      if (cmdOrCtrl && key === 'z' && e.shiftKey) {
         e.preventDefault();
-        if (performLocalRedo()) return;
-        if (isCurrentOnlineProject()) {
-          if (!roomClientRef.current?.sendRedo()) {
-            console.warn('[rooms] redo unavailable — the shared project is not connected to the room');
-          }
-          return;
-        }
-        guardedDispatch({ type: 'REDO' });
+        redo();
       }
-      if (cmdOrCtrl && e.key === 's') {
+      if (cmdOrCtrl && key === 's') {
         e.preventDefault();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentProjectId, guardedDispatch, isCurrentOnlineProject]);
+  }, [currentProjectId, undo, redo]);
 
   // Flush current project to localStorage immediately (local projects only —
   // Drive and online projects have their own writers).
@@ -1431,6 +1488,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const contextValue = useMemo(() => ({
     state,
     dispatch: guardedDispatch,
+    undo,
+    redo,
+    canRoomUndo,
+    canRoomRedo,
+    canLocalUndo,
+    canLocalRedo,
     activeCalendarVersion: state.present.calendarVersions.find(v => v.id === state.present.activeCalendarVersionId),
     projectList,
     currentProjectId,
@@ -1463,7 +1526,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     retryConnectivity,
     closeProject,
     consumeLegacyMigrationNotice,
-  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, applyAccessPush, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+  }), [state, guardedDispatch, undo, redo, canRoomUndo, canRoomRedo, canLocalUndo, canLocalRedo, projectList, currentProjectId, initialized, realOnline, canEdit, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, driveErrorMsg, driveRetryPending, storageQuotaError, onlineProjects, onlineLoading, onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave, reloadOnlineProject, applyAccessPush, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
 
   return (
     <ProjectContext.Provider value={contextValue}>

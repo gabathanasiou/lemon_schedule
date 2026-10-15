@@ -78,6 +78,8 @@ interface Harness {
   rejected: string[];
   errors: string[];
   statuses: string[];
+  /** Per-user undo availability pushes, newest last. */
+  undoStates: Array<{ canUndo: boolean; canRedo: boolean }>;
 }
 
 function makeHarness(tokenUserId: string, role: string, seedBlob: string | null): Harness {
@@ -90,6 +92,7 @@ function makeHarness(tokenUserId: string, role: string, seedBlob: string | null)
     rejected: [],
     errors: [],
     statuses: [],
+    undoStates: [],
   };
   h.client = new RoomClient({
     url: WS_URL,
@@ -108,6 +111,7 @@ function makeHarness(tokenUserId: string, role: string, seedBlob: string | null)
       if (h.state) h.state = applyAction(h.state, r.action);
     },
     onRejected: (id, reason) => h.rejected.push(`${id}:${reason}`),
+    onUndoState: (s) => h.undoStates.push(s),
     onError: (m) => h.errors.push(m),
     onStatus: (s) => h.statuses.push(s),
   });
@@ -179,18 +183,44 @@ async function main(): Promise<void> {
   // --- per-user undo/redo roundtrip through the app's own transport ---
   check('A: undoable action accepted', a.client.sendAction('a-2', { type: 'UPDATE_PROJECT', payload: { title: 'A undo me' } }));
   await waitFor(() => b.state?.title === 'A undo me', "B applied A's undoable action");
+  await waitFor(() => a.undoStates.some((s) => s.canUndo && !s.canRedo), "A told undo is available");
+  check(
+    'A: room pushed canUndo=true after its own action',
+    a.undoStates.some((s) => s.canUndo && !s.canRedo),
+    a.undoStates
+  );
 
-  const aWelcomes = a.welcomeCount;
-  const bWelcomes = b.welcomeCount;
-  const dWelcomes = d.welcomeCount;
+  // The undo arrives as a normal `remote` LOAD — the app applies it through the
+  // same onRemote path as every other edit; no welcome involved.
+  const aRemotes = a.remotes.length;
+  const bRemotes = b.remotes.length;
+  const dRemotes = d.remotes.length;
   check('A: sendUndo accepted', a.client.sendUndo());
-  await waitFor(() => a.welcomeCount > aWelcomes, 'A re-welcome after undo');
-  await waitFor(() => b.welcomeCount > bWelcomes, 'B re-welcome after undo');
-  await waitFor(() => d.welcomeCount > dWelcomes, 'late joiner re-welcome after undo');
+  await waitFor(() => a.remotes.length > aRemotes, 'A received the undo update');
+  await waitFor(() => b.remotes.length > bRemotes, 'B received the undo update');
+  await waitFor(() => d.remotes.length > dRemotes, 'late joiner received the undo update');
   check(
     'undo: every client converges to the pre-action state',
     a.state?.title === 'Live from B' && b.state?.title === 'Live from B' && d.state?.title === 'Live from B',
     { a: a.state?.title, b: b.state?.title, d: d.state?.title }
+  );
+  check(
+    'undo: no client was re-welcomed (delivery is the normal update path)',
+    a.welcomeCount === 1 && b.welcomeCount === 1,
+    { a: a.welcomeCount, b: b.welcomeCount }
+  );
+  await waitFor(() => a.undoStates.some((s) => s.canRedo), "A told redo is available");
+  check(
+    'A: after undo the room pushed canRedo=true',
+    a.undoStates.some((s) => s.canRedo),
+    a.undoStates
+  );
+  check(
+    "B: the push reflects Bob's OWN history (his own action is undoable, nothing redone)",
+    b.undoStates.length > 0 &&
+      b.undoStates[b.undoStates.length - 1].canUndo === true &&
+      b.undoStates.every((s) => !s.canRedo),
+    b.undoStates
   );
 
   const remotesBeforeRedo = b.remotes.length;

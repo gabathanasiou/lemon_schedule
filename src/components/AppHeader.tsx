@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Undo2, Redo2, Users } from 'lucide-react';
+import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Users } from 'lucide-react';
 import { useProject } from '../store';
 import { useDialog } from './Dialog';
 import { IS_COARSE } from '../lib/device';
@@ -10,7 +10,7 @@ import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
 import Button from './Button';
 import { SaveIndicator } from './SaveIndicator';
-import { useUnsavedGuardState, performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
+import { UndoRedoButtons } from './UndoRedoButtons';
 import { UserPresenceCluster } from './UserPresenceCluster';
 import { isSupabaseConfigured } from '../lib/supabase/client';
 import type { AgentBridgeStatus } from '../lib/agentBridgeClient';
@@ -60,7 +60,7 @@ interface AppHeaderProps {
 export default function AppHeader(props: AppHeaderProps) {
   const { state, dispatch, projectList, currentProjectId, renameProject, locked } = useProject();
   const dialog = useDialog();
-  const guardState = useUnsavedGuardState();
+
   const project = state.present;
   const {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
@@ -252,24 +252,7 @@ export default function AppHeader(props: AppHeaderProps) {
         </div>
 
       <div className="flex items-center space-x-3 font-mono text-xs shrink-0 ml-auto">
-        <div className="flex items-center gap-1 border border-white/10 rounded bg-white/5">
-          <button
-            onClick={() => { if (!performLocalUndo()) dispatch({ type: 'UNDO' }); }}
-            disabled={state.past.length === 0 && !guardState.hasLocalUndo}
-            className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
-            title="Undo (Cmd+Z)"
-          >
-            <Undo2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => { if (!performLocalRedo()) dispatch({ type: 'REDO' }); }}
-            disabled={state.future.length === 0 && !guardState.hasLocalRedo}
-            className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
-            title="Redo (Cmd+Shift+Z)"
-          >
-            <Redo2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <UndoRedoButtons isCloudProject={isCloudProject} />
         <UserPresenceCluster driveCtx={driveCtx} isCloudProject={isCloudProject} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
       </div>
     </header>

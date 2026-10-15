@@ -225,7 +225,9 @@ test.describe('Element Manager merge/save', () => {
     await page.keyboard.press('Meta+z');
     await expect(nameCell(page, 'FISHING BOAT')).toBeVisible({ timeout: 5000 });
 
-    await page.keyboard.press('Meta+Shift+z');
+    // Real keyboards report key:'Z' (uppercase) with Shift — press the real
+    // payload so the handler's normalization is what is under test (roadmap 238).
+    await page.keyboard.press('Meta+Shift+Z');
     await expect(nameCell(page, 'ski boat')).toBeVisible({ timeout: 5000 });
   });
 

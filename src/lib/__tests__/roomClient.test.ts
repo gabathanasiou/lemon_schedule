@@ -145,6 +145,15 @@ describe('RoomClient', () => {
     expect(client.sendRedo()).toBe(false);
   });
 
+  it('forwards the room\u2019s per-user undo availability', async () => {
+    const states: Array<{ canUndo: boolean; canRedo: boolean }> = [];
+    const { client, sockets } = makeClient({ onUndoState: (s: { canUndo: boolean; canRedo: boolean }) => states.push(s) });
+    await openClient(client, sockets);
+    sockets[0].receive({ t: 'undoState', canUndo: true, canRedo: false });
+    sockets[0].receive({ t: 'undoState', canUndo: true, canRedo: true });
+    expect(states).toEqual([{ canUndo: true, canRedo: false }, { canUndo: true, canRedo: true }]);
+  });
+
   it('heals a rejection with a resync', async () => {
     const { client, sockets, events } = makeClient();
     await openClient(client, sockets);

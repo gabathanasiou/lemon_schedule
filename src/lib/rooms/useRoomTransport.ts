@@ -18,6 +18,7 @@ export interface UseRoomTransportOptions {
   getInitProject: () => string | null;
   onWelcome: (welcome: RoomWelcome) => void;
   onRemote: (remote: RoomRemote) => void;
+  onUndoState?: (state: { canUndo: boolean; canRedo: boolean }) => void;
   onError?: (message: string) => void;
 }
 
@@ -46,6 +47,7 @@ export function useRoomTransport(opts: UseRoomTransportOptions): {
       getInitProject: () => optsRef.current.getInitProject(),
       onWelcome: (welcome) => optsRef.current.onWelcome(welcome),
       onRemote: (remote) => optsRef.current.onRemote(remote),
+      onUndoState: (s) => optsRef.current.onUndoState?.(s),
       onError: (message) => optsRef.current.onError?.(message),
       onStatus: setStatus,
     });

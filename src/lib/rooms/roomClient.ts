@@ -61,6 +61,8 @@ export interface RoomClientOptions {
   getInitProject: () => string | null;
   onWelcome: (welcome: RoomWelcome) => void;
   onRemote: (remote: RoomRemote) => void;
+  /** This user's room-side undo/redo availability (header button enablement). */
+  onUndoState?: (state: { canUndo: boolean; canRedo: boolean }) => void;
   /** Our own action was refused; the transport re-syncs automatically. */
   onRejected?: (actionId: string, reason: string) => void;
   onError?: (message: string) => void;
@@ -265,6 +267,10 @@ export class RoomClient {
         } else {
           this.opts.onError?.(`room rejected: ${msg.reason}`);
         }
+        return;
+      }
+      case 'undoState': {
+        this.opts.onUndoState?.({ canUndo: msg.canUndo, canRedo: msg.canRedo });
         return;
       }
       case 'error': {

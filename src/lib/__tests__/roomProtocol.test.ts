@@ -31,6 +31,7 @@ const SERVER_MESSAGES: RoomServerMessage[] = [
   { t: 'needInit' },
   { t: 'remote', rev: 15, userId: 'u-2', actionId: 'a-9', action: { type: 'BATCH_START' } },
   { t: 'rejected', actionId: 'a-9', reason: 'not permitted' },
+  { t: 'undoState', canUndo: true, canRedo: false },
   { t: 'error', message: 'unauthenticated' },
 ];
 
@@ -102,6 +103,8 @@ describe('room protocol — server messages', () => {
     ).toBeNull();
     expect(parseRoomServerMessage('{"t":"remote","rev":1,"userId":"u","actionId":"a"}')).toBeNull();
     expect(parseRoomServerMessage('{"t":"rejected","actionId":"a"}')).toBeNull();
+    expect(parseRoomServerMessage('{"t":"undoState","canUndo":true}')).toBeNull();
+    expect(parseRoomServerMessage('{"t":"undoState","canUndo":"yes","canRedo":false}')).toBeNull();
     expect(parseRoomServerMessage('{"t":"error","message":""}')).toBeNull();
   });
 
