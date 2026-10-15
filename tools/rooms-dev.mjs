@@ -20,7 +20,9 @@
  * Logs are `[rooms]`-prefixed. A failure never throws into the caller's
  * critical path: `ensureRoomsWorker()` answers `{ ok: false, error }` and the
  * caller degrades (the app's badge goes `unreachable`, edits buffer — roadmap
- * 239).
+ * 239). Concurrent ensures (two dev servers cold-starting together) may race a
+ * second spawn into a doomed `wrangler dev` — it exits on "address already in
+ * use", and the loser rides the winner's readiness with `started: false`.
  */
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -37,12 +39,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (line) => process.stdout.write(`[rooms] ${line}\n`);
 const logErr = (line) => process.stderr.write(`[rooms] ${line}\n`);
 
-/** Prefix each line of a child stream (`[rooms]`), flushing partials on exit. */
+/** Prefix each line of a child stream (`[rooms]`), flushing partials on exit.
+ *  ANSI colour codes are stripped — wrangler colours its errors even when
+ *  piped, and the raw escapes made the dev-server log unreadable. */
 function prefixer(write) {
   let buf = '';
   return {
     onData: (chunk) => {
-      buf += chunk.toString();
+      buf += chunk.toString().replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
       let i;
       while ((i = buf.indexOf('\n')) >= 0) {
         write(`[rooms] ${buf.slice(0, i)}\n`);
@@ -211,8 +215,12 @@ export async function ensureRoomsWorker({ port = roomsPort(), persistTo, readyTi
   const deadline = Date.now() + readyTimeoutMs;
   while (Date.now() < deadline) {
     if (await healthy(port)) {
+      // `started` = we own a LIVE spawn. A concurrent ensure can lose the port
+      // race (its doomed wrangler exits, the exit handler clears `state`) and
+      // then ride the winner's readiness here — reuse, not a fake spawn.
+      const started = !!state.child && state.child.exitCode === null;
       log(`ready on ${url}`);
-      return { ok: true, started: true, url };
+      return { ok: true, started, url };
     }
     const child = state.child;
     if (child && child.exitCode !== null) {
