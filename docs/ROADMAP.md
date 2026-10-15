@@ -1030,53 +1030,6 @@ Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work
 
 **Relations**: `relates to` **229** (collab entitlement + shared gating), **145** (desktop app = the true offline host), **209** (account question).
 
-## 246. Local dev — auto-start the rooms worker (`wrangler dev`) for dev servers, collab sessions and tests (`[ ]`)
-
-**Requested 2026-10-15 (user):** with the room worker deploying to Cloudflare soon,
-the local emulator (`wrangler dev` = Miniflare/workerd + DO SQLite state) should come
-up on demand — from `npm run dev`, when a collab session starts, and when tests run —
-instead of the manual background command.
-
-**Order:** #3 of the remaining collab work (229's priority list) — dev-tooling, independent of the deploy.
-
-- **Today (manual):** `npx wrangler dev --port 8787` in `workers/rooms` + gitignored
-  `.dev.vars` (`DEV_AUTH=1` accepts `dev:<userId>:<role>` —
-  `workers/rooms/wrangler.toml:9`, `src/lib/rooms/roomToken.ts:121`) + `.env`
-  `VITE_ROOMS_URL` (`.env.example:14-20`). Client gate: `useRoomTransport.ts:40` —
-  unset = rooms inert; `roomBadge.ts` shows `unreachable` when the worker is down.
-  Wrangler is NOT pinned (`npx` fetches latest each run) — add `wrangler@4` to
-  devDependencies.
-- **One launcher `tools/rooms-dev.mjs`:** `ensure()` = health-probe 8787 → reuse
-  (so N worktree dev servers share ONE worker, `.dev.vars` and DO state) else spawn
-  `npx wrangler dev` from the MAIN working tree's `workers/rooms` (resolve via
-  `git worktree list`), wait for ready, `[rooms]`-prefixed logs; `stop()` kills only
-  what it spawned. The worker has no health route today — add `GET /health` to
-  `workers/rooms/src/index.ts` (no auth, no data).
-- **Dev server:** a serve-only Vite plugin (`vite.config.ts`; precedent:
-  `hubStorageBridge`) — `ensure()` after listen, stop its own spawn on exit; when
-  `VITE_ROOMS_URL` is unset, default the client to the loopback URL (no `.env` edit);
-  a worker failure never blocks the dev server (badge shows unreachable).
-- **On-demand (the "collab session starts" ask):** the browser cannot spawn
-  processes — the DEV SERVER does: dev-only middleware `GET /__rooms-dev/ensure`;
-  `useRoomTransport` fetches it once before `client.start()`, only when
-  `import.meta.env.DEV` and the URL is loopback (prod builds never call it). Debug
-  bridge may expose `roomsDev.status()` for agents.
-- **Tests:** `playwright.rooms.config.ts` (precedent: `playwright.perf*.config.ts`)
-  extends the base config with a second `webServer` entry for the worker
-  (`reuseExistingServer: true`, `--persist-to` a temp dir for clean DO state) +
-  `VITE_ROOMS_URL` + the room specs; the default suite stays Supabase-off
-  (`playwright.config.ts:62-80`). Point `room-probe.ts` / `room-client-probe.ts` /
-  `two-window-repro.mjs` at the same launcher (two-window-repro's private
-  pkill/restart is the duplication to remove).
-- **Out of scope:** Supabase locally (`supabase start`, Docker) — dev keeps the
-  hosted project; a fully-offline collab stack is its own future item.
-- **Verify:** `npm run dev` with a shared project open → room connects with no manual
-  wrangler; kill the worker → badge `unreachable` + offline buffer, relaunch via the
-  ensure endpoint → replays; two worktree dev servers share ONE worker; `npx
-  playwright test --config=playwright.rooms.config.ts` green.
-- **Relations:** `extends` **229** (S4 local loop + deploy prep); `relates to` **145**
-  (desktop app = the eventual no-terminal host).
-
 ## 257. Element Manager — Board IDs for every element category (MMS parity, Option A) (`[ ]`)
 
 **Requested 2026-10-15 (user):** Movie Magic numbers every element — its
