@@ -1329,3 +1329,37 @@ all three managers at once.
   peer; peer reload while typing does not eat the focused text (two-window).
 - **Relations:** `relates to` **229** (S3.5 save ping + S4 rooms — the in-flight edit
   rule), **243** (manager sidebar follow), **228** (cast naming modal).
+
+## 251. Text commit-on-blur — project title + Report Designer text (`[~]`)
+
+**Requested 2026-10-15 (user, while 250 was in flight):** the header project-title field
+dispatches `UPDATE_PROJECT` on every character; typing in the Report Designer (text
+blocks, embedded titles, free-table cells, the inspector's text inputs) dispatches the
+whole `UPDATE_REPORT_DESIGN` per character. Both should commit when the edit finishes
+(blur / Enter / edit end) — the same convention as 250.
+
+- **Title (`AppHeader.tsx:214-227`):** keep a local draft while editing; commit ONCE on
+  blur/Enter through the existing `renameProject()` (it dispatches `UPDATE_PROJECT`,
+  updates the index meta and pushes Drive/online) — no per-character project dispatch
+  and no per-character Drive/online push.
+- **Report Designer (`ReportDesigner.tsx`):** ONE seam — `commitAll()` defers the store
+  dispatch while a text-editing element (contentEditable / text input / textarea) has
+  focus inside the designer; the local design state still updates per keystroke
+  (Tab/cell navigation, formatting, ref menus keep reading fresh props — the
+  draft-buffer route would break them). Flush on: any non-deferred (structural) commit,
+  focusout of a text editor, the editor's Escape/edit-end, unmount (SceneSheet's
+  `useEffect(() => () => commitTextEdits(), [])` precedent) and `pagehide`. The
+  `[project.reportDesigns]` re-sync effect skips while pending (a peer change must not
+  clobber unflushed text); the pending state registers with `inFlightEdits` (250) so the
+  S3.5 peer-save auto-reload defers instead of wiping it.
+- **Zone mode is out of scope** (`zone!.onChange` is the Call Sheet editor's own draft
+  seam) — no behavior change there.
+- **Verify:** existing specs `report-page-breaks` ("filter values commit on blur, one
+  undo entry"), `report-editor-polish` (type → Escape → resolved text), `report-xmlns`
+  (persistence — add the commit point), `rich-text-editor`, `report-chrome`,
+  `call-sheet-day`; plus a manual pass (type in a text block/cell/inspector input →
+  click away → one undo entry; ⌘Z after blur undoes the burst; peer/store see the
+  final text). No new spec (single-field UX; automate only if a silent break is
+  plausible).
+- **Relations:** `relates to` **250** (same commit-on-blur convention + `inFlightEdits`);
+  `reports designer` canonical doc: `docs/REPORTS-DESIGNER.md`.
