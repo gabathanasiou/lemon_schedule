@@ -550,7 +550,7 @@ try {
 
   // 240: a MODAL is the other kind — click through the OPEN menu (a modal
   // opened from a just-closed menu must still read as 'modal').
-  await A.page.getByRole('menuitem', { name: 'Edit profile...' }).click();
+  await A.page.getByRole('menuitem', { name: 'Settings...' }).click();
   const modalBubble = await waitFor(async () => (await B.page.locator('[data-testid="presence-bubble-overlay"]').count()) > 0);
   const modalTag = await waitFor(async () => (await B.page.locator(cursorSel('[data-overlay="modal"]')).count()) > 0);
   const aModal = await diag(A.page).then((d) => d.presence?.localOverlay ?? null).catch(() => null);
