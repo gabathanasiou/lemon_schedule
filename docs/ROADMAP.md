@@ -1085,12 +1085,15 @@ also mirror **modal/dropdown open state**?
 
 **Order:** #3 of the remaining collab work (229's priority list) — the easiest remaining code item (~½ day).
 
-- **Built 2026-10-15, pending the two-client manual pass:** `managerCategory` /
-  `preview` / `reportViewMode` on the wire (`parseView` clamps + Vitest);
-  publishes + appliers in ElementManager (`breakdown/elements`), `managerShell`
-  (Crew/Locations, via `presenceSub`), ReportDesigner (same-design gate) and
-  CallSheetEditPage (carries `daySection`); user paths call
-  `noteUserViewChange`, appliers stay raw. `npm run lint` + `test:smart` green.
+- **Built 2026-10-15, pending the two-client manual pass:** the wire fields +
+  `parseView` clamps (`managerCategory` / `preview` / `reportViewMode`, Vitest)
+  and — beyond the ask — the whole lens set mirrors through ONE shared hook,
+  `src/lib/supabase/useFollowView.ts`: design picks (Reports + Ribbon), the Day
+  Manager's day (App place), the Script's viewed scene, ribbon A4/borders (all
+  surfaces migrated; user clicks call the hook's `noteUserChange`, surfaces
+  that mount mid-follow are re-applied on registration, and a peer-driven `go`
+  re-publishes the mirrored view). `followPlaceMatches` is the hook's place
+  gate (Vitest). `npm run lint` + `test:smart` green (1 known flake).
 
 - **The seam exists (S3 follow completeness pattern):** each toggle = one validated
   `PresenceView` field (`src/lib/supabase/presence.ts` / `parseView`) + publish on the user's
@@ -1273,3 +1276,56 @@ access — it should reflect reality.
   before/after; Vitest for the merge helper. No e2e (no PM spec exists; the suite runs
   Supabase-off, `playwright.config.ts:72`).
 - **Relations**: `relates to` **229** (S1/S2.5 sharing surfaces).
+
+## 250. Managers — automatic commit, drop the Save button (`[~]`)
+
+**Requested 2026-10-15 (user):** the Element / Crew / Locations managers are the last
+manual-save surface — field edits stage in a local buffer behind Save/Revert while every
+other surface commits on blur (`CellInput`, SceneSheet, Glide). Remove the manual save:
+each field commits on blur/Enter/leaving the field; the merge confirmation still fires
+(at commit time), the Save/Revert buttons, local undo history, Cmd+S and the
+unsaved-changes prompts all go. User decisions: commit point = blur/Enter (NOT
+per keystroke, NOT debounce-while-typing); collision keeps the confirmation modal;
+all three managers at once.
+
+- **Why it was manual (history, not collab):** the first Element Manager auto-populated
+  elements from a dispatching effect — infinite loops + save flicker (`b9894dfb`,
+  `64142c85`) — so "elements are saved on the user's first Save" became the escape, and
+  the save grew into the atomic merge/rename-cascade commit (`MERGE_ELEMENTS` rewrites
+  scenes once; "Save then ⌘Z = one step"). Commit-on-blur needs neither: it is
+  event-driven (no effects) and one commit per finished field keeps the scene rewrite
+  to ONE per rename. (Per-keystroke would stream an intermediate rename + undo entry
+  per character to the room — that is the thing to keep out.)
+- **Collab bug folded in (item decision):** buffered edits never bump
+  `changeCounterRef`, so the S3.5 save ping (`applyPeerSave`, `provider.tsx:350-372`)
+  reads the client as CLEAN and silently LOADs the peer blob → `useRowBuffer`'s
+  `reloadDeps` reset (`rowBuffer.ts:125-138`) drops the user's unsaved manager edits.
+  Fix: an in-flight edit marks the client dirty (the peer save raises "Changes
+  available" instead of auto-applying) and the buffer preserves uncommitted field text
+  across any reload.
+- **Engine (`src/lib/rowBuffer.ts` v2):** keep the local row buffer, input registry and
+  Tab order; delete snapshots/local undo/redo/save/revert/Cmd+S/the unsaved guard. Blur
+  calls ONE manager-provided `commit()` per finished field; the `reloadDeps` reload
+  reconciles committed fields with the store — preserving in-flight field text and
+  uncommitted new rows, dropping rows a merge absorbed. Blank rows stay local (never
+  dispatched); Sort stays a local view op (order is not persisted today).
+- **Managers:** `ElementManager.tsx` (its own diff/save copy; cast = per-row
+  ADD/UPDATE/DELETE with the roadmap-228 name→ID resolution) and `managerShell.tsx`
+  (Crew/Locations; `computeManagerDiff` + `commitPlan`). The diff is computed at commit
+  against store truth (`loadRows`) instead of a snapshot; a colliding rename opens the
+  existing `MergeRowsModal` at commit time (cancel restores the committed field); row
+  deletes commit immediately (trash + undo parity unchanged); header drops
+  Save/Revert.
+- **Chrome/undo:** `unsavedGuard.ts` deleted (App popstate/tab/popout prompts and the
+  pre-switch merge flow go with it); new tiny `inFlightEdits.ts` registry consulted by
+  `applyPeerSave`; `UndoRedoButtons` + `undo()`/`redo()` (provider) drop the
+  local-history-first routing and its enablement — Cmd+Z is the store/room undo at
+  per-commit granularity. HelpModal rows updated (no Save/Revert/local-undo copy).
+- **Verify:** update `e2e/element-manager-merge.spec.ts` (rename commits on Enter; the
+  collision dialog fires at commit; no Save button; guard specs replaced), plus the
+  Save-click specs `crew-manager`, `locations`, `cast-single-source`,
+  `new-cast-naming`, `script-retention`; full suite + `npm run lint`; smart-test RULES
+  for the new module. Manual pass: type + click away → edit committed and visible to a
+  peer; peer reload while typing does not eat the focused text (two-window).
+- **Relations:** `relates to` **229** (S3.5 save ping + S4 rooms — the in-flight edit
+  rule), **243** (manager sidebar follow), **228** (cast naming modal).
