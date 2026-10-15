@@ -539,9 +539,41 @@ concurrency semantics in its doc.
   highlights; pure encode/parse/clamp helpers are Vitest; the two-window
   harness (`workers/rooms/test/two-window-repro.mjs`) asserts the broadcast
   AND the painted highlight (peer-colour pixels on the grid canvas).
+- **Peer drags — ghost + soft lock (roadmap 235, built 2026-10-15)**: while a
+  peer drags (stripboard rows/scenes/notes/breaks/daybreaks incl. multi-select,
+  calendar cards, a whole day), their held items show as a translucent ghost at
+  their cursor AND every other client soft-locks those items — the held
+  rows/cards/day headers wear a ring in the peer's colour and refuse pickup
+  (dnd `disabled` + held ids filtered out of any local drag set), the
+  right-click menu refuses to open ("X is moving this" chip instead) and
+  Delete/Cmd+X/cut skip them. Selecting, scrolling and field edits stay
+  allowed. Transport: a dedicated `drag` broadcast of `{ surface, itemIds }`
+  (capped at 50) as START/END edges + a ~5s heartbeat, TTL 12s so a killed
+  tab's lock expires (degrading to last-drop-wins — never corruption);
+  newest window wins. POSITION costs nothing extra: it rides the peer's
+  `cursor` frames via a `drag: true` flag (the claim's edges force one frame
+  with the current anchor). `surface` = `schedule` | `calendar` |
+  `calendar-day`; a whole-day claim also carries the synthetic
+  `day:<sectionIndex>` marker so the day header locks alongside the day's
+  rows. Ghosts are `pointer-events-none`, render below modals (z-30) and only
+  in the main window (parity with pointers); the stripboard ghost renders at
+  ~0.5 scale so wide rows never cover the board (user ask 2026-10-15), the
+  calendar stays full size. Code: wire + pure helpers
+  (`parseDragPayload`/`resolveDragClaims`/`heldItemsOf`/`dayDragItemId`) in
+  `src/lib/supabase/presenceDrag.ts` (re-exported by `presence.ts`; the shared
+  wire readers live in `presenceWire.ts`); claim lifecycle (heartbeat, blur
+  release, TTL) in `presenceContext.tsx` (`publishDrag`/`releaseDrag`,
+  `useHeldItems`); the shared ghost layer `src/components/RemoteDragGhosts.tsx`
+  over the shared anchor geometry (`src/lib/presencePoint.ts`) and motion model
+  (`src/lib/glideMotion.ts`); lock call sites: `SortableRibbon`/`StripBlock`/
+  `BoneyardBlock`, `calendar/SceneCard`/`DayCell`, `useScheduleDrag`/
+  `useCalendarDrag`, `useStripboardContextMenu`, both keyboard hooks. Pure
+  helpers are Vitest (`src/lib/__tests__/presence.test.ts`).
 - Motion: pointers glide between positions with a **rAF glide loop inside
   `PresenceOverlay`** (exponential approach toward the anchor-resolved target,
   τ ≈ 110ms; targets refresh on a ~80ms measure tick + scroll/resize).
+  The motion MODEL is shared with the peer drag ghosts
+  (`src/lib/glideMotion.ts` — `glideStep`/`SMOOTH_TAU_MS`, dt clamped at 64ms).
   `prefers-reduced-motion` snaps instantly. **Do NOT go back to a CSS
   `transition` on the pointer wrapper** — the cursor feed is ~12/s, so each
   update restarted the transition mid-flight and the pointer stuttered instead
