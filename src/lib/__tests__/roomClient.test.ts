@@ -196,6 +196,37 @@ describe('RoomClient', () => {
     }
   });
 
+  it('re-syncs on a rev gap instead of applying a delta to the wrong base', async () => {
+    const { client, sockets, events } = makeClient();
+    await openClient(client, sockets, 5);
+    // Contiguous peer action applies.
+    sockets[0].receive({ t: 'remote', rev: 6, userId: 'u-2', actionId: 'b-1', action: { type: 'BATCH_COMMIT' } });
+    expect(events).toContain('remote:b-1');
+    // A skip (8 after 6) means we missed rev 7 — never apply it, ask for a snapshot.
+    sockets[0].receive({ t: 'remote', rev: 8, userId: 'u-2', actionId: 'b-2', action: { type: 'BATCH_COMMIT' } });
+    expect(events).not.toContain('remote:b-2');
+    expect(sockets[0].lastSent()).toEqual({ t: 'sync' });
+    // Further gaps do not spam the room while the sync is in flight…
+    const sent = sockets[0].sent.length;
+    sockets[0].receive({ t: 'remote', rev: 9, userId: 'u-2', actionId: 'b-3', action: { type: 'BATCH_COMMIT' } });
+    expect(sockets[0].sent).toHaveLength(sent);
+    // …and the welcome re-anchors, so the next contiguous delta applies again.
+    sockets[0].receive({ t: 'welcome', userId: 'u-1', role: 'editor', rev: 9, project: PROJECT_BLOB, replay: [] });
+    sockets[0].receive({ t: 'remote', rev: 10, userId: 'u-2', actionId: 'b-4', action: { type: 'BATCH_COMMIT' } });
+    expect(events).toContain('remote:b-4');
+  });
+
+  it("treats an undo's welcome as the new rev anchor (no false gap after it)", async () => {
+    const { client, sockets, events } = makeClient();
+    await openClient(client, sockets, 3);
+    sockets[0].receive({ t: 'remote', rev: 4, userId: 'u-2', actionId: 'b-1', action: { type: 'BATCH_COMMIT' } });
+    // An undo commits its rebased snapshot as the NEXT rev, then re-welcomes.
+    sockets[0].receive({ t: 'welcome', userId: 'u-1', role: 'editor', rev: 5, project: PROJECT_BLOB, replay: [] });
+    sockets[0].receive({ t: 'remote', rev: 6, userId: 'u-2', actionId: 'b-2', action: { type: 'BATCH_COMMIT' } });
+    expect(events).toContain('remote:b-2');
+    expect(sockets[0].sent.some((s) => JSON.parse(s).t === 'sync')).toBe(false);
+  });
+
   it('stops with an error when no token can be obtained', async () => {
     const { client, sockets, events } = makeClient({
       getToken: async () => {

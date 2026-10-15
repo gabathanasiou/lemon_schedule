@@ -81,6 +81,15 @@ export class RoomClient {
   private timer: ReturnType<typeof setTimeout> | null = null;
   /** Action ids we applied optimistically and are still awaiting on the wire. */
   private pendingOwn = new Set<string>();
+  /**
+   * Highest room rev we have applied. The room stamps every `remote` with a
+   * contiguous rev, so a jump means we MISSED a message — including the
+   * whole-project `welcome` an undo emits. Applying later deltas against the
+   * wrong base would silently diverge, so a gap triggers a full re-sync.
+   */
+  private lastRev: number | null = null;
+  /** A re-sync is in flight — its `welcome` will carry everything we missed. */
+  private syncPending = false;
 
   constructor(private readonly opts: RoomClientOptions) {}
 
@@ -120,9 +129,11 @@ export class RoomClient {
     return true;
   }
 
-  /** Ask the room for a fresh snapshot + replay (used to heal after conflicts). */
+  /** Ask the room for a fresh snapshot + replay (heals a conflict or a rev gap).
+   *  Idempotent: one in-flight sync at a time; the welcome clears the flag. */
   requestSync(): void {
-    if (this.status !== 'open') return;
+    if (this.status !== 'open' || this.syncPending) return;
+    this.syncPending = true;
     this.rawSend({ t: 'sync' });
   }
 
@@ -164,6 +175,10 @@ export class RoomClient {
     this.socket = socket;
     socket.onopen = () => {
       this.attempt = 0;
+      // A new socket re-anchors on its welcome — drop any rev / pending sync
+      // from the previous connection.
+      this.lastRev = null;
+      this.syncPending = false;
       this.setStatus('syncing');
       this.rawSend({ t: 'hello', token, projectId: this.opts.projectId });
     };
@@ -206,6 +221,10 @@ export class RoomClient {
           this.opts.onError?.('unreadable room snapshot');
           return;
         }
+        // A welcome is a full snapshot: it re-anchors the rev and settles any
+        // re-sync we asked for.
+        this.lastRev = msg.rev;
+        this.syncPending = false;
         this.setStatus('open');
         this.opts.onWelcome({
           userId: msg.userId,
@@ -223,6 +242,16 @@ export class RoomClient {
         return;
       }
       case 'remote': {
+        // Rev gap = we missed at least one message (a dropped `remote`, or the
+        // whole-project `welcome` an undo sends). This delta would land on the
+        // wrong base, so re-sync instead of applying it — the welcome that
+        // follows carries every missed action. A repeated gap while the sync is
+        // in flight is skipped quietly.
+        if (this.lastRev !== null && msg.rev !== this.lastRev + 1) {
+          this.requestSync();
+          return;
+        }
+        this.lastRev = msg.rev;
         // Our own echo: already applied optimistically, so just settle it.
         if (this.pendingOwn.delete(msg.actionId)) return;
         this.opts.onRemote({ rev: msg.rev, userId: msg.userId, actionId: msg.actionId, action: msg.action });
@@ -239,6 +268,8 @@ export class RoomClient {
         return;
       }
       case 'error': {
+        // An errored sync (e.g. rate-limited) must not wedge the gap detector.
+        this.syncPending = false;
         this.opts.onError?.(msg.message);
         return;
       }

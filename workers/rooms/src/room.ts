@@ -625,6 +625,10 @@ export class Room extends DurableObject<Env> {
     for (const socket of this.ctx.getWebSockets()) {
       const socketInfo = this.connectionInfo(socket);
       if (socketInfo) this.sendWelcome(socket, socketInfo);
+      // A peer with no attachment would be silently skipped here, so it would
+      // keep the pre-undo state forever. Surface it — an unauthenticated socket
+      // is closed long before this, so this is genuinely unexpected.
+      else console.warn(`rooms: rewelcome skipped a socket with no attachment (room ${this.projectId})`);
     }
   }
 
@@ -646,8 +650,14 @@ export class Room extends DurableObject<Env> {
   private send(ws: WebSocket, msg: RoomServerMessage): void {
     try {
       ws.send(encodeRoomMessage(msg));
-    } catch {
-      // socket already closed — the runtime cleans it up
+    } catch (e) {
+      // Sending to an already-closing socket is the benign race (the runtime is
+      // about to reap it); a still-OPEN socket failing is the surprise. Swallowing
+      // the latter silently once hid a whole class of "the peer never re-synced"
+      // reports (per-user undo converges through `welcome`), so surface it.
+      if (ws.readyState <= 1) {
+        console.warn(`rooms: send failed (t=${msg.t}, room ${this.projectId}): ${e instanceof Error ? e.message : String(e)}`);
+      }
     }
   }
 
@@ -657,8 +667,10 @@ export class Room extends DurableObject<Env> {
       if (!this.connectionInfo(ws)) continue;
       try {
         ws.send(encoded);
-      } catch {
-        // socket already closed
+      } catch (e) {
+        if (ws.readyState <= 1) {
+          console.warn(`rooms: broadcast failed (t=${msg.t}, room ${this.projectId}): ${e instanceof Error ? e.message : String(e)}`);
+        }
       }
     }
   }

@@ -15,6 +15,7 @@ import { performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 import { useRoomTransport } from '../lib/rooms/useRoomTransport';
 import { fetchRoomToken } from '../lib/rooms/tokenClient';
 import type { RoomStatus } from '../lib/rooms/roomClient';
+import type { RoomRole } from '../lib/rooms/protocol';
 import { serializeProject } from '../lib/projectCodec';
 import {
   LEGACY_KEY,
@@ -195,6 +196,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   // (guardedDispatch sends, welcome/remote apply) and the save pipeline below.
   const currentOnlineId = currentMetaForRole?.onlineId ?? null;
   const sbUserId = sbAuth.account?.id ?? null;
+  // The identity the ROOM sees for this window (from the accepted welcome) —
+  // a diagnostic, since per-user undo is per ROOM user: two windows sharing a
+  // roomUserId share one undo history by design (same account), and two
+  // accounts must show two different ids.
+  const roomIdentityRef = useRef<{ userId: string; role: RoomRole } | null>(null);
+  useEffect(() => {
+    roomIdentityRef.current = null;
+  }, [currentOnlineId, sbUserId]);
   const { clientRef: roomClientRef, status: roomStatus } = useRoomTransport({
     onlineId: currentOnlineId,
     userId: sbUserId,
@@ -209,6 +218,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       // The room's snapshot is the truth while connected: rebaseline, then fold
       // the replay as REMOTE applies — raw dispatch, never counted as local
       // changes, never pushed back (the room already has them).
+      roomIdentityRef.current = { userId: welcome.userId, role: welcome.role };
       loadBaseline(welcome.project);
       for (const entry of welcome.replay) {
         dispatch(entry.action);
@@ -585,6 +595,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         onlineChangesAvailable: onlineChangesAvailableRef.current,
         roomsConfigured: !!import.meta.env.VITE_ROOMS_URL,
         roomStatus: roomStatusRef.current,
+        roomUserId: roomIdentityRef.current?.userId ?? null,
+        roomRole: roomIdentityRef.current?.role ?? null,
       }),
     });
     return uninstall;
@@ -920,14 +932,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         if (performLocalUndo()) return;
-        if (roomActive()) roomClientRef.current?.sendUndo();
-        else guardedDispatch({ type: 'UNDO' });
+        // A SHARED project's undo is ALWAYS a room operation. A local transcript
+        // UNDO never reaches the room (`guardedDispatch` excludes UNDO), so it
+        // would silently diverge this window from every peer — the "undo landed
+        // on me but not my peer" report. With no live room connection, say so
+        // instead of diverging quietly.
+        if (isCurrentOnlineProject()) {
+          if (!roomClientRef.current?.sendUndo()) {
+            console.warn('[rooms] undo unavailable — the shared project is not connected to the room');
+          }
+          return;
+        }
+        guardedDispatch({ type: 'UNDO' });
       }
       if (cmdOrCtrl && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
         if (performLocalRedo()) return;
-        if (roomActive()) roomClientRef.current?.sendRedo();
-        else guardedDispatch({ type: 'REDO' });
+        if (isCurrentOnlineProject()) {
+          if (!roomClientRef.current?.sendRedo()) {
+            console.warn('[rooms] redo unavailable — the shared project is not connected to the room');
+          }
+          return;
+        }
+        guardedDispatch({ type: 'REDO' });
       }
       if (cmdOrCtrl && e.key === 's') {
         e.preventDefault();
@@ -935,7 +962,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentProjectId, guardedDispatch, roomActive]);
+  }, [currentProjectId, guardedDispatch, isCurrentOnlineProject]);
 
   // Flush current project to localStorage immediately (local projects only —
   // Drive and online projects have their own writers).
