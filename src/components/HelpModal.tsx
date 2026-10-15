@@ -57,6 +57,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
       <div className={`${HM_CONTENT} overflow-y-auto max-h-[65vh]`}>
         <Section title="App Navigation">
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>[</Kbd> / browser back</>} action="Back to the previous tab / sub-tab (browser forward / ⌘] goes the other way). The Day Manager and the Call Sheet editor are separate steps" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>1</Kbd>…<Kbd>7</Kbd></>} action="Jump to a header tab (Breakdown → Reports, left to right)" />
         </Section>
 
         <Section title="Cell Editing (Edit mode)">

@@ -94,7 +94,7 @@ import { prepareSunWeatherForDesign } from './lib/reportWeather';
 import OfflineStatus from './components/OfflineStatus';
 import { PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar } from './components/popout/PopoutFrames';
 import { DayTypesTab } from './components/calendar/DayTypesTab';
-import { AppPlace, NavStack, initStack, pushPlace, currentPlace, previousPlace, isNavStack, parsePlaceHash, placeToHash, samePlace } from './lib/appNav';
+import { AppPlace, NavStack, initStack, pushPlace, currentPlace, previousPlace, isNavStack, parsePlaceHash, placeToHash, samePlace, TAB_ORDER } from './lib/appNav';
 import { PresenceProvider, usePresenceActions } from './lib/supabase/presenceContext';
 import { placeToPresenceView, presenceViewToPlace } from './lib/supabase/presence';
 import { PresenceOverlay } from './components/PresenceOverlay';
@@ -316,6 +316,21 @@ function AppContent() {
     if (tab === 'production' && (sub === 'days' || sub === 'crew' || sub === 'locations')) place.mode = prodViews[sub];
     go(place);
   }, [go, currentSubOf, prodViews]);
+
+  // ⌘/Ctrl + 1..7 jump straight to a header tab (roadmap 258) — the muscle
+  // memory for the icon-first nav. Same seam as a tab click (requestTabSwitch
+  // keeps the remembered sub-tab / mode).
+  useEffect(() => {
+    const onTabKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.repeat) return;
+      const n = Number(e.key);
+      if (!Number.isInteger(n) || n < 1 || n > TAB_ORDER.length) return;
+      e.preventDefault();
+      requestTabSwitch(TAB_ORDER[n - 1]);
+    };
+    window.addEventListener('keydown', onTabKey);
+    return () => window.removeEventListener('keydown', onTabKey);
+  }, [requestTabSwitch]);
 
   const requestTabPopout = useCallback((tab: AppTabId) => {
     togglePopout(tab);

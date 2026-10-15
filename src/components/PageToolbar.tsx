@@ -3,12 +3,15 @@ import { useProjectTheme } from '../store';
 import { projectAccentOf } from '../lib/projectTheme';
 import { ExternalLink } from 'lucide-react';
 import { IS_COARSE, isTouchLike } from '../lib/device';
+import { useSlidingPill, TAB_PILL } from '@gabriel/ui-kit';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import Button from './Button';
 
 export interface ToolbarTab {
   id: string;
   label: string;
+  /** Mini-tab icon (roadmap 258) — the resting face while the labels are docked. */
+  icon?: React.ReactNode;
 }
 
 interface PageToolbarProps {
@@ -65,6 +68,44 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
     window.addEventListener('resize', checkScroll);
     return () => window.removeEventListener('resize', checkScroll);
   }, [checkScroll]);
+
+  // Dock mode (roadmap 258): the mini tabs collapse to icons ONLY when the
+  // full labels would not fit the toolbar. The strip's full-label width is
+  // measured once at mount (it is stable for an instance); the sibling groups
+  // are read live, so the dock never feeds back into its own measurement.
+  const [tabsDock, setTabsDock] = React.useState(false);
+  const stripRef = React.useRef<HTMLDivElement>(null);
+  const tabRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
+  const childrenGroupRef = React.useRef<HTMLDivElement>(null);
+  const rightGroupRef = React.useRef<HTMLDivElement>(null);
+  /* The active sub-tab's fill is the row's measured pill (useSlidingPill +
+     TAB_PILL — the Seg mechanism), so the selection box glides (roadmap 258). */
+  const activeTabIdx = Math.max(0, (tabs ?? []).findIndex(t => t.id === activeTab));
+  const tabPill = useSlidingPill(stripRef, tabRefs, activeTabIdx);
+  const tabPillFill = TAB_PILL[theme][accent === 'emerald' ? 'emerald' : accent ? 'blue' : 'plain'];
+  const requiredStripWidthRef = React.useRef<number | null>(null);
+  const syncTabsDock = React.useCallback(() => {
+    const el = scrollRef.current;
+    const strip = stripRef.current;
+    if (!el || !strip) return;
+    if (requiredStripWidthRef.current == null) requiredStripWidthRef.current = Math.ceil(strip.scrollWidth);
+    const others = (childrenGroupRef.current?.scrollWidth ?? 0) + (rightGroupRef.current?.scrollWidth ?? 0);
+    const groups = 1 + (childrenGroupRef.current ? 1 : 0) + (rightGroupRef.current ? 1 : 0);
+    const needed = requiredStripWidthRef.current + others + 24 + (groups - 1) * 8;
+    setTabsDock(needed > el.clientWidth - 4);
+  }, []);
+  React.useLayoutEffect(() => {
+    syncTabsDock();
+    const el = scrollRef.current;
+    const strip = stripRef.current;
+    if (!el || !strip) return;
+    const ro = new ResizeObserver(syncTabsDock);
+    ro.observe(el);
+    ro.observe(strip);
+    if (childrenGroupRef.current) ro.observe(childrenGroupRef.current);
+    if (rightGroupRef.current) ro.observe(rightGroupRef.current);
+    return () => ro.disconnect();
+  }, [syncTabsDock, tabs?.length]);
 
   const dragRef = React.useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const replayRef = React.useRef(false);
@@ -125,16 +166,23 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
       style={{ scrollbarWidth: 'none', WebkitMaskImage: scrollMask, maskImage: scrollMask }}>
       <div className={`flex items-center ${JUSTIFY[justify]} gap-2 shrink-0 w-fit min-w-full px-3 pt-2 pb-2`}>
         {tabs && tabs.length > 0 && (
-          <div className="flex items-center gap-1 shrink-0">
-          {tabs.map(tab => {
+          <div ref={stripRef} className="relative flex items-center gap-1 shrink-0">
+          {tabPill.style && (
+            <span aria-hidden className={`absolute top-0 bottom-0 rounded pointer-events-none ${tabPillFill} ${tabPill.motionClass}`} style={tabPill.style} />
+          )}
+          {tabs.map((tab, i) => {
             const active = activeTab === tab.id;
             return (
               <Button
                 key={tab.id}
+                ref={el => { tabRefs.current[i] = el; }}
                 variant="tab"
                 theme={theme}
                 cloud={accent}
                 active={active}
+                icon={tab.icon}
+                collapse={tabsDock}
+                iconWithLabel={false}
                 data-presence-anchor={`nav:subtab:${tab.id}`}
                 onClick={() => {
                   if (shiftHeld && !IS_COARSE && onPopout) {
@@ -147,7 +195,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
                 } : undefined}
-                className={`shrink-0 ${theme === 'dark' && active && projectTheme === 'local' ? 'bg-white! text-zinc-900!' : ''}`}
+                className="shrink-0 relative z-10"
               >
                 {tab.label}
               </Button>
@@ -155,8 +203,8 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
           })}
           </div>
         )}
-        {children && <div className="flex items-center gap-2 shrink-0">{children}</div>}
-        {rightContent && <div className="flex items-center gap-2 shrink-0">{rightContent}</div>}
+        {children && <div ref={childrenGroupRef} className="flex items-center gap-2 shrink-0">{children}</div>}
+        {rightContent && <div ref={rightGroupRef} className="flex items-center gap-2 shrink-0">{rightContent}</div>}
       </div>
       {contextMenu && onPopout && (
         <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>

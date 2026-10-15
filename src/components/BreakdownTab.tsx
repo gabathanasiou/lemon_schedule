@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Check, ChevronDown, Scissors, SplitSquareHorizontal } from 'lucide-react';
+import { Check, ChevronDown, Scissors, SplitSquareHorizontal, Table2, FileText, Blocks, TableProperties } from 'lucide-react';
 import { ElementManager } from './ElementManager';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -62,10 +62,10 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 overflow-hidden relative select-none">
       <PageToolbar
         tabs={[
-          { id: 'sheet', label: 'Sheet' },
-          { id: 'script', label: 'Script' },
-          { id: 'elements', label: 'Element Manager' },
-          { id: 'glide', label: 'Glide Breakdown' },
+          { id: 'sheet', label: 'Sheet', icon: <Table2 className="w-3.5 h-3.5" /> },
+          { id: 'script', label: 'Script', icon: <FileText className="w-3.5 h-3.5" /> },
+          { id: 'elements', label: 'Element Manager', icon: <Blocks className="w-3.5 h-3.5" /> },
+          { id: 'glide', label: 'Glide Breakdown', icon: <TableProperties className="w-3.5 h-3.5" /> },
         ]}
         activeTab={subTab}
         onChange={requestSubTabChange}

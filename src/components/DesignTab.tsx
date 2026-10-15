@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StretchHorizontal, Palette, FileText } from 'lucide-react';
 import PageToolbar from './PageToolbar';
 import RibbonTab from './RibbonTab';
 import { ColorsTab } from './ColorsTab';
@@ -28,9 +29,9 @@ export default function DesignTab({ subTab, onSubTabChange, onReportPrint, poppe
       <PageToolbar
         theme="dark"
         tabs={[
-          { id: 'ribbons', label: 'Ribbon Designer' },
-          { id: 'colors', label: 'Colors' },
-          { id: 'designer', label: 'Reports Designer' },
+          { id: 'ribbons', label: 'Ribbon Designer', icon: <StretchHorizontal className="w-3.5 h-3.5" /> },
+          { id: 'colors', label: 'Colors', icon: <Palette className="w-3.5 h-3.5" /> },
+          { id: 'designer', label: 'Reports Designer', icon: <FileText className="w-3.5 h-3.5" /> },
         ]}
         activeTab={subTab}
         onChange={onSubTabChange}

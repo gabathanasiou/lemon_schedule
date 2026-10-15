@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import ToolbarDivider from './ToolbarDivider';
-import { List, Sheet, Table2 } from 'lucide-react';
+import { List, Sheet, Table2, CalendarClock, Users, Map } from 'lucide-react';
 import { Seg } from '@gabriel/ui-kit';
 import { ReportBlock, ReportDesign } from '../types';
 import PageToolbar from './PageToolbar';
@@ -114,9 +114,9 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
       <PageToolbar
         theme={subTab === 'days' && daysChromeDark ? 'dark' : 'light'}
         tabs={[
-          { id: 'days', label: 'Day Manager' },
-          { id: 'crew', label: 'Crew' },
-          { id: 'locations', label: 'Locations' },
+          { id: 'days', label: 'Day Manager', icon: <CalendarClock className="w-3.5 h-3.5" /> },
+          { id: 'crew', label: 'Crew', icon: <Users className="w-3.5 h-3.5" /> },
+          { id: 'locations', label: 'Locations', icon: <Map className="w-3.5 h-3.5" /> },
         ]}
         activeTab={subTab}
         onChange={requestSubTabChange}

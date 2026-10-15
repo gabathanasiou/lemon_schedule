@@ -7,14 +7,29 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 
 ## Tabs & Toolbars
 
-- Top tabs (App header): breakdown, schedule, calendar, design, rules, production, reports.
-  Shift+click / right-click = pop-out (desktop only, `!IS_COARSE`).
+- Top tabs (App header, roadmap 258): breakdown, schedule, calendar, design, rules, production,
+  reports with per-tab `TAB_ICONS` (`AppHeader.tsx`). Shift+click / right-click = pop-out (desktop
+  only, `!IS_COARSE`); ⌘/Ctrl+1…7 jumps (`TAB_ORDER`, `src/lib/appNav.ts` → the `requestTabSwitch`
+  effect in `App.tsx`).
+  **Icon dock**: when the FULL labels do not fit the row, the tabs dock — only the active tab shows
+  text (the kit `Button` drops the icon whenever the label shows: `iconWithLabel={false}`), the rest
+  rest as icon-only pills and reveal their label on hover/focus; icon and label are NEVER combined.
+  The label stays in the DOM while
+  collapsed, so role/name queries and screen readers keep working. `requiredTabWidth` is measured
+  once at mount while expanded (`syncTabLayout`) — **MUST NOT** re-measure the docked row when
+  deciding (the mode would feed back into itself and oscillate). The white selection pill is the kit
+  `useSlidingPill` (glides; chases the live reflow) — the `tab-header` variant carries only the dark
+  active text.
 - `PageToolbar` (`src/components/PageToolbar.tsx`): reusable toolbar with optional sub-tabs. Active
   tab `bg-zinc-950 text-white rounded px-3 py-1.5` (cloud: `bg-blue-950 text-blue-50`); inactive
-  `text-zinc-500 hover:text-zinc-900`. Scrolls horizontally with edge fades. Usage: Breakdown
-  (light; Sheet/Element Manager/Glide Breakdown), Design (dark; Ribbon Designer/Colors), Reports
-  (dark; DOODs/Element Breakdown), Schedule (light, justify end, no tabs), Calendar (two light
-  instances).
+  `text-zinc-500 hover:text-zinc-900`. Scrolls horizontally with edge fades. Sub-tabs carry `icon`s
+  and dock by the same rule (`syncTabsDock`: the strip's full width is measured once at mount, the
+  sibling groups live — the tabs are the ONLY group that changes size with the mode); their active
+  fill is a sliding pill too (`useSlidingPill` + kit `TAB_PILL` — never re-add `bg-*` to a `tab`
+  variant's active class). Usage:
+  Breakdown (light; Sheet/Element Manager/Glide Breakdown), Design (dark; Ribbon Designer/Colors),
+  Reports (dark; DOODs/Element Breakdown), Schedule (light, justify end, no tabs), Calendar (two
+  light instances).
 - **Header portal pattern**: parent puts `<div ref>` in `rightContent`; child accepts `headerTarget`
   and `createPortal`s its controls there (fallback: inline). Used by ElementManager, SceneSheet,
   GlideBreakdownTab, ColorsTab, RibbonTab, DayManagerPage/CallSheetEditPage.
@@ -24,6 +39,10 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `PopoutPlaceholder`. Mounting the host tab component in its own pop-out re-triggers the
   placeholder (its own id is in `poppedOutSubTabs`) and doubles the toolbar. Production → Days
   pop-outs use the day-popout recipe (plain `PopoutWindow` + `DayManagerPage` local header).
+- **Icon audit** (`npm run icons:audit`, `tools/icon-audit.cjs`): renders ONE page with every
+  lucide icon `src/` imports — live tab icons badged by where they're used (scanned from
+  `AppHeader` `TAB_ICONS` + the `PageToolbar` callers), candidate alternatives under each, and the
+  full name list. Use it to review/swap icons with the user before touching code.
 - **Merged-view switcher** (roadmap 177): sub-tabs that are two views of one surface (Crew
   manager/Glide, Locations manager/Glide, Days Day Manager/Call Sheet) collapse to ONE sub-tab plus
   a 2-segment icon control **pinned rightmost** in the `PageToolbar` — after the portaled controls,
