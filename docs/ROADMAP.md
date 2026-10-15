@@ -1037,5 +1037,80 @@ pass (doc §12).
 
 **Relations**: `extends` **229** (S2.5 guests, S3 presence).
 
+## 233. Reports Designer — per-user active design (two people edit two different reports) (`[ ]`)
+
+**Requested 2026-10-15 (user):** two collaborators must be able to edit DIFFERENT report designs
+at the same time. Today the designer's design selector dispatches `SET_ACTIVE_REPORT`
+(`src/components/reports/ReportDesigner.tsx` — `DesignsMenu onSelect`) into
+`Project.activeReportId` — project state, now streamed live by the S4 room — so one person
+switching designs switches everyone's editor.
+
+- **Approach**: the EDITING FOCUS becomes a per-user pref; the DESIGN CONTENT stays project
+  state (shared edits to one design are already multiplayer). Precedent to copy: the Day
+  Manager already prefers its per-user `prefs.callSheetDesignId` and only falls back to
+  `activeReportId` (`src/components/production/day/DayManagerPage.tsx:134`; the pref type is
+  in `production/day/daySectionTypes.ts`).
+- **Audit every `activeReportId` consumer** and give each the right source: ReportDesigner
+  (per-user), DayManagerPage call-sheet (already pref-first — retire the fallback?), print +
+  Reports-tab flows (`reports/ReportPrintDialog` etc. — per-user last-used vs an explicit pick
+  in the dialog), reducer `LOAD` defaults (keep a valid project-level value for older files).
+- **Sibling question (settle with this item)**: `Project.activeRibbonId` (design tab) has the
+  same project-wide behaviour — is the stripboard's active ribbon a shared "document look"
+  that should stay shared, or per-user view state? (COLLABORATION.md §9 currently treats
+  ribbon layout as project state that travels via save/room.)
+- **Verify**: two-window pass — each window selects a different design with no cross-switching;
+  refresh keeps the per-user choice; selector no longer rides the room; Vitest for the pref
+  helper if a new pure util lands.
+- **Relations**: `relates to` **229** (S4 made the project-wide sync instant — the reason this
+  surfaced), **212** (call-sheet/designer parity), **231**.
+
+## 234. Presence — highlight the cells a peer has selected (spreadsheet-style) (`[ ]`)
+
+**Requested 2026-10-15 (user):** when another user has cells selected in the Glide Breakdown
+(later: other grids/rows — Day Manager tables, stripboard rows, Calendar cards), show their
+selection in their presence colour, live — a persistent highlight, distinct from S3's floating
+pointers.
+
+- **The seam already exists**: S3's grid scope maps pointer ↔ cell semantically
+  (`src/lib/presenceResolvers.ts` — `rowKey`/`colKey`/indices; the Glide registers
+  `breakdown-glide`; anchor shapes in `src/lib/supabase/presence.ts`). Extend the presence
+  traffic with the SELECTION (anchor + extent as two grid hits — selections change far slower
+  than cursors, so reuse the throttle/idle-skip helpers), and render on the receiving grid via
+  Glide's custom draw (the same overlay machinery as cell borders/colours;
+  `BreakdownTabGlide.tsx` already owns a local `gridSelection` today).
+- **Rules**: ephemeral only (never persisted, never a room action); multi-window = one
+  selection per user, newest window wins (parity with pointers and item 232's transport
+  split — selections are `view`-ish traffic and must ride broadcasts, never `track()`);
+  clear on blur/window switch.
+- **Verify**: two-client manual pass (range-select in one window → peer-coloured rectangle in
+  the other, correct through differing scroll/zoom/column widths, clears on deselect); pure
+  helpers (selection encode/parse/clamp) as Vitest.
+- **Relations**: `extends` **229** (S3 presence). `relates to` **172** (Glide jump/flash —
+  share the highlight visuals), **235** (sibling presence polish), **231** (peer colours).
+
+## 235. Presence — show a peer's in-progress drag as a ghost (`[ ]`, big)
+
+**Requested 2026-10-15 (user):** while another user drags something (stripboard rows/scenes,
+Calendar cards, whole-day blocks), show their drag in my view — a translucent ghost at their
+pointer in their colour, "X is moving this"-style.
+
+- **Assessment (agent, 2026-10-15) — no correctness risk; the cost is rendering, per surface.**
+  Drags stay transient local state; only the DROP becomes a room action, so the room keeps its
+  serialised last-drop-wins outcome — a ghost makes that outcome legible instead of
+  surprising (two people may drag the same strip; both ghosts show, one drop lands). The work:
+  publish `{ kind, itemIds, anchor }` on the presence channel (reuse the cursor throttle +
+  idle-skip — drags emit at pointer rate), render ghost overlays per surface — stripboard
+  FIRST (rows + whole-day; `src/components/schedule/useScheduleDrag.ts` +
+  `ribbon/SortableRow*`), then Calendar cards (`calendar/useCalendarDrag.ts`). Ghosts render
+  BELOW modals (z-30 parity with pointers) and are pointer-events-none so they can never block
+  interactions.
+- **Explicitly out of scope until the first two surfaces feel right**: Reports/Call-Sheet
+  designer drags, Glide internal drags, fancy cross-container (Boneyard↔stripboard) cases.
+- **Verify**: two-window manual pass (ghost follows with the peer's colour, vanishes on
+  drop/cancel/Esc, never blocks interactions); pure helpers (drag payload shape/throttle) as
+  Vitest.
+- **Relations**: `extends` **229** (S3 presence transport). `relates to` **234** (sibling
+  presence polish), **231**.
+
 
 
