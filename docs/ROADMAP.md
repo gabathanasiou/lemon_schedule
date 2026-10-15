@@ -1253,26 +1253,6 @@ comparisons).
 **Relations**: `extends` **229** (S3 presence). `relates to` **233** (per-user active designs —
 the document ids this gate keys off), **234**/**235** (sibling presence polish), **231**.
 
-## 239. Shared projects — safe degradation when the room is unreachable (header cloud badge + queued edits) (`[ ]`)
-
-**Request (user 2026-10-15):** when Cloudflare / the room worker is down, fall back to the old Supabase sync, with a warning on the header cloud icon (amber "!" dot, info on hover/click).
-
-**Why NOT the naive blob fallback (decided):** the fallback half-exists already — `saveOnlineProject` + the S3.5 peer reload resume as soon as `roomActive()` is false (`provider.tsx` save pipeline / `applyPeerSave`) — but it is the UNSAFE half: while the room is live nothing pushes the Supabase blob (it is staging-only), so it is **stale**, whole-blob saves are **last-write-wins** (two editors during an outage clobber each other), and edits made through blob saves are **wiped when the room's `welcome` returns** (the room log never saw them). So the fallback must stay server-authoritative; the blob path only becomes a real fallback after a room → blob mirror exists (Stage 3).
-
-**Progress (stages 1+2, built 2026-10-15):** stage 1 — `roomStatus` is reactive on `useProject()` (+ `useIsOnlineProject()` for the shared-project predicate); `src/lib/rooms/roomBadge.ts` maps the transport status → `hidden | connecting | unreachable`; the header cloud (`SaveIndicator`) renders the amber "!" with a 2.5s grace (a normal join never flashes), hover tooltip + click-pin, `data-testid="room-status-badge"`. Stage 2 — `RoomClient` BUFFERS accepted actions while the room is not `open` (`MAX_QUEUED_ACTIONS` = 1000, oldest dropped and surfaced as `dropped`), re-applies each locally (`onReplayQueued`) and replays them IN ORDER right after the next welcome (normal optimistic path, echo deduped); the buffer is DROPPED when our own `init` seeded the room (an `ADD_*` replay would duplicate what the blob carries), CLEARED on `stop()` (project switch — no bleed), and reported via `diagnostics().roomPending` + the badge tooltip ("N changes queued locally"). No whole-blob save is ever pushed for a room-owned project (any status — the old `status !== 'closed'` gate let a stale blob clobber during an outage); the undo/redo buttons now require `open`. Verified: unit (order/drain/bound/stop/init/failed-flush) + the two-window harness's new kill/restart section (2 edits buffer → badge → restart → replay → both windows converge, no lost edit). Stage 3 (the room → Supabase blob mirror) remains.
-
-**Stage 1 — header badge (small, pure UI, no behavior change):** `roomStatus` (already in `useRoomTransport` + `diagnostics().roomStatus`) drives an indicator on the header cloud/user cluster: amber "!" dot when a SHARED project's room is not `open` while the connectivity probe says online; hover/click popover explains the state ("Collaboration server unreachable — changes are queued locally"). Reuse the kit `DropdownMenu`/tooltip + `OfflineStatus`/`SaveIndicator` patterns (one badge component, no forked chrome).
-
-**Stage 2 — queued-actions offline mode (the actual safety):** while the room is not `open`, keep applying edits locally and BUFFER them (the app already streams an ordered action list: `guardedDispatch` → `RoomClient.sendAction`); on reconnect the client `hello`s → applies the `welcome` → replays the buffer as normal actions (server-authoritative order; per-user undo unaffected). Badge shows "N changes pending". Undo/redo stay refused while offline (nothing to rebase) — the warn path already exists. Files: `src/lib/rooms/roomClient.ts` (queue + flush after welcome, bounded), `src/store/provider.tsx` (`guardedDispatch` buffering + `canRoomUndo*` false while offline), the badge component.
-
-**Stage 3 (optional, bigger):** room → Supabase blob mirror (the documented S4 persistence cutover) so read-only guests can fall back to a FRESH blob read; only then may viewers degrade to blob reads.
-
-**Non-negotiables:** never blob-save a shared project while its room is down (clobber + wipe-on-return); the room stays the single ordering authority; `readOnly` (connectivity) and `canEdit` (permission) stay separate; new actions keep riding the one Action union.
-
-**Verify:** unit — the queue drains in order, clears on `welcome`, and is dropped on project switch (no cross-project bleed); two-window harness (`workers/rooms/test/two-window-repro.mjs` gains a kill/restart step) — stop `wrangler dev` mid-session → badge shows + edits queue, restart → both windows converge with no lost edit; badge look is rule-7 manual.
-
-**Relations:** `extends` **229** (S4 rooms — this is its offline story + the persistence-cutover note), `relates to` **230** (deployment/entitlement), **236**/**234** (sibling header/presence chrome).
-
 ## 242. Collaboration — blocked undo: tell the user when a peer built on their edit (`[ ]`, no text merge)
 
 **Requested 2026-10-15 (user):** keep room undo simple and honest. A types "hello" in a
