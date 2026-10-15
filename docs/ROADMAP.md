@@ -1100,3 +1100,31 @@ the home for support-style items later.
   identity. No secrets in the client.
 - **Relations:** `extends` **260** (File → Help submenu introduced there).
 
+
+## 263. Page/tab switching performance — no main-thread stall when changing tabs (`[ ]`)
+
+**Requested 2026-10-15 (user):** clicking a heavy tab stalls for a beat — "I don't want lag"
+(Schedule tab; same for the Script sub-tab). The tab row is icon-first now, so the click
+feedback is instant and the CONTENT mount is what stalls.
+
+**Measured baseline** (dev server, `Lair (perf test).lemon` — 172 scenes; dev is inflated by
+StrictMode's double-mount + unminified transforms, re-measure against the prod preview):
+- Breakdown → Schedule ≈ 600ms to stripboard, **~300ms long task**; repeat visit ≈ 460ms (182ms).
+- Schedule → Calendar ≈ 330ms (61ms); Calendar → Breakdown ≈ 640ms (two tasks, 284ms total).
+- Sheet → Script / Script → Glide / Glide → Sheet: ~270-330ms with no long task on a settled
+  second pass (anchors were weak — the Script/Glide first visit needs a proper prod number).
+
+**Approach** (each step gated by a before/after number, prod preview):
+1. **Perceived responsiveness first:** the header/pill state updates immediately; the heavy
+   content commit is deferred (`useDeferredValue` on the tab + sub-tab used for CONTENT, or
+   `startTransition` around the content switch) — the pill responds on the click frame and the
+   old surface stays until the new one can commit, so the main thread never blocks the click.
+2. **Profile the Schedule/Script mounts** (`React.Profiler`/Performance panel) and cut the hot
+   path — stripboard row count, boneyard sort, script scene spans (`docs/PERF_DIAGNOSIS.md`
+   invariants: never re-derive the whole document).
+3. Evaluate **keep-alive** (hide, don't unmount) for heavy tabs against the scroll-restore /
+   memo contracts (`docs/STORE-AND-SYNC.md`) — only if repeats stay slow after 1-2.
+4. **Code-split** per tab (`React.lazy` + Suspense) only if startup/first-switch still deserves it.
+
+**Verify:** prod-preview numbers for Breakdown↔Schedule, Sheet→Script, Script→Glide; add a
+`@perf` harness entry if a stable metric emerges (`docs/PERF-DIAGNOSIS.md`).
