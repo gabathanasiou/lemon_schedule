@@ -268,7 +268,17 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   extensions, and the CLI's import-walk uploads files outside `supabase/functions` (up to the git
   root) — that is how the function shares `src/lib/rooms/roomToken.ts` + `protocol.ts` with the
   worker and the app. `verify_jwt` stays ON (config in `supabase/config.toml`); the function
-  additionally verifies the caller itself.
+  additionally verifies the caller itself, answers **503** for a transient auth-server failure vs
+  **401** for a rejected session (see above).
+- **Dead sessions + sign-out scope (2026-10-15 live-pass fix).** The app's sign-out uses
+  Supabase `{ scope: 'local' }` — the DEFAULT (`global`) revokes every session of the account on
+  EVERY device, which silently zombied the other devices: the UI stayed "signed in" while every
+  server call failed (one Mac could not join a room while phone/iPad could — its session had been
+  revoked by a sign-out elsewhere). `fetchRoomToken` answers a 401 with ONE session refresh; when
+  that fails too it signs out LOCALLY (`session expired — sign in again`) so the app returns to a
+  visible signed-out state instead of a zombie. Worker logs are ON
+  (`[observability] enabled` in `workers/rooms/wrangler.toml`, added the same day) — before that a
+  production incident had NO retained Cloudflare logs to read (`wrangler tail` is live-only).
 - **Header room-status badge (roadmap 239 stage 1, built 2026-10-15).** `roomStatus` is exposed
   reactively on `useProject()` (`useIsOnlineProject()` marks shared projects); `src/lib/rooms/roomBadge.ts`
   maps the transport status → `hidden | connecting | unreachable` + tooltip copy, rendered as an amber

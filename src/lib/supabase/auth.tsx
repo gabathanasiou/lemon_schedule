@@ -243,7 +243,11 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   const dismissRecovery = useCallback(() => setPendingRecovery(false), []);
 
   const signOut = useCallback(async () => {
-    await supabase?.auth.signOut();
+    // LOCAL scope, deliberately: Supabase's signOut() defaults to 'global',
+    // which revokes EVERY session of the account on EVERY device — signing out
+    // on one device silently killed the others' sessions (they kept their
+    // "signed in" UI with a dead token; the 229 live pass hit exactly that).
+    await supabase?.auth.signOut({ scope: 'local' });
   }, []);
 
   const value = useMemo<SupabaseAuthValue>(() => ({

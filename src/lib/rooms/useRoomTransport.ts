@@ -11,7 +11,7 @@
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { RoomClient, type RoomQueueInfo, type RoomRemote, type RoomStatus, type RoomWelcome } from './roomClient';
-import { ensureRoomsWorkerInDev, roomsUrl } from './roomsEnv';
+import { ensureRoomsWorkerInDev, isLoopbackRoomsUrl, roomsUrl } from './roomsEnv';
 import type { Action } from '../../store/reducer';
 
 export interface UseRoomTransportOptions {
@@ -49,6 +49,17 @@ export function useRoomTransport(opts: UseRoomTransportOptions): {
       return;
     }
     const base = url.replace(/\/+$/, '');
+    // Hybrid-testing guard (dev only): an ONLINE project opened in DEV against
+    // the LOOPBACK worker edits a LOCAL room sandbox — dev tokens cannot open
+    // the deployed room, and blob saves are skipped while a transport owns the
+    // project, so this session will NOT sync with live collaborators (and can
+    // diverge the server copy once saves resume). Point VITE_ROOMS_URL at the
+    // deployed worker (or test live on the hosted app) instead.
+    if (import.meta.env.DEV && isLoopbackRoomsUrl(base)) {
+      console.warn(
+        `[rooms] online project editing a LOCAL room sandbox — this session will NOT sync with live collaborators (worker: ${base}).`
+      );
+    }
     let cancelled = false;
     const start = async () => {
       // Dev: the local worker is brought up (or confirmed) BEFORE the client
