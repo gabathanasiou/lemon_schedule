@@ -5,17 +5,24 @@ import { useSupabaseAuth } from './auth';
 import { isSupabaseConfigured } from './client';
 import { getPresenceGridScope } from '../presenceResolvers';
 import { applyPresenceScrollSample } from '../presenceScroll';
+import { getLocalOverlayKind, subscribeLocalOverlays } from '../localOverlaySignal';
 import { presenceDiagnostics, ProjectPresenceChannel, subscribeLocalSaves, type PresenceChannelStatus } from './presenceChannel';
 import {
   acceptCursor,
+  OVERLAY_TTL_MS,
   pointerFractions,
+  pointerKindOf,
   presenceViewToPlace,
+  resolveOverlayCues,
   screenFractions,
+  type LocalOverlayKind,
   type PresenceAnchor,
+  type PresenceOverlayState,
   type PresencePeer,
   type PresenceScrollSample,
   type PresenceView,
   type PresenceViewUpdate,
+  type PointerKind,
 } from './presence';
 
 /**
@@ -194,7 +201,15 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const appliersRef = useRef(new Set<(view: PresenceView) => void>());
   const lastAppliedFollowRef = useRef('');
   // `${userId}:${clientId}` → latest accepted cursor (stale ts dropped).
-  const cursorMapRef = useRef(new Map<string, { userId: string; anchor: PresenceAnchor; ts: number }>());
+  const cursorMapRef = useRef(new Map<string, { userId: string; anchor: PresenceAnchor; pointer: PointerKind; ts: number }>());
+  // `${userId}:${clientId}` → latest overlay signal (stale ts dropped). `at`
+  // is the local RECEIPT time — TTL/ordering never compare sender clocks.
+  const overlayMapRef = useRef(new Map<string, { userId: string; kind: PresenceOverlayState['kind']; ts: number; at: number }>());
+  // Re-render when the newest overlay signal goes stale (TTL clear).
+  const overlayExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The last overlay kind this window published — redundant edge frames are
+  // skipped (see the signal subscription below).
+  const lastPublishedOverlayRef = useRef<LocalOverlayKind | null>(null);
   // `${userId}:${clientId}` → latest accepted scroll ts (stale drops).
   const scrollTsRef = useRef(new Map<string, number>());
   // `${userId}:${clientId}` → latest accepted view broadcast (stale drops).
@@ -218,6 +233,11 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
 
   const clearPeers = useCallback(() => {
     cursorMapRef.current.clear();
+    overlayMapRef.current.clear();
+    if (overlayExpiryRef.current) {
+      clearTimeout(overlayExpiryRef.current);
+      overlayExpiryRef.current = null;
+    }
     scrollTsRef.current.clear();
     viewMapRef.current.clear();
     peersRef.current = [];
@@ -228,18 +248,20 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     setFollowingId(null);
   }, []);
 
-  /** Merge the presence list with the latest cursor + view per user
+  /** Merge the presence list with the latest cursor + view + overlay per user
    *  (multi-window: one marker per person, newest window wins). */
   const rebuildPeers = useCallback((base: PresencePeer[]) => {
     const cursors = cursorMapRef.current;
+    const overlays = overlayMapRef.current;
     const views = viewMapRef.current;
     const known = new Set(base.map(p => p.userId));
     for (const [key, c] of [...cursors]) if (!known.has(c.userId)) cursors.delete(key);
+    for (const [key, o] of [...overlays]) if (!known.has(o.userId)) overlays.delete(key);
     for (const [key, v] of [...views]) if (!known.has(v.userId)) views.delete(key);
-    const newestCursor = new Map<string, { anchor: PresenceAnchor; ts: number }>();
+    const newestCursor = new Map<string, { anchor: PresenceAnchor; pointer: PointerKind; ts: number }>();
     for (const c of cursors.values()) {
       const prev = newestCursor.get(c.userId);
-      if (!prev || c.ts > prev.ts) newestCursor.set(c.userId, { anchor: c.anchor, ts: c.ts });
+      if (!prev || c.ts > prev.ts) newestCursor.set(c.userId, { anchor: c.anchor, pointer: c.pointer, ts: c.ts });
     }
     // Newest VIEW per user: the presence meta's join-time snapshot vs the
     // latest `view` broadcast — both stamped by the same client's clock, so
@@ -249,15 +271,38 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
       const prev = newestView.get(v.userId);
       if (!prev || v.ts > prev.ts) newestView.set(v.userId, { view: v.view, ts: v.ts });
     }
+    const now = Date.now();
+    const cues = resolveOverlayCues(overlays.values(), now);
     const next = base.map(p => {
       const c = newestCursor.get(p.userId);
       const v = newestView.get(p.userId);
       const view = v && v.ts >= p.ts ? v.view : p.view;
-      return { ...p, view, ...(c ? { cursor: c.anchor, cursorTs: c.ts } : {}) };
+      return {
+        ...p,
+        view,
+        pointer: c?.pointer ?? p.pointer,
+        ...(c ? { cursor: c.anchor, cursorTs: c.ts } : {}),
+        overlay: cues.get(p.userId) ?? null,
+      };
     });
     presenceDiagnostics.cursorCount = next.filter(p => p.cursor).length;
     peersRef.current = next;
     setPeers(next);
+    // An active cue must vanish when it goes stale (killed tab / paused
+    // heartbeat) — schedule one re-render at the earliest expiry.
+    if (overlayExpiryRef.current) {
+      clearTimeout(overlayExpiryRef.current);
+      overlayExpiryRef.current = null;
+    }
+    let soonest = Infinity;
+    for (const o of overlays.values()) {
+      if (!o.kind) continue;
+      const expiry = o.at + OVERLAY_TTL_MS;
+      if (expiry > now && expiry < soonest) soonest = expiry;
+    }
+    if (Number.isFinite(soonest)) {
+      overlayExpiryRef.current = setTimeout(() => rebuildPeers(peersRef.current), Math.max(0, soonest - now) + 50);
+    }
   }, []);
 
   // ---- channel lifecycle (one private channel per open shared project) -----
@@ -284,7 +329,20 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           const key = `${cursor.userId}:${cursor.clientId}`;
           const prev = cursorMapRef.current.get(key);
           if (!acceptCursor(prev?.ts, cursor.ts)) return;
-          cursorMapRef.current.set(key, { userId: cursor.userId, anchor: cursor.anchor, ts: cursor.ts });
+          cursorMapRef.current.set(key, { userId: cursor.userId, anchor: cursor.anchor, pointer: cursor.pointer, ts: cursor.ts });
+          rebuildPeers(peersRef.current);
+        },
+        onOverlay: (state) => {
+          const key = `${state.userId}:${state.clientId}`;
+          const prev = overlayMapRef.current.get(key);
+          // Equal timestamps are ACCEPTED (last write wins): a component with
+          // two registrations releases them back-to-back, so a close edge can
+          // share its millisecond with the redundant re-announce — dropping it
+          // as "stale" left the cue stuck until the TTL (user report
+          // 2026-10-15). The sender dedupes those frames too (belt and braces);
+          // frames from one client arrive in send order.
+          if (prev && state.ts < prev.ts) return;
+          overlayMapRef.current.set(key, { userId: state.userId, kind: state.kind, ts: state.ts, at: Date.now() });
           rebuildPeers(peersRef.current);
         },
         onSavePing: (ping) => { void applyPeerSaveRef.current(ping.revision); },
@@ -334,6 +392,12 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     channel.start();
     // Late joiner: share the place we are already on.
     channel.publishView(viewRef.current);
+    // …and the local-overlay cue if we are inside a menu/modal right now.
+    const overlayKind = getLocalOverlayKind();
+    if (overlayKind) {
+      lastPublishedOverlayRef.current = overlayKind;
+      channel.publishOverlay(overlayKind);
+    }
     return () => {
       channel.stop();
       if (channelRef.current === channel) channelRef.current = null;
@@ -346,14 +410,42 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // header/toolbars/dialogs): every pointer move publishes an anchor — the
   // semantic element under the cursor when there is one, else the
   // viewport-relative fallback. Throttling/idle-skip live in the channel.
+  // Pointer events (not mouse events) also carry the input MODALITY
+  // (roadmap 241) — a tap publishes the switch to touch even though no move
+  // follows it.
   useEffect(() => {
     if (!active) return;
-    const onMove = (e: MouseEvent) => {
-      channelRef.current?.publishCursor(resolvePointerAnchor(e));
+    const publish = (e: PointerEvent) => {
+      channelRef.current?.publishCursor(resolvePointerAnchor(e), pointerKindOf(e.pointerType));
     };
-    window.addEventListener('mousemove', onMove, { passive: true, capture: true });
-    return () => window.removeEventListener('mousemove', onMove, true);
+    window.addEventListener('pointermove', publish, { passive: true, capture: true });
+    window.addEventListener('pointerdown', publish, { passive: true, capture: true });
+    return () => {
+      window.removeEventListener('pointermove', publish, true);
+      window.removeEventListener('pointerdown', publish, true);
+    };
   }, [active]);
+
+  // ---- local-overlay cue (roadmap 240) -------------------------------------
+  // The shared primitives feed the app-level signal hub. Every EDGE publishes
+  // the current kind (a close edge sends `null`); a change that re-announces
+  // the SAME kind (a nested close falling back to its enclosing overlay) is
+  // skipped — two frames in the same millisecond raced the close edge at the
+  // receiver (the null was dropped as a same-ts stale and the dots stuck
+  // until the TTL; user report 2026-10-15). Heartbeats always publish.
+  // Inert without a channel (no shared project open).
+  useEffect(() => subscribeLocalOverlays((reason) => {
+    const kind = getLocalOverlayKind();
+    if (reason === 'change' && kind === lastPublishedOverlayRef.current) return;
+    lastPublishedOverlayRef.current = kind;
+    channelRef.current?.publishOverlay(kind);
+  }), []);
+
+  // A stale cue must vanish even when the peer's window is gone; stop the
+  // pending expiry timer when the provider unmounts.
+  useEffect(() => () => {
+    if (overlayExpiryRef.current) clearTimeout(overlayExpiryRef.current);
+  }, []);
 
   // ---- S3.5: our successful online saves ride the channel -------------------
   useEffect(() => subscribeLocalSaves((revision) => {

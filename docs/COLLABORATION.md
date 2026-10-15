@@ -474,6 +474,29 @@ concurrency semantics in its doc.
   viewport are hidden (no edge chips; the header bubbles are how you jump to a
   colleague's place). Script-body cursors stay flagged, not faked
   (TipTap/ProseMirror relative positions — skipped in S3).
+- **Local-overlay cue + input glyph (roadmaps 240/241, built 2026-10-15)**: two
+  more ephemeral signals on the same presence channel.
+  - **Overlay cue (240)**: while a peer is inside a surface only THEY can see —
+    menu/dropdown/context menu/modal — their pointer tag and header
+    collaborator bubble show animated dots (`PresenceDots`) instead of looking
+    parked. The signal fires ONLY from the shared primitives (`Modal` /
+    `DropdownMenu` / `ItemManagerDropdown` / `ContextMenu` shims,
+    `DropdownPanel`, the `useDropdown` hook — never per call site) through the
+    module-level hub `src/lib/localOverlaySignal.ts`: open/close EDGES + a
+    6s heartbeat (paused while the window is blurred or the tab hidden) on a
+    dedicated `overlay` broadcast; receivers keep the newest signal per user
+    (multi-window = newest window wins) and drop it after a 12s TTL, so a
+    killed tab clears without a close event. Redundant edge frames are
+    skipped (a nested close re-announcing the enclosing kind) and
+    equal-timestamp frames are accepted last-write-wins — two releases in the
+    same millisecond once let the close edge be dropped as "stale" and the
+    dots stuck until the TTL (user report 2026-10-15).
+  - **Input glyph (241)**: the peer's input modality rides the CURSOR payload
+    (`pointer: mouse|touch|pen`, re-sent only when it changes — one central
+    pointer-event tracker, no extra traffic). The pointer renders the arrow,
+    a little HAND for touch, or a pen dot; the name tag is unchanged.
+  - Both are ephemeral only: never persisted, never a room action, never
+    `track()`; the cue is `pointer-events-none`.
 - Motion: pointers glide between positions with a **rAF glide loop inside
   `PresenceOverlay`** (exponential approach toward the anchor-resolved target,
   τ ≈ 110ms; targets refresh on a ~80ms measure tick + scroll/resize).
@@ -562,7 +585,10 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   immediately LEFT of your own avatar (max 3 + a "+N" menu), each a FOLLOW
   TOGGLE — click to follow that person, click again (or Esc / navigate) to
   stop. Guest bubbles carry an amber dot / "(guest)" label; the header cluster
-  keeps your own avatar as before.** Pointers from peers on another view or
+  keeps your own avatar as before.** Bubbles also carry the animated
+  local-overlay dots while that person is inside a menu/modal the others
+  cannot see (roadmap 240; the pointer tag shows the same cue while you are on
+  their view). Pointers from peers on another view or
   sub-tab stay hidden until you are on their place — the bubble is how you get
   there.
 - Surface shape: default to a kit `Modal` (the settings-modal pattern); a

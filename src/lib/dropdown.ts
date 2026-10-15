@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef, type RefObject } from 'react';
 import { CastMember } from '../types';
 import { IS_COARSE } from './device';
 import { useCurrentDocument } from './popoutTarget';
+import { useLocalOverlaySignal } from './localOverlaySignal';
 
 /**
  * Dark chip trigger — the shared "chip button" look for ANY dropdown/menu
@@ -75,6 +76,9 @@ const DOUBLE_CLICK_MS = 500;
 const DOUBLE_CLICK_SLOP_PX = 24;
 
 export function useDropdown(open: boolean, ref: RefObject<HTMLElement | null>, onClose?: () => void, panelRef?: RefObject<HTMLElement | null>) {
+  // Local-overlay cue (roadmap 240): every dropdown/autocomplete built on
+  // this hook announces itself while open — one seam, never per call site.
+  useLocalOverlaySignal('menu', open);
   const currentDocument = useCurrentDocument();
   useEffect(() => {
     if (open) {

@@ -11,6 +11,7 @@ import type { SupabaseAccount } from '../lib/supabase/auth';
 import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceContext';
 import type { PresencePeer } from '../lib/supabase/presence';
 import { AccountAvatar } from './AccountAvatar';
+import { PresenceDots } from './PresenceDots';
 import { ProfileModal } from './ProfileModal';
 
 const MAX_BUBBLES = 3;
@@ -79,7 +80,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
     else presenceActions.follow(peer.userId);
   };
   const bubbleTitle = (peer: PresencePeer) =>
-    `${peer.name}${peer.isGuest ? ' (guest)' : ''} — ${presence.followingId === peer.userId ? 'stop following' : 'follow'}`;
+    `${peer.name}${peer.isGuest ? ' (guest)' : ''}${peer.overlay ? ` — in a ${peer.overlay}` : ''} — ${presence.followingId === peer.userId ? 'stop following' : 'follow'}`;
   const peerBubble = (peer: PresencePeer) => {
     const following = presence.followingId === peer.userId;
     return (
@@ -91,6 +92,16 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
         className={`relative w-6 h-6 rounded-full overflow-hidden transition-transform hover:scale-110 hover:z-10 cursor-pointer select-none ${following ? 'ring-2 ring-white' : 'ring-1 ring-white/25'}`}
       >
         <AccountAvatar account={peerAccount(peer)} className="w-full h-full" />
+        {/* Local-overlay cue (roadmap 240): the peer is inside a menu/modal
+            you cannot see — dots, same language as the pointer tag. */}
+        {peer.overlay && (
+          <span
+            data-testid="presence-bubble-overlay"
+            className="absolute inset-x-0 bottom-0 flex justify-center pb-[2px] bg-gradient-to-t from-zinc-950/80 to-transparent"
+          >
+            <PresenceDots className="text-white" />
+          </span>
+        )}
         {peer.isGuest && (
           <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-amber-400 border border-zinc-950" title="Guest" />
         )}

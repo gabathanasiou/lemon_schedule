@@ -1,6 +1,7 @@
 import { Modal as KitModal, ModalFooter } from '@gabriel/ui-kit';
 import type { ModalProps } from '@gabriel/ui-kit';
 import { overlayMorphOptIn } from '../lib/overlayMotion';
+import { useLocalOverlaySignal } from '../lib/localOverlaySignal';
 
 export { ModalFooter };
 export type { ModalProps };
@@ -8,7 +9,10 @@ export type { ModalProps };
 /* The Modal primitive (draggable, stacked morph/zoom/size transitions) lives
    in @gabriel/ui-kit — this shim only carries the app's opt-out flag
    (localStorage lemon_schedule_modal_morph === '0', documented in
-   docs/DESIGN-LANGUAGE.md §Modal anatomy & rules). */
+   docs/DESIGN-LANGUAGE.md §Modal anatomy & rules). It also feeds the
+   local-overlay signal (roadmap 240): while any modal is open, peers show the
+   dots cue on the opener's pointer/bubble. */
 export default function Modal(props: ModalProps) {
+  useLocalOverlaySignal('modal', props.open);
   return <KitModal {...props} morph={props.morph ?? overlayMorphOptIn()} />;
 }

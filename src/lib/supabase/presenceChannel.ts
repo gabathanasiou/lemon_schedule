@@ -6,14 +6,18 @@ import {
   mergePeers,
   parseAccessPayload,
   parseCursorPayload,
+  parseOverlayPayload,
   parseSavePayload,
   parseScrollPayload,
   parseViewPayload,
   presenceTopic,
+  type LocalOverlayKind,
+  type PointerKind,
   type PresenceAccessEvent,
   type PresenceAnchor,
   type PresenceCursor,
   type PresenceMeta,
+  type PresenceOverlayState,
   type PresencePeer,
   type PresenceSavePing,
   type PresenceScroll,
@@ -83,10 +87,16 @@ export interface PresenceDiagnostics {
   cursorCount: number;
   /** Last successful cursor send (ms epoch, 0 = none). */
   lastCursorAt: number;
+  /** Input modality of the last cursor we published (roadmap 241). */
+  cursorPointer: PointerKind | null;
+  /** The local-overlay cue this window is announcing (roadmap 240). */
+  localOverlay: LocalOverlayKind | null;
   /** Last cursor payload received from a peer (0 = none). */
   lastCursorRecvAt: number;
   /** Last view payload received from a peer (0 = none). */
   lastViewRecvAt: number;
+  /** Last overlay signal received from a peer (0 = none). */
+  lastOverlayRecvAt: number;
   /** Presence `track()` calls made by this channel — must stay ≤5 per 30s
    *  (Supabase caps presence calls per client; past it the channel is
    *  shut down). One per (re)join by design. */
@@ -101,8 +111,11 @@ export const presenceDiagnostics: PresenceDiagnostics = {
   peerCount: 0,
   cursorCount: 0,
   lastCursorAt: 0,
+  cursorPointer: null,
+  localOverlay: null,
   lastCursorRecvAt: 0,
   lastViewRecvAt: 0,
+  lastOverlayRecvAt: 0,
   trackCount: 0,
   error: null,
 };
@@ -130,12 +143,15 @@ export interface PresenceChannelHandlers {
   onScroll: (scroll: PresenceScroll) => void;
   /** A peer's view update (rides a broadcast — presence `track` is limited). */
   onView: (update: PresenceViewUpdate) => void;
+  /** A peer's local-overlay cue edge/heartbeat (roadmap 240). */
+  onOverlay: (state: PresenceOverlayState) => void;
   /** Access-change event addressed to THIS user (role change or revocation). */
   onAccess: (event: PresenceAccessEvent) => void;
   onStatus: (status: PresenceChannelStatus) => void;
 }
 
 const CURSOR_EVENT = 'cursor';
+const OVERLAY_EVENT = 'overlay';
 const SAVE_EVENT = 'save';
 const SCROLL_EVENT = 'scroll';
 const VIEW_EVENT = 'view';
@@ -152,6 +168,7 @@ export class ProjectPresenceChannel {
   private scrollThrottle: Throttle<PresenceScrollSample> | null = null;
   private viewThrottle: Throttle<PresenceView | null> | null = null;
   private lastAnchorKey = '';
+  private lastPointerKind: PointerKind | null = null;
   private lastScrollKey = '';
   private lastViewKey = '';
   private lastView: PresenceView | null = null;
@@ -222,6 +239,14 @@ export class ProjectPresenceChannel {
         if (cursor && cursor.userId !== this.identity.userId) {
           presenceDiagnostics.lastCursorRecvAt = Date.now();
           this.handlers.onCursor(cursor);
+        }
+      })
+      .on('broadcast', { event: OVERLAY_EVENT }, ({ payload }) => {
+        if (this.stopped) return;
+        const state = parseOverlayPayload(payload);
+        if (state && state.userId !== this.identity.userId) {
+          presenceDiagnostics.lastOverlayRecvAt = Date.now();
+          this.handlers.onOverlay(state);
         }
       })
       .on('broadcast', { event: SAVE_EVENT }, ({ payload }) => {
@@ -321,17 +346,33 @@ export class ProjectPresenceChannel {
     void this.channel?.send({ type: 'broadcast', event: VIEW_EVENT, payload });
   }
 
-  /** Broadcast our cursor anchor; skipped when unchanged (idle) and throttled
-   *  to ~20/s with coalescing. */
-  publishCursor(anchor: PresenceAnchor | null): void {
+  /** Broadcast our cursor anchor + input modality; skipped when BOTH are
+   *  unchanged (idle) and throttled to ~20/s with coalescing. A change of the
+   *  input kind alone re-sends (the glyph must follow a modality switch). */
+  publishCursor(anchor: PresenceAnchor | null, pointer: PointerKind = 'mouse'): void {
     const key = anchorKey(anchor);
-    if (!key || key === this.lastAnchorKey) return;
+    if (!key || (key === this.lastAnchorKey && pointer === this.lastPointerKind)) return;
     this.lastAnchorKey = key;
+    this.lastPointerKind = pointer;
+    presenceDiagnostics.cursorPointer = pointer;
     this.throttle?.emit({
       userId: this.identity.userId,
       clientId: this.clientId,
       anchor: anchor!,
+      pointer,
       ts: Date.now(),
+    });
+  }
+
+  /** Roadmap 240: announce the local-overlay cue (an open/close edge, or the
+   *  heartbeat re-announce) — the sender owns the cadence, so this always
+   *  sends when called. */
+  publishOverlay(kind: LocalOverlayKind | null): void {
+    presenceDiagnostics.localOverlay = kind;
+    void this.channel?.send({
+      type: 'broadcast',
+      event: OVERLAY_EVENT,
+      payload: { userId: this.identity.userId, clientId: this.clientId, kind, ts: Date.now() } satisfies PresenceOverlayState,
     });
   }
 
@@ -368,6 +409,8 @@ export class ProjectPresenceChannel {
     presenceDiagnostics.topic = null;
     presenceDiagnostics.status = 'idle';
     presenceDiagnostics.peerCount = 0;
+    presenceDiagnostics.cursorPointer = null;
+    presenceDiagnostics.localOverlay = null;
     presenceDiagnostics.error = null;
     this.handlers.onStatus('idle');
   }

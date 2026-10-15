@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { Hand, X } from 'lucide-react';
 import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceContext';
-import { sameViewPlace, type PresenceAnchor, type PresencePeer } from '../lib/supabase/presence';
+import { pointerGlyph, sameViewPlace, type PresenceAnchor, type PresencePeer } from '../lib/supabase/presence';
 import type { AppPlace } from '../lib/appNav';
 import { getPresenceGridScope } from '../lib/presenceResolvers';
 import { avatarColor, shortNameOf } from '../lib/avatarIdentity';
 import { cssEscape } from '../lib/utils';
+import { PresenceDots } from './PresenceDots';
 
 /**
  * Live cursors + the follow pill (roadmap 229 S3, docs/COLLABORATION.md §9).
@@ -19,6 +20,9 @@ import { cssEscape } from '../lib/utils';
  *   is on the same tab for tab content;
  * - anchors that resolve OFF this client's viewport are hidden (user decision
  *   2026-10-12: hide, no edge chips).
+ * - the glyph renders per input kind — arrow / hand (touch) / pen dot
+ *   (roadmap 241) — and the tag carries animated dots while the peer is inside
+ *   a local overlay only they can see (menu/modal, roadmap 240).
  *
  * Motion: pointers glide between positions (CSS transform transition) so
  * snapped ↔ free transitions read as one movement; `prefers-reduced-motion`
@@ -40,13 +44,14 @@ interface MarkerPosition {
 
 /**
  * The name tag flips to the pointer's LEFT when it would overflow the
- * VIEWPORT's right edge (130px clears the longest realistic short-name tag at
- * the 10px label size). ONE rule for every anchor kind: scoping the flip to a
- * fraction of the ANCHOR element (the old `fx > 0.65`) flipped the tag
- * mid-screen on wide rows — a stripboard row spans most of the window, so the
- * label hopped sides while the peer merely moved across the row.
+ * VIEWPORT's right edge (150px clears the longest realistic short-name tag at
+ * the 10px label size, plus the overlay dots cue). ONE rule for every anchor
+ * kind: scoping the flip to a fraction of the ANCHOR element (the old
+ * `fx > 0.65`) flipped the tag mid-screen on wide rows — a stripboard row
+ * spans most of the window, so the label hopped sides while the peer merely
+ * moved across the row.
  */
-const TAG_FLIP_MARGIN_PX = 130;
+const TAG_FLIP_MARGIN_PX = 150;
 function tagFlips(x: number): boolean {
   return x > window.innerWidth - TAG_FLIP_MARGIN_PX;
 }
@@ -177,7 +182,7 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
       for (const id of [...smoothRef.current.keys()]) {
         if (!targets.has(id)) smoothRef.current.delete(id);
       }
-      const sig = next.map(m => `${m.peer.userId}:${m.flip ? 'L' : 'R'}`).sort().join('|');
+      const sig = next.map(m => `${m.peer.userId}:${m.flip ? 'L' : 'R'}:${m.peer.pointer}:${m.peer.overlay ?? ''}`).sort().join('|');
       if (sig !== sigRef.current) {
         sigRef.current = sig;
         setMarkers(next);
@@ -237,7 +242,10 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
     <>
       {markers.length > 0 && (
         <div className="fixed inset-0 z-30 pointer-events-none overflow-hidden" aria-hidden>
-          {markers.slice(0, MAX_POINTERS).map(({ peer, left, top, flip }) => (
+          {markers.slice(0, MAX_POINTERS).map(({ peer, left, top, flip }) => {
+            const color = avatarColor(peer.userId);
+            const glyph = pointerGlyph(peer.pointer);
+            return (
             <div
               key={peer.userId}
               // The transform is driven per frame by the glide loop above (no
@@ -256,28 +264,53 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
             >
               <button
                 data-testid="presence-cursor"
+                data-pointer={peer.pointer}
+                data-overlay={peer.overlay ?? undefined}
                 onClick={() => follow(peer.userId)}
-                title={`${peer.name} — click to follow`}
+                title={peer.overlay
+                  ? `${peer.name} — in a ${peer.overlay} (click to follow)`
+                  : `${peer.name} — click to follow`}
                 className="presence-pointer-in pointer-events-auto relative block w-4 h-5 cursor-pointer motion-reduce:animate-none"
               >
-                <svg viewBox="0 0 15 19" className="absolute left-0 top-0 w-[15px] h-[19px] drop-shadow-md" aria-hidden>
-                  <path
-                    d="M1 1 L14 10 L8 11.4 L5 17.5 Z"
-                    fill={avatarColor(peer.userId)}
-                    stroke="white"
-                    strokeWidth="1.2"
-                    strokeLinejoin="round"
+                {glyph === 'arrow' && (
+                  <svg viewBox="0 0 15 19" className="absolute left-0 top-0 w-[15px] h-[19px] drop-shadow-md" aria-hidden>
+                    <path
+                      d="M1 1 L14 10 L8 11.4 L5 17.5 Z"
+                      fill={color}
+                      stroke="white"
+                      strokeWidth="1.2"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+                {glyph === 'hand' && (
+                  // Touch (roadmap 241): the little hand. The thick white
+                  // under-stroke is the outline — the coloured stroke on top
+                  // is the shape (lucide's Hand is stroke-only).
+                  <span className="absolute left-0 top-0 block w-[18px] h-[18px] drop-shadow-md" aria-hidden>
+                    <Hand className="absolute inset-0 w-[18px] h-[18px]" stroke="white" strokeWidth={4.4} />
+                    <Hand className="absolute inset-0 w-[18px] h-[18px]" stroke={color} strokeWidth={2.3} />
+                  </span>
+                )}
+                {glyph === 'pen' && (
+                  // Pen: a small dot in the peer's colour (same anchor seam).
+                  <span
+                    className="absolute left-0 top-0 block w-[10px] h-[10px] rounded-full border-2 border-white shadow-md"
+                    style={{ background: color }}
+                    aria-hidden
                   />
-                </svg>
+                )}
                 <span
-                  className={`absolute top-4 whitespace-nowrap rounded-full px-2 py-[3px] text-[10px] font-semibold text-white shadow-md ${flip ? 'right-3' : 'left-2.5'}`}
-                  style={{ background: avatarColor(peer.userId) }}
+                  className={`absolute top-4 whitespace-nowrap flex items-center gap-1 rounded-full px-2 py-[3px] text-[10px] font-semibold text-white shadow-md ${flip ? 'right-3' : 'left-2.5'}`}
+                  style={{ background: color }}
                 >
+                  {peer.overlay && <PresenceDots className="text-white/95" />}
                   {peer.isGuest ? peer.name : shortNameOf(peer.name)}
                 </span>
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

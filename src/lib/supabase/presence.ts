@@ -89,10 +89,52 @@ export interface PresenceMeta {
   ts: number;
 }
 
+/** The peer's input modality (roadmap 241). Tracked centrally from pointer
+ *  events, piggybacked on the cursor payload and re-sent only when it
+ *  CHANGES — the pointer glyph renders per kind. */
+export const POINTER_KINDS = ['mouse', 'touch', 'pen'] as const;
+export type PointerKind = (typeof POINTER_KINDS)[number];
+
+/** Never trust the wire: anything unknown reads as the mouse arrow. */
+export function pointerKindOf(raw: unknown): PointerKind {
+  return (POINTER_KINDS as readonly string[]).includes(raw as string) ? (raw as PointerKind) : 'mouse';
+}
+
+/** Pointer glyph per input kind — one mapping for the overlay (Vitest'd). */
+export type PointerGlyph = 'arrow' | 'hand' | 'pen';
+
+export function pointerGlyph(pointer: PointerKind): PointerGlyph {
+  return pointer === 'touch' ? 'hand' : pointer === 'pen' ? 'pen' : 'arrow';
+}
+
 export interface PresenceCursor {
   userId: string;
   clientId: string;
   anchor: PresenceAnchor;
+  pointer: PointerKind;
+  ts: number;
+}
+
+/** Local-overlay cue (roadmap 240): the peer is inside a surface only THEY
+ *  can see — a menu/dropdown or a modal — so their pointer (and header
+ *  bubble) shows animated dots instead of looking parked. Ephemeral; rides a
+ *  broadcast (never `track()`); open/close EDGES + a heartbeat so a killed
+ *  tab clears via the TTL without a close event; multi-window = newest wins. */
+export const LOCAL_OVERLAY_KINDS = ['menu', 'modal'] as const;
+export type LocalOverlayKind = (typeof LOCAL_OVERLAY_KINDS)[number];
+
+/** Heartbeat cadence while a local overlay is open (sender) and the
+ *  receiver's staleness window — TTL > heartbeat so one dropped message
+ *  cannot flicker the cue. */
+export const OVERLAY_HEARTBEAT_MS = 6_000;
+export const OVERLAY_TTL_MS = 12_000;
+
+/** One overlay signal as it travels the wire; `kind: null` is the close
+ *  EDGE (the sender left its local surface). */
+export interface PresenceOverlayState {
+  userId: string;
+  clientId: string;
+  kind: LocalOverlayKind | null;
   ts: number;
 }
 
@@ -165,6 +207,11 @@ export interface PresencePeer {
   view: PresenceView | null;
   cursor: PresenceAnchor | null;
   cursorTs: number;
+  /** Latest input modality of the peer's pointer (roadmap 241). */
+  pointer: PointerKind;
+  /** The peer's local-overlay cue (roadmap 240): 'menu' | 'modal' while open
+   *  and fresh (TTL), else null. */
+  overlay: LocalOverlayKind | null;
   ts: number;
 }
 
@@ -287,7 +334,21 @@ export function parseCursorPayload(raw: unknown): PresenceCursor | null {
   const ts = num(r.ts);
   const anchor = parseAnchor(r.anchor);
   if (!userId || !clientId || ts == null || !anchor) return null;
-  return { userId, clientId, anchor, ts };
+  return { userId, clientId, anchor, pointer: pointerKindOf(r.pointer), ts };
+}
+
+export function parseOverlayPayload(raw: unknown): PresenceOverlayState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const userId = str(r.userId, 64);
+  const clientId = str(r.clientId, 64);
+  const ts = num(r.ts);
+  if (!userId || !clientId || ts == null) return null;
+  // A null kind is a valid close edge; unknown kinds are ignored (never
+  // trusted as a close).
+  if (r.kind === null) return { userId, clientId, kind: null, ts };
+  const kind = LOCAL_OVERLAY_KINDS.find(k => k === r.kind);
+  return kind ? { userId, clientId, kind, ts } : null;
 }
 
 export function parseSavePayload(raw: unknown): PresenceSavePing | null {
@@ -371,6 +432,8 @@ export function mergePeers(state: Record<string, unknown[]>, selfUserId: string)
       view: m.view,
       cursor: null,
       cursorTs: 0,
+      pointer: 'mouse',
+      overlay: null,
       ts: m.ts,
     }))
     .sort((a, b) => a.name.localeCompare(b.name) || a.userId.localeCompare(b.userId));
@@ -379,6 +442,35 @@ export function mergePeers(state: Record<string, unknown[]>, selfUserId: string)
 /** Drop stale cursor broadcasts: only a strictly newer ts for that client wins. */
 export function acceptCursor(prevTs: number | undefined, incomingTs: number): boolean {
   return prevTs == null || incomingTs > prevTs;
+}
+
+/** One overlay signal as the receiver tracks it: the payload plus the local
+ *  RECEIPT time (`at`) — TTL/ordering compare within one clock (sender clocks
+ *  are not comparable across machines). */
+export interface PresenceOverlaySample {
+  userId: string;
+  kind: LocalOverlayKind | null;
+  at: number;
+}
+
+/** Active overlay cues per user: newest window wins (multi-window parity with
+ *  cursors), and a signal older than `ttlMs` is stale — a killed tab or a
+ *  paused heartbeat clears without a close event. */
+export function resolveOverlayCues(
+  signals: Iterable<PresenceOverlaySample>,
+  now: number,
+  ttlMs = OVERLAY_TTL_MS,
+): Map<string, LocalOverlayKind> {
+  const newest = new Map<string, PresenceOverlaySample>();
+  for (const s of signals) {
+    const prev = newest.get(s.userId);
+    if (!prev || s.at >= prev.at) newest.set(s.userId, s);
+  }
+  const cues = new Map<string, LocalOverlayKind>();
+  for (const [userId, s] of newest) {
+    if (s.kind && now - s.at <= ttlMs) cues.set(userId, s.kind);
+  }
+  return cues;
 }
 
 /** Pointer position within the anchor element's rect as 0..1 fractions — the

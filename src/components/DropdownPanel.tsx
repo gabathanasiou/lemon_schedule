@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 import { useOverlayMorph } from '@gabriel/ui-kit';
 import { overlayMorphOptIn } from '../lib/overlayMotion';
+import { useLocalOverlaySignal } from '../lib/localOverlaySignal';
 import { EntityItem } from './EntityDropdown';
 import { DD_ITEM_BASE_LIB as DD_ITEM_BASE, DD_ITEM_BASE_DARK_LIB } from '../lib/dropdown';
 import { useDropdownPosition, type DropdownPanelPos } from '../lib/useDropdownPosition';
@@ -54,6 +55,11 @@ export default function DropdownPanel({
   searchQuery, hasExactMatch, renderItem, defaultRenderer,
   onItemClick, onItemHover, onHoverLeave, commitHint, onCommit, portalTarget, dark = false,
 }: DropdownPanelProps) {
+  // The panel mounts only while open (the close is unmount-driven), so mount
+  // = the open edge for the local-overlay cue (roadmap 240). Consumers also
+  // go through `useDropdown`, whose own edge is the same kind — duplicate
+  // registrations are by id and harmless.
+  useLocalOverlaySignal('menu', true);
   const currentDocument = useCurrentDocument();
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288, ready: false });
   useDropdownPosition({

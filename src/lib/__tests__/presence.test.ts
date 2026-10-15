@@ -8,6 +8,7 @@ import {
   parseAccessPayload,
   parseAnchor,
   parseCursorPayload,
+  parseOverlayPayload,
   parsePresenceMeta,
   parseSavePayload,
   parseScrollPayload,
@@ -15,11 +16,15 @@ import {
   parseViewPayload,
   placeToPresenceView,
   pointerFractions,
+  pointerGlyph,
+  pointerKindOf,
   presenceTopic,
   presenceViewToPlace,
+  resolveOverlayCues,
   sameViewPlace,
   screenFractions,
 } from '../supabase/presence';
+import { createOverlaySignalHub } from '../localOverlaySignal';
 import { avatarColor, initialsOf, shortNameOf } from '../avatarIdentity';
 
 describe('avatar identity', () => {
@@ -104,11 +109,60 @@ describe('presence wire helpers', () => {
 
   it('parses cursor and save payloads', () => {
     expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'row', rowId: 'r', fx: 0.25, fy: 0.75 } }))
-      .toEqual({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'row', rowId: 'r', fx: 0.25, fy: 0.75 } });
+      .toEqual({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'row', rowId: 'r', fx: 0.25, fy: 0.75 }, pointer: 'mouse' });
     expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'nope' } })).toBeNull();
     expect(parseSavePayload({ userId: 'u', revision: 4, ts: 9 })).toEqual({ userId: 'u', revision: 4, ts: 9 });
     expect(parseSavePayload({ userId: 'u', revision: 0, ts: 9 })).toBeNull();
     expect(parseSavePayload({ userId: 'u', revision: '4', ts: 9 })).toBeNull();
+  });
+
+  it('parses the cursor input modality (roadmap 241), defaulting junk to the arrow', () => {
+    const anchor = { kind: 'row', rowId: 'r' };
+    expect(pointerKindOf('touch')).toBe('touch');
+    expect(pointerKindOf('pen')).toBe('pen');
+    expect(pointerKindOf('mouse')).toBe('mouse');
+    expect(pointerKindOf('trackpad')).toBe('mouse'); // unknown → the arrow default
+    expect(pointerKindOf(undefined)).toBe('mouse');
+    expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor, pointer: 'touch' }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'row', rowId: 'r', fx: 0.5, fy: 0.5 }, pointer: 'touch' });
+    expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor, pointer: 'laser' }).pointer).toBe('mouse');
+  });
+
+  it('maps an input kind to its glyph', () => {
+    expect(pointerGlyph('mouse')).toBe('arrow');
+    expect(pointerGlyph('touch')).toBe('hand');
+    expect(pointerGlyph('pen')).toBe('pen');
+  });
+
+  it('parses overlay signals: kinds, the close edge, and junk', () => {
+    expect(parseOverlayPayload({ userId: 'u', clientId: 'c', kind: 'menu', ts: 5 }))
+      .toEqual({ userId: 'u', clientId: 'c', kind: 'menu', ts: 5 });
+    expect(parseOverlayPayload({ userId: 'u', clientId: 'c', kind: 'modal', ts: 5 }))
+      .toEqual({ userId: 'u', clientId: 'c', kind: 'modal', ts: 5 });
+    expect(parseOverlayPayload({ userId: 'u', clientId: 'c', kind: null, ts: 5 }))
+      .toEqual({ userId: 'u', clientId: 'c', kind: null, ts: 5 });
+    // Unknown kinds are ignored — never trusted as a close edge.
+    expect(parseOverlayPayload({ userId: 'u', clientId: 'c', kind: 'spinner', ts: 5 })).toBeNull();
+    expect(parseOverlayPayload({ userId: 'u', clientId: 'c', kind: 'menu' })).toBeNull(); // no ts
+    expect(parseOverlayPayload({ userId: 'u', kind: 'menu', ts: 5 })).toBeNull(); // no client
+    expect(parseOverlayPayload(null)).toBeNull();
+  });
+
+  it('resolves active overlay cues: TTL expiry, close edges, newest window wins', () => {
+    const signals = (entries: Array<[string, 'menu' | 'modal' | null, number]>) =>
+      entries.map(([userId, kind, at]) => ({ userId, kind, at }));
+    // Active while fresh; stale (killed tab / paused heartbeat) clears on TTL.
+    expect(resolveOverlayCues(signals([['u1', 'menu', 1000]]), 1400, 800)).toEqual(new Map([['u1', 'menu']]));
+    expect(resolveOverlayCues(signals([['u1', 'menu', 1000]]), 1900, 800).size).toBe(0);
+    // A close edge clears; an unknown user never appears.
+    expect(resolveOverlayCues(signals([['u1', null, 1000]]), 1000, 800).size).toBe(0);
+    // Newest window wins per user (multi-window parity with cursors).
+    expect(resolveOverlayCues(signals([['u1', 'menu', 1000], ['u1', 'modal', 1200]]), 1300, 800))
+      .toEqual(new Map([['u1', 'modal']]));
+    // …and a newer close from the other window wins too (accepted semantics).
+    expect(resolveOverlayCues(signals([['u1', 'menu', 1000], ['u1', null, 1200]]), 1300, 800).size).toBe(0);
+    expect(resolveOverlayCues(signals([['u1', 'menu', 1000], ['u2', 'modal', 1100]]), 1200, 800))
+      .toEqual(new Map([['u1', 'menu'], ['u2', 'modal']]));
   });
 
   it('parses scroll samples, clamping the offset and allow-listing the surface', () => {
@@ -286,6 +340,48 @@ describe('view ↔ place mapping', () => {
   it('rejects remote views with an unknown tab', () => {
     expect(presenceViewToPlace({ tab: 'hacked' })).toBeNull();
     expect(presenceViewToPlace(null)).toBeNull();
+  });
+});
+
+describe('local-overlay signal hub (roadmap 240)', () => {
+  it('announces open/close edges and the top of the stack', () => {
+    const hub = createOverlaySignalHub();
+    const kinds: Array<string | null> = [];
+    hub.subscribe((reason) => kinds.push(`${reason}:${hub.getKind()}`));
+    const closeMenu = hub.open('menu');
+    expect(hub.getKind()).toBe('menu');
+    const closeModal = hub.open('modal'); // nested: newest surface wins
+    expect(hub.getKind()).toBe('modal');
+    closeModal();
+    expect(hub.getKind()).toBe('menu'); // falls back to the enclosing modal
+    closeMenu();
+    expect(hub.getKind()).toBeNull();
+    expect(kinds).toEqual(['change:menu', 'change:modal', 'change:menu', 'change:null']);
+
+    const unsubscribe = hub.subscribe((reason) => kinds.push(`after-unsub:${reason}`));
+    unsubscribe();
+    hub.open('menu')();
+    expect(kinds.some(k => k.startsWith('after-unsub'))).toBe(false);
+  });
+
+  it('heartbeats only while something is open, and pauses on blur/window switch', () => {
+    const hub = createOverlaySignalHub();
+    const seen: string[] = [];
+    hub.subscribe((reason) => seen.push(reason));
+    hub.heartbeat();
+    expect(seen).toEqual([]); // nothing open — no pointless close re-sends
+
+    const close = hub.open('menu');
+    expect(seen).toEqual(['change']); // the open edge
+    hub.heartbeat();
+    expect(seen).toEqual(['change', 'heartbeat']);
+    hub.setPaused(true); // tab hidden / window blurred
+    hub.heartbeat();
+    expect(seen).toEqual(['change', 'heartbeat']); // paused — receivers clear via the TTL
+    hub.setPaused(false);
+    expect(seen).toEqual(['change', 'heartbeat', 'heartbeat']); // resume re-announces an open overlay
+    close();
+    expect(seen).toEqual(['change', 'heartbeat', 'heartbeat', 'change']);
   });
 });
 

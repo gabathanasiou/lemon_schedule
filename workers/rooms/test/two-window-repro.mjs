@@ -14,7 +14,10 @@
  *   • invites account B as an editor through the `invite_collaborator` RPC,
  *   • context B opens the same shared project through the online path,
  *   • captures every WebSocket frame in both windows,
- *   • A edits a stripboard scene, then presses Meta+z.
+ *   • A edits a stripboard scene, then presses Meta+z,
+ *   • extra sections: the peer PRESENCE cursor (renders + follows), the
+ *     input-modality glyph (touch = hand, roadmap 241) and the local-overlay
+ *     dots cue (menu/modal, roadmap 240).
  *
  * ACCOUNTS: signs in as the REUSABLE robot accounts held in the gitignored
  * `.env` (`LEMON_TEST_SB_USER_A/PASS_A` + `_B`) — no new users are created per
@@ -428,6 +431,64 @@ try {
     !!first && !!after && Math.abs(after.tx - first.tx) > 50 && after.domX > 0 && after.domY > 0,
     { first, after }
   );
+
+  // ── Presence cue + input glyph (roadmaps 240/241): the pointer glyph
+  // follows the publisher's INPUT MODALITY, and while a peer is inside a
+  // local overlay (menu/modal) their pointer tag + header bubble show the
+  // animated dots. Both windows are on Schedule here (the pointer section
+  // above) so the pointer tag renders.
+  const waitFor = async (fn, tries = 80) => {
+    for (let i = 0; i < tries; i++) { if (await fn()) return true; await sleep(100); }
+    return false;
+  };
+  const cursorSel = (extra = '') => `[data-testid="presence-cursor"]${extra}`;
+
+  // 241: a synthetic TOUCH pointer event flips the published modality; a real
+  // mouse move flips it back. B must render the hand / arrow glyph.
+  const aPointer = () => diag(A.page).then((d) => d.presence?.cursorPointer ?? null).catch(() => null);
+  await A.page.evaluate(() => {
+    window.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', clientX: 430, clientY: 330, bubbles: true }));
+  });
+  const handOk = await waitFor(async () => (await B.page.locator(cursorSel('[data-pointer="touch"]')).count()) > 0);
+  check('B: touch input renders the hand glyph', handOk, { a: await aPointer() });
+  await A.page.mouse.move(560, 380, { steps: 4 });
+  const arrowOk = await waitFor(async () => (await B.page.locator(cursorSel('[data-pointer="mouse"]')).count()) > 0);
+  check('B: mouse input returns the arrow glyph', arrowOk, { a: await aPointer() });
+
+  // 240: the account menu → the 'menu' cue on BOTH surfaces.
+  await A.page.getByTestId('user-cluster').click();
+  const menuBubble = await waitFor(async () => (await B.page.locator('[data-testid="presence-bubble-overlay"]').count()) > 0);
+  const menuTag = await waitFor(async () => (await B.page.locator(cursorSel('[data-overlay="menu"]')).count()) > 0);
+  const aMenu = await diag(A.page).then((d) => d.presence?.localOverlay ?? null).catch(() => null);
+  check('B: peer-in-menu shows the dots on the header bubble', menuBubble, null);
+  check('B: peer-in-menu shows the dots on the pointer tag', menuTag, null);
+  check('A: the window announces the menu cue', aMenu === 'menu', aMenu);
+
+  // 240: a MODAL is the other kind — click through the OPEN menu (a modal
+  // opened from a just-closed menu must still read as 'modal').
+  await A.page.getByRole('menuitem', { name: 'Edit profile...' }).click();
+  const modalBubble = await waitFor(async () => (await B.page.locator('[data-testid="presence-bubble-overlay"]').count()) > 0);
+  const modalTag = await waitFor(async () => (await B.page.locator(cursorSel('[data-overlay="modal"]')).count()) > 0);
+  const aModal = await diag(A.page).then((d) => d.presence?.localOverlay ?? null).catch(() => null);
+  check('B: peer-in-modal shows the dots on the header bubble', modalBubble, null);
+  check('B: peer-in-modal shows the dots on the pointer tag', modalTag, null);
+  check('A: the window announces the modal cue', aModal === 'modal', aModal);
+
+  // The close EDGE clears the cue (no waiting for the TTL).
+  await A.page.keyboard.press('Escape');
+  const modalCleared = await waitFor(async () =>
+    (await B.page.locator('[data-testid="presence-bubble-overlay"]').count()) === 0 &&
+    (await B.page.locator(cursorSel('[data-overlay]')).count()) === 0);
+  check('B: cue clears when the modal closes', modalCleared, null);
+
+  // And the plain menu close edge (open → Esc, nothing else).
+  await A.page.getByTestId('user-cluster').click();
+  await waitFor(async () => (await B.page.locator('[data-testid="presence-bubble-overlay"]').count()) > 0);
+  await A.page.keyboard.press('Escape');
+  const menuCleared = await waitFor(async () =>
+    (await B.page.locator('[data-testid="presence-bubble-overlay"]').count()) === 0 &&
+    (await B.page.locator(cursorSel('[data-overlay]')).count()) === 0);
+  check('B: cue clears when the menu closes', menuCleared, null);
 
   log(failures === 0 ? '\nNO DIVERGENCE — undo/redo reach peers as normal updates' : `\n${failures} problem(s) observed`);
 } catch (e) {

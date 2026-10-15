@@ -115,6 +115,11 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   (`UserPresenceCluster`, follow toggles) are how you jump to their view (docs/COLLABORATION.md §9).
   One global mousemove tracker in the provider publishes; `PresenceOverlay` draws. Follow mode: App
   registers the one applier (navigation stays in `go()`); any manual navigation exits.
+- **Overlay cue + input glyph (roadmaps 240/241)**: the peer's input modality (`mouse|touch|pen`) rides
+  the cursor payload (re-sent only on change) and selects the pointer glyph; a separate `overlay`
+  broadcast announces "this user is inside a menu/modal" (edges + a 6s heartbeat from
+  `src/lib/localOverlaySignal.ts`, fed ONLY by the shared primitives) with a 12s receiver TTL — the dots
+  render on the pointer tag + the header bubble (`PresenceDots`, `peer.overlay`).
 - **S3.5 save ping seam (store-owned)**: `changeCounterRef`/`persistedAtCounterRef` are the clean/dirty
   gate — every accepted write dispatch bumps the counter; `loadBaseline(project)` (LOAD + re-anchor) is
   used by every internal open/import/reload, and successful online saves capture the counter at save
