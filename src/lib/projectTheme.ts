@@ -48,6 +48,9 @@ export function projectSegThemeOf(theme: ProjectTheme): 'light' | 'blue' | 'emer
 export const PROJECT_CHROME: Record<ProjectTheme, {
   /** Dark chrome bar fill (app header, popout version toolbar). */
   bar: string;
+  /** `bar` as a hex — the status-bar / `meta[theme-color]` tint applied by
+   *  `useStatusBarTheme()`. Keep in sync with `bar`'s Tailwind colour. */
+  barHex: string;
   /** Quiet hover wash on the dark bar (triggers, icon buttons, cluster). */
   barHover: string;
   /** Focus ring on the editable project title. */
@@ -59,6 +62,7 @@ export const PROJECT_CHROME: Record<ProjectTheme, {
 }> = {
   local: {
     bar: 'bg-zinc-950',
+    barHex: '#09090b',
     barHover: 'hover:bg-zinc-800',
     titleRing: 'focus:ring-1 focus:ring-zinc-600',
     action: 'bg-zinc-900 hover:bg-zinc-800 text-white',
@@ -66,6 +70,7 @@ export const PROJECT_CHROME: Record<ProjectTheme, {
   },
   drive: {
     bar: 'bg-blue-950',
+    barHex: '#172554',
     barHover: 'hover:bg-blue-900/60',
     titleRing: 'focus:ring-1 focus:ring-blue-600',
     action: 'bg-blue-950 hover:bg-blue-900 text-white',
@@ -73,6 +78,7 @@ export const PROJECT_CHROME: Record<ProjectTheme, {
   },
   shared: {
     bar: 'bg-emerald-950',
+    barHex: '#022c22',
     barHover: 'hover:bg-emerald-900/60',
     titleRing: 'focus:ring-1 focus:ring-emerald-600',
     action: 'bg-emerald-950 hover:bg-emerald-900 text-white',

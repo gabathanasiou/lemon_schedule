@@ -995,20 +995,15 @@ pass (doc §12).
 
 **Peer-sync bug investigation (2026-10-15, later) — NOT reproduced; delivery hardened.** Reported: "A's Cmd+Z lands on A but B doesn't reflect it", "A moves a strip → A undoes → no change on B", "different users share one undo", "stripboard completely broken". A scripted two-window repro (`workers/rooms/test/two-window-repro.mjs` — two real accounts + `invite_collaborator`, WS-frame capture, dev server + `wrangler dev`) exercises all of it against the REAL UI: A types in a stripboard cell → B types → A undoes (only A's edit reverts; B's later edit survives), the reverse order, and a strip MOVE (a drop's `UPDATE_VERSION`) with **store AND screen-order** assertions — all converge, including after the Durable Object hibernates and is re-created. Both probes pass. **Undo is per ROOM USER = per Supabase ACCOUNT**: two windows of the same account share one history BY DESIGN (that is the likeliest reading of "shared undo"), and `diagnostics()` now reports `roomUserId`/`roomRole` so the two windows can be compared in one line. **ROOT CAUSE (found 2026-10-15, after the user asked for the button path): the header/toolbar undo-redo BUTTONS bypassed the room.** They dispatched a LOCAL transcript `UNDO`/`REDO` (never transported, `guardedDispatch` excludes it) — and on a shared project the transcript ALSO accumulates every peer edit, so the buttons were always "enabled" and clicking one reverted the last edit *in that window alone*, leaving it diverged from the room. Cmd+Z was already room-routed, which is why the scripted Cmd+Z repro passed. Fixed: ONE shared `undo()`/`redo()` (provider) + ONE `UndoRedoButtons` component (AppHeader + VersionToolbar + PopoutWindow) + the room's per-user `undoState` enablement. Hardening kept: (1) shared-project undo never falls back to the diverging local transcript (warns when the room is not connected); (2) `RoomClient` re-syncs on a **`rev` gap** so a peer that misses one update self-heals instead of drifting; (3) the worker warns on failed sends. Debug order for any recurrence: `diagnostics()` → compare `roomStatus` AND `roomUserId` in both windows (both `open`, two different ids); a window whose stripboard looks wrong hard-reloads back to the room's state.
 
-**Remaining before/with deploy:** nothing on the undo path — ⌘Z/⌘⇧Z, the header + toolbar buttons and popout windows all share ONE room-routed affordance, and the buttons' enablement comes from the room's per-user `undoState`. The deploy checklist (below) is unchanged.
+**Remaining before/with deploy:** nothing on the undo path — ⌘Z/⌘⇧Z, the header + toolbar buttons and popout windows all share ONE room-routed affordance, and the buttons' enablement comes from the room's per-user `undoState`. The deploy checklist below is DONE (see the Deploy entry).
 
-**NEXT — deploy:** `npx wrangler login` → `npx wrangler deploy` (workers/rooms); Supabase CLI login → the `room-token` Edge Function + the shared `ROOM_TOKEN_SECRET` (worker secret + function secret); repo secret `VITE_ROOMS_URL` + the deploy.yml env line; two-machine live pass (must cover undo/redo).
+**Deploy — DONE 2026-10-15 (evening).** Worker `lemon-rooms` deployed (`https://lemon-rooms.gabathanasiou.workers.dev`; `ROOM_TOKEN_SECRET` set via stdin, never printed) + the `room-token` Supabase Edge Function deployed (`npx supabase functions deploy room-token --use-api`; the same secret set project-wide; `supabase/config.toml` commits the `verify_jwt` intent) + repo secret `VITE_ROOMS_URL` + the deploy.yml env line. The deployed path is PROVEN by `workers/rooms/test/deployed-probe.mjs`: mint → real WebSocket hello accepted by the deployed worker; garbage + cross-project tokens refused (1008); non-member 403, no session 401, CORS preflight 204. **Still open: the two-machine live pass on the Pages build** (must cover undo/redo + follow) — the real-world proof.
 
 **Rename sync — the realtime gap found + fixed (2026-10-15, evening).** The report ("A renames → B's header never updates; B opens the Manager → still the old name") reproduced in a NEW focused harness (`workers/rooms/test/rename-repro.mjs` — two robot accounts, every rename entry point driven through the real UI, assertions on BOTH headers, BOTH Manager rows and the server row). TWO root causes: (1) `renameProject` dispatched the title with the RAW reducer dispatch, bypassing `guardedDispatch` — the rename applied in the renaming window only and never reached the room (the row push kept the server honest, so the same user's Manager looked fine while the peer's document never moved); fixed — the title rides the same write path as every other edit. (2) The Project Manager's Shared list merged the server fetch with SESSION metas and a stale meta always won — a peer's rename never showed, even after Refresh (roadmap 249 fixed the list: server truth only, refetch on every Manager open, and the open project's row overlays the open document's title so a rename lands in place while the Manager is open). The repro is all-green in both directions.
 
-**Remaining collab work — priority order (ease + logic, updated 2026-10-15 evening):**
-1. **Close-outs done 2026-10-15 (evening):** 231 + 245 (visual), 243 (two-client), 247 + 249 + 253 (the header/Manager/rename fixes described above) — all user-confirmed and archived.
-2. **S4 deploy** (checklist above, unchanged) — ops, not code; the two-machine live pass is
-   the real-world proof for undo/redo + follow.
-3. **246 — rooms-dev launcher** — medium dev-tooling (~1–2 days: process lifecycle + the
-   first `playwright.rooms.config.ts` + probe rewiring). Local dev QoL only, nothing
-   user-visible. Pick up when local collab-testing friction justifies it.
-4. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
+**Remaining collab work — priority order (updated 2026-10-15, night):**
+1. **Two-machine live pass** on the deployed Pages app (undo/redo + follow + a normal edit both ways).
+2. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
    (`docs/LICENSING.md` §9) — decisions conversation needed before planning.
 Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work.
 
@@ -1099,3 +1094,46 @@ the home for support-style items later.
   never project contents or tokens); whether a signed-in account prefills
   identity. No secrets in the client.
 - **Relations:** `extends` **260** (File → Help submenu introduced there).
+
+
+## 264. Chrome symmetry — one edge rail across the app header + every mini tab bar (`[ ]`)
+
+**Requested 2026-10-15 (user):** the top toolbar's items don't line up — "the user icon has
+different margin on the left than on the right". Everything (app header + every mini tab bar,
+and the items inside them) should have Apple-like symmetry: equal optical insets on both
+edges, one spacing scale, nothing off the rail.
+
+**Audit (verified against the code 2026-10-15):**
+- `AppHeader.tsx:155` — bar `px-4 py-2`; left group `gap-2` with the File trigger's
+  `-ml-3 px-3` edge-rail trick (roadmap 247); title `px-1 mr-2`; center tabs `gap-1`;
+  right group `:314` `space-x-3 ml-auto` has **no mirrored edge compensation** — the 28px
+  avatar (`UserPresenceCluster.tsx:195`) ends 16px from the bar edge while its left gap is
+  12px, and the neighbours' inner paddings differ (`UndoRedoButtons.tsx:28` bordered `p-1.5`
+  group, `RoomNote.tsx:26` `px-2.5` pill) — no shared optical rail.
+- `PageToolbar.tsx:167` — every mini tab bar uses `px-3` while the header uses `px-4`;
+  strip `gap-1`, sibling groups `gap-2`.
+- `VersionToolbar.tsx` (popout chrome) — `px-4`, left `gap-3`, right `space-x-3`.
+- **Dock math hardcodes today's spacing**: `AppHeader.syncTabLayout` (`:102-114`, the
+  `clientWidth - 4` fudge) and `PageToolbar.syncTabsDock` (`:87-96`, `+24 +
+  (groups-1)*8`) assume the current padding/gap numbers — any spacing change MUST move
+  these constants with it or the icon dock trips at the wrong width.
+
+**Approach:**
+1. Settle ONE chrome spacing scale (bar inset / intra-group / inter-group) + the edge-rail
+   rule (edge items carry a negative margin equal to their own inner padding — 247's File
+   trigger recipe) and express it in shared constants the header and PageToolbar both read.
+2. Header: mirror the rail on the right cluster (avatar, UndoRedoButtons, RoomNote,
+   SaveIndicator land on the same inset with equal gaps around the avatar); audit the
+   center tab strip against both rails.
+3. Sweep every mini tab bar + its items onto the same scale: each tab's PageToolbar
+   (Breakdown / Schedule / Calendar ×2 / Design / Reports / Production), the popout frames +
+   VersionToolbar, the dark Call Sheet editor toolbar, the ribbon toolbar.
+4. Update `docs/DESIGN-LANGUAGE.md` §Toolbar composition with the rail + scale and the
+   dock-math MUST-NOT.
+
+**Verify:** rule 7 — visual only: screenshot pass at desktop + iPad widths, dock on/off,
+every tab's toolbar + one popout; numbered manual checklist for the user (no e2e).
+`npm run lint`.
+
+**Relations:** `extends` **247** (the header rail, File + title only), **49**;
+`relates to` **258** (dock measurement code), **177** (shared Production toolbar).

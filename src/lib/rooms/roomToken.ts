@@ -11,7 +11,11 @@
  *
  * WebCrypto only — runs in the worker, the edge function, the browser and Node.
  */
-import { ROOM_ROLES, type RoomRole } from './protocol';
+// Explicit `.ts` extension: this module is shared with the Deno-bundled Supabase
+// Edge Function (`supabase/functions/room-token` — roadmap 229), whose remote
+// bundler resolves with Deno semantics and rejects extensionless specifiers.
+// Vite / esbuild / tsx all accept the extension too (noEmit programs).
+import { ROOM_ROLES, type RoomRole } from './protocol.ts';
 
 export interface RoomTokenClaims {
   projectId: string;
