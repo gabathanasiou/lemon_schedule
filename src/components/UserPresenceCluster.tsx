@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User as UserIcon, LogIn, LogOut, Cloud, Users, Loader2, Pencil, UserPlus } from 'lucide-react';
+import { User as UserIcon, LogIn, LogOut, Cloud, Users, Loader2, Pencil, UserPlus, UsersRound } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -40,6 +40,8 @@ interface UserPresenceClusterProps {
   onOpenAccount: () => void;
   /** Opens the User & sharing panel for the open shared project (S2). */
   onManageSharing: () => void;
+  /** Opens the Team panel — the account-level roster (roadmap 254). */
+  onManageTeam: () => void;
 }
 
 /** The header user cluster (roadmap 229 S1, docs/COLLABORATION.md §9).
@@ -48,7 +50,7 @@ interface UserPresenceClusterProps {
  *  Google Drive connect/disconnect lives here too (the File menu keeps
  *  project actions only). Renders nothing when the build has no Supabase env
  *  — the File menu then keeps the old Drive items. */
-export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, closeProject, onOpenAccount, onManageSharing }: UserPresenceClusterProps) {
+export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, closeProject, onOpenAccount, onManageSharing, onManageTeam }: UserPresenceClusterProps) {
   const auth = useSupabaseAuth();
   const { currentProjectId, projectList, state, collaborateProject } = useProject();
   const presence = usePresenceState();
@@ -224,6 +226,14 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
                 icon={<Pencil className="w-3.5 h-3.5" />}
               >
                 Edit profile...
+              </DropdownItem>
+            )}
+            {!account.isAnonymous && (
+              <DropdownItem
+                onClick={() => { setMenuOpen(false); onManageTeam(); }}
+                icon={<UsersRound className="w-3.5 h-3.5" />}
+              >
+                Team...
               </DropdownItem>
             )}
             {canCollaborate && (

@@ -214,10 +214,12 @@ const E2E_SPEC_CAP = 70;
 // 278 → 280: roadmap 233 — the designers' editing focus moved to a per-user
 // localStorage pref; "the pick must not write the project (a room action) and
 // must survive a reload" needs a real client (designer remount + onAction spy).
-// 280 → 281: roadmap 255 — the Glide's NEW rows (add row + paste) skipped the
+// 280 → 281: roadmap 163 — script-tab perf harness with a generated full-length
+// screenplay; before/after evidence needs the real DOM at document scale.
+// 281 → 282: roadmap 255 — the Glide's NEW rows (add row + paste) skipped the
 // cast creation guard, silently writing a NAME into scene.cast; that path can
 // only be driven through the real grid overlay.
-const E2E_TEST_CAP = 281;
+const E2E_TEST_CAP = 282;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

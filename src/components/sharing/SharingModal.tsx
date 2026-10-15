@@ -16,6 +16,8 @@ import {
   deleteProjectShareLinks,
   getSharingState,
   inviteCollaborator,
+  inviteCollaboratorById,
+  listInviteSuggestions,
   removeMember,
   revokeShareLinks,
   setAllowInvites,
@@ -23,12 +25,13 @@ import {
   stopSharing,
   updateShareLinkExpiry,
   type CollaboratorRole,
+  type InviteSuggestion,
   type SharingState,
 } from '../../lib/supabase/sharing';
+import type { InviteTarget } from '../../lib/inviteTargets';
 import { shareLinkUrl } from '../../lib/shareTokens';
-import { MemberRow, PendingRow } from './sharingParts';
-
-const INPUT_CLASS = 'px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50';
+import { MemberRow, PendingRow, PANEL_INPUT_CLASS, SectionLabel } from './sharingParts';
+import { PeoplePicker } from './PeoplePicker';
 
 type AccessMode = 'invite' | 'link';
 const EXPIRY_OPTIONS = [
@@ -69,7 +72,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [suggestions, setSuggestions] = useState<InviteSuggestion[]>([]);
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
   const [copied, setCopied] = useState(false);
   const [expiryOpen, setExpiryOpen] = useState(false);
@@ -78,7 +81,13 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
     if (!onlineId) return;
     setLoading(true);
     try {
-      setShare(await getSharingState(onlineId));
+      const next = await getSharingState(onlineId);
+      setShare(next);
+      /* Suggestions are inviter-only (the RPC rejects everyone else), so fetch
+         them only when this account may invite; a failure leaves the email
+         path usable. */
+      const mayInvite = next.myRole === 'owner' || (next.myRole === 'editor' && next.allowInvites);
+      setSuggestions(mayInvite ? await listInviteSuggestions(onlineId).catch(() => []) : []);
       setLoadError(null);
     } catch (e: any) {
       setLoadError(e?.message || 'Could not load who has access.');
@@ -96,7 +105,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
     setNotice(null);
     setActionError(null);
     setLoadError(null);
-    setInviteEmail('');
+    setSuggestions([]);
     setCopied(false);
   }, [open]);
 
@@ -186,19 +195,34 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
     })();
   };
 
-  const handleInvite = () => {
-    const email = inviteEmail.trim();
-    if (!/.+@.+\..+/.test(email)) {
-      setActionError('Enter a valid email address.');
+  /** One commit from the picker: a suggestion's account id → invite by id;
+   *  a typed address → the email/pending path. Anything else was already
+   *  dropped by the classifier, so a half-typed name never hits the server. */
+  const handleInviteTarget = (target: InviteTarget) => {
+    if (!onlineId) return;
+    if (target.kind === 'email') {
+      const email = target.email.trim();
+      if (!/.+@.+\..+/.test(email)) {
+        setActionError('Enter a valid email address.');
+        return;
+      }
+      void run(async () => {
+        const status = await inviteCollaborator(onlineId, email, inviteRole);
+        setNotice(
+          status === 'owner' ? 'That email owns this project already.'
+            : status === 'pending' ? `Invite saved for ${email} — it activates when they create an account.`
+            : `${email} can now open this project.`,
+        );
+      });
       return;
     }
+    const person = suggestions.find(s => s.userId === target.userId);
+    const label = person?.name || person?.email || 'That person';
     void run(async () => {
-      const status = await inviteCollaborator(onlineId, email, inviteRole);
-      setInviteEmail('');
+      const status = await inviteCollaboratorById(onlineId, target.userId, inviteRole);
       setNotice(
-        status === 'owner' ? 'That email owns this project already.'
-          : status === 'pending' ? `Invite saved for ${email} — it activates when they create an account.`
-          : `${email} can now open this project.`,
+        status === 'owner' ? `${label} owns this project already.`
+          : `${label} can now open this project.`,
       );
     });
   };
@@ -262,7 +286,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
           <>
             {/* Who can access ------------------------------------------------ */}
             <section className="space-y-2">
-              <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Who can access</div>
+              <SectionLabel>Who can access</SectionLabel>
               {canInvite ? (
                 <>
                   <Seg
@@ -292,7 +316,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                             value={linkHref}
                             placeholder={needsNewLink ? 'Create a new link to show it here' : ''}
                             onFocus={e => e.currentTarget.select()}
-                            className={`${INPUT_CLASS} flex-1 min-w-0 font-mono text-[10px] cursor-text`}
+                            className={`${PANEL_INPUT_CLASS} flex-1 min-w-0 font-mono text-[10px] cursor-text`}
                           />
                           <Button variant="subtle" theme="dark" onClick={handleCopyLink} disabled={busy} className="shrink-0">
                             <Copy className="w-3.5 h-3.5" /> {needsNewLink ? 'Create New Link' : (copied ? 'Copied' : 'Copy Link')}
@@ -330,9 +354,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
 
             {/* People -------------------------------------------------------- */}
             <section>
-              <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">
-                People ({share.members.length + share.pendingInvites.length})
-              </div>
+              <SectionLabel>People ({share.members.length + share.pendingInvites.length})</SectionLabel>
               <div className="divide-y divide-zinc-800/60">
                 {share.members.map(member => (
                   <MemberRow
@@ -357,20 +379,12 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
               </div>
             </section>
 
-            {/* Invite by email ----------------------------------------------- */}
+            {/* Invite -------------------------------------------------------- */}
             {canInvite ? (
               <section>
-                <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Invite by email</div>
+                <SectionLabel>Invite</SectionLabel>
                 <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={e => setInviteEmail(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleInvite(); }}
-                    placeholder="name@example.com"
-                    disabled={busy}
-                    className={`${INPUT_CLASS} flex-1 min-w-[180px]`}
-                  />
+                  <PeoplePicker suggestions={suggestions} onCommit={handleInviteTarget} />
                   <Seg
                     variant="track"
                     theme="dark"
@@ -382,12 +396,9 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                     ]}
                     onChange={v => setInviteRole(v as 'editor' | 'viewer')}
                   />
-                  <Button variant="primary" theme="dark" onClick={handleInvite} disabled={busy || !inviteEmail.trim()}>
-                    Invite
-                  </Button>
                 </div>
                 <p className="mt-1.5 text-[10px] text-zinc-600">
-                  No email is sent yet — existing accounts get access right away, new emails activate when they create an account (send them the link to be sure).
+                  Pick someone you collaborate with, or type an email. No email is sent yet — existing accounts get access right away, new emails activate when they create an account (send them the link to be sure).
                 </p>
               </section>
             ) : null}

@@ -13,6 +13,15 @@ import type { CollaboratorRole, PendingInvite, SharingMember } from '../../lib/s
  * people rows. State and server calls live in SharingModal.
  */
 
+/** The dark panel's input recipe — ONE class string for the sharing/team
+ *  modals' text fields. */
+export const PANEL_INPUT_CLASS = 'px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50';
+
+/** Section caption for the sharing/team panels. */
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">{children}</div>;
+}
+
 export const ROLE_LABELS: Record<CollaboratorRole, string> = {
   owner: 'Owner',
   editor: 'Can make changes',

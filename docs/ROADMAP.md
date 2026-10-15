@@ -630,27 +630,6 @@ are hard-coded (`src/components/reports/reportStyle.ts:37-42`, A4 − 12mm;
   math) + manual; migrate existing designs.
 - **Relations**: 140/142 (designer chrome), 3.
 
-## 163. Script tab performance — render is unacceptably heavy (`[ ]`)
-
-**Request** (debug report, escalated): the Script tab renders too slowly and is
-heavy — "performance is really unacceptable". Likely suspects, verify by
-profiling before changing anything:
-- the tagging derivation recomputes attached spans + suggestions for EVERY
-  scene on every project change (`attachedRanges`/`suggestionRanges` scan each
-  element × each block — `src/lib/scriptTagging.ts`, `useScriptTagging`);
-- full-document re-render on selection/hover, `ScriptTagging` overlay
-  recompute/scroll listeners, scene-index rebuilds (`ScriptView.tsx`,
-  `src/components/script/*`).
-- **Deliverable**: a measured fix using the existing perf tooling
-  (`docs/PERF-DIAGNOSIS.md`); behavior unchanged. Evaluate virtualized/windowed
-  rendering for the script body (e.g. `react-window`/`react-virtuoso`/TanStack
-  Virtual) and/or foveated/priority rendering (render the viewport, degrade the
-  rest) — look online for current libraries/methods and pick the smallest one
-  that clears the budget; new deps must be imported by ≥1 source file.
-- **Verify**: before/after profile + `npx playwright test e2e/script-*.spec.ts`
-  green (README: existing perf harnesses are `@perf`-tagged).
-- **Relations**: 123/132/136.
-
 ## 164. Day Manager — add an element to a day's Call Times (`[ ]`)
 
 **Request**: in the Day Manager Call Times section, allow adding an element
@@ -1033,10 +1012,7 @@ pass (doc §12).
 4. **246 — rooms-dev launcher** — medium dev-tooling (~1–2 days: process lifecycle + the
    first `playwright.rooms.config.ts` + probe rewiring). Local dev QoL only, nothing
    user-visible. Pick up when local collab-testing friction justifies it.
-5. **254 — invite suggestions + teams** — medium (SQL + the SharingModal picker + a Team
-   modal; independent of the deploy): autocomplete invites from your team and the people
-   you collaborate with. User-requested 2026-10-15.
-6. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
+5. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
    (`docs/LICENSING.md` §9) — decisions conversation needed before planning.
 Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work.
 
@@ -1353,77 +1329,3 @@ the row kept the old name.
 - **Relations:** `extends` **229** (S1 rows/listing); `relates to` **249** (same
   panel — stale Shared count), **251** (title commit-on-blur rides this rename
   path).
-
-## 254. Sharing — teams + invite suggestions (autocomplete from your team and collaborators) (`[ ]`)
-
-**Requested 2026-10-15 (user):** inviting someone is blind email typing. An account
-should have a **team**, and the invite field should **autocomplete** from team
-members and people the account has previously collaborated with. **User
-clarification (2026-10-15):** the team is the subscriber's **seat group** — one
-payer covers non-paying members — so this roster is also the future seat unit for
-S5 billing (user's seat model, recorded as input to §11 of the collab doc;
-free-tier values stay open in `docs/LICENSING.md` §9).
-
-**Decisions (user, 2026-10-15):** team = **address book only** (grants NO access;
-sharing stays per person; "share with whole team" deliberately out of scope);
-**one team per account**; suggestions = team + **live co-members** (derived, no new
-personal data stored — invite history/Recents can be layered later if needed); the
-picker's feel = **the EntityDropdown picker** (input + panel below, keyboard-first).
-
-**Why a team is needed at all:** there is no global user directory — profiles are
-readable only when you share a project (`private.shares_project_with`,
-`supabase/migrations/20261012130425_s2_sharing_roles_invites.sql:99`), deliberately.
-Suggestions must come from data the caller may legitimately see: their own
-collaborations and their own team. Never add a public user search.
-
-**Phase 1 — "People you collaborate with" (no new tables).** Definer RPC
-`list_invite_suggestions(p_project)` (same `private.can_invite` gate as invites):
-distinct non-anonymous profiles sharing ≥1 project with the caller, excluding the
-caller, the structural owner and anyone already on the project — id + display_name +
-avatar + **email** (the deliberate, scoped exposure that makes the row's second line
-possible; co-member/teammate-visible only, never which project). Picking a person
-invites by user id — `invite_collaborator_by_id(p_project, p_user, p_role)` with the
-email path's rules (existing-member role change = owner-only) plus one guard: the
-target must be reachable (co-member now; + teammate in phase 2) so ids can't be
-granted at random. The email path stays for people without accounts.
-
-**Phase 2 — teams (one per real account).** `teams (id, name, owner_id)` +
-`team_members (team_id, user_id, created_at)` + `team_invites` (emails claimed by
-the existing signup trigger — same pattern as `pending_invites`); teammates read
-each other's profiles via a new `private.in_same_team(id)` policy branch. Guests
-must convert to a real account first (parity with Collaborate). Management = a Team
-modal from the avatar menu (name, members, invite by email, remove) — its
-add-member row reuses `PeoplePicker`. Schema stays seat-ready for 230 (member rows =
-seats; owner = payer) without shipping billing.
-
-**UI:** ONE new component — `PeoplePicker` (`src/components/sharing/PeoplePicker.tsx`) —
-a thin wrapper over the EXISTING `EntityDropdown` + `DropdownPanel` pair (the app's
-shared autocomplete: input + panel below; arrows/Enter/Tab/Escape with the
-single-highlight + hover rules, keyboard-only scroll, touch/wheel handling,
-kit-owned morph/positioner). Wiring: `mode="single"` + `displayMode="id"`
-(`EntityItem.id` = account id, so a pick commits the user id), `variant="chip"` (the
-dark modal-row recipe — Link Manager / Color Rules precedent), `renderItem` giving
-the row shape — **AccountAvatar left, name on top, smaller email below** —
-`filterItem` matching name + email, `sortItems` grouping team-first, `group` per
-item for the "Team" / "People you collaborate with" panel headers, `itemBadge` for
-the seed marker. Typing an unknown email lands on the panel's existing synthetic
-**Add "email"** row → the current email/pending invite; the separate email input and
-Invite button are absorbed into this one field. `onChange` = "attempt invite with
-this text": a suggestion id → invite by id; a valid email → email invite; anything
-else (a half-typed blur commit) is ignored silently. Shared by the SharingModal
-invite row AND the Team modal's add-member row. No new primitive, no kit change, no
-forked dropdown internals.
-
-**Verify:** extend RLS acceptance (`supabase/tests/rls_s2.sql` or a new file) —
-suggestions refused without `can_invite`; a stranger can neither list nor invite by
-id; non-reachable target rejected; team roster + profile read scoped to teammates;
-team invite claimed at signup; advisors clean after DDL. Rule-7 manual pass (two
-accounts + one team: teammate appears under "Team" → Enter invites → People list
-updates; unknown email → Add row → pending; arrows/Enter/Tab/Escape behave exactly
-like the cast pickers, Escape never closes the modal; non-inviter sees no picker).
-`npm run lint`. Load the `security-review` skill (auth/RLS surface); update
-`docs/COLLABORATION.md` §6 (S2 map) + §11/§12 in the same change.
-
-**Relations:** `extends` **229** (S2 sharing); `relates to` **230** (team = future
-seat boundary for the S5 subscription — no dependency in either direction now),
-**231** (avatar identities in the picker), **249** (Shared-list panel).

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   planTagCommit, commitTag, suggestionRanges, tagCategories, annotationElementName,
+  elementOccurrences, lowerBlockTexts, sceneSpans,
   type ScriptTagTarget,
 } from '../scriptTagging';
 import type { Project, Scene, ScriptAnnotation } from '../../types';
@@ -183,6 +184,81 @@ describe('suggestionRanges', () => {
       scriptDocument: doc([['heading', 'INT. X - DAY'], ['action', 'The GUN is on the table.']]),
     });
     expect(suggestionRanges(p, p.scenes[0])).toHaveLength(0);
+  });
+});
+
+describe('sceneSpans', () => {
+  // 'The bulbs glow near the KNIFE and the GUN.' → bulbs [4,9] · glow [10,14] · KNIFE [24,29] · GUN [38,41]
+  const BODY = 'The bulbs glow near the KNIFE and the GUN.';
+  const doc1 = () => ({ format: 'fdx' as const, scenes: [{ sceneNumber: '1', blocks: [['heading', 'INT. X - DAY'], ['action', BODY]] as any }] });
+  const withStored = () => project({
+    scenes: [scene({ props: 'BULBS' })],
+    breakdownElements: { props: [{ id: 'KNIFE', name: 'KNIFE' }, { id: 'GUN', name: 'GUN' }] },
+    scriptAnnotations: [
+      ann({ id: 'com', sceneId: 's1', blockIndex: 1, start: 38, end: 41, text: 'GUN', elementKey: 'GUN' }),
+      ann({ id: 'rec', sceneId: 's1', blockIndex: 1, start: 10, end: 14, text: 'glow', elementKey: 'GLOW', recognized: true }),
+    ],
+    scriptDocument: doc1(),
+  });
+
+  it('combines committed → attached → recognized → suggestions for one scene', () => {
+    const p = withStored();
+    const spans = sceneSpans(p, p.scenes[0], true);
+    expect(spans.annotations.map(a => a.id)).toEqual([
+      'com',
+      'attached:props:BULBS:1:4',
+      'rec',
+      'suggest:props:KNIFE:1:24',
+    ]);
+    expect(spans.attached).toHaveLength(1);
+    expect(spans.suggestions).toHaveLength(1);
+  });
+
+  it('gates recognized + suggestions on showSuggestions but keeps attached', () => {
+    const p = withStored();
+    const spans = sceneSpans(p, p.scenes[0], false);
+    expect(spans.annotations.map(a => a.id)).toEqual(['com', 'attached:props:BULBS:1:4']);
+    expect(spans.suggestions).toEqual([]);
+  });
+
+  it('only sees its own scene', () => {
+    const other = scene({ id: 's2', sceneNumber: '2', props: 'BULBS' });
+    const p = project({
+      scenes: [scene({ props: 'BULBS' }), other],
+      breakdownElements: { props: [{ id: 'KNIFE', name: 'KNIFE' }] },
+      scriptAnnotations: [ann({ id: 'com2', sceneId: 's2', blockIndex: 1, start: 0, end: 3, text: 'The' })],
+      scriptDocument: { format: 'fdx', scenes: [{ sceneNumber: '1', blocks: [['heading', 'INT. X - DAY'], ['action', BODY]] as any }] },
+    });
+    const spans = sceneSpans(p, p.scenes[0], true);
+    expect(spans.annotations.every(a => a.sceneId === 's1')).toBe(true);
+    expect(sceneSpans(p, p.scenes[1], true).annotations.map(a => a.id)).toEqual(['com2']);
+  });
+});
+
+describe('elementOccurrences prefilter', () => {
+  const docScene = {
+    sceneNumber: '1',
+    blocks: [
+      ['heading', 'INT. X - DAY'],
+      ['action', 'The GUN is near MARYLAND; MARY waves at MR. GOWER.'],
+      ['character', 'MARY (O.S.)'],
+      ['dialogue', 'A gun, a GUN!'],
+    ],
+  } as any;
+
+  it('returns identical results with and without the lowercase prefilter', () => {
+    const lower = lowerBlockTexts(docScene);
+    for (const [category, name] of [['props', 'GUN'], ['cast', 'MARY'], ['props', 'gun'], ['props', 'MR. GOWER'], ['props', 'ABSENT']] as const) {
+      expect(elementOccurrences(docScene, category, name, lower)).toEqual(elementOccurrences(docScene, category, name));
+    }
+  });
+
+  it('does not leak a substring match through the prefilter', () => {
+    const lower = lowerBlockTexts(docScene);
+    // MARYLAND contains MARY, but the whole-word regex must not match it —
+    // the prefilter may let the block through, the scan must still reject it.
+    const withPrefilter = elementOccurrences(docScene, 'cast', 'MARY', lower);
+    expect(withPrefilter.map(o => o.text)).toEqual(['MARY', 'MARY']);
   });
 });
 

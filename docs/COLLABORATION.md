@@ -287,6 +287,35 @@ takes effect on next request; guest account needs no entitlement.
     account modal, one-shot redeem → opens the project; invalid/expired/revoked links alert.
   - SaveIndicator shows the view-only eye (with the reason when access changed); editing
     surfaces gate on `locked` (leaf widgets keep their generic `readOnly` input props).
+  - **Teams + invite suggestions (roadmap 254, built 2026-10-15): migrations
+    `20261015175044_s254_invite_suggestions` + `20261015175732_s254_teams` (+
+    `20261015175910` invite_team_member wrapper, `20261015175947` owner-counts-as-in-team
+    — both surfaced by the acceptance run); acceptance `supabase/tests/rls_s254.sql`
+    (38 assertions green).** Suggestions come from the caller's OWN orbit (co-members
+    across their projects ∪ teammates) minus caller/owner/already-on-project/anonymous
+    — never a global user directory: `list_invite_suggestions(p_project)` (owner or
+    allow-invites editor) + `list_team_suggestions()`; rows carry id + display_name +
+    avatar_url + email + `source` ('team' | 'collaborator'). The email is a deliberate,
+    scoped exposure for the picker row's second line — visible only to people who can
+    already see the person, and it never reveals which project they share.
+    `invite_collaborator_by_id(p_project, p_user, p_role)` is the email path's twin
+    (owner 'owner' status; owner-only role changes) with a reachability guard —
+    `private.shares_project_with(p_user) OR private.in_same_team(p_user)` — so ids
+    cannot be granted at random. **Teams are an address book, NOT an access group:**
+    `teams` (unique(owner_id) — one per account) + `team_members` + `team_invites`
+    (claimed at signup by `claim_team_invites`); owner manages, members read the roster,
+    direct by-id adds require an existing collaboration (`shares_project_with`),
+    self-leave allowed; `private.in_same_team` counts the team OWNER as in-team (they
+    have no member row); the `profiles select teammate` policy branch feeds the roster;
+    `is_real_account` keeps anonymous guests out of teams entirely (convert first).
+    UI: `PeoplePicker` (`src/components/sharing/PeoplePicker.tsx`) — a thin wrapper over
+    `EntityDropdown` (mode single, variant chip: avatar left, name over the smaller
+    email, keyboard-first, `EntityItem.group` headers, the synthetic "Add …" row = the
+    email path) in the SharingModal invite row AND the avatar menu's new **Team...**
+    modal (`TeamModal.tsx`: create/rename, members, pending invites, remove, reuse the
+    picker); `src/lib/inviteTargets.ts` (`classifyInviteTarget`) routes every commit —
+    member id / email / ignore (Vitest). Teams are the future seat unit for the S5
+    subscription (roadmap 230).
 - Decisions (user, 2026-10): links are **view-only** (Permissions is per-person); **no
   email is sent yet** — existing accounts are granted immediately, unknown emails become
   pending invites claimed at signup (real invite mail = Edge Function + custom SMTP,
@@ -766,12 +795,14 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 ## 10. Testing strategy
 
 - Supabase RLS acceptance: `supabase/tests/rls_s1.sql` + `rls_s2.sql` +
-  `rls_s3.sql` (paste into the SQL editor / psql; single transaction,
+  `rls_s3.sql` + `rls_s254.sql` (teams + invite suggestions; paste into the SQL
+  editor / psql; single transaction,
   `SET ROLE authenticated`, every row must come back `ok = true`; run
   `get_advisors` after DDL — expect only the anonymous-sign-ins lint 0012 and
   the pre-existing Auth leaked-password config lint). Pure helpers (tokens,
-  gates, presence shaping/throttle/save decisions) are Vitest
-  (`src/lib/__tests__/shareTokens.test.ts`, `presence.test.ts`).
+  gates, presence shaping/throttle/save decisions, `classifyInviteTarget`) are
+  Vitest (`src/lib/__tests__/shareTokens.test.ts`, `presence.test.ts`,
+  `inviteTargets.test.ts`).
 - Playwright: two browser contexts in one spec, driven through the debug bridge
   (dispatch on A → assert state on B) — no timing sleeps. The default suite pins
   the Supabase env OFF, so online flows are verified by the RLS tests above +
@@ -782,7 +813,10 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 
 ## 11. Open questions
 
-- Billing model: per-seat vs per-project vs flat team plan.
+- Billing model: per-seat vs per-project vs flat team plan. **User's model
+  (2026-10-15): one subscription with seats — the subscriber covers non-paying
+  team members** (the roadmap-254 team is the future seat unit; free-tier
+  limit values still open, `docs/LICENSING.md` §9).
 - Supabase session storage: **DECIDED (2026-10-12) — localStorage** (the
   supabase-js default). The AGENTS.md §Security rule guards the Google Drive
   access token only; the Supabase account session is a separate trust domain
@@ -806,7 +840,8 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
 
 1. `npm run lint` (docs + roadmap hygiene) — this doc must keep its Status line.
 2. S1+: `supabase/tests/rls_s1.sql` + (S2) `supabase/tests/rls_s2.sql` + (S3)
-   `supabase/tests/rls_s3.sql` (paste into the SQL editor or psql; every row
+   `supabase/tests/rls_s3.sql` + (254) `supabase/tests/rls_s254.sql` (paste into
+   the SQL editor or psql; every row
    must be `ok = true`) + `get_advisors` security lint clean after any schema
    change. Targeted e2e; `npm run test:smart` before done; full suite for
    store/provider changes (AGENTS.md rule 7).
