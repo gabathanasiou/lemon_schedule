@@ -7,6 +7,8 @@ import {
   type RoomServerMessage,
 } from '../../../src/lib/rooms/protocol';
 import { isRoomActionAllowed, roleCanWrite } from '../../../src/lib/rooms/policy';
+import { projectsEqual } from '../../../src/lib/rooms/projectCompare';
+import { ROOM_REDO_BLOCKED, ROOM_UNDO_BLOCKED } from '../../../src/lib/rooms/roomNotes';
 import { parseDevToken, verifyRoomToken, type VerifiedRoomToken } from '../../../src/lib/rooms/roomToken';
 import { deserializeProject, serializeProject } from '../../../src/lib/projectCodec';
 import { reducer, type Action, type State } from '../../../src/store/reducer';
@@ -61,6 +63,13 @@ interface UndoUnit {
   rows: Array<{ rev: number; action: Action }>;
 }
 
+/** An undone unit on the redo stack (roadmap 242): `undoneAtRev` is the rev the
+ *  undo that consumed it landed at — the room snapshot written THEN is the
+ *  redo's baseline, so a redo can refuse when the room has moved on. */
+interface RedoUnit extends UndoUnit {
+  undoneAtRev: number;
+}
+
 /**
  * One shared project's room (docs/COLLABORATION.md §6 S4).
  *
@@ -90,7 +99,7 @@ export class Room extends DurableObject<Env> {
    * evicted or redeployed room loses them (`redo` then answers 'nothing to redo').
    * Undo itself is durable (log + snapshots); only the redo convenience is not.
    */
-  private redoStacks = new Map<string, UndoUnit[]>();
+  private redoStacks = new Map<string, RedoUnit[]>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -503,7 +512,9 @@ export class Room extends DurableObject<Env> {
    * (nothing was applied optimistically). A client that misses the broadcast
    * self-heals via RoomClient's rev-gap re-sync.
    * Undo depth = the retained snapshot window (SNAPSHOTS_KEPT × SNAPSHOT_EVERY).
-   */
+   *
+   * Roadmap 242: a rebuild that lands exactly on the CURRENT state is BLOCKED
+   * (a peer's later whole-value edit absorbed this unit) — see the branch below. */
   private handleUndo(ws: WebSocket, info: ConnectionInfo): void {
     if (!roleCanWrite(info.role)) {
       this.send(ws, { t: 'error', message: 'view-only' });
@@ -535,6 +546,23 @@ export class Room extends DurableObject<Env> {
       this.send(ws, { t: 'error', message: 'undo failed' });
       return;
     }
+    // Roadmap 242 — BLOCKED undo: a peer's later whole-value edit can make the
+    // rebuild land exactly on the current state (they extended the text you had
+    // just typed). The undo cannot revert it, and pretending otherwise is
+    // dishonest — the caller's redo would later clobber the peer's text. Be
+    // honest: consume the unit's rows (so the next undo moves on to the
+    // caller's earlier units instead of re-blocking forever) and answer with
+    // the blocked message. The state is unchanged, so there is no snapshot, no
+    // rev bump and no broadcast — `undoState` is re-pushed by the caller.
+    if (projectsEqual(project, this.present)) {
+      this.ctx.storage.transactionSync(() => {
+        for (const row of unit.rows) {
+          this.ctx.storage.sql.exec(`DELETE FROM room_actions WHERE rev = ?`, row.rev);
+        }
+      });
+      this.send(ws, { t: 'error', message: ROOM_UNDO_BLOCKED });
+      return;
+    }
     const blob = serializeProject(project);
     const rev = this.headRev + 1;
     this.ctx.storage.transactionSync(() => {
@@ -554,7 +582,7 @@ export class Room extends DurableObject<Env> {
     this.snapshotRev = rev;
     this.snapshotBlob = blob;
     const stack = this.redoStacks.get(info.userId) ?? [];
-    stack.push({ batchId: unit.batchId, rows: unit.rows });
+    stack.push({ batchId: unit.batchId, rows: unit.rows, undoneAtRev: rev });
     this.redoStacks.set(info.userId, stack);
     // The undo IS a new edit: one `LOAD` carrying the rebased state, at a fresh
     // rev, broadcast to every socket through the normal update path. The caller
@@ -570,7 +598,13 @@ export class Room extends DurableObject<Env> {
   }
 
   /** `redo` pops the caller's most recently undone unit and re-applies it as
-   *  FRESH actions through the normal apply + log + broadcast path. */
+   *  FRESH actions through the normal apply + log + broadcast path.
+   *
+   *  Roadmap 242 — REDO SAFETY: never re-apply a stale unit over a peer's later
+   *  work. The undo snapshotted the exact state it produced (`undoneAtRev`); if
+   *  the room has moved on since, the redo is only safe when the state is STILL
+   *  that state (a peer's edit can be a no-op). Otherwise the unit is refused
+   *  with the blocked-undo copy and dropped — Figma's school, no merging. */
   private handleRedo(ws: WebSocket, info: ConnectionInfo): void {
     if (!roleCanWrite(info.role)) {
       this.send(ws, { t: 'error', message: 'view-only' });
@@ -583,6 +617,10 @@ export class Room extends DurableObject<Env> {
     const unit = this.redoStacks.get(info.userId)?.pop();
     if (!unit) {
       this.send(ws, { t: 'error', message: 'nothing to redo' });
+      return;
+    }
+    if (this.headRev !== unit.undoneAtRev && !this.atUndoBaseline(unit.undoneAtRev)) {
+      this.send(ws, { t: 'error', message: ROOM_REDO_BLOCKED });
       return;
     }
     // All-or-nothing: fold the unit on a scratch copy first, so a unit that no
@@ -599,6 +637,24 @@ export class Room extends DurableObject<Env> {
       // own redo through the same `remote` as everyone else (nothing was applied
       // optimistically client-side).
       this.commitAction(info.userId, crypto.randomUUID(), row.action, unit.batchId);
+    }
+  }
+
+  /** True when the room's current state still equals the snapshot the undo at
+   *  `rev` wrote — the redo baseline. A pruned baseline reads as "moved on". */
+  private atUndoBaseline(rev: number): boolean {
+    if (this.present === null) return false;
+    if (this.snapshotRev === rev && this.snapshotBlob !== null) {
+      return projectsEqual(this.present, deserializeProject(this.snapshotBlob));
+    }
+    const row = this.ctx.storage.sql
+      .exec<{ blob: string }>(`SELECT blob FROM room_snapshots WHERE rev = ?`, rev)
+      .toArray()[0];
+    if (!row) return false;
+    try {
+      return projectsEqual(this.present, deserializeProject(row.blob));
+    } catch {
+      return false;
     }
   }
 

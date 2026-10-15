@@ -5,6 +5,10 @@
  *   npm run dev                         # repo root (:3000)
  *   node workers/rooms/test/two-window-repro.mjs
  *
+ * Parallel-agent friendly: set `ROOMS_PORT` (default 8787) to run the local room
+ * worker on another port, and point the app's `VITE_ROOMS_URL` at it — the
+ * harness kills + restarts wrangler on THAT port only.
+ *
  * Proves (or refutes) that a peer window converges after another window
  * presses Cmd+Z. It drives the REAL app in two isolated browser contexts:
  *
@@ -47,6 +51,9 @@ const require = createRequire(`${REPO}/package.json`);
 const { chromium } = require('@playwright/test');
 
 const APP = process.env.APP_URL || 'http://localhost:3000/lemon_schedule/';
+/** Local room-worker port (see the header): the harness kills/restarts wrangler
+ *  on THIS port only, so a parallel agent's worker on the default stays safe. */
+const ROOMS_PORT = Number(process.env.ROOMS_PORT || 8787);
 
 function envFile() {
   const out = {};
@@ -121,11 +128,11 @@ const run = (cmd, args) => new Promise((resolve) => {
   }
 });
 async function killWrangler() {
-  await run('pkill', ['-f', 'wrangler dev --port 8787']);
-  await run('sh', ['-c', 'lsof -ti :8787 | xargs kill -9 2>/dev/null; true']);
+  await run('pkill', ['-f', `wrangler dev --port ${ROOMS_PORT}`]);
+  await run('sh', ['-c', `lsof -ti :${ROOMS_PORT} | xargs kill -9 2>/dev/null; true`]);
 }
 function startWrangler() {
-  const child = spawn('npx', ['wrangler', 'dev', '--port', '8787'], {
+  const child = spawn('npx', ['wrangler', 'dev', '--port', String(ROOMS_PORT)], {
     cwd: `${REPO}/workers/rooms`,
     detached: true,
     stdio: 'ignore',
@@ -165,12 +172,14 @@ async function openWindow(browser, session, seedOpts, tag) {
       const str = typeof raw === 'string' ? raw : Buffer.isBuffer(raw) ? raw.toString() : JSON.stringify(raw);
       let t = '?';
       let action = null;
+      let message = null;
       try {
         const parsed = JSON.parse(str);
         t = parsed.t;
         action = parsed.action?.type ?? null;
+        message = typeof parsed.message === 'string' ? parsed.message : null;
       } catch { /* ignore */ }
-      return { t, action, bytes: str.length };
+      return { t, action, message, bytes: str.length };
     };
     ws.on('framesent', (d) => frames.push({ dir: 'sent', ...info(d) }));
     ws.on('framereceived', (d) => frames.push({ dir: 'recv', ...info(d) }));
@@ -353,10 +362,11 @@ try {
   check('B: SCREEN reverted after the move undo', afterDom.index === beforeDom.index, { before: beforeDom, after: afterDom });
   check('B: full convergence after the move undo', bRevertedMove === true, { store: afterStore, dom: afterDom });
 
-  // ── Per-user invariant, the USER'S ORDER, driven through the REAL UI:
-  // A edits → B edits → A undoes. A's action is NOT the latest overall, so the
-  // room must rebuild while REPLAYING B's later edit on top — B's edit MUST
-  // survive. UI-driven because the real cell edit is a multi-action batch.
+  // ── Per-user invariant + BLOCKED UNDO, the USER'S ORDER, driven through the
+  // REAL UI: A edits → B edits the same field → A undoes. B's whole-value edit
+  // absorbed A's unit, so the rebuild lands EXACTLY on the current state — the
+  // room must refuse the undo OUT LOUD (roadmap 242), leave the state alone and
+  // offer no redo that would later clobber B's text.
   const ORIG = await descOf(A.page);
   const A_EDIT = 'S4REPRO-A-SCENE';
   const B_EDIT = 'S4REPRO-B-SCENE';
@@ -398,23 +408,70 @@ try {
     a: await descOf(A.page), b: await descOf(B.page),
   });
   check("B: undo button ENABLED after B's own edit", !(await undoButton(B.page).isDisabled()), null);
+  check("A: A's own edit gave A an undo to try", !(await undoButton(A.page).isDisabled()), null);
 
+  const blockedFramesBefore = A.frames.length;
   await A.page.keyboard.press('Meta+z');
-  for (let i = 0; i < 80; i++) {
-    if ((await descOf(A.page)) === B_EDIT && (await descOf(B.page)) === B_EDIT) break;
+  // The note is TRANSIENT (a few seconds) — read it right after the keypress.
+  let noteText = '';
+  for (let i = 0; i < 40; i++) {
+    const note = A.page.getByTestId('room-note');
+    if (await note.count()) {
+      noteText = (await note.first().textContent()) || '';
+      if (noteText) break;
+    }
     await sleep(100);
   }
-  check("A: A's own edit was undone (room rebuilt while replaying B's)", (await descOf(A.page)) === B_EDIT, await descOf(A.page));
-  check("B: B's LATER edit survived A's undo", (await descOf(B.page)) === B_EDIT, await descOf(B.page));
+  const blockedFrames = A.frames.slice(blockedFramesBefore);
+  check("A: the blocked undo is SAID OUT LOUD (header note)", /Can.t undo/i.test(noteText), noteText);
+  check('A: the room answered with the blocked-undo error frame',
+    blockedFrames.some((f) => f.dir === 'recv' && f.t === 'error' && /Can.t undo/.test(f.message || '')),
+    blockedFrames.map((f) => `${f.dir}:${f.t}${f.message ? ':' + f.message : ''}`));
+  check('A: blocked undo broadcast NOTHING (no new LOAD at the peer)',
+    !blockedFrames.some((f) => f.dir === 'recv' && f.t === 'remote' && f.action === 'LOAD'),
+    blockedFrames.map((f) => `${f.dir}:${f.t}${f.action ? ':' + f.action : ''}`));
+  check("A: state unchanged — B's later text intact", (await descOf(A.page)) === B_EDIT, await descOf(A.page));
+  check("B: B's LATER edit survived A's blocked undo", (await descOf(B.page)) === B_EDIT, await descOf(B.page));
   check('B: B never dropped back to the original', (await descOf(B.page)) !== ORIG, await descOf(B.page));
+  let undoExhausted = false;
+  let redoStaysDisabled = true;
+  for (let i = 0; i < 40; i++) {
+    undoExhausted = await undoButton(A.page).isDisabled();
+    redoStaysDisabled = redoStaysDisabled && (await redoButton(A.page).isDisabled());
+    if (undoExhausted && redoStaysDisabled) break;
+    await sleep(100);
+  }
+  check('A: undo is exhausted for A (the blocked unit was consumed)', undoExhausted, null);
+  check('A: no stale REDO is offered after the blocked undo (it would clobber B)', redoStaysDisabled, null);
 
+  // B's own undo reverts their edit — and A's consumed text goes with it (the
+  // documented edge: the rebuild cannot replay the row the blocked undo deleted).
   await B.page.keyboard.press('Meta+z');
   for (let i = 0; i < 80; i++) {
     if ((await descOf(B.page)) === ORIG && (await descOf(A.page)) === ORIG) break;
     await sleep(100);
   }
-  check("B: B's own undo removed B's edit (back to the original)", (await descOf(B.page)) === ORIG, await descOf(B.page));
+  check("B: B's own undo removed B's edit (A's absorbed text went with it — pinned edge)", (await descOf(B.page)) === ORIG, await descOf(B.page));
   check('A: converged on the original too', (await descOf(A.page)) === ORIG, await descOf(A.page));
+
+  // The consumed unit does not wedge undo: A's NEXT unit undoes fine.
+  const A3 = 'S4REPRO-A3-SCENE';
+  await bridge(A.page, `b.dispatch({ type: 'UPDATE_SCENE', payload: { id: '${sceneId}', description: '${A3}' } })`);
+  for (let i = 0; i < 80; i++) {
+    if ((await descOf(A.page)) === A3 && (await descOf(B.page)) === A3) break;
+    await sleep(100);
+  }
+  await A.page.keyboard.press('Meta+z');
+  for (let i = 0; i < 80; i++) {
+    if ((await descOf(A.page)) === ORIG && (await descOf(B.page)) === ORIG) break;
+    await sleep(100);
+  }
+  check('A: a later undo still works after a blocked one', (await descOf(A.page)) === ORIG && (await descOf(B.page)) === ORIG, {
+    a: await descOf(A.page), b: await descOf(B.page),
+  });
+  let redoBack = false;
+  for (let i = 0; i < 40; i++) { if (!(await redoButton(A.page).isDisabled())) { redoBack = true; break; } await sleep(100); }
+  check('A: redo is offered again after the successful undo', redoBack, null);
 
   // ── Reverse order (A's unit is the latest): B edits → A edits → A undoes.
   const A2 = 'S4REPRO-A2-SCENE';
