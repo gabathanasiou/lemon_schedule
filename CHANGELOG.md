@@ -12,6 +12,10 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Following a teammate now mirrors more of their view: the manager category they are on, their report Preview and Fields/Values picks, and the Script scene they are in.
 - **Undo and redo** in a shared project run through the shared history now: undo says so when a teammate has built on your edit instead of quietly doing nothing, redo refuses once someone edits after you, and the Shift+Z redo shortcut works again.
 - If a shared project's live connection drops, a badge tells you, and edits you make meanwhile are kept and replayed in order the moment it is back.
+- **Shared projects are realtime**: edits, drags, renames, calendar changes and undo/redo land on every connected device as they happen — each person's undo touches only their own changes, and the header's cloud icon shows the connection state.
+- **Tabs** — the top bar is now a compact icon dock with a gliding selection pill (⌘1-7 jumps straight to a tab), and switching tabs no longer stalls on heavy pages.
+- **What's New** — File → Help → What's New lists these updates day by day; the version mark on the boot screen opens it too.
+- **Settings** — a new Sessions tab signs out your other devices at once, or everywhere including this one.
 
 **Bug fixes**
 - Opening a project whose schedule version was missing crashed the Schedule tab; it now repairs itself.
@@ -19,12 +23,15 @@ What's new in Lemon Schedule — one section per day, newest first: **Features**
 - Typing a new cast name into the breakdown grid's new-row cell or pasting one in now opens the naming step; it used to save the name with no cast member behind it.
 - **Element lists** that hold two spellings of one name (car / CAR) no longer raise a merge prompt on unrelated edits, and a deliberate pair stays as you left it unless you rename one into the other.
 - Security updates closed known issues in the software the app relies on.
+- Signing out on one device no longer signs you out on your other devices; and if a session has ended, the app says so and asks you to sign in again — it used to look like the internet was down.
+- A hiccup in the live connection now recovers by itself within seconds — no page reload, and edits made meanwhile sync the moment it returns.
 
 **Changes**
 - The **Element, Crew and Locations managers** dropped their Save and Revert buttons: each field saves when you click away, press Enter or Tab, or move on. The project title and the Reports Designer's text behave the same way.
 - The **"Editing:" design pick** in the ribbon and reports designers is now personal, so each of you can edit a different design without changing what everyone else is looking at.
 - The **Script tab** is much faster in long screenplays: opening, hovering, selecting, searching and scrolling no longer crawl.
 - Accounts wear generated avatars now: your initials in a circle on your identity colour.
+- **Look and feel** — the header and toolbars now share one spacing scale, so the rails line up evenly, and on iPad the status bar wears the project's chrome colour.
 
 ## 2026-10-12 — Sign in, share and follow along
 
