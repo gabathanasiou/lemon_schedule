@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Bug, ChevronRight, SlidersHorizontal, Sparkles } from 'lucide-react';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
@@ -61,16 +61,29 @@ function BulletText({ text }: { text: string }) {
 export default function WhatsNewModal({ onClose }: WhatsNewModalProps) {
   const days = useMemo(() => parseChangelog(changelogRaw), []);
   const [openDate, setOpenDate] = useState<string | null>(() => days[0]?.date ?? null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
 
   const toggle = (date: string, el: HTMLElement) => {
     const willOpen = openDate !== date;
     setOpenDate(willOpen ? date : null);
     if (!willOpen) return;
     // The accordion swap shifts the clicked day (the previously open day above
-    // folds away) — once the fold settles, bring it back into view minimally.
+    // folds away) — once the fold settles, make sure the whole row (date +
+    // title) clears the sticky strip and sits inside the viewport.
     window.setTimeout(() => {
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+      const container = scrollRef.current;
+      if (!container) return;
+      const cRect = container.getBoundingClientRect();
+      const eRect = el.getBoundingClientRect();
+      const safeTop = cRect.top + (stripRef.current?.offsetHeight ?? 34) + 6;
+      let delta = 0;
+      if (eRect.top < safeTop) delta = eRect.top - safeTop; // slid under the strip → scroll up
+      else if (eRect.bottom > cRect.bottom) delta = Math.min(eRect.bottom - cRect.bottom + 8, eRect.top - safeTop); // below the fold → scroll down, never under the strip
+      if (delta !== 0) {
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        container.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' });
+      }
     }, 220);
   };
 
@@ -87,8 +100,8 @@ export default function WhatsNewModal({ onClose }: WhatsNewModalProps) {
         </ModalFooter>
       }
     >
-      <div className="max-h-[65vh] overflow-y-auto">
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-2 border-b border-zinc-800 bg-zinc-900">
+      <div ref={scrollRef} className="max-h-[65vh] overflow-y-auto">
+        <div ref={stripRef} className="sticky top-0 z-10 flex items-center justify-between px-5 py-2 border-b border-zinc-800 bg-zinc-900">
           <span className="text-[11px] text-zinc-500">Newest first</span>
           <span className="text-[11px] text-zinc-600">{days.length} days</span>
         </div>
