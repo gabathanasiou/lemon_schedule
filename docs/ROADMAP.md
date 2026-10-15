@@ -1084,3 +1084,19 @@ Breakdown Sheet / Element Breakdown print, DOOD, call sheets, and widening
   and **143** (report ordering by Board ID — candidate to widen, second pass);
   `relates to` **228** (name-typed cast guard), **157** (cast details),
   **40/41** (MSD/SEX import — real BoardIDs).
+
+## 262. File → Help — Send feedback / support entry (`[ ]`)
+
+**Requested 2026-10-15 (user):** the Help submenu should gain a contact /
+feedback / support entry — a way to reach the maker with bugs and ideas, and
+the home for support-style items later.
+
+- **Where:** the `Help` submenu in `src/components/AppHeader.tsx` (next to
+  What's New) — the submenu was introduced (260) for exactly this.
+- **Open questions to settle at build time:** destination (mailto:, a hosted
+  form, GitHub issues once the repo is public, or a Supabase-backed inbox?);
+  what context to attach (app version `APP_VERSION`, the open tab/screen —
+  never project contents or tokens); whether a signed-in account prefills
+  identity. No secrets in the client.
+- **Relations:** `extends` **260** (File → Help submenu introduced there).
+
