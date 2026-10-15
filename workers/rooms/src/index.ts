@@ -9,7 +9,11 @@ export { Room };
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const match = new URL(request.url).pathname.match(/^\/room\/([^/]+)$/);
+    const { pathname } = new URL(request.url);
+    // Liveness probe for the local dev launcher (tools/rooms-dev.mjs, roadmap
+    // 246): no auth, no data, never touches a Durable Object.
+    if (pathname === '/health') return Response.json({ ok: true, service: 'lemon-rooms' });
+    const match = pathname.match(/^\/room\/([^/]+)$/);
     if (!match) return Response.json({ ok: true, service: 'lemon-rooms' });
     const projectId = decodeURIComponent(match[1]);
     return env.ROOMS.get(env.ROOMS.idFromName(projectId)).fetch(request);
