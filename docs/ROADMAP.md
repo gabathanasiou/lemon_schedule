@@ -1080,9 +1080,10 @@ switching designs switches everyone's editor.
 ## 234. Presence — highlight the cells a peer has selected (spreadsheet-style) (`[ ]`)
 
 **Requested 2026-10-15 (user):** when another user has cells selected in the Glide Breakdown
-(later: other grids/rows — Day Manager tables, stripboard rows, Calendar cards), show their
-selection in their presence colour, live — a persistent highlight, distinct from S3's floating
-pointers.
+(later: every selectable surface — Day Manager tables/day cards, stripboard rows, Calendar
+cards, manager grid rows; Report Designer blocks + selected table column (the Call Sheet
+editor inherits once item 212 lands); Ribbon Designer cells), show their selection in their
+presence colour, live — a persistent highlight, distinct from S3's floating pointers.
 
 - **The seam already exists**: S3's grid scope maps pointer ↔ cell semantically
   (`src/lib/presenceResolvers.ts` — `rowKey`/`colKey`/indices; the Glide registers
@@ -1091,6 +1092,12 @@ pointers.
   than cursors, so reuse the throttle/idle-skip helpers), and render on the receiving grid via
   Glide's custom draw (the same overlay machinery as cell borders/colours;
   `BreakdownTabGlide.tsx` already owns a local `gridSelection` today).
+- **Renderer per surface (user ask 2026-10-15 — designer blocks etc.)**: canvas grids draw
+  the highlight through their registered grid scope (as Glide does); DOM surfaces render a
+  peer-coloured outline on the element's stable id — for the designer that is `ReportBlock.id`
+  with the existing selected block/column state (`selId`/`selCol` in `reports/ReportDesigner*.tsx`),
+  reusing the data attributes item 236 phase 3 adds. Same peer colours, `pointer-events-none`,
+  same z-order as the other presence chrome.
 - **Rules**: ephemeral only (never persisted, never a room action); multi-window = one
   selection per user, newest window wins (parity with pointers and item 232's transport
   split — selections are `view`-ish traffic and must ride broadcasts, never `track()`);
@@ -1278,3 +1285,42 @@ stands. Only the *honesty* is missing.
 - **Relations:** `extends` **229** (S4 rooms — per-user undo). `relates to` **239** (same
   header room-status chrome / message surface), **233** (whole-array designer edits ride this
   rule unchanged).
+
+## 243. Follow — mirror view toggles/state (manager sidebar category, designer Fields/Values + Preview) (`[ ]`)
+
+**Requested 2026-10-15 (user):** following mirrors the place, but not enough of the peer's
+LENS. While following, also mirror: (a) the **manager pages' selected sidebar category**
+(Element Manager — its own `initialCategory`/`onCategoryChange`/`switchCategory`; Crew and
+Locations — the shared `DatabaseManagerView` in `src/lib/managerShell.tsx`, one seam for
+both), (b) the **Report Designer and Call Sheet editor Preview on/off** (local `preview`
+state in `reports/ReportDesigner.tsx` and `production/day/CallSheetEditPage.tsx`), (c) the
+**Fields/Values mode** (`lemon_schedule_report_view_mode`, `reports/ReportDesigner.tsx`), and
+(d) in general **view toggles should sync** (user, 2026-10-15). Explicit question: can follow
+also mirror **modal/dropdown open state**?
+
+- **The seam exists (S3 follow completeness pattern):** each toggle = one validated
+  `PresenceView` field (`src/lib/supabase/presence.ts` / `parseView`) + publish on the user's
+  change (throttled `view` broadcast; user-initiated changes call `noteUserViewChange()`) + a
+  surface `registerFollowApplier` (precedents: the stripboard View-menu fields in
+  `ScheduleTab.tsx`, Calendar `calendarView` in `CalendarTab.tsx`, Sheet scene in `App.tsx`).
+  Manager categories: validate as a short string and IGNORE unknown keys on the applier
+  (categories are project data and may have been renamed/removed). Designer toggles mirror
+  only while both clients are on the same design (the document gate, item 236 phase 2; the
+  design identity is per-user after 233).
+- **Modals/dropdowns — cue only, NEVER auto-open (decision):** item 240 already ships the
+  "peer is in a local overlay" cue (dots on the pointer + collaborator bubble). Replicating
+  open state on the follower's screen is the wrong trade — overlays are transient local
+  surfaces with unsaved drafts and focus traps, and the S3 rule is that a view-changing click
+  ENDS follow. Signal: yes (240). Auto-open: no.
+- **The general rule:** toggles that change WHAT YOU SEE (lens) are follow-mirrorable;
+  toggles that change PROJECT DATA are room actions, never presence; per-user prefs mirror
+  through the surface's own setter (parity with the stripboard view fields — pin the unfollow
+  behaviour in implementation: today the applier writes the follower's own pref).
+- **Verify:** Vitest for the new `parseView` fields (clamp + ignore-unknown); two-client
+  manual pass per toggle — follow → the follower's view flips with the peer (category,
+  Preview, Fields/Values) while follow stays on; designer toggles do not mirror across two
+  different designs.
+- **Relations:** `extends` **229** (S3 follow completeness). `relates to` **236** (document
+  gate + anchors), **233** (per-user active design), **234** (peer selection highlights —
+  sibling "local state made visible" work), **240** (the overlay cue — this item's
+  modal/dropdown answer).
