@@ -184,6 +184,12 @@ machine (271 passed / 1 failed / 1 flaky overall; the day-times flake passed on
 retry, §G). Same load-sensitivity class — the branch touches cast naming only.
 If it recurs a third time, take the documented remedy and `@quarantine` it.
 
+**2026-10-15 (roadmap-264 worktree suite) — recursed: `:137` flaked once**
+(suite 272 passed / 1 flaky / 7 skipped, retry passed) while two peer worktrees
+and three dev servers were running on the machine. **Triage:** solo re-run
+`--workers=1` green 6/6 on an isolated port; the diff touches chrome bar
+spacing only (no editor/canvas code). Same load-sensitivity, not a regression.
+
 ## G. day-times-glide editor spec flake under full-suite load (no fix needed)
 
 **2026-10-15 — the roadmap-236 merge suite flaked once** on
