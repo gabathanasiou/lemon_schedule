@@ -70,6 +70,12 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   = Supabase row id = project id; online metas live in provider session state (`onlineProjects`, refreshed
   on sign-in) and are filtered out of the localStorage index exactly like Drive
   (`saveProjectListToStorage`).
+- **The row `title` is the durable project NAME**: the Project Manager's Shared list reads it (session
+  metas merge on top, but online entries are dropped from the persisted index, so after a reload the row
+  is the only source). `renameProject` pushes every rename straight to the row
+  (`renameOnlineProject`; the OPEN project included — its next whole-blob save is NOT guaranteed, the room
+  transport owns the writes while mounted — S4) and refetches the list so the manager updates at once.
+  The app header reads the open document's own `title`.
 - Saves are whole-blob `serializeProject` with an optimistic `revision` check + one last-write-wins retry;
   failures reuse the `driveSaveError` / `driveRetryPending` / `scheduleSaveRetry` surfaces (online branch
   in `scheduleSaveRetry` + `retryDriveSync`) and surface "Synced online" copy via `SaveIndicator
