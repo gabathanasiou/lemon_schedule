@@ -3,6 +3,7 @@ import { ScheduleRow, ScheduleVersion } from '../../types';
 import { getContainerBlock, ContainerIds, LastSelectedByContainer } from '../../lib/containers';
 import { isEmptyDayMeta } from '../../lib/dayMeta';
 import { useDialog } from '../Dialog';
+import type { PresenceHeldItem } from '../../lib/supabase/presence';
 
 export interface ScheduleKeyboardConfig {
   currentWindow: Window;
@@ -26,6 +27,8 @@ export interface ScheduleKeyboardConfig {
   selectNextAfterRemove: (ids: Set<string>) => void;
   scrollToRow: (id: string) => void;
   existingDays: number[];
+  /** Live peer-held items (roadmap 235): Backspace/Delete skips them. */
+  heldBy?: Map<string, PresenceHeldItem>;
 }
 
 export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
@@ -35,6 +38,7 @@ export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
     textEditingEnabled, activeVersion, dispatch,
     containerIdsRef, flatRowIdsRef, lastSelectedRef, sidebarCollapsedRef, scheduleScrollRef,
     cutSelected, pasteClipboard, selectNextAfterRemove, scrollToRow, existingDays,
+    heldBy,
   } = config;
   const dialog = useDialog();
 
@@ -95,7 +99,8 @@ export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
         const mutableRows = activeVersion.rows.map(r => ({ ...r }));
         const ids = Array.from(selectedRowIds).filter(id => {
           const r = mutableRows.find(rr => rr.id === id);
-          return !r?.pinned;
+          // Peer-held rows are never deleted/moved (roadmap 235).
+          return !r?.pinned && !heldBy?.has(id);
         });
         if (ids.length === 0) return;
         const daybreaksWithDetails = ids
@@ -268,7 +273,7 @@ export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
     };
     currentWindow.addEventListener('keydown', handler);
     return () => currentWindow.removeEventListener('keydown', handler);
-  }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch, currentWindow, existingDays, scrollToRow, dialog]);
+  }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch, currentWindow, existingDays, scrollToRow, dialog, heldBy]);
 
   // Clear selection when entering text-edit mode
   useEffect(() => {

@@ -3,6 +3,9 @@ import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core'
 import { ScheduleRow, ScheduleVersion } from '../../types';
 import { insertionOrder } from '../../lib/daybreakUtils';
 import { isAddModeActive } from '../../lib/useMarquee';
+import { usePresenceActions } from '../../lib/supabase/presenceContext';
+import { usePopoutWindow } from '../../lib/popoutTarget';
+import type { PresenceHeldItem } from '../../lib/supabase/presence';
 
 export interface UseScheduleDragConfig {
   activeType: string | null;
@@ -18,6 +21,10 @@ export interface UseScheduleDragConfig {
   boneyardRows: ScheduleRow[];
   activeVersion: ScheduleVersion | undefined;
   dispatch: React.Dispatch<any>;
+  /** Live peer-held items (roadmap 235): held rows never travel with a local
+   *  drag (the peer's drop owns them) and their claim is announced so peers
+   *  can ghost + lock it. */
+  heldBy?: Map<string, PresenceHeldItem>;
 }
 
 /** Resolves a droppable id to a day number (or null for boneyard/unknown). */
@@ -34,8 +41,13 @@ export function useScheduleDrag(config: UseScheduleDragConfig) {
   const {
     activeType, setActiveType, setActiveId, insertBeforeId, setInsertBeforeId,
     setActiveDragIds, setSelectedRowIds, selectedRowIds, selectedRowIdsRef,
-    scheduledRows, boneyardRows, activeVersion, dispatch,
+    scheduledRows, boneyardRows, activeVersion, dispatch, heldBy,
   } = config;
+
+  const presence = usePresenceActions();
+  // Popout instances stay out of presence surface state (parity with the live
+  // pointer rule): a drag in a popout window neither ghosts nor locks.
+  const popout = usePopoutWindow();
 
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
@@ -43,14 +55,33 @@ export function useScheduleDrag(config: UseScheduleDragConfig) {
     setActiveId(draggedId);
     setActiveType(e.active.data.current?.type || null);
     const currentSelection = selectedRowIdsRef.current;
+    let moving: Set<string>;
     if (currentSelection.has(draggedId) && currentSelection.size > 1) {
-      setActiveDragIds(new Set(currentSelection));
+      moving = new Set(currentSelection);
     } else {
       if (currentSelection.size > 0) {
         setSelectedRowIds(new Set());
       }
-      setActiveDragIds(new Set([draggedId]));
+      moving = new Set([draggedId]);
     }
+    // Held rows never travel with this drag (roadmap 235) — the peer's drop
+    // owns them; the rest of the selection still moves as usual.
+    if (heldBy && heldBy.size > 0) {
+      for (const id of [...moving]) if (heldBy.has(id)) moving.delete(id);
+      if (moving.size === 0) moving.add(draggedId);
+    }
+    setActiveDragIds(moving);
+    if (!popout && !heldBy?.has(draggedId)) presence.publishDrag('schedule', [...moving]);
+  };
+
+  /** Esc / visibility cancel (dnd-kit fires this INSTEAD of drag end) — reset
+   *  the local drag AND release the claim, or peers keep the lock. */
+  const handleDragCancel = () => {
+    setActiveId(null);
+    setActiveType(null);
+    setInsertBeforeId(null);
+    setActiveDragIds(new Set());
+    presence.releaseDrag();
   };
 
   const handleDragOver = (e: DragOverEvent) => {
@@ -88,6 +119,8 @@ export function useScheduleDrag(config: UseScheduleDragConfig) {
     setActiveType(null);
     setInsertBeforeId(null);
     setActiveDragIds(new Set());
+    // Drop = the END edge of the claim (roadmap 235).
+    presence.releaseDrag();
     
     if (!over || !activeVersion) return;
 
@@ -207,5 +240,5 @@ export function useScheduleDrag(config: UseScheduleDragConfig) {
     }
   };
 
-  return { handleDragStart, handleDragOver, handleDragEnd };
+  return { handleDragStart, handleDragOver, handleDragEnd, handleDragCancel };
 }

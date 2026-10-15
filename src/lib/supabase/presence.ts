@@ -1,11 +1,16 @@
 import { isAppTabId, modeOf, type AppPlace, type AppTabId } from '../appNav';
 import { CELL_BORDER_VALUES, VIEW_MODE_VALUES, type CellBorders, type ViewMode } from '../persist';
+import { num, str } from './presenceWire';
 
 /**
  * Presence + live refresh + follow completeness (roadmap 229 S3/S3.5 + follow)
  * — the wire shapes, parsers and pure merge/throttle logic. The Supabase
  * transport (the channel class, diagnostics, the save bus) lives in
  * `presenceChannel.ts`. Manual: docs/COLLABORATION.md §6/§9.
+ *
+ * The peer-DRAG protocol (roadmap 235) lives in its own focused module
+ * (`presenceDrag.ts`, re-exported below) so this file stays lean; the tiny
+ * "never trust a payload" readers are shared via `presenceWire.ts`.
  *
  * Rules (docs/COLLABORATION.md §4/§9):
  * - ONE private channel per project id (`project:<uuid>`), members only — the
@@ -26,6 +31,8 @@ import { CELL_BORDER_VALUES, VIEW_MODE_VALUES, type CellBorders, type ViewMode }
  *   one key; bubbles dedupe by user (newest view wins) and the newest cursor
  *   per user renders. Documented, accepted.
  */
+
+export * from './presenceDrag';
 
 export const PRESENCE_TOPIC_PREFIX = 'project:';
 
@@ -121,6 +128,10 @@ export interface PresenceCursor {
   clientId: string;
   anchor: PresenceAnchor;
   pointer: PointerKind;
+  /** True while the sender is mid-drag (roadmap 235): the receiver positions
+   *  this peer's drag ghost at the frame's anchor. The flag rides the cursor
+   *  payload so POSITION costs zero extra messages. */
+  drag?: boolean;
   ts: number;
 }
 
@@ -259,6 +270,9 @@ export interface PresencePeer {
   view: PresenceView | null;
   cursor: PresenceAnchor | null;
   cursorTs: number;
+  /** True while the peer's latest cursor frame is flagged as a DRAG
+   *  (roadmap 235) — the ghost layer positions the peer's held item there. */
+  cursorDrag: boolean;
   /** Latest input modality of the peer's pointer (roadmap 241). */
   pointer: PointerKind;
   /** The peer's local-overlay cue (roadmap 240): 'menu' | 'modal' while open
@@ -277,15 +291,6 @@ export interface PresencePeer {
 // ---------------------------------------------------------------------------
 
 const MAX_NAME = 80;
-const MAX_STR = 240;
-
-function str(v: unknown, max = MAX_STR): string | null {
-  return typeof v === 'string' && v.length > 0 ? v.slice(0, max) : null;
-}
-
-function num(v: unknown): number | null {
-  return typeof v === 'number' && Number.isFinite(v) ? v : null;
-}
 
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
@@ -391,7 +396,14 @@ export function parseCursorPayload(raw: unknown): PresenceCursor | null {
   const ts = num(r.ts);
   const anchor = parseAnchor(r.anchor);
   if (!userId || !clientId || ts == null || !anchor) return null;
-  return { userId, clientId, anchor, pointer: pointerKindOf(r.pointer), ts };
+  return {
+    userId,
+    clientId,
+    anchor,
+    pointer: pointerKindOf(r.pointer),
+    ...(r.drag === true ? { drag: true } : {}),
+    ts,
+  };
 }
 
 export function parseOverlayPayload(raw: unknown): PresenceOverlayState | null {
@@ -530,6 +542,7 @@ export function mergePeers(state: Record<string, unknown[]>, selfUserId: string)
       view: m.view,
       cursor: null,
       cursorTs: 0,
+      cursorDrag: false,
       pointer: 'mouse',
       overlay: null,
       clientIds,

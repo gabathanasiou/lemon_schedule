@@ -7,6 +7,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Flag } from 'lucide-react';
 import { ViolationTooltip } from '../ViolationTooltip';
+import { avatarColor } from '../../lib/avatarIdentity';
+import type { PresenceHeldItem } from '../../lib/supabase/presence';
 
 export const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; selBg?: string; selColor?: string }> = ({ row, scene, displayField, violations, isSelected, selBg, selColor }) => {
   const { state } = useProject();
@@ -52,17 +54,19 @@ export const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displ
   );
 };
 
-export const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string, shiftKey?: boolean) => void; onContextMenu?: (e: React.MouseEvent) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, onToggle, onDoubleClick, onContextMenu }) => {
+export const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; /** Live peer-held item (roadmap 235): their-colour ring, refuses pickup. */ heldBy?: PresenceHeldItem | null; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string, shiftKey?: boolean) => void; onContextMenu?: (e: React.MouseEvent) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, heldBy, onToggle, onDoubleClick, onContextMenu }) => {
   const { state, locked } = useProject();
   const sel = getSelectedStripColors(state.present.colorPalette);
+  const held = heldBy ?? null;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
-    disabled: locked,
+    disabled: locked || !!held,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
     ...(isDragging ? { opacity: 0.3 } : {}),
+    ...(held ? { boxShadow: `inset 0 0 0 2px ${avatarColor(held.userId)}`, opacity: 0.6 } : {}),
     userSelect: 'none' as const,
     WebkitUserSelect: 'none' as const,
     WebkitTouchCallout: 'none' as const,
@@ -74,7 +78,9 @@ export const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
       onContextMenu={(e) => { if (onContextMenu) { e.preventDefault(); e.stopPropagation(); onContextMenu(e); } }}
       data-row-id={row.id}
       data-container-id={row.containerId == null ? 'null' : row.containerId}
-      className={`${isSelected && !isFaded ? 'z-10' : ''} ${isFaded ? 'opacity-30' : ''}`}>
+      data-held-by={held ? held.userId : undefined}
+      title={held ? `${held.name} is moving this` : undefined}
+      className={`${isSelected && !isFaded ? 'z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${held ? 'cursor-not-allowed' : ''}`}>
       <SceneCardContent row={row} scene={scene} displayField={displayField} violations={violations} isSelected={isSelected} selBg={sel.background} selColor={sel.color} />
     </div>
   );

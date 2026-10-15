@@ -18,6 +18,7 @@ import { compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown'
 import { useBoneyardSort } from './schedule/useBoneyardSort';
 import { CustomOrderSortModal } from './CustomOrderSortModal';
 import { NewSceneModal } from './NewSceneModal';
+import type { PresenceHeldItem } from '../lib/supabase/presence';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
 export const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
@@ -28,6 +29,7 @@ const boneyardBlockPropsEqual = (a: any, b: any) => {
   if (a.textEditingEnabled !== b.textEditingEnabled) return false;
   if (a.selectedIds !== b.selectedIds) return false;
   if (a.activeDragIds !== b.activeDragIds) return false;
+  if (a.heldBy !== b.heldBy) return false;
   if (a.insertBeforeId !== b.insertBeforeId) return false;
   if (a.activeDragRow !== b.activeDragRow) return false;
   if (a.activeDragRows !== b.activeDragRows) return false;
@@ -54,6 +56,8 @@ export const BoneyardBlock: React.FC<{
   setContextMenu?: any,
   selectedIds?: Set<string>,
   activeDragIds?: Set<string>,
+  /** Live peer-held items (roadmap 235): item id → holder. */
+  heldBy?: Map<string, PresenceHeldItem>,
   onRowClick?: (id: string, e: React.MouseEvent) => void,
   onSelectionChange?: (ids: Set<string>, isAddMode: boolean) => void,
   onRowDoubleClick?: (id: string, shiftKey?: boolean) => void,
@@ -72,7 +76,7 @@ export const BoneyardBlock: React.FC<{
   edgePadding?: number,
   cellBorders?: CellBorders,
   forceExpanded?: boolean,
-}> = React.memo(({ rows, projectScenes, textEditingEnabled, editingTarget, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, collapsed, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, forceExpanded }) => {
+}> = React.memo(({ rows, projectScenes, textEditingEnabled, editingTarget, selectedIds, activeDragIds, heldBy, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, collapsed, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
   const isCloud = useIsCloudProject();
   const currentDocument = useCurrentDocument();
@@ -224,6 +228,7 @@ export const BoneyardBlock: React.FC<{
                   isCompact
                   isSelected={selectedIds?.has(r.id) ?? false}
                   isFaded={activeDragIds?.has(r.id) ?? false}
+                  heldBy={heldBy?.get(r.id) ?? null}
                   onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
                   isEditable={r.id === editingTarget?.rowId}
                   focusField={r.id === editingTarget?.rowId ? editingTarget.fieldKey : null}

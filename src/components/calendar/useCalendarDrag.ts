@@ -4,6 +4,9 @@ import { ScheduleRow, ScheduleVersion, NonShootDate, DayMeta } from '../../types
 import { isAddModeActive } from '../../lib/useMarquee';
 import { DayDropState, DayBlock, buildDayBlocks, rebuildRowsFromBlocks } from './calendarUtils';
 import { applyNonShootDateMapping } from '../../lib/events';
+import { usePresenceActions } from '../../lib/supabase/presenceContext';
+import { usePopoutWindow } from '../../lib/popoutTarget';
+import { dayDragItemId, type PresenceHeldItem } from '../../lib/supabase/presence';
 
 export interface UseCalendarDragConfig {
   activeId: string | null;
@@ -33,6 +36,9 @@ export interface UseCalendarDragConfig {
   nonShootDateMap: Map<string, string>;
   flashDays: (entries: [number, 'a' | 'b'][]) => void;
   dispatch: React.Dispatch<any>;
+  /** Live peer-held items (roadmap 235): held rows never travel with a local
+   *  drag and the claim announces the ghost + lock. */
+  heldBy?: Map<string, PresenceHeldItem>;
 }
 
 export function useCalendarDrag(config: UseCalendarDragConfig) {
@@ -41,8 +47,13 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
     activeDragIds, setActiveDragIds, insertBeforeId, setInsertBeforeId,
     dayDropState, setDayDropState, setSelectedRowIds, selectedRowIdsRef,
     calendarGridRef, dragPointerRef, activeVersion, activeCalendarVersionId, nonShootDates,
-    sections, dateSectionMap, sectionDateMap, nonShootDateMap, flashDays, dispatch,
+    sections, dateSectionMap, sectionDateMap, nonShootDateMap, flashDays, dispatch, heldBy,
   } = config;
+
+  const presence = usePresenceActions();
+  // Popout instances stay out of presence surface state (parity with the live
+  // pointer rule): a drag in a popout window neither ghosts nor locks.
+  const popout = usePopoutWindow();
 
   const activeType = activeId ? (activeDragDay !== null ? 'DAY' : 'SCENE_CARD') : null;
 
@@ -110,18 +121,32 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
       setActiveDragDay(data.sectionIndex);
       setActiveDragRow(null);
       setActiveDragIds(new Set());
+      // Whole-day claim (roadmap 235): the day marker + its rows lock the day
+      // header AND every card in it; the ghost is the day chip.
+      const section = sections[data.sectionIndex as number];
+      if (!popout && section) {
+        presence.publishDrag('calendar-day', [dayDragItemId(data.sectionIndex as number), ...section.rows.map(r => r.id)]);
+      }
       return;
     }
     const draggedId = e.active.id as string;
     const currentSelection = selectedRowIdsRef.current;
+    let moving: Set<string>;
     if (currentSelection.has(draggedId) && currentSelection.size > 1) {
-      setActiveDragIds(new Set(currentSelection));
+      moving = new Set(currentSelection);
     } else {
       if (currentSelection.size > 0) setSelectedRowIds(new Set());
-      setActiveDragIds(new Set([draggedId]));
+      moving = new Set([draggedId]);
     }
+    // Held rows never travel with this drag (roadmap 235).
+    if (heldBy && heldBy.size > 0) {
+      for (const id of [...moving]) if (heldBy.has(id)) moving.delete(id);
+      if (moving.size === 0) moving.add(draggedId);
+    }
+    setActiveDragIds(moving);
     setActiveDragRow((activeVersion?.rows || []).find(r => r.id === draggedId) || null);
     setActiveDragDay(null);
+    if (!popout && !heldBy?.has(draggedId)) presence.publishDrag('calendar', [...moving]);
   };
 
   const handleDragOver = (e: DragOverEvent) => {
@@ -142,6 +167,8 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
     setActiveDragIds(new Set());
     setInsertBeforeId(null);
     setDayDropState(null);
+    // Drop = the END edge of the claim (roadmap 235).
+    presence.releaseDrag();
     if (!over || !activeVersion) return;
 
     const activeData = active.data.current as any;
@@ -357,5 +384,12 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
     setSelectedRowIds(new Set(draggingIds));
   };
 
-  return { activeType, updateDayDropZone, handleDragStart, handleDragOver, handleDragEnd };
+  /** Esc / visibility cancel (dnd-kit fires this INSTEAD of drag end, and the
+   *  CalendarTab handler resets the local state) — release the claim so peers
+   *  don't keep the lock. */
+  const handleDragCancel = () => {
+    presence.releaseDrag();
+  };
+
+  return { activeType, updateDayDropZone, handleDragStart, handleDragOver, handleDragEnd, handleDragCancel };
 }

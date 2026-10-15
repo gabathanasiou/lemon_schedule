@@ -6,12 +6,16 @@ import {
   COLLISION_FAR_PX,
   createThrottle,
   cursorGlyph,
+  dayDragItemId,
   decidePeerSave,
   freezeCursorFor,
+  heldItemsOf,
   mergePeers,
   parseAccessPayload,
   parseAnchor,
   parseCursorPayload,
+  parseDayDragItemId,
+  parseDragPayload,
   parseOverlayPayload,
   parsePresenceMeta,
   parseSavePayload,
@@ -25,6 +29,7 @@ import {
   pointerKindOf,
   presenceTopic,
   presenceViewToPlace,
+  resolveDragClaims,
   resolveOverlayCues,
   sameViewPlace,
   screenFractions,
@@ -32,6 +37,7 @@ import {
   stepCollisionDwell,
 } from '../supabase/presence';
 import { createOverlaySignalHub } from '../localOverlaySignal';
+import { glideStep, SMOOTH_TAU_MS } from '../glideMotion';
 import { avatarColor, initialsOf, shortNameOf } from '../avatarIdentity';
 
 describe('avatar identity', () => {
@@ -133,6 +139,78 @@ describe('presence wire helpers', () => {
     expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor, pointer: 'touch' }))
       .toEqual({ userId: 'u', clientId: 'c', ts: 3, anchor: { kind: 'row', rowId: 'r', fx: 0.5, fy: 0.5 }, pointer: 'touch' });
     expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor, pointer: 'laser' }).pointer).toBe('mouse');
+  });
+
+  it('parses the drag flag on cursor frames (roadmap 235) — only true is trusted', () => {
+    const anchor = { kind: 'row', rowId: 'r' };
+    expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor, drag: true })!.drag).toBe(true);
+    expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor })!.drag).toBeUndefined();
+    expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor, drag: 'yes' })!.drag).toBeUndefined();
+    expect(parseCursorPayload({ userId: 'u', clientId: 'c', ts: 3, anchor, drag: false })!.drag).toBeUndefined();
+  });
+
+  it('parses drag claims: surfaces, the release edge, the cap, and junk', () => {
+    expect(parseDragPayload({ userId: 'u', clientId: 'c', ts: 5, surface: 'schedule', itemIds: ['r1', 'r2'] }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 5, surface: 'schedule', itemIds: ['r1', 'r2'] });
+    expect(parseDragPayload({ userId: 'u', clientId: 'c', ts: 5, surface: 'calendar-day', itemIds: ['day:3'] }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 5, surface: 'calendar-day', itemIds: ['day:3'] });
+    // A null surface is the RELEASE edge (item ids are always dropped there).
+    expect(parseDragPayload({ userId: 'u', clientId: 'c', ts: 5, surface: null, itemIds: ['r1'] }))
+      .toEqual({ userId: 'u', clientId: 'c', ts: 5, surface: null, itemIds: [] });
+    // Unknown surfaces are dropped — never trusted as a release.
+    expect(parseDragPayload({ userId: 'u', clientId: 'c', ts: 5, surface: 'glide', itemIds: ['r1'] })).toBeNull();
+    // The item list is a cosmetic payload: capped, junk entries dropped, a
+    // malformed list still keeps the lock (clamps to empty).
+    const many = parseDragPayload({ userId: 'u', clientId: 'c', ts: 5, surface: 'schedule', itemIds: Array.from({ length: 80 }, (_, i) => `r${i}`) })!;
+    expect(many.itemIds.length).toBe(50);
+    expect(many.itemIds[0]).toBe('r0');
+    expect(parseDragPayload({ userId: 'u', clientId: 'c', ts: 5, surface: 'schedule', itemIds: ['r1', 7, null, ''] })!.itemIds).toEqual(['r1']);
+    expect(parseDragPayload({ userId: 'u', clientId: 'c', ts: 5, surface: 'schedule' })!.itemIds).toEqual([]);
+    expect(parseDragPayload({ userId: 'u', clientId: 'c', surface: 'schedule' })).toBeNull(); // no ts
+    expect(parseDragPayload({ userId: 'u', ts: 5, surface: 'schedule' })).toBeNull(); // no client
+    expect(parseDragPayload(null)).toBeNull();
+  });
+
+  it('keys the synthetic day marker round-trip (roadmap 235)', () => {
+    expect(dayDragItemId(7)).toBe('day:7');
+    expect(parseDayDragItemId('day:7')).toBe(7);
+    expect(parseDayDragItemId('day:0')).toBe(0);
+    expect(parseDayDragItemId('day:-1')).toBeNull();
+    expect(parseDayDragItemId('day:x')).toBeNull();
+    expect(parseDayDragItemId('7')).toBeNull();
+    expect(parseDayDragItemId('r1')).toBeNull();
+  });
+
+  it('resolves active drag claims: release edges, TTL, newest window wins', () => {
+    const samples = (entries: Array<[string, 'schedule' | 'calendar' | 'calendar-day' | null, string[], number, number]>) =>
+      entries.map(([userId, surface, itemIds, ts, at]) => ({ userId, surface, itemIds, ts, at }));
+    expect(resolveDragClaims(samples([['u1', 'schedule', ['r1'], 10, 1000]]), 1400, 800))
+      .toEqual(new Map([['u1', { surface: 'schedule', itemIds: ['r1'] }]]));
+    // Stale (killed tab / paused heartbeat) releases on the TTL.
+    expect(resolveDragClaims(samples([['u1', 'schedule', ['r1'], 10, 1000]]), 1900, 800).size).toBe(0);
+    // A release edge clears; a newer window wins (multi-window parity).
+    expect(resolveDragClaims(samples([['u1', null, [], 10, 1000]]), 1000, 800).size).toBe(0);
+    expect(resolveDragClaims(samples([['u1', 'schedule', ['r1'], 10, 1000], ['u1', 'calendar', ['r2'], 20, 1000]]), 1000, 800))
+      .toEqual(new Map([['u1', { surface: 'calendar', itemIds: ['r2'] }]]));
+    expect(resolveDragClaims(samples([['u1', 'schedule', ['r1'], 10, 1000], ['u2', 'calendar-day', ['day:3'], 5, 900]]), 1000, 800))
+      .toEqual(new Map([
+        ['u1', { surface: 'schedule', itemIds: ['r1'] }],
+        ['u2', { surface: 'calendar-day', itemIds: ['day:3'] }],
+      ]));
+    expect(resolveDragClaims([], 1000, 800).size).toBe(0);
+  });
+
+  it('maps held items to their holders — the shared soft-lock predicate', () => {
+    const drags = [
+      { userId: 'u1', name: 'Sam', surface: 'schedule' as const, itemIds: ['r1', 'r2'] },
+      { userId: 'u2', name: 'Ava', surface: 'calendar-day' as const, itemIds: ['day:3', 'r2'] },
+    ];
+    const held = heldItemsOf(drags);
+    expect(held.get('r1')).toEqual({ userId: 'u1', name: 'Sam' });
+    expect(held.get('day:3')).toEqual({ userId: 'u2', name: 'Ava' });
+    // First holder wins when two peers somehow claim the same item.
+    expect(held.get('r2')).toEqual({ userId: 'u1', name: 'Sam' });
+    expect(heldItemsOf([]).size).toBe(0);
   });
 
   it('maps an input kind to its glyph', () => {
@@ -478,6 +556,34 @@ describe('presence comfort — modal freeze + collision fade (roadmap 244)', () 
     const again = stepCollisionDwell({ since: null, faded: false }, 10, t0 + 6_000);
     expect(stepCollisionDwell(again, 10, t0 + 6_500).faded).toBe(false);
     expect(stepCollisionDwell(again, 10, t0 + 8_000).faded).toBe(true);
+  });
+});
+
+describe('presence glide motion (shared by pointers + drag ghosts)', () => {
+  it('eases toward the target and snaps onto it', () => {
+    const cur = { left: 0, top: 0 };
+    const target = { left: 100, top: 50 };
+    expect(glideStep(cur, target, SMOOTH_TAU_MS)).toBe(false);
+    // dt clamps at 64ms (a background-tab wake eases, never jumps): one
+    // clamped step closes ~44% of the distance.
+    expect(cur.left).toBeGreaterThan(40);
+    expect(cur.left).toBeLessThan(50);
+    expect(cur.top).toBeGreaterThan(20);
+    expect(cur.top).toBeLessThan(25);
+    for (let i = 0; i < 200; i++) glideStep(cur, target, SMOOTH_TAU_MS);
+    expect(cur).toEqual(target);
+    expect(glideStep(cur, target, SMOOTH_TAU_MS)).toBe(true);
+  });
+
+  it('snaps instantly under prefers-reduced-motion and clamps a huge dt', () => {
+    const cur = { left: 0, top: 0 };
+    expect(glideStep(cur, { left: 500, top: -500 }, 16, true)).toBe(true);
+    expect(cur).toEqual({ left: 500, top: -500 });
+    // A background-tab wake (huge dt) still eases — never overshoots/jumps.
+    const cur2 = { left: 0, top: 0 };
+    glideStep(cur2, { left: 100, top: 100 }, 100_000);
+    expect(cur2.left).toBeGreaterThan(0);
+    expect(cur2.left).toBeLessThan(100);
   });
 });
 

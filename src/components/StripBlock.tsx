@@ -10,6 +10,7 @@ import { checkSection } from '../lib/rulesEngine';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { ComputedRowInput } from '../lib/daybreakUtils';
 import { TEST_IDS } from '../lib/testIds';
+import type { PresenceHeldItem } from '../lib/supabase/presence';
 
 /** Rows per virtualized chunk (≈ 12 × 43px, matched by the CSS intrinsic size). */
 const CHUNK_SIZE = 12;
@@ -156,7 +157,7 @@ export const StackedGhosts: React.FC<{ rows: ComputedRowInput[]; scenes: Scene[]
   );
 };
 
-export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, editingTarget?: { rowId: string; fieldKey: string | null } | null, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, textSize?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, editingTarget, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders }) => {
+export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selectedIds?: Set<string>, activeDragIds?: Set<string>, heldBy?: Map<string, PresenceHeldItem>, onRowClick?: (id: string, e: React.MouseEvent) => void, editingTarget?: { rowId: string; fieldKey: string | null } | null, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, textSize?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, selectedIds = new Set(), activeDragIds = new Set(), heldBy, onRowClick, editingTarget, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders }) => {
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -316,6 +317,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
                         scene={r.type === 'SCENE' ? (project.scenes.find(s => s.id === r.sceneId) ?? null) : null}
                         isSelected={selectedIds.has(r.id)}
                         isFaded={activeDragIds.has(r.id)}
+                        heldBy={heldBy?.get(r.id) ?? null}
                         onSelectToggle={(e) => onRowClick?.(r.id, e)}
                         isEditable={r.id === editingTarget?.rowId}
                         focusField={r.id === editingTarget?.rowId ? editingTarget.fieldKey : null}

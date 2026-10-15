@@ -52,8 +52,9 @@ import { applyChunkVisibility, useChunkResize } from '../lib/virtualChunk';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { useScheduleKeyboard } from './schedule/useScheduleKeyboard';
 import { useScheduleDrag } from './schedule/useScheduleDrag';
-import { usePresenceActions } from '../lib/supabase/presenceContext';
+import { usePresenceActions, useHeldItems } from '../lib/supabase/presenceContext';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
+import { HeldItemHint } from './HeldItemHint';
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onOpenDayManager?: (sectionIndex: number) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, locked } = useProject();
   const currentWindow = useCurrentWindow();
@@ -286,6 +287,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   // window) and its View-menu prefs to followers. A local scroll gesture or a
   // View-menu change exits follow (user decision 2026-10-13).
   const presenceActions = usePresenceActions();
+  // Peer-held items (roadmap 235): rows render "held" in their holder's
+  // colour and refuse every MOVE/REMOVE path. Claim edges only — the value
+  // never changes on cursor traffic.
+  const heldBy = useHeldItems();
   const presenceScroll = usePresenceScrollSurface({
     surface: 'schedule',
     container: scheduleScrollRef,
@@ -469,7 +474,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const {
     contextMenu, setContextMenu,
     cutSelected, pasteClipboard, handleContextMenuAction,
-    createOnContextMenu, selectNextAfterRemove,
+    createOnContextMenu, selectNextAfterRemove, heldHint,
   } = useStripboardContextMenu({
     selectedRowIds, setSelectedRowIds,
     rows: activeVersion.rows,
@@ -482,12 +487,15 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
     setColorPicker,
     project,
     enableDaybreaks: true,
+    heldBy,
   });
 
   const activeDragIdsRef = useRef(activeDragIds);
   activeDragIdsRef.current = activeDragIds;
   const activeVersionRef = useRef(activeVersion);
   activeVersionRef.current = activeVersion;
+  const presenceActionsRef = useRef(presenceActions);
+  presenceActionsRef.current = presenceActions;
 
   useEffect(() => {
     return () => {
@@ -497,6 +505,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         const newRows = version.rows.map(r => ids.has(r.id) && !r.pinned ? { ...r, containerId: null, order: 999999 } : r);
         dispatch({ type: 'UPDATE_VERSION', payload: { id: version.id, rows: newRows } });
       }
+      // Leaving the tab mid-drag must not leave a claim behind (roadmap 235).
+      if (ids.size > 0) presenceActionsRef.current.releaseDrag();
     };
   }, []);
 
@@ -1132,6 +1142,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
     selectNextAfterRemove,
     scrollToRow,
     existingDays,
+    heldBy,
   });
 
 
@@ -1204,7 +1215,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
     };
   }, []);
 
-  const { handleDragStart, handleDragOver, handleDragEnd } = useScheduleDrag({
+  const { handleDragStart, handleDragOver, handleDragEnd, handleDragCancel } = useScheduleDrag({
     activeType,
     setActiveType,
     setActiveId,
@@ -1218,6 +1229,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
     boneyardRows,
     activeVersion,
     dispatch,
+    heldBy,
   });
 
   const activeDragRow = useMemo(() => {
@@ -1337,6 +1349,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div 
           className="flex-1 flex bg-zinc-200/50 relative min-h-0"
@@ -1357,7 +1370,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
           }}
           onContextMenu={createOnContextMenu()}
       >
-            <BoneyardBlock rows={boneyardRows} projectScenes={project.scenes} textEditingEnabled={effectiveTextEditingEnabled} editingTarget={editingTarget} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => {
+            <BoneyardBlock rows={boneyardRows} projectScenes={project.scenes} textEditingEnabled={effectiveTextEditingEnabled} editingTarget={editingTarget} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} heldBy={heldBy} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => {
                 if (addMode && getMarqueeMode() === 'tool') {
                   const next = new Set(prev);
                   for (const id of ids) next.has(id) ? next.delete(id) : next.add(id);
@@ -1396,6 +1409,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
                   rows={scheduledRows[dayInt] || []}
                   selectedIds={selectedRowIds}
                   activeDragIds={activeDragIds}
+                  heldBy={heldBy}
                   onRowClick={handleRowClick}
                   editingTarget={editingTarget}
                   insertBeforeId={insertBeforeId}
@@ -1424,6 +1438,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         activeDragRow={activeDragRow}
         activeDragIds={activeDragIds}
         activeDragRows={activeDragRows}
+        rows={activeVersion.rows}
         scenes={project.scenes}
         ribbon={activeRibbon}
         colWidths={activeColWidths}
@@ -1468,6 +1483,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         onOpenProductionDates={() => setProdDatesOpen(true)}
         onOpenSceneInPopout={onOpenSceneInPopout}
       />
+
+      {/* "X is moving this" — shown instead of the menu on a peer-held row */}
+      <HeldItemHint hint={heldHint} />
 
       <ScheduleModals
         colorPicker={colorPicker}

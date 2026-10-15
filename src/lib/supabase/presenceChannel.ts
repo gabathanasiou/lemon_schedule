@@ -3,9 +3,11 @@ import { supabase } from './client';
 import {
   anchorKey,
   createThrottle,
+  MAX_DRAG_ITEMS,
   mergePeers,
   parseAccessPayload,
   parseCursorPayload,
+  parseDragPayload,
   parseOverlayPayload,
   parseSavePayload,
   parseScrollPayload,
@@ -13,11 +15,13 @@ import {
   parseViewPayload,
   presenceTopic,
   selectionKey,
+  type DragSurface,
   type LocalOverlayKind,
   type PointerKind,
   type PresenceAccessEvent,
   type PresenceAnchor,
   type PresenceCursor,
+  type PresenceDragState,
   type PresenceGridSelection,
   type PresenceMeta,
   type PresenceOverlayState,
@@ -98,6 +102,8 @@ export interface PresenceDiagnostics {
   /** The grid selection this window last PUBLISHED, as its wire key (`scope|…`),
    *  or null when it holds none (roadmap 234). */
   localSelection: string | null;
+  /** The drag claim this window is announcing (roadmap 235), or null. */
+  localDrag: DragSurface | null;
   /** Last cursor payload received from a peer (0 = none). */
   lastCursorRecvAt: number;
   /** Last view payload received from a peer (0 = none). */
@@ -106,6 +112,8 @@ export interface PresenceDiagnostics {
   lastOverlayRecvAt: number;
   /** Last grid-selection update received from a peer (0 = none, roadmap 234). */
   lastSelectionRecvAt: number;
+  /** Last drag signal received from a peer (0 = none, roadmap 235). */
+  lastDragRecvAt: number;
   /** Presence `track()` calls made by this channel — must stay ≤5 per 30s
    *  (Supabase caps presence calls per client; past it the channel is
    *  shut down). One per (re)join by design. */
@@ -123,10 +131,12 @@ export const presenceDiagnostics: PresenceDiagnostics = {
   cursorPointer: null,
   localOverlay: null,
   localSelection: null,
+  localDrag: null,
   lastCursorRecvAt: 0,
   lastViewRecvAt: 0,
   lastOverlayRecvAt: 0,
   lastSelectionRecvAt: 0,
+  lastDragRecvAt: 0,
   trackCount: 0,
   error: null,
 };
@@ -158,12 +168,15 @@ export interface PresenceChannelHandlers {
   onOverlay: (state: PresenceOverlayState) => void;
   /** A peer's grid-selection update — `selection: null` clears (roadmap 234). */
   onSelection: (update: PresenceSelectionUpdate) => void;
+  /** A peer's drag claim — `surface: null` releases (roadmap 235). */
+  onDrag: (state: PresenceDragState) => void;
   /** Access-change event addressed to THIS user (role change or revocation). */
   onAccess: (event: PresenceAccessEvent) => void;
   onStatus: (status: PresenceChannelStatus) => void;
 }
 
 const CURSOR_EVENT = 'cursor';
+const DRAG_EVENT = 'drag';
 const OVERLAY_EVENT = 'overlay';
 const SAVE_EVENT = 'save';
 const SCROLL_EVENT = 'scroll';
@@ -183,7 +196,13 @@ export class ProjectPresenceChannel {
   private viewThrottle: Throttle<PresenceView | null> | null = null;
   private selectionThrottle: Throttle<PresenceGridSelection | null> | null = null;
   private lastAnchorKey = '';
+  private lastAnchor: PresenceAnchor | null = null;
   private lastPointerKind: PointerKind | null = null;
+  /** The drag flag of the last cursor frame we actually SENT — the claim's
+   *  START/END edges flip it and force one frame (roadmap 235). */
+  private lastCursorDrag = false;
+  /** True while this window is announcing a live drag claim. */
+  private dragActive = false;
   private lastScrollKey = '';
   private lastViewKey = '';
   private lastSelectionKey = '';
@@ -279,6 +298,14 @@ export class ProjectPresenceChannel {
         if (update && update.userId !== this.identity.userId) {
           presenceDiagnostics.lastSelectionRecvAt = Date.now();
           this.handlers.onSelection(update);
+        }
+      })
+      .on('broadcast', { event: DRAG_EVENT }, ({ payload }) => {
+        if (this.stopped) return;
+        const state = parseDragPayload(payload);
+        if (state && state.userId !== this.identity.userId) {
+          presenceDiagnostics.lastDragRecvAt = Date.now();
+          this.handlers.onDrag(state);
         }
       })
       .on('broadcast', { event: SAVE_EVENT }, ({ payload }) => {
@@ -380,20 +407,64 @@ export class ProjectPresenceChannel {
 
   /** Broadcast our cursor anchor + input modality; skipped when BOTH are
    *  unchanged (idle) and throttled to ~20/s with coalescing. A change of the
-   *  input kind alone re-sends (the glyph must follow a modality switch). */
+   *  input kind alone re-sends (the glyph must follow a modality switch); the
+   *  drag flag (roadmap 235) is part of the idle key too, so a claim's
+   *  START/END edge reaches peers as one extra frame carrying the CURRENT
+   *  anchor — the position stream itself needs no new messages. */
   publishCursor(anchor: PresenceAnchor | null, pointer: PointerKind = 'mouse'): void {
+    this.lastAnchor = anchor;
     const key = anchorKey(anchor);
-    if (!key || (key === this.lastAnchorKey && pointer === this.lastPointerKind)) return;
+    if (!key) return;
+    const drag = this.dragActive;
+    if (key === this.lastAnchorKey && pointer === this.lastPointerKind && drag === this.lastCursorDrag) return;
     this.lastAnchorKey = key;
     this.lastPointerKind = pointer;
+    this.lastCursorDrag = drag;
     presenceDiagnostics.cursorPointer = pointer;
+    this.sendCursor(anchor!, pointer, drag);
+  }
+
+  /** Roadmap 235: the claim's START/END edges flip the drag flag with no
+   *  pointer event of their own — push one frame so peers can position the
+   *  ghost immediately (start) and stop carrying it (end). */
+  private republishCursorDragFlag(): void {
+    const anchor = this.lastAnchor;
+    if (!anchor || !this.lastAnchorKey || this.dragActive === this.lastCursorDrag) return;
+    this.lastCursorDrag = this.dragActive;
+    this.sendCursor(anchor, this.lastPointerKind ?? 'mouse', this.dragActive);
+  }
+
+  private sendCursor(anchor: PresenceAnchor, pointer: PointerKind, drag: boolean): void {
     this.throttle?.emit({
       userId: this.identity.userId,
       clientId: this.clientId,
-      anchor: anchor!,
+      anchor,
       pointer,
+      ...(drag ? { drag: true as const } : {}),
       ts: Date.now(),
     });
+  }
+
+  /** Roadmap 235: announce a live drag claim (`surface: null` = the RELEASE
+   *  edge). The sender owns the cadence — START/END edges + a ~5s heartbeat —
+   *  so this always sends when called, exactly like the overlay cue. The
+   *  item-id list is capped; position rides the cursor frames above. */
+  publishDrag(surface: DragSurface | null, itemIds: string[]): void {
+    const changed = (surface !== null) !== this.dragActive;
+    this.dragActive = surface !== null;
+    presenceDiagnostics.localDrag = surface;
+    void this.channel?.send({
+      type: 'broadcast',
+      event: DRAG_EVENT,
+      payload: {
+        userId: this.identity.userId,
+        clientId: this.clientId,
+        surface,
+        itemIds: surface ? itemIds.slice(0, MAX_DRAG_ITEMS) : [],
+        ts: Date.now(),
+      } satisfies PresenceDragState,
+    });
+    if (changed) this.republishCursorDragFlag();
   }
 
   /** Roadmap 240: announce the local-overlay cue (an open/close edge, or the
@@ -444,6 +515,9 @@ export class ProjectPresenceChannel {
     this.viewThrottle = null;
     this.selectionThrottle = null;
     this.lastSelectionKey = '';
+    this.dragActive = false;
+    this.lastCursorDrag = false;
+    this.lastAnchorKey = '';
     const channel = this.channel;
     this.channel = null;
     if (channel && supabase) {
@@ -457,6 +531,7 @@ export class ProjectPresenceChannel {
     presenceDiagnostics.cursorPointer = null;
     presenceDiagnostics.localOverlay = null;
     presenceDiagnostics.localSelection = null;
+    presenceDiagnostics.localDrag = null;
     presenceDiagnostics.error = null;
     this.handlers.onStatus('idle');
   }

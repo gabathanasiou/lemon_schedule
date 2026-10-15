@@ -11,9 +11,9 @@ import {
   type PresencePeer,
 } from '../lib/supabase/presence';
 import type { AppPlace } from '../lib/appNav';
-import { getPresenceGridScope } from '../lib/presenceResolvers';
+import { resolveAnchorPoint } from '../lib/presencePoint';
+import { glideStep } from '../lib/glideMotion';
 import { avatarColor, shortNameOf } from '../lib/avatarIdentity';
-import { cssEscape } from '../lib/utils';
 import { PresenceDots } from './PresenceDots';
 
 /**
@@ -79,33 +79,6 @@ function tagFlips(x: number): boolean {
 /** Glide smoothing: time constant to close 63% of the distance to the target
  *  (~110ms reads as a smooth chase against the ~12/s cursor feed) and the
  *  distance below which the pointer is simply ON target. */
-const SMOOTH_TAU_MS = 110;
-const SNAP_PX = 0.4;
-
-function anchorElement(anchor: PresenceAnchor): HTMLElement | null {
-  switch (anchor.kind) {
-    case 'row':
-      return document.querySelector<HTMLElement>(`[data-row-id="${cssEscape(anchor.rowId)}"]`);
-    case 'date':
-      return document.querySelector<HTMLElement>(`[data-date-key="${cssEscape(anchor.date)}"]`);
-    case 'day': {
-      if (anchor.section) {
-        const card = document.querySelector<HTMLElement>(`[data-day-manager] [data-section="${cssEscape(anchor.section)}"]`);
-        if (card) return card;
-      }
-      return document.querySelector<HTMLElement>('[data-day-manager] [data-day-sections]')
-        ?? document.querySelector<HTMLElement>('[data-day-manager]');
-    }
-    default:
-      return null;
-  }
-}
-
-/** Anchors that resolve outside this client's viewport are hidden. */
-function inViewport(r: { left: number; top: number; width: number; height: number }): boolean {
-  return r.left + r.width > 0 && r.left < window.innerWidth && r.top + r.height > 0 && r.top < window.innerHeight;
-}
-
 function clampToViewport(x: number, y: number): { left: number; top: number } {
   return {
     left: Math.min(Math.max(x, 4), Math.max(4, window.innerWidth - 24)),
@@ -123,38 +96,11 @@ function markerPosition(
   // header/toolbar fall back to the same rule, so nothing floats over a view
   // the peer isn't actually looking at.
   if (!sameViewPlace(peer.view, place)) return null;
-
-  if (anchor.kind === 'screen') {
-    const x = Math.min(Math.max(anchor.xr * window.innerWidth, 0), window.innerWidth - 4);
-    const y = Math.min(Math.max(anchor.yr * window.innerHeight, 0), window.innerHeight - 4);
-    return { left: x, top: y, flip: tagFlips(x) };
-  }
-
-  let rect: { left: number; top: number; width: number; height: number } | null = null;
-  let fx = 0.5;
-  let fy = 0.5;
-  if (anchor.kind === 'grid') {
-    // Registered canvas grid (Glide Breakdown): cell → THIS client's rect.
-    const located = getPresenceGridScope(anchor.scope)?.locate(anchor) ?? null;
-    if (located) {
-      rect = located;
-      fx = anchor.fx;
-      fy = anchor.fy;
-    }
-  } else {
-    const el = anchorElement(anchor);
-    if (el) {
-      const r = el.getBoundingClientRect();
-      rect = { left: r.left, top: r.top, width: r.width, height: r.height };
-      fx = anchor.fx;
-      fy = anchor.fy;
-    }
-  }
-  if (!rect || rect.width === 0 || rect.height === 0 || !inViewport(rect)) return null;
-
-  const x = rect.left + fx * rect.width;
-  const y = rect.top + fy * rect.height;
-  const pos = clampToViewport(x, y);
+  // The shared anchor geometry (presencePoint.ts) resolves the SEMANTIC anchor
+  // with THIS client's layout; screen anchors come back viewport-scaled.
+  const point = resolveAnchorPoint(anchor);
+  if (!point) return null;
+  const pos = clampToViewport(point.left, point.top);
   return { ...pos, flip: tagFlips(pos.left) };
 }
 
@@ -256,13 +202,7 @@ export function PresenceOverlay({ place }: { place: AppPlace }) {
           cur = { left: target.left, top: target.top };
           smoothRef.current.set(id, cur);
         } else {
-          const k = reduced ? 1 : 1 - Math.exp(-dt / SMOOTH_TAU_MS);
-          cur.left += (target.left - cur.left) * k;
-          cur.top += (target.top - cur.top) * k;
-          if (Math.abs(target.left - cur.left) < SNAP_PX && Math.abs(target.top - cur.top) < SNAP_PX) {
-            cur.left = target.left;
-            cur.top = target.top;
-          }
+          glideStep(cur, target, dt, reduced);
         }
         node.style.transform = `translate3d(${cur.left}px, ${cur.top}px, 0)`;
       }

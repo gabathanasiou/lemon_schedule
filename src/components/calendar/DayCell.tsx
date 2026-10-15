@@ -12,6 +12,8 @@ import { SceneCard, SceneCardContent } from './SceneCard';
 import { DayDropState, formatFullDate } from './calendarUtils';
 import { DayTypeVisual, dayTypeTextColor } from '../../lib/dayTypes';
 import { DayStatusBadges } from './DayStatusBadges';
+import { avatarColor } from '../../lib/avatarIdentity';
+import { dayDragItemId, type PresenceHeldItem } from '../../lib/supabase/presence';
 
 export const DayCell: React.FC<{
   dateKey: string; date: Date; isToday: boolean;
@@ -40,7 +42,10 @@ export const DayCell: React.FC<{
   activeDragDay?: number | null;
   dropState?: DayDropState;
   flashColor?: 'a' | 'b';
-}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onContextMenu, nonShootStatus, dayTypeVisual, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
+  /** Live peer-held items (roadmap 235): item id → holder; the day header's
+   *  claim marker (`dayDragItemId`) locks a whole-day drag. */
+  heldBy?: Map<string, PresenceHeldItem>;
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onContextMenu, nonShootStatus, dayTypeVisual, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor, heldBy }) => {
   const { locked, state } = useProject();
   const project = state.present;
   const { setNodeRef, isOver } = useDroppable({
@@ -48,10 +53,12 @@ export const DayCell: React.FC<{
     data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
   });
 
+  const dayHeld = (sectionIndex != null ? heldBy?.get(dayDragItemId(sectionIndex)) : undefined) ?? null;
+
   const { setNodeRef: setDragRef, attributes: dragAttributes, listeners: dragListeners, isDragging } = useDraggable({
     id: `day-section-${sectionIndex ?? -1}`,
     data: { type: 'DAY', sectionIndex },
-    disabled: !sectionLabel || locked,
+    disabled: !sectionLabel || locked || !!dayHeld,
   });
 
   const { setNodeRef: setEndRef } = useDroppable({
@@ -131,8 +138,15 @@ export const DayCell: React.FC<{
           onDoubleClick={(e) => { e.stopPropagation(); }}
           onClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
-          style={{ cursor: sectionLabel ? 'grab' : 'default', opacity: isDragging ? 0.4 : 1, ...headerStyle }}
+          style={{
+            cursor: sectionLabel ? (dayHeld ? 'not-allowed' : 'grab') : 'default',
+            opacity: isDragging ? 0.4 : dayHeld ? 0.6 : 1,
+            ...(dayHeld ? { boxShadow: `inset 0 0 0 2px ${avatarColor(dayHeld.userId)}` } : {}),
+            ...headerStyle,
+          }}
           data-day-header
+          data-held-by={dayHeld ? dayHeld.userId : undefined}
+          title={dayHeld ? `${dayHeld.name} is moving this day` : undefined}
           className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
         >
           <DayStatusBadges
@@ -215,7 +229,7 @@ export const DayCell: React.FC<{
                   {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
                 </div>
               )}
-<SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
+<SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} heldBy={heldBy?.get(r.id) ?? null} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
               {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === `day-${dateKey}` && (
                 <div className="opacity-40 flex flex-col gap-0">
                   {activeDragRows.slice(0, 3).map(dr => (

@@ -20,9 +20,12 @@ import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/
 import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
-import { usePresenceActions } from '../lib/supabase/presenceContext';
+import { usePresenceActions, useHeldItems } from '../lib/supabase/presenceContext';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
+import { RemoteDragGhostLayer } from './RemoteDragGhosts';
+import { HeldItemHint } from './HeldItemHint';
+import { dayDragItemId, parseDayDragItemId } from '../lib/supabase/presence';
 import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -248,6 +251,12 @@ export const CalendarTab: React.FC<{
     return el instanceof HTMLElement ? el.offsetHeight : 28;
   }, []);
   const presenceActions = usePresenceActions();
+  // Peer-held items (roadmap 235): cards + day headers render "held" in their
+  // holder's colour and refuse every MOVE/REMOVE path.
+  const heldBy = useHeldItems();
+  // Leaving the tab mid-drag must not leave a claim behind (roadmap 235);
+  // releaseDrag is a no-op without a live claim.
+  useEffect(() => () => presenceActions.releaseDrag(), [presenceActions]);
   const presenceScroll = usePresenceScrollSurface({
     surface: 'calendar',
     container: calendarGridRef,
@@ -427,6 +436,8 @@ export const CalendarTab: React.FC<{
     handleContextMenuAction,
     createOnContextMenu,
     selectNextAfterRemove,
+    heldHint,
+    showHeldHint,
   } = useStripboardContextMenu({
     selectedRowIds,
     setSelectedRowIds,
@@ -439,6 +450,7 @@ export const CalendarTab: React.FC<{
     scrollToRow,
     setColorPicker,
     project,
+    heldBy,
   });
 
   const handleRowContextMenu = useCallback((e: React.MouseEvent) => {
@@ -660,7 +672,7 @@ export const CalendarTab: React.FC<{
     setColorPicker(null);
   }, [colorPicker, activeVersion, dispatch]);
 
-  const { activeType, handleDragStart, handleDragOver, handleDragEnd } = useCalendarDrag({
+  const { activeType, handleDragStart, handleDragOver, handleDragEnd, handleDragCancel } = useCalendarDrag({
     activeId, setActiveId,
     activeDragDay, setActiveDragDay,
     activeDragRow, setActiveDragRow,
@@ -680,6 +692,7 @@ export const CalendarTab: React.FC<{
     nonShootDateMap,
     flashDays,
     dispatch,
+    heldBy,
   });
 
   const activeDragRows = useMemo(() => {
@@ -699,6 +712,25 @@ export const CalendarTab: React.FC<{
           .filter(Boolean)
       : [(activeVersion?.rows || []).find(r => r.id === activeId)!].filter(Boolean);
   }, [activeId, activeType, activeDragIds, (activeVersion?.rows || [])]);
+
+  // Ghost content shared by the local DragOverlay and the REMOTE peer ghosts
+  // (roadmap 235) — one recipe, no drift: the day chip and the card stack.
+  const dayGhost = (dayIdx: number) => (
+    <div className="bg-zinc-900 text-white rounded px-3 py-2 shadow-xl opacity-90">
+      <div className="text-[11px] font-bold uppercase tracking-wider">DAY {chronoDayMap.get(dayIdx) ?? 0}</div>
+      <div className="text-[9px] text-zinc-400">{sections[dayIdx]?.rows.length ?? 0} strips</div>
+    </div>
+  );
+  const cardGhost = (ghostRows: ScheduleRow[]) => (
+    <div className="flex flex-col gap-0.5 opacity-90">
+      {ghostRows.slice(0, 3).map(r => (
+        <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} displayField={displayField} />
+      ))}
+      {ghostRows.length > 3 && <div className="text-[9px] text-center text-zinc-500">+{ghostRows.length - 3} more</div>}
+    </div>
+  );
+  const resolveHeldRows = (itemIds: string[]): ScheduleRow[] =>
+    itemIds.map(id => (activeVersion?.rows || []).find(r => r.id === id)).filter((r): r is ScheduleRow => !!r);
 
   // The calendar renders EVERY month block fully (no month-level
   // virtualization). Month blocks lay out at their natural height, so the
@@ -811,6 +843,7 @@ export const CalendarTab: React.FC<{
     onOpenScene,
     onOpenSceneInPopout,
     enabled: viewMode === 'strips',
+    heldBy,
   });
 
   /* ---- Events mode (roadmap 45) ---- */
@@ -980,6 +1013,7 @@ export const CalendarTab: React.FC<{
       setInsertBeforeId(null);
       setDayDropState(null);
       resetEventsDrag();
+      handleDragCancel();
     }}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}
         onClick={(e) => {
@@ -994,7 +1028,7 @@ export const CalendarTab: React.FC<{
         }}
       >
         {viewMode === 'strips' && (
-          <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} collapsed={boneyardCollapsed} onToggleCollapsed={() => setBoneyardCollapsed(v => !v)} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} lockedCriteria={lockedCriteria} onToggleLock={handleToggleLock} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
+          <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} collapsed={boneyardCollapsed} onToggleCollapsed={() => setBoneyardCollapsed(v => !v)} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} heldBy={heldBy} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} lockedCriteria={lockedCriteria} onToggleLock={handleToggleLock} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
         )}
         <div data-marquee-tool-only className="flex-1 flex flex-col overflow-hidden">
           <PageToolbar theme="light" justify="between"
@@ -1272,6 +1306,7 @@ export const CalendarTab: React.FC<{
                           sceneViolationMap={sceneViolationMap}
                           selectedIds={selectedRowIds}
                           activeDragIds={activeDragIds}
+                          heldBy={heldBy}
                           onRowClick={handleRowClick}
                           insertBeforeId={insertBeforeId}
                           activeDragRow={activeDragRow}
@@ -1284,6 +1319,12 @@ export const CalendarTab: React.FC<{
                           onRowContextMenu={handleRowContextMenu}
                           bodyTargetRowId={bodyTargetRowId}
                           onBodyContextMenu={(e, targetRowId) => {
+                            // A peer-held row's menu stays closed (roadmap 235).
+                            const held = heldBy.get(targetRowId);
+                            if (held) {
+                              showHeldHint(e.clientX, e.clientY, held.name);
+                              return;
+                            }
                             setContextMenuDate(null);
                             setContextMenuBodyTarget(targetRowId);
                             setContextMenu({ x: e.clientX, y: e.clientY, rowId: targetRowId, containerId: 1 });
@@ -1301,20 +1342,8 @@ export const CalendarTab: React.FC<{
         </div>
       </div>
       <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
-        {activeType === 'DAY' && activeDragDay != null ? (
-          <div className="bg-zinc-900 text-white rounded px-3 py-2 shadow-xl opacity-90">
-            <div className="text-[11px] font-bold uppercase tracking-wider">{sections[activeDragDay] ? `DAY ${(chronoDayMap.get(activeDragDay) ?? 0)}` : ''}</div>
-            <div className="text-[9px] text-zinc-400">{sections[activeDragDay]?.rows.length ?? 0} strips</div>
-          </div>
-        ) : null}
-        {activeDragRows.length > 0 ? (
-          <div className="flex flex-col gap-0.5 opacity-90">
-            {activeDragRows.slice(0, 3).map(r => (
-              <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} displayField={displayField} />
-            ))}
-            {activeDragRows.length > 3 && <div className="text-[9px] text-center text-zinc-500">+{activeDragRows.length - 3} more</div>}
-          </div>
-        ) : null}
+        {activeType === 'DAY' && activeDragDay != null ? dayGhost(activeDragDay) : null}
+        {activeDragRows.length > 0 ? cardGhost(activeDragRows) : null}
         {viewMode === 'events' && activeEventId && activeEventMeta ? (
           activeEventMeta.type === 'EVENT_DAY' ? (
             // Same ghost as the strips-mode day-header drag: a compact pill.
@@ -1342,6 +1371,23 @@ export const CalendarTab: React.FC<{
           )
         ) : null}
       </DragOverlay>
+
+      {/* A peer's live drag (roadmap 235): the same day chip / card stack at
+          their cursor, in their colour. */}
+      <RemoteDragGhostLayer
+        surface="calendar-day"
+        renderContent={(drag) => {
+          const dayIdx = parseDayDragItemId(drag.itemIds[0] ?? '');
+          return dayIdx == null ? null : dayGhost(dayIdx);
+        }}
+      />
+      <RemoteDragGhostLayer
+        surface="calendar"
+        renderContent={(drag) => {
+          const heldRows = resolveHeldRows(drag.itemIds);
+          return heldRows.length > 0 ? cardGhost(heldRows) : null;
+        }}
+      />
 
       {ruleCardMenu && (
         <ContextMenu open x={ruleCardMenu.x} y={ruleCardMenu.y} onClose={() => setRuleCardMenu(null)}>
@@ -1453,6 +1499,8 @@ export const CalendarTab: React.FC<{
       {prodDatesOpen && (
         <ProductionDatesModal onClose={() => setProdDatesOpen(false)} />
       )}
+      {/* "X is moving this" — shown instead of the menu on a peer-held card */}
+      <HeldItemHint hint={heldHint} />
       <CustomOrderSortModal
         open={customOrderModal?.open ?? false}
         onClose={closeCustomOrderModal}

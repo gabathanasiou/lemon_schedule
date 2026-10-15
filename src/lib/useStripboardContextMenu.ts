@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { ScheduleRow, ScheduleVersion, Project } from '../types';
 import { generateUUID } from './utils';
 import { renumberRows, insertionOrder, daybreakRegionFromTarget } from './daybreakUtils';
@@ -7,6 +7,7 @@ import { isEmptyDayMeta } from './dayMeta';
 import { getMarqueeMode } from './useLongPressMenu';
 import { getNoteBannerColors } from './ribbonUtils';
 import { useDialog } from '../components/Dialog';
+import type { PresenceHeldItem } from './supabase/presence';
 
 interface ContextMenuState {
   x: number;
@@ -43,18 +44,41 @@ export interface StripboardContextMenuConfig {
   project: Project;
   /** Enables add_daybreak / duplicate_daybreak context actions (ScheduleTab). */
   enableDaybreaks?: boolean;
+  /** Live peer-held items (roadmap 235): their item ids refuse every
+   *  MOVE/REMOVE path here (no menu, no cut, no delete/boneyard). */
+  heldBy?: Map<string, PresenceHeldItem>;
+}
+
+/** The transient "X is moving this" chip shown instead of a menu on a held
+ *  item (auto-hides). */
+export interface HeldHintState {
+  x: number;
+  y: number;
+  name: string;
 }
 
 export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
   const {
     selectedRowIds, setSelectedRowIds, rows, activeVersion,
     activeDragIds, textEditingEnabled, dispatch, setFocusedRowId,
-    scrollToRow, setColorPicker, project, enableDaybreaks = false,
+    scrollToRow, setColorPicker, project, enableDaybreaks = false, heldBy,
   } = config;
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [heldHint, setHeldHint] = useState<HeldHintState | null>(null);
+  const heldHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dialog = useDialog();
   const sceneDuplicate = useSceneDuplicate();
+
+  const showHeldHint = useCallback((x: number, y: number, name: string) => {
+    setHeldHint({ x, y, name });
+    if (heldHintTimerRef.current) clearTimeout(heldHintTimerRef.current);
+    heldHintTimerRef.current = setTimeout(() => setHeldHint(null), 2500);
+  }, []);
+
+  useEffect(() => () => {
+    if (heldHintTimerRef.current) clearTimeout(heldHintTimerRef.current);
+  }, []);
 
   const inClipboard = useMemo(
     () => rows.filter(r => r.containerId === -1).length,
@@ -138,19 +162,20 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
 
   const cutSelected = useCallback(() => {
     if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
-    const ids = Array.from(selectedRowIds).filter(id => !activeVersion.rows.find(r => r.id === id)?.pinned);
+    // Held rows are never cut (roadmap 235) — the peer's drop owns them.
+    const ids = Array.from(selectedRowIds).filter(id => !activeVersion.rows.find(r => r.id === id)?.pinned && !heldBy?.has(id));
     if (ids.length === 0) return;
     let newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, containerId: -1 } : r);
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     selectPrevAfterRemove(new Set(ids as string[]));
-  }, [selectedRowIds, activeDragIds, textEditingEnabled, activeVersion, dispatch, selectPrevAfterRemove]);
+  }, [selectedRowIds, activeDragIds, textEditingEnabled, activeVersion, dispatch, selectPrevAfterRemove, heldBy]);
 
   const pasteClipboard = useCallback((targetRowId: string) => {
     if (activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
     const targetRow = rows.find(r => r.id === targetRowId);
 
     const clipboardItems = rows
-      .filter(r => r.containerId === -1)
+      .filter(r => r.containerId === -1 && !heldBy?.has(r.id))
       .sort((a, b) => {
         if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
         return a.order - b.order;
@@ -195,11 +220,18 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     setSelectedRowIds(new Set(clipboardItems.map(r => r.id)));
     if (clipboardItems.length > 0) scrollToRow(clipboardItems[0].id);
-  }, [activeDragIds, textEditingEnabled, activeVersion, rows, dispatch, setSelectedRowIds, scrollToRow]);
+  }, [activeDragIds, textEditingEnabled, activeVersion, rows, dispatch, setSelectedRowIds, scrollToRow, heldBy]);
 
   const handleContextMenuAction = useCallback(async (action: string) => {
     if (!contextMenu || !activeVersion) return;
     const { rowId, containerId } = contextMenu;
+    // A peer's drag started while the menu was open (roadmap 235): the
+    // MOVE/REMOVE actions refuse a now-held row — the same lock as the drag
+    // paths. Insert-style actions (add note/break, duplicate) stay allowed.
+    if ((action === 'delete' || action === 'boneyard') && heldBy?.has(rowId)) {
+      setContextMenu(null);
+      return;
+    }
     const rowIndex = rows.findIndex(r => r.id === rowId);
     const isDummy = rowId.startsWith('empty-');
 
@@ -317,7 +349,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       selectNextAfterRemove(new Set([rowId] as string[]));
     }
     setContextMenu(null);
-  }, [contextMenu, activeVersion, rows, project, dispatch, setSelectedRowIds, setFocusedRowId, scrollToRow, setColorPicker, selectNextAfterRemove, setContextMenu, dialog, sceneDuplicate]);
+  }, [contextMenu, activeVersion, rows, project, dispatch, setSelectedRowIds, setFocusedRowId, scrollToRow, setColorPicker, selectNextAfterRemove, setContextMenu, dialog, sceneDuplicate, heldBy]);
 
   const createOnContextMenu = useCallback((options?: {
     prependSelect?: () => void;
@@ -327,6 +359,13 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     if (rowEl) {
       e.stopPropagation();
       const rowId = rowEl.getAttribute('data-row-id')!;
+      // A held item never opens its menu (roadmap 235) — the peer's drag owns
+      // it until it ends; a small chip says who instead.
+      const held = heldBy?.get(rowId);
+      if (held) {
+        showHeldHint(e.clientX, e.clientY, held.name);
+        return;
+      }
       if (getMarqueeMode() === 'tool') {
         setSelectedRowIds(prev => prev.has(rowId) ? prev : new Set([...prev, rowId]));
       } else if (!selectedRowIds.has(rowId)) {
@@ -340,11 +379,13 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     } else {
       setContextMenu(null);
     }
-  }, [selectedRowIds, setSelectedRowIds, setContextMenu]);
+  }, [selectedRowIds, setSelectedRowIds, setContextMenu, heldBy, showHeldHint]);
 
   return {
     contextMenu,
     setContextMenu,
+    heldHint,
+    showHeldHint,
     inClipboard,
     cutSelected,
     pasteClipboard,

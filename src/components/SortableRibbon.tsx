@@ -27,6 +27,8 @@ import { RowRenderCtx } from './ribbon/rowRenderTypes';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
+import { avatarColor } from '../lib/avatarIdentity';
+import type { PresenceHeldItem } from '../lib/supabase/presence';
 
 const ENTITY_KEYS = new Set([
   'cast', 'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -672,6 +674,7 @@ const sortableRibbonPropsEqual = (a: any, b: any) => {
   if (a.row !== b.row) return false;
   if (a.scene !== b.scene) return false;
   if (a.isOverlay !== b.isOverlay || a.isSelected !== b.isSelected || a.isFaded !== b.isFaded) return false;
+  if (a.ghost !== b.ghost || a.heldBy !== b.heldBy) return false;
   if (a.isCompact !== b.isCompact || a.isEditable !== b.isEditable) return false;
   if (a.focusField !== b.focusField) return false;
   if (a.sceneViolations !== b.sceneViolations) return false;
@@ -694,12 +697,18 @@ const sortableRibbonPropsEqual = (a: any, b: any) => {
 };
 
 export const SortableRibbon = React.memo(({
-  row, scenes, scene, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, isEditable, focusField, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories, elementLinks,
+  row, scenes, scene, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, isEditable, focusField, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories, elementLinks, ghost, heldBy,
 }: {
   row: ComputedRowInput,
   scenes: Scene[],
   scene?: Scene | null,
   isOverlay?: boolean,
+  /** Static non-interactive render (roadmap 235 remote drag ghosts): no
+   *  sortable registration, no listeners, no editing — visual only. */
+  ghost?: boolean,
+  /** The peer currently holding this row (roadmap 235) — renders the "held"
+   *  ring in their colour and refuses to be picked up. */
+  heldBy?: PresenceHeldItem | null,
   isSelected?: boolean,
   isFaded?: boolean,
   onSelectToggle?: (e: React.MouseEvent) => void,
@@ -732,45 +741,61 @@ export const SortableRibbon = React.memo(({
   hiddenCategories?: string[],
   elementLinks?: ElementLink[],
 }) => {
-  if (readOnly) {
+  // The static (non-interactive) row content — shared by the read-only path
+  // and the remote drag ghost so the visual can never drift between them.
+  const staticContent = (
+    <SortableRowContent
+      row={row}
+      scenes={scenes}
+      scene={scene}
+      isSelected={false}
+      isFaded={false}
+      isCompact={false}
+      isEditable={false}
+      focusField={null}
+      sceneViolations={sceneViolations}
+      sectionViolations={sectionViolations}
+      nextSectionViolations={nextSectionViolations}
+      focusedRowId={null}
+      onRowNavigate={onRowNavigate}
+      ribbon={ribbon}
+      colWidths={colWidths}
+      cellPaddingV={cellPaddingV}
+      cellPaddingH={cellPaddingH}
+      textSize={textSize}
+      edgePadding={edgePadding}
+      cellBorders={cellBorders}
+      nextDaybreakCallTime={nextDaybreakCallTime}
+      onUpdateNextDaybreak={onUpdateNextDaybreak}
+      nextDateStr={nextDateStr}
+      dispatch={dispatch}
+      activeVersionId={activeVersionId}
+      palette={palette}
+      castMembers={castMembers}
+      breakdownElements={breakdownElements}
+      customCategories={customCategories}
+      hiddenCategories={hiddenCategories}
+      elementLinks={elementLinks}
+    />
+  );
+
+  if (readOnly) return staticContent;
+
+  if (ghost) {
     return (
-      <SortableRowContent
-        row={row}
-        scenes={scenes}
-        scene={scene}
-        isSelected={false}
-        isFaded={false}
-        isCompact={false}
-        isEditable={false}
-        focusField={null}
-        sceneViolations={sceneViolations}
-        sectionViolations={sectionViolations}
-        nextSectionViolations={nextSectionViolations}
-        focusedRowId={null}
-        onRowNavigate={onRowNavigate}
-        ribbon={ribbon}
-        colWidths={colWidths}
-        cellPaddingV={cellPaddingV}
-        cellPaddingH={cellPaddingH}
-        textSize={textSize}
-        edgePadding={edgePadding}
-        cellBorders={cellBorders}
-        nextDaybreakCallTime={nextDaybreakCallTime}
-        onUpdateNextDaybreak={onUpdateNextDaybreak}
-        nextDateStr={nextDateStr}
-        dispatch={dispatch}
-        activeVersionId={activeVersionId}
-        palette={palette}
-        castMembers={castMembers}
-        breakdownElements={breakdownElements}
-        customCategories={customCategories}
-        hiddenCategories={hiddenCategories}
-        elementLinks={elementLinks}
-      />
+      <div
+        data-row-id={row.id}
+        data-container-id={row.containerId}
+        className="group relative shrink-0 outline-none border-b-[2px] border-black pointer-events-none select-none scale-[1.02] shadow-2xl ring-2 ring-black"
+      >
+        {staticContent}
+      </div>
     );
   }
 
   const ctrlOrCmdHeld = useAddMode();
+
+  const held = heldBy ?? null;
 
   const {
     attributes,
@@ -780,13 +805,17 @@ export const SortableRibbon = React.memo(({
     isDragging,
   } = useSortable({
     id: row.id,
-    disabled: row.pinned,
+    disabled: row.pinned || !!held,
     data: { type: 'ROW', row }
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     opacity: isDragging && !isOverlay ? 0.3 : undefined,
+    // "Held by a peer" (roadmap 235): their-colour ring + a slight dim; the
+    // item stays readable (selecting, scrolling and field edits stay allowed)
+    // but refuses to be picked up until the peer's drag ends.
+    ...(held ? { boxShadow: `inset 0 0 0 2px ${avatarColor(held.userId)}`, opacity: 0.6 } : {}),
     userSelect: 'none' as const,
     WebkitUserSelect: 'none' as const,
     WebkitTouchCallout: 'none' as const,
@@ -802,7 +831,9 @@ export const SortableRibbon = React.memo(({
       onDoubleClick={(e) => onDoubleClick?.(row.id, e.shiftKey)}
       data-row-id={row.id}
       data-container-id={row.containerId}
-      className={`group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!isEditable && !isOverlay ? 'cursor-grab' : ''}`}
+      data-held-by={held ? held.userId : undefined}
+      title={held ? `${held.name} is moving this` : undefined}
+      className={`group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!isEditable && !isOverlay && !held ? 'cursor-grab' : ''} ${held ? 'cursor-not-allowed' : ''}`}
     >
       <SortableRowContent
         row={row}

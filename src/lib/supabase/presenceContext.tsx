@@ -9,18 +9,26 @@ import { getLocalOverlayKind, subscribeLocalOverlays } from '../localOverlaySign
 import { presenceDiagnostics, ProjectPresenceChannel, subscribeLocalSaves, type PresenceChannelStatus } from './presenceChannel';
 import {
   acceptCursor,
+  DRAG_HEARTBEAT_MS,
+  DRAG_TTL_MS,
   freezeCursorFor,
+  heldItemsOf,
   OVERLAY_TTL_MS,
   pointerFractions,
   pointerKindOf,
   presenceViewToPlace,
+  resolveDragClaims,
   resolveOverlayCues,
   screenFractions,
+  type DragSurface,
   type LocalOverlayKind,
   type PresenceAnchor,
+  type PresenceDragState,
   type PresenceGridSelection,
+  type PresenceHeldItem,
   type PresenceOverlayState,
   type PresencePeer,
+  type PresencePeerDrag,
   type PresencePeerSelection,
   type PresenceScrollSample,
   type PresenceView,
@@ -67,6 +75,12 @@ export interface PresenceActionsValue {
   /** Release the selection ownership on blur/unmount — publishes the clear
    *  ONLY when `owner` is the current owner. */
   releaseSelection: (owner: object) => void;
+  /** Announce a live drag claim (roadmap 235) — start/heartbeat/re-start all
+   *  ride this; the provider owns the ~5s heartbeat. No-op without a channel,
+   *  so surfaces can call it unconditionally. */
+  publishDrag: (surface: DragSurface, itemIds: string[]) => void;
+  /** Release the drag claim (drop/cancel/Esc/blur) — the END edge. */
+  releaseDrag: () => void;
   /** The local user changed the view with a click (navigation, the View
    *  menu, a Calendar sub-view/month jump, a Sheet flip) — exits follow.
    *  Scrolling NEVER does (user decision 2026-10-13): look around freely, the
@@ -92,6 +106,8 @@ const EMPTY_ACTIONS: PresenceActionsValue = {
   publishScroll: () => {},
   publishSelection: () => {},
   releaseSelection: () => {},
+  publishDrag: () => {},
+  releaseDrag: () => {},
   noteUserViewChange: () => {},
   isActive: () => false,
   follow: () => {},
@@ -108,6 +124,12 @@ const PresenceActionsContext = createContext<PresenceActionsValue>(EMPTY_ACTIONS
  * `highlightRegions`) never subscribe to the ~12/s cursor feed.
  */
 const PresenceSelectionsContext = createContext<PresencePeerSelection[]>([]);
+/**
+ * Peer drag claims (roadmap 235) — its own context for the same reason: the
+ * value changes only on a claim edge (start/end/TTL), never on cursor or
+ * heartbeat traffic.
+ */
+const PresenceDragsContext = createContext<PresencePeerDrag[]>([]);
 
 export function usePresenceState(): PresenceStateValue {
   return useContext(PresenceStateContext);
@@ -120,6 +142,18 @@ export function usePresenceActions(): PresenceActionsValue {
 /** One entry per user who currently has a grid selection (newest window wins). */
 export function usePresenceSelections(): PresencePeerSelection[] {
   return useContext(PresenceSelectionsContext);
+}
+
+/** One entry per user who is currently dragging (newest window wins, TTL). */
+export function usePresenceDrags(): PresencePeerDrag[] {
+  return useContext(PresenceDragsContext);
+}
+
+/** The item → holder map the surfaces share (roadmap 235): a held item renders
+ *  "held" in its holder's colour and refuses every MOVE/REMOVE path. */
+export function useHeldItems(): Map<string, PresenceHeldItem> {
+  const drags = usePresenceDrags();
+  return useMemo(() => heldItemsOf(drags), [drags]);
 }
 
 /** Per-tab client id (sessionStorage): two windows of one user are two clients,
@@ -223,6 +257,9 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // Grid selections are kept in a ref + a VERSION counter so the value handed
   // to the grids changes only when a selection does (never on cursor traffic).
   const [selectionVersion, setSelectionVersion] = useState(0);
+  // Same recipe for drag claims (roadmap 235) — claim edges are rare (start/
+  // end/heartbeat), so the drag consumers never see cursor traffic either.
+  const [dragVersion, setDragVersion] = useState(0);
 
   const channelRef = useRef<ProjectPresenceChannel | null>(null);
   const peersRef = useRef<PresencePeer[]>([]);
@@ -232,8 +269,10 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // (App navigates; surfaces apply their in-page view switches).
   const appliersRef = useRef(new Set<(view: PresenceView) => void>());
   const lastAppliedFollowRef = useRef('');
-  // `${userId}:${clientId}` → latest accepted cursor (stale ts dropped).
-  const cursorMapRef = useRef(new Map<string, { userId: string; anchor: PresenceAnchor; pointer: PointerKind; ts: number }>());
+  // `${userId}:${clientId}` → latest accepted cursor (stale ts dropped). The
+  // `drag` flag (roadmap 235) rides the frame; the ghost layer positions from
+  // drag-flagged frames only.
+  const cursorMapRef = useRef(new Map<string, { userId: string; anchor: PresenceAnchor; pointer: PointerKind; drag: boolean; ts: number }>());
   // The local pointer position (viewport coords; roadmap 244 collision fade).
   const localPointerRef = useRef<{ x: number; y: number } | null>(null);
   // `${userId}:${clientId}` → latest overlay signal (stale ts dropped). `at`
@@ -246,6 +285,17 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // non-empty one. Only the owner may clear (blur/unmount/deselect), so
   // closing a second window cannot wipe the first window's live selection.
   const selectionOwnerRef = useRef<{ owner: object; selection: PresenceGridSelection } | null>(null);
+  // `${userId}:${clientId}` → latest drag claim (roadmap 235). Ordering by the
+  // sender's ts within one client (newest window wins on resolve); `at` is the
+  // local RECEIPT time and the TTL compares against it.
+  const dragMapRef = useRef(new Map<string, { userId: string; surface: DragSurface | null; itemIds: string[]; ts: number; at: number }>());
+  // The local OUTGOING drag claim — re-announced on a (re)join and re-sent by
+  // the heartbeat; null between drags.
+  const localDragRef = useRef<{ surface: DragSurface; itemIds: string[] } | null>(null);
+  const dragHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Re-resolve the incoming claims when the soonest TTL expiry passes (a
+  // killed tab must lose its lock without a release edge).
+  const dragExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Re-render when the newest overlay signal goes stale (TTL clear).
   const overlayExpiryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The last overlay kind this window published — redundant edge frames are
@@ -278,9 +328,15 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     selectionMapRef.current.clear();
     selectionOwnerRef.current = null;
     setSelectionVersion(v => v + 1);
+    dragMapRef.current.clear();
+    setDragVersion(v => v + 1);
     if (overlayExpiryRef.current) {
       clearTimeout(overlayExpiryRef.current);
       overlayExpiryRef.current = null;
+    }
+    if (dragExpiryRef.current) {
+      clearTimeout(dragExpiryRef.current);
+      dragExpiryRef.current = null;
     }
     scrollTsRef.current.clear();
     viewMapRef.current.clear();
@@ -291,6 +347,38 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     followingRef.current = null;
     setFollowingId(null);
   }, []);
+
+  /** (Re)arm the TTL re-resolve at the soonest incoming-claim expiry — a
+   *  killed tab must lose its lock without a release edge (roadmap 235). */
+  const armDragExpiry = useCallback(() => {
+    if (dragExpiryRef.current) {
+      clearTimeout(dragExpiryRef.current);
+      dragExpiryRef.current = null;
+    }
+    const now = Date.now();
+    let soonest = Infinity;
+    for (const d of dragMapRef.current.values()) {
+      if (!d.surface) continue;
+      const expiry = d.at + DRAG_TTL_MS - now;
+      if (expiry > 0 && expiry < soonest) soonest = expiry;
+    }
+    if (!Number.isFinite(soonest)) return;
+    dragExpiryRef.current = setTimeout(() => {
+      dragExpiryRef.current = null;
+      const at = Date.now();
+      let pruned = false;
+      for (const [key, d] of [...dragMapRef.current]) {
+        if (d.surface && at - d.at > DRAG_TTL_MS) {
+          dragMapRef.current.delete(key);
+          pruned = true;
+        }
+      }
+      if (pruned) setDragVersion(v => v + 1);
+      armDragExpiry();
+    }, soonest + 50);
+  }, []);
+  const armDragExpiryRef = useRef(armDragExpiry);
+  armDragExpiryRef.current = armDragExpiry;
 
   /** Merge the presence list with the latest cursor + view + overlay per user
    *  (multi-window: one marker per person, newest window wins). */
@@ -314,10 +402,19 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
       }
     }
     if (selectionPruned) setSelectionVersion(v => v + 1);
-    const newestCursor = new Map<string, { anchor: PresenceAnchor; pointer: PointerKind; ts: number }>();
+    // Drag claims prune per client for the same reason.
+    let dragPruned = false;
+    for (const key of [...dragMapRef.current.keys()]) {
+      if (!liveClients.has(key)) {
+        dragMapRef.current.delete(key);
+        dragPruned = true;
+      }
+    }
+    if (dragPruned) setDragVersion(v => v + 1);
+    const newestCursor = new Map<string, { anchor: PresenceAnchor; pointer: PointerKind; drag: boolean; ts: number }>();
     for (const c of cursors.values()) {
       const prev = newestCursor.get(c.userId);
-      if (!prev || c.ts > prev.ts) newestCursor.set(c.userId, { anchor: c.anchor, pointer: c.pointer, ts: c.ts });
+      if (!prev || c.ts > prev.ts) newestCursor.set(c.userId, { anchor: c.anchor, pointer: c.pointer, drag: c.drag, ts: c.ts });
     }
     // Newest VIEW per user: the presence meta's join-time snapshot vs the
     // latest `view` broadcast — both stamped by the same client's clock, so
@@ -338,6 +435,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
         view,
         pointer: c?.pointer ?? p.pointer,
         ...(c ? { cursor: c.anchor, cursorTs: c.ts } : {}),
+        cursorDrag: c?.drag ?? false,
         overlay: cues.get(p.userId) ?? null,
       };
     });
@@ -390,7 +488,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           // are not applied (everything they aim at now lives on a surface we
           // cannot see).
           if (freezeCursorFor(overlayMapRef.current.values(), cursor.userId, Date.now())) return;
-          cursorMapRef.current.set(key, { userId: cursor.userId, anchor: cursor.anchor, pointer: cursor.pointer, ts: cursor.ts });
+          cursorMapRef.current.set(key, { userId: cursor.userId, anchor: cursor.anchor, pointer: cursor.pointer, drag: cursor.drag === true, ts: cursor.ts });
           rebuildPeers(peersRef.current);
         },
         onOverlay: (state) => {
@@ -414,6 +512,17 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           if (prev && update.ts < prev.ts) return;
           selectionMapRef.current.set(key, { userId: update.userId, selection: update.selection, ts: update.ts });
           setSelectionVersion(v => v + 1);
+        },
+        onDrag: (state) => {
+          const key = `${state.userId}:${state.clientId}`;
+          const prev = dragMapRef.current.get(key);
+          // Same last-write-wins recipe as the overlay cue: equal timestamps
+          // are accepted so a release edge sharing a millisecond with a
+          // redundant re-announce is never dropped as stale.
+          if (prev && state.ts < prev.ts) return;
+          dragMapRef.current.set(key, { userId: state.userId, surface: state.surface, itemIds: state.itemIds, ts: state.ts, at: Date.now() });
+          setDragVersion(v => v + 1);
+          armDragExpiryRef.current();
         },
         onSavePing: (ping) => { void applyPeerSaveRef.current(ping.revision); },
         onScroll: (scroll) => {
@@ -472,9 +581,18 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     if (selectionOwnerRef.current) {
       channel.publishSelection(selectionOwnerRef.current.selection);
     }
+    // …and our live drag claim, if a drag survived a channel restart.
+    if (localDragRef.current) {
+      channel.publishDrag(localDragRef.current.surface, localDragRef.current.itemIds);
+    }
     return () => {
       channel.stop();
       if (channelRef.current === channel) channelRef.current = null;
+      if (dragHeartbeatRef.current) {
+        clearInterval(dragHeartbeatRef.current);
+        dragHeartbeatRef.current = null;
+      }
+      localDragRef.current = null;
       clearPeers();
     };
   }, [onlineId, account?.id, account?.name, account?.avatarUrl, account?.isAnonymous, clientId, rebuildPeers, clearPeers]);
@@ -526,6 +644,37 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
   // pending expiry timer when the provider unmounts.
   useEffect(() => () => {
     if (overlayExpiryRef.current) clearTimeout(overlayExpiryRef.current);
+  }, []);
+
+  // ---- local drag claims (roadmap 235) --------------------------------------
+  // The provider owns the claim's lifecycle: a ~5s heartbeat while an item is
+  // held (so a dropped START frame still locks within a heartbeat, and a
+  // killed tab loses the lock via the receiver's TTL) and a RELEASE on blur /
+  // hidden document — the local drag cannot survive either.
+  useEffect(() => () => {
+    if (dragExpiryRef.current) clearTimeout(dragExpiryRef.current);
+    if (dragHeartbeatRef.current) clearInterval(dragHeartbeatRef.current);
+  }, []);
+
+  useEffect(() => {
+    const release = () => {
+      if (!localDragRef.current) return;
+      channelRef.current?.publishDrag(null, []);
+      localDragRef.current = null;
+      if (dragHeartbeatRef.current) {
+        clearInterval(dragHeartbeatRef.current);
+        dragHeartbeatRef.current = null;
+      }
+    };
+    const onVisibility = () => {
+      if (document.hidden) release();
+    };
+    window.addEventListener('blur', release);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('blur', release);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   // ---- S3.5: our successful online saves ride the channel -------------------
@@ -601,6 +750,29 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     selectionOwnerRef.current = null;
     channelRef.current?.publishSelection(null);
   }, []);
+  /** Start / re-announce a local drag claim (roadmap 235). The heartbeat is
+   *  the provider's job; the surface only reports start and release. */
+  const publishDrag = useCallback((surface: DragSurface, itemIds: string[]) => {
+    if (dragHeartbeatRef.current) {
+      clearInterval(dragHeartbeatRef.current);
+      dragHeartbeatRef.current = null;
+    }
+    localDragRef.current = { surface, itemIds };
+    channelRef.current?.publishDrag(surface, itemIds);
+    dragHeartbeatRef.current = setInterval(() => {
+      const current = localDragRef.current;
+      if (current) channelRef.current?.publishDrag(current.surface, current.itemIds);
+    }, DRAG_HEARTBEAT_MS);
+  }, []);
+  const releaseDrag = useCallback(() => {
+    if (dragHeartbeatRef.current) {
+      clearInterval(dragHeartbeatRef.current);
+      dragHeartbeatRef.current = null;
+    }
+    if (!localDragRef.current) return;
+    localDragRef.current = null;
+    channelRef.current?.publishDrag(null, []);
+  }, []);
   const noteUserViewChange = useCallback(() => {
     if (followingRef.current) stopFollowingRef.current();
   }, []);
@@ -622,13 +794,15 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     publishScroll,
     publishSelection,
     releaseSelection,
+    publishDrag,
+    releaseDrag,
     noteUserViewChange,
     isActive,
     follow,
     stopFollowing,
     registerFollowApplier,
     getLocalPointer,
-  }), [publishView, publishScroll, publishSelection, releaseSelection, noteUserViewChange, isActive, follow, stopFollowing, registerFollowApplier, getLocalPointer]);
+  }), [publishView, publishScroll, publishSelection, releaseSelection, publishDrag, releaseDrag, noteUserViewChange, isActive, follow, stopFollowing, registerFollowApplier, getLocalPointer]);
 
   // Newest selection per user (multi-window: newest window wins), self
   // excluded, clears already dropped. Only re-derived when a selection changed.
@@ -647,13 +821,37 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionVersion]);
 
+  // Live drag claims (newest window wins, TTL handled by resolveDragClaims).
+  // The signature keeps the array identity stable across heartbeats and
+  // cursor traffic — subscribers re-render on claim EDGES only (roadmap 235).
+  const dragsSignatureRef = useRef('');
+  const dragsCacheRef = useRef<PresencePeerDrag[]>([]);
+  const peerDrags = useMemo<PresencePeerDrag[]>(() => {
+    const claims = resolveDragClaims(dragMapRef.current.values(), Date.now());
+    const names = new Map(peersRef.current.map(p => [p.userId, p.name]));
+    const out: PresencePeerDrag[] = [];
+    for (const [userId, claim] of claims) {
+      out.push({ userId, name: names.get(userId) ?? 'Someone', surface: claim.surface, itemIds: claim.itemIds });
+    }
+    const signature = out.map(d => `${d.userId}|${d.name}|${d.surface}|${d.itemIds.join(',')}`).sort().join('§');
+    if (signature !== dragsSignatureRef.current) {
+      dragsSignatureRef.current = signature;
+      dragsCacheRef.current = out;
+    }
+    return dragsCacheRef.current;
+    // The version counter is the change signal (the map itself is a ref).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragVersion]);
+
   const state = useMemo<PresenceStateValue>(() => ({ peers, followingId, status, active }), [peers, followingId, status, active]);
 
   return (
     <PresenceActionsContext.Provider value={actions}>
       <PresenceStateContext.Provider value={state}>
         <PresenceSelectionsContext.Provider value={peerSelections}>
-          {children}
+          <PresenceDragsContext.Provider value={peerDrags}>
+            {children}
+          </PresenceDragsContext.Provider>
         </PresenceSelectionsContext.Provider>
       </PresenceStateContext.Provider>
     </PresenceActionsContext.Provider>

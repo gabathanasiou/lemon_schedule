@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { ScheduleRow, ScheduleVersion, SceneColorPalette } from '../../types';
 import { getNoteBannerColors } from '../../lib/ribbonUtils';
 import { IS_COARSE } from '../../lib/device';
+import type { PresenceHeldItem } from '../../lib/supabase/presence';
 export interface ColorPickerState {
   rowId: string;
   bg: string;
@@ -31,6 +32,8 @@ interface UseCalendarKeyboardConfig {
   onOpenSceneInPopout?: (sceneId: string) => void;
   /** Events mode owns the keyboard — strips hook stays off. */
   enabled?: boolean;
+  /** Live peer-held items (roadmap 235): Backspace/Delete skips them. */
+  heldBy?: Map<string, PresenceHeldItem>;
 }
 
 export function useCalendarKeyboard(config: UseCalendarKeyboardConfig) {
@@ -39,7 +42,7 @@ export function useCalendarKeyboard(config: UseCalendarKeyboardConfig) {
     selectedRowIdsRef, lastClickedIdRef, boneyardFlatRef, scrollToRow,
     activeVersion, dispatch, cutSelected, pasteClipboard, selectNextAfterRemove,
     setColorPicker, palette, onOpenScene, onOpenSceneInPopout,
-    enabled = true,
+    enabled = true, heldBy,
   } = config;
 
   // Selection navigation: Escape clears, Cmd+A selects the boneyard, ArrowUp/Down moves the cursor
@@ -151,7 +154,8 @@ export function useCalendarKeyboard(config: UseCalendarKeyboardConfig) {
         e.preventDefault();
         const ids = Array.from(selectedRowIdsRef.current).filter((id): id is string => {
           const r = activeVersion.rows.find(rr => rr.id === id);
-          return !r?.pinned;
+          // Peer-held rows are never deleted/moved (roadmap 235).
+          return !r?.pinned && !heldBy?.has(id);
         });
         if (ids.length === 0) return;
         const allRows = [...activeVersion.rows];
@@ -208,5 +212,5 @@ export function useCalendarKeyboard(config: UseCalendarKeyboardConfig) {
     };
     currentWindow.addEventListener('keydown', handler);
     return () => currentWindow.removeEventListener('keydown', handler);
-  }, [currentWindow, activeVersion, dispatch, cutSelected, pasteClipboard, selectNextAfterRemove, setColorPicker, onOpenScene, onOpenSceneInPopout, enabled]);
+  }, [currentWindow, activeVersion, dispatch, cutSelected, pasteClipboard, selectNextAfterRemove, setColorPicker, onOpenScene, onOpenSceneInPopout, enabled, heldBy]);
 }

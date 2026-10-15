@@ -4,6 +4,7 @@ import { ScheduleRow, Scene, RuleViolation } from '../../types';
 import SortDropdown from '../SortDropdown';
 import { SceneCard, SceneCardContent } from './SceneCard';
 import { BoneyardPanel } from '../BoneyardPanel';
+import type { PresenceHeldItem } from '../../lib/supabase/presence';
 
 export const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
 export const SIDEBAR_COLLAPSED_KEY = 'lemon_schedule_calendar_sidebar_collapsed';
@@ -20,6 +21,8 @@ export const BoneyardSidebar: React.FC<{
   activeRowId?: string | null;
   activeDragIds?: Set<string>;
   selectedIds?: Set<string>;
+  /** Live peer-held items (roadmap 235): item id → holder. */
+  heldBy?: Map<string, PresenceHeldItem>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
   onSort?: (criterion: string, direction: 'asc' | 'desc') => void;
   onCustomSort?: (criterion: string) => void;
@@ -32,7 +35,7 @@ export const BoneyardSidebar: React.FC<{
   dayNightSortLabel?: string;
   onRowDoubleClick?: (id: string) => void;
   onRowContextMenu?: (e: React.MouseEvent) => void;
-}> = ({ rows, scenes, displayField, sceneViolationMap, collapsed, onToggleCollapsed, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onCustomSort, sortBy, sortDir = 'asc' as 'asc' | 'desc', lockedCriteria = [], onToggleLock, sortCategories = [], intExtSortLabel, dayNightSortLabel, onRowDoubleClick, onRowContextMenu }) => {
+}> = ({ rows, scenes, displayField, sceneViolationMap, collapsed, onToggleCollapsed, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, heldBy, onRowClick, onSort, onCustomSort, sortBy, sortDir = 'asc' as 'asc' | 'desc', lockedCriteria = [], onToggleLock, sortCategories = [], intExtSortLabel, dayNightSortLabel, onRowDoubleClick, onRowContextMenu }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'boneyard', data: { type: 'BONEYARD' } });
   const [showSortMenu, setShowSortMenu] = useState(false);
 
@@ -72,7 +75,7 @@ export const BoneyardSidebar: React.FC<{
                 {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
               </div>
             )}
-            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
+            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} heldBy={heldBy?.get(r.id) ?? null} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
           </React.Fragment>
         ))}
         {rows.some(r => r.containerId != null) && (
@@ -92,7 +95,7 @@ export const BoneyardSidebar: React.FC<{
                 {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
               </div>
             )}
-            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
+            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} heldBy={heldBy?.get(r.id) ?? null} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
             {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-boneyard' && (
               <div className="opacity-40 flex flex-col gap-0">
                 {activeDragRows.slice(0, 2).map(dr => (
