@@ -46,6 +46,12 @@ export interface SupabaseAuthValue {
   sendPasswordReset: (email: string) => Promise<string | null>;
   /** End the Supabase session (does not touch Google Drive). */
   signOut: () => Promise<void>;
+  /** Revoke every OTHER session of this account — this device stays signed in
+   *  (the Sessions tab's "sign out other devices"). */
+  signOutOtherDevices: () => Promise<void>;
+  /** Revoke EVERY session, this device included — the explicit "sign out
+   *  everywhere" (never the default; see the local-scope signOut). */
+  signOutEverywhere: () => Promise<void>;
   /** True when a password-recovery link brought the user in — show the
    *  "set a new password" surface (App-level modal). */
   pendingRecovery: boolean;
@@ -68,6 +74,8 @@ const EMPTY: SupabaseAuthValue = {
   updateProfileName: async () => 'Not configured',
   sendPasswordReset: async () => 'Not configured',
   signOut: async () => {},
+  signOutOtherDevices: async () => {},
+  signOutEverywhere: async () => {},
   pendingRecovery: false,
   completePasswordRecovery: async () => 'Not configured',
   dismissRecovery: () => {},
@@ -250,6 +258,17 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     await supabase?.auth.signOut({ scope: 'local' });
   }, []);
 
+  const signOutOtherDevices = useCallback(async () => {
+    // 'others' = every session EXCEPT this one; the caller's sign-in survives.
+    await supabase?.auth.signOut({ scope: 'others' });
+  }, []);
+
+  const signOutEverywhere = useCallback(async () => {
+    // 'global' incl. this device — explicit and deliberate (the Sessions tab's
+    // destructive action behind a confirm); the default sign-out stays LOCAL.
+    await supabase?.auth.signOut({ scope: 'global' });
+  }, []);
+
   const value = useMemo<SupabaseAuthValue>(() => ({
     isConfigured: isSupabaseConfigured,
     isReady,
@@ -265,10 +284,12 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     updateProfileName,
     sendPasswordReset,
     signOut,
+    signOutOtherDevices,
+    signOutEverywhere,
     pendingRecovery,
     completePasswordRecovery,
     dismissRecovery,
-  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInAnonymously, upgradeAnonymousAccount, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, pendingRecovery, completePasswordRecovery, dismissRecovery]);
+  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInAnonymously, upgradeAnonymousAccount, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, signOutOtherDevices, signOutEverywhere, pendingRecovery, completePasswordRecovery, dismissRecovery]);
 
   return (
     <SupabaseAuthContext.Provider value={value}>

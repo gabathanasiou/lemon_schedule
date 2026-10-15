@@ -95,6 +95,14 @@ using the ONE shared format `src/lib/rooms/roomToken.ts`:
   surface gates on `locked`.
 - New mutations go through the ONE `Action` union — never a per-feature sync path;
   server-authoritative rooms then validate them by construction.
+- **Sign-out scopes are deliberate (roadmap 266)**: the default sign-out is LOCAL
+  (`{ scope: 'local' }`) so one device never revokes another; the Sessions tab
+  exposes `'others'` (this device stays in) and `'global'` (this device included,
+  behind a confirm). NEVER call `auth.signOut()` with no scope — the SDK default
+  is `'global'` (the 229 live pass: one dev-app sign-out zombie-d every device).
+- **Session expiry lives server-side (roadmap 266)**: a daily `pg_cron` sweep
+  deletes sessions older than 180 days (`session-timebox-180d`, migration
+  `20261015211212`) — the free-tier stand-in for Pro's inactivity timeout (§6).
 
 ## 5. Dependencies & supply chain
 
@@ -117,6 +125,14 @@ using the ONE shared format `src/lib/rooms/roomToken.ts`:
 - Rotating the room secret (deployed 2026-10-15 — see §3): set the new value in BOTH
   stores (Cloudflare worker + Supabase Edge Function), redeploy the function, then
   `npx wrangler deploy` the worker — in-flight sockets reconnect with fresh tokens.
+- **User sessions (roadmap 266)**: the time-box sweep is LIVE — `session-timebox-180d`
+  (daily 04:17 UTC) deletes sessions older than 180 days. It is the free-tier stand-in:
+  Supabase's **Inactivity timeout is Pro-only** (the Management API answers
+  `402 User sessions can only be configured on Pro Plans and up`), and this GoTrue
+  version records no per-session activity timestamp (`auth.sessions.refreshed_at` is
+  NULL, `updated_at` never moves, `auth.audit_log_entries` is empty). On Pro:
+  Authentication → Sessions → **Inactivity timeout = 30 days**, then unschedule the
+  sweep (`select cron.unschedule('session-timebox-180d');`).
 
 ## 7. Honest gaps (planned, not yet done)
 

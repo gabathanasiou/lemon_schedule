@@ -15,7 +15,7 @@ import { hasInFlightEdits } from '../lib/inFlightEdits';
 import { useRoomTransport } from '../lib/rooms/useRoomTransport';
 import { fetchRoomToken } from '../lib/rooms/tokenClient';
 import { ROOM_NOTE_MS } from '../lib/rooms/roomNotes';
-import { roomsConfigured } from '../lib/rooms/roomsEnv';
+import { roomsConfigured, roomsUrl, usesDevRoomTokens } from '../lib/rooms/roomsEnv';
 import type { RoomQueueInfo, RoomStatus } from '../lib/rooms/roomClient';
 import type { RoomRole } from '../lib/rooms/protocol';
 import { serializeProject } from '../lib/projectCodec';
@@ -262,9 +262,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     onlineId: currentOnlineId,
     userId: sbUserId,
     getToken: async (projectId) => {
-      // Local dev (`npm run dev`) talks to `wrangler dev` with dev tokens; the
-      // deployed build fetches a signed token from the Supabase function.
-      if (import.meta.env.DEV) return `dev:${sbUserId}:${onlineRoleRef.current ?? 'editor'}`;
+      // `dev:` tokens are LOOPBACK-ONLY (DEV_AUTH lives in the local worker's
+      // .dev.vars). A dev build pointed at the DEPLOYED worker (VITE_ROOMS_URL)
+      // is a real-server test — real accounts, real tokens, HMR included — so
+      // it mints through the function like any production client.
+      if (usesDevRoomTokens(roomsUrl(), import.meta.env.DEV)) {
+        return `dev:${sbUserId}:${onlineRoleRef.current ?? 'editor'}`;
+      }
       return fetchRoomToken(projectId);
     },
     getInitProject: () => (canEditRef.current ? serializeProject(presentRef.current) : null),

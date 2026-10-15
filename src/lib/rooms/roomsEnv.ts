@@ -32,6 +32,18 @@ export function isLoopbackRoomsUrl(url: string): boolean {
 }
 
 /**
+ * Which token flavour a DEV build mints. `dev:` tokens work ONLY against the
+ * LOOPBACK worker (its local `.dev.vars` sets DEV_AUTH); the DEPLOYED worker
+ * never has DEV_AUTH. So a dev build pointed at the deployed worker
+ * (`VITE_ROOMS_URL` = the deployed URL — the real-server testing path, with
+ * real accounts) must mint REAL tokens from the Supabase function like any
+ * production client. Prod builds always use real tokens.
+ */
+export function usesDevRoomTokens(url: string | undefined, isDev: boolean): boolean {
+  return isDev && (!url || isLoopbackRoomsUrl(url));
+}
+
+/**
  * Ask the DEV SERVER to bring the local worker up. A browser cannot spawn
  * processes — the Vite dev server's `GET /__rooms-dev/ensure` middleware owns
  * the launcher (`tools/rooms-dev.mjs`), reusing a running worker so parallel

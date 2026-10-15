@@ -168,6 +168,12 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   `client.start()`, so a collab session brings the worker up on demand. Room specs:
   `npx playwright test --config=playwright.rooms.config.ts` (config + worker + the probes);
   manual two-window proof: `workers/rooms/test/two-window-repro.mjs` (launcher-managed kill/restart).
+  **Dev against the REAL stack (real accounts, real tokens, HMR): point `VITE_ROOMS_URL` at the
+  deployed worker** (e.g. `"https://lemon-rooms.gabathanasiou.workers.dev"` in `.env`) — dev tokens
+  are LOOPBACK-ONLY (`usesDevRoomTokens`), because `DEV_AUTH` lives only in the local worker; any
+  other URL makes the dev build mint real tokens through the `room-token` function. Opening an
+  online project against the LOCAL worker prints the sandbox warning (`useRoomTransport`) — that
+  session deliberately cannot sync with live collaborators.
 - **While a room transport is MOUNTED for the open shared project (any status) it owns the
   project's writes**: every accepted write dispatch streams an action (`guardedDispatch`;
   `LOAD`/`UNDO`/`REDO` excluded — the room's own refuse-set), welcome/remote messages apply

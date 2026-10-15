@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isLoopbackRoomsUrl, roomsConfigured, roomsUrl } from '../rooms/roomsEnv';
+import { isLoopbackRoomsUrl, roomsConfigured, roomsUrl, usesDevRoomTokens } from '../rooms/roomsEnv';
 
 // Roadmap 246: VITE_ROOMS_URL is read in exactly ONE place, with a DEV-only
 // fallback to the local worker the dev server auto-starts.
@@ -31,5 +31,16 @@ describe('roomsEnv — the ONE rooms-URL read + its dev fallback', () => {
     expect(isLoopbackRoomsUrl('http://localhost:9999')).toBe(true);
     expect(isLoopbackRoomsUrl('https://lemon-rooms.example.workers.dev')).toBe(false);
     expect(isLoopbackRoomsUrl('not a url')).toBe(false);
+  });
+
+  it('usesDevRoomTokens: dev tokens ONLY for the loopback worker', () => {
+    // Dev + local/unset → the local worker's DEV_AUTH accepts dev tokens.
+    expect(usesDevRoomTokens('http://127.0.0.1:8787', true)).toBe(true);
+    expect(usesDevRoomTokens(undefined, true)).toBe(true);
+    // Dev pointed at the DEPLOYED worker → real tokens (no DEV_AUTH out there).
+    expect(usesDevRoomTokens('https://lemon-rooms.example.workers.dev', true)).toBe(false);
+    // Prod → never dev tokens.
+    expect(usesDevRoomTokens('https://lemon-rooms.example.workers.dev', false)).toBe(false);
+    expect(usesDevRoomTokens(undefined, false)).toBe(false);
   });
 });

@@ -6,19 +6,20 @@ import ModalFooterButton from './ModalFooterButton';
 import { AccountAvatar } from './AccountAvatar';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 import { TeamPanel } from './sharing/TeamPanel';
+import { SessionsPanel } from './SessionsPanel';
 
 const INPUT_CLASS = 'w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50 ui-input';
 
 /**
- * Account settings (roadmap 255) — **Profile** (display name + read-only
- * email; the S2 profile editor) and **Team** (the 254 roster, extracted to
- * TeamPanel). ONE modal, hosted by the header user cluster AND the Project
- * Manager's account bar, so the account/team is manageable anywhere — no
- * project open needed. The footer follows the tab: Profile saves, Team
- * commits live.
+ * Account settings (roadmap 255, 266) — **Profile** (display name + read-only
+ * email; the S2 profile editor), **Team** (the 254 roster, extracted to
+ * TeamPanel) and **Sessions** (the 266 sign-out scopes: other devices /
+ * everywhere). ONE modal, hosted by the header user cluster AND the Project
+ * Manager's account bar, so the account/team/sessions are manageable anywhere
+ * — no project open needed. The footer follows the tab: Profile saves, Team
+ * and Sessions commit live.
  */
-export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const auth = useSupabaseAuth();
+export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {  const auth = useSupabaseAuth();
   const [tab, setTab] = useState('profile');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -81,6 +82,7 @@ export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose
           options={[
             { v: 'profile', l: 'Profile' },
             { v: 'team', l: 'Team' },
+            { v: 'sessions', l: 'Sessions' },
           ]}
           onChange={setTab}
         />
@@ -107,8 +109,10 @@ export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose
             <p className="text-[11px] text-zinc-500">This is the name collaborators see.</p>
             {error && <p className="text-xs text-red-400">{error}</p>}
           </div>
-        ) : (
+        ) : tab === 'team' ? (
           <TeamPanel />
+        ) : (
+          <SessionsPanel onSignedOutEverywhere={onClose} />
         )}
       </div>
     </Modal>
