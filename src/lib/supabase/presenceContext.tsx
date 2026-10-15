@@ -8,6 +8,7 @@ import { startAutoAnchorStamps } from '../presenceAutoAnchors';
 import { applyPresenceScrollSample } from '../presenceScroll';
 import { getLocalOverlayKind, subscribeLocalOverlays } from '../localOverlaySignal';
 import { presenceDiagnostics, ProjectPresenceChannel, subscribeLocalSaves, type PresenceChannelStatus } from './presenceChannel';
+import { generateUUID } from '../utils';
 import {
   acceptCursor,
   DRAG_HEARTBEAT_MS,
@@ -163,17 +164,21 @@ export function useHeldItems(): Map<string, PresenceHeldItem> {
 }
 
 /** Per-tab client id (sessionStorage): two windows of one user are two clients,
- *  deduped per user for bubbles/cursors (docs/COLLABORATION.md §9). */
+ *  deduped per user for bubbles/cursors (docs/COLLABORATION.md §9).
+ *  `generateUUID` — NOT `crypto.randomUUID` directly: the latter is
+ *  secure-context-only and is `undefined` when the app is served over plain
+ *  HTTP (e.g. a LAN dev origin on a phone), which crashed this provider at
+ *  mount and blanked the whole app. */
 function presenceClientId(): string {
   try {
     const key = 'lemon_presence_client_id';
     const existing = sessionStorage.getItem(key);
     if (existing) return existing;
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     sessionStorage.setItem(key, id);
     return id;
   } catch {
-    return crypto.randomUUID();
+    return generateUUID();
   }
 }
 
