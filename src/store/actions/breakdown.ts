@@ -288,12 +288,20 @@ export function caseMergeElements(state: State, action: Action, applyChange: App
 
   const next: ProjectElement[] = [];
   const finalNames = new Set<string>();
+  // Names a rename PRODUCES. Only those absorb an existing element — an
+  // unrelated edit must never silently collapse a pre-existing case-variant
+  // pair (roadmap 250: 'car'/'CAR' stay distinct until a rename or an explicit
+  // merge involves them).
+  const renameTargets = new Set<string>();
+  for (const rn of renames) {
+    if (rn.newName) renameTargets.add(rn.newName.trim().toLowerCase());
+  }
   for (const e of list) {
     if (removeIdSet.has(e.id)) continue;
     const mapped = renameMap.get((e.name || '').trim().toLowerCase());
     const final = mapped !== undefined ? { ...e, name: mapped } : e;
     const key = (final.name || '').toLowerCase();
-    if (finalNames.has(key)) continue;
+    if ((mapped !== undefined || renameTargets.has(key)) && finalNames.has(key)) continue;
     finalNames.add(key);
     next.push(final);
   }

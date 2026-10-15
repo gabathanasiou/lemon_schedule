@@ -121,11 +121,17 @@ describe('MERGE_ELEMENTS', () => {
     expect(counts['fishing boat']).toBe(5); // former boat scenes
   });
 
-  it('absorbs case-duplicates even with no explicit edits (first spelling wins)', () => {
+  it('a no-op merge leaves the list untouched (pre-existing pairs stay distinct)', () => {
     const s = merge(init(), { category: 'vehicles', renames: [], removes: [], adds: [] });
+    expect(vehicleNames(s.present)).toEqual(VEHICLES);
+  });
+
+  it('an unrelated rename leaves pre-existing case-variant pairs distinct', () => {
+    const s = merge(init(), { category: 'vehicles', renames: [{ oldName: 'ship', newName: 'schooner' }], removes: [], adds: [] });
     const names = vehicleNames(s.present);
-    expect(names.filter(n => n.toLowerCase() === 'car')).toEqual(['car']);
-    expect(names.filter(n => n.toLowerCase() === 'fishing boat')).toEqual(['FISHING BOAT']);
+    expect(names).toContain('schooner');
+    expect(names.filter(n => n.toLowerCase() === 'car')).toEqual(['car', 'CAR']);
+    expect(names.filter(n => n.toLowerCase() === 'fishing boat')).toEqual(['FISHING BOAT', 'fishing boat']);
   });
 
   it('a batched save is ONE undo entry that restores elements and scenes', () => {
