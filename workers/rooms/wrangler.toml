@@ -5,6 +5,10 @@ compatibility_date = "2026-10-01"
 # One Durable Object per shared project — the S4 realtime room (docs/COLLABORATION.md §6 S4).
 # The room runs the SAME pure reducer the app runs, so an action means exactly the same
 # thing everywhere (multiplayer by construction, no per-feature sync code).
+#
+# Local dev: `npx wrangler dev` from this folder. `.dev.vars` (gitignored) sets DEV_AUTH=1,
+# which accepts `dev:<userId>:<role>` tokens; deployed envs use ROOM_TOKEN_SECRET instead
+# (`npx wrangler secret put ROOM_TOKEN_SECRET`, shared with the Supabase Edge Function).
 
 [[durable_objects.bindings]]
 name = "ROOMS"

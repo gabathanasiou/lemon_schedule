@@ -1,28 +1,17 @@
-import { DurableObject } from 'cloudflare:workers';
-import { reducer } from '../../../src/store/reducer';
+import { Room, type Env } from './room';
 
-interface Env {
-  ROOMS: DurableObjectNamespace;
-}
+export { Room };
 
 /**
- * S4 room scaffolding (docs/COLLABORATION.md §6 S4).
- *
- * The end state: this object owns one shared project — it receives actions, validates
- * and applies them through the app's own pure reducer, persists an action log +
- * periodic snapshots, and broadcasts `(action, revision)` to every connected client.
- * Importing the real reducer here (not a copy) is the point: one ordering/validation
- * authority, byte-identical semantics with the client.
+ * lemon-rooms — the S4 realtime room worker (docs/COLLABORATION.md §6 S4).
+ * One Durable Object per shared project; clients connect over WebSocket at
+ * `/room/<projectId>` and speak the shared wire protocol (`src/lib/rooms/protocol.ts`).
  */
-export class Room extends DurableObject {
-  async fetch(_request: Request): Promise<Response> {
-    return Response.json({ room: 'ok', reducer: typeof reducer === 'function' });
-  }
-}
-
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const id = env.ROOMS.idFromName('health');
-    return env.ROOMS.get(id).fetch(request);
+    const match = new URL(request.url).pathname.match(/^\/room\/([^/]+)$/);
+    if (!match) return Response.json({ ok: true, service: 'lemon-rooms' });
+    const projectId = decodeURIComponent(match[1]);
+    return env.ROOMS.get(env.ROOMS.idFromName(projectId)).fetch(request);
   },
-};
+} satisfies ExportedHandler<Env>;
