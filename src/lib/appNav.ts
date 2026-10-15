@@ -77,6 +77,12 @@ export function isAppTabId(value: unknown): value is AppTabId {
   return typeof value === 'string' && TAB_IDS.includes(value as AppTabId);
 }
 
+/** Phone-portrait chrome (roadmap 267 PoC): the only places the two-tab
+ *  header can show — Schedule, and the Breakdown tab's Sheet surface. */
+export function isPhoneSupportedPlace(place: AppPlace): boolean {
+  return place.tab === 'schedule' || (place.tab === 'breakdown' && place.sub === 'sheet');
+}
+
 /** The mode-bearing key for a place ('production/crew'), or null. */
 function modeKey(place: AppPlace): string | null {
   const key = place.sub ? `${place.tab}/${place.sub}` : '';

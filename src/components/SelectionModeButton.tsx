@@ -19,7 +19,7 @@ export default function SelectionModeButton() {
       aria-pressed={active}
       aria-label={active ? 'Exit Select mode' : 'Select mode'}
       title={active ? 'Exit Select mode' : 'Select mode'}
-      style={{ bottom: 80, right: 16 }}
+      style={{ bottom: 80, right: 'max(16px, env(safe-area-inset-right, 0px))' }}
       onClick={(e) => {
         e.stopPropagation();
         setMarqueeMode(mode === 'tool' ? 'off' : 'tool');

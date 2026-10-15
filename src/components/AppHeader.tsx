@@ -71,6 +71,22 @@ interface AppHeaderProps {
   createProject: (title?: string) => Promise<void>;
   /** Opens the app-level AccountModal (sign in / create account). */
   onOpenAccount: () => void;
+  /** Phone-portrait chrome (roadmap 267 PoC): collapse the tab row to
+   *  Schedule + Sheet and drop the secondary header controls. */
+  phone?: { sheetActive: boolean; onOpenSheet: () => void } | null;
+}
+
+/** One rendered header tab — desktop rows come from `TAB_ORDER`; the phone
+ *  row is Schedule + Sheet (roadmap 267), where Sheet IS the Breakdown tab's
+ *  SceneSheet surface. */
+interface HeaderTabItem {
+  key: string;
+  /** Popout / context-menu / presence-anchor identity. */
+  id: AppTabId;
+  label: string;
+  icon: React.ReactNode;
+  active: boolean;
+  select: () => void;
 }
 
 export default function AppHeader(props: AppHeaderProps) {
@@ -83,7 +99,9 @@ export default function AppHeader(props: AppHeaderProps) {
     onOpenProjectManager, onManageSharing, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
     onShowTrash, onShowWhatsNew, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
+    phone,
   } = props;
+  const hasPhoneChrome = !!phone;
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   // Local draft while renaming: the store (and the index meta / Drive / online
@@ -125,6 +143,14 @@ export default function AppHeader(props: AppHeaderProps) {
     return () => ro.disconnect();
   }, [syncTabLayout]);
 
+  // The measured "required width" is per TAB SET (roadmap 267): rotating swaps
+  // the phone row (2 tabs) in/out, so re-measure before the new set's first
+  // paint instead of reusing the other row's number.
+  useLayoutEffect(() => {
+    requiredTabWidthRef.current = null;
+    syncTabLayout();
+  }, [hasPhoneChrome, syncTabLayout]);
+
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
   /* Project chrome (roadmap 248): local zinc / Drive blue / shared emerald. */
@@ -135,9 +161,20 @@ export default function AppHeader(props: AppHeaderProps) {
   const isCloud = projectTheme !== 'local';
   const fileTriggerText = projectTheme === 'local' ? 'text-zinc-400 hover:text-white' : 'text-white';
 
+  /* Phone-portrait row (roadmap 267 PoC): Schedule + Sheet; the Sheet tab
+     opens the Breakdown tab's SceneSheet surface. Desktop/iPad keep all seven
+     tabs. Legacy `id` values keep popout/presence identity honest — the phone
+     Sheet tab IS the Breakdown tab. */
+  const headerTabs: HeaderTabItem[] = phone
+    ? [
+        { key: 'schedule', id: 'schedule', label: TAB_LABELS.schedule, icon: TAB_ICONS.schedule, active: activeTab === 'schedule', select: () => setActiveTab('schedule') },
+        { key: 'sheet', id: 'breakdown', label: 'Sheet', icon: TAB_ICONS.breakdown, active: phone.sheetActive, select: phone.onOpenSheet },
+      ]
+    : TAB_ORDER.map(id => ({ key: id, id, label: TAB_LABELS[id], icon: TAB_ICONS[id], active: activeTab === id, select: () => setActiveTab(id) }));
+
   /* The white selection pill glides between tabs (useSlidingPill — the Seg
      mechanism) and chases the row's live geometry while labels expand. */
-  const tabPill = useSlidingPill(tabContentRef, tabButtonRefs, Math.max(0, TAB_ORDER.indexOf(activeTab)));
+  const tabPill = useSlidingPill(tabContentRef, tabButtonRefs, Math.max(0, headerTabs.findIndex(t => t.active)));
 
   const agentBridgeLabel =
     agentBridge.status === 'connected' ? 'Agent bridge: connected'
@@ -175,7 +212,7 @@ export default function AppHeader(props: AppHeaderProps) {
        (z-auto — header-hung tooltips keep painting over content) and below the
        presence pointers (z-30) and the portaled menus. */
     <header data-chrome-bar="app-header" className={`sticky top-0 z-20 flex items-center ${chrome.bar} text-zinc-300 ${CHROME_BAR_INSET} py-2 select-none print:hidden`}>
-      <div className={`flex items-center ${CHROME_ITEM_GAP} shrink-0`}>
+      <div className={`flex items-center ${CHROME_ITEM_GAP} shrink-0 group-data-[island=left]:pl-safe`}>
           <DropdownMenu
             open={showFileMenu}
             onOpenChange={setShowFileMenu}
@@ -281,7 +318,7 @@ export default function AppHeader(props: AppHeaderProps) {
               </DropdownItem>
             )}
           </DropdownMenu>
-          <SaveIndicator isCloudProject={isCloud} />
+          {!hasPhoneChrome && <SaveIndicator isCloudProject={isCloud} />}
           {editingTitle ? (
             <input 
               autoFocus
@@ -310,22 +347,22 @@ export default function AppHeader(props: AppHeaderProps) {
             {tabPill.style && (
               <span aria-hidden className={`absolute top-0 bottom-0 rounded bg-white pointer-events-none ${tabPill.motionClass}`} style={tabPill.style} />
             )}
-            {TAB_ORDER.map((tabId, i) => (
+            {headerTabs.map((tab, i) => (
               <Button
-                key={tabId}
+                key={tab.key}
                 ref={el => { tabButtonRefs.current[i] = el; }}
                 variant="tab-header"
                 cloud={accent}
-                active={activeTab === tabId}
-                icon={TAB_ICONS[tabId]}
+                active={tab.active}
+                icon={tab.icon}
                 collapse={tabDock}
                 iconWithLabel={false}
-                data-presence-anchor={`nav:tab:${tabId}`}
-                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout(tabId); } else { setActiveTab(tabId); } }}
-                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); onTabContextMenu(e, tabId); }}
+                data-presence-anchor={`nav:tab:${tab.id}`}
+                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout(tab.id); } else { tab.select(); } }}
+                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); onTabContextMenu(e, tab.id); }}
                 className="shrink-0 relative z-10"
               >
-                {TAB_LABELS[tabId]}
+                {tab.label}
               </Button>
             ))}
           </div>
@@ -334,12 +371,15 @@ export default function AppHeader(props: AppHeaderProps) {
       {/* Trailing cluster (roadmap 264): controls and identity are separate
           clusters — 8px inside each, the 16px cluster gap before the avatar,
           so it keeps the same 16px of air on its left as the bar's edge rail
-          gives it on the right. */}
-      <div className="flex items-center font-mono text-xs shrink-0 ml-auto">
-        <div className={`flex items-center ${CHROME_ITEM_GAP}`}>
-          <RoomNote />
-          <UndoRedoButtons />
-        </div>
+          gives it on the right. Phone portrait (roadmap 267): the identity
+          cluster is the only survivor. */}
+      <div className="flex items-center font-mono text-xs shrink-0 ml-auto group-data-[island=right]:pr-safe">
+        {!hasPhoneChrome && (
+          <div className={`flex items-center ${CHROME_ITEM_GAP}`}>
+            <RoomNote />
+            <UndoRedoButtons />
+          </div>
+        )}
         <UserPresenceCluster className={CHROME_CLUSTER_MARGIN} driveCtx={driveCtx} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
       </div>
     </header>

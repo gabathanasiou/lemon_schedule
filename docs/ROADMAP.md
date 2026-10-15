@@ -1044,3 +1044,207 @@ the home for support-style items later.
   never project contents or tokens); whether a signed-in account prefills
   identity. No secrets in the client.
 - **Relations:** `extends` **260** (File → Help submenu introduced there).
+
+## 268. File menu clean-up — Close project, drop Script integrity + Manage Shared, Custom Reports under Print (`[ ]`)
+
+**Requested 2026-10-15 (user):** four small `src/components/AppHeader.tsx` tweaks
+in one pass:
+
+- **Add "Close project"** — File menu top group, next to Project Manager; call
+  the existing `closeProject()` (`useProject()` — `provider.tsx:1476`: clears
+  the last-project pointer, `currentProjectId` → null, App shows the opening
+  page `ProjectManagerBoot`, `App.tsx:938`). The prop is already threaded into
+  AppHeader (`:71`) — render-only wiring. Today only the sign-out flows call it
+  (`UserPresenceCluster.tsx:146,261`). Build-time check: a Drive project whose
+  save retries are exhausted (`driveSaveError`) would drop pending changes on
+  close — warn or flush first (SaveIndicator already surfaces the state).
+- **Remove "Manage Shared Project…"** — a duplicate of the avatar/account-menu
+  entry that stays (`UserPresenceCluster.tsx:246-253`); delete the File copy
+  (`AppHeader.tsx:185-189`, `isOnlineProject` gate) plus its now-orphaned
+  `isOnlineProject`/`useIsOnlineProject`/`Users` in AppHeader. The
+  `onManageSharing` prop itself stays (passed through to the cluster).
+- **Remove "Script integrity…"** — delete the File item (`AppHeader.tsx:251-253`),
+  the modal mount (`App.tsx:1265`), `ScriptIntegrityModal.tsx` and the
+  `onShowIntegrity` plumbing (`AppHeader.tsx:65`, `App.tsx:1082`); KEEP
+  `src/lib/scriptIntegrity.ts` + the debug bridge `auditScript()`/`repairScript()`
+  (agent tooling — AGENTS.md §Agentic Debug Bridge).
+- **Custom Reports under Print** — move the sibling submenu
+  (`AppHeader.tsx:225-235`) inside the Print submenu (Print → Custom Reports →
+  design names; restores the plan sketch in
+  `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md` §6). Nests `DropdownSubmenu` inside
+  `DropdownSubmenu` — verify Radix nesting + the 165 positioning engine and the
+  iPad touch pass; fallback if nesting misbehaves: the flat list inside Print.
+
+**Verify:** rule-7 manual pass on the open menu (no e2e — menu
+structure/visuals; `docs/TESTING.md` §Manual verification); `npm run lint`.
+No spec touches these items today.
+
+**Docs on close:** `docs/COLLABORATION.md:38` (drops the "(File menu)" Manage
+Shared pointer); `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md` §6 (sketch matches
+as-built); `docs/REPORTS-DESIGNER.md:90,121` (File → Print → Custom Reports
+paths).
+
+**Relations:** `extends` **247** (File menu chrome pass); `relates to` **262**
+(Help group in the same menu), **182** (nested submenus on touch), **135**
+(introduced Script integrity), **229** (sharing surfaces), **3/5** (custom-report
+print — the menu entry those built).
+
+## 267. iPhone portrait — Schedule-first chrome, edge-to-edge stripboard (PoC, `[~]`)
+
+**Requested 2026-10-15 (user, PoC):** on a phone held in **portrait** the app
+collapses to what a phone can actually use; **landscape is untouched**.
+
+- **Top bar:** tabs reduce to **Schedule** + **Sheet** (Sheet opens
+  Breakdown → Sheet — the SceneSheet surface, last sheet index kept). File
+  menu, project name and the presence bubbles stay; SaveIndicator, Undo/Redo,
+  RoomNote and the other five tabs hide.
+- **Schedule toolbar:** only the **View** menu and the schedule **version**
+  picker render; the View trigger gains its "View" label beside the eye icon.
+- **Boneyard:** forced closed on the phone — it renders null while collapsed
+  and its expand button is one of the trimmed toolbar controls, so the
+  stripboard owns the whole width.
+- **Stripboard:** opens **Full Width** with ~4px side margins (`p-8` → `px-1`
+  in the phone branch) so the schedule spans the device; the bottom reserve
+  shrinks too (`pb-32` → `pb-16`) — strips render down to the bottom edge
+  while a modest scroll run still lifts the last strip clear of Safari's
+  floating bottom bar (no `env(safe-area-inset-bottom)` — that is 0 in a
+  Safari tab anyway and stays reserved for installed web apps). The stored
+  `useViewMode` pref is never rewritten by the phone layout on its own — a
+  View-menu pick applies for the mount (session override) and still persists
+  for every other surface.
+- **Sheet surface:** the mini bar drops the other sub-tabs
+  (Script/Element Manager/Glide) and the sheet's New/Duplicate/Delete scene
+  actions; it keeps the **order menu** (view options), the **‹ Sheet N of M ›
+  navigation** and the **script-pane toggle**. The script pane defaults
+  **closed** on the phone (an explicit toggle still wins, on any surface).
+- **Detection:** `usePhonePortrait()` (`src/lib/device.ts`) —
+  `(pointer: coarse) and (max-width: 600px) and (orientation: portrait)`,
+  matchMedia-driven (no UA sniffing). Landscape, iPads (≥744pt) and the Duo's
+  open inner display fall out; the Duo OUTER display (466×678) matches on
+  purpose — it is a phone-width portrait viewport. Known quirk: iPad Slide
+  Over (≤600pt) also matches.
+- **Debug on the Mac:** Safari's Responsive Design Mode does NOT emulate
+  `pointer: coarse`, so the layout cannot trigger there — `?phone=1` forces it
+  in a PORTRAIT viewport while keeping orientation real (DEV builds always;
+  prod/preview with `localStorage LEMON_AGENT=1`, the debug-bridge gate).
+  Console one-liner: `localStorage.setItem('LEMON_AGENT','1'); location.search='?phone=1'`
+  (clear with `location.search=''`). Chrome DevTools device mode and a real
+  iPhone flip the query natively.
+- **Orientation memory:** rotating never moves you off a page that exists in
+  the target orientation — Schedule and Sheet are valid in both, so
+  portrait↔landscape keeps them as-is ("don't use the memory thing when the
+  page is supported by both"). Only a landscape-only page has no portrait
+  home: rotating into portrait then restores the remembered portrait place
+  (`App.tsx` single slot + effect; predicate `isPhoneSupportedPlace` in
+  `lib/appNav.ts`; default Schedule — also the boot-place clamp). Collab follow
+  is clamped the same way: on a phone, following a peer never navigates onto a
+  place the two-tab chrome cannot show (it holds still until the peer visits
+  one that maps).
+- **Phone boot + splash:** the first paint is phone-aware
+  (`activeTab`/`brSubTab` lazy-init from `usePhonePortrait`), so the desktop
+  default (Glide) never flashes before the boot clamp; opening a project in
+  portrait then shows a 700ms full-screen splash in the header-bar colour with
+  the project name + spinner (`App.tsx`, `data-testid="phone-splash"`).
+- **Bottom bar (iOS 26+, phone) — root cause + measured ceiling 2026-10-16:**
+  the app was CLIPPED BY OUR OWN CSS. `src/index.css` had
+  `html, body, #root { height: 100%; overflow: hidden; }` — on iOS 26 the
+  layout viewport ends at the top of the floating bottom bar, so `height:100%`
+  capped the shell there and `overflow:hidden` cut everything past it (it also
+  defeated the earlier fixed-wrapper/+120px attempts, which sat BELOW the
+  clip). Proof: a plain scrolling document with no such confinement
+  (`directedbygabriel.com` — user's own site) paints under the bars; this app
+  did not. Fix: the confinement is gone (html/body/#root = `margin:0;
+  overscroll-behavior:none; background #f4f4f5` — never re-add the clip).
+  **Measured on the device** (14 Pro Max via the temporary dev probe —
+  `src/lib/devProbe.ts` + a probe server on the Mac, REMOVE when the phone
+  pass ends): portrait inner 775 / `100lvh` 815 / screen 932 → a Safari TAB
+  can paint at most `100lvh` (815 = 40px into the bar), the last ~117px is
+  Safari's own zone; the canvas background fills it so it reads as the
+  stripboard/Sheet surface. Landscape: shell = full height already, insets
+  report the Dynamic Island (59px left/right, 20px bottom) — the shell now
+  carries `env(safe-area-inset-top/left/right)` paddings in BOTH orientations
+  (`phoneDevice`, `PHONE_DEVICE_QUERY`), and the `viewport-fit=cover` opt-in
+  (`src/main.tsx`) uses that same phone-any-orientation query (iPad/desktop
+  keep the plain meta — roadmap 265). Reserves `pb-safe-or-16` keep the last
+  row scrollable clear. **What finally filled the screen (user: "you fixed
+  it"):** the shell height — no viewport unit reaches the bottom (WebKit
+  301108), so portrait sizes it from the REAL screen height (`h-(--app-h)`,
+  `--app-h` = `screen.height` px set by App.tsx when portrait; `index.css`
+  holds the `100lvh` fallback) + the `#f4f4f5` canvas fills the residual.
+  **Library use (user directive — don't reinvent):** `tailwindcss-safe-area`
+  v1.3.0 + Tailwind's `h-screen`/`h-lvh`; the community skill
+  `ios-safari-safe-area` (GitHub/MIT) prescribes the same shape. **Landscape
+  model (user-specified):** the app DRAWS full-bleed; only interactables and
+  container content sit inside the safe areas — the shell stamps
+  `data-island` (left|right) from `useIslandSide()` (`screen.orientation.angle`
+  mapping: 90 → left, 270 → right — flip if a device disagrees) and every
+  edge surface reacts with Tailwind `group-data-[island=…]` variants:
+  `AppHeader` clusters, `PageToolbar` (all pages' mini tab bars),
+  `BoneyardPanel`, `SidebarNav`, `ReportsTab`/`RibbonPalette` (left docks),
+  the report palette (left/right), `SceneScriptPane` (right dock) and the
+  SceneSheet content. The side WITHOUT the island never insets. Everything
+  recalculates on rotation (`screen.orientation` change + `orientationchange`
+  + `resize` + `visualViewport` resize); floating toggles use
+  `right/bottom: max(16px, env(...))`.
+  Remaining: the PM boot screen is still `fixed inset-0` (caps at the layout
+  viewport — gets the `--app-h` treatment next); REMOVE the temporary dev probe
+  (`src/lib/devProbe.ts` + `tools/phone-probe.mjs` — server on :3999, logs
+  `/tmp/lemon-phone-probe.json`); run the FULL Playwright suite before closing
+  (the session's last suite run predates the shell/CSS changes). The surface
+  sweep is item **269**. Full-bleed standalone remains **Add to Home Screen**.
+- **Wiring:** `App.tsx` owns the hook + the Sheet tab's `go({tab:'breakdown',
+  sub:'sheet'})`; AppHeader takes `phone` (tab set + hidden controls);
+  ScheduleTab takes `phone` (effective view mode + padding) and passes it to
+  `ScheduleToolbar`.
+
+**Status:** PoC built 2026-10-15 (this session). Remaining before closing: real
+iPhone pass (portrait + rotate); open questions — undo/redo unreachable on
+phone (deliberate?); boneyard unreachable while closed (no toggle — do we need
+a peek affordance?); whether Sheet should carry the Breakdown sub-tab bar;
+whether to persist the phone default.
+
+**Verify:** `npm run lint` + full suite (no test profile matches the query —
+desktop is 1280/`pointer:fine`, iPad 834 — so the phone branch is
+manual-only by design, rule 7). Manual: iPhone portrait → two tabs, trimmed
+toolbar, edge-to-edge stripboard; rotate → everything normal.
+
+**Relations:** trims what **258**/**264** built (icon-first tabs, edge rails);
+the View menu is **243**'s followed `viewMode` field; related **17**/**182**
+(touch surfaces), **265** (status-bar tint). The remaining surface sweep is
+**269**.
+
+## 269. Optimise every area for iPhone & landscape (sweep) (`[ ]`)
+
+**Requested 2026-10-16 (user):** after the 267 PoC, sweep EVERY surface for
+iPhone portrait + landscape so nothing collides with the Dynamic Island, the
+rounded corners or the home indicator — and nothing stays capped at a viewport
+unit on iOS 26 Safari (WebKit 301108: no unit reaches the physical bottom).
+
+- **Model (established in 267 — reuse, never invent per-surface):** the app
+  DRAWS full-bleed (shell height = the real screen dimension via `--app-h`;
+  page canvas `#f4f4f5` fills Safari's residual band); only interactables and
+  container content sit inside the safe areas, and only on the island side —
+  `useIslandSide()` → shell `data-island` → Tailwind
+  `group-data-[island=…]` variants with the `tailwindcss-safe-area`
+  utilities (`pl-safe`/`pr-safe`/`pb-safe-or-16` — never hand-rolled `env()`
+  in styles).
+- **Sweep checklist (per surface × orientation, on the device):**
+  - modals/dialogs + footers (kit `Modal` is centred — check landscape island
+    clearance; wide modals may touch the island edge),
+  - dropdown/context-menu panels opened near an edge (the panel aligns to its
+    trigger — inset triggers move the panel with them),
+  - the **Project Manager boot screen** (still `fixed inset-0` — caps at the
+    layout viewport; give it the `--app-h` treatment + island-side content),
+  - per tab: Calendar (sidebar, day cells), Production (Day Manager header,
+    Crew/Locations managers), Script (toolbar + cut affordances), Glide grids
+    (headers), Reports (palettes done — verify), Design (Ribbon/Colors),
+    Rules, Element Manager (sidebars done — verify),
+  - `OfflineStatus` banners + `RoomNote` + the floating toggles.
+  - Print/popout surfaces are desktop-only — out of scope.
+- **Recalculation is already the rule** (`screen.orientation` change +
+  `orientationchange` + `resize` + `visualViewport` resize); any new inset
+  must go through the shared hook/attribute, never a one-off media query.
+- **Verify:** device pass per surface (portrait + both landscape rotations);
+  `npm run lint`; full Playwright suite before closing; rule-7 manual list.
+- **Relations:** follows **267** (PoC + mechanism); reuses **17**/**182**
+  (touch audits); chrome/status-bar notes in **265**.
