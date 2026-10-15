@@ -3,13 +3,12 @@ import { FloatingTooltip } from '../FloatingTooltip';
 import ScriptTagMenu, { type ScriptTagMenuState } from './ScriptTagMenu';
 import { useProject } from '../../store';
 import { annotationColor } from '../../lib/scriptAnnotations';
-import { annotationCategoryLabel, annotationElementName, attachedRanges, commitTag, detachTag, suggestionRanges, type TagExisting } from '../../lib/scriptTagging';
+import { annotationCategoryLabel, annotationElementName, sceneSpans, sceneSpansEqual, commitTag, detachTag, type SceneSpans, type TagExisting } from '../../lib/scriptTagging';
 import { useQueueCastNaming } from '../../lib/newCastNaming';
 import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
-import { normalizeSceneNumber } from '../../lib/script';
 import { usePersistState } from '../../lib/persist';
 import { TEST_IDS } from '../../lib/testIds';
-import type { Project, ScriptAnnotation } from '../../types';
+import type { Project, Scene, ScriptAnnotation } from '../../types';
 
 /**
  * Script tagging interaction (roadmap 136), shared by the Script sub-tab and the
@@ -51,8 +50,9 @@ function offsetWithinBlock(root: HTMLElement, node: Node, offset: number): numbe
 }
 
 export interface ScriptTaggingApi {
-  /** Committed (solid) + non-committed (dotted) spans, toggle-gated. */
-  annotations: ScriptAnnotation[];
+  /** The spans for ONE live scene — committed (solid) → attached (solid) →
+   *  recognized → suggestions (wavy), lazily derived + cached. */
+  annotationsForScene: (sceneId: string | undefined) => ScriptAnnotation[];
   tagMenu: ScriptTagMenuState | null;
   hovered: { annotation: ScriptAnnotation; x: number; y: number } | null;
   showSuggestions: boolean;
@@ -65,51 +65,109 @@ export interface ScriptTaggingApi {
   closeMenu: () => void;
 }
 
+/** Stable empty result so memoized scenes don't re-render on identity churn. */
+const NO_ANNOTATIONS: ScriptAnnotation[] = [];
+const NO_STORED: ScriptAnnotation[] = [];
+
+/** One lazily-derived scene's spans + the slice identities they were computed
+ *  from. Entries live across renders, so a tag committed in ONE scene only
+ *  invalidates that scene (the old global derivation rebuilt everything on
+ *  every project change). */
+interface SpansEntry {
+  scene: Scene;
+  stored: ScriptAnnotation[];
+  doc: Project['scriptDocument'];
+  showSuggestions: boolean;
+  cast: Project['castMembers'];
+  elements: Project['breakdownElements'];
+  custom: Project['customCategories'];
+  labels: Project['categoryLabels'];
+  spans: SceneSpans;
+}
+
 export function useScriptTagging(): ScriptTaggingApi {
   const { state, dispatch, locked } = useProject();
   const project = state.present;
+  const projectRef = useRef(project);
+  projectRef.current = project;
   const { queue: queueCastNaming } = useQueueCastNaming();
   const [showSuggestions, setShowSuggestions] = usePersistState('lemon_schedule_script_suggestions', true);
+  const showSuggestionsRef = useRef(showSuggestions);
+  showSuggestionsRef.current = showSuggestions;
   const [tagMenu, setTagMenu] = useState<ScriptTagMenuState | null>(null);
   const [hovered, setHovered] = useState<{ annotation: ScriptAnnotation; x: number; y: number } | null>(null);
   const selectionRangeRef = useRef<Range | null>(null);
 
   const projectScenes = project.scenes;
-  const sceneByIdentity = useMemo(() => {
-    const map = new Map<string, { id: string; index: number }>();
-    projectScenes.forEach((s, index) => map.set(normalizeSceneNumber(s.sceneNumber), { id: s.id, index }));
+  const scenesById = useMemo(() => {
+    const map = new Map<string, Scene>();
+    for (const s of projectScenes) map.set(s.id, s);
     return map;
   }, [projectScenes]);
+  const scenesByIdRef = useRef(scenesById);
+  scenesByIdRef.current = scenesById;
 
-  // Derived spans: attached elements (solid, always) + suggestions (wavy, gated).
-  const derived = useMemo(() => {
-    if (!project.scriptDocument) return { attached: [] as ScriptAnnotation[], suggestions: [] as ScriptAnnotation[] };
-    const attached: ScriptAnnotation[] = [];
-    const suggestions: ScriptAnnotation[] = [];
-    for (const s of project.scriptDocument.scenes) {
-      const live = sceneByIdentity.get(normalizeSceneNumber(s.sceneNumber));
-      if (!live) continue;
-      const scene = projectScenes[live.index];
-      const sceneAttached = attachedRanges(project, scene);
-      attached.push(...sceneAttached);
-      if (showSuggestions) suggestions.push(...suggestionRanges(project, scene, sceneAttached));
+  // This scene's stored annotations, with IDENTITY PRESERVED when the scene's
+  // slice didn't change — a commit in scene A must leave scene B's array (and
+  // therefore its cached spans and memoized render) untouched.
+  const storedBySceneRef = useRef<Map<string, ScriptAnnotation[]> | null>(null);
+  const storedByScene = useMemo(() => {
+    const prev = storedBySceneRef.current;
+    const map = new Map<string, ScriptAnnotation[]>();
+    for (const a of project.scriptAnnotations || []) {
+      const arr = map.get(a.sceneId);
+      if (arr) arr.push(a); else map.set(a.sceneId, [a]);
     }
-    return { attached, suggestions };
-  }, [showSuggestions, project, sceneByIdentity, projectScenes]);
+    if (prev) {
+      for (const [id, arr] of map) {
+        const old = prev.get(id);
+        if (old && old.length === arr.length && old.every((x, i) => x === arr[i])) map.set(id, old);
+      }
+    }
+    storedBySceneRef.current = map;
+    return map;
+  }, [project.scriptAnnotations]);
 
-  const annotations = useMemo(() => {
-    const stored = project.scriptAnnotations || [];
-    // Priority per range: stored committed → attached (solid) → recognized seeds
-    // and suggestions (wavy, toggle-gated).
-    const committed = stored.filter(a => !a.recognized);
-    const recognized = showSuggestions ? stored.filter(a => a.recognized) : [];
-    return [
-      ...committed,
-      ...derived.attached,
-      ...recognized,
-      ...(showSuggestions ? derived.suggestions : []),
-    ];
-  }, [project.scriptAnnotations, showSuggestions, derived]);
+  const spansCacheRef = useRef(new Map<string, SpansEntry>());
+  const cacheDocRef = useRef<Project['scriptDocument']>(undefined);
+
+  const spansFor = useCallback((sceneId: string): SceneSpans | null => {
+    const p = projectRef.current;
+    const scene = scenesByIdRef.current.get(sceneId);
+    if (!scene) return null;
+    const cache = spansCacheRef.current;
+    if (cacheDocRef.current !== p.scriptDocument) {
+      cache.clear();
+      cacheDocRef.current = p.scriptDocument;
+    }
+    const stored = storedBySceneRef.current?.get(sceneId) ?? NO_STORED;
+    const show = showSuggestionsRef.current;
+    const hit = cache.get(sceneId);
+    if (hit
+      && hit.scene === scene
+      && hit.stored === stored
+      && hit.doc === p.scriptDocument
+      && hit.showSuggestions === show
+      && hit.cast === p.castMembers
+      && hit.elements === p.breakdownElements
+      && hit.custom === p.customCategories
+      && hit.labels === p.categoryLabels) {
+      return hit.spans;
+    }
+    const computed = sceneSpans(p, scene, show, stored);
+    const entry: SpansEntry = {
+      scene, stored, doc: p.scriptDocument, showSuggestions: show,
+      cast: p.castMembers, elements: p.breakdownElements, custom: p.customCategories, labels: p.categoryLabels,
+      spans: hit && sceneSpansEqual(hit.spans, computed) ? hit.spans : computed,
+    };
+    cache.set(sceneId, entry);
+    return entry.spans;
+  }, []);
+
+  const annotationsForScene = useCallback((sceneId: string | undefined): ScriptAnnotation[] => {
+    if (!sceneId) return NO_ANNOTATIONS;
+    return spansFor(sceneId)?.annotations ?? NO_ANNOTATIONS;
+  }, [spansFor]);
 
   const handleSelectionEnd = useCallback(() => {
     window.setTimeout(() => {
@@ -135,9 +193,10 @@ export function useScriptTagging(): ScriptTaggingApi {
       if (end <= start) return;
       const text = body.slice(start, end);
       const exact = (a: ScriptAnnotation) => a.sceneId === sceneId && a.blockIndex === blockIndex && a.start === start && a.end === end;
-      const existing = (project.scriptAnnotations || []).find(exact);
-      const derivedMatch = existing ? undefined : derived.attached.find(exact);
-      const suggestionMatch = existing || derivedMatch ? undefined : derived.suggestions.find(exact);
+      const existing = (projectRef.current.scriptAnnotations || []).find(exact);
+      const spans = spansFor(sceneId);
+      const derivedMatch = existing ? undefined : spans?.attached.find(exact);
+      const suggestionMatch = existing || derivedMatch ? undefined : spans?.suggestions.find(exact);
       selectionRangeRef.current = range.cloneRange();
       const rect = range.getBoundingClientRect();
       setTagMenu({
@@ -150,7 +209,7 @@ export function useScriptTagging(): ScriptTaggingApi {
         source: 'selection',
       });
     }, 0);
-  }, [locked, project.scriptAnnotations, derived]);
+  }, [locked, spansFor]);
 
   // Keep the native selection highlighted while the selection menu is open:
   // the kit menu focuses its search input on open, which clears the browser
@@ -230,7 +289,7 @@ export function useScriptTagging(): ScriptTaggingApi {
   const closeMenu = useCallback(() => setTagMenu(null), []);
 
   return {
-    annotations, tagMenu, hovered, showSuggestions, setShowSuggestions,
+    annotationsForScene, tagMenu, hovered, showSuggestions, setShowSuggestions,
     handleSelectionEnd, handleAnnotationHover, openAnnotation, onCommit, onRemove, closeMenu,
   };
 }
