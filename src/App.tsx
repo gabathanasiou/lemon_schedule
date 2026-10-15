@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ProjectProvider, useProject } from './store';
+import { ProjectProvider, useProject, useProjectTheme } from './store';
 import { useDialog } from './components/Dialog';
 import { Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
@@ -70,7 +70,7 @@ import type { DayView } from './lib/dayView';
 import VersionToolbar from './components/VersionToolbar';
 import { LongPressMenuProvider, getMarqueeMode, setTransientMarquee } from './lib/useLongPressMenu';
 import { isInteractiveElement } from '@gabriel/ui-kit';
-import { IS_COARSE, pickerAccept } from './lib/device';
+import { IS_COARSE, pickerAccept, usePhonePortrait, usePhoneDevice, useIslandSide } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
 import AppHeader, { AppTabId } from './components/AppHeader';
@@ -89,6 +89,7 @@ import { useDaybreakSections } from './lib/useDaybreakSections';
 import { useKeyboardDismissOnScroll } from './lib/useKeyboardDismissOnScroll';
 import { useStatusBarTheme } from './lib/useStatusBarTheme';
 import { usePersistState } from './lib/persist';
+import { PROJECT_CHROME } from './lib/projectTheme';
 import { useLaggingValue } from './lib/useLaggingValue';
 import { ReportBlock, ReportDesign } from './types';
 import { dayScopeFilter } from './components/reports/DayReportPreview';
@@ -97,7 +98,7 @@ import { prepareSunWeatherForDesign } from './lib/reportWeather';
 import OfflineStatus from './components/OfflineStatus';
 import { PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar } from './components/popout/PopoutFrames';
 import { DayTypesTab } from './components/calendar/DayTypesTab';
-import { AppPlace, NavStack, initStack, pushPlace, currentPlace, previousPlace, isNavStack, parsePlaceHash, placeToHash, samePlace, TAB_ORDER } from './lib/appNav';
+import { AppPlace, NavStack, initStack, pushPlace, currentPlace, previousPlace, isNavStack, parsePlaceHash, placeToHash, samePlace, TAB_ORDER, isPhoneSupportedPlace } from './lib/appNav';
 import { PresenceProvider, usePresenceActions } from './lib/supabase/presenceContext';
 import { placeToPresenceView, presenceViewToPlace } from './lib/supabase/presence';
 import { PresenceOverlay } from './components/PresenceOverlay';
@@ -111,12 +112,36 @@ function AppContent() {
   const presenceActions = usePresenceActions();
   // Status-bar / browser-chrome tint follows the project theme (roadmap 265).
   useStatusBarTheme();
+  // Project chrome (roadmap 248): the phone splash shares the header bar colour.
+  const projectTheme = useProjectTheme();
+  const chrome = PROJECT_CHROME[projectTheme];
+  // Phone portrait (roadmap 267 PoC): collapsed two-tab header + a trimmed
+  // Schedule toolbar. False in landscape, on iPad and on desktop.
+  const phonePortrait = usePhonePortrait();
+  const phoneDevice = usePhoneDevice();
+  // Dynamic-Island side (roadmap 267): ONE source for every island-edge inset
+  // — the shell stamps `data-island`, and bars/panels react with Tailwind
+  // `group-data-[island=…]` variants. The side WITHOUT the island never insets.
+  const islandSide = useIslandSide();
+  // Orientation memory (roadmap 267 PoC): portrait (the phone chrome) and
+  // landscape (the full app) each remember their last place; `applyPlace`
+  // records into the active context's slot and the rotation effect restores
+  // them when the place on screen cannot be shown in the incoming orientation.
+  const phonePortraitRef = useRef(phonePortrait);
+  phonePortraitRef.current = phonePortrait;
+  /** The last place seen in the phone chrome — restored when a rotation lands
+   *  on a landscape-only page (never used while the current place is valid in
+   *  both orientations). */
+  const phonePortraitSlotRef = useRef<AppPlace | null>(null);
   // Set while a followed peer's view is being applied — that programmatic
   // navigation must NOT exit follow mode (any other `go` does).
   const applyingFollowRef = useRef(false);
-  const [activeTab, setActiveTab] = useState<AppTabId>('breakdown');
+  // Phone portrait (roadmap 267): the FIRST paint must already be a place the
+  // two-tab chrome can show — booting on the desktop default (Glide) flashed
+  // the grid for a frame before the boot clamp landed.
+  const [activeTab, setActiveTab] = useState<AppTabId>(() => (phonePortrait ? 'schedule' : 'breakdown'));
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons' | 'designer'>('ribbons');
-  const [brSubTab, setBrSubTab] = useState<'elements' | 'sheet' | 'glide' | 'script'>('glide');
+  const [brSubTab, setBrSubTab] = useState<'elements' | 'sheet' | 'glide' | 'script'>(() => (phonePortrait ? 'sheet' : 'glide'));
   const [brCategory, setBrCategory] = useState('cast');
   const [brSheetIdx, setBrSheetIdx] = useState(0);
   const [reportsSubTab, setReportsSubTab] = useState<'doods' | 'elementBreakdown'>('doods');
@@ -173,6 +198,9 @@ function AppContent() {
   const navRef = useRef<NavStack>(initStack({ tab: 'breakdown', sub: 'glide' }));
 
   const applyPlace = useCallback((place: AppPlace) => {
+    // Portrait memory (roadmap 267): the place to come back to when a rotation
+    // lands on a landscape-only page.
+    if (phonePortraitRef.current) phonePortraitSlotRef.current = place;
     setActiveTab(place.tab);
     if (place.sub !== undefined) {
       switch (place.tab) {
@@ -237,6 +265,10 @@ function AppContent() {
     return presenceActions.registerFollowApplier((view) => {
       const place = presenceViewToPlace(view);
       if (!place) return;
+      // Phone portrait (roadmap 267): a followed peer may sit on a place the
+      // two-tab chrome cannot show — hold still until they visit one that maps
+      // (no navigation, and no republish claiming we moved).
+      if (phonePortraitRef.current && !isPhoneSupportedPlace(place)) return;
       applyingFollowRef.current = true;
       try {
         go(place);
@@ -246,6 +278,23 @@ function AppContent() {
       presenceActions.publishView(view);
     });
   }, [go, presenceActions]);
+
+  // Orientation memory (roadmap 267 PoC): rotating NEVER moves you off a page
+  // that exists in the target orientation (Schedule and Sheet are valid in
+  // both, so portrait<->landscape keeps them as-is). Only a landscape-only
+  // page has no portrait home: rotating into portrait then restores the
+  // remembered portrait place (default: Schedule).
+  const prevPhonePortraitRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const was = prevPhonePortraitRef.current;
+    prevPhonePortraitRef.current = phonePortrait;
+    if (was === null || was === phonePortrait) return;
+    if (!phonePortrait) return; // landscape shows every place — stay put
+    const cur = currentPlace(navRef.current);
+    if (isPhoneSupportedPlace(cur)) return;
+    const remembered = phonePortraitSlotRef.current;
+    go(remembered && isPhoneSupportedPlace(remembered) ? remembered : { tab: 'schedule' });
+  }, [phonePortrait, go]);
 
   /** Production sub-sub views (Days Manager/Call Sheet, Crew/Locations
    *  manager/Glide). Leaving a non-default view goes BACK when the previous
@@ -303,14 +352,65 @@ function AppContent() {
     const persistedStack = isNavStack(persistedState?.lemon) ? persistedState.lemon : null;
     const adopt = !!persistedStack && persistedState?.pid === currentProjectId;
     const fallback: AppPlace = { tab: 'breakdown', sub: 'glide' };
-    const base = adopt
+    const persistedBase = adopt
       ? currentPlace(persistedStack!)
       : (persistedStack ? fallback : (parsePlaceHash(window.location.hash) ?? fallback));
-    const nav = adopt ? persistedStack! : initStack(base);
+    // Phone portrait (roadmap 267): never boot onto a place the two-tab chrome
+    // cannot show (e.g. a reload right after a landscape session).
+    const base = phonePortraitRef.current && !isPhoneSupportedPlace(persistedBase)
+      ? { tab: 'schedule' as const }
+      : persistedBase;
+    const nav = adopt && base === persistedBase ? persistedStack! : initStack(base);
     navRef.current = nav;
     applyPlace(base);
     window.history.replaceState({ lemon: nav, pid: currentProjectId }, '', `#/${placeToHash(base)}`);
   }, [currentProjectId, applyPlace]);
+
+  // Phone splash (roadmap 267): opening a project on a phone in portrait gets a
+  // brief full-screen beat — header-bar colour, project name, loader. The
+  // initial place is phone-aware now (nothing unsupported renders underneath);
+  // this is the deliberate splash, and it can never outlive its timer.
+  const [phoneSplash, setPhoneSplash] = useState(false);
+  useEffect(() => {
+    if (currentProjectId === null || !phonePortraitRef.current) {
+      setPhoneSplash(false);
+      return;
+    }
+    setPhoneSplash(true);
+    const t = setTimeout(() => setPhoneSplash(false), 700);
+    return () => clearTimeout(t);
+  }, [currentProjectId]);
+
+  // Phone shell height (roadmap 267): the REAL screen dimension — every
+  // viewport unit stops short on iOS 26 Safari (WebKit 301108; landscape left
+  // a sliver at the bottom). Portrait uses the long edge, landscape the short
+  // edge. GUARD: `screen` is the HOST display in emulation (RDM on a Mac), so
+  // only trust it when it is plausibly the phone's display — at most a
+  // browser-chrome delta (~250px) taller than the live viewport; otherwise
+  // the shell is exactly the viewport.
+  useEffect(() => {
+    if (!phoneDevice) return;
+    const set = () => {
+      const portrait = window.matchMedia('(orientation: portrait)').matches;
+      const screenEdge = portrait ? window.screen?.height : window.screen?.width;
+      const vh = window.innerHeight;
+      const chrome = (screenEdge ?? vh) - vh;
+      const h = screenEdge && chrome > 0 && chrome <= 250 ? screenEdge : vh;
+      document.documentElement.style.setProperty('--app-h', `${h}px`);
+    };
+    set();
+    window.addEventListener('orientationchange', set);
+    window.addEventListener('resize', set);
+    window.visualViewport?.addEventListener?.('resize', set);
+    window.screen?.orientation?.addEventListener?.('change', set);
+    return () => {
+      window.removeEventListener('orientationchange', set);
+      window.removeEventListener('resize', set);
+      window.visualViewport?.removeEventListener?.('resize', set);
+      window.screen?.orientation?.removeEventListener?.('change', set);
+      document.documentElement.style.removeProperty('--app-h');
+    };
+  }, [phoneDevice]);
 
   // Tab actions: a tab click blurs and commits any focused field first, so the
   // switch/popout runs directly (roadmap 250 — the manager pages no longer hold
@@ -386,6 +486,10 @@ function AppContent() {
     setBrSheetIdx(rowIndex);
     if (!poppedOutTabs.has('breakdown')) go({ tab: 'breakdown', sub: 'sheet', sheetIndex: rowIndex });
   }, [poppedOutTabs, go]);
+
+  /** Phone-portrait header (roadmap 267): the Sheet tab opens the SceneSheet
+   *  surface at its last sheet index (no one-shot target). */
+  const handleOpenSheetTab = useCallback(() => go({ tab: 'breakdown', sub: 'sheet' }), [go]);
 
   const handleOpenScene = useCallback((sceneId: string) => {
     const idx = state.present.scenes.findIndex(s => s.id === sceneId);
@@ -992,7 +1096,14 @@ function AppContent() {
       onLongPress={handleLongPress}
     >
     <>
-    <div className="h-screen bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden">
+    {/* Phone (roadmap 267): portrait shell height = the REAL screen height
+        (`--app-h`, set by the effect below — viewport units stop at Safari's
+        paint ceiling, WebKit 301108). `pt-safe` pads the content below the
+        status bar while the header background stays full-bleed. Horizontal
+        safe areas live on the header/PageToolbar CONTENT (landscape island),
+        not on the shell, so bars keep the full width. The html/body/#root
+        clip that used to cut everything at the toolbar is gone (index.css). */}
+    <div className={`${phoneDevice ? 'h-(--app-h)' : 'h-screen'} pt-safe bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden group`} data-island={islandSide ?? undefined}>
       {showProjectManager && (
         <ProjectManager onClose={() => setShowProjectManager(false)} onOpenAccount={() => setShowAccountModal(true)} />
       )}
@@ -1087,6 +1198,7 @@ function AppContent() {
         closeProject={closeProject}
         createProject={async (title) => { await createProject(title); }}
         onOpenAccount={() => setShowAccountModal(true)}
+        phone={phonePortrait ? { sheetActive: activeTab === 'breakdown' && brSubTab === 'sheet', onOpenSheet: handleOpenSheetTab } : null}
       />
 
       {/* POPOUT WINDOWS */}
@@ -1244,7 +1356,7 @@ function AppContent() {
           (roadmap 263) — `inert` for that window so a click can never land on
           the stale surface (e.g. the Glide toolbar's Edit under the Schedule
           tab's) and role queries skip it entirely. */}
-      <main key={currentProjectId} inert={view !== contentView || mountedProdViews !== prodViews} className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      <main key={currentProjectId} inert={view !== contentView || mountedProdViews !== prodViews} className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: phonePortrait ? 0 : 'env(safe-area-inset-bottom, 0px)' }}
         onClick={(e) => {
           if ((e.target as HTMLElement).closest('button, input, select, [role="button"], [role="menuitem"]')) return;
           setShowFileMenu(false);
@@ -1255,11 +1367,18 @@ function AppContent() {
         {poppedOutTabs.has(view.tab) ? (
           <PopoutPlaceholder title={tabLabels[view.tab]} onBringBack={() => closePopout(view.tab)} />
         ) : (
-          view.tab === 'breakdown' ? <BreakdownTab subTab={view.br} onSubTabChange={goBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} onUpdateScript={() => updateScriptFileRef.current?.click()} onCutScene={handleCutScene} shiftHeld={shiftHeld} /> : view.tab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> :           view.tab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} subTab={view.calendar} onSubTabChange={goCalSubTab} poppedOutSubTabs={poppedOutSubTabs.calendar || new Set()} onToggleSubPopout={(id) => toggleSubPopout('calendar', id)} onCloseSubPopout={(id) => closeSubPopout('calendar', id)} shiftHeld={shiftHeld} /> :           view.tab === 'design' ? <DesignTab subTab={view.design} onSubTabChange={goDesignSubTab} onReportPrint={(design, daySectionIndex) => setCustomReportPrint({ design, daySectionIndex })} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> :           view.tab === 'reports' ? <ReportsTab subTab={view.reports} onSubTabChange={goReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (view.reports === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> :           view.tab === 'production' ? <ProductionTab subTab={view.production} onSubTabChange={goProdSubTab} views={mountedProdViews} onViewChange={goProdView} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} shiftHeld={shiftHeld} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} dayTarget={dayManagerTarget} onDayTargetSeen={() => setDayManagerTarget(null)} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} /> : <RulesTab />
+          view.tab === 'breakdown' ? <BreakdownTab phone={phonePortrait} subTab={view.br} onSubTabChange={goBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} onUpdateScript={() => updateScriptFileRef.current?.click()} onCutScene={handleCutScene} shiftHeld={shiftHeld} /> : view.tab === 'schedule' ? <ScheduleTab phone={phonePortrait} onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> :           view.tab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} subTab={view.calendar} onSubTabChange={goCalSubTab} poppedOutSubTabs={poppedOutSubTabs.calendar || new Set()} onToggleSubPopout={(id) => toggleSubPopout('calendar', id)} onCloseSubPopout={(id) => closeSubPopout('calendar', id)} shiftHeld={shiftHeld} /> :           view.tab === 'design' ? <DesignTab subTab={view.design} onSubTabChange={goDesignSubTab} onReportPrint={(design, daySectionIndex) => setCustomReportPrint({ design, daySectionIndex })} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> :           view.tab === 'reports' ? <ReportsTab subTab={view.reports} onSubTabChange={goReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (view.reports === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> :           view.tab === 'production' ? <ProductionTab subTab={view.production} onSubTabChange={goProdSubTab} views={mountedProdViews} onViewChange={goProdView} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} shiftHeld={shiftHeld} crewRoleTarget={prodCrewRole} onCrewRoleTargetChange={setProdCrewRole} locationTypeTarget={prodLocationType} onLocationTypeTargetChange={setProdLocationType} dayTarget={dayManagerTarget} onDayTargetSeen={() => setDayManagerTarget(null)} onOpenScene={handleOpenScene} onPrintCallSheet={(day, design, zoneBlocks) => handleReportPrint(design, dayScopeFilter(day.sectionIndex), undefined, zoneBlocks)} onPopOutDay={handlePopOutDay} /> : <RulesTab />
         )}
       </main>
 
       <PresenceOverlay />
+
+      {phoneSplash && (
+        <div data-testid="phone-splash" role="status" className={`fixed inset-0 z-40 flex flex-col items-center justify-center gap-5 ${chrome.bar}`}>
+          <Loader2 className="w-6 h-6 animate-spin text-white/70" />
+          <div className="max-w-[80%] truncate px-6 text-sm font-medium text-white">{project.title || 'Untitled Project'}</div>
+        </div>
+      )}
 
       <TrashModal open={showTrash} onClose={() => setShowTrash(false)} project={project} dispatch={dispatch} />
       {showIntegrity && <ScriptIntegrityModal onClose={() => setShowIntegrity(false)} />}

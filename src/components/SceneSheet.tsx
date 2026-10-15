@@ -47,7 +47,7 @@ const ORDER_LABELS: Record<BreakdownOrder, string> = {
   stripboard: 'Stripboard Order',
 };
 
-export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule, onOpenScheduleInPopout }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void; onOpenScheduleInPopout?: (sceneId: string) => void }) {
+export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule, onOpenScheduleInPopout, phone = false }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void; onOpenScheduleInPopout?: (sceneId: string) => void; /** Phone-portrait chrome (roadmap 267). */ phone?: boolean }) {
   const { state, dispatch, locked } = useProject();
   const { request: requestSceneDuplicate } = useSceneDuplicate();
   const accent = projectAccentOf(useProjectTheme());
@@ -60,7 +60,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const order = orderPrefs.order;
   const setOrder = useCallback((o: BreakdownOrder) => setOrderPrefs({ order: o }), [setOrderPrefs]);
   const [orderMenuOpen, setOrderMenuOpen] = useState(false);
-  const scriptPane = useScriptPanePref('sheet');
+  const scriptPane = useScriptPanePref('sheet', phone ? false : undefined);
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
 
@@ -452,55 +452,82 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     </div>
   ) : null;
 
-  const headerContent = scenes.length > 0 ? (
+  const orderMenu = (
+    <DropdownMenu
+      open={orderMenuOpen}
+      onOpenChange={setOrderMenuOpen}
+      width="w-52"
+      theme="light"
+      trigger={
+        <Button>
+          <ListOrdered className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">{ORDER_LABELS[order]}</span>
+          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+        </Button>
+      }
+    >
+      {(['sheet', 'sceneNumber', 'stripboard'] as const).map(o => (
+        <DropdownItem
+          key={o}
+          onClick={() => switchOrder(o)}
+          icon={order === o ? <Check className="w-3.5 h-3.5" /> : undefined}
+        >
+          {ORDER_LABELS[o]}
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+
+  const sheetNav = (
     <>
-      <DropdownMenu
-        open={orderMenuOpen}
-        onOpenChange={setOrderMenuOpen}
-        width="w-52"
-        theme="light"
-        trigger={
-          <Button>
-            <ListOrdered className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">{ORDER_LABELS[order]}</span>
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-          </Button>
-        }
-      >
-        {(['sheet', 'sceneNumber', 'stripboard'] as const).map(o => (
-          <DropdownItem
-            key={o}
-            onClick={() => switchOrder(o)}
-            icon={order === o ? <Check className="w-3.5 h-3.5" /> : undefined}
-          >
-            {ORDER_LABELS[o]}
-          </DropdownItem>
-        ))}
-      </DropdownMenu>
-      <ToolbarDivider />
       <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-500" /></button>
       <span className="text-[11px] text-zinc-500">Sheet</span>
       <input type="text" aria-label="Sheet number" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-10 text-center border border-zinc-200 rounded px-1 py-0.5 text-[11px] font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
       <span className="text-[11px] text-zinc-500">of {scenes.length}</span>
       <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-500" /></button>
-      <ToolbarDivider />
-      <Button variant="primary" cloud={accent} onClick={createNewScene} disabled={locked} title="New Scene Sheet" aria-label="New">
-        <Plus className="w-3 h-3" />
-      </Button>
-      <Button onClick={duplicateScene} disabled={locked} title="Duplicate Scene Sheet" aria-label="Duplicate">
-        <Copy className="w-3 h-3" />
-      </Button>
-      <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={locked} title="Delete Scene Sheet" aria-label="Delete">
-        <Trash2 className="w-3 h-3" />
-      </Button>
-      <ToolbarDivider />
-      <ScriptPaneToggle open={scriptPane.open} onToggle={() => scriptPane.setOpen(!scriptPane.open)} />
     </>
+  );
+
+  const scriptPaneToggle = (
+    <ScriptPaneToggle open={scriptPane.open} onToggle={() => scriptPane.setOpen(!scriptPane.open)} />
+  );
+
+  /* Phone portrait (roadmap 267 PoC): the Sheet toolbar keeps ONLY the view
+     options (the order menu), the sheet navigation and the script-pane
+     toggle — no scene create/duplicate/delete actions. */
+  const headerContent = scenes.length > 0 ? (
+    phone ? (
+      <>
+        {orderMenu}
+        <ToolbarDivider />
+        {sheetNav}
+        <ToolbarDivider />
+        {scriptPaneToggle}
+      </>
+    ) : (
+      <>
+        {orderMenu}
+        <ToolbarDivider />
+        {sheetNav}
+        <ToolbarDivider />
+        <Button variant="primary" cloud={accent} onClick={createNewScene} disabled={locked} title="New Scene Sheet" aria-label="New">
+          <Plus className="w-3 h-3" />
+        </Button>
+        <Button onClick={duplicateScene} disabled={locked} title="Duplicate Scene Sheet" aria-label="Duplicate">
+          <Copy className="w-3 h-3" />
+        </Button>
+        <Button variant="danger-ghost" onClick={deleteCurrentScene} disabled={locked} title="Delete Scene Sheet" aria-label="Delete">
+          <Trash2 className="w-3 h-3" />
+        </Button>
+        <ToolbarDivider />
+        {scriptPaneToggle}
+      </>
+    )
   ) : null;
 
   return (
     <div className="flex-1 flex h-full min-h-0 w-full">
-    <div ref={containerRef} onScroll={presenceScroll.notify} className="flex-1 flex flex-col h-full min-w-0 bg-zinc-100 overflow-y-auto" style={{ paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
+    <div ref={containerRef} onScroll={presenceScroll.notify} className={`flex-1 flex flex-col h-full min-w-0 bg-zinc-100 overflow-y-auto group-data-[island=left]:pl-safe group-data-[island=right]:pr-safe ${phone ? 'pb-safe-or-16' : ''}`} style={phone ? undefined : { paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
 
       {scene && (() => {

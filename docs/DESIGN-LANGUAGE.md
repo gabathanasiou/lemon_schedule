@@ -69,8 +69,11 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
   fixed/sticky, ≥90% wide, >10px deep, own `background-color`) picks up its fill, and
   `useStatusBarTheme()` mirrors `PROJECT_CHROME[...].barHex` (`src/lib/projectTheme.ts`)
   into `meta[name="theme-color"]` for the opaque Home-Screen-web-app bar. MUST NOT add
-  the deprecated `apple-mobile-web-app-status-bar-style`, `black-translucent`, or
-  `viewport-fit=cover`.
+  the deprecated `apple-mobile-web-app-status-bar-style` or `black-translucent`.
+  `viewport-fit=cover` is **phone-portrait-only** (roadmap 267): the viewport meta is
+  flipped at boot in `src/main.tsx` when `PHONE_PORTRAIT_QUERY` matches, and the phone
+  shell + scroll reserves consume `env(safe-area-inset-*)`; iPad/desktop keep the plain
+  meta and the two-layer model above.
 
 ### Boot screen (no project open) — minimal backdrop + app lockup (roadmap 82)
 

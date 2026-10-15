@@ -37,7 +37,7 @@ export default function KeyboardToggleButton() {
           ? `Hardware keyboard detected — toggle has no effect. Software mode: ${active ? 'on' : 'off'}`
           : active ? 'Keyboard input on' : 'Keyboard input off'
       }
-      style={{ bottom: 16, right: 16 }}
+      style={{ bottom: 'max(16px, env(safe-area-inset-bottom, 0px))', right: 'max(16px, env(safe-area-inset-right, 0px))' }}
       onClick={(e) => {
         e.stopPropagation();
         setMode(active ? 'off' : 'on');

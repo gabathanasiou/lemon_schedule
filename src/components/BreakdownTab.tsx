@@ -12,7 +12,7 @@ import { GlideBreakdownTab } from './BreakdownTabGlide';
 import { PopoutPlaceholder } from './PopoutWindow';
 import { TEST_IDS } from '../lib/testIds';
 
-export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, onUpdateScript, onCutScene, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: {
+export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, onUpdateScript, onCutScene, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, phone = false }: {
   subTab: 'elements' | 'sheet' | 'glide' | 'script';
   onSubTabChange: (t: 'elements' | 'sheet' | 'glide' | 'script') => void;
   savedCat: string;
@@ -29,6 +29,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;
   shiftHeld?: boolean;
+  /** Phone-portrait chrome (roadmap 267 PoC): no sub-tab strip. */
+  phone?: boolean;
 }) {
   const subTab = externalSubTab;
   const scrollTops = useRef<Record<string, number>>({});
@@ -61,7 +63,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 overflow-hidden relative select-none">
       <PageToolbar
-        tabs={[
+        tabs={phone ? [] : [
           { id: 'sheet', label: 'Sheet', icon: <Table2 className="w-3.5 h-3.5" /> },
           { id: 'script', label: 'Script', icon: <FileText className="w-3.5 h-3.5" /> },
           { id: 'elements', label: 'Element Manager', icon: <Blocks className="w-3.5 h-3.5" /> },
@@ -71,6 +73,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         onChange={requestSubTabChange}
         onPopout={requestSubTabPopout}
         shiftHeld={shiftHeld}
+        justify={phone ? 'end' : 'between'}
         rightContent={
           <div className="flex items-center gap-2">
             {/* Script controls portal in first so the script menu is leftmost. */}
@@ -109,7 +112,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       {poppedOutSubTabs.has(subTab) ? (
         <PopoutPlaceholder title={subTabLabels[subTab]} onBringBack={() => onCloseSubPopout(subTab)} />
       ) : (
-        subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} onOpenScheduleInPopout={onOpenScheduleInPopout} /> : subTab === 'script' ? <ScriptView headerTarget={portalTarget} onOpenSheet={onOpenSheet} onOpenSchedule={onOpenSchedule} onUpdateScript={onUpdateScript} onCutScene={onCutScene} cutMode={cutMode} onCutModeChange={setCutMode} /> : <GlideBreakdownTab onOpenSheet={onOpenSheet} onOpenSheetInPopout={onOpenSheetInPopout} headerTarget={portalTarget} />
+        subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} onOpenScheduleInPopout={onOpenScheduleInPopout} phone={phone} /> : subTab === 'script' ? <ScriptView headerTarget={portalTarget} onOpenSheet={onOpenSheet} onOpenSchedule={onOpenSchedule} onUpdateScript={onUpdateScript} onCutScene={onCutScene} cutMode={cutMode} onCutModeChange={setCutMode} /> : <GlideBreakdownTab onOpenSheet={onOpenSheet} onOpenSheetInPopout={onOpenSheetInPopout} headerTarget={portalTarget} />
       )}
       {splitManagerOpen && <SplitManagerModal onOpen={onOpenSchedule} onClose={() => setSplitManagerOpen(false)} />}
     </div>

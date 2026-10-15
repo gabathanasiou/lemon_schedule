@@ -11,8 +11,9 @@ import { PROJECT_CHROME } from './projectTheme';
  * the bar from the fixed/sticky element at the viewport's top edge (WebKit
  * `LocalFrameView::fixedContainerEdges` — the app header is that element, see
  * AppHeader.tsx). theme-color covers the opaque-bar case (plus Android/Chrome).
- * Never add the deprecated meta, `black-translucent`, or `viewport-fit=cover` —
- * the system bar sits ABOVE the page by design.
+ * Never add the deprecated meta or `black-translucent` — the system bar sits
+ * ABOVE the page by design. `viewport-fit=cover` is phone-portrait-only and
+ * set at boot (main.tsx, roadmap 267), never here.
  */
 export function useStatusBarTheme(): void {
   const theme = useProjectTheme();

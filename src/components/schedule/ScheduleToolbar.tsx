@@ -81,6 +81,8 @@ interface ScheduleToolbarProps {
   readOnly: boolean;
   onPrint?: () => void;
   onShowHelp: () => void;
+  /** Phone-portrait chrome (roadmap 267 PoC): only View + the version picker. */
+  phone?: boolean;
 }
 
 export default function ScheduleToolbar(props: ScheduleToolbarProps) {
@@ -95,7 +97,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
     ribbonMenuOpen, setRibbonMenuOpen, ribbonDesigns, activeRibbonId, viewMode, setViewMode,
     cellBorders, setCellBorders,
     textEditingEnabled, setTextEditingEnabled, readOnly, onPrint, onShowHelp,
-    isEditPending, onToggleEdit,
+    isEditPending, onToggleEdit, phone,
   } = props;
 
   const [showVersionsMenu, setShowVersionsMenu] = React.useState(false);
@@ -142,6 +144,60 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         </Button>
       }
     />
+  );
+
+  /* The View menu (ribbon layout / stripboard view / cell borders). Phone
+     portrait (roadmap 267 PoC): it is one of the two surviving toolbar
+     controls and its trigger carries the "View" label beside the eye icon. */
+  const viewMenu = (
+    <DropdownMenu
+      open={ribbonMenuOpen}
+      onOpenChange={setRibbonMenuOpen}
+      width="w-48"
+      theme="light"
+      trigger={
+        <Button title="View" aria-label="View" data-presence-anchor="toolbar:schedule:view">
+          <Eye className="w-3.5 h-3.5 shrink-0" />
+          {phone && <span className="text-xs font-semibold">View</span>}
+          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+        </Button>
+      }
+    >
+      <DropdownSubmenu id="ribbon-layout" label="Ribbon Layout" icon={<LayoutTemplate className="w-3.5 h-3.5" />} width="w-44">
+        {ribbonDesigns.map(d => (
+        <DropdownItem
+            key={d.id}
+            onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
+            icon={activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
+          >
+            {d.name}
+          </DropdownItem>
+        ))}
+      </DropdownSubmenu>
+      <DropdownSubmenu id="stripboard-view" label="Stripboard View" icon={<Monitor className="w-3.5 h-3.5" />} width="w-44">
+        {(['portrait', 'landscape', 'full'] as const).map(m => (
+          <DropdownItem
+            key={m}
+            onClick={() => { setViewMode(m); setRibbonMenuOpen(false); }}
+            icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
+          >
+            {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
+          </DropdownItem>
+        ))}
+      </DropdownSubmenu>
+      <DropdownDivider />
+      <DropdownSubmenu id="cell-borders" label="Cell Borders" icon={<Table className="w-3.5 h-3.5" />} width="w-44">
+        {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
+          <DropdownItem
+            key={m}
+            onClick={() => { setCellBorders(m); setRibbonMenuOpen(false); }}
+            icon={cellBorders === m ? <Check className="w-3.5 h-3.5" /> : undefined}
+          >
+            {m === 'none' ? 'None' : m === 'vertical' ? 'Vertical' : m === 'horizontal' ? 'Horizontal' : 'Both'}
+          </DropdownItem>
+        ))}
+      </DropdownSubmenu>
+    </DropdownMenu>
   );
 
   const controls = (
@@ -230,53 +286,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         dayNightLabel={sortState.dayNightSortLabel}
       />
       <ToolbarDivider />
-      <DropdownMenu
-        open={ribbonMenuOpen}
-        onOpenChange={setRibbonMenuOpen}
-        width="w-48"
-        theme="light"
-          trigger={
-            <Button title="View" aria-label="View" data-presence-anchor="toolbar:schedule:view">
-              <Eye className="w-3.5 h-3.5 shrink-0" />
-              <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-            </Button>
-        }
-      >
-        <DropdownSubmenu id="ribbon-layout" label="Ribbon Layout" icon={<LayoutTemplate className="w-3.5 h-3.5" />} width="w-44">
-          {ribbonDesigns.map(d => (
-          <DropdownItem
-              key={d.id}
-              onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
-              icon={activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
-            >
-              {d.name}
-            </DropdownItem>
-          ))}
-        </DropdownSubmenu>
-        <DropdownSubmenu id="stripboard-view" label="Stripboard View" icon={<Monitor className="w-3.5 h-3.5" />} width="w-44">
-          {(['portrait', 'landscape', 'full'] as const).map(m => (
-            <DropdownItem
-              key={m}
-              onClick={() => { setViewMode(m); setRibbonMenuOpen(false); }}
-              icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
-            >
-              {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
-            </DropdownItem>
-          ))}
-        </DropdownSubmenu>
-        <DropdownDivider />
-        <DropdownSubmenu id="cell-borders" label="Cell Borders" icon={<Table className="w-3.5 h-3.5" />} width="w-44">
-          {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
-            <DropdownItem
-              key={m}
-              onClick={() => { setCellBorders(m); setRibbonMenuOpen(false); }}
-              icon={cellBorders === m ? <Check className="w-3.5 h-3.5" /> : undefined}
-            >
-              {m === 'none' ? 'None' : m === 'vertical' ? 'Vertical' : m === 'horizontal' ? 'Horizontal' : 'Both'}
-            </DropdownItem>
-          ))}
-        </DropdownSubmenu>
-      </DropdownMenu>
+      {viewMenu}
       <Button
         variant="primary"
         cloud={accent}
@@ -312,6 +322,19 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       {versionPicker}
     </>
   );
+
+  // Phone portrait (roadmap 267 PoC): the bar keeps ONLY the View menu and the
+  // schedule version picker — day breaks/banners/sort/edit/print/help and the
+  // boneyard toggle drop out (they need width a portrait phone doesn't have).
+  if (phone) {
+    return (
+      <PageToolbar
+        theme="light"
+        justify="end"
+        rightContent={<>{viewMenu}{versionPicker}</>}
+      />
+    );
+  }
 
   return (
     <PageToolbar

@@ -28,7 +28,7 @@ import HelpModal from './HelpModal';
 import { FloatingTooltip } from './FloatingTooltip';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { useViewMode, useCellBorders, type ViewMode, type CellBorders } from '../lib/persist';
+import { useViewMode, useCellBorders, VIEW_WIDTHS, type ViewMode, type CellBorders } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
@@ -65,7 +65,7 @@ import { itemsByAttribute } from '../lib/itemSelection';
  *  function identity per render would restart the outline measure loop. */
 const rowItemResolver = itemsByAttribute('data-row-id');
 
-export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onOpenDayManager?: (sectionIndex: number) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
+export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange, phone = false }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onOpenDayManager?: (sectionIndex: number) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void; /** Phone-portrait chrome (roadmap 267 PoC). */ phone?: boolean }) {
   const { state, dispatch, locked } = useProject();
   const currentWindow = useCurrentWindow();
   const currentDocument = useCurrentDocument();
@@ -73,8 +73,15 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { sections, sectionDateMap: hookSectionDateMap, daybreakRowToSection, nextSectionDateMap: hookNextSectionDateMap, productionSections, chronoDayMap: sectionChronoDayMap } = useDaybreakSections();
-  const [viewMode, setViewMode, viewWidth] = useViewMode();
+  const [viewMode, setViewMode] = useViewMode();
   const [cellBorders, setCellBorders] = useCellBorders();
+  // Phone portrait (roadmap 267 PoC): the stripboard opens edge-to-edge Full
+  // Width. The stored pref is never rewritten by the layout itself — a
+  // View-menu pick applies for this mount (session override) and still
+  // persists, so landscape/desktop keep their own chosen view.
+  const [phoneViewMode, setPhoneViewMode] = useState<ViewMode | null>(null);
+  const shownViewMode: ViewMode = phone ? (phoneViewMode ?? 'full') : viewMode;
+  const shownViewWidth = VIEW_WIDTHS[shownViewMode];
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
@@ -132,6 +139,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   useEffect(() => {
     localStorage.setItem(COLLAPSED_KEY, String(boneyardCollapsed));
   }, [boneyardCollapsed]);
+  // Phone portrait (roadmap 267 PoC): the boneyard panel is closed — it
+  // renders null while collapsed and its expand button lives in the trimmed
+  // toolbar, so a portrait phone spends all its width on the stripboard.
+  const effectiveBoneyardCollapsed = phone || boneyardCollapsed;
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -313,7 +324,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const follow = useFollowView({
     place: { tab: 'schedule' },
     fields: [
-      { key: 'viewMode', value: viewMode },
+      { key: 'viewMode', value: shownViewMode },
       { key: 'cellBorders', value: cellBorders },
     ],
     apply: (view) => {
@@ -1286,7 +1297,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         selectionSummary={selectionSummary}
         bufferSummary={bufferSummary}
         accent={accent}
-        boneyardCollapsed={boneyardCollapsed}
+        boneyardCollapsed={effectiveBoneyardCollapsed}
         onExpandBoneyard={() => setBoneyardCollapsed(false)}
         onCollapseBoneyard={() => handleCollapseChange(true)}
         autoDaybreakOpen={autoDaybreakOpen}
@@ -1308,8 +1319,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         setRibbonMenuOpen={setRibbonMenuOpen}
         ribbonDesigns={project.ribbonDesigns}
         activeRibbonId={project.activeRibbonId}
-        viewMode={viewMode}
-        setViewMode={onUserViewModeChange}
+        viewMode={shownViewMode}
+        setViewMode={phone ? (m: ViewMode) => { setPhoneViewMode(m); onUserViewModeChange(m); } : onUserViewModeChange}
         cellBorders={cellBorders}
         setCellBorders={onUserCellBordersChange}
         textEditingEnabled={textEditingEnabled}
@@ -1319,6 +1330,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
         readOnly={locked}
         onPrint={onPrint}
         onShowHelp={() => setShowHelp(true)}
+        phone={phone}
       />
       <style>{`
         .schedule-table {
@@ -1390,10 +1402,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
                   return next;
                 }
                 return addMode ? new Set([...prev, ...ids]) : ids;
-              })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); if (editingModeRef.current) setEditingTarget({ rowId, fieldKey: null }); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} collapsed={boneyardCollapsed} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} textSize={textSize} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceBoneyardExpanded} />
+              })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); if (editingModeRef.current) setEditingTarget({ rowId, fieldKey: null }); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} collapsed={effectiveBoneyardCollapsed} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} textSize={textSize} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceBoneyardExpanded} />
         
         {/* Main Schedule Area */}
-        <div ref={scheduleScrollRef} data-marquee-container data-edit-mode={effectiveTextEditingEnabled ? '1' : undefined} onScroll={() => { updateRenderWindow(); if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; presenceScroll.notify(); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}
+        <div ref={scheduleScrollRef} data-marquee-container data-edit-mode={effectiveTextEditingEnabled ? '1' : undefined} onScroll={() => { updateRenderWindow(); if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; presenceScroll.notify(); }} className={`flex-1 overflow-auto flex flex-col items-center relative ${phone ? 'px-1 pt-3 pb-safe-or-16' : 'p-8 pb-32'}`} style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}
           onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
             setSelectedRowIds(new Set());
@@ -1405,7 +1417,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
             if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
           }}
         >
-          <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
+          <div style={{ width: shownViewWidth ? `${shownViewWidth}px` : '100%', margin: '0 auto' }}>
                 {existingDays.map((dayInt, i) => {
                   const inWindow = i >= renderWindow.start && i <= renderWindow.end;
                   const cached = measuredHeights[dayInt];

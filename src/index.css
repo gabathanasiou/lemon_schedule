@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tailwindcss-safe-area";
 @import "@gabriel/ui-kit/ui-kit.css";
 @source "../node_modules/@gabriel/ui-kit/dist";
 
@@ -7,11 +8,34 @@
   --font-mono: "Courier New", Courier, monospace;
 }
 
+/* The app shell owns every scroll container, so html/body/#root stay
+   neutral. NEVER cap them with `height: 100%; overflow: hidden` again: on
+   iOS 26 the layout viewport ends at the top of Safari's floating bottom
+   bar, so that clip cut the whole app off exactly at the bar (roadmap 267 —
+   a normal document like directedbygabriel.com paints under the bars because
+   it has no such confinement). `overscroll-behavior: none` still stops the
+   document from rubber-banding behind the shell.
+
+   The canvas background is the fill for Safari's residual zone below the
+   largest viewport (a tab can paint to `100lvh` = 815px of a 932px screen on
+   a 14 Pro Max — measured; the rest belongs to Safari): the stripboard/Sheet
+   surface colour keeps that band reading as the app, not as a white void. */
 html, body, #root {
-  height: 100%;
   margin: 0;
-  overflow: hidden;
   overscroll-behavior: none;
+}
+
+html, body {
+  background: #f4f4f5;
+}
+
+/* App shell height on phones (roadmap 267): App.tsx sets this from the REAL
+   screen height — no CSS viewport unit reaches the physical bottom on iOS 26
+   Safari (WebKit bug 301108 breaks viewport-fit=cover/height=device-height;
+   measured ceiling `100lvh` = 815 of a 932px screen). `100lvh` is the
+   first-paint fallback; unused on desktop (the shell is h-screen there). */
+:root {
+  --app-h: 100lvh;
 }
 
 /* Leaflet's panes carry z-index 400–700 inside the container. The container

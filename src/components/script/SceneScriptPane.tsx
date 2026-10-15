@@ -31,14 +31,15 @@ interface ScriptPanePref {
 /**
  * Pane view pref, per host. The Glide Breakdown defaults **collapsed**; the
  * Sheet defaults **open when a script is imported** (an explicit user toggle
- * always wins afterwards).
+ * always wins afterwards). `defaultOpen` overrides that fallback for one
+ * caller (roadmap 267: the phone Sheet surface wants the pane closed).
  */
-export function useScriptPanePref(host: 'sheet' | 'glide') {
+export function useScriptPanePref(host: 'sheet' | 'glide', defaultOpen?: boolean) {
   const { state } = useProject();
   const hasScript = !!state.present.scriptDocument?.scenes?.length;
   const [pref, setPref] = usePersistState<ScriptPanePref>('lemon_schedule_script_pane', { sheetOpen: null, glideOpen: null, width: 440 });
   const stored = host === 'sheet' ? pref.sheetOpen : pref.glideOpen;
-  const open = stored ?? (host === 'sheet' ? hasScript : false);
+  const open = stored ?? defaultOpen ?? (host === 'sheet' ? hasScript : false);
   const setOpen = (v: boolean) => setPref(p => (host === 'sheet' ? { ...p, sheetOpen: v } : { ...p, glideOpen: v }));
   const setWidth = (w: number) => setPref(p => ({ ...p, width: w }));
   return { open, setOpen, width: pref.width, setWidth };
@@ -98,7 +99,7 @@ export function SceneScriptPane({ sceneNumber, open, width, onWidthChange }: {
   return (
     <div
       data-testid={TEST_IDS.scriptPane}
-      className="flex h-full min-h-0 shrink-0 border-l border-zinc-200 bg-white"
+      className="flex h-full min-h-0 shrink-0 border-l border-zinc-200 bg-white group-data-[island=right]:pr-safe"
       style={{ width }}
     >
       {/* Real flex item (not an overlapping absolute strip) so the Glide grid
