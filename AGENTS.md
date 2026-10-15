@@ -104,6 +104,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 ## Store & Sync
 - **Read `docs/STORE-AND-SYNC.md`** for the module layout, persistence keys, connectivity probe, Drive text-only upload rules, and the full memo contract.
 - Non-negotiables: `readOnly` is driven ONLY by the probe (save failures never flip it); per-row components MUST NOT call `useProject()`; rows are immutable (never mutate a `ComputedRow`); prefer `UPDATE_ROW` over rebuilding row arrays; bulk dispatches wrap in `BATCH_START`/`BATCH_COMMIT`.
+- **Editing surfaces commit on blur (roadmap 250/251)** — Enter/Tab/Escape/click-away, never per keystroke and never a Save button; typed-but-uncommitted text registers with `inFlightEdits.ts` so a peer's S3.5 save raises "Changes available" instead of reloading over it.
 
 ## Ribbon Cells
 - **Read `docs/RIBBON.md`.** ALL cells use `getRibbonCellBaseStyle(...)` — never hardcode cell padding/font/text styles; per-cell size = `ribCellTextSize(master, cell)`; padding/edge/textSize are per-`RibbonDesign` (`SET_RIBBON_*`), thread the master through every renderer; toolbar numeric boxes are `LiveNumberInput`.
