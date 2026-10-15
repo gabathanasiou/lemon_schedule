@@ -53,6 +53,7 @@ import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { useScheduleKeyboard } from './schedule/useScheduleKeyboard';
 import { useScheduleDrag } from './schedule/useScheduleDrag';
 import { usePresenceActions, useHeldItems } from '../lib/supabase/presenceContext';
+import { useFollowView } from '../lib/supabase/useFollowView';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { HeldItemHint } from './HeldItemHint';
 import { PeerItemOutlines } from './PeerItemOutlines';
@@ -73,10 +74,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   const { sections, sectionDateMap: hookSectionDateMap, daybreakRowToSection, nextSectionDateMap: hookNextSectionDateMap, productionSections, chronoDayMap: sectionChronoDayMap } = useDaybreakSections();
   const [viewMode, setViewMode, viewWidth] = useViewMode();
   const [cellBorders, setCellBorders] = useCellBorders();
-  // First publish marks the mount — the stripboard only republishes its View
-  // prefs when they CHANGE, so entering the tab never overwrites the App's
-  // one-shot scene jump target in the presence view.
-  const viewPrefsPublishedRef = useRef(false);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
@@ -296,9 +293,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
 
   // Follow completeness (roadmap 229, docs COLLABORATION §9): the stripboard
   // mirrors its scroll (day-block fallback for rows outside the peer's render
-  // window) and its View-menu prefs to followers. A local scroll gesture or a
-  // View-menu change exits follow (user decision 2026-10-13).
-  const presenceActions = usePresenceActions();
+  // window) and its View-menu prefs to followers. A View-menu change exits
+  // follow (user decision 2026-10-12) — your own scroll does NOT.
   // Peer-held items (roadmap 235): rows render "held" in their holder's
   // colour and refuse every MOVE/REMOVE path. Claim edges only — the value
   // never changes on cursor traffic.
@@ -310,30 +306,30 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
     keyAttr: 'data-row-id',
     fallback: { selector: '[data-cal-day]', keyAttr: 'data-cal-day' },
   });
-  useEffect(() => {
-    if (!presenceScroll.enabled) return;
-    if (!viewPrefsPublishedRef.current) {
-      viewPrefsPublishedRef.current = true;
-      return;
-    }
-    presenceActions.publishView({ tab: 'schedule', viewMode, cellBorders });
-  }, [presenceActions, presenceScroll.enabled, viewMode, cellBorders]);
-  useEffect(() => {
-    if (!presenceScroll.enabled) return;
-    return presenceActions.registerFollowApplier((view) => {
-      if (view.tab !== 'schedule') return;
+  // The View-menu fields mirror through the shared follow registration (main
+  // window only; mount values are not re-published — they stick after
+  // unfollowing, like Figma keeping your last zoom).
+  const follow = useFollowView({
+    place: { tab: 'schedule' },
+    fields: [
+      { key: 'viewMode', value: viewMode },
+      { key: 'cellBorders', value: cellBorders },
+    ],
+    apply: (view) => {
       if (view.viewMode) setViewMode(view.viewMode);
       if (view.cellBorders) setCellBorders(view.cellBorders);
-    });
-  }, [presenceActions, presenceScroll.enabled, setViewMode, setCellBorders]);
+    },
+    enabled: presenceScroll.enabled,
+    publishOnMount: false,
+  });
   const onUserViewModeChange = useCallback((m: ViewMode) => {
-    presenceActions.noteUserViewChange();
+    follow.noteUserChange();
     setViewMode(m);
-  }, [presenceActions, setViewMode]);
+  }, [follow, setViewMode]);
   const onUserCellBordersChange = useCallback((m: CellBorders) => {
-    presenceActions.noteUserViewChange();
+    follow.noteUserChange();
     setCellBorders(m);
-  }, [presenceActions, setCellBorders]);
+  }, [follow, setCellBorders]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -489,7 +485,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
     createOnContextMenu, selectNextAfterRemove, heldHint,
   } = useStripboardContextMenu({
     selectedRowIds, setSelectedRowIds,
-    rows: activeVersion.rows,
+    // Tolerant read: the "No active version" guard below sits AFTER this hook,
+    // so a dangling activeVersionId must not crash the render before it.
+    rows: activeVersion?.rows ?? [],
     activeVersion,
     activeDragIds,
     textEditingEnabled: effectiveTextEditingEnabled,
@@ -506,6 +504,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   activeDragIdsRef.current = activeDragIds;
   const activeVersionRef = useRef(activeVersion);
   activeVersionRef.current = activeVersion;
+  // Drag claims only (the follow fields live in `useFollowView`).
+  const presenceActions = usePresenceActions();
   const presenceActionsRef = useRef(presenceActions);
   presenceActionsRef.current = presenceActions;
 

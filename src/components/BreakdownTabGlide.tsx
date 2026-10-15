@@ -455,8 +455,8 @@ export function GlideBreakdownTab({
   }, []);
 
   // Follow completeness (roadmap 229, docs COLLABORATION §9): mirror the grid
-  // scroll — the first visible cell (scene id + column key, never pixels) —
-  // and exit follow on a local scroll gesture.
+  // scroll — the first visible cell (scene id + column key, never pixels).
+  // Your own scroll never ends follow (user decision 2026-10-12).
   const glideAnchorRef = useRef<{ rowKey: string; colKey: string } | null>(null);
   const presenceScroll = usePresenceScrollSurface({
     surface: 'glide',

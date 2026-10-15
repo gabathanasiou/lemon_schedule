@@ -223,8 +223,11 @@ function AppContent() {
 
   // Follow mode (S3): the presence provider holds WHO we follow; App owns HOW
   // a view becomes a place. Navigating to a peer's view goes through `go` so
-  // history/hash stay correct. Mounted surfaces register their own appliers
-  // for the in-page view switches (View menu, Calendar sub-view, Sheet scene).
+  // history/hash stay correct; the mounted surfaces apply the lens fields
+  // through the shared `useFollowView` seam. The mirrored view is then
+  // re-published as OUR view: `applyPlace`'s place-only publish would
+  // otherwise strip the lens fields a third party following US is reading,
+  // and a peer-driven `go` has no surface publish to restore them.
   useEffect(() => {
     return presenceActions.registerFollowApplier((view) => {
       const place = presenceViewToPlace(view);
@@ -235,6 +238,7 @@ function AppContent() {
       } finally {
         applyingFollowRef.current = false;
       }
+      presenceActions.publishView(view);
     });
   }, [go, presenceActions]);
 

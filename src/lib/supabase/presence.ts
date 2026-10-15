@@ -785,6 +785,28 @@ function sameViewDocument(peerView: PresenceView, localView: PresenceView): bool
   return true;
 }
 
+/** The lens half of the place gate (roadmap 243): does a parsed view sit on
+ *  the place a follow surface declared? Sub/mode compare only when declared,
+ *  with mode normalized through `modeOf` (an omitted mode IS its default), so
+ *  `{ tab: 'production', sub: 'days', mode: 'manager' }` matches a view that
+ *  omits `mode`. Lens fields never affect the match. */
+export function followPlaceMatches(
+  view: PresenceView,
+  place: { tab: AppTabId; sub?: string; mode?: string },
+): boolean {
+  if (view.tab !== place.tab) return false;
+  if (place.sub != null && view.sub !== place.sub) return false;
+  if (place.mode != null) {
+    const asPlace = (p: { tab: AppTabId; sub?: string; mode?: string }): AppPlace => ({
+      tab: p.tab,
+      ...(p.sub ? { sub: p.sub } : {}),
+      ...(p.mode ? { mode: p.mode } : {}),
+    });
+    if (modeOf(asPlace(view)) !== modeOf(asPlace(place))) return false;
+  }
+  return true;
+}
+
 /** Viewport-relative pointer position (the `screen` anchor fallback). */
 export function screenFractions(clientX: number, clientY: number, width: number, height: number): { xr: number; yr: number } {
   return {

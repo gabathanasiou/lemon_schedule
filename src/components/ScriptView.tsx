@@ -14,6 +14,7 @@ import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
 import { cutSceneAt, mergeSceneWithNext } from '../lib/scriptSceneOps';
 import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
+import { useFollowView } from '../lib/supabase/useFollowView';
 import { applyChunkVisibility, useChunkResize } from '../lib/virtualChunk';
 import { TEST_IDS } from '../lib/testIds';
 import type { ScriptAnnotation, ScriptScene } from '../types';
@@ -304,6 +305,50 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
     requestAnimationFrame(align);
   }, []);
 
+  // Follow (roadmap 243): the scene the peer is READING. Published as the live
+  // scene id (with its scenes-array index as the order-agnostic fallback) and
+  // resolved back through scene NUMBERS, so a follower whose doc order differs
+  // still lands on the right scene. Scrolling never ends follow (S3 rule) — a
+  // sidebar click does.
+  const scriptSceneIndexById = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!doc) return map;
+    doc.scenes.forEach((scene, i) => {
+      const live = sceneByIdentity.get(normalizeSceneNumber(scene.sceneNumber));
+      if (live) map.set(projectScenes[live.index].id, i);
+    });
+    return map;
+  }, [doc, sceneByIdentity, projectScenes]);
+  const activeDocScene = doc?.scenes[activeIndex];
+  const activeLive = activeDocScene ? sceneByIdentity.get(normalizeSceneNumber(activeDocScene.sceneNumber)) : undefined;
+  const followJumpRaf = useRef<number | null>(null);
+  // `activeIndexRef` (declared above beside `jumpTo`) mirrors the active index
+  // for both the incremental scroll walk and this follow callback.
+  const follow = useFollowView({
+    place: { tab: 'breakdown', sub: 'script' },
+    fields: [
+      { key: 'sceneId', value: activeLive?.id },
+      { key: 'sheetIndex', value: activeLive?.index },
+    ],
+    apply: (view) => {
+      let idx = view.sceneId ? scriptSceneIndexById.get(view.sceneId) : undefined;
+      if (idx == null && view.sheetIndex != null) {
+        const live = projectScenes[view.sheetIndex];
+        if (live) idx = scriptSceneIndexById.get(live.id);
+      }
+      if (idx == null || idx === activeIndexRef.current) return;
+      // rAF-deferred so the mount-time scroll-memory restore (also a rAF)
+      // cannot clobber an incoming follow jump.
+      if (followJumpRaf.current != null) cancelAnimationFrame(followJumpRaf.current);
+      const target = idx;
+      followJumpRaf.current = requestAnimationFrame(() => {
+        followJumpRaf.current = null;
+        if (target === activeIndexRef.current) return;
+        jumpTo(target);
+      });
+    },
+  });
+
   // Jump to the first match whenever the query changes.
   useEffect(() => {
     setMatchPos(0);
@@ -518,7 +563,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
         title="Scenes"
         rows={navRows}
         activeKey={String(activeIndex)}
-        onSelect={key => jumpTo(Number(key))}
+        onSelect={key => { follow.noteUserChange(); jumpTo(Number(key)); }}
         resizable
         wrapRows
         width={sidebarPref.width}

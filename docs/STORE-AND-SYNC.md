@@ -70,6 +70,12 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   = Supabase row id = project id; online metas live in provider session state (`onlineProjects`, refreshed
   on sign-in) and are filtered out of the localStorage index exactly like Drive
   (`saveProjectListToStorage`).
+- **The row `title` is the durable project NAME**: the Project Manager's Shared list reads it (session
+  metas merge on top, but online entries are dropped from the persisted index, so after a reload the row
+  is the only source). `renameProject` pushes every rename straight to the row
+  (`renameOnlineProject`; the OPEN project included — its next whole-blob save is NOT guaranteed, the room
+  transport owns the writes while mounted — S4) and refetches the list so the manager updates at once.
+  The app header reads the open document's own `title`.
 - Saves are whole-blob `serializeProject` with an optimistic `revision` check + one last-write-wins retry;
   failures reuse the `driveSaveError` / `driveRetryPending` / `scheduleSaveRetry` surfaces (online branch
   in `scheduleSaveRetry` + `retryDriveSync`) and surface "Synced online" copy via `SaveIndicator
@@ -114,10 +120,12 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   (tab + sub-tab + sub-sub mode; `sameViewPlace`)**; the header collaborator bubbles
   (`UserPresenceCluster`, follow toggles) are how you jump to their view (docs/COLLABORATION.md §9).
   One global mousemove tracker in the provider publishes; `PresenceOverlay` draws. Follow mode: App
-  registers the one applier (navigation stays in `go()`); mounted surfaces register their own appliers
-  for in-page lens state (Sheet scene, the stripboard/Calendar switches, and roadmap 243's manager
-  category / designer + call-sheet Preview / Fields-Values — the designer ones same-design-gated); any
-  manual navigation exits.
+  registers the navigation applier (a peer-driven `go`, which then re-publishes the mirrored view as
+  ours so the lens fields survive) and every surface joins through ONE shared hook — `useFollowView`
+  (`src/lib/supabase/useFollowView.ts`): declare the place + lens fields; register-time replay covers
+  surfaces that mount mid-follow. Sheet scene / stripboard + Calendar switches / manager category /
+  designer picks + Preview + Fields-Values / Day Manager day / script scene; any manual navigation
+  exits (the hook's `noteUserChange()`).
 - **Overlay cue + input glyph + pointer comfort (roadmaps 240/241/244)**: the peer's input modality
   (`mouse|touch|pen`) rides the cursor payload (re-sent only on change) and selects the pointer glyph; a
   separate `overlay` broadcast announces "this user is inside a menu/modal" (edges + a 6s heartbeat from

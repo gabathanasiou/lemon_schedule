@@ -1064,12 +1064,15 @@ also mirror **modal/dropdown open state**?
 
 **Order:** #3 of the remaining collab work (229's priority list) — the easiest remaining code item (~½ day).
 
-- **Built 2026-10-15, pending the two-client manual pass:** `managerCategory` /
-  `preview` / `reportViewMode` on the wire (`parseView` clamps + Vitest);
-  publishes + appliers in ElementManager (`breakdown/elements`), `managerShell`
-  (Crew/Locations, via `presenceSub`), ReportDesigner (same-design gate) and
-  CallSheetEditPage (carries `daySection`); user paths call
-  `noteUserViewChange`, appliers stay raw. `npm run lint` + `test:smart` green.
+- **Built 2026-10-15, pending the two-client manual pass:** the wire fields +
+  `parseView` clamps (`managerCategory` / `preview` / `reportViewMode`, Vitest)
+  and — beyond the ask — the whole lens set mirrors through ONE shared hook,
+  `src/lib/supabase/useFollowView.ts`: design picks (Reports + Ribbon), the Day
+  Manager's day (App place), the Script's viewed scene, ribbon A4/borders (all
+  surfaces migrated; user clicks call the hook's `noteUserChange`, surfaces
+  that mount mid-follow are re-applied on registration, and a peer-driven `go`
+  re-publishes the mirrored view). `followPlaceMatches` is the hook's place
+  gate (Vitest). `npm run lint` + `test:smart` green (1 known flake).
 
 - **The seam exists (S3 follow completeness pattern):** each toggle = one validated
   `PresenceView` field (`src/lib/supabase/presence.ts` / `parseView`) + publish on the user's
@@ -1252,3 +1255,164 @@ access — it should reflect reality.
   before/after; Vitest for the merge helper. No e2e (no PM spec exists; the suite runs
   Supabase-off, `playwright.config.ts:72`).
 - **Relations**: `relates to` **229** (S1/S2.5 sharing surfaces).
+
+## 250. Managers — automatic commit, drop the Save button (`[~]`)
+
+**Requested 2026-10-15 (user):** the Element / Crew / Locations managers are the last
+manual-save surface — field edits stage in a local buffer behind Save/Revert while every
+other surface commits on blur (`CellInput`, SceneSheet, Glide). Remove the manual save:
+each field commits on blur/Enter/leaving the field; the merge confirmation still fires
+(at commit time), the Save/Revert buttons, local undo history, Cmd+S and the
+unsaved-changes prompts all go. User decisions: commit point = blur/Enter (NOT
+per keystroke, NOT debounce-while-typing); collision keeps the confirmation modal;
+all three managers at once.
+
+- **Why it was manual (history, not collab):** the first Element Manager auto-populated
+  elements from a dispatching effect — infinite loops + save flicker (`b9894dfb`,
+  `64142c85`) — so "elements are saved on the user's first Save" became the escape, and
+  the save grew into the atomic merge/rename-cascade commit (`MERGE_ELEMENTS` rewrites
+  scenes once; "Save then ⌘Z = one step"). Commit-on-blur needs neither: it is
+  event-driven (no effects) and one commit per finished field keeps the scene rewrite
+  to ONE per rename. (Per-keystroke would stream an intermediate rename + undo entry
+  per character to the room — that is the thing to keep out.)
+- **Collab bug folded in (item decision):** buffered edits never bump
+  `changeCounterRef`, so the S3.5 save ping (`applyPeerSave`, `provider.tsx:350-372`)
+  reads the client as CLEAN and silently LOADs the peer blob → `useRowBuffer`'s
+  `reloadDeps` reset (`rowBuffer.ts:125-138`) drops the user's unsaved manager edits.
+  Fix: an in-flight edit marks the client dirty (the peer save raises "Changes
+  available" instead of auto-applying) and the buffer preserves uncommitted field text
+  across any reload.
+- **Engine (`src/lib/rowBuffer.ts` v2):** keep the local row buffer, input registry and
+  Tab order; delete snapshots/local undo/redo/save/revert/Cmd+S/the unsaved guard. Blur
+  calls ONE manager-provided `commit()` per finished field; the `reloadDeps` reload
+  reconciles committed fields with the store — preserving in-flight field text and
+  uncommitted new rows, dropping rows a merge absorbed. Blank rows stay local (never
+  dispatched); Sort stays a local view op (order is not persisted today).
+- **Managers:** `ElementManager.tsx` (its own diff/save copy; cast = per-row
+  ADD/UPDATE/DELETE with the roadmap-228 name→ID resolution) and `managerShell.tsx`
+  (Crew/Locations; `computeManagerDiff` + `commitPlan`). The diff is computed at commit
+  against store truth (`loadRows`) instead of a snapshot; a colliding rename opens the
+  existing `MergeRowsModal` at commit time (cancel restores the committed field); row
+  deletes commit immediately (trash + undo parity unchanged); header drops
+  Save/Revert.
+- **Chrome/undo:** `unsavedGuard.ts` deleted (App popstate/tab/popout prompts and the
+  pre-switch merge flow go with it); new tiny `inFlightEdits.ts` registry consulted by
+  `applyPeerSave`; `UndoRedoButtons` + `undo()`/`redo()` (provider) drop the
+  local-history-first routing and its enablement — Cmd+Z is the store/room undo at
+  per-commit granularity. HelpModal rows updated (no Save/Revert/local-undo copy).
+- **Verify:** update `e2e/element-manager-merge.spec.ts` (rename commits on Enter; the
+  collision dialog fires at commit; no Save button; guard specs replaced), plus the
+  Save-click specs `crew-manager`, `locations`, `cast-single-source`,
+  `new-cast-naming`, `script-retention`; full suite + `npm run lint`; smart-test RULES
+  for the new module. Manual pass: type + click away → edit committed and visible to a
+  peer; peer reload while typing does not eat the focused text (two-window).
+- **Relations:** `relates to` **229** (S3.5 save ping + S4 rooms — the in-flight edit
+  rule), **243** (manager sidebar follow), **228** (cast naming modal).
+
+## 251. Text commit-on-blur — project title + Report Designer text (`[~]`)
+
+**Requested 2026-10-15 (user, while 250 was in flight):** the header project-title field
+dispatches `UPDATE_PROJECT` on every character; typing in the Report Designer (text
+blocks, embedded titles, free-table cells, the inspector's text inputs) dispatches the
+whole `UPDATE_REPORT_DESIGN` per character. Both should commit when the edit finishes
+(blur / Enter / edit end) — the same convention as 250.
+
+- **Title (`AppHeader.tsx:214-227`):** keep a local draft while editing; commit ONCE on
+  blur/Enter through the existing `renameProject()` (it dispatches `UPDATE_PROJECT`,
+  updates the index meta and pushes Drive/online) — no per-character project dispatch
+  and no per-character Drive/online push.
+- **Report Designer (`ReportDesigner.tsx`):** ONE seam — `commitAll()` defers the store
+  dispatch while a text-editing element (contentEditable / text input / textarea) has
+  focus inside the designer; the local design state still updates per keystroke
+  (Tab/cell navigation, formatting, ref menus keep reading fresh props — the
+  draft-buffer route would break them). Flush on: any non-deferred (structural) commit,
+  focusout of a text editor, the editor's Escape/edit-end, unmount (SceneSheet's
+  `useEffect(() => () => commitTextEdits(), [])` precedent) and `pagehide`. The
+  `[project.reportDesigns]` re-sync effect skips while pending (a peer change must not
+  clobber unflushed text); the pending state registers with `inFlightEdits` (250) so the
+  S3.5 peer-save auto-reload defers instead of wiping it.
+- **Zone mode is out of scope** (`zone!.onChange` is the Call Sheet editor's own draft
+  seam) — no behavior change there.
+- **Verify:** existing specs `report-page-breaks` ("filter values commit on blur, one
+  undo entry"), `report-editor-polish` (type → Escape → resolved text), `report-xmlns`
+  (persistence — add the commit point), `rich-text-editor`, `report-chrome`,
+  `call-sheet-day`; plus a manual pass (type in a text block/cell/inspector input →
+  click away → one undo entry; ⌘Z after blur undoes the burst; peer/store see the
+  final text). No new spec (single-field UX; automate only if a silent break is
+  plausible).
+- **Relations:** `relates to` **250** (same commit-on-blur convention + `inFlightEdits`);
+  `reports designer` canonical doc: `docs/REPORTS-DESIGNER.md`.
+
+## 252. Presence — per-block pointer anchoring wherever the script renders (`[ ]`)
+
+**Requested 2026-10-15 (user):** proper cursor anchoring "in any view that has the
+script in — like per-block anchoring … whenever the script is being rendered. It's
+important because one user might want to show something to the other one." Today a
+peer's pointer over screenplay text falls through the anchor chain to the `screen`
+fraction fallback (`src/lib/presenceAnchors.ts`): it lands on the right line only
+when both clients happen to share width, font size AND scroll — exactly the case a
+"look at this" moment is not. The fix belongs in the screenplay RENDERER, not in a
+view: anchor every block line, and every surface that renders the script inherits it.
+(236's coverage boundary deliberately left the script body out — commit `64a7ed6f`;
+this closes it for the rendered block coordinate. The doc's "Script-body cursors —
+flag, don't fake" note is about a future editable text caret's ProseMirror relative
+position — a different thing, not contradicted here.)
+
+- **One seam — the shared renderer.** Every script surface renders through
+  `ScriptSceneText` → `ScriptBlocks` → `BlockLine`
+  (`src/components/script/ScriptSceneScript.tsx`) — today the Script sub-tab
+  (`ScriptView.tsx`) and the scene script pane (`script/SceneScriptPane.tsx`, Sheet +
+  Glide). `BlockLine` already stamps `data-script-scene`/`data-script-block` (`:209`)
+  for the tagging overlay; the SAME `attrs` object adds the explicit presence key
+  `data-presence-anchor="script:<sceneId>:block:<blockIndex>"` when both exist —
+  guarded exactly like the `data-script-*` pair, so the diff review's toned lines (no
+  real scene/index) stay unanchored and ride 240's overlay cue.
+- **No chain or wire changes needed:** the sender resolves it as the generic `dom`
+  kind (`presenceAnchors.ts`), the receiver via `querySelector`
+  (`src/lib/presencePoint.ts`). Keys are unique: `sceneId` is the LIVE scene id
+  (split parts carry their own id + their own `ScriptScene`, roadmap 132) and
+  `blockIndex` is the index within that scene's own `blocks`; `fx/fy` already covers
+  the position inside multi-line paragraphs.
+- **Hide, don't fake (existing rule, unchanged):** the pointer shows only while the
+  block is rendered AND in this client's viewport (`inViewport`, `presencePoint.ts`);
+  a closed pane, a scrolled-away line, a scene left unmounted (future
+  virtualization — 163) or an orphan body with no live scene match simply hides it —
+  no edge chips, no clamped stand-ins. Follow/scroll mirroring is how a peer brings
+  the other to the line.
+- **Verify:** rule-7 two-client manual pass — different widths and scroll positions:
+  a peer hovering line N in the Script tab lands on line N for the other, same in
+  the Sheet/Glide pane; `window.__lemonSchedule.presenceAnchorAt(x, y)` over a script
+  line returns `script:<sceneId>:block:<blockIndex>`; no new e2e (presence stays a
+  manual pass, 229's verify line).
+- **Relations:** `extends` **236** (the semantic-anchor chain whose coverage boundary
+  this closes) and **229** (S3 presence). `relates to` **163** (Script tab perf /
+  possible virtualization — keep the key DOM-derived), **243** (follow mirrors the
+  Script's viewed scene), **240** (local-overlay cue — covers the diff-review modal),
+  **234** (peer selection highlights — the script body has no selection shape today;
+  this block coordinate is the natural key if one ever lands).
+
+## 253. Collab rename — the Project Manager's Shared list kept the old name (`[~]`)
+
+**Reported 2026-10-15 (user):** renaming a collab project updates the app header
+but NOT its row in the Project Manager (Shared tab).
+
+**Why the two names diverged:** the header shows the open document's
+`project.title`; the Shared list shows the Supabase `projects` ROW title — online
+entries are filtered OUT of the persisted localStorage index
+(`saveProjectListToStorage`, `src/store/storage.ts:110`), so after any reload the
+row is the only source. `renameProject` (`src/store/provider.tsx`) pushed the row
+title only for a project that was NOT open ("the open project rides its next
+whole-blob save") — but a room-attached shared project NEVER blob-saves (S4: the
+room owns the writes) and a reload beats the save debounce even without one, so
+the row kept the old name.
+
+- **Fixed 2026-10-15:** `renameProject` now always pushes the title to the row
+  (`renameOnlineProject` — the open project included) + `refetchOnlineProjects()`
+  so the manager updates immediately; knowledge recorded in
+  `docs/STORE-AND-SYNC.md` §Online projects.
+- **Verify:** rule-7 collab manual pass — rename a shared project (open, room
+  attached) → Project Manager → Shared shows the new name, also after reload;
+  `npm run lint` + full suite green.
+- **Relations:** `extends` **229** (S1 rows/listing); `relates to` **249** (same
+  panel — stale Shared count), **251** (title commit-on-blur rides this rename
+  path).
