@@ -162,3 +162,10 @@ checks give the editor 3s to repaint and are sensitive to worker load.
 — flaked there too) and green in isolation (6/6, then 12/12 with
 `--repeat-each=2`). Not a regression; retries=1 absorbs it. If it recurs,
 raise the assertion timeout rather than chasing the app.
+
+**2026-10-15 — recursed (a full run failed `:80` outright, `:137` flaked);
+the recommended remedy was applied:** every `timeout: 3000` in
+`rich-text-editor.spec.ts` is now 8000, and the post-interaction `.tiptap`
+HTML reads use `expect.poll(..., { timeout: 8000 })` instead of unpinned
+reads. Verified 18/18 with `--repeat-each=3`; the entry stays in case it
+recurs under heavier load.

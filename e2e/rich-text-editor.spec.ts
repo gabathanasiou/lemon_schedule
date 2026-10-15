@@ -7,7 +7,7 @@ async function openTitleChrome(page: any) {
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
   const chrome = page.locator('.block-chrome');
-  await expect(chrome).toBeVisible({ timeout: 3000 });
+  await expect(chrome).toBeVisible({ timeout: 8000 });
   return { chrome, card: page.locator('.block-card.selected') };
 }
 
@@ -19,7 +19,7 @@ async function insertFreshTextBlock(page: any) {
   await expect(headerZone).toBeVisible({ timeout: 5000 });
   await headerZone.getByText('Empty — click or drag palette items here').click();
   const chrome = page.locator('.block-chrome');
-  await expect(chrome).toBeVisible({ timeout: 3000 });
+  await expect(chrome).toBeVisible({ timeout: 8000 });
   return { chrome, card: headerZone.locator('.block-card').first() };
 }
 
@@ -29,9 +29,9 @@ async function insertFreshTextBlock(page: any) {
 async function enterTextEdit(card: any) {
   await card.dblclick();
   const editor = card.locator('.report-text-editor');
-  await expect(editor).toBeVisible({ timeout: 3000 });
+  await expect(editor).toBeVisible({ timeout: 8000 });
   // entering editing auto-focuses the live editor (caret at the end)
-  await expect(editor.locator('.tiptap')).toBeFocused({ timeout: 3000 });
+  await expect(editor.locator('.tiptap')).toBeFocused({ timeout: 8000 });
   return editor;
 }
 
@@ -45,36 +45,33 @@ test('format toggles light up from the selection (bold, italic, underline)', asy
   // select all, hit B → button lights + canvas text wrapped bold
   await page.keyboard.press('Meta+a');
   await chrome.getByRole('button', { name: 'Bold' }).click();
-  await expect(chrome.getByRole('button', { name: 'Bold' })).toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
+  await expect(chrome.getByRole('button', { name: 'Bold' })).toHaveClass(new RegExp(ON_CLS), { timeout: 8000 });
   // the LIVE inline editor is ProseMirror — bold serializes as <strong>
-  let canvasHtml = await editor.locator('.tiptap').evaluate(el => el.innerHTML);
-  expect(canvasHtml).toContain('<strong>');
+  await expect.poll(() => editor.locator('.tiptap').evaluate(el => el.innerHTML), { timeout: 8000 }).toContain('<strong>');
 
   // U (previously dead — extension missing) → lights + canvas underlined
   await chrome.getByRole('button', { name: 'Underline' }).click();
-  await expect(chrome.getByRole('button', { name: 'Underline' })).toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
-  canvasHtml = await editor.locator('.tiptap').evaluate(el => el.innerHTML);
-  expect(canvasHtml).toContain('<u>');
+  await expect(chrome.getByRole('button', { name: 'Underline' })).toHaveClass(new RegExp(ON_CLS), { timeout: 8000 });
+  await expect.poll(() => editor.locator('.tiptap').evaluate(el => el.innerHTML), { timeout: 8000 }).toContain('<u>');
 
   // I → lights
   await chrome.getByRole('button', { name: 'Italic' }).click();
-  await expect(chrome.getByRole('button', { name: 'Italic' })).toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
-  canvasHtml = await editor.locator('.tiptap').evaluate(el => el.innerHTML);
-  expect(canvasHtml).toContain('<em>');
+  await expect(chrome.getByRole('button', { name: 'Italic' })).toHaveClass(new RegExp(ON_CLS), { timeout: 8000 });
+  await expect.poll(() => editor.locator('.tiptap').evaluate(el => el.innerHTML), { timeout: 8000 }).toContain('<em>');
 
   // caret placed inside the formatted text stays lit (Word behavior)
   await editor.locator('.tiptap').click();
   await page.keyboard.press('Home');
-  await expect(chrome.getByRole('button', { name: 'Bold' })).toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
+  await expect(chrome.getByRole('button', { name: 'Bold' })).toHaveClass(new RegExp(ON_CLS), { timeout: 8000 });
 
   // toggling off with everything selected unlights the buttons
   await page.keyboard.press('Meta+a');
   await chrome.getByRole('button', { name: 'Bold' }).click();
-  await expect(chrome.getByRole('button', { name: 'Bold' })).not.toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
+  await expect(chrome.getByRole('button', { name: 'Bold' })).not.toHaveClass(new RegExp(ON_CLS), { timeout: 8000 });
   await chrome.getByRole('button', { name: 'Underline' }).click();
-  await expect(chrome.getByRole('button', { name: 'Underline' })).not.toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
+  await expect(chrome.getByRole('button', { name: 'Underline' })).not.toHaveClass(new RegExp(ON_CLS), { timeout: 8000 });
   await chrome.getByRole('button', { name: 'Italic' }).click();
-  await expect(chrome.getByRole('button', { name: 'Italic' })).not.toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
+  await expect(chrome.getByRole('button', { name: 'Italic' })).not.toHaveClass(new RegExp(ON_CLS), { timeout: 8000 });
 });
 
 test('bold with empty selection lights the button immediately', async ({ page }) => {
@@ -84,12 +81,11 @@ test('bold with empty selection lights the button immediately', async ({ page })
 
   // caret at end, empty selection → click Bold
   await chrome.getByRole('button', { name: 'Bold' }).click();
-  await expect(chrome.getByRole('button', { name: 'Bold' })).toHaveClass(new RegExp(ON_CLS), { timeout: 3000 });
+  await expect(chrome.getByRole('button', { name: 'Bold' })).toHaveClass(new RegExp(ON_CLS), { timeout: 8000 });
 
   // and the next keystroke really is bold
   await page.keyboard.type('x');
-  const htmlAfter = await editor.locator('.tiptap').evaluate(el => el.innerHTML);
-  expect(htmlAfter).toContain('<strong>x</strong>');
+  await expect.poll(() => editor.locator('.tiptap').evaluate(el => el.innerHTML), { timeout: 8000 }).toContain('<strong>x</strong>');
 });
 
 test('empty line from Enter renders in the canvas as a <br> paragraph', async ({ page }) => {
@@ -162,7 +158,7 @@ test('named style locks redundant B/I but keeps per-word italic + underline', as
   await page.keyboard.type(' one');
   for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowLeft');
   await italic.click();
-  expect(await editor.locator('.tiptap').evaluate(el => el.innerHTML)).toContain('<em>one</em>');
+  await expect.poll(() => editor.locator('.tiptap').evaluate(el => el.innerHTML), { timeout: 8000 }).toContain('<em>one</em>');
 });
 
 test('text styles modal: version-picker editing — create, rename, live preview, persist', async ({ page }) => {
@@ -172,7 +168,7 @@ test('text styles modal: version-picker editing — create, rename, live preview
   await chrome.getByRole('button', { name: /Direct formatting/ }).click();
   await page.locator('.ui-menu').getByText('Edit styles…').click();
   const modal = page.getByRole('dialog');
-  await expect(modal).toBeVisible({ timeout: 3000 });
+  await expect(modal).toBeVisible({ timeout: 8000 });
   await expect(modal.getByText('TEXT STYLES')).toBeVisible();
 
   // the modal must be as compact as its controls — no horizontal overflow
@@ -181,7 +177,7 @@ test('text styles modal: version-picker editing — create, rename, live preview
 
   // trigger shows the first registry style
   const trigger = modal.getByRole('button', { name: 'Heading 1' });
-  await expect(trigger).toBeVisible({ timeout: 3000 });
+  await expect(trigger).toBeVisible({ timeout: 8000 });
 
   // the dropdown previews each style in its own typography
   await trigger.click();
@@ -194,12 +190,12 @@ test('text styles modal: version-picker editing — create, rename, live preview
   await trigger.click();
   await menu.getByText('New Style', { exact: true }).click();
   const renameInput = page.locator('.ui-menu input');
-  await expect(renameInput).toBeVisible({ timeout: 3000 });
+  await expect(renameInput).toBeVisible({ timeout: 8000 });
   await renameInput.fill('Test');
   await renameInput.press('Enter');
 
   // the new style is selected in the modal body and the preview follows edits
-  await expect(modal.getByRole('button', { name: 'Test' })).toBeVisible({ timeout: 3000 });
+  await expect(modal.getByRole('button', { name: 'Test' })).toBeVisible({ timeout: 8000 });
   const sizeInput = modal.locator('input[type="number"]');
   await sizeInput.fill('30');
   const preview = modal.getByText('The quick brown fox jumps over the lazy dog');
@@ -213,6 +209,6 @@ test('text styles modal: version-picker editing — create, rename, live preview
   await expect(modal).toHaveCount(0);
   await chrome.getByRole('button', { name: /Direct formatting/ }).click();
   await page.locator('.ui-menu').getByText('Test', { exact: true }).click();
-  await expect(chrome.getByRole('button', { name: 'Test' })).toBeVisible({ timeout: 3000 });
+  await expect(chrome.getByRole('button', { name: 'Test' })).toBeVisible({ timeout: 8000 });
   await expect(page.getByText(`${seedTitle()} — One-Liner`).first()).toHaveCSS('font-size', '30px');
 });
