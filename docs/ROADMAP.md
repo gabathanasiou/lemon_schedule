@@ -1041,7 +1041,10 @@ pass (doc §12).
 **Requested 2026-10:** collaborators and guests need distinct, recognisable avatars (backgrounds + letters differ per person) in the sharing panel, the header cluster and the S3 presence bubbles.
 
 - **Shipped baseline (roadmap 229 S2.5)**: `AccountAvatar` (`src/components/AccountAvatar.tsx`) derives a deterministic flat color (10-tone palette, FNV-1a over the account id) + initials (first letters of first/last words — "Anonymous Otter" → AO), stable on every client. Same component everywhere (`UserPresenceCluster`, `sharingParts` MemberRow).
-- **Open — richer styles**: evaluate a library vs the built-in look: `boring-avatars` (geometric marks) or `@dicebear/core` + `@dicebear/collection` (illustrated styles). Constraints if one lands: locally generated SVG (no network), deterministic per user id, light/dark friendly, one small dependency actually imported by a source file (AGENTS.md §Stack), kit-bundle budget.
+- **Evaluated 2026-10-15** (real-import esbuild probe, min+gzip; visual contact sheet):
+  - `boring-avatars` 2.0.4 (MIT, React component, 5 variants) — **2.8 KB gzip** measured; the gradient look reads muddy at 24px bubble size, and multi-colour marks ignore the flat identity colour (the avatar would no longer match the person's pointer/label colour).
+  - `@dicebear/core` + ONE style package — seed-deterministic (verified), **4.0–6.6 KB gzip** tree-shaken (initials 4.0 / identicon 4.3 / shapes 4.7 / rings 5.0 / thumbs 6.6); `shapes`/`thumbs`/`rings` read clearly at bubble size, `pixel-art` noisy, transparent-bg styles (notionists/lorelei/glass) need an explicit `backgroundColor` on the dark chrome. Licences MIT except `dylan`/`micah`/`personas`/`fun-emoji` (MIT AND CC-BY-4.0 — attribution) and `bottts` (own licence). Import standalone style packages (`@dicebear/core` + `@dicebear/shapes`) — `@dicebear/collection` drags ~30 style packages into node_modules (the bundle tree-shakes either way).
+  - **Open decision (user taste, 2026-10-15):** library mark (avatar no longer carries the flat identity colour) vs built-in look (zero deps) vs hybrid (identity colour as background + a deterministic mark). Wiring is ONE component (`AccountAvatar` + `avatarIdentity.ts`); presence colours stay `avatarColor` either way.
 - **Wire into**: presence bubbles (229 S3), the People list, the profile modal; keep the deterministic color available as the dependency-free fallback.
 - **Verify**: manual visual pass (rule 7 — a screenshot catches it); unit test for the palette/initials only if a new pure util lands.
 
@@ -1195,3 +1198,71 @@ also mirror **modal/dropdown open state**?
   active design), **234** (peer selection highlights —
   sibling "local state made visible" work), **240** (the overlay cue — this item's
   modal/dropdown answer).
+
+## 245. Presence cluster — collapsed bubbles that spread on hover (`[~]`)
+
+**Requested 2026-10-15 (user):** the header "people viewing" bubbles take the full
+row; they should sit more collapsed at rest and spread apart on hover.
+
+- **Built 2026-10-15 in the `presence-avatars` worktree** (pending the visual pass
+  + merge): the bubble strip (`src/components/UserPresenceCluster.tsx`) is ONE tight
+  overlapped stack at rest (`-space-x-2.5`, was `-space-x-1.5`) and spreads into full
+  circles on hover/focus (`hover:space-x-1 focus-within:space-x-1` on the container;
+  `transition-all duration-200 ease-out` + `motion-reduce:transition-none` on the
+  bubbles and the `+N` chip). No JS, no state; no new hover mechanics (un-gated hover
+  — iOS first tap = sticky spread, second tap = follow, the app-wide hover-reveal
+  model).
+- **Decisions:** spread only (no name labels); keep max 3 + `+N`; the strip grows
+  leftwards, so the undo/redo pair slides with it (~40px, animated) — called out in
+  the manual pass.
+- **Verify (rule 7 — visual, no e2e):** two online clients → bubbles overlap tightly;
+  hover the strip → every bubble fully visible and clickable; move away → collapse;
+  follow toggle, guest dot, overlay dots and the `+N` menu all still work;
+  `prefers-reduced-motion` → no animation.
+- **Relations:** `extends` **229** (S3 presence chrome). `relates to` **231**
+  (avatar identities — same bubbles), **234**/**235** (sibling presence visuals).
+
+## 246. Local dev — auto-start the rooms worker (`wrangler dev`) for dev servers, collab sessions and tests (`[ ]`)
+
+**Requested 2026-10-15 (user):** with the room worker deploying to Cloudflare soon,
+the local emulator (`wrangler dev` = Miniflare/workerd + DO SQLite state) should come
+up on demand — from `npm run dev`, when a collab session starts, and when tests run —
+instead of the manual background command.
+
+- **Today (manual):** `npx wrangler dev --port 8787` in `workers/rooms` + gitignored
+  `.dev.vars` (`DEV_AUTH=1` accepts `dev:<userId>:<role>` —
+  `workers/rooms/wrangler.toml:9`, `src/lib/rooms/roomToken.ts:121`) + `.env`
+  `VITE_ROOMS_URL` (`.env.example:14-20`). Client gate: `useRoomTransport.ts:40` —
+  unset = rooms inert; `roomBadge.ts` shows `unreachable` when the worker is down.
+  Wrangler is NOT pinned (`npx` fetches latest each run) — add `wrangler@4` to
+  devDependencies.
+- **One launcher `tools/rooms-dev.mjs`:** `ensure()` = health-probe 8787 → reuse
+  (so N worktree dev servers share ONE worker, `.dev.vars` and DO state) else spawn
+  `npx wrangler dev` from the MAIN working tree's `workers/rooms` (resolve via
+  `git worktree list`), wait for ready, `[rooms]`-prefixed logs; `stop()` kills only
+  what it spawned. The worker has no health route today — add `GET /health` to
+  `workers/rooms/src/index.ts` (no auth, no data).
+- **Dev server:** a serve-only Vite plugin (`vite.config.ts`; precedent:
+  `hubStorageBridge`) — `ensure()` after listen, stop its own spawn on exit; when
+  `VITE_ROOMS_URL` is unset, default the client to the loopback URL (no `.env` edit);
+  a worker failure never blocks the dev server (badge shows unreachable).
+- **On-demand (the "collab session starts" ask):** the browser cannot spawn
+  processes — the DEV SERVER does: dev-only middleware `GET /__rooms-dev/ensure`;
+  `useRoomTransport` fetches it once before `client.start()`, only when
+  `import.meta.env.DEV` and the URL is loopback (prod builds never call it). Debug
+  bridge may expose `roomsDev.status()` for agents.
+- **Tests:** `playwright.rooms.config.ts` (precedent: `playwright.perf*.config.ts`)
+  extends the base config with a second `webServer` entry for the worker
+  (`reuseExistingServer: true`, `--persist-to` a temp dir for clean DO state) +
+  `VITE_ROOMS_URL` + the room specs; the default suite stays Supabase-off
+  (`playwright.config.ts:62-80`). Point `room-probe.ts` / `room-client-probe.ts` /
+  `two-window-repro.mjs` at the same launcher (two-window-repro's private
+  pkill/restart is the duplication to remove).
+- **Out of scope:** Supabase locally (`supabase start`, Docker) — dev keeps the
+  hosted project; a fully-offline collab stack is its own future item.
+- **Verify:** `npm run dev` with a shared project open → room connects with no manual
+  wrangler; kill the worker → badge `unreachable` + offline buffer, relaunch via the
+  ensure endpoint → replays; two worktree dev servers share ONE worker; `npx
+  playwright test --config=playwright.rooms.config.ts` green.
+- **Relations:** `extends` **229** (S4 local loop + deploy prep); `relates to` **145**
+  (desktop app = the eventual no-terminal host).
