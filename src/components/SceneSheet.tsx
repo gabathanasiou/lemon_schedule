@@ -16,7 +16,7 @@ import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
-import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
+import { useQueueCastNaming, addNewElements } from '../lib/newCastNaming';
 import { useSceneDuplicate } from '../lib/sceneDuplicate';
 import { useFollowView } from '../lib/supabase/useFollowView';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
@@ -194,15 +194,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
 
   const commitField = useCallback((sceneId: string, field: string, value: string) => {
     if (field === 'cast' || allBreakdownCats.includes(field)) {
-      const isCast = field === 'cast';
-      const existing = isCast ? castMembers : (breakdownElements[field] || []);
-      const existingSet = new Set(existing.map((e: any) => (isCast ? e.id : e.name.toLowerCase())));
-      const newItems = getFieldItems(field, value).filter(
-        v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase()),
-      );
-      for (const item of newItems) {
-        addNewElement(dispatch, queue, field, item);
-      }
+      addNewElements(dispatch, queue, field, value, field === 'cast' ? castMembers : (breakdownElements[field] || []));
       const scene = scenes.find(s => s.id === sceneId);
       if (scene) void linkGuard.tryCommitSceneEdit(scene, { [field]: value });
       return;
