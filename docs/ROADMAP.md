@@ -1036,7 +1036,7 @@ pass (doc §12).
 
 **Relations**: `relates to` **229** (collab entitlement + shared gating), **145** (desktop app = the true offline host), **209** (account question).
 
-## 231. Collaboration avatars — generated identities (letter + color; richer styles) (`[ ]`)
+## 231. Collaboration avatars — generated identities (letter + color; richer styles) (`[~]`)
 
 **Requested 2026-10:** collaborators and guests need distinct, recognisable avatars (backgrounds + letters differ per person) in the sharing panel, the header cluster and the S3 presence bubbles.
 
@@ -1044,8 +1044,7 @@ pass (doc §12).
 - **Evaluated 2026-10-15** (real-import esbuild probe, min+gzip; visual contact sheet):
   - `boring-avatars` 2.0.4 (MIT, React component, 5 variants) — **2.8 KB gzip** measured; the gradient look reads muddy at 24px bubble size, and multi-colour marks ignore the flat identity colour (the avatar would no longer match the person's pointer/label colour).
   - `@dicebear/core` + ONE style package — seed-deterministic (verified), **4.0–6.6 KB gzip** tree-shaken (initials 4.0 / identicon 4.3 / shapes 4.7 / rings 5.0 / thumbs 6.6); `shapes`/`thumbs`/`rings` read clearly at bubble size, `pixel-art` noisy, transparent-bg styles (notionists/lorelei/glass) need an explicit `backgroundColor` on the dark chrome. Licences MIT except `dylan`/`micah`/`personas`/`fun-emoji` (MIT AND CC-BY-4.0 — attribution) and `bottts` (own licence). Import standalone style packages (`@dicebear/core` + `@dicebear/shapes`) — `@dicebear/collection` drags ~30 style packages into node_modules (the bundle tree-shakes either way).
-  - **Open decision (user taste, 2026-10-15):** library mark (avatar no longer carries the flat identity colour) vs built-in look (zero deps) vs hybrid (identity colour as background + a deterministic mark). Wiring is ONE component (`AccountAvatar` + `avatarIdentity.ts`); presence colours stay `avatarColor` either way.
-- **Wire into**: presence bubbles (229 S3), the People list, the profile modal; keep the deterministic color available as the dependency-free fallback.
+  - **Decided + built 2026-10-15 (user pick, in the `presence-avatars` worktree — pending the visual pass + merge):** DiceBear `initials` — the library's letters/font (Arial), circle background forced to `avatarColor(account id)` via `backgroundColor`, white letters (library default); `@dicebear/core` + `@dicebear/initials` standalone packages. `AccountAvatar` renders `toDataUri()` through an `<img>` (no innerHTML); letters seed = display name (`name || email || id`); `avatarIdentity.ts` keeps the palette + `shortNameOf` (`initialsOf` removed, tests updated). Every `AccountAvatar` surface inherits it (bubbles, People list, profile modal, Project Manager bar).
 - **Verify**: manual visual pass (rule 7 — a screenshot catches it); unit test for the palette/initials only if a new pure util lands.
 
 **Relations**: `extends` **229** (S2.5 guests, S3 presence).

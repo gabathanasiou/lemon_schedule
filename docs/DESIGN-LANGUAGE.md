@@ -506,7 +506,8 @@ only renders while you are on their EXACT place (same tab + sub-tab + sub-sub
 mode)**. The **header collaborator bubbles** (`UserPresenceCluster`, max 3 + a
 `+N` menu) are follow TOGGLES — click a person to follow their view, click
 again (or Esc / navigate) to stop; they carry the same deterministic colours
-and an amber dot for guests. At rest they form ONE tight overlapped stack
+and an amber dot for guests. Avatar circles render DiceBear `initials` letters
+on the person's identity colour (roadmap 231). At rest they form ONE tight overlapped stack
 (`-space-x-2.5`); hovering or focusing the strip spreads them into full circles
 (`hover:space-x-1 focus-within:space-x-1`, `transition-all duration-200
 ease-out`, `motion-reduce:transition-none` — roadmap 245) so every person is

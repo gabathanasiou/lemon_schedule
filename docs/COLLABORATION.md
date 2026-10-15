@@ -370,8 +370,10 @@ follow; a save ping updates a clean peer; non-members cannot join the channel.
   (kicked out). Guests admitted by a revoked link are evicted by the same
   membership delete. RLS remains the enforcement point; acceptance
   `rls_s3.sql` (`role_change_pushes_access_event` / `revoke_pushes_access_event`).
-- `AccountAvatar` palette/initials moved to `src/lib/avatarIdentity.ts` (one
-  deterministic identity for the People list, avatars and pointers).
+- `AccountAvatar` (provider photo, else DiceBear `initials` letters on the
+  `avatarColor` circle — user pick 2026-10-15, roadmap 231) + the shared
+  palette in `src/lib/avatarIdentity.ts` (one deterministic identity for the
+  People list, avatars and pointers).
 - Follow completeness (built 2026-10-12): `PresenceView` gains `sheetIndex`,
   `viewMode`, `cellBorders` and `calendarView` (allow-list validated in
   `parseView`), and a `scroll` broadcast (`PresenceScrollSample`) rides the
