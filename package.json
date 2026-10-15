@@ -2,7 +2,7 @@
   "name": "react-example",
   "private": true,
   "license": "Apache-2.0",
-  "version": "0.3.87",
+  "version": "0.3.88",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0 --strictPort",

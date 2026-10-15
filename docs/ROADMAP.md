@@ -630,27 +630,6 @@ are hard-coded (`src/components/reports/reportStyle.ts:37-42`, A4 − 12mm;
   math) + manual; migrate existing designs.
 - **Relations**: 140/142 (designer chrome), 3.
 
-## 163. Script tab performance — render is unacceptably heavy (`[ ]`)
-
-**Request** (debug report, escalated): the Script tab renders too slowly and is
-heavy — "performance is really unacceptable". Likely suspects, verify by
-profiling before changing anything:
-- the tagging derivation recomputes attached spans + suggestions for EVERY
-  scene on every project change (`attachedRanges`/`suggestionRanges` scan each
-  element × each block — `src/lib/scriptTagging.ts`, `useScriptTagging`);
-- full-document re-render on selection/hover, `ScriptTagging` overlay
-  recompute/scroll listeners, scene-index rebuilds (`ScriptView.tsx`,
-  `src/components/script/*`).
-- **Deliverable**: a measured fix using the existing perf tooling
-  (`docs/PERF-DIAGNOSIS.md`); behavior unchanged. Evaluate virtualized/windowed
-  rendering for the script body (e.g. `react-window`/`react-virtuoso`/TanStack
-  Virtual) and/or foveated/priority rendering (render the viewport, degrade the
-  rest) — look online for current libraries/methods and pick the smallest one
-  that clears the budget; new deps must be imported by ≥1 source file.
-- **Verify**: before/after profile + `npx playwright test e2e/script-*.spec.ts`
-  green (README: existing perf harnesses are `@perf`-tagged).
-- **Relations**: 123/132/136.
-
 ## 164. Day Manager — add an element to a day's Call Times (`[ ]`)
 
 **Request**: in the Day Manager Call Times section, allow adding an element
