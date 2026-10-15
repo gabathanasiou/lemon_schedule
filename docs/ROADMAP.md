@@ -1044,8 +1044,9 @@ pass (doc §12).
 - **Evaluated 2026-10-15** (real-import esbuild probe, min+gzip; visual contact sheet):
   - `boring-avatars` 2.0.4 (MIT, React component, 5 variants) — **2.8 KB gzip** measured; the gradient look reads muddy at 24px bubble size, and multi-colour marks ignore the flat identity colour (the avatar would no longer match the person's pointer/label colour).
   - `@dicebear/core` + ONE style package — seed-deterministic (verified), **4.0–6.6 KB gzip** tree-shaken (initials 4.0 / identicon 4.3 / shapes 4.7 / rings 5.0 / thumbs 6.6); `shapes`/`thumbs`/`rings` read clearly at bubble size, `pixel-art` noisy, transparent-bg styles (notionists/lorelei/glass) need an explicit `backgroundColor` on the dark chrome. Licences MIT except `dylan`/`micah`/`personas`/`fun-emoji` (MIT AND CC-BY-4.0 — attribution) and `bottts` (own licence). Import standalone style packages (`@dicebear/core` + `@dicebear/shapes`) — `@dicebear/collection` drags ~30 style packages into node_modules (the bundle tree-shakes either way).
-  - **Decided + built 2026-10-15 (user pick, in the `presence-avatars` worktree — pending the visual pass + merge):** DiceBear `initials` — the library's letters/font (Arial), circle background forced to `avatarColor(account id)` via `backgroundColor`, white letters (library default); `@dicebear/core` + `@dicebear/initials` standalone packages. `AccountAvatar` renders `toDataUri()` through an `<img>` (no innerHTML); letters seed = display name (`name || email || id`); `avatarIdentity.ts` keeps the palette + `shortNameOf` (`initialsOf` removed, tests updated). Every `AccountAvatar` surface inherits it (bubbles, People list, profile modal, Project Manager bar).
-- **Verify**: manual visual pass (rule 7 — a screenshot catches it); unit test for the palette/initials only if a new pure util lands.
+  - **Decided + built 2026-10-15 (user pick; shipped on main in 0.3.85/0.3.86):** DiceBear `initials` — the library's letters/font (Arial), circle background forced to `avatarColor(account id)` via `backgroundColor`, white letters (library default); `@dicebear/core` + `@dicebear/initials` standalone packages. `AccountAvatar` renders `toDataUri()` through an `<img>` (no innerHTML); letters seed = display name (`name || email || id`); `avatarIdentity.ts` keeps the palette + `shortNameOf` (`initialsOf` removed, tests updated). Every `AccountAvatar` surface inherits it (bubbles, People list, profile modal, Project Manager bar).
+- **Fix 2026-10-15 (user report, shipped 4353a9f8):** DiceBear prepends `#` itself — `backgroundColor: [avatarColor(seed)]` produced `fill="##0f766e"`, an invalid SVG fill that fell back to BLACK. `AccountAvatar` now passes the bare hex. **Do not hand DiceBear a CSS colour.**
+- **Verify**: manual visual pass (rule 7 — a screenshot catches it; merged and awaiting the user's confirm); unit test for the palette/initials only if a new pure util lands.
 
 **Relations**: `extends` **229** (S2.5 guests, S3 presence).
 
@@ -1092,8 +1093,8 @@ also mirror **modal/dropdown open state**?
 **Requested 2026-10-15 (user):** the header "people viewing" bubbles take the full
 row; they should sit more collapsed at rest and spread apart on hover.
 
-- **Built 2026-10-15 in the `presence-avatars` worktree** (pending the visual pass
-  + merge): the bubble strip (`src/components/UserPresenceCluster.tsx`) is ONE tight
+- **Built 2026-10-15, shipped on main in 0.3.85:** the bubble strip
+  (`src/components/UserPresenceCluster.tsx`) is ONE tight
   overlapped stack at rest (`-space-x-2.5`, was `-space-x-1.5`) and spreads into full
   circles on hover/focus (`hover:space-x-1 focus-within:space-x-1` on the container;
   `transition-all duration-200 ease-out` + `motion-reduce:transition-none` on the
@@ -1106,7 +1107,8 @@ row; they should sit more collapsed at rest and spread apart on hover.
 - **Verify (rule 7 — visual, no e2e):** two online clients → bubbles overlap tightly;
   hover the strip → every bubble fully visible and clickable; move away → collapse;
   follow toggle, guest dot, overlay dots and the `+N` menu all still work;
-  `prefers-reduced-motion` → no animation.
+  `prefers-reduced-motion` → no animation. (Merged in 0.3.85; awaiting the user's
+  confirm.)
 - **Relations:** `extends` **229** (S3 presence chrome). `relates to` **231**
   (avatar identities — same bubbles), **234**/**235** (sibling presence visuals).
 

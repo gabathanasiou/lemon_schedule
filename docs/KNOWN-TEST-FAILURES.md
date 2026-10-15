@@ -177,3 +177,13 @@ green). Re-triaged to be sure it wasn't the merge: clean `main` gives
 passed with 2 workers and 3/3 passed with `--workers=1` (file-only 6/6).
 Same load-sensitivity, not a regression — if it recurs again, `@quarantine`
 it (`docs/TESTING.md`) rather than chasing the app.
+
+## G. day-times-glide editor spec flake under full-suite load (no fix needed)
+
+**2026-10-15 — the roadmap-236 merge suite flaked once** on
+`day-times-glide.spec.ts:27` ("editor seeds the default expression…"); the
+retry passed (269/270 with 1 flaky) while a dev server + a second browser were
+running on the machine. **Triage:** re-ran the spec alone immediately after —
+5/5 passed (8.9s). Same load-sensitivity class as section F (Glide overlay
+editor interactions under CPU contention), not a regression; retries=1 absorbs
+it. If it recurs, re-check with `--workers=1` before touching the app.
