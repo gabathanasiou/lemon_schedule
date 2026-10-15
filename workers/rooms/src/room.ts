@@ -26,6 +26,11 @@ export interface Env {
 const SNAPSHOT_EVERY = 50;
 /** How many snapshots to keep — the older ones widen the undo window. */
 const SNAPSHOTS_KEPT = 4;
+/** Cloudflare caps WebSocket messages at 1 MiB; refuse politely a touch earlier. */
+const MAX_MESSAGE_CHARS = 1_000_000;
+/** Per-socket message budget (OWASP: rate-limit incoming WebSocket messages). */
+const RATE_BURST = 60;
+const RATE_PER_SECOND = 20;
 
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://gabathanasiou.github.io',
@@ -33,6 +38,11 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:3001',
   'http://localhost:4173',
 ];
+
+const SECURITY_HEADERS = {
+  'x-content-type-options': 'nosniff',
+  'cache-control': 'no-store',
+} as const;
 
 /** Per-socket identity, stored as a WebSocket attachment so it survives hibernation. */
 interface ConnectionInfo {
@@ -65,6 +75,8 @@ export class Room extends DurableObject<Env> {
   private snapshotBlob: string | null = null;
   /** Serializes every message handler — the room is single-threaded by design. */
   private chain: Promise<unknown> = Promise.resolve();
+  /** Per-socket message budget (in-memory; resets on hibernation — acceptable for abuse control). */
+  private rate = new Map<WebSocket, { tokens: number; last: number }>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -163,14 +175,10 @@ export class Room extends DurableObject<Env> {
 
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
-      return Response.json({
-        room: this.projectId,
-        initialized: this.present !== null,
-        rev: this.headRev,
-      });
+      return this.json({ room: this.projectId, initialized: this.present !== null, rev: this.headRev });
     }
     const match = new URL(request.url).pathname.match(/\/room\/([^/]+)$/);
-    if (!match) return new Response('bad room path', { status: 400 });
+    if (!match) return new Response('bad room path', { status: 400, headers: SECURITY_HEADERS });
     const projectId = decodeURIComponent(match[1]);
     if (this.projectId === null) {
       this.projectId = projectId;
@@ -179,11 +187,12 @@ export class Room extends DurableObject<Env> {
         projectId
       );
     } else if (this.projectId !== projectId) {
-      return new Response('room mismatch', { status: 400 });
+      return new Response('room mismatch', { status: 400, headers: SECURITY_HEADERS });
     }
     const origin = request.headers.get('Origin');
     if (origin && !this.originAllowed(origin)) {
-      return new Response('origin not allowed', { status: 403 });
+      console.warn(`rooms: rejected origin "${origin}" for room ${this.projectId}`);
+      return new Response('origin not allowed', { status: 403, headers: SECURITY_HEADERS });
     }
     const pair = new WebSocketPair();
     this.ctx.acceptWebSocket(pair[1]);
@@ -196,6 +205,18 @@ export class Room extends DurableObject<Env> {
       ws.close(1003, 'binary messages are not supported');
       return;
     }
+    if (message.length > MAX_MESSAGE_CHARS) {
+      console.warn(`rooms: oversized message (${message.length} chars) in room ${this.projectId}`);
+      this.send(ws, { t: 'error', message: 'message too large' });
+      ws.close(1009, 'message too large');
+      return;
+    }
+    if (!this.takeRateToken(ws)) {
+      console.warn(`rooms: rate limited a socket in room ${this.projectId}`);
+      this.send(ws, { t: 'error', message: 'rate limited' });
+      ws.close(1008, 'rate limited');
+      return;
+    }
     const run = this.chain.then(() => this.handleMessage(ws, message));
     this.chain = run.catch(() => {});
     try {
@@ -203,6 +224,22 @@ export class Room extends DurableObject<Env> {
     } catch {
       this.send(ws, { t: 'error', message: 'internal error' });
     }
+  }
+
+  async webSocketClose(ws: WebSocket): Promise<void> {
+    this.rate.delete(ws);
+  }
+
+  private takeRateToken(ws: WebSocket): boolean {
+    const now = Date.now();
+    const state = this.rate.get(ws) ?? { tokens: RATE_BURST, last: now };
+    const refill = ((now - state.last) / 1000) * RATE_PER_SECOND;
+    state.tokens = Math.min(RATE_BURST, state.tokens + refill);
+    state.last = now;
+    const allowed = state.tokens >= 1;
+    if (allowed) state.tokens -= 1;
+    this.rate.set(ws, state);
+    return allowed;
   }
 
   private async handleMessage(ws: WebSocket, raw: string): Promise<void> {
@@ -242,6 +279,7 @@ export class Room extends DurableObject<Env> {
     }
     const auth = await this.authenticate(token);
     if (!auth) {
+      console.warn(`rooms: authentication failed for room ${this.projectId}`);
       this.send(ws, { t: 'error', message: 'unauthenticated' });
       ws.close(1008, 'unauthenticated');
       return;
@@ -406,6 +444,12 @@ export class Room extends DurableObject<Env> {
       .map((o) => o.trim())
       .filter(Boolean);
     return list.includes(origin);
+  }
+
+  private json(data: unknown): Response {
+    return new Response(JSON.stringify(data), {
+      headers: { 'content-type': 'application/json', ...SECURITY_HEADERS },
+    });
   }
 
   private send(ws: WebSocket, msg: RoomServerMessage): void {

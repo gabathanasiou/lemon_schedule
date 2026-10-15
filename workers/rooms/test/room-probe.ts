@@ -6,8 +6,9 @@
  *
  * Flow: A (editor) seeds the room via init → acts; B (editor) joins and must land
  * on A's state by folding snapshot + replay; B acts and A must see it; a viewer is
- * rejected; a reconnect must replay everything; HTTP info reports the head rev.
- * Exits non-zero on the first failure.
+ * rejected; a reconnect must replay everything; the security negatives (fake origin,
+ * no auth, wrong room, oversized frame, message flood) must be refused; HTTP info
+ * reports the head rev. Exits non-zero on the first failure.
  */
 import WebSocket from 'ws';
 import { makeBlankProject, reducer, type Action, type State } from '../../../src/store/reducer';
@@ -22,8 +23,10 @@ import { deserializeProject, serializeProject } from '../../../src/lib/projectCo
 import type { Project } from '../../../src/types';
 
 const BASE = process.env.ROOM_URL ?? 'http://127.0.0.1:8787';
-const WS_URL = BASE.replace(/^http/, 'ws') + '/room/probe-project';
-const PROJECT_ID = 'probe-project';
+// A fresh room per run: local Durable Object state persists in .wrangler/ across
+// `wrangler dev` restarts, so a fixed id would hit the previous run's room.
+const PROJECT_ID = process.env.ROOM_PROBE_ID ?? `probe-${Date.now().toString(36)}`;
+const WS_URL = BASE.replace(/^http/, 'ws') + `/room/${PROJECT_ID}`;
 
 let failures = 0;
 function check(label: string, ok: boolean, detail?: unknown): void {
@@ -72,6 +75,10 @@ class Client {
     this.ws.send(encodeRoomMessage(msg));
   }
 
+  sendRaw(raw: string): void {
+    this.ws.send(raw);
+  }
+
   waitFor(pred: (m: RoomServerMessage) => boolean, timeoutMs = 10000): Promise<RoomServerMessage> {
     const existing = this.messages.find(pred);
     if (existing) return Promise.resolve(existing);
@@ -104,6 +111,17 @@ async function waitForServer(): Promise<void> {
     await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error(`room worker never came up at ${BASE}`);
+}
+
+function expectRejectedOrigin(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const ws = new WebSocket(WS_URL, { origin: 'https://evil.example' });
+    ws.on('open', () => {
+      ws.close();
+      resolve(false);
+    });
+    ws.on('error', () => resolve(true));
+  });
 }
 
 async function main(): Promise<void> {
@@ -170,6 +188,35 @@ async function main(): Promise<void> {
     const folded = fold(deserializeProject(welcomeB2.project), welcomeB2.replay);
     check('B2: folded state is converged', folded.title === 'After B left', folded.title);
   }
+
+  // --- security negatives (OWASP WebSocket checklist) -------------------------------
+  check('evil origin: handshake rejected', await expectRejectedOrigin());
+
+  const d = new Client(WS_URL);
+  await d.open();
+  d.send({ t: 'act', actionId: 'd-1', action: { type: 'BATCH_START' } });
+  const unauth = await d.waitFor((m) => m.t === 'error');
+  check('D: unauthenticated write refused', unauth.t === 'error' && unauth.message === 'unauthenticated', unauth);
+
+  const e = new Client(WS_URL);
+  await e.open();
+  e.send({ t: 'hello', token: 'dev:eve:editor', projectId: 'other-room' });
+  const wrongRoom = await e.waitFor((m) => m.t === 'error');
+  check('E: hello for another room refused', wrongRoom.t === 'error' && wrongRoom.message === 'wrong room', wrongRoom);
+
+  const h = new Client(WS_URL);
+  await h.open();
+  h.sendRaw('x'.repeat(1_000_001));
+  const tooLarge = await h.waitFor((m) => m.t === 'error');
+  check('H: oversized message refused', tooLarge.t === 'error' && tooLarge.message === 'message too large', tooLarge);
+
+  const f = new Client(WS_URL);
+  await f.open();
+  f.send({ t: 'hello', token: 'dev:frank:editor', projectId: PROJECT_ID });
+  await f.waitFor((m) => m.t === 'welcome');
+  for (let i = 0; i < 200; i++) f.send({ t: 'sync' });
+  const limited = await f.waitFor((m) => m.t === 'error' && m.message === 'rate limited');
+  check('F: message flood rate limited', limited.t === 'error' && limited.message === 'rate limited', limited);
 
   // --- HTTP info reflects head rev ---
   const info = (await (await fetch(`${BASE}/room/${PROJECT_ID}`)).json()) as { rev: number; initialized: boolean };
