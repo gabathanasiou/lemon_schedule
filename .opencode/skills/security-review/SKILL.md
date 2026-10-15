@@ -94,7 +94,7 @@ is the reference.
 npm run lint                     # app typecheck + docs budget + e2e eslint
 npx tsc -p workers/rooms         # worker program (separate runtime, separate config)
 cd workers/rooms && npx wrangler dev --port 8787 &   # local room (with .dev.vars DEV_AUTH=1)
-npx tsx workers/rooms/test/room-probe.ts             # 17 checks incl. attack negatives
+npx tsx workers/rooms/test/room-probe.ts             # 31 checks incl. attack negatives
 npm audit                        # must be 0
 npm run test:full                # for logic/auth/dependency changes (rule 7)
 ```

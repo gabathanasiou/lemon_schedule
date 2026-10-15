@@ -125,23 +125,32 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   `reloadOnlineProject()` is the explicit user action. Saves stay last-write-wins until S4 — never
   auto-apply over unsaved local edits.
 
-## Realtime rooms (roadmap 229 S4 — client transport, stage 1)
+## Realtime rooms (roadmap 229 S4 — room worker + client transport)
 
 - ONE client module `src/lib/rooms/roomClient.ts` (WS transport: hello/token, snapshot + replay,
-  own-echo dedupe by `actionId`, rejection → auto-resync, backoff reconnect) + the React seam
-  `src/lib/rooms/useRoomTransport.ts` (mounted in `ProjectProvider`; inert without
+  own-echo dedupe by `actionId`, rejection → auto-resync, backoff reconnect, `sendUndo`/`sendRedo`)
+  + the React seam `src/lib/rooms/useRoomTransport.ts` (mounted in `ProjectProvider`; inert without
   `VITE_ROOMS_URL`). The room worker runs the SAME reducer (`workers/rooms`).
 - While the room transport is connected (status ≠ `closed`) it owns the open shared project's
   writes: every accepted write dispatch streams an action (`guardedDispatch`; `LOAD`/`UNDO`/`REDO`
   excluded — the room's own refuse-set), welcome/remote messages apply through the RAW dispatch
   (never counted as local changes, never pushed back), and the whole-blob Supabase save + S3.5
   peer-save reloads are skipped — the blob is staging-only until the S4 persistence cutover.
-  Per-user undo is the next S4 unit; until it lands, local undo is local-only while connected
-  (flag-gated internal staging — no user ever sees it yet).
+- **Per-user undo (built)** is a ROOM operation, never a transported action: Cmd+Z / Cmd+Shift+Z
+  while connected sends `undo`/`redo` (the local transcript UNDO/REDO is skipped). The room removes
+  the caller's latest unit — one action, or one whole client batch (its `batch_id` rows) — rebuilds
+  `present` from the newest retained snapshot older than the unit while skipping its rows, writes a
+  fresh snapshot at a NEW rev, deletes the undone rows, and re-syncs EVERY client through the
+  existing `welcome` (no new server→client shape). Redo re-applies the undone unit as fresh actions
+  through the normal apply + log + broadcast path; the redo stack lives in room memory only (lost
+  on hibernation) and a new accepted action from that user clears it. Undo depth = the retained
+  snapshot window (`SNAPSHOTS_KEPT` = 4 snapshots ≈ 4 × `SNAPSHOT_EVERY` actions); a unit with no
+  base snapshot answers "action too old to undo". The header undo/redo buttons still use the local
+  transcript while connected (Cmd+Z is the room-routed path) — polish alongside the deploy.
 - Not yet: room tokens are dev-only (`dev:<user>:<role>`, DEV builds + `wrangler dev`); the
   deployed path calls the Supabase `room-token` function (`src/lib/rooms/tokenClient.ts`), which
-  is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 17 checks) and
-  `room-client-probe.ts` (the real `RoomClient`, 13 checks) against `wrangler dev`.
+  is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 31 checks) and
+  `room-client-probe.ts` (the real `RoomClient`, 17 checks) against `wrangler dev`.
 
 ## `useProject()` API
 

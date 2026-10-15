@@ -1,4 +1,4 @@
-# Online Collaboration — Vision, Architecture & Stages (PLAN — S1–S3 BUILT)
+# Online Collaboration — Vision, Architecture & Stages (PLAN — S1–S3 BUILT; S4 BUILT LOCALLY)
 
 Status: planning doc for roadmap 229. **Read this before starting any online-accounts,
 sharing, presence or realtime-editing work.** The free local/Google Drive path must
@@ -8,7 +8,9 @@ shared projects (§6 S1 map) and sharing/roles/invites + view-only links (§6 S2
 refresh (§6 S3 map); **follow completeness is built (2026-10-12)**: the Sheet scene,
 view switches and scroll mirroring, with the user decision that scrolling yourself
 never ends follow while any view-changing click does (§9). RLS acceptance is
-`supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql`. S4 (rooms) is next.
+`supabase/tests/rls_s1.sql` + `rls_s2.sql` + `rls_s3.sql`. **S4 (rooms) is built locally**
+(worker + client transport + per-user undo; flag-gated by `VITE_ROOMS_URL`) — deploy and the
+live two-machine pass are next; runtime semantics: `docs/STORE-AND-SYNC.md` §Realtime rooms.
 
 Decisions taken 2026-10 with the user: online-only editing for SHARED projects
 (server-authoritative rooms, NOT CRDT); Supabase + Cloudflare Durable Objects;

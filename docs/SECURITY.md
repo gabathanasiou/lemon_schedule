@@ -60,7 +60,7 @@ the room:
   persisted nor broadcast.
 - **Logging**: security events (`auth failed`, `origin rejected`, `rate limited`,
   oversized) log the event only — never tokens or message contents.
-- **Proof**: `workers/rooms/test/room-probe.ts` (17 checks) includes the negatives —
+- **Proof**: `workers/rooms/test/room-probe.ts` (31 checks) includes the negatives —
   fake origin, no auth, wrong room, oversized frame, message flood.
 
 ## 4. Client rules (touching auth, network, or storage)
