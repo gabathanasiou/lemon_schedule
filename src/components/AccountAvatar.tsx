@@ -17,11 +17,14 @@ function colorSeedOf(account: SupabaseAccount | null): string {
 }
 
 /** DiceBear initials SVG as a data URI — letters from the display name, the
- *  circle forced to the identity colour, white letters (DiceBear default). */
+ *  circle forced to the identity colour, white letters (DiceBear default).
+ *  DiceBear prepends '#' to every backgroundColor entry itself, so hand it the
+ *  BARE hex: `avatarColor()` returns a CSS colour (`#0f766e`), and a literal
+ *  `##0f766e` is an invalid SVG fill — the circle rendered BLACK. */
 function generatedAvatarUri(label: string, colorSeed: string): string {
   return createAvatar(initials, {
     seed: label,
-    backgroundColor: [avatarColor(colorSeed)],
+    backgroundColor: [avatarColor(colorSeed).replace('#', '')],
     size: 64,
   }).toDataUri();
 }
