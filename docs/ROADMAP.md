@@ -1209,3 +1209,67 @@ header items sit at — and it reads bold; it shouldn't be.
   File label's left edge lines up with the rightmost items' rail; hover/active pill
   still encloses the label; weight matches the rest of the toolbar.
 - **Relations**: `relates to` **245** (header chrome visual pass).
+
+## 248. Shared-project theme — emerald chrome while collaborating (`[ ]`)
+
+**Requested 2026-10-15 (user):** Drive projects recolor the chrome blue; shared
+(collab) projects should get their own GREEN theme, matching the Project Manager's
+Shared tab (`bg-emerald-900`, `ProjectManager.tsx:489`) — so collab reads green at a
+glance while Drive stays blue.
+
+- **Today's seam**: ONE boolean drives all project chrome — `useIsCloudProject()`
+  (`src/store/provider.tsx:1613-1617`) is true for Drive OR online (`onlineId`)
+  projects, so both get blue. The distinguishing predicate already exists:
+  `useIsOnlineProject()` (`provider.tsx:1619-1624`). A project is never both
+  (`collaborateProject` clears `driveFileId`, `provider.tsx:1542`) — precedence
+  shared > drive > local.
+- **Approach**: ONE project-theme source (e.g. `useProjectTheme(): 'local' | 'drive'
+  | 'shared'` beside the two predicates) consumed by every surface that branches on
+  `isCloud` today: `AppHeader.tsx:109,120` (incl. the File menu `theme`),
+  `VersionToolbar.tsx:22`, `PageToolbar.tsx:44,134,148` (light toolbars),
+  `UserPresenceCluster.tsx:66,170`, `UndoRedoButtons.tsx:23`, `SortDropdown.tsx:170`,
+  `BoneyardBlock.tsx:201-209`, plus the kit-Button `cloud` props in
+  SceneSheet/ScheduleTab/BreakdownTabGlide/ElementManager/`managerShell.tsx` and
+  `SaveIndicator`. Map blue → emerald 1:1 (surfaces `bg-emerald-950`, hovers
+  `bg-emerald-900/60`, light-toolbar active `text-emerald-50`).
+- **Kit gap (the effort answer)**: `DropdownMenu`'s `DropdownTheme` is `'light' |
+  'dark' | 'blue'` and kit `Button`'s `cloud` prop is blue-950 only — an emerald
+  theme needs a kit variant (bump `@gabriel/ui-kit`) or an app-side override.
+- **Verify (rule 7 — colour-only, no e2e)**: manual pass on all three themes (local
+  zinc / Drive blue / shared emerald) + a guest share-link session — header, File
+  menu, light+dark toolbars, presence/undo hover tones consistent; Vitest for the pure
+  theme predicate if one lands. Update DESIGN-LANGUAGE §two-layer surface model
+  (line 54) + the primitive matrix in the same commit.
+- **Relations**: `relates to` **229** (collab S1 shared chrome), **237** (archive —
+  the PM Shared tab this colour matches).
+
+## 249. Project Manager — tab count: white on active + stale Shared count (`[ ]`)
+
+**Requested 2026-10-15 (user):** the little count next to each Project Manager tab
+label is dim (`text-zinc-500`) even on the ACTIVE tab (white label on
+zinc-800/blue-900/emerald-900) — it should be white to be properly visible. Separately,
+the Shared count sometimes sticks (e.g. "2") after being disconnected or losing
+access — it should reflect reality.
+
+- **Colour**: `ProjectManager.tsx:467,481,497` hard-set `text-zinc-500` on the count.
+  Let it inherit its label's colour instead (drop the fixed colour, optional
+  `opacity-60` for hierarchy) — white when active, and it then also follows the
+  label's hover (today the label lightens on hover, the count doesn't).
+- **Stale count (bug)**: the Shared list merges the server fetch with SESSION metas —
+  `onlineProjectList` = `onlineProjects` ∪ `projectList.filter(p => p.onlineId)`
+  (`ProjectManager.tsx:144-151`). Sign-out clears only `onlineProjects`
+  (`refetchOnlineProjects`, `provider.tsx:414-429`); the session metas survive, so the
+  count and rows stay. Same after an external revoke/removal, and a failed refetch
+  (offline) keeps the old list — the `.catch` (`provider.tsx:427`) only sets
+  `onlineError`. Repros: sign in → 2 shared → open the PM → Sign out → Shared still
+  reads 2; go offline → refetch.
+- **Fix direction**: gate the session-meta merge on a signed-in account; reconcile the
+  merge against the fetch (server truth wins; metas only cover the not-yet-refetched
+  window — that's why they exist, fresher titles/lastModified); on sign-out drop the
+  session metas (or stop merging them); a failed refetch must not present a stale
+  count as truth. Extract the merge into a pure helper so the account-null / error /
+  external-removal cases get Vitest coverage.
+- **Verify**: manual repro set (sign-out, offline refetch, revoked access, own delete)
+  before/after; Vitest for the merge helper. No e2e (no PM spec exists; the suite runs
+  Supabase-off, `playwright.config.ts:72`).
+- **Relations**: `relates to` **229** (S1/S2.5 sharing surfaces).
