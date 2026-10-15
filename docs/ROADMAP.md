@@ -1155,6 +1155,24 @@ Breakdown the pointer "unsticks" the moment it leaves populated cells.
    (Element/Crew/Locations/Day-Times `InlineGlideTable`) via `registerPresenceGridScope`,
    exactly like `breakdown-glide`. If the surface count keeps growing, consider one generic
    anchor registry instead of per-surface branches in `PresenceOverlay`.
+4. **Generic chrome coverage — the "everything" ask (future-proof)**: add a generic DOM anchor
+   (`kind: 'dom'` — one stable key + fx/fy) to the chain, and assign keys in the SHARED
+   primitives instead of per instance (PageToolbar items, tab/sub-tab buttons, palette/menu
+   items; the kit's menu items ride a ui-kit release) so every FUTURE control inherits
+   coverage automatically. Do NOT auto-derive keys from DOM structure/text — cross-client keys
+   must be explicit and stable. Anything unregistered keeps the screen fallback
+   (hide-don't-fake), so coverage grows per component without breakage; dropdown items display
+   only while both clients have the same menu open (correct — otherwise they hide).
+
+**Traffic note (Supabase Realtime, verified 2026-10-15):** pointers ride Realtime Broadcast —
+the Cloudflare room is untouched by presence. Free plan: 100 messages/s, 2M messages/month,
+200 concurrent connections; a broadcast counts once per sender **plus once per receiving
+client**. Our throttles (cursor ≈12/s while moving — `presenceChannel.ts` 80ms interval,
+scroll ≈5/s + idle-skip + quantized drops) keep a small team well inside; a larger room with
+several simultaneous movers can approach the 100/s and monthly quotas — Pro (500/s,
+5M/month) covers production, and the cursor throttle can become peer-count-aware if needed.
+**Broader magnetism is traffic-neutral**: same rate, same payload size — only the anchor's
+meaning improves.
 
 **Verify**: two-client manual pass per surface (pointer sticks to the block/cell under it,
 glides within it, hides when the anchor resolves off-viewport, and vanishes entirely while the
