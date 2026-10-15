@@ -10,6 +10,9 @@ export default defineConfig({
     baseURL: 'http://localhost:3001',
     headless: true,
     screenshot: 'only-on-failure',
+    // Match the main suite's conditions: the kit overlay morph self-disables
+    // under reduced motion (same reason as playwright.config.ts).
+    contextOptions: { reducedMotion: 'reduce' },
   },
   webServer: {
     command: 'npm run dev -- --port=3001',

@@ -1,5 +1,6 @@
 import { test, Page, CDPSession } from '@playwright/test';
-import { loadSeedProject, seedProjectScript } from './helpers';
+import { loadSeedProject, seedProjectScript, openSeededProject } from './helpers';
+import { buildPerfScript } from './perfScriptFixture';
 
 async function openSeeded(page: Page) {
   const seed = loadSeedProject();
@@ -219,4 +220,312 @@ test('@perf diagnosis: memory + cpu over repeated workflows (Town project)', asy
         ? 'SIGNATURE: mild growth, inspect'
         : 'SIGNATURE: flat - no obvious leak';
   console.log(verdict);
+});
+
+test('@perf script tab: open + interactions with a full screenplay (roadmap 163)', async ({ page }) => {
+  test.setTimeout(600000);
+  // The bridge drives the project-change round; the perf configs don't preset
+  // the prod agent flag the suite's storageState normally sets.
+  await page.addInitScript(() => { try { localStorage.setItem('LEMON_AGENT', '1'); } catch { /* ignore */ } });
+  const stats = { scenes: 0, blocks: 0, annotations: 0 };
+  await openSeededProject(page, (p) => {
+    // Prefer the project's OWN retained screenplay (a real production project
+    // via LEMON_SEED_PATH — the honest heavy input); synthesize one only for
+    // the committed demo seed, which has no script.
+    if (!p.scriptDocument?.scenes?.length) {
+      const { doc, annotations } = buildPerfScript(p);
+      p.scriptDocument = doc;
+      p.scriptAnnotations = annotations;
+    }
+    const doc = p.scriptDocument;
+    stats.scenes = doc.scenes.length;
+    stats.blocks = doc.scenes.reduce((n: number, s: any) => n + s.blocks.length, 0);
+    stats.annotations = (p.scriptAnnotations || []).length;
+  });
+  console.log(`[script] fixture: ${stats.scenes} scenes / ${stats.blocks} blocks / ${stats.annotations} committed annotations`);
+
+  await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+  await page.waitForTimeout(500);
+  const cdp = await getCdp(page);
+  // Tablet-class CPU (the escalated report came from an iPad-class device);
+  // on a fast desktop headless run the jank barely registers unthrottled.
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+
+  const openStart = Date.now();
+  const beforeOpen = await counters(cdp);
+  await page.getByRole('button', { name: 'Script', exact: true }).click();
+  await page.locator('[data-testid="script-scene"]').last().waitFor({ state: 'attached', timeout: 180000 });
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null)))));
+  const openWall = Date.now() - openStart;
+  fmtDelta(beforeOpen, await counters(cdp), 'script open');
+  console.log(`[script] open wall=${openWall}ms`);
+  const afterOpenMem = await sample(page, cdp);
+  console.log('[script] after open', fmt(afterOpenMem));
+
+  const spans = await page.evaluate(() => {
+    const scenes = document.querySelectorAll('[data-testid="script-scene"]');
+    const last = scenes[scenes.length - 1] as HTMLElement | undefined;
+    return {
+      scenes: scenes.length,
+      committed: document.querySelectorAll('[data-annotation-id]:not([data-annotation-id^="attached:"]):not([data-annotation-id^="suggest:"])').length,
+      attached: document.querySelectorAll('[data-annotation-id^="attached:"]').length,
+      suggestions: document.querySelectorAll('[data-annotation-id^="suggest:"]').length,
+      dom: document.querySelectorAll('*').length,
+      // Find-in-page / selection durability: offscreen content must stay in the DOM.
+      lastSceneChars: last?.textContent?.length ?? 0,
+    };
+  });
+  console.log('[script] rendered', JSON.stringify(spans));
+  if (spans.committed === 0 || spans.attached === 0 || spans.suggestions === 0) {
+    console.log('[script] WARNING: expected all three span kinds (committed / attached / suggestions) to render');
+  }
+
+  const round = async (label: string, fn: () => Promise<void>) => {
+    const before = await counters(cdp);
+    await fn();
+    await page.waitForTimeout(400);
+    fmtDelta(before, await counters(cdp), label);
+  };
+
+  await round('hover tags x24', async () => {
+    // Pure hover cost: spans already inside the viewport, moved to by
+    // coordinates — no actionability scroll (that would measure chunk reveal,
+    // not hover).
+    const points = await page.evaluate(() => {
+      const out: { x: number; y: number }[] = [];
+      for (const el of document.querySelectorAll<HTMLElement>('[data-annotation-id]')) {
+        const r = el.getBoundingClientRect();
+        if (r.top > 0 && r.bottom < window.innerHeight && r.width > 0) {
+          out.push({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+          if (out.length >= 24) break;
+        }
+      }
+      return out;
+    });
+    for (const p of points) {
+      await page.mouse.move(p.x, p.y);
+      await page.waitForTimeout(30);
+    }
+  });
+
+  await round('select text x6', async () => {
+    for (let i = 0; i < 6; i++) {
+      await page.evaluate((n) => {
+        const scenes = document.querySelectorAll('[data-testid="script-scene"]');
+        const scene = scenes[n % scenes.length];
+        const block = scene?.querySelectorAll('[data-script-block]')[3];
+        if (!block) return;
+        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        const node = walker.nextNode();
+        if (!node) return;
+        const range = document.createRange();
+        range.setStart(node, 0);
+        range.setEnd(node, Math.min(5, node.textContent?.length || 0));
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        block.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      }, i);
+      await page.getByPlaceholder('Search categories…').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(25);
+    }
+  });
+
+  await round('search type 6 chars', async () => {
+    const input = page.getByLabel('Search script');
+    await input.click();
+    await input.pressSequentially('GEORGE', { delay: 60 });
+    await page.waitForTimeout(250);
+    await input.fill('');
+  });
+
+  await round('project change while open x10 + undo', async () => {
+    const sceneId = await page.evaluate(() => (window as any).__lemonSchedule.getProject().scenes[0].id);
+    for (let i = 0; i < 10; i++) {
+      await page.evaluate(
+        ({ id, n }) => (window as any).__lemonSchedule.dispatch({ type: 'UPDATE_SCENE', payload: { id, notes: `perf-${n}` } }),
+        { id: sceneId, n: i },
+      );
+    }
+    await page.evaluate(() => { for (let i = 0; i < 10; i++) (window as any).__lemonSchedule.undo(); });
+  });
+
+  // ---- tag add / remove: the flows that must feel instant ----
+  const selectNeedle = (needle: string) => page.evaluate((n) => {
+    const blocks = Array.from(document.querySelectorAll('[data-script-block]'));
+    for (const block of blocks) {
+      // Only live-matched scenes are taggable (they carry the scene id).
+      if (!block.getAttribute('data-script-scene')) continue;
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        const text = node.textContent || '';
+        const idx = text.toLowerCase().indexOf(n.toLowerCase());
+        if (idx < 0) continue;
+        const range = document.createRange();
+        range.setStart(node, idx);
+        range.setEnd(node, idx + n.length);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        block.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        return true;
+      }
+    }
+    return false;
+  }, needle);
+
+  const castName = await page.evaluate(() => {
+    const cast = (window as any).__lemonSchedule.getProject().castMembers || [];
+    return (cast.find((m: any) => (m.name || '').length > 2)?.name || '') as string;
+  });
+
+  /** A long word from a taggable block that matches NO element name — the
+   *  deterministic "brand-new element" selection. */
+  const unknownWord = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const names = new Set<string>();
+    for (const list of Object.values(p.breakdownElements || {}) as any[][]) {
+      for (const e of list) names.add(String(e.name || '').toUpperCase());
+    }
+    for (const m of p.castMembers || []) names.add(String(m.name || '').toUpperCase());
+    for (const block of Array.from(document.querySelectorAll('[data-script-block]'))) {
+      if (!block.getAttribute('data-script-scene')) continue;
+      for (const w of (block.textContent || '').split(/[^A-Za-z']+/)) {
+        const up = w.toUpperCase();
+        if (up.length >= 7 && !names.has(up)) return w;
+      }
+    }
+    return null;
+  });
+
+  await round('tag add x5 → undo (existing cast element)', async () => {
+    const times: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const t = Date.now();
+      const ok = await selectNeedle(castName);
+      if (!ok) { console.log('[script] WARNING: cast name not found in the body'); break; }
+      // The menu anchors at the selection (possibly offscreen) — commit via the
+      // real keyboard flow: the anchored Cast suggestion is highlighted, Enter
+      // activates it.
+      await page.getByPlaceholder('Search categories…').waitFor({ state: 'visible', timeout: 5000 });
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(25);
+      times.push(Date.now() - t);
+      await page.evaluate(() => (window as any).__lemonSchedule.undo());
+      await page.waitForTimeout(25);
+    }
+    console.log(`[script] add-tag wall per op (ms): ${times.join(', ')}`);
+  });
+
+  await round('tag remove x5 → undo (committed tag)', async () => {
+    const times: number[] = [];
+    const annotationCount = await page.evaluate(() => ((window as any).__lemonSchedule.getProject().scriptAnnotations || []).length);
+    for (let i = 0; i < 5; i++) {
+      // Settle the previous undo before re-resolving the span.
+      await page.waitForFunction((n) => ((window as any).__lemonSchedule.getProject().scriptAnnotations || []).length === n, annotationCount, { timeout: 5000 }).catch(() => {});
+      const id = await page.evaluate(() => {
+        const el = document.querySelector('[data-annotation-id]:not([data-annotation-id^="attached:"]):not([data-annotation-id^="suggest:"])');
+        return el?.getAttribute('data-annotation-id') ?? null;
+      });
+      if (!id) { console.log('[script] WARNING: no committed tag span found'); break; }
+      const t = Date.now();
+      // Dispatch on the span itself — a real pointer click would race the
+      // foveated chunk reveal's layout (hit-testing is covered by the e2e suite).
+      await page.locator(`[data-annotation-id="${id}"]`).evaluate(el => (el as HTMLElement).click());
+      await page.getByRole('menuitem', { name: 'Remove' }).click({ timeout: 5000 });
+      await page.waitForTimeout(25);
+      times.push(Date.now() - t);
+      await page.evaluate(() => (window as any).__lemonSchedule.undo());
+      await page.waitForTimeout(25);
+    }
+    console.log(`[script] remove-tag wall per op (ms): ${times.join(', ')}`);
+  });
+
+  await round('tag add x5 → undo (new element from selection)', async () => {
+    const times: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const t = Date.now();
+      const ok = unknownWord ? await selectNeedle(unknownWord) : false;
+      if (!ok) { console.log('[script] WARNING: no unknown word found in a taggable block'); break; }
+      // No anchor on a fresh word: filter the menu to Props and commit with Enter.
+      const search = page.getByPlaceholder('Search categories…');
+      await search.waitFor({ state: 'visible', timeout: 5000 });
+      await search.fill('Props');
+      await page.keyboard.press('Enter');
+      await page.waitForTimeout(25);
+      times.push(Date.now() - t);
+      await page.evaluate(() => (window as any).__lemonSchedule.undo());
+      await page.waitForTimeout(25);
+    }
+    console.log(`[script] add-new-element wall per op (ms): ${times.join(', ')}`);
+  });
+
+  const checkJump = async (label: string, expectedIndex: number, opts: { allowEndOfDocument?: boolean } = {}) => {
+    const check = await page.evaluate(({ idx, allowShort }) => {
+      const scenes = document.querySelectorAll<HTMLElement>('[data-testid="script-scene"]');
+      const target = scenes[idx];
+      const scroller = scenes[0]?.closest('.overflow-auto') as HTMLElement | null;
+      if (!target || !scroller) return null;
+      const sr = scroller.getBoundingClientRect();
+      const r = target.getBoundingClientRect();
+      const visible = r.top < sr.bottom && r.bottom > sr.top;
+      return {
+        offsetFromTop: Math.round(r.top - sr.top),
+        visible,
+        chunkVisible: target.classList.contains('cv-visible'),
+        blank: (target.textContent || '').length === 0,
+        allowShort,
+      };
+    }, { idx: expectedIndex, allowShort: !!opts.allowEndOfDocument });
+    console.log(`[script] ${label}`, JSON.stringify(check));
+    const aligned = check ? (check.allowShort ? check.visible : check.offsetFromTop >= -2 && check.offsetFromTop <= 40) : false;
+    if (!check || !aligned || !check.chunkVisible || check.blank) {
+      console.log(`[script] WARNING: ${label} did not land cleanly`);
+    }
+  };
+
+  await round('jump to a mid-document scene (sidebar)', async () => {
+    const rows = page.locator('aside [data-sidebar-row]');
+    const mid = Math.floor((await rows.count()) / 2);
+    await rows.nth(mid).click({ timeout: 5000 });
+    await page.waitForTimeout(600);
+    await checkJump('mid-scene jump', mid);
+  });
+
+  await round('jump to last scene (sidebar)', async () => {
+    // Foveated chunks make far jumps geometry-dependent — assert the target is
+    // rendered (cv-visible, no blank chunk); the last scene can only align as
+    // far as the document end allows.
+    const rows = page.locator('aside [data-sidebar-row]');
+    const last = (await rows.count()) - 1;
+    await rows.last().click({ timeout: 5000 });
+    await page.waitForTimeout(600);
+    await checkJump('last-scene jump', last, { allowEndOfDocument: true });
+  });
+
+  await round('wheel scroll x40', async () => {
+    // Back to the top first — the jump rounds left the scroller at the end.
+    await page.evaluate(() => {
+      const el = document.querySelector<HTMLElement>('[data-testid="script-view"] .overflow-auto');
+      if (el) el.scrollTop = 0;
+    });
+    await page.waitForTimeout(200);
+    const viewBox = await page.getByTestId('script-view').boundingBox();
+    const x = viewBox ? viewBox.x + viewBox.width * 0.6 : 600;
+    const y = viewBox ? viewBox.y + viewBox.height * 0.5 : 400;
+    await page.mouse.move(x, y);
+    for (let i = 0; i < 40; i++) {
+      await page.mouse.wheel(0, 700);
+      await page.waitForTimeout(16);
+    }
+  });
+
+  const endMem = await sample(page, cdp);
+  console.log('\n=== SCRIPT TAB PERF SUMMARY ===');
+  console.log(`fixture: ${stats.scenes} scenes / ${stats.blocks} blocks / ${stats.annotations} annotations`);
+  console.log(`open wall: ${openWall}ms`);
+  console.log(`after open: ${fmt(afterOpenMem)}`);
+  console.log(`end: ${fmt(endMem)}`);
 });
