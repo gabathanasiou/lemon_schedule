@@ -659,7 +659,10 @@ ONE shared component (`UserPresenceCluster`); never inline it per view.
   immediately LEFT of your own avatar (max 3 + a "+N" menu), each a FOLLOW
   TOGGLE — click to follow that person, click again (or Esc / navigate) to
   stop. Guest bubbles carry an amber dot / "(guest)" label; the header cluster
-  keeps your own avatar as before.** Bubbles also carry the animated
+  keeps your own avatar as before.** At rest the bubbles form one tight
+  overlapped stack; hovering or focusing the strip spreads them into full
+  circles (`hover:space-x-1 focus-within:space-x-1`, 200ms, reduced-motion
+  aware) so each person is fully visible and clickable (roadmap 245). Bubbles also carry the animated
   local-overlay dots while that person is inside a menu/modal the others
   cannot see (roadmap 240; the pointer tag shows the same cue while you are on
   their view). Pointers from peers on another view or

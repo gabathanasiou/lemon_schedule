@@ -72,7 +72,10 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
 
   // Who's here (S3): collaborator bubbles immediately LEFT of your own avatar
   // (max 3 + "+N"). They are FOLLOW TOGGLES (Canva-style): click a person to
-  // follow their view; click again (or Esc / navigate) to stop.
+  // follow their view; click again (or Esc / navigate) to stop. At rest the
+  // bubbles overlap tightly (a collapsed stack); hovering or focusing the strip
+  // SPREADS them apart so each one is fully visible and easy to hit
+  // (roadmap 245 — docs/DESIGN-LANGUAGE.md §Presence pointers).
   const visiblePeers = presence.peers.slice(0, MAX_BUBBLES);
   const overflowPeers = presence.peers.slice(MAX_BUBBLES);
   const toggleFollow = (peer: PresencePeer) => {
@@ -89,7 +92,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
         data-testid="presence-bubble"
         onClick={() => toggleFollow(peer)}
         title={bubbleTitle(peer)}
-        className={`relative w-6 h-6 rounded-full overflow-hidden transition-transform hover:scale-110 hover:z-10 cursor-pointer select-none ${following ? 'ring-2 ring-white' : 'ring-1 ring-white/25'}`}
+        className={`relative w-6 h-6 rounded-full overflow-hidden transition-all duration-200 ease-out motion-reduce:transition-none hover:scale-110 hover:z-10 cursor-pointer select-none ${following ? 'ring-2 ring-white' : 'ring-1 ring-white/25'}`}
       >
         <AccountAvatar account={peerAccount(peer)} className="w-full h-full" />
         {/* Local-overlay cue (roadmap 240): the peer is inside a menu/modal
@@ -150,7 +153,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
     <>
       <div className="flex items-center gap-1">
         {presence.peers.length > 0 && (
-          <div className="flex items-center -space-x-1.5 mr-0.5" data-testid="presence-bubbles">
+          <div className="flex items-center -space-x-2.5 hover:space-x-1 focus-within:space-x-1 mr-0.5" data-testid="presence-bubbles">
             {visiblePeers.map(peerBubble)}
             {overflowPeers.length > 0 && (
               <DropdownMenu
@@ -163,7 +166,7 @@ export function UserPresenceCluster({ driveCtx, isCloudProject, driveBacked, clo
                   <button
                     data-testid="presence-overflow"
                     title={`${overflowPeers.length} more collaborator${overflowPeers.length === 1 ? '' : 's'} — click a name to follow`}
-                    className={`relative w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center cursor-pointer select-none ${isCloudProject ? 'bg-blue-900 text-white ring-1 ring-white/25 hover:bg-blue-800' : 'bg-zinc-800 text-zinc-200 ring-1 ring-white/25 hover:bg-zinc-700'}`}
+                    className={`relative w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center cursor-pointer select-none transition-all duration-200 ease-out motion-reduce:transition-none ${isCloudProject ? 'bg-blue-900 text-white ring-1 ring-white/25 hover:bg-blue-800' : 'bg-zinc-800 text-zinc-200 ring-1 ring-white/25 hover:bg-zinc-700'}`}
                   >
                     +{overflowPeers.length}
                   </button>
