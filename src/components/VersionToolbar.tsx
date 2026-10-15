@@ -5,6 +5,7 @@ import { useDialog } from './Dialog';
 import { SaveIndicator } from './SaveIndicator';
 import { UndoRedoButtons } from './UndoRedoButtons';
 import { RoomNote } from './RoomNote';
+import { CHROME_BAR_INSET, CHROME_ITEM_GAP } from '../lib/chromeSpacing';
 
 interface VersionToolbarProps {
   projectTitle: string;
@@ -29,12 +30,12 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
   return (
     <div className={`shrink-0 ${chrome.bar} text-zinc-300 select-none print:hidden`}>
       {locked && (
-        <div className="bg-red-600 text-white px-4 py-1.5 flex items-center justify-between text-xs">
+        <div className={`bg-red-600 text-white ${CHROME_BAR_INSET} py-1.5 flex items-center justify-between text-xs`}>
           <span className="font-medium">No Internet Connection - editing disabled</span>
         </div>
       )}
-      <div className="flex items-center justify-between px-4 py-2">
-        <div className="flex items-center gap-3">
+      <div data-chrome-bar="popout-toolbar" className={`flex items-center justify-between ${CHROME_BAR_INSET} py-2`}>
+        <div className={`flex items-center ${CHROME_ITEM_GAP}`}>
           <SaveIndicator isCloudProject={isCloudProject} />
           <input
             value={projectTitle}
@@ -47,7 +48,7 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
           </span>
         </div>
 
-        <div className="flex items-center space-x-3 font-mono text-xs">
+        <div className={`flex items-center ${CHROME_ITEM_GAP} font-mono text-xs`}>
           <RoomNote />
           <UndoRedoButtons />
         </div>

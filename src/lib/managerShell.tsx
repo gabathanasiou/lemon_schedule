@@ -7,6 +7,7 @@ import { useFollowView } from './supabase/useFollowView';
 import { generateUUID } from './utils';
 import { Plus, Trash2, UserPlus, Pencil, Check } from 'lucide-react';
 import SidebarNav, { SidebarNavRow } from '../components/SidebarNav';
+import ToolbarDivider from '../components/ToolbarDivider';
 import { useRowBuffer, type CommitResult } from './rowBuffer';
 import { useScrolledLeft } from './useScrolledLeft';
 import { LabelModal } from '../components/elements/CategoryModals';
@@ -446,7 +447,7 @@ export const DatabaseManagerView: React.FC<{
   const headerContent = (
     <>
       {headerActions}
-      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
+      <ToolbarDivider />
       <DropdownMenu open={showSortMenu} onOpenChange={setShowSortMenu} width="w-40" theme="light"
         trigger={
           <Button>Sort ▾</Button>

@@ -24,6 +24,7 @@ import { usePersistState } from '../lib/persist';
 import { usePresenceActions, useHeldItems } from '../lib/supabase/presenceContext';
 import { useFollowView } from '../lib/supabase/useFollowView';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
+import { CHROME_ITEM_GAP } from '../lib/chromeSpacing';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { RemoteDragGhostLayer } from './RemoteDragGhosts';
 import { HeldItemHint } from './HeldItemHint';
@@ -1058,7 +1059,7 @@ export const CalendarTab: React.FC<{
               </div>
             }
             rightContent={
-              <div className="flex items-center gap-3">
+              <div className={`flex items-center ${CHROME_ITEM_GAP}`}>
                 <Button
                   onClick={() => setProdDatesOpen(true)}
                   data-presence-anchor="toolbar:calendar:production-dates"

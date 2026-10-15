@@ -6,6 +6,7 @@ import { IS_COARSE, isTouchLike } from '../lib/device';
 import { useSlidingPill, TAB_PILL } from '@gabriel/ui-kit';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import Button from './Button';
+import { CHROME_BAR_INSET, CHROME_BAR_INSET_PX, CHROME_CLUSTER_GAP, CHROME_CLUSTER_GAP_PX, CHROME_ITEM_GAP, CHROME_TAB_GAP } from '../lib/chromeSpacing';
 
 export interface ToolbarTab {
   id: string;
@@ -91,7 +92,8 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
     if (requiredStripWidthRef.current == null) requiredStripWidthRef.current = Math.ceil(strip.scrollWidth);
     const others = (childrenGroupRef.current?.scrollWidth ?? 0) + (rightGroupRef.current?.scrollWidth ?? 0);
     const groups = 1 + (childrenGroupRef.current ? 1 : 0) + (rightGroupRef.current ? 1 : 0);
-    const needed = requiredStripWidthRef.current + others + 24 + (groups - 1) * 8;
+    // Derived from the shared scale (roadmap 264) — never hand-copy a gap here.
+    const needed = requiredStripWidthRef.current + others + CHROME_BAR_INSET_PX * 2 + (groups - 1) * CHROME_CLUSTER_GAP_PX;
     setTabsDock(needed > el.clientWidth - 4);
   }, []);
   React.useLayoutEffect(() => {
@@ -164,9 +166,9 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
       onClickCapture={onClickCapture}
       className={`overflow-x-auto overscroll-x-contain border-b shrink-0 ${t.bar} [&::-webkit-scrollbar]:hidden touch-pan-x`}
       style={{ scrollbarWidth: 'none', WebkitMaskImage: scrollMask, maskImage: scrollMask }}>
-      <div className={`flex items-center ${JUSTIFY[justify]} gap-2 shrink-0 w-fit min-w-full px-3 pt-2 pb-2`}>
+      <div data-chrome-bar="page-toolbar" className={`flex items-center ${JUSTIFY[justify]} ${CHROME_CLUSTER_GAP} shrink-0 w-fit min-w-full ${CHROME_BAR_INSET} py-2`}>
         {tabs && tabs.length > 0 && (
-          <div ref={stripRef} className="relative flex items-center gap-1 shrink-0">
+          <div ref={stripRef} className={`relative flex items-center ${CHROME_TAB_GAP} shrink-0`}>
           {tabPill.style && (
             <span aria-hidden className={`absolute top-0 bottom-0 rounded pointer-events-none ${tabPillFill} ${tabPill.motionClass}`} style={tabPill.style} />
           )}
@@ -203,8 +205,8 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
           })}
           </div>
         )}
-        {children && <div ref={childrenGroupRef} className="flex items-center gap-2 shrink-0">{children}</div>}
-        {rightContent && <div ref={rightGroupRef} className="flex items-center gap-2 shrink-0">{rightContent}</div>}
+        {children && <div ref={childrenGroupRef} className={`flex items-center ${CHROME_ITEM_GAP} shrink-0`}>{children}</div>}
+        {rightContent && <div ref={rightGroupRef} className={`flex items-center ${CHROME_ITEM_GAP} shrink-0`}>{rightContent}</div>}
       </div>
       {contextMenu && onPopout && (
         <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>

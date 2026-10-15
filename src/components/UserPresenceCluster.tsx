@@ -40,6 +40,10 @@ interface UserPresenceClusterProps {
   onOpenAccount: () => void;
   /** Opens the User & sharing panel for the open shared project (S2). */
   onManageSharing: () => void;
+  /** Spacing hook (roadmap 264) — the cluster's separation from the bar's
+   *  other controls. Applies only when the cluster actually renders, so a
+   *  build without Supabase env adds no stray margin. */
+  className?: string;
 }
 
 /** The header user cluster (roadmap 229 S1, docs/COLLABORATION.md §9).
@@ -48,7 +52,7 @@ interface UserPresenceClusterProps {
  *  Google Drive connect/disconnect lives here too (the File menu keeps
  *  project actions only). Renders nothing when the build has no Supabase env
  *  — the File menu then keeps the old Drive items. */
-export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpenAccount, onManageSharing }: UserPresenceClusterProps) {
+export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpenAccount, onManageSharing, className }: UserPresenceClusterProps) {
   const auth = useSupabaseAuth();
   const { currentProjectId, projectList, state, collaborateProject } = useProject();
   const projectTheme = useProjectTheme();
@@ -155,9 +159,11 @@ export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpe
 
   return (
     <>
-      <div className="flex items-center gap-1">
+      <div className={`flex items-center gap-1 ${className || ''}`}>
         {presence.peers.length > 0 && (
-          <div className="flex items-center -space-x-2.5 hover:space-x-1 focus-within:space-x-1 mr-0.5" data-testid="presence-bubbles">
+          /* data-chrome-skip: the bubbles are a deliberately OVERLAPPING stack
+             (negative space while at rest) — the chrome audit reads it as-is. */
+          <div data-chrome-skip className="flex items-center -space-x-2.5 hover:space-x-1 focus-within:space-x-1 mr-0.5" data-testid="presence-bubbles">
             {visiblePeers.map(peerBubble)}
             {overflowPeers.length > 0 && (
               <DropdownMenu
