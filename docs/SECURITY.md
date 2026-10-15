@@ -88,10 +88,10 @@ the room:
 
 ## 6. Owner's checklist (user-side, one-time / occasional)
 
-- **Two-factor authentication**: enable it on **Cloudflare** (was OFF as of
-  2026-10-15 — dashboard → My Profile → Authentication), **Supabase**, and **GitHub**.
-  These three accounts together control the collab backend; passwords alone are not
-  acceptable protection for them.
+- **Two-factor authentication**: **Cloudflare — enabled 2026-10-15, verified via the API ✓**.
+  Still to enable: **Supabase** (dashboard → Account → Security) and **GitHub**
+  (Settings → Password and authentication). These accounts together control the
+  collab backend; passwords alone are not acceptable protection for them.
 - Supabase dashboard: keep "Automatically expose new tables" OFF (done 2026-10-12);
   never paste the `service_role` key anywhere shared.
 - Rotating the room secret (when the room is deployed): set the new value in BOTH
