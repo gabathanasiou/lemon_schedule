@@ -999,20 +999,16 @@ pass (doc §12).
 
 **NEXT — deploy:** `npx wrangler login` → `npx wrangler deploy` (workers/rooms); Supabase CLI login → the `room-token` Edge Function + the shared `ROOM_TOKEN_SECRET` (worker secret + function secret); repo secret `VITE_ROOMS_URL` + the deploy.yml env line; two-machine live pass (must cover undo/redo).
 
-**Remaining collab work — priority order (ease + logic, set 2026-10-15):**
-1. **Close 231 + 245** — user visual pass only, no dev work; both are already on `main`
-   (v0.3.85). Look, then flip `[~]` → done + archive.
+**Rename sync — the realtime gap found + fixed (2026-10-15, evening).** The report ("A renames → B's header never updates; B opens the Manager → still the old name") reproduced in a NEW focused harness (`workers/rooms/test/rename-repro.mjs` — two robot accounts, every rename entry point driven through the real UI, assertions on BOTH headers, BOTH Manager rows and the server row). TWO root causes: (1) `renameProject` dispatched the title with the RAW reducer dispatch, bypassing `guardedDispatch` — the rename applied in the renaming window only and never reached the room (the row push kept the server honest, so the same user's Manager looked fine while the peer's document never moved); fixed — the title rides the same write path as every other edit. (2) The Project Manager's Shared list merged the server fetch with SESSION metas and a stale meta always won — a peer's rename never showed, even after Refresh (roadmap 249 fixed the list: server truth only, refetch on every Manager open, and the open project's row overlays the open document's title so a rename lands in place while the Manager is open). The repro is all-green in both directions.
+
+**Remaining collab work — priority order (ease + logic, updated 2026-10-15 evening):**
+1. **Close-outs done 2026-10-15 (evening):** 231 + 245 (visual), 243 (two-client), 247 + 249 + 253 (the header/Manager/rename fixes described above) — all user-confirmed and archived.
 2. **S4 deploy** (checklist above, unchanged) — ops, not code; the two-machine live pass is
    the real-world proof for undo/redo + follow.
-3. **243 — follow view toggles** — easiest remaining CODE item (~½ day): repeats the shipped
-   stripboard-view precedent (PresenceView field + `parseView` clamp + publish/
-   `noteUserViewChange` + `registerFollowApplier`) across ElementManager, `managerShell`
-   (Crew/Locations), ReportDesigner (Preview + Fields/Values), CallSheetEditPage (Preview).
-   Independent of the deploy; its two-client check rides #2's live pass.
-4. **246 — rooms-dev launcher** — medium dev-tooling (~1–2 days: process lifecycle + the
+3. **246 — rooms-dev launcher** — medium dev-tooling (~1–2 days: process lifecycle + the
    first `playwright.rooms.config.ts` + probe rewiring). Local dev QoL only, nothing
    user-visible. Pick up when local collab-testing friction justifies it.
-5. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
+4. **230 → S5 billing** — big and BLOCKED: free-tier limit values still open
    (`docs/LICENSING.md` §9) — decisions conversation needed before planning.
 Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work.
 
@@ -1026,105 +1022,13 @@ Out by decision: 239 stage 3 (room→blob mirror) and 236 (removed) — not work
 
 **Vision + decisions: `docs/LICENSING.md` — read it first.** Decided 2026-10: Free vs Studio (£150 one-time) vs Collaboration subscription (requires Studio + active sub; guests free); **DIY on Supabase** — Ed25519-signed offline licence files, 3 device activations, no account required for Studio; **one merchant of record** (Polar or Lemon Squeezy) for one-time + subscription (VAT handled); feature gates via one `FEATURE_GATES` registry. Free-tier limit values still open (doc §9).
 
-**Order:** #5 of the remaining collab work (229's priority list) — blocked on the free-tier limit values (`docs/LICENSING.md` §9).
+**Order:** the last open item of 229's remaining collab list — blocked on the free-tier limit values (`docs/LICENSING.md` §9).
 
 **Non-negotiables**: no account for offline Studio; signing private key never ships; entitlement state never lives in the Project document; every gate goes through the registry; export of the user's own data always available.
 
 **Verify** (when built): Vitest for signature/expiry/fingerprint + gates + free limits; e2e activation against a mocked endpoint; manual purchase → activate → offline relaunch pass. `npm run lint`.
 
 **Relations**: `relates to` **229** (collab entitlement + shared gating), **145** (desktop app = the true offline host), **209** (account question).
-
-## 231. Collaboration avatars — generated identities (letter + color; richer styles) (`[~]`)
-
-**Requested 2026-10:** collaborators and guests need distinct, recognisable avatars (backgrounds + letters differ per person) in the sharing panel, the header cluster and the S3 presence bubbles.
-
-**Order:** #1 of the remaining collab work (229's priority list) — visual pass + close (already on `main`, v0.3.85).
-
-- **Shipped baseline (roadmap 229 S2.5)**: `AccountAvatar` (`src/components/AccountAvatar.tsx`) derives a deterministic flat color (10-tone palette, FNV-1a over the account id) + initials (first letters of first/last words — "Anonymous Otter" → AO), stable on every client. Same component everywhere (`UserPresenceCluster`, `sharingParts` MemberRow).
-- **Evaluated 2026-10-15** (real-import esbuild probe, min+gzip; visual contact sheet):
-  - `boring-avatars` 2.0.4 (MIT, React component, 5 variants) — **2.8 KB gzip** measured; the gradient look reads muddy at 24px bubble size, and multi-colour marks ignore the flat identity colour (the avatar would no longer match the person's pointer/label colour).
-  - `@dicebear/core` + ONE style package — seed-deterministic (verified), **4.0–6.6 KB gzip** tree-shaken (initials 4.0 / identicon 4.3 / shapes 4.7 / rings 5.0 / thumbs 6.6); `shapes`/`thumbs`/`rings` read clearly at bubble size, `pixel-art` noisy, transparent-bg styles (notionists/lorelei/glass) need an explicit `backgroundColor` on the dark chrome. Licences MIT except `dylan`/`micah`/`personas`/`fun-emoji` (MIT AND CC-BY-4.0 — attribution) and `bottts` (own licence). Import standalone style packages (`@dicebear/core` + `@dicebear/shapes`) — `@dicebear/collection` drags ~30 style packages into node_modules (the bundle tree-shakes either way).
-  - **Decided + built 2026-10-15 (user pick; shipped on main in 0.3.85/0.3.86):** DiceBear `initials` — the library's letters/font (Arial), circle background forced to `avatarColor(account id)` via `backgroundColor`, white letters (library default); `@dicebear/core` + `@dicebear/initials` standalone packages. `AccountAvatar` renders `toDataUri()` through an `<img>` (no innerHTML); letters seed = display name (`name || email || id`); `avatarIdentity.ts` keeps the palette + `shortNameOf` (`initialsOf` removed, tests updated). Every `AccountAvatar` surface inherits it (bubbles, People list, profile modal, Project Manager bar).
-- **Fix 2026-10-15 (user report, shipped 4353a9f8):** DiceBear prepends `#` itself — `backgroundColor: [avatarColor(seed)]` produced `fill="##0f766e"`, an invalid SVG fill that fell back to BLACK. `AccountAvatar` now passes the bare hex. **Do not hand DiceBear a CSS colour.**
-- **Verify**: manual visual pass (rule 7 — a screenshot catches it; merged and awaiting the user's confirm); unit test for the palette/initials only if a new pure util lands.
-
-**Relations**: `extends` **229** (S2.5 guests, S3 presence).
-
-## 243. Follow — mirror view toggles/state (manager sidebar category, designer Fields/Values + Preview) (`[~]`)
-
-**Requested 2026-10-15 (user):** following mirrors the place, but not enough of the peer's
-LENS. While following, also mirror: (a) the **manager pages' selected sidebar category**
-(Element Manager — its own `initialCategory`/`onCategoryChange`/`switchCategory`; Crew and
-Locations — the shared `DatabaseManagerView` in `src/lib/managerShell.tsx`, one seam for
-both), (b) the **Report Designer and Call Sheet editor Preview on/off** (local `preview`
-state in `reports/ReportDesigner.tsx` and `production/day/CallSheetEditPage.tsx`), (c) the
-**Fields/Values mode** (`lemon_schedule_report_view_mode`, `reports/ReportDesigner.tsx`), and
-(d) in general **view toggles should sync** (user, 2026-10-15). Explicit question: can follow
-also mirror **modal/dropdown open state**?
-
-**Order:** #3 of the remaining collab work (229's priority list) — the easiest remaining code item (~½ day).
-
-- **Built 2026-10-15, pending the two-client manual pass:** the wire fields +
-  `parseView` clamps (`managerCategory` / `preview` / `reportViewMode`, Vitest)
-  and — beyond the ask — the whole lens set mirrors through ONE shared hook,
-  `src/lib/supabase/useFollowView.ts`: design picks (Reports + Ribbon), the Day
-  Manager's day (App place), the Script's viewed scene, ribbon A4/borders (all
-  surfaces migrated; user clicks call the hook's `noteUserChange`, surfaces
-  that mount mid-follow are re-applied on registration, and a peer-driven `go`
-  re-publishes the mirrored view). `followPlaceMatches` is the hook's place
-  gate (Vitest). `npm run lint` + `test:smart` green (1 known flake).
-
-- **The seam exists (S3 follow completeness pattern):** each toggle = one validated
-  `PresenceView` field (`src/lib/supabase/presence.ts` / `parseView`) + publish on the user's
-  change (throttled `view` broadcast; user-initiated changes call `noteUserViewChange()`) + a
-  surface `registerFollowApplier` (precedents: the stripboard View-menu fields in
-  `ScheduleTab.tsx`, Calendar `calendarView` in `CalendarTab.tsx`, Sheet scene in `App.tsx`).
-  Manager categories: validate as a short string and IGNORE unknown keys on the applier
-  (categories are project data and may have been renamed/removed). Designer toggles mirror
-  only while both clients are on the same design (the design identity is per-user after 233).
-- **Modals/dropdowns — cue only, NEVER auto-open (decision):** item 240 already ships the
-  "peer is in a local overlay" cue (dots on the pointer + collaborator bubble). Replicating
-  open state on the follower's screen is the wrong trade — overlays are transient local
-  surfaces with unsaved drafts and focus traps, and the S3 rule is that a view-changing click
-  ENDS follow. Signal: yes (240). Auto-open: no.
-- **The general rule:** toggles that change WHAT YOU SEE (lens) are follow-mirrorable;
-  toggles that change PROJECT DATA are room actions, never presence; per-user prefs mirror
-  through the surface's own setter (parity with the stripboard view fields — pin the unfollow
-  behaviour in implementation: today the applier writes the follower's own pref).
-- **Verify:** Vitest for the new `parseView` fields (clamp + ignore-unknown); two-client
-  manual pass per toggle — follow → the follower's view flips with the peer (category,
-  Preview, Fields/Values) while follow stays on; designer toggles do not mirror across two
-  different designs.
-- **Relations:** `extends` **229** (S3 follow completeness). `relates to` **233** (per-user
-  active design), **234** (peer selection highlights —
-  sibling "local state made visible" work), **240** (the overlay cue — this item's
-  modal/dropdown answer).
-
-## 245. Presence cluster — collapsed bubbles that spread on hover (`[~]`)
-
-**Requested 2026-10-15 (user):** the header "people viewing" bubbles take the full
-row; they should sit more collapsed at rest and spread apart on hover.
-
-**Order:** #1 of the remaining collab work (229's priority list) — visual pass + close (already on `main`, v0.3.85).
-
-- **Built 2026-10-15, shipped on main in 0.3.85:** the bubble strip
-  (`src/components/UserPresenceCluster.tsx`) is ONE tight
-  overlapped stack at rest (`-space-x-2.5`, was `-space-x-1.5`) and spreads into full
-  circles on hover/focus (`hover:space-x-1 focus-within:space-x-1` on the container;
-  `transition-all duration-200 ease-out` + `motion-reduce:transition-none` on the
-  bubbles and the `+N` chip). No JS, no state; no new hover mechanics (un-gated hover
-  — iOS first tap = sticky spread, second tap = follow, the app-wide hover-reveal
-  model).
-- **Decisions:** spread only (no name labels); keep max 3 + `+N`; the strip grows
-  leftwards, so the undo/redo pair slides with it (~40px, animated) — called out in
-  the manual pass.
-- **Verify (rule 7 — visual, no e2e):** two online clients → bubbles overlap tightly;
-  hover the strip → every bubble fully visible and clickable; move away → collapse;
-  follow toggle, guest dot, overlay dots and the `+N` menu all still work;
-  `prefers-reduced-motion` → no animation. (Merged in 0.3.85; awaiting the user's
-  confirm.)
-- **Relations:** `extends` **229** (S3 presence chrome). `relates to` **231**
-  (avatar identities — same bubbles), **234**/**235** (sibling presence visuals).
 
 ## 246. Local dev — auto-start the rooms worker (`wrangler dev`) for dev servers, collab sessions and tests (`[ ]`)
 
@@ -1133,7 +1037,7 @@ the local emulator (`wrangler dev` = Miniflare/workerd + DO SQLite state) should
 up on demand — from `npm run dev`, when a collab session starts, and when tests run —
 instead of the manual background command.
 
-**Order:** #4 of the remaining collab work (229's priority list) — dev-tooling, independent of the deploy.
+**Order:** #3 of the remaining collab work (229's priority list) — dev-tooling, independent of the deploy.
 
 - **Today (manual):** `npx wrangler dev --port 8787` in `workers/rooms` + gitignored
   `.dev.vars` (`DEV_AUTH=1` accepts `dev:<userId>:<role>` —
@@ -1172,82 +1076,6 @@ instead of the manual background command.
   playwright test --config=playwright.rooms.config.ts` green.
 - **Relations:** `extends` **229** (S4 local loop + deploy prep); `relates to` **145**
   (desktop app = the eventual no-terminal host).
-
-## 247. App header — File menu edge rail + weight (`[ ]`)
-
-**Requested 2026-10-15 (user):** the header's File menu has a weird left margin — its
-label sits inset from the header's left edge, not matching the margin the rightmost
-header items sit at — and it reads bold; it shouldn't be.
-
-- **Where**: `src/components/AppHeader.tsx` — the header rail is `px-4` (line 109) and
-  the File trigger adds `px-3 py-1.5 font-semibold` (lines 118-124), so the label
-  starts ≈28px from the left edge while the right cluster (`UndoRedoButtons` /
-  presence cluster) is flush at the 16px rail. `font-semibold` has no counterpart on
-  the right rail.
-- **Fix**: align the trigger's label with the header's edge rail (negate the extra
-  left inset — keep the hover pill's full hit area) and drop the bold weight to the
-  header chrome's weight.
-- **Verify (rule 7 — visual, no e2e):** both header themes (dark / cloud blue) — the
-  File label's left edge lines up with the rightmost items' rail; hover/active pill
-  still encloses the label; weight matches the rest of the toolbar.
-- **Relations**: `relates to` **245** (header chrome visual pass).
-
-## 249. Project Manager — tab count: white on active + stale Shared count (`[ ]`)
-
-**Requested 2026-10-15 (user):** the little count next to each Project Manager tab
-label is dim (`text-zinc-500`) even on the ACTIVE tab (white label on
-zinc-800/blue-900/emerald-900) — it should be white to be properly visible. Separately,
-the Shared count sometimes sticks (e.g. "2") after being disconnected or losing
-access — it should reflect reality.
-
-- **Colour**: `ProjectManager.tsx:467,481,497` hard-set `text-zinc-500` on the count.
-  Let it inherit its label's colour instead (drop the fixed colour, optional
-  `opacity-60` for hierarchy) — white when active, and it then also follows the
-  label's hover (today the label lightens on hover, the count doesn't).
-- **Stale count (bug)**: the Shared list merges the server fetch with SESSION metas —
-  `onlineProjectList` = `onlineProjects` ∪ `projectList.filter(p => p.onlineId)`
-  (`ProjectManager.tsx:144-151`). Sign-out clears only `onlineProjects`
-  (`refetchOnlineProjects`, `provider.tsx:414-429`); the session metas survive, so the
-  count and rows stay. Same after an external revoke/removal, and a failed refetch
-  (offline) keeps the old list — the `.catch` (`provider.tsx:427`) only sets
-  `onlineError`. Repros: sign in → 2 shared → open the PM → Sign out → Shared still
-  reads 2; go offline → refetch.
-- **Fix direction**: gate the session-meta merge on a signed-in account; reconcile the
-  merge against the fetch (server truth wins; metas only cover the not-yet-refetched
-  window — that's why they exist, fresher titles/lastModified); on sign-out drop the
-  session metas (or stop merging them); a failed refetch must not present a stale
-  count as truth. Extract the merge into a pure helper so the account-null / error /
-  external-removal cases get Vitest coverage.
-- **Verify**: manual repro set (sign-out, offline refetch, revoked access, own delete)
-  before/after; Vitest for the merge helper. No e2e (no PM spec exists; the suite runs
-  Supabase-off, `playwright.config.ts:72`).
-- **Relations**: `relates to` **229** (S1/S2.5 sharing surfaces).
-
-## 253. Collab rename — the Project Manager's Shared list kept the old name (`[~]`)
-
-**Reported 2026-10-15 (user):** renaming a collab project updates the app header
-but NOT its row in the Project Manager (Shared tab).
-
-**Why the two names diverged:** the header shows the open document's
-`project.title`; the Shared list shows the Supabase `projects` ROW title — online
-entries are filtered OUT of the persisted localStorage index
-(`saveProjectListToStorage`, `src/store/storage.ts:110`), so after any reload the
-row is the only source. `renameProject` (`src/store/provider.tsx`) pushed the row
-title only for a project that was NOT open ("the open project rides its next
-whole-blob save") — but a room-attached shared project NEVER blob-saves (S4: the
-room owns the writes) and a reload beats the save debounce even without one, so
-the row kept the old name.
-
-- **Fixed 2026-10-15:** `renameProject` now always pushes the title to the row
-  (`renameOnlineProject` — the open project included) + `refetchOnlineProjects()`
-  so the manager updates immediately; knowledge recorded in
-  `docs/STORE-AND-SYNC.md` §Online projects.
-- **Verify:** rule-7 collab manual pass — rename a shared project (open, room
-  attached) → Project Manager → Shared shows the new name, also after reload;
-  `npm run lint` + full suite green.
-- **Relations:** `extends` **229** (S1 rows/listing); `relates to` **249** (same
-  panel — stale Shared count), **251** (title commit-on-blur rides this rename
-  path).
 
 ## 257. Element Manager — Board IDs for every element category (MMS parity, Option A) (`[ ]`)
 

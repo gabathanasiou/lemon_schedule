@@ -229,6 +229,15 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   of "the peer never re-synced" reports. Manual two-window proof: `workers/rooms/test/two-window-repro.mjs`
   (real accounts + invite, WS-frame capture) asserts the peer receives the undo as a `remote`/`LOAD`
   update with no welcome, and that its stripboard store AND DOM revert.
+- **ONE write path — renames included (roadmap 253, fixed 2026-10-15).** Every UI mutation goes
+  through `guardedDispatch` (applies locally AND streams to the room); the RAW reducer `dispatch`
+  is only for `LOAD` and remote/replay applies. `renameProject` used the raw dispatch for the
+  project title — the rename applied in the renaming window alone and never reached the room
+  ("renames don't sync between users"), while its row push kept the shared row correct. Proof:
+  `workers/rooms/test/rename-repro.mjs` (two real accounts; every rename entry point driven
+  through the real UI; peer headers update in realtime, both Managers and the server row stay
+  fresh — display rules in `docs/COLLABORATION.md` §S1 map + `onlineProjectListForDisplay`,
+  `src/lib/supabase/onlineProjectList.ts`).
 - Not yet: room tokens are dev-only (`dev:<user>:<role>`, DEV builds + `wrangler dev`); the
   deployed path calls the Supabase `room-token` function (`src/lib/rooms/tokenClient.ts`), which
   is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 47 checks — incl.

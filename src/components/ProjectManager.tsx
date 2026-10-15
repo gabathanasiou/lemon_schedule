@@ -5,6 +5,7 @@ import { exportProjectFromStorage, exportProjectData } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
 import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData, formatDriveError, getDriveErrorStatus } from '../lib/googleDriveStorage';
 import { readOnlineProject } from '../lib/supabase/onlineProjects';
+import { onlineProjectListForDisplay } from '../lib/supabase/onlineProjectList';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 import { isSupabaseConfigured } from '../lib/supabase/client';
 import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, Users, AlertTriangle, Loader2, RefreshCw, Skull, FileUp, Check, LogOut } from 'lucide-react';
@@ -101,6 +102,14 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
     setDriveMetas, setDriveError, setDriveCorrupt, setDriveTotalCount,
   } = useDriveProjectList(auth);
 
+  // The Shared list is a snapshot of the server — refresh it on EVERY open
+  // (roadmap 249/253) so a row never carries a name (or existence) from an
+  // earlier fetch: a peer's rename is visible the moment you look, without a
+  // manual Refresh. The component mounts per open (`showProjectManager &&`).
+  useEffect(() => {
+    if (sbAuth.account) refetchOnlineProjects();
+  }, [sbAuth.account, refetchOnlineProjects]);
+
   const handleDeleteAllDrive = async () => {
     if (!auth.accessToken) return;
     const ok = await dialog.confirm({
@@ -140,18 +149,21 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
     return result;
   }, [projectList, driveMetas]);
 
-  // Session metas (fresher titles/lastModified) override the fetched list.
-  const onlineProjectList = useMemo(() => {
-    const merged = new Map<string, ProjectMeta>();
-    for (const p of onlineProjects) merged.set(p.id, p);
-    for (const p of projectList) {
-      if (p.onlineId) merged.set(p.id, p);
-    }
-    return [...merged.values()];
-  }, [projectList, onlineProjects]);
+  // Server truth only (roadmap 249): the Shared list + its count come from the
+  // last successful fetch — a failed refetch or a signed-out session presents
+  // `null` (no count) instead of a stale number, and the session metas in
+  // `projectList` are never merged in (see `onlineProjectListForDisplay`).
+  const onlineProjectList = useMemo(
+    () => onlineProjectListForDisplay({
+      signedIn: !!sbAuth.account,
+      serverMetas: onlineProjects,
+      fetchFailed: onlineError !== null,
+    }),
+    [sbAuth.account, onlineProjects, onlineError]
+  );
 
   const sortedList = useMemo(() => {
-    const source = activeTab === 'local' ? localProjects : activeTab === 'cloud' ? cloudProjects : onlineProjectList;
+    const source = activeTab === 'local' ? localProjects : activeTab === 'cloud' ? cloudProjects : (onlineProjectList ?? []);
     const list = [...source];
     if (sortKey === 'lastModified') {
       list.sort((a, b) => b.lastModified - a.lastModified);
@@ -464,7 +476,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
           >
             <HardDrive className="w-3 h-3" />
             Local
-            <span className="text-[10px] text-zinc-500 ml-0.5">{localProjects.length}</span>
+            <span className="text-[10px] opacity-60 ml-0.5">{localProjects.length}</span>
           </button>
           <button
             onClick={() => setActiveTab('cloud')}
@@ -478,7 +490,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
             Cloud
             {driveLoading
               ? <Loader2 className="w-3 h-3 text-zinc-400 animate-spin ml-0.5" />
-              : <span className="text-[10px] text-zinc-500 ml-0.5">{cloudProjects.length}</span>
+              : <span className="text-[10px] opacity-60 ml-0.5">{cloudProjects.length}</span>
             }
           </button>
           {isSupabaseConfigured && (
@@ -494,7 +506,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
               Shared
               {onlineLoading
                 ? <Loader2 className="w-3 h-3 text-zinc-400 animate-spin ml-0.5" />
-                : <span className="text-[10px] text-zinc-500 ml-0.5">{onlineProjectList.length}</span>
+                : onlineProjectList && <span className="text-[10px] opacity-60 ml-0.5">{onlineProjectList.length}</span>
               }
             </button>
           )}

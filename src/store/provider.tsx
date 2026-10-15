@@ -433,6 +433,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { refetchOnlineProjects(); }, [refetchOnlineProjects]);
 
+  // The OPEN shared project's row in the Shared catalog mirrors the open
+  // DOCUMENT's title (roadmap 249/253): a peer's rename arrives as a room
+  // action (or an undo / welcome `LOAD`), the header updates instantly — and
+  // the Project Manager's row for that project must not lag behind it, nor
+  // may a fetch that resolved just before the rename push overwrite it back.
+  // Runs whenever either side changes; the equality guard stops the loop.
+  useEffect(() => {
+    if (!currentOnlineId) return;
+    setOnlineProjects(prev => {
+      const idx = prev.findIndex(p => p.onlineId === currentOnlineId);
+      if (idx < 0 || prev[idx].title === state.present.title) return prev;
+      const next = [...prev];
+      next[idx] = { ...next[idx], title: state.present.title };
+      return next;
+    });
+  }, [currentOnlineId, state.present.title, onlineProjects]);
+
   // Live connectivity/sync snapshot for the agent bridge diagnostics()
   const connStateRef = useRef({
     isOnline: navigator.onLine,
@@ -1296,7 +1313,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const renameProject = useCallback((id: string, title: string, driveFileId?: string) => {
     if (currentProjectId === id) {
-      dispatch({ type: 'UPDATE_PROJECT', payload: { title } });
+      // `guardedDispatch`, NOT the raw reducer dispatch: the title is project
+      // data and must ride the SAME write path as every other edit — for a
+      // shared project that means the room transport (a raw dispatch applied
+      // the rename in THIS window only and never reached peers — the
+      // "rename doesn't sync between users" report, roadmap 253).
+      guardedDispatch({ type: 'UPDATE_PROJECT', payload: { title } });
     }
     let existingMeta: ProjectMeta | undefined;
     setProjectList(prev => {
@@ -1340,7 +1362,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           .catch(e => console.error('Failed to read project for rename:', e));
       }
     }
-  }, [currentProjectId, auth.accessToken, projectList, onlineProjects, sbAuth.account, refetchOnlineProjects]);
+  }, [currentProjectId, auth.accessToken, projectList, onlineProjects, sbAuth.account, refetchOnlineProjects, guardedDispatch]);
 
   const duplicateProject = useCallback(async (id: string, cloudDriveFileId?: string) => {
     const meta = projectList.find(p => p.id === id) ?? onlineProjects.find(p => p.id === id);
