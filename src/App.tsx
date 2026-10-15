@@ -75,6 +75,7 @@ import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
 import AppHeader, { AppTabId } from './components/AppHeader';
 import { AccountModal } from './components/AccountModal';
+import { useSupabaseAuth } from './lib/supabase/auth';
 import { ShareLinkGate } from './components/ShareLinkGate';
 import { SharingModal } from './components/sharing/SharingModal';
 import { PasswordRecoveryModal } from './components/PasswordRecoveryModal';
@@ -689,6 +690,12 @@ function AppContent() {
   // Drive-specific surfaces (offline sign-in copy, disconnect semantics) keep
   // their own signal; project-chrome colors come from `useProjectTheme()`.
   const isDriveProject = !!currentProjectMeta?.driveFileId;
+  // Shared (Supabase) project — its read-only lock can come from a missing
+  // Supabase SESSION, which is an auth issue, not connectivity: the banner
+  // must say "sign in", never "No Internet Connection" (the 229 live-pass
+  // report: a revoked session looked like an outage).
+  const isOnlineProject = !!currentProjectMeta?.onlineId;
+  const sbAuth = useSupabaseAuth();
 
   // Surface agent-bridge failures as a dialog (once per failure episode) — the
   // File menu only shows the status dot. Skipped on the project-manager boot
@@ -1039,9 +1046,12 @@ function AppContent() {
       <OfflineStatus
         readOnly={readOnly}
         isCloudProject={isDriveProject}
+        isOnlineProject={isOnlineProject}
         isSignedIn={driveCtx.isSignedIn}
         needsReauth={driveCtx.needsReauth}
+        isSupabaseSignedIn={!!sbAuth.account}
         onSignIn={() => driveCtx.signIn()}
+        onSupabaseSignIn={() => setShowAccountModal(true)}
         onRetry={handleRetryConnection}
         retryingConnection={retryingConnection}
         showModal={showOfflineModal}
