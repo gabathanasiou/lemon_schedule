@@ -86,6 +86,7 @@ import { LocationsGlideTab } from './components/LocationsGlideTab';
 import ReportDesigner from './components/reports/ReportDesigner';
 import { useDaybreakSections } from './lib/useDaybreakSections';
 import { useKeyboardDismissOnScroll } from './lib/useKeyboardDismissOnScroll';
+import { useStatusBarTheme } from './lib/useStatusBarTheme';
 import { usePersistState } from './lib/persist';
 import { ReportBlock, ReportDesign } from './types';
 import { dayScopeFilter } from './components/reports/DayReportPreview';
@@ -106,6 +107,8 @@ function AppContent() {
   const dialog = useDialog();
   const agentBridge = useAgentBridge();
   const presenceActions = usePresenceActions();
+  // Status-bar / browser-chrome tint follows the project theme (roadmap 265).
+  useStatusBarTheme();
   // Set while a followed peer's view is being applied — that programmatic
   // navigation must NOT exit follow mode (any other `go` does).
   const applyingFollowRef = useRef(false);

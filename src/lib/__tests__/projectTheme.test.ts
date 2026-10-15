@@ -37,6 +37,12 @@ describe('chrome mappers', () => {
     expect(projectSegThemeOf('shared')).toBe('emerald');
   });
 
+  it('barHex: the bar fill as hex for the status-bar tint (roadmap 265)', () => {
+    expect(PROJECT_CHROME.local.barHex).toBe('#09090b');
+    expect(PROJECT_CHROME.drive.barHex).toBe('#172554');
+    expect(PROJECT_CHROME.shared.barHex).toBe('#022c22');
+  });
+
   it('shared never inherits a blue class token', () => {
     for (const token of Object.values(PROJECT_CHROME.shared)) {
       expect(token).not.toMatch(/blue/);
