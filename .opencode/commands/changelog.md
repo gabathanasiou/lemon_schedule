@@ -8,36 +8,49 @@ Update the public changelog — `CHANGELOG.md` at the repo root — with the day
 it is missing. It is read by the app's users (film production people), not
 developers: plain human language, never a commit mirror.
 
-The newest entry and the commits since it (or the full history when the file
-does not exist yet):
+Everything the normal case needs — the existing day headings (dates + titles),
+the file's head (your insertion anchor), and the commits since the newest day:
 
-!`if [ -f CHANGELOG.md ] && last=$(grep -m1 '^## ' CHANGELOG.md | sed 's/^## //') && [ -n "$last" ]; then echo "newest entry: $last"; echo "commits since then:"; git log --no-merges --date=short --format='%ad %h %s' --since="$last 00:00"; else echo "full history (no entries yet):"; git log --no-merges --date=short --format='%ad %h %s'; fi`
+!`if [ -f CHANGELOG.md ] && last=$(grep -m1 '^## ' CHANGELOG.md | sed -E 's/^## ([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/') && [ -n "$last" ]; then echo "existing day headings:"; grep '^## ' CHANGELOG.md; echo; echo "file head:"; head -6 CHANGELOG.md; echo; if [ -z "$(git log --no-merges --oneline --since="$last 00:00")" ]; then echo "NO NEW COMMITS since $last — stop; nothing to write."; else echo "commits since $last:"; git log --no-merges --date=short --format='%ad %h %s' --since="$last 00:00"; fi; else echo "full history (no entries yet):"; git log --no-merges --date=short --format='%ad %h %s'; fi`
 
-If two dates are appended to this message (a backfill range), fill exactly
-that range instead of "since the newest entry": run
-`git log --no-merges --date=short --format='%ad %h %s' --since='<first> 00:00' --until='<second> 23:59'`
-yourself with those dates.
+Work from what the block printed — do NOT read the whole CHANGELOG.md. If it
+says NO NEW COMMITS, stop without changing anything.
 
-For every missing day that has at least one thing a user would notice, write
-a section — newest day first, inserted at the top of the file directly under
-the `# Changelog` header. Keep that header and every existing section
-untouched. If `CHANGELOG.md` does not exist, create it with a short
-`# Changelog` header (one or two sentences: what's new, newest first) before
-the sections. If every day is already present, change nothing and say so.
+Insert the new day sections directly under the `# Changelog` header (before
+the first existing day) with ONE targeted edit anchored on the head you were
+shown — never rewrite the file, never touch an existing section. Keep every
+new title distinct from the existing ones printed above.
 
-## YYYY-MM-DD
+If two dates are appended to this message (a rare backlog range), fill exactly
+that range instead: read the file around those dates and insert each day among
+its neighbours in date order.
+
+## YYYY-MM-DD — Short playful title
 
 **Features**
-- What a scheduler can now do.
+- **Area** — what a scheduler can now do.
 
 **Bug fixes**
-- What stopped going wrong — "now" reads well here.
+- **Area** — what stopped going wrong.
 
 **Changes**
-- Improvements, renames, removals a user would notice.
+- **Area** — improvements, renames, removals a user would notice.
 
 Rules:
 
+- Give every day a short playful title, the way a TV episode is named
+  ("The one with the call sheet", "Cast guard patrol"). 2-5 words, tied to
+  what the day actually changed, distinct from every earlier title. The
+  heading is `## YYYY-MM-DD — Title`; never a number, date or jargon in it.
+- Lead each bullet with the app surface it belongs to, in bold, when it has
+  one — `- **Schedule** — drag a scene onto a day.` Keep the tag 2-4 words
+  and use the surface names the app shows: Schedule, Calendar, Breakdown,
+  Scene Sheet, Script, Reports, Reports Designer, Ribbon Designer, Colors,
+  Day Manager, Call Sheet, Day Types, Elements, Crew, Locations, Settings,
+  Sharing, Projects, Import, Export, Print, File menu. The viewer turns a
+  short bold lead like this into a chip. A change spanning surfaces, or with
+  no single home, goes without the tag.
+- *Italics* only for a short aside; never bold a whole sentence.
 - Use only the headings that apply. Skip days with nothing user-visible
   entirely — never write "nothing changed"; the git history is the complete
   record.
@@ -47,13 +60,9 @@ Rules:
   numbers, file/function/class/library names, tests, specs, CI, refactors,
   docs work or internal tooling. Describe behavior, not code. Security fixes:
   one high-level sentence only.
-- Use the app's user-facing names — Schedule, stripboard, scene ribbon,
-  Calendar, Breakdown tab, breakdown grid, Scene Sheet, Script tab, Reports
-  tab, Day Out of Days, Day Manager, call sheet, call times, cast list,
-  elements, boneyard, clipboard, versions, shared projects, teams, invites —
-  and real production terms (call time, INT DAY, blocking). Never developer
-  jargon.
+- Use the app's user-facing names and real production terms (call time,
+  INT DAY, blocking). Never developer jargon.
 - Ground every bullet in the commits — never invent or embellish.
-- Voice example (match this register): "Account settings, with Profile and
-  Team tabs — your team's roster now lives there, and it's reachable without
-  opening a project."
+- Voice example (match this register): "- **Settings** — the account settings
+  now has Profile and Team tabs: your team's roster lives there, and it's
+  reachable without opening a project."
