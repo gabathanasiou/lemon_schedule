@@ -128,6 +128,23 @@ describe('RoomClient', () => {
     expect(viewerSockets[0].sent).toHaveLength(before);
   });
 
+  it('sends per-user undo/redo only while open', async () => {
+    const { client, sockets } = makeClient();
+    // Nothing may be sent before the handshake (the room closes unauthenticated sockets).
+    expect(client.sendUndo()).toBe(false);
+    expect(client.sendRedo()).toBe(false);
+    await openClient(client, sockets);
+
+    expect(client.sendUndo()).toBe(true);
+    expect(sockets[0].lastSent()).toEqual({ t: 'undo' });
+    expect(client.sendRedo()).toBe(true);
+    expect(sockets[0].lastSent()).toEqual({ t: 'redo' });
+
+    client.stop();
+    expect(client.sendUndo()).toBe(false);
+    expect(client.sendRedo()).toBe(false);
+  });
+
   it('heals a rejection with a resync', async () => {
     const { client, sockets, events } = makeClient();
     await openClient(client, sockets);

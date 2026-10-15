@@ -126,6 +126,23 @@ export class RoomClient {
     this.rawSend({ t: 'sync' });
   }
 
+  /**
+   * Per-user undo: the room removes the caller's latest unit and re-syncs every
+   * client through a fresh `welcome` (this client is rebaselined by `onWelcome`).
+   * False = not connected right now — the caller must NOT fall back to a local
+   * transcript undo while a room owns the project.
+   */
+  sendUndo(): boolean {
+    if (this.status !== 'open') return false;
+    return this.rawSend({ t: 'undo' });
+  }
+
+  /** Re-apply the caller's most recently undone unit (also a no-op unless open). */
+  sendRedo(): boolean {
+    if (this.status !== 'open') return false;
+    return this.rawSend({ t: 'redo' });
+  }
+
   // ---- internals -----------------------------------------------------------
 
   private async connect(): Promise<void> {

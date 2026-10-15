@@ -913,14 +913,21 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (!currentProjectId) return;
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+      // The room owns undo for a connected shared project: per-user undo is a
+      // ROOM operation (rebase + welcome re-sync) — a local transcript UNDO
+      // would diverge from the room's log. Local behaviour is unchanged when
+      // no room is active. The element manager's unsaved edits stay local-first.
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        // The element manager's unsaved edits undo locally first.
-        if (!performLocalUndo()) guardedDispatch({ type: 'UNDO' });
+        if (performLocalUndo()) return;
+        if (roomActive()) roomClientRef.current?.sendUndo();
+        else guardedDispatch({ type: 'UNDO' });
       }
       if (cmdOrCtrl && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
-        if (!performLocalRedo()) guardedDispatch({ type: 'REDO' });
+        if (performLocalRedo()) return;
+        if (roomActive()) roomClientRef.current?.sendRedo();
+        else guardedDispatch({ type: 'REDO' });
       }
       if (cmdOrCtrl && e.key === 's') {
         e.preventDefault();
@@ -928,7 +935,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentProjectId, guardedDispatch]);
+  }, [currentProjectId, guardedDispatch, roomActive]);
 
   // Flush current project to localStorage immediately (local projects only —
   // Drive and online projects have their own writers).

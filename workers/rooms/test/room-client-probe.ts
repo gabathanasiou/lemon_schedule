@@ -8,8 +8,9 @@
  * Two editors + one viewer: editor 1 seeds the empty room through the client's
  * `needInit` path, editor 2 lands on the room state (welcome + replay), actions
  * flow both ways with the optimistic-echo dedupe, the viewer is refused and
- * auto-resyncs, and a late joiner folds to the converged state. Exits non-zero
- * on the first failure.
+ * auto-resyncs, a late joiner folds to the converged state, and a per-user
+ * undo/redo roundtrip converges every client through the fresh welcome. Exits
+ * non-zero on the first failure.
  */
 import { WebSocket as NodeWebSocket } from 'ws';
 import { RoomClient, type WebSocketLike } from '../../../src/lib/rooms/roomClient';
@@ -174,6 +175,33 @@ async function main(): Promise<void> {
   d.client.start();
   await waitFor(() => d.welcomeCount >= 1, 'D welcome');
   check('D: late joiner converged', d.state?.title === 'Live from B', { title: d.state?.title, errors: d.errors });
+
+  // --- per-user undo/redo roundtrip through the app's own transport ---
+  check('A: undoable action accepted', a.client.sendAction('a-2', { type: 'UPDATE_PROJECT', payload: { title: 'A undo me' } }));
+  await waitFor(() => b.state?.title === 'A undo me', "B applied A's undoable action");
+
+  const aWelcomes = a.welcomeCount;
+  const bWelcomes = b.welcomeCount;
+  const dWelcomes = d.welcomeCount;
+  check('A: sendUndo accepted', a.client.sendUndo());
+  await waitFor(() => a.welcomeCount > aWelcomes, 'A re-welcome after undo');
+  await waitFor(() => b.welcomeCount > bWelcomes, 'B re-welcome after undo');
+  await waitFor(() => d.welcomeCount > dWelcomes, 'late joiner re-welcome after undo');
+  check(
+    'undo: every client converges to the pre-action state',
+    a.state?.title === 'Live from B' && b.state?.title === 'Live from B' && d.state?.title === 'Live from B',
+    { a: a.state?.title, b: b.state?.title, d: d.state?.title }
+  );
+
+  const remotesBeforeRedo = b.remotes.length;
+  check('A: sendRedo accepted', a.client.sendRedo());
+  await waitFor(() => b.remotes.length > remotesBeforeRedo, "B receives A's redone action");
+  await waitFor(() => a.state?.title === 'A undo me' && b.state?.title === 'A undo me', 'redo re-applied for both');
+  check(
+    'redo: both editors converge back to the redone state',
+    a.state?.title === 'A undo me' && b.state?.title === 'A undo me',
+    { a: a.state?.title, b: b.state?.title }
+  );
 
   for (const h of [a, b, c, d]) h.client.stop();
   console.log(failures === 0 ? '\nCLIENT PROBE PASSED' : `\nCLIENT PROBE FAILED — ${failures} failure(s)`);
