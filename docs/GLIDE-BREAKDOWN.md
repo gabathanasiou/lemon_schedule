@@ -56,6 +56,12 @@ auto-repaint.
   (`src/lib/glideShell.tsx` — Crew Glide / Locations Glide, also exempts the add row). Both wrap the
   per-row `commitEdit` calls in `BATCH_START`/`BATCH_COMMIT`; new elements/categories/roles dedupe,
   so filling a brand-new value creates ONE item (and one cast-naming modal).
+- **NEW rows run the element guard too** (roadmap 255): `BreakdownTabGlide.ensureElements` calls the
+  shared `addNewElements` (`src/lib/newCastNaming.tsx`) for an existing row's edit AND for the rows
+  the ADD ROW and a PASTE create — a cast NAME typed into the add row used to land raw in
+  `scene.cast` with no member and no naming modal. Never dispatch `ADD_SCENE` with entity values
+  without it; the stripboard and Scene Sheet commit paths call the same helper, so cast rules live
+  in exactly one place.
 - **Multi-value confirm** (roadmap 144): a comma-list column (`isMultiValue(...)` in the scenes grid;
   a `multiValue` flag on the shell column — crew *Element Categories*) REPLACES every selected row's
   whole list, so a >1-row spread opens `useDialog().confirm` first (`danger`, no suppress): Confirm

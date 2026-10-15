@@ -579,6 +579,10 @@ export function GlideBreakdownTab({
         const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
         newScene.sceneNumber = nextNum;
       }
+      /* A new row's entity cells run the same create-missing-elements pass as
+         an existing row's edit — without it a cast NAME typed into the add
+         row landed raw in scene.cast (no member, no naming modal). */
+      ensureElements(colDef.key, val);
       dispatch({ type: 'ADD_SCENE', payload: newScene });
       return;
     }
@@ -653,7 +657,7 @@ export function GlideBreakdownTab({
       }
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog, linkGuard]);
+  }, [COLUMNS, dispatch, commitEdit, dedupeCellCommit, trySetSceneNumber, allBreakdownCategories, project.customCategories, dialog, linkGuard, ensureElements]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const anchoredByCategory = new Map<string, Set<string>>();
@@ -728,6 +732,12 @@ export function GlideBreakdownTab({
 
     dispatch({ type: 'BATCH_START' });
     for (const s of newScenes) {
+      /* A pasted row is a NEW row: its entity cells get the same
+         create-missing-elements pass as an edit (cast → member + naming
+         modal), never a raw name in scene.cast. */
+      for (const c of COLUMNS) {
+        if (c.key !== 'actions') ensureElements(c.key, String((s as any)[c.key] ?? ''));
+      }
       dispatch({ type: 'ADD_SCENE', payload: s });
     }
     for (const edit of editRows) {
@@ -742,7 +752,7 @@ export function GlideBreakdownTab({
     }
     gridRef.current?.updateCells(damageList);
     return false;
-  }, [COLUMNS, dispatch, commitEdit]);
+  }, [COLUMNS, dispatch, commitEdit, ensureElements]);
 
   const addScene = useCallback(() => {
     const prev = scenesRef.current[scenesRef.current.length - 1];
