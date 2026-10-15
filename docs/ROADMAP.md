@@ -1192,39 +1192,6 @@ header items sit at — and it reads bold; it shouldn't be.
   still encloses the label; weight matches the rest of the toolbar.
 - **Relations**: `relates to` **245** (header chrome visual pass).
 
-## 248. Shared-project theme — emerald chrome while collaborating (`[ ]`)
-
-**Requested 2026-10-15 (user):** Drive projects recolor the chrome blue; shared
-(collab) projects should get their own GREEN theme, matching the Project Manager's
-Shared tab (`bg-emerald-900`, `ProjectManager.tsx:489`) — so collab reads green at a
-glance while Drive stays blue.
-
-- **Today's seam**: ONE boolean drives all project chrome — `useIsCloudProject()`
-  (`src/store/provider.tsx:1613-1617`) is true for Drive OR online (`onlineId`)
-  projects, so both get blue. The distinguishing predicate already exists:
-  `useIsOnlineProject()` (`provider.tsx:1619-1624`). A project is never both
-  (`collaborateProject` clears `driveFileId`, `provider.tsx:1542`) — precedence
-  shared > drive > local.
-- **Approach**: ONE project-theme source (e.g. `useProjectTheme(): 'local' | 'drive'
-  | 'shared'` beside the two predicates) consumed by every surface that branches on
-  `isCloud` today: `AppHeader.tsx:109,120` (incl. the File menu `theme`),
-  `VersionToolbar.tsx:22`, `PageToolbar.tsx:44,134,148` (light toolbars),
-  `UserPresenceCluster.tsx:66,170`, `UndoRedoButtons.tsx:23`, `SortDropdown.tsx:170`,
-  `BoneyardBlock.tsx:201-209`, plus the kit-Button `cloud` props in
-  SceneSheet/ScheduleTab/BreakdownTabGlide/ElementManager/`managerShell.tsx` and
-  `SaveIndicator`. Map blue → emerald 1:1 (surfaces `bg-emerald-950`, hovers
-  `bg-emerald-900/60`, light-toolbar active `text-emerald-50`).
-- **Kit gap (the effort answer)**: `DropdownMenu`'s `DropdownTheme` is `'light' |
-  'dark' | 'blue'` and kit `Button`'s `cloud` prop is blue-950 only — an emerald
-  theme needs a kit variant (bump `@gabriel/ui-kit`) or an app-side override.
-- **Verify (rule 7 — colour-only, no e2e)**: manual pass on all three themes (local
-  zinc / Drive blue / shared emerald) + a guest share-link session — header, File
-  menu, light+dark toolbars, presence/undo hover tones consistent; Vitest for the pure
-  theme predicate if one lands. Update DESIGN-LANGUAGE §two-layer surface model
-  (line 54) + the primitive matrix in the same commit.
-- **Relations**: `relates to` **229** (collab S1 shared chrome), **237** (archive —
-  the PM Shared tab this colour matches).
-
 ## 249. Project Manager — tab count: white on active + stale Shared count (`[ ]`)
 
 **Requested 2026-10-15 (user):** the little count next to each Project Manager tab

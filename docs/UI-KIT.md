@@ -63,6 +63,8 @@ Before building any of these by hand again, check the kit first:
 - **v0.1.104**: the **`chrome` variant animates too** — the blue `bg-blue-900/50` highlight glides between the joined cells (the container carries `bg-zinc-800`, cells are transparent, dividers untouched). Every `Seg` now animates.
 - Playground `seg.spec.ts` (pill position, palettes, tablist, FloatingToggle, Checklist trailing); suite caps raised 13/73 → 14/78 with the ledger note.
 
+**v0.1.108 (emerald project-chrome theme — roadmap 248)**: the kit's second colored chrome, for shared (collaborative) projects — Drive stays blue. `DropdownTheme` gained `'emerald'` (tokens.css `[data-theme="emerald"]` = the blue block with emerald-tinted menu/panel fills and the emerald-500 checkbox accent; `DropdownMenu`/`ContextMenu`/`Checkbox`/`Checklist`/`NumberInput`/`RadioList` inherit it); kit `Button`'s `cloud` prop accepts `'emerald'` (`true` stays blue) tinting the `tab`/`tab-header`/light-`primary` palettes; `Seg`'s `track` variant themes gained `'blue'` + `'emerald'` (tinted border, `bg-{blue,emerald}-950` pill, `text-{blue,emerald}-50` active, tinted idle/hover). The app maps a project through ONE `useProjectTheme()` → `projectAccentOf` / `projectMenuThemeOf` / `projectSegThemeOf` (`src/lib/projectTheme.ts`).
+
 ## Location & install
 
 - Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)

@@ -18,7 +18,8 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
 - `storage.ts` (keys, ProjectMeta, load/migrate pipeline) · `reducer.ts` (59-type Action union,
   State, reducer → dispatches to `actions/{schedule,breakdown,design}.ts`; `rows.ts` holds
   `ensurePinnedDaybreak`/`ensureAllScenesHaveRows`) · `provider.tsx` (`ProjectProvider`,
-  `useProject()`, `useIsCloudProject()`, connectivity probe, debounced save, cloud sync).
+  `useProject()`, `useProjectTheme()`/`useIsOnlineProject()`, connectivity probe, debounced save,
+  cloud sync).
 
 ## Persistence
 
@@ -245,8 +246,8 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
 `{ state, dispatch, projectList, currentProjectId, readOnly, initialized, createProject, openProject,
 deleteProject, renameProject, duplicateProject, importProjectFromData, onlineProjects, onlineLoading,
 onlineError, refetchOnlineProjects, collaborateProject, onlineChangesAvailable, applyPeerSave,
-reloadOnlineProject, roomStatus, ... }` — shared-project chrome also has the `useIsCloudProject()` /
-`useIsOnlineProject()` selectors (the store barrel).
+reloadOnlineProject, roomStatus, ... }` — shared-project chrome also has the
+`useProjectTheme()` / `useIsOnlineProject()` selectors (the store barrel; roadmap 248).
 
 ## Re-render / memo contract (MUST NOT break)
 
