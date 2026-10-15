@@ -506,10 +506,11 @@ chrome (user decision 2026-10-12: hide, no edge chips) — and **a peer's pointe
 only renders while you are on their EXACT place (same tab + sub-tab + sub-sub
 mode) AND, on document pages, the same open document** (Sheet scene, report
 design, ribbon design — roadmap 236). Anchors are semantic, never pixels:
-rows/date cells/Day Manager sections, registered grid cells, `region:<id>`
-containers as the last anchored tier, and every authored control (auto `ui:`
-keys from testid/aria-label/title/text) — manual in docs/COLLABORATION.md §9,
-inspector `window.__lemonSchedule.presenceAnchorAt(x, y)`. The **header
+rows/date cells/Day Manager sections, registered grid cells, and every authored
+control (auto `ui:` keys from testid/aria-label/title/text; direct-hit only —
+they are exempt from the ≤40px snap that keeps rows magnetic) — manual in
+docs/COLLABORATION.md §9, inspector
+`window.__lemonSchedule.presenceAnchorAt(x, y)`. The **header
 collaborator bubbles** (`UserPresenceCluster`, max 3 + a
 `+N` menu) are follow TOGGLES — click a person to follow their view, click
 again (or Esc / navigate) to stop; they carry the same deterministic colours

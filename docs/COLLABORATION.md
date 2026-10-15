@@ -465,7 +465,7 @@ concurrency semantics in its doc.
   so the pointer glides Canva-style while still surviving scroll, reorder,
   zoom and window size. The chain (`src/lib/presenceAnchors.ts`) tries, in
   order: grid scope probe → row/date/day → precise `dom` anchor → nearest
-  item ≤40px → closest region container → viewport-relative screen fractions.
+  item ≤40px → viewport-relative screen fractions.
   - **Every authored control is anchored automatically** (user request: "all
     buttons everywhere"): `src/lib/presenceAutoAnchors.ts` stamps any
     `button` / `[role="button"]` / link / input that lacks an explicit key
@@ -473,16 +473,14 @@ concurrency semantics in its doc.
     own text (`ui:…` keys; ONE live MutationObserver). Explicit
     `data-presence-anchor` keys always WIN; use them where a label repeats on
     one page (`ribbons:tb:*`), is per-user dynamic, or describes a surface
-    (sheet fields, designer blocks/cells, nav, palettes, regions). A label
-    that changes per user derives different keys per client and the pointer
-    hides (hide-don't-fake, like an unknown row id).
-  - **Regions beat the viewport fallback**: containers holding arbitrary
-    content wear `data-presence-anchor="region:<id>"` — Schedule board and
-    boneyard, Calendar grid, Sheet body, Report/Ribbon designer canvases,
-    Elements table, Call-Sheet doc. A pointer over a region's unanchored space
-    maps WITHIN that container on the other client (never whole-viewport
-    fractions when a real container exists) and hides when that container does
-    not exist there.
+    (sheet fields, designer blocks/cells, nav, palettes). A label that changes
+    per user derives different keys per client and the pointer hides
+    (hide-don't-fake, like an unknown row id).
+  - **Auto anchors are DIRECT-HIT only**: they are excluded from the ≤40px
+    nearest-item snap (user report 2026-10-15: with dense toolbar anchors the
+    snap grabbed the pointer from outside a button and hopped between
+    neighbours — "so much more jumpy"). Snapping stays for rows/cells and the
+    explicitly keyed surfaces, where it was tuned.
   - Coverage is auditable: `window.__lemonSchedule.presenceAnchorAt(x, y)`
     returns the anchor that WOULD be published at a viewport point.
 - **Canvas grids register a grid scope** (`src/lib/presenceResolvers.ts`):

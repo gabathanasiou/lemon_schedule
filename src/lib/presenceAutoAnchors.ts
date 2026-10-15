@@ -1,4 +1,4 @@
-import { PRESENCE_ANCHOR_ATTR } from './presenceAnchors';
+import { AUTO_ANCHOR_PREFIX, CONTROL_SELECTOR, PRESENCE_ANCHOR_ATTR } from './presenceAnchors';
 
 /**
  * Automatic pointer anchors for interactive chrome (roadmap 236, user request
@@ -26,8 +26,9 @@ import { PRESENCE_ANCHOR_ATTR } from './presenceAnchors';
  * auditable in any build.
  */
 
-/** Derived-key namespaces — never collide with the explicit surface keys. */
-export const AUTO_ANCHOR_PREFIX = 'ui:';
+/** Derived-key namespaces — never collide with the explicit surface keys
+ *  (defined in `presenceAnchors.ts` so the anchor chain can recognise them
+ *  without a circular import). */
 
 const MAX_KEY_PART = 60;
 
@@ -58,10 +59,10 @@ export function autoAnchorKeyFor(el: AutoAnchorSource): string | null {
 }
 
 /** The interactable controls that participate in auto anchors — native + ARIA
- *  buttons, links, and form controls. Text-entry surfaces (textarea /
- *  contenteditable) stay out: their surrounding row/box anchor covers them and
- *  their value is data, not identity. Menus/rows have their own systems. */
-const CONTROL_SELECTOR = 'button, [role="button"], a[href], input, select';
+ *  buttons, links, and form controls (the shared `CONTROL_SELECTOR`). Text-entry
+ *  surfaces (textarea / contenteditable) stay out: their surrounding row/box
+ *  anchor covers them and their value is data, not identity. Menus/rows have
+ *  their own systems. */
 
 /** Start stamping auto anchors under `root` (default: the document body) and
  *  keep up with the app via a MutationObserver. Returns the stop function. */

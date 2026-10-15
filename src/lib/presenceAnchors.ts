@@ -11,13 +11,17 @@ import { pointerFractions, screenFractions, type PresenceAnchor } from './supaba
  *  1. a registered canvas grid's cell (`data-presence-grid` → scope probe);
  *  2. the semantic element under the pointer — `data-row-id` row, `data-date-key`
  *     calendar cell, Day Manager section, or the generic `data-presence-anchor`
- *     element (roadmap 236: report blocks, ribbon cells, sheet fields, nav);
- *  3. the nearest anchored item within ~40px (gutters/margins snap);
+ *     element (roadmap 236: report blocks, ribbon cells, sheet fields, nav,
+ *     one per authored control via `presenceAutoAnchors.ts`);
+ *  3. the nearest non-control anchored item within ~40px (gutters/margins
+ *     snap; control anchors are DIRECT-HIT only — a dense toolbar must not
+ *     grab the pointer from the space around it);
  *  4. the viewport-relative `screen` fallback so a cursor exists EVERYWHERE.
  *
- * Keys are explicit and stable across clients — never derived from DOM
- * structure or text. An anchor that does not resolve on the receiving client
- * hides the pointer (docs/COLLABORATION.md §9).
+ * Explicit keys are stable across clients by construction; auto keys derive
+ * from authored attributes only (never DOM structure or position). An anchor
+ * that does not resolve on the receiving client hides the pointer
+ * (docs/COLLABORATION.md §9).
  */
 
 /** The attribute an element wears to expose a stable, namespaced, cross-client
@@ -25,21 +29,13 @@ import { pointerFractions, screenFractions, type PresenceAnchor } from './supaba
  *  Assign it in the SHARED component that renders the element (roadmap 236). */
 export const PRESENCE_ANCHOR_ATTR = 'data-presence-anchor';
 
-/** Region-fallback keys (roadmap 236, user request 2026-10-15): containers that
- *  hold arbitrary content (boards, grids, canvases, form columns) wear
- *  `data-presence-anchor="region:<id>"`. A pointer over their unanchored space
- *  maps WITHIN that container on the other client — far more accurate than
- *  whole-viewport fractions when the two layouts differ (a collapsed boneyard,
- *  another window width) and hidden when the container doesn't exist there.
- *  Regions are the LAST anchored tier: small anchors and the ~40px nearest-item
- *  snap always win over them. */
-export const PRESENCE_REGION_PREFIX = 'region:';
-
-/** Element anchors that are NOT region containers (the precise tier). */
-const PRECISE_ANCHOR_SELECTOR = `[${PRESENCE_ANCHOR_ATTR}]:not([${PRESENCE_ANCHOR_ATTR}^="${PRESENCE_REGION_PREFIX}"])`;
+/** Auto-derived control keys (`ui:<kind>:<identity>`, `presenceAutoAnchors.ts`).
+ *  The chain's control-snap rule treats the whole `CONTROL_SELECTOR` class —
+ *  explicit or auto keys alike — as direct-hit only. */
+export const AUTO_ANCHOR_PREFIX = 'ui:';
 
 /** Any element that carries a shareable item anchor. */
-const ITEM_SELECTOR = `[data-row-id], [data-date-key], [data-section], [data-day-sections], ${PRECISE_ANCHOR_SELECTOR}`;
+const ITEM_SELECTOR = `[data-row-id], [data-date-key], [data-section], [data-day-sections], [${PRESENCE_ANCHOR_ATTR}]`;
 
 /** Build the element-based anchor for a pointer over `el` (null when `el`
  *  isn't over a shareable item). */
@@ -63,7 +59,7 @@ function elementAnchor(el: Element, clientX: number, clientY: number): PresenceA
       return { kind: 'day', sectionIndex: dayIndex, section, ...pointerFractions(clientX, clientY, sectionEl.getBoundingClientRect()) };
     }
   }
-  const dom = el.closest(PRECISE_ANCHOR_SELECTOR);
+  const dom = el.closest(`[${PRESENCE_ANCHOR_ATTR}]`);
   const key = dom?.getAttribute(PRESENCE_ANCHOR_ATTR);
   if (dom && key) {
     return { kind: 'dom', key, ...pointerFractions(clientX, clientY, dom.getBoundingClientRect()) };
@@ -71,8 +67,18 @@ function elementAnchor(el: Element, clientX: number, clientY: number): PresenceA
   return null;
 }
 
+/** Buttons/links/inputs — the interactive controls whose anchors are
+ *  DIRECT-HIT only (see `nearestItemElement`); the auto-anchor stamper shares
+ *  this selector so "a control" means one thing everywhere. */
+export const CONTROL_SELECTOR = 'button, [role="button"], a[href], input, select';
+
 /** Nearest anchored item within ~40px — hovering a gutter/margin lands the
- *  pointer on the row/cell beside it instead of falling back to raw pixels. */
+ *  pointer on the row/cell beside it instead of falling back to raw pixels.
+ *  CONTROL anchors never participate: with dense chrome (toolbars, palettes)
+ *  the snap grabbed the pointer from the space around a button and hopped
+ *  between neighbours as it moved (user report 2026-10-15: "so much more
+ *  jumpy"). Rows, cells, sheet boxes and the other surface anchors are not
+ *  controls and keep the tuned gutter snap. */
 function nearestItemElement(x: number, y: number): Element | null {
   if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') return null;
   for (const dy of [8, -8, 16, -16, 24, -24, 32, -32, 40, -40]) {
@@ -80,7 +86,9 @@ function nearestItemElement(x: number, y: number): Element | null {
       const el = document.elementFromPoint(x + dx, y + dy);
       if (!el) continue;
       const item = el.closest(ITEM_SELECTOR);
-      if (item) return item;
+      if (!item) continue;
+      if (item.closest(CONTROL_SELECTOR)) continue;
+      return item;
     }
   }
   return null;
@@ -109,15 +117,8 @@ export function resolvePointerAnchor(clientX: number, clientY: number, target?: 
     const near = nearestItemElement(clientX, clientY);
     const snapped = near ? elementAnchor(near, clientX, clientY) : null;
     if (snapped) return snapped;
-    // 4. The closest region container — the pointer stays WITHIN the same
-    //    board/grid/canvas on the other client instead of the whole viewport.
-    const region = el.closest(`[${PRESENCE_ANCHOR_ATTR}^="${PRESENCE_REGION_PREFIX}"]`);
-    const regionKey = region?.getAttribute(PRESENCE_ANCHOR_ATTR);
-    if (region && regionKey) {
-      return { kind: 'dom', key: regionKey, ...pointerFractions(clientX, clientY, region.getBoundingClientRect()) };
-    }
   }
-  // 5. Free pointer: viewport-relative fallback (rendered only while the peer
+  // 4. Free pointer: viewport-relative fallback (rendered only while the peer
   //    is on the same place as us — see sameViewPlace in presence.ts).
   return { kind: 'screen', ...screenFractions(clientX, clientY, window.innerWidth, window.innerHeight) };
 }

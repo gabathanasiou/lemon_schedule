@@ -607,7 +607,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
           {/* Table card */}
           <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm min-h-0">
-            <div ref={scrollRef} data-presence-anchor="region:elements:table" className="h-full overflow-auto tab-scroll pb-10">
+            <div ref={scrollRef} className="h-full overflow-auto tab-scroll pb-10">
               <table className="w-full manager-table">
                 <thead>
                   <tr className="bg-zinc-50">
