@@ -34,6 +34,11 @@ interface RibbonDesignerGridProps {
   cellPaddingH?: number;
   textSize?: number;
   edgePadding?: number;
+  /** Presence pointer anchors (roadmap 236): when set, every cell wears
+   *  `data-presence-anchor={prefix + cell.id}` so a peer's pointer sticks to
+   *  the same designer cell. Omitted for the id-less fallback design (its
+   *  cell ids are regenerated per mount). */
+  presenceAnchorPrefix?: string;
 }
 
 export default function RibbonDesignerGrid({
@@ -41,7 +46,7 @@ export default function RibbonDesignerGrid({
   tabBarRef, gridRef, cellRefs, mergeLookup, cellDragRef, setCellDrag,
   setCellDropTarget, setDropHover, dropHover, cellDropTarget,
   startResize, onResetBoundary, moveCellToRow, assign, customFieldLabels,
-  cellPaddingV, cellPaddingH, textSize, edgePadding,
+  cellPaddingV, cellPaddingH, textSize, edgePadding, presenceAnchorPrefix,
 }: RibbonDesignerGridProps) {
   return (
     <section className={`bg-zinc-900 rounded-lg border border-zinc-800 ${readOnly ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -91,6 +96,7 @@ export default function RibbonDesignerGrid({
               return (
                 <div key={c.id}
                   data-cell-id={c.id}
+                  data-presence-anchor={presenceAnchorPrefix ? `${presenceAnchorPrefix}${c.id}` : undefined}
                   ref={el => { if (el) cellRefs.current.set(c.id, el); else cellRefs.current.delete(c.id); }}
                    onClick={e => { if (readOnly) return; e.stopPropagation(); setSelId(c.id); }}
                    onDoubleClick={e => { if (readOnly) return; e.stopPropagation(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}

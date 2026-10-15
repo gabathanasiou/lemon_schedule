@@ -186,6 +186,7 @@ export const BoneyardBlock: React.FC<{
           sortBy={sortBy}
           sortDir={sortDir}
           lockedCriteria={lockedCriteria}
+          presenceKey="toolbar:boneyard:sort"
           onToggleLock={handleToggleLock}
           onSort={handleSort}
           onCustomSort={handleCustomSort}

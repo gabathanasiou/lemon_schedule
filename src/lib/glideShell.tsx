@@ -33,6 +33,7 @@ import { useDedupeCellCommit } from './glideEditGuard';
 import { planGridPaste, type PasteEdit, type PasteColumn, type PasteRange } from './glidePaste';
 import { useGlideFill } from './glideFill';
 import { useGlidePeerSelection } from './useGlidePeerSelection';
+import { registerPresenceGridScope, type PresenceGridScope } from './presenceResolvers';
 import { effectiveGridRange } from './glideSelection';
 import Button from '../components/Button';
 import type { Project } from '../types';
@@ -213,6 +214,48 @@ export const GlideGridShell: React.FC<{
     rowKeys: presenceRowKeys,
     colKeys: presenceColKeys,
   });
+
+  // Live-pointer grid scope (roadmap 236): the pointer chain probes THIS grid
+  // (same recipe as InlineGlideTable / the Glide Breakdown) and the receiver
+  // locates the cell with its own scroll and column widths.
+  useEffect(() => {
+    const scope: PresenceGridScope = {
+      probe: (x, y) => {
+        const args = gridRef.current?.getMouseArgsForPosition(x, y);
+        if (!args || args.kind !== 'cell') return null;
+        const [col, row] = args.location;
+        const r = rowsRef.current[row];
+        const colDef = COLUMNSRef.current[col];
+        if (!r || !colDef) return null;
+        const { x: bx, y: by, width: bw, height: bh } = args.bounds;
+        const fx = bw > 0 ? Math.min(Math.max((x - bx) / bw, 0), 1) : 0.5;
+        const fy = bh > 0 ? Math.min(Math.max((y - by) / bh, 0), 1) : 0.5;
+        return { rowKey: r.key, colKey: colDef.key, rowIndex: row, colIndex: col, fx, fy };
+      },
+      locate: ({ rowKey, colKey, rowIndex, colIndex }) => {
+        const rows = rowsRef.current;
+        const cols = COLUMNSRef.current;
+        if (rows.length === 0 || cols.length === 0) return null;
+        let ri = rows.findIndex(r => r.key === rowKey);
+        if (ri < 0) ri = Math.min(Math.max(rowIndex, 0), rows.length - 1);
+        let ci = cols.findIndex(c => c.key === colKey);
+        if (ci < 0) ci = Math.min(Math.max(colIndex, 0), cols.length - 1);
+        const rect = gridRef.current?.getBounds(ci, ri);
+        if (!rect) return null;
+        // A cell scrolled out of the grid's own visible area must NOT paint a
+        // pointer over unrelated chrome — hide it (hide-don't-fake).
+        const container = gridSizeRef.current;
+        if (container) {
+          const cb = container.getBoundingClientRect();
+          const overlapX = Math.min(rect.x + rect.width, cb.right) - Math.max(rect.x, cb.left);
+          const overlapY = Math.min(rect.y + rect.height, cb.bottom) - Math.max(rect.y, cb.top);
+          if (overlapX < 6 || overlapY < 6) return null;
+        }
+        return { left: rect.x, top: rect.y, width: rect.width, height: rect.height };
+      },
+    };
+    return registerPresenceGridScope(config.presenceScope, scope);
+  }, [config.presenceScope]);
 
   // Full repaint when the underlying data or columns change (Glide caches cells).
   useEffect(() => {
@@ -658,7 +701,7 @@ export const GlideGridShell: React.FC<{
       )}
 
       {/* Grid */}
-      <div ref={gridSizeRef} style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
+      <div ref={gridSizeRef} data-presence-grid={config.presenceScope} style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
         <DataEditor
           key={fontVersion}
           ref={gridRef}

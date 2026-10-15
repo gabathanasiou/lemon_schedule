@@ -26,6 +26,9 @@ interface SortDropdownProps {
   intExtLabel?: string;
   dayNightLabel?: string;
   compact?: boolean;
+  /** Presence pointer-anchor key for the trigger, stable per surface
+   *  (roadmap 236) — e.g. `toolbar:schedule:sort`. */
+  presenceKey?: string;
 }
 
 const BUILTIN_ICONS: Record<string, React.ReactNode> = {
@@ -68,7 +71,7 @@ const MENU_ITEM = IS_COARSE ? 'px-4 py-3 text-xs' : 'px-3 py-2 text-xs';
 const BTN_SIZE = IS_COARSE ? 'w-8 h-8' : 'w-6 h-6';
 const BTN_ICON = 'w-3.5 h-3.5';
 
-function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onToggleLock, onSort, onCustomSort, categories, intExtLabel, dayNightLabel, compact }: SortDropdownProps) {
+function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onToggleLock, onSort, onCustomSort, categories, intExtLabel, dayNightLabel, compact, presenceKey }: SortDropdownProps) {
   const isCloud = useIsCloudProject();
   const d = getDropdownClasses('light');
 
@@ -164,11 +167,11 @@ function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onT
       theme="light"
       trigger={
         compact ? (
-          <button className={`flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Sort" aria-label="Sort">
+          <button data-presence-anchor={presenceKey} className={`flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Sort" aria-label="Sort">
             <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
           </button>
         ) : (
-          <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
+          <button data-presence-anchor={presenceKey} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
             <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
             Sort
             <ChevronDown className="w-3 h-3 shrink-0" />

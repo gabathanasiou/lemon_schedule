@@ -100,8 +100,8 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
         dense
         value={views[sub]}
         options={[
-          { v: 'manager', l: '', title: `${subTabLabels[sub]} manager view`, ariaLabel: 'Manager view', icon: <List className="w-3.5 h-3.5" /> },
-          { v: alt.mode, l: '', title: alt.title, ariaLabel: alt.label, icon: <AltIcon className="w-3.5 h-3.5" /> },
+          { v: 'manager', l: '', title: `${subTabLabels[sub]} manager view`, ariaLabel: 'Manager view', icon: <List className="w-3.5 h-3.5" />, dataProps: { 'data-presence-anchor': `toolbar:${sub}:manager` } },
+          { v: alt.mode, l: '', title: alt.title, ariaLabel: alt.label, icon: <AltIcon className="w-3.5 h-3.5" />, dataProps: { 'data-presence-anchor': `toolbar:${sub}:${alt.mode}` } },
         ]}
         onChange={m => { if (views[sub] !== m) requestViewChange(sub, m); }}
         ariaLabel={`${subTabLabels[sub]} view`}

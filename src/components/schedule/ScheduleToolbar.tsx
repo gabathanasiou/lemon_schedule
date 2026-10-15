@@ -132,7 +132,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       header="SCHEDULE VERSIONS"
       itemLabel="Version"
       trigger={
-        <Button theme="light">
+        <Button theme="light" data-presence-anchor="toolbar:schedule:versions">
           <span className="text-xs font-semibold text-zinc-400">Schedule:</span>
           <span className="text-xs font-semibold text-zinc-900">{version?.name || 'Select Version'}</span>
           <ChevronDown className="w-3 h-3 text-zinc-400" />
@@ -147,6 +147,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         <button
           onClick={onShowViolations}
           aria-label="View All Violations"
+          data-presence-anchor="toolbar:schedule:violations"
           className="flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none bg-red-100 text-red-600 hover:bg-red-200"
           title="View All Violations"
         >
@@ -176,7 +177,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         width="w-44"
         theme="light"
         trigger={
-          <Button variant="primary" cloud={isCloud}>
+          <Button variant="primary" cloud={isCloud} data-presence-anchor="toolbar:schedule:day-breaks">
             <Sunset className="w-3.5 h-3.5 shrink-0" />
              Day Breaks
             <ChevronDown className="w-3 h-3 shrink-0" />
@@ -198,6 +199,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
             variant="primary"
             cloud={isCloud}
             title="Add note/break banners to every day, or delete banners"
+            data-presence-anchor="toolbar:schedule:banners"
           >
             <CalendarPlus className="w-3.5 h-3.5 shrink-0" />
             Banners
@@ -215,6 +217,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         sortBy={sortState.sortBy}
         sortDir={sortState.sortDir}
         compact
+        presenceKey="toolbar:schedule:sort"
         lockedCriteria={sortState.lockedCriteria}
         onToggleLock={handleToggleLock}
         onSort={handleSort}
@@ -230,7 +233,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         width="w-48"
         theme="light"
           trigger={
-            <Button title="View" aria-label="View">
+            <Button title="View" aria-label="View" data-presence-anchor="toolbar:schedule:view">
               <Eye className="w-3.5 h-3.5 shrink-0" />
               <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
             </Button>
@@ -278,6 +281,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         disabled={readOnly}
         title="Edit"
         aria-label="Edit"
+        data-presence-anchor="toolbar:schedule:edit"
         className={textEditingEnabled ? 'bg-blue-600! hover:bg-blue-500!' : ''}
       >
         {isEditPending ? (
@@ -288,13 +292,14 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       </Button>
       <ToolbarDivider />
       {onPrint && (
-        <Button variant="primary" cloud={isCloud} onClick={onPrint} title="Print" aria-label="Print">
+        <Button variant="primary" cloud={isCloud} onClick={onPrint} title="Print" aria-label="Print" data-presence-anchor="toolbar:schedule:print">
           <Printer className="w-3.5 h-3.5 shrink-0" />
         </Button>
       )}
       <ToolbarDivider />
       <button
         onClick={onShowHelp}
+        data-presence-anchor="toolbar:schedule:help"
         className="flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer select-none"
         title="Keyboard Shortcuts & Help"
       >

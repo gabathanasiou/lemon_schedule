@@ -54,6 +54,7 @@ export const BoneyardSidebar: React.FC<{
           sortBy={sortBy ?? null}
           sortDir={sortDir}
           lockedCriteria={lockedCriteria}
+          presenceKey="toolbar:calendar:sort"
           onToggleLock={onToggleLock ?? (() => {})}
           onSort={onSort}
           onCustomSort={onCustomSort}

@@ -33,10 +33,14 @@ export default function SceneSheetFields({
   scene, val, update, commitField, commitTextEdits, readOnly, inputCls, blurOnEnter,
   setItems, locationItems, breakdownItems, allBreakdownCats, allBreakdownLabel, palette, customCategories, anchoredByCategory, sheetNumber,
 }: SceneSheetFieldsProps) {
+  // Presence (roadmap 236): stable pointer-anchor keys for this sheet's fields.
+  // The scene id makes the key exact across clients — a peer on another scene
+  // can never land on this one's box (the doc gate hides them anyway).
+  const anchorPrefix = scene ? `sheet:${scene.id}:` : null;
   return (
     <>
       {/* Header table - matches print layout */}
-      <div className="bg-white border border-zinc-300">
+      <div className="bg-white border border-zinc-300" data-presence-anchor={anchorPrefix ? `${anchorPrefix}header` : undefined}>
         <table className="w-full border-collapse text-xs">
           <tbody>
             <tr className="border-b border-zinc-300">
@@ -79,7 +83,7 @@ export default function SceneSheetFields({
       {/* Category grid - 3 columns, each box has header + body, matches print */}
       <div className="grid grid-cols-3 gap-2 pr-0.5">
           {allBreakdownCats.filter(c => c !== 'set').map(cat => (
-            <div key={cat} data-scene-field={cat} className="bg-white border border-zinc-300 rounded overflow-hidden">
+            <div key={cat} data-scene-field={cat} data-presence-anchor={anchorPrefix ? `${anchorPrefix}field:${cat}` : undefined} className="bg-white border border-zinc-300 rounded overflow-hidden">
               <div className="bg-zinc-100 px-2.5 py-1.5 border-b border-zinc-300 text-[10px] font-bold text-zinc-700 uppercase leading-tight">{allBreakdownLabel[cat]}</div>
               <div className={cat === 'cast' ? 'min-h-[80px] flex flex-col' : cat === 'notes' ? 'p-1 flex flex-col' : 'flex flex-col'}>
                 {cat === 'notes' ? (

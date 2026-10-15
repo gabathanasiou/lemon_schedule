@@ -192,6 +192,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             <button
               type="button"
               onClick={() => setDetailsOpen(true)}
+              data-presence-anchor="toolbar:days:details"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-200 bg-white text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 shadow-sm"
             >
               <Info className="w-3.5 h-3.5" /> Production Details
@@ -199,6 +200,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             <button
               type="button"
               onClick={() => setCallTimesOpen(true)}
+              data-presence-anchor="toolbar:days:call-times-settings"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-200 bg-white text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 shadow-sm"
             >
               <Clock className="w-3.5 h-3.5" /> Call Times
@@ -291,7 +293,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   // selector portals into its own slot, immediately left of the view switcher,
   // in both Days views.
   const dayPickerNode = (
-    <DayPicker theme="light" options={navOptions} selectedIndex={selected.sectionIndex} onSelect={selectDay} />
+    <DayPicker theme="light" options={navOptions} selectedIndex={selected.sectionIndex} onSelect={selectDay} presenceKey="toolbar:days:day-picker" />
   );
 
   const managerControls = (
@@ -304,6 +306,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           onClick={() => setEditCallSheet(true)}
           disabled={!callSheetDesign}
           title="Open the call sheet editor for this day"
+          data-presence-anchor="toolbar:days:call-sheet"
           className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 disabled:opacity-40"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Call Sheet
@@ -332,6 +335,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             <button
               type="button"
               title="Production details, call-time settings, day copy and pop-out"
+              data-presence-anchor="toolbar:days:settings"
               className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
             >
               Settings <ChevronDown className="w-3 h-3" />

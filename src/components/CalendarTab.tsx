@@ -1002,7 +1002,7 @@ export const CalendarTab: React.FC<{
           header="CALENDAR VERSIONS"
           itemLabel="Calendar"
           trigger={
-            <Button theme="light">
+            <Button theme="light" data-presence-anchor="toolbar:calendar:versions">
               <span className="text-xs font-semibold text-zinc-400">Calendar:</span>
               <span className="text-xs font-semibold text-zinc-900">{activeCalendarVersion?.name || 'Select Calendar'}</span>
               <ChevronDown className="w-3 h-3 text-zinc-400" />
@@ -1049,10 +1049,10 @@ export const CalendarTab: React.FC<{
                 {viewMode === 'strips' && boneyardCollapsed && (
                   <BoneyardExpandButton onClick={() => setBoneyardCollapsed(false)} />
                 )}
-                <button onClick={() => { presenceActions.noteUserViewChange(); goPrevMonth(); }} title="Previous month" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
+                <button onClick={() => { presenceActions.noteUserViewChange(); goPrevMonth(); }} title="Previous month" data-presence-anchor="toolbar:calendar:prev" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
                 <h2 className="font-semibold text-sm whitespace-nowrap">{rangeLabel}</h2>
-                <button onClick={() => { presenceActions.noteUserViewChange(); goNextMonth(); }} title="Next month" className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
-                <button onClick={() => { presenceActions.noteUserViewChange(); goToday(); }} title="Jump to today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
+                <button onClick={() => { presenceActions.noteUserViewChange(); goNextMonth(); }} title="Next month" data-presence-anchor="toolbar:calendar:next" className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
+                <button onClick={() => { presenceActions.noteUserViewChange(); goToday(); }} title="Jump to today" data-presence-anchor="toolbar:calendar:today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
                   Today
                 </button>
               </div>
@@ -1061,6 +1061,7 @@ export const CalendarTab: React.FC<{
               <div className="flex items-center gap-3">
                 <Button
                   onClick={() => setProdDatesOpen(true)}
+                  data-presence-anchor="toolbar:calendar:production-dates"
                 >
                   <CalendarDays className="w-3.5 h-3.5" />
                   Production Dates
@@ -1071,8 +1072,8 @@ export const CalendarTab: React.FC<{
                   dense
                   value={viewMode}
                   options={[
-                    { v: 'strips', l: 'Strips', title: 'Strips view' },
-                    { v: 'events', l: 'Events', title: 'Events view' },
+                    { v: 'strips', l: 'Strips', title: 'Strips view', dataProps: { 'data-presence-anchor': 'toolbar:calendar:strips' } },
+                    { v: 'events', l: 'Events', title: 'Events view', dataProps: { 'data-presence-anchor': 'toolbar:calendar:events' } },
                   ]}
                   onChange={m => { presenceActions.noteUserViewChange(); updateCal({ viewMode: m as 'strips' | 'events' }); setSelectedEventKeys(new Set()); }}
                   ariaLabel="Calendar view"
@@ -1084,7 +1085,7 @@ export const CalendarTab: React.FC<{
                   width="w-56"
                   theme="light"
                   trigger={
-                    <Button>
+                    <Button data-presence-anchor="toolbar:calendar:filter">
                       <ListFilter className="w-3.5 h-3.5" />
                       Filter
                       <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
@@ -1155,7 +1156,7 @@ export const CalendarTab: React.FC<{
                   width="w-48"
                   theme="light"
                   trigger={
-                    <Button title="View" aria-label="View">
+                    <Button title="View" aria-label="View" data-presence-anchor="toolbar:calendar:view">
                       <Eye className="w-3.5 h-3.5 shrink-0" />
                       <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
                     </Button>

@@ -21,6 +21,7 @@ import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { createGlideCellEditor, useGlideEscapeCancel, type GlideColumnEditor, type GlideEditorOptions } from '../lib/glideEditor';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { useGlidePeerSelection } from '../lib/useGlidePeerSelection';
+import { registerPresenceGridScope, type PresenceGridScope } from '../lib/presenceResolvers';
 import { effectiveGridRange } from '../lib/glideSelection';
 import { clipboardRead, clipboardWrite } from '../lib/utils';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
@@ -305,6 +306,42 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     rowKeys: presenceRowKeys,
     colKeys: presenceColKeys,
   });
+  // Live-pointer grid scope (roadmap 236): the pointer chain probes THIS grid
+  // under the presence scope and the receiver locates the cell with its own
+  // scroll/column widths — the same recipe as the Glide Breakdown. Keys travel
+  // through a ref so the registered scope never re-registers on data churn.
+  const presenceKeysRef = useRef({ rows: presenceRowKeys, cols: presenceColKeys });
+  presenceKeysRef.current = { rows: presenceRowKeys, cols: presenceColKeys };
+  useEffect(() => {
+    if (!presenceScope) return;
+    const scope: PresenceGridScope = {
+      probe: (x, y) => {
+        const args = gridRef.current?.getMouseArgsForPosition(x, y);
+        if (!args || args.kind !== 'cell') return null;
+        const [col, row] = args.location;
+        const { rows, cols } = presenceKeysRef.current;
+        const rowKey = rows[row];
+        const colKey = cols[col];
+        if (rowKey == null || colKey == null) return null;
+        const { x: bx, y: by, width: bw, height: bh } = args.bounds;
+        const fx = bw > 0 ? Math.min(Math.max((x - bx) / bw, 0), 1) : 0.5;
+        const fy = bh > 0 ? Math.min(Math.max((y - by) / bh, 0), 1) : 0.5;
+        return { rowKey, colKey, rowIndex: row, colIndex: col, fx, fy };
+      },
+      locate: ({ rowKey, colKey, rowIndex, colIndex }) => {
+        const { rows, cols } = presenceKeysRef.current;
+        if (rows.length === 0 || cols.length === 0) return null;
+        let ri = rows.indexOf(rowKey);
+        if (ri < 0) ri = Math.min(Math.max(rowIndex, 0), rows.length - 1);
+        let ci = cols.indexOf(colKey);
+        if (ci < 0) ci = Math.min(Math.max(colIndex, 0), cols.length - 1);
+        const rect = gridRef.current?.getBounds(ci, ri);
+        if (!rect) return null;
+        return { left: rect.x, top: rect.y, width: rect.width, height: rect.height };
+      },
+    };
+    return registerPresenceGridScope(presenceScope, scope);
+  }, [presenceScope]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col: number; header?: boolean } | null>(null);
   const [tooltip, setTooltip] = useState<{ row: number } | null>(null);
   const [tooltipAnchor, setTooltipAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -656,6 +693,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       ref={wrapperRef}
       className="inline-glide-table"
       {...(dataAttr ? { [dataAttr]: '' } : {})}
+      data-presence-grid={presenceScope}
       onPointerLeave={() => {
         // Moving onto a floating chrome (block editor / palette) that sits over
         // the grid must dismiss the tooltip — Glide's canvas never sees that

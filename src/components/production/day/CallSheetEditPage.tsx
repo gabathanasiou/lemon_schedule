@@ -86,6 +86,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
       selectedIndex={day.sectionIndex}
       onSelect={idx => { onSelectDay(idx); }}
       disabled={readOnly}
+      presenceKey="toolbar:callsheet:day-picker"
     />
   );
 
@@ -115,6 +116,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
             <button
               type="button"
               title="Call sheet design and template reset"
+              data-presence-anchor="toolbar:callsheet:settings"
               className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800"
             >
               Settings <ChevronDown className="w-3 h-3" />
@@ -152,6 +154,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
             title="Preview times & durations"
             aria-label="Preview times & durations"
             aria-pressed={showRibbonTimes}
+            data-presence-anchor="toolbar:callsheet:times"
           >
             <Clock className="w-3.5 h-3.5" /> Times
           </Button>
@@ -161,6 +164,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           onClick={() => setPreview(v => !v)}
           title={preview ? 'Edit the call sheet' : 'Preview the day call sheet'}
           aria-label={preview ? 'Edit' : 'Preview'}
+          data-presence-anchor="toolbar:callsheet:preview"
           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
         >
           {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -171,6 +175,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           onClick={onPrint}
           title="Print the call sheet"
           aria-label="Print"
+          data-presence-anchor="toolbar:callsheet:print"
           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
         >
           <Printer className="w-3.5 h-3.5" />

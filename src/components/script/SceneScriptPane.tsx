@@ -55,6 +55,7 @@ export function ScriptPaneToggle({ open, onToggle }: { open: boolean; onToggle: 
       title={open ? 'Hide script pane' : 'Show script pane'}
       aria-pressed={open}
       aria-label={open ? 'Hide script pane' : 'Show script pane'}
+      data-presence-anchor="toolbar:script-pane:toggle"
     >
       <PanelRight className="h-4 w-4" />
     </Button>

@@ -25,6 +25,10 @@ export interface DayPickerProps {
   onSelect: (sectionIndex: number) => void;
   theme?: 'light' | 'dark';
   disabled?: boolean;
+  /** Presence pointer-anchor key for the picker (roadmap 236), stable per
+   *  surface — e.g. `toolbar:days:day-picker`. The prev/next arrows anchor as
+   *  `<key>:prev` / `<key>:next`. */
+  presenceKey?: string;
 }
 
 function weekStart(date: string): string {
@@ -106,7 +110,7 @@ export const DayPickerList: React.FC<DayPickerListProps> = ({ options, selectedI
   );
 };
 
-const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect, theme = 'light', disabled }) => {
+const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect, theme = 'light', disabled, presenceKey }) => {
   const [open, setOpen] = useState(false);
   const dark = theme === 'dark';
 
@@ -134,11 +138,13 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
           disabled={disabled}
           aria-haspopup="listbox"
           aria-label={`Select day${selected ? `, currently DAY ${selected.chronoDay}` : ''}`}
+          data-presence-anchor={presenceKey}
           className={`inline-flex items-center rounded border ${dark ? 'border-zinc-700 bg-zinc-950 text-zinc-200' : 'border-zinc-300 bg-white text-zinc-800 shadow-sm'} disabled:opacity-50`}
         >
           <span
             role="button"
             aria-label="Previous day"
+            data-presence-anchor={presenceKey ? `${presenceKey}:prev` : undefined}
             className={arrowCls}
             onClick={e => { stop(e); step(-1); }}
             onPointerDown={stop}
@@ -151,6 +157,7 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
           <span
             role="button"
             aria-label="Next day"
+            data-presence-anchor={presenceKey ? `${presenceKey}:next` : undefined}
             className={arrowCls}
             onClick={e => { stop(e); step(1); }}
             onPointerDown={stop}

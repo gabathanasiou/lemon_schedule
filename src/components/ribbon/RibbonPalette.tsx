@@ -60,6 +60,7 @@ export default function RibbonPalette({
                       key={f.key}
                       data-testid={TEST_IDS.paletteItem}
                       data-field={f.key}
+                      data-presence-anchor={`palette:ribbon:${f.key}`}
                       onClick={() => { if (!readOnly && selId) assign(selId, f.key); }}
                       draggable
                       onDragStart={e => e.dataTransfer.setData('text/field', f.key)}

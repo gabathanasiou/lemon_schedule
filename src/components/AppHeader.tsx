@@ -115,6 +115,7 @@ export default function AppHeader(props: AppHeaderProps) {
             theme={isCloudProject ? 'blue' : 'dark'}
             trigger={
               <button
+                data-presence-anchor="toolbar:header:file"
                 className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 font-sans font-semibold cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
               >
                 <span className="hidden md:inline">File</span>
@@ -241,6 +242,7 @@ export default function AppHeader(props: AppHeaderProps) {
                 variant="tab-header"
                 cloud={isCloudProject}
                 active={activeTab === tabId}
+                data-presence-anchor={`nav:tab:${tabId}`}
                 onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout(tabId); } else { setActiveTab(tabId); } }}
                 onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); onTabContextMenu(e, tabId); }}
                 className="shrink-0"

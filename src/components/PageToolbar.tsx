@@ -133,6 +133,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
                 theme={theme}
                 cloud={isCloud}
                 active={active}
+                data-presence-anchor={`nav:subtab:${tab.id}`}
                 onClick={() => {
                   if (shiftHeld && !IS_COARSE && onPopout) {
                     onPopout(tab.id);

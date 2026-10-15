@@ -39,6 +39,7 @@ import RibbonContextMenu from './ribbon/RibbonContextMenu';
 import { useColumnResize, splitBoundaryEven } from './columnResize';
 import { PeerItemOutlines } from './PeerItemOutlines';
 import { itemsByAttribute } from '../lib/itemSelection';
+import { usePresenceActions } from '../lib/supabase/presenceContext';
 
 /** Peer-selection items (roadmap 234 stage 2) resolve to the designer's cells
  *  (`data-cell-id`). Module-level: a fresh function identity per render would
@@ -129,6 +130,18 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
       resetRows(design.rows);
     }
   }, [project.ribbonDesigns, project.activeRibbonId, resetRows]);
+
+  // Presence (roadmap 236): publish the OPEN ribbon design so peers on another
+  // design are hidden (the pointer document gate) and pointers can anchor to
+  // this design's cells. App publishes the plain `design/ribbons` place on
+  // navigation; this effect refines it with the document identity. The
+  // id-less fallback design (legacy projects) publishes no id — its cell ids
+  // are regenerated per mount and must never anchor across clients.
+  const presenceActions = usePresenceActions();
+  const activeRibbonDesignId = activeDesign.id;
+  useEffect(() => {
+    presenceActions.publishView({ tab: 'design', sub: 'ribbons', ...(activeRibbonDesignId ? { ribbonId: activeRibbonDesignId } : {}) });
+  }, [presenceActions, activeRibbonDesignId]);
 
   const saveToStore = useCallback((rws: RibbonRow[], cws: number[]) => {
     if (!activeDesign || !activeDesign.id) return;
@@ -634,7 +647,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         header="RIBBON DESIGNS"
         itemLabel="Design"
         trigger={
-          <Button theme="dark" className={locked ? 'opacity-40 cursor-not-allowed' : ''}>
+          <Button theme="dark" data-presence-anchor="toolbar:ribbons:designs" className={locked ? 'opacity-40 cursor-not-allowed' : ''}>
             <span className="text-xs font-semibold text-zinc-500">Editing:</span>
             <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
             <ChevronDown className="w-3 h-3 text-zinc-500" />
@@ -647,7 +660,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         onOpenChange={setViewMenuOpen}
         width="w-36"
         trigger={
-          <Button theme="dark">
+          <Button theme="dark" data-presence-anchor="toolbar:ribbons:view">
             <span className="text-xs font-semibold text-zinc-500">View:</span>
             <span className="text-xs font-semibold text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
             <ChevronDown className="w-3 h-3 text-zinc-500" />
@@ -752,6 +765,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               cellPaddingH={activeDesign.cellPaddingH}
               textSize={activeDesign.textSize}
               edgePadding={activeDesign.edgePadding}
+              presenceAnchorPrefix={activeRibbonDesignId ? `ribbon:${activeRibbonDesignId}:cell:` : undefined}
             />
 
             <RibbonLivePreview

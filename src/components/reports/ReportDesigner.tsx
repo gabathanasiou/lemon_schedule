@@ -27,6 +27,7 @@ import ReportToolbar from './ReportToolbar';
 import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import { PeerItemOutlines } from '../PeerItemOutlines';
 import { reportSelectionItems, resolveReportItem } from '../../lib/reportSelectionItems';
+import { usePresenceActions } from '../../lib/supabase/presenceContext';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
 import { dayScopeFilter } from './DayReportPreview';
@@ -155,6 +156,16 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const activeDesignRef = useRef(activeDesign);
   activeDesignRef.current = activeDesign;
   const designId = activeDesign?.id;
+
+  // Presence (roadmap 236): publish the OPEN design so peers on another design
+  // are hidden (the pointer document gate) — and so pointers can anchor to
+  // this design's blocks. App publishes the plain `design/designer` place on
+  // navigation; this effect refines it with the document identity.
+  const presenceActions = usePresenceActions();
+  useEffect(() => {
+    if (zoneMode) return;
+    presenceActions.publishView({ tab: 'design', sub: 'designer', ...(designId ? { designId } : {}) });
+  }, [presenceActions, zoneMode, designId]);
 
   useEffect(() => {
     if (!ctx || ctx.dayInfos.length === 0) return;
@@ -575,8 +586,8 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         dense
         value={reportMode}
         options={[
-          { v: 'fields', l: 'Fields', title: 'Fields — chips everywhere; text and tables edit in place' },
-          { v: 'values', l: 'Values', title: 'Values — the final look; double-click or tap again to edit' },
+          { v: 'fields', l: 'Fields', title: 'Fields — chips everywhere; text and tables edit in place', dataProps: { 'data-presence-anchor': 'toolbar:designer:fields' } },
+          { v: 'values', l: 'Values', title: 'Values — the final look; double-click or tap again to edit', dataProps: { 'data-presence-anchor': 'toolbar:designer:values' } },
         ]}
         onChange={v => setReportModePersisted(v as ReportViewMode)}
       />
@@ -585,7 +596,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         onOpenChange={setViewMenuOpen}
         width="w-36"
         trigger={
-          <button className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
+          <button data-presence-anchor="toolbar:designer:view" className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
             <span className="font-semibold text-zinc-500">View:</span>
             <span className="text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
             {scopedDayLabel != null && <span className="text-zinc-400" title="This report day is pinned — canvas sample and Preview/Print resolve it">· Day {scopedDayLabel}</span>}
@@ -625,6 +636,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       </DropdownMenu>
       <button
         onClick={() => setPreview(v => !v)}
+        data-presence-anchor="toolbar:designer:preview"
         className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
       >
         {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -633,6 +645,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       <button
         onClick={() => activeDesign && onPrint?.(activeDesign, dayScoped && scopedDay != null ? scopedDay : undefined)}
         disabled={!onPrint}
+        data-presence-anchor="toolbar:designer:print"
         className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-zinc-100 text-zinc-900 font-medium hover:bg-white disabled:opacity-30"
       >
         <Printer className="w-3.5 h-3.5" /> Print
@@ -803,6 +816,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       onToggleEditorMode={toggleEditorMode}
       viewWidth={viewWidth}
               pageSize={activeDesign?.page}
+              presenceAnchorPrefix={designId && !zoneMode ? `report:${designId}:block:` : undefined}
               onSelect={selectBlock}
               onSelectCol={selectCol}
               onPatch={patch}
@@ -1082,7 +1096,7 @@ const DesignsMenu: React.FC<{
       header="REPORT DESIGNS"
       readOnly={readOnly}
       trigger={
-        <Button theme="dark" className={readOnly ? 'opacity-40 cursor-not-allowed' : ''}>
+        <Button theme="dark" data-presence-anchor="toolbar:designer:designs" className={readOnly ? 'opacity-40 cursor-not-allowed' : ''}>
           <span className="text-xs font-semibold text-zinc-500">Editing: <span className="text-zinc-200">{designs.find(d => d.id === activeId)?.name || '—'}</span></span>
           <ChevronDown className="w-3 h-3 text-zinc-500" />
         </Button>

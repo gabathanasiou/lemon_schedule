@@ -1056,12 +1056,12 @@ export function GlideBreakdownTab({
 
   const headerContent = (
     <div className="flex items-center justify-end gap-1">
-      <Button variant="primary" cloud={isCloud} onClick={addScene} disabled={locked}>
+      <Button variant="primary" cloud={isCloud} onClick={addScene} disabled={locked} data-presence-anchor="toolbar:glide:add-scene">
         + Add Scene
       </Button>
       <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-44" theme="light"
         trigger={
-          <Button>
+          <Button data-presence-anchor="toolbar:glide:edit">
             Edit
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
           </Button>
@@ -1084,7 +1084,7 @@ export function GlideBreakdownTab({
 
       <DropdownMenu open={viewOpen} onOpenChange={setViewOpen} width="w-44" theme="light"
         trigger={
-          <Button>
+          <Button data-presence-anchor="toolbar:glide:view">
             View
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
           </Button>
@@ -1108,7 +1108,7 @@ export function GlideBreakdownTab({
 
       <DropdownMenu open={infoOpen} onOpenChange={setInfoOpen} width="w-48" theme="light"
         trigger={
-          <Button>
+          <Button data-presence-anchor="toolbar:glide:info">
             Info
             <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
           </Button>

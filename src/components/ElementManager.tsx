@@ -414,13 +414,13 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }, [project.customCategories, hiddenSet]);
 
   const revertButton = hasChanges ? (
-    <Button variant="subtle" onClick={doRevert} disabled={locked}>
+    <Button variant="subtle" onClick={doRevert} disabled={locked} data-presence-anchor="toolbar:elements:revert">
       <Undo2 className="w-3 h-3" /> Revert
     </Button>
   ) : null;
 
   const saveButton = (
-    <Button variant="primary" cloud={isCloud} onClick={doSave} disabled={locked || !hasChanges}>
+    <Button variant="primary" cloud={isCloud} onClick={doSave} disabled={locked || !hasChanges} data-presence-anchor="toolbar:elements:save">
       <Save className="w-3 h-3" /> {hasChanges ? 'Save' : 'Saved'}
     </Button>
   );
@@ -436,7 +436,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
   const actionBar = (
     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap shrink-0">
-      <Button onClick={() => setShowLinks(true)} disabled={locked} title="Link elements so adding the anchor adds its linked elements too">
+      <Button onClick={() => setShowLinks(true)} disabled={locked} title="Link elements so adding the anchor adds its linked elements too" data-presence-anchor="toolbar:elements:links">
         <Link2 className="w-3 h-3" />
         Links
       </Button>
@@ -448,12 +448,12 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       {revertButton}
       {saveButton}
       <ToolbarDivider />
-      <Button onClick={() => setShowLinks(true)} disabled={locked}>
+      <Button onClick={() => setShowLinks(true)} disabled={locked} data-presence-anchor="toolbar:elements:links">
         <Link2 className="w-3 h-3" /> Links
       </Button>
       <DropdownMenu open={showSortMenu} onOpenChange={setShowSortMenu} width="w-40" theme="light"
         trigger={
-          <Button>Sort ▾</Button>
+          <Button data-presence-anchor="toolbar:elements:sort">Sort ▾</Button>
         }
       >
         {isCast && (
@@ -629,7 +629,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                   {rows.map((r, ri) => {
                       const stats = dayStats.get(r.key);
                       return (
-                    <tr key={r.key} className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}>
+                    <tr key={r.key} data-presence-anchor={`elements:${r.key}`} className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}>
                       {isCast && (
                         <td style={sizes.cellSmall} className={`sticky left-0 z-10 ${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>
                           <div className="flex items-center gap-1">

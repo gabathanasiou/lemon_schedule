@@ -30,6 +30,7 @@ export function UndoRedoButtons({ isCloudProject }: { isCloudProject: boolean })
         disabled={!canLocalUndo && !guardState.hasLocalUndo && !canRoomUndo}
         className={`p-1.5 rounded transition-colors ${disabledClass} ${tone}`}
         title="Undo (Cmd+Z)"
+        data-presence-anchor="nav:undo"
       >
         <Undo2 className="w-3.5 h-3.5" />
       </button>
@@ -38,6 +39,7 @@ export function UndoRedoButtons({ isCloudProject }: { isCloudProject: boolean })
         disabled={!canLocalRedo && !guardState.hasLocalRedo && !canRoomRedo}
         className={`p-1.5 rounded transition-colors ${disabledClass} ${tone}`}
         title="Redo (Cmd+Shift+Z)"
+        data-presence-anchor="nav:redo"
       >
         <Redo2 className="w-3.5 h-3.5" />
       </button>

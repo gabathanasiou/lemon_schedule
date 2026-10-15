@@ -120,6 +120,12 @@ interface ReportDesignerCanvasProps {
   /** Designer-picked production day (section index, roadmap 198) — day-scoped
    *  repeats sample this day instead of always Day 1. */
   previewSectionIndex?: number;
+  /** Presence pointer anchors (roadmap 236): when set, every block card wears
+   *  `data-presence-anchor={prefix + block.id}` so a peer's pointer sticks to
+   *  the same block. The Reports Designer passes `report:<designId>:block:`;
+   *  the Call-Sheet zone editor omits it (its canvas is day-scoped, not the
+   *  designer document). */
+  presenceAnchorPrefix?: string;
 }
 
 type ZoneKind = 'header' | 'body' | 'footer';
@@ -208,7 +214,7 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, autoEditId, onAutoEditHandled, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onToggleEditorMode, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, previewSectionIndex, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, autoEditId, onAutoEditHandled, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onToggleEditorMode, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, previewSectionIndex, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp, presenceAnchorPrefix }) => {
 
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
@@ -534,6 +540,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
         <div key={b.id}>
           <div
             data-block-id={b.id}
+            data-presence-anchor={presenceAnchorPrefix ? `${presenceAnchorPrefix}${b.id}` : undefined}
             className={`block-card block-type-${b.type}${selected ? ' selected' : ''}${enteredTextEditing ? ' block-text-editing' : ''}`}
             onClick={e => {
               e.stopPropagation();

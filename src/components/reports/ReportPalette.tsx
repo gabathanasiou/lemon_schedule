@@ -94,6 +94,7 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
   const fieldButton = (f: ReportFieldDef, unavailable = false) => (
     <button
       key={f.key}
+      data-presence-anchor={`palette:report:field:${f.key}`}
       draggable={!readOnly && !unavailable}
       onDragStart={unavailable ? undefined : (e => startDrag(e, { kind: 'block', type: 'text', field: f.key }))}
       onClick={unavailable ? undefined : (() => !readOnly && onInsert({ kind: 'block', type: 'text', field: f.key }))}
@@ -111,6 +112,7 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
   const blockButton = (item: { type: PaletteDropPayload; label: string; icon: React.ReactNode }) => (
     <button
       key={item.label}
+      data-presence-anchor={`palette:report:block:${item.label}`}
       draggable={!readOnly}
       onDragStart={e => startDrag(e, item.type)}
       onClick={() => !readOnly && onInsert(item.type)}
