@@ -87,6 +87,24 @@ describe('presence wire helpers', () => {
       .toEqual({ tab: 'schedule' });
   });
 
+  it('parses the follow-lens fields (manager category, preview, editor mode — roadmap 243)', () => {
+    expect(parseView({ tab: 'breakdown', sub: 'elements', managerCategory: 'props' }))
+      .toEqual({ tab: 'breakdown', sub: 'elements', managerCategory: 'props' });
+    expect(parseView({ tab: 'production', sub: 'crew', mode: 'manager', managerCategory: 'camera' }))
+      .toEqual({ tab: 'production', sub: 'crew', mode: 'manager', managerCategory: 'camera' });
+    expect(parseView({ tab: 'design', sub: 'designer', preview: true, reportViewMode: 'fields' }))
+      .toEqual({ tab: 'design', sub: 'designer', preview: true, reportViewMode: 'fields' });
+    // `preview: false` is a real value (Edit mode), never dropped.
+    expect(parseView({ tab: 'production', sub: 'days', mode: 'callsheet', preview: false }))
+      .toEqual({ tab: 'production', sub: 'days', mode: 'callsheet', preview: false });
+    // Unknown/wrong-typed values are dropped, never trusted.
+    expect(parseView({ tab: 'schedule', preview: 'yes', reportViewMode: 'keys', managerCategory: 7 }))
+      .toEqual({ tab: 'schedule' });
+    // A long category key is sliced to the wire cap, not rejected.
+    expect(parseView({ tab: 'breakdown', sub: 'elements', managerCategory: 'x'.repeat(80) })?.managerCategory)
+      .toBe('x'.repeat(64));
+  });
+
   it('parses anchors, defaulting/clamping the pointer position', () => {
     expect(parseAnchor({ kind: 'row', rowId: 'r1' })).toEqual({ kind: 'row', rowId: 'r1', fx: 0.5, fy: 0.5 });
     expect(parseAnchor({ kind: 'row', rowId: 'r1', fx: 0.2, fy: 0.8 })).toEqual({ kind: 'row', rowId: 'r1', fx: 0.2, fy: 0.8 });

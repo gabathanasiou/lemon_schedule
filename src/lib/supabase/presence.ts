@@ -1,5 +1,6 @@
 import { isAppTabId, modeOf, type AppPlace, type AppTabId } from '../appNav';
 import { CELL_BORDER_VALUES, VIEW_MODE_VALUES, type CellBorders, type ViewMode } from '../persist';
+import type { ReportViewMode } from '../../types';
 import { num, str } from './presenceWire';
 
 /**
@@ -48,6 +49,9 @@ export function presenceTopic(projectId: string): string {
 export const CALENDAR_VIEW_VALUES = ['strips', 'events'] as const;
 export type CalendarView = (typeof CALENDAR_VIEW_VALUES)[number];
 
+/** The Reports Designer display-mode allow-list (roadmap 243) — presence wire. */
+export const REPORT_VIEW_MODE_VALUES = ['fields', 'values'] as const;
+
 /** The view state a follower applies — the addressable part of AppPlace plus
  *  the in-page view switches that don't change the place (follow completeness,
  *  roadmap 229). Pref-shaped fields are validated against their allow-lists;
@@ -75,6 +79,16 @@ export interface PresenceView {
   cellBorders?: CellBorders;
   /** Calendar sub-view: Strips vs Events. */
   calendarView?: CalendarView;
+  /** Manager pages (roadmap 243): the peer's selected sidebar category key —
+   *  Element Manager (`breakdown/elements`) and the Crew/Locations managers
+   *  (`production/<sub>/manager`). Category keys are project DATA: the applier
+   *  mirrors a key only when this client has it (renamed/removed → ignored). */
+  managerCategory?: string;
+  /** Report Designer / Call Sheet editor (roadmap 243): Preview on/off. The
+   *  place (`tab`/`sub`/`mode`) says which surface's preview it is. */
+  preview?: boolean;
+  /** Reports Designer (roadmap 243): Fields vs Values display mode. */
+  reportViewMode?: ReportViewMode;
 }
 
 /** Semantic cursor anchor — ids that survive scroll, reorder and zoom, plus
@@ -373,6 +387,13 @@ export function parseView(raw: unknown): PresenceView | null {
   if (cellBorders) view.cellBorders = cellBorders;
   const calendarView = CALENDAR_VIEW_VALUES.find(v => v === r.calendarView);
   if (calendarView) view.calendarView = calendarView;
+  // Follow-lens fields (roadmap 243): the manager category (project data —
+  // the applier validates the key), Preview and Fields/Values.
+  const managerCategory = str(r.managerCategory, 64);
+  if (managerCategory) view.managerCategory = managerCategory;
+  if (typeof r.preview === 'boolean') view.preview = r.preview;
+  const reportViewMode = REPORT_VIEW_MODE_VALUES.find(v => v === r.reportViewMode);
+  if (reportViewMode) view.reportViewMode = reportViewMode;
   return view;
 }
 

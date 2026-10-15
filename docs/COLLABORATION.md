@@ -673,6 +673,14 @@ concurrency semantics in its doc.
     DESIGNERS' editing focus (Reports Designer + Ribbon Designer, roadmap 233)
     is a per-user pref (`src/lib/persist.ts`, `useActiveDesignId`) that never
     leaves the browser: design contents are shared, what you are editing is not.
+  - the **manager pages' selected sidebar category** (Element Manager,
+    `breakdown/elements`; Crew/Locations, `production/<sub>/manager`) and the
+    **Report Designer / Call Sheet editor Preview** + **Reports Fields/Values
+    mode** (roadmap 243) — one validated `PresenceView` field each
+    (`managerCategory` / `preview` / `reportViewMode`), applied through the
+    surface's own setter; category keys are project data (a key this client
+    does not have is ignored) and the designer toggles mirror only while both
+    clients are on the SAME design (`designId`).
   - the **scroll position** of the stripboard, Calendar, Sheet and Glide grid —
     a separate `scroll` broadcast (~8/s, coalescing + idle skip) with SEMANTIC
     anchors (never pixels): the top-edge item's key + a 0..1 offset, sampled
