@@ -1474,9 +1474,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [currentProjectId]);
 
   const closeProject = useCallback(() => {
+    // Local projects save on a 500ms debounce the save effect cancels when
+    // currentProjectId flips to null — flush first so the last edit before
+    // Close isn't dropped (parity with open/create/duplicate/import, which
+    // all flush before switching away). Cloud/shared projects have no local
+    // copy; the close-project flow guards those with a confirm.
+    flushCurrentProject();
     clearLastProject();
     setCurrentProjectId(null);
-  }, []);
+  }, [flushCurrentProject]);
 
   const retryConnectivity = useCallback(async (): Promise<boolean> => {
     return probeRef.current();

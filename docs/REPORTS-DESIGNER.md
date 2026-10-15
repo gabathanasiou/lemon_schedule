@@ -88,7 +88,7 @@ canonical implementation. Never re-derive them.
 Print NEVER fires directly — every entry point opens `ReportPrintDialog`
 (`components/reports/ReportPrintDialog.tsx`) first: designer toolbar Print
 (`ReportDesigner.tsx:351`) and File → Print → Custom Reports
-(`AppHeader.tsx:135`) both call `setCustomReportPrint(design)` in `App.tsx`.
+(`onPrintReport` in `AppHeader.tsx`) both call `setCustomReportPrint(design)` in `App.tsx`.
 The dialog calls `onPrint(scopes, printOptions)` → `handleReportPrint`
 (`App.tsx:624`) → `ReportPrint` renders through the measured paginator; it
 signals `onReady` and only then does `window.print()` fire.
@@ -118,4 +118,4 @@ signals `onReady` and only then does `window.print()` fire.
 
 - `npm run lint` after every change (tsc --noEmit).
 - `npx playwright test` — `seeded-smoke.spec.ts` exercises the designer with the seeded "IT'S A WONDERFUL LIFE" project; perf harness in `docs/PERF-DIAGNOSIS.md`.
-- Manual: Design → Reports Designer → Print (toolbar) or File → Custom Reports → the modal MUST open first — never a direct print.
+- Manual: Design → Reports Designer → Print (toolbar) or File → Print → Custom Reports → the modal MUST open first — never a direct print.

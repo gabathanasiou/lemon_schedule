@@ -35,7 +35,7 @@ Numbers guide):**
   "Invite others to collaborate".
 - Access: **Who can access** → **Only invited people** / **Anyone with the link**.
 - Permissions: **Can make changes** / **View only**; **Allow others to invite**.
-- Management: **Manage Shared Project…** (File menu), **Share With More People**,
+- Management: **Manage Shared Project…** (avatar menu), **Share With More People**,
   **Copy Link**, **Stop Sharing…**.
 - A shared project shows a person icon + tick; opening it lists who's collaborating.
 - Projects on the collaboration backend live in the Project Manager's
@@ -291,7 +291,7 @@ takes effect on next request; guest account needs no entitlement.
     diagnostics adds `onlineRole`/`canEdit`/`editLocked`.
   - UI: `src/components/sharing/SharingModal.tsx` (+ `sharingParts.tsx`) — Who can access /
     per-person Permissions / invite by email / Allow others to invite / Copy Link /
-    Expires (never · 7 · 30 days) / Revoke Link / Stop Sharing…; entered from File menu +
+    Expires (never · 7 · 30 days) / Revoke Link / Stop Sharing…; entered from the
     avatar menu "Manage Shared Project…" (Collaborate flows straight into it). Viewers see
     the people list + an explanatory line — link rows are inviter-only under RLS.
   - `src/components/ShareLinkGate.tsx` — `#/share/<token>` capture, invite notice on the

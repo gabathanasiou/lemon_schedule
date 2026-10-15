@@ -215,33 +215,31 @@ repeating on each continuation page.
    (also under `page.emulateMedia({ media: 'print' })`).
 3. Screenshot each `.report-page` div to eyeball the output.
 
-## 6. Custom reports from the app header Print menu (plan)
+## 6. Custom reports from the app header Print menu
 
-Today a custom report can only be printed from inside the Reports Designer
-(Designer Print button → `setReportPrint`). The header's `File → Print` only
-offers the built-in prints. Plan to make any report design printable directly
-from the header, with scope options like the Schedule print dialog.
+A custom report is printable straight from the header — `File → Print →
+Custom Reports` — or from inside the Reports Designer (Designer Print button).
+Both entry points open `ReportPrintDialog` first (never a direct print) and
+then reuse `ReportPrint`.
 
-### Menu restructure — `AppHeader.tsx` + `App.tsx`
+### Menu structure — `AppHeader.tsx` + `App.tsx`
 
 ```
 File → Print
   ├─ Schedule…
   ├─ Day Out of Days…
-  ├─ Breakdown Sheet…
-  └─ Custom Reports          ← new submenu (DropdownSubmenu, like the rest)
+  ├─ Scene Breakdown…
+  └─ Custom Reports          ← nested DropdownSubmenu inside Print
+       ├─ <report design name>…   (sibling of Print before roadmap 268)
        ├─ <report design name>…
-       ├─ <report design name>…
-       └─ …                  ← one entry per project.reportDesigns (activeReportId
-                                first or checked), divider, "Manage…" → opens Design tab
+       └─ …                  ← one entry per project.reportDesigns; none yet →
+                                the "create one in Design" hint
 ```
 
-- **Remove** `Element Breakdown…` from the header menu — it's redundant now that
-  a custom report can produce the same output (the Reports tab still has it).
-- **`AppHeader.tsx`**: drop `onPrintElementBreakdown`; add
-  `onPrintReport(design)` (or a single `onPrintCustomReport` that opens a picker).
-- **`App.tsx`**: new state `customReportPrint: { design, scopeFilter? } | null`
-  (or reuse `reportPrint` with an added `scopeFilter`). Reuse the existing
+- **`AppHeader.tsx`**: `onPrintReport(design)` is the single seam from the menu
+  to `App.tsx`; `Element Breakdown…` is never a header item (it lives in the
+  Reports tab).
+- **`App.tsx`**: `customReportPrint` state → `ReportPrintDialog` → the existing
   `ReportPrint` early-return + `window.print()`/`afterprint` effect.
 
 ### Scope options dialog

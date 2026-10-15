@@ -47,7 +47,6 @@ import Modal from './components/Modal';
 import { ModalFooter } from './components/Modal';
 import ModalFooterButton from './components/ModalFooterButton';
 import TrashModal from './components/TrashModal';
-import ScriptIntegrityModal from './components/ScriptIntegrityModal';
 import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
@@ -552,7 +551,6 @@ function AppContent() {
     setShowElementBreakdownDialog(false);
     setPrintDialogCategory(undefined);
     setShowTrash(false);
-    setShowIntegrity(false);
     setShowRestoreModal(null);
     setPendingImport(null);
     setPrintOptions(null);
@@ -626,7 +624,6 @@ function AppContent() {
   // (roadmap 198).
   const [customReportPrint, setCustomReportPrint] = useState<{ design: ReportDesign; daySectionIndex?: number } | null>(null);
   const [showTrash, setShowTrash] = useState(false);
-  const [showIntegrity, setShowIntegrity] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const driveCtx = useGoogleAuth();
@@ -1079,7 +1076,6 @@ function AppContent() {
         onPrintBreakdownSheet={() => setShowBreakdownSheetDialog(true)}
         onPrintReport={(design) => setCustomReportPrint({ design })}
         onShowTrash={() => setShowTrash(true)}
-        onShowIntegrity={() => setShowIntegrity(true)}
         onShowWhatsNew={() => setShowWhatsNew(true)}
         agentBridge={agentBridge}
         onToggleAgentBridge={handleToggleAgentBridge}
@@ -1262,7 +1258,6 @@ function AppContent() {
       <PresenceOverlay />
 
       <TrashModal open={showTrash} onClose={() => setShowTrash(false)} project={project} dispatch={dispatch} />
-      {showIntegrity && <ScriptIntegrityModal onClose={() => setShowIntegrity(false)} />}
       {showWhatsNew && <WhatsNewModal onClose={() => setShowWhatsNew(false)} />}
 
       {showRestoreModal && (

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, ShieldCheck, Trash2, Users, NotebookText, Rows3, Calendar1, Palette, Scale, Clapperboard, FileChartColumn, CircleHelp, Sparkles } from 'lucide-react';
-import { useProject, useIsOnlineProject, useProjectTheme } from '../store';
+import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, Trash2, X, NotebookText, Rows3, Calendar1, Palette, Scale, Clapperboard, FileChartColumn, CircleHelp, Sparkles } from 'lucide-react';
+import { useProject, useProjectTheme } from '../store';
 import { PROJECT_CHROME, projectAccentOf, projectMenuThemeOf } from '../lib/projectTheme';
 import { useSlidingPill } from '@gabriel/ui-kit';
 import { useDialog } from './Dialog';
@@ -62,7 +62,6 @@ interface AppHeaderProps {
   onPrintBreakdownSheet: () => void;
   onPrintReport: (design: ReportDesign) => void;
   onShowTrash: () => void;
-  onShowIntegrity: () => void;
   /** Opens the What's New viewer (File → Help → What's New). */
   onShowWhatsNew: () => void;
   agentBridge: { enabled: boolean; status: AgentBridgeStatus; available: boolean };
@@ -75,7 +74,7 @@ interface AppHeaderProps {
 }
 
 export default function AppHeader(props: AppHeaderProps) {
-  const { state, dispatch, projectList, currentProjectId, renameProject, locked } = useProject();
+  const { state, dispatch, projectList, currentProjectId, renameProject, locked, driveSaveError, driveRetryPending, driveErrorMsg, storageQuotaError, roomPending } = useProject();
   const dialog = useDialog();
 
   const project = state.present;
@@ -83,7 +82,7 @@ export default function AppHeader(props: AppHeaderProps) {
     activeTab, setActiveTab, shiftHeld, togglePopout, onTabContextMenu,
     onOpenProjectManager, onManageSharing, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
-    onShowTrash, onShowIntegrity, onShowWhatsNew, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
+    onShowTrash, onShowWhatsNew, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
   } = props;
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -127,7 +126,6 @@ export default function AppHeader(props: AppHeaderProps) {
   }, [syncTabLayout]);
 
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
-  const isOnlineProject = useIsOnlineProject();
 
   /* Project chrome (roadmap 248): local zinc / Drive blue / shared emerald. */
   const projectTheme = useProjectTheme();
@@ -151,6 +149,24 @@ export default function AppHeader(props: AppHeaderProps) {
     : agentBridge.status === 'connecting' ? 'bg-amber-400 animate-pulse'
     : agentBridge.status === 'error' ? 'bg-red-500'
     : 'bg-zinc-600';
+
+  /* Close project (roadmap 268): local projects are flushed by closeProject()
+     itself; a cloud/shared save that failed, is still retrying, sits in the
+     room's offline buffer or hit the storage quota has no local copy — confirm
+     before dropping those edits on the floor. */
+  const handleCloseProject = async () => {
+    if (driveSaveError || driveRetryPending || storageQuotaError || roomPending.pending > 0) {
+      const ok = await dialog.confirm({
+        title: 'Close project?',
+        message: driveErrorMsg
+          ? `${driveErrorMsg} — some changes haven't been saved yet. Closing now will lose them.`
+          : `Some changes haven't been saved yet. Closing now will lose them.`,
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    closeProject();
+  };
 
   return (
     /* Sticky top-0 z-20 (roadmap 265): iOS 26+ Safari tints the status bar from
@@ -182,11 +198,9 @@ export default function AppHeader(props: AppHeaderProps) {
             <DropdownItem onClick={() => { setShowFileMenu(false); onOpenProjectManager(); }} icon={<FolderOpen className="w-3.5 h-3.5" />}>
               Project Manager
             </DropdownItem>
-            {isOnlineProject && (
-              <DropdownItem onClick={() => { setShowFileMenu(false); onManageSharing(); }} icon={<Users className="w-3.5 h-3.5" />}>
-                Manage Shared Project...
-              </DropdownItem>
-            )}
+            <DropdownItem onClick={() => { setShowFileMenu(false); void handleCloseProject(); }} icon={<X className="w-3.5 h-3.5" />}>
+              Close project
+            </DropdownItem>
             <DropdownDivider />
             <DropdownSubmenu id="import-file" label="Import" icon={<FileUp className="w-3.5 h-3.5" />} width="w-56">
               <DropdownItem onClick={() => { setShowFileMenu(false); onImportClick(); }} disabled={locked}>
@@ -221,17 +235,17 @@ export default function AppHeader(props: AppHeaderProps) {
               <DropdownItem onClick={() => { setShowFileMenu(false); onPrintBreakdownSheet(); }}>
                 Scene Breakdown...
               </DropdownItem>
-            </DropdownSubmenu>
-            <DropdownSubmenu id="print-reports" label="Custom Reports" icon={<Printer className="w-3.5 h-3.5" />} width="w-52">
-              {(project.reportDesigns || []).length === 0 ? (
-                <DropdownItem onClick={() => setShowFileMenu(false)}>No reports yet — create one in Design</DropdownItem>
-              ) : (
-                (project.reportDesigns || []).map(d => (
-                  <DropdownItem key={d.id} onClick={() => { setShowFileMenu(false); onPrintReport(d); }}>
-                    {d.name}
-                  </DropdownItem>
-                ))
-              )}
+              <DropdownSubmenu id="print-reports" label="Custom Reports" icon={<FileChartColumn className="w-3.5 h-3.5" />} width="w-52">
+                {(project.reportDesigns || []).length === 0 ? (
+                  <DropdownItem onClick={() => setShowFileMenu(false)}>No reports yet — create one in Design</DropdownItem>
+                ) : (
+                  (project.reportDesigns || []).map(d => (
+                    <DropdownItem key={d.id} onClick={() => { setShowFileMenu(false); onPrintReport(d); }}>
+                      {d.name}
+                    </DropdownItem>
+                  ))
+                )}
+              </DropdownSubmenu>
             </DropdownSubmenu>
             {!isSupabaseConfigured && (
               <>
@@ -248,9 +262,6 @@ export default function AppHeader(props: AppHeaderProps) {
               </>
             )}
             <DropdownDivider />
-            <DropdownItem onClick={() => { setShowFileMenu(false); onShowIntegrity(); }} icon={<ShieldCheck className="w-3.5 h-3.5" />}>
-              Script integrity...
-            </DropdownItem>
             <DropdownItem onClick={() => { setShowFileMenu(false); onShowTrash(); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
               Trash...
             </DropdownItem>
