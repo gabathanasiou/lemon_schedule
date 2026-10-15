@@ -168,7 +168,8 @@ try {
     mintRes.headers.get('access-control-allow-origin'));
   const minted = await mintRes.json().catch(() => ({}));
   const tokenA = typeof minted.token === 'string' ? minted.token : '';
-  check('function: answered { token }', tokenA.startsWith('v1.'), minted);
+  // Never echo a live credential — shape only.
+  check('function: answered { token }', tokenA.startsWith('v1.'), { token: tokenA ? `${tokenA.slice(0, 6)}…` : minted });
   const claims = decodeClaims(tokenA);
   const now = Math.floor(Date.now() / 1000);
   check('token claims: project + user + owner role + future expiry',
