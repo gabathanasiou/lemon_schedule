@@ -136,28 +136,36 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   excluded — the room's own refuse-set), welcome/remote messages apply through the RAW dispatch
   (never counted as local changes, never pushed back), and the whole-blob Supabase save + S3.5
   peer-save reloads are skipped — the blob is staging-only until the S4 persistence cutover.
-- **Per-user undo (built)** is a ROOM operation, never a transported action: for a **shared**
-  project Cmd+Z / Cmd+Shift+Z ALWAYS sends `undo`/`redo` — never the local transcript (a local
-  transcript UNDO never reaches the room, so it would silently diverge this window from every peer;
-  when the room is not connected the keystroke warns instead of diverging). The room removes the
-  caller's latest unit — one action, or one whole client batch (its `batch_id` rows) — rebuilds
-  `present` from the newest retained snapshot older than the unit while skipping its rows, writes a
-  fresh snapshot at a NEW rev, deletes the undone rows, and re-syncs EVERY client through the
-  existing `welcome` (no new server→client shape). Redo re-applies the undone unit as fresh actions
-  through the normal apply + log + broadcast path; the redo stack lives in room memory only (lost
-  on hibernation) and a new accepted action from that user clears it. Undo depth = the retained
-  snapshot window (`SNAPSHOTS_KEPT` = 4 snapshots ≈ 4 × `SNAPSHOT_EVERY` actions); a unit with no
-  base snapshot answers "action too old to undo". The header undo/redo buttons still use the local
-  transcript while connected (Cmd+Z is the room-routed path) — polish alongside the deploy.
+- **Per-user undo (built) — delivered as a NEW EDIT.** EVERY undo/redo affordance goes through ONE
+  shared pair, `undo()` / `redo()` in the provider: Cmd+Z / Cmd+Shift+Z, the header + popout-toolbar
+  buttons (`src/components/UndoRedoButtons.tsx` — the only copy) and popout windows. The element
+  manager's unsaved local history still runs first; then, for a **shared** project, the ROOM —
+  never the local transcript (a local transcript UNDO is not transported, so it would revert this
+  window alone; when the room is not connected the affordance warns instead of diverging). The
+  buttons' enablement is per USER: `{t:'undoState', canUndo, canRedo}` is pushed to ONE socket
+  whenever it changes (join, that user's own action, undo, redo), and a shared project's local
+  transcript never gates them (it accumulates peer edits — a transcript undo would revert a peer in
+  this window alone). The room removes the caller's latest unit —
+  one action, or one whole client batch (its `batch_id` rows) — rebuilds `present` from the newest
+  retained snapshot older than the unit while skipping its rows, writes a fresh snapshot at a NEW
+  rev and deletes the undone rows (persistence), then **broadcasts the rebased state as ONE new
+  `LOAD` action at that rev through the normal `remote` path**. Every client — the caller included —
+  applies it exactly like a peer edit (`onRemote` → `loadBaseline`); there is NO `welcome` re-sync in
+  the undo path, so an undo can never depend on join-shaped delivery. The fresh actionId means nobody
+  dedupes it (nothing was applied optimistically). Redo re-applies the undone unit as fresh actions
+  through the same normal path; the redo stack lives in room memory only (lost on hibernation) and a
+  new accepted action from that user clears it. Undo depth = the retained snapshot window
+  (`SNAPSHOTS_KEPT` = 4 snapshots ≈ 4 × `SNAPSHOT_EVERY` actions); a unit with no base snapshot
+  answers "action too old to undo". The header undo/redo buttons still use the local transcript while
+  connected (Cmd+Z is the room-routed path) — polish alongside the deploy.
 - **Delivery safety net (`RoomClient`).** The room stamps every `remote` with a CONTIGUOUS `rev`, so
-  the client tracks the last applied rev: a jump (a dropped `remote`, or the whole-project `welcome`
-  an undo emits) makes it `sync` for a full snapshot instead of applying the delta against the wrong
-  base — a peer that ever misses one update reconciles on the next one, and the welcome re-anchors
-  the rev. This is why undo need not be a first-class action event: the existing `welcome` + an
-  ordered rev are enough. The worker also WARNS (never silently swallows) on a failed `send`/peer
-  broadcast — that silence once hid a whole class of "the peer never re-synced" reports. Manual
-  two-window proof: `workers/rooms/test/two-window-repro.mjs` (real accounts + invite, WS-frame
-  capture; asserts the peer receives the `welcome` and its stripboard DOM reverts).
+  the client tracks the last applied rev: a jump (a dropped update — an undo `LOAD` included) makes
+  it `sync` for a full snapshot instead of applying the delta against the wrong base — a peer that
+  ever misses one update reconciles on the next one instead of drifting. The worker also WARNS
+  (never silently swallows) on a failed `send`/peer broadcast — that silence once hid a whole class
+  of "the peer never re-synced" reports. Manual two-window proof: `workers/rooms/test/two-window-repro.mjs`
+  (real accounts + invite, WS-frame capture) asserts the peer receives the undo as a `remote`/`LOAD`
+  update with no welcome, and that its stripboard store AND DOM revert.
 - Not yet: room tokens are dev-only (`dev:<user>:<role>`, DEV builds + `wrangler dev`); the
   deployed path calls the Supabase `room-token` function (`src/lib/rooms/tokenClient.ts`), which
   is not deployed. Verify locally: `workers/rooms/test/room-probe.ts` (room, 31 checks) and

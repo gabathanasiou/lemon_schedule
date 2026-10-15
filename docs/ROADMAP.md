@@ -1012,11 +1012,11 @@ pass (doc §12).
 
 **S4 progress + resume notes (2026-10-15):** the room worker (`workers/rooms` — DO + action log + snapshots + replay + hardening; probe `workers/rooms/test/room-probe.ts`, 31 checks) and the app-side transport (`src/lib/rooms/*`, flag-gated by `VITE_ROOMS_URL`; probe `room-client-probe.ts`, 17 checks) are BUILT and verified locally; live two-window updates confirmed by the user, full e2e green (0 failures). Local test loop: `npx wrangler dev` in `workers/rooms` + `.env` `VITE_ROOMS_URL="http://127.0.0.1:8787"` (DEV tokens via the gitignored `.dev.vars`). Security pass: `docs/SECURITY.md` + the `security-review` skill.
 
-**Per-user undo — BUILT 2026-10-15 (the last S4 build piece).** Server half = REBASE in the room (`{t:'undo'}`/`{t:'redo'}`): the caller's latest unit (one action, or one whole client batch via its `batch_id` rows) is removed by rebuilding `present` from the newest retained snapshot older than the unit while skipping those rows, writing a fresh snapshot at a NEW rev, deleting the undone rows, and re-welcoming EVERY client — the existing `welcome` is the only server→client shape. `redo` re-applies the undone unit as fresh actions through the normal apply + log + broadcast path; the redo stack is in-memory (lost on hibernation) and a new accepted action from that user clears it. Undo depth = the retained snapshot window (`SNAPSHOTS_KEPT` = 4 × `SNAPSHOT_EVERY`); no base snapshot → `action too old to undo`. Client half: `RoomClient.sendUndo/sendRedo` + Cmd+Z/Cmd+Shift+Z routed to the room while connected (element-manager local undo still runs first). Semantics: `docs/STORE-AND-SYNC.md` §Realtime rooms.
+**Per-user undo — BUILT 2026-10-15, delivered as a NEW EDIT (revised later same day).** Server half = REBASE in the room (`{t:'undo'}`/`{t:'redo'}`): the caller's latest unit (one action, or one whole client batch via its `batch_id` rows) is removed by rebuilding `present` from the newest retained snapshot older than the unit while skipping those rows, writing a fresh snapshot at a NEW rev and deleting the undone rows (persistence); the rebased state is then **broadcast as ONE new `LOAD` action at that rev through the normal `remote` path** — no `welcome` re-sync in the undo path, so undo rides exactly the delivery every normal edit uses. `redo` re-applies the undone unit as fresh actions through the same path; the redo stack is in-memory (lost on hibernation) and a new accepted action from that user clears it. Undo depth = the retained snapshot window (`SNAPSHOTS_KEPT` = 4 × `SNAPSHOT_EVERY`); no base snapshot → `action too old to undo`. Client half: `RoomClient.sendUndo/sendRedo` + ONE shared `undo()`/`redo()` in the provider used by Cmd+Z/Cmd+Shift+Z, the header + popout toolbar buttons (`src/components/UndoRedoButtons.tsx`) and popout windows (element-manager local undo still runs first). The room pushes **`{t:'undoState', canUndo, canRedo}`** to the caller whenever it changes (join / own action / undo / redo), which is the per-user button enablement; a shared project's LOCAL transcript never gates the buttons (it accumulates peer edits — a transcript undo would revert a peer in this window alone). Semantics: `docs/STORE-AND-SYNC.md` §Realtime rooms.
 
-**Peer-sync bug investigation (2026-10-15, later) — NOT reproduced; delivery hardened.** Reported: "A's Cmd+Z lands on A but B doesn't reflect it", "A moves a strip → A undoes → no change on B", "different users share one undo", "stripboard completely broken". A scripted two-window repro (`workers/rooms/test/two-window-repro.mjs` — two real accounts + `invite_collaborator`, WS-frame capture, dev server + `wrangler dev`) exercises all of it against the REAL UI: A types in a stripboard cell → B types → A undoes (only A's edit reverts; B's later edit survives), the reverse order, and a strip MOVE (a drop's `UPDATE_VERSION`) with **store AND screen-order** assertions — all converge, including after the Durable Object hibernates and is re-created. Both probes pass. **Undo is per ROOM USER = per Supabase ACCOUNT**: two windows of the same account share one history BY DESIGN (that is the likeliest reading of "shared undo"), and `diagnostics()` now reports `roomUserId`/`roomRole` so the two windows can be compared in one line. Hardening landed: (1) a **shared** project's Cmd+Z / Cmd+Shift+Z never falls back to a diverging local transcript (warns when the room isn't connected); (2) `RoomClient` re-syncs on a **`rev` gap**, so a peer that misses one update self-heals on the next instead of applying deltas to a stale base (the likely cause of a garbled window — the room's own state was verified structurally valid); (3) the worker **warns** on failed sends instead of swallowing them. Debug order for a live recurrence: compare `diagnostics().roomStatus` AND `roomUserId` in both windows (both `open`, two different ids), and hard-reload any window whose stripboard looks wrong — the room's `welcome` restores it.
+**Peer-sync bug investigation (2026-10-15, later) — NOT reproduced; delivery hardened.** Reported: "A's Cmd+Z lands on A but B doesn't reflect it", "A moves a strip → A undoes → no change on B", "different users share one undo", "stripboard completely broken". A scripted two-window repro (`workers/rooms/test/two-window-repro.mjs` — two real accounts + `invite_collaborator`, WS-frame capture, dev server + `wrangler dev`) exercises all of it against the REAL UI: A types in a stripboard cell → B types → A undoes (only A's edit reverts; B's later edit survives), the reverse order, and a strip MOVE (a drop's `UPDATE_VERSION`) with **store AND screen-order** assertions — all converge, including after the Durable Object hibernates and is re-created. Both probes pass. **Undo is per ROOM USER = per Supabase ACCOUNT**: two windows of the same account share one history BY DESIGN (that is the likeliest reading of "shared undo"), and `diagnostics()` now reports `roomUserId`/`roomRole` so the two windows can be compared in one line. **ROOT CAUSE (found 2026-10-15, after the user asked for the button path): the header/toolbar undo-redo BUTTONS bypassed the room.** They dispatched a LOCAL transcript `UNDO`/`REDO` (never transported, `guardedDispatch` excludes it) — and on a shared project the transcript ALSO accumulates every peer edit, so the buttons were always "enabled" and clicking one reverted the last edit *in that window alone*, leaving it diverged from the room. Cmd+Z was already room-routed, which is why the scripted Cmd+Z repro passed. Fixed: ONE shared `undo()`/`redo()` (provider) + ONE `UndoRedoButtons` component (AppHeader + VersionToolbar + PopoutWindow) + the room's per-user `undoState` enablement. Hardening kept: (1) shared-project undo never falls back to the diverging local transcript (warns when the room is not connected); (2) `RoomClient` re-syncs on a **`rev` gap** so a peer that misses one update self-heals instead of drifting; (3) the worker warns on failed sends. Debug order for any recurrence: `diagnostics()` → compare `roomStatus` AND `roomUserId` in both windows (both `open`, two different ids); a window whose stripboard looks wrong hard-reloads back to the room's state.
 
-**Remaining before/with deploy:** the header undo/redo buttons (and their enablement) still use the local transcript while connected — Cmd+Z is the room-routed path.
+**Remaining before/with deploy:** nothing on the undo path — ⌘Z/⌘⇧Z, the header + toolbar buttons and popout windows all share ONE room-routed affordance, and the buttons' enablement comes from the room's per-user `undoState`. The deploy checklist (below) is unchanged.
 
 **NEXT — deploy:** `npx wrangler login` → `npx wrangler deploy` (workers/rooms); Supabase CLI login → the `room-token` Edge Function + the shared `ROOM_TOKEN_SECRET` (worker secret + function secret); repo secret `VITE_ROOMS_URL` + the deploy.yml env line; two-machine live pass (must cover undo/redo).
 
@@ -1214,40 +1214,3 @@ comparisons).
 
 **Relations**: `extends` **229** (S3 presence). `relates to` **233** (per-user active designs —
 the document ids this gate keys off), **234**/**235** (sibling presence polish), **231**.
-
-## 238. Keyboard redo (⌘⇧Z) is dead — Shift makes `e.key` uppercase (`Z`) (`[ ]`)
-
-**Bug (user report 2026-10-15, reproduced):** undo with **⌘Z** works, but **⌘⇧Z**
-never redoes — the header/toolbar Redo buttons are the only way. Advertised in the
-buttons' tooltips + `HelpModal` (`⌘⇧Z`).
-
-**Root cause (verified 2026-10-15 in the live app):** the global handlers compare
-the lowercase key, but with Shift a real keyboard reports `e.key === 'Z'` — the
-branch is unreachable:
-- `src/store/provider.tsx:926` — `if (cmdOrCtrl && e.key === 'z' && e.shiftKey)`
-- `src/components/PopoutWindow.tsx:41` — same pattern (popout windows).
-Repro trace (local project, real key events): ⌘Z → past 2→1, future 0→1 (undo
-fires); ⌘⇧**Z** → nothing (no handler — `preventDefault` not even called); header
-Redo button → past 1→2, future 1→0 (works).
-
-**Why the suite missed it:** `e2e/element-manager-merge.spec.ts:228` +
-`e2e/perf-diagnosis.spec.ts:141` press `'Meta+Shift+z'` — Playwright synthesizes
-`key:'z', shiftKey:true`, a payload real keyboards never produce (`'Meta+Shift+Z'`
-produces `key:'Z'`; same on Win/Linux Ctrl). The element-manager spec passed
-because its redo target is the guard's LOCAL history, not the global transcript.
-
-**Fix**: normalize in both handlers (`e.key.toLowerCase() === 'z'` or
-`e.code === 'KeyZ'`), keep `preventDefault`; retarget both specs to the real
-payload (`Meta+Shift+Z`) so this class of bug can't recur. The undo branches are
-fine. While a room is connected the same handler routes undo/redo to the room
-(229) — the fix covers both paths; don't change that routing here.
-
-**Verify**: e2e — press real `Meta+Shift+Z` after an edit → undo→redo round trip
-applies; the two updated specs (real payload) + `npm run lint`.
-
-**Relations**: `touches` **229** (S4 room-routed undo/redo rides the same handler;
-the known buttons-vs-room transcript divergence is a separate, already-documented
-229 gap).
-
-
-
