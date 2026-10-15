@@ -21,3 +21,11 @@ class_name = "Room"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+# Workers Logs — retained, queryable worker logs (Observability API / dashboard).
+# Added during the 229 live pass: `wrangler tail` is live-only, and the first
+# production incident had NO retained logs to read (found: observability was
+# never enabled, so the telemetry dataset was empty). Security events only —
+# the worker never logs tokens or content.
+[observability]
+enabled = true
