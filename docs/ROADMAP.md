@@ -1084,3 +1084,17 @@ Breakdown Sheet / Element Breakdown print, DOOD, call sheets, and widening
   and **143** (report ordering by Board ID — candidate to widen, second pass);
   `relates to` **228** (name-typed cast guard), **157** (cast details),
   **40/41** (MSD/SEX import — real BoardIDs).
+
+## 261. Boot screen — the version lockup opens What's New + shows the latest update (`[ ]`)
+
+**Requested 2026-10-15 (user):** on the no-project-open screen, make the
+version clickable to open the changelog modal, and show the latest update
+there.
+
+- `ProjectManagerBoot.tsx`: the bottom-right lockup's `v{APP_VERSION}`
+  becomes one button with the newest day's title (`parseChangelog` over the
+  bundled `CHANGELOG.md`) — click opens `WhatsNewModal`; the title truncates
+  on narrow screens (`max-w-[46vw]`), hover lightens.
+- **Verify:** `npm run lint` + unit + seeded-smoke; rule-7 manual pass
+  (boot-screen visual). Patch bump (0.3.100).
+
