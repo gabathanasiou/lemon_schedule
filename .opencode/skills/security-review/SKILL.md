@@ -45,6 +45,8 @@ is the reference.
       refuse-all; the allowlist is `ACTION_TYPES` minus `LOAD`/`UNDO`/`REDO`.
 - [ ] Abuse limits intact: message size cap + per-socket rate limit; rejected actions
       are never persisted or broadcast.
+- [ ] `GET /health` stays auth-less, data-free and DO-free (the dev launcher's
+      liveness probe, roadmap 246 — never add data or auth there).
 - [ ] The reducer stays the semantic gate (apply errors → `rejected`, nothing written).
 - [ ] Verify after ANY room change: `npx tsc -p workers/rooms`, then `wrangler dev` +
       `npx tsx workers/rooms/test/room-probe.ts` — the probe's negative cases (fake

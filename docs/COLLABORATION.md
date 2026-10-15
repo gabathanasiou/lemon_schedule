@@ -443,6 +443,11 @@ would clobber (last-write-wins) and be dropped by the room's next welcome.
 *Acceptance*: two clients through the debug bridge stay convergent; reconnect
 mid-session loses nothing; undo never reverts a peer's edit.
 
+**Local dev (roadmap 246).** `npm run dev` auto-starts the room worker
+(reuse-first, shared across worktrees; pinned `wrangler@4`) and the dev client
+defaults to it — see `docs/STORE-AND-SYNC.md` §Realtime rooms. Room specs:
+`npx playwright test --config=playwright.rooms.config.ts`.
+
 **S5 — Billing.** See `docs/LICENSING.md`: one merchant of record; collab =
 Studio + active subscription; guests free.
 

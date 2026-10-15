@@ -60,6 +60,10 @@ the room:
   persisted nor broadcast.
 - **Logging**: security events (`auth failed`, `origin rejected`, `rate limited`,
   oversized) log the event only — never tokens or message contents.
+- **Health**: `GET /health` (the local dev launcher's liveness probe, roadmap 246)
+  is deliberately auth-less and data-free (`{ ok, service }`) and never reaches a
+  Durable Object — it exists only so `tools/rooms-dev.mjs` can tell "worker up"
+  from "port taken".
 - **Proof**: `workers/rooms/test/room-probe.ts` (31 checks) includes the negatives —
   fake origin, no auth, wrong room, oversized frame, message flood.
 

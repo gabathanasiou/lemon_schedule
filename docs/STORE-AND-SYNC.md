@@ -155,8 +155,18 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
 - ONE client module `src/lib/rooms/roomClient.ts` (WS transport: hello/token, snapshot + replay,
   own-echo dedupe by `actionId`, rejection → auto-resync, backoff reconnect, `sendUndo`/`sendRedo`,
   bounded offline buffer) + the React seam `src/lib/rooms/useRoomTransport.ts` (mounted in
-  `ProjectProvider`; inert without `VITE_ROOMS_URL`). The room worker runs the SAME reducer
-  (`workers/rooms`).
+  `ProjectProvider`; inert when the rooms URL is unset — prod builds only, see the dev loop below).
+  The room worker runs the SAME reducer (`workers/rooms`).
+- **Local dev loop (roadmap 246).** The dev server (`vite.config.ts` `rooms-dev` plugin, serve-only)
+  auto-starts the worker after listen through ONE launcher, `tools/rooms-dev.mjs`: health-probe →
+  reuse a running worker (parallel worktree dev servers share ONE worker, its `.dev.vars` and its DO
+  state — the spawn runs from the MAIN tree) or spawn `wrangler dev` (pinned `wrangler@4`).
+  `stopRoomsWorker` kills only its own spawn. `src/lib/rooms/roomsEnv.ts` `roomsUrl()` is the ONE
+  read of `VITE_ROOMS_URL` — unset in DEV builds falls back to the loopback worker (no `.env` edit) —
+  and `useRoomTransport` calls the dev-only `GET /__rooms-dev/ensure` middleware once before
+  `client.start()`, so a collab session brings the worker up on demand. Room specs:
+  `npx playwright test --config=playwright.rooms.config.ts` (config + worker + the probes);
+  manual two-window proof: `workers/rooms/test/two-window-repro.mjs` (launcher-managed kill/restart).
 - **While a room transport is MOUNTED for the open shared project (any status) it owns the
   project's writes**: every accepted write dispatch streams an action (`guardedDispatch`;
   `LOAD`/`UNDO`/`REDO` excluded — the room's own refuse-set), welcome/remote messages apply

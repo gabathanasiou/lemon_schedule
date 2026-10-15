@@ -130,6 +130,12 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 - `@perf` tests (timing/memory harnesses) and `@quarantine` tests are excluded from the
   default suite. Run them explicitly: `npx playwright test --grep @perf` /
   `--grep @quarantine`; perf configs: `playwright.perf.config.ts` / `playwright.perf-prod.config.ts`.
+- **Rooms suite** — `npx playwright test --config=playwright.rooms.config.ts` (roadmap 246).
+  Specs live in `e2e-rooms/` (outside the capped default suite); the config adds the local room
+  worker as a second webServer via `tools/rooms-dev.mjs` (reused when one already runs — parallel
+  dev servers share ONE worker) and bakes `VITE_ROOMS_URL` into the app build. Today it runs the
+  two probes (`workers/rooms/test/room-probe.ts` + `room-client-probe.ts`, no Supabase needed);
+  future real-account UI specs belong here, not in `e2e/`.
 - iPad touch/keyboard specs are gated to `playwright.ipad.config.ts` (webkit iPad project).
 
 ## Rules (MUST NOT)
