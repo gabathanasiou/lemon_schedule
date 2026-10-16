@@ -116,14 +116,6 @@ async function readJsonFile<T>(handle: FileSystemDirectoryHandle, name: string):
   }
 }
 
-async function deleteFile(handle: FileSystemDirectoryHandle, name: string): Promise<void> {
-  try {
-    await handle.removeEntry(name);
-  } catch {
-    // ignore
-  }
-}
-
 export async function writeProjectToFolder(
   handle: FileSystemDirectoryHandle,
   project: Project
@@ -161,16 +153,6 @@ export async function readIndexFromFolder(
   const ok = await ensurePermission(handle);
   if (!ok) return [];
   return (await readJsonFile<ProjectIndexEntry[]>(handle, INDEX_FILE)) || [];
-}
-
-export async function deleteProjectFromFolder(
-  handle: FileSystemDirectoryHandle,
-  projectId: string
-): Promise<void> {
-  await deleteFile(handle, `${projectId}.json`);
-  const index = await readIndexFromFolder(handle);
-  const filtered = index.filter(e => e.id !== projectId);
-  await writeJsonFile(handle, INDEX_FILE, filtered);
 }
 
 export async function listAllProjectsInFolder(
