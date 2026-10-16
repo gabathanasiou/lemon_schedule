@@ -1252,22 +1252,6 @@ priority order (275–278 = P1; 279–288 = P2; 289–291 = P3, and 289 is parke
 until unparked). Normal one-agent-per-item flow; close each through
 `manage-roadmap` before picking the next.
 
-## 275. Trash integrity — report designs (`[ ]`)
-
-**Priority: P1 — next hardening batch.** Audit F2.
-
-**Request:** deleted report designs are unrecoverable and survive Empty Trash.
-
-- **Fix:** include `reportTrash` in `caseEmptyTrash` (9 channels today,
-  `src/store/actions/schedule.ts`); add a Reports section to `TrashModal.tsx`
-  wiring the existing `RESTORE_REPORT_FROM_TRASH`
-  (`src/store/actions/reports.ts` — action exists, no UI); prune `reportTrash`
-  TTL on cloud/Drive reads like version trash
-  (`src/lib/googleDriveStorage.ts` parity — today only local loads prune, so
-  shared projects accumulate).
-- **Verify:** unit — Empty Trash clears `reportTrash`; manual/e2e — delete a
-  design → Trash → restore renders again; `npm run lint` + trash specs.
-
 ## 276. SEX import/export — Unicode round-trip integrity (`[ ]`)
 
 **Priority: P1 — next hardening batch.** Audit F3.
