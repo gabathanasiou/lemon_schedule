@@ -5,7 +5,6 @@ import {DialogProvider} from './components/Dialog';
 import {GoogleAuthProvider} from './lib/googleDriveAuth';
 import {SupabaseAuthProvider} from './lib/supabase/auth';
 import {PHONE_DEVICE_QUERY} from './lib/device';
-import {installDevProbe} from './lib/devProbe';
 import './index.css';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -18,10 +17,6 @@ if (typeof window !== 'undefined' && window.matchMedia(PHONE_DEVICE_QUERY).match
   document.querySelector('meta[name="viewport"]')
     ?.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
 }
-
-// TEMPORARY phone debugging (roadmap 267) — DEV builds only, beacons viewport
-// measurements to the Mac's probe server. Remove with src/lib/devProbe.ts.
-installDevProbe();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
