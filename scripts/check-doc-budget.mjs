@@ -24,9 +24,10 @@ const HUB = { file: 'AGENTS.md', maxLines: 200, maxBytes: 36000 };
 // Per-feature manuals, read on demand.
 const MANUAL = { maxLines: 400, maxBytes: 50000 };
 
-// Deliberately-large or expected-to-grow docs: the design booklet and the
-// roadmap backlog are not "per-feature manuals".
-const EXEMPT = new Set(['ROADMAP.md', 'DESIGN-LANGUAGE.md']);
+// Deliberately-large or expected-to-grow docs: the design booklet, the roadmap
+// backlog and the completed-items index (grep-only, one row per item) are not
+// "per-feature manuals".
+const EXEMPT = new Set(['ROADMAP.md', 'ROADMAP-ARCHIVE.md', 'DESIGN-LANGUAGE.md']);
 
 function read(rel) {
   return readFileSync(join(ROOT, rel), 'utf8');
@@ -79,7 +80,10 @@ for (const f of manuals) {
   }
   console.log(row(rel, m, MANUAL));
   if (m.lines > MANUAL.maxLines || m.bytes > MANUAL.maxBytes) {
-    warnings.push(`${rel} is ${m.lines} lines — split it or move detail into a focused sibling doc.`);
+    warnings.push(
+      `${rel} is over its manual cap (${m.lines}/${MANUAL.maxLines} lines, ` +
+        `${fmt(m.bytes)}/${fmt(MANUAL.maxBytes)} B) — split it or move detail into a focused sibling doc.`,
+    );
   }
   // Agent-doc hygiene: a live manual must open with a title + a read-first line,
   // so an agent knows when to read it and future sessions can spot stale docs.
