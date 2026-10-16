@@ -13,6 +13,11 @@ import { ReportCtx, ReportDaybreakData, buildReportCtx, getReportLocation, pickL
 import { getBrowserTimeZone } from './timezones';
 import { partsFromPlace } from './locations';
 import { getPlacesProvider } from './places';
+import {
+  loadSunWeatherStore, mergeSunWeatherStore, needsRefetch,
+  weatherKey, labelKey, isPastDate,
+  type StoredSunWeather, type StoredLabel,
+} from './sunWeatherCache';
 
 export interface ReportLocation {
   lat: number;
@@ -42,27 +47,29 @@ export function hasMapPin(loc: ReportLocation): boolean {
 export { getReportLocation } from './reportData';
 
 // ---- reverse geocoding (full address for the map block's location picker) -----
-// Cache keyed `lat|lng`; `null` marks a failed fetch. Same lifecycle as the
-// sun/weather cache — prefetched before print, resolves in the canvas on tick.
+// Cache keyed `lat|lng`; `null` marks a failed fetch. Fetched labels persist in
+// the device-local store (roadmap 299) — a settled pin never re-calls Google.
 // Goes through the ONE provider seam (lib/places.ts) — Google when keyed,
 // Nominatim fallback otherwise; never call a geocoding endpoint directly.
 
 const addressCache = new Map<string, string | null>();
 
-function addressKey(lat: number, lng: number): string {
-  return `${lat.toFixed(4)}|${lng.toFixed(4)}`;
-}
-
 /** undefined = not fetched yet · null = fetch failed · string = full address. */
 export function getCachedAddress(lat: number, lng: number): string | null | undefined {
-  return addressCache.get(addressKey(lat, lng));
+  return addressCache.get(labelKey(lat, lng));
 }
 
-export async function reverseGeocodeAddress(lat: number, lng: number): Promise<void> {
-  const key = addressKey(lat, lng);
+export async function reverseGeocodeAddress(
+  lat: number,
+  lng: number,
+  collect?: Record<string, StoredLabel>,
+): Promise<void> {
+  const key = labelKey(lat, lng);
   if (addressCache.has(key)) return;
   const hit = await getPlacesProvider().reverseGeocode(lat, lng); // never throws — providers catch
-  addressCache.set(key, hit ? hit.label.slice(0, 160) : null);
+  const label = hit ? hit.label.slice(0, 160) : null;
+  addressCache.set(key, label);
+  if (label && collect) collect[key] = { label, at: Date.now() };
 }
 
 export interface SunWeather {
@@ -156,11 +163,12 @@ export function reportLocationLink(kind: MapLinkKind, loc: ReportLocation): stri
 }
 
 // ---- cache -------------------------------------------------------------------
-// Module-level cache keyed by `lat|lng|date`; `null` marks a failed fetch so
-// we don't retry on every render. The cache makes repeated prefetch calls
-// cheap no-ops (the designer warms it on load; print awaits a fresh batch).
+// Session cache keyed by `lat|lng|date` (weatherKey); `null` marks a session
+// failure so we don't retry on every render. Backed by the DEVICE-LOCAL store
+// (sunWeatherCache.ts, roadmap 299): values persist per project, so settled
+// past days are never re-asked and recent values survive a reload.
 
-type CacheEntry = SunWeather | null;
+type CacheEntry = StoredSunWeather | null;
 const cache = new Map<string, CacheEntry>();
 
 /** Why a date resolved to a null cache entry: `too-far` = beyond the Open-Meteo
@@ -170,7 +178,7 @@ export type WeatherMissReason = 'too-far' | 'error';
 const missReasons = new Map<string, WeatherMissReason>();
 
 function cacheKey(loc: ReportLocation, date: string): string {
-  return `${loc.lat.toFixed(4)}|${loc.lng.toFixed(4)}|${date}`;
+  return weatherKey(loc.lat, loc.lng, date);
 }
 
 /** undefined = not fetched yet · null = fetch failed · SunWeather = ready. */
@@ -215,7 +223,12 @@ function timeOf(iso: string | undefined | null): string {
   return iso.length >= 16 ? iso.slice(11, 16) : iso;
 }
 
-async function fetchForEndpoint(endpoint: string, loc: ReportLocation, dates: string[]): Promise<void> {
+async function fetchForEndpoint(
+  endpoint: string,
+  loc: ReportLocation,
+  dates: string[],
+  collect?: Record<string, StoredSunWeather>,
+): Promise<void> {
   const sorted = [...dates].sort();
   const url = `${endpoint}?latitude=${loc.lat}&longitude=${loc.lng}` +
     `&daily=${DAILY_PARAMS}&timezone=${encodeURIComponent(loc.timezone)}` +
@@ -229,19 +242,27 @@ async function fetchForEndpoint(endpoint: string, loc: ReportLocation, dates: st
   for (let i = 0; i < daily.time.length; i++) {
     const d = daily.time[i];
     if (!wanted.has(d)) continue;
-    cache.set(cacheKey(loc, d), {
+    const entry: StoredSunWeather = {
       sunrise: timeOf(daily.sunrise?.[i]),
       sunset: timeOf(daily.sunset?.[i]),
       weather: wmoLabel(daily.weather_code?.[i]),
       tempMin: daily.temperature_2m_min?.[i] ?? null,
       tempMax: daily.temperature_2m_max?.[i] ?? null,
-    });
+      at: Date.now(),
+    };
+    cache.set(weatherKey(loc.lat, loc.lng, d), entry);
+    if (collect) collect[weatherKey(loc.lat, loc.lng, d)] = entry;
   }
 }
 
 /** Fetches sun/weather for the given dates into the cache. Dates already
- *  cached (success or failure) are skipped. Never throws. */
-export async function fetchSunWeatherBatch(loc: ReportLocation, dates: string[]): Promise<void> {
+ *  cached (success or failure) are skipped. Fetched values are added to
+ *  `collect` for the caller to persist (roadmap 299). Never throws. */
+export async function fetchSunWeatherBatch(
+  loc: ReportLocation,
+  dates: string[],
+  collect?: Record<string, StoredSunWeather>,
+): Promise<void> {
   const fresh = dates.filter(d => !cache.has(cacheKey(loc, d)));
   if (fresh.length === 0) return;
   const byEndpoint: Record<string, string[]> = {};
@@ -250,18 +271,23 @@ export async function fetchSunWeatherBatch(loc: ReportLocation, dates: string[])
     if (endpoint) (byEndpoint[endpoint] ||= []).push(d);
     else {
       // Beyond the forecast horizon — no data exists yet (this is the "date
-      // too far" case the fields label as "No forecast yet").
-      cache.set(cacheKey(loc, d), null);
-      missReasons.set(cacheKey(loc, d), 'too-far');
+      // too far" case the fields label as "No forecast yet"). Never clobber a
+      // stale-but-usable seeded value.
+      if (cache.get(cacheKey(loc, d)) == null) {
+        cache.set(cacheKey(loc, d), null);
+        missReasons.set(cacheKey(loc, d), 'too-far');
+      }
     }
   }
   await Promise.all(Object.entries(byEndpoint).map(async ([endpoint, ds]) => {
     try {
-      await fetchForEndpoint(endpoint, loc, ds);
+      await fetchForEndpoint(endpoint, loc, ds, collect);
     } catch {
       for (const d of ds) {
-        cache.set(cacheKey(loc, d), null);
-        missReasons.set(cacheKey(loc, d), 'error');
+        if (cache.get(cacheKey(loc, d)) == null) {
+          cache.set(cacheKey(loc, d), null);
+          missReasons.set(cacheKey(loc, d), 'error');
+        }
       }
     }
   }));
@@ -277,7 +303,10 @@ export function reportWeatherDates(ctx: ReportCtx): string[] {
 /** Warms the cache for every day in the context — at the day-seam location
  *  plus every pinned locations-DB entry the design references (a locations
  *  table/repeater in the design). Used by the designer (canvas + preview) and
- *  awaited before print so window.print() never races the net. */
+ *  awaited before print so window.print() never races the net.
+ *
+ *  Storage policy (roadmap 299, sunWeatherCache.ts): values seed from the
+ *  device-local store; only missing or stale-and-upcoming entries fetch. */
 export async function prepareSunWeatherForCtx(ctx: ReportCtx, design?: ReportDesign): Promise<void> {
   const dates = reportWeatherDates(ctx);
   if (dates.length === 0) return;
@@ -294,12 +323,91 @@ export async function prepareSunWeatherForCtx(ctx: ReportCtx, design?: ReportDes
       seen.add(key);
       return true;
     });
+
+  const store = loadSunWeatherStore(ctx.project.id);
+  const pending: Array<{ loc: ReportLocation; dates: string[] }> = [];
+  const pendingLabels: ReportLocation[] = [];
+  const staleSeeds: Array<{ loc: ReportLocation; date: string }> = [];
+  for (const loc of locs) {
+    // Reverse-geocode only locations with no place name yet (DB entries carry
+    // their own address); seed from the store so a settled pin never re-asks.
+    if (!loc.place) {
+      const lk = labelKey(loc.lat, loc.lng);
+      if (addressCache.get(lk) == null && store.labels[lk]) addressCache.set(lk, store.labels[lk].label);
+      if (addressCache.get(lk) === undefined) pendingLabels.push(loc);
+    }
+    const owed: string[] = [];
+    for (const date of dates) {
+      const k = weatherKey(loc.lat, loc.lng, date);
+      if (cache.get(k) !== undefined) continue; // session value (fetched, seeded or a known miss) — never re-ask intra-session
+      const stored = store.weather[k];
+      if (stored && !needsRefetch(stored, date)) {
+        cache.set(k, stored); // settled or still fresh — serve it
+        continue;
+      }
+      // Missing, or stale-and-upcoming: owed a fetch. A stale value is NOT
+      // seeded now (it would read as "fetched" and block the batch) — it is
+      // re-seeded below only when the refetch did not land.
+      if (stored) staleSeeds.push({ loc, date });
+      owed.push(date);
+    }
+    if (owed.length > 0) pending.push({ loc, dates: owed });
+  }
+
+  const collectedWeather: Record<string, StoredSunWeather> = {};
+  const collectedLabels: Record<string, StoredLabel> = {};
   await Promise.all([
-    ...locs.map(loc => fetchSunWeatherBatch(loc, dates)),
-    // Only reverse-geocode when the location has no place name yet (DB
-    // entries carry their own address).
-    ...locs.filter(l => !l.place).map(l => reverseGeocodeAddress(l.lat, l.lng)),
+    ...pending.map(p => fetchSunWeatherBatch(p.loc, p.dates, collectedWeather)),
+    ...pendingLabels.map(l => reverseGeocodeAddress(l.lat, l.lng, collectedLabels)),
   ]);
+  // A stale value whose refetch missed the net: show it rather than a dash.
+  for (const { loc, date } of staleSeeds) {
+    const k = weatherKey(loc.lat, loc.lng, date);
+    const stored = store.weather[k];
+    if (stored && cache.get(k) == null) cache.set(k, stored);
+  }
+  mergeSunWeatherStore(ctx.project.id, collectedWeather, collectedLabels);
+}
+
+/** Force one production day's weather (roadmap 299 — the Day Manager chip):
+ *  bypasses the stored/freshness policy, re-pulls that date's resolved
+ *  location (the archive endpoint for past dates) and persists the result. */
+export async function refreshSunWeatherForCtx(ctx: ReportCtx, date: string): Promise<void> {
+  const infos = ctx.dayInfos.filter(d => d.date === date);
+  if (infos.length === 0) return;
+  const collectedWeather: Record<string, StoredSunWeather> = {};
+  const collectedLabels: Record<string, StoredLabel> = {};
+  for (const info of infos) {
+    const loc = getReportLocation(ctx, info);
+    if (!hasMapPin(loc)) continue;
+    cache.delete(weatherKey(loc.lat, loc.lng, date));
+    missReasons.delete(weatherKey(loc.lat, loc.lng, date));
+    await fetchSunWeatherBatch(loc, [date], collectedWeather);
+    if (!loc.place) {
+      addressCache.delete(labelKey(loc.lat, loc.lng));
+      await reverseGeocodeAddress(loc.lat, loc.lng, collectedLabels);
+    }
+  }
+  mergeSunWeatherStore(ctx.project.id, collectedWeather, collectedLabels);
+}
+
+export interface DaySunWeatherView {
+  /** False when the day has no location pin — nothing to look up. */
+  hasPin: boolean;
+  /** undefined = not warmed yet this session · null = a known miss. */
+  entry: StoredSunWeather | null | undefined;
+  miss: WeatherMissReason | undefined;
+}
+
+/** The selected day's sun/weather state for the Day Manager chip (roadmap
+ *  298) — the day-seam location's values, or its no-pin/miss state. */
+export function daySunWeather(ctx: ReportCtx, date: string): DaySunWeatherView {
+  const info = ctx.dayInfos.find(d => d.date === date);
+  if (!info) return { hasPin: false, entry: undefined, miss: undefined };
+  const loc = getReportLocation(ctx, info);
+  if (!hasMapPin(loc)) return { hasPin: false, entry: undefined, miss: undefined };
+  const entry = getCachedSunWeather(loc, date);
+  return { hasPin: true, entry, miss: entry === null ? getSunWeatherMiss(loc, date) : undefined };
 }
 
 export async function prepareSunWeatherForDesign(project: Project, version: ScheduleVersion, calendarVersion: CalendarVersion, daybreak: ReportDaybreakData, design?: ReportDesign): Promise<void> {

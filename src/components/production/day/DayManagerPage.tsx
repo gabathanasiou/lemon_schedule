@@ -25,6 +25,8 @@ import CallSheetEditPage from './CallSheetEditPage';
 import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
 import { findDesignCallSheetZone } from '../../../lib/reportBlocks';
 import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../types';
+import { useReportCtx } from '../../../lib/useReportCtx';
+import DayWeatherChip from './DayWeatherChip';
 
 const PREFS_KEY = 'lemon_schedule_day_manager';
 
@@ -74,6 +76,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { days, byIndex } = useDayViews();
+  const ctx = useReportCtx();
   const [prefs, setPrefs] = usePersistState<DayManagerPrefs>(PREFS_KEY, DEFAULT_PREFS);
   const [eventsDate, setEventsDate] = useState<string | null>(null);
   const [adderDate, setAdderDate] = useState<string | null>(null);
@@ -341,6 +344,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       )}
 
       <div className="ml-auto flex items-center gap-1">
+        <DayWeatherChip ctx={ctx} date={selected.date} />
         <DropdownMenu
           open={settingsOpen}
           onOpenChange={setSettingsOpen}

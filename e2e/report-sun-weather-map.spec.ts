@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject, openSeededReportsDesigner, openReportPrintView } from './helpers';
+import { loadSeedProject, openSeededReportsDesigner, openReportPrintView, reloadProject, selectReportDesign } from './helpers';
 
 // Sun & Weather fields + Image/Map blocks in the Reports Designer.
 // Network is fully mocked: Open-Meteo (sun/weather), Nominatim (geocoding),
@@ -370,7 +370,17 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
       ],
       header: [], footer: [],
     };
-    await openSeededReportsDesigner(page, withDesign(design, withQaLocations));
+    // Recent production window — within the device store's 2-year retention —
+    // so the reload leg below exercises STORED values, not the prune.
+    const recentStart = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    await openSeededReportsDesigner(page, withDesign(design, (project: any) => {
+      withQaLocations(project);
+      for (const cv of project.calendarVersions || []) {
+        cv.productionStart = recentStart;
+        cv.prepStart = recentStart;
+        cv.nonShootDates = [];
+      }
+    }));
 
     await expect.poll(() => urls.length, { timeout: 8000 }).toBeGreaterThan(0);
     await page.waitForTimeout(200);
@@ -390,5 +400,15 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     }
     // The data actually resolved (no out-of-range 400 blanking the cache).
     await expect(page.getByText('05:44', { exact: false }).first()).toBeVisible({ timeout: 8000 });
+
+    // Roadmap 299 (stored weather): settle once, then reload — settled days
+    // come from the device store with ZERO new API calls and still render.
+    const callsAfterFirstView = urls.length;
+    await reloadProject(page);
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+    await selectReportDesign(page, 'QA Weather');
+    await expect(page.getByText('05:44', { exact: false }).first()).toBeVisible({ timeout: 8000 });
+    expect(urls.length).toBe(callsAfterFirstView);
   });
 });

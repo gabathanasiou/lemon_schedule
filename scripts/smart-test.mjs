@@ -136,6 +136,8 @@ const RULES = [
   { g: 'src/components/reports/**', s: REPORT },
   { g: 'src/components/ReportsTab.tsx', s: REPORT },
   { g: 'src/lib/report*.ts', s: REPORT },
+  { g: 'src/lib/sunWeatherCache.ts', s: REPORT },
+  { g: 'src/lib/useSunWeather.ts', s: REPORT },
   { g: 'src/lib/richText.ts', s: REPORT },
   { g: 'src/lib/rulesEngine.ts', s: REPORT },
   { g: 'src/lib/violation*.ts', s: REPORT },
@@ -232,6 +234,8 @@ const RULES = [
   { g: 'src/lib/managerTable.ts', s: MANAGERS },
   { g: 'src/components/SidebarNav.tsx', s: MANAGERS },
   // day manager (roadmap 98) + day times sheet (roadmap 101)
+  // Day Manager weather chip (roadmap 299) — proven by the weather spec
+  { g: 'src/components/production/day/DayWeatherChip.tsx', s: ['report-sun-weather-map'] },
   { g: 'src/components/production/day/**', s: ['day-manager', 'day-call-times', 'day-times-glide', 'call-sheet-day', 'report-grid-blocks', ...CREWLINKS] },
   { g: 'src/components/ProductionTab.tsx', s: ['day-manager', ...MANAGERS] },
   { g: 'src/lib/dayView.ts', s: ['day-manager'] },

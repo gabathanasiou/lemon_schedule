@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { ReportBlock, ReportDesign } from '../../types';
 import { useProject } from '../../store';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap } from '../../lib/reportFields';
-import { prepareSunWeatherForCtx } from '../../lib/reportWeather';
+import { useSunWeather } from '../../lib/useSunWeather';
 import type { ReportScopeFilter } from '../../lib/reportData';
 import ReportPreview from './ReportPreview';
 
@@ -35,16 +35,9 @@ const DayReportPreview: React.FC<DayReportPreviewProps> = ({ design, sectionInde
   const scopeFilter = useMemo(() => dayScopeFilter(sectionIndex), [sectionIndex]);
 
   // Warm sun/weather for the day's resolved location, then remount the preview
-  // so the cached values render (the fetch is async and the paginator memoizes).
-  const [weatherTick, setWeatherTick] = useState(0);
-  useEffect(() => {
-    if (!ctx) return;
-    let alive = true;
-    prepareSunWeatherForCtx(ctx, design)
-      .then(() => { if (alive) setWeatherTick(t => t + 1); })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [ctx, design]);
+  // so the cached values render (the prefetch is async and the paginator
+  // memoizes) — the ONE warm seam (roadmap 299).
+  const { weatherTick } = useSunWeather(ctx, design);
 
   if (!ctx) {
     return (

@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useProject } from '../../../store';
 import { useReportCtx } from '../../../lib/useReportCtx';
 import { getReportFieldMap } from '../../../lib/reportFields';
-import { prepareSunWeatherForCtx } from '../../../lib/reportWeather';
+import { useSunWeather } from '../../../lib/useSunWeather';
 import type { ReportBlock, ReportDesign, DayMeta } from '../../../types';
 import { makeReportBlock, collectRibbonBlocks } from '../../../lib/reportBlocks';
 import type { RibbonPrintOptions } from '../../../lib/reportData';
@@ -83,16 +83,9 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({ design, day, zoneBloc
 
   // Warm sun/weather for the day's resolved location, then bump a tick so the
   // (memoized) template blocks re-render with the cached values — without it
-  // the editor shows "—" for weather/sunrise/sunset (the preview warms it too).
-  const [weatherTick, setWeatherTick] = useState(0);
-  useEffect(() => {
-    if (!ctx) return;
-    let alive = true;
-    prepareSunWeatherForCtx(ctx, design)
-      .then(() => { if (alive) setWeatherTick(t => t + 1); })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, [ctx, design]);
+  // the editor shows "—" for weather/sunrise/sunset (the ONE warm seam,
+  // roadmap 299; stored values seed instantly, only owed dates fetch).
+  const { weatherTick } = useSunWeather(ctx, design);
 
   // Item 114 — view-only ribbon overrides: when the toggle is on, force call
   // times + durations visible on every ribbon block in the design, preserving

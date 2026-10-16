@@ -169,3 +169,155 @@ describe('reverseGeocodeAddress — through the places provider (roadmap 297)', 
     expect(fetchMock).toHaveBeenCalledTimes(1); // cache hit — no second call
   });
 });
+
+// ---------------------------------------------------------------------------
+// Stored weather across sessions (roadmap 299): the module cache is session
+// scoped; the device store (localStorage) is what makes settled history
+// one-fetch-ever. `vi.resetModules()` + dynamic import simulates a fresh
+// session against the same storage.
+
+function fakeStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => { map.set(k, v); },
+    removeItem: (k: string) => { map.delete(k); },
+    clear: () => { map.clear(); },
+    key: (i: number) => Array.from(map.keys())[i] ?? null,
+    get length() { return map.size; },
+  } as Storage;
+}
+
+/** Minimal ctx for prepare: one day at `date` resolving to a pinned location. */
+function makeStoreCtx(date: string, id: string) {
+  return {
+    project: {
+      id,
+      locations: [{ id: 'loc', name: 'Stage', type: 'set', lat: 34.02, lng: -118.39, place: 'Stage Place' }],
+      productionInfo: { timezone: 'Europe/London' },
+    },
+    dayInfos: [{ date, locationId: 'loc', sceneLocations: [] }],
+  } as unknown as ReportCtx;
+}
+
+function mockWeatherFetch(urls: string[]) {
+  return vi.fn(async (input: any) => {
+    urls.push(String(input));
+    const u = new URL(String(input));
+    const start = u.searchParams.get('start_date')!;
+    const end = u.searchParams.get('end_date')!;
+    const days: string[] = [];
+    const d = new Date(start + 'T12:00:00Z');
+    const endD = new Date(end + 'T12:00:00Z');
+    while (d <= endD) { days.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); }
+    return {
+      ok: true,
+      json: async () => ({
+        daily: {
+          time: days,
+          sunrise: days.map(x => `${x}T07:00`),
+          sunset: days.map(x => `${x}T19:00`),
+          weather_code: days.map(() => 0),
+          temperature_2m_max: days.map(() => 20),
+          temperature_2m_min: days.map(() => 10),
+        },
+      }),
+    } as any;
+  });
+}
+
+describe('stored weather — past days fetch once, ever (roadmap 299)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it('serves a settled past day from the store in a later session, with zero fetches', async () => {
+    vi.stubGlobal('localStorage', fakeStorage());
+    // Recent past — within the store's 2-year retention window.
+    const past = isoDay(-30);
+    const ctx = makeStoreCtx(past, 'proj-settled');
+
+    const urls1: string[] = [];
+    vi.stubGlobal('fetch', mockWeatherFetch(urls1));
+    const session1 = await import('../reportWeather');
+    await session1.prepareSunWeatherForCtx(ctx);
+    expect(urls1).toHaveLength(1);
+    expect(urls1[0]).toContain('archive-api.open-meteo.com');
+
+    // "New session": fresh module (empty memory cache), same storage.
+    vi.resetModules();
+    const urls2: string[] = [];
+    vi.stubGlobal('fetch', mockWeatherFetch(urls2));
+    const session2 = await import('../reportWeather');
+    await session2.prepareSunWeatherForCtx(ctx);
+    expect(urls2).toHaveLength(0);
+
+    const info = session2.daySunWeather(ctx, past);
+    expect(info.hasPin).toBe(true);
+    expect(info.entry?.sunrise).toBe('07:00');
+    expect(info.entry?.weather).toBe('Clear sky');
+  });
+
+  it('refetches an UPCOMING day when the stored value is older than 6 h', async () => {
+    const ls = fakeStorage();
+    vi.stubGlobal('localStorage', ls);
+    const today = new Date().toISOString().slice(0, 10);
+    const ctx = makeStoreCtx(today, 'proj-stale');
+
+    const urls1: string[] = [];
+    vi.stubGlobal('fetch', mockWeatherFetch(urls1));
+    const session1 = await import('../reportWeather');
+    await session1.prepareSunWeatherForCtx(ctx);
+    expect(urls1).toHaveLength(1);
+
+    // Age the stored entry by 7 h, then simulate a later session.
+    const raw = JSON.parse(ls.getItem('lemon_schedule_weather_v1_proj-stale')!);
+    for (const k of Object.keys(raw.weather)) raw.weather[k].at -= 7 * 60 * 60 * 1000;
+    ls.setItem('lemon_schedule_weather_v1_proj-stale', JSON.stringify(raw));
+
+    vi.resetModules();
+    const urls2: string[] = [];
+    vi.stubGlobal('fetch', mockWeatherFetch(urls2));
+    const session2 = await import('../reportWeather');
+    await session2.prepareSunWeatherForCtx(ctx);
+    expect(urls2).toHaveLength(1); // stale → refetched
+  });
+
+  it('does NOT refetch a fresh upcoming day', async () => {
+    vi.stubGlobal('localStorage', fakeStorage());
+    const today = new Date().toISOString().slice(0, 10);
+    const ctx = makeStoreCtx(today, 'proj-fresh');
+
+    const urls1: string[] = [];
+    vi.stubGlobal('fetch', mockWeatherFetch(urls1));
+    const s1 = await import('../reportWeather');
+    await s1.prepareSunWeatherForCtx(ctx);
+    expect(urls1).toHaveLength(1);
+
+    vi.resetModules();
+    const urls2: string[] = [];
+    vi.stubGlobal('fetch', mockWeatherFetch(urls2));
+    const s2 = await import('../reportWeather');
+    await s2.prepareSunWeatherForCtx(ctx);
+    expect(urls2).toHaveLength(0); // fresh (< 6 h) — served from the store
+  });
+
+  it('force-refresh re-pulls even a settled past day', async () => {
+    vi.stubGlobal('localStorage', fakeStorage());
+    const past = isoDay(-30);
+    const ctx = makeStoreCtx(past, 'proj-force');
+
+    const urls1: string[] = [];
+    vi.stubGlobal('fetch', mockWeatherFetch(urls1));
+    const s1 = await import('../reportWeather');
+    await s1.prepareSunWeatherForCtx(ctx);
+    expect(urls1).toHaveLength(1);
+
+    const urls2: string[] = [];
+    vi.stubGlobal('fetch', mockWeatherFetch(urls2));
+    await s1.refreshSunWeatherForCtx(ctx, past);
+    expect(urls2).toHaveLength(1); // past + settled — explicit refresh still re-pulls
+    expect(s1.daySunWeather(ctx, past).entry?.sunrise).toBe('07:00');
+  });
+});

@@ -7,7 +7,7 @@ import { registerInFlightEdits } from '../../lib/inFlightEdits';
 import { isTextEditingElement } from '../../lib/textEditing';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap } from '../../lib/reportFields';
-import { prepareSunWeatherForCtx } from '../../lib/reportWeather';
+import { useSunWeather } from '../../lib/useSunWeather';
 import { ReportDesign, ReportBlock, ReportCollection, ReportTextStyle, ReportViewMode } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlockWithId,
@@ -161,13 +161,12 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   // Sun & Weather values: warm the cache on load so canvas + preview render
-  // real values instead of "—" (prefetch skips cached dates — cheap no-op).
-  // Location-aware: also warms every pinned location the ACTIVE design
-  // iterates (a locations repeat/table in the tree).
-  const [, setWeatherTick] = useState(0);
-  const activeDesignRef = useRef(activeDesign);
-  activeDesignRef.current = activeDesign;
+  // real values instead of "—" (the hook prefetches per the storage policy —
+  // roadmap 299 — and ticks so the memoized canvas re-renders). Location-aware:
+  // also warms every pinned location the ACTIVE design iterates (a locations
+  // repeat/table in the tree).
   const designId = activeDesign?.id;
+  useSunWeather(ctx, activeDesign);
 
   // Presence (roadmap 236 + follow 243): publish the OPEN design so peers on
   // another design are hidden (the pointer document gate) — and mirror the
@@ -196,12 +195,9 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     enabled: !zoneMode,
   });
 
-  useEffect(() => {
-    if (!ctx || ctx.dayInfos.length === 0) return;
-    let cancelled = false;
-    prepareSunWeatherForCtx(ctx, activeDesignRef.current).then(() => { if (!cancelled) setWeatherTick(t => t + 1); });
-    return () => { cancelled = true; };
-  }, [ctx, designId]);
+  // Warm sun/weather per the storage policy (roadmap 299) — deps are the ctx
+  // (rebuilds on project changes) + the design id, so edits never refire it.
+  useSunWeather(ctx, activeDesign);
 
   useEffect(() => {
     if (zoneMode) return;

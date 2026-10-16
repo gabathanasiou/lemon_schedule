@@ -1197,3 +1197,17 @@ provider — dormant because `VITE_GOOGLE_MAPS_API_KEY` is set nowhere (local
   set, a live search + pin-drop on the deployed app; keyless build unchanged.
 - **Relations:** pairs with **285** (the CSP allowlist covers both geocoders);
   feeds **288** (privacy data-flow list).
+
+## 300. Past-days edit lock — freeze editing before today (`[ ]`, NEEDS CONVERSATION FIRST)
+
+**Asked 2026-10-16 (user):** "a toggle might be a settings option in the
+future … not able to edit day manager stuff for days that are past today."
+
+- **Before building, decide:** per-user pref vs project setting; the exact
+  surface list (Day Details/Call Times/Crew edits, call-sheet zone edits,
+  drags into or out of past days, event cards on past dates); the "today"
+  basis (browser date — matching the weather endpoints); and confirm undo +
+  weather refresh stay allowed. No cost motive — 299's stored policy already
+  handles the API-call side; this is a workflow guard against rewriting
+  history.
+- **Verify:** manual pass per surface; the lock must never block undo/history.
