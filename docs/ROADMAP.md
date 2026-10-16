@@ -1467,44 +1467,6 @@ window makes "undo" possible.
 - **Relations:** extends **281**; complements **279** (backups cover the
   catastrophic case, this the everyday one).
 
-## 295. Test pyramid — second rebalancing pass (dispatch-only e2e → Vitest) (`[ ]`)
-
-**Context:** 138's first sweep (archived) moved the obvious logic down; the e2e
-layer is still over-weighted — 283 capped tests, ~80s per full run, and ~1.5s of
-browser boot for every test that only dispatches + reads state via the bridge.
-`docs/TESTING.md` §Test sizes & the pyramid + §Rebalancing (ongoing) is the
-canonical guide; the caps in `scripts/check-doc-budget.mjs` (70 specs / 283
-tests; waits 17) create the pressure to free slots by moving tests down.
-
-**Find candidates:** specs whose assertions are mostly
-`page.evaluate(() => window.__lemonSchedule…)` state reads with no real DOM
-interaction, canvas geometry, print/pagination, focus or iPad/touch behaviour.
-Grep for `dispatch(` / `getProject()` / `getState()` density and judge each
-test: could this failure be produced (and caught) without a browser? A test
-that only dispatches + inspects state via the bridge is a conversion candidate
-by definition — the browser boot is pure overhead.
-
-**Recipe per test (never assert the same behaviour at both layers — retire the
-e2e case in the same change):**
-1. Check the logic under test lives in an importable `src/lib/` module (reducer
-   actions, `daybreakUtils`, `callTimes`, `reportBlocks`, …); if it is buried
-   in a hook/component, extracting it IS the work.
-2. Write the Vitest case under `src/**/__tests__/*.test.ts` (`npm run test:unit`).
-3. Delete the e2e case; if a whole spec retires, remove its entries from
-   `scripts/smart-test.mjs` RULES (stale names are silent — the orphan check
-   only flags unmapped files) and lower `E2E_TEST_CAP` / `E2E_WAIT_BASELINE`
-   with a one-line reason, locking the gain.
-4. Keep ONE e2e test proving the feature is wired end-to-end; browser-bound
-   layers (canvas, print, overlay morph, iPad/pen, focus/CSS) stay untouched.
-
-**Verify:** `npm run lint` (caps + orphans + waits), `npm run test:unit`, and
-the full suite on the touched tree (retiring cases changes the suite); report
-the e2e duration delta from the custom reporter's `[timing]` line.
-
-**Relations**: continues **138** (archived — the first rebalance; 10 duplicate
-e2e cases retired there); tooling/pressure live in `docs/TESTING.md`
-§Rebalancing (ongoing) + `scripts/check-doc-budget.mjs`.
-
 ## 296. Debug bridge — `onAction` misses UI-originated dispatches (`[ ]`)
 
 **Contract bug:** `docs/API.md` §Debug bridge documents `onAction(cb)` as
