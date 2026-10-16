@@ -45,8 +45,11 @@ matched line range, never either file end-to-end.
 
 ## Adding an item (triage gate — all feature asks funnel here)
 
-1. **Dedupe search, in order**: live `docs/ROADMAP.md` → `docs/ROADMAP-ARCHIVE.md` →
-   `AGENTS.md` + `docs/*.md` → `git log --oneline --grep=<term>` → source code.
+1. **Dedupe search, in order**: **eyeball the full heading list first** —
+   `grep '^## ' docs/ROADMAP.md`, all titles at once (~1KB); this catches
+   near-duplicates worded differently than the ask. Then: live
+   `docs/ROADMAP.md` → `docs/ROADMAP-ARCHIVE.md` → `AGENTS.md` + `docs/*.md` →
+   `git log --oneline --grep=<term>` → source code.
 2. **Outcome**: matches **open** → run that item, don't add; **in-progress** → never
    implement in parallel; **done** → answer with the pointer, no new work; **overlaps
    several** → merge into ONE item; **nothing** → new item.
