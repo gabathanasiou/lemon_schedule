@@ -170,8 +170,9 @@ Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collecti
 
 ## Roadmap Work
 - **One agent per item** — by default on the current branch, in this tree. When several items are in flight the user may hand you a worktree ("another agent is working rn"): load the `parallel-work` skill (worktree setup, merge conflict recipes, ff-only into `main`, the flake-triage ladder). Just ask and the agent works until the item is done.
+- **Audit backlog** — "do the next audit item" = 274+ in the audit block of `docs/ROADMAP.md`.
 - The agent: reads `AGENTS.md` + domain docs FIRST, implements with small focused commits, asks you blocking questions directly (question tool — no decisions channel), then **self-reviews**: verifies its diff against the documented invariants (canonical models in AGENTS.md/docs — no re-derivation), checks for duplicated logic/monoliths, runs `npm run lint` + `npx playwright test`.
-- Then it **updates the docs itself**: loads the `write-agent-docs` + `manage-roadmap` skills, applies the `docs/*.md`/AGENTS.md updates its change calls for, and **closes the roadmap item** — flip `[ ]` → `[x]`, add its one-line row to `docs/ROADMAP-ARCHIVE.md`, then delete the live section (git keeps the narrative). Completed narratives never stay in the live roadmap.
+- Then it **updates the docs itself**: loads the `write-agent-docs` + `manage-roadmap` skills, applies the `docs/*.md`/AGENTS.md updates its change calls for, and **closes the roadmap item** (the `manage-roadmap` skill holds the exact close-out steps).
 
 ## Requests & Triage (new asks → roadmap)
 - **All feature asks funnel into `docs/ROADMAP.md` — no orphan features.** Before starting any work from a user ask (or numbering a new item), run the dedupe search in this order: live `docs/ROADMAP.md` → `docs/ROADMAP-ARCHIVE.md` (completed index) → AGENTS.md + `docs/*.md` → `git log --oneline --grep=<term>` → source code.

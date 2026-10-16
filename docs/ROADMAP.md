@@ -1240,3 +1240,271 @@ the path. Extends **145** (the Tauri desktop shell).
   wrapper tooling); informs **269** (the in-Safari sweep still matters for
   the hosted web app); reuses the 267 safe-area mechanism.
 
+**From the 2026-10-16 production-readiness audit.** Items 274–291 below; each
+is self-contained, with findings referenced by their F-numbers (full report:
+`audits/2026-10-16-production-readiness-audit.md` — local, git-ignored, main
+working tree only). Findings F17 (MCP per-session handshake) and validation
+parity are already scoped inside item **97** — not duplicated here.
+
+**Pick-up convention (audit items):** "do the next audit item" = the
+lowest-numbered open item below, starting at **274** — filing order equals
+priority order (274 = P0; 275–278 = P1; 279–288 = P2; 289–291 = P3, and 289 is
+parked until unparked). Normal one-agent-per-item flow; close each through
+`manage-roadmap` before picking the next.
+
+## 274. Report rich text — enforce sanitization at every output boundary (`[ ]`)
+
+**Priority: P0 — before any other report work. Security-sensitive.**
+
+**Request:** stored rich text (text blocks, headers/footers, table cell bands,
+titles) must be impossible to execute. The editor's save path sanitizes; every
+other ingest path stores markup verbatim and two render paths execute it.
+
+- **Fix (render boundary — the non-negotiable layer):** sanitize the stored
+  HTML with the kit's `sanitizeRichText` (re-exported in
+  `src/lib/richText.ts`) at BOTH sinks — `reports/TextBlockView.tsx`
+  (`dangerouslySetInnerHTML` branch) and `reports/CustomTableBands.tsx`
+  (non-editable cell branch). Sanitize **before** `resolveReportTokensHtml` —
+  post-resolution sanitizing strips trusted token styles (tooltip chips use
+  `background`/`border-radius`/`padding`/`margin`, outside the kit style
+  allowlist; `src/lib/reportTokens.ts`).
+- **Defense in depth (same box):** strip on ingest — `UPDATE_REPORT_DESIGN`
+  blocks/header/footer (`src/store/actions/reports.ts`), report fields through
+  `UPDATE_PROJECT` (`src/store/actions/schedule.ts` spreads arbitrary fields),
+  and the `.lemon`/localStorage decode paths.
+- **Tests:** unit — malicious markup (script tags, event-handler attributes,
+  `javascript:` URLs) is neutralized after resolve→sanitize while legit report
+  styling survives; e2e — dispatch a hostile `UPDATE_REPORT_DESIGN` through
+  the debug bridge and assert nothing executes; run the report designer/print
+  specs for visual regressions + a rule-7 manual look at preview and print.
+- **Verify:** `npm run lint` + report e2e subset + full suite (store-touching).
+- **Relations:** pairs with **285** (CSP kills the inline-handler class).
+  Update `docs/REPORTS-DESIGNER.md` with the render-time sanitizer note.
+
+## 275. Trash integrity — report designs (`[ ]`)
+
+**Priority: P1 — next hardening batch.** Audit F2.
+
+**Request:** deleted report designs are unrecoverable and survive Empty Trash.
+
+- **Fix:** include `reportTrash` in `caseEmptyTrash` (9 channels today,
+  `src/store/actions/schedule.ts`); add a Reports section to `TrashModal.tsx`
+  wiring the existing `RESTORE_REPORT_FROM_TRASH`
+  (`src/store/actions/reports.ts` — action exists, no UI); prune `reportTrash`
+  TTL on cloud/Drive reads like version trash
+  (`src/lib/googleDriveStorage.ts` parity — today only local loads prune, so
+  shared projects accumulate).
+- **Verify:** unit — Empty Trash clears `reportTrash`; manual/e2e — delete a
+  design → Trash → restore renders again; `npm run lint` + trash specs.
+
+## 276. SEX import/export — Unicode round-trip integrity (`[ ]`)
+
+**Priority: P1 — next hardening batch.** Audit F3.
+
+**Request:** `.sex` export corrupts non-ASCII text: record lengths count
+UTF-16 units against UTF-8 bytes written, and import decodes latin1 against a
+UTF-8 encode (`src/lib/import/sex.ts`).
+
+- **Fix:** compute record lengths in bytes; make decode/encode one encoding
+  (UTF-8 with a latin1 fallback for legacy files); keep `tools/sex_probe.py` /
+  `e2e/fixtures/lair-v10.sex` expectations honest; extend the unit round-trip
+  (`src/lib/__tests__/sexImport.test.ts`) with accented (and non-BMP) fields.
+- **Verify:** new fixture round-trips byte-identically; MSD/SEX e2e green.
+
+## 277. Room worker — refuse unauthenticated metadata responses (`[ ]`)
+
+**Priority: P1 — XS.** Audit F5.
+
+**Request:** a non-WebSocket `GET /room/<projectId>` returns
+`{room, initialized, rev}` before any origin/token check
+(`workers/rooms/src/room.ts`, the fetch guard).
+
+- **Fix:** only answer a valid upgrade (or a token-carrying request); keep
+  `/health` as the one auth-less endpoint.
+- **Verify:** add a negative to `workers/rooms/test/room-probe.ts` (plain GET →
+  refused); `npx tsc -p workers/rooms` + probe run green.
+
+## 278. Password recovery — surface expired/used links (`[ ]`)
+
+**Priority: P1 — XS.** Audit F6.
+
+**Request:** GoTrue enforces expiry/single-use, but the client ignores the
+recovery redirect's error params, so a dead link lands silently
+(`src/lib/supabase/auth.tsx`, `AccountModal`, `PasswordRecoveryModal`).
+
+- **Fix:** read `error`/`error_description` (and `otp_expired`) on the
+  recovery route, show an actionable message + a re-request button.
+- **Verify:** manual with a used/expired link; unit if the parser is extracted.
+
+## 279. Backups & a tested restore (`[ ]`)
+
+**Priority: P2 — before the first stranger/paying user.** Audit F7.
+
+**Request:** collab data has no backups/PITR on the free tier and no restore
+has ever been run.
+
+- **Approach:** decide the Supabase Pro upgrade (daily backups + no pausing)
+  before the first paying collab customer; write a restore runbook (where
+  backups live, restore steps, user-visible behaviour); **execute one drill**
+  against a scratch project and record it. Note the paused-project restore
+  window (1 year) for the pre-Pro period.
+- **Verify:** drill notes in the runbook + an annual re-test reminder.
+
+## 280. Transactional email — SMTP + SPF/DKIM/DMARC (`[ ]`)
+
+**Priority: P2 — before reset emails must reach strangers.** Audit F8.
+
+**Request:** auth email (confirm/reset) uses Supabase's shared mailer — no
+custom SMTP, no sending-domain records; deliverability to arbitrary users is
+unverified.
+
+- **Approach:** custom SMTP + SPF/DKIM/DMARC; verify reset delivery across
+  Gmail/Outlook/Apple Mail before inviting strangers; note bounce/complaint
+  handling as a follow-up when product email exists
+  (`docs/COLLABORATION.md` §11 context).
+- **Verify:** a real reset lands in all three inboxes, not spam.
+
+## 281. Account deletion / erasure path (`[ ]`)
+
+**Priority: P2 — before paying customers (UK GDPR).** Audit F9.
+
+**Request:** no account-deletion path exists anywhere; guests (anonymous
+users) also have no cleanup.
+
+- **Scope:** account deletion covering profile, memberships, invites, share
+  links, teams (review FK cascades); decide the fate of shared projects whose
+  owner deletes; document what backups/logs cannot reach; surface the exit in
+  Account settings (danger-confirmed). Decide whether guest cleanup rides here.
+- **Verify:** RLS acceptance additions (`supabase/tests/`); manual
+  delete → re-login → no orphaned rows or dangling links.
+
+## 282. Vulnerability disclosure process (`[ ]`)
+
+**Priority: P2.** Audit F10.
+
+**Request:** public repo + hosted app, no way for a stranger to report a
+vulnerability.
+
+- **Deliverables:** root `SECURITY.md` (scope, how to report, expectations,
+  safe harbour), `.github/SECURITY.md` or `security.txt`, a monitored contact;
+  link from README. Keep it separate from the internal `docs/SECURITY.md`.
+- **Verify:** a dry-run report reaches the inbox; links live.
+
+## 283. Shared-project list — real pagination (`[ ]`)
+
+**Priority: P2 — small.** Audit F11.
+
+**Request:** `listOnlineProjects` reads all rows with no limit — PostgREST's
+default 1000-row cap silently truncates the Shared list
+(`src/lib/supabase/onlineProjects.ts`).
+
+- **Fix:** `.range()` loop (or explicit paging) ordered by `updated_at`; add
+  the `projects.updated_at` index in the same migration.
+- **Verify:** unit for the pager; a seeded >1000-row account loads fully.
+
+## 284. Invite flow — close the email-existence oracle (`[ ]`)
+
+**Priority: P2 — small.** Audit F12.
+
+**Request:** `invite_collaborator` returns `'added'` vs `'pending'` by whether
+the address has an account (scoped to inviters, still an enumeration surface).
+
+- **Fix:** one uniform response for both paths (pending-invite already covers
+  the accountless case); keep UI copy honest.
+- **Verify:** `supabase/tests/rls_s2.sql` — identical response for both cases.
+
+## 285. CSP + response-hardening pass (`[ ]`)
+
+**Priority: P2.** Audit F13.
+
+**Request:** no CSP, no referrer policy; the app is framable.
+
+- **Approach:** meta `Content-Security-Policy` in `index.html` with a real
+  allowlist (GIS/Google OAuth, Supabase https+wss, gstatic probe, OSM tiles +
+  Nominatim, Google Places, Open-Meteo), plus `Referrer-Policy`.
+  **`frame-ancestors`/X-Frame-Options cannot be set via meta** — clickjacking
+  needs a header-capable layer (Cloudflare in front of a custom domain) or an
+  explicit accepted-risk note in `docs/SECURITY.md` §7.
+- **Verify:** boot + OAuth + Drive + rooms + maps all work under the policy
+  (manual pass); consider a report-only trial first.
+
+## 286. Observability floor — error tracking, uptime, one human alert (`[ ]`)
+
+**Priority: P2 — before public launch.** Audit F14.
+
+**Request:** no error tracking; uptime detection is the keep-alive workflow
+alone; the only "alert" is a red GitHub Action.
+
+- **Approach:** client+worker error tracker; external uptime checks on the
+  hosted app and the worker `/health`; one alert path that reaches a human;
+  decide what deserves paging (`docs/SECURITY.md` §7 notes edge rate limits/WAF
+  as the same pre-launch batch).
+- **Verify:** inject a test error + simulate an outage → both alert.
+
+## 287. Staging environment + migration workflow (`[ ]`)
+
+**Priority: P2/P3 — before real tenant data.** Audit F16.
+
+**Request:** one Supabase project serves dev and prod; migrations are
+hand-pasted, forward-only, with no staging or rehearsed rollback.
+
+- **Approach:** a second Supabase project as staging; apply via `supabase db
+  push` (or a recorded ledger if staying in the SQL editor); document
+  rollback/forward-fix policy and expand/contract for breaking changes; the
+  `supabase/tests/` acceptance scripts stay the gate.
+- **Verify:** rehearse one migration staging→prod; runbook in
+  `docs/COLLABORATION.md` §5 (or a new ops doc).
+
+## 288. Terms & privacy pages (`[ ]`)
+
+**Priority: P2 — before paying customers.** Audit F18.
+
+**Request:** no terms/privacy exist; data flows to Supabase, Cloudflare,
+Google Drive, OSM/Nominatim, Google Places, Open-Meteo (per code).
+
+- **Approach:** privacy policy derived from the code + `docs/SECURITY.md` §2
+  (every third party + purpose), basic terms; footer links in the app and on
+  the hosted page; align with the merchant-of-record model when 230 lands.
+- **Verify:** every claim cross-checked against code/config before publishing.
+
+## 289. CI quality gates & dependency automation (`[ ]`, PARKED)
+
+**Priority: P3 — parked by owner 2026-10-16.** Audit F4 + F15.
+
+**Parked knowingly:** the owner runs lint/unit/e2e locally before every push
+(AGENTS.md rule 7); with a single trusted pusher the CI gate earns less than it
+costs. **Unpark when:** a non-owner ships code, an external contributor joins,
+or public launch nears.
+
+- **When unparked:** PR-triggered workflow (`npm run lint` + `test:unit` +
+  `npm audit`); gate `deploy.yml` on it; Dependabot/Renovate for dependency
+  bumps (e2e stays local — suite cost). Note `npm audit = 0` is currently a
+  human-memory policy (`docs/SECURITY.md` §5).
+
+## 290. Audit code-health sweep (`[ ]`)
+
+**Priority: P3.** Audit items #132/137/138 + the surprise flags.
+
+- **Oversize files:** 20 sources exceed the project's own ~700-line split rule
+  (largest `src/store/provider.tsx` ~1.7k) — split or consciously re-justify
+  the rule, consider enforcing it in `scripts/check-doc-budget.mjs`.
+- **Dead code/leftovers:** `deleteProjectFromFolder` (zero call sites,
+  `src/lib/persistentStorage.ts`), the unreferenced `allowScripts` allowlist
+  (`package.json`), AI-Studio leftovers (`GEMINI_API_KEY` in `.env.example`,
+  `metadata.json` capability claim).
+- **Hygiene:** `package.json` name `react-example`; lockfile root version
+  behind; `@glideapps/glide-data-grid` on a pre-release alpha — pin or watch.
+- **Verify:** behaviour-neutral; `npm run lint` + full suite unchanged.
+
+## 291. Enterprise-readiness gate (`[ ]`, P3 — triggered by an enterprise deal)
+
+**Priority: P3 — do not build speculatively.** Audit P3 umbrella.
+
+Open only when a deal, questionnaire or security review demands it; each line
+then becomes its own item/id: MFA + recovery; SSO/SAML/SCIM; admin console
+("log in as user") + durable audit/access events (today's `access_events`
+migration persists nothing); quarterly access reviews; pen test +
+questionnaire evidence pack; SOC 2 / HIPAA / PCI assessment (all N/A today);
+second region; load testing. Triggers into **230** (licensing) for the billing
+side.
+
