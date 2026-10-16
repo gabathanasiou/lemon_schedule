@@ -871,41 +871,6 @@ grid) in the dashed edit treatment, (b) tint the live cards (e.g. the
 **Verify**: rule-7 manual on the call sheet canvas; preview/print byte-equal
 visually; `npm run lint`.
 
-## 225. Crew table (print/preview) — one flat table, no department sections (`[ ]`)
-
-**Request** (user, 2026-10-09): the **rendered** crew table — Reports designer
-canvas/preview/print and the Call Sheet's preview/print — must be ONE flat
-table: Name · Role · Call · Phone · Email. No per-department separator bars
-("Above the Line", "Camera", …) and no repeated column-header row per
-department. The editable live grid (Call Sheet → Edit) and the Day Manager Crew
-section keep their per-department cards (they carry include/exclude + department
-pre-calls).
-
-**Approach**: the split lives in the static read model —
-`resolveReportGridGroups`'s `crewOfDay` branch (`src/lib/reportGrids.ts:116-134`)
-returns one group per department, so `reports/ReportGridBlock.tsx:99-155` draws
-a department bar + a fresh header row per group. Return ONE flat group (same
-canonical `crewOfDay` order, fixed `CREW_FIXED` columns); `multi` goes false and
-the renderer emits a single header row with no bars —
-`skeletonReportGridGroups` (line 168) is already flat. The live path does NOT
-consume this function (its grouping is `groupSlotsByDept` inside
-`CrewRosterEditor`), so the editor is untouched — grep to confirm before
-changing. No new block option: one flat shape is the decision (no toggle).
-
-**Verify**: Vitest — add a `resolveReportGridGroups(ctx, 'crewOfDay', …)` case
-to `src/lib/__tests__/reportResolve.test.ts` (exactly one group; columns
-`crewName`/`role`/`crewCallTime`/`phone`/`email`); rule-7 manual — designer +
-preview + print show one header and no department bars, Call Sheet → Edit
-unchanged. `e2e/report-grid-blocks.spec.ts` crew test targets the EDITOR (must
-stay green untouched). Update `docs/REPORTS-DESIGNER.md` §What already exists
-(grid blocks): the static crew table no longer mirrors the live per-department
-bars — static flat / live grouped becomes the deliberate asymmetry.
-
-**Relations**: narrows **146**'s department-grouping decision to the live editor
-(146's call-sheet crew table stays grouped); touches **112** (the block), **156**
-(columns), **222** (headings parity — crew diverges by design now); related
-**142**, **224**.
-
 ## 230. Editions & licensing — Free / Studio one-time / offline verification (big)
 
 **Vision + decisions: `docs/LICENSING.md` — read it first.** Decided 2026-10: Free vs Studio (£150 one-time) vs Collaboration subscription (requires Studio + active sub; guests free); **DIY on Supabase** — Ed25519-signed offline licence files, 3 device activations, no account required for Studio; **one merchant of record** (Polar or Lemon Squeezy) for one-time + subscription (VAT handled); feature gates via one `FEATURE_GATES` registry. Free-tier limit values still open (doc §9).
@@ -1130,16 +1095,16 @@ or public launch nears.
 
 **Priority: P3.** Audit items #132/137/138 + the surprise flags.
 
+- **Dead code/leftovers — SHIPPED 2026-10-16:** `deleteProjectFromFolder` (+
+  its orphaned `deleteFile`) removed; the 6 stale `allowScripts` entries pruned
+  (`npm install-scripts prune` — the field itself is live npm config, keep it);
+  AI-Studio leftovers gone (`GEMINI_API_KEY`/`APP_URL` docs, `metadata.json`);
+  package renamed `react-example` → `lemon-schedule`; lockfile root resynced.
 - **Oversize files:** 28 sources exceed the project's own ~700-line split rule
   (29 counting test files; largest `src/store/provider.tsx` ~1.7k) — split or
   consciously re-justify the rule, consider enforcing it in
   `scripts/check-doc-budget.mjs`.
-- **Dead code/leftovers:** `deleteProjectFromFolder` (zero call sites,
-  `src/lib/persistentStorage.ts`), the unreferenced `allowScripts` allowlist
-  (`package.json`), AI-Studio leftovers (`GEMINI_API_KEY` in `.env.example`,
-  `metadata.json` capability claim).
-- **Hygiene:** `package.json` name `react-example`; lockfile root version
-  behind; `@glideapps/glide-data-grid` on a pre-release alpha — pin or watch.
+- **Hygiene:** `@glideapps/glide-data-grid` on a pre-release alpha — pin or watch.
 - **Verify:** behaviour-neutral; `npm run lint` + full suite unchanged.
 
 ## 291. Enterprise-readiness gate (`[ ]`, P3 — triggered by an enterprise deal)
@@ -1232,22 +1197,3 @@ provider — dormant because `VITE_GOOGLE_MAPS_API_KEY` is set nowhere (local
   set, a live search + pin-drop on the deployed app; keyless build unchanged.
 - **Relations:** pairs with **285** (the CSP allowlist covers both geocoders);
   feeds **288** (privacy data-flow list).
-
-## 298. Crew table — repeat the column header on page breaks (`[~]`)
-
-**Requested 2026-10-16 (user):** the crew table should repeat its column header
-at the top of every continuation page — a toggle whose default is ON.
-
-- Regular `table` blocks already repeat their `.rm-header` on continuation
-  chunks (paginator `pageStartExtra` + `repeatHeader`); the day grids did not
-  (their header is a plain `.rm-row`, no `.rm-header` unit). The crew table —
-  now ONE flat table (**225**) — gets the same treatment: the head row is
-  marked `data-rm-header`, continuation rows reserve its height, fragment
-  renders re-emit it; `repeatHeader !== false` (default on), chrome →
-  Content → Header → "Repeat on each page".
-- `callTimes`/`precalls` stay unchanged — their per-category/per-department
-  heads make "the header" ambiguous; revisit only if asked.
-- **Verify:** e2e `report-page-breaks.spec.ts` (continuation page carries the
-  header above the continuing rows) + rule-7 manual on print/preview.
-- **Relations:** extends **225**; mirrors **140**'s `titleRepeat` mechanism;
-  inherited by the **212**/**142** canvases.
