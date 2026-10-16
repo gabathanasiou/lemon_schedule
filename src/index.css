@@ -28,6 +28,18 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
+/* Full-height chain (roadmap 272): the non-phone shell must equal the REAL
+   layout viewport, not `100vh` — on iPad Safari `100vh` is the large viewport,
+   taller than the visible area, which gave the DOCUMENT permanent scroll
+   range: any drag anywhere (the sticky header included) scrolled the whole
+   frame, and keyboard sessions left it stuck. Height ONLY — never re-add
+   `overflow: hidden` here (roadmap 267: that clip cut the phone app off at
+   Safari's floating toolbar; the phone shell keeps its own `--app-h` px
+   height and overflows this box visibly, exactly like before). */
+html, body, #root {
+  height: 100%;
+}
+
 html, body {
   background: #f4f4f5;
 }

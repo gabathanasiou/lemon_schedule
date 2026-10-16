@@ -86,6 +86,7 @@ import { LocationsGlideTab } from './components/LocationsGlideTab';
 import ReportDesigner from './components/reports/ReportDesigner';
 import { useDaybreakSections } from './lib/useDaybreakSections';
 import { useKeyboardDismissOnScroll } from './lib/useKeyboardDismissOnScroll';
+import { useKeyboardEnsureVisible } from './lib/useKeyboardEnsureVisible';
 import { useStatusBarTheme } from './lib/useStatusBarTheme';
 import { usePersistState } from './lib/persist';
 import { PROJECT_CHROME } from './lib/projectTheme';
@@ -328,6 +329,9 @@ function AppContent() {
 
   // Native .onDrag-style keyboard dismissal on touch (see the hook).
   useKeyboardDismissOnScroll();
+  // Keep the focused field above the on-screen keyboard (iPadOS focus-scroll
+  // is flaky — see the hook). Mounted once here, covers every surface.
+  useKeyboardEnsureVisible();
 
   // Browser back/forward: apply the incoming entry. Route through the
   // history stack without re-pushing.
@@ -1093,14 +1097,23 @@ function AppContent() {
       onLongPress={handleLongPress}
     >
     <>
-    {/* Phone (roadmap 267): portrait shell height = the REAL screen height
-        (`--app-h`, set by the effect below — viewport units stop at Safari's
-        paint ceiling, WebKit 301108). `pt-safe` pads the content below the
+    {/* Phone (roadmap 267): the shell uses the REAL screen height (`--app-h`,
+        set by the effect below — viewport units stop at Safari's paint
+        ceiling, WebKit 301108) and is `position: fixed` (roadmap 273): a
+        fixed box contributes no document scroll range, so nothing can drag
+        the sticky header off the frame. `pt-safe` pads the content below the
         status bar while the header background stays full-bleed. Horizontal
         safe areas live on the header/PageToolbar CONTENT (landscape island),
         not on the shell, so bars keep the full width. The html/body/#root
-        clip that used to cut everything at the toolbar is gone (index.css). */}
-    <div className={`${phoneDevice ? 'h-(--app-h)' : 'h-screen'} pt-safe bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden`} data-island={islandSide ?? undefined}>
+        clip that used to cut everything at the toolbar is gone (index.css).
+        iPad/desktop (roadmap 273): `h-full` of the `height: 100%` chain — the
+        real layout viewport. NEVER `h-screen` here: `100vh` is the large
+        viewport on iPad Safari, taller than the visible area, and the extra
+        document scroll range let drags (even on the header) scroll the whole
+        frame away. NEVER pin document scroll with a JS scrollTop reset — it
+        fights the finger mid-drag (glitch + threshold); remove the range
+        instead. */}
+    <div className={`${phoneDevice ? 'fixed inset-x-0 top-0 h-(--app-h)' : 'h-full'} pt-safe bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden`} data-island={islandSide ?? undefined}>
       {showProjectManager && (
         <ProjectManager onClose={() => setShowProjectManager(false)} onOpenAccount={() => setShowAccountModal(true)} />
       )}

@@ -149,6 +149,24 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   editor-attached floating panel (`.click-outside-ignore` — the EntityDropdown/Autocomplete/ref list
   the field opened, portaled to `<body>`) counts as the field's own surface: scrolling the
   suggestion list must NOT blur (blur = commit + close, roadmap 206).
+- **Keyboard keep-visible (touch, roadmap 272)**: `useKeyboardEnsureVisible` (`src/lib/`, mounted
+  once in App) — while the on-screen keyboard is up (`visualViewport.height` below the layout
+  viewport; desktop and un-pinched states no-op), a focused field that sits under the keyboard (or
+  above the visible band) is scrolled inside its own scroller — `scrollableAncestor`
+  (`src/lib/scrollable.ts`, shared with the dismiss hook above). iPadOS focus-scroll is flaky
+  (device probe 2026-10-16: fixed modals mostly scroll but below-the-fold is unreliable; plain
+  pages never restore) — this is the deterministic net; surfaces MUST NOT hand-roll focus
+  scrolling.
+- **The frame never scrolls (roadmap 273)**: iPad/desktop shell = `h-full` over a `height: 100%`
+  `html/body/#root` chain (`index.css`) — NEVER `h-screen`/`100vh` for it: on iPad Safari `100vh`
+  is the large viewport, taller than the visible area, and the leftover document scroll range let
+  any drag (the sticky header included) scroll the whole frame off — stuck after keyboard
+  sessions. The PHONE shell keeps its own `--app-h` px height (267) but is `position: fixed` — a
+  fixed box contributes NO document scroll range, so nothing (drags, overscroll chains, browser
+  focus scrolls) can move the frame, and the bleed past Safari's paint ceiling is unchanged.
+  NEVER "fix" document scroll with a JS `scrollTop = 0` pin — it fights the finger mid-drag
+  (glitch + threshold, tried 2026-10-16); remove the range instead. The `overflow: hidden` clip
+  stays removed.
 - `DropdownMenu`/`DropdownItem`/`DropdownDivider`/`DropdownSubmenu` (Radix click-to-toggle;
   **single-highlight + keys/lock shared with ContextMenu** — one `.ui-item-highlighted` row, the CSS
   `:hover` fill is suppressed while a row is highlighted (kit `tokens.css`), arrows/Enter/typeahead,

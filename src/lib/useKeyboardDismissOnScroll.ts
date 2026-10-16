@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { IS_COARSE } from './device';
+import { scrollableAncestor } from './scrollable';
 
 /**
  * Native `UIScrollView.keyboardDismissMode = .onDrag`, brought to the touch
@@ -19,15 +20,6 @@ export function useKeyboardDismissOnScroll() {
     if (!IS_COARSE || typeof document === 'undefined') return;
     let startY: number | null = null;
     let startTarget: Element | null = null;
-
-    const scrollableAncestor = (el: Element | null): Element | null => {
-      while (el && el !== document.body) {
-        const s = getComputedStyle(el);
-        if (/(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 4) return el;
-        el = el.parentElement;
-      }
-      return null;
-    };
 
     const onTouchStart = (e: TouchEvent) => {
       startY = e.touches[0]?.clientY ?? null;
