@@ -1290,17 +1290,6 @@ unverified.
   (`docs/COLLABORATION.md` §11 context).
 - **Verify:** a real reset lands in all three inboxes, not spam.
 
-## 284. Invite flow — close the email-existence oracle (`[ ]`)
-
-**Priority: P2 — small.** Audit F12.
-
-**Request:** `invite_collaborator` returns `'added'` vs `'pending'` by whether
-the address has an account (scoped to inviters, still an enumeration surface).
-
-- **Fix:** one uniform response for both paths (pending-invite already covers
-  the accountless case); keep UI copy honest.
-- **Verify:** `supabase/tests/rls_s2.sql` — identical response for both cases.
-
 ## 285. CSP + response-hardening pass (`[ ]`)
 
 **Priority: P2.** Audit F13.
