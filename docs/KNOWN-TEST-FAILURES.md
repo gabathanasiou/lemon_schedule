@@ -209,6 +209,10 @@ race) and passed on retry (271 passed / 2 flaky / 0 failed overall; §F's
 (1 flaky, retry passed, 272 passed); solo re-run `--workers=1 --repeat-each=2` green
 (10/10). Same load-sensitivity class, still no fix needed.
 
+**2026-10-16 (roadmap-276 suite) — one flaky again:** `:27`'s second double-click
+editor (`#portal textarea` not attached in 4s), retry passed (273 passed / 1 flaky /
+7 skipped); diff = SEX parser only (no Glide/editor code). Matches this entry.
+
 ## H. glide-first-edit spec fails both attempts under full-suite load (no fix needed)
 
 **2026-10-15 — the roadmap-259 merge suite's first full run failed

@@ -1252,20 +1252,6 @@ priority order (275–278 = P1; 279–288 = P2; 289–291 = P3, and 289 is parke
 until unparked). Normal one-agent-per-item flow; close each through
 `manage-roadmap` before picking the next.
 
-## 276. SEX import/export — Unicode round-trip integrity (`[ ]`)
-
-**Priority: P1 — next hardening batch.** Audit F3.
-
-**Request:** `.sex` export corrupts non-ASCII text: record lengths count
-UTF-16 units against UTF-8 bytes written, and import decodes latin1 against a
-UTF-8 encode (`src/lib/import/sex.ts`).
-
-- **Fix:** compute record lengths in bytes; make decode/encode one encoding
-  (UTF-8 with a latin1 fallback for legacy files); keep `tools/sex_probe.py` /
-  `e2e/fixtures/lair-v10.sex` expectations honest; extend the unit round-trip
-  (`src/lib/__tests__/sexImport.test.ts`) with accented (and non-BMP) fields.
-- **Verify:** new fixture round-trips byte-identically; MSD/SEX e2e green.
-
 ## 277. Room worker — refuse unauthenticated metadata responses (`[ ]`)
 
 **Priority: P1 — XS.** Audit F5.
