@@ -1240,46 +1240,17 @@ the path. Extends **145** (the Tauri desktop shell).
   wrapper tooling); informs **269** (the in-Safari sweep still matters for
   the hosted web app); reuses the 267 safe-area mechanism.
 
-**From the 2026-10-16 production-readiness audit.** Items 274–291 below; each
+**From the 2026-10-16 production-readiness audit.** Items 275–291 below; each
 is self-contained, with findings referenced by their F-numbers (full report:
 `audits/2026-10-16-production-readiness-audit.md` — local, git-ignored, main
 working tree only). Findings F17 (MCP per-session handshake) and validation
 parity are already scoped inside item **97** — not duplicated here.
 
 **Pick-up convention (audit items):** "do the next audit item" = the
-lowest-numbered open item below, starting at **274** — filing order equals
-priority order (274 = P0; 275–278 = P1; 279–288 = P2; 289–291 = P3, and 289 is
-parked until unparked). Normal one-agent-per-item flow; close each through
+lowest-numbered open item below, starting at **275** — filing order equals
+priority order (275–278 = P1; 279–288 = P2; 289–291 = P3, and 289 is parked
+until unparked). Normal one-agent-per-item flow; close each through
 `manage-roadmap` before picking the next.
-
-## 274. Report rich text — enforce sanitization at every output boundary (`[ ]`)
-
-**Priority: P0 — before any other report work. Security-sensitive.**
-
-**Request:** stored rich text (text blocks, headers/footers, table cell bands,
-titles) must be impossible to execute. The editor's save path sanitizes; every
-other ingest path stores markup verbatim and two render paths execute it.
-
-- **Fix (render boundary — the non-negotiable layer):** sanitize the stored
-  HTML with the kit's `sanitizeRichText` (re-exported in
-  `src/lib/richText.ts`) at BOTH sinks — `reports/TextBlockView.tsx`
-  (`dangerouslySetInnerHTML` branch) and `reports/CustomTableBands.tsx`
-  (non-editable cell branch). Sanitize **before** `resolveReportTokensHtml` —
-  post-resolution sanitizing strips trusted token styles (tooltip chips use
-  `background`/`border-radius`/`padding`/`margin`, outside the kit style
-  allowlist; `src/lib/reportTokens.ts`).
-- **Defense in depth (same box):** strip on ingest — `UPDATE_REPORT_DESIGN`
-  blocks/header/footer (`src/store/actions/reports.ts`), report fields through
-  `UPDATE_PROJECT` (`src/store/actions/schedule.ts` spreads arbitrary fields),
-  and the `.lemon`/localStorage decode paths.
-- **Tests:** unit — malicious markup (script tags, event-handler attributes,
-  `javascript:` URLs) is neutralized after resolve→sanitize while legit report
-  styling survives; e2e — dispatch a hostile `UPDATE_REPORT_DESIGN` through
-  the debug bridge and assert nothing executes; run the report designer/print
-  specs for visual regressions + a rule-7 manual look at preview and print.
-- **Verify:** `npm run lint` + report e2e subset + full suite (store-touching).
-- **Relations:** pairs with **285** (CSP kills the inline-handler class).
-  Update `docs/REPORTS-DESIGNER.md` with the render-time sanitizer note.
 
 ## 275. Trash integrity — report designs (`[ ]`)
 
