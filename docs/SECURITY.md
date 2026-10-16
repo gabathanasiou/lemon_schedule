@@ -29,7 +29,7 @@ this doc is the model it checks against. Update BOTH whenever the model changes.
 | Supabase account session | browser `localStorage` (deliberate; COLLABORATION.md §11) | session tokens — the one web-storage exception |
 | Google Drive access token | `useRef` + `sessionStorage` only | no — never logged, never localStorage |
 | `ROOM_TOKEN_SECRET` | Cloudflare worker secret (`lemon-rooms`) + Supabase function secret (`room-token`) — both set 2026-10-15 | no — both server-side stores only |
-| `service_role` key | never in the client; Edge Functions only — none use it today (`room-token` reads with the caller's own token under RLS) | no |
+| `service_role` key | never in the client; Edge Functions only — `delete-account` (caller-scoped admin delete + the archive RPCs); `room-token` does NOT use it (caller's own token under RLS) | no |
 
 Rules:
 - `VITE_*` variables are **public by definition** (they ship in the bundle). Only
@@ -89,6 +89,22 @@ using the ONE shared format `src/lib/rooms/roomToken.ts`:
 - **Proof**: `workers/rooms/test/deployed-probe.mjs` — the minted token is accepted by
   the DEPLOYED worker over a real WebSocket; garbage and cross-project tokens are
   refused (1008); non-member → 403, no session → 401, CORS preflight 204.
+
+**The account-erasure + recovery surface (roadmaps 281/294, live 2026-10-16).**
+`supabase/functions/delete-account/` verifies the caller's JWT twice (gateway +
+in-function) and uses `service_role` to delete the CALLER only — never an id from the
+request body. Before `admin.deleteUser` it snapshots the full footprint via
+`archive_account` and ABORTS (500, nothing deleted) if archiving fails. Recovery is
+OPERATOR-only, 30 days — no user-facing path at all: `public.account_archive` is RLS
+deny-all with NO policies, `archive_account`/`restore_account` are SECURITY DEFINER
+(they must read `auth`) with `search_path = ''` and execute granted to `service_role`
+ONLY, and the app's "permanently" copy is unchanged. The archived row includes the
+password hash (a restore signs the person back in with their old password); a
+same-email re-registration makes the restore REFUSE rather than merge. Purged daily by
+`account-archive-purge` (`20261016142825_account_recovery_archive.sql`). **Proof**:
+`supabase/tests/rls_delete_account.sql` (cascade, unchanged) +
+`supabase/tests/rls_account_recovery.sql` (archive → delete → restore → re-delete;
+clash refused; purge).
 
 ## 4. Client rules (touching auth, network, or storage)
 

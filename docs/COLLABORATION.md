@@ -157,13 +157,17 @@ Drive/local flows untouched.
   (the ONE sign-in / create / reset surface; create-account captures the **name**
   → `handle_new_user` writes `profiles.display_name`), `AccountSettingsModal.tsx`
   (roadmap 256: Profile + Team + Sessions; the Profile tab's danger zone is
-  **Delete account** — roadmap 281, `supabase/functions/delete-account`,
+  **Delete account** — roadmap 281 + 294, `supabase/functions/delete-account`,
   deploy `npx supabase functions deploy delete-account --project-ref <ref>
-  --use-api`: admin-deletes the CALLER only, every `auth.users` FK cascades so
-  OWNED projects (+ blobs) die with the account while projects merely joined
-  stay; recovery impossible — no free-tier backups (roadmap 279); guests share
-  the path, stale reaping = roadmap 293; acceptance
-  `supabase/tests/rls_delete_account.sql`), `PasswordRecoveryModal.tsx`
+  --use-api`: snapshots the full footprint to `public.account_archive` FIRST
+  (aborts if archiving fails), then admin-deletes the CALLER only — every
+  `auth.users` FK cascades so OWNED projects (+ blobs) die with the account
+  while projects merely joined stay; the user-visible promise keeps its
+  "permanently" — no self-restore, no UI, no cancel flow: the 30-day recovery
+  window is OPERATOR-only (runbook below); catastrophic cases still have no
+  backups (roadmap 279); guests share the path, stale reaping = roadmap 293;
+  acceptance `supabase/tests/rls_delete_account.sql` +
+  `supabase/tests/rls_account_recovery.sql`), `PasswordRecoveryModal.tsx`
   (valid link → new password; dead link → message + re-request — roadmap 278).
 - `src/components/UserPresenceCluster.tsx` — the header user cluster (AppHeader,
   after undo/redo; the File menu keeps Drive items ONLY when it's absent — no
@@ -191,6 +195,27 @@ Drive/local flows untouched.
   document's title, so a peer's rename lands in place.
 - Debug bridge: `diagnostics()` adds `supabaseConfigured`, `supabaseSignedIn`,
   `projectIsOnline`, `onlineProjectCount`.
+
+**Account restore — operator runbook (roadmap 294).** A mistaken delete is
+recoverable ONLY by the operator, within 30 days — the person cannot log back
+in (the auth row is gone immediately; sessions die with it) and there is no
+self-restore surface (the RPCs are `service_role`-only; the table is RLS
+deny-all; purged daily by `account-archive-purge`). The delete snapshots the
+full footprint — `auth.users` + `auth.identities` (password hash), profile,
+owned projects, memberships, invites, share links, team + roster — before
+`admin.deleteUser`, and aborts if that snapshot fails.
+1. Find the row:
+   `select user_id, archived_at from public.account_archive where footprint -> 'users' ->> 'email' = '<their email>';`
+2. `select public.restore_account('<user_id>');` — ids are preserved, the
+   archive row is removed on success, and the person signs back in with their
+   OLD password (their old sessions stay gone).
+3. Same-email re-registration (a NEW id exists): the restore is REFUSED —
+   never a silent merge. Operator decides: delete the new account first and
+   restore the old one (the new account's data is lost), or leave the new one
+   (the archive purges after 30 days anyway). Restoring re-attaches the OLD
+   account's history — it is not a fresh trial; new-email trial farming is a
+   licensing-layer concern (`docs/LICENSING.md`), not something this archive
+   tracks beyond its window.
 
 **S2 map — Sharing, roles, invites (built + verified 2026-10-12).**
 owner/editor/viewer; email + link invites; view-only share links; Manage access
