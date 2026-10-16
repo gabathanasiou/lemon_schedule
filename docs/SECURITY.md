@@ -1,5 +1,8 @@
 # Security Model & Review — Agent Manual
 
+Public counterpart for reporters: root [`SECURITY.md`](../SECURITY.md) (GitHub
+private vulnerability reporting only — roadmap 282).
+
 Status: **read before touching auth, tokens, secrets, roles/RLS, the room worker, or
 anything network-facing.** Research basis (2026-10): OWASP WebSocket Security Cheat
 Sheet, Cloudflare Workers/Durable Objects security guidance, Supabase RLS guidance.
