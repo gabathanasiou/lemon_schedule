@@ -30,6 +30,34 @@ MCP client ──stdio──▶ tools/mcp/lemon-mcp.mjs ──WebSocket──▶
   in-module; `window.__lemonSchedule` stays gated behind DEV / `LEMON_AGENT=1`.
   The menu toggle + local WS are the opt-in.
 
+## Debug bridge (`window.__lemonSchedule`)
+
+The MCP layer rides on the app's own debug bridge (`src/lib/debugBridge.ts`),
+which also powers e2e specs. `help()` on the bridge self-documents the full
+API; `e2e/debug-bridge.spec.ts` proves it.
+
+- **Reads** (deep-cloned state truth, not DOM): `getState()`
+  (present/past/future), `getProject()`, `getVersion(id?)`, `getRows(id?)`
+  (computed stripboard rows + sections), `getSceneValues()` (every scene ×
+  column value — the Glide canvas is opaque to the DOM), `decodeProject(raw)`
+  (a persisted project string — gzip/base64 or legacy plain JSON; use for
+  persistence assertions, never `JSON.parse`), `diagnostics()`
+  (connectivity/sync snapshot), `auditScript()` (project ↔ `scriptDocument`
+  integrity), `getProjectList()`, `pastCount()` / `futureCount()`.
+- **Writes** — the SAME `Action` union the UI uses (`src/store/reducer.ts`):
+  `dispatch(action)` throws on unknown types/shape errors and flushes
+  synchronously (`flushSync` in provider); `undo()` / `redo()`; `batch(fn)` =
+  `BATCH_START/COMMIT` (one undo entry); `repairScript()` = renumber/prune/rows
+  in one batch.
+- **Observe:** `onAction(cb)` — every dispatched action (UI + bridge); returns
+  an unsubscribe.
+- **Factories:** `makeBlankScene(partial?)`, `makeBlankProject(title?)`,
+  `newId()` — build valid entities; never hand-craft state (cast referenced by
+  ID, scene→row invariant, pinned daybreak).
+- **New action types** must be added to BOTH the `Action` union AND the
+  `ACTION_TYPES` set (`src/store/reducer.ts`, "KEEP IN SYNC").
+- **Never expose the OAuth token/session** through the bridge.
+
 ## Setup
 
 1. `npm install` (dev deps `@modelcontextprotocol/sdk`, `ws`).
