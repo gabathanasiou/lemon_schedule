@@ -131,7 +131,7 @@ complete `Project` via `importProjectFromData` — no append, no review stage);
 reference parsers live in `tools/` / `e2e/fixtures/`. FDX/Fountain also retain
 the screenplay body (`ImportResult.script` → `project.scriptDocument` /
 `scriptBaseline` via `src/lib/script/` + `SET_SCRIPT_DOCUMENT`; item 123 Phase 0).
-**Script-tab perf: `docs/PERF_DIAGNOSIS.md` §Script tab** — per-scene `sceneSpans`
+**Script-tab perf: `docs/PERF-DIAGNOSIS.md` §Script tab** — per-scene `sceneSpans`
 cache, memoized renderer, `cv-chunk` sections; never re-derive the whole
 document, never window-mount the reading surface.
 
