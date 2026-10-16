@@ -55,6 +55,36 @@ function nominatimParts(addr: any): PlaceParts {
   return out;
 }
 
+/** Maps Google address components onto our structured parts. Handles both
+ *  shapes: Places API (New) `{ longText, types }` and Geocoding
+ *  `{ long_name, types }` — the field mask requests addressComponents so the
+ *  parts match (actually: exceed) Nominatim's breakdown. */
+function googleParts(components: any[] | undefined): PlaceParts {
+  const longText = (type: string) => {
+    const c = (components || []).find((c: any) => (c.types || []).includes(type));
+    return c?.longText || c?.long_name || undefined;
+  };
+  const street = [longText('street_number'), longText('route')].filter(Boolean).join(' ');
+  const out: PlaceParts = {};
+  if (street) out.address = street;
+  const city = longText('locality') || longText('postal_town');
+  if (city) out.city = city;
+  const postcode = longText('postal_code');
+  if (postcode) out.postcode = postcode;
+  const country = longText('country');
+  if (country) out.country = country;
+  return out;
+}
+
+/** A breakdown with nothing usable falls back to the joined formatted address
+ *  as the street line (keeps pre-breakdown rows and component-less hits sane). */
+function partsWithAddressFallback(parts: PlaceParts, formatted?: string): PlaceParts {
+  if (!parts.address && !parts.city && !parts.postcode && !parts.country && formatted) {
+    parts.address = formatted;
+  }
+  return parts;
+}
+
 const nominatimProvider: PlacesProvider = {
   async forwardGeocode(query) {
     try {
@@ -91,7 +121,7 @@ const nominatimProvider: PlacesProvider = {
   },
 };
 
-/** Places API (New) — displayName + formattedAddress + location, no breakdown. */
+/** Places API (New) — displayName + formattedAddress + location + parts. */
 const googleProvider: PlacesProvider = {
   async forwardGeocode(query) {
     try {
@@ -101,7 +131,7 @@ const googleProvider: PlacesProvider = {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': googleApiKey()!,
           'X-Goog-FieldMask':
-            'places.displayName,places.formattedAddress,places.location',
+            'places.displayName,places.formattedAddress,places.location,places.addressComponents',
         },
         body: JSON.stringify({ textQuery: query, pageSize: 5 }),
       });
@@ -111,7 +141,7 @@ const googleProvider: PlacesProvider = {
         lat: p.location.latitude,
         lng: p.location.longitude,
         label: [p.displayName?.text, p.formattedAddress].filter(Boolean).join(', ').slice(0, MAX_PLACE),
-        parts: { address: p.formattedAddress },
+        parts: partsWithAddressFallback(googleParts(p.addressComponents), p.formattedAddress),
       }));
     } catch {
       return [];
@@ -128,7 +158,7 @@ const googleProvider: PlacesProvider = {
         lat,
         lng,
         label: (r.formatted_address || '').slice(0, MAX_PLACE),
-        parts: { address: r.formatted_address },
+        parts: partsWithAddressFallback(googleParts(r.address_components), r.formatted_address),
       };
     } catch {
       return null;

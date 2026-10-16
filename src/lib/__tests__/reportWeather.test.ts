@@ -4,6 +4,8 @@ import {
   fetchSunWeatherBatch,
   sunWeatherFieldValue,
   getReportLocation,
+  reverseGeocodeAddress,
+  getCachedAddress,
   type ReportLocation,
 } from '../reportWeather';
 import type { ReportCtx } from '../reportData';
@@ -128,5 +130,42 @@ describe('sunWeatherFieldValue — unavailable weather', () => {
   it('keeps the dash before a fetch has resolved (not a miss)', () => {
     const dayInfo = { date: isoDay(2), locationId: 'loc-master', sceneLocations: ['Scene Place'] };
     expect(sunWeatherFieldValue(makeCtx(), dayInfo, undefined, 'weather')).toBe('—');
+  });
+});
+
+describe('reverseGeocodeAddress — through the places provider (roadmap 297)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it('uses Google Geocoding when a key is configured', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key');
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: any) => {
+      urls.push(String(input));
+      return {
+        ok: true,
+        json: async () => ({ results: [{ formatted_address: '10 Downing Street, London' }] }),
+      } as any;
+    }));
+
+    // Unique coords — the module cache is process-wide across tests.
+    await reverseGeocodeAddress(12.3456, 78.9);
+    expect(urls[0]).toContain('maps.googleapis.com');
+    expect(getCachedAddress(12.3456, 78.9)).toBe('10 Downing Street, London');
+  });
+
+  it('caches a failed fetch as null and never retries it', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key');
+    const fetchMock = vi.fn(async () => ({ ok: false, json: async () => ({}) } as any));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await reverseGeocodeAddress(23.4567, 89.1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getCachedAddress(23.4567, 89.1)).toBeNull();
+
+    await reverseGeocodeAddress(23.4567, 89.1);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // cache hit — no second call
   });
 });
