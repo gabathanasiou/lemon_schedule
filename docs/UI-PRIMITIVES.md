@@ -161,12 +161,14 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `html/body/#root` chain (`index.css`) — NEVER `h-screen`/`100vh` for it: on iPad Safari `100vh`
   is the large viewport, taller than the visible area, and the leftover document scroll range let
   any drag (the sticky header included) scroll the whole frame off — stuck after keyboard
-  sessions. The PHONE shell keeps its own `--app-h` px height (267) but is `position: fixed` — a
-  fixed box contributes NO document scroll range, so nothing (drags, overscroll chains, browser
-  focus scrolls) can move the frame, and the bleed past Safari's paint ceiling is unchanged.
-  NEVER "fix" document scroll with a JS `scrollTop = 0` pin — it fights the finger mid-drag
-  (glitch + threshold, tried 2026-10-16); remove the range instead. The `overflow: hidden` clip
-  stays removed.
+  sessions. The PHONE shell keeps `--app-h` (267) in FLOW — its paint must bleed past the layout
+  viewport (a `position: fixed` shell was tried and KILLS the bleed: iOS clips fixed paint at the
+  inner viewport) — so the range is neutralised behaviourally: `useBlockPagePan` blocks drags on
+  surfaces without their own scroller (the header included; pinch and text-selection drags pass),
+  `* { overscroll-behavior-y: contain }` (touch only) stops chains, and `useKeyboardEnsureVisible`
+  snaps keyboard focus scrolls home. NEVER "fix" document scroll with a JS `scrollTop = 0` pin —
+  it fights the finger mid-drag (glitch + threshold, tried 2026-10-16). The `overflow: hidden`
+  clip stays removed.
 - `DropdownMenu`/`DropdownItem`/`DropdownDivider`/`DropdownSubmenu` (Radix click-to-toggle;
   **single-highlight + keys/lock shared with ContextMenu** — one `.ui-item-highlighted` row, the CSS
   `:hover` fill is suppressed while a row is highlighted (kit `tokens.css`), arrows/Enter/typeahead,

@@ -1189,8 +1189,11 @@ unit on iOS 26 Safari (WebKit 301108: no unit reaches the physical bottom).
     clearance; wide modals may touch the island edge),
   - dropdown/context-menu panels opened near an edge (the panel aligns to its
     trigger — inset triggers move the panel with them),
-  - the **Project Manager boot screen** (still `fixed inset-0` — caps at the
-    layout viewport; give it the `--app-h` treatment + island-side content),
+  - the **Project Manager boot screen** — backdrop DONE 2026-10-16: flow
+    `h-full`/`h-(--app-h)` instead of `fixed inset-0` (iOS clips fixed paint
+    at the inner viewport — it left white bands) + the lockup is `fixed`
+    (viewport-anchored, visually unchanged); REMAINS: island-side content
+    insets,
   - per tab: Calendar (sidebar, day cells), Production (Day Manager header,
     Crew/Locations managers), Script (toolbar + cut affordances), Glide grids
     (headers), Reports (palettes done — verify), Design (Ribbon/Colors),

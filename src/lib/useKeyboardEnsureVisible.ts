@@ -39,11 +39,16 @@ export function focusScrollDelta(
 }
 
 /** Scroll the focused field into the keyboard-free band of the visual
- *  viewport — idempotent, a no-op whenever the field already fits. */
+ *  viewport — idempotent, a no-op whenever the field already fits. Also snaps
+ *  the DOCUMENT home: the keyboard's focus pan can scroll it (the phone
+ *  shell's bleed gives it real scroll range by design, roadmap 273) and no
+ *  finger is on that gesture — the field then rides its own scroller. */
 function ensureVisible(el: HTMLElement): void {
   const vv = window.visualViewport;
   if (!vv || vv.scale > 1) return; // no API, or pinch-zoomed — hands off (skill recipe)
   if (vv.height >= window.innerHeight - 1) return; // no keyboard covering the layout viewport
+  const root = document.scrollingElement;
+  if (root && root.scrollTop !== 0) root.scrollTop = 0;
   const delta = focusScrollDelta(el.getBoundingClientRect(), {
     top: vv.offsetTop + VISIBLE_MARGIN_PX,
     bottom: vv.offsetTop + vv.height - VISIBLE_MARGIN_PX,

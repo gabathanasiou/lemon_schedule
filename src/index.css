@@ -9,9 +9,9 @@
 }
 
 /* The app shell owns every scroll container, so html/body/#root stay
-   neutral. NEVER cap them with `height: 100%; overflow: hidden` again: on
-   iOS 26 the layout viewport ends at the top of Safari's floating bottom
-   bar, so that clip cut the whole app off exactly at the bar (roadmap 267 —
+   neutral. NEVER confine them with `overflow: hidden` again: on iOS 26 the
+   layout viewport ends at the top of Safari's floating bottom bar, so that
+   clip cut the whole app off exactly at the bar (roadmap 267 —
    a normal document like directedbygabriel.com paints under the bars because
    it has no such confinement). `overscroll-behavior: none` still stops the
    document from rubber-banding behind the shell.
@@ -28,20 +28,38 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
-/* Full-height chain (roadmap 272): the non-phone shell must equal the REAL
-   layout viewport, not `100vh` — on iPad Safari `100vh` is the large viewport,
-   taller than the visible area, which gave the DOCUMENT permanent scroll
-   range: any drag anywhere (the sticky header included) scrolled the whole
-   frame, and keyboard sessions left it stuck. Height ONLY — never re-add
-   `overflow: hidden` here (roadmap 267: that clip cut the phone app off at
-   Safari's floating toolbar; the phone shell keeps its own `--app-h` px
-   height and overflows this box visibly, exactly like before). */
-html, body, #root {
+/* Full-height chain + the root overflow rule (roadmap 273): the shell must
+   equal the REAL layout viewport, not `100vh` — on iPad Safari `100vh` is
+   the large viewport, taller than the visible area, and the leftover DOCUMENT
+   scroll range was a drag surface (dragging the sticky header scrolled the
+   whole frame away; keyboard sessions left it stuck). The phone shell stays
+   deliberately taller (`--app-h`, 267) and must PAINT past the layout
+   viewport (the bleed) — `#root { overflow: clip }` removes its content's
+   scrollable range (also the blank band pinched-zoom panning could reach)
+   while `overflow-clip-margin` keeps the paint. NEVER `overflow: hidden` on
+   html/body/#root (267: it cut the phone app off at Safari's floating
+   toolbar) and never `100vh` for the frame. */
+html, body {
   height: 100%;
+  background: #f4f4f5;
+}
+#root {
+  height: 100%;
+  overflow: clip;
+  overflow-clip-margin: 200px;
 }
 
-html, body {
-  background: #f4f4f5;
+/* Touch devices (roadmap 273): no scroll container may chain overscroll to
+   the document — the phone shell's bleed (267) legitimately gives the
+   document real scroll range, and a chained drag would pan the whole frame
+   away. `contain` stops the chain at its own scroller (inert on everything
+   that isn't one). Drags on surfaces with NO scroller are blocked by
+   `useBlockPagePan`; the keyboard's focus pan is snapped home by
+   `useKeyboardEnsureVisible`. */
+@media (pointer: coarse) {
+  * {
+    overscroll-behavior-y: contain;
+  }
 }
 
 /* App shell height on phones (roadmap 267): App.tsx sets this from the REAL

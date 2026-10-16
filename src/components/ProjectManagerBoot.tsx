@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ProjectManager } from './ProjectManager';
 import { APP_VERSION } from '../lib/appVersion';
+import { usePhoneDevice } from '../lib/device';
 import changelogRaw from '../../CHANGELOG.md?raw';
 import { parseChangelog } from '../lib/changelog';
 import WhatsNewModal from './WhatsNewModal';
@@ -9,9 +10,14 @@ import WhatsNewModal from './WhatsNewModal';
    backdrop with a soft lightening ONLY at the bottom edge and the app lockup
    bottom-right (roadmap 261 — the version + newest update open What's New).
    The .pm-boot body class scopes the one-screen modal-dim exception
-   (index.css — the item-59 dim is zeroed here so the backdrop reads crisp). */
+   (index.css — the item-59 dim is zeroed here so the backdrop reads crisp).
+   The backdrop is FLOW, not `fixed inset-0` (roadmap 273/269): a fixed box is
+   clipped to the inner viewport on iOS, which left white bands above and
+   below — the phone gets the shell's `--app-h` treatment so the backdrop
+   bleeds past the layout viewport like the app frame does. */
 export function ProjectManagerBoot({ onOpenAccount }: { onOpenAccount?: () => void }) {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const phoneDevice = usePhoneDevice();
   const latest = useMemo(() => parseChangelog(changelogRaw)[0], []);
 
   useEffect(() => {
@@ -20,7 +26,7 @@ export function ProjectManagerBoot({ onOpenAccount }: { onOpenAccount?: () => vo
   }, []);
 
   return (
-    <div className="pm-boot fixed inset-0 overflow-hidden">
+    <div className={`pm-boot relative ${phoneDevice ? 'h-(--app-h)' : 'h-full'} overflow-hidden`}>
       <div
         aria-hidden
         className="absolute inset-0 bg-zinc-950"
@@ -32,7 +38,7 @@ export function ProjectManagerBoot({ onOpenAccount }: { onOpenAccount?: () => vo
       <div className="relative h-full">
         <ProjectManager onOpenAccount={onOpenAccount} />
       </div>
-      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] flex items-baseline gap-2 select-none">
+      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] flex items-baseline gap-2 select-none">
         <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
           Lemon Schedule
         </span>
