@@ -2,6 +2,27 @@
 
 What's new in Lemon Schedule — one section per day, newest first: **Features**, **Bug fixes** and **Changes**, in plain language.
 
+## 2026-10-16 — Weather that remembers
+
+**Features**
+- **Day Manager** — the day header now carries its own weather: sunrise and sunset, the sky, and the day's high and low, with a refresh button; it refetches by itself once a forecast is a few hours old.
+- Weather is now remembered per project: once a day has passed, its sun and weather are stored on your device, so older call sheets open instantly with real values and are never looked up twice.
+- **Locations** — address search and dropped pins now resolve through Google, so street numbers, cities and postcodes are far more complete.
+- **Call Sheet** — the crew table prints and previews as one flat list, matching the crew grid on screen — no department section rows.
+- **Print** — a crew table that continues onto another page repeats its column header at the top.
+- **iPhone** — portrait has its own compact, schedule-first layout with a two-tab header and an edge-to-edge stripboard; the camera-island insets and the keyboard are handled, and landscape keeps the full app.
+- **iPad** — the browser's status bar now wears the project's chrome colour.
+- **Settings** — you can delete your account from the account settings, with a clear confirmation of what is removed.
+- **Reports** — deleted report designs can be restored from the Trash.
+
+**Bug fixes**
+- **Settings** — an expired or already-used password-reset link now offers to send a fresh one instead of leaving you at a dead end.
+- **Import / Export** — SEX files with accented characters or long names now survive a round trip.
+- **Projects** — the Shared tab keeps loading projects beyond very large memberships.
+
+**Changes**
+- Security hardening this release: the app runs under a strict content policy, invite responses never reveal whether an email has an account, and account restores are guard-railed.
+
 ## 2026-10-15 — Pointers, undo and account settings
 
 **Features**
