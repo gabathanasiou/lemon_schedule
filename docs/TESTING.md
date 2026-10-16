@@ -38,6 +38,14 @@ check the logic lives in an importable `src/lib/` module (not buried in a hook/c
 Browser-bound behaviour (canvas geometry, print/pagination, overlay morph, iPad/pen,
 focus/CSS) stays in `e2e/`.
 
+**Second pass (roadmap 295, 2026-10):** the `SET_SCRIPT_DOCUMENT` baseline rotation →
+`src/lib/__tests__/scriptDocumentStore.test.ts`; the days-off span walk + the section-date
+cursor → `daysOffSync` / `daybreakUtils` (`computeRowData`) unit tests; one duplicate
+linked-elements case retired (caps 283 → 280, `scripts/check-doc-budget.mjs`). Tests that
+*look* dispatch-only but must stay: `debug-bridge.spec.ts` (the browser bridge IS the
+subject — it cannot exist in node) and cross-surface propagation proofs (crew-link
+warnings in the Day Manager, per-user design prefs surviving reload).
+
 **Browser-only APIs block node unit tests.** `parseMsd` uses `DOMParser`, so its golden
 test stays e2e (or needs a jsdom environment). `parseSex`/`exportSex` are pure and are
 unit-tested against the same fixtures.
@@ -210,7 +218,7 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
 ## Adding a spec
 
 Adding is **deliberate, not automatic** — e2e is the expensive layer, so the suite is **capped**
-(enforced by `npm run lint`): **≤ 70 specs / ≤ 282 tests** (`scripts/check-doc-budget.mjs`).
+(enforced by `npm run lint`): **≤ 70 specs / ≤ 280 tests** (`scripts/check-doc-budget.mjs`).
 More features means more tests; unbounded growth means a prune. When a new case is needed, in
 order of preference:
 

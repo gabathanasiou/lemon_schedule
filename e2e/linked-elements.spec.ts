@@ -72,27 +72,6 @@ async function sceneCast(page: any, id: string) {
   }, id);
 }
 
-test('scene sheet: adding the anchor adds its linked elements', async ({ page }) => {
-  await openSeededProject(page);
-  const anchor = await seedLeadCast(page);
-  const { anchorId } = await seedLinks(page, anchor.id);
-  const target = await findScenes(page, anchorId);
-
-  await gotoSheet(page, target.index);
-  const withAnchor = target.cast ? `${target.cast}, ${anchorId}` : String(anchorId);
-  await setCast(page, withAnchor);
-
-  await page.waitForFunction(({ id, aId }) => {
-    const b = (window as any).__lemonSchedule;
-    const s = b.getProject().scenes.find((x: any) => x.id === id);
-    return !!s && (s.cast || '').split(',').map((x: string) => x.trim()).includes(String(aId));
-  }, { id: target.id, aId: anchorId });
-
-  // Linked element landed in the props field of the same scene.
-  const scene = await sceneCast(page, target.id);
-  expect(scene.props.split(',').map((x: string) => x.trim())).toContain('LINKED RIBBON');
-});
-
 test('scene sheet: removing an anchor with links warns — cancel keeps it, confirm cascades', async ({ page }) => {
   await openSeededProject(page);
   const anchor = await seedLeadCast(page);

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   addDays,
   buildNonShootSet,
+  computeRowData,
   advanceDateCursor,
   formatElapsedCaption,
   renumberRows,
@@ -40,6 +41,38 @@ describe('advanceDateCursor', () => {
     const skip = (d: string) => d === '2026-08-17' || d === '2026-08-18';
     expect(advanceDateCursor('2026-08-16', skip)).toBe('2026-08-16');
     expect(advanceDateCursor('2026-08-17', skip)).toBe('2026-08-19');
+  });
+});
+
+// The section date cursor (roadmap 54 invariant, moved down from the retired
+// production-dates e2e case): sections are assigned dates from the production
+// start, advancing one day per production day, and a statused date is NEVER
+// landed on — the pinned anchor shares Day 1's date and never advances it.
+describe('computeRowData section dates', () => {
+  const db = (id: string, pinned = false): ScheduleRow => ({ id, type: 'DAYBREAK', containerId: 1, order: 0, pinned, daybreakCallTime: '08:00' });
+  const sceneRow = (id: string): ScheduleRow => ({ id, type: 'SCENE', containerId: 1, order: 0, sceneId: `s-${id}`, estimatedDuration: 30 });
+
+  it('starts Day 1 at the production start and advances one day per production day', () => {
+    const rows = [db('pinned', true), sceneRow('r1'), db('db1'), sceneRow('r2'), db('db2')];
+    const { sections } = computeRowData(rows, [], '2026-08-10', new Set());
+    expect(sections.map(s => s.date)).toEqual(['2026-08-10', '2026-08-10', '2026-08-11']);
+    expect(sections.map(s => s.label)).toEqual(['', 'Day 1', 'Day 2']);
+    expect(sections.map(s => s.chronoDay)).toEqual([0, 1, 2]);
+    expect(sections.map(s => s.isPinned)).toEqual([true, false, false]);
+  });
+
+  it('skips statused dates — a production day never sits on one', () => {
+    const rows = [db('pinned', true), sceneRow('r1'), db('db1'), sceneRow('r2'), db('db2'), sceneRow('r3'), db('db3')];
+    const nonShoot = new Set(['2026-08-11']);
+    const { sections, sectionDateMap } = computeRowData(rows, [], '2026-08-10', nonShoot);
+    expect(sections.map(s => s.date)).toEqual(['2026-08-10', '2026-08-10', '2026-08-12', '2026-08-13']);
+    expect(sectionDateMap.get(0)).toBe('2026-08-10');
+  });
+
+  it('a status on the start date pushes the pinned anchor and Day 1 together', () => {
+    const rows = [db('pinned', true), sceneRow('r1'), db('db1')];
+    const { sections } = computeRowData(rows, [], '2026-08-10', new Set(['2026-08-10', '2026-08-11']));
+    expect(sections.map(s => s.date)).toEqual(['2026-08-12', '2026-08-12']);
   });
 });
 

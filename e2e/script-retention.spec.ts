@@ -20,14 +20,6 @@ const FDX_A = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 </Content>
 </FinalDraft>`;
 
-const FDX_B = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
-<FinalDraft DocumentType="Script" Template="No" Version="1">
-<Content>
-<Paragraph Type="Scene Heading" Number="1"><Text>EXT. FIELD - DAY</Text><SceneProperties Length="2.0"/></Paragraph>
-<Paragraph Type="Action"><Text>GEORGE runs.</Text></Paragraph>
-</Content>
-</FinalDraft>`;
-
 // A tagged Final Draft run (roadmap 132 Part B): the tagged words belong to the
 // screenplay prose AND resolve to a breakdown element. Regression guard for the
 // old bug that dropped TagNumber text from the retained body.
@@ -95,21 +87,6 @@ test.describe('script body retention (roadmap 123 Phase 0)', () => {
     expect((await bridgeProject(page)).scriptDocument).toBeUndefined();
     await page.evaluate(() => (window as any).__lemonSchedule.redo());
     expect((await bridgeProject(page)).scriptDocument.scenes).toHaveLength(2);
-  });
-
-  test('a second import rotates the previous body into the baseline', async ({ page }) => {
-    await openSeededProject(page);
-    await importFile(page, writeFdx('lemon-script-a2.fdx', FDX_A));
-    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 2)");
-
-    await importFile(page, writeFdx('lemon-script-b.fdx', FDX_B));
-    await waitForPersistedProject(page, "(p.scriptDocument && p.scriptDocument.scenes.length === 1)");
-
-    const project = await bridgeProject(page);
-    expect(project.scriptDocument.scenes[0].blocks[0]).toEqual(['heading', 'EXT. FIELD - DAY']);
-    // The baseline is the PREVIOUS body (the conflict reference for item 38).
-    expect(project.scriptBaseline.scenes).toHaveLength(2);
-    expect(project.scriptBaseline.scenes[0].blocks[0]).toEqual(['heading', 'INT. KITCHEN - DAY']);
   });
 
   test('tagged FDX runs stay in the retained body (roadmap 132 Part B)', async ({ page }) => {
