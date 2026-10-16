@@ -261,7 +261,7 @@ export const CalendarTab: React.FC<{
   const marqueeMode = useMarqueeMode();
   const calendarGridRef = useRef<HTMLDivElement>(null);
 
-  // Follow completeness (roadmap 229, docs COLLABORATION §9): the Calendar
+  // Follow completeness (roadmap 229, docs/PRESENCE.md): the Calendar
   // mirrors its scroll + its Strips/Events sub-view to followers; a sub-view
   // change or a month jump exits follow — your own scroll does NOT (user
   // decision 2026-10-12, corrected same day).

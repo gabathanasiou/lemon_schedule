@@ -145,9 +145,9 @@ copies:
   `presence.test.ts`); the two-window harness (`workers/rooms/test/two-window-repro.mjs`, the
   selection section) drives a real drag-select in one window and asserts the other receives the
   frame AND paints the peer colour on the grid canvas (clears on the tab switch); the visual
-  look is a rule-7 manual pass (docs/COLLABORATION.md §9).
+  look is a rule-7 manual pass (docs/PRESENCE.md).
 - DOM surfaces (stripboard rows, Calendar cards, Report Designer blocks/columns, Ribbon Designer
   cells — roadmap 234 stage 2) ride the SAME `selection` frame with an item-id list and their own
   renderer (`PeerItemOutlines`, `src/lib/itemSelection.ts`); this hook owns the grid rectangle half
-  only — see docs/COLLABORATION.md §9 (DOM surfaces).
+  only — see docs/PRESENCE.md §Peer selection highlights (DOM surfaces).
 

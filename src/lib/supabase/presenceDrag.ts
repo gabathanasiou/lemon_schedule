@@ -4,7 +4,7 @@
  *
  * Split out of `presence.ts` (which had grown past the monolith threshold)
  * and re-exported there, so `presence.ts` stays the ONE import seam for the
- * channel, the provider and the surfaces. Rules (docs/COLLABORATION.md §9):
+ * channel, the provider and the surfaces. Rules (docs/PRESENCE.md):
  * ephemeral only — never persisted, never a room action, never `track()`;
  * the claim rides its own `drag` broadcast and the POSITION rides the existing
  * `cursor` frames (`drag: true`), so a drag costs ~3-4 small messages total.

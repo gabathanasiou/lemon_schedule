@@ -23,7 +23,7 @@ function peerAccount(peer: PresencePeer): SupabaseAccount {
 }
 
 /** The Google Drive sign-in surface (moved out of the File menu when the
- *  cluster ships — docs/COLLABORATION.md §9). Same shape AppHeader receives. */
+ *  cluster ships — docs/PRESENCE.md). Same shape AppHeader receives. */
 interface DriveAuth {
   isSignedIn: boolean;
   user?: { name?: string } | null;
@@ -46,7 +46,7 @@ interface UserPresenceClusterProps {
   className?: string;
 }
 
-/** The header user cluster (roadmap 229 S1, docs/COLLABORATION.md §9).
+/** The header user cluster (roadmap 229 S1, docs/PRESENCE.md).
  *  ONE component for account identity: signed out → muted Sign in avatar;
  *  signed in → avatar opening the account menu (Collaborate + sign out).
  *  Google Drive connect/disconnect lives here too (the File menu keeps

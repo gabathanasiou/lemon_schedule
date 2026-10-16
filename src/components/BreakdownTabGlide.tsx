@@ -455,7 +455,7 @@ export function GlideBreakdownTab({
     return registerPresenceGridScope('breakdown-glide', scope);
   }, []);
 
-  // Follow completeness (roadmap 229, docs COLLABORATION §9): mirror the grid
+  // Follow completeness (roadmap 229, docs/PRESENCE.md): mirror the grid
   // scroll — the first visible cell (scene id + column key, never pixels).
   // Your own scroll never ends follow (user decision 2026-10-12).
   const glideAnchorRef = useRef<{ rowKey: string; colKey: string } | null>(null);

@@ -52,7 +52,7 @@ function expiryIso(value: 'never' | '7' | '30'): string | null {
 }
 
 /**
- * The User & sharing panel (roadmap 229 S2, docs/COLLABORATION.md §9):
+ * The User & sharing panel (roadmap 229 S2, docs/COLLABORATION.md §6 S2 map + docs/PRESENCE.md §Header cluster):
  * Who can access (Only invited people / Anyone with the link), per-person
  * Permissions (Can make changes / View only), Allow others to invite,
  * Copy Link, Stop Sharing. One instance, driven by the OPEN shared project;
