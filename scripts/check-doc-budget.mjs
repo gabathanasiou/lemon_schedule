@@ -225,7 +225,10 @@ const E2E_SPEC_CAP = 70;
 // only be driven through the real grid overlay.
 // 282 → 283: roadmap 263 — tab-switch perf harness (click→surface + pill glide
 // frames); the before/after evidence IS a real client with the pill on screen.
-const E2E_TEST_CAP = 283;
+// 283 → 284: roadmap 274 — report rich text P0: hostile stored markup only
+// executes in a browser, so the ingest strip and the two render sinks need a
+// real client (the node unit layer has no DOM to sanitize with).
+const E2E_TEST_CAP = 284;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,
