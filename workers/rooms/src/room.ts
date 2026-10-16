@@ -209,8 +209,12 @@ export class Room extends DurableObject<Env> {
   // ---- sockets -------------------------------------------------------------
 
   async fetch(request: Request): Promise<Response> {
+    // Roadmap 277 (audit F5): only a real WebSocket upgrade is answered — a
+    // plain GET used to return {room, initialized, rev} before any auth, a
+    // project-existence/activity oracle. /health (src/index.ts) stays the one
+    // auth-less endpoint.
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
-      return this.json({ room: this.projectId, initialized: this.present !== null, rev: this.headRev });
+      return new Response('websocket upgrade required', { status: 426, headers: SECURITY_HEADERS });
     }
     const match = new URL(request.url).pathname.match(/\/room\/([^/]+)$/);
     if (!match) return new Response('bad room path', { status: 400, headers: SECURITY_HEADERS });
@@ -743,12 +747,6 @@ export class Room extends DurableObject<Env> {
       .map((o) => o.trim())
       .filter(Boolean);
     return list.includes(origin);
-  }
-
-  private json(data: unknown): Response {
-    return new Response(JSON.stringify(data), {
-      headers: { 'content-type': 'application/json', ...SECURITY_HEADERS },
-    });
   }
 
   private send(ws: WebSocket, msg: RoomServerMessage): void {

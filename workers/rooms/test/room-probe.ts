@@ -11,10 +11,10 @@
  * Flow: A (editor) seeds the room via init → acts; B (editor) joins and must land
  * on A's state by folding snapshot + replay; B acts and A must see it; a viewer is
  * rejected; a reconnect must replay everything; the security negatives (fake origin,
- * no auth, wrong room, oversized frame, message flood) must be refused; HTTP info
- * reports the head rev; and a dedicated room proves per-user undo/redo (rebase via
- * fresh welcome, whole-batch units, empty-stack + viewer refusals). Exits non-zero
- * on the first failure.
+ * no auth, wrong room, oversized frame, message flood, plain-GET metadata) must be
+ * refused; room info over the WebSocket reports the head rev; and a dedicated room
+ * proves per-user undo/redo (rebase via fresh welcome, whole-batch units, empty-stack
+ * + viewer refusals). Exits non-zero on the first failure.
  */
 import WebSocket from 'ws';
 import { makeBlankProject, reducer, type Action, type State } from '../../../src/store/reducer';
@@ -162,6 +162,18 @@ function expectRejectedOrigin(): Promise<boolean> {
   });
 }
 
+/** Head rev + initialized over the wire (roadmap 277 — the plain-GET metadata
+ *  endpoint is refused with 426). A viewer hello reads without writing; an
+ *  empty room answers needInit. */
+async function roomInfo(projectId: string): Promise<{ rev: number; initialized: boolean }> {
+  const c = new Client(BASE.replace(/^http/, 'ws') + `/room/${projectId}`);
+  await c.open();
+  c.send({ t: 'hello', token: 'dev:probe:viewer', projectId });
+  const msg = await c.waitFor((m) => m.t === 'welcome' || m.t === 'needInit');
+  c.close();
+  return msg.t === 'welcome' ? { rev: msg.rev, initialized: true } : { rev: 0, initialized: false };
+}
+
 async function main(): Promise<void> {
   // The shared launcher brings the worker up (or reuses the one already
   // serving the port — parallel dev servers share ONE worker, roadmap 246).
@@ -170,6 +182,11 @@ async function main(): Promise<void> {
     if (!ready.ok) throw new Error(`room worker unavailable: ${ready.error}`);
   }
   await waitForServer();
+
+  // --- HTTP surface (roadmap 277): plain GET refused, /health stays open ---
+  check('plain GET: room metadata refused (426)', (await fetch(`${BASE}/room/${PROJECT_ID}`)).status === 426);
+  check('health: still auth-less and open', (await fetch(`${BASE}/health`)).status === 200);
+
   const project = makeBlankProject('Probe');
 
   // --- A seeds the room and acts ---
@@ -262,9 +279,9 @@ async function main(): Promise<void> {
   const limited = await f.waitFor((m) => m.t === 'error' && m.message === 'rate limited');
   check('F: message flood rate limited', limited.t === 'error' && limited.message === 'rate limited', limited);
 
-  // --- HTTP info reflects head rev ---
-  const info = (await (await fetch(`${BASE}/room/${PROJECT_ID}`)).json()) as { rev: number; initialized: boolean };
-  check('HTTP info: rev 3, initialized', info.rev === 3 && info.initialized === true, info);
+  // --- room info over the wire reflects head rev (plain GET refused, 277) ---
+  const info = await roomInfo(PROJECT_ID);
+  check('room info (ws): rev 3, initialized', info.rev === 3 && info.initialized === true, info);
 
   // --- per-user undo/redo (a dedicated room keeps the revs above stable) ---
   const UNDO_ROOM = `${PROJECT_ID}-undo`;
@@ -380,7 +397,7 @@ async function main(): Promise<void> {
     batchState && fold(batchState, batchRedone).title
   );
 
-  const undoInfo = (await (await fetch(`${BASE}/room/${UNDO_ROOM}`)).json()) as { rev: number };
+  const undoInfo = await roomInfo(UNDO_ROOM);
   check('undo room info: head rev 11 after undo + batch redo', undoInfo.rev === 11, undoInfo);
 
   // --- blocked undo + redo safety (roadmap 242) ------------------------------
@@ -390,7 +407,7 @@ async function main(): Promise<void> {
   // bump, no broadcast, no redo entry.
   const BLOCKED_ROOM = `${PROJECT_ID}-blocked`;
   const BLOCKED_WS_URL = BASE.replace(/^http/, 'ws') + `/room/${BLOCKED_ROOM}`;
-  const blockedInfo = async () => (await (await fetch(`${BASE}/room/${BLOCKED_ROOM}`)).json()) as { rev: number };
+  const blockedInfo = () => roomInfo(BLOCKED_ROOM);
   const ka = new Client(BLOCKED_WS_URL);
   await ka.open();
   ka.send({ t: 'hello', token: 'dev:alice:editor', projectId: BLOCKED_ROOM });

@@ -60,12 +60,16 @@ the room:
   persisted nor broadcast.
 - **Logging**: security events (`auth failed`, `origin rejected`, `rate limited`,
   oversized) log the event only — never tokens or message contents.
+- **HTTP surface**: only a WebSocket upgrade is answered — any other request to
+  `/room/<id>` is refused with `426` before any state is read (roadmap 277: a plain
+  `GET` used to return `{room, initialized, rev}`, a project-existence/activity oracle).
 - **Health**: `GET /health` (the local dev launcher's liveness probe, roadmap 246)
   is deliberately auth-less and data-free (`{ ok, service }`) and never reaches a
   Durable Object — it exists only so `tools/rooms-dev.mjs` can tell "worker up"
   from "port taken".
-- **Proof**: `workers/rooms/test/room-probe.ts` (31 checks) includes the negatives —
-  fake origin, no auth, wrong room, oversized frame, message flood.
+- **Proof**: `workers/rooms/test/room-probe.ts` (49 checks) includes the negatives —
+  fake origin, no auth, wrong room, oversized frame, message flood, plain-GET
+  metadata refused with 426.
 
 **The `room-token` issuance path (deployed 2026-10-15, roadmap 229).** The Supabase
 Edge Function `supabase/functions/room-token/index.ts` mints what the worker verifies,

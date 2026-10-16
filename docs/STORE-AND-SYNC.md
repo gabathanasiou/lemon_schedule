@@ -266,7 +266,7 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   `workers/rooms/test/deployed-probe.ts` (run with `npx tsx` + `ROOMS_URL`) — mint → real WS hello
   accepted; the REAL `RoomClient` seeds/joins/syncs/undoes across two real accounts; a REAL 401
   recovers to `open` with one note; garbage/cross-project tokens refused; 403/401/CORS gates.
-  Local probes: `workers/rooms/test/room-probe.ts` (room, 47 checks — incl. the blocked-undo room
+  Local probes: `workers/rooms/test/room-probe.ts` (room, 49 checks — incl. the blocked-undo room
   + redo safety, roadmap 242) and `room-client-probe.ts` (the real `RoomClient`, 17 checks)
   against `wrangler dev`.
 - **Room-token Edge Function gotchas.** Deploys go through the remote Deno bundler
