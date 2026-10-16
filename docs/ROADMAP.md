@@ -1040,11 +1040,13 @@ the home for support-style items later.
 
 - **Where:** the `Help` submenu in `src/components/AppHeader.tsx` (next to
   What's New) — the submenu was introduced (260) for exactly this.
-- **Open questions to settle at build time:** destination (mailto:, a hosted
-  form, GitHub issues once the repo is public, or a Supabase-backed inbox?);
-  what context to attach (app version `APP_VERSION`, the open tab/screen —
-  never project contents or tokens); whether a signed-in account prefills
-  identity. No secrets in the client.
+- **Destination — decided (2026-10-16): GitHub issues** (a new-issue link from
+  the Help submenu). The repo is private today and goes public eventually
+  (user plan — eventual open-source release); until then the link only works
+  for the owner, so ship the entry with/after the public launch.
+- **Still open at build time:** what context to attach (app version
+  `APP_VERSION`, the open tab/screen — never project contents or tokens);
+  whether a signed-in account prefills identity. No secrets in the client.
 - **Relations:** `extends` **260** (File → Help submenu introduced there).
 
 ## 267. iPhone portrait — Schedule-first chrome, edge-to-edge stripboard (PoC, `[~]`)
