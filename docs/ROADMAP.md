@@ -1215,3 +1215,22 @@ ever return to.
 - **Verify:** a dry-run report of what would be reaped + one live sweep on a
   scratch project.
 - **Relations:** extends **281** (the deletion path ships there).
+
+## 297. Crew table — repeat the column header on page breaks (`[~]`)
+
+**Requested 2026-10-16 (user):** the crew table should repeat its column header
+at the top of every continuation page — a toggle whose default is ON.
+
+- Regular `table` blocks already repeat their `.rm-header` on continuation
+  chunks (paginator `pageStartExtra` + `repeatHeader`); the day grids did not
+  (their header is a plain `.rm-row`, no `.rm-header` unit). The crew table —
+  now ONE flat table (**225**) — gets the same treatment: the head row is
+  marked `data-rm-header`, continuation rows reserve its height, fragment
+  renders re-emit it; `repeatHeader !== false` (default on), chrome →
+  Content → Header → "Repeat on each page".
+- `callTimes`/`precalls` stay unchanged — their per-category/per-department
+  heads make "the header" ambiguous; revisit only if asked.
+- **Verify:** e2e `report-page-breaks.spec.ts` (continuation page carries the
+  header above the continuing rows) + rule-7 manual on print/preview.
+- **Relations:** extends **225**; mirrors **140**'s `titleRepeat` mechanism;
+  inherited by the **212**/**142** canvases.

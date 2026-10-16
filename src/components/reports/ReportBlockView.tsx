@@ -352,7 +352,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
       case 'callTimes':
       case 'crewTable':
       case 'precalls': {
-        return <ReportGridBlock block={block} ctx={ctx} fieldMap={fieldMap} dayItem={item} hint={hint} mode={mode} showKeys={showKeys} rowRange={rowRange} onPatchBlock={onPatchBlock} showUnresolved={showUnresolved} parentCollection={parentCollection} title={renderTitle(block, showBlockTitle)} />;
+        return <ReportGridBlock block={block} ctx={ctx} fieldMap={fieldMap} dayItem={item} hint={hint} mode={mode} showKeys={showKeys} rowRange={rowRange} repeatTableHeader={repeatTableHeader} onPatchBlock={onPatchBlock} showUnresolved={showUnresolved} parentCollection={parentCollection} title={renderTitle(block, showBlockTitle)} />;
       }
       case 'callSheetEdit': {
         // The per-day editable region of a call-sheet template. A host scoped
@@ -481,7 +481,7 @@ const RepeatItemChildren: React.FC<{
         const part = parts ? parts.find(p => p.childIndex === ci) : undefined;
         if (parts && !part) return null;
         return (
-          <div key={cb.id} className="rm-frag-child" data-rm-kind={splittableKind(cb.type)} data-rm-title-repeat={cb.titleRepeat ? '1' : undefined} style={{ marginTop: blockGapMargin(cb, ci === 0) }}>
+          <div key={cb.id} className="rm-frag-child" data-rm-kind={splittableKind(cb.type)} data-rm-title-repeat={cb.titleRepeat ? '1' : undefined} data-rm-header-repeat={cb.repeatHeader === false ? '0' : undefined} style={{ marginTop: blockGapMargin(cb, ci === 0) }}>
             <ReportBlockView
               block={cb}
               ctx={ctx}

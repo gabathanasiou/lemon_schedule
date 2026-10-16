@@ -29,6 +29,9 @@ interface ReportGridBlockProps {
   mode?: ReportViewMode;
   showKeys?: boolean;
   rowRange?: [number, number];
+  /** Item 297: re-render the crew table's column header on a continuation
+   *  fragment (its height was budgeted by the paginator). */
+  repeatTableHeader?: boolean;
   onPatchBlock?: (patch: Partial<ReportBlock>) => void;
   showUnresolved?: boolean;
   parentCollection?: ReportCollection;
@@ -42,7 +45,7 @@ type FlatRow =
   | { kind: 'key'; group: ReportGridGroup }
   | { kind: 'data'; group: ReportGridGroup; item: ReportCollectionItem };
 
-const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap, dayItem, hint, mode, showKeys, rowRange, onPatchBlock, showUnresolved, parentCollection, title }) => {
+const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap, dayItem, hint, mode, showKeys, rowRange, repeatTableHeader, onPatchBlock, showUnresolved, parentCollection, title }) => {
   const collection = isReportGridCollection(block.collection) ? block.collection : null;
   const baseStyle = getReportBlockBaseStyle(block, ctx.project);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };
@@ -107,10 +110,17 @@ const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap,
     for (const item of group.items) flat.push({ kind: 'data', group, item });
   }
   const shown = rowRange ? flat.slice(rowRange[0], rowRange[1]) : flat;
+  // Item 297 — a crew-table continuation fragment re-renders its column
+  // header (the flat table's head is flat[0]); the paginator budgeted its
+  // height on the row that opened the page. Fragments holding row 0 already
+  // include the head — never double it.
+  const repeatHead = repeatTableHeader === true && block.type === 'crewTable' && !!rowRange && rowRange[0] > 0 && rowRange[1] > rowRange[0];
+  const headUnit = repeatHead ? flat.find(r => r.kind === 'head') : undefined;
+  const rowsToRender = headUnit ? [headUnit, ...shown] : shown;
 
   const table = (
     <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>
-      {shown.map((row, i) => {
+      {rowsToRender.map((row, i) => {
         if (row.kind === 'group') {
           return (
             <div key={`g${i}`} className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid', marginTop: row.gap }}>
@@ -120,7 +130,7 @@ const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap,
         }
         if (row.kind === 'head') {
           return (
-            <div key={`h${i}`} className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <div key={`h${i}`} className="rm-row" data-rm-header={block.type === 'crewTable' ? '1' : undefined} style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
               {row.group.columns.map(c => (
                 <div key={c.field} style={{ ...headerStyle, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
                   {c.label}

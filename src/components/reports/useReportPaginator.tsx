@@ -77,6 +77,10 @@ interface FlatUnit {
    *  included) — the fragment holding it renders the title. The title can
    *  therefore never be separated from the block's first content. */
   titleOn?: boolean;
+  /** Crew table (roadmap 297): the block's header-repeat policy — `true` when
+   *  the toggle is on (default), `false` when off; undefined for every other
+   *  block. The assembly derives `repeatHeader` from it at any nesting depth. */
+  gridHeaderRepeat?: boolean;
   /** Unit must START a new page (a pageBreak exists inside an unsplittable
    *  container — the whole container moves to the next page). */
   breakBefore?: boolean;
@@ -125,6 +129,14 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
   if (first) {
     const headerEl = first.querySelector(':scope > .rm-header') as HTMLElement | null;
     const headerH = headerEl ? headerEl.offsetHeight : 0;
+    // Crew table (roadmap 297): its header is a plain `.rm-row` (local 0,
+    // marked `data-rm-header`) — opt-out via `data-rm-header-repeat="0"` (the
+    // toggle; default on). Continuation rows reserve its height like a table's
+    // repeated `.rm-header`, and the renderer re-renders it from `repeatHeader`.
+    const gridHeaderEl = headerEl ? null : (first.querySelector(':scope > [data-rm-header]') as HTMLElement | null);
+    const gridRepeatOn = !!gridHeaderEl && scope.getAttribute('data-rm-header-repeat') !== '0';
+    const gridHeaderH = gridHeaderEl && gridRepeatOn ? gridHeaderEl.offsetHeight : 0;
+    const repeatHeadH = headerEl ? headerH : gridHeaderH;
     const rows = Array.from(first.children).filter(c => c.classList.contains('rm-row')) as HTMLElement[];
     const units = rows.map((el, i): FlatUnit => ({
       h: el.offsetHeight,
@@ -138,8 +150,10 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
       // does too: if it opens a page its header unit stayed on the
       // previous page, and `rowRange[0] === 0` still renders the header (an
       // orphaned header — reserved here so the budget stays honest). local -1
-      // marks the header unit (folded into row ranges below).
-      pageStartExtra: headerH + (titleRepeat ? titleH : 0),
+      // marks the header unit (folded into row ranges below). The crew table's
+      // head row (local 0, `gridHeaderEl`) renders itself — it pays 0.
+      pageStartExtra: (gridHeaderEl && el === gridHeaderEl ? 0 : repeatHeadH) + (titleRepeat ? titleH : 0),
+      gridHeaderRepeat: gridHeaderEl ? gridRepeatOn : undefined,
       el,
       local: i,
       blockEl,
@@ -385,7 +399,8 @@ function buildChildPart(
     if (locals.length === 0) return { childIndex: child, tableRowRange: hasHeader ? [0, 0] : [1, 0], repeatTableHeader: false, showTitle };
     const min = Math.min(...locals);
     const max = Math.max(...locals);
-    return { childIndex: child, tableRowRange: [min, max + 1], repeatTableHeader: !hasHeader && min > 0, showTitle };
+    const gridRepeat = childUnits.find(u => u.gridHeaderRepeat !== undefined)?.gridHeaderRepeat;
+    return { childIndex: child, tableRowRange: [min, max + 1], repeatTableHeader: gridRepeat === false ? false : (!hasHeader && min > 0), showTitle };
   }
   return { childIndex: child, showTitle };
 }
@@ -480,6 +495,9 @@ function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string,
       const pageUnits = page.map(k => flat[k]).filter(u => u.blockEl === blockEl && u.unitKind !== 'break');
       const pageRows = pageUnits.filter(u => u.local >= 0);
       const pageHasHeader = pageUnits.some(u => u.local === -1);
+      // Crew table (roadmap 297): the toggle-off policy forces `repeatHeader`
+      // false at every depth (its head unit has no local -1).
+      const gridRepeat = flat.find(u => u.blockEl === blockEl && u.gridHeaderRepeat !== undefined)?.gridHeaderRepeat;
       const minRow = pageRows.length > 0 ? pageRows[0].local : -1;
       const maxRow = pageRows.length > 0 ? pageRows[pageRows.length - 1].local : -1;
       const rowTotal = flat.filter(u => u.blockEl === blockEl && u.local >= 0).length;
@@ -491,7 +509,7 @@ function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string,
         // unbudgeted header.
         const rowStart = pageRows.length > 0 ? Math.max(0, minRow) : (pageHasHeader ? 0 : 1);
         const rowEnd = pageRows.length > 0 ? maxRow + 1 : 0;
-        out.push({ kind: 'table', block, rowStart, rowEnd, repeatHeader: !pageHasHeader && minRow > 0, showTitle: pageUnits.some(u => u.titleOn) });
+        out.push({ kind: 'table', block, rowStart, rowEnd, repeatHeader: gridRepeat === false ? false : (!pageHasHeader && minRow > 0), showTitle: pageUnits.some(u => u.titleOn) });
       }
     } else if (kind === 'ribbon') {
       out.push({ kind: 'ribbon', block, unitStart: first.local, unitEnd: last.local + 1 });
@@ -610,7 +628,7 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
           )}
           <div className="rm-body">
             {items.map((it, k) => (
-              <div key={it.id} className="rm-block" data-rm-kind={splittableKind(it.type)} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0} data-rm-title-repeat={it.titleRepeat ? '1' : undefined} style={{ marginTop: blockGapMargin(it, k === 0) }}>
+              <div key={it.id} className="rm-block" data-rm-kind={splittableKind(it.type)} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0} data-rm-title-repeat={it.titleRepeat ? '1' : undefined} data-rm-header-repeat={it.repeatHeader === false ? '0' : undefined} style={{ marginTop: blockGapMargin(it, k === 0) }}>
                 <ReportBlockView block={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length, callSheetBlocks }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
               </div>
             ))}

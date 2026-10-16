@@ -1066,7 +1066,20 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       titleSection,
     );
   } else if (block.type === 'crewTable') {
-    push(null, titleSection);
+    push(null,
+      <ContentRow key="repeatHeader" label="Header">
+        <EditorGroup className={panel ? 'w-full' : undefined}>
+          <EditorCheckbox
+            className={panel ? 'flex-1' : undefined}
+            checked={block.repeatHeader !== false}
+            disabled={disabled}
+            onChange={on => onPatch({ repeatHeader: on })}
+            label="Repeat on each page"
+          />
+        </EditorGroup>
+      </ContentRow>,
+      titleSection,
+    );
   } else if (block.type === 'precalls') {
     // "All" mode can be narrowed to a picked set — the block prints only the
     // ticked departments (undefined = every department on the day).
