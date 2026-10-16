@@ -105,9 +105,23 @@ interface ParsedSex {
 
 // ------------------------------------------------------------------ import
 
+// Text encoding (roadmap 276, audit F3): export writes UTF-8, and modern
+// files are UTF-8 — decode as UTF-8 first; legacy MMS/EP exports predate that
+// and carry single-byte (latin1/cp1252) text, so invalid UTF-8 falls back to
+// latin1 per string. One rule for labels, scene fields and element text.
+const utf8Fatal = new TextDecoder('utf-8', { fatal: true });
+const latin1 = new TextDecoder('latin1');
+function decodeText(bytes: Uint8Array): string {
+  try {
+    return utf8Fatal.decode(bytes);
+  } catch {
+    return latin1.decode(bytes);
+  }
+}
+
 export function parseSex(buffer: ArrayBuffer, fallbackTitle?: string): Project {
   const bytes = new Uint8Array(buffer);
-  const head = new TextDecoder('latin1').decode(bytes.subarray(0, 8));
+  const head = decodeText(bytes.subarray(0, 8));
   if (!head.startsWith(SEX_MAGIC)) {
     throw new Error('Not a Scheduling Exchange (.sex) file — missing SSI* header.');
   }
@@ -129,7 +143,7 @@ function parseRecords(bytes: Uint8Array): ParsedSex {
   while (pos < bytes.length && bytes[pos] !== 0) {
     const end = bytes.indexOf(0, pos);
     if (end === -1) break;
-    const label = new TextDecoder('latin1').decode(bytes.subarray(pos, end));
+    const label = decodeText(bytes.subarray(pos, end));
     if (label && label !== '#') categories.push(label);
     pos = end + 1;
   }
@@ -147,16 +161,15 @@ function parseRecords(bytes: Uint8Array): ParsedSex {
       let cursor = 1; // skip the leading counter byte
       let j = cursor;
       while (j < payload.length && payload[j] !== 0x09) j++;
-      const scriptPage = new TextDecoder('latin1').decode(payload.subarray(cursor, j));
+      const scriptPage = decodeText(payload.subarray(cursor, j));
       cursor = j + 1;
       j = cursor;
       while (j < payload.length && payload[j] !== 0x09) j++;
-      const sceneNum = new TextDecoder('latin1').decode(payload.subarray(cursor, j));
+      const sceneNum = decodeText(payload.subarray(cursor, j));
       cursor = j + 1;
       let slugEnd = cursor;
       while (slugEnd < payload.length && payload[slugEnd] !== 0x09) slugEnd++;
-      const slugline = new TextDecoder('latin1')
-        .decode(payload.subarray(cursor, slugEnd)).trim();
+      const slugline = decodeText(payload.subarray(cursor, slugEnd)).trim();
       scenes.push({
         sceneNumber: sceneNum,
         scriptPageNumbers: scriptPage || undefined,
@@ -170,7 +183,7 @@ function parseRecords(bytes: Uint8Array): ParsedSex {
       const flag = payload[2];
       let textEnd = 3;
       while (textEnd < payload.length && payload[textEnd] !== 0) textEnd++;
-      const text = new TextDecoder('latin1').decode(payload.subarray(3, textEnd));
+      const text = decodeText(payload.subarray(3, textEnd));
       const list = elementsByScene.get(sidx) || [];
       list.push([flag, text]);
       elementsByScene.set(sidx, list);
@@ -451,12 +464,15 @@ const BUILTIN_KEYS = new Set([
       add(categoryLabelFor(project, 'notes'), scene.notes.trim());
     }
     for (const [flag, name] of items) {
+      // Record length counts BYTES (roadmap 276): `name.length` is UTF-16
+      // units, which under-counts multi-byte text and corrupts the framing.
+      const nameBytes = new TextEncoder().encode(name);
       const t2Payload = [
         sceneIdx & 0xff, sceneIdx >> 8, flag,
-        ...new TextEncoder().encode(name), 0,
+        ...nameBytes, 0,
       ];
       push(...RECORD_MARKER);
-      const len = 2 + 3 + name.length + 1;
+      const len = 2 + 3 + nameBytes.length + 1;
       push(len & 0xff, len >> 8, 2, 0);
       push(...t2Payload);
     }
