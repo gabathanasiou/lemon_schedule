@@ -101,7 +101,7 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
   await page.route('**://nominatim.openstreetmap.org/**', route => route.abort());
 
   await page.addInitScript(seedProjectScript({ raw: JSON.stringify(project) }));
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
     await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();

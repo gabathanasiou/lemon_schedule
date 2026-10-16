@@ -23,7 +23,7 @@ type PState = {
 
 async function importFixture(page: import('@playwright/test').Page, fixturePath: string) {
   const chooserPromise = page.waitForEvent('filechooser');
-  await page.goto('http://localhost:' + (process.env.PLAYWRIGHT_PORT || '3001') + '/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Import', exact: true }).click();
   const chooser = await chooserPromise;

@@ -35,7 +35,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   }];
   project.activeReportId = 'dt-design';
   await page.addInitScript(seedProjectScript({ raw: JSON.stringify(project) }));
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   const card = page.getByText(seed.data.title, { exact: true }).first();
   await card.click({ timeout: 8000 });
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
@@ -205,7 +205,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
 test('day breakdown pane: date rows show event summaries + open the shared day modal (roadmap 46)', async ({ page }) => {
   const seed = loadSeedProject();
   await page.addInitScript(seedProjectScript({ raw: seed.raw }));
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   const card = page.getByText(seed.data.title, { exact: true }).first();
   await card.click({ timeout: 8000 });
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });

@@ -92,7 +92,7 @@ test('smart Element/Scene Count resolve per day and per category (scoped to the 
     designJson: JSON.stringify(design),
   });
 
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
   
   await page.getByRole('button', { name: 'Design', exact: true }).click();

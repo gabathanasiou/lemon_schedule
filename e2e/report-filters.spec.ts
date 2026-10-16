@@ -34,7 +34,7 @@ test('report item filter narrows a repeat to the chosen field values', async ({ 
     designJson: JSON.stringify(design),
   });
 
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
@@ -71,7 +71,7 @@ test('discrete filter fields use a value dropdown, not a free-text box', async (
     designJson: JSON.stringify(design),
   });
 
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();

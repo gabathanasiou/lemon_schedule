@@ -40,7 +40,7 @@ function goldenStripLabels(version: any): string[] {
 test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => {
   test('imports the demo schedule and matches the golden reference', async ({ page }) => {
     const chooserPromise = page.waitForEvent('filechooser');
-    await page.goto('http://localhost:' + (process.env.PLAYWRIGHT_PORT || '3001') + '/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Import', exact: true }).click();
     const chooser = await chooserPromise;

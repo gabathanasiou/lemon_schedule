@@ -45,7 +45,7 @@ test('reports designer view toggle switches canvas width (portrait/landscape/ful
   const seed = loadSeedProject();
   await page.addInitScript(seedProjectScript(seed));
   await page.addInitScript(() => localStorage.setItem('lemon_schedule_view_mode', 'portrait'));
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
   
   await page.getByRole('button', { name: 'Design', exact: true }).click();

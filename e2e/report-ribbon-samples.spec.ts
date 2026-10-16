@@ -61,7 +61,7 @@ async function seedWithRibbon(page: any, mutateProject: (p: any) => void, extraC
     projectJson: JSON.stringify(project),
     meta: { id: project.id, title: project.title, lastModified: Date.now(), createdAt: Date.now() },
   });
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
     await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();

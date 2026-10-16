@@ -49,7 +49,7 @@ async function seedLegacyProject(page: import('@playwright/test').Page, legacy: 
     localStorage.setItem('lemon_schedule_project_v1_' + project.id, JSON.stringify(project));
     localStorage.setItem('lemon_schedule_project_index', JSON.stringify([JSON.parse(meta)]));
   }, { projectJson, meta });
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await page.getByText(legacy.title, { exact: true }).first().click({ timeout: 8000 });
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
 }
@@ -69,7 +69,7 @@ test.describe('cast single source of truth (castMembers)', () => {
     const lemonPath = path.join(os.tmpdir(), 'lemon-legacy-cast.lemon');
     fs.writeFileSync(lemonPath, JSON.stringify(legacy));
 
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await page.getByRole('button', { name: 'Import', exact: true }).click({ timeout: 8000 });
     await page.getByRole('dialog').locator('input[type="file"]').last().setInputFiles(lemonPath);
     await waitForPersistedProject(page, '!p.breakdownElements.cast && (p.castMembers || []).length > 0');

@@ -83,7 +83,7 @@ test('reports designer: day-type rollup, per-element day types, per-type columns
   }];
   project.activeReportId = 'dt-design';
   await page.addInitScript(seedProjectScript({ raw: JSON.stringify(project) }));
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   const card = page.getByText(seed.data.title, { exact: true }).first();
   await card.click({ timeout: 8000 });
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });

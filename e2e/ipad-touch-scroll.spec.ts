@@ -119,7 +119,7 @@ test('dropdown inside a modal re-clamps when the iPad keyboard opens', async ({ 
 test('Project Manager stays CSS-centred while the mocked iPad keyboard is up (coarse: no JS re-centre)', async ({ page }) => {
   await installKeyboardMock(page);
   // Boot with NO seeded project → the Project Manager is locked open at start.
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   const pm = page.getByText('Project Manager', { exact: true });
   await expect(pm).toBeVisible();
 

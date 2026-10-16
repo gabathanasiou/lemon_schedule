@@ -28,7 +28,7 @@ const FDX_MAGIC = `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 
 test.describe('new-project import parity (roadmap 126)', () => {
   test('PM Import accepts an FDX screenplay and names the project after the file', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible({ timeout: 8000 });
 
     const [chooser] = await Promise.all([
@@ -106,7 +106,7 @@ test.describe('new-project import parity (roadmap 126)', () => {
   });
 
   test('new-project import prompts for custom heading values before committing', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible({ timeout: 8000 });
 
     const [chooser] = await Promise.all([
@@ -130,7 +130,7 @@ test.describe('new-project import parity (roadmap 126)', () => {
   });
 
   test('new-project mapping can match a custom value to an existing one', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible({ timeout: 8000 });
 
     const [chooser] = await Promise.all([

@@ -94,7 +94,7 @@ test('violation count/details render smart per day and grouped per rule type', a
     designJson: JSON.stringify(design),
   });
 
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
   
   await page.getByRole('button', { name: 'Design', exact: true }).click();

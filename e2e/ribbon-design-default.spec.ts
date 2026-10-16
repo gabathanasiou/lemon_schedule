@@ -21,7 +21,7 @@ async function seedProject(page: import('@playwright/test').Page, mutate: (p: Pr
     localStorage.setItem('lemon_schedule_project_v1_' + project.id, JSON.stringify(project));
     localStorage.setItem('lemon_schedule_project_index', JSON.stringify([JSON.parse(meta)]));
   }, { projectJson, meta });
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
 }

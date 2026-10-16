@@ -200,17 +200,17 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
    `npm run test:baseline -- e2e/<spec>.spec.ts`
    Runs the spec against a clean `HEAD` worktree (symlinked `node_modules`). Fails there too →
    pre-existing; passes there → your diff. (Also: `SMART_BASE=<ref> npm run test:smart` diffs a branch.)
-   - **Hardcoded-port specs cannot baseline:** specs that `page.goto('http://localhost:3001/…')`
-     directly (e.g. `glide-breakdown.spec.ts`) get `ERR_CONNECTION_REFUSED` there — the baseline
-     runs on an isolated `PLAYWRIGHT_PORT`. That is "baseline could not run", NOT "pre-existing";
-     compare against clean `main` on the normal port instead.
+   - **Specs must navigate via baseURL** (`page.goto('/lemon_schedule/')` — never a literal
+     `http://localhost:…` URL; the 2026-10-16 sweep removed the last 37). A hardcoded port
+     would `ERR_CONNECTION_REFUSED` under `test:baseline`, which runs on an isolated
+     `PLAYWRIGHT_PORT` — and defeats `PLAYWRIGHT_PORT` isolation generally.
 4. **Read the trace** from the first retry (`test-results/**/trace.zip`) before guessing.
 5. Only if it's genuinely yours: fix it; if it's flaky, quarantine it (above) in the same change.
 
 ## Adding a spec
 
 Adding is **deliberate, not automatic** — e2e is the expensive layer, so the suite is **capped**
-(enforced by `npm run lint`): **≤ 70 specs / ≤ 280 tests** (`scripts/check-doc-budget.mjs`).
+(enforced by `npm run lint`): **≤ 70 specs / ≤ 282 tests** (`scripts/check-doc-budget.mjs`).
 More features means more tests; unbounded growth means a prune. When a new case is needed, in
 order of preference:
 

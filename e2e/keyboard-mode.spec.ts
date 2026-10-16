@@ -9,7 +9,7 @@ const COL_KEYS = ['actions', 'sceneNumber', 'pageCount', 'scriptDay', 'intExt', 
 test.use({ ...devices['Pixel 7'], viewport: { width: 1280, height: 800 } });
 
 async function openGlideWithScene(page: Page) {
-  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.goto('/lemon_schedule/');
   await ensureProject(page);
   const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
   await expect(glideBtn).toBeVisible({ timeout: 5000 });

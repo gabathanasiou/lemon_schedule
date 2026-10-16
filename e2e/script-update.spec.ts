@@ -18,7 +18,7 @@ function writeFdx(name: string, scenes: { n: string; heading: string; action?: s
 
 test.describe('script update review (roadmap 38)', () => {
   test('explicit Update script… reviews changes one by one and applies in place', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     // A tiny 2-scene project so the review queue is short and deterministic.
     await page.evaluate(() => {
@@ -75,7 +75,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('plain Import still appends (no diff) even on a project with scenes', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     await page.evaluate(() => {
       const b = (window as any).__lemonSchedule;
@@ -92,7 +92,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('re-import never duplicates an existing cast member (Board ID reuse)', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     const amyFdx = (action: string) => `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <FinalDraft DocumentType="Script" Version="1"><Content>
@@ -129,7 +129,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('a kept custom day/night prompts the mapper AFTER applying (not before the review)', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     await page.evaluate(() => {
       const b = (window as any).__lemonSchedule;
@@ -160,7 +160,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('an UNCHANGED scene that already carries a custom day/night still prompts at apply', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     // Scene 1 is byte-for-byte identical to the incoming (retained body matches),
     // so the diff classifies it UNCHANGED. Scene 2 changes, so there is a real
@@ -197,7 +197,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('the Script tab Update button opens the same review and refreshes the version', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     await page.evaluate(() => {
       const b = (window as any).__lemonSchedule;
@@ -231,7 +231,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('review panes stay vertically aligned across a mid-scene insert (roadmap 128)', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     await page.evaluate(() => {
       const b = (window as any).__lemonSchedule;
@@ -309,7 +309,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('review panes keep a deleted line as an aligned filler row (roadmap 128)', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     await page.evaluate(() => {
       const b = (window as any).__lemonSchedule;
@@ -350,7 +350,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('split and merge fragments are badged in the review (roadmap 38)', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     // Baseline: scene 5 whole.
     await page.evaluate(() => {
@@ -394,7 +394,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('surfaces an in-app field edit as a conflict with the imported value (roadmap 38)', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     await page.evaluate(() => {
       const b = (window as any).__lemonSchedule;
@@ -417,7 +417,7 @@ test.describe('script update review (roadmap 38)', () => {
   });
 
   test('heading diff: granular parts vs whole-line when all of it is new', async ({ page }) => {
-    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.goto('/lemon_schedule/');
     await ensureProject(page);
     await page.evaluate(() => {
       const b = (window as any).__lemonSchedule;

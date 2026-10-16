@@ -149,7 +149,9 @@ if (orphanSpecs.length) {
 // Anti-regrowth ratchet: `waitForTimeout` is legitimate canvas/drag pacing, but
 // it is also the #1 flake source. Hold the non-@perf count at/below the
 // baseline — a new wait must be paid for by removing one (use expect.poll).
-const E2E_WAIT_BASELINE = 23;
+// 23 → 17: hygiene — retired `glide-breakdown`'s never-failing legacy edit test
+// (6 sleeps died with it). Locked rather than left as headroom.
+const E2E_WAIT_BASELINE = 17;
 let waitCount = 0;
 for (const f of readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'))) {
   const body = read(`e2e/${f}`);
@@ -225,7 +227,11 @@ const E2E_SPEC_CAP = 70;
 // only be driven through the real grid overlay.
 // 282 → 283: roadmap 263 — tab-switch perf harness (click→surface + pill glide
 // frames); the before/after evidence IS a real client with the pill on screen.
-const E2E_TEST_CAP = 283;
+// 283 → 282: hygiene — retired `glide-breakdown`'s never-failing "edits a cell
+// via double-click" legacy test (its only assertion sat inside `if (overlayInput)`
+// and its edit path is covered by the range-fill/context-matrix tests). Locked
+// the freed slot rather than leaving headroom.
+const E2E_TEST_CAP = 282;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,
