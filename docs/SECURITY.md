@@ -100,7 +100,10 @@ deny-all with NO policies, `archive_account`/`restore_account` are SECURITY DEFI
 (they must read `auth`) with `search_path = ''` and execute granted to `service_role`
 ONLY, and the app's "permanently" copy is unchanged. The archived row includes the
 password hash (a restore signs the person back in with their old password); a
-same-email re-registration makes the restore REFUSE rather than merge. Purged daily by
+same-email re-registration or a provider identity already attached elsewhere
+makes the restore REFUSE rather than merge (the archive row is kept for a
+retry); references to rows deleted during the window are skipped and reported,
+never fatal. Purged daily by
 `account-archive-purge` (`20261016142825_account_recovery_archive.sql`). **Proof**:
 `supabase/tests/rls_delete_account.sql` (cascade, unchanged) +
 `supabase/tests/rls_account_recovery.sql` (archive → delete → restore → re-delete;

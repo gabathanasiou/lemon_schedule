@@ -135,7 +135,10 @@ end $$;
 -- ---------------------------------------------------------------------------
 -- 3) restore_account(p_user) — replay the footprint (ids preserved); refuse a
 --    same-email clash (a re-registered account gets a NEW id — never merge
---    silently); delete the archive row only on success (same transaction).
+--    silently) and a provider-identity clash (archive kept for a retry); skip
+--    and REPORT references to rows deleted during the window (a peer's
+--    account/project/team) instead of aborting the whole restore; delete the
+--    archive row only on success (same transaction).
 --
 --    auth.users is inserted with an EXPLICIT column list: confirmed_at is
 --    GENERATED ALWAYS. The signup triggers still fire — handle_new_user makes
@@ -154,6 +157,7 @@ declare
   v_email     text;
   v_clash     uuid;
   v_count     int;
+  v_projects  int := 0;
   v_restored  jsonb := '{}'::jsonb;
 begin
   select footprint into v_footprint
@@ -212,6 +216,14 @@ begin
   where i.id is not null
   on conflict do nothing;
   get diagnostics v_count = row_count;
+  -- A skipped conflict is NEVER silent: a short count means a provider identity
+  -- already belongs to another account — refuse and keep the archive (retry
+  -- after the conflict is resolved).
+  if v_count <> jsonb_array_length(v_footprint -> 'identities') then
+    raise exception 'Restore refused: % of % identities could not be replayed (a provider identity is already attached to another account) — resolve it, then retry; the archive row is kept',
+      jsonb_array_length(v_footprint -> 'identities') - v_count,
+      jsonb_array_length(v_footprint -> 'identities');
+  end if;
   v_restored := v_restored || jsonb_build_object('identities', v_count);
 
   -- 3) profile — the archived values win over the trigger's fresh copy
@@ -233,32 +245,45 @@ begin
   from jsonb_populate_recordset(null::public.projects, v_footprint -> 'projects') pr
   where pr.id is not null;
   get diagnostics v_count = row_count;
+  v_projects := v_count;   -- the project trigger re-creates one owner membership each
   v_restored := v_restored || jsonb_build_object('projects', v_count);
 
-  -- 5) memberships — DO NOTHING on conflict: never overwrite a trigger-fresh row
+  -- 5) memberships — skip rows whose project/user disappeared during the window
+  -- (a peer deleted their account/project); reported, never fatal. DO NOTHING
+  -- on conflict: never overwrite a trigger-fresh row.
   insert into public.memberships (project_id, user_id, role, created_at)
   select m.project_id, m.user_id, m.role, m.created_at
   from jsonb_populate_recordset(null::public.memberships, v_footprint -> 'memberships') m
   where m.project_id is not null and m.user_id is not null
+    and exists (select 1 from public.projects p where p.id = m.project_id)
+    and exists (select 1 from auth.users u where u.id = m.user_id)
   on conflict (project_id, user_id) do nothing;
   get diagnostics v_count = row_count;
-  v_restored := v_restored || jsonb_build_object('memberships', v_count);
+  v_restored := v_restored || jsonb_build_object(
+    'memberships', v_count,
+    'memberships_skipped_stale', greatest(jsonb_array_length(v_footprint -> 'memberships') - v_count - v_projects, 0));
 
   insert into public.pending_invites (id, project_id, email, role, invited_by, created_at)
   select pi.id, pi.project_id, pi.email, pi.role, pi.invited_by, pi.created_at
   from jsonb_populate_recordset(null::public.pending_invites, v_footprint -> 'pending_invites') pi
   where pi.id is not null
+    and exists (select 1 from public.projects p where p.id = pi.project_id)
+    and exists (select 1 from auth.users u where u.id = pi.invited_by)
   on conflict (project_id, email) do nothing;
   get diagnostics v_count = row_count;
-  v_restored := v_restored || jsonb_build_object('pending_invites', v_count);
+  v_restored := v_restored || jsonb_build_object('pending_invites', v_count,
+    'pending_invites_skipped_stale', jsonb_array_length(v_footprint -> 'pending_invites') - v_count);
 
   insert into public.share_links (id, project_id, token_hash, role, expires_at, created_by, created_at, token)
   select sl.id, sl.project_id, sl.token_hash, sl.role, sl.expires_at, sl.created_by, sl.created_at, sl.token
   from jsonb_populate_recordset(null::public.share_links, v_footprint -> 'share_links') sl
   where sl.id is not null
+    and exists (select 1 from public.projects p where p.id = sl.project_id)
+    and exists (select 1 from auth.users u where u.id = sl.created_by)
   on conflict do nothing;
   get diagnostics v_count = row_count;
-  v_restored := v_restored || jsonb_build_object('share_links', v_count);
+  v_restored := v_restored || jsonb_build_object('share_links', v_count,
+    'share_links_skipped_stale', jsonb_array_length(v_footprint -> 'share_links') - v_count);
 
   -- 6) teams + rosters + invites
   insert into public.teams (id, owner_id, name, created_at)
@@ -272,17 +297,23 @@ begin
   select tm.team_id, tm.user_id, tm.created_at
   from jsonb_populate_recordset(null::public.team_members, v_footprint -> 'team_members') tm
   where tm.team_id is not null and tm.user_id is not null
+    and exists (select 1 from public.teams t where t.id = tm.team_id)
+    and exists (select 1 from auth.users u where u.id = tm.user_id)
   on conflict do nothing;
   get diagnostics v_count = row_count;
-  v_restored := v_restored || jsonb_build_object('team_members', v_count);
+  v_restored := v_restored || jsonb_build_object('team_members', v_count,
+    'team_members_skipped_stale', jsonb_array_length(v_footprint -> 'team_members') - v_count);
 
   insert into public.team_invites (id, team_id, email, invited_by, created_at)
   select ti.id, ti.team_id, ti.email, ti.invited_by, ti.created_at
   from jsonb_populate_recordset(null::public.team_invites, v_footprint -> 'team_invites') ti
   where ti.id is not null
+    and exists (select 1 from public.teams t where t.id = ti.team_id)
+    and exists (select 1 from auth.users u where u.id = ti.invited_by)
   on conflict (team_id, email) do nothing;
   get diagnostics v_count = row_count;
-  v_restored := v_restored || jsonb_build_object('team_invites', v_count);
+  v_restored := v_restored || jsonb_build_object('team_invites', v_count,
+    'team_invites_skipped_stale', jsonb_array_length(v_footprint -> 'team_invites') - v_count);
 
   -- 7) success — the archive row's job is done
   delete from public.account_archive where user_id = p_user;

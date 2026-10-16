@@ -1356,6 +1356,9 @@ Google Drive, OSM/Nominatim, Google Places, Open-Meteo (per code).
   (every third party + purpose), basic terms; footer links in the app and on
   the hosted page; align with the merchant-of-record model when 230 lands.
 - **Verify:** every claim cross-checked against code/config before publishing.
+- **Relations:** roadmap 294's account archive (30-day operator restore window,
+  incl. the credential hash) must be disclosed in the privacy notice —
+  security review 2026-10-16 (F-03).
 
 ## 289. CI quality gates & dependency automation (`[ ]`, PARKED)
 

@@ -208,14 +208,25 @@ owned projects, memberships, invites, share links, team + roster — before
    `select user_id, archived_at from public.account_archive where footprint -> 'users' ->> 'email' = '<their email>';`
 2. `select public.restore_account('<user_id>');` — ids are preserved, the
    archive row is removed on success, and the person signs back in with their
-   OLD password (their old sessions stay gone).
+   OLD password (their old sessions stay gone). Check the returned summary's
+   `*_skipped_stale` counts (normally 0): references to accounts/projects/teams
+   deleted during the window are skipped, never fatal — everything replayable
+   comes back, and a non-zero count tells you exactly what could not.
 3. Same-email re-registration (a NEW id exists): the restore is REFUSED —
    never a silent merge. Operator decides: delete the new account first and
    restore the old one (the new account's data is lost), or leave the new one
-   (the archive purges after 30 days anyway). Restoring re-attaches the OLD
-   account's history — it is not a fresh trial; new-email trial farming is a
-   licensing-layer concern (`docs/LICENSING.md`), not something this archive
-   tracks beyond its window.
+   (the archive purges after 30 days anyway). A provider identity already
+   attached to another account ALSO refuses (the archive row is kept for a
+   retry — resolve the conflict, then restore again). Restoring re-attaches
+   the OLD account's history — it is not a fresh trial; new-email trial
+   farming is a licensing-layer concern (`docs/LICENSING.md`), not something
+   this archive tracks beyond its window. Do not wait past 30 days: the purge
+   is automatic.
+4. Sanity-check the purge occasionally: `select r.status, r.start_time from
+   cron.job j join cron.job_run_details r on r.jobid = j.jobid where
+   j.jobname = 'account-archive-purge' order by r.start_time desc limit 5;` —
+   a failed run means rows past 30 days are still retained (real monitoring
+   lands with roadmap 286).
 
 **S2 map — Sharing, roles, invites (built + verified 2026-10-12).**
 owner/editor/viewer; email + link invites; view-only share links; Manage access

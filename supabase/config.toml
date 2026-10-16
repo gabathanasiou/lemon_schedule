@@ -20,4 +20,7 @@ verify_jwt = true
 # cascades, so owned projects (and collaborator access to them) die with the
 # account; the app's confirm dialog says so.
 # Deploy: `npx supabase functions deploy delete-account --project-ref <ref> --use-api`
+# Deploy ORDER matters: apply migration 20261016142825 (the archive_account
+# RPC) BEFORE this function — the function depends on it, and the reverse
+# order would delete without archiving.
 verify_jwt = true
