@@ -1,6 +1,6 @@
 import type { ProjectMeta } from '../store';
 import type { Project } from '../types';
-import { pruneVersionTrash, pruneCalendarVersionTrash } from '../store/storage';
+import { pruneVersionTrash, pruneCalendarVersionTrash, pruneReportTrash } from '../store/storage';
 import { migrateCrewSlots, migrateCrewNamesToUpper } from './legacyMigration';
 
 export function getDriveErrorStatus(err: unknown): number | null {
@@ -279,6 +279,9 @@ export async function readDriveProject(
   }
   if (Array.isArray(project.calendarVersionTrash)) {
     project.calendarVersionTrash = pruneCalendarVersionTrash(project.calendarVersionTrash);
+  }
+  if (Array.isArray(project.reportTrash)) {
+    project.reportTrash = pruneReportTrash(project.reportTrash);
   }
   // Item 146: person-keyed crew → slot lists, same as local loads.
   migrateCrewSlots(project);

@@ -1,5 +1,6 @@
 import type { Project } from '../../types';
 import type { ProjectMeta } from '../../store/storage';
+import { pruneReportTrash } from '../../store/storage';
 import { supabase } from './client';
 import { serializeProject, deserializeProject } from '../projectCodec';
 
@@ -70,7 +71,13 @@ export async function readOnlineProject(id: string): Promise<OnlineReadResult> {
     .single();
   if (error || !data) throw new Error(error?.message || 'Project not found');
   const row = data as Pick<ProjectRow, 'data' | 'revision'>;
-  return { project: deserializeProject(row.data), revision: Number(row.revision) };
+  const project = deserializeProject(row.data);
+  // Roadmap 275: report-design trash is pruned on read, same retention as
+  // local loads and Drive reads (shared projects used to accumulate it).
+  if (Array.isArray(project.reportTrash)) {
+    project.reportTrash = pruneReportTrash(project.reportTrash);
+  }
+  return { project, revision: Number(row.revision) };
 }
 
 async function updateAtRevision(
