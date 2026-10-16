@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { RotateCcw, Trash2, Film, Layers, CalendarDays, ShieldAlert, LayoutTemplate, Package, Tags, Palette, UserRound } from 'lucide-react';
+import { RotateCcw, Trash2, Film, Layers, CalendarDays, ShieldAlert, LayoutTemplate, Package, Tags, Palette, UserRound, FileText } from 'lucide-react';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { CardSection } from '@gabriel/ui-kit';
@@ -13,7 +13,7 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
-type TrashKind = 'scene' | 'version' | 'calendarVersion' | 'rule' | 'ribbon' | 'element' | 'category' | 'colorrule' | 'crew';
+type TrashKind = 'scene' | 'version' | 'calendarVersion' | 'rule' | 'ribbon' | 'element' | 'category' | 'colorrule' | 'crew' | 'report';
 
 interface TrashEntry {
   id: string;
@@ -41,6 +41,7 @@ const KIND_META: Record<TrashKind, { label: string; icon: React.ReactNode; iconC
   category: { label: 'Custom Categories', icon: <Tags className="w-3.5 h-3.5" />, iconClass: 'text-pink-400' },
   colorrule: { label: 'Color Rules', icon: <Palette className="w-3.5 h-3.5" />, iconClass: 'text-teal-400' },
   crew: { label: 'Crew', icon: <UserRound className="w-3.5 h-3.5" />, iconClass: 'text-cyan-400' },
+  report: { label: 'Report Designs', icon: <FileText className="w-3.5 h-3.5" />, iconClass: 'text-blue-400' },
 };
 
 export interface TrashModalProps {
@@ -182,6 +183,19 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
           subtitle: `Ribbon Design · ${formatTime(t.deletedAt)}`,
           deletedAt: t.deletedAt,
           actionType: 'RESTORE_RIBBON_FROM_TRASH' as const,
+        })),
+      },
+      {
+        kind: 'report',
+        label: KIND_META.report.label,
+        icon: KIND_META.report.icon,
+        iconClass: KIND_META.report.iconClass,
+        entries: (project.reportTrash || []).map(t => ({
+          id: t.design.id,
+          title: t.design.name,
+          subtitle: `Report Design · ${formatTime(t.deletedAt)}`,
+          deletedAt: t.deletedAt,
+          actionType: 'RESTORE_REPORT_FROM_TRASH' as const,
         })),
       },
     ];

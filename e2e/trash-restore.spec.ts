@@ -4,7 +4,7 @@ import { openSeededProject } from './helpers';
 /**
  * Trash modal (roadmap 67) — the File menu's Trash… now renders on the kit
  * Modal with one collapsible ItemCard section per trash kind. Uses the
- * bridge to populate trash (delete scene/version/rule/element), then
+ * bridge to populate trash (delete scene/version/rule/report design), then
  * verifies sections, restore, and Empty. Every spec creates its OWN trash
  * (the seed's own trash expires via the 30-day TTL); count assertions that
  * read a baseline are DELTA over it.
@@ -17,6 +17,7 @@ async function trashCounts(page: import('@playwright/test').Page) {
       scene: (p.trash || []).length,
       version: (p.versionTrash || []).length,
       rule: (p.rulesTrash || []).length,
+      report: (p.reportTrash || []).length,
     };
   });
 }
@@ -31,9 +32,11 @@ async function openTrashModal(page: import('@playwright/test').Page) {
 /** Populate the trash via the bridge instead of trusting the seed's own trash:
  *  the app prunes trash older than its 30-day TTL on load (`storage.ts`), so a
  *  seed exported weeks ago boots with an empty trash. Deletes one scene, one
- *  non-active version and one rule — never date-dependent. */
-async function populateTrash(page: import('@playwright/test').Page) {
-  await page.evaluate(() => {
+ *  non-active version, one rule and one report design — never date-dependent.
+ *  Returns the deleted design id (created when the seed has fewer than two —
+ *  the reducer refuses to delete the LAST design). */
+async function populateTrash(page: import('@playwright/test').Page): Promise<string> {
+  return page.evaluate(() => {
     const b = (window as any).__lemonSchedule;
     const p = b.getProject();
     let versionId = (p.versions || []).find((v: any) => v.id !== p.activeVersionId)?.id;
@@ -41,11 +44,22 @@ async function populateTrash(page: import('@playwright/test').Page) {
       versionId = 'v-trash-' + Date.now();
       b.dispatch({ type: 'NEW_VERSION', payload: { id: versionId, name: 'Trash Me' } });
     }
+    const designs = p.reportDesigns || [];
+    let reportId: string;
+    if (designs.length >= 2) {
+      reportId = designs[0].id;
+    } else {
+      reportId = 'rd-trash-' + Date.now();
+      b.dispatch({ type: 'ADD_REPORT_DESIGN', payload: { id: 'rd-keep-' + Date.now(), name: 'Keep Me' } });
+      b.dispatch({ type: 'ADD_REPORT_DESIGN', payload: { id: reportId, name: 'Trash Me' } });
+    }
     b.batch(() => {
       b.dispatch({ type: 'DELETE_SCENE', payload: p.scenes[0].id });
       b.dispatch({ type: 'DELETE_VERSION', payload: versionId });
       b.dispatch({ type: 'DELETE_RULE', payload: p.rules[0].id });
+      b.dispatch({ type: 'DELETE_REPORT_DESIGN', payload: reportId });
     });
+    return reportId;
   });
 }
 
@@ -54,7 +68,7 @@ test('trash modal: sections per kind with counts, restore', async ({ page }) => 
 
   const before = await trashCounts(page);
 
-  await populateTrash(page);
+  const reportId = await populateTrash(page);
 
   await openTrashModal(page);
 
@@ -68,6 +82,9 @@ test('trash modal: sections per kind with counts, restore', async ({ page }) => 
   const ruleSection = page.locator('[data-trash-section="rule"]');
   await expect(ruleSection).toBeVisible();
   await expect(ruleSection.locator('[data-trash-item="rule"]')).toHaveCount(before.rule + 1);
+  const reportSection = page.locator('[data-trash-section="report"]');
+  await expect(reportSection).toBeVisible();
+  await expect(reportSection.locator('[data-trash-item="report"]')).toHaveCount(before.report + 1);
 
   // Restore the scene — its row leaves the section; the scene returns.
   const sceneId = await page.evaluate(() => (window as any).__lemonSchedule.getProject().scenes[0].id);
@@ -75,6 +92,13 @@ test('trash modal: sections per kind with counts, restore', async ({ page }) => 
   await expect(sceneSection.locator('[data-trash-item="scene"]')).toHaveCount(before.scene);
   await expect
     .poll(() => page.evaluate(id => (window as any).__lemonSchedule.getProject().scenes.some(s => s.id === id), sceneId))
+    .toBe(true);
+
+  // Restore the report design — it returns to the designer's design list.
+  await reportSection.locator('button[title="Restore"]').first().click();
+  await expect(reportSection.locator('[data-trash-item="report"]')).toHaveCount(before.report);
+  await expect
+    .poll(() => page.evaluate(id => (window as any).__lemonSchedule.getProject().reportDesigns.some((d: any) => d.id === id), reportId))
     .toBe(true);
 });
 
@@ -96,7 +120,7 @@ test('trash modal: Empty with DNWA confirm empties all sections', async ({ page 
   await expect(page.getByText('Trash is empty')).toBeVisible();
 
   const counts = await trashCounts(page);
-  expect(counts).toEqual({ scene: 0, version: 0, rule: 0 });
+  expect(counts).toEqual({ scene: 0, version: 0, rule: 0, report: 0 });
 });
 
 test('trash modal: close button and modal chrome', async ({ page }) => {
