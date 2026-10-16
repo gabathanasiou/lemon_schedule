@@ -5,6 +5,14 @@ test.describe('Seeded Project Smoke Tests', () => {
   test.describe.configure({ mode: 'serial' });
 
   test('loads the seeded project and renders the schedule stripboard', async ({ page }) => {
+    // Roadmap 285: collect any CSP violations across the whole boot.
+    await page.addInitScript(() => {
+      (window as any).__cspViolations = [];
+      document.addEventListener('securitypolicyviolation', (e) => {
+        (window as any).__cspViolations.push(`${e.violatedDirective} -> ${e.blockedURI}`);
+      });
+    });
+
     await openSeededProject(page);
 
     const scheduleBtn = page.getByRole('button', { name: 'Schedule' });
@@ -19,6 +27,27 @@ test.describe('Seeded Project Smoke Tests', () => {
     await expect(boneyard).toBeVisible({ timeout: 3000 });
 
     await expectChromeAligned(page);
+
+    // Roadmap 285: the page carries the meta CSP + referrer policy
+    // (src/lib/csp.ts, injected by vite.config.ts) and this boot ran clean
+    // under it. The dev server serves the relaxed variant; the default run
+    // (production preview) asserts the strict directive exactly.
+    const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
+    expect(csp).toBeTruthy();
+    const isDevServer = await page.evaluate(() => !!document.querySelector('script[src*="@vite/client"]'));
+    const scriptSrc = csp!.split('; ').find((d) => d.startsWith('script-src '));
+    if (isDevServer) {
+      expect(scriptSrc).toContain("'unsafe-inline'"); // react-refresh preamble
+    } else {
+      expect(scriptSrc).toBe("script-src 'self' https://accounts.google.com");
+    }
+    expect(csp!).toContain("object-src 'none'");
+    expect(csp!).not.toContain('frame-ancestors'); // meta can't carry it — docs/SECURITY.md §7
+    await expect(page.locator('meta[name="referrer"]'))
+      .toHaveAttribute('content', 'strict-origin-when-cross-origin');
+
+    const violations = await page.evaluate(() => (window as any).__cspViolations as string[]);
+    expect(violations).toEqual([]);
   });
 
   test('calendar shows month cells for the project', async ({ page }) => {

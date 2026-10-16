@@ -137,6 +137,7 @@ document, never window-mount the reading surface.
 
 ## Security & Env
 - Secrets/tokens MUST come from `import.meta.env.VITE_*` — never literals. `.env` gitignored; `.env.example` placeholders only. New Vite vars go in `.env.example`.
+- **CSP (285)**: every build serves the meta policy from `src/lib/csp.ts` (injected by `vite.config.ts`; dev relaxes script-src for react-refresh). A new external origin goes in THERE in the same commit; `frame-ancestors` can't ride a meta tag — `docs/SECURITY.md` §7.
 - OAuth token: `useRef` + `sessionStorage` only (never localStorage); exposed via `useGoogleAuth().accessToken`; never log it (log `error?.message` only) or expose in URLs/DOM. A localStorage FLAG (`lemon_google_was_signed_in`) records prior sign-in so fresh tabs can silently restore the GIS session (`prompt:''`) — the token itself never touches localStorage. **Supabase account sessions are the one deliberate localStorage exception** (`src/lib/supabase/client.ts` — decided in docs/COLLABORATION.md §11); this rule guards the Drive token only.
 - Don't add `@google/genai`, `dotenv`, or `express`. New deps must be imported by ≥1 source file.
 - **Full model, owner checklist + known gaps: `docs/SECURITY.md`; the working review checklist is the `security-review` skill (`.opencode/skills/`).**
