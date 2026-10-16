@@ -60,5 +60,7 @@ the end. Commit one revertible unit per extraction.
    `window.print`, right-click menus via `force: true`).
 4. Commit with a message stating before/after line counts:
    `refactor: extract X from Y (N -> M lines)`.
-5. Never edit `AGENTS.md` structure docs after — update them when the
-   File Layout section becomes stale.
+5. The hub carries no file-layout listing (by design — see the
+   `write-agent-docs` skill); if the extraction moved files, grep `AGENTS.md`
+   + `docs/*.md` for the old path/symbols and fix any stale `file:line`
+   pointers in the same commit.

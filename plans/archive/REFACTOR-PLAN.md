@@ -136,3 +136,17 @@ into `localStorage` before the app boots, using the app's own storage contract:
 
 Used by new smoke tests that exercise the real project (schedule stripboard,
 daybreak sections, calendar month view, glide breakdown).
+
+## Post-refactor layout (landmarks — moved out of AGENTS.md, 2026-10-16)
+
+Snapshot of the split results; drifts as files move — the code tree is the
+source of truth.
+
+- `src/store/` — barrel + storage/reducer(+actions)/provider/rows
+- `src/lib/` — shared: `sceneFactory`, `glideCells`, `glidePaste`, `glideEditor`, `elements`, `paletteOps`, `mergeGroups`, `sceneColors`, `ribbonDefaults` (ribbonUtils re-exports these), `useStripboardContextMenu`, `useDriveProjectList`, `import/`
+- `src/components/schedule/` — Toolbar/ContextMenu/Modals/Overlays + hooks (`useScheduleKeyboard`, `useScheduleDrag`, `useBoneyardSort`) — ScheduleTab is the composition root
+- `src/components/calendar/` — SceneCard/DayCell/BoneyardSidebar/calendarUtils + hooks (`useCalendarKeyboard`, `useCalendarDrag`)
+- `src/components/ribbon/` — row renderers (`SortableRow*`, `rowRenderTypes` RowRenderCtx), RibbonPalette/Toolbar/DesignerGrid/LivePreview/ContextMenu
+- `src/components/print/` — PrintRowParts (PrintRowCtx), CastListPrint, printLayout, printStyles
+- `src/components/InlineGlideTable.tsx` — shared compact Glide grid for page cards (Day Manager Call Times/Crew); `src/components/production/day/` — DayManagerPage + registry sections + DayTimesGlide (inline-grid adapter)
+- `src/components/{popout,elements,rules}/` + top-level AppHeader/OfflineStatus/ProjectCard/NewProjectModal/ColorRuleCard(+Meta)/projectManagerStyles
