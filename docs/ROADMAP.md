@@ -1266,7 +1266,15 @@ has ever been run.
   backups live, restore steps, user-visible behaviour); **execute one drill**
   against a scratch project and record it. Note the paused-project restore
   window (1 year) for the pre-Pro period.
-- **Verify:** drill notes in the runbook + an annual re-test reminder.
+- **Pre-Pro safety net (owner-approved 2026-10-16):** a scheduled
+  `supabase db dump` to off-site private storage (rides the keep-alive
+  workflow or a local cron) — dumps include `auth.users` (+ password hashes)
+  and every table, so a mistaken account/project deletion becomes fishable
+  months before Pro. Dumps carry user data: **never commit them**, storage +
+  access live in the runbook. Runbook gets the "fish rows out of a dump →
+  replant" recipe; the dumps are the drill's fallback target while Pro is off.
+- **Verify:** drill notes in the runbook + an annual re-test reminder; a dump
+  archive exists off-site and one row-level replant from it has been rehearsed.
 
 ## 280. Transactional email — SMTP + SPF/DKIM/DMARC (`[ ]`)
 
@@ -1435,3 +1443,25 @@ ever return to.
 - **Verify:** a dry-run report of what would be reaped + one live sweep on a
   scratch project.
 - **Relations:** extends **281** (the deletion path ships there).
+
+## 294. Account recovery window — archive-on-delete + grace period (`[ ]`)
+
+**Priority: P3 — pre-public-launch (raised 2026-10-16).**
+
+**Request:** deletion (281) is immediate and hard; a mistaken delete is only
+recoverable from database backups (279), never in-app. A bounded recovery
+window would make "undo" a product feature.
+
+- **Decide first:** the promise. Either (a) **internal-only safety net** —
+  keep the confirm's "permanently", snapshot silently into an admin-only
+  archive with a short TTL, or (b) a **user-visible grace window** ("sign in
+  again to cancel" — needs the window surfaced in the UI + a cancel flow;
+  bigger).
+- **Then build (a):** pre-delete snapshot of the account's footprint (profile,
+  OWNED projects + blobs, memberships, invites, share links, team + roster)
+  into a private RLS-deny-all table; "restore" = an admin replay (Admin API
+  re-create + row replant); TTL purge via pg_cron.
+- **Verify:** acceptance SQL (archive → restore → re-delete); one live pass;
+  purge proven on a scratch project.
+- **Relations:** extends **281**; complements **279** (backups cover the
+  catastrophic case, this the everyday one).
