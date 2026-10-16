@@ -263,6 +263,14 @@ Verified: the four Glide specs together (day-times, crew, locations,
 glide-first-edit) × 4 repeats on 4 workers → **44/44 green**; the same command
 failed 8/36 before the fix.
 
+**Recurrence — 2026-10-16, the roadmap-284 suite's first full run failed
+`glide-first-edit.spec.ts:16` on the attempt AND the retry** (268 passed /
+1 failed / 1 flaky — the §F rich-text flake re-absorbed by retry).
+**Triage:** the spec alone was green immediately (1.8s) and the next full run
+passed it outright (270 passed, 0 failed, 1m12s) — same load-sensitivity class
+as above, not a regression (the 284 branch touches invite RPC responses + copy
+only, zero Glide code).
+
 ## I. glide-breakdown persistence spec flake under full-suite load — FIXED (the boot race)
 
 **2026-10-16 — root-caused & fixed: the boot race, not the edit.**
