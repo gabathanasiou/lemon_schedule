@@ -1252,19 +1252,6 @@ priority order (275–278 = P1; 279–288 = P2; 289–291 = P3, and 289 is parke
 until unparked). Normal one-agent-per-item flow; close each through
 `manage-roadmap` before picking the next.
 
-## 277. Room worker — refuse unauthenticated metadata responses (`[ ]`)
-
-**Priority: P1 — XS.** Audit F5.
-
-**Request:** a non-WebSocket `GET /room/<projectId>` returns
-`{room, initialized, rev}` before any origin/token check
-(`workers/rooms/src/room.ts`, the fetch guard).
-
-- **Fix:** only answer a valid upgrade (or a token-carrying request); keep
-  `/health` as the one auth-less endpoint.
-- **Verify:** add a negative to `workers/rooms/test/room-probe.ts` (plain GET →
-  refused); `npx tsc -p workers/rooms` + probe run green.
-
 ## 278. Password recovery — surface expired/used links (`[ ]`)
 
 **Priority: P1 — XS.** Audit F6.
