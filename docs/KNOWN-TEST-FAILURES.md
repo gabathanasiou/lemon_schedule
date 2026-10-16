@@ -137,16 +137,21 @@ a plain click.
 
 **Cause (not a regression):** Glide's `cellActivationBehavior="double-click"` activates the editor only when the selection captured at the **second** mousedown matches the clicked cell (`data-editor.js`: `mouse.previousSelection.current.cell === gridSelection.current.cell`). Playwright dispatches a dblclick's two clicks back-to-back with no gap; while a re-render from the previous commit is still pending, the second click sees the stale selection and activation is skipped. Real users' double-clicks are ~100 ms+ apart, so only the zero-gap synthetic dblclick hits it.
 
-**Fix recipe (test-side):** select the cell first, wait for the grid to confirm the selection, then double-click — an **already-selected** cell activates regardless of inter-click render timing. The a11y table exposes the committed selection as `#glide-cell-<col>-<row>[aria-selected="true"]` (debounced ~200 ms; `col` counts the row marker, so the crew Name column is `2`). See `e2e/crew-glide.spec.ts` `addMember`. Typing-based helpers (e.g. that spec's `editCell`) are immune because `editOnType` opens the editor on the first typed character when the dblclick didn't.
+**Fix recipe (test-side):** select the cell first, wait for the grid to confirm the selection, then double-click — an **already-selected** cell activates regardless of inter-click render timing. The a11y table exposes the committed selection as `#glide-cell-<col>-<row>[aria-selected="true"]` (debounced ~200 ms; `col` counts the row marker, so the crew Name column is `2`). See `e2e/crew-glide.spec.ts` `addMember`. (Typing-based helpers are NOT immune: `editOnType` also reads the committed selection — see §H.)
+
+**2026-10-16 — refined and extracted to the shared helper.** The select-first recipe was necessary but not sufficient. Glide treats ANY second pointerup <500 ms after the previous one as a double-click (`data-grid.tsx` `onPointerUp` timing, not the browser's dblclick event), so the pre-click made the dblclick's **first** click activate too — the second click then landed on the freshly opened editor (text overlays remount; entity dropdowns close and the commit is lost: observed as "attached then detached"). Two additions complete the recipe: **pace the dblclick ≥650 ms past the 500 ms window** (only the second click then activates) and **hand back a focused editor** (Glide's canvas/a11y focus churn can steal focus right after open — the app's own text editor reclaims it for trailing add rows, `glideEditor.tsx`). All of it now lives in `e2e/helpers.ts` — `glideCellId`, `waitForGlideCellSelected`, `selectGlideCell`, `openGlideCellEditor` — and every Glide editor open in the suite goes through it.
 
 ## Takeaway for future runs
 
 If the full suite goes red, check whether it is one of these drift patterns
 before assuming a regression: `wrapValue` entity cells are `<textarea>`, kit
 menu/popup rows are `[role="option"]` / `.ui-item` (not `<button>`), tall
-content needs `scrollIntoViewIfNeeded` before coordinate clicks, and Glide
-double-clicks that fail right after a commit are the zero-gap synthetic-click
-race described in §E (select first, then double-click).
+content needs `scrollIntoViewIfNeeded` before coordinate clicks, and **Glide
+overlay editors must be opened through `openGlideCellEditor()`** (§E: select →
+commit wait → paced double-click → focused editor; `{ select: false }` for a
+drag-selected cell) — a bare `mouse.dblclick` races Glide's activation check,
+and typing-based helpers still need `selectGlideCell` so `editOnType` sees the
+committed selection.
 
 ---
 
@@ -190,7 +195,17 @@ and three dev servers were running on the machine. **Triage:** solo re-run
 `--workers=1` green 6/6 on an isolated port; the diff touches chrome bar
 spacing only (no editor/canvas code). Same load-sensitivity, not a regression.
 
-## G. day-times-glide editor spec flake under full-suite load (no fix needed)
+## G. day-times-glide editor spec flake under full-suite load — FIXED (root-caused)
+
+**2026-10-16 — root cause found (the §E activation race, both flavors) and fixed.**
+Reproduced pre-fix on this worktree: `e2e/day-times-glide.spec.ts --repeat-each=10
+--workers=4` under load flaked **2/10** — one attempt `#portal textarea` never
+attached (`:81`; the dblclick's second click saw a stale selection), one attached
+then was remounted mid-`.click()` (`:82`, "element is not stable → detached"; the
+late selection commit re-ran the overlay). The spec now opens every editor through
+`openGlideCellEditor` (§E) and the drag-then-type range fill waits for the
+committed selection with `waitForGlideCellSelected` first. Verified post-fix with
+the same repeat-10 load run: **50/50 green**.
 
 **2026-10-15 — the roadmap-236 merge suite flaked once** on
 `day-times-glide.spec.ts:27` ("editor seeds the default expression…"); the
@@ -209,7 +224,7 @@ race) and passed on retry (271 passed / 2 flaky / 0 failed overall; §F's
 (1 flaky, retry passed, 272 passed); solo re-run `--workers=1 --repeat-each=2` green
 (10/10). Same load-sensitivity class, still no fix needed.
 
-## H. glide-first-edit spec fails both attempts under full-suite load (no fix needed)
+## H. glide-first-edit spec fails both attempts under full-suite load — FIXED (same §E race)
 
 **2026-10-15 — the roadmap-259 merge suite's first full run failed
 `glide-first-edit.spec.ts:16` on the attempt AND the retry** ("overlay-editor
@@ -230,7 +245,27 @@ was long done. **Triage:** the spec alone `--workers=1 --repeat-each=2` → 6/6
 green (30.1s, incl. the failing test twice). Same class as §H — Glide
 overlay-editor timing under full-suite CPU contention, not a regression.
 
-## I. glide-breakdown persistence spec flake under full-suite load (no fix needed)
+**2026-10-16 — root-caused & fixed (same §E recipe, two spots).**
+`glide-first-edit` typed before the click's selection commit — `editOnType`
+reads the committed selection, so a dropped first keystroke ate the 'M'. It now
+`selectGlideCell`s (the commit wait) before typing. `locations.spec.ts` opened
+every canvas edit with a bare dblclick + typing rescue — the rescue ALSO needs
+the committed selection, so both specs now open through `openGlideCellEditor`.
+Verified: the four Glide specs together (day-times, crew, locations,
+glide-first-edit) × 4 repeats on 4 workers → **44/44 green**; the same command
+failed 8/36 before the fix.
+
+## I. glide-breakdown persistence spec flake under full-suite load — FIXED (the boot race)
+
+**2026-10-16 — root-caused & fixed: the boot race, not the edit.**
+`ensureProject()` decided "no project open" with `isVisible()` — which does NOT
+wait (its timeout option is ignored) — so on a slow cold boot the Project
+Manager hadn't painted, the create step was silently skipped, and the spec died
+later on a button that never appeared. The helper now waits (up to 15s) for the
+Project Manager OR the open-project UI before deciding, then re-asserts the
+boot anchor. This affected every fresh-context spec using `ensureProject`, not
+just this one. Same-date hardening: the spec's range-fill editor opens and the
+drag-then-type flows go through the §E helpers.
 
 **2026-10-16 — the roadmap-268 merge suite flaked once on
 `glide-breakdown.spec.ts:45:3`** ("adds scene via button and verifies
