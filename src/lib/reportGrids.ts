@@ -90,7 +90,7 @@ function precallColumns(fieldMap: Record<string, ReportFieldDef>): ReportGridCol
 /**
  * The day's grid groups for a block. Element calls group per staged category
  * present on the day (cast-first, resolver order); a block `category` narrows
- * to one table. Crew is one flat group. Precalls (item 159) is one flat group
+ * to one table. Crew (item 225) is one flat group. Precalls (item 159) is one flat group
  * over the canonical `dayDepartments` pool — by default only departments with
  * a pre-call; `opts.includeAll` adds every department (no pre-call rows show
  * their effective call), optionally narrowed by `opts.include`. Day-excluded
@@ -114,24 +114,11 @@ export function resolveReportGridGroups(
     return [{ category: '', label: 'Precalls', items, columns: precallColumns(fieldMap) }];
   }
   if (collection === 'crewOfDay') {
+    // Item 225 — ONE flat table in canonical `crewOfDay` order. The live
+    // editor keeps its per-department cards (`CrewRosterEditor`); static
+    // print/preview is deliberately flat (no separator bars, one header row).
     const items = resolveCollectionItems(ctx, 'crewOfDay', undefined, dayItem, undefined) as ReportCrewItem[];
-    // Item 146 — group by department (department-wise order from the resolver).
-    const order: string[] = [];
-    const byDept = new Map<string, ReportCrewItem[]>();
-    for (const it of items) {
-      const dept = it.department || 'Crew';
-      if (!byDept.has(dept)) {
-        byDept.set(dept, []);
-        order.push(dept);
-      }
-      byDept.get(dept)!.push(it);
-    }
-    return order.map(dept => ({
-      category: '',
-      label: dept,
-      items: byDept.get(dept)!,
-      columns: crewColumns(fieldMap),
-    }));
+    return [{ category: '', label: 'Crew', items, columns: crewColumns(fieldMap) }];
   }
   const all = resolveCollectionItems(ctx, 'elementCallsOfDay', undefined, dayItem, undefined) as ReportElementCallItem[];
   const filtered = category ? all.filter(it => it.category === category) : all;

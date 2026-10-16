@@ -110,6 +110,23 @@ describe('resolveCollection — day-scoped call-sheet collections', () => {
     expect(crew.every(c => typeof c.callTime === 'string')).toBe(true);
   });
 
+  it('crew grid resolves ONE flat group in canonical order (item 225)', () => {
+    const project = seedProject();
+    const ctx = buildCtx(project);
+    const days = resolveCollection(ctx, 'days', undefined, undefined) as any[];
+    const fieldMap = getReportFieldMap(project);
+    const groups = resolveReportGridGroups(ctx, 'crewOfDay', undefined, days[0], fieldMap);
+    // One flat table: no per-department groups/bars, fixed CREW_FIXED columns.
+    expect(groups).toHaveLength(1);
+    expect(groups[0].columns.map(c => c.field)).toEqual(['crewName', 'role', 'crewCallTime', 'phone', 'email']);
+    // Rows keep the canonical crewOfDay order (no department re-grouping).
+    const crew = resolveCollection(ctx, 'crewOfDay', undefined, days[0]) as any[];
+    expect(groups[0].items.map((i: any) => i.id)).toEqual(crew.map(c => c.id));
+    // The designer skeleton stays one flat group too.
+    const skeleton = skeletonReportGridGroups(project, 'crewOfDay', undefined, fieldMap);
+    expect(skeleton).toHaveLength(1);
+  });
+
   it('precalls grid resolves one flat group over departmentCallsOfDay (item 159)', () => {
     const project = seedProject((p) => {
       p.crewTemplate = { departmentPrecalls: { Camera: '-30m' } };
