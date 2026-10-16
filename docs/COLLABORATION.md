@@ -228,7 +228,10 @@ re-derive any of it:
   Connect Google Drive; signed-in avatar → Collaborate + sign out. AppHeader
   renders it after undo/redo; the File menu keeps its Drive items ONLY when
   the cluster is absent (no Supabase env).
-- `src/lib/supabase/onlineProjects.ts` — every `projects`-table operation.
+- `src/lib/supabase/onlineProjects.ts` — every `projects`-table operation; the
+  Shared list is walked with `fetchAllPages` (`./pagination.ts`) ordered by
+  `updated_at` (indexed) + `id` — PostgREST caps one response at 1000 rows
+  (roadmap 283).
   `data` = `serializeProject` blob; **row id = project id** (one identity for
   meta, document and the future S4 room). Saves are whole-blob with an
   optimistic `revision` check + one LWW retry (S1 has no room; mirrors

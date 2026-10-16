@@ -2,6 +2,7 @@ import type { Project } from '../../types';
 import type { ProjectMeta } from '../../store/storage';
 import { pruneReportTrash } from '../../store/storage';
 import { supabase } from './client';
+import { fetchAllPages } from './pagination';
 import { serializeProject, deserializeProject } from '../projectCodec';
 
 /**
@@ -26,15 +27,24 @@ interface ProjectRow {
   updated_at: string;
 }
 
-/** The signed-in user's projects (RLS: owned or member of). */
+/** The signed-in user's projects (RLS: owned or member of). Paged explicitly
+ *  (roadmap 283): PostgREST caps one response at 1000 rows — the Shared list
+ *  must survive beyond that. `updated_at` ordering has an index; `id` is the
+ *  stable tiebreaker so page boundaries can't repeat or skip rows. */
 export async function listOnlineProjects(): Promise<ProjectMeta[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from('projects')
-    .select('id, title, created_at, updated_at')
-    .order('updated_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as Pick<ProjectRow, 'id' | 'title' | 'created_at' | 'updated_at'>[]).map(row => ({
+  const client = supabase;
+  if (!client) return [];
+  const rows = await fetchAllPages(async (from, to) => {
+    const { data, error } = await client
+      .from('projects')
+      .select('id, title, created_at, updated_at')
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Pick<ProjectRow, 'id' | 'title' | 'created_at' | 'updated_at'>[];
+  });
+  return rows.map(row => ({
     id: row.id,
     title: row.title,
     createdAt: Date.parse(row.created_at),
