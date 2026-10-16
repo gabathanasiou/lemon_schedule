@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "lemon-schedule",
   "private": true,
   "license": "Apache-2.0",
   "version": "0.3.120",
@@ -93,13 +93,5 @@
     "vitest": "^5.0.0",
     "wrangler": "^4.151.0",
     "ws": "^8.21.3"
-  },
-  "allowScripts": {
-    "github:gabathanasiou/ui-kit#187329e6d395647e43f3433a9aa780ee77635d3d": true,
-    "github:gabathanasiou/ui-kit#09ada05cf8c53d6f6c284b5187b7f665e4d0c8e8": true,
-    "github:gabathanasiou/ui-kit#7a2e65ca16c7d3ba696aee6bc2ed93c9e483e766": true,
-    "github:gabathanasiou/ui-kit#1af85f1cd55cd53770498952e6a4a5d0a26b0289": true,
-    "github:gabathanasiou/ui-kit#7b098d8b47229934b754f989969df71ef6970206": true,
-    "github:gabathanasiou/ui-kit#e5b4938a6f151826717992f16fbe310f480abd7f": true
   }
 }
