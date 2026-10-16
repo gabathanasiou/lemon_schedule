@@ -268,19 +268,31 @@ export async function seedElement(page: Page, category: string, name?: string): 
  *  plain-JS expression over `p`, e.g. `'p.scenes.length > 10'`). Replaces
  *  blind sleeps before localStorage reads — the debounced save + any
  *  persist-time normalization (e.g. stripping the legacy cast mirror) landed
- *  by the time the expression holds. */
+ *  by the time the expression holds.
+ *
+ *  The expression is evaluated NODE-side (expect.poll): the page runs under
+ *  the strict meta CSP (no 'unsafe-eval'), so `new Function` inside
+ *  page.waitForFunction is REFUSED by the browser and the wait would never
+ *  satisfy. Read + decode from the page, evaluate in the test process. */
 export async function waitForPersistedProject(page: Page, expr: string, timeout = 8000) {
-  await page.waitForFunction((expression) => {
-    const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-    if (!key) return false;
+  await expect.poll(async () => {
+    const decoded = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
+      if (!key) return null;
+      try {
+        const raw = localStorage.getItem(key)!;
+        return (window as any).__lemonSchedule.decodeProject(raw);
+      } catch {
+        return null;
+      }
+    });
+    if (!decoded) return false;
     try {
-      const raw = localStorage.getItem(key)!;
-      const p = (window as any).__lemonSchedule.decodeProject(raw);
-      return new Function('p', `return (${expression})`)(p) === true;
+      return new Function('p', `return (${expr})`)(decoded) === true;
     } catch {
       return false;
     }
-  }, expr, { timeout });
+  }, { timeout }).toBe(true);
 }
 
 /** Waits for overlay/modal morphs (kit `useOverlayMorph` + the Modal FLIP,

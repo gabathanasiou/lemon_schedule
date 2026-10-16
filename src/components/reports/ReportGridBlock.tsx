@@ -29,7 +29,7 @@ interface ReportGridBlockProps {
   mode?: ReportViewMode;
   showKeys?: boolean;
   rowRange?: [number, number];
-  /** Item 297: re-render the crew table's column header on a continuation
+  /** Item 298: re-render the crew table's column header on a continuation
    *  fragment (its height was budgeted by the paginator). */
   repeatTableHeader?: boolean;
   onPatchBlock?: (patch: Partial<ReportBlock>) => void;
@@ -110,7 +110,7 @@ const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap,
     for (const item of group.items) flat.push({ kind: 'data', group, item });
   }
   const shown = rowRange ? flat.slice(rowRange[0], rowRange[1]) : flat;
-  // Item 297 — a crew-table continuation fragment re-renders its column
+  // Item 298 — a crew-table continuation fragment re-renders its column
   // header (the flat table's head is flat[0]); the paginator budgeted its
   // height on the row that opened the page. Fragments holding row 0 already
   // include the head — never double it.

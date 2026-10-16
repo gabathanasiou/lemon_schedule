@@ -762,7 +762,7 @@ export interface ReportBlock {
   titleBlock?: ReportBlock;
   showTitle?: boolean;
   titleRepeat?: boolean;         // repeat the title on every pagination fragment
-  /** Crew table (roadmap 297): repeat the column header at the top of every
+  /** Crew table (roadmap 298): repeat the column header at the top of every
    *  pagination fragment. Default ON — only an explicit `false` turns it off. */
   repeatHeader?: boolean;
   axis?: 'columns' | 'rows';     // attributes as columns (default) or rows (matrix)

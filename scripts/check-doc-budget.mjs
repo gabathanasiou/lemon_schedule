@@ -239,7 +239,7 @@ const E2E_SPEC_CAP = 70;
 // by elementLinks unit + the sibling removal case), SET_SCRIPT_DOCUMENT baseline
 // rotation (scriptDocumentStore.test.ts), and the days-off span walk
 // (daysOffSync + computeRowData section-date cursor unit tests).
-// 280 → 281: roadmap 297 — the crew table's repeated column header: the page
+// 280 → 281: roadmap 298 — the crew table's repeated column header: the page
 // budget (pageStartExtra) and the continuation render only exist in measured
 // print DOM; an unbudgeted repeat silently overflows/clips the page.
 const E2E_TEST_CAP = 281;

@@ -69,6 +69,10 @@ is the reference.
 - [ ] New remote calls: `https`/`wss` only; no secrets in query strings; if it's a
       save/upload path, read the Drive rules in `docs/STORE-AND-SYNC.md` first (the
       no-FormData / no-binary upload lessons apply to new fetch wrappers too).
+- [ ] New external origin (script/fetch/tile/avatar host): added to
+      `src/lib/csp.ts` in the same commit — the default e2e run builds the app, so
+      a blocked origin fails only the surfaces specs exercise. `frame-ancestors`
+      cannot ride a meta tag (`docs/SECURITY.md` §7).
 - [ ] Import parsers handle untrusted files (FDX/Fountain/CSV/MSD): stay defensive, no
       `eval`/`Function` on file content, no `dangerouslySetInnerHTML` of imported text.
 

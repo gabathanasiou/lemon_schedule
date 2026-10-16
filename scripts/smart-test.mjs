@@ -128,6 +128,9 @@ const RULES = [
   { g: 'playwright*.config.ts', s: 'ALL' },
   { g: 'tsconfig*.json', s: 'ALL' },
   { g: 'index.html', s: 'ALL' },
+  // meta CSP policy (roadmap 285) — asserted in the seeded-smoke canary (same
+  // ceiling as the chrome bars); index.html / vite.config escalate to ALL.
+  { g: 'src/lib/csp.ts', s: ['seeded-smoke'] },
   { g: 'e2e/helpers.ts', s: 'ALL' },
   // reports designer + violations
   { g: 'src/components/reports/**', s: REPORT },

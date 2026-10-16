@@ -77,7 +77,7 @@ interface FlatUnit {
    *  included) — the fragment holding it renders the title. The title can
    *  therefore never be separated from the block's first content. */
   titleOn?: boolean;
-  /** Crew table (roadmap 297): the block's header-repeat policy — `true` when
+  /** Crew table (roadmap 298): the block's header-repeat policy — `true` when
    *  the toggle is on (default), `false` when off; undefined for every other
    *  block. The assembly derives `repeatHeader` from it at any nesting depth. */
   gridHeaderRepeat?: boolean;
@@ -129,7 +129,7 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
   if (first) {
     const headerEl = first.querySelector(':scope > .rm-header') as HTMLElement | null;
     const headerH = headerEl ? headerEl.offsetHeight : 0;
-    // Crew table (roadmap 297): its header is a plain `.rm-row` (local 0,
+    // Crew table (roadmap 298): its header is a plain `.rm-row` (local 0,
     // marked `data-rm-header`) — opt-out via `data-rm-header-repeat="0"` (the
     // toggle; default on). Continuation rows reserve its height like a table's
     // repeated `.rm-header`, and the renderer re-renders it from `repeatHeader`.
@@ -495,7 +495,7 @@ function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string,
       const pageUnits = page.map(k => flat[k]).filter(u => u.blockEl === blockEl && u.unitKind !== 'break');
       const pageRows = pageUnits.filter(u => u.local >= 0);
       const pageHasHeader = pageUnits.some(u => u.local === -1);
-      // Crew table (roadmap 297): the toggle-off policy forces `repeatHeader`
+      // Crew table (roadmap 298): the toggle-off policy forces `repeatHeader`
       // false at every depth (its head unit has no local -1).
       const gridRepeat = flat.find(u => u.blockEl === blockEl && u.gridHeaderRepeat !== undefined)?.gridHeaderRepeat;
       const minRow = pageRows.length > 0 ? pageRows[0].local : -1;

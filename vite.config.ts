@@ -4,6 +4,26 @@ import path from 'path';
 import pkg from './package.json';
 import { defineConfig, type Plugin, type ViteDevServer } from 'vite';
 import { ensureRoomsWorker, localPortFromUrl, roomsPort, stopRoomsWorker } from './tools/rooms-dev.mjs';
+import { buildCsp } from './src/lib/csp';
+
+// Roadmap 285: inject the meta CSP into every served/built page. The policy
+// lives in ONE module (src/lib/csp.ts) — production is strict, the dev server
+// gets the relaxed variant (react-refresh preamble + HMR/rooms websockets).
+// `order: 'pre'` keeps the meta ahead of every injected script/link so the
+// whole document is governed.
+const csp = (): Plugin => ({
+  name: 'csp',
+  transformIndexHtml: {
+    order: 'pre',
+    handler(html, ctx) {
+      const policy = buildCsp({ dev: !!ctx.server });
+      return html.replace(
+        '<meta charset="UTF-8" />',
+        `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`,
+      );
+    },
+  },
+});
 
 // Dev-only: injects the hub storage bridge into every page served inside a
 // worker-preview-hub iframe (see public/hub-bridge.js — shared localStorage
@@ -74,7 +94,7 @@ const cacheDir = argvPort ? `node_modules/.vite-${argvPort}` : 'node_modules/.vi
 export default defineConfig(() => {
   return {
     base: '/lemon_schedule/',
-    plugins: [react(), tailwindcss(), hubStorageBridge(), roomsDev()],
+    plugins: [csp(), react(), tailwindcss(), hubStorageBridge(), roomsDev()],
     define: {
       // Build-time app version for the boot-screen lockup (roadmap 80).
       __APP_VERSION__: JSON.stringify(pkg.version),

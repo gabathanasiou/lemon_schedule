@@ -1070,23 +1070,6 @@ unverified.
   (`docs/COLLABORATION.md` §11 context).
 - **Verify:** a real reset lands in all three inboxes, not spam.
 
-## 285. CSP + response-hardening pass (`[ ]`)
-
-**Priority: P2.** Audit F13.
-
-**Request:** no CSP, no referrer policy; the app is framable.
-
-- **Approach:** meta `Content-Security-Policy` in `index.html` with a real
-  allowlist (GIS/Google OAuth, Supabase https+wss, gstatic probe, OSM tiles +
-  Nominatim, Google Places, Open-Meteo), plus `Referrer-Policy`.
-  **`frame-ancestors`/X-Frame-Options cannot be set via meta** — clickjacking
-  needs a header-capable layer (Cloudflare in front of a custom domain) or an
-  explicit accepted-risk note in `docs/SECURITY.md` §7.
-- **Verify:** boot + OAuth + Drive + rooms + maps all work under the policy
-  (manual pass); consider a report-only trial first.
-- **Relations:** pairs with **274** (CSP kills the stored-XSS inline-handler
-  class as defense in depth).
-
 ## 286. Observability floor — error tracking, uptime, one human alert (`[ ]`)
 
 **Priority: P2 — before public launch.** Audit F14.
@@ -1216,7 +1199,41 @@ ever return to.
   scratch project.
 - **Relations:** extends **281** (the deletion path ships there).
 
-## 297. Crew table — repeat the column header on page breaks (`[~]`)
+## 297. Location stack — Google geocoding when keyed (`[~]`)
+
+**Priority: P2 — decided 2026-10-16 (owner) while scoping 285.**
+
+**Status:** code + Google Cloud setup LIVE 2026-10-16 — restricted key (Places
+API (New) + Geocoding API only; HTTP referrers; stored in the repo secret
+`VITE_GOOGLE_MAPS_API_KEY` + local `.env`), billing on, £5/mo budget alert.
+Remaining: verify search + pin-drop on the DEPLOYED app after the next deploy.
+
+**Request:** address search / reverse geocoding defaulted to keyless Nominatim,
+but OSM coverage is thin in practice (missing street numbers); the owner wants
+Google quality in the deployed app. `src/lib/places.ts` already ships a Google
+provider — dormant because `VITE_GOOGLE_MAPS_API_KEY` is set nowhere (local
+`.env` or deploy).
+
+- **Approach:** wire the key — local `.env` + repo secret read by `deploy.yml`.
+  Google Cloud setup (owner, once): billing enabled; "Places API (New)" +
+  "Geocoding API" enabled; ONE key restricted to those two APIs + HTTP
+  referrers (`https://<user>.github.io/*`, `http://localhost:3000/*`), with
+  daily quota caps + a budget alert (the key ships in the public bundle — the
+  referrer restriction is the guard). Fix `reportWeather.ts`'s direct
+  Nominatim call to route through `getPlacesProvider().reverseGeocode` (it
+  bypasses the provider — stays on OSM even when keyed). Enrich the Google
+  path with structured parts from `addressComponents`
+  (street/city/postcode/country; today only the joined formatted address is
+  kept, LESS than Nominatim). Keep Nominatim as the keyless fallback
+  (open-source builds / no-card deployments keep working; map tiles stay OSM
+  by decision). Future (not this pass): switch search from Text Search to
+  Places Autocomplete — better typeahead UX + cheaper SKU.
+- **Verify:** unit tests for provider selection + parts mapping; with a key
+  set, a live search + pin-drop on the deployed app; keyless build unchanged.
+- **Relations:** pairs with **285** (the CSP allowlist covers both geocoders);
+  feeds **288** (privacy data-flow list).
+
+## 298. Crew table — repeat the column header on page breaks (`[~]`)
 
 **Requested 2026-10-16 (user):** the crew table should repeat its column header
 at the top of every continuation page — a toggle whose default is ON.

@@ -1,8 +1,7 @@
 // Sun & Weather data for reports — computed at print time for the day item's
-// date. Location comes from getReportLocation() (today: London, fixed); that
-// single function is the seam where per-day/per-scene locations will slot in
-// when the location DB lands. Timezone comes from the project (Production tab)
-// or the browser zone.
+// date. Location comes from getReportLocation() (the day master → DB-matched
+// scene location → blank seam; per-day/per-scene locations resolve there).
+// Timezone comes from the project (Production tab) or the browser zone.
 //
 // API: Open-Meteo (free, no key, CORS):
 //  - https://api.open-meteo.com/v1/forecast          — today ± [5d past, 15d ahead]
@@ -13,6 +12,7 @@ import { Project, ScheduleVersion, CalendarVersion, ReportDesign } from '../type
 import { ReportCtx, ReportDaybreakData, buildReportCtx, getReportLocation, pickLocation, designLocationsIn, type ReportLocationInfo } from './reportData';
 import { getBrowserTimeZone } from './timezones';
 import { partsFromPlace } from './locations';
+import { getPlacesProvider } from './places';
 
 export interface ReportLocation {
   lat: number;
@@ -44,6 +44,8 @@ export { getReportLocation } from './reportData';
 // ---- reverse geocoding (full address for the map block's location picker) -----
 // Cache keyed `lat|lng`; `null` marks a failed fetch. Same lifecycle as the
 // sun/weather cache — prefetched before print, resolves in the canvas on tick.
+// Goes through the ONE provider seam (lib/places.ts) — Google when keyed,
+// Nominatim fallback otherwise; never call a geocoding endpoint directly.
 
 const addressCache = new Map<string, string | null>();
 
@@ -59,17 +61,8 @@ export function getCachedAddress(lat: number, lng: number): string | null | unde
 export async function reverseGeocodeAddress(lat: number, lng: number): Promise<void> {
   const key = addressKey(lat, lng);
   if (addressCache.has(key)) return;
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18`,
-      { headers: { Accept: 'application/json' } },
-    );
-    if (!res.ok) { addressCache.set(key, null); return; }
-    const data = await res.json();
-    addressCache.set(key, (data?.display_name || '').slice(0, 160) || null);
-  } catch {
-    addressCache.set(key, null);
-  }
+  const hit = await getPlacesProvider().reverseGeocode(lat, lng); // never throws — providers catch
+  addressCache.set(key, hit ? hit.label.slice(0, 160) : null);
 }
 
 export interface SunWeather {

@@ -9,6 +9,11 @@
          viewport-fit=cover HERE — phone portrait opts in at boot instead
          (main.tsx, roadmap 267); the system bar sits above the page by design. -->
     <meta name="theme-color" content="#09090b" />
+    <!-- Roadmap 285: keep cross-origin referrers at origin level (the Google
+         Maps key's HTTP-referrer restriction reads them). The CSP itself is
+         injected by the `csp` plugin from src/lib/csp.ts (dev gets a relaxed
+         variant) — not written here. -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>Lemon Schedule</title>
   </head>
   <body>

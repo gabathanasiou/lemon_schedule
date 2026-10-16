@@ -25,6 +25,7 @@ this doc is the model it checks against. Update BOTH whenever the model changes.
 | Value | Lives in | Public? |
 | --- | --- | --- |
 | Google OAuth client ID | `VITE_GOOGLE_CLIENT_ID` (+ repo secret) | yes — client IDs are not secrets |
+| Google Maps/Places key | `VITE_GOOGLE_MAPS_API_KEY` (+ repo secret; roadmap 297) | ships in the bundle — guarded by HTTP-referrer + API restrictions + quota caps (§6) |
 | Supabase URL + publishable/anon key | `VITE_SUPABASE_*` (+ repo secrets) | yes by design — RLS is the gate |
 | Supabase account session | browser `localStorage` (deliberate; COLLABORATION.md §11) | session tokens — the one web-storage exception |
 | Google Drive access token | `useRef` + `sessionStorage` only | no — never logged, never localStorage |
@@ -115,8 +116,8 @@ clash refused; purge).
   never log it (`error?.message` only), never localStorage, never URLs/DOM.
 - The Supabase session in localStorage is the ONE deliberate exception — a known
   SPA trade-off so refresh keeps you signed in. Do not add a second credential to web
-  storage; the mitigating control is the app not running third-party scripts (CSP is
-  the planned next hardening step, §6).
+  storage; the mitigating controls are the app not running third-party scripts and the
+  strict meta CSP every build now serves (§7).
 - `readOnly` (connectivity) and `canEdit` (permission) never overloaded; every editing
   surface gates on `locked`.
 - New mutations go through the ONE `Action` union — never a per-feature sync path;
@@ -159,13 +160,41 @@ clash refused; purge).
   NULL, `updated_at` never moves, `auth.audit_log_entries` is empty). On Pro:
   Authentication → Sessions → **Inactivity timeout = 30 days**, then unschedule the
   sweep (`select cron.unschedule('session-timebox-180d');`).
+- **Google Maps/Places key (roadmap 297)** — create ONE key in the same Cloud project
+  as the Drive client: billing enabled; "Places API (New)" + "Geocoding API" enabled;
+  application restriction = HTTP referrers (`https://<user>.github.io/*`,
+  `http://localhost:3000/*`, dev ports as needed); API restriction = those two APIs;
+  set daily quota caps (~500/day each) and a budget alert. Then add the value to the
+  local `.env` AND the repo secret of the same name (`deploy.yml` reads it). The key
+  is public in the bundle — the restrictions are the guard.
 
 ## 7. Honest gaps (planned, not yet done)
 
-- **CSP for the app** — GitHub Pages can't send headers, so a `Content-Security-Policy`
-  meta tag in `index.html` is the mechanism; it needs a careful allowlist (Google
-  OAuth/GIS scripts, Supabase `wss`, gstatic probe, map tiles/geocoding) and a full
-  manual pass. Recommended next hardening step.
+- **Clickjacking / framing (the one CSP gap).** The CSP ships as a meta tag
+  (below), and `frame-ancestors` / `X-Frame-Options` CANNOT ride a meta tag —
+  GitHub Pages serves no custom headers, so the hosted app stays framable.
+  Resolve when a custom domain lands: put Cloudflare in front and send
+  `Content-Security-Policy: frame-ancestors 'self'` + `X-Frame-Options: DENY`;
+  until then this is accepted risk (low: the app exposes no cross-site
+  privileged action a frame could leverage beyond its own UI).
+- **CSP — SHIPPED 2026-10-16 (roadmap 285).** Every build serves a meta
+  `Content-Security-Policy` — policy in `src/lib/csp.ts` (ONE source), injected
+  by the `csp` plugin in `vite.config.ts`; the dev server gets a relaxed variant
+  (react-refresh preamble + local websockets). `default-src 'self'`; script-src
+  has NO `'unsafe-inline'`/`'unsafe-eval'` in production (the stored-XSS
+  inline-handler class stays inert — item 274's defense-in-depth), with an
+  explicit allowlist: GIS (`accounts.google.com` in script/frame/connect),
+  Drive + userinfo (`www.googleapis.com`), Google geocoding
+  (`places.` / `maps.googleapis.com`, roadmap 297), Nominatim fallback +
+  Open-Meteo, the gstatic probe, Supabase (`https`/`wss://*.supabase.co`), the
+  room worker (`*.workers.dev`), OSM tiles, Google avatars, and the local agent
+  bridge (`ws://127.0.0.1:3939`). `index.html` also carries
+  `Referrer-Policy: strict-origin-when-cross-origin` (meta `name="referrer"` —
+  needed so the Maps key's referrer restriction can read the origin; a stricter
+  policy would send no Referer and break it). Guards:
+  `src/lib/__tests__/csp.test.ts` pins the policy invariants; the seeded-smoke
+  canary asserts the built page carries the meta + zero violations on boot.
+  **A new external origin must be added to `src/lib/csp.ts` in the same commit.**
 - **Edge rate limits / WAF rules** on the room worker (Cloudflare dashboard) — cheap
   and worthwhile before a public launch, not before.
 - **Chunked snapshot transfer** if a project's serialized blob exceeds the 1 MiB

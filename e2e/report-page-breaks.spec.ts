@@ -309,11 +309,11 @@ test('filter values commit on blur (one undo entry), not per keystroke', async (
   expect(after - before).toBe(1); // blur commits once
 });
 
-// Roadmap 297 — the crew table (item 225's ONE flat table) repeats its column
+// Roadmap 298 — the crew table (item 225's ONE flat table) repeats its column
 // header at the top of every continuation page (default on). The budget math
 // is the silent-break risk: an unbudgeted repeated header would overflow the
 // page and clip print output.
-test('crew table repeats its column header on a continuation page (roadmap 297)', async ({ page }) => {
+test('crew table repeats its column header on a continuation page (roadmap 298)', async ({ page }) => {
   await openSeededReportsDesigner(page, withDesign(design('PB Crew Header', [
     repeat('pb-r', 'days', [
       spacer('pb-sp', 620),
