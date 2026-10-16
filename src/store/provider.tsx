@@ -649,7 +649,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const isCurrentOnlineProject = useCallback(() => {
     return !!projectListRef.current.find(p => p.id === currentProjectIdRef.current)?.onlineId;
   }, []);
-  const guardedDispatch = useCallback((action: Action) => {
+  const guardedDispatch = useCallback((action: Action, opts?: { notify?: boolean }) => {
     if (action.type !== 'LOAD') {
       if (!realOnline && isCurrentCloudProject()) return;
       if (isCurrentOnlineProject() && !canEditRef.current) return;
@@ -667,6 +667,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (action.type !== 'LOAD' && action.type !== 'UNDO' && action.type !== 'REDO') {
       roomClientRef.current?.sendAction(generateUUID(), action);
     }
+    // Roadmap 296: every ACCEPTED dispatch through this seam notifies onAction
+    // subscribers — UI edits used to be silent. The bridge path opts out and
+    // notifies itself after its flushSync, so listeners that read state see
+    // the committed action.
+    if (opts?.notify !== false) notifyAgentBridge(action);
   }, [realOnline, isCurrentCloudProject, isCurrentOnlineProject]);
 
   /**
@@ -728,7 +733,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     // flushSync: agent dispatches must be visible to an immediately-following
     // getState() read (React would otherwise batch the update to the next
     // render, making same-tick dispatch→read pairs return stale state).
-    flushSync(() => { guardedDispatch(action); });
+    flushSync(() => { guardedDispatch(action, { notify: false }); });
     notifyAgentBridge(action);
   }, [guardedDispatch]);
 

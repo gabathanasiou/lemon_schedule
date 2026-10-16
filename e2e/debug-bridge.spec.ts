@@ -128,20 +128,39 @@ test.describe('Agentic Debug Bridge', () => {
     expect(result.afterBatchUndo).toBe(result.expectedAfterBatchUndo);
   });
 
-  test('notifies onAction subscribers of every dispatch', async ({ page }) => {
+  test('notifies onAction subscribers of every dispatch (bridge + UI)', async ({ page }) => {
     await bootApp(page);
+
+    // Subscriber installed from the bridge: a bridge dispatch arrives exactly
+    // once (the bridge path opts out of the guarded notify and fires its own).
+    await page.evaluate(() => {
+      const b = (window as any).__lemonSchedule;
+      (window as any).__seen = [] as string[];
+      (window as any).__before = b.getState().present.scenes.length;
+      (window as any).__off = b.onAction((a: any) => (window as any).__seen.push(a.type));
+      b.dispatch({ type: 'SET_PRODUCTION_INFO', payload: { production: 'Bridge Film' } });
+    });
+
+    // A GENUINE UI edit (roadmap 296): the Breakdown tab's "+ Add Scene"
+    // button dispatches ADD_SCENE through the same guarded seam as every
+    // click/type in the app — the subscriber must see it too.
+    await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+    await page.locator('[data-presence-anchor="toolbar:glide:add-scene"]').click();
 
     const result = await page.evaluate(() => {
       const b = (window as any).__lemonSchedule;
-      const seen: string[] = [];
-      const off = b.onAction((a: any) => seen.push(a.type));
-      b.dispatch({ type: 'SET_PRODUCTION_INFO', payload: { production: 'Bridge Film' } });
-      off();
+      const seen = (window as any).__seen as string[];
+      const before = (window as any).__before as number;
+      const scenes = b.getState().present.scenes.length;
+      (window as any).__off();
       b.dispatch({ type: 'SET_PRODUCTION_INFO', payload: { production: 'Untracked' } });
-      return { seen, production: b.getState().present.productionInfo.production };
+      return { seen, added: scenes - before, production: b.getState().present.productionInfo.production };
     });
 
-    expect(result.seen).toEqual(['SET_PRODUCTION_INFO']);
+    // Exactly one notification per dispatch: no double-fire on the bridge
+    // path, no silence on the UI path, nothing after unsubscribe.
+    expect(result.seen).toEqual(['SET_PRODUCTION_INFO', 'ADD_SCENE']);
+    expect(result.added).toBe(1);
     expect(result.production).toBe('Untracked');
   });
 

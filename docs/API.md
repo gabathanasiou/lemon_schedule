@@ -49,7 +49,8 @@ API; `e2e/debug-bridge.spec.ts` proves it.
   synchronously (`flushSync` in provider); `undo()` / `redo()`; `batch(fn)` =
   `BATCH_START/COMMIT` (one undo entry); `repairScript()` = renumber/prune/rows
   in one batch.
-- **Observe:** `onAction(cb)` — every dispatched action (UI + bridge); returns
+- **Observe:** `onAction(cb)` — every accepted dispatch (UI edits, bridge
+  dispatches, room applies); a dropped/blocked write notifies nothing. Returns
   an unsubscribe.
 - **Factories:** `makeBlankScene(partial?)`, `makeBlankProject(title?)`,
   `newId()` — build valid entities; never hand-craft state (cast referenced by
