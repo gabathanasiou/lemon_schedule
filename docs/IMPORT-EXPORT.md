@@ -55,6 +55,8 @@ Status: read this before touching any import/export work.
   index) / type 3 page eighths.
 - Export writes the Final-Draft-neutral zero-filled header (MMS 5/6/10 all
   accept it).
+- Text is UTF-8 both ways; u16 record lengths count BYTES (roadmap 276) —
+  legacy latin1/cp1252 files decode via a per-string fallback.
 - Reference parser: `tools/sex_probe.py`; golden: `e2e/fixtures/lair-v10.expected.json`.
 
 ## Script body retention (roadmap 123 Phase 0)

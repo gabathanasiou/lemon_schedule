@@ -1254,90 +1254,6 @@ priority order (274 = P0; 275–278 = P1; 279–288 = P2; 289–291 = P3, and 28
 parked until unparked). Normal one-agent-per-item flow; close each through
 `manage-roadmap` before picking the next.
 
-## 274. Report rich text — enforce sanitization at every output boundary (`[ ]`)
-
-**Priority: P0 — before any other report work. Security-sensitive.**
-
-**Request:** stored rich text (text blocks, headers/footers, table cell bands,
-titles) must be impossible to execute. The editor's save path sanitizes; every
-other ingest path stores markup verbatim and two render paths execute it.
-
-- **Fix (render boundary — the non-negotiable layer):** sanitize the stored
-  HTML with the kit's `sanitizeRichText` (re-exported in
-  `src/lib/richText.ts`) at BOTH sinks — `reports/TextBlockView.tsx`
-  (`dangerouslySetInnerHTML` branch) and `reports/CustomTableBands.tsx`
-  (non-editable cell branch). Sanitize **before** `resolveReportTokensHtml` —
-  post-resolution sanitizing strips trusted token styles (tooltip chips use
-  `background`/`border-radius`/`padding`/`margin`, outside the kit style
-  allowlist; `src/lib/reportTokens.ts`).
-- **Defense in depth (same box):** strip on ingest — `UPDATE_REPORT_DESIGN`
-  blocks/header/footer (`src/store/actions/reports.ts`), report fields through
-  `UPDATE_PROJECT` (`src/store/actions/schedule.ts` spreads arbitrary fields),
-  and the `.lemon`/localStorage decode paths.
-- **Tests:** unit — malicious markup (script tags, event-handler attributes,
-  `javascript:` URLs) is neutralized after resolve→sanitize while legit report
-  styling survives; e2e — dispatch a hostile `UPDATE_REPORT_DESIGN` through
-  the debug bridge and assert nothing executes; run the report designer/print
-  specs for visual regressions + a rule-7 manual look at preview and print.
-- **Verify:** `npm run lint` + report e2e subset + full suite (store-touching).
-- **Relations:** pairs with **285** (CSP kills the inline-handler class).
-  Update `docs/REPORTS-DESIGNER.md` with the render-time sanitizer note.
-
-## 275. Trash integrity — report designs (`[ ]`)
-
-**Priority: P1 — next hardening batch.** Audit F2.
-
-**Request:** deleted report designs are unrecoverable and survive Empty Trash.
-
-- **Fix:** include `reportTrash` in `caseEmptyTrash` (9 channels today,
-  `src/store/actions/schedule.ts`); add a Reports section to `TrashModal.tsx`
-  wiring the existing `RESTORE_REPORT_FROM_TRASH`
-  (`src/store/actions/reports.ts` — action exists, no UI); prune `reportTrash`
-  TTL on cloud/Drive reads like version trash
-  (`src/lib/googleDriveStorage.ts` parity — today only local loads prune, so
-  shared projects accumulate).
-- **Verify:** unit — Empty Trash clears `reportTrash`; manual/e2e — delete a
-  design → Trash → restore renders again; `npm run lint` + trash specs.
-
-## 276. SEX import/export — Unicode round-trip integrity (`[ ]`)
-
-**Priority: P1 — next hardening batch.** Audit F3.
-
-**Request:** `.sex` export corrupts non-ASCII text: record lengths count
-UTF-16 units against UTF-8 bytes written, and import decodes latin1 against a
-UTF-8 encode (`src/lib/import/sex.ts`).
-
-- **Fix:** compute record lengths in bytes; make decode/encode one encoding
-  (UTF-8 with a latin1 fallback for legacy files); keep `tools/sex_probe.py` /
-  `e2e/fixtures/lair-v10.sex` expectations honest; extend the unit round-trip
-  (`src/lib/__tests__/sexImport.test.ts`) with accented (and non-BMP) fields.
-- **Verify:** new fixture round-trips byte-identically; MSD/SEX e2e green.
-
-## 277. Room worker — refuse unauthenticated metadata responses (`[ ]`)
-
-**Priority: P1 — XS.** Audit F5.
-
-**Request:** a non-WebSocket `GET /room/<projectId>` returns
-`{room, initialized, rev}` before any origin/token check
-(`workers/rooms/src/room.ts`, the fetch guard).
-
-- **Fix:** only answer a valid upgrade (or a token-carrying request); keep
-  `/health` as the one auth-less endpoint.
-- **Verify:** add a negative to `workers/rooms/test/room-probe.ts` (plain GET →
-  refused); `npx tsc -p workers/rooms` + probe run green.
-
-## 278. Password recovery — surface expired/used links (`[ ]`)
-
-**Priority: P1 — XS.** Audit F6.
-
-**Request:** GoTrue enforces expiry/single-use, but the client ignores the
-recovery redirect's error params, so a dead link lands silently
-(`src/lib/supabase/auth.tsx`, `AccountModal`, `PasswordRecoveryModal`).
-
-- **Fix:** read `error`/`error_description` (and `otp_expired`) on the
-  recovery route, show an actionable message + a re-request button.
-- **Verify:** manual with a used/expired link; unit if the parser is extracted.
-
 ## 279. Backups & a tested restore (`[ ]`)
 
 **Priority: P2 — before the first stranger/paying user.** Audit F7.
@@ -1365,46 +1281,6 @@ unverified.
   handling as a follow-up when product email exists
   (`docs/COLLABORATION.md` §11 context).
 - **Verify:** a real reset lands in all three inboxes, not spam.
-
-## 281. Account deletion / erasure path (`[ ]`)
-
-**Priority: P2 — before paying customers (UK GDPR).** Audit F9.
-
-**Request:** no account-deletion path exists anywhere; guests (anonymous
-users) also have no cleanup.
-
-- **Scope:** account deletion covering profile, memberships, invites, share
-  links, teams (review FK cascades); decide the fate of shared projects whose
-  owner deletes; document what backups/logs cannot reach; surface the exit in
-  Account settings (danger-confirmed). Decide whether guest cleanup rides here.
-- **Verify:** RLS acceptance additions (`supabase/tests/`); manual
-  delete → re-login → no orphaned rows or dangling links.
-- **Relations:** the "what backups/logs cannot reach" documentation depends on
-  **279** (backup reality); the user-facing deletion policy half lands in **288**.
-
-## 282. Vulnerability disclosure process (`[ ]`)
-
-**Priority: P2.** Audit F10.
-
-**Request:** public repo + hosted app, no way for a stranger to report a
-vulnerability.
-
-- **Deliverables:** root `SECURITY.md` (scope, how to report, expectations,
-  safe harbour), `.github/SECURITY.md` or `security.txt`, a monitored contact;
-  link from README. Keep it separate from the internal `docs/SECURITY.md`.
-- **Verify:** a dry-run report reaches the inbox; links live.
-
-## 283. Shared-project list — real pagination (`[ ]`)
-
-**Priority: P2 — small.** Audit F11.
-
-**Request:** `listOnlineProjects` reads all rows with no limit — PostgREST's
-default 1000-row cap silently truncates the Shared list
-(`src/lib/supabase/onlineProjects.ts`).
-
-- **Fix:** `.range()` loop (or explicit paging) ordered by `updated_at`; add
-  the `projects.updated_at` index in the same migration.
-- **Verify:** unit for the pager; a seeded >1000-row account loads fully.
 
 ## 284. Invite flow — close the email-existence oracle (`[ ]`)
 
@@ -1544,3 +1420,18 @@ inside inline code, `Relations` has two spellings.
 
 **Relations**: interim answer shipped — `manage-roadmap` §Queries grep recipes.
 
+## 293. Guest cleanup — stale anonymous accounts (`[ ]`, P3 — parked by the 281 decision 2026-10-16)
+
+**Priority: P3 — pre-public-launch.** Parked out of 281 by owner decision.
+
+**Request:** invite-link guests (anonymous sign-ins) accumulate with no cleanup.
+Self-serve deletion covers them (281), but nothing reaps accounts nobody will
+ever return to.
+
+- **Approach:** decide the policy first (inactivity window — e.g. anonymous
+  accounts with no session/activity for 90+ days), then ONE sweep (pg_cron +
+  admin API, or a scheduled Edge Function) that deletes them through the same
+  path 281 built. Never touch guests that converted to a full account.
+- **Verify:** a dry-run report of what would be reaped + one live sweep on a
+  scratch project.
+- **Relations:** extends **281** (the deletion path ships there).

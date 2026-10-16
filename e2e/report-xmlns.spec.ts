@@ -97,3 +97,94 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
   expect(previewDump.xmlnsEls).toBe(0);
   expect(previewDump.xmlnsText).toBe(0);
 });
+
+test('roadmap 274: hostile report markup is stripped at ingest and neutralized at render', async ({ page }) => {
+  await openSeededProject(page);
+  page.on('pageerror', err => console.log('PAGE-ERR:', err.message.slice(0, 300)));
+
+  // Default designs exist once the designer has opened (they render there).
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+  await waitForPersistedProject(page, "(p.reportDesigns || []).some(d => d.name === 'Scene Breakdown')");
+
+  const hostileBlocks = (marker: string) => [
+    {
+      id: 'xss-text',
+      type: 'text',
+      text: `<p>${marker} <b>bold</b> {{definitely_missing_token}}</p><img src="x" onerror="window.__xss=1"><script>window.__xss=2</script><a href="javascript:window.__xss=3">jump</a>`,
+    },
+    {
+      id: 'xss-table',
+      type: 'table',
+      custom: true,
+      columns: [{ id: 'c1', field: '', width: 100 }],
+      customRows: [{ id: 'r1', cells: [`<p>Cell</p><img src="x" onerror="window.__xss=4"><svg onload="window.__xss=5"></svg>`] }],
+    },
+  ];
+
+  // Leg B — INGEST: a bridge dispatch goes through the same reducers as the UI,
+  // so the store strip must clean the design before it is ever stored.
+  const ingest = await page.evaluate((blocks) => {
+    const api = (window as any).__lemonSchedule;
+    const design = api.getProject().reportDesigns[0];
+    api.dispatch({ type: 'UPDATE_REPORT_DESIGN', payload: { id: design.id, blocks } });
+    const stored = api.getProject().reportDesigns.find((d: any) => d.id === design.id);
+    const json = JSON.stringify(stored.blocks);
+    return {
+      jsonHead: json.slice(0, 200),
+      hasScriptTag: /<script/i.test(json),
+      hasHandler: /onerror|onload/i.test(json),
+      hasJsUrl: /javascript:/i.test(json),
+      keepsBold: json.includes('<b>bold</b>'),
+    };
+  }, hostileBlocks('Ingest-hostile'));
+  console.log('INGEST-STRIPPED:', ingest.jsonHead);
+  expect(ingest.hasScriptTag).toBe(false);
+  expect(ingest.hasHandler).toBe(false);
+  expect(ingest.hasJsUrl).toBe(false);
+  expect(ingest.keepsBold).toBe(true);
+
+  // Leg A — RENDER: a raw LOAD bypasses the load seam (the debug bridge is the
+  // agent path); the two render sinks must still neutralize the stored markup.
+  await page.evaluate((blocks) => {
+    const api = (window as any).__lemonSchedule;
+    delete (window as any).__xss;
+    const p = api.getProject();
+    for (const d of p.reportDesigns) d.blocks = JSON.parse(JSON.stringify(blocks));
+    api.dispatch({ type: 'LOAD', payload: p });
+  }, hostileBlocks('Render-hostile'));
+
+  // The paginator settles a beat after LOAD; wait for OUR marker to be on screen.
+  await page.waitForFunction(() => (document.querySelector('.report-text-block')?.textContent || '').includes('Render-hostile'), null, { timeout: 5000 });
+  // If a hostile <img> had survived, its error event fires asynchronously —
+  // wait for images to settle before reading the execution flag.
+  await page.waitForFunction(() => Array.from(document.images).every(img => img.complete), null, { timeout: 2000 });
+
+  const dump = await page.evaluate(() => {
+    const hostileSel = [
+      '.report-text-block img', '.report-text-block script', '.report-text-block [onerror]', '.report-text-block [onload]', '.report-text-block svg',
+      '[data-cell] img', '[data-cell] script', '[data-cell] [onerror]', '[data-cell] [onload]', '[data-cell] svg',
+    ].join(', ');
+    const hostile = Array.from(document.querySelectorAll(hostileSel));
+    const jsLinks = Array.from(document.querySelectorAll('.report-text-block a, [data-cell] a'))
+      .filter(a => (a.getAttribute('href') || '').toLowerCase().startsWith('javascript:'));
+    const chip = document.querySelector('.report-text-block [data-ui-tooltip="No value"]') as HTMLElement | null;
+    return {
+      xss: (window as any).__xss ?? null,
+      hostileCount: hostile.length,
+      hostileSamples: hostile.slice(0, 4).map(el => (el as HTMLElement).outerHTML.slice(0, 140)),
+      jsLinkCount: jsLinks.length,
+      boldSurvives: !!document.querySelector('.report-text-block b'),
+      chipBackground: chip ? chip.style.background : '',
+      renderedTargets: document.querySelectorAll('.report-text-block, [data-cell]').length,
+    };
+  });
+  console.log('RENDER-DUMP:', JSON.stringify(dump, null, 1));
+  expect(dump.hostileCount).toBe(0);
+  expect(dump.jsLinkCount).toBe(0);
+  expect(dump.boldSurvives).toBe(true);
+  // The unresolved-token chip's inline styles are injected by resolution — a
+  // non-empty background proves sanitization ran BEFORE the resolver.
+  expect(dump.chipBackground).not.toBe('');
+  expect(dump.xss).toBe(null);
+});

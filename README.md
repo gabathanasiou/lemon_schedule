@@ -179,6 +179,13 @@ The working manuals live in [`docs/`](docs/):
 - [Security model](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md)
 
+## Security
+
+Found a vulnerability? Please report it privately via GitHub's private
+vulnerability reporting (repo **Security** tab → _Report a vulnerability_) — see
+[SECURITY.md](SECURITY.md). Please don't open a public issue for security
+problems.
+
 ## License
 
 Apache-2.0 — see [`LICENSE`](LICENSE).

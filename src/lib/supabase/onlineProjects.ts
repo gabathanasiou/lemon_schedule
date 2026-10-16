@@ -1,6 +1,8 @@
 import type { Project } from '../../types';
 import type { ProjectMeta } from '../../store/storage';
+import { pruneReportTrash } from '../../store/storage';
 import { supabase } from './client';
+import { fetchAllPages } from './pagination';
 import { serializeProject, deserializeProject } from '../projectCodec';
 
 /**
@@ -25,15 +27,24 @@ interface ProjectRow {
   updated_at: string;
 }
 
-/** The signed-in user's projects (RLS: owned or member of). */
+/** The signed-in user's projects (RLS: owned or member of). Paged explicitly
+ *  (roadmap 283): PostgREST caps one response at 1000 rows — the Shared list
+ *  must survive beyond that. `updated_at` ordering has an index; `id` is the
+ *  stable tiebreaker so page boundaries can't repeat or skip rows. */
 export async function listOnlineProjects(): Promise<ProjectMeta[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from('projects')
-    .select('id, title, created_at, updated_at')
-    .order('updated_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as Pick<ProjectRow, 'id' | 'title' | 'created_at' | 'updated_at'>[]).map(row => ({
+  const client = supabase;
+  if (!client) return [];
+  const rows = await fetchAllPages(async (from, to) => {
+    const { data, error } = await client
+      .from('projects')
+      .select('id, title, created_at, updated_at')
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Pick<ProjectRow, 'id' | 'title' | 'created_at' | 'updated_at'>[];
+  });
+  return rows.map(row => ({
     id: row.id,
     title: row.title,
     createdAt: Date.parse(row.created_at),
@@ -70,7 +81,13 @@ export async function readOnlineProject(id: string): Promise<OnlineReadResult> {
     .single();
   if (error || !data) throw new Error(error?.message || 'Project not found');
   const row = data as Pick<ProjectRow, 'data' | 'revision'>;
-  return { project: deserializeProject(row.data), revision: Number(row.revision) };
+  const project = deserializeProject(row.data);
+  // Roadmap 275: report-design trash is pruned on read, same retention as
+  // local loads and Drive reads (shared projects used to accumulate it).
+  if (Array.isArray(project.reportTrash)) {
+    project.reportTrash = pruneReportTrash(project.reportTrash);
+  }
+  return { project, revision: Number(row.revision) };
 }
 
 async function updateAtRevision(

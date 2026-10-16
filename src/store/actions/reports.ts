@@ -1,6 +1,7 @@
 import { Project, ReportDesign, ReportTrashItem, CrewRole, CrewPerson, CrewTrashItem, ProductionInfo, ProjectLocation, LocationTrashItem, DayTypeDef } from '../../types';
 import { generateUUID } from '../../lib/utils';
 import { getDefaultReportDesign } from '../../lib/reportTemplates';
+import { sanitizeReportBlocks } from '../../lib/reportSanitize';
 import type { Action, State } from '../reducer';
 
 export type ApplyChange = (p: Project) => State;
@@ -12,20 +13,21 @@ export function caseAddReportDesign(state: State, action: Action, applyChange: A
   const source = action.payload.cloneFromId
     ? state.present.reportDesigns?.find(d => d.id === action.payload.cloneFromId)
     : null;
+  // Roadmap 274: sanitize-and-clone (replaces the bare JSON deep clone).
   const blocks = action.payload.blocks
-    ? JSON.parse(JSON.stringify(action.payload.blocks))
+    ? sanitizeReportBlocks(action.payload.blocks)
     : source
-      ? JSON.parse(JSON.stringify(source.blocks))
+      ? sanitizeReportBlocks(source.blocks)
       : getDefaultReportDesign().blocks;
   const header = action.payload.header
-    ? JSON.parse(JSON.stringify(action.payload.header))
+    ? sanitizeReportBlocks(action.payload.header)
     : source?.header
-      ? JSON.parse(JSON.stringify(source.header))
+      ? sanitizeReportBlocks(source.header)
       : [];
   const footer = action.payload.footer
-    ? JSON.parse(JSON.stringify(action.payload.footer))
+    ? sanitizeReportBlocks(action.payload.footer)
     : source?.footer
-      ? JSON.parse(JSON.stringify(source.footer))
+      ? sanitizeReportBlocks(source.footer)
       : [];
   const newDesign: ReportDesign = {
     id: action.payload.id || generateUUID(),
@@ -54,9 +56,9 @@ export function caseUpdateReportDesign(state: State, action: Action, applyChange
       if (d.id !== id) return d;
       return {
         ...d,
-        ...(blocks !== undefined ? { blocks: JSON.parse(JSON.stringify(blocks)) } : {}),
-        ...(header !== undefined ? { header: JSON.parse(JSON.stringify(header)) } : {}),
-        ...(footer !== undefined ? { footer: JSON.parse(JSON.stringify(footer)) } : {}),
+        ...(blocks !== undefined ? { blocks: sanitizeReportBlocks(blocks) } : {}),
+        ...(header !== undefined ? { header: sanitizeReportBlocks(header) } : {}),
+        ...(footer !== undefined ? { footer: sanitizeReportBlocks(footer) } : {}),
         ...(headerSkipFirst !== undefined ? { headerSkipFirst } : {}),
         ...(footerSkipFirst !== undefined ? { footerSkipFirst } : {}),
       };

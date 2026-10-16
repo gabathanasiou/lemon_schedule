@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, fetchAuthSettings, type AuthProviders } from './client';
+import { parseRecoveryLinkError, stripRecoveryLinkParams } from './recoveryLink';
 
 /** The signed-in Supabase account, shaped for UI (never the raw session). */
 export interface SupabaseAccount {
@@ -52,9 +53,17 @@ export interface SupabaseAuthValue {
   /** Revoke EVERY session, this device included — the explicit "sign out
    *  everywhere" (never the default; see the local-scope signOut). */
   signOutEverywhere: () => Promise<void>;
+  /** Permanently delete the signed-in account (roadmap 281) — owned online
+   *  projects die with it; the confirm dialog says so. Human-readable error
+   *  or null. */
+  deleteAccount: () => Promise<string | null>;
   /** True when a password-recovery link brought the user in — show the
    *  "set a new password" surface (App-level modal). */
   pendingRecovery: boolean;
+  /** A dead reset link's message (roadmap 278) — the recovery modal shows it
+   *  with a re-request form. Null when the link was fine or absent. */
+  recoveryLinkError: string | null;
+  dismissRecoveryLinkError: () => void;
   completePasswordRecovery: (newPassword: string) => Promise<string | null>;
   dismissRecovery: () => void;
 }
@@ -76,7 +85,10 @@ const EMPTY: SupabaseAuthValue = {
   signOut: async () => {},
   signOutOtherDevices: async () => {},
   signOutEverywhere: async () => {},
+  deleteAccount: async () => 'Not configured',
   pendingRecovery: false,
+  recoveryLinkError: null,
+  dismissRecoveryLinkError: () => {},
   completePasswordRecovery: async () => 'Not configured',
   dismissRecovery: () => {},
 };
@@ -108,11 +120,18 @@ function appRedirectUrl(): string {
   return `${window.location.origin}${base}`;
 }
 
+/** Captured at import time (roadmap 278, audit F6): supabase-js consumes the
+ *  auth-error URL params during its async init and throws internally where
+ *  nobody listens — the redirect URL must be read before its microtasks can
+ *  clear it. */
+const INITIAL_URL = typeof window === 'undefined' ? '' : window.location.href;
+
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isReady, setIsReady] = useState(!isSupabaseConfigured);
   const [providers, setProviders] = useState<AuthProviders | null>(null);
   const [pendingRecovery, setPendingRecovery] = useState(false);
+  const [recoveryLinkError, setRecoveryLinkError] = useState<string | null>(null);
 
   const refreshProviders = useCallback(() => {
     void fetchAuthSettings().then(settings => setProviders(settings));
@@ -139,6 +158,17 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       sub.subscription.unsubscribe();
     };
   }, [refreshProviders]);
+
+  // A dead reset link lands with GoTrue's error params in the URL (the valid
+  // path fires PASSWORD_RECOVERY instead) — surface it once, then clean the
+  // address bar so a reload doesn't re-show the modal (roadmap 278).
+  useEffect(() => {
+    const parsed = parseRecoveryLinkError(INITIAL_URL);
+    if (!parsed) return;
+    setRecoveryLinkError(parsed.message);
+    const clean = stripRecoveryLinkParams(window.location.href);
+    if (clean !== window.location.href) window.history.replaceState(null, '', clean);
+  }, []);
 
   const signInWithOAuth = useCallback((provider: 'google' | 'apple') => {
     void supabase?.auth.signInWithOAuth({
@@ -249,6 +279,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const dismissRecovery = useCallback(() => setPendingRecovery(false), []);
+  const dismissRecoveryLinkError = useCallback(() => setRecoveryLinkError(null), []);
 
   const signOut = useCallback(async () => {
     // LOCAL scope, deliberately: Supabase's signOut() defaults to 'global',
@@ -269,6 +300,24 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     await supabase?.auth.signOut({ scope: 'global' });
   }, []);
 
+  const deleteAccount = useCallback(async (): Promise<string | null> => {
+    if (!supabase) return 'Sign-in is not configured on this build.';
+    const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+    if (error) {
+      // FunctionsHttpError carries the function's JSON body on `context`.
+      let message = 'Could not delete the account — try again.';
+      try {
+        const body = await (error as { context?: Response }).context?.json?.();
+        if (body?.error) message = String(body.error);
+      } catch {
+        /* keep the fallback */
+      }
+      return message;
+    }
+    await supabase.auth.signOut({ scope: 'local' });
+    return null;
+  }, []);
+
   const value = useMemo<SupabaseAuthValue>(() => ({
     isConfigured: isSupabaseConfigured,
     isReady,
@@ -286,10 +335,13 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signOut,
     signOutOtherDevices,
     signOutEverywhere,
+    deleteAccount,
     pendingRecovery,
+    recoveryLinkError,
+    dismissRecoveryLinkError,
     completePasswordRecovery,
     dismissRecovery,
-  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInAnonymously, upgradeAnonymousAccount, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, signOutOtherDevices, signOutEverywhere, pendingRecovery, completePasswordRecovery, dismissRecovery]);
+  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInAnonymously, upgradeAnonymousAccount, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, signOutOtherDevices, signOutEverywhere, deleteAccount, pendingRecovery, recoveryLinkError, dismissRecoveryLinkError, completePasswordRecovery, dismissRecovery]);
 
   return (
     <SupabaseAuthContext.Provider value={value}>

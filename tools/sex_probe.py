@@ -23,6 +23,9 @@ Format (verified on "Lair (LOCKED) V10 10 10 2019 .sex", an MMS 6 export):
         3 = page metadata:   u16 LE scene idx, u16 LE 0, u16 LE page length
                              in eighths
 
+Text fields are UTF-8 (legacy latin1/cp1252 files decode via fallback); the
+u16 record lengths count BYTES (roadmap 276).
+
 Breaks down as a script: 144 headers + 144 page records + 289 element records
 (all category flag 0 = Cast Members) for a locked V10 episode breakdown. SEX
 carries NO schedule data (no day breaks/strip order) — import lands scenes in
@@ -112,6 +115,16 @@ def parse_heading(slugline: str):
     return ie, rest.upper(), day_night
 
 
+def decode_text(b: bytes) -> str:
+    """UTF-8 first (the app exports UTF-8); legacy MMS files carry single-byte
+    latin1/cp1252 text — fall back when the bytes are not valid UTF-8
+    (roadmap 276)."""
+    try:
+        return b.decode("utf-8")
+    except UnicodeDecodeError:
+        return b.decode("latin1")
+
+
 def parse_sex(data: bytes):
     if not data.startswith(MAGIC):
         raise ValueError("Not a valid SEX file: missing SSI* magic")
@@ -131,7 +144,7 @@ def parse_sex(data: bytes):
         end = data.find(b"\x00", pos)
         if end == -1:
             break
-        cat = data[pos:end].decode("latin1")
+        cat = decode_text(data[pos:end])
         if cat and cat != "#":
             categories.append(cat)
         pos = end + 1
@@ -154,9 +167,9 @@ def parse_sex(data: bytes):
             rest = payload[1:]
             page_ch, _, rest = rest.partition(b"\t")
             num, _, slug = rest.partition(b"\t")
-            slug = slug.rstrip(b"\t\x00").decode("latin1", "replace").strip()
-            scene_num = num.decode("latin1", "replace")
-            script_page = page_ch.decode("latin1", "replace") or None
+            slug = decode_text(slug.rstrip(b"\t\x00")).strip()
+            scene_num = decode_text(num)
+            script_page = decode_text(page_ch) or None
             idx = len(scenes) + 1
             sc = {
                 "idx": idx,
@@ -173,7 +186,7 @@ def parse_sex(data: bytes):
             scenes.append(sc)
         elif rec_type == 2:
             sidx, flag = struct.unpack_from("<HB", payload, 0)
-            text = payload[3:].split(b"\x00")[0].decode("latin1", "replace")
+            text = decode_text(payload[3:].split(b"\x00")[0])
             elements_by_scene.setdefault(sidx, []).append((flag, text))
         elif rec_type == 3:
             sidx, zero, eighths = struct.unpack_from("<HHH", payload, 0)

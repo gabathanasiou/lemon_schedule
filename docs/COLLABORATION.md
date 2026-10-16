@@ -146,17 +146,32 @@ Drive/local flows untouched.
   the Drive/local flows are byte-identical). PKCE; localStorage session
   (deliberate, `§11`).
 - `src/lib/supabase/auth.tsx` — `SupabaseAuthProvider` / `useSupabaseAuth`:
-  password sign-in/up + reset, Google + Apple OAuth (`/auth/v1/settings`
-  providers, buttons appear only when enabled), `pendingRecovery`; App-level in
-  `main.tsx` (OAuth returns to `origin + BASE_URL`).
+  password sign-in/up + reset,
+  Google + Apple OAuth (`/auth/v1/settings` providers, buttons appear only when
+  enabled), `pendingRecovery`; App-level in `main.tsx` (OAuth returns to
+  `origin + BASE_URL`). A **dead reset link** (expired/used — GoTrue error
+  params) surfaces via `recoveryLinkError` + `dismissRecoveryLinkError`
+  (`src/lib/supabase/recoveryLink.ts`; params stripped from the address bar —
+  roadmap 278).
 - Account surfaces, App-level so boot/fresh tabs reach them: `AccountModal.tsx`
   (the ONE sign-in / create / reset surface; create-account captures the **name**
   → `handle_new_user` writes `profiles.display_name`), `AccountSettingsModal.tsx`
-  (roadmap 256: Profile + Team), `PasswordRecoveryModal.tsx`.
+  (roadmap 256: Profile + Team + Sessions; the Profile tab's danger zone is
+  **Delete account** — roadmap 281, `supabase/functions/delete-account`,
+  deploy `npx supabase functions deploy delete-account --project-ref <ref>
+  --use-api`: admin-deletes the CALLER only, every `auth.users` FK cascades so
+  OWNED projects (+ blobs) die with the account while projects merely joined
+  stay; recovery impossible — no free-tier backups (roadmap 279); guests share
+  the path, stale reaping = roadmap 293; acceptance
+  `supabase/tests/rls_delete_account.sql`), `PasswordRecoveryModal.tsx`
+  (valid link → new password; dead link → message + re-request — roadmap 278).
 - `src/components/UserPresenceCluster.tsx` — the header user cluster (AppHeader,
   after undo/redo; the File menu keeps Drive items ONLY when it's absent — no
   Supabase env). Details: `docs/PRESENCE.md` §Header cluster.
-- `src/lib/supabase/onlineProjects.ts` — every `projects`-table operation;
+- `src/lib/supabase/onlineProjects.ts` — every `projects`-table operation; the
+  Shared list is walked with `fetchAllPages` (`./pagination.ts`) ordered by
+  `updated_at` (indexed) + `id` — PostgREST caps one response at 1000 rows
+  (roadmap 283);
   `data` = `serializeProject` blob; **row id = project id** (one identity for
   meta, document and the S4 room); saves are whole-blob, optimistic `revision`
   check + one LWW retry.

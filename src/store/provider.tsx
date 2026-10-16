@@ -20,6 +20,7 @@ import type { RoomQueueInfo, RoomStatus } from '../lib/rooms/roomClient';
 import type { RoomRole } from '../lib/rooms/protocol';
 import { serializeProject } from '../lib/projectCodec';
 import { projectThemeOf, type ProjectTheme } from '../lib/projectTheme';
+import { sanitizeProjectReportHtml } from '../lib/reportSanitize';
 import {
   LEGACY_KEY,
   INDEX_KEY,
@@ -208,7 +209,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   /** LOAD + re-anchor the persisted baseline (open/reload/peer apply/import). */
   const loadBaseline = useCallback((project: Project) => {
     persistedAtCounterRef.current = changeCounterRef.current;
-    dispatch({ type: 'LOAD', payload: project });
+    // Roadmap 274: the single decode entrance (local, Drive, online, room
+    // welcome) strips stored report markup before it becomes state. Identity
+    // for projects without report designs.
+    dispatch({ type: 'LOAD', payload: sanitizeProjectReportHtml(project) });
   }, []);
   const currentMetaForRole = projectList.find(p => p.id === currentProjectId);
   const currentOnlineRole: CollaboratorRole | null =

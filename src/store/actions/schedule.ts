@@ -1,5 +1,6 @@
 import { Project, ScheduleRow, ScheduleVersion, CalendarVersion, Scene, TrashItem, VersionTrashItem, CalendarVersionTrashItem } from '../../types';
 import { generateUUID, parsePageCount, makeBlankCalendarVersion } from '../../lib/utils';
+import { sanitizeReportDesignsHtml, sanitizeReportTrashHtml } from '../../lib/reportSanitize';
 import { pruneVersionTrash, pruneCalendarVersionTrash } from '../storage';
 import type { Action, State } from '../reducer';
 import { ensurePinnedDaybreak } from '../rows';
@@ -8,7 +9,20 @@ export type ApplyChange = (p: Project) => State;
 
 export function caseUpdateProject(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'UPDATE_PROJECT') return state;
-  return applyChange({ ...state.present, ...action.payload });
+  // The payload is a broad `Partial<Project>` spread — report fields carried
+  // through it get the same ingest strip as the dedicated report actions
+  // (roadmap 274; `text`/`blocks` never ride UPDATE_PROJECT today, but the
+  // spread makes it reachable for agents and future callers).
+  const { reportDesigns, reportTrash, ...rest } = action.payload;
+  if (reportDesigns === undefined && reportTrash === undefined) {
+    return applyChange({ ...state.present, ...rest });
+  }
+  return applyChange({
+    ...state.present,
+    ...rest,
+    ...(reportDesigns !== undefined ? { reportDesigns: sanitizeReportDesignsHtml(reportDesigns) } : {}),
+    ...(reportTrash !== undefined ? { reportTrash: sanitizeReportTrashHtml(reportTrash) } : {}),
+  });
 }
 
 export function caseAddScene(state: State, action: Action, applyChange: ApplyChange): State {
@@ -111,6 +125,7 @@ export function caseEmptyTrash(state: State, action: Action, applyChange: ApplyC
     elementsTrash: [],
     categoryTrash: [],
     crewTrash: [],
+    reportTrash: [],
   });
 }
 
