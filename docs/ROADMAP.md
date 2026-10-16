@@ -1252,18 +1252,6 @@ priority order (275–278 = P1; 279–288 = P2; 289–291 = P3, and 289 is parke
 until unparked). Normal one-agent-per-item flow; close each through
 `manage-roadmap` before picking the next.
 
-## 278. Password recovery — surface expired/used links (`[ ]`)
-
-**Priority: P1 — XS.** Audit F6.
-
-**Request:** GoTrue enforces expiry/single-use, but the client ignores the
-recovery redirect's error params, so a dead link lands silently
-(`src/lib/supabase/auth.tsx`, `AccountModal`, `PasswordRecoveryModal`).
-
-- **Fix:** read `error`/`error_description` (and `otp_expired`) on the
-  recovery route, show an actionable message + a re-request button.
-- **Verify:** manual with a used/expired link; unit if the parser is extracted.
-
 ## 279. Backups & a tested restore (`[ ]`)
 
 **Priority: P2 — before the first stranger/paying user.** Audit F7.
