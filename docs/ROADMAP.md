@@ -1377,6 +1377,8 @@ users) also have no cleanup.
   Account settings (danger-confirmed). Decide whether guest cleanup rides here.
 - **Verify:** RLS acceptance additions (`supabase/tests/`); manual
   delete → re-login → no orphaned rows or dangling links.
+- **Relations:** the "what backups/logs cannot reach" documentation depends on
+  **279** (backup reality); the user-facing deletion policy half lands in **288**.
 
 ## 282. Vulnerability disclosure process (`[ ]`)
 
@@ -1427,6 +1429,8 @@ the address has an account (scoped to inviters, still an enumeration surface).
   explicit accepted-risk note in `docs/SECURITY.md` §7.
 - **Verify:** boot + OAuth + Drive + rooms + maps all work under the policy
   (manual pass); consider a report-only trial first.
+- **Relations:** pairs with **274** (CSP kills the stored-XSS inline-handler
+  class as defense in depth).
 
 ## 286. Observability floor — error tracking, uptime, one human alert (`[ ]`)
 
@@ -1485,9 +1489,10 @@ or public launch nears.
 
 **Priority: P3.** Audit items #132/137/138 + the surprise flags.
 
-- **Oversize files:** 20 sources exceed the project's own ~700-line split rule
-  (largest `src/store/provider.tsx` ~1.7k) — split or consciously re-justify
-  the rule, consider enforcing it in `scripts/check-doc-budget.mjs`.
+- **Oversize files:** 28 sources exceed the project's own ~700-line split rule
+  (29 counting test files; largest `src/store/provider.tsx` ~1.7k) — split or
+  consciously re-justify the rule, consider enforcing it in
+  `scripts/check-doc-budget.mjs`.
 - **Dead code/leftovers:** `deleteProjectFromFolder` (zero call sites,
   `src/lib/persistentStorage.ts`), the unreferenced `allowScripts` allowlist
   (`package.json`), AI-Studio leftovers (`GEMINI_API_KEY` in `.env.example`,
