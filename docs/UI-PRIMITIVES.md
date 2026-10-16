@@ -166,9 +166,13 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   inner viewport) — so the range is neutralised behaviourally: `useBlockPagePan` blocks drags on
   surfaces without their own scroller (the header included; pinch and text-selection drags pass),
   `* { overscroll-behavior-y: contain }` (touch only) stops chains, and `useKeyboardEnsureVisible`
-  snaps keyboard focus scrolls home. NEVER "fix" document scroll with a JS `scrollTop = 0` pin —
-  it fights the finger mid-drag (glitch + threshold, tried 2026-10-16). The `overflow: hidden`
-  clip stays removed.
+  snaps keyboard focus scrolls home. The leftover range is trimmed structurally: `#root {
+  overflow: clip }` and, on phones (`html[data-phone-device]`), `height: 100lvh` — the maximum
+  Safari actually paints — so the bleed still paints while zoomed panning bottoms out at the
+  bleed band instead of a blank void (`overflow-clip-margin` is ignored by Safari: a hard clip
+  killed the bleed — never rely on it). NEVER "fix" document scroll with a JS `scrollTop = 0`
+  pin — it fights the finger mid-drag (glitch + threshold, tried 2026-10-16). The `overflow:
+  hidden` clip stays removed.
 - `DropdownMenu`/`DropdownItem`/`DropdownDivider`/`DropdownSubmenu` (Radix click-to-toggle;
   **single-highlight + keys/lock shared with ContextMenu** — one `.ui-item-highlighted` row, the CSS
   `:hover` fill is suppressed while a row is highlighted (kit `tokens.css`), arrows/Enter/typeahead,

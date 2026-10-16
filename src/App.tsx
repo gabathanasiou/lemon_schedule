@@ -397,6 +397,11 @@ function AppContent() {
   // the shell is exactly the viewport.
   useEffect(() => {
     if (!phoneDevice) return;
+    // Phone-class viewport flag for CSS: `#root` is capped at `100lvh` — the
+    // maximum height Safari actually paints — so the flow shell keeps its
+    // bleed while the document keeps only that band of scrollable range
+    // (index.css, roadmap 273).
+    document.documentElement.setAttribute('data-phone-device', '1');
     const set = () => {
       const portrait = window.matchMedia('(orientation: portrait)').matches;
       const screenEdge = portrait ? window.screen?.height : window.screen?.width;
@@ -416,6 +421,7 @@ function AppContent() {
       window.visualViewport?.removeEventListener?.('resize', set);
       window.screen?.orientation?.removeEventListener?.('change', set);
       document.documentElement.style.removeProperty('--app-h');
+      document.documentElement.removeAttribute('data-phone-device');
     };
   }, [phoneDevice]);
 

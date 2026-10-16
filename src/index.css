@@ -34,11 +34,15 @@ html, body, #root {
    scroll range was a drag surface (dragging the sticky header scrolled the
    whole frame away; keyboard sessions left it stuck). The phone shell stays
    deliberately taller (`--app-h`, 267) and must PAINT past the layout
-   viewport (the bleed) — `#root { overflow: clip }` removes its content's
-   scrollable range (also the blank band pinched-zoom panning could reach)
-   while `overflow-clip-margin` keeps the paint. NEVER `overflow: hidden` on
-   html/body/#root (267: it cut the phone app off at Safari's floating
-   toolbar) and never `100vh` for the frame. */
+   viewport (the bleed): on phones `#root` is capped at `100lvh` — the maximum
+   height Safari actually paints — and `overflow: clip` trims the rest of the
+   shell's overflow (content beyond the paint ceiling is invisible anyway).
+   So the document keeps only the bleed band of scrollable range and pinch-
+   zoom panning bottoms out there instead of into a blank void. NEVER
+   `overflow: hidden` on html/body/#root (267: it cut the phone app off at
+   Safari's floating toolbar), never `100vh` for the frame, and do NOT rely on
+   `overflow-clip-margin` (Safari ignores it — the clip falls back to the box
+   and the bleed dies). */
 html, body {
   height: 100%;
   background: #f4f4f5;
@@ -46,7 +50,9 @@ html, body {
 #root {
   height: 100%;
   overflow: clip;
-  overflow-clip-margin: 200px;
+}
+html[data-phone-device] #root {
+  height: 100lvh;
 }
 
 /* Touch devices (roadmap 273): no scroll container may chain overscroll to
