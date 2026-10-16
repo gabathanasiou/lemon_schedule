@@ -60,7 +60,7 @@ insert into _s2_rpc (step, res)
 select 'owner_invites_editor', public.invite_collaborator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','rls-editor@example.com','editor');
 insert into private._rls_s2_test (step, ok, detail)
 select 'owner_invites_editor',
-  ((select res ->> 'status' from _s2_rpc where step='owner_invites_editor') = 'added')
+  ((select res ->> 'status' from _s2_rpc where step='owner_invites_editor') = 'sent')
   and exists(select 1 from public.memberships where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and user_id='22222222-2222-4222-8222-222222222222' and role='editor'),
   null;
 
@@ -144,9 +144,16 @@ insert into _s2_rpc (step, res)
 select 'owner_pending_invite_created', public.invite_collaborator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','RLS-New@Example.com','editor');
 insert into private._rls_s2_test (step, ok, detail)
 select 'owner_pending_invite_created',
-  ((select res ->> 'status' from _s2_rpc where step='owner_pending_invite_created') = 'pending')
+  ((select res ->> 'status' from _s2_rpc where step='owner_pending_invite_created') = 'sent')
   and exists(select 1 from public.pending_invites where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and email='rls-new@example.com' and role='editor'),
   'email lowercased + stored for signup claim';
+
+-- Roadmap 284: account vs no-account emails must answer IDENTICALLY.
+insert into private._rls_s2_test (step, ok, detail)
+select 'invite_response_uniform',
+  (select res ->> 'status' from _s2_rpc where step='owner_invites_editor')
+  = (select res ->> 'status' from _s2_rpc where step='owner_pending_invite_created'),
+  'no email-existence oracle';
 
 -- ---- editor context, allow_invites ON -------------------------------------
 select set_config('request.jwt.claims','{"sub":"22222222-2222-4222-8222-222222222222","role":"authenticated"}', true);
@@ -163,7 +170,7 @@ insert into _s2_rpc (step, res)
 select 'editor_invites_viewer', public.invite_collaborator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','rls-viewer@example.com','viewer');
 insert into private._rls_s2_test (step, ok, detail)
 select 'editor_invites_viewer',
-  ((select res ->> 'status' from _s2_rpc where step='editor_invites_viewer') = 'added')
+  ((select res ->> 'status' from _s2_rpc where step='editor_invites_viewer') = 'sent')
   and exists(select 1 from public.memberships where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and user_id='33333333-3333-4333-8333-333333333333' and role='viewer'),
   null;
 
@@ -179,7 +186,7 @@ insert into _s2_rpc (step, res)
 select 'editor_adds_stranger_viewer', public.invite_collaborator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','rls-stranger@example.com','viewer');
 insert into private._rls_s2_test (step, ok, detail)
 select 'editor_adds_stranger_viewer',
-  ((select res ->> 'status' from _s2_rpc where step='editor_adds_stranger_viewer') = 'added')
+  ((select res ->> 'status' from _s2_rpc where step='editor_adds_stranger_viewer') = 'sent')
   and exists(select 1 from public.memberships where project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and user_id='44444444-4444-4444-8444-444444444444'),
   null;
 

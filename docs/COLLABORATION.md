@@ -242,7 +242,10 @@ guests need no entitlement; advisors clean). Migrations:
   `projects.allow_invites` (default OFF) changes ONLY via
   `set_project_allow_invites`, which also makes `owner_id` API-immutable.
 - **Invites**: `pending_invites` + `claim_pending_invites` (signup trigger) —
-  email invites without mail delivery (real mail: `§11`).
+  email invites without mail delivery (real mail: `§11`). Invite responses are
+  uniform (`sent`) whether or not the address has an account — no
+  email-existence oracle (roadmap 284; the by-id invites keep
+  `added`/`owner`, their callers can already see those people).
 - **Share links**: `share_links` — view-only by construction (`role='viewer'`
   CHECK); optional `expires_at`; the raw token is stored inviter-only (RLS) so
   the panel can re-display/copy the link; its sha256 is the redemption key

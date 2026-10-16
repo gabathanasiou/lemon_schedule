@@ -11,9 +11,11 @@ import { generateShareToken, hashShareToken } from '../shareTokens';
 
 export type CollaboratorRole = 'owner' | 'editor' | 'viewer';
 
-/** Result of an invite-by-email: granted now, stored for signup, or the
- *  invitee is the owner already. */
-export type InviteState = 'added' | 'pending' | 'owner';
+/** Result of an invite: 'sent' is the uniform email-path answer — the same
+ *  whether or not the address has an account (no existence oracle, roadmap
+ *  284). 'added' comes from the by-id path (its callers can already see those
+ *  people); 'owner' means the address is the owner's own. */
+export type InviteState = 'added' | 'owner' | 'sent';
 
 export interface SharingMember {
   userId: string;
@@ -162,7 +164,9 @@ export async function getSharingState(projectId: string): Promise<SharingState> 
 }
 
 /** Invite by email: the server grants access immediately when the email has
- *  an account, else stores a pending invite the signup trigger claims. */
+ *  an account, else stores a pending invite the signup trigger claims. The
+ *  RESPONSE is the same either way ('sent', roadmap 284) — account existence
+ *  never leaks through the invite flow. */
 export async function inviteCollaborator(projectId: string, email: string, role: CollaboratorRole): Promise<InviteState> {
   const { data, error } = await client().rpc('invite_collaborator', {
     p_project: projectId,
@@ -170,7 +174,7 @@ export async function inviteCollaborator(projectId: string, email: string, role:
     p_role: role,
   });
   if (error) throw new Error(error.message);
-  return ((data as { status?: InviteState } | null)?.status) ?? 'added';
+  return ((data as { status?: InviteState } | null)?.status) ?? 'sent';
 }
 
 /** Shape the suggestion RPC rows (shared by the project picker and the Team

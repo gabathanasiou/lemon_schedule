@@ -100,11 +100,12 @@ export async function addTeamMember(teamId: string, userId: string): Promise<voi
   if (error) throw new Error(error.message);
 }
 
-/** Invite by email: instant for existing accounts, pending for new ones. */
+/** Invite by email: instant for existing accounts, pending for new ones — the
+ *  response is uniformly 'sent' either way (roadmap 284). */
 export async function inviteTeamMember(teamId: string, email: string): Promise<InviteState> {
   const { data, error } = await client().rpc('invite_team_member', { p_team: teamId, p_email: email });
   if (error) throw new Error(error.message);
-  return ((data as { status?: InviteState } | null)?.status) ?? 'added';
+  return ((data as { status?: InviteState } | null)?.status) ?? 'sent';
 }
 
 export async function removeTeamMember(teamId: string, userId: string): Promise<void> {

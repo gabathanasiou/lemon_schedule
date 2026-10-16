@@ -196,8 +196,8 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
   };
 
   /** One commit from the picker: a suggestion's account id → invite by id;
-   *  a typed address → the email/pending path. Anything else was already
-   *  dropped by the classifier, so a half-typed name never hits the server. */
+   *  a typed address → the email path. Anything else was already dropped by
+   *  the classifier, so a half-typed name never hits the server. */
   const handleInviteTarget = (target: InviteTarget) => {
     if (!onlineId) return;
     if (target.kind === 'email') {
@@ -210,8 +210,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
         const status = await inviteCollaborator(onlineId, email, inviteRole);
         setNotice(
           status === 'owner' ? 'That email owns this project already.'
-            : status === 'pending' ? `Invite saved for ${email} — it activates when they create an account.`
-            : `${email} can now open this project.`,
+            : `Invite recorded for ${email} — if they already have an account they can open this project now; otherwise it activates when they create one.`,
         );
       });
       return;

@@ -247,7 +247,7 @@ insert into _s254_rpc (step, res)
 select 'team_invite_existing', public.invite_team_member((select id from _s254_team), 'rls254-viewer@example.com');
 insert into private._rls_s254_test (step, ok, detail)
 select 'team_invite_existing_account',
-  ((select res ->> 'status' from _s254_rpc where step='team_invite_existing') = 'added')
+  ((select res ->> 'status' from _s254_rpc where step='team_invite_existing') = 'sent')
   and exists(select 1 from public.team_members where team_id=(select id from _s254_team) and user_id='a3333333-3333-4333-8333-333333333333'),
   null;
 
@@ -255,9 +255,16 @@ insert into _s254_rpc (step, res)
 select 'team_invite_pending', public.invite_team_member((select id from _s254_team), 'RLS254-New@Example.com');
 insert into private._rls_s254_test (step, ok, detail)
 select 'team_invite_pending_account',
-  ((select res ->> 'status' from _s254_rpc where step='team_invite_pending') = 'pending')
+  ((select res ->> 'status' from _s254_rpc where step='team_invite_pending') = 'sent')
   and exists(select 1 from public.team_invites where team_id=(select id from _s254_team) and email='rls254-new@example.com'),
   'email lowercased + stored for signup claim';
+
+-- Roadmap 284: account vs no-account emails must answer IDENTICALLY.
+insert into private._rls_s254_test (step, ok, detail)
+select 'team_invite_response_uniform',
+  (select res ->> 'status' from _s254_rpc where step='team_invite_existing')
+  = (select res ->> 'status' from _s254_rpc where step='team_invite_pending'),
+  'no email-existence oracle';
 
 insert into _s254_rpc (step, res)
 select 'team_invite_self', public.invite_team_member((select id from _s254_team), 'rls254-owner@example.com');

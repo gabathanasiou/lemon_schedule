@@ -92,7 +92,8 @@ export function TeamPanel() {
 
   /** One picker commit: a resolved person joins the roster directly (the RLS
    *  guard only accepts people the owner already works with); a typed address
-   *  takes the email path — instant for accounts, pending for new emails. */
+   *  takes the email path — the response is uniform either way (no email /
+   *  account-existence oracle, roadmap 284). */
   const handleCommit = (target: InviteTarget) => {
     if (!team) return;
     if (target.kind === 'member') {
@@ -108,8 +109,7 @@ export function TeamPanel() {
       const status = await inviteTeamMember(team.id, email);
       setNotice(
         status === 'owner' ? 'That email is your own account.'
-          : status === 'pending' ? `Invite saved for ${email} — it activates when they create an account.`
-          : `${email} joined your team.`,
+          : `Invite recorded for ${email} — if they already have an account they're on your team; otherwise they join when they create one.`,
       );
     });
   };
