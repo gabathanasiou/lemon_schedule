@@ -234,7 +234,12 @@ const E2E_SPEC_CAP = 70;
 // via double-click" legacy test (its only assertion sat inside `if (overlayInput)`
 // and its edit path is covered by the range-fill/context-matrix tests). Locked
 // the freed slot rather than leaving headroom.
-const E2E_TEST_CAP = 283;
+// 283 → 280: roadmap 295 (second rebalancing pass) — three state-only e2e cases
+// moved to Vitest and retired: linked-elements add-propagation (already covered
+// by elementLinks unit + the sibling removal case), SET_SCRIPT_DOCUMENT baseline
+// rotation (scriptDocumentStore.test.ts), and the days-off span walk
+// (daysOffSync + computeRowData section-date cursor unit tests).
+const E2E_TEST_CAP = 280;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

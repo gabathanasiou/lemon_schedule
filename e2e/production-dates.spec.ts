@@ -127,60 +127,6 @@ test('production dates: window + days off modal replaces START/Days Off', async 
   await expect(page.locator('[data-cal-day]').first()).toBeVisible();
 });
 
-test('days off apply across the scheduled span without a post end (MMS-style)', async ({ page }) => {
-  await openSeededProject(page);
-  const cal = await activeCalendar(page);
-  const prodStart = cal.productionStart;
-  const weekly: number[] = cal.weeklyDaysOff || [5, 6];
-  await clearStatuses(page);
-
-  await openProdDates(page);
-  await page.getByRole('button', { name: 'Apply Days Off' }).click();
-  await expect(page.getByText(/Marked \d+ days off/)).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel' }).click();
-
-  const result = await page.evaluate(() => {
-    const s = (window as any).__lemonSchedule;
-    const st = s.getState().present;
-    const cal = (st.calendarVersions || []).find((c: any) => c.id === st.activeCalendarVersionId) || (st.calendarVersions || [])[0];
-    const holidays = new Set((cal.nonShootDates || [])
-      .filter((n: any) => n.status === 'holiday').map((n: any) => n.date));
-    const rows = s.getRows();
-    return {
-      start: cal.productionStart,
-      sectionDates: rows.sections.map((sec: any) => sec.date),
-      holidays: [...holidays].sort(),
-    };
-  });
-
-  // sections[0] is the pinned anchor — it sits on the first working date at
-  // or after productionStart (the cursor skips statused day-off weekdays);
-  // sections[1..] are the production days. No section ever sits on a day-off
-  // weekday. (weeklyDaysOff uses Mon=0; JS getDay uses Sun=0 — translate.)
-  const offDow = weekly.map(d => (d + 1) % 7);
-  {
-    const anchor = new Date(result.start + 'T00:00:00');
-    while (offDow.includes(anchor.getDay())) anchor.setDate(anchor.getDate() + 1);
-    expect(result.sectionDates[0]).toBe(dateKey(anchor));
-  }
-  for (const d of result.sectionDates.slice(1)) {
-    const jsDow = new Date(d + 'T00:00:00').getDay();
-    expect(offDow, `section on day-off weekday ${d}`).not.toContain(jsDow);
-  }
-
-  // Every day-off weekday between the start and the last scheduled day is off
-  const last = result.sectionDates[result.sectionDates.length - 1];
-  const expected: string[] = [];
-  const cur = new Date(result.start + 'T00:00:00');
-  const end = new Date(last + 'T00:00:00');
-  while (cur <= end) {
-    if (offDow.includes(cur.getDay())) expected.push(dateKey(cur));
-    cur.setDate(cur.getDate() + 1);
-  }
-  expect(expected.length).toBeGreaterThan(0);
-  for (const d of expected) expect(result.holidays).toContain(d);
-});
-
 test('saving the modal alone materializes the days-off pattern', async ({ page }) => {
   await openSeededProject(page);
   const cal = await activeCalendar(page);
