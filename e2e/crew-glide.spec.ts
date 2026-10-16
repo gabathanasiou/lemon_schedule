@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, nameCell, openCrewGlide } from './helpers';
+import { openSeededProject, nameCell, openCrewGlide, openGlideCellEditor, glideCellId } from './helpers';
 
 type AnyPage = any;
 
@@ -52,21 +52,10 @@ test.describe('Crew Glide', () => {
     };
     const addMember = async (row: number, text: string) => {
       const p = await namePoint(row);
-      // Select first, wait for the grid's a11y tree to confirm the selection
-      // committed, then double-click. Playwright dispatches a dblclick's two
-      // clicks back-to-back; Glide's double-click activation compares the
-      // selection captured at the second mousedown against the clicked cell,
-      // so while a re-render is pending (the previous add's commit) the
-      // second click sees a stale selection and the editor never opens —
-      // a flake that fails ~3/4 runs and passes on retry. A cell that is
-      // ALREADY selected activates on the double-click regardless of
-      // inter-click render timing. Name column td = `glide-cell-2-{row}`
-      // (1 = actions; the row marker is not in the a11y table).
-      await page.mouse.click(p.x, p.y);
-      await expect(page.locator(`#glide-cell-2-${row}[aria-selected="true"]`)).toBeAttached({ timeout: 4000 });
-      await page.mouse.dblclick(p.x, p.y);
-      const input = page.locator('#portal textarea, #portal input').first();
-      await expect(input).toBeAttached({ timeout: 4000 });
+      // §E select-first open — the synthetic dblclick race lives in
+      // `openGlideCellEditor` (docs/KNOWN-TEST-FAILURES.md). Name column td
+      // = `glide-cell-2-{row}` (a11y col 1 = actions, row marker excluded).
+      const input = await openGlideCellEditor(page, p, glideCellId(2, row));
       await input.fill(text);
       await input.press('Enter');
     };
@@ -140,13 +129,16 @@ test.describe('Crew Glide', () => {
       const x = g.x + g.colX(colIndex);
       const y = g.y + g.headerH + row * g.rowH + g.rowH / 2;
       if (await isCoarse()) {
+        // iPad: two taps open the editor; the mount settle keeps the first
+        // keystroke off the canvas.
         await page.touchscreen.tap(x, y);
         await page.touchscreen.tap(x, y);
+        await page.waitForTimeout(350);
       } else {
-        await page.mouse.dblclick(x, y);
+        // Desktop: the §E select-first open (openGlideCellEditor) — the
+        // editor is attached (and focused) before the first keystroke.
+        await openGlideCellEditor(page, { x, y }, glideCellId(colIndex + 1, row));
       }
-      // editor mount settle — the first keystroke would otherwise land on the canvas
-      await page.waitForTimeout(350);
       await page.keyboard.type(text, { delay: 30 });
       await page.keyboard.press('Enter');
     };

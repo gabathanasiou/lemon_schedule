@@ -21,7 +21,7 @@ import { pointerFractions, screenFractions, type PresenceAnchor } from './supaba
  * Explicit keys are stable across clients by construction; auto keys derive
  * from authored attributes only (never DOM structure or position). An anchor
  * that does not resolve on the receiving client hides the pointer
- * (docs/COLLABORATION.md §9).
+ * (docs/PRESENCE.md).
  */
 
 /** The attribute an element wears to expose a stable, namespaced, cross-client
@@ -99,7 +99,7 @@ function nearestItemElement(x: number, y: number): Element | null {
  *  nearest item within ~40px; else the viewport-relative `screen` fallback so
  *  a cursor exists EVERYWHERE (headers, toolbars, dialogs, empty space).
  *  Popout windows have their own document/window — the main window's pointer
- *  is what the team shares (docs/COLLABORATION.md §9). */
+ *  is what the team shares (docs/PRESENCE.md). */
 export function resolvePointerAnchor(clientX: number, clientY: number, target?: Element | null): PresenceAnchor {
   const el = target ?? null;
   if (el && typeof el.closest === 'function') {

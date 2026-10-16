@@ -303,7 +303,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
   // ids (a Set re-created on every selection change → memo on identity).
   const selectionItems = useMemo(() => [...selectedRowIds], [selectedRowIds]);
 
-  // Follow completeness (roadmap 229, docs COLLABORATION §9): the stripboard
+  // Follow completeness (roadmap 229, docs/PRESENCE.md): the stripboard
   // mirrors its scroll (day-block fallback for rows outside the peer's render
   // window) and its View-menu prefs to followers. A View-menu change exits
   // follow (user decision 2026-10-12) — your own scroll does NOT.

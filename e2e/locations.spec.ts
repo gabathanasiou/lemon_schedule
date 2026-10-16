@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, nameCell, openLocationsGlide } from './helpers';
+import { openSeededProject, nameCell, openLocationsGlide, openGlideCellEditor, glideCellId } from './helpers';
 
 type AnyPage = any;
 
@@ -86,12 +86,18 @@ test.describe('Locations', () => {
       const x = g.x + g.colX(colIndex);
       const y = g.y + g.headerH + row * g.rowH + g.rowH / 2;
       if (await isCoarse()) {
+        // iPad: two taps open the editor; the mount settle keeps the first
+        // keystroke off the canvas.
         await page.touchscreen.tap(x, y);
-                await page.touchscreen.tap(x, y);
+        await page.touchscreen.tap(x, y);
+        await page.waitForTimeout(350);
       } else {
-        await page.mouse.dblclick(x, y);
+        // Desktop: the §E select-first open (openGlideCellEditor) — this spec
+        // flaked at the second canvas edit when the synthetic dblclick raced
+        // the previous commit (docs/KNOWN-TEST-FAILURES.md §H).
+        await openGlideCellEditor(page, { x, y }, glideCellId(colIndex + 1, row));
       }
-            await page.keyboard.type(text, { delay: 30 });
+      await page.keyboard.type(text, { delay: 30 });
       await page.keyboard.press('Enter');
     };
 

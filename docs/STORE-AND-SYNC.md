@@ -116,10 +116,10 @@ identity/memoization.** Storage keys and the load/migrate pipeline live in `src/
   cursor traffic is ~20/s and would re-render everything (same spirit as the memo contract below).
 - Cursors are semantic anchors + a pointer fraction (`fx/fy` inside the anchored element), a registered
   canvas-grid cell (`src/lib/presenceResolvers.ts`; the Glide Breakdown's `rowKey`/`colKey`), or a
-  viewport-relative `screen` fallback; anchors off the local viewport are hidden and pointers glide via a
-  CSS transform transition. **A peer's pointer renders only while you are on their exact place
+  viewport-relative `screen` fallback; anchors off the local viewport are hidden; pointers glide via the rAF loop
+  (`PresenceOverlay`). **A peer's pointer renders only while you are on their exact place
   (tab + sub-tab + sub-sub mode; `sameViewPlace`)**; the header collaborator bubbles
-  (`UserPresenceCluster`, follow toggles) are how you jump to their view (docs/COLLABORATION.md §9).
+  (`UserPresenceCluster`, follow toggles) are how you jump to their view (docs/PRESENCE.md).
   One global mousemove tracker in the provider publishes; `PresenceOverlay` draws. Follow mode: App
   registers the navigation applier (a peer-driven `go`, which then re-publishes the mirrored view as
   ours so the lens fields survive) and every surface joins through ONE shared hook — `useFollowView`

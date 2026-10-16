@@ -122,7 +122,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   editsRef.current = edits;
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Follow completeness (roadmap 229, docs COLLABORATION §9): the Sheet
+  // Follow completeness (roadmap 229, docs/PRESENCE.md): the Sheet
   // mirrors the scene it is on (a follower with a different Sheet order
   // resolves the scene id) + its scroll; flipping the sheet locally exits
   // follow (user decision 2026-10-13).

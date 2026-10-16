@@ -164,7 +164,7 @@ export function useHeldItems(): Map<string, PresenceHeldItem> {
 }
 
 /** Per-tab client id (sessionStorage): two windows of one user are two clients,
- *  deduped per user for bubbles/cursors (docs/COLLABORATION.md §9).
+ *  deduped per user for bubbles/cursors (docs/PRESENCE.md).
  *  `generateUUID` — NOT `crypto.randomUUID` directly: the latter is
  *  secure-context-only and is `undefined` when the app is served over plain
  *  HTTP (e.g. a LAN dev origin on a phone), which crashed this provider at

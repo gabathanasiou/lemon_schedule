@@ -17,7 +17,7 @@ import { isItemSelection, selectionKey } from './supabase/presence';
  * instance — the main window, a pop-out window, a portalled canvas — with
  * that client's own scroll, column widths and font scale.
  *
- * Lifecycle rules (docs/COLLABORATION.md §9): ephemeral only; a cleared
+ * Lifecycle rules (docs/PRESENCE.md): ephemeral only; a cleared
  * selection, a blurred/hidden window and unmounting the grid all publish the
  * clear EDGE. Only the instance that last held a non-empty selection may
  * clear (the provider's owner check), so closing one window never wipes the

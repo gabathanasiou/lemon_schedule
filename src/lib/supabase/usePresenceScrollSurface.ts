@@ -12,7 +12,7 @@ import type { PresenceScrollSample, ScrollSurface } from './presence';
 
 /**
  * Follow-completeness wiring for ONE scroll surface (roadmap 229, docs
- * COLLABORATION §9). The surface mounts this hook, calls `notify()` from its
+ * docs/PRESENCE.md). The surface mounts this hook, calls `notify()` from its
  * scroll handler (or Glide's `onVisibleRegionChanged`) and uses the returned
  * `enabled` for its own presence publishing.
  *

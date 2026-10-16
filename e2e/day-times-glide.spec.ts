@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { openCallTimesSection as openCallTimes, day1CastIds as day1Cast, callsFor, stageCellPoint } from './helpers';
+import {
+  openCallTimesSection as openCallTimes, day1CastIds as day1Cast, callsFor, stageCellPoint,
+  openGlideCellEditor, waitForGlideCellSelected, glideCellId,
+} from './helpers';
 
 /**
  * Day Times Glide (roadmap 101) — the inline spreadsheet editor for a day's
@@ -31,9 +34,8 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     expect(await callsFor(page, cast[0])).toBeNull();
 
     const cell = await stageCellPoint(page, 0, 0);
-    await page.mouse.dblclick(cell.x, cell.y);
-    const ta = page.locator('#portal textarea').first();
-    await expect(ta).toBeAttached({ timeout: 4000 });
+    // Stage column 0 → a11y col 3 (ID, Character, SWF precede it).
+    const ta = await openGlideCellEditor(page, cell, glideCellId(3, 0));
 
     // The overlay opens with the whole seed selected — not blank, so typing
     // replaces it instead of requiring a retype. A non-anchor stage seeds with
@@ -66,9 +68,9 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     // An untouched anchor seeds with the resolved first-scene call — Enter must
     // store nothing (roadmap 141).
     const anchorCell = await stageCellPoint(page, 0, stageKeys.length - 1);
-    await page.mouse.dblclick(anchorCell.x, anchorCell.y);
-    const anchorTa = page.locator('#portal textarea').first();
-    await expect(anchorTa).toBeAttached({ timeout: 4000 });
+    // The anchor stage column's a11y index (cols 0-2 are ID/Character/SWF).
+    const anchorCellA11y = glideCellId(3 + stageKeys.length - 1, 0);
+    const anchorTa = await openGlideCellEditor(page, anchorCell, anchorCellA11y);
     expect(await anchorTa.inputValue()).toMatch(/^\d{1,2}:\d{2}$/);
     await anchorTa.press('Enter');
     await expect.poll(() => callsFor(page, cast[0]), { timeout: 4000 }).toBeNull();
@@ -76,18 +78,14 @@ test.describe('Day Times Glide (roadmap 101)', () => {
 
     // A relative override sticks on the anchor (one undo entry), and the
     // stored expression round-trips into the editor.
-    await page.mouse.dblclick(anchorCell.x, anchorCell.y);
-    const anchorTa2 = page.locator('#portal textarea').first();
-    await expect(anchorTa2).toBeAttached({ timeout: 4000 });
+    const anchorTa2 = await openGlideCellEditor(page, anchorCell, anchorCellA11y);
     await anchorTa2.click();
     await anchorTa2.fill('+30m');
     await anchorTa2.press('Enter');
     await expect.poll(() => callsFor(page, cast[0]), { timeout: 5000 }).toEqual({ [anchorKey]: '+30m' });
     expect(await page.evaluate(() => (window as any).__lemonSchedule.pastCount())).toBe(1);
 
-    await page.mouse.dblclick(anchorCell.x, anchorCell.y);
-    const anchorTa3 = page.locator('#portal textarea').first();
-    await expect(anchorTa3).toBeAttached({ timeout: 4000 });
+    const anchorTa3 = await openGlideCellEditor(page, anchorCell, anchorCellA11y);
     await expect(anchorTa3).toHaveValue('+30m', { timeout: 4000 });
     await anchorTa3.press('Escape');
 
@@ -103,9 +101,7 @@ test.describe('Day Times Glide (roadmap 101)', () => {
 
     // --- edit the first stage cell of row 0 (overlay editor) ---
     const first = await stageCellPoint(page, 0, 0);
-    await page.mouse.dblclick(first.x, first.y);
-    const ta = page.locator('#portal textarea').first();
-    await expect(ta).toBeAttached({ timeout: 4000 });
+    const ta = await openGlideCellEditor(page, first, glideCellId(3, 0));
     await ta.click();
     await ta.fill('07:00');
     await expect(ta).toHaveValue('07:00', { timeout: 4000 });
@@ -151,6 +147,9 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     await page.mouse.up();
 
     // Type over the anchored cell; committing spreads to the whole selection.
+    // Wait for the drag's selection to commit first — `editOnType` reads the
+    // committed selection and would drop the first keystroke otherwise (§E).
+    await waitForGlideCellSelected(page, glideCellId(3, 0));
     await page.keyboard.type('06:00');
     const ta = page.locator('#portal textarea').first();
     await expect(ta).toBeAttached({ timeout: 4000 });
@@ -170,9 +169,7 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     test.skip(cast.length < 3, 'seed day needs at least 3 cast for a fill-down');
 
     const src = await stageCellPoint(page, 0, 0);
-    await page.mouse.dblclick(src.x, src.y);
-    const ta = page.locator('#portal textarea').first();
-    await expect(ta).toBeAttached({ timeout: 4000 });
+    const ta = await openGlideCellEditor(page, src, glideCellId(3, 0));
     await ta.click();
     await ta.fill('06:00');
     await expect(ta).toHaveValue('06:00', { timeout: 4000 });

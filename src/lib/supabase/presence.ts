@@ -7,13 +7,13 @@ import { num, str } from './presenceWire';
  * Presence + live refresh + follow completeness (roadmap 229 S3/S3.5 + follow)
  * — the wire shapes, parsers and pure merge/throttle logic. The Supabase
  * transport (the channel class, diagnostics, the save bus) lives in
- * `presenceChannel.ts`. Manual: docs/COLLABORATION.md §6/§9.
+ * `presenceChannel.ts`. Manual: docs/COLLABORATION.md §6 + docs/PRESENCE.md.
  *
  * The peer-DRAG protocol (roadmap 235) lives in its own focused module
  * (`presenceDrag.ts`, re-exported below) so this file stays lean; the tiny
  * "never trust a payload" readers are shared via `presenceWire.ts`.
  *
- * Rules (docs/COLLABORATION.md §4/§9):
+ * Rules (docs/COLLABORATION.md §4 + docs/PRESENCE.md):
  * - ONE private channel per project id (`project:<uuid>`), members only — the
  *   server authorizes with RLS on realtime.messages (`supabase/tests/rls_s3.sql`).
  * - Ephemeral ONLY: never written to the database, never inside the Project.
@@ -97,7 +97,7 @@ export interface PresenceView {
  *  dialogs, Glide canvas, empty space) the anchor is `screen`: viewport-
  *  relative coordinates (`xr`/`yr` ∈ 0..1), rendered scaled ONLY while that
  *  peer is on the same tab — approximate by design, but the cursor still
- *  exists. Raw pixels are never sent (docs/COLLABORATION.md §9).
+ *  exists. Raw pixels are never sent (docs/PRESENCE.md).
  *
  *  `dom` (roadmap 236) is the generic element anchor: the element wearing
  *  `data-presence-anchor` with an explicit, namespaced, cross-client key
@@ -214,7 +214,7 @@ export interface PresenceGridSelection {
  *  Ids are OPAQUE to the protocol: each surface defines its own vocabulary and
  *  resolves them to its own elements (`data-row-id`, `data-block-id`, …) per
  *  instance, inside the root wearing `data-presence-surface="<scope>"`
- *  (docs/COLLABORATION.md §9). Ephemeral, broadcast-only, never `track()`. */
+ *  (docs/PRESENCE.md). Ephemeral, broadcast-only, never `track()`. */
 export interface PresenceItemSelection {
   scope: string;
   items: string[];
@@ -268,7 +268,7 @@ export interface PresenceSavePing {
 }
 
 /** The scroll surfaces that mirror their position to followers
- *  (docs/COLLABORATION.md §9 — follow completeness). */
+ *  (docs/PRESENCE.md — follow completeness). */
 export const SCROLL_SURFACES = ['schedule', 'calendar', 'sheet', 'glide'] as const;
 export type ScrollSurface = (typeof SCROLL_SURFACES)[number];
 

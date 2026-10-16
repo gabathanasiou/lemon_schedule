@@ -38,7 +38,7 @@ import {
 
 /**
  * The ONE Realtime channel for the open shared project (roadmap 229 S3) — the
- * transport half of the presence module. Manual: docs/COLLABORATION.md §6/§9.
+ * transport half of the presence module. Manual: docs/COLLABORATION.md §6 + docs/PRESENCE.md.
  *
  * `presence.ts` owns the wire shapes + pure logic; this module owns the
  * Supabase-touching side: the channel class, its diagnostics snapshot and the

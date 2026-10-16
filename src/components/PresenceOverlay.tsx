@@ -17,7 +17,7 @@ import { avatarColor, shortNameOf } from '../lib/avatarIdentity';
 import { PresenceDots } from './PresenceDots';
 
 /**
- * Live cursors + the follow pill (roadmap 229 S3, docs/COLLABORATION.md §9).
+ * Live cursors + the follow pill (roadmap 229 S3, docs/PRESENCE.md).
  *
  * Canva-style pointers with a name label, resolved SEMANTICALLY:
  * - element anchors (stripboard row, calendar cell, Day Manager section, and

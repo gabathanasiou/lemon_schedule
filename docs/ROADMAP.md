@@ -2,8 +2,10 @@
 # Roadmap — Future Implementations Checklist
 
 This file is the pending work list: `[ ]` not started, `[~]` in progress.
-Only open/in-progress items live here — the live file is read by every
-roadmap worker session, so it stays lean.
+Only open/in-progress items live here — **query it, don't read it whole**:
+`grep '^## '` lists every item with its flags in ~1KB. The recipes
+("what's next", one item, triage dedupe) live in the `manage-roadmap`
+skill, §Queries.
 
 - **Completed items:** see `docs/ROADMAP-ARCHIVE.md` (index + code/knowledge
   pointers; full narratives in git history).
@@ -1240,16 +1242,16 @@ the path. Extends **145** (the Tauri desktop shell).
   wrapper tooling); informs **269** (the in-Safari sweep still matters for
   the hosted web app); reuses the 267 safe-area mechanism.
 
-**From the 2026-10-16 production-readiness audit.** Items 275–291 below; each
+**From the 2026-10-16 production-readiness audit.** Items 274–291 below; each
 is self-contained, with findings referenced by their F-numbers (full report:
 `audits/2026-10-16-production-readiness-audit.md` — local, git-ignored, main
 working tree only). Findings F17 (MCP per-session handshake) and validation
 parity are already scoped inside item **97** — not duplicated here.
 
 **Pick-up convention (audit items):** "do the next audit item" = the
-lowest-numbered open item below, starting at **275** — filing order equals
-priority order (275–278 = P1; 279–288 = P2; 289–291 = P3, and 289 is parked
-until unparked). Normal one-agent-per-item flow; close each through
+lowest-numbered open item below, starting at **274** — filing order equals
+priority order (274 = P0; 275–278 = P1; 279–288 = P2; 289–291 = P3, and 289 is
+parked until unparked). Normal one-agent-per-item flow; close each through
 `manage-roadmap` before picking the next.
 
 ## 279. Backups & a tested restore (`[ ]`)
@@ -1389,6 +1391,35 @@ questionnaire evidence pack; SOC 2 / HIPAA / PCI assessment (all N/A today);
 second region; load testing. Triggers into **230** (licensing) for the billing
 side.
 
+## 292. Roadmap tooling — query CLI + per-item file split (`[ ]`, PARKED — build only on trigger)
+
+**Requested** 2026-10: "what's next on the roadmap / related to X" answers cost
+full-file reads (~23k tokens/session), and parallel-worktree close-outs collide
+on these two shared files.
+
+**Researched verdict — do not build yet:**
+- **No external tracker** (beads / Backlog.md / Linear): adopt-their-model + new
+  ID scheme (ours are stable numeric ids referenced by docs/commits) + lose the
+  `npm run lint` roadmap gate; the migration cost is paid either way.
+- **No separate repo:** two-step close-out (loses one-commit atomicity), lint
+  gate gone, conflicts just relocate there.
+- **If built (in-repo delta):** `scripts/roadmap.mjs` — `next / list / show /
+  find / add / status / close / stats`, `--json`; `next` = open, non-parked, id
+  order, flags + `Relations` shown inline (relations are prose — no computed
+  dependency engine). Per-item files `docs/roadmap/<id>-<slug>.md` + generated
+  `ROADMAP.md` view; archive keeps `.gitattributes` `merge=union` + the existing
+  duplicate-id lint as the conflict net. Wire-up: `check-doc-budget.mjs` (same
+  invariants, new layout), `manage-roadmap` skill, AGENTS.md pointers.
+
+**Trigger:** backlog ≳5× today, OR two worktrees genuinely collide here, OR the
+skill §Queries greps prove insufficient.
+
+**Compat audit done** (2026-10): 52/52 items + 238/238 archive rows parse with a
+tolerant split; quirks — #230 has no status marker, 7 archive rows carry `|`
+inside inline code, `Relations` has two spellings.
+
+**Relations**: interim answer shipped — `manage-roadmap` §Queries grep recipes.
+
 ## 293. Guest cleanup — stale anonymous accounts (`[ ]`, P3 — parked by the 281 decision 2026-10-16)
 
 **Priority: P3 — pre-public-launch.** Parked out of 281 by owner decision.
@@ -1404,4 +1435,3 @@ ever return to.
 - **Verify:** a dry-run report of what would be reaped + one live sweep on a
   scratch project.
 - **Relations:** extends **281** (the deletion path ships there).
-

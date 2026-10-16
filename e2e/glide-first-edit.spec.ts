@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, selectGlideCell, glideCellId } from './helpers';
 
 /**
  * Glide first-edit keystroke swallow (roadmap 63).
@@ -48,8 +48,12 @@ test.describe('Glide first-edit keystrokes (roadmap 63)', () => {
     // cadence. The chunk is warm, so the editor mounts within ~a frame of the
     // first keystroke — the first key is never swallowed by the cold chunk
     // fetch (the reported cloud bug), and later keys land in the focused input.
-    await page.mouse.click(setX, firstRowY);
-    await page.waitForTimeout(200);
+    // §E select-first: `editOnType` reads the COMMITTED selection, so wait for
+    // the click's selection to land before typing — otherwise the first 'M'
+    // is dropped under load (docs/KNOWN-TEST-FAILURES.md §H). The set cell is
+    // a11y col 6 (marker + actions + sceneNumber + pageCount + scriptDay +
+    // intExt precede it), row 0.
+    await selectGlideCell(page, { x: setX, y: firstRowY }, glideCellId(6, 0));
     await page.keyboard.type('MARY', { delay: 250 });
 
     // Every keystroke must land in the entity dropdown's input.

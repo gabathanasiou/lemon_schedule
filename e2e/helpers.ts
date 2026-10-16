@@ -16,14 +16,25 @@ export const APP_BOOT_ANCHOR = (page: Page) =>
 /**
  * Creates a new project from the Project Manager screen if no project is open.
  * The app boots into the Project Manager when localStorage is empty.
+ *
+ * `isVisible()` does NOT wait (its timeout option is ignored), so the old
+ * immediate check raced a slow cold boot: under full-suite load the Project
+ * Manager hadn't painted yet, the create step was silently skipped, and the
+ * spec died later on a button that never appeared (KNOWN-TEST-FAILURES §I).
+ * Wait for EITHER boot screen first, then decide which path applies.
  */
 export async function ensureProject(page: Page) {
   const newProjectBtn = page.getByRole('button', { name: /New Project/i });
-  if (await newProjectBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+  const bootAnchor = APP_BOOT_ANCHOR(page);
+  await expect.poll(
+    async () => (await newProjectBtn.isVisible()) || (await bootAnchor.isVisible()),
+    { timeout: 15000, message: 'app booted (Project Manager or an open project)' },
+  ).toBe(true);
+  if (await newProjectBtn.isVisible()) {
     await newProjectBtn.click();
     await page.getByRole('button', { name: 'Create' }).click();
-    await expect(APP_BOOT_ANCHOR(page)).toBeVisible({ timeout: 10000 });
   }
+  await expect(bootAnchor).toBeVisible({ timeout: 10000 });
 }
 
 /**
@@ -435,6 +446,80 @@ export async function expandDaySection(page: Page, sectionId: string, probe: str
   const section = page.locator(`[data-section="${sectionId}"]`);
   if (!(await section.locator(probe).count())) await section.getByRole('button').first().click();
   return section;
+}
+
+// --- Glide overlay-editor activation (docs/KNOWN-TEST-FAILURES.md §E) ------
+// Glide's `cellActivationBehavior="double-click"` activates a cell only when
+// the selection captured at the SECOND mousedown (`mouse.previousSelection`)
+// equals the clicked cell. Playwright dispatches a dblclick's two clicks
+// back-to-back: while the first click's selection commit is still pending
+// (a React render under CPU load), the second click sees the stale selection
+// and the editor silently never opens — or opens and is remounted when the
+// late commit lands. A cell that is ALREADY selected activates regardless of
+// inter-click render timing, so every editor open goes through these helpers.
+
+/** Glide's hidden a11y-table cell id (`#glide-cell-<col>-<row>`). `col` counts
+ *  the row marker: marker OFF (InlineGlideTable grids) → the app column index;
+ *  marker ON (the Breakdown/Crew/Locations grids) → the app column index + 1. */
+export function glideCellId(col: number, row: number): string {
+  return `glide-cell-${col}-${row}`;
+}
+
+/** Waits until Glide's COMMITTED selection covers the cell. The a11y tree
+ *  trails the app's `gridSelection` state by its 200ms debounce, so
+ *  `aria-selected="true"` is the DOM proof that the click really landed. */
+export async function waitForGlideCellSelected(page: Page, cellId: string) {
+  await expect(page.locator(`#${cellId}[aria-selected="true"]`)).toBeAttached({ timeout: 5000 });
+}
+
+/** Selects a Glide cell (a no-op when it IS already the current cell — Glide
+ *  keeps an existing range) and waits for the selection to commit. */
+export async function selectGlideCell(page: Page, point: { x: number; y: number }, cellId: string) {
+  await page.mouse.click(point.x, point.y);
+  await waitForGlideCellSelected(page, cellId);
+}
+
+/** Opens the Glide overlay editor on the cell at `point` — the §E select-first
+ *  recipe (see the block note above). Pass `{ select: false }` when a drag just
+ *  made the cell the current selection: wait only, so an extra click can't
+ *  collapse the range before the drag's commit lands. Returns the portal
+ *  editor locator.
+ *
+ *  The double-click is PACED past Glide's 500ms window (it treats ANY two
+ *  pointerups <500ms apart as one): a pre-click/drag that recent would let the
+ *  dblclick's FIRST click activate too, and the second click would then land on
+ *  the freshly opened editor — remounting a text overlay and closing an entity
+ *  dropdown (the commit is lost). Past the window only the SECOND click
+ *  activates, cleanly. */
+export async function openGlideCellEditor(
+  page: Page,
+  point: { x: number; y: number },
+  cellId: string,
+  opts: { select?: boolean } = {},
+) {
+  const t0 = await page.evaluate(() => Date.now());
+  if (opts.select === false) await waitForGlideCellSelected(page, cellId);
+  else await selectGlideCell(page, point, cellId);
+  await page.waitForFunction((t) => Date.now() - t >= 650, t0, { polling: 50 });
+  await page.mouse.dblclick(point.x, point.y);
+  const editor = page.locator('#portal textarea, #portal input').first();
+  await expect(editor).toBeAttached({ timeout: 5000 });
+  // Hand back a FOCUSED editor: Glide's canvas/a11y focus churn can steal focus
+  // right after an overlay opens (glideEditor.tsx reclaims it for text editors,
+  // and trailing add rows are the reported case) — a keystroke or Enter typed
+  // meanwhile lands on the grid and the edit never commits. focus() doesn't
+  // move the caret or clear the editor's select-all.
+  await expect.poll(
+    async () => {
+      try {
+        return await editor.evaluate((el: HTMLElement) => { el.focus(); return document.activeElement === el; });
+      } catch {
+        return false;
+      }
+    },
+    { timeout: 5000 },
+  ).toBe(true);
+  return editor;
 }
 
 /** Opens Day Manager, expands the Call Times grid, and waits for it to settle. */

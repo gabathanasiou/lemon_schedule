@@ -557,7 +557,7 @@ design, ribbon design — roadmap 236). Anchors are semantic, never pixels:
 rows/date cells/Day Manager sections, registered grid cells, and every authored
 control (auto `ui:` keys from testid/aria-label/title/text; direct-hit only —
 they are exempt from the ≤40px snap that keeps rows magnetic) — manual in
-docs/COLLABORATION.md §9, inspector
+docs/PRESENCE.md, inspector
 `window.__lemonSchedule.presenceAnchorAt(x, y)`. The **header
 collaborator bubbles** (`UserPresenceCluster`, max 3 + a
 `+N` menu) are follow TOGGLES — click a person to follow their view, click

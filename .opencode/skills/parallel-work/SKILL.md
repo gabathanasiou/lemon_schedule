@@ -84,7 +84,7 @@ reverts your work. Wait for them to commit instead.
    | `package.json` | Take main's version, then bump for your change after the merge (rule 8) in its own `chore:` commit if the work is user-visible. |
 
 3. Component conflicts are often same-file auto-merges (`RibbonTab.tsx`,
-   `ReportDesigner.tsx`, `docs/COLLABORATION.md` §9 …). Review them by hand:
+   `ReportDesigner.tsx`, `docs/PRESENCE.md` …). Review them by hand:
    `git diff <your-old-tip> -- <file>` shows exactly what the peer added on top
    of your version — both intents must survive.
 4. On the merged tree: `npm run lint` + unit tests + the FULL suite (merges mix

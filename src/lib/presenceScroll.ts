@@ -4,7 +4,7 @@ import { cssEscape } from './utils';
 /**
  * Presence scroll mirroring (roadmap 229 follow completeness) — the ONE seam
  * between the presence layer and the scrollable surfaces (stripboard,
- * Calendar, Scene Sheet, Glide grid). Manual: docs/COLLABORATION.md §9.
+ * Calendar, Scene Sheet, Glide grid). Manual: docs/PRESENCE.md.
  *
  * Sender: a mounted surface samples the SEMANTIC item at its top edge
  * (`sampleDomScroll` → the item's key + how far into it the container is

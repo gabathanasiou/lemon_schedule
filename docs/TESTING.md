@@ -173,10 +173,12 @@ are the #1 documented drift cause here (`docs/KNOWN-TEST-FAILURES.md`).
   `<textarea>` (not `<input>`); kit menu/popup rows are `[role="option"]` / `.ui-item` (not
   `<button>`); tall content needs `scrollIntoViewIfNeeded()` before coordinate clicks; the
   viewport is 1280×720; seed data the app expires (trash entries age out via the 30-day TTL
-  on load — the spec creates its own, `e2e/trash-restore.spec.ts`). Glide overlay editors:
-  a synthetic dblclick right after a commit can see a stale selection and never open the
-  editor (§E) — select the cell first (wait for `#glide-cell-<col>-<row>[aria-selected="true"]`),
-  then double-click, or open via typing (`editOnType`).
+  on load — the spec creates its own, `e2e/trash-restore.spec.ts`). **Glide overlay editors
+  must be opened through `openGlideCellEditor()` (`e2e/helpers.ts`)** — select the cell,
+  wait for the committed selection (`selectGlideCell`/`waitForGlideCellSelected`; needed by
+  the typing/`editOnType` flows too), then a paced double-click that hands back a focused
+  editor; `{ select: false }` for a drag-selected cell. Bare `mouse.dblclick` races Glide's
+  activation check (§E) — the editor silently never opens or remounts.
 
 ### Quarantine registry
 
