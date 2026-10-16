@@ -9,6 +9,11 @@
       "command": ["npx", "@playwright/mcp@latest"],
       "environment": {}
     },
+    "gcloud": {
+      "type": "local",
+      "command": ["npx", "-y", "@google-cloud/gcloud-mcp"],
+      "environment": {}
+    },
     "lemon": {
       "type": "local",
       "command": ["node", "tools/mcp/lemon-mcp.mjs"],
