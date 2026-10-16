@@ -1236,3 +1236,4 @@ the path. Extends **145** (the Tauri desktop shell).
 - **Relations:** `extends` **145** (desktop shell — same decision, shared
   wrapper tooling); informs **269** (the in-Safari sweep still matters for
   the hosted web app); reuses the 267 safe-area mechanism.
+

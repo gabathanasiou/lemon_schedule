@@ -64,16 +64,20 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 - **Exception**: kit `ContextMenu` defaults to **light theme** (its `theme` prop, kit v0.1.81)
   because it anchors on light surfaces; pass `theme="dark"` when it opens over dark chrome
   (the ribbon designer cell menu). DropdownMenu (dark) and Dialog (dark) set their own themes.
-- **The status bar is chrome too** (roadmap 265, iOS 26+): the app header is
+- **The status bar is chrome too** (roadmap 265 + 271, iOS 26+): the app header is
   `sticky top-0 z-20` so Safari's tint sampling (`LocalFrameView::fixedContainerEdges`:
-  fixed/sticky, ≥90% wide, >10px deep, own `background-color`) picks up its fill, and
-  `useStatusBarTheme()` mirrors `PROJECT_CHROME[...].barHex` (`src/lib/projectTheme.ts`)
-  into `meta[name="theme-color"]` for the opaque Home-Screen-web-app bar. MUST NOT add
-  the deprecated `apple-mobile-web-app-status-bar-style` or `black-translucent`.
-  `viewport-fit=cover` is **phone-portrait-only** (roadmap 267): the viewport meta is
-  flipped at boot in `src/main.tsx` when `PHONE_PORTRAIT_QUERY` matches, and the phone
-  shell + scroll reserves consume `env(safe-area-inset-*)`; iPad/desktop keep the plain
-  meta and the two-layer model above.
+  fixed/sticky, ≥90% wide, >10px deep, own `background-color`) picks up its fill — the
+  channel that works on iPhone. iPadOS does not honour that sampling for its top chrome;
+  it takes the PAGE background instead, so `useStatusBarTheme()` also paints the root
+  (`html`/`body`) with the header's own painted colour (`getComputedStyle` — exact by
+  construction: Tailwind v4 tokens are oklch, so `PROJECT_CHROME[...].barHex` is only
+  the hex twin for `meta[name="theme-color"]` and the no-header fallback `#09090b`, black
+  like the PM backdrop). Phones (267) keep the `#f4f4f5` canvas — the root sync is
+  skipped there. MUST NOT add the deprecated `apple-mobile-web-app-status-bar-style` or
+  `black-translucent`. `viewport-fit=cover` is **phone-any-orientation-only** (roadmap
+  267): the viewport meta is flipped at boot in `src/main.tsx` when `PHONE_DEVICE_QUERY`
+  matches, and the phone shell + scroll reserves consume `env(safe-area-inset-*)`;
+  iPad/desktop keep the plain meta and the two-layer model above.
 
 ### Boot screen (no project open) — minimal backdrop + app lockup (roadmap 82)
 

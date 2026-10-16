@@ -19,7 +19,10 @@
    The canvas background is the fill for Safari's residual zone below the
    largest viewport (a tab can paint to `100lvh` = 815px of a 932px screen on
    a 14 Pro Max — measured; the rest belongs to Safari): the stripboard/Sheet
-   surface colour keeps that band reading as the app, not as a white void. */
+   surface colour keeps that band reading as the app, not as a white void.
+   PHONES only — `useStatusBarTheme` (roadmap 271) overrides the root with the
+   project-chrome bar colour on every other device, because the iPad's
+   browser / status bar takes its tint from the page background. */
 html, body, #root {
   margin: 0;
   overscroll-behavior: none;
