@@ -1280,18 +1280,6 @@ unverified.
   (`docs/COLLABORATION.md` §11 context).
 - **Verify:** a real reset lands in all three inboxes, not spam.
 
-## 282. Vulnerability disclosure process (`[ ]`)
-
-**Priority: P2.** Audit F10.
-
-**Request:** public repo + hosted app, no way for a stranger to report a
-vulnerability.
-
-- **Deliverables:** root `SECURITY.md` (scope, how to report, expectations,
-  safe harbour), `.github/SECURITY.md` or `security.txt`, a monitored contact;
-  link from README. Keep it separate from the internal `docs/SECURITY.md`.
-- **Verify:** a dry-run report reaches the inbox; links live.
-
 ## 283. Shared-project list — real pagination (`[ ]`)
 
 **Priority: P2 — small.** Audit F11.
