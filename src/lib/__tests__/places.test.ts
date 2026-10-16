@@ -21,6 +21,7 @@ describe('places provider selection', () => {
   });
 
   it('falls back to Nominatim without a key', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', ''); // the real .env may carry a key — force the fallback
     const urls = stubFetch([]);
     await getPlacesProvider().forwardGeocode('somewhere');
     expect(urls[0]).toContain('nominatim.openstreetmap.org');

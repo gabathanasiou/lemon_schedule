@@ -73,14 +73,17 @@ export default defineConfig({
         url: `http://localhost:${PORT}`,
         reuseExistingServer: false,
         timeout: 30000,
-        env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' },
+        // Force the keyless Nominatim path — specs mock its routes; the real
+        // .env key (roadmap 297) would silently switch them to live Google
+        // calls. The Google path is unit-tested (src/lib/__tests__/places.test.ts).
+        env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_GOOGLE_MAPS_API_KEY: '' },
       }
     : {
         command: `npm run build && npm run preview -- --port=${PORT} --strictPort`,
         url: `http://localhost:${PORT}`,
         reuseExistingServer: false,
         timeout: 120000,
-        env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' },
+        env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_GOOGLE_MAPS_API_KEY: '' },
       },
   // The perf/memory harnesses have their own configs (playwright.perf*.config.ts)
   // and are NOT part of the default suite — run them explicitly via grep.
