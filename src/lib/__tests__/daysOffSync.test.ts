@@ -45,6 +45,24 @@ describe('computeDaysOffSync', () => {
     expect(computeDaysOffSync(base({ current: first.nonShootDates })).kind).toBe('no-change');
   });
 
+  // The MMS-style span: production start → the stripboard's last shooting day
+  // (productionDayCount 10 from Mon 2026-08-10 lands 08-21); postEnd only
+  // extends it. Moved down from the retired production-dates e2e case.
+  it('without a post end, the walk stops at the last scheduled day', () => {
+    const r = computeDaysOffSync(base());
+    if (r.kind !== 'applied') throw new Error('expected applied');
+    expect(r.added.map(d => d.date)).toEqual(['2026-08-15', '2026-08-16']);
+    // 08-22/08-23 are pattern days AFTER the last shoot day — not statused.
+    expect(r.nonShootDates.some(n => n.date > '2026-08-21')).toBe(false);
+  });
+
+  it('a later post end extends the walk past the last scheduled day', () => {
+    const r = computeDaysOffSync(base({ postEnd: '2026-08-25' }));
+    if (r.kind !== 'applied') throw new Error('expected applied');
+    expect(r.added.map(d => d.date)).toEqual(['2026-08-15', '2026-08-16', '2026-08-22', '2026-08-23']);
+    expect(r.nonShootDates.some(n => n.date === '2026-08-25')).toBe(false);
+  });
+
   it('removes pattern statuses on weekdays no longer in the pattern', () => {
     // A pattern holiday on Monday, but the pattern is Sat/Sun only.
     const r = computeDaysOffSync(base({ current: [{ date: '2026-08-10', status: 'holiday', pattern: true }] }));
