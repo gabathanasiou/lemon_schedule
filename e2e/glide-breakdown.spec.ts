@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { ensureProject, openSeededProject } from './helpers';
+import {
+  ensureProject, openSeededProject, glideCellId, openGlideCellEditor, waitForGlideCellSelected,
+} from './helpers';
 
 test.describe('Glide Breakdown Tab', () => {
   test.beforeEach(async ({ page }) => {
@@ -100,6 +102,9 @@ test.describe('Glide Breakdown Tab', () => {
     await page.mouse.up();
 
     // Type over the anchored cell; committing fills the whole selection.
+    // Wait for the drag's selection commit before typing — `editOnType` reads
+    // the committed selection and would drop the keystroke otherwise (§E).
+    await waitForGlideCellSelected(page, glideCellId(4, 0)); // scriptDay = a11y col 4
     await page.keyboard.type('5');
     const input = page.locator('#portal textarea, #portal input').first();
     await expect(input).toBeAttached({ timeout: 4000 });
@@ -134,9 +139,9 @@ test.describe('Glide Breakdown Tab', () => {
     await page.mouse.move(setX, y2, { steps: 8 });
     await page.mouse.up();
     // Double-click opens the Set entity dropdown directly (no typing needed).
-    await page.mouse.dblclick(setX, y0);
-    const input = page.locator('#portal input').first();
-    await expect(input).toBeAttached({ timeout: 4000 });
+    // select:false — the drag already made row 0 the current cell; wait for its
+    // commit, then activate (§E). Set = a11y col 6 (marker + 5 columns).
+    const input = await openGlideCellEditor(page, { x: setX, y: y0 }, glideCellId(6, 0), { select: false });
     await input.fill('MARS');
     await page.keyboard.press('Enter');
 
@@ -173,9 +178,9 @@ test.describe('Glide Breakdown Tab', () => {
       await page.mouse.down();
       await page.mouse.move(castX, y2, { steps: 8 });
       await page.mouse.up();
-      await page.mouse.dblclick(castX, y0);
-      const input = page.locator('#portal input').first();
-      await expect(input).toBeAttached({ timeout: 4000 });
+      // select:false — the drag made row 0 the current cell; wait for its
+      // commit, then activate (§E). Cast = a11y col 9.
+      const input = await openGlideCellEditor(page, { x: castX, y: y0 }, glideCellId(9, 0), { select: false });
       await input.fill(value);
       await page.keyboard.press('Enter');
       await expect(input).toHaveCount(0, { timeout: 4000 });
@@ -215,9 +220,8 @@ test.describe('Glide Breakdown Tab', () => {
     const castX = sr.x + 956 + 60; // Cast column: 956 → 1076, centre 1016
     const y0 = sr.y + 36 + 17;
 
-    await page.mouse.dblclick(castX, y0);
-    const input = page.locator('#portal input').first();
-    await expect(input).toBeAttached({ timeout: 4000 });
+    // §E select-first open — Cast = a11y col 9, row 0 (fresh grid: no drag).
+    const input = await openGlideCellEditor(page, { x: castX, y: y0 }, glideCellId(9, 0));
     await input.click(); // open the suggestions panel on the overlay editor
     await expect(page.locator('.click-outside-ignore')).toBeVisible({ timeout: 4000 });
 
