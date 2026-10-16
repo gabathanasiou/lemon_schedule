@@ -12,8 +12,11 @@ project_id = "lemon_schedule"
 verify_jwt = true
 
 [functions.delete-account]
-# Roadmap 281 (audit F9). Same double gate as room-token; the function deletes
-# the CALLER only — never an id from the request body. Every auth.users FK
+# Roadmap 281 (audit F9) + 294. Same double gate as room-token; the function
+# deletes the CALLER only — never an id from the request body. It archives the
+# full footprint via `archive_account` FIRST (30-day internal recovery window,
+# purged daily by `account-archive-purge`; runbook docs/COLLABORATION.md
+# §account restore) and ABORTS if archiving fails. Every auth.users FK
 # cascades, so owned projects (and collaborator access to them) die with the
 # account; the app's confirm dialog says so.
 # Deploy: `npx supabase functions deploy delete-account --project-ref <ref> --use-api`

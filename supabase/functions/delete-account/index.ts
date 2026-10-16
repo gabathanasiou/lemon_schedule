@@ -10,8 +10,14 @@
  * second-guess it. Guests (anonymous accounts) use the same path; reaping
  * STALE guests is roadmap 293, not this function.
  *
- * Recovery: none — the free tier has no backups (roadmap 279); worker logs are
- * security events only. Deletion is permanent.
+ * Recovery (roadmap 294): before the admin delete, the account's full footprint
+ * is snapshotted via `archive_account` into public.account_archive (RLS
+ * deny-all; RPC execute locked to service_role) — ids AND the password hash, so
+ * an operator restore signs the person back in with their OLD password
+ * (sessions stay gone). The window is 30 days (pg_cron purge) and OPERATOR-only:
+ * the app's "permanently" copy is unchanged, no UI, no cancel flow. If
+ * archiving fails the deletion ABORTS (500, nothing deleted) — fail closed.
+ * Runbook: docs/COLLABORATION.md §account restore.
  *
  * Secrets: SUPABASE_SERVICE_ROLE_KEY (a hosted Edge-Function default) — never
  * returned, never logged (error.message only).
@@ -60,6 +66,18 @@ Deno.serve(async (req) => {
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  // Archive BEFORE the delete (roadmap 294): the snapshot is the recovery
+  // window. An archiving failure aborts the whole call — nothing is deleted
+  // without its archive row (fail closed).
+  const { error: archiveError } = await admin.rpc('archive_account', {
+    p_user: userData.user.id,
+  });
+  if (archiveError) {
+    console.error('delete-account archive failed:', archiveError.message);
+    return json({ error: 'Could not delete the account — try again.' }, 500);
+  }
+
   const { error } = await admin.auth.admin.deleteUser(userData.user.id, false);
   if (error) {
     console.error('delete-account failed:', error.message);
