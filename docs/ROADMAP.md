@@ -1465,3 +1465,72 @@ window would make "undo" a product feature.
   purge proven on a scratch project.
 - **Relations:** extends **281**; complements **279** (backups cover the
   catastrophic case, this the everyday one).
+
+## 295. Test pyramid — second rebalancing pass (dispatch-only e2e → Vitest) (`[ ]`)
+
+**Context:** 138's first sweep (archived) moved the obvious logic down; the e2e
+layer is still over-weighted — 283 capped tests, ~80s per full run, and ~1.5s of
+browser boot for every test that only dispatches + reads state via the bridge.
+`docs/TESTING.md` §Test sizes & the pyramid + §Rebalancing (ongoing) is the
+canonical guide; the caps in `scripts/check-doc-budget.mjs` (70 specs / 283
+tests; waits 17) create the pressure to free slots by moving tests down.
+
+**Find candidates:** specs whose assertions are mostly
+`page.evaluate(() => window.__lemonSchedule…)` state reads with no real DOM
+interaction, canvas geometry, print/pagination, focus or iPad/touch behaviour.
+Grep for `dispatch(` / `getProject()` / `getState()` density and judge each
+test: could this failure be produced (and caught) without a browser? A test
+that only dispatches + inspects state via the bridge is a conversion candidate
+by definition — the browser boot is pure overhead.
+
+**Recipe per test (never assert the same behaviour at both layers — retire the
+e2e case in the same change):**
+1. Check the logic under test lives in an importable `src/lib/` module (reducer
+   actions, `daybreakUtils`, `callTimes`, `reportBlocks`, …); if it is buried
+   in a hook/component, extracting it IS the work.
+2. Write the Vitest case under `src/**/__tests__/*.test.ts` (`npm run test:unit`).
+3. Delete the e2e case; if a whole spec retires, remove its entries from
+   `scripts/smart-test.mjs` RULES (stale names are silent — the orphan check
+   only flags unmapped files) and lower `E2E_TEST_CAP` / `E2E_WAIT_BASELINE`
+   with a one-line reason, locking the gain.
+4. Keep ONE e2e test proving the feature is wired end-to-end; browser-bound
+   layers (canvas, print, overlay morph, iPad/pen, focus/CSS) stay untouched.
+
+**Verify:** `npm run lint` (caps + orphans + waits), `npm run test:unit`, and
+the full suite on the touched tree (retiring cases changes the suite); report
+the e2e duration delta from the custom reporter's `[timing]` line.
+
+**Relations**: continues **138** (archived — the first rebalance; 10 duplicate
+e2e cases retired there); tooling/pressure live in `docs/TESTING.md`
+§Rebalancing (ongoing) + `scripts/check-doc-budget.mjs`.
+
+## 296. Debug bridge — `onAction` misses UI-originated dispatches (`[ ]`)
+
+**Contract bug:** `docs/API.md` §Debug bridge documents `onAction(cb)` as
+"every dispatched action (UI + bridge)". In practice the tap only fires for
+(a) edits made THROUGH the bridge (`bridgeDispatch` in `src/store/provider.tsx`),
+and (b) room welcome/replay + remote applies. Ordinary UI edits — a grid-cell
+commit, a stripboard change, any click/type in the app — never notify.
+Observed 2026-10-16 in the prod-preview during the Glide-flake work: a UI-typed
+grid edit reported nothing; the same edit via `b.dispatch` reported fine.
+History (`d9c944fa` → `1e0c647d` → `77af9908`) suggests it was never wired
+rather than deliberate — the bridge's only gate is `installed`.
+
+**Why it matters:** any agent/tool that OBSERVES real usage — record a session,
+assert which actions a UI gesture dispatches, wait for a specific change through
+the local MCP bridge — is blind to user-originated edits.
+
+- **Approach:** notify on the UI path too — call `notifyAgentBridge` from
+  `guardedDispatch` (or the provider's dispatch seam) without double-firing the
+  `bridgeDispatch` path; decide undo/redo semantics (room paths already notify)
+  and keep `LOAD` handling consistent with the existing room behaviour.
+  Listener callbacks are already try/caught; a zero-listener `Set.forEach` per
+  dispatch is negligible.
+- **Test:** extend `e2e/debug-bridge.spec.ts` "notifies onAction subscribers of
+  every dispatch" — drive one genuine UI edit (existing spec patterns: type into
+  a Scene Sheet cell, toggle a control) and assert its action arrives; keep the
+  bridge-dispatch case. If the gap turns out intentional in a dev build, fix
+  `docs/API.md` instead and say so in the close-out.
+- **Verify:** that spec + `npm run lint` + full suite (`src/store` change).
+- **Relations:** 97 (agent API/MCP) rides this bridge's event surface —
+  land before its next stage; AGENTS.md §Agentic Debug Bridge.
