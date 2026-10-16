@@ -39,7 +39,7 @@ Deep dives live in `docs/`: daybreak/section model → `docs/SCHEDULING-STRIPBOA
 
 ### Rows & Sections
 - `ScheduleRow.type`: `SCENE | BREAK | NOTE | DAYBREAK`. `ScheduleVersion.rows` is the single source of truth for stripboard order.
-- **Scene→Row invariant**: every `project.scenes` entry has exactly one SCENE row in every version (`LOAD` runs `ensureAllScenesHaveRows()`; `ADD_SCENE`/`RESTORE_SCENE`/`IMPORT_SCENES` push rows; `DELETE_SCENE` removes them; `NEW_VERSION` seeds them). **Version trash retention**: `pruneVersionTrash` (storage.ts) — 30-day TTL + keep newest 10; pruned on local loads, CLOUD reads (`readDriveProject`), and every delete (unbounded trash made a 900KB file 69% trash).
+- **Scene→Row invariant**: every `project.scenes` entry has exactly one SCENE row in every version (`LOAD` runs `ensureAllScenesHaveRows()`; `ADD_SCENE`/`RESTORE_SCENE`/`IMPORT_SCENES` push rows; `DELETE_SCENE` removes them; `NEW_VERSION` seeds them). **Version trash retention**: `pruneVersionTrash` (storage.ts) — 30-day TTL + keep newest 10; pruned on local loads, CLOUD reads (`readDriveProject`), and every delete (unbounded trash made a 900KB file 69% trash). **Report-design trash**: same 30-day TTL (`pruneReportTrash`, pruned on local/Drive/online reads); restorable through File → Trash.
 - **DAYBREAK rows split the stripboard into sections.** Each renders two visual rows: `SectionFooter` ("End of Day #N", totals — white bg) closes the section above; `Next Day Header` ("START OF DAY N", call-time input — dark header palette) opens the section below. Read `docs/SCHEDULING-STRIPBOARD-DAYBREAKS.md` before touching schedule ordering/insertion.
 
 ### Pinned Daybreak (section 0)

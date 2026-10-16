@@ -125,6 +125,7 @@ export function caseEmptyTrash(state: State, action: Action, applyChange: ApplyC
     elementsTrash: [],
     categoryTrash: [],
     crewTrash: [],
+    reportTrash: [],
   });
 }
 

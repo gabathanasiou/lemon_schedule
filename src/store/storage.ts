@@ -112,10 +112,12 @@ export function saveProjectListToStorage(list: ProjectMeta[]) {
   localStorage.setItem(INDEX_KEY, JSON.stringify(localOnly));
 }
 
-// Version trash retention: 30-day TTL + cap at the 10 most recent deletions.
-// Deleted versions carry full row arrays, so an unbounded trash makes every
-// project file grow forever (one user's file was 69% trash). Pruned on every
-// load (local AND cloud) and on every new delete — see pruneVersionTrash.
+// Trash retention: 30-day TTL (VERSION_TRASH_TTL_MS is the one shared value);
+// version and calendar-plan trash additionally cap at the 10 most recent
+// deletions — deleted versions carry full row arrays, so an unbounded trash
+// makes every project file grow forever (one user's file was 69% trash).
+// Pruned on every load (local AND cloud) and on every new delete — see
+// pruneVersionTrash.
 export const VERSION_TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const VERSION_TRASH_MAX = 10;
 
@@ -129,6 +131,13 @@ export function pruneVersionTrash(list: VersionTrashItem[]): VersionTrashItem[] 
 export function pruneCalendarVersionTrash(list: CalendarVersionTrashItem[]): CalendarVersionTrashItem[] {
   const fresh = (list || []).filter(t => Date.now() - t.deletedAt < VERSION_TRASH_TTL_MS);
   return fresh.slice(-VERSION_TRASH_MAX);
+}
+
+/** Report-design trash keeps the same 30-day TTL (no cap — a deleted design
+ *  is recovered through the Trash modal, not re-selected from a list).
+ *  Exported so the cloud reads prune in parity with local loads (roadmap 275). */
+export function pruneReportTrash(list: ReportTrashItem[]): ReportTrashItem[] {
+  return (list || []).filter(t => Date.now() - t.deletedAt < VERSION_TRASH_TTL_MS);
 }
 
 export function loadProjectFromStorage(id: string): Project | null {
@@ -165,9 +174,7 @@ export function loadProjectFromStorage(id: string): Project | null {
         parsed.colorRulesTrash = (parsed.colorRulesTrash || []).filter((t: ColorRuleTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });
-        parsed.reportTrash = (parsed.reportTrash || []).filter((t: ReportTrashItem) => {
-          return Date.now() - t.deletedAt < thirtyDays;
-        });
+        parsed.reportTrash = pruneReportTrash(parsed.reportTrash || []);
         parsed.crewTrash = (parsed.crewTrash || []).filter((t: CrewTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });
