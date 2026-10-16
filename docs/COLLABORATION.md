@@ -193,7 +193,11 @@ re-derive any of it:
   email + password (`signInWithPassword` / `signUpWithPassword` /
   `sendPasswordReset`), Google + Apple OAuth redirects, `providers` from
   `/auth/v1/settings` (social buttons appear only when enabled), and
-  `pendingRecovery` (PASSWORD_RECOVERY → new-password modal). Mounted in
+  `pendingRecovery` (PASSWORD_RECOVERY → new-password modal). A **dead reset
+  link** (expired/used — GoTrue returns `error`/`error_code`/`error_description`
+  in the redirect URL) surfaces via `recoveryLinkError` + `dismissRecoveryLinkError`,
+  parsed by `src/lib/supabase/recoveryLink.ts` and stripped from the address bar
+  (roadmap 278). Mounted in
   `main.tsx`; links return to `origin + BASE_URL`.
 - `src/components/AccountModal.tsx` — the ONE account surface (sign in /
   create account / reset). Create account captures the **name** (`full_name`
@@ -206,7 +210,8 @@ re-derive any of it:
   rendering shared via `AccountAvatar`) and **Team** tab = `TeamPanel`. The
   avatar menu's **Settings…** and the PM account bar both open it.
 - `src/components/PasswordRecoveryModal.tsx` — set-a-new-password after a
-  reset link (also App-level; may land on a fresh tab).
+  reset link, or the dead-link state with a "send a new link" form (roadmap
+  278) — also App-level; may land on a fresh tab.
 - `src/components/UserPresenceCluster.tsx` — the header user cluster (§9):
   signed-out avatar → **Sign in / Create account** (opens the AccountModal) +
   Connect Google Drive; signed-in avatar → Collaborate + sign out. AppHeader

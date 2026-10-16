@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, fetchAuthSettings, type AuthProviders } from './client';
+import { parseRecoveryLinkError, stripRecoveryLinkParams } from './recoveryLink';
 
 /** The signed-in Supabase account, shaped for UI (never the raw session). */
 export interface SupabaseAccount {
@@ -55,6 +56,10 @@ export interface SupabaseAuthValue {
   /** True when a password-recovery link brought the user in — show the
    *  "set a new password" surface (App-level modal). */
   pendingRecovery: boolean;
+  /** A dead reset link's message (roadmap 278) — the recovery modal shows it
+   *  with a re-request form. Null when the link was fine or absent. */
+  recoveryLinkError: string | null;
+  dismissRecoveryLinkError: () => void;
   completePasswordRecovery: (newPassword: string) => Promise<string | null>;
   dismissRecovery: () => void;
 }
@@ -77,6 +82,8 @@ const EMPTY: SupabaseAuthValue = {
   signOutOtherDevices: async () => {},
   signOutEverywhere: async () => {},
   pendingRecovery: false,
+  recoveryLinkError: null,
+  dismissRecoveryLinkError: () => {},
   completePasswordRecovery: async () => 'Not configured',
   dismissRecovery: () => {},
 };
@@ -108,11 +115,18 @@ function appRedirectUrl(): string {
   return `${window.location.origin}${base}`;
 }
 
+/** Captured at import time (roadmap 278, audit F6): supabase-js consumes the
+ *  auth-error URL params during its async init and throws internally where
+ *  nobody listens — the redirect URL must be read before its microtasks can
+ *  clear it. */
+const INITIAL_URL = typeof window === 'undefined' ? '' : window.location.href;
+
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isReady, setIsReady] = useState(!isSupabaseConfigured);
   const [providers, setProviders] = useState<AuthProviders | null>(null);
   const [pendingRecovery, setPendingRecovery] = useState(false);
+  const [recoveryLinkError, setRecoveryLinkError] = useState<string | null>(null);
 
   const refreshProviders = useCallback(() => {
     void fetchAuthSettings().then(settings => setProviders(settings));
@@ -139,6 +153,17 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       sub.subscription.unsubscribe();
     };
   }, [refreshProviders]);
+
+  // A dead reset link lands with GoTrue's error params in the URL (the valid
+  // path fires PASSWORD_RECOVERY instead) — surface it once, then clean the
+  // address bar so a reload doesn't re-show the modal (roadmap 278).
+  useEffect(() => {
+    const parsed = parseRecoveryLinkError(INITIAL_URL);
+    if (!parsed) return;
+    setRecoveryLinkError(parsed.message);
+    const clean = stripRecoveryLinkParams(window.location.href);
+    if (clean !== window.location.href) window.history.replaceState(null, '', clean);
+  }, []);
 
   const signInWithOAuth = useCallback((provider: 'google' | 'apple') => {
     void supabase?.auth.signInWithOAuth({
@@ -249,6 +274,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const dismissRecovery = useCallback(() => setPendingRecovery(false), []);
+  const dismissRecoveryLinkError = useCallback(() => setRecoveryLinkError(null), []);
 
   const signOut = useCallback(async () => {
     // LOCAL scope, deliberately: Supabase's signOut() defaults to 'global',
@@ -287,9 +313,11 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signOutOtherDevices,
     signOutEverywhere,
     pendingRecovery,
+    recoveryLinkError,
+    dismissRecoveryLinkError,
     completePasswordRecovery,
     dismissRecovery,
-  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInAnonymously, upgradeAnonymousAccount, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, signOutOtherDevices, signOutEverywhere, pendingRecovery, completePasswordRecovery, dismissRecovery]);
+  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInAnonymously, upgradeAnonymousAccount, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, signOutOtherDevices, signOutEverywhere, pendingRecovery, recoveryLinkError, dismissRecoveryLinkError, completePasswordRecovery, dismissRecovery]);
 
   return (
     <SupabaseAuthContext.Provider value={value}>
