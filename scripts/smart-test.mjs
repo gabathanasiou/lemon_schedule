@@ -99,8 +99,6 @@ const RULES = [
   { g: 'src/lib/useDaybreakSections.ts', s: 'ALL' },
   { g: 'src/lib/persistentStorage.ts', s: 'ALL' },
   { g: 'src/lib/persist.ts', s: 'ALL' },
-  { g: 'src/lib/projectTheme.ts', s: 'ALL' },
-  { g: 'src/lib/useStatusBarTheme.ts', s: 'ALL' },
   { g: 'src/lib/syncManager.ts', s: 'ALL' },
   { g: 'src/lib/googleDrive*.ts', s: 'ALL' },
   { g: 'src/lib/useDriveProjectList.ts', s: 'ALL' },
@@ -108,9 +106,15 @@ const RULES = [
   { g: 'src/types.ts', s: 'ALL' },
   { g: 'src/App.tsx', s: 'ALL' },
   { g: 'src/main.tsx', s: 'ALL' },
-  // chrome bars + their shared scale (roadmap 264) — the seeded-smoke canary
+  // chrome bars + their shared scale (roadmap 264) and the project-chrome
+  // palette + browser status-bar tint (265/271) — device-only visuals: no
+  // spec reads the class tokens, the `theme-color` meta or the Safari bars, so
+  // the always-running seeded-smoke chrome audit is the ceiling. Do NOT raise
+  // these to ALL.
   { g: 'src/lib/chromeSpacing.ts', s: CHROME },
   { g: 'src/lib/chromeAudit.ts', s: CHROME },
+  { g: 'src/lib/projectTheme.ts', s: CHROME },
+  { g: 'src/lib/useStatusBarTheme.ts', s: CHROME },
   { g: 'src/components/AppHeader.tsx', s: CHROME },
   { g: 'src/components/PageToolbar.tsx', s: CHROME },
   { g: 'src/components/VersionToolbar.tsx', s: CHROME },
