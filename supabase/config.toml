@@ -10,3 +10,11 @@ project_id = "lemon_schedule"
 # function verifies the caller again itself (never trusts one gate alone).
 # Deploy: `npx supabase functions deploy room-token --project-ref <ref> --use-api`
 verify_jwt = true
+
+[functions.delete-account]
+# Roadmap 281 (audit F9). Same double gate as room-token; the function deletes
+# the CALLER only — never an id from the request body. Every auth.users FK
+# cascades, so owned projects (and collaborator access to them) die with the
+# account; the app's confirm dialog says so.
+# Deploy: `npx supabase functions deploy delete-account --project-ref <ref> --use-api`
+verify_jwt = true

@@ -53,6 +53,10 @@ export interface SupabaseAuthValue {
   /** Revoke EVERY session, this device included — the explicit "sign out
    *  everywhere" (never the default; see the local-scope signOut). */
   signOutEverywhere: () => Promise<void>;
+  /** Permanently delete the signed-in account (roadmap 281) — owned online
+   *  projects die with it; the confirm dialog says so. Human-readable error
+   *  or null. */
+  deleteAccount: () => Promise<string | null>;
   /** True when a password-recovery link brought the user in — show the
    *  "set a new password" surface (App-level modal). */
   pendingRecovery: boolean;
@@ -81,6 +85,7 @@ const EMPTY: SupabaseAuthValue = {
   signOut: async () => {},
   signOutOtherDevices: async () => {},
   signOutEverywhere: async () => {},
+  deleteAccount: async () => 'Not configured',
   pendingRecovery: false,
   recoveryLinkError: null,
   dismissRecoveryLinkError: () => {},
@@ -295,6 +300,24 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     await supabase?.auth.signOut({ scope: 'global' });
   }, []);
 
+  const deleteAccount = useCallback(async (): Promise<string | null> => {
+    if (!supabase) return 'Sign-in is not configured on this build.';
+    const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+    if (error) {
+      // FunctionsHttpError carries the function's JSON body on `context`.
+      let message = 'Could not delete the account — try again.';
+      try {
+        const body = await (error as { context?: Response }).context?.json?.();
+        if (body?.error) message = String(body.error);
+      } catch {
+        /* keep the fallback */
+      }
+      return message;
+    }
+    await supabase.auth.signOut({ scope: 'local' });
+    return null;
+  }, []);
+
   const value = useMemo<SupabaseAuthValue>(() => ({
     isConfigured: isSupabaseConfigured,
     isReady,
@@ -312,12 +335,13 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     signOut,
     signOutOtherDevices,
     signOutEverywhere,
+    deleteAccount,
     pendingRecovery,
     recoveryLinkError,
     dismissRecoveryLinkError,
     completePasswordRecovery,
     dismissRecovery,
-  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInAnonymously, upgradeAnonymousAccount, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, signOutOtherDevices, signOutEverywhere, pendingRecovery, recoveryLinkError, dismissRecoveryLinkError, completePasswordRecovery, dismissRecovery]);
+  }), [isReady, session, providers, refreshProviders, signInWithGoogle, signInWithApple, signInAnonymously, upgradeAnonymousAccount, signInWithPassword, signUpWithPassword, updateProfileName, sendPasswordReset, signOut, signOutOtherDevices, signOutEverywhere, deleteAccount, pendingRecovery, recoveryLinkError, dismissRecoveryLinkError, completePasswordRecovery, dismissRecovery]);
 
   return (
     <SupabaseAuthContext.Provider value={value}>

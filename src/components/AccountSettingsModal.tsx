@@ -5,6 +5,7 @@ import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { AccountAvatar } from './AccountAvatar';
 import { useSupabaseAuth } from '../lib/supabase/auth';
+import { useDialog } from './Dialog';
 import { TeamPanel } from './sharing/TeamPanel';
 import { SessionsPanel } from './SessionsPanel';
 
@@ -20,6 +21,7 @@ const INPUT_CLASS = 'w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded
  * and Sessions commit live.
  */
 export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {  const auth = useSupabaseAuth();
+  const dialog = useDialog();
   const [tab, setTab] = useState('profile');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,6 +44,24 @@ export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose
     setBusy(true);
     setError(null);
     const err = await auth.updateProfileName(name);
+    setBusy(false);
+    if (err) setError(err);
+    else onClose();
+  };
+
+  /** The one erasure path (roadmap 281): owned projects die with the account —
+   *  the confirm says so before anything happens. */
+  const destroy = async () => {
+    if (busy) return;
+    const ok = await dialog.confirm({
+      title: 'Delete account?',
+      message: 'This permanently deletes your account AND every project you own — collaborators lose access to those projects too. This cannot be undone.',
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    setError(null);
+    const err = await auth.deleteAccount();
     setBusy(false);
     if (err) setError(err);
     else onClose();
@@ -108,6 +128,19 @@ export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose
             />
             <p className="text-[11px] text-zinc-500">This is the name collaborators see.</p>
             {error && <p className="text-xs text-red-400">{error}</p>}
+            <div className="pt-4 border-t border-zinc-800 space-y-2">
+              <div className="text-xs font-semibold text-red-400">Delete account</div>
+              <p className="text-[11px] text-zinc-500">
+                Permanently deletes your account and every project you own — including any shared with collaborators. This cannot be undone.
+              </p>
+              <button
+                onClick={destroy}
+                disabled={busy}
+                className="text-xs px-3 py-1.5 rounded-md border border-red-900/70 text-red-400 hover:bg-red-950/40 transition-colors disabled:opacity-50"
+              >
+                Delete account…
+              </button>
+            </div>
           </div>
         ) : tab === 'team' ? (
           <TeamPanel />

@@ -207,8 +207,19 @@ re-derive any of it:
 - `src/components/AccountSettingsModal.tsx` (roadmap 256; grew out of the old
   `ProfileModal`) — the account settings modal: **Profile** tab = rename the
   signed-in account (auth metadata + the `profiles` row, best-effort; avatar
-  rendering shared via `AccountAvatar`) and **Team** tab = `TeamPanel`. The
-  avatar menu's **Settings…** and the PM account bar both open it.
+  rendering shared via `AccountAvatar`), **Team** tab = `TeamPanel`, **Sessions**
+  tab = the sign-out scopes. The avatar menu's **Settings…** and the PM account
+  bar both open it. The Profile tab's danger zone — **Delete account** (roadmap
+  281, danger-confirmed; owned projects die with it, spelled out in the confirm)
+  — calls `delete-account` (`supabase/functions/delete-account`; deploy:
+  `npx supabase functions deploy delete-account --project-ref <ref> --use-api`),
+  which admin-deletes the CALLER only (never an id from the body). Every
+  `auth.users` FK cascades: profile, OWNED projects (+ their blobs),
+  memberships, pending invites, share links, team + roster — other people's
+  projects the account merely joined stay. **Recovery is impossible**: the free
+  tier has no backups (roadmap 279) and worker logs carry security events only.
+  Guests use the same path; reaping STALE guests is roadmap 293. Acceptance:
+  `supabase/tests/rls_delete_account.sql`.
 - `src/components/PasswordRecoveryModal.tsx` — set-a-new-password after a
   reset link, or the dead-link state with a "send a new link" form (roadmap
   278) — also App-level; may land on a fresh tab.
