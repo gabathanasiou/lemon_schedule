@@ -1280,18 +1280,6 @@ unverified.
   (`docs/COLLABORATION.md` §11 context).
 - **Verify:** a real reset lands in all three inboxes, not spam.
 
-## 283. Shared-project list — real pagination (`[ ]`)
-
-**Priority: P2 — small.** Audit F11.
-
-**Request:** `listOnlineProjects` reads all rows with no limit — PostgREST's
-default 1000-row cap silently truncates the Shared list
-(`src/lib/supabase/onlineProjects.ts`).
-
-- **Fix:** `.range()` loop (or explicit paging) ordered by `updated_at`; add
-  the `projects.updated_at` index in the same migration.
-- **Verify:** unit for the pager; a seeded >1000-row account loads fully.
-
 ## 284. Invite flow — close the email-existence oracle (`[ ]`)
 
 **Priority: P2 — small.** Audit F12.
