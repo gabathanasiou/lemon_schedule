@@ -2,8 +2,10 @@
 # Roadmap — Future Implementations Checklist
 
 This file is the pending work list: `[ ]` not started, `[~]` in progress.
-Only open/in-progress items live here — the live file is read by every
-roadmap worker session, so it stays lean.
+Only open/in-progress items live here — **query it, don't read it whole**:
+`grep '^## '` lists every item with its flags in ~1KB. The recipes
+("what's next", one item, triage dedupe) live in the `manage-roadmap`
+skill, §Queries.
 
 - **Completed items:** see `docs/ROADMAP-ARCHIVE.md` (index + code/knowledge
   pointers; full narratives in git history).
@@ -1512,4 +1514,33 @@ migration persists nothing); quarterly access reviews; pen test +
 questionnaire evidence pack; SOC 2 / HIPAA / PCI assessment (all N/A today);
 second region; load testing. Triggers into **230** (licensing) for the billing
 side.
+
+## 292. Roadmap tooling — query CLI + per-item file split (`[ ]`, PARKED — build only on trigger)
+
+**Requested** 2026-10: "what's next on the roadmap / related to X" answers cost
+full-file reads (~23k tokens/session), and parallel-worktree close-outs collide
+on these two shared files.
+
+**Researched verdict — do not build yet:**
+- **No external tracker** (beads / Backlog.md / Linear): adopt-their-model + new
+  ID scheme (ours are stable numeric ids referenced by docs/commits) + lose the
+  `npm run lint` roadmap gate; the migration cost is paid either way.
+- **No separate repo:** two-step close-out (loses one-commit atomicity), lint
+  gate gone, conflicts just relocate there.
+- **If built (in-repo delta):** `scripts/roadmap.mjs` — `next / list / show /
+  find / add / status / close / stats`, `--json`; `next` = open, non-parked, id
+  order, flags + `Relations` shown inline (relations are prose — no computed
+  dependency engine). Per-item files `docs/roadmap/<id>-<slug>.md` + generated
+  `ROADMAP.md` view; archive keeps `.gitattributes` `merge=union` + the existing
+  duplicate-id lint as the conflict net. Wire-up: `check-doc-budget.mjs` (same
+  invariants, new layout), `manage-roadmap` skill, AGENTS.md pointers.
+
+**Trigger:** backlog ≳5× today, OR two worktrees genuinely collide here, OR the
+skill §Queries greps prove insufficient.
+
+**Compat audit done** (2026-10): 52/52 items + 238/238 archive rows parse with a
+tolerant split; quirks — #230 has no status marker, 7 archive rows carry `|`
+inside inline code, `Relations` has two spellings.
+
+**Relations**: interim answer shipped — `manage-roadmap` §Queries grep recipes.
 

@@ -14,6 +14,22 @@ The full "Done:" narrative is stored in **neither** file — it lives in git his
 (the commit that flipped `[ ]`→`[x]`). `scripts/check-doc-budget.mjs` enforces the
 contract from `npm run lint`, so drift fails the build instead of compounding.
 
+## Queries — never read the files end-to-end
+
+`ROADMAP.md` is ~90KB; the heading list is ~1KB. Every common question is one grep:
+
+```bash
+grep '^## ' docs/ROADMAP.md                               # what's next: every item, status + parked/big flags
+grep '^## ' docs/ROADMAP.md | grep -i <topic>             # what's next related to a topic
+grep '^## ' docs/ROADMAP.md | grep -iE 'parked|needs'     # parked / needs-decision items only
+grep -n '^## <id>\.' docs/ROADMAP.md                      # one item: locate it, then read only that line range
+grep -in '<term>' docs/ROADMAP.md docs/ROADMAP-ARCHIVE.md # triage dedupe: both files in one call
+```
+
+Flags live inside the heading parentheses (`(FUTURE, parked)`, `(big)`,
+`(NEEDS CONVERSATION FIRST)`) — the heading grep surfaces them. Read only the
+matched line range, never either file end-to-end.
+
 ## Invariants (MUST NOT)
 
 1. **Never leave a completed (`[x]`) item in `docs/ROADMAP.md`.** Writing `[x]` means
