@@ -12,7 +12,7 @@ import { GlideBreakdownTab } from './BreakdownTabGlide';
 import { PopoutPlaceholder } from './PopoutWindow';
 import { TEST_IDS } from '../lib/testIds';
 
-export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, onUpdateScript, onCutScene, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, phone = false }: {
+export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, onUpdateScript, onCutScene, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, phone = false }: {
   subTab: 'elements' | 'sheet' | 'glide' | 'script';
   onSubTabChange: (t: 'elements' | 'sheet' | 'glide' | 'script') => void;
   savedCat: string;
@@ -28,7 +28,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   poppedOutSubTabs: Set<string>;
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;
-  shiftHeld?: boolean;
   /** Phone-portrait chrome (roadmap 267 PoC): no sub-tab strip. */
   phone?: boolean;
 }) {
@@ -72,7 +71,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         activeTab={subTab}
         onChange={requestSubTabChange}
         onPopout={requestSubTabPopout}
-        shiftHeld={shiftHeld}
         justify={phone ? 'end' : 'between'}
         rightContent={
           <div className="flex items-center gap-2">

@@ -45,7 +45,6 @@ interface GoogleAuthContextValue {
 interface AppHeaderProps {
   activeTab: AppTabId;
   setActiveTab: (tab: AppTabId) => void;
-  shiftHeld: boolean;
   togglePopout: (tabId: string) => void;
   onTabContextMenu: (e: React.MouseEvent, tabId: AppTabId) => void;
   onOpenProjectManager: () => void;
@@ -95,7 +94,7 @@ export default function AppHeader(props: AppHeaderProps) {
 
   const project = state.present;
   const {
-    activeTab, setActiveTab, shiftHeld, togglePopout, onTabContextMenu,
+    activeTab, setActiveTab, togglePopout, onTabContextMenu,
     onOpenProjectManager, onManageSharing, onImportClick, onImportNewProject, onUpdateScript, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
     onShowTrash, onShowWhatsNew, agentBridge, onToggleAgentBridge, driveCtx, closeProject, createProject, onOpenAccount,
@@ -358,7 +357,7 @@ export default function AppHeader(props: AppHeaderProps) {
                 collapse={tabDock}
                 iconWithLabel={false}
                 data-presence-anchor={`nav:tab:${tab.id}`}
-                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout(tab.id); } else { tab.select(); } }}
+                onClick={(e) => { if (e.shiftKey && !IS_COARSE) { togglePopout(tab.id); } else { tab.select(); } }}
                 onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); onTabContextMenu(e, tab.id); }}
                 className="shrink-0 relative z-10"
               >

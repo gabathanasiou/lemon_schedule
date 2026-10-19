@@ -32,7 +32,6 @@ interface ProductionTabProps {
   poppedOutSubTabs: Set<string>;
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;
-  shiftHeld?: boolean;
   headerTarget?: HTMLElement | null;
   crewRoleTarget?: string | null;
   onCrewRoleTargetChange?: (role: string | null) => void;
@@ -51,7 +50,7 @@ interface ProductionTabProps {
  *  collapsed to three, with a toolbar toggle for each merged pair. Project
  *  Details and the Call Times settings live in the Day Manager header as
  *  draggable modals (ProductionDetailsModal / CallTimesSettingsModal). */
-export default function ProductionTab({ subTab, onSubTabChange, views, onViewChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, onOpenScene, onPrintCallSheet, onPopOutDay }: ProductionTabProps) {
+export default function ProductionTab({ subTab, onSubTabChange, views, onViewChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, onOpenScene, onPrintCallSheet, onPopOutDay }: ProductionTabProps) {
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
   // Second slot, immediately left of the view switcher: the day selector is
@@ -121,7 +120,6 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
         activeTab={subTab}
         onChange={requestSubTabChange}
         onPopout={requestSubTabPopout}
-        shiftHeld={shiftHeld}
         rightContent={
           <div className="flex items-center gap-2">
             <div ref={el => { portalTargetRef.current = el; setPortalTarget(el); }} className="flex items-center gap-2" />

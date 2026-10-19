@@ -20,7 +20,6 @@ interface PageToolbarProps {
   activeTab?: string;
   onChange?: (id: string) => void;
   onPopout?: (tabId: string) => void;
-  shiftHeld?: boolean;
   children?: React.ReactNode;
   rightContent?: React.ReactNode;
   justify?: 'between' | 'end' | 'start';
@@ -44,7 +43,7 @@ const JUSTIFY = {
   start: 'justify-start',
 } as const;
 
-export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shiftHeld = false, children, rightContent, justify = 'between', theme = 'light' }: PageToolbarProps) {
+export default function PageToolbar({ tabs, activeTab, onChange, onPopout, children, rightContent, justify = 'between', theme = 'light' }: PageToolbarProps) {
   const t = THEME[theme];
   const projectTheme = useProjectTheme();
   const accent = projectAccentOf(projectTheme);
@@ -186,8 +185,10 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
                 collapse={tabsDock}
                 iconWithLabel={false}
                 data-presence-anchor={`nav:subtab:${tab.id}`}
-                onClick={() => {
-                  if (shiftHeld && !IS_COARSE && onPopout) {
+                onClick={(e) => {
+                  // The click's own modifier is the truth — a global Shift flag
+                  // goes stale when focus moves to a popout before the key-up.
+                  if (e.shiftKey && !IS_COARSE && onPopout) {
                     onPopout(tab.id);
                   } else {
                     onChange?.(tab.id);

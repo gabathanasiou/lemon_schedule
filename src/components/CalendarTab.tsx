@@ -83,8 +83,7 @@ export const CalendarTab: React.FC<{
   poppedOutSubTabs?: Set<string>;
   onToggleSubPopout?: (id: string) => void;
   onCloseSubPopout?: (id: string) => void;
-  shiftHeld?: boolean;
-}> = ({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, subTab = 'calendar', onSubTabChange, poppedOutSubTabs = new Set(), onToggleSubPopout, onCloseSubPopout, shiftHeld: poppedShiftHeld = false }) => {
+}> = ({ onOpenScene, onOpenSceneInPopout, onOpenDayManager, subTab = 'calendar', onSubTabChange, poppedOutSubTabs = new Set(), onToggleSubPopout, onCloseSubPopout }) => {
   const { state, dispatch } = useProject();
   /* Light-toolbar palette follows the project theme (248): zinc / blue /
    * emerald. */
@@ -969,7 +968,6 @@ export const CalendarTab: React.FC<{
       activeTab={subTab}
       onChange={(t) => onSubTabChange?.(t as 'calendar' | 'dayTypes')}
       onPopout={(id) => onToggleSubPopout?.(id)}
-      shiftHeld={poppedShiftHeld}
       rightContent={
         <ItemManagerDropdown
           open={showCalVersionsMenu}
