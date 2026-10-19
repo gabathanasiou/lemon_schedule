@@ -1235,7 +1235,7 @@ function AppContent() {
       )}
       {poppedOutTabs.has('calendar') && popoutWindowsRef.current.get('calendar') && (
         <PopoutFrame title={`${project.title || 'Untitled'} - Calendar`} win={popoutWindowsRef.current.get('calendar')!} onClose={() => closePopout('calendar')} tabName="Calendar" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)}>
-          <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} />
+          <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onOpenDayManager={handleOpenDayManager} subTab={calendarSubTab} onSubTabChange={setCalendarSubTab} poppedOutSubTabs={poppedOutSubTabs.calendar || new Set()} onToggleSubPopout={(id) => toggleSubPopout('calendar', id)} onCloseSubPopout={(id) => closeSubPopout('calendar', id)} shiftHeld={shiftHeld} />
         </PopoutFrame>
       )}
       {poppedOutTabs.has('design') && popoutWindowsRef.current.get('design') && (
