@@ -81,7 +81,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
-    "@vitest/coverage-v8": "^5.0.1",
+    "@vitest/coverage-v8": "^5.0.5",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "eslint": "^10.10.0",
@@ -90,7 +90,7 @@
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.70.0",
     "vite": "^6.2.3",
-    "vitest": "^5.0.0",
+    "vitest": "^5.0.5",
     "wrangler": "^4.151.0",
     "ws": "^8.21.3"
   }
