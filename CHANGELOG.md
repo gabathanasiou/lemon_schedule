@@ -2,6 +2,26 @@
 
 What's new in Lemon Schedule — one section per day, newest first: **Features**, **Bug fixes** and **Changes**, in plain language.
 
+## 2026-10-26 — Numbers, links and a sharper day sheet
+
+**Features**
+- **Breakdown** — every element now has a Board ID: a number per category shown beside its name, with Auto-ID, locked rows and duplicate rejection; Movie Magic files bring their numbers with them.
+- **Elements** — cast members carry their performer and booking details — full name, phone, email, agent, address, rate, per and notes — editable in the manager and available to reports.
+- **Element View** — one panel per element with Properties, Links and Events, opened from the manager's View action.
+- **Links** — elements, crew and locations share one link system: link a crew member to the elements they work with, tag a whole department, or attach locations to a set; day location pickers suggest what is linked.
+- **Day Manager** — a compact Day Details card with the master location and weather, a separate Breaks & Notes card, and category tabs that remember your place (and follow a teammate).
+- **Day Manager** — the Locations card is a proper grid with a master checkbox and an add-location search; pick a location, change it, or create a new one from a name. The map picker now uses one address field.
+- **Crew** — crew and departments can have a Report-to location, and the call-sheet crew table prints it.
+- **Day Manager** — the new search pickers: master location, Add location, Report to and Add role open a catalogue grouped by location type or department, searching names, addresses, contacts and phones. Short lists show everything at once; longer ones fold by category.
+- **Call Sheet** — the call-sheet editor now uses the full Reports Designer, so zones get the same blocks, fields and Times controls as the rest of your reports.
+- **Reports** — a Departments collection (pre-calls, call and crew list).
+- **Search** — the Element, Crew and Locations managers search inside every record — performer names, phone numbers, addresses, Board IDs — and jump to the match with a brief highlight; the Glide Breakdown can filter rows by any scene field.
+
+## 2026-10-19 — Pop-outs keep their place
+
+**Bug fixes**
+- **Tabs** — Shift-clicking a tab still opens it in its own window, and the Calendar's sub-tabs now work in a popped-out window too.
+
 ## 2026-10-16 — Weather that remembers
 
 **Features**
