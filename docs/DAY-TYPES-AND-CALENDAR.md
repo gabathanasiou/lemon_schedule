@@ -76,7 +76,7 @@ The daybreak/section model and the date cursor live in
   `pruneCalendarVersionTrash`), `RESTORE_CALENDAR_VERSION_FROM_TRASH`, `UPDATE_CALENDAR_VERSION`
   (every calendar-field write — never `UPDATE_VERSION` with calendar fields, TS enforces).
 - Reads: `useProject().activeCalendarVersion` (memoized) — every calendar surface (CalendarTab +
-  modals, DayTypesTab, ElementEventsModal, DoodsTab, ProductionTab dates, print, reports
+  modals, DayTypesTab, ElementViewModal → Events, DoodsTab, ProductionTab dates, print, reports
   `dayType`/totals, daybreakUtils cursor, `useDaybreakSections`, `computeElementDayStats`, debug
   bridge `getRows`/`getCalendarVersion`).
 - **UI (user decision)**: no header pickers — the **schedule picker** lives in the Schedule tab

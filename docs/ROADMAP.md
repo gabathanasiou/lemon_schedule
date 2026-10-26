@@ -533,31 +533,6 @@ the crew reports to — location/contact; user-confirmed not a time).
   path changes.
 - **Relations**: 112, 146.
 
-## 306. Element View — one per-element panel for every category (`[ ]`, big; design pass first)
-
-**Requested 2026-10-26 (user):** one "element view" panel that holds everything
-about an element and works for EVERY category, not just cast. It replaces the
-two bolted-on modals — **Linked Crew** (`ElementCrewLinksModal.tsx`, needs a
-redesign) and **Events** (`ElementEventsModal.tsx`) — and is launched from the
-Element Manager first, later from the stripboard / Glide / Scene Sheet / Day
-Manager.
-
-- Shape: header (Board ID + name + category), an element picker with a dropdown
-  + prev/next (the Day Manager's day-selector pattern), and sections/tabs:
-  Properties (157's cast fields; built-ins for other categories), Linked Crew,
-  Events. ONE category-aware modal — never a cast-only fork or a second modal
-  engine (reuse `Modal`).
-- Element Manager: compact rows by default with a column hide/extend control;
-  the row actions open Element View instead of two separate modals.
-- Open at pickup: launch points beyond the manager; whether element links (44)
-  fold in; where "editable in the Glide" lives (Breakdown Glide vs the manager
-  table); per-category custom properties are **307**.
-- **Verify**: e2e for open → navigate → edit → persist (silent data loss =
-  break); layout is rule-7 manual + an iPad pass.
-- **Relations**: `merges` **11** (crew links modal) and **62** (element events
-  modal); `depends on` **157** (cast properties); `relates to` **44**, **172**,
-  **305**.
-
 ## 307. Element properties — per-category custom fields (MMS `PropertyDefinition` parity) (`[ ]`, NEEDS CONVERSATION FIRST)
 
 **Requested 2026-10-26 (user, in the element-view conversation):** "manage all
