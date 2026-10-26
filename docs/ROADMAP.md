@@ -547,6 +547,44 @@ renders those as per-element fields.
 - **Do NOT build before that conversation.** 157 covers the fixed CAST set only.
 - **Relations**: `depends on` **157** + **306**; `relates to` **40/41**.
 
+## 308. Links — one store for elements, crew and locations (`[~]`, big)
+
+**Requested 2026-10-26 (user):** unify the per-element links. The Element View
+gets ONE Links tab (same row UI as the Link Manager anchor card, no crew
+checklist); crew and locations are link targets alongside element categories.
+
+- Model `project.links: Link[]` (anchorKind/linkedKind = element | crew |
+  location). Legacy `elementLinks` + `crewLinks` migrate on every read path
+  (local/Drive/online/import), idempotently. Canonical direction: element owns
+  element/crew/location rows; crew owns person→person rows.
+- **Only element→element links propagate into scenes** — every helper in
+  `lib/elementLinks.ts` filters `isPropagationLink`; crew/location links are
+  associations. Renames/Board-ID changes cascade into link values; merges
+  dedupe.
+- UI: shared row editor (`ElementPickerRow` + EntityDropdown chip) with
+  synthetic Crew/Locations categories; panel Links tab (outgoing card +
+  incoming "Pulled in by"); Link Manager gains Crew/Locations targets; Crew
+  Manager People reads the same store.
+- **Status:** WIP in worktree `308-unified-links` / branch
+  `feature/308-309-unified-links` (user testing before merge).
+- **Verify**: Vitest `links.test.ts` (migration, propagation exclusion,
+  rename), targeted e2e (`linked-elements`, `crew-links`, panel), full suite.
+- **Relations**: `merges` **11** crew links; `relates to` **44**, **306**, **309**.
+
+## 309. Day locations — suggestions from linked sets (`[~]`)
+
+**Requested 2026-10-26:** link a set to real locations, so the day's location
+picker autocompletes them.
+
+- `linkedLocationsForDay` (`dayView.ts`): the day's **set** elements → their
+  element→location links → resolved locations (deduped, source set kept).
+- `LocationsSection` master/key pickers show them under "Linked from <SET>" —
+  **suggestions only**, sets only, never auto-attached.
+- **Status:** WIP with 308.
+- **Verify**: Vitest for the resolver (`links.test.ts`); rule-7 manual for the
+  picker; e2e only if attaching silently breaks.
+- **Relations**: `depends on` **308**.
+
 ## 158. Reports designer — Requirements table block (FUTURE, parked) (`[ ]`)
 
 **Request** (future): a Requirements table block (reports designer, user

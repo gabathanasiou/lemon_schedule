@@ -141,7 +141,7 @@ export function ElementViewModal({ category, rowKey, onClose }: {
         ) : tab === 'properties' ? (
           <ElementPropertiesSection category={category} elementKey={selectedKey} onKeyChange={setSelectedKey} />
         ) : tab === 'links' ? (
-          <ElementLinksSection category={category} elementKey={selectedKey} onSelectElement={setSelectedKey} />
+          <ElementLinksSection key={`${category}:${selectedKey}`} category={category} elementKey={selectedKey} onSelectElement={setSelectedKey} />
         ) : (
           <ElementEventsSection
             category={category}

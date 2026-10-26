@@ -1,37 +1,29 @@
 import React, { useMemo, useState } from 'react';
 import { useProject } from '../../store';
-import { ELEMENT_CATEGORIES, getFieldItems, getLabel, isMultiValue } from '../../lib/categories';
+import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from '../../lib/categories';
 import { elementMatchId, getCategoryElements } from '../../lib/elements';
 import { applyLinkToScenes, isLinkableCategory } from '../../lib/elementLinks';
-import { dedupeLinks, getElementIncomingLinks, getElementOutgoingLinks, isPropagationLink, makeLink } from '../../lib/links';
-import type { Link } from '../../types';
+import { dedupeLinks, getElementIncomingLinks, getElementOutgoingLinks, isPropagationLink } from '../../lib/links';
+import { CREW_TARGET, LOCATION_TARGET, draftRowsFromLinks, flattenLinkRows, type LinkDraftRow } from '../../lib/linkDrafts';
+import type { Link, ProjectElement } from '../../types';
 import { CardSection } from '@gabriel/ui-kit';
-import { Check, Link2, MapPin, Plus, Users, X } from 'lucide-react';
+import { Check, Link2, Plus, X } from 'lucide-react';
 import { ElementPickerRow } from '../rules/ElementPicker';
 import { useQueueCastNaming, addNewElement } from '../../lib/newCastNaming';
-import GroupedSelect from '../production/day/GroupedSelect';
-import { resolvedLocationName, typeLabelOf } from '../../lib/locations';
-import { ElementCrewLinksSection } from '../crew/ElementCrewLinksSection';
 
 /**
- * Element View → Links (roadmap 308). ONE place for everything linked to the
- * selected element: element rules (editable + Apply to scenes), crew attached
- * (editable), locations (editable) and "Pulled in by" (read-only). Only
- * element→element rows propagate into scenes; the rest are associations.
+ * Element View → Links (roadmap 308). SAME row UI as the Link Manager anchor
+ * card (CategoryDropdown + EntityDropdown chip) — the only difference is that
+ * the anchor is fixed to the selected element and there is no "Add Anchor".
+ * Rows can target element categories, **Crew** and **Locations**; only
+ * element→element rows propagate into scenes.
  */
 
 const BTN = 'px-2 py-1.5 text-xs';
 const ICON_BTN = 'p-1.5 rounded-md transition-colors shrink-0';
 const REMOVE_BTN = `${ICON_BTN} text-zinc-600 hover:text-red-400 hover:bg-zinc-800`;
 const ACTION_BTN = 'flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-800 hover:text-white transition-colors shrink-0';
-
 const SECTION_LABEL = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1.5 block';
-
-interface LinkRowDraft {
-  id: string;
-  category: string;
-  value: string;
-}
 
 export function ElementLinksSection({ category, elementKey: selectedKey, onSelectElement }: {
   category: string;
@@ -42,8 +34,8 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
   const project = state.present;
   const { queue } = useQueueCastNaming();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const [applied, setApplied] = useState<number | null>(null);
-  const [crewCollapsed, setCrewCollapsed] = useState(false);
 
   const links = project.links || [];
   const outgoing = useMemo(
@@ -55,92 +47,75 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
     [links, category, selectedKey],
   );
   const elementOut = outgoing.filter(isPropagationLink);
-  const crewOut = outgoing.filter(l => l.linkedKind === 'crew');
-  const locationOut = outgoing.filter(l => l.linkedKind === 'location');
+
+  // Draft rows stay local so an EMPTY new row survives until it has a value
+  // (the old derived-from-store version dropped it instantly — the add button
+  // looked dead). The panel remounts this section per element (`key`).
+  const [rows, setRows] = useState<LinkDraftRow[]>(() => draftRowsFromLinks(links, category, selectedKey));
 
   const allCategoryKeys = useMemo(() => {
     const keys: { key: string; isCustom: boolean }[] = [];
     for (const c of ELEMENT_CATEGORIES) {
-      if (isLinkableCategory(c.key, project.customCategories)) keys.push({ key: c.key, isCustom: false });
+      if (c.key !== 'set' && isLinkableCategory(c.key, project.customCategories)) keys.push({ key: c.key, isCustom: false });
     }
     for (const c of project.customCategories || []) {
-      if (isLinkableCategory(c.key, project.customCategories)) keys.push({ key: c.key, isCustom: true });
+      if (c.key !== 'set' && isLinkableCategory(c.key, project.customCategories)) keys.push({ key: c.key, isCustom: true });
     }
+    keys.push({ key: CREW_TARGET, isCustom: false }, { key: LOCATION_TARGET, isCustom: false });
     return keys;
   }, [project.customCategories]);
 
   const categoryLabelLookup = useMemo(() => {
-    const map: Record<string, string> = {};
+    const map: Record<string, string> = { crew: 'Crew', location: 'Locations' };
     for (const c of ELEMENT_CATEGORIES) map[c.key] = getLabel(c.key, c.label, project.categoryLabels);
     for (const c of project.customCategories || []) map[c.key] = c.label;
     return map;
   }, [project.categoryLabels, project.customCategories]);
 
-  const anchoredByCategory = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    for (const l of links) {
-      if (!isPropagationLink(l) || !l.anchorCategory) continue;
-      let set = map.get(l.anchorCategory);
-      if (!set) { set = new Set(); map.set(l.anchorCategory, set); }
-      set.add(l.anchorValue);
+  const people = useMemo<ProjectElement[]>(() => {
+    const out: ProjectElement[] = [];
+    for (const role of project.crewRoles || []) {
+      for (const p of project.crew?.[role.key] || []) out.push({ id: p.id, name: p.name });
     }
-    return map;
-  }, [links]);
+    return out;
+  }, [project.crewRoles, project.crew]);
 
-  const elementsFor = (cat: string) => getCategoryElements(project, cat);
+  const locations = useMemo<ProjectElement[]>(
+    () => (project.locations || []).map(l => ({ id: l.id, name: l.name })),
+    [project.locations],
+  );
 
-  /** One editable row per linked category (comma list, like the Link Manager). */
-  const rows = useMemo<LinkRowDraft[]>(() => {
-    const byCat = new Map<string, LinkRowDraft>();
-    for (const l of elementOut) {
-      const cat = l.linkedCategory as string;
-      const row = byCat.get(cat);
-      if (!row) {
-        byCat.set(cat, { id: l.id, category: cat, value: l.linkedValue });
-      } else {
-        const items = getFieldItems(cat, row.value);
-        if (!items.some(v => cat === 'cast' ? v === l.linkedValue : v.toLowerCase() === l.linkedValue.toLowerCase())) {
-          row.value = [...items, l.linkedValue].join(', ');
-        }
-      }
-    }
-    return [...byCat.values()];
-  }, [elementOut]);
+  const itemsFor = (linkedCategory: string): ProjectElement[] => {
+    if (linkedCategory === CREW_TARGET) return people;
+    if (linkedCategory === LOCATION_TARGET) return locations;
+    return getCategoryElements(project, linkedCategory);
+  };
 
-  /** Persist the element rows, keeping this element's crew/location rows. */
-  const commitRows = (next: LinkRowDraft[]) => {
+  /** Persist the draft rows, keeping every link not owned by this element. */
+  const commit = (next: LinkDraftRow[]) => {
+    setRows(next);
     const kept = links.filter(l => !(l.anchorKind === 'element' && l.anchorCategory === category &&
-      (category === 'cast' ? l.anchorValue === selectedKey : l.anchorValue.toLowerCase() === selectedKey.toLowerCase()) &&
-      isPropagationLink(l)));
-    const built: Link[] = [];
-    for (const row of next) {
-      if (!row.category || !row.value) continue;
-      for (const value of getFieldItems(row.category, row.value)) {
-        built.push(makeLink('element', category, selectedKey, 'element', row.category, value));
-      }
-    }
-    dispatch({ type: 'UPDATE_PROJECT', payload: { links: dedupeLinks([...kept, ...built]) } });
+      (category === 'cast' ? l.anchorValue === selectedKey : l.anchorValue.toLowerCase() === selectedKey.toLowerCase())));
+    dispatch({
+      type: 'UPDATE_PROJECT',
+      payload: { links: dedupeLinks([...kept, ...flattenLinkRows(category, selectedKey, next)]) },
+    });
     setApplied(null);
   };
 
-  const patchRow = (id: string, patch: Partial<LinkRowDraft>) =>
-    commitRows(rows.map(r => r.id === id ? { ...r, ...patch } : r));
+  const patchRow = (id: string, patch: Partial<LinkDraftRow>) =>
+    commit(rows.map(r => r.id === id ? { ...r, ...patch } : r));
 
   const addRow = () => {
-    const used = new Set(rows.map(r => r.category));
-    const next = allCategoryKeys.find(k => !used.has(k.key) && k.key !== 'set');
+    const used = new Set(rows.map(r => r.linkedCategory));
+    const next = allCategoryKeys.find(k => !used.has(k.key));
     if (!next) return;
-    commitRows([...rows, { id: `${Date.now()}`, category: next.key, value: '' }]);
+    setRows([...rows, { id: `row-${Date.now()}`, linkedCategory: next.key, linkedValue: '' }]);
   };
 
-  const unusedCategory = (): string | null => {
-    const used = new Set(rows.map(r => r.category));
-    return allCategoryKeys.find(k => !used.has(k.key) && k.key !== 'set')?.key || null;
-  };
-
-  const ensureElement = (cat: string, item: string) => {
-    if (!cat || !item) return;
-    addNewElement(dispatch, queue, cat, item);
+  const ensureElement = (linkedCategory: string, item: string) => {
+    if (!item || isSyntheticCategory(linkedCategory)) return;
+    addNewElement(dispatch, queue, linkedCategory, item);
   };
 
   const applyToScenes = () => {
@@ -160,23 +135,6 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
     setApplied(targets.length);
   };
 
-  // ---- locations -----------------------------------------------------------
-  const locationItems = useMemo(() => (project.locations || []).map(l => ({
-    id: l.id,
-    name: resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng),
-    group: typeLabelOf(l, project.locationTypes || []),
-  })), [project.locations, project.locationTypes]);
-  const selectedLocationIds = locationOut.map(l => l.linkedValue);
-
-  const setLocations = (ids: string[]) => {
-    const kept = links.filter(l => !(l.anchorKind === 'element' && l.anchorCategory === category &&
-      (category === 'cast' ? l.anchorValue === selectedKey : l.anchorValue.toLowerCase() === selectedKey.toLowerCase()) &&
-      l.linkedKind === 'location'));
-    const built = ids.map(id => makeLink('element', category, selectedKey, 'location', undefined, id));
-    dispatch({ type: 'UPDATE_PROJECT', payload: { links: dedupeLinks([...kept, ...built]) } });
-  };
-
-  // ---- incoming labels -----------------------------------------------------
   const anchorLabel = (link: Link): string => {
     if (link.anchorKind === 'crew') {
       for (const role of project.crewRoles || []) {
@@ -186,7 +144,7 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
       return link.anchorValue;
     }
     if (link.anchorKind === 'element' && link.anchorCategory) {
-      const el = elementsFor(link.anchorCategory).find(e =>
+      const el = getCategoryElements(project, link.anchorCategory).find(e =>
         elementMatchId(e, link.anchorCategory!).toLowerCase() === link.anchorValue.toLowerCase());
       if (!el) return link.anchorValue;
       return link.anchorCategory === 'cast' ? `${el.id}. ${el.name}` : (el.name || el.id);
@@ -194,94 +152,76 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
     return link.anchorValue;
   };
 
-  const thisElement = elementsFor(category).find(e => elementMatchId(e, category).toLowerCase() === selectedKey.toLowerCase());
+  const thisElement = getCategoryElements(project, category).find(e =>
+    elementMatchId(e, category).toLowerCase() === selectedKey.toLowerCase());
   const thisLabel = thisElement
     ? (category === 'cast' ? `${thisElement.id}. ${thisElement.name}` : (thisElement.name || thisElement.id))
     : selectedKey;
+  const linkCount = rows.filter(r => r.linkedValue.trim()).length;
 
   return (
     <div className="p-6 space-y-5">
-      {/* Element rules */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className={SECTION_LABEL}>Linked elements</span>
+      <CardSection
+        icon={<Link2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
+        title={<span className="truncate">{thisLabel}</span>}
+        count={`${linkCount} link${linkCount === 1 ? '' : 's'}`}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(v => !v)}
+        trailing={
           <button
             onClick={applyToScenes}
             disabled={elementOut.length === 0}
-            title="Add these linked elements to every scene that already contains the anchor"
+            title="Apply to existing scenes: add this card's linked elements to every scene that already contains the anchor"
             className={`${ACTION_BTN} disabled:opacity-30 disabled:cursor-not-allowed`}
           >
-            <Check className="w-3.5 h-3.5" /> Apply to scenes
+            <Check className="w-3.5 h-3.5" /> Apply
           </button>
-        </div>
-        <div className="space-y-1.5">
+        }
+      >
+        <div className="space-y-2 pt-1">
           {rows.map((row, i) => (
             <ElementPickerRow
               key={row.id}
-              category={row.category}
-              elementValue={row.value}
-              onCategoryChange={cat => patchRow(row.id, { category: cat, value: '' })}
-              onElementChange={v => patchRow(row.id, { value: v })}
-              onCreateItem={item => ensureElement(row.category, item)}
-              allCategoryKeys={allCategoryKeys.filter(k => k.key !== 'set')}
+              category={row.linkedCategory}
+              elementValue={row.linkedValue}
+              onCategoryChange={cat => patchRow(row.id, { linkedCategory: cat, linkedValue: '' })}
+              onElementChange={v => patchRow(row.id, { linkedValue: v })}
+              onCreateItem={item => ensureElement(row.linkedCategory, item)}
+              allCategoryKeys={allCategoryKeys}
               categoryLabelLookup={categoryLabelLookup}
               customCategories={project.customCategories}
-              items={elementsFor(row.category)}
-              mode={isMultiValue(row.category, project.customCategories) ? 'multi' : 'single'}
+              items={itemsFor(row.linkedCategory)}
+              mode={isMultiValue(row.linkedCategory, project.customCategories) ? 'multi' : 'single'}
+              disabledCategoryKeys={new Set(rows.filter(r => r.id !== row.id).map(r => r.linkedCategory))}
               openDropdown={openDropdown}
               setOpenDropdown={setOpenDropdown}
-              idPrefix={`ev${i}`}
+              idPrefix={`ev-${i}`}
               btnClass={BTN}
-              anchoredKeys={anchoredByCategory.get(row.category)}
+              dataProps={{ 'data-link-row': row.linkedCategory }}
+              resolveBy={isSyntheticCategory(row.linkedCategory) ? 'id' : undefined}
               wrapValue
-              onRemove={() => commitRows(rows.filter(r => r.id !== row.id))}
+              placeholder={isSyntheticCategory(row.linkedCategory) ? 'Select…' : 'Select element…'}
+              onRemove={() => commit(rows.filter(r => r.id !== row.id))}
               removeIcon={<X className="w-3.5 h-3.5" />}
               removeBtnClass={REMOVE_BTN}
             />
           ))}
-        </div>
-        {unusedCategory() !== null && (
-          <button onClick={addRow} className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors mt-2">
-            <Plus className="w-3.5 h-3.5" /> Add linked element
-          </button>
-        )}
-        {applied !== null && (
-          <p className="text-[10px] text-emerald-400 mt-2">
-            {applied === 0 ? 'No scenes contain this element yet' : `Linked elements added to ${applied} scene${applied === 1 ? '' : 's'}`}
-          </p>
-        )}
-      </div>
 
-      {/* Crew */}
-      <CardSection
-        icon={<Users className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
-        title="Crew attached"
-        count={`${crewOut.length}`}
-        collapsed={crewCollapsed}
-        onToggle={() => setCrewCollapsed(v => !v)}
-      >
-        <ElementCrewLinksSection category={category} elementKey={selectedKey} elementName={thisLabel} bare />
+          <div className="flex items-center gap-3 mt-2">
+            {allCategoryKeys.some(k => !rows.some(r => r.linkedCategory === k.key)) && (
+              <button onClick={addRow} className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Add linked element
+              </button>
+            )}
+            {applied !== null && (
+              <span className="text-[10px] text-emerald-400">
+                {applied === 0 ? 'No scenes contain this element yet' : `Linked elements added to ${applied} scene${applied === 1 ? '' : 's'}`}
+              </span>
+            )}
+          </div>
+        </div>
       </CardSection>
 
-      {/* Locations */}
-      <div>
-        <span className={SECTION_LABEL}>
-          <MapPin className="w-3 h-3 inline mr-1 -mt-0.5" />
-          Locations
-        </span>
-        <GroupedSelect
-          items={locationItems}
-          mode="multi"
-          selectedIds={selectedLocationIds}
-          placeholder="Link this element to locations…"
-          onChange={setLocations}
-        />
-        <p className="text-[10px] text-zinc-500 mt-1">
-          A set's linked locations appear as suggestions in the day's location pickers.
-        </p>
-      </div>
-
-      {/* Incoming */}
       <div>
         <span className={SECTION_LABEL}>Pulled in by</span>
         {incoming.length === 0 ? (
@@ -310,4 +250,8 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
       </div>
     </div>
   );
+}
+
+function isSyntheticCategory(category: string): boolean {
+  return category === CREW_TARGET || category === LOCATION_TARGET;
 }

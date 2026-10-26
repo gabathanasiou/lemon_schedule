@@ -6,6 +6,7 @@ import { ELEMENT_CATEGORIES, getLabel, getFieldItems, isMultiValue } from '../..
 import { getCategoryElements } from '../../lib/elements';
 import { applyLinkToScenes, isLinkableCategory, anchoredKeysFor } from '../../lib/elementLinks';
 import { isPropagationLink } from '../../lib/links';
+import { CREW_TARGET, LOCATION_TARGET } from '../../lib/linkDrafts';
 import { CardSection } from '@gabriel/ui-kit';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
@@ -53,7 +54,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
   /** Creating a link (anchor or linked element) that has no element yet makes
    *  the element — same shared flow as the stripboard/Glide/SceneSheet. */
   const ensureElement = useCallback((category: string, item: string) => {
-    if (!category || !item) return;
+    if (!category || !item || category === CREW_TARGET || category === LOCATION_TARGET) return;
     addNewElement(dispatch, queue, category, item);
   }, [dispatch, queue]);
 
@@ -67,16 +68,18 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
       if (items.some(v => v.toLowerCase() === value.toLowerCase())) return current;
       return [...items, value].join(', ');
     };
-    for (const l of (project.links || []).filter(isPropagationLink)) {
+    for (const l of (project.links || []).filter(x => x.anchorKind === 'element' && !!x.anchorCategory)) {
       const key = `${l.anchorCategory}|${l.anchorValue}`;
       let g = byAnchor.get(key);
       if (!g) {
-        g = { id: generateUUID(), category: l.anchorCategory, anchorValue: l.anchorValue, links: [] };
+        g = { id: generateUUID(), category: l.anchorCategory as string, anchorValue: l.anchorValue, links: [] };
         byAnchor.set(key, g);
       }
-      const row = g.links.find(r => r.linkedCategory === l.linkedCategory);
-      if (row) row.linkedValue = appendValue(l.linkedCategory, row.linkedValue, l.linkedValue);
-      else g.links.push({ id: l.id, linkedCategory: l.linkedCategory, linkedValue: l.linkedValue });
+      const linkedCategory = l.linkedKind === 'crew' ? CREW_TARGET : l.linkedKind === 'location' ? LOCATION_TARGET : (l.linkedCategory || '');
+      if (!linkedCategory) continue;
+      const row = g.links.find(r => r.linkedCategory === linkedCategory);
+      if (row) row.linkedValue = appendValue(linkedCategory, row.linkedValue, l.linkedValue);
+      else g.links.push({ id: l.id, linkedCategory, linkedValue: l.linkedValue });
     }
     const list = [...byAnchor.values()];
     if (list.length === 0 && initialAnchorCategory) {
@@ -117,18 +120,39 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
   // Sets can be ANCHORS but never linked targets (adding a set to a scene
   // replaces the field — a link would silently never apply as designed).
   const linkedCategoryKeys = useMemo(
-    () => allCategoryKeys.filter(k => k.key !== 'set'),
+    () => [
+      ...allCategoryKeys.filter(k => k.key !== 'set'),
+      { key: CREW_TARGET, isCustom: false },
+      { key: LOCATION_TARGET, isCustom: false },
+    ],
     [allCategoryKeys],
   );
 
   const categoryLabelLookup = useMemo(() => {
-    const map: Record<string, string> = {};
+    const map: Record<string, string> = { crew: 'Crew', location: 'Locations' };
     for (const c of ELEMENT_CATEGORIES) map[c.key] = getLabel(c.key, c.label, project.categoryLabels);
     for (const c of project.customCategories || []) map[c.key] = c.label;
     return map;
   }, [project.categoryLabels, project.customCategories]);
 
-  const elementsFor = useCallback((cat: string) => getCategoryElements(project, cat), [project]);
+  const people = useMemo(() => {
+    const out: { id: string; name: string }[] = [];
+    for (const role of project.crewRoles || []) {
+      for (const p of project.crew?.[role.key] || []) out.push({ id: p.id, name: p.name });
+    }
+    return out;
+  }, [project.crewRoles, project.crew]);
+
+  const locations = useMemo(
+    () => (project.locations || []).map(l => ({ id: l.id, name: l.name })),
+    [project.locations],
+  );
+
+  const elementsFor = useCallback((cat: string) => {
+    if (cat === CREW_TARGET) return people;
+    if (cat === LOCATION_TARGET) return locations;
+    return getCategoryElements(project, cat);
+  }, [project, people, locations]);
 
   /** Human label for the anchor in the card header ("1. FISHERMAN" for cast,
    *  the element name otherwise; falls back to the raw value). */
@@ -162,6 +186,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
     const seen = new Set<string>();
     for (const l of g.links) {
       if (!l.linkedCategory || !l.linkedValue) continue;
+      const linkedKind = l.linkedCategory === CREW_TARGET ? 'crew' : l.linkedCategory === LOCATION_TARGET ? 'location' : 'element';
       for (const linkedValue of getFieldItems(l.linkedCategory, l.linkedValue)) {
         for (const anchorValue of anchors) {
           const k = `${g.category}|${anchorValue}|${l.linkedCategory}|${linkedValue}`.toLowerCase();
@@ -172,8 +197,8 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
             anchorKind: 'element',
             anchorCategory: g.category,
             anchorValue,
-            linkedKind: 'element',
-            linkedCategory: l.linkedCategory,
+            linkedKind,
+            linkedCategory: linkedKind === 'element' ? l.linkedCategory : undefined,
             linkedValue,
           });
         }
@@ -187,7 +212,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
     setGroups(next);
     dispatch({
       type: 'UPDATE_PROJECT',
-      payload: { links: [...(project.links || []).filter(l => !isPropagationLink(l)), ...next.flatMap(flatten)] },
+      payload: { links: [...(project.links || []).filter(l => l.anchorKind !== 'element'), ...next.flatMap(flatten)] },
     });
     setApplied({});
     setAppliedAll(false);
@@ -210,7 +235,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
  *  Sets are skipped — cast → cast links and set targets are never prefills. */
   const unusedCategory = (g: AnchorGroup): string | null => {
     const used = new Set(g.links.map(l => l.linkedCategory));
-    const fallback = allCategoryKeys.find(k => !used.has(k.key) && k.key !== 'cast' && k.key !== 'set');
+    const fallback = linkedCategoryKeys.find(k => !used.has(k.key) && k.key !== 'cast' && k.key !== 'set');
     return fallback?.key || null;
   };
 
@@ -293,8 +318,8 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
     >
       <div className="p-6 space-y-5">
         <p className="text-xs text-zinc-400 leading-relaxed">
-          Each card links one anchor to any number of elements: whenever the anchor is added to a scene, its linked elements are added too.
-          Removing a linked element never touches the anchor; removing the anchor removes the linked elements as well.
+          Each card links one anchor to elements, crew people or locations. Only element→element links add values to scenes (crew and locations are associations).
+          Removing a linked row never touches the anchor; removing the anchor removes its links as well.
         </p>
 
         {groups.map((g, gi) => {
@@ -379,6 +404,8 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                         setOpenDropdown={setOpenDropdown}
                         idPrefix={`l${gi}-${li}`}
                         btnClass={BTN}
+                        dataProps={{ 'data-link-row': l.linkedCategory }}
+                        resolveBy={l.linkedCategory === CREW_TARGET || l.linkedCategory === LOCATION_TARGET ? 'id' : undefined}
                         anchoredKeys={anchoredByCategory.get(l.linkedCategory)}
                         wrapValue
                         onRemove={() => removeLink(g.id, l.id)}

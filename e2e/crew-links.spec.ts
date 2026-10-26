@@ -85,8 +85,12 @@ test('crew links: seeded person→element and person→crew show on both sides, 
   await row.getByTitle(/^Element view/).click();
   const emModal = page.getByRole('dialog');
   await emModal.getByRole('tab', { name: 'Links' }).click();
-  await expect(emModal).toContainText('ZZZ ALPHA');
-  await emModal.locator('[data-crew-person="zzz-crew-a"]').click();
+  const crewRow = emModal.locator('[data-link-row="crew"]');
+  await expect(crewRow).toContainText('ZZZ ALPHA');
+  const crewInput = crewRow.locator('[data-el-dropdown] :is(input, textarea)');
+  await crewInput.click();
+  await crewInput.fill('');
+  await crewInput.press('Enter');
   await expect.poll(() => page.evaluate(() =>
     ((window as any).__lemonSchedule.getProject().links || []).some((l: any) => l.id === 'zzz-cl-1'),
   )).toBe(false);

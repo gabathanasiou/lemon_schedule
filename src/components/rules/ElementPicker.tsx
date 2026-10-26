@@ -50,11 +50,15 @@ export const ElementPickerRow: React.FC<{
   /** Let a long comma-list wrap onto multiple lines (the EntityDropdown
    *  `wrapValue` contract) — the row grows with the value. */
   wrapValue?: boolean;
-}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys, anchoredKeys, onCreateItem, wrapValue }) => {
+  /** Extra DOM data attributes for tests/scoping (applied to the row). */
+  dataProps?: Record<string, string>;
+  /** Committed values are ids (crew/locations) while the picker shows names. */
+  resolveBy?: 'id' | 'name';
+}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys, anchoredKeys, onCreateItem, wrapValue, dataProps, resolveBy }) => {
   const portalTarget = usePortalTarget();
   const isCast = category === 'cast';
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2" {...dataProps}>
       <CategoryDropdown
         value={category}
         onChange={onCategoryChange}
@@ -80,6 +84,7 @@ export const ElementPickerRow: React.FC<{
           variant="chip"
           className="flex-1 min-w-0 text-xs"
           displayMode={isCast ? 'id' : 'name'}
+          resolveBy={resolveBy}
           placeholder={placeholder || 'Select...'}
           anchoredKeys={anchoredKeys}
           onCreateItem={onCreateItem}
