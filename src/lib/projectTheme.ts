@@ -44,6 +44,21 @@ export function projectSegThemeOf(theme: ProjectTheme): 'light' | 'blue' | 'emer
   return theme === 'shared' ? 'emerald' : theme === 'drive' ? 'blue' : 'light';
 }
 
+/** Modal shell theme (roadmap 302): the project accent + surface treatment.
+ *  Normal app modals (local, Drive and shared) are NEUTRAL surfaces — the
+ *  project colour lives in the chrome (header/tabs), not in the modal body.
+ *  The accent stays available for a deliberate local override or an explicit
+ *  accent-tinted surface. */
+export function projectModalThemeOf(theme: ProjectTheme): {
+  accent: 'zinc' | 'blue' | 'emerald';
+  surface: 'neutral' | 'accent';
+} {
+  return {
+    accent: theme === 'shared' ? 'emerald' : theme === 'drive' ? 'blue' : 'zinc',
+    surface: 'neutral',
+  };
+}
+
 /** Class tokens shared by the project-chrome surfaces. */
 export const PROJECT_CHROME: Record<ProjectTheme, {
   /** Dark chrome bar fill (app header, popout version toolbar). */

@@ -39,50 +39,6 @@ skill, §Queries.
   move-via-controls. Re-run against item 24's shared draggers (**DONE** —
   `src/components/columnResize.tsx`) to confirm no regression.
 
-## 50. EXPERIMENTAL: EntityDropdown committed values as chips (`[ ]`)
-
-**Parked exploration — not building now.** Review question: should
-`EntityDropdown` render committed multi-values as per-value chip pills
-(tag-input pattern) instead of the comma-joined resolved text? The chip
-variant (`variant="chip"`) already exists — the trigger shows the values
-resolved Glide-style via the `chipDisplay` overlay (`EntityDropdown.tsx:457`).
-
-**Why parked** (verified against the code):
-- The value IS the input (caret-at-end to append, backspace, Enter/Tab
-  commit, Glide callbacks) — per-value chips would render only in the closed
-  trigger and vanish on open, so the text-editing model underneath stays.
-- The ui-kit has no generic Chip primitive (TokenChipView is tied to the
-  contenteditable token editor) — this would be new in-app UI.
-- 34 call sites; multi-chip triggers wrap/overflow the single-line modal
-  rows (Link Manager cards, ElementPicker/ElementPickerRow).
-
-**When it becomes worth it** — a requirement giving committed values
-per-item affordances: per-chip × to remove one cast member from a
-travel/hold attachment or linked row without retyping the list; or
-category-colored chips (45/46's calendar event chips are the visual
-precedent). A kit `Tag/Chip` primitive could host both if item 49's
-`Button` work opens the door to kit primitives generally.
-
-**Experimental-branch plan (when triggered)**:
-- Work on an experimental branch ONLY; scope = a NEW `variant="tags"`
-  (default untouched), wired into ONE place first — Link Manager multi
-  rows (biggest density case).
-- Interaction contract to evaluate: click chip = remove (and how it
-  coexists with toggle-in-panel); Backspace on last chip removes it;
-  typing appends a fresh segment; committed value stays raw comma-
-  separated (invariant intact).
-- Kill criteria: row wrap pain in Link Manager, keyboard-flow regressions
-  in Glide/SceneSheet cell editing, double-affordance blur (chip × vs
-  panel toggle). Survives → DESIGN-LANGUAGE update + rollout to remaining
-  modal rows; fails → delete the branch (AGENTS.md rule 3 — no speculative
-  abstractions).
-
-**Verify**: probe spec exercising the new variant only; full suite green
-with `variant="tags"` unused by default UI.
-
-**Relations**: chip language + modal patterns from items 45/46; kit
-primitive work out of item 49.
-
 ## 56. Promote shared bespoke components into @gabriel/ui-kit (`[ ]`)
 
 DESIGN-LANGUAGE §Mental model #2: "All interaction primitives come from `@gabriel/ui-kit`… extend the
@@ -102,6 +58,91 @@ DESIGN-LANGUAGE §Primitive matrix + Recipes class strings, update this roadmap 
 same commit. The events-mode day cells and section tabs stay bespoke; icon-only
 buttons move to the kit via **216** (the "icon-only is the documented exception"
 note is retired).
+
+## 302. UI-kit theming — mode × accent, every primitive token-driven (`[~]`, NEEDS DECISION FIRST)
+
+**Request** (2026-10-26): make EVERY kit primitive themeable by colour — light-theme
+modals, or a modal that matches the app header's project chrome — instead of today's
+"dark modals only" plus blue/emerald as full themes.
+
+**Findings** (verified against ui-kit v0.1.114 + this app):
+- The token model already supports it: `ui-kit.css` says "override any `--ui-*` variable
+  at `:root` or any scope" (66 vars, 4 preset scopes). Blue/emerald ARE the tinted-surface
+  pattern — `rgba(23,37,84,0.95)` base + white-alpha borders/hover, not a second palette.
+- The gap is component COVERAGE, not the model. Five incompatible theme shapes:
+  menus `light|dark|blue|emerald`; Checkbox/Checklist/RadioList/NumberInput
+  `dark|light|blue` (no emerald); Seg `light|dark|blue|emerald`; DatePicker `light|dark`;
+  Button `light|dark` + `cloud`; **Modal/Dialog/Tooltip accept no theme at all** (kit
+  Modal hardcodes `bg-zinc-950` header/footer, `bg-zinc-900 text-zinc-100` body).
+- App side: 2,176 `*-zinc-*` utilities across 171 files + 142 blue/emerald ones, and ZERO
+  `--ui-*` references — theming stops at the kit boundary. A light modal therefore also
+  needs its app-rendered body tokenised (or it stays dark-on-light). `color-scheme` is
+  never set, so native scrollbars/inputs would not follow a light surface either.
+
+**Approach** (staged; each stage shippable alone):
+1. **Two axes, not one list**: `data-mode="light|dark"` (surfaces/text/borders) ×
+   `data-accent=<hue>` (selection, primary, focus, presence). Keep the existing
+   `light|dark|blue|emerald` props as `mode` + accent aliases (no API break); set
+   `color-scheme` per mode and let `light-dark()` collapse the duplicated 66-var blocks.
+2. **Tokenise the palette-baked components**: kit Modal/Dialog/Button/Seg/DatePicker read
+   semantic vars only (no Tailwind zinc/blue strings in kit JS); add `Modal theme` — the
+   first real light modal. Keep base surfaces >=95% alpha or opaque; use alpha for hover,
+   selected and borders. A fully translucent base changes contrast with whatever scrolls
+   behind it, compounds across modal > menu > tooltip, and `backdrop-filter` is expensive
+   on iPad while the overlay morph animates transforms.
+3. **App adoption, surface-by-surface**: convert one modal family first (Day Manager +
+   Day Events) from `*-zinc-*` to tokens, then expand. Never half-flip an ambient mode.
+4. **Optional accent-tinted surfaces**: a `surface="tinted"` modal variant (accent-derived
+   OPAQUE fill + hairline + tinted scrim) — never a raw hex prop. Arbitrary project colour
+   = generate an OKLCH scale from one seed + contrast-guard foregrounds; not "pick any
+   colour" unguarded. Neutral surface + accent edge/icon/scrim is the tasteful default:
+   a modal wearing the header's full colour loses its raised read.
+
+**Progress (stage 1 — shipped 2026-10-26, kit v0.1.115)**: two-axis theming is live.
+- **Surface ownership**: `ThemeProvider` (context) / `ThemeScope` (attrs) carry
+  `mode` × `accent` × `surface` × `context`; `Modal` provides the theme to its whole
+  subtree (portals included), and every portaled root re-writes the axes. Explicit
+  component props still win.
+- **Accent ladder**: `--ui-accent-50…950`; `surface="accent"` = `accent-950` header
+  (THE app-header colour, white title), NEUTRAL body, `accent-100` wells/footer,
+  `accent-900` card/calendar headers; the calendar BODY and checklist/radio panels stay
+  NEUTRAL. Outlines are ALWAYS neutral (`--ui-border` / `--ui-border-strong`) — colour
+  is fills/bands only. Selection/hover/checked/button-hover/active derive from the
+  accent; `zinc` = neutral selection (kit default, no blue). Text contrast tuned per mode.
+- **Components**: tokenised Modal shell (`theme`/`accent`/`surface` + `color-scheme`),
+  footer buttons, Tooltip, CardSection (accent header + count chip), DatePicker (accent
+  header/footer, neutral body), Seg (neutral outline/labels, accent pill), Button
+  (ambient mode/accent, accent primary + hovers + active), ambient menus.
+- **Playground**: Theme lab (mode/accent/surface, chrome header menu, full dummy modal,
+  a surface menu opened inside it, state strip); `modal-portal.spec.ts`.
+
+**Progress (stage 2 — shipped 2026-10-26, kit v0.1.116)**: the app-shape pass.
+- **Neutral means neutral**: `surface="neutral"` now resolves the accent to `zinc` for
+  its whole subtree — selection/checks/Seg/date chips/selected rows have no accent inside
+  a normal modal. `surface="accent"` keeps the ladder. `context="chrome"` (app header/tabs)
+  always keeps the project colour. A nested accent-only `ThemeProvider`/`ThemeScope` is a
+  manual Lego override; declaring `surface="neutral"` re-neutralises.
+- **Dialogs** inherit the neutralising surface too; `DialogProvider` accepts
+  `theme`/`accent`/`surface`; confirm actions use the accent only where it applies, and
+  destructive confirms stay danger-red.
+- **Grouped menus**: `DropdownItem group="Set"` renders category headers in normal AND
+  searchable menus; a searchable query matches the group label (`set` → the whole Set
+  category), and filtered-out groups drop their headers. This is the kit foundation for
+  the locations picker.
+- **Playground**: neutral-surface + Lego assertions in `modal-portal.spec.ts`; grouped
+  searchable/plain demos + `searchable-dropdown.spec.ts`; suite caps 15/84 → 15/85.
+- **App**: the `Modal` shim maps every project kind to `surface="neutral"` (local zinc,
+  Drive blue identity, shared emerald identity); Drive/shared colour stays in the chrome.
+  A per-call `surface="accent"` / local accent override remains available.
+**Remaining**: RichTextEditor/FormatToolbar/`TB_*` (dark-only), app page/menu scopes to
+retire explicit `theme` props, optional seed→OKLCH generator for arbitrary colours.
+
+**Verify**: kit playground spec per primitive × mode × accent; app: converted family green
++ rule-7 visual pass (light modal on page + dark modal in Day Manager); unit test for the
+seed→scale mapper if stage 4 lands.
+**Relations**: builds on 56 (promote AND tokenise EntityDropdown in the same move), 248
+(blue/emerald chrome become accent presets), 216/202 (Seg/NumberInput `theme` props), 59
+(overlay dimming). Updates DESIGN-LANGUAGE §two-layer surface model + UI-KIT §Theming.
 
 ## 97. Developer/agent API + MCP server for the app (`[ ]`)
 
