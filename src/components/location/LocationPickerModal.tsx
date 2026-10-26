@@ -56,10 +56,11 @@ export const LocationPickerModal: React.FC<{
   locationTypes?: CrewRole[];
   /** The type key preselected in that selector (default: the first type). */
   defaultType?: string;
-}> = ({ open, onClose, onConfirm, initial, locationTypes, defaultType }) => {
-  // An initial location means the modal is EDITING an attached location, not
-  // attaching a new one — say so (title + primary action).
-  const editing = !!initial;
+  /** Editing an EXISTING location (Locations manager address cell): changes the
+   *  title/action and hides the type selector. Never inferred from `initial` —
+   *  a prefilled address can also seed a NEW location (typed in the board). */
+  editing?: boolean;
+}> = ({ open, onClose, onConfirm, initial, locationTypes, defaultType, editing = false }) => {
   const typeOptions = locationTypes || [];
   const [typeLabel, setTypeLabel] = useState('');
   const [place, setPlace] = useState('');

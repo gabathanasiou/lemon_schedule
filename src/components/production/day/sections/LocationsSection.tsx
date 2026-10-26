@@ -1,192 +1,286 @@
-import React, { useMemo, useState } from 'react';
-import { MapPin, Pencil, Plus } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { MapPin, Plus } from 'lucide-react';
+import type { GridCell } from '@glideapps/glide-data-grid';
+import { GridCellKind } from '@glideapps/glide-data-grid';
 import type { DaySectionProps } from '../daySectionTypes';
-import GroupedSelect, { GroupedSelectItem } from '../GroupedSelect';
-import { LocationPickerModal } from '../../../location/LocationPickerModal';
-import { resolvedLocationName, typeLabelOf, locationFromPick } from '../../../../lib/locations';
-import { generateUUID } from '../../../../lib/utils';
-import type { PickedLocation } from '../../../../lib/places';
 import type { ProjectLocation } from '../../../../types';
+import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction } from '../../../InlineGlideTable';
+import { seededTextCell, textCell } from '../../../../lib/glideCells';
+import { createDayTimesTheme } from '../../../../lib/glideTheme';
+import { locationFromPick, resolvedLocationName, typeLabelOf } from '../../../../lib/locations';
+import { ADD_LOCATION_SENTINEL, locationOptions } from '../../../../lib/locationOptions';
+import { addDayLocation, dayLocationRefs, removeDayLocation, replaceDayLocation, setDayMaster } from '../../../../lib/dayLocations';
+import { useLocationPicker } from '../../../location/useLocationPicker';
+import Button from '../../../Button';
+import DropdownMenu from '../../../DropdownMenu';
+import DropdownItem from '../../../DropdownItem';
+import type { GlideColumnEditor } from '../../../../lib/glideEditor';
 
-/** The picker is open either to CREATE a new location or to EDIT one already
- *  attached (master / key location chip) — editing must never spawn a duplicate
- *  DB row. */
-type PickerState = { mode: 'new' } | { mode: 'edit'; location: ProjectLocation } | null;
+/**
+ * Locations — the day's locations as ONE Glide board, modelled on the crew
+ * roster:
+ *   Master (checkbox) · Type · Location (dropdown) · Address · Contact · Phone.
+ *
+ * Rows are the DAY's attached locations (`dayLocations.dayLocationRefs`: the
+ * master pointer into the ordered `locationIds` list). The footer "Add
+ * location" menu attaches DB entries / scene quick picks / a brand-new
+ * location; the Location cell swaps a row. Data (master + key ids) is
+ * unchanged — reports/call sheet read the same `daybreakMeta` fields.
+ */
+
+const COLUMNS: InlineGlideColumn[] = [
+  { key: 'master', label: 'Master', width: 62, align: 'center' },
+  { key: 'type', label: 'Type', width: 112 },
+  { key: 'location', label: 'Location', width: 240 },
+  { key: 'address', label: 'Address', width: 260 },
+  { key: 'contact', label: 'Contact', width: 150 },
+  { key: 'phone', label: 'Phone', width: 130 },
+];
+
+interface LocationRow extends Record<string, string> {
+  key: string;
+  locationId: string;
+  isMaster: string;
+  type: string;
+  location: string;
+  address: string;
+  contact: string;
+  phone: string;
+}
+
+type PickTarget = { kind: 'add' } | { kind: 'swap'; locationId: string };
+
+const displayName = (l: ProjectLocation) => resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng);
 
 const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly, dispatch }) => {
-  const [picker, setPicker] = useState<PickerState>(null);
-  const locations = project.locations || [];
   const types = project.locationTypes || [];
+  const [menuOpen, setMenuOpen] = useState(false);
+  const locationById = useMemo(() => new Map((project.locations || []).map(l => [l.id, l])), [project.locations]);
 
-  const items: GroupedSelectItem[] = useMemo(() => {
-    // Scene-derived names come FIRST (they're what the day is actually shot
-    // at); picking one creates the Locations-DB entry on the fly. Then the
-    // Locations DB, grouped by type.
-    const dbNames = new Set(locations.map(l => l.name.trim().toLowerCase()));
-    const sceneItems: GroupedSelectItem[] = day.sceneLocations
-      .filter(name => !dbNames.has(name.trim().toLowerCase()))
-      .map(name => ({ id: `scene:${name}`, name }));
-    const dbItems: GroupedSelectItem[] = locations.map(l => ({
-      id: l.id,
-      name: resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng),
-      group: typeLabelOf(l, types),
-      hint: l.address && l.address !== l.name ? l.address : undefined,
-    }));
-    return [...sceneItems, ...dbItems];
-  }, [locations, types, day.sceneLocations]);
+  const rows = useMemo<LocationRow[]>(() => dayLocationRefs(day.meta).map(ref => {
+    const l = locationById.get(ref.id);
+    return {
+      key: ref.id,
+      locationId: ref.id,
+      isMaster: ref.isMaster ? 'true' : 'false',
+      type: l ? typeLabelOf(l, types) : '',
+      location: l ? displayName(l) : '',
+      address: l ? (l.address || l.place || '') : '',
+      contact: l?.contactName || '',
+      phone: l?.phone || '',
+    };
+  }), [day.meta, locationById, types]);
 
-  /** Maps a picker id to a real Locations-DB id, creating a DB entry for a
-   *  scene-derived name. */
-  const resolveLocationId = (id: string): string => {
-    if (!id.startsWith('scene:')) return id;
-    const name = id.slice(6);
-    const existing = locations.find(l => l.name.trim().toLowerCase() === name.trim().toLowerCase());
-    if (existing) return existing.id;
-    const created: ProjectLocation = { id: generateUUID(), name, type: 'set' };
-    dispatch({ type: 'ADD_LOCATION', payload: { location: created } });
-    return created.id;
-  };
+  // Scene-derived names still work as quick picks (created in the DB as Set on
+  // pick) — often the fastest way to attach a set with no DB row yet.
+  const sceneExtras = useMemo(() => {
+    const dbNames = new Set((project.locations || []).map(l => l.name.trim().toLowerCase()));
+    return day.sceneLocations
+      .filter(name => name.trim() && !dbNames.has(name.trim().toLowerCase()))
+      .map(name => ({ id: `scene:${name.trim()}`, name: name.trim(), group: 'Scene locations' }));
+  }, [day.sceneLocations, project.locations]);
+  const items = useMemo(() => locationOptions(project, sceneExtras), [project, sceneExtras]);
+  const attached = useMemo(() => new Set(dayLocationRefs(day.meta).map(r => r.id)), [day.meta]);
+  // The "Add location" menu lists what is NOT attached yet (add-new first).
+  const available = useMemo(
+    () => items.filter(item => item.id !== ADD_LOCATION_SENTINEL && !attached.has(item.id)),
+    [items, attached],
+  );
 
-  const locationOf = (id?: string): ProjectLocation | undefined => locations.find(l => l.id === id);
   const master = day.masterLocation;
   const nearby = master?.nearby;
-  const nearestHospital = locationOf(nearby?.hospitalId);
-  const nearestPolice = locationOf(nearby?.policeId);
+  const nearestHospital = nearby?.hospitalId ? locationById.get(nearby.hospitalId) : undefined;
+  const nearestPolice = nearby?.policeId ? locationById.get(nearby.policeId) : undefined;
 
-  const savePick = (picked: PickedLocation, type?: string) => {
-    if (picker?.mode === 'edit') {
-      const { location } = picker;
-      // A text-only confirm carries no coordinates — never invent a pin.
-      const coords = picked.lat != null && picked.lng != null ? { lat: picked.lat, lng: picked.lng } : {};
-      dispatch({
-        type: 'UPDATE_LOCATION',
-        payload: {
-          id: location.id,
-          updates: {
-            ...(!(location.name || '').trim() ? { name: (picked.place || picked.address || '').trim() } : {}),
-            address: picked.address,
-            place: picked.place,
-            ...coords,
-          },
-        },
-      });
-      return;
-    }
-    const location = locationFromPick(picked, type);
+  // ONE shared picker mount for the add-new paths.
+  const { open: openPicker, node: pickerNode } = useLocationPicker<PickTarget>(project, (target, picked, type) => {
+    const created = locationFromPick(picked, type);
+    dispatch({ type: 'ADD_LOCATION', payload: { location: created } });
+    patchMeta(target.kind === 'swap' ? replaceDayLocation(day.meta, target.locationId, created.id) : addDayLocation(day.meta, created.id));
+  });
+
+  const openFor = useCallback((row: LocationRow, address?: string) => {
+    openPicker({ kind: 'swap', locationId: row.locationId }, { initial: address ? { address } : null });
+  }, [openPicker]);
+
+  /** A scene quick pick: attach the existing DB row or create it as a Set. */
+  const sceneLocationId = useCallback((name: string): string => {
+    const existing = (project.locations || []).find(l => l.name.trim().toLowerCase() === name.trim().toLowerCase());
+    if (existing) return existing.id;
+    const location = locationFromPick({ address: name }, 'set');
     dispatch({ type: 'ADD_LOCATION', payload: { location } });
-    patchMeta({ locationId: location.id });
-  };
+    return location.id;
+  }, [dispatch, project.locations]);
 
-  const editPicker = picker?.mode === 'edit' ? picker.location : null;
+  const attach = useCallback((id: string) => {
+    setMenuOpen(false);
+    if (!id || attached.has(id)) return;
+    const realId = id.startsWith('scene:') ? sceneLocationId(id.slice(6)) : id;
+    if (attached.has(realId)) return;
+    patchMeta(addDayLocation(day.meta, realId));
+  }, [attached, patchMeta, day.meta, sceneLocationId]);
+
+  const addNew = useCallback(() => {
+    setMenuOpen(false);
+    openPicker({ kind: 'add' });
+  }, [openPicker]);
+
+  const getEditor = useCallback((rowIndex: number, colKey: string): GlideColumnEditor | undefined | null => {
+    if (colKey !== 'location') return undefined;
+    const row = rows[rowIndex];
+    if (!row) return undefined;
+    return {
+      kind: 'entity',
+      mode: 'single',
+      displayMode: 'id',
+      items,
+      // The list is pre-ordered (action row first, DB grouped by type) —
+      // sorting here would split the group headers.
+      sortItems: list => list,
+      // Typing a type ("set", "unit base") lists that whole group.
+      searchFields: ['name', 'group'],
+      placeholder: 'Select…',
+      renderItem: item => (
+        item.id === ADD_LOCATION_SENTINEL
+          ? <span className="text-emerald-600">Add new location…</span>
+          : <span className="truncate">{item.name}</span>
+      ),
+      onCreateItem: (val: string) => openFor(row, val),
+    };
+  }, [rows, items, openFor]);
+
+  const getCellContent = useCallback((col: InlineGlideColumn, row: LocationRow): GridCell => {
+    if (col.key === 'master') {
+      return {
+        kind: GridCellKind.Boolean,
+        data: row.isMaster === 'true',
+        readonly: !!readOnly,
+        allowOverlay: false,
+        contentAlign: 'center',
+      } as GridCell;
+    }
+    if (col.key === 'location') {
+      // Seed with the name (the editor is id-keyed): picking keeps the exact
+      // location id; typed names map back to the DB on commit. Same affordance
+      // as the crew Person cell — a ▾ and a pointer, so it reads as a dropdown.
+      return seededTextCell(row.location, {
+        displayData: `${row.location || '—'}  ▾`,
+        readonly: !!readOnly,
+        cursor: 'pointer',
+      });
+    }
+    if (col.key === 'type') {
+      return textCell(row.type, { readonly: true, allowOverlay: false, cursor: 'default' });
+    }
+    return textCell(row[col.key] || '—', { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#71717a' } });
+  }, [readOnly]);
+
+  const onCommit = useCallback((edits: InlineGlideEdit[]) => {
+    let meta = day.meta;
+    let changed = false;
+    for (const edit of edits) {
+      const row = rows[edit.row];
+      if (!row) continue;
+      if (edit.colKey === 'master') {
+        const wanted = edit.value === 'true';
+        if (wanted === (row.isMaster === 'true')) continue;
+        meta = { ...meta, ...setDayMaster(meta, wanted ? row.locationId : undefined) };
+        changed = true;
+        continue;
+      }
+      if (edit.colKey !== 'location') continue;
+      const value = edit.value.trim();
+      if (value === ADD_LOCATION_SENTINEL) {
+        openFor(row);
+        continue;
+      }
+      let id = '';
+      if (value.startsWith('scene:')) {
+        id = sceneLocationId(value.slice(6));
+      } else {
+        const byId = (project.locations || []).find(l => l.id === value);
+        const byName = (project.locations || []).find(l => displayName(l) === value);
+        id = byId?.id ?? byName?.id ?? '';
+      }
+      if (id && id !== row.locationId) {
+        meta = { ...meta, ...replaceDayLocation(meta, row.locationId, id) };
+        changed = true;
+      }
+    }
+    if (changed) patchMeta({ locationId: meta.locationId, locationIds: meta.locationIds });
+  }, [day.meta, rows, patchMeta, openFor, sceneLocationId, project.locations]);
+
+  const rowActions = useCallback((rowIndex: number): InlineGlideRowAction[] => {
+    const row = rows[rowIndex];
+    if (!row || readOnly) return [];
+    return [{
+      key: 'remove',
+      title: 'Remove from this day',
+      icon: 'trash',
+      onClick: () => patchMeta(removeDayLocation(day.meta, row.locationId)),
+    }];
+  }, [rows, readOnly, patchMeta, day.meta]);
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-        <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-0.5">Master location</div>
-          <p className="text-[10px] text-zinc-400 mb-1">Where the crew reports — the day's home base (call sheets + nearby services use it).</p>
-          <div className="flex items-center gap-1.5">
-            <GroupedSelect
-              className="flex-1 min-w-0"
-              items={items}
-              mode="single"
-              selectedIds={master ? [master.id] : []}
-              disabled={readOnly}
-              placeholder="No master location"
-              onChange={ids => patchMeta({ locationId: ids[0] ? resolveLocationId(ids[0]) : undefined })}
-            />
-            {!readOnly && (
-              <button type="button" onClick={() => setPicker({ mode: 'new' })} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 shrink-0">
-                <Plus className="w-3.5 h-3.5" /> New
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-0.5">Key locations</div>
-          <p className="text-[10px] text-zinc-400 mb-1">Any additional locations worked this day — choose more than one.</p>
-          <GroupedSelect
-            className="w-full"
-            items={items}
-            mode="multi"
-            selectedIds={day.meta.locationIds || []}
-            disabled={readOnly}
-            placeholder="Add key locations…"
-            onChange={ids => patchMeta({ locationIds: ids.length ? ids.map(resolveLocationId) : undefined })}
-          />
+    <div className="space-y-2" data-day-locations>
+      <p className="text-xs text-zinc-500">
+        Tick a row to make it the day's master location — the call sheet's home base. Use Add location for more.
+      </p>
+      <div className="rounded-lg border border-zinc-200 overflow-hidden bg-white">
+        <InlineGlideTable
+          dataAttr="data-day-locations-glide"
+          presenceScope={`day:${day.sectionIndex}:locations`}
+          columns={COLUMNS}
+          rows={rows}
+          emptyLabel="No locations on this day yet — add the master location below."
+          getCellContent={getCellContent}
+          onCommit={onCommit}
+          editableKeys={new Set(['master', 'location'])}
+          readOnly={readOnly}
+          createTheme={createDayTimesTheme}
+          getEditor={getEditor}
+          rowActions={rowActions}
+        />
+        <div className="px-2 py-1.5 border-t border-zinc-100 flex items-center gap-2">
+          <DropdownMenu
+            theme="light"
+            width="w-80"
+            searchable
+            searchPlaceholder="Search locations…"
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            trigger={
+              <Button variant="subtle" disabled={readOnly}>
+                <Plus className="w-3 h-3" /> Add location
+              </Button>
+            }
+          >
+            <DropdownItem onClick={addNew}>
+              <span className="text-emerald-600">Add new location…</span>
+            </DropdownItem>
+            {available.map(item => (
+              <DropdownItem
+                key={item.id}
+                trailing={<span className="opacity-70">{item.group}</span>}
+                onClick={() => attach(item.id)}
+              >
+                {item.name}
+              </DropdownItem>
+            ))}
+          </DropdownMenu>
         </div>
       </div>
 
-      {(master || day.keyLocations.length > 0) && (
-        <div className="flex flex-wrap gap-1.5">
-          {master && (
-            <LocationChip
-              location={master}
-              types={types}
-              readOnly={readOnly}
-              onEdit={() => setPicker({ mode: 'edit', location: master })}
-            />
-          )}
-          {day.keyLocations.map(l => (
-            <LocationChip
-              key={l.id}
-              location={l}
-              types={types}
-              readOnly={readOnly}
-              onEdit={() => setPicker({ mode: 'edit', location: l })}
-            />
-          ))}
-        </div>
-      )}
-
       {(nearestHospital || nearestPolice) && (
         <div className="text-[11px] text-zinc-500 space-y-0.5">
-          {nearestHospital && <div>Nearest hospital: <span className="text-zinc-700">{resolvedLocationName(nearestHospital.name, nearestHospital.address, nearestHospital.place, nearestHospital.lat, nearestHospital.lng)}</span></div>}
-          {nearestPolice && <div>Nearest police: <span className="text-zinc-700">{resolvedLocationName(nearestPolice.name, nearestPolice.address, nearestPolice.place, nearestPolice.lat, nearestPolice.lng)}</span></div>}
+          {nearestHospital && <div>Nearest hospital: <span className="text-zinc-700">{displayName(nearestHospital)}</span></div>}
+          {nearestPolice && <div>Nearest police: <span className="text-zinc-700">{displayName(nearestPolice)}</span></div>}
         </div>
       )}
-
-      <LocationPickerModal
-        open={picker !== null}
-        onClose={() => setPicker(null)}
-        onConfirm={(picked, type) => { setPicker(null); savePick(picked, type); }}
-        initial={
-          editPicker
-            ? {
-                lat: editPicker.lat,
-                lng: editPicker.lng,
-                place: editPicker.place,
-                address: editPicker.address,
-              }
-            : null
-        }
-        locationTypes={types}
-        defaultType="set"
-      />
+      {pickerNode}
     </div>
   );
 };
-
-/** A day location pill — click to edit the attached location's pin/address. */
-const LocationChip: React.FC<{
-  location: ProjectLocation;
-  types: DaySectionProps['project']['locationTypes'];
-  readOnly: boolean;
-  onEdit: () => void;
-}> = ({ location, types, readOnly, onEdit }) => (
-  <button
-    type="button"
-    onClick={onEdit}
-    disabled={readOnly}
-    title="Edit this location's address and pin"
-    className="group inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] text-emerald-800 hover:bg-emerald-100 hover:border-emerald-300 transition-colors disabled:opacity-60"
-  >
-    <MapPin className="w-3 h-3" />
-    {resolvedLocationName(location.name, location.address, location.place, location.lat, location.lng)}
-    <span className="text-emerald-500">{typeLabelOf(location, types)}</span>
-    <Pencil className="w-2.5 h-2.5 text-emerald-500 opacity-60 group-hover:opacity-100" />
-  </button>
-);
 
 export const LocationsIcon = MapPin;
 

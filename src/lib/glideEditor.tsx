@@ -17,6 +17,9 @@ export type GlideColumnEditor =
       uppercase?: boolean;
       keepAlphabetical?: boolean;
       renderItem?: (item: any, selected: boolean) => React.ReactNode;
+      /** Fields the search box matches. Defaults to id+name; add 'group' to
+       *  match the dropdown group header (e.g. a location type). */
+      searchFields?: ('id' | 'name' | 'group')[];
       /** Item keys that are element-link anchors — Anchor icon in the panel. */
       anchoredKeys?: Set<string>;
       /** Custom ordering (wins over `keepAlphabetical`) — e.g. pin an action
@@ -223,7 +226,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             />
           );
         }
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} searchFields={cfg.searchFields} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
       };
       components.set(colKey, Editor);
     }

@@ -554,7 +554,11 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     applyEdits(edits.map(e => ({
       row: e.location[1],
       colKey: COLUMNS[e.location[0]]?.key || '',
-      val: e.value.kind === GridCellKind.Text ? e.value.data : '',
+      val: e.value.kind === GridCellKind.Text
+        ? e.value.data
+        : e.value.kind === GridCellKind.Boolean
+          ? String(e.value.data)
+          : '',
     })));
     return true;
   }, [COLUMNS, applyEdits, getEffectiveRange]);
@@ -684,10 +688,6 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
 
   const hasSelection = gridSelection.current?.range !== undefined || gridSelection.rows.length > 0 || gridSelection.columns.length > 0;
 
-  if (rows.length === 0 && emptyLabel) {
-    return <div className="px-2.5 py-6 text-center text-xs text-zinc-400">{emptyLabel}</div>;
-  }
-
   return (
     <div
       ref={wrapperRef}
@@ -718,7 +718,12 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             is authoritative and the table always fills exactly. Mount the
             DataEditor only once a width is measured so it never first paints
             at content width (wrong sizing + phantom scrollbars). */}
-        {gridWidth && gridWidth > 0 ? (
+        {rows.length === 0 && emptyLabel ? (
+          // Keep the measured container mounted for the empty state: rows can
+          // arrive later (bridge/peer/collaborator), and an unmounted ref would
+          // never attach the width observer (the grid stuck at zero width).
+          <div className="px-2.5 py-6 text-center text-xs text-zinc-400">{emptyLabel}</div>
+        ) : gridWidth && gridWidth > 0 ? (
           <DataEditor
             ref={gridRef}
             width={gridWidth}

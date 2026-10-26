@@ -1376,6 +1376,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
                 }
               : null
           }
+          editing={block.mapLat != null || block.mapLng != null || !!block.mapPlace || !!block.mapAddress}
         />
       )}
     </div>

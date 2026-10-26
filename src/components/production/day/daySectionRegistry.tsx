@@ -57,6 +57,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     },
   },
   {
+    wide: true,
     id: 'locations',
     title: 'Locations',
     icon: <LocationsIcon className="w-3.5 h-3.5" />,

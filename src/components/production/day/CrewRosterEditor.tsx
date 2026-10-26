@@ -17,7 +17,8 @@ import {
 } from '../../../lib/dayCrew';
 import { crewRoleGroup } from '../../../lib/crewCatalog';
 import { resolveCrewCall } from '../../../lib/callTimes';
-import { locationLabelById, resolvedLocationName, typeLabelOf } from '../../../lib/locations';
+import { locationLabelById } from '../../../lib/locations';
+import { ADD_LOCATION_SENTINEL, locationOptions } from '../../../lib/locationOptions';
 import type { PickedLocation } from '../../../lib/places';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction } from '../../InlineGlideTable';
 import { seededTextCell, textCell } from '../../../lib/glideCells';
@@ -28,7 +29,7 @@ import Button from '../../Button';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
 import GroupedSelect from './GroupedSelect';
-import { LocationPickerModal } from '../../location/LocationPickerModal';
+import { useLocationPicker } from '../../location/useLocationPicker';
 import type { GlideColumnEditor } from '../../../lib/glideEditor';
 
 /**
@@ -131,26 +132,8 @@ const CONTACT_COLUMNS: InlineGlideColumn[] = [
 /** Person-dropdown item that opens the Add Crew Member modal. */
 const ADD_NEW_SENTINEL = '__add_new_crew__';
 
-/** Location-dropdown item that opens the shared map picker. */
-const ADD_LOCATION_SENTINEL = '__add_location__';
-
 /** Stable empty map — default for boards with no department report-to values. */
 const EMPTY_DEPT_REPORT_TO: Record<string, string> = {};
-
-/** The location dropdown's items: the Locations DB grouped by type, plus the
- *  "Add new location…" action row. ONE builder for the board cells, the
- *  department headers and the everyone bar. */
-function locationItemsFor(project: Project) {
-  const types = project.locationTypes || [];
-  return [
-    { id: ADD_LOCATION_SENTINEL, name: 'Add new location…', accent: true },
-    ...(project.locations || []).map(l => ({
-      id: l.id,
-      name: resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng),
-      group: typeLabelOf(l, types),
-    })),
-  ];
-}
 
 const DeptTable: React.FC<DeptTableProps> = ({
   dept, slots, excluded, precall, templatePrecall, dayCall, project, readOnly,
@@ -159,7 +142,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
   presenceScope,
 }) => {
   const crewRoles = project.crewRoles || [];
-  const locationItems = useMemo(() => locationItemsFor(project), [project]);
+  const locationItems = useMemo(() => locationOptions(project), [project]);
 
   const columns = useMemo<InlineGlideColumn[]>(
     () => (contacts ? [...COLUMNS, ...CONTACT_COLUMNS] : COLUMNS),
@@ -231,12 +214,11 @@ const DeptTable: React.FC<DeptTableProps> = ({
         displayMode: 'id',
         items: locationItems,
         placeholder: 'Select…',
-        // "Add new location…" is an ACTION row — always first, like the Glide
-        // breakdown's location dropdown (the rest stays alphabetical).
-        sortItems: list => [
-          ...list.filter(i => i.id === ADD_LOCATION_SENTINEL),
-          ...list.filter(i => i.id !== ADD_LOCATION_SENTINEL).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
-        ],
+        // The list is pre-ordered (action row first, DB grouped by type):
+        // never sort it alphabetically — that would split the group headers.
+        sortItems: list => list,
+        // Typing a type ("set", "unit base") lists that whole group.
+        searchFields: ['name', 'group'],
         renderItem: item => (
           item.id === ADD_LOCATION_SENTINEL
             ? <span className="text-emerald-600">Add new location…</span>
@@ -536,23 +518,20 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
     [project, meta, slots, dayCall],
   );
   const allRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
-  const locationItems = useMemo(() => locationItemsFor(project), [project]);
-  // The shared map picker: opened from a board cell, a department header or the
-  // everyone bar; the confirm assigns the new location to the pending target.
-  const [locationPicker, setLocationPicker] = useState<{ target: NewLocationTarget; initial: Partial<PickedLocation> | null } | null>(null);
-  const requestNewLocation = useCallback((target: NewLocationTarget, address?: string) => {
-    setLocationPicker({ target, initial: address ? { address } : null });
-  }, []);
-  const confirmNewLocation = useCallback((picked: PickedLocation, type?: string) => {
-    const pending = locationPicker;
-    setLocationPicker(null);
-    if (!pending || !onCreateLocation) return;
-    const id = onCreateLocation(picked, type || 'set');
+  const locationItems = useMemo(() => locationOptions(project), [project]);
+  // The shared map picker (one hook for every host): the confirm creates the
+  // Locations-DB entry and assigns it to the pending board target.
+  const { open: openLocationPicker, node: locationPickerNode } = useLocationPicker<NewLocationTarget>(project, (target, picked, type) => {
+    if (!onCreateLocation) return;
+    const id = onCreateLocation(picked, type);
     if (!id) return;
-    if (pending.target.kind === 'all') onReportToChange?.(id);
-    else if (pending.target.kind === 'dept') onDeptReportToChange?.(pending.target.dept, id);
-    else onSlotsChange(setSlotReportToId(slots, pending.target.slotId, id));
-  }, [locationPicker, onCreateLocation, onReportToChange, onDeptReportToChange, onSlotsChange, slots]);
+    if (target.kind === 'all') onReportToChange?.(id);
+    else if (target.kind === 'dept') onDeptReportToChange?.(target.dept, id);
+    else onSlotsChange(setSlotReportToId(slots, target.slotId, id));
+  });
+  const requestNewLocation = useCallback((target: NewLocationTarget, address?: string) => {
+    openLocationPicker(target, { initial: address ? { address } : null });
+  }, [openLocationPicker]);
 
   if (groups.length === 0 && allRoles.length === 0) {
     return (
@@ -613,14 +592,7 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
           presenceScope={presenceScopePrefix ? `${presenceScopePrefix}:${g.dept}` : undefined}
         />
       ))}
-      <LocationPickerModal
-        open={locationPicker !== null}
-        onClose={() => setLocationPicker(null)}
-        onConfirm={confirmNewLocation}
-        initial={locationPicker?.initial ?? null}
-        locationTypes={project.locationTypes || []}
-        defaultType="set"
-      />
+      {locationPickerNode}
     </div>
   );
 };

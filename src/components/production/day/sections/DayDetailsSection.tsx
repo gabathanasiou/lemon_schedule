@@ -3,7 +3,6 @@ import { Info, Sunrise, Sunset } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import { formatDateLong, normalizeTime } from '../../../../lib/utils';
 import { getDayType } from '../../../../lib/dayTypes';
-import { resolvedLocationName } from '../../../../lib/locations';
 import { formatWeatherValue } from '../../../../lib/reportWeather';
 import { useTouchMode } from '../../../../lib/useMarquee';
 import type { DayWeatherOverride } from '../../../../types';
@@ -47,7 +46,6 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
   };
 
   const dayType = day.status ? getDayType(project, day.status) : null;
-  const master = day.masterLocation;
 
   // ---- manual weather (roadmap 301) -----------------------------------------
   // The override is stored on the governing daybreak (`daybreakMeta`), written
@@ -178,9 +176,6 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
             <ValueRow label="Scenes">{day.scenes.length}</ValueRow>
             <ValueRow label="Cast">{day.cast.length}</ValueRow>
             <ValueRow label="Elements">{Object.values(day.elements).reduce((n, l) => n + l.length, 0)}</ValueRow>
-            <ValueRow label="Master location">
-              {master ? resolvedLocationName(master.name, master.address, master.place, master.lat, master.lng) : '—'}
-            </ValueRow>
 
             <tr className={DAY_GROUP_ROW}>
               <td colSpan={2} className="px-2.5 py-1.5">
