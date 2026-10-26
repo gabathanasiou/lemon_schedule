@@ -1104,7 +1104,9 @@ or public launch nears.
   (29 counting test files; largest `src/store/provider.tsx` ~1.7k) — split or
   consciously re-justify the rule, consider enforcing it in
   `scripts/check-doc-budget.mjs`.
-- **Hygiene:** `@glideapps/glide-data-grid` on a pre-release alpha — pin or watch.
+- **Hygiene — Glide pin DONE 2026-10-26:** `@glideapps/glide-data-grid`
+  pinned exact (`6.0.4-alpha24`, was `^`), so the grid runtime only moves on an
+  explicit bump; revisit when a stable 6.x ships.
 - **Verify:** behaviour-neutral; `npm run lint` + full suite unchanged.
 
 ## 291. Enterprise-readiness gate (`[ ]`, P3 — triggered by an enterprise deal)
