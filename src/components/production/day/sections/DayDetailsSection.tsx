@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Info, Sunrise, Sunset } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
-import { formatDateLong } from '../../../../lib/utils';
+import { formatDateLong, normalizeTime } from '../../../../lib/utils';
 import { getDayType } from '../../../../lib/dayTypes';
 import { resolvedLocationName } from '../../../../lib/locations';
 import { formatWeatherValue } from '../../../../lib/reportWeather';
+import { useTouchMode } from '../../../../lib/useMarquee';
 import type { DayWeatherOverride } from '../../../../types';
 import TimeField from '../../../TimeField';
+import { LiveNumberInput } from '../../../LiveNumberInput';
 import Checkbox from '../../../Checkbox';
 import BreaksNotesSection from './BreaksNotesSection';
 import { wmoIcon } from '../weatherIcon';
@@ -25,8 +27,6 @@ interface WeatherDraft {
   weather: string;
   sunrise: string;
   sunset: string;
-  tempMin: string;
-  tempMax: string;
 }
 
 function weatherDraftFrom(ov?: DayWeatherOverride): WeatherDraft {
@@ -34,19 +34,11 @@ function weatherDraftFrom(ov?: DayWeatherOverride): WeatherDraft {
     weather: ov?.weather ?? '',
     sunrise: ov?.sunrise ?? '',
     sunset: ov?.sunset ?? '',
-    tempMin: ov?.tempMin == null ? '' : String(ov.tempMin),
-    tempMax: ov?.tempMax == null ? '' : String(ov.tempMax),
   };
 }
 
-function parseTemp(raw: string): number | undefined {
-  const trimmed = raw.trim();
-  if (!trimmed) return undefined;
-  const n = Number(trimmed);
-  return Number.isFinite(n) ? n : undefined;
-}
-
 const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow, readOnly, project, dispatch, actions, weatherView }) => {
+  const isTouch = useTouchMode();
   const [note, setNote] = useState(day.meta.note || '');
   useEffect(() => { setNote(day.meta.note || ''); }, [day.meta.note, day.sectionIndex]);
 
@@ -97,19 +89,31 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
 
   const commitWeatherField = (field: keyof WeatherDraft) => {
     const current = day.meta.weatherOverride;
+    const value = weatherDraft[field].trim();
+    if (value === (current?.[field] || '')) return; // blur without an edit — no empty undo entry
     const next: DayWeatherOverride = { ...(current || {}), enabled: true };
-    if (field === 'tempMin' || field === 'tempMax') {
-      const value = parseTemp(weatherDraft[field]);
-      const stored = current?.[field] ?? undefined;
-      if (value === stored) return; // blur without an edit — no empty undo entry
-      if (value == null) delete next[field];
-      else next[field] = value;
-    } else {
-      const value = weatherDraft[field].trim();
-      if (value === (current?.[field] || '')) return;
-      if (value) next[field] = value;
-      else delete next[field];
-    }
+    if (value) next[field] = value;
+    else delete next[field];
+    patchMeta({ weatherOverride: next });
+  };
+
+  /** Kit NumberInput commit — its draft model already finalizes on blur. */
+  const commitWeatherTemp = (field: 'tempMin' | 'tempMax', value: number) => {
+    const current = day.meta.weatherOverride;
+    if ((current?.[field] ?? undefined) === value) return;
+    patchMeta({ weatherOverride: { ...(current || {}), enabled: true, [field]: value } });
+  };
+
+  /** Touch keypad commit — weather times are absolute clock times only. */
+  const commitWeatherTime = (field: 'sunrise' | 'sunset', raw: string) => {
+    const current = day.meta.weatherOverride;
+    const value = raw.trim() ? normalizeTime(raw) : null;
+    if (raw.trim() && !value) return; // relative/invalid expression — keep the old value
+    if (!value && !current?.[field]) return; // empty keypad, nothing stored yet
+    if (value === (current?.[field] || '')) return;
+    const next: DayWeatherOverride = { ...(current || {}), enabled: true };
+    if (value) next[field] = value;
+    else delete next[field];
     patchMeta({ weatherOverride: next });
   };
 
@@ -124,6 +128,36 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
     : weatherView?.miss === 'too-far' ? 'No forecast yet' : '—';
   const noPinHint = !!weatherView && !weatherView.hasPin && !manual;
   const hasSun = !!entry && (!!entry.sunrise || !!entry.sunset);
+
+  /** Desktop keeps the native time box; touch opens the shared TimeField
+   *  keypad (the same `:` entry as call times). */
+  const renderTimeInput = (field: 'sunrise' | 'sunset', Icon: React.ComponentType<{ className?: string }>) => (
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
+      <Icon className="w-3.5 h-3.5 text-zinc-400" />
+      {isTouch ? (
+        <TimeField
+          value={weatherDraft[field]}
+          resolvedTime={weatherDraft[field] || (entry?.[field] || '')}
+          onChange={raw => commitWeatherTime(field, raw)}
+          readOnly={readOnly}
+          hideOverrideDot
+          theme="light"
+          className="w-24"
+        />
+      ) : (
+        <input
+          type="time"
+          value={weatherDraft[field]}
+          readOnly={readOnly}
+          onChange={e => setDraft(field, e.target.value)}
+          onBlur={() => commitWeatherField(field)}
+          onKeyDown={blurOnEnter}
+          aria-label={field === 'sunrise' ? 'Sunrise' : 'Sunset'}
+          className={`${DAY_INPUT} px-1.5 py-1 w-24`}
+        />
+      )}
+    </span>
+  );
 
   return (
     <div className="space-y-4">
@@ -178,29 +212,31 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
                   />
                   <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500">
                     H
-                    <input
-                      value={weatherDraft.tempMax}
+                    <LiveNumberInput
+                      value={override?.tempMax ?? undefined}
+                      min={-60}
+                      max={60}
+                      fallback={weatherView?.entry?.tempMax ?? 0}
+                      step={1}
                       readOnly={readOnly}
-                      inputMode="numeric"
-                      onChange={e => setDraft('tempMax', e.target.value)}
-                      onBlur={() => commitWeatherField('tempMax')}
-                      onKeyDown={blurOnEnter}
-                      aria-label="High temperature (°C)"
-                      className={`${DAY_INPUT} px-1.5 py-1 w-12 text-right`}
+                      ariaLabel="High temperature (°C)"
+                      className={`${DAY_INPUT} px-1.5 py-1 w-16 text-right`}
+                      onCommit={v => commitWeatherTemp('tempMax', v)}
                     />
                     °C
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500">
                     L
-                    <input
-                      value={weatherDraft.tempMin}
+                    <LiveNumberInput
+                      value={override?.tempMin ?? undefined}
+                      min={-60}
+                      max={60}
+                      fallback={weatherView?.entry?.tempMin ?? 0}
+                      step={1}
                       readOnly={readOnly}
-                      inputMode="numeric"
-                      onChange={e => setDraft('tempMin', e.target.value)}
-                      onBlur={() => commitWeatherField('tempMin')}
-                      onKeyDown={blurOnEnter}
-                      aria-label="Low temperature (°C)"
-                      className={`${DAY_INPUT} px-1.5 py-1 w-12 text-right`}
+                      ariaLabel="Low temperature (°C)"
+                      className={`${DAY_INPUT} px-1.5 py-1 w-16 text-right`}
+                      onCommit={v => commitWeatherTemp('tempMin', v)}
                     />
                     °C
                   </span>
@@ -217,32 +253,8 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
             <ValueRow label="Sun">
               {manual ? (
                 <div className="flex flex-wrap items-center gap-3">
-                  <label className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
-                    <Sunrise className="w-3.5 h-3.5 text-zinc-400" />
-                    <input
-                      type="time"
-                      value={weatherDraft.sunrise}
-                      readOnly={readOnly}
-                      onChange={e => setDraft('sunrise', e.target.value)}
-                      onBlur={() => commitWeatherField('sunrise')}
-                      onKeyDown={blurOnEnter}
-                      aria-label="Sunrise"
-                      className={`${DAY_INPUT} px-1.5 py-1 w-24`}
-                    />
-                  </label>
-                  <label className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
-                    <Sunset className="w-3.5 h-3.5 text-zinc-400" />
-                    <input
-                      type="time"
-                      value={weatherDraft.sunset}
-                      readOnly={readOnly}
-                      onChange={e => setDraft('sunset', e.target.value)}
-                      onBlur={() => commitWeatherField('sunset')}
-                      onKeyDown={blurOnEnter}
-                      aria-label="Sunset"
-                      className={`${DAY_INPUT} px-1.5 py-1 w-24`}
-                    />
-                  </label>
+                  {renderTimeInput('sunrise', Sunrise)}
+                  {renderTimeInput('sunset', Sunset)}
                 </div>
               ) : hasSun ? (
                 <span className="inline-flex items-center gap-3">
