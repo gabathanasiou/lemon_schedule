@@ -54,6 +54,67 @@ export function loadCategoryElements(project: any, category: string): ProjectEle
 
 export function elementKey(e: { id: string; name: string }) { return e.id || e.name || '__new__'; }
 
+// ---- Board IDs (roadmap 257) ------------------------------------------------
+// Cast's `CastMember.id` IS its Board ID (the value `scene.cast` stores);
+// every other category keeps a `boardId` label on `ProjectElement` while
+// scenes stay name-keyed. These helpers are the ONE place that branch lives.
+
+/** Canonical numeric form of a Board ID ('' when blank/unusable). */
+function canonicalBoardId(value: string | null | undefined): string {
+  const raw = String(value ?? '').trim();
+  if (!/^\d+$/.test(raw)) return '';
+  return String(parseInt(raw, 10));
+}
+
+/** The category's Board ID for one element — cast's id, else `boardId`. */
+export function boardIdOf(e: { id: string; name?: string; boardId?: string }, category: string): string {
+  return isIdKeyed(category) ? String(e.id || '') : String(e.boardId || '');
+}
+
+/**
+ * Next free Board ID continuing AFTER the highest used number (the cast
+ * Auto-ID contract): gaps are never filled automatically, and every number in
+ * `used` is skipped. Non-numeric values are ignored; `7` and `07` collide.
+ */
+export function nextBoardId(used: Iterable<string>): string {
+  const taken = new Set<string>();
+  let max = 0;
+  for (const raw of used) {
+    const id = canonicalBoardId(raw);
+    if (!id) continue;
+    taken.add(id);
+    max = Math.max(max, parseInt(id, 10));
+  }
+  let n = max + 1;
+  while (taken.has(String(n))) n++;
+  return String(n);
+}
+
+/** True when `value` is already used by a DIFFERENT element of the category.
+ *  `exceptKey` is the edited row's `elementKey` (it may keep its own number). */
+export function isDuplicateBoardId(
+  elements: { id: string; name?: string; boardId?: string }[],
+  category: string,
+  value: string,
+  exceptKey?: string,
+): boolean {
+  const wanted = canonicalBoardId(value);
+  if (!wanted) return false;
+  return elements.some(e => {
+    if (exceptKey !== undefined && (e.id || e.name || '__new__') === exceptKey) return false;
+    return canonicalBoardId(boardIdOf(e, category)) === wanted;
+  });
+}
+
+/** "Sort by Board ID" comparator — numeric, blanks last. */
+export function compareBoardIds(a: string, b: string): number {
+  const ca = canonicalBoardId(a);
+  const cb = canonicalBoardId(b);
+  if (!ca) return cb ? 1 : 0;
+  if (!cb) return -1;
+  return parseInt(ca, 10) - parseInt(cb, 10);
+}
+
 /**
  * Resolve a typed dropdown segment to the key scenes store (AGENTS.md §Cast &
  * Entities — the STRICT id-vs-name rule). For ID-keyed categories (cast): an

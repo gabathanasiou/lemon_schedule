@@ -441,8 +441,15 @@ export interface CastMember {
 }
 
 export interface ProjectElement {
+  /** Stable registry key (initialised to the name at creation, kept across
+   *  renames). Scenes reference non-cast categories by NAME, not this id. */
   id: string;
   name: string;
+  /** MMS-style Board ID — numeric string, unique per category, 1-based
+   *  (roadmap 257). A label, never a reference: scenes keep referencing
+   *  non-cast categories by name. Cast's Board ID is `CastMember.id` and is
+   *  never duplicated here. */
+  boardId?: string;
 }
 
 /** One-way anchor→linked element link (roadmap 44). Anchor owns the link;

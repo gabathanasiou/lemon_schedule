@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isIdKeyed, elementMatchId, resolveTypedElementKey } from '../elements';
+import { isIdKeyed, elementMatchId, resolveTypedElementKey, boardIdOf, nextBoardId, isDuplicateBoardId, compareBoardIds } from '../elements';
 
 /**
  * AGENTS.md §Cast & Entities — the STRICT cast-vs-elements storage rule:
@@ -37,5 +37,48 @@ describe('resolveTypedElementKey', () => {
   it('name-keyed categories keep the raw text', () => {
     expect(resolveTypedElementKey(items, 'name', 'MARY')).toBe('MARY');
     expect(resolveTypedElementKey(items, 'name', 'mary')).toBe('mary');
+  });
+});
+
+/**
+ * Roadmap 257 — one Board ID per element: cast's id, `ProjectElement.boardId`
+ * for every other category. Numbers are labels; allocation continues after the
+ * highest and never reuses a gap.
+ */
+describe('Board IDs', () => {
+  it('boardIdOf reads cast ids and non-cast boardId', () => {
+    expect(boardIdOf({ id: '2', name: 'MARY' }, 'cast')).toBe('2');
+    expect(boardIdOf({ id: 'GUN', name: 'GUN', boardId: '7' }, 'props')).toBe('7');
+    expect(boardIdOf({ id: 'GUN', name: 'GUN' }, 'props')).toBe('');
+  });
+
+  it('nextBoardId continues after the highest, skipping used numbers', () => {
+    expect(nextBoardId([])).toBe('1');
+    expect(nextBoardId(['1', '2', '3'])).toBe('4');
+    // Gaps are NOT filled: 2 is free but the contract says "after the highest".
+    expect(nextBoardId(['1', '3'])).toBe('4');
+    expect(nextBoardId(['1', '2', '4'])).toBe('5');
+    // Unusable values never win the max; leading zeros normalise.
+    expect(nextBoardId(['', 'abc', '007'])).toBe('8');
+    // A number above a gap is still the max.
+    expect(nextBoardId(['3', '10', '4'])).toBe('11');
+  });
+
+  it('isDuplicateBoardId compares numerically and ignores the edited row', () => {
+    const props = [
+      { id: 'A', name: 'A', boardId: '7' },
+      { id: 'B', name: 'B', boardId: '8' },
+      { id: 'C', name: 'C' },
+    ];
+    expect(isDuplicateBoardId(props, 'props', '7')).toBe(true);
+    expect(isDuplicateBoardId(props, 'props', '07')).toBe(true);
+    expect(isDuplicateBoardId(props, 'props', '9')).toBe(false);
+    expect(isDuplicateBoardId(props, 'props', '7', 'A')).toBe(false);
+    expect(isDuplicateBoardId(props, 'props', '', 'B')).toBe(false);
+  });
+
+  it('compareBoardIds sorts numerically with blanks last', () => {
+    const values = ['10', '', '2', '1', 'x'];
+    expect(values.sort(compareBoardIds)).toEqual(['1', '2', '10', '', 'x']);
   });
 });
