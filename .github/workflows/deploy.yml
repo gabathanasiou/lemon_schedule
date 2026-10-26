@@ -23,7 +23,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 24 = npm 11, which honours the lockfile's `overrides`
+          # (npm 10 rejects it with "Missing: undici@7.29.1"). Also satisfies
+          # the engine floors of wrangler/vitest (>=22).
+          node-version: 24
       - run: npm ci
       - run: npm run build
         env:
