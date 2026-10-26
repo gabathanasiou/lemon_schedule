@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Info, Pencil, Sunrise, Sunset } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Info, Loader2, MapPin, Pencil, RefreshCw, Sunrise, Sunset } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import { formatDateTitle, formatDuration, formatPageCount, normalizeTime, parseTime } from '../../../../lib/utils';
 import { getDayType } from '../../../../lib/dayTypes';
@@ -9,6 +9,9 @@ import type { DayWeatherOverride } from '../../../../types';
 import TimeField from '../../../TimeField';
 import { LiveNumberInput } from '../../../LiveNumberInput';
 import Checkbox from '../../../Checkbox';
+import { LocationEntityDropdown } from '../../../location/LocationEntityDropdown';
+import { dayLocationRefs, setDayMaster } from '../../../../lib/dayLocations';
+import { locationOptions } from '../../../../lib/locationOptions';
 import { wmoIcon } from '../weatherIcon';
 import { DAY_INPUT } from '../tableStyles';
 
@@ -42,9 +45,23 @@ function dayLength(start: string, end: string): string {
   return minutes > 0 ? formatDuration(minutes) : '';
 }
 
-const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow, readOnly, project, weatherView }) => {
+const DayDetailsSection: React.FC<DaySectionProps> = ({
+  day, patchMeta, patchRow, readOnly, project, weatherView, refreshWeather, weatherRefreshing,
+}) => {
   const isTouch = useTouchMode();
   const dayType = day.status ? getDayType(project, day.status) : null;
+
+  // ---- master location ------------------------------------------------------
+  // The master is a pointer into the day's ordered attached-location list
+  // (`lib/dayLocations.ts`). The picker offers what is already on the day,
+  // grouped by location type through the SAME `locationOptions` category
+  // builder the Locations grid and crew Report-to cells use; the Locations
+  // card below is where locations get attached.
+  const locationItems = useMemo(() => {
+    const attached = new Set(dayLocationRefs(day.meta).map(ref => ref.id));
+    return locationOptions(project).filter(item => attached.has(item.id));
+  }, [day.meta, project]);
+  const masterId = day.masterLocation?.id || '';
 
   // ---- manual weather (roadmap 301) -----------------------------------------
   // The override is stored on the governing daybreak (`daybreakMeta`), written
@@ -215,10 +232,28 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
       </div>
 
       <div className="rounded-lg border border-zinc-200 px-2.5 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <div className="flex flex-wrap items-center gap-2" data-master-location>
+          <MapPin className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
+          <span className={`${LABEL} shrink-0`}>Master location</span>
+          {locationItems.length === 0 ? (
+            <span className="flex min-w-[10rem] flex-1 items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-400">
+              No locations attached
+            </span>
+          ) : (
+            <LocationEntityDropdown
+              className="min-w-[10rem] flex-1"
+              value={masterId}
+              onChange={id => patchMeta(setDayMaster(day.meta, id))}
+              items={locationItems}
+              readOnly={readOnly}
+              placeholder="Choose a location…"
+            />
+          )}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-zinc-100 pt-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
             {noPinHint ? (
-              <span className="text-zinc-400">No location pin — set a master location in Locations.</span>
+              <span className="text-zinc-400">No location pin — attach or choose a master location.</span>
             ) : (
               <>
                 <span className="inline-flex items-center gap-1.5 text-zinc-700">
@@ -240,15 +275,29 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
               </>
             )}
           </div>
-          <Checkbox
-            variant="plain"
-            theme="light"
-            checked={manual}
-            disabled={readOnly}
-            onChange={toggleOverride}
-            label="Manual weather"
-            labelClassName="text-[10px] text-zinc-500"
-          />
+          <div className="flex shrink-0 items-center gap-2">
+            {!manual && !!weatherView && refreshWeather && (
+              <button
+                type="button"
+                onClick={() => { void refreshWeather(day.date); }}
+                disabled={weatherRefreshing || weatherView.miss === 'too-far'}
+                title={weatherView.miss === 'too-far' ? 'No forecast yet' : 'Refresh weather'}
+                aria-label="Refresh weather"
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-40"
+              >
+                {weatherRefreshing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              </button>
+            )}
+            <Checkbox
+              variant="plain"
+              theme="light"
+              checked={manual}
+              disabled={readOnly}
+              onChange={toggleOverride}
+              label="Manual weather"
+              labelClassName="text-[10px] text-zinc-500"
+            />
+          </div>
         </div>
 
         {manual && (

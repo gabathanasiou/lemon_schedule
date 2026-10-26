@@ -30,7 +30,6 @@ import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../t
 import { useReportCtx } from '../../../lib/useReportCtx';
 import { daySunWeather } from '../../../lib/reportWeather';
 import { useSunWeather } from '../../../lib/useSunWeather';
-import DayWeatherChip from './DayWeatherChip';
 
 const PREFS_KEY = 'lemon_schedule_day_manager';
 
@@ -81,8 +80,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { days, byIndex } = useDayViews();
   const ctx = useReportCtx();
-  // ONE warm/refresh run for the selected day (roadmap 301) — the toolbar chip
-  // and the Day Details weather rows read the same resolved values.
+  // ONE warm/refresh run for the selected day (roadmap 301) — the Day Details
+  // weather row reads the resolved values and owns the manual refresh.
   const sunWeather = useSunWeather(ctx);
   const [prefs, setPrefs] = usePersistState<DayManagerPrefs>(PREFS_KEY, DEFAULT_PREFS);
   const [eventsDate, setEventsDate] = useState<string | null>(null);
@@ -317,6 +316,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             dispatch={dispatch}
             actions={actions}
             weatherView={weatherView}
+            refreshWeather={sunWeather.refresh}
+            weatherRefreshing={sunWeather.refreshing}
           />
         )}
       </DaySectionCard>
@@ -362,12 +363,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       )}
 
       <div className="ml-auto flex items-center gap-1">
-        <DayWeatherChip
-          view={weatherView}
-          date={selected.date}
-          refresh={sunWeather.refresh}
-          refreshing={sunWeather.refreshing}
-        />
         <DropdownMenu
           open={settingsOpen}
           onOpenChange={setSettingsOpen}

@@ -205,7 +205,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
   As a cell editor ALWAYS separate commit from exit: `onChange` updates the value, `onExit` leaves
-  edit mode (never call both in one handler — editor unmounts and can't reopen).
+  edit mode (never call both in one handler — editor unmounts and can't reopen). **Domain lists stay
+  grouped**: location pickers use `locationOptions(project)` — add-new first, then the Locations DB
+  grouped by location type (search `name` + `group`, never re-sort across headers); crew pickers
+  group by `crewRoleGroup`/`departmentOrder`. Standalone location fields use
+  `LocationEntityDropdown`; never a flat location or role list.
 - `TimeField`/`DurationField` (`src/components/`): call-time expression input (absolute/relative,
   touch keypad, live resolved value, reset) + the extracted duration recipe. `GroupedSelect`
   (`production/day/`): grouped single/multi-select dropdown rendered through `DropdownPanel` (the one

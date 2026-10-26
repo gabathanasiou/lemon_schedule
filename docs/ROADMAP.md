@@ -1168,17 +1168,25 @@ overview card, with breaks/notes/announcements in their own card; category tabs 
 **Design:** Day Details drops the `Field | Value` table. Title-case date + day number +
 day-type pill; one muted stats line (scenes · pages · cast · elements); three timing
 tiles (general call with a pencil affordance, first turnover, est. wrap + day length);
-one-line weather strip with the `Manual weather` toggle and the no-pin CTA. Breaks,
+one location/weather strip: a **master-location picker** over the day's attached
+locations — the **category entity dropdown** (Locations DB grouped by location type,
+searchable by name/group; writes `setDayMaster`) — + the one-line forecast with the
+card-owned refresh and the `Manual weather` toggle. The old toolbar weather chip is
+removed. Breaks,
 stripboard notes and the free-text announcements move to a new full-width **Breaks &
 Notes** card (registry `wide`, after Scenes), which owns the Copy-from-day extract; Day
 Details is no longer copyable. No data-model change.
 
 - **Scope:** `sections/DayDetailsSection.tsx`, `sections/BreaksNotesSection.tsx`
-  (announcements move in), `daySectionRegistry.tsx`, `e2e/day-manager.spec.ts`
-  (section/textarea selectors + the Copy-from-day pick), `TimeField.align` (left-aligned
-  tile value), docs (`AGENTS.md`, `DESIGN-LANGUAGE.md`).
+  (announcements move in), `daySectionRegistry.tsx`, `TimeField.align` (left-aligned
+  tile value), `DayManagerPage.tsx` + `daySectionTypes.ts` (weather refresh moves into
+  the section; `DayWeatherChip.tsx` deleted), `components/location/LocationEntityDropdown.tsx`
+  (the standalone category picker), `e2e/day-manager.spec.ts` (section/textarea
+  selectors, Copy-from-day pick, master-picker leg), docs (`AGENTS.md`,
+  `DESIGN-LANGUAGE.md`, `UI-PRIMITIVES.md`, `REPORTS-DESIGNER.md` — including the new
+  **grouped-dropdown rule**: locations by type, crew by department/position).
 - **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`; rule-7 manual
-  for the card layout/alignment.
+  for the card layout/alignment and the weather refresh.
 - **Relations:** 98, 101, 301; precedes 311.
 
 ## 311. Day Manager — category tab strip (`[ ]`)

@@ -39,4 +39,8 @@ export interface DaySectionProps {
   /** The selected day's sun/weather (roadmap 301). The page owns the single
    *  warm/refresh run so every surface reads the same resolved values. */
   weatherView?: DaySunWeatherView | null;
+  /** Force-refresh the day's forecast. The Day Details card owns the action
+   *  now that the toolbar weather chip is gone. */
+  refreshWeather?: (date: string) => void;
+  weatherRefreshing?: boolean;
 }
