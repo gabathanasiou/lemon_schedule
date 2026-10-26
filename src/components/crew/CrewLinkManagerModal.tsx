@@ -5,7 +5,7 @@ import { generateUUID } from '../../lib/utils';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems, isMultiValue } from '../../lib/categories';
 import { getCategoryElements } from '../../lib/elements';
 import { isLinkableCategory } from '../../lib/elementLinks';
-import { CREW_LINK_TARGET } from '../../lib/crewLinks';
+import { CREW_LINK_TARGET, crewLinkViews, crewLinkToUnified } from '../../lib/crewLinks';
 import { crewRoleGroup, resolveRoleCategories } from '../../lib/crewCatalog';
 import { CardSection, Seg } from '@gabriel/ui-kit';
 import Modal, { ModalFooter } from '../Modal';
@@ -103,7 +103,7 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
       if (dup) return current;
       return [...items, value].join(', ');
     };
-    for (const l of project.crewLinks || []) {
+    for (const l of crewLinkViews(project.links)) {
       let g = byPerson.get(l.personId);
       if (!g) {
         g = { id: generateUUID(), personId: l.personId, links: [] };
@@ -114,7 +114,7 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
       else g.links.push({ id: l.id, category: l.category, elementKey: l.elementKey });
     }
     return [...byPerson.values()];
-  }, [project.crewLinks]);
+  }, [project.links]);
 
   const [tab, setTab] = useState<'people' | 'positions'>('people');
   const [groups, setGroups] = useState<PersonGroup[]>(groupInit);
@@ -175,7 +175,15 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
 
   const commitGroups = (next: PersonGroup[]) => {
     setGroups(next);
-    dispatch({ type: 'UPDATE_PROJECT', payload: { crewLinks: next.flatMap(flatten) } });
+    dispatch({
+      type: 'UPDATE_PROJECT',
+      payload: {
+        links: [
+          ...(project.links || []).filter(l => l.anchorKind !== 'crew' && l.linkedKind !== 'crew'),
+          ...next.flatMap(flatten).map(crewLinkToUnified),
+        ],
+      },
+    });
   };
 
   const patchGroup = (gid: string, patch: Partial<PersonGroup>) =>

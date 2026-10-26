@@ -1,6 +1,7 @@
-import { ElementLink, Scene } from '../types';
+import { Link, Scene } from '../types';
 import { ELEMENT_CATEGORIES, getFieldItems, isMultiValue } from './categories';
 import type { CustomCategoryDef } from '../types';
+import { elementValueMatches, isPropagationLink } from './links';
 
 /**
  * Element links (roadmap 44) — one-way, anchor-based. The anchor owns the
@@ -29,20 +30,21 @@ export function isLinkableCategory(category: string, customCategories?: CustomCa
 }
 
 /** Links whose anchor is `(category, value)` (names matched case-insensitively). */
-export function getAnchorLinks(links: ElementLink[], category: string, value: string): ElementLink[] {
+export function getAnchorLinks(links: Link[], category: string, value: string): Link[] {
   if (!links || links.length === 0 || !value) return [];
   return links.filter(l =>
+    isPropagationLink(l) &&
     l.anchorCategory === category &&
-    (category === 'cast' ? l.anchorValue === value : l.anchorValue.toLowerCase() === value.toLowerCase()),
+    elementValueMatches(category, l.anchorValue, value),
   );
 }
 
 /** Item keys (`elementMatchId` space: cast = Board ID, others = name) that act
  *  as an anchor in any link for `category` — for anchor indicators in pickers. */
-export function anchoredKeysFor(links: ElementLink[], category: string): Set<string> {
+export function anchoredKeysFor(links: Link[], category: string): Set<string> {
   const keys = new Set<string>();
   for (const l of links || []) {
-    if (l.anchorCategory === category && l.anchorValue) keys.add(l.anchorValue);
+    if (isPropagationLink(l) && l.anchorCategory === category && l.anchorValue) keys.add(l.anchorValue);
   }
   return keys;
 }
@@ -84,7 +86,7 @@ export function addValueToField(customCategories: CustomCategoryDef[] | undefine
  * field accumulate). Returns only the linked categories that changed.
  */
 export function computePropagation(
-  links: ElementLink[],
+  links: Link[],
   customCategories: CustomCategoryDef[] | undefined,
   before: Scene,
   after: Scene,
@@ -104,10 +106,11 @@ export function computePropagation(
     for (const added of itemsOf(cat, a)) {
       if (beforeItems.includes(added)) continue;
       for (const link of getAnchorLinks(links, cat, added)) {
-        const next = addValueToField(customCategories, link.linkedCategory, current[link.linkedCategory], link.linkedValue);
+        const linkedCategory = link.linkedCategory as string;
+        const next = addValueToField(customCategories, linkedCategory, current[linkedCategory], link.linkedValue);
         if (next != null) {
-          current[link.linkedCategory] = next;
-          extra[link.linkedCategory] = next;
+          current[linkedCategory] = next;
+          extra[linkedCategory] = next;
         }
       }
     }
@@ -118,7 +121,7 @@ export function computePropagation(
 export interface RemovedAnchorLink {
   category: string;
   value: string;
-  links: ElementLink[];
+  links: Link[];
 }
 
 /**
@@ -127,7 +130,7 @@ export interface RemovedAnchorLink {
  * strips the linked values from the scene when confirmed.
  */
 export function computeRemovedLinks(
-  links: ElementLink[],
+  links: Link[],
   customCategories: CustomCategoryDef[] | undefined,
   before: Scene,
   after: Scene,
@@ -167,24 +170,25 @@ export function cascadeRemoval(
   }
   for (const r of removed) {
     for (const link of r.links) {
-      const cur = current[link.linkedCategory] || '';
+      const linkedCategory = link.linkedCategory as string;
+      const cur = current[linkedCategory] || '';
       let next: string | null = null;
-      if (isMultiValue(link.linkedCategory, customCategories)) {
-        const items = getFieldItems(link.linkedCategory, cur).filter(v => {
-          const target = link.linkedCategory === 'cast' ? v : v.toLowerCase();
-          const val = link.linkedCategory === 'cast' ? link.linkedValue : link.linkedValue.toLowerCase();
+      if (isMultiValue(linkedCategory, customCategories)) {
+        const items = getFieldItems(linkedCategory, cur).filter(v => {
+          const target = linkedCategory === 'cast' ? v : v.toLowerCase();
+          const val = linkedCategory === 'cast' ? link.linkedValue : link.linkedValue.toLowerCase();
           return target !== val;
         });
         const joined = items.join(', ');
         if (joined !== cur) next = joined;
       } else {
-        const target = link.linkedCategory === 'cast' ? cur.trim() : cur.trim().toLowerCase();
-        const val = link.linkedCategory === 'cast' ? link.linkedValue : link.linkedValue.toLowerCase();
+        const target = linkedCategory === 'cast' ? cur.trim() : cur.trim().toLowerCase();
+        const val = linkedCategory === 'cast' ? link.linkedValue : link.linkedValue.toLowerCase();
         if (target === val) next = '';
       }
       if (next != null) {
-        current[link.linkedCategory] = next;
-        extra[link.linkedCategory] = next;
+        current[linkedCategory] = next;
+        extra[linkedCategory] = next;
       }
     }
   }
@@ -200,14 +204,17 @@ export function cascadeRemoval(
 export function applyLinkToScenes(
   customCategories: CustomCategoryDef[] | undefined,
   scenes: Scene[],
-  link: ElementLink,
+  link: Link,
 ): { id: string; updates: Record<string, string> }[] {
+  if (!isPropagationLink(link)) return [];
   const out: { id: string; updates: Record<string, string> }[] = [];
+  const anchorCategory = link.anchorCategory as string;
+  const linkedCategory = link.linkedCategory as string;
   for (const s of scenes) {
-    const anchorField = (s as any)[link.anchorCategory] as string | undefined;
-    if (!fieldContains(link.anchorCategory, anchorField, link.anchorValue)) continue;
-    const next = addValueToField(customCategories, link.linkedCategory, (s as any)[link.linkedCategory], link.linkedValue);
-    if (next != null) out.push({ id: s.id, updates: { [link.linkedCategory]: next } });
+    const anchorField = (s as any)[anchorCategory] as string | undefined;
+    if (!fieldContains(anchorCategory, anchorField, link.anchorValue)) continue;
+    const next = addValueToField(customCategories, linkedCategory, (s as any)[linkedCategory], link.linkedValue);
+    if (next != null) out.push({ id: s.id, updates: { [linkedCategory]: next } });
   }
   return out;
 }

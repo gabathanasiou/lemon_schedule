@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useProject } from '../../store';
-import { ElementLink } from '../../types';
+import { Link } from '../../types';
 import { generateUUID } from '../../lib/utils';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems, isMultiValue } from '../../lib/categories';
 import { getCategoryElements } from '../../lib/elements';
 import { applyLinkToScenes, isLinkableCategory, anchoredKeysFor } from '../../lib/elementLinks';
+import { isPropagationLink } from '../../lib/links';
 import { CardSection } from '@gabriel/ui-kit';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
@@ -66,7 +67,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
       if (items.some(v => v.toLowerCase() === value.toLowerCase())) return current;
       return [...items, value].join(', ');
     };
-    for (const l of project.elementLinks || []) {
+    for (const l of (project.links || []).filter(isPropagationLink)) {
       const key = `${l.anchorCategory}|${l.anchorValue}`;
       let g = byAnchor.get(key);
       if (!g) {
@@ -87,7 +88,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
       });
     }
     return list;
-  }, [project.elementLinks, initialAnchorCategory]);
+  }, [project.links, initialAnchorCategory]);
 
   const [groups, setGroups] = useState<AnchorGroup[]>(groupInit);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -145,19 +146,19 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
   // another card).
   const anchoredByCategory = useMemo(() => {
     const map = new Map<string, Set<string>>();
-    for (const cat of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
-      map.set(cat, anchoredKeysFor(project.elementLinks, cat));
+    for (const cat of new Set((project.links || []).map(l => l.anchorCategory))) {
+      map.set(cat, anchoredKeysFor(project.links, cat));
     }
     return map;
-  }, [project.elementLinks]);
+  }, [project.links]);
 
   /** Flattens a draft into flat links. Multi-value picks (comma lists) expand
    *  to one link per value; incomplete rows and exact duplicates are dropped. */
-  const flatten = useCallback((g: AnchorGroup): ElementLink[] => {
+  const flatten = useCallback((g: AnchorGroup): Link[] => {
     if (!g.category || !g.anchorValue) return [];
     const anchors = getFieldItems(g.category, g.anchorValue);
     if (anchors.length === 0) return [];
-    const out: ElementLink[] = [];
+    const out: Link[] = [];
     const seen = new Set<string>();
     for (const l of g.links) {
       if (!l.linkedCategory || !l.linkedValue) continue;
@@ -166,7 +167,15 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
           const k = `${g.category}|${anchorValue}|${l.linkedCategory}|${linkedValue}`.toLowerCase();
           if (seen.has(k)) continue;
           seen.add(k);
-          out.push({ id: l.id, anchorCategory: g.category, anchorValue, linkedCategory: l.linkedCategory, linkedValue });
+          out.push({
+            id: l.id,
+            anchorKind: 'element',
+            anchorCategory: g.category,
+            anchorValue,
+            linkedKind: 'element',
+            linkedCategory: l.linkedCategory,
+            linkedValue,
+          });
         }
       }
     }
@@ -176,7 +185,10 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
   /** Flattens cards into the storage shape, then persists immediately. */
   const commitGroups = (next: AnchorGroup[]) => {
     setGroups(next);
-    dispatch({ type: 'UPDATE_PROJECT', payload: { elementLinks: next.flatMap(flatten) } });
+    dispatch({
+      type: 'UPDATE_PROJECT',
+      payload: { links: [...(project.links || []).filter(l => !isPropagationLink(l)), ...next.flatMap(flatten)] },
+    });
     setApplied({});
     setAppliedAll(false);
   };
@@ -226,7 +238,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
     }]);
   };
 
-  const filledLinks = (g: AnchorGroup): ElementLink[] => flatten(g);
+  const filledLinks = (g: AnchorGroup): Link[] => flatten(g);
 
   const applyGroup = (gid: string) => {
     const g = groups.find(x => x.id === gid);
@@ -250,7 +262,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
 
   const applyAll = () => {
     if (validLinkCount === 0) return;
-    const links: ElementLink[] = groups.flatMap(filledLinks);
+    const links: Link[] = groups.flatMap(filledLinks);
     const working = new Map(project.scenes.map(s => [s.id, { ...s } as any]));
     const targets: { id: string; updates: Record<string, string> }[] = [];
     for (const link of links) {

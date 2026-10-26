@@ -9,6 +9,7 @@ import { getNonShootEntryMap, isElementMarked } from './nonShootHelpers';
 import { computeSectionViolationMap } from './rulesEngine';
 import { codeForType } from './dayTypes';
 import { groupSlotsByDept, resolveSlotCall, slotsForDay, type DayCrewGroup } from './dayCrew';
+import { getElementOutgoingLinks } from './links';
 
 /**
  * Canonical read model for ONE production day (D7). The page, the pop-out, the
@@ -110,6 +111,32 @@ export interface DayView {
   crewGroups: DayCrewGroup[];
   violations: RuleViolation[];
   sums: SectionSums;
+}
+
+/** Locations linked from the day's SET elements (roadmap 309) — suggestions
+ *  for the master/key location pickers. Nothing is attached automatically. */
+export interface LinkedDayLocation {
+  location: ProjectLocation;
+  /** Display name of the set element that owns the link. */
+  fromSet: string;
+}
+
+export function linkedLocationsForDay(project: Project, day: DayView): LinkedDayLocation[] {
+  const sets = day.elements['set'] || [];
+  if (sets.length === 0) return [];
+  const byId = new Map((project.locations || []).map(l => [l.id, l]));
+  const out: LinkedDayLocation[] = [];
+  const seen = new Set<string>();
+  for (const set of sets) {
+    for (const link of getElementOutgoingLinks(project.links, 'set', set.key, 'location')) {
+      if (seen.has(link.linkedValue)) continue;
+      const location = byId.get(link.linkedValue);
+      if (!location) continue;
+      seen.add(link.linkedValue);
+      out.push({ location, fromSet: set.name || set.key });
+    }
+  }
+  return out;
 }
 
 function resolveName(key: string, category: string, project: any): string {

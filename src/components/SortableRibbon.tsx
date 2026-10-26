@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation, SceneColorPalette, CustomCategoryDef, ProjectElement, ElementLink } from '../types';
+import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation, SceneColorPalette, CustomCategoryDef, ProjectElement, Link } from '../types';
 import { ComputedRowInput, formatElapsedCaption } from '../lib/daybreakUtils';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, ribCellTextSize, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
@@ -89,7 +89,7 @@ const SortableRowContent: React.FC<{
   breakdownElements?: Record<string, ProjectElement[]>,
   customCategories?: CustomCategoryDef[],
   hiddenCategories?: string[],
-  elementLinks?: ElementLink[],
+  elementLinks?: Link[],
 }> = React.memo(({ row, scenes, scene: sceneProp, isSelected, isFaded, isCompact, isEditable, focusField, sceneViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories, elementLinks }) => {
   const portalTarget = usePortalTarget();
 
@@ -732,7 +732,7 @@ export const SortableRibbon = React.memo(({
   breakdownElements?: Record<string, ProjectElement[]>,
   customCategories?: CustomCategoryDef[],
   hiddenCategories?: string[],
-  elementLinks?: ElementLink[],
+  elementLinks?: Link[],
 }) => {
   // The static (non-interactive) row content — shared by the read-only path
   // and the remote drag ghost so the visual can never drift between them.

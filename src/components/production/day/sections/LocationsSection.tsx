@@ -7,6 +7,7 @@ import { resolvedLocationName, typeLabelOf } from '../../../../lib/locations';
 import { generateUUID } from '../../../../lib/utils';
 import type { PickedLocation } from '../../../../lib/places';
 import type { ProjectLocation } from '../../../../types';
+import { linkedLocationsForDay } from '../../../../lib/dayView';
 
 /** The picker is open either to CREATE a new location or to EDIT one already
  *  attached (master / key location chip) — editing must never spawn a duplicate
@@ -26,14 +27,25 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
     const sceneItems: GroupedSelectItem[] = day.sceneLocations
       .filter(name => !dbNames.has(name.trim().toLowerCase()))
       .map(name => ({ id: `scene:${name}`, name }));
-    const dbItems: GroupedSelectItem[] = locations.map(l => ({
+    // Roadmap 309: locations linked from the day's SET elements are
+    // suggestions in the same pickers (never auto-attached). The DB copy of a
+    // linked location is folded into its suggestion group to avoid duplicates.
+    const linked = linkedLocationsForDay(project, day);
+    const linkedIds = new Set(linked.map(x => x.location.id));
+    const linkedItems: GroupedSelectItem[] = linked.map(x => ({
+      id: x.location.id,
+      name: resolvedLocationName(x.location.name, x.location.address, x.location.place, x.location.lat, x.location.lng),
+      group: `Linked from ${x.fromSet}`,
+      hint: x.location.address && x.location.address !== x.location.name ? x.location.address : undefined,
+    }));
+    const dbItems: GroupedSelectItem[] = locations.filter(l => !linkedIds.has(l.id)).map(l => ({
       id: l.id,
       name: resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng),
       group: typeLabelOf(l, types),
       hint: l.address && l.address !== l.name ? l.address : undefined,
     }));
-    return [...sceneItems, ...dbItems];
-  }, [locations, types, day.sceneLocations]);
+    return [...sceneItems, ...linkedItems, ...dbItems];
+  }, [locations, types, day.sceneLocations, day.elements, project]);
 
   /** Maps a picker id to a real Locations-DB id, creating a DB entry for a
    *  scene-derived name. */

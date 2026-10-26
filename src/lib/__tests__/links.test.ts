@@ -10,8 +10,10 @@ import {
   getOutgoingLinks,
   isPropagationLink,
   migrateProjectLinks,
+  renameElementInLinks,
 } from '../links';
 import type { Link } from '../../types';
+import { linkedLocationsForDay } from '../dayView';
 
 const link = (partial: Partial<Link>): Link => ({
   id: 'l',
@@ -111,5 +113,50 @@ describe('migrateProjectLinks', () => {
     ];
     expect(migrateProjectLinks(project)).toBe(true);
     expect(project.links.map((l: Link) => l.id)).toEqual(['e1', 'new']);
+  });
+});
+
+describe('renameElementInLinks', () => {
+  it('rewrites both sides and leaves crew/location links alone', () => {
+    const links = [
+      link({ id: 'a', anchorValue: 'gun' }),
+      link({ id: 'b', anchorValue: 'ROPE', linkedCategory: 'props', linkedValue: 'gun' }),
+      link({ id: 'c', anchorKind: 'crew', anchorCategory: undefined, anchorValue: 'bob', linkedKind: 'crew', linkedCategory: undefined, linkedValue: 'alice' }),
+      link({ id: 'd', anchorCategory: 'cast', anchorValue: '1', linkedCategory: 'cast', linkedValue: '2' }),
+    ];
+    const out = renameElementInLinks(links, 'props', 'GUN', 'RIFLE');
+    expect(out.find(l => l.id === 'a')?.anchorValue).toBe('RIFLE');
+    expect(out.find(l => l.id === 'b')?.linkedValue).toBe('RIFLE');
+    expect(out.find(l => l.id === 'c')).toEqual(links[2]);
+    expect(out.find(l => l.id === 'd')).toEqual(links[3]);
+  });
+
+  it('cast ids match exactly', () => {
+    const links = [link({ anchorCategory: 'cast', anchorValue: '1', linkedCategory: 'cast', linkedValue: '2' })];
+    const out = renameElementInLinks(links, 'cast', '1', '01');
+    expect(out[0].anchorValue).toBe('01');
+  });
+});
+
+describe('linkedLocationsForDay', () => {
+  const project: any = {
+    locations: [{ id: 'l1', name: 'Stage 2', type: 'stage' }, { id: 'l2', name: 'Hospital', type: 'hospital' }],
+    links: [
+      { id: 'a', anchorKind: 'element', anchorCategory: 'set', anchorValue: 'SET A', linkedKind: 'location', linkedValue: 'l1' },
+      { id: 'b', anchorKind: 'element', anchorCategory: 'set', anchorValue: 'SET B', linkedKind: 'location', linkedValue: 'l1' },
+      { id: 'c', anchorKind: 'element', anchorCategory: 'set', anchorValue: 'SET B', linkedKind: 'location', linkedValue: 'l2' },
+    ],
+  };
+  const day: any = { elements: { set: [{ key: 'SET A', name: 'SET A' }, { key: 'SET B', name: 'SET B' }] } };
+
+  it('collects the day sets’ linked locations, deduped, with the source set', () => {
+    const out = linkedLocationsForDay(project, day);
+    expect(out.map((x: any) => x.location.id)).toEqual(['l1', 'l2']);
+    expect(out[0].fromSet).toBe('SET A');
+    expect(out[1].fromSet).toBe('SET B');
+  });
+
+  it('ignores days with no sets', () => {
+    expect(linkedLocationsForDay(project, { elements: {} } as any)).toEqual([]);
   });
 });

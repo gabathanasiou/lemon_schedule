@@ -1253,7 +1253,7 @@ export function crewLinkWarningsForReportDay(ctx: ReportCtx, day: ReportDayInfo)
   }
   const byId = crewNameMap(ctx.project);
   return crewLinkWarnings({
-    links: ctx.project.crewLinks,
+    links: ctx.project.links,
     dayCrewIds,
     crewName: id => byId.get(id),
     targetLabel: link => targetLabelForLink(ctx.project, link),

@@ -7,10 +7,12 @@ import {
   addValueToField,
   computePropagation,
 } from '../elementLinks';
-import type { ElementLink, Scene } from '../../types';
+import type { Link, Scene } from '../../types';
 
-const link = (over: Partial<ElementLink>): ElementLink => ({
+const link = (over: Partial<Link>): Link => ({
   id: over.id ?? 'l',
+  anchorKind: 'element',
+  linkedKind: 'element',
   anchorCategory: over.anchorCategory ?? 'cast',
   anchorValue: over.anchorValue ?? '1',
   linkedCategory: over.linkedCategory ?? 'props',

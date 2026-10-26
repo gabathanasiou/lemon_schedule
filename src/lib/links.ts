@@ -179,3 +179,30 @@ export function migrateProjectLinks(project: Project): boolean {
   delete project.crewLinks;
   return true;
 }
+
+/**
+ * Rewrites element values in a link store after a rename or Board-ID change
+ * (roadmap 308). Matching follows the category: cast ids exact, names
+ * case-insensitive. Returns a new array; callers dedupe after merges.
+ */
+export function renameElementInLinks(
+  links: Link[],
+  category: string,
+  oldValue: string,
+  newValue: string,
+): Link[] {
+  if (!oldValue || oldValue === newValue) return links;
+  let changed = false;
+  const out = links.map(l => {
+    let next = l;
+    if (next.anchorKind === 'element' && next.anchorCategory === category && elementValueMatches(category, next.anchorValue, oldValue)) {
+      next = { ...next, anchorValue: newValue };
+    }
+    if (next.linkedKind === 'element' && next.linkedCategory === category && elementValueMatches(category, next.linkedValue, oldValue)) {
+      next = { ...next, linkedValue: newValue };
+    }
+    if (next !== l) changed = true;
+    return next;
+  });
+  return changed ? out : links;
+}

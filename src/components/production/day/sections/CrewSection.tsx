@@ -38,7 +38,7 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
     const dayCrewIds = new Set(day.crew.map(c => c.person.id));
     const nameById = crewNameMap(project);
     return crewLinkWarnings({
-      links: project.crewLinks,
+      links: project.links,
       dayCrewIds,
       crewName: id => nameById.get(id),
       targetLabel: link => targetLabelForLink(project, link),

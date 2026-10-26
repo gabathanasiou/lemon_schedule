@@ -9,8 +9,8 @@ import DropdownItem from '../DropdownItem';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { ElementPropertiesSection, elementViewOptions } from './ElementPropertiesSection';
+import { ElementLinksSection } from './ElementLinksSection';
 import { ElementEventsSection } from './ElementEventsSection';
-import { ElementCrewLinksSection } from '../crew/ElementCrewLinksSection';
 
 /**
  * Element View (roadmap 306) — ONE per-element panel, launched from the
@@ -20,11 +20,11 @@ import { ElementCrewLinksSection } from '../crew/ElementCrewLinksSection';
  * the two old per-element modals (crew links + events) — don't re-add them.
  */
 
-type Tab = 'properties' | 'crew' | 'events';
+type Tab = 'properties' | 'links' | 'events';
 
 const TAB_OPTIONS = [
   { v: 'properties', l: 'Properties' },
-  { v: 'crew', l: 'Crew' },
+  { v: 'links', l: 'Links' },
   { v: 'events', l: 'Events' },
 ];
 
@@ -140,8 +140,8 @@ export function ElementViewModal({ category, rowKey, onClose }: {
           <div className="p-6 text-xs text-zinc-500">This category has no elements yet.</div>
         ) : tab === 'properties' ? (
           <ElementPropertiesSection category={category} elementKey={selectedKey} onKeyChange={setSelectedKey} />
-        ) : tab === 'crew' ? (
-          <ElementCrewLinksSection category={category} elementKey={elementKey(selected)} elementName={elementName} />
+        ) : tab === 'links' ? (
+          <ElementLinksSection category={category} elementKey={selectedKey} onSelectElement={setSelectedKey} />
         ) : (
           <ElementEventsSection
             category={category}

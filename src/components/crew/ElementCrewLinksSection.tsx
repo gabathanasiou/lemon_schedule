@@ -3,7 +3,7 @@ import { useProject } from '../../store';
 import { generateUUID } from '../../lib/utils';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { crewRoleGroup } from '../../lib/crewCatalog';
-import { getCrewLinksForElement } from '../../lib/crewLinks';
+import { getCrewLinksForElement, crewLinkToUnified } from '../../lib/crewLinks';
 import { CrewRole } from '../../types';
 import { CardSection } from '@gabriel/ui-kit';
 import Checklist from '../Checklist';
@@ -16,10 +16,12 @@ import { Users } from 'lucide-react';
  * truth (`lib/crewLinks.ts`). Body only: the Element View panel owns the
  * header, tabs and footer.
  */
-export function ElementCrewLinksSection({ category, elementKey, elementName }: {
+export function ElementCrewLinksSection({ category, elementKey, elementName, bare = false }: {
   category: string;
   elementKey: string;
   elementName: string;
+  /** Render inside another card (no page padding). */
+  bare?: boolean;
 }) {
   const { state, dispatch, locked } = useProject();
   const project = state.present;
@@ -27,8 +29,8 @@ export function ElementCrewLinksSection({ category, elementKey, elementName }: {
 
   const categoryLabel = getLabel(category, ELEMENT_CATEGORIES.find(c => c.key === category)?.label || category, project.categoryLabels);
   const linkedIds = useMemo(
-    () => new Set(getCrewLinksForElement(project.crewLinks, category, elementKey).map(l => l.personId)),
-    [project.crewLinks, category, elementKey],
+    () => new Set(getCrewLinksForElement(project.links, category, elementKey).map(l => l.personId)),
+    [project.links, category, elementKey],
   );
 
   const groups = useMemo(() => {
@@ -44,11 +46,14 @@ export function ElementCrewLinksSection({ category, elementKey, elementName }: {
 
   const toggle = (personId: string) => {
     if (locked) return;
-    const current = project.crewLinks || [];
+    const current = project.links || [];
+    const isThis = (l: any) => l.anchorKind === 'element' && l.anchorCategory === category &&
+      l.linkedKind === 'crew' && l.linkedValue === personId &&
+      (category === 'cast' ? l.anchorValue === elementKey : l.anchorValue.toLowerCase() === elementKey.toLowerCase());
     const next = linkedIds.has(personId)
-      ? current.filter(l => !(l.personId === personId && l.category === category && l.elementKey.toLowerCase() === elementKey.toLowerCase()))
-      : [...current, { id: generateUUID(), personId, category, elementKey }];
-    dispatch({ type: 'UPDATE_PROJECT', payload: { crewLinks: next } });
+      ? current.filter(l => !isThis(l))
+      : [...current, crewLinkToUnified({ id: generateUUID(), personId, category, elementKey })];
+    dispatch({ type: 'UPDATE_PROJECT', payload: { links: next } });
   };
 
   const toggleCollapse = (name: string) =>
@@ -59,7 +64,7 @@ export function ElementCrewLinksSection({ category, elementKey, elementName }: {
     });
 
   return (
-    <div className="p-6 space-y-4">
+    <div className={bare ? 'space-y-4' : 'p-6 space-y-4'}>
       <p className="text-xs text-zinc-400 leading-relaxed">
         Crew members linked to this {categoryLabel.toLowerCase()} element. The same links appear on the person's card in
         Crew Manager → Links.

@@ -153,7 +153,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     enabled: presenceScroll.enabled && !!sceneId && sceneSheetIndex >= 0,
   });
 
-  const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
+  const linkGuard = useLinkedEditGuard(project.links, project.customCategories, dispatch);
   const { trySetSceneNumber, modal: sceneNumberCollisionModal } = useSceneNumberCollisionGuard(dispatch, scenes);
   const { queue } = useQueueCastNaming();
 
@@ -182,11 +182,11 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   // dropdowns next to elements that anchor element links.
   const anchoredByCategory = useMemo(() => {
     const map: Record<string, Set<string>> = {};
-    for (const cat of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
-      map[cat] = anchoredKeysFor(project.elementLinks, cat);
+    for (const cat of new Set((project.links || []).map(l => l.anchorCategory))) {
+      map[cat] = anchoredKeysFor(project.links, cat);
     }
     return map;
-  }, [project.elementLinks]);
+  }, [project.links]);
 
   const { sceneToSection, sectionLabelMap, sectionDateMap } = useDaybreakSections();
 

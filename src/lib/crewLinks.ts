@@ -1,41 +1,71 @@
-import { CrewLink, Project } from '../types';
+import { CrewLink, Link, Project } from '../types';
 import { getCategoryElements, elementMatchId } from './elements';
+import { CREW_LINK_TARGET } from './links';
 
 /**
- * Crew person ↔ target links (roadmap 11) — one-way, anchor = the crew person.
- * A parallel model to `elementLinks` (whose sides are category+value pairs); a
- * crew anchor is a person id, so overloading `elementLinks` would lose that
- * identity. This module is the single read/write seam: reports, the Crew Links
- * manager and the Element Manager all resolve through it.
+ * Crew links (roadmap 11/308) — a VIEW over the unified `project.links`
+ * store. The canonical record is element-owned (`element → crew`); person →
+ * person links are crew-owned (`crew → crew`). This module keeps the legacy
+ * `CrewLink` shape for the Crew Manager UI and the report fields, converting
+ * on read and back on write (`crewLinkToUnified`).
  *
- * The target is either an element (cast/other category, matched through
- * `elementMatchId`: cast = Board ID, others = case-insensitive name) or another
- * CREW PERSON (reserved `category = CREW_LINK_TARGET`, `elementKey` = person id)
- * — e.g. "Driver: Mat — for Director" or "Chaperone: Mary — for 13. Alex".
+ * Matching: elements via `elementMatchId` (cast = Board ID, others = name,
+ * case-insensitive); people by id.
  */
 
 /** Reserved category meaning "the target is another crew person". */
-export const CREW_LINK_TARGET = 'crew';
+export { CREW_LINK_TARGET } from './links';
 
-/** Links owned by one person (the anchor). */
-export function getCrewLinksForPerson(links: CrewLink[] | undefined, personId: string): CrewLink[] {
-  if (!links || !personId) return [];
-  return links.filter(l => l.personId === personId);
+/** One legacy-shaped view per crew-involving link (person-anchored). */
+export function crewLinkViews(links: Link[] | undefined): CrewLink[] {
+  const out: CrewLink[] = [];
+  for (const l of links || []) {
+    if (l.anchorKind === 'element' && l.linkedKind === 'crew' && l.anchorCategory) {
+      out.push({ id: l.id, personId: l.linkedValue, category: l.anchorCategory, elementKey: l.anchorValue });
+    } else if (l.anchorKind === 'crew' && l.linkedKind === 'crew') {
+      out.push({ id: l.id, personId: l.anchorValue, category: CREW_LINK_TARGET, elementKey: l.linkedValue });
+    } else if (l.anchorKind === 'crew' && l.linkedKind === 'element' && l.linkedCategory) {
+      // Kept for safety on hand-edited files: person anchored to an element.
+      out.push({ id: l.id, personId: l.anchorValue, category: l.linkedCategory, elementKey: l.linkedValue });
+    }
+  }
+  return out;
 }
 
-/** Element links that point at one element — the per-element "Linked crew"
- *  view. Crew→crew links are excluded. */
-export function getCrewLinksForElement(links: CrewLink[] | undefined, category: string, elementKey: string): CrewLink[] {
+/** Canonical unified record for one legacy crew-link row. */
+export function crewLinkToUnified(l: CrewLink): Link {
+  if (l.category === CREW_LINK_TARGET) {
+    return { id: l.id, anchorKind: 'crew', anchorValue: l.personId, linkedKind: 'crew', linkedValue: l.elementKey };
+  }
+  return {
+    id: l.id,
+    anchorKind: 'element',
+    anchorCategory: l.category,
+    anchorValue: l.elementKey,
+    linkedKind: 'crew',
+    linkedValue: l.personId,
+  };
+}
+
+/** Links owned by one person (legacy view). */
+export function getCrewLinksForPerson(links: Link[] | undefined, personId: string): CrewLink[] {
+  if (!links || !personId) return [];
+  return crewLinkViews(links).filter(l => l.personId === personId);
+}
+
+/** Crew links attached to one element — the per-element view. */
+export function getCrewLinksForElement(links: Link[] | undefined, category: string, elementKey: string): CrewLink[] {
   if (!links || !elementKey || category === CREW_LINK_TARGET) return [];
-  const target = category === 'cast' ? elementKey : elementKey.toLowerCase();
-  return links.filter(l => l.category === category &&
-    (category === 'cast' ? l.elementKey === target : l.elementKey.toLowerCase() === target));
+  return crewLinkViews(links).filter(l =>
+    l.category === category &&
+    (category === 'cast' ? l.elementKey === elementKey : l.elementKey.toLowerCase() === elementKey.toLowerCase()),
+  );
 }
 
 /** Crew→crew links that point at one person (the reverse view). */
-export function getCrewLinksTargetingPerson(links: CrewLink[] | undefined, personId: string): CrewLink[] {
+export function getCrewLinksTargetingPerson(links: Link[] | undefined, personId: string): CrewLink[] {
   if (!links || !personId) return [];
-  return links.filter(l => l.category === CREW_LINK_TARGET && l.elementKey === personId);
+  return crewLinkViews(links).filter(l => l.category === CREW_LINK_TARGET && l.elementKey === personId);
 }
 
 /** Human label for a linked element ("1. FISHERMAN" for cast, name otherwise). */
@@ -62,10 +92,9 @@ export function targetLabelForLink(project: Project, link: CrewLink): string {
 }
 
 /** Resolved element labels a person is linked to (comma-separated) — the
- *  `linkedElements` report field. Crew targets are excluded (see
- *  `linkedCrewNamesForPerson`). */
+ *  crew item's `linkedElements` report field. Crew targets are excluded. */
 export function linkedElementLabelsForPerson(project: Project, personId: string): string {
-  return getCrewLinksForPerson(project.crewLinks, personId)
+  return getCrewLinksForPerson(project.links, personId)
     .filter(l => l.category !== CREW_LINK_TARGET)
     .map(l => elementLabelForLink(project, l))
     .join(', ');
@@ -76,7 +105,7 @@ export function linkedElementLabelsForPerson(project: Project, personId: string)
 export function linkedCrewNamesForPerson(project: Project, personId: string): string {
   const byId = crewNameMap(project);
   const names: string[] = [];
-  for (const link of getCrewLinksForPerson(project.crewLinks, personId)) {
+  for (const link of getCrewLinksForPerson(project.links, personId)) {
     if (link.category !== CREW_LINK_TARGET) continue;
     const name = byId.get(link.elementKey);
     if (name && !names.includes(name)) names.push(name);
@@ -84,12 +113,12 @@ export function linkedCrewNamesForPerson(project: Project, personId: string): st
   return names.join(', ');
 }
 
-/** Resolved crew names linked to an element (comma-separated) — the
+/** Resolved crew names linked to an element (comma-separated) — the element's
  *  `linkedCrew` report field. */
 export function linkedCrewNamesForElement(project: Project, category: string, elementKey: string): string {
   const byId = crewNameMap(project);
   const names: string[] = [];
-  for (const link of getCrewLinksForElement(project.crewLinks, category, elementKey)) {
+  for (const link of getCrewLinksForElement(project.links, category, elementKey)) {
     const name = byId.get(link.personId);
     if (name && !names.includes(name)) names.push(name);
   }
@@ -110,18 +139,17 @@ export interface CrewLinkWarning {
  * Dangling-link warnings for ONE day (roadmap 11): a crew person who IS on the
  * day is linked to a target (another crew person or an element) that is NOT on
  * the day — the assignment has nothing to point at, so printing would lie.
- * `isElementOnDay` receives the `elementMatchId` key (cast = Board ID, others =
- * name, case-insensitive).
+ * `isElementOnDay` receives the `elementMatchId` key.
  */
 export function crewLinkWarnings(params: {
-  links: CrewLink[] | undefined;
+  links: Link[] | undefined;
   dayCrewIds: ReadonlySet<string>;
   crewName: (id: string) => string | undefined;
   targetLabel: (link: CrewLink) => string;
   isElementOnDay: (category: string, elementKey: string) => boolean;
 }): CrewLinkWarning[] {
   const out: CrewLinkWarning[] = [];
-  for (const link of params.links || []) {
+  for (const link of crewLinkViews(params.links)) {
     if (!params.dayCrewIds.has(link.personId)) continue;
     const anchor = params.crewName(link.personId) || link.personId;
     const label = params.targetLabel(link);

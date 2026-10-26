@@ -343,7 +343,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
                         breakdownElements={project.breakdownElements}
                         customCategories={project.customCategories}
                         hiddenCategories={project.hiddenCategories}
-                        elementLinks={project.elementLinks}
+                        elementLinks={project.links}
                       />
                   </React.Fragment>
                 );

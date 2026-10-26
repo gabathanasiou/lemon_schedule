@@ -240,7 +240,7 @@ export const RulesTab: React.FC = () => {
               initial={editingRule}
               scenes={scenes}
               castMembers={castMembers}
-              anchoredKeys={anchoredKeysFor(project.elementLinks, 'cast')}
+              anchoredKeys={anchoredKeysFor(project.links, 'cast')}
               onSave={handleSave}
               onDelete={editingRule ? () => { handleDelete(editingRule); setShowForm(false); setEditingRule(null); } : undefined}
               onClose={() => { setShowForm(false); setEditingRule(null); }}
