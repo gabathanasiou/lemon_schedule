@@ -242,7 +242,10 @@ const E2E_SPEC_CAP = 70;
 // 280 → 281: roadmap 298 — the crew table's repeated column header: the page
 // budget (pageStartExtra) and the continuation render only exist in measured
 // print DOM; an unbudgeted repeat silently overflows/clips the page.
-const E2E_TEST_CAP = 281;
+// 281 → 283: roadmap 257 — Board ID data safety: (a) Auto-ID plus a manual
+// renumber must never rewrite scene fields, (b) a duplicate number must not
+// land (the cell reverts) — both are silent-corruption paths.
+const E2E_TEST_CAP = 283;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

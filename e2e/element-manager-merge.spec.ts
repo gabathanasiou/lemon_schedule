@@ -56,7 +56,9 @@ async function seedControlledData(page: import('@playwright/test').Page) {
     ];
     const props = [
       { id: 'gun', name: 'gun' },
-      ...(p.breakdownElements?.props || []).filter((e: any) => e.name !== 'cannon'),
+      // Drop the seed's case-variant 'Gun' too: two stored ids ('Gun'/'gun')
+      // collapse case-insensitively on update and would fake a duplicate.
+      ...(p.breakdownElements?.props || []).filter((e: any) => !['cannon', 'gun'].includes(e.name.toLowerCase())),
     ];
     const next = {
       ...p,
@@ -246,5 +248,66 @@ test.describe('Element Manager commit-on-blur', () => {
     // the seed LOAD cleared history and sorting dispatches nothing → no undo
     await expect(undoBtn).toBeDisabled();
     await expect(page.locator('tbody textarea[data-manager-name]').first()).not.toHaveValue(firstValue);
+  });
+
+  test('Board IDs: Auto-ID numbers the category; renumbering never touches scenes', async ({ page }) => {
+    await openElementManagerCategory(page, 'Props');
+    const before = await getProject(page);
+    const scenesBefore = before.scenes.map((s: any) => ({ id: s.id, props: s.props || '' }));
+
+    await page.getByRole('button', { name: 'Auto-ID', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+
+    await expect.poll(async () => {
+      const props = (await getProject(page)).breakdownElements?.props || [];
+      return props.every((e: any) => /^\d+$/.test(e.boardId || ''));
+    }).toBe(true);
+
+    const numbered = (await getProject(page)).breakdownElements.props;
+    expect(new Set(numbered.map((e: any) => e.boardId)).size).toBe(numbered.length);
+
+    // Renumber one element to a fresh number: the registry changes, scenes don't.
+    const gun = numbered.find((e: any) => e.name === 'gun');
+    const nextFree = String(Math.max(...numbered.map((e: any) => parseInt(e.boardId, 10))) + 1);
+    const input = page.locator(`input[data-manager-board-id="${gun.id}"]`);
+    await input.click();
+    await page.keyboard.press('Meta+A');
+    await page.keyboard.type(nextFree, { delay: 20 });
+    await page.keyboard.press('Enter');
+
+    await expect.poll(async () => {
+      const props = (await getProject(page)).breakdownElements?.props || [];
+      return props.find((e: any) => e.id === gun.id)?.boardId;
+    }).toBe(nextFree);
+
+    const after = await getProject(page);
+    expect(after.scenes.map((s: any) => ({ id: s.id, props: s.props || '' }))).toEqual(scenesBefore);
+  });
+
+  test('Board IDs: a duplicate number is rejected and the cell reverts', async ({ page }) => {
+    await openElementManagerCategory(page, 'Props');
+    await page.getByRole('button', { name: 'Auto-ID', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+
+    let props: any[] = [];
+    await expect.poll(async () => {
+      props = (await getProject(page)).breakdownElements?.props || [];
+      return props.every((e: any) => /^\d+$/.test(e.boardId || ''));
+    }).toBe(true);
+
+    // Pick ids that are valid CSS attribute values (some seed prop names carry quotes).
+    const [first, second] = props.filter((e: any) => /^[A-Za-z0-9 ]+$/.test(e.id));
+    const input = page.locator(`input[data-manager-board-id="${second.id}"]`);
+    await input.click();
+    await page.keyboard.press('Meta+A');
+    await page.keyboard.type(first.boardId, { delay: 20 });
+    await page.keyboard.press('Enter');
+
+    // The edit never lands: the stored number and the cell both keep the old value.
+    await expect.poll(async () => {
+      const list = (await getProject(page)).breakdownElements?.props || [];
+      return list.find((e: any) => e.id === second.id)?.boardId;
+    }).toBe(second.boardId);
+    await expect(input).toHaveValue(second.boardId);
   });
 });
