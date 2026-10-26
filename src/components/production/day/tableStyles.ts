@@ -16,3 +16,6 @@ export const DAY_TABLE = 'w-full border-collapse';
 export const DAY_TH = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-2.5 py-2 whitespace-nowrap bg-zinc-50 border-r border-zinc-200 last:border-r-0';
 export const DAY_TD = 'px-2.5 py-1.5 align-middle border-r border-zinc-200/70 last:border-r-0';
 export const DAY_GROUP_ROW = 'bg-zinc-100/80 border-b border-zinc-200';
+
+/** Light inline input inside a Day Manager table (width/padding appended). */
+export const DAY_INPUT = 'bg-white border border-zinc-300 rounded text-xs text-zinc-800 placeholder:text-zinc-400 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400';

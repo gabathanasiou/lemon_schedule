@@ -184,6 +184,18 @@ export interface DayCrewSlot {
   note?: string;
 }
 
+/** Manual weather for one production day (roadmap 301). Blank fields fall
+ *  back to the fetched value, so ticking the override does not force retyping
+ *  every value. `enabled: false` keeps the typed values but shows the API. */
+export interface DayWeatherOverride {
+  enabled: boolean;
+  sunrise?: string;
+  sunset?: string;
+  weather?: string;
+  tempMin?: number | null;
+  tempMax?: number | null;
+}
+
 /** Day properties stored on the governing DAYBREAK row (D4). Everything here
  *  governs the section BELOW the daybreak, matching `daybreakCallTime`.
  *  Nothing should read these fields raw — go through `src/lib/dayMeta.ts`. */
@@ -194,6 +206,9 @@ export interface DayMeta {
   locationIds?: string[];
   /** Day notes / announcements (fed to call sheets). */
   note?: string;
+  /** Manual sun/weather for this day (roadmap 301) — wins over the API at
+   *  render time; blank fields fall back to the fetched value. */
+  weatherOverride?: DayWeatherOverride;
   /** Day crew (crew person ids). Empty/undefined = full roster.
    *  @deprecated item 146 — superseded by `crewSlots`. */
   crewIds?: string[];
@@ -423,11 +438,31 @@ export interface HeadingAliases {
 export interface CastMember {
   id: string;
   name: string;
+  /** Performer + booking details (roadmap 157) — the MMS Cast Members
+   *  properties, all optional so older projects need no migration.
+   *  `performer` is MMS "Full Name"; `email` is a Lemon addition (MMS has no
+   *  email); `per` is MMS "Per" (rate basis). */
+  performer?: string;
+  phone?: string;
+  email?: string;
+  agent?: string;
+  agentPhone?: string;
+  address?: string;
+  rate?: string;
+  per?: string;
+  notes?: string;
 }
 
 export interface ProjectElement {
+  /** Stable registry key (initialised to the name at creation, kept across
+   *  renames). Scenes reference non-cast categories by NAME, not this id. */
   id: string;
   name: string;
+  /** MMS-style Board ID — numeric string, unique per category, 1-based
+   *  (roadmap 257). A label, never a reference: scenes keep referencing
+   *  non-cast categories by name. Cast's Board ID is `CastMember.id` and is
+   *  never duplicated here. */
+  boardId?: string;
 }
 
 /** One-way anchor→linked element link (roadmap 44). Anchor owns the link;

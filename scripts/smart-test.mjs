@@ -201,6 +201,8 @@ const RULES = [
   { g: 'src/components/SceneNumberCollisionGuard.tsx', s: [...SHEET, ...GLIDE] },
   { g: 'src/lib/paletteOps.ts', s: [...GLIDE, ...ELEM] },
   { g: 'src/lib/elements.ts', s: [...ELEM, ...REPORT] },
+  { g: 'src/lib/boardIds.ts', s: [...ELEM, ...IMPORT] },
+  { g: 'src/lib/castDetails.ts', s: [...ELEM, ...IMPORT, ...REPORT] },
   // new-cast naming modal (shared by stripboard / glide / sheet entity fields)
   { g: 'src/lib/newCastNaming.tsx', s: [...NEWCAST, ...CAST, ...GLIDE, ...SHEET] },
   // element / cast / crew / locations managers (buffered editor managers)

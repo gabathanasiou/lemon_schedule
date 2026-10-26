@@ -8,6 +8,7 @@ import {
   Scene,
 } from '../../types';
 import { formatPageCount, generateUUID, makeBlankCalendarVersion } from '../utils';
+import { castDetailsFromMmsProperties, type CastDetails } from '../castDetails';
 import { makeBlankProject } from '../../store/reducer';
 import { FDX_CATEGORY_MAP, categoryNameToKey, normalizeCharacterName } from './shared';
 
@@ -349,14 +350,23 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
     }
   }
 
-  // Cast ids are sequential integers per project (user decision — readable
-  // ids, no UUID noise in the imported breakdown).
+  // Cast ids are the MMS Board IDs when present (readable integers, no UUID
+  // noise); the sequential fallback covers blank/duplicate BoardIDs.
   const castNameToId = new Map<string, string>();
+  const castBoardId = new Map<string, string>();
+  const castLocked = new Set<string>();
+  const usedCastIds = new Set<string>();
   let castSeq = 0;
   const castIdFor = (name: string): string => {
     let id = castNameToId.get(name);
     if (!id) {
-      id = String(++castSeq);
+      const fixed = castBoardId.get(name);
+      if (fixed && !usedCastIds.has(fixed)) {
+        id = fixed;
+      } else {
+        do { id = String(++castSeq); } while (usedCastIds.has(id));
+      }
+      usedCastIds.add(id);
       castNameToId.set(name, id);
     }
     return id;
@@ -364,13 +374,15 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
 
   const catMap = mappedCategories(categoriesDoc);
 
-  // --- cast roster: Board IDs follow MMS's ElementMgr order ----------------
-  // MMS numbers cast by registry position (George is 1, Mary 2, …). Build the
-  // roster in that order and PRE-ASSIGN ids so scene building below picks
-  // them up regardless of sheet iteration. Sheet-only names (absent from the
-  // registry) append in first-appearance order.
+  // --- cast roster: the file's BoardIDs, in MMS ElementMgr order -----------
+  // MMS numbers cast by registry position (George is 1, Mary 2, …) — but the
+  // BoardID attribute is the truth (a file may have gaps or a different order).
+  // Build the roster in registry order and PRE-ASSIGN ids so scene building
+  // below picks them up regardless of sheet iteration. Sheet-only names
+  // (absent from the registry) append in first-appearance order.
   const castOrder: string[] = [];
   const castSeen = new Set<string>();
+  const castDetailsByName = new Map<string, CastDetails>();
   for (const el of elementsDoc.getElementsByTagName('Element')) {
     const name = el.getAttribute('Name');
     const catLabel = el.getAttribute('CategoryName');
@@ -379,6 +391,17 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
     if (normalized && !castSeen.has(normalized)) {
       castSeen.add(normalized);
       castOrder.push(normalized);
+      const boardId = (el.getAttribute('BoardID') || '').trim();
+      if (/^\d+$/.test(boardId)) castBoardId.set(normalized, boardId);
+      if (el.getAttribute('LockBoardID') === '1') castLocked.add(normalized);
+      // Performer + booking details (roadmap 157) — MMS stores them as
+      // `<Property Name="Full Name">…`. The pure mapper is unit-tested.
+      const properties = Array.from(el.getElementsByTagName('Property')).map(p => ({
+        name: p.getAttribute('Name') || '',
+        value: p.textContent || '',
+      }));
+      const details = castDetailsFromMmsProperties(properties);
+      if (Object.keys(details).length > 0) castDetailsByName.set(normalized, details);
     }
   }
   for (const name of castOrder) castIdFor(name);
@@ -482,13 +505,20 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
       }
     }
   }
-  const castMembers: CastMember[] = castOrder.map(name => ({ id: castIdFor(name), name }));
+  const castMembers: CastMember[] = castOrder.map(name => ({ id: castIdFor(name), name, ...castDetailsByName.get(name) }));
   project.castMembers = castMembers;
 
   const registry: Record<string, ProjectElement[]> = {};
-  const register = (key: string, name: string, id = name) => {
+  /** Per-category locks from the file (`LockBoardID="1"`); cast keys are ids. */
+  const lockedIds: Record<string, string[]> = {};
+  const addLock = (category: string, id: string) => { (lockedIds[category] ||= []).push(id); };
+  for (const name of castOrder) {
+    if (castLocked.has(name)) addLock('cast', castIdFor(name));
+  }
+  const register = (key: string, name: string, boardId?: string) => {
     if (!registry[key]) registry[key] = [];
-    if (!registry[key].some(e => e.id === id)) registry[key].push({ id, name });
+    if (registry[key].some(e => e.id === name)) return;
+    registry[key].push({ id: name, name, ...(boardId ? { boardId } : {}) });
   };
   for (const el of elementsDoc.getElementsByTagName('Element')) {
     const name = el.getAttribute('Name');
@@ -496,15 +526,19 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
     if (!name || !catLabel) continue;
     const mapped = catMap[catLabel];
     if (!mapped) continue;
-    if (mapped.kind === 'field') {
-      if (mapped.key === 'set') register('set', name);
-    } else if (mapped.kind === 'builtin' || mapped.kind === 'custom') {
-      register(mapped.key, name);
-    }
+    const rawBoardId = (el.getAttribute('BoardID') || '').trim();
+    const boardId = /^\d+$/.test(rawBoardId) ? rawBoardId : undefined;
+    const key = mapped.kind === 'field'
+      ? (mapped.key === 'set' ? 'set' : '')
+      : (mapped.kind === 'builtin' || mapped.kind === 'custom' ? mapped.key : '');
+    if (!key) continue;
+    register(key, name, boardId);
+    if (el.getAttribute('LockBoardID') === '1') addLock(key, name);
   }
   // Cast is NOT mirrored into breakdownElements (Lemon's `castMembers` is the
   // single source; `migrateLegacyCastMirror` strips any mirror on LOAD).
   project.breakdownElements = registry;
+  if (Object.keys(lockedIds).length > 0) project.lockedElementIds = lockedIds;
 
   project.customCategories = Object.entries(registry)
     .filter(([key]) => {

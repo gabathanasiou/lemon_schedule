@@ -33,6 +33,10 @@ export interface StoredSunWeather {
   weather: string;
   tempMin: number | null;
   tempMax: number | null;
+  /** WMO weather code (4677) — drives the Day Manager's weather glyph
+   *  (roadmap 301). Optional: entries stored before it existed fall back to
+   *  the generic icon. */
+  code?: number | null;
   /** Epoch ms of the fetch — drives the staleness window. */
   at: number;
 }

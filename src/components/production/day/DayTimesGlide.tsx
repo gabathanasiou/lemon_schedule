@@ -8,6 +8,7 @@ import { createDayTimesTheme } from '../../../lib/glideTheme';
 import { doodCellStyle, doodCellText } from '../../../lib/doodCells';
 import { getLabel } from '../../../lib/categories';
 import { isSeededNoop, seededTextCell, textCell } from '../../../lib/glideCells';
+import type { GlideColumnEditor } from '../../../lib/glideEditor';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '../../InlineGlideTable';
 import { ContextMenuItem } from '../../ContextMenu';
 import FirstSceneTooltip from './FirstSceneTooltip';
@@ -47,6 +48,7 @@ type GridRow = Record<string, string> & { key: string };
 
 const ID_COL = 'id';
 const NAME_COL = 'name';
+const ARTISTE_COL = 'artiste';
 const SWF_COL = 'swf';
 
 const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes = true, presenceScope }) => {
@@ -78,6 +80,7 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
       key: e.key,
       [ID_COL]: e.boardId || '',
       [NAME_COL]: e.name,
+      [ARTISTE_COL]: e.performer || '',
       // The SWF column is the element's DOOD start/work/finish letter for this
       // day (same vocabulary the stage-less fallback grids use) — NOT the day
       // status code.
@@ -91,9 +94,10 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
   const columns = useMemo<SheetColumn[]>(() => [
     { key: ID_COL, label: 'ID', width: 48, align: 'center' },
     { key: NAME_COL, label: 'Character', width: 220 },
+    ...(category === 'cast' ? [{ key: ARTISTE_COL, label: 'Artiste', width: 180 } as SheetColumn] : []),
     { key: SWF_COL, label: 'SWF', width: 48, align: 'center' },
     ...stageDefs.map<SheetColumn>(def => ({ key: def.key, label: def.abbrev || def.label, width: 88, align: 'center' })),
-  ], [stageDefs]);
+  ], [stageDefs, category]);
 
   const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>, _rowIndex: number): GridCell => {
     if (col.key === ID_COL) {
@@ -110,7 +114,7 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
         themeOverride: { textDark: doodCellStyle(letter).fg },
       });
     }
-    if (col.key === NAME_COL) {
+    if (col.key === NAME_COL || col.key === ARTISTE_COL) {
       return textCell(row[col.key], { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
     }
     const raw = row[col.key] || '';
@@ -127,6 +131,11 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
       themeOverride: raw ? { textDark: '#b45309' } : undefined,
     });
   }, [resolvedByKey, readOnly, anchorKey, stageDefByKey]);
+
+  /** Touch cells open the shared time keypad; desktop keeps the stock text
+   *  editor (roadmap 301 sweep). Only the stage columns are time cells. */
+  const getEditor = useCallback((_row: number, colKey: string): GlideColumnEditor | undefined =>
+    stageKeySet.has(colKey) ? { kind: 'time', align: 'center' } : undefined, [stageKeySet]);
 
   const onCommit = useCallback((edits: InlineGlideEdit[]) => {
     let calls = day.meta.elementCalls;
@@ -150,11 +159,13 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
   return (
     <InlineGlideTable
       dataAttr="data-day-times-glide"
+      dataCategory={category}
       presenceScope={presenceScope}
       columns={columns}
       rows={rows}
       getCellContent={getCellContent}
       onCommit={onCommit}
+      getEditor={getEditor}
       editableKeys={stageKeySet}
       readOnly={readOnly}
       createTheme={createDayTimesTheme}

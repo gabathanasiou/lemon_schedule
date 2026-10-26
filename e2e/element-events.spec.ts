@@ -70,9 +70,9 @@ test('element manager events: type cards, add/remove, violations, rules, count c
 
   const memberRow = page.locator('tr', { has: nameCell(page, member.name) });
   await expect(memberRow).toBeVisible();
-  await memberRow.locator('button[title^="Events"]').click();
+  await memberRow.locator('button[title^="Element view"]').click();
   const modal = page.getByRole('dialog');
-  await expect(modal.getByRole('heading', { name: new RegExp(`${esc(member.name)} — Events`) })).toBeVisible();
+  await modal.getByRole('tab', { name: 'Events' }).click();
   const travelCol = 6 + seedInfo.travelIdx;
 
   // ---- Events: one Travel card, one day row — plain date + actions (no
@@ -141,7 +141,7 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   }
   await adder.getByRole('button', { name: String(dd), exact: true }).click();
   await adder.getByRole('button', { name: 'Create', exact: true }).click();
-  await expect(page.getByRole('heading', { name: new RegExp(`${esc(member.name)} — Events`) })).toBeVisible();
+  await expect(modal.getByRole('tab', { name: 'Events' })).toHaveAttribute('aria-selected', 'true');
   await expect.poll(() => page.evaluate(({ fid, addedDate }) => {
     const st = (window as any).__lemonSchedule.getState().present;
     const cal = (st.calendarVersions || []).find((c: any) => c.id === st.activeCalendarVersionId) || (st.calendarVersions || [])[0];
@@ -179,9 +179,10 @@ test('element manager events: type cards, add/remove, violations, rules, count c
   await page.locator('aside').getByRole('button', { name: /Wardrobe/ }).click();
   const wardrobeRow = page.locator('tr', { has: nameCell(page, wardrobe.name) });
   await expect(wardrobeRow).toBeVisible();
-  await wardrobeRow.locator('button[title^="Events"]').click();
-  await expect(page.getByRole('dialog').getByRole('heading', { name: new RegExp(`${esc(wardrobe.name)} — Events`) })).toBeVisible();
-  await expect(page.getByRole('dialog').getByText('Rules', { exact: true })).toHaveCount(0);
+  await wardrobeRow.locator('button[title^="Element view"]').click();
+  const wardrobeModal = page.getByRole('dialog');
+  await wardrobeModal.getByRole('tab', { name: 'Events' }).click();
+  await expect(wardrobeModal.getByText('Rules', { exact: true })).toHaveCount(0);
   await expect(page.locator('[data-element-event-type="travel"] [data-element-event-date]')).toHaveCount(1);
   await expect(page.locator(`[data-element-event-type="travel"] [data-element-event-date="${travelDate}"]`)).toContainText('Aug');
 });

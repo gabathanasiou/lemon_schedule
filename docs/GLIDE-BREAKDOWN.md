@@ -87,6 +87,14 @@ auto-repaint.
   focus change — so the gesture never dismisses the editor it opened. Fast clicks elsewhere are
   untouched. Without this the grid is dead to double-click edits after an edit + dialog (typing/Enter
   still worked, which is how the e2e caught it).
+- **`kind: 'time'` editors** (roadmap 301 sweep): call-time / precall / crew-call columns
+  pass `{ kind: 'time' }` (`DayTimesGlide` stage keys, `PrecallsGlide` editable keys,
+  `CrewRosterEditor` `call`). Desktop keeps Glide's stock `TextCellEntry` (the same
+  textarea + seeded selection + alignment contract); touch opens the shared
+  `TimeKeypad` (`src/components/TimeKeypad.tsx`, also used by `TimeField`) instead of the
+  OS keyboard. The keypad renders into the grid's `#portal` and carries
+  `click-outside-ignore`, so Glide's `ClickOutsideContainer` does not close the cell
+  overlay on the first key; commit writes through the normal `onFinishedEditing` path.
 - **`kind: 'text'` editors** (crew Glide Name, `uppercase: true` via `GlideColumnDef.uppercase`):
   a plain input, because Glide's built-in editor is unavailable to custom columns. It focuses on
   mount, selects the value when the overlay was opened on the stored value, uppercases live per

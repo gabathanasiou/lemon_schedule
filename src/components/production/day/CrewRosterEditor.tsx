@@ -164,6 +164,8 @@ const DeptTable: React.FC<DeptTableProps> = ({
         onCreateItem: onCreatePerson ? (val: string) => onCreatePerson(r.roleKey, val, r.slotId) : undefined,
       };
     }
+    // Touch call cells open the shared time keypad (roadmap 301 sweep).
+    if (colKey === 'call') return { kind: 'time', align: 'center' };
     return undefined;
   }, [rows, project, onCreatePerson]);
 

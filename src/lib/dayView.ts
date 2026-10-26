@@ -29,6 +29,9 @@ export interface DayElementEntry {
   name: string;
   /** Cast Board ID (cast only) — the call-sheet ID column. */
   boardId?: string;
+  /** The performer's name (cast only, roadmap 157) — the call sheet's
+   *  "Artiste" column; the character stays in `name`. */
+  performer?: string;
   /** 1-based position of the first scene the element appears in. */
   firstScene: number;
   firstCallTime: string;
@@ -251,6 +254,9 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
             key,
             name: resolveName(key, category, project),
             boardId: category === 'cast' ? key : undefined,
+            performer: category === 'cast'
+              ? ((project.castMembers || []).find(m => m.id === key)?.performer || '')
+              : undefined,
             firstScene: idx + 1,
             firstCallTime: entry.callTime,
             code: elementDayCode(project, event, category, key),

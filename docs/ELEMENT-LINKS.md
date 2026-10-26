@@ -58,6 +58,7 @@ never re-derive their logic.
   report scoping by the position's categories ("only crew in this day"); managed in Crew Manager →
   Links → **Positions** (the Element Manager's Positions modal was removed — item 153).
 - **Person → element/crew** (`project.crewLinks`, `lib/crewLinks.ts`; reserved `category: 'crew'` =
-  another person id): Crew Manager → Links → **People** + Element Manager per-element **Linked
-  crew**; report fields crew `linkedElements`/`linkedCrew` and element `linkedCrew`; dangling-target
-  warnings via the `dayWarnings` report field + the Day Manager Crew section.
+  another person id): Crew Manager → Links → **People** + the element panel's **Crew** tab
+  (`ElementViewModal` → `ElementCrewLinksSection`); report fields crew `linkedElements`/`linkedCrew`
+  and element `linkedCrew`; dangling-target warnings via the `dayWarnings` report field + the Day
+  Manager Crew section.

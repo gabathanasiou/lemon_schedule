@@ -648,21 +648,19 @@ the crew reports to — location/contact; user-confirmed not a time).
   path changes.
 - **Relations**: 112, 146.
 
-## 157. Cast performer ("Artiste") — person + contact details on cast elements (`[ ]`, big)
+## 307. Element properties — per-category custom fields (MMS `PropertyDefinition` parity) (`[ ]`, NEEDS CONVERSATION FIRST)
 
-**Request**: a cast element is the character; users must record the actual
-performer playing them — name + contact details like crew has (phone/email) —
-shown in the cast call-times block (labelled "Artiste") and available to
-reports.
-- Scope first: decide the model — extend `CastMember` (`types.ts`) with
-  performer fields or link a crew-person record (reuse item 146's crew person
-  shape; never duplicate `project.crew`). One source of truth; migration on
-  local load AND `readDriveProject`.
-- Surfaces: Element Manager cast table/columns, `ELEMENT_CALL_FIELDS`
-  (`reportFields.ts:230-236`) + call-times block labels, cast report fields.
-- **Verify**: Vitest for migration + read model; targeted e2e only if
-  call-times output changes (wrong name/contact = silent).
-- **Relations**: 111, 146; 11/44 are links, not the store.
+**Requested 2026-10-26 (user, in the element-view conversation):** "manage all
+properties per element … should support not only cast". MMS gives every category
+its own `PropertyDefinitionList` (Cast: Full Name/Phone/Agent/…; Props: …) and
+renders those as per-element fields.
+
+- Open questions: user-defined fields per category vs a fixed built-in set;
+  where definitions live; migration + import mapping from
+  `CategoryMgr/PropertyDefinition`; how the manager / Glide / reports register
+  dynamic fields; defaults, required fields, merge/rename/delete behaviour.
+- **Do NOT build before that conversation.** 157 covers the fixed CAST set only.
+- **Relations**: `depends on` **157** + **306**; `relates to` **40/41**.
 
 ## 158. Reports designer — Requirements table block (FUTURE, parked) (`[ ]`)
 
@@ -936,60 +934,25 @@ visually; `npm run lint`.
 
 **Relations**: `relates to` **229** (collab entitlement + shared gating), **145** (desktop app = the true offline host), **209** (account question).
 
-## 257. Element Manager — Board IDs for every element category (MMS parity, Option A) (`[ ]`)
+## 305. Board IDs in display surfaces — "N. NAME" everywhere (`[ ]`, second pass of 257)
 
-**Requested 2026-10-15 (user):** Movie Magic numbers every element — its
-`<Element>` records carry `BoardID` + `LockBoardID` + `SortOrder` (the
-`wonderful-life.msd` fixture: Cast 1..59, all 99 Props and 11 Vehicles numbered,
-other categories blank; `CategoryMgr` has a per-category `AutoAssignIds` flag) —
-while Lemon only numbers cast. Give every category MMS-style Board IDs and stop
-discarding the file's real numbers on import.
+**Request**: 257 stores a per-category Board ID but shows it only in the Element
+Manager. This pass surfaces it where users read elements: EntityDropdown item
+prefixes, Breakdown Sheet / Element Breakdown print, DOOD, call sheets, report
+ordering and the `dayView` board ID column — the deferred list from 257.
 
-**Model — numbers as labels, references unchanged (Option A, user's pick).** Cast
-keeps `CastMember.id` as its Board ID; `ProjectElement` (every other category)
-gains `boardId` (numeric string, per-category from 1). Scenes keep referencing
-non-cast categories by NAME — MMS's own `ElementRef`s carry only
-`CategoryName`+`ElementName` (`msd.ts:174-186`), so numbers are registry-side
-identity, not the reference. Consequence (accepted): renames still cascade and
-duplicate names still merge (the `MergeRowsModal` flow stays), and cast stays the
-one id-keyed category for refs (`isIdKeyed`, `elements.ts:16`) — no key-space
-change.
-
-**Decisions (user, 2026-10-15).**
-- Per-category numbering starting at 1 (Props 1..n, Vehicles 1..n, …).
-- Auto-assign the next free number on element create — editable + lockable in
-  the Element Manager for EVERY category. Reuse the cast machinery, don't fork:
-  `lockedElementIds` is already per-category (`types.ts:869-870`),
-  `TOGGLE_ELEMENT_LOCK` is generic (`actions/breakdown.ts:487-499`); only the
-  column / lock / Auto-ID UI and the allocator are gated on `isCast`
-  (`ElementManager.tsx:313-363` `commitCast`, `:454-481` sort + Auto-ID,
-  `:609,628-645` column + lock). Auto-ID contract verbatim: fill empty ids
-  (continuing after the highest), never touch locked ones, one undo batch.
-- Typing a NUMBER does NOT select an element — numbers are display-only for now.
-- Existing projects: one-time migration assigns sequential numbers per category
-  in stored order (idempotent, no scene rewrites).
-- MMS import reads real ids: `msd.ts` currently ignores `BoardID` (cast ids are
-  re-derived by counting ElementMgr order at `:352-384` — coincidence in the
-  fixture, unvalidated) and drops Props/Vehicles numbers. Read
-  `BoardID`/`LockBoardID` per element; cast ids come from the attribute (keep
-  the counting fallback for blank ids).
-
-**"N. NAME" display surfaces — DEFERRED (user: discuss later).** Candidate list
-for the follow-up pass only, do not build now: `EntityDropdown` prefixes,
-Breakdown Sheet / Element Breakdown print, DOOD, call sheets, and widening
-`sortReportElements` (`reportData.ts:813`, cast-by-id today) + the `dayView`
-`boardId` field (cast-only) to all categories.
-
-- **Verify:** Vitest — per-category allocator (next free, gaps, locked skipped),
-  migration (stable, idempotent), msd mapping (cast from `BoardID`, Props/
-  Vehicles preserved, blank fallback); e2e only where silence would hurt:
-  renumbering a boardId must never rewrite `scene.*` (debug-bridge assertion),
-  plus the manager commit paths (`e2e/new-cast-naming.spec.ts` is the template).
-  Column/prefix UI = rule-7 manual pass (deferred surfaces anyway).
-- **Relations:** `extends` **122** (cast-only lock/Auto-ID — generalized here)
-  and **143** (report ordering by Board ID — candidate to widen, second pass);
-  `relates to` **228** (name-typed cast guard), **157** (cast details),
-  **40/41** (MSD/SEX import — real BoardIDs).
+- Scope: widen `sortReportElements` (`reportData.ts`, cast-by-id today) to every
+  category's `boardId`; `dayView.ts` `boardId` + `reportData.ts`
+  `ReportElementCallItem.boardId` (`cat === 'cast' ? key : undefined`); label
+  `ELEMENT_CALL_FIELDS.elementCallId` "Cast ID" → "Board ID"; `EntityDropdown`
+  prefixes; print / DOOD / call-sheet renderers.
+- Decisions at pickup: which surfaces show "N. NAME" vs a separate column;
+  whether report element lists sort by number by default (ties by name).
+- **Verify**: Vitest for the ordering/field resolvers; e2e only where silence
+  would hurt (call sheet columns, report ordering); print/DOOD are rule-7 manual.
+- **Relations**: `depends on` **257** (numbers stored/imported); `extends` **143**
+  (cast-only report ordering); `relates to` **157** (performer details add
+  fields), **111/112** (call-times grids), **172** (search).
 
 ## 262. File → Help — Send feedback / support entry (`[ ]`)
 
@@ -1271,76 +1234,3 @@ future … not able to edit day manager stuff for days that are past today."
   handles the API-call side; this is a workflow guard against rewriting
   history.
 - **Verify:** manual pass per surface; the lock must never block undo/history.
-
-## 301. Day Manager — weather in Day Details + manual override (`[ ]`)
-
-**Asked 2026-10-26 (user):** "day manager -> day details, add the weather info
-there as well with the option to check a box and override the api in order for
-you to write it yourself."
-
-**Request:** show the selected day's sun/weather inside the Day Details table
-(today only the toolbar chip has it), with an "Override the API" checkbox that
-unlocks manual condition / high / low / sunrise / sunset fields.
-
-**Approach — extend the ONE weather pipeline (299), no second path:**
-- Read through the existing seam: `daySunWeather` / `getCachedSunWeather` +
-  `SunWeather` / `formatWeatherValue` / `formatTempC`
-  (`src/lib/reportWeather.ts`). Day Details renders the SAME values as the chip
-  and the `{{weather}}` / `{{sunrise}}` / `{{sunset}}` / `{{tempHigh}}` /
-  `{{tempLow}}` tokens — never a local fetch, cache or formatter.
-- Manual value lives on the governing DAYBREAK row: `DayMeta.weatherOverride`
-  (`src/types.ts`) = `{ enabled, sunrise?, sunset?, weather?, tempMin?,
-  tempMax? }`, written through the existing `patchMeta` (one undo entry, shared
-  in rooms, travels with the project). NOT `sunWeatherCache` (that store is
-  device-local derived data). Blank fields fall back to the fetched value, so
-  checking the box does not force retyping all five; unchecking stops applying
-  but keeps what was typed (non-destructive toggle).
-- ONE resolver: `daySunWeather` and the weather-family `sunWeatherFieldValue`
-  prefer the override for the day's own resolved location, so the chip, day
-  report fields and the call sheet inherit it automatically. The override is
-  day-scoped: it must NOT replace a `block.locationChoice` pick or a
-  `locations`-table row pointing at another pin (one manual value cannot stand
-  for several places). It MUST still work when the day has no location pin
-  (exactly when the API has nothing) — the pin check runs after the override.
-- UI: a `Weather` group in the existing Day Details table
-  (`sections/DayDetailsSection.tsx`) directly under the Day group (weather
-  follows the master location) and above Timing. Read state = two rows:
-  `Weather` (`☁ Partly cloudy · 18–24°C` via `formatWeatherValue`) and `Sun`
-  (`🌅 05:44   🌇 20:25`). Override affordance = kit `Checkbox`
-  (`variant="plain"`, label "Override the API") right-aligned in the group
-  header. Ticked → the same two rows become inline editors (condition text,
-  H/L °C numbers, two native `type="time"` fields) — no modal, no new
-  primitive. No location pin → read state shows "No location pin — set a
-  master location or override", and the checkbox still works (manual weather
-  is exactly the no-pin case). `readOnly`/`canEdit` gates edits like every
-  other row. Keep the section pure: lift the single `useSunWeather(ctx)`
-  warm/refresh owner from `DayWeatherChip` to `DayManagerPage` and pass the
-  resolved view + refresh into both the chip and the section (no second hook
-  instance, no section-side API/cache access).
-- Icons (one set, no new dependency): the app ships lucide only — SF Symbols
-  are Apple-platform licensed and cannot ship in this cross-platform web app.
-  Add ONE `wmoIcon(code)` map (Sun / CloudSun / Cloud / CloudFog /
-  CloudDrizzle / CloudRain / CloudSnow / CloudLightning, CloudSun fallback)
-  used by both the group and the chip, plus `Sunrise`/`Sunset` glyphs on the
-  sun row. Stored entries only carry the WMO label today — add an optional
-  `code` to `StoredSunWeather`/`SunWeather` (old entries fall back to the
-  generic glyph).
-- Chip: same icon; mark "Manual" and disable refresh while the override is on
-  (nothing to re-fetch), so the two surfaces can never disagree. Fetch policy
-  stays untouched — the cache still warms under the override; the override
-  only wins at render time. No new API calls, token family or cache key.
-- `isEmptyDayMeta` (`src/lib/dayMeta.ts`) counts `weatherOverride` as day data
-  (delete-daybreak warning stays honest); `pruneDayMetaRefs` needs no change
-  (no refs). Day Details is not copyable, so Copy-from-day is unaffected.
-- Update `docs/REPORTS-DESIGNER.md` §Location attributes + the `daybreakMeta`
-  summary in AGENTS.md.
-
-**Verify:** unit tests for override precedence (day field + chip view, another
-pin in a locations table, blank-field fallback, no-pin day) in
-`src/lib/__tests__/reportWeather.test.ts`; manual: tick the box, type values →
-chip + call sheet + printed report show them, refresh does not clobber them;
-untick → API values return. Rule 7: no e2e for the visuals, automate only the
-resolver.
-
-**Relations:** extends **299** (stored sun/weather + chip) and reuses **98**'s
-`getReportLocation` seam; complies with **300**'s past-day lock once built.

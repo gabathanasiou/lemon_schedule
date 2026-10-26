@@ -1,4 +1,4 @@
-import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, ElementCallTimes } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, DayWeatherOverride, ElementCallTimes } from '../types';
 import { resolveRoleCategories } from './crewCatalog';
 import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, CrewLinkWarning } from './crewLinks';
 import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, ResolvedCall } from './callTimes';
@@ -6,6 +6,7 @@ import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, pro
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
+import { castDetailsOf, type CastDetails } from './castDetails';
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
 import { formatDateShort, naturalSortSceneStrings } from './utils';
@@ -173,6 +174,9 @@ export interface ReportDayInfo {
   sceneLocations?: string[];
   /** Day notes / announcements from `daybreakMeta` (item 99 `dayNotes` field). */
   note?: string;
+  /** Manual sun/weather from `daybreakMeta` (roadmap 301) — the report fields
+   *  and the Day Manager chip/Details resolve through this. */
+  weatherOverride?: DayWeatherOverride;
   /** Day crew (crew person ids; empty = full roster / usual-crew template).
    *  @deprecated item 146 — superseded by `crewSlots`. */
   crewIds?: string[];
@@ -216,6 +220,8 @@ export interface ReportElementInfo {
   /** Crew members explicitly linked to this element (roadmap 11) — comma list
    *  of names. */
   linkedCrew?: string;
+  /** Cast performer/booking details (roadmap 157) — cast items only. */
+  details?: CastDetails;
 }
 
 /** One day type, as a repeat/table item of the 'dayTypes' collection — the
@@ -280,6 +286,8 @@ export interface ReportElementCallItem {
   firstScene: string;
   /** stage key → resolved call (override or computed). */
   callTimes: Record<string, ResolvedCall>;
+  /** Cast performer/booking details (roadmap 157) — cast items only. */
+  details?: CastDetails;
 }
 
 /** One crew department on a day, as a repeat/table item of the contextual
@@ -674,6 +682,7 @@ export function buildReportCtx(
       locationIds: gov?.daybreakMeta?.locationIds,
       sceneLocations,
       note: gov?.daybreakMeta?.note,
+      weatherOverride: gov?.daybreakMeta?.weatherOverride,
       crewIds: gov?.daybreakMeta?.crewIds,
       crewCalls: gov?.daybreakMeta?.crewCalls,
       crewSlots: gov?.daybreakMeta?.crewSlots,
@@ -892,6 +901,7 @@ function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[]
       finishDate: t?.finishDate ?? null,
       typeDayLists,
       linkedCrew: linkedCrewNamesForElement(project, category, key) || undefined,
+      details: category === 'cast' ? castDetailsOf(e as CastDetails) : undefined,
     });
   }
   return out;
@@ -1107,6 +1117,7 @@ export function resolveCollection(
               code: elementDayCode(ctx, day, cat, key),
               firstScene: si.scene.sceneNumber,
               callTimes: computeElementCallChain(settings.stages, stageKeys, si.callTime, overrides),
+              details: cat === 'cast' ? el.details : undefined,
             });
           }
         }
