@@ -11,6 +11,7 @@ import { CrewGlideTab } from './CrewGlideTab';
 import { LocationsManager } from './LocationsManager';
 import { LocationsGlideTab } from './LocationsGlideTab';
 import type { DayView } from '../lib/dayView';
+import type { DayManagerTab } from '../lib/dayTabs';
 
 export type ProductionSubTab = 'days' | 'crew' | 'locations';
 
@@ -38,6 +39,10 @@ interface ProductionTabProps {
   /** Pending Day Manager target (section index) from an entry point. */
   dayTarget?: number | null;
   onDayTargetSeen?: () => void;
+  /** Day Manager category tab (roadmap 315); App owns the history-backed value
+   *  in the main window. Omitted in pop-outs → DayManagerPage's local pref. */
+  dayTab?: DayManagerTab;
+  onDayTabChange?: (tab: DayManagerTab) => void;
   onOpenScene?: (sceneId: string) => void;
   onPrintCallSheet?: (day: DayView, design: ReportDesign, zoneBlocks?: ReportBlock[]) => void;
   onPopOutDay?: (day: DayView) => void;
@@ -48,7 +53,7 @@ interface ProductionTabProps {
  *  collapsed to three, with a toolbar toggle for each merged pair. Project
  *  Details and the Call Times settings live in the Day Manager header as
  *  draggable modals (ProductionDetailsModal / CallTimesSettingsModal). */
-export default function ProductionTab({ subTab, onSubTabChange, views, onViewChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, onOpenScene, onPrintCallSheet, onPopOutDay }: ProductionTabProps) {
+export default function ProductionTab({ subTab, onSubTabChange, views, onViewChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, dayTab, onDayTabChange, onOpenScene, onPrintCallSheet, onPopOutDay }: ProductionTabProps) {
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
   // Second slot, immediately left of the view switcher: the day selector is
@@ -134,6 +139,8 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
           onTargetSeen={onDayTargetSeen}
           dayMode={views.days}
           onDayModeChange={(mode) => onViewChange('days', mode)}
+          dayTab={dayTab}
+          onDayTabChange={onDayTabChange}
           onOpenScene={onOpenScene}
           onPrintCallSheet={onPrintCallSheet}
           onPopOutDay={onPopOutDay}

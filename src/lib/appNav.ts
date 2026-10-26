@@ -10,6 +10,8 @@
  * restores the place, not the one-shot target.
  */
 
+import { isDayManagerTab, type DayManagerTab } from './dayTabs';
+
 export type AppTabId = 'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'production' | 'reports';
 
 export interface AppPlace {
@@ -19,6 +21,9 @@ export interface AppPlace {
   /** Sub-sub level for mode-bearing sub-tabs (SUB_MODES): the Days
    *  Day Manager/Call Sheet, the Crew/Locations manager/Glide views. */
   mode?: string;
+  /** Day Manager category tab (manager mode only) — `all` is the default and
+   *  is omitted from the hash. */
+  dayTab?: DayManagerTab;
   /** Schedule jump: reveal this scene (one-shot target). */
   sceneId?: string;
   /** Sheet jump: open at this sheet index (one-shot target). */
@@ -97,11 +102,18 @@ export function modeOf(place: AppPlace): string | null {
   return place.mode && modes.includes(place.mode) ? place.mode : modes[0];
 }
 
-/** Places are the same when tab + sub (+ the sub-sub mode) match; one-shot
- *  targets are not part of identity (re-clicking the active tab must not push
- *  a duplicate entry). */
+/** The effective Day Manager tab (manager mode only); `overview` is the default. */
+function dayTabOf(place: AppPlace): DayManagerTab | null {
+  if (place.tab !== 'production' || place.sub !== 'days' || modeOf(place) !== 'manager') return null;
+  return isDayManagerTab(place.dayTab) ? place.dayTab : 'overview';
+}
+
+/** Places are the same when tab + sub (+ the sub-sub mode / Day Manager tab)
+ *  match; one-shot targets are not part of identity (re-clicking the active
+ *  tab must not push a duplicate entry). */
 export function samePlace(a: AppPlace, b: AppPlace): boolean {
-  return a.tab === b.tab && (a.sub ?? null) === (b.sub ?? null) && modeOf(a) === modeOf(b);
+  return a.tab === b.tab && (a.sub ?? null) === (b.sub ?? null) && modeOf(a) === modeOf(b)
+    && dayTabOf(a) === dayTabOf(b);
 }
 export function initStack(place: AppPlace): NavStack {
   return { stack: [place], index: 0 };
@@ -139,25 +151,34 @@ export function placeLabel(place: AppPlace): string {
 }
 
 /** Hash route path without the leading `#/` — e.g. "production/days/callsheet"
- *  (the default manager mode is omitted). */
+ *  (the default manager mode is omitted) or "production/days/manager/scenes"
+ *  (a Day Manager category tab). */
 export function placeToHash(place: AppPlace): string {
   const sub = place.sub && SUB_TAB_LABELS[place.tab]?.[place.sub] ? `/${place.sub}` : '';
   const mode = modeOf(place);
-  const modeSegment = mode && mode !== 'manager' ? `/${mode}` : '';
-  return `${place.tab}${sub}${modeSegment}`;
+  const dayTab = dayTabOf(place);
+  const tabSegment = dayTab && dayTab !== 'overview' ? `/${dayTab}` : '';
+  // The default manager mode is omitted, unless a day tab needs the extra
+  // segment to keep the route unambiguous.
+  const modeSegment = mode && (mode !== 'manager' || tabSegment) ? `/${mode}` : '';
+  return `${place.tab}${sub}${modeSegment}${tabSegment}`;
 }
 
-/** Parses `#/production/days/callsheet` (or "production/crew/glide") back to a
- *  place; invalid tabs/subs/modes are ignored rather than trusted. */
+/** Parses `#/production/days/callsheet` (or "production/days/manager/scenes")
+ *  back to a place; invalid tabs/subs/modes/tabs are ignored rather than
+ *  trusted. */
 export function parsePlaceHash(hash: string): AppPlace | null {
   const path = hash.replace(/^#\/?/, '').replace(/\/+$/, '');
   if (!path) return null;
-  const [tab, sub, mode] = path.split('/').map(part => decodeURIComponent(part || ''));
+  const [tab, sub, mode, dayTab] = path.split('/').map(part => decodeURIComponent(part || ''));
   if (!isAppTabId(tab)) return null;
   const place: AppPlace = { tab };
   if (sub && SUB_TAB_LABELS[tab]?.[sub]) place.sub = sub;
   const key = place.sub ? `${tab}/${place.sub}` : '';
   if (place.sub && mode && (SUB_MODES[key] || []).includes(mode)) place.mode = mode;
+  if (place.tab === 'production' && place.sub === 'days' && place.mode === 'manager' && isDayManagerTab(dayTab)) {
+    place.dayTab = dayTab;
+  }
   return place;
 }
 
@@ -168,5 +189,6 @@ export function isNavStack(value: unknown): value is NavStack {
   return Array.isArray(nav.stack) && nav.stack.length > 0 &&
     typeof nav.index === 'number' && nav.index >= 0 && nav.index < nav.stack.length &&
     nav.stack.every(p => !!p && isAppTabId((p as AppPlace).tab) &&
-      ((p as AppPlace).mode === undefined || typeof (p as AppPlace).mode === 'string'));
+      ((p as AppPlace).mode === undefined || typeof (p as AppPlace).mode === 'string') &&
+      ((p as AppPlace).dayTab === undefined || typeof (p as AppPlace).dayTab === 'string'));
 }

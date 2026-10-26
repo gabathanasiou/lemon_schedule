@@ -44,9 +44,13 @@ export interface ReportGridGroup {
   columns: ReportGridColumn[];
 }
 
-/** Fixed columns: element calls = ID · Name · SWF · <stages>; crew = Name · Role · Call · Phone · Email; precalls = Department · Call. */
+/** Fixed columns: element calls = ID · Name · SWF · <stages>; crew = Name · Role
+ *  (· Report To, item 156) · Call · Phone · Email; precalls = Department · Call. */
 const ELEMENT_CALL_FIXED = ['elementCallId', 'elementCallName', 'elementCallCode'];
 const CREW_FIXED = ['crewName', 'role', 'crewCallTime', 'phone', 'email'];
+/** Item 156: the optional Report To column — before Call, mirroring the live
+ *  crew board. Off unless the block sets `showReportTo`. */
+const CREW_FIXED_REPORT_TO = ['crewName', 'role', 'reportTo', 'crewCallTime', 'phone', 'email'];
 const PRECALL_FIXED = ['departmentLabel', 'departmentCallTime'];
 
 function fieldColumn(fieldMap: Record<string, ReportFieldDef>, field: string, fallbackWidth = 10): ReportGridColumn {
@@ -77,8 +81,9 @@ function elementCallColumns(project: Project, category: string, fieldMap: Record
   ]);
 }
 
-function crewColumns(fieldMap: Record<string, ReportFieldDef>): ReportGridColumn[] {
-  return normalize(CREW_FIXED.map(f => fieldColumn(fieldMap, f)));
+function crewColumns(fieldMap: Record<string, ReportFieldDef>, showReportTo = false): ReportGridColumn[] {
+  const fields = showReportTo ? CREW_FIXED_REPORT_TO : CREW_FIXED;
+  return normalize(fields.map(f => fieldColumn(fieldMap, f)));
 }
 
 function precallColumns(fieldMap: Record<string, ReportFieldDef>): ReportGridColumn[] {
@@ -102,7 +107,7 @@ export function resolveReportGridGroups(
   category: string | undefined,
   dayItem: ReportCollectionItem | undefined,
   fieldMap: Record<string, ReportFieldDef>,
-  opts?: { includeAll?: boolean; include?: string[] },
+  opts?: { includeAll?: boolean; include?: string[]; showReportTo?: boolean },
 ): ReportGridGroup[] {
   if (!dayItem) return [];
   if (collection === 'departmentCallsOfDay') {
@@ -118,7 +123,7 @@ export function resolveReportGridGroups(
     // editor keeps its per-department cards (`CrewRosterEditor`); static
     // print/preview is deliberately flat (no separator bars, one header row).
     const items = resolveCollectionItems(ctx, 'crewOfDay', undefined, dayItem, undefined) as ReportCrewItem[];
-    return [{ category: '', label: 'Crew', items, columns: crewColumns(fieldMap) }];
+    return [{ category: '', label: 'Crew', items, columns: crewColumns(fieldMap, opts?.showReportTo) }];
   }
   const all = resolveCollectionItems(ctx, 'elementCallsOfDay', undefined, dayItem, undefined) as ReportElementCallItem[];
   const filtered = category ? all.filter(it => it.category === category) : all;
@@ -148,12 +153,13 @@ export function skeletonReportGridGroups(
   collection: ReportGridCollection,
   category: string | undefined,
   fieldMap: Record<string, ReportFieldDef>,
+  opts?: { showReportTo?: boolean },
 ): ReportGridGroup[] {
   if (collection === 'departmentCallsOfDay') {
     return [{ category: '', label: 'Precalls', items: [], columns: precallColumns(fieldMap) }];
   }
   if (collection === 'crewOfDay') {
-    return [{ category: '', label: 'Crew', items: [], columns: crewColumns(fieldMap) }];
+    return [{ category: '', label: 'Crew', items: [], columns: crewColumns(fieldMap, opts?.showReportTo) }];
   }
   const categories = category ? [category] : stagedCategoryKeys(project);
   return categories.map(cat => ({

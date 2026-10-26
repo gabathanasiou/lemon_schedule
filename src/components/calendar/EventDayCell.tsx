@@ -170,10 +170,15 @@ export const EventCardView: React.FC<{
   selected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   className?: string;
-}> = ({ card, project, selected, onClick, className = '' }) => {
+  /** `sm` = calendar cell density; `md` = a roomy page card (Day Manager). */
+  size?: 'sm' | 'md';
+}> = ({ card, project, selected, onClick, className = '', size = 'sm' }) => {
   const sel = getSelectedStripColors(project?.colorPalette);
   const selStyle = selected ? { background: sel.background, color: sel.color } : undefined;
-  const base = `relative w-full text-left rounded leading-snug select-none ${CARD_SZ} ${className}`;
+  const cardSz = size === 'md' ? 'px-2.5 py-1.5 text-xs' : CARD_SZ;
+  const iconSz = size === 'md' ? 'w-3.5 h-3.5' : 'w-3 h-3';
+  const noteSz = size === 'md' ? 'w-3 h-3' : 'w-2.5 h-2.5';
+  const base = `relative w-full text-left rounded leading-snug select-none ${cardSz} ${className}`;
   if (card.kind === 'status') {
     const t = (project.dayTypes || []).find((d: any) => d.key === card.statusKey);
     const color = t?.color || '#52525b';
@@ -208,7 +213,7 @@ export const EventCardView: React.FC<{
         {/* The tooltip anchors to the icon only — hovering the label/comment
             does not pop it. */}
         <HoverTooltip className="shrink-0 inline-flex mt-[1px]" content={tip}>
-          <Icon className="w-3 h-3" style={{ color: selected ? sel.color : color }} />
+          <Icon className={iconSz} style={{ color: selected ? sel.color : color }} />
         </HoverTooltip>
         <span className="flex-1 min-w-0">{names}</span>
         {card.comment && (
@@ -221,7 +226,7 @@ export const EventCardView: React.FC<{
               <div className="text-[11px] italic text-zinc-100 leading-snug">{card.comment}</div>
             </div>
           }>
-            <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-500" style={selected ? { color: sel.color } : undefined} />
+            <MessageSquare className={`${noteSz} shrink-0 text-amber-500`} style={selected ? { color: sel.color } : undefined} />
           </HoverTooltip>
         )}
       </div>

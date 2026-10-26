@@ -8,12 +8,13 @@ test.describe('Day Manager (roadmap 98)', () => {
     await expect(page.locator('[data-section="details"]')).toBeVisible();
     await expect(page.locator('[data-section="locations"]')).toBeVisible();
     await expect(page.locator('[data-section="scenes"]')).toBeVisible();
+    await expect(page.locator('[data-section="breaksNotes"]')).toBeVisible();
     await expect(page.locator('[data-section="callTimes"]')).toBeVisible();
     await expect(page.locator('[data-section="events"]')).toBeVisible();
     await expect(page.locator('[data-section="conflicts"]')).toBeVisible();
 
     const note = 'Parking behind the diner';
-    const ta = page.locator('[data-section="details"] textarea');
+    const ta = page.locator('[data-section="breaksNotes"] textarea');
     await ta.fill(note);
     await ta.blur();
 
@@ -39,38 +40,36 @@ test.describe('Day Manager (roadmap 98)', () => {
       const b: any = (window as any).__lemonSchedule;
       const p = b.getProject();
       const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-      const typeKey = (label: string) => p.locationTypes.find((t: any) => t.label === label)?.key;
-      const loc = { id: 'loc-test-stage', name: 'Test Stage 7', type: typeKey('Set'), address: '7 Stage Way' };
-      b.dispatch({ type: 'ADD_LOCATION', payload: { location: loc } });
-      b.dispatch({ type: 'ADD_LOCATION', payload: { location: { id: 'loc-test-unit', name: 'Unit base 4', type: typeKey('Unit Base') } } });
-      b.dispatch({ type: 'ADD_LOCATION', payload: { location: { id: 'loc-test-hospital', name: 'St. Mary\'s Hospital', type: typeKey('Hospital') } } });
+      b.dispatch({ type: 'ADD_LOCATION', payload: { location: { id: 'loc-test-stage', name: 'Test Stage 7', type: 'set', address: '7 Stage Way' } } });
+      b.dispatch({ type: 'ADD_LOCATION', payload: { location: { id: 'loc-test-base', name: 'Test Base', type: 'unitBase', address: '7 Base Way' } } });
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned) || v.rows.find((r: any) => r.type === 'DAYBREAK');
+      b.dispatch({
+        type: 'UPDATE_ROW',
+        payload: {
+          versionId: v.id,
+          rowId: gov.id,
+          updates: { daybreakMeta: { locationId: 'loc-test-base', locationIds: ['loc-test-stage', 'loc-test-base'] } },
+        },
+      });
     });
 
-    /* The shared locations picker is the kit grouped searchable menu: headers
-       follow the visible set and "set" matches the CATEGORY. */
-    await page.getByRole('button', { name: 'No master location' }).click();
-    const menu = page.locator('[role="menu"]');
-    const groups = page.locator('[data-menu-group]');
-    await expect(menu).toBeVisible();
-    await expect(groups).toHaveText(['Set', 'Unit Base', 'Hospital']);
-    await menu.locator('input').fill('set');
-    await expect(menu.locator('[role="menuitem"]:visible')).toHaveCount(1);
-    await expect(groups).toHaveText(['Set']);
-    await menu.getByRole('menuitem', { name: 'Test Stage 7' }).click();
-    await expect(page.locator('[data-section="locations"] button').filter({ hasText: 'Test Stage 7' }).first()).toBeVisible();
-
-    /* Multi-select keeps the menu open and each pick lands in the trigger. */
-    await page.getByRole('button', { name: 'Add key locations…' }).click();
-    const keyMenu = page.locator('[role="menu"]');
-    await expect(keyMenu).toBeVisible();
-    await keyMenu.locator('input').fill('unit');
-    await keyMenu.getByRole('menuitem', { name: 'Unit base 4' }).click();
-    await expect(keyMenu).toBeVisible();
-    await keyMenu.locator('input').fill('set');
-    await keyMenu.getByRole('menuitem', { name: 'Test Stage 7' }).click();
-    await expect(keyMenu).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.locator('[data-section="locations"] button').filter({ hasText: 'Unit base 4' }).first()).toContainText('Test Stage 7');
+    // The Day Details category picker writes the master (grouped by location type).
+    const picker = page.locator('[data-master-location] input');
+    await expect(picker).toHaveValue('Test Base');
+    await picker.click();
+    // Search matches the TYPE header too: "set" keeps every Set location.
+    await picker.fill('set');
+    await expect(page.getByRole('button', { name: /^Test Stage 7/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Test Base/ })).toHaveCount(0);
+    await page.getByRole('button', { name: /^Test Stage 7/ }).click();
+    await expect(picker).toHaveValue('Test Stage 7');
+    await expect.poll(async () => page.evaluate(() => {
+      const b: any = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned) || v.rows.find((r: any) => r.type === 'DAYBREAK');
+      return gov.daybreakMeta?.locationId;
+    }), { timeout: 5000 }).toBe('loc-test-stage');
 
     await openCallSheetEdit(page);
     await page.getByRole('button', { name: 'Preview', exact: true }).click();
@@ -94,7 +93,7 @@ test.describe('Day Manager (roadmap 98)', () => {
     await page.getByRole('menuitem', { name: /^DAY 2 / }).click();
     await page.getByRole('main').getByRole('button', { name: 'Settings', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Copy from day' }).click();
-    await page.getByText('Day Details', { exact: true }).last().click();
+    await page.getByText('Breaks & Notes', { exact: true }).last().click();
     await page.getByRole('button', { name: 'Copy to this day' }).click();
 
     // DAY 2's governing daybreak is the first non-pinned break.

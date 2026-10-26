@@ -124,6 +124,17 @@ export interface InlineGlideTableProps {
 
 const DEFAULT_ROW_HEIGHT = 28;
 const DEFAULT_HEADER_HEIGHT = 30;
+
+/** Local selection memory per logical grid (roadmap 315): the Day Manager
+ *  category tabs unmount their sections, so a Glide grid's selected cell/range
+ *  would reset when you switch away and back. Key by the stable presence scope
+ *  (or the data attr for grids without one); restore on remount. Ephemeral and
+ *  per window — never project state, never published. */
+const SELECTION_CACHE = new Map<string, GridSelection>();
+const EMPTY_SELECTION: GridSelection = {
+  columns: CompactSelection.empty(),
+  rows: CompactSelection.empty(),
+};
 /** Synthetic trailing row-actions column (key `actions` — skipped by copy/cut). */
 const ACTIONS_COLUMN: InlineGlideColumn = { key: 'actions', label: '', width: 34 };
 /** Stable identity for the "no presence scope" key lists (memo deps). */
@@ -290,10 +301,14 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     p.src = 'data:image/svg+xml;base64,' + btoa(plusSvg);
     plusImg.current = p;
   }, [rowActions]);
-  const [gridSelection, setGridSelection] = useState<GridSelection>({
-    columns: CompactSelection.empty(),
-    rows: CompactSelection.empty(),
-  });
+  const selectionKey = presenceScope || dataAttr || '';
+  const [gridSelection, setGridSelection] = useState<GridSelection>(() =>
+    (selectionKey ? SELECTION_CACHE.get(selectionKey) : undefined) ?? EMPTY_SELECTION);
+  // A different day/table is a different logical grid — adopt its cached
+  // selection instead of carrying the old one across.
+  useEffect(() => {
+    setGridSelection(selectionKey ? SELECTION_CACHE.get(selectionKey) ?? EMPTY_SELECTION : EMPTY_SELECTION);
+  }, [selectionKey]);
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
   // Peer selections (roadmap 234) — see the props' docs. Inert without a scope.
@@ -434,8 +449,9 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     const hovered = row === hoveredRowRef.current;
     const isReadonly = !!(cell as any).readonly;
     if (!isReadonly) {
-      // Editable: blue rest fill, deeper blue on the hovered row. Preserves
-      // the caller's text colour (e.g. amber overrides).
+      // Editable: the mode's rest wash (light blue on the pages, a raised
+      // neutral in a dark modal), deeper on the hovered row. Preserves the
+      // caller's text colour (e.g. amber overrides).
       const bg = hovered ? EDITABLE_HOVER_BG : EDITABLE_BG;
       return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: bg, bgCellMedium: bg } };
     }
@@ -563,7 +579,11 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
     applyEdits(edits.map(e => ({
       row: e.location[1],
       colKey: COLUMNS[e.location[0]]?.key || '',
-      val: e.value.kind === GridCellKind.Text ? e.value.data : '',
+      val: e.value.kind === GridCellKind.Text
+        ? e.value.data
+        : e.value.kind === GridCellKind.Boolean
+          ? String(e.value.data)
+          : '',
     })));
     return true;
   }, [COLUMNS, applyEdits, getEffectiveRange]);
@@ -692,10 +712,10 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   }, [headerMenuItems]);
 
   const hasSelection = gridSelection.current?.range !== undefined || gridSelection.rows.length > 0 || gridSelection.columns.length > 0;
-
-  if (rows.length === 0 && emptyLabel) {
-    return <div className="px-2.5 py-6 text-center text-xs text-zinc-400">{emptyLabel}</div>;
-  }
+  const onGridSelectionChange = useCallback((sel: GridSelection) => {
+    setGridSelection(sel);
+    if (selectionKey) SELECTION_CACHE.set(selectionKey, sel);
+  }, [selectionKey]);
 
   return (
     <div
@@ -728,7 +748,12 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             is authoritative and the table always fills exactly. Mount the
             DataEditor only once a width is measured so it never first paints
             at content width (wrong sizing + phantom scrollbars). */}
-        {gridWidth && gridWidth > 0 ? (
+        {rows.length === 0 && emptyLabel ? (
+          // Keep the measured container mounted for the empty state: rows can
+          // arrive later (bridge/peer/collaborator), and an unmounted ref would
+          // never attach the width observer (the grid stuck at zero width).
+          <div className="px-2.5 py-6 text-center text-xs text-zinc-400">{emptyLabel}</div>
+        ) : gridWidth && gridWidth > 0 ? (
           <DataEditor
             ref={gridRef}
             width={gridWidth}
@@ -742,7 +767,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             {...escapeCancel}
             getCellsForSelection={true}
             gridSelection={gridSelection}
-            onGridSelectionChange={setGridSelection}
+            onGridSelectionChange={onGridSelectionChange}
             highlightRegions={peerHighlights}
             theme={createTheme(fontSize)}
             rowHeight={rowH}

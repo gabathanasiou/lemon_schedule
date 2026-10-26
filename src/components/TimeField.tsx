@@ -30,6 +30,9 @@ export interface TimeFieldProps {
   hideOverrideDot?: boolean;
   /** Accessible name for the input / touch trigger. */
   ariaLabel?: string;
+  /** Horizontal alignment of the value. Default center (the inline forms);
+   *  `left` for value tiles whose label is left-aligned. */
+  align?: 'left' | 'center';
 }
 
 export const TimeField: React.FC<TimeFieldProps> = ({
@@ -44,9 +47,11 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   theme = 'light',
   hideOverrideDot,
   ariaLabel,
+  align = 'center',
 }) => {
   const isTouch = useTouchMode();
   const dark = theme === 'dark';
+  const alignCls = align === 'left' ? 'text-left' : 'text-center';
 
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -114,7 +119,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
             cancelRef.current = false;
             setFocused(false);
           }}
-          className={`w-full min-w-[3.25rem] px-1.5 py-0.5 rounded bg-transparent text-xs tabular-nums text-center outline-none cursor-text transition-colors ${dark
+          className={`w-full min-w-[3.25rem] px-1.5 py-0.5 rounded bg-transparent text-xs tabular-nums ${alignCls} outline-none cursor-text transition-colors ${dark
             ? 'text-zinc-100 hover:bg-zinc-800 hover:ring-1 hover:ring-zinc-700 focus:bg-zinc-800 focus:ring-2 focus:ring-zinc-600'
             : 'text-zinc-800 hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 focus:bg-white focus:ring-2 focus:ring-blue-400'}`}
         />
@@ -131,7 +136,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
         data-timefield
         aria-label={ariaLabel}
         onClick={openKeypad}
-        className={`flex-1 min-w-0 flex items-center justify-center gap-1 px-2 py-1.5 rounded border text-xs tabular-nums transition-colors ${dark ? 'bg-zinc-950 border-zinc-700 text-zinc-100 hover:bg-zinc-900' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50'}`}
+        className={`flex-1 min-w-0 flex items-center ${align === 'left' ? 'justify-start' : 'justify-center'} gap-1 px-2 py-1.5 rounded border text-xs tabular-nums transition-colors ${dark ? 'bg-zinc-950 border-zinc-700 text-zinc-100 hover:bg-zinc-900' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50'}`}
       >
         <span className="truncate">{display || <span className="text-zinc-400">{placeholder}</span>}</span>
         {overrideDot}

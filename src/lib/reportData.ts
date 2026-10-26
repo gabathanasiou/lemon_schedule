@@ -2,7 +2,7 @@ import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShoot
 import { resolveRoleCategories } from './crewCatalog';
 import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, CrewLinkWarning } from './crewLinks';
 import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, ResolvedCall } from './callTimes';
-import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, projectDepartments, resolveSlotCall, rolesForDept, slotsForDay } from './dayCrew';
+import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, projectDepartments, reportToIdForDay, resolveSlotCall, resolveSlotReportToId, rolesForDept, slotsForDay } from './dayCrew';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
@@ -11,7 +11,7 @@ import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
 import { formatDateShort, naturalSortSceneStrings } from './utils';
 import { computeViolationIndex, violationTypeLabel } from './violations';
-import { typeLabelOf, resolvedLocationName, partsFromPlace } from './locations';
+import { typeLabelOf, resolvedLocationName, locationLabelById, partsFromPlace } from './locations';
 import { getDayTypes, codeForType } from './dayTypes';
 import { getStatusesWithLists, isElementMarked } from './nonShootHelpers';
 import { getBrowserTimeZone } from './timezones';
@@ -188,6 +188,10 @@ export interface ReportDayInfo {
   excludedCrewDepts?: string[];
   /** Item 146 — day-level department pre-call overrides. */
   departmentPrecalls?: Record<string, string>;
+  /** Item 156 — day-level "Report to" location id (whole crew). */
+  reportToId?: string;
+  /** Item 156 — day-level department "Report to" location ids. */
+  departmentReportTo?: Record<string, string>;
   /** Per-element call overrides from `daybreakMeta` (item 99 elementCallsOfDay). */
   elementCalls?: Record<string, Record<string, ElementCallTimes>>;
   /** The day's breaks/notes with their call-sheet inclusion flag. */
@@ -259,6 +263,9 @@ export interface ReportCrewItem {
   email?: string;
   /** Resolved day call time (crewOfDay only — override or department precall). */
   callTime?: string;
+  /** Resolved "Report to" (crewOfDay only, item 156): slot → department →
+   *  everyone default. */
+  reportTo?: string;
   /** Department (crewOfDay only, item 146) — for department-grouped tables. */
   department?: string;
   /** Elements this person is explicitly linked to (roadmap 11) — comma list of
@@ -688,6 +695,8 @@ export function buildReportCtx(
       crewSlots: gov?.daybreakMeta?.crewSlots,
       excludedCrewDepts: gov?.daybreakMeta?.excludedCrewDepts,
       departmentPrecalls: gov?.daybreakMeta?.departmentPrecalls,
+      reportToId: gov?.daybreakMeta?.reportToId,
+      departmentReportTo: gov?.daybreakMeta?.departmentReportTo,
       elementCalls: gov?.daybreakMeta?.elementCalls,
       breaks,
       notes,
@@ -1019,7 +1028,7 @@ export function resolveCollection(
       // that isn't working; the project list is the project-level database.
       const day = dayItemOf(parentItem);
       if (!day) return projectDepartmentItems(ctx.project);
-      const meta: DayMeta = { crewSlots: day.crewSlots, excludedCrewDepts: day.excludedCrewDepts, departmentPrecalls: day.departmentPrecalls };
+      const meta: DayMeta = { crewSlots: day.crewSlots, excludedCrewDepts: day.excludedCrewDepts, departmentPrecalls: day.departmentPrecalls, reportToId: day.reportToId, departmentReportTo: day.departmentReportTo };
       return dayDepartments(ctx.project, meta, day.callTime)
         .filter(d => !d.excluded)
         .map(d => ({ key: d.dept, label: d.dept }));
@@ -1057,12 +1066,15 @@ export function resolveCollection(
         crewSlots: day.crewSlots,
         excludedCrewDepts: day.excludedCrewDepts,
         departmentPrecalls: day.departmentPrecalls,
+        reportToId: day.reportToId,
+        departmentReportTo: day.departmentReportTo,
         crewIds: day.crewIds,
         crewCalls: day.crewCalls,
       };
       const groups = groupSlotsByDept(ctx.project, meta, slotsForDay(ctx.project, meta), day.callTime);
       const byPerson = new Map(ctx.crewItems.map(c => [c.id, c]));
       const byId = crewPeopleById(ctx.project);
+      const dayReportToId = reportToIdForDay(ctx.project, meta);
       const out: ReportCrewItem[] = [];
       for (const group of groups) {
         if (group.excluded) continue;
@@ -1083,6 +1095,8 @@ export function resolveCollection(
             linkedCrew: base?.linkedCrew,
             // Slot override anchored on the department call (item 146).
             callTime: resolveSlotCall(slot, group.precall, day.callTime),
+            // Item 156: slot → department → everyone default (location id → name).
+            reportTo: locationLabelById(ctx.project, resolveSlotReportToId(slot, group.reportToId, dayReportToId)) || undefined,
           });
         }
       }
@@ -1134,7 +1148,7 @@ export function resolveCollection(
       // All mode fills the general call itself (reportGrids).
       const crew = resolveCollection(ctx, 'crewOfDay', undefined, day, undefined) as ReportCrewItem[];
       const crewDepts = new Set(crew.map(c => c.department || departmentOfRole(ctx.project, c.roleKey)).filter(Boolean));
-      const meta: DayMeta = { crewSlots: day.crewSlots, excludedCrewDepts: day.excludedCrewDepts, departmentPrecalls: day.departmentPrecalls };
+      const meta: DayMeta = { crewSlots: day.crewSlots, excludedCrewDepts: day.excludedCrewDepts, departmentPrecalls: day.departmentPrecalls, reportToId: day.reportToId, departmentReportTo: day.departmentReportTo };
       return dayDepartments(ctx.project, meta, day.callTime)
         .filter(d => !d.excluded && (crewDepts.has(d.dept) || d.precall))
         .map(d => ({ key: d.dept, label: d.dept, callTime: (d.precall && resolveCallExpression(d.precall, day.callTime)) || undefined }));

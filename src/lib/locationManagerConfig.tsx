@@ -139,6 +139,7 @@ const AddressCell: React.FC<{ row: ManagerRow; update: (f: string, v: string) =>
         onClose={() => setOpen(false)}
         onConfirm={loc => { apply(loc); setOpen(false); }}
         initial={initial}
+        editing
       />
     </>
   );

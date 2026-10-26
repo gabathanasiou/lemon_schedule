@@ -55,11 +55,11 @@ const ReportGridBlock: React.FC<ReportGridBlockProps> = ({ block, ctx, fieldMap,
 
   const groups = useMemo(() => {
     if (!collection) return [];
-    const real = dayItem ? resolveReportGridGroups(ctx, collection, block.category, dayItem, fieldMap, { includeAll: block.precallsAll, include: block.precallsDepts }) : [];
+    const real = dayItem ? resolveReportGridGroups(ctx, collection, block.category, dayItem, fieldMap, { includeAll: block.precallsAll, include: block.precallsDepts, showReportTo: block.showReportTo }) : [];
     const withRows = real.filter(g => g.items.length > 0);
     if (withRows.length > 0) return withRows;
-    return hint ? skeletonReportGridGroups(ctx.project, collection, block.category, fieldMap) : [];
-  }, [collection, ctx, block.category, block.precallsAll, block.precallsDepts, dayItem, fieldMap, hint]);
+    return hint ? skeletonReportGridGroups(ctx.project, collection, block.category, fieldMap, { showReportTo: block.showReportTo }) : [];
+  }, [collection, ctx, block.category, block.precallsAll, block.precallsDepts, block.showReportTo, dayItem, fieldMap, hint]);
 
   if (groups.length === 0) return null;
 

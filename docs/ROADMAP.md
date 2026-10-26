@@ -156,12 +156,12 @@ zero `--ui-*` references. A light/accent modal today would be a themed frame wit
 
 **Progress (2026-10-26 — Day family)**: the Day Manager is on the light token ladder (a
 `ThemeScope mode="light" surface="neutral"` around the manager page) — page shell, `DayPicker`,
-`DaySectionCard`, the weather chip and all section bodies (details/locations/events/scenes/call
-times/breaks/crew/conflicts) use `--ui-*` fills/text/borders. The Day Events family
+`DaySectionCard`, the category tab strip and all section bodies (details/locations/events/scenes/call
+times/breaks/crew/conflicts, including the Day Details weather strip) use `--ui-*` fills/text/borders. The Day Events family
 (`DayEventsModal` + `EventModal` + `EventAdderModal`), shared `ItemRow`, the dark `RuleCard` branch
 and the event chip trigger are tokenised. Expansion 2 adds: `CrewRosterEditor` (ambient light/dark
 Glide grid via `createDayTimesTheme(fs, mode)` + `dayTimesCellColors`, dark editable-cell wash in
-`InlineGlideTable`), `InteractiveGridBlock`, `ProductionDetailsModal`, `CallTimesSettingsModal`,
+`InlineGlideTable`), `InteractiveGridBlock`, `LocationEntityDropdown`, `ProductionDetailsModal`, `CallTimesSettingsModal`,
 `CopyDayModal`, `AddCrewMemberModal`, `CallSheetEditPage`/`CallSheetCanvas` (the white paper gets
 its own light neutral scope), `GroupedSelect` (omitted theme = ambient mode) and the shared manager
 shell page surfaces. App `Modal` defaults `theme="dark"` so a light page scope cannot flip existing
@@ -184,30 +184,6 @@ shared rows/cards (`ItemRow`, `CardSection` consumers), `src/index.css` for miss
 **Verify**: `npm run lint`; `npm run test:unit`; one behavioural e2e per touched modal (no visual
 assertions); rule-7 manual pass desktop + iPad at both modes.
 **Relations**: 302 (parent), 171, 98, 311. Blocked by 302 stage 2 (kit v0.1.116 shipped).
-
-## 312. Grouped pickers → kit searchable dropdown (`[~]`)
-
-**Request**: the kit's `DropdownMenu searchable` now supports `DropdownItem group` headers and
-search-by-category. The app's shared `GroupedSelect` (Day Manager locations, crew links, copy day,
-call times) still uses the bespoke `DropdownPanel` with headers but NO search. Move the primitive to
-the kit so every consumer gets groups + category search once.
-
-**Progress (2026-10-26)**: `GroupedSelect` now renders the kit `DropdownMenu`/`DropdownItem` with
-`group` headers, search (row + category), single/multi, hints as trailing text, and `keepOpen` for
-multi. The locations picker is covered by `e2e/day-manager.spec.ts` (category search + multi-select
-keep-open); the smart suite covers crew links/copy day/call times. Docs updated (§Primitive matrix +
-§UI-PRIMITIVES). Ready to close on merge.
-
-**Approach**: rewrite `src/components/production/day/GroupedSelect.tsx` internals on the kit
-`DropdownMenu`/`DropdownItem`, keeping the public props/API (`items`, `selectedIds`, `onChange`,
-`mode`, `theme`, `hint`, `disabled`). Map `{id,name,group,hint}` → `DropdownItem group={…}` with the
-hint as trailing muted text; keep the kit's portal, flip, coarse sizing and touch dismissal.
-Scene-derived locations stay ungrouped (first section). No parallel panel, no second positioner.
-
-**Verify**: `e2e/day-manager.spec.ts` + `e2e/locations.spec.ts`; type `set`/`hospital` in the Day
-Manager locations picker, groups follow the filtered set; crew links/copy day/call times smoke;
-iPad flip + touch dismissal. Update `scripts/smart-test.mjs` RULES for the shared file.
-**Relations**: 171 (locations overhaul), 56 (EntityDropdown later), 302 (kit grouped menu).
 
 ## 313. Kit RichTextEditor / FormatToolbar tokenisation (`[ ]`)
 
@@ -640,18 +616,6 @@ stays; the ship path to everyone moves here). `depends on` 97 stage 1.
   edits and undoes a project end-to-end; helper is unreachable from non-app
   origins; project data survives app restart.
 
-## 156. Crew table block — contact details + "Report to" (`[ ]`)
-
-**Request**: the `crewTable` report block needs **report-to** info (who/where
-the crew reports to — location/contact; user-confirmed not a time).
-- SHIPPED: Phone/Email columns (static `CREW_FIXED` + the interactive
-  `CrewTableGlide`) — `reportGrids.ts`, `CrewTableGlide.tsx`.
-- Remaining: decide the report-to source (per-person/per-slot field on the
-  item-146 crew model vs crew links) — one owner, no parallel model.
-- **Verify**: rule-7 manual + `e2e/report-grid-blocks.spec.ts` only if the write
-  path changes.
-- **Relations**: 112, 146.
-
 ## 307. Element properties — per-category custom fields (MMS `PropertyDefinition` parity) (`[ ]`, NEEDS CONVERSATION FIRST)
 
 **Requested 2026-10-26 (user, in the element-view conversation):** "manage all
@@ -876,7 +840,6 @@ equality, reload keeps the size, Fit modes unchanged.
 **Relations**: overlaps **160** (page geometry/scale — the single metrics source;
 its scale control must compose with this, not fork it); reuses **188**'s resize
 recipe; touches **212** (call-sheet editor inherits the same canvas).
-
 
 ## 215. Reports — unlock chained reference navigation (roadmap 196 child steps) (`[ ]`, gated, parked)
 

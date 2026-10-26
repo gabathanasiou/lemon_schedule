@@ -4,9 +4,7 @@ import type { DaySectionProps } from '../daySectionTypes';
 import { violationTypeLabel } from '../../../../lib/violations';
 
 const ConflictsSection: React.FC<DaySectionProps> = ({ day }) => {
-  if (day.violations.length === 0) {
-    return <p className="text-xs text-[color:var(--ui-text-faint)]">No rule conflicts on this day.</p>;
-  }
+  if (day.violations.length === 0) return null;
   return (
     <ul className="space-y-1.5">
       {day.violations.map((v, i) => (

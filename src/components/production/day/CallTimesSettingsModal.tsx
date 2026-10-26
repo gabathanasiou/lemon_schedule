@@ -7,6 +7,8 @@ import { useProject } from '../../../store';
 import { getCallTimeSettings } from '../../../lib/callTimes';
 import { CREW_DEPARTMENTS } from '../../../lib/crewCatalog';
 import { assignSlotPerson, buildDefaultSlots, templateSlots } from '../../../lib/dayCrew';
+import { locationFromPick } from '../../../lib/locations';
+import type { PickedLocation } from '../../../lib/places';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../../lib/categories';
 import type { CallStageDef, CallTimeSettings, CrewTemplate } from '../../../types';
 import TimeField from '../../TimeField';
@@ -143,6 +145,13 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
     dispatch({ type: 'SET_PRODUCTION_INFO', payload: { callTimes: { ...settings, ...patch } } });
   const setTemplate = (patch: Partial<CrewTemplate>) =>
     dispatch({ type: 'UPDATE_PROJECT', payload: { crewTemplate: { ...template, ...patch } } });
+
+  /** Item 156 — the crew "Report to" picker's create path (shared mapping). */
+  const createLocation = (picked: PickedLocation, type: string): string => {
+    const location = locationFromPick(picked, type);
+    dispatch({ type: 'ADD_LOCATION', payload: { location } });
+    return location.id;
+  };
 
   const setStage = (index: number, patch: Partial<CallStageDef>) =>
     setCallTimes({ stages: settings.stages.map((s, i) => i === index ? { ...s, ...patch } : s) });
@@ -395,6 +404,15 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 if (value) next[dept] = value; else delete next[dept];
                 setTemplate({ departmentPrecalls: Object.keys(next).length ? next : undefined });
               }}
+              reportToId={template.reportToId || ''}
+              deptReportTo={template.departmentReportTo}
+              onReportToChange={id => setTemplate({ reportToId: id || undefined })}
+              onDeptReportToChange={(dept, id) => {
+                const next = { ...(template.departmentReportTo || {}) };
+                if (id) next[dept] = id; else delete next[dept];
+                setTemplate({ departmentReportTo: Object.keys(next).length ? next : undefined });
+              }}
+              onCreateLocation={createLocation}
               onAddCrewMember={role => setAddCrew({ role })}
               onCreatePerson={(role, name, slotId) => setAddCrew({ role, name, slotId })}
             />

@@ -121,8 +121,32 @@ portals into its OWN slot **immediately left of the view switcher**, so it sits 
 same spot in BOTH Days views (roadmap 177) — a thin vertical divider separates the
 view-specific controls from that shared day-selector + switcher cluster. The **view
 switcher** is the toolbar's
-rightmost element (see the merged-view switcher recipe below). Below the toolbar sit the
-collapsible section cards (`DaySectionCard`). All overlays (Copy-from-day, events,
+rightmost element (see the merged-view switcher recipe below). At the top of the page
+content sits a **centered mini-tab strip** (it scrolls with the cards — not sticky) — the
+same kit `Button variant="tab"` + measured
+`useSlidingPill`/`TAB_PILL` row as the header/mini tabs, with an icon + label per tab
+(never counts): **Overview (default) · All · Locations · Scenes · Call Times · Crew**.
+Overview is Details + Breaks & Notes + Events + Conflicts; All is the stacked page; the
+others show their one card. The active tab is a place
+(`#/production/days/manager/<tab>`; `overview` omitted, `all` explicit), so
+back/forward, reload and pop-outs keep it. Switching tabs keeps the selected
+day/tab and each Glide grid's cell/range selection (cached under its presence
+scope and restored on remount). Below it sit the collapsible
+section cards (`DaySectionCard`). **Day Details is a compact overview**, not
+a field/value table: a title-case date + day number + day-type pill, one muted stats
+line, three timing tiles (only the general call shows a pencil edit affordance), and a
+location/weather strip: a master-location picker over the day's attached locations plus
+the one-line forecast with refresh and the `Manual weather` toggle. The old toolbar
+weather chip is gone — Day Details is the weather home. Breaks, stripboard notes and the
+free-text announcements live in their own full-width **Breaks & Notes** card, so the
+meta card stays short beside Events/Conflicts. Empty states are compact: **Conflicts is
+skipped entirely** when there are no violations; an empty **Events** card is a single
+header row with the kit `Add event…` trailing action. Events reuses the Calendar's
+per-element `EventCardView` at `size="md"` — click a card to open that element's event
+editor; whole-category/status surfaces open the day editor. An empty **Locations** card
+is one dashed CTA row (`No locations on this day.` + the kit `Add location` action), not
+an instruction line plus an empty grid; with rows, the Glide board + footer add action
+are unchanged. All overlays (Copy-from-day, events,
 pickers) are dark per the two-layer rule.
 
 **Theming (roadmap 310)**: the manager page is wrapped in
@@ -297,6 +321,8 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; **one `.ui-item-highlighted` row** (pointer hover + arrows, latest wins; the CSS `:hover` fill feeds iOS tap-to-hover but is suppressed while a row is highlighted — kit `tokens.css`, keyed on the kit class not Radix's attr), arrows/typeahead/Esc + the document-level menu key-lock (mini-modal: menu keys stay captured even when focus sits on a canvas); `modal:false`; root content = the one positioning engine (`useDropdownPosition`: fixed below the trigger, width-matched, visual-viewport flip/clamp, `maxMenuHeight` ceiling); submenus keep the Radix popper side-placement; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy). **`searchable`** adds the kit search box that filters the registered rows (the long category list in Script tagging, roadmap 136: `ScriptTagMenu` anchors a zero-size fixed trigger at the text selection, so the highlighted text stays selected while the menu is open) |
 | Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme by default** (`theme` prop; the ribbon designer passes `"dark"`); press-point-anchored morph, closes on Esc. Shares the kit menu machinery (highlight/keys/lock) — `ContextMenuSub` = `DropdownSubmenu` |
 | Entity/cast picker in a cell or form | `EntityDropdown` | Modes: `multi` (comma list, click toggles), `single` (search-then-select), `select` (legacy). `items` prop REQUIRED — no context fallback. **Inside modals use `variant="chip"`** (dark chip trigger + dark panel; §EntityDropdown chip version below) — cells/forms keep the light default |
+| Location picker | `locationOptions(project)` + `EntityDropdown` / `LocationEntityDropdown` | **ALWAYS the category version** — the emerald add-new row first, then the Locations DB grouped by **location type** (`searchFields: ['name','group']`, `sortItems: list => list` so headers never split). Standalone fields use `LocationEntityDropdown` (name-keyed display adapter, committed value stays the location **id**); grid/cell editors pass the same options to `EntityDropdown` | `src/lib/locationOptions.ts`, `src/components/location/LocationEntityDropdown.tsx` |
+| Crew picker | `crewRoleGroup` / `departmentOrder` | **ALWAYS grouped by crew position/department** (catalog order, then custom departments) — never a flat role list; sort within a department only. Same for the Add-role menu and the Day Manager crew grids | `src/lib/crewCatalog.ts`, `src/lib/dayCrew.ts` |
 | Async address/place search | `AsyncResultsDropdown` (`src/components/location/`) | Debounced async results rendered in the **shared dark `DropdownPanel`** (the chip-EntityDropdown panel — morph, touch/wheel scroll, visual-viewport keyboard clamp for free) with a `Loader2` spinner in the trigger while searching; the search input keeps focus (NOT a kit `DropdownMenu`: its document key-lock consumes typeahead letters + steals focus to the content, breaking typing) |
 | Inline cell text edit | `CellInput` | **Commits on blur only, never per keystroke**; Enter=commit, Esc=cancel |
 | Numeric box (ribbon Pad V/H, Edge, Master Size, cell offset; designer/report panels; format-bar size) | kit `NumberInput` (v0.1.99; app shim `src/components/LiveNumberInput.tsx`) | Free-typed draft while focused (type digits one at a time, delete-to-empty); commit clamps live (preview updates), Enter/blur clamps + finalizes, Escape reverts to the committed value; ArrowUp/Down and the stacked chevron steppers step ±`step` (disabled at the bounds); mouse drag scrubs (Premiere/Resolve — up = increase, 2px/step; touch/pen keep scrolling). Never a clamped controlled input — clamping on change snaps the first keystroke. Default = the `.ui-number-box` token box (`theme="dark\|light\|blue"`); a `className` keeps the consumer's own input look |
@@ -309,7 +335,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Call-time / duration input | `TimeField` / `DurationField` | Shared expression parsing + touch keypad; never a raw time input |
 | Grouped single/multi-select dropdown (locations/crew/categories) | `GroupedSelect` (`production/day/`) | Kit `DropdownMenu` + `DropdownItem group` — category headers, searchable by row/category, single/multi, light/dark. Never fork a second grouped panel |
 | Grouped item list (dark modals) | `ItemCard` + `ItemRow` (`src/components/cards/`) | Collapsible group card + interactive row — the element events manager's day-type sections and its Rules section (first migrations). §Item cards below |
-| Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), read-only cells gray + `cursor: default`, editable rows hover-tinted, centered headers, one commit per edit/paste/fill/clear. Header right-click can expose caller menu items via `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut. Day Manager Call Times + Crew; reuse for manager pages |
+| Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), read-only cells gray + `cursor: default`, editable rows hover-tinted, centered headers, one commit per edit/paste/fill/clear. Header right-click can expose caller menu items via `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut. The local cell/range selection is cached under its presence scope (or data attr) and restored on remount, so a Day Manager tab switch doesn't drop it. Day Manager Call Times + Crew; reuse for manager pages |
 
 Dropdown **light picker** classes live in `src/lib/dropdown.ts` (panel `bg-white border-zinc-200
 rounded-lg shadow-lg`, `DD_PANEL_CLASS_LIB` `:21-24`; items `DD_ITEM_CLASS_LIB` `:16-17`; selected

@@ -107,6 +107,8 @@ test('day manager: warns when a linked crew target is not on the day', async ({ 
   await page.getByRole('button', { name: 'Production' }).click();
   await page.getByRole('button', { name: 'Day Manager', exact: true }).click();
   await expect(page.locator('[data-day-manager]')).toBeVisible({ timeout: 8000 });
+  // Day Manager lands on Overview (roadmap 315); the warning lives in Crew.
+  await page.locator('[data-day-tab="crew"]').click();
   const warning = page.locator('[data-crew-link-warnings]');
   await expect(warning).toContainText('ZZZ BETA');
   await expect(warning).toContainText('not on this day');

@@ -76,7 +76,7 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     await expect(page.getByRole('menuitem').first()).toBeVisible();
     await page.keyboard.press('Escape');
 
-    // Multi-select stage dropdown (GroupedSelect → shared DropdownPanel) toggles a stage off cast.
+    // Multi-select stage dropdown (GroupedSelect → kit searchable menu) toggles a stage off cast.
     await castRow.getByRole('button').first().click();
     await page.locator('[data-ei]').filter({ hasText: /^Pickup$/ }).click();
     await expect.poll(() => page.evaluate(() => {
@@ -111,7 +111,8 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     }, undefined, { timeout: 5000 });
     const tBox = (await tmplScroller.boundingBox())!;
     const tTarget = Math.max(120, Math.floor(tBox.width) - 1) - 34;
-    const tCols = [150, 170, 90].map(w => Math.max(40, Math.floor((w / (150 + 170 + 90)) * tTarget)));
+    // Role 150 · Person 170 · Report To 150 (item 156) · Call 90.
+    const tCols = [150, 170, 150, 90].map(w => Math.max(40, Math.floor((w / (150 + 170 + 150 + 90)) * tTarget)));
     tCols[1] += tTarget - tCols.reduce((a, b) => a + b, 0);
     await page.mouse.dblclick(tBox.x + tCols[0] + tCols[1] / 2, tBox.y + 30 + 14);
     const layer = page.locator('[data-glide-overlay-layer]');

@@ -145,6 +145,25 @@ export function deptPrecallExpr(project: Project, meta: DayMeta, dept: string): 
   return meta.departmentPrecalls?.[dept] ?? project.crewTemplate?.departmentPrecalls?.[dept] ?? '';
 }
 
+/** Item 156: the day-wide default "Report to" location id (day override →
+ *  template → ''). A department default overrides it; a slot's own value
+ *  overrides both. */
+export function reportToIdForDay(project: Project, meta: DayMeta): string {
+  return meta.reportToId ?? project.crewTemplate?.reportToId ?? '';
+}
+
+/** Item 156: one department's effective "Report to" location id (day override
+ *  → template → ''). Never read `departmentReportTo` raw — this is the merge. */
+export function deptReportToId(project: Project, meta: DayMeta, dept: string): string {
+  return meta.departmentReportTo?.[dept] ?? project.crewTemplate?.departmentReportTo?.[dept] ?? '';
+}
+
+/** Item 156: the resolved "Report to" location id for one slot: own value →
+ *  department default → everyone default → ''. Mirrors the call-time chain. */
+export function resolveSlotReportToId(slot: DayCrewSlot, deptId: string, dayId: string): string {
+  return slot.reportToId || deptId || dayId || '';
+}
+
 /** The resolved call for one slot: noCall → blank; else the override anchored
  *  on the department call; else the department call itself. */
 export function resolveSlotCall(slot: DayCrewSlot, precall: string, dayCall: string): string {
@@ -160,6 +179,9 @@ export interface DayCrewGroup {
   precall: string;
   /** The department call, resolved against the day call. */
   deptCall: string;
+  /** Item 156: the department's effective default "Report to" location id
+   *  ('' = none). */
+  reportToId: string;
 }
 
 /** Groups a slot list into department blocks in display order. Slots inside a
@@ -191,6 +213,7 @@ export function groupSlotsByDept(
       excluded: excluded.has(dept),
       precall,
       deptCall: resolveCrewCall(null, precall, dayCall),
+      reportToId: deptReportToId(project, meta, dept),
     });
   }
   return out;
@@ -242,6 +265,15 @@ export function setDeptPrecall(meta: DayMeta, dept: string, expr: string): Parti
   return { departmentPrecalls: Object.keys(next).length ? next : undefined };
 }
 
+/** Item 156: day-patch for one department's default "Report to" location id —
+ *  '' clears the day override so the template default applies again (mirrors
+ *  `setDeptPrecall`). */
+export function setDeptReportTo(meta: DayMeta, dept: string, locationId: string): Partial<DayMeta> {
+  const next = { ...(meta.departmentReportTo || {}) };
+  if (locationId) next[dept] = locationId; else delete next[dept];
+  return { departmentReportTo: Object.keys(next).length ? next : undefined };
+}
+
 /** Every department represented in the project (crew roles + template pre-call
  *  keys), in display order — the precalls block's per-block include picker. */
 export function projectDepartments(project: Project): string[] {
@@ -286,6 +318,18 @@ export function setSlotNoCall(slots: DayCrewSlot[], id: string, noCall: boolean)
     delete next.callTime;
     if (noCall) next.noCall = true;
     else delete next.noCall;
+    return next;
+  });
+}
+
+/** Item 156: sets / clears a slot's own "Report to" location id (blank falls
+ *  back to the department, then the everyone default). */
+export function setSlotReportToId(slots: DayCrewSlot[], id: string, locationId: string): DayCrewSlot[] {
+  return slots.map(s => {
+    if (s.id !== id) return s;
+    const next = { ...s };
+    if (locationId) next.reportToId = locationId;
+    else delete next.reportToId;
     return next;
   });
 }

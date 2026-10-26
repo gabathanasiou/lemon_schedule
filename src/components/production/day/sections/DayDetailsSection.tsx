@@ -1,27 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { Info, Sunrise, Sunset } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Info, Loader2, MapPin, Pencil, RefreshCw, Sunrise, Sunset } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
-import { formatDateLong, normalizeTime } from '../../../../lib/utils';
+import { formatDateTitle, formatDuration, formatPageCount, normalizeTime, parseTime } from '../../../../lib/utils';
 import { getDayType } from '../../../../lib/dayTypes';
-import { resolvedLocationName } from '../../../../lib/locations';
 import { formatWeatherValue } from '../../../../lib/reportWeather';
 import { useTouchMode } from '../../../../lib/useMarquee';
 import type { DayWeatherOverride } from '../../../../types';
 import TimeField from '../../../TimeField';
 import { LiveNumberInput } from '../../../LiveNumberInput';
 import Checkbox from '../../../Checkbox';
-import BreaksNotesSection from './BreaksNotesSection';
+import { LocationEntityDropdown } from '../../../location/LocationEntityDropdown';
+import { dayLocationRefs, setDayMaster } from '../../../../lib/dayLocations';
+import { locationOptions } from '../../../../lib/locationOptions';
 import { wmoIcon } from '../weatherIcon';
-import { DAY_ALIGN, DAY_GROUP_ROW, DAY_INPUT, DAY_TABLE, DAY_TABLE_WRAP, DAY_TD, DAY_TH } from '../tableStyles';
+import { DAY_INPUT } from '../tableStyles';
 
-const FIELD = `${DAY_INPUT} w-full px-2.5 py-2`;
-
-const ValueRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <tr className="even:bg-[var(--ui-card-band)]">
-    <td className={`${DAY_TD} ${DAY_ALIGN.left} text-[11px] font-medium text-[color:var(--ui-text-muted)] w-40`}>{label}</td>
-    <td className={`${DAY_TD} ${DAY_ALIGN.left} text-xs text-[color:var(--ui-text-strong)]`}>{children}</td>
-  </tr>
-);
+const LABEL = 'text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-muted)] leading-3';
+const LABEL_ROW = 'flex min-h-[26px] items-start justify-between gap-1';
+const LABEL_BOX = 'min-h-[26px]';
+const TILE = 'min-w-0 rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] px-2.5 py-2';
+const TILE_VALUE = 'mt-1 text-xs font-semibold leading-5 text-[color:var(--ui-text-strong)] tabular-nums';
 
 interface WeatherDraft {
   weather: string;
@@ -37,17 +35,33 @@ function weatherDraftFrom(ov?: DayWeatherOverride): WeatherDraft {
   };
 }
 
-const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow, readOnly, project, dispatch, actions, weatherView }) => {
+/** Call → wrap span, wrapped at midnight (a 20:00 call with a 02:00 wrap is 6h). */
+function dayLength(start: string, end: string): string {
+  if (!start || !end) return '';
+  const from = parseTime(start);
+  const to = parseTime(end);
+  let minutes = (to.hour * 60 + to.minute) - (from.hour * 60 + from.minute);
+  if (minutes < 0) minutes += 1440;
+  return minutes > 0 ? formatDuration(minutes) : '';
+}
+
+const DayDetailsSection: React.FC<DaySectionProps> = ({
+  day, patchMeta, patchRow, readOnly, project, weatherView, refreshWeather, weatherRefreshing,
+}) => {
   const isTouch = useTouchMode();
-  const [note, setNote] = useState(day.meta.note || '');
-  useEffect(() => { setNote(day.meta.note || ''); }, [day.meta.note, day.sectionIndex]);
-
-  const commitNote = () => {
-    if ((day.meta.note || '') !== note) patchMeta({ note: note.trim() || undefined });
-  };
-
   const dayType = day.status ? getDayType(project, day.status) : null;
-  const master = day.masterLocation;
+
+  // ---- master location ------------------------------------------------------
+  // The master is a pointer into the day's ordered attached-location list
+  // (`lib/dayLocations.ts`). The picker offers what is already on the day,
+  // grouped by location type through the SAME `locationOptions` category
+  // builder the Locations grid and crew Report-to cells use; the Locations
+  // card below is where locations get attached.
+  const locationItems = useMemo(() => {
+    const attached = new Set(dayLocationRefs(day.meta).map(ref => ref.id));
+    return locationOptions(project).filter(item => attached.has(item.id));
+  }, [day.meta, project]);
+  const masterId = day.masterLocation?.id || '';
 
   // ---- manual weather (roadmap 301) -----------------------------------------
   // The override is stored on the governing daybreak (`daybreakMeta`), written
@@ -126,7 +140,7 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
   const weatherText = entry
     ? (formatWeatherValue(entry) || '—')
     : weatherView?.miss === 'too-far' ? 'No forecast yet' : '—';
-  const noPinHint = !!weatherView && !weatherView.hasPin && !manual;
+  const noPinHint = !!weatherView && !weatherView.hasPin && !manual && !entry;
   const hasSun = !!entry && (!!entry.sunrise || !!entry.sunset);
 
   /** Desktop keeps the native time box; touch opens the shared TimeField
@@ -160,151 +174,183 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
     </span>
   );
 
+  const elementCount = Object.values(day.elements).reduce((n, list) => n + list.length, 0);
+  const pages = day.sums.pages > 0 ? formatPageCount(day.sums.pages) : '';
+  const stats = [
+    `${day.scenes.length} scene${day.scenes.length !== 1 ? 's' : ''}`,
+    pages ? `${pages} pgs` : '',
+    `${day.cast.length} cast`,
+    `${elementCount} element${elementCount !== 1 ? 's' : ''}`,
+  ].filter(Boolean).join(' · ');
+  const length = dayLength(day.callTime, day.wrap);
+
   return (
-    <div className="space-y-4">
-      <div className={DAY_TABLE_WRAP}>
-        <table className={DAY_TABLE}>
-          <thead>
-            <tr className="border-b border-[color:var(--ui-border)]">
-              <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Field</th>
-              <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className={DAY_GROUP_ROW}><td colSpan={2} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-muted)]">Day</td></tr>
-            <ValueRow label="Date">{day.date ? formatDateLong(day.date) : '—'}</ValueRow>
-            <ValueRow label="Day">{day.chronoDay ? `Day ${day.chronoDay}` : '—'}</ValueRow>
-            <ValueRow label="Day type">{dayType ? dayType.label : 'Work'}</ValueRow>
-            <ValueRow label="Scenes">{day.scenes.length}</ValueRow>
-            <ValueRow label="Cast">{day.cast.length}</ValueRow>
-            <ValueRow label="Elements">{Object.values(day.elements).reduce((n, l) => n + l.length, 0)}</ValueRow>
-            <ValueRow label="Master location">
-              {master ? resolvedLocationName(master.name, master.address, master.place, master.lat, master.lng) : '—'}
-            </ValueRow>
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="text-sm font-semibold leading-5 text-[color:var(--ui-text-strong)]">{day.date ? formatDateTitle(day.date) : 'No date'}</span>
+            <span className="text-[11px] text-[color:var(--ui-text-faint)]">Day {day.chronoDay}</span>
+          </div>
+          <div className="mt-1.5 text-[11px] text-[color:var(--ui-text-muted)]">{stats}</div>
+        </div>
+        <span
+          className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${dayType ? '' : 'bg-[var(--ui-card-band)] text-[color:var(--ui-text-muted)]'}`}
+          style={dayType?.color ? { backgroundColor: `${dayType.color}22`, color: dayType.color } : undefined}
+        >
+          {dayType?.label || 'Work'}
+        </span>
+      </div>
 
-            <tr className={DAY_GROUP_ROW}>
-              <td colSpan={2} className="px-2.5 py-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-muted)]">Weather</span>
-                  <Checkbox
-                    variant="plain"
-                    theme="light"
-                    checked={manual}
-                    disabled={readOnly}
-                    onChange={toggleOverride}
-                    label="Override the API"
-                    labelClassName="text-[color:var(--ui-text-muted)]"
-                  />
-                </div>
-              </td>
-            </tr>
-            <ValueRow label="Weather">
-              {manual ? (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <input
-                    value={weatherDraft.weather}
-                    readOnly={readOnly}
-                    onChange={e => setDraft('weather', e.target.value)}
-                    onBlur={() => commitWeatherField('weather')}
-                    onKeyDown={blurOnEnter}
-                    placeholder="Partly cloudy"
-                    aria-label="Weather condition"
-                    className={`${DAY_INPUT} px-1.5 py-1 w-36 min-w-0`}
-                  />
-                  <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--ui-text-muted)]">
-                    H
-                    <LiveNumberInput
-                      value={override?.tempMax ?? undefined}
-                      min={-60}
-                      max={60}
-                      fallback={weatherView?.entry?.tempMax ?? 0}
-                      step={1}
-                      readOnly={readOnly}
-                      ariaLabel="High temperature (°C)"
-                      className={`${DAY_INPUT} px-1.5 py-1 w-16 text-right`}
-                      onCommit={v => commitWeatherTemp('tempMax', v)}
-                    />
-                    °C
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--ui-text-muted)]">
-                    L
-                    <LiveNumberInput
-                      value={override?.tempMin ?? undefined}
-                      min={-60}
-                      max={60}
-                      fallback={weatherView?.entry?.tempMin ?? 0}
-                      step={1}
-                      readOnly={readOnly}
-                      ariaLabel="Low temperature (°C)"
-                      className={`${DAY_INPUT} px-1.5 py-1 w-16 text-right`}
-                      onCommit={v => commitWeatherTemp('tempMin', v)}
-                    />
-                    °C
-                  </span>
-                </div>
-              ) : noPinHint ? (
-                <span className="text-[11px] text-[color:var(--ui-text-faint)]">No location pin — set a master location, or override to type it.</span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5">
+      <div className="grid grid-cols-3 gap-2">
+        <div className={`${TILE} group`} title={readOnly ? undefined : 'Click the time to edit'}>
+          <div className={LABEL_ROW}>
+            <div className={LABEL}>General call</div>
+            {!readOnly && <Pencil className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)] transition-colors group-hover:text-[color:var(--ui-text-muted)]" aria-hidden />}
+          </div>
+          <TimeField
+            value={day.daybreakRow?.daybreakCallTime || '08:00'}
+            onChange={v => patchRow({ daybreakCallTime: v })}
+            readOnly={readOnly}
+            hideOverrideDot
+            align="left"
+            ariaLabel="General call"
+            className="mt-1 font-semibold"
+          />
+        </div>
+        <div className={TILE}>
+          <div className={LABEL_BOX}><div className={LABEL}>First turnover</div></div>
+          <div className={TILE_VALUE}>{day.firstCall || '—'}</div>
+        </div>
+        <div className={TILE}>
+          <div className={LABEL_BOX}><div className={LABEL}>Est. wrap</div></div>
+          <div className={`${TILE_VALUE} flex items-baseline gap-1.5`}>
+            <span>{day.wrap || '—'}</span>
+            {length && <span className="text-[10px] font-normal text-[color:var(--ui-text-faint)]">{length}</span>}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-[color:var(--ui-border)] px-2.5 py-2">
+        <div className="flex flex-wrap items-center gap-2" data-master-location>
+          <MapPin className="w-3.5 h-3.5 shrink-0 text-[color:var(--ui-text-faint)]" />
+          <span className={`${LABEL} shrink-0`}>Master location</span>
+          {locationItems.length === 0 ? (
+            <span className="flex min-w-[10rem] flex-1 items-center rounded-md border border-[color:var(--ui-border)] bg-[var(--ui-card-band)] px-3 py-1.5 text-xs text-[color:var(--ui-text-faint)]">
+              No locations attached
+            </span>
+          ) : (
+            <LocationEntityDropdown
+              className="min-w-[10rem] flex-1"
+              value={masterId}
+              onChange={id => patchMeta(setDayMaster(day.meta, id))}
+              items={locationItems}
+              readOnly={readOnly}
+              placeholder="Choose a location…"
+            />
+          )}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-t border-[color:var(--ui-border)] pt-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+            {noPinHint ? (
+              <span className="text-[color:var(--ui-text-faint)]">No location pin — attach or choose a master location.</span>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5 text-[color:var(--ui-text)]">
                   <WeatherIcon className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
-                  <span>{weatherText}</span>
+                  <span className="tabular-nums">{weatherText}</span>
                 </span>
-              )}
-            </ValueRow>
-            <ValueRow label="Sun">
-              {manual ? (
-                <div className="flex flex-wrap items-center gap-3">
-                  {renderTimeInput('sunrise', Sunrise)}
-                  {renderTimeInput('sunset', Sunset)}
-                </div>
-              ) : hasSun ? (
-                <span className="inline-flex items-center gap-3">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Sunrise className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
-                    <span className="tabular-nums">{entry?.sunrise || '—'}</span>
+                {hasSun && (
+                  <span className="inline-flex items-center gap-3 text-[color:var(--ui-text-muted)]">
+                    <span className="inline-flex items-center gap-1">
+                      <Sunrise className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
+                      <span className="tabular-nums">{entry?.sunrise || '—'}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Sunset className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
+                      <span className="tabular-nums">{entry?.sunset || '—'}</span>
+                    </span>
                   </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Sunset className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
-                    <span className="tabular-nums">{entry?.sunset || '—'}</span>
-                  </span>
-                </span>
-              ) : (
-                <span className="text-[color:var(--ui-text-faint)]">—</span>
-              )}
-            </ValueRow>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {!manual && !!weatherView && refreshWeather && (
+              <button
+                type="button"
+                onClick={() => { void refreshWeather(day.date); }}
+                disabled={weatherRefreshing || weatherView.miss === 'too-far'}
+                title={weatherView.miss === 'too-far' ? 'No forecast yet' : 'Refresh weather'}
+                aria-label="Refresh weather"
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[color:var(--ui-text-faint)] transition-colors hover:bg-[var(--ui-card-hover)] hover:text-[color:var(--ui-text)] disabled:opacity-40"
+              >
+                {weatherRefreshing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              </button>
+            )}
+            <Checkbox
+              variant="plain"
+              theme="light"
+              checked={manual}
+              disabled={readOnly}
+              onChange={toggleOverride}
+              label="Manual weather"
+              labelClassName="text-[10px] text-[color:var(--ui-text-muted)]"
+            />
+          </div>
+        </div>
 
-            <tr className={DAY_GROUP_ROW}><td colSpan={2} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-muted)]">Timing</td></tr>
-            <ValueRow label="General call">
-              <TimeField
-                value={day.daybreakRow?.daybreakCallTime || '08:00'}
-                onChange={v => patchRow({ daybreakCallTime: v })}
+        {manual && (
+          <div className="mt-2 space-y-2 border-t border-[color:var(--ui-border)] pt-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <input
+                value={weatherDraft.weather}
                 readOnly={readOnly}
-                className="w-28"
+                onChange={e => setDraft('weather', e.target.value)}
+                onBlur={() => commitWeatherField('weather')}
+                onKeyDown={blurOnEnter}
+                placeholder="Partly cloudy"
+                aria-label="Weather condition"
+                className={`${DAY_INPUT} px-1.5 py-1 w-40 min-w-0`}
               />
-            </ValueRow>
-            <ValueRow label="First turnover">{day.firstCall || '—'}</ValueRow>
-            <ValueRow label="Est. wrap">{day.wrap || '—'}</ValueRow>
-          </tbody>
-        </table>
+              <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--ui-text-muted)]">
+                H
+                <LiveNumberInput
+                  value={override?.tempMax ?? undefined}
+                  min={-60}
+                  max={60}
+                  fallback={entry?.tempMax ?? 0}
+                  step={1}
+                  readOnly={readOnly}
+                  ariaLabel="High temperature (°C)"
+                  className={`${DAY_INPUT} px-1.5 py-1 w-16 text-right`}
+                  onCommit={v => commitWeatherTemp('tempMax', v)}
+                />
+                °C
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--ui-text-muted)]">
+                L
+                <LiveNumberInput
+                  value={override?.tempMin ?? undefined}
+                  min={-60}
+                  max={60}
+                  fallback={entry?.tempMin ?? 0}
+                  step={1}
+                  readOnly={readOnly}
+                  ariaLabel="Low temperature (°C)"
+                  className={`${DAY_INPUT} px-1.5 py-1 w-16 text-right`}
+                  onCommit={v => commitWeatherTemp('tempMin', v)}
+                />
+                °C
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {renderTimeInput('sunrise', Sunrise)}
+              {renderTimeInput('sunset', Sunset)}
+            </div>
+          </div>
+        )}
       </div>
-
-      <div>
-        <div className="text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider mb-2">Breaks & notes (call sheet)</div>
-        <BreaksNotesSection day={day} patchMeta={patchMeta} patchRow={patchRow} readOnly={readOnly} project={project} dispatch={dispatch} actions={actions} />
-      </div>
-
-      <label className="block">
-        <span className="text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider">Day notes / announcements</span>
-        <textarea
-          value={note}
-          readOnly={readOnly}
-          onChange={e => setNote(e.target.value)}
-          onBlur={commitNote}
-          rows={3}
-          placeholder="Notes for the call sheet — parking, catering, announcements…"
-          className={`${FIELD} mt-1.5 resize-y`}
-        />
-      </label>
     </div>
   );
 };

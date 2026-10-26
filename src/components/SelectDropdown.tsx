@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { ChevronDown } from 'lucide-react';
 import { useOverlayMorph } from '@gabriel/ui-kit';
-import { useDropdown, useOpenHandler, useEscapeCapture, DD_ITEM } from '../lib/dropdown';
+import { useDropdown, useOpenHandler, useEscapeCapture, DD_ITEM, DD_ITEM_BASE_DARK_LIB } from '../lib/dropdown';
 import { useDropdownPosition, type DropdownPanelPos } from '../lib/useDropdownPosition';
 import { useCurrentDocument } from '../lib/popoutTarget';
 import { overlayMorphOptIn } from '../lib/overlayMotion';
@@ -21,6 +22,9 @@ interface SelectDropdownProps {
   autoFocus?: boolean;
   onTabExit?: (el: HTMLElement) => void;
   style?: React.CSSProperties;
+  /** Dark modal surface (the Location picker's type select): dark trigger,
+   *  dark panel, dark item states. Default light. */
+  theme?: 'light' | 'dark';
 }
 
 export const SelectDropdown: React.FC<SelectDropdownProps> = ({
@@ -34,7 +38,9 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   autoFocus = false,
   onTabExit,
   style,
+  theme = 'light',
 }) => {
+  const dark = theme === 'dark';
   const [open, setOpen] = useState(false);
   const initialIdx = options.indexOf(value);
   const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
@@ -77,7 +83,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
     }
   }, [autoFocus, readOnly, handleOpen]);
 
-  useDropdown(open, ref, () => setOpen(false));
+  useDropdown(open, ref, () => setOpen(false), scrollRef);
 
   useDropdownPosition({
     anchorRef: ref,
@@ -114,17 +120,19 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   if (readOnly) return <span className={className}>{value || '?'}</span>;
 
   const inputClasses = standalone
-    ? `w-full border border-zinc-300 rounded-md ${IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm'} focus:outline-none focus:ring-2 focus:ring-zinc-900 text-left`
+    ? dark
+      ? `w-full bg-zinc-950 border border-zinc-700 rounded-md ${IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm'} text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-600 text-left cursor-pointer`
+      : `w-full border border-zinc-300 rounded-md ${IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm'} focus:outline-none focus:ring-2 focus:ring-zinc-900 text-left`
     : 'bg-transparent outline-none uppercase cursor-pointer w-full text-left h-full hover:bg-black/[0.09] focus:bg-black/[0.18]';
 
   return (
-    <div ref={ref} className={standalone ? '' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
+    <div ref={ref} className={standalone ? 'relative' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
       <input
         value={value}
         readOnly
         onClick={() => { setHighlightedIndex(options.indexOf(value) >= 0 ? options.indexOf(value) : 0); handleOpen(); }}
         placeholder={standalone ? placeholder : ''}
-        className={`${inputClasses} ${standalone ? '' : (className || '')}`}
+        className={`${inputClasses} ${standalone ? 'pr-8 cursor-pointer' : (className || '')}`}
         style={standalone ? style : { ...style, color: 'transparent', caretColor: '#2563eb' }}
         onKeyDown={e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, options.length - 1)); }
@@ -137,6 +145,9 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
           if (e.key === 'Escape') setOpen(false);
         }}
       />
+      {standalone && (
+        <ChevronDown className={`w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${dark ? 'text-zinc-500' : 'text-zinc-400'}`} />
+      )}
       {!standalone && (
         <span className={`absolute inset-0 truncate pointer-events-none uppercase whitespace-nowrap text-left ${value ? '' : 'italic opacity-50'}`} style={style}>
           {value || placeholder}
@@ -151,13 +162,17 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
           onPointerDown={e => e.stopPropagation()}
           onMouseDown={e => e.stopPropagation()}
           onClick={e => e.stopPropagation()}
-          className="z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[120px]"
+          className={dark
+            ? 'z-[10001] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 max-h-48 overflow-y-auto min-w-[120px] pointer-events-auto'
+            : 'z-[10010] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[120px] pointer-events-auto'}
           style={{ position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxH, visibility: pos.ready ? 'visible' : 'hidden', top: pos.top }}
         >
           {options.map((opt, i) => (
             <div
               key={opt}
-              className={DD_ITEM(i === highlightedIndex)}
+              className={dark
+                ? `${DD_ITEM_BASE_DARK_LIB} rounded cursor-pointer transition-colors ${i === highlightedIndex ? 'bg-zinc-700 text-white' : 'text-zinc-300'}`
+                : DD_ITEM(i === highlightedIndex)}
               onTouchStart={() => {}}
               onMouseDown={e => { e.preventDefault(); commit(opt); }}
             >

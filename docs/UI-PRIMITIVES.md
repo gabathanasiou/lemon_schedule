@@ -87,6 +87,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `DayManagerPage` receives `dayMode`/`onDayModeChange`. Memory persists across tab switches and app
   restarts (a fresh open resumes the last-used view); the editor's Back button returns to the
   manager without stacking duplicate entries.
+- **Day Manager category tabs are a fourth segment** (roadmap 315): `#/production/days/manager/scenes`
+  (Overview is the default and is omitted; `all` is explicit). The centered strip is the mini-tab recipe — kit `Button variant="tab"` +
+  `useSlidingPill`/`TAB_PILL`, an icon + label per tab (no counts) — inside
+  `DayManagerPage`; `AppPlace.dayTab` is the place field (`samePlace` compares it), while a day
+  pop-out keeps the local `lemon_schedule_day_manager.tab` pref. The registry's `tabs` metadata
+  decides which cards each tab renders.
 - **One entry point**: `go(place)` in `App.tsx` (dedupe → `pushState`/`replaceState` → applies
   tab/sub/target state). Never call `setActiveTab`/sub-tab setters directly for user navigation —
   route through `go` (in-tab selections like a selected day/scene are NOT places). One-shot jump
@@ -221,7 +227,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
   As a cell editor ALWAYS separate commit from exit: `onChange` updates the value, `onExit` leaves
-  edit mode (never call both in one handler — editor unmounts and can't reopen).
+  edit mode (never call both in one handler — editor unmounts and can't reopen). **Domain lists stay
+  grouped**: location pickers use `locationOptions(project)` — add-new first, then the Locations DB
+  grouped by location type (search `name` + `group`, never re-sort across headers); crew pickers
+  group by `crewRoleGroup`/`departmentOrder`. Standalone location fields use
+  `LocationEntityDropdown`; never a flat location or role list.
 - `TimeField`/`DurationField` (`src/components/`): call-time expression input (absolute/relative,
   touch keypad, live resolved value, reset) + the extracted duration recipe. `GroupedSelect`
   (`production/day/`): grouped single/multi-select rendered through the kit `DropdownMenu` —

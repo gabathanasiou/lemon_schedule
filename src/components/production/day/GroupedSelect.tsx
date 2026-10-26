@@ -16,6 +16,8 @@ export interface GroupedSelectItem {
   name: string;
   group?: string;
   hint?: string;
+  /** Action row (e.g. "Add new location…") — renders in emerald. */
+  accent?: boolean;
 }
 
 export interface GroupedSelectProps {
@@ -59,6 +61,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   const tokenized = !!ambient;
   const [open, setOpen] = useState(false);
   const hintById = useMemo(() => new Map(items.map(i => [i.id, i.hint])), [items]);
+  const accentById = useMemo(() => new Set(items.filter(i => i.accent).map(i => i.id)), [items]);
 
   const label = (() => {
     const picked = items.filter(i => selectedIds.includes(i.id));
@@ -122,7 +125,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
                 ) : undefined
               }
             >
-              {item.name}
+              <span className={accentById.has(item.id) ? 'text-[color:var(--ui-confirm-hover)]' : undefined}>{item.name}</span>
             </DropdownItem>
           );
         })}

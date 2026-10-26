@@ -58,8 +58,10 @@ interface EntityDropdownProps {
   standalone?: boolean;
   /** Custom entity list. Uses store castMembers when omitted. */
   items?: EntityItem[];
-  /** Fields to search against. Defaults to ['id', 'name']. */
-  searchFields?: ('id' | 'name')[];
+  /** Fields to search against. Defaults to ['id', 'name']. Include 'group' to
+   *  let a query match the dropdown group header (e.g. typing "set" lists every
+   *  location whose type is Set). */
+  searchFields?: ('id' | 'name' | 'group')[];
   /** Custom item renderer. Defaults to "id. name". */
   renderItem?: (item: EntityItem, selected: boolean) => React.ReactNode;
   /** Custom sorter. Defaults to selected-first then numeric id. */

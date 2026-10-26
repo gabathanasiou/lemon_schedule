@@ -180,6 +180,10 @@ export interface DayCrewSlot {
   callTime?: string;
   /** Explicitly no call — wins over the department / day call (blank box). */
   noCall?: boolean;
+  /** Who/where this crew member reports to (item 156) — a Locations-DB id
+   *  (`project.locations`). Overrides the department default, which overrides
+   *  the everyone default; resolve via `resolveSlotReportToId`. */
+  reportToId?: string;
   /** Optional free note carried to the call sheet. */
   note?: string;
 }
@@ -223,6 +227,12 @@ export interface DayMeta {
   excludedCrewDepts?: string[];
   /** Department key → call-time expression (absolute or relative). */
   departmentPrecalls?: Record<string, string>;
+  /** Item 156: day-wide "Report to" override — a Locations-DB id
+   *  (`project.locations`). Blank = the project crew template's default. */
+  reportToId?: string;
+  /** Item 156: department key → "Report to" location id for this day. Blank /
+   *  missing keys fall back to the template's department defaults. */
+  departmentReportTo?: Record<string, string>;
   /** category → element key → call times (item 99). */
   elementCalls?: Record<string, Record<string, ElementCallTimes>>;
   /** Report design id → per-day callSheetEdit zone blocks (item 10). */
@@ -650,6 +660,11 @@ export interface CrewTemplate {
   slots?: DayCrewSlot[];
   excludedCrewDepts?: string[];
   departmentPrecalls?: Record<string, string>;
+  /** Item 156: project default "Report to" location id for every crew member. */
+  reportToId?: string;
+  /** Item 156: department key → default "Report to" location id (overridden
+   *  per slot, and per day through `DayMeta.departmentReportTo`). */
+  departmentReportTo?: Record<string, string>;
 }
 
 export interface ProductionInfo {
@@ -800,6 +815,9 @@ export interface ReportBlock {
   /** Crew table (roadmap 298): repeat the column header at the top of every
    *  pagination fragment. Default ON — only an explicit `false` turns it off. */
   repeatHeader?: boolean;
+  /** Crew table (item 156): print the optional "Report To" column. Off unless
+   *  explicitly on — existing crew tables keep their five fixed columns. */
+  showReportTo?: boolean;
   axis?: 'columns' | 'rows';     // attributes as columns (default) or rows (matrix)
   columns?: ReportTableColumn[]; // simple column defs (field/align/width) — canonical table model
   // columns (Notion-style)

@@ -2,8 +2,10 @@ import React, { useCallback, useMemo } from 'react';
 import { AlertTriangle, UsersRound } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import CrewRosterEditor, { CrewAddRoleMenu } from '../CrewRosterEditor';
-import { excludedDeptsForDay, setDeptPrecall as deptPrecallPatch, slotsForDay } from '../../../../lib/dayCrew';
+import { excludedDeptsForDay, reportToIdForDay, setDeptPrecall as deptPrecallPatch, setDeptReportTo as deptReportToPatch, slotsForDay } from '../../../../lib/dayCrew';
+import { locationFromPick } from '../../../../lib/locations';
 import { crewLinkWarnings, crewNameMap, targetLabelForLink } from '../../../../lib/crewLinks';
+import type { PickedLocation } from '../../../../lib/places';
 import Button from '../../../Button';
 
 /**
@@ -14,7 +16,7 @@ import Button from '../../../Button';
  * `departmentPrecalls`; the effective list derives from the project template
  * until the day is customized.
  */
-const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly, actions }) => {
+const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly, actions, dispatch }) => {
   const template = project.crewTemplate || {};
 
   const slots = useMemo(() => day.meta.crewSlots ?? slotsForDay(project, day.meta), [day.meta, project]);
@@ -23,16 +25,28 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
     () => ({ ...(template.departmentPrecalls || {}), ...(day.meta.departmentPrecalls || {}) }),
     [template.departmentPrecalls, day.meta.departmentPrecalls],
   );
+  const reportToId = useMemo(() => reportToIdForDay(project, day.meta), [project, day.meta]);
 
   const setDeptPrecall = useCallback((dept: string, expr: string) => {
     patchMeta(deptPrecallPatch(day.meta, dept, expr));
   }, [day.meta, patchMeta]);
 
+  const setDeptReportTo = useCallback((dept: string, locationId: string) => {
+    patchMeta(deptReportToPatch(day.meta, dept, locationId));
+  }, [day.meta, patchMeta]);
+
+  /** Item 156 — creates the Locations-DB entry the Report-to picker confirmed. */
+  const createLocation = useCallback((picked: PickedLocation, type: string): string => {
+    const location = locationFromPick(picked, type);
+    dispatch({ type: 'ADD_LOCATION', payload: { location } });
+    return location.id;
+  }, [dispatch]);
+
   const applyTemplate = useCallback(() => {
-    patchMeta({ crewSlots: undefined, excludedCrewDepts: undefined, departmentPrecalls: undefined });
+    patchMeta({ crewSlots: undefined, excludedCrewDepts: undefined, departmentPrecalls: undefined, reportToId: undefined, departmentReportTo: undefined });
   }, [patchMeta]);
 
-  const hasCustomization = !!(day.meta.crewSlots || day.meta.excludedCrewDepts || day.meta.departmentPrecalls);
+  const hasCustomization = !!(day.meta.crewSlots || day.meta.excludedCrewDepts || day.meta.departmentPrecalls || day.meta.reportToId || day.meta.departmentReportTo);
 
   const warnings = useMemo(() => {
     const dayCrewIds = new Set(day.crew.map(c => c.person.id));
@@ -92,6 +106,11 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
         onSlotsChange={next => patchMeta({ crewSlots: next })}
         onExcludedChange={next => patchMeta({ excludedCrewDepts: next.length ? next : undefined })}
         onDeptPrecallChange={setDeptPrecall}
+        reportToId={reportToId}
+        deptReportTo={day.meta.departmentReportTo}
+        onReportToChange={id => patchMeta({ reportToId: id || undefined })}
+        onDeptReportToChange={setDeptReportTo}
+        onCreateLocation={createLocation}
         onAddCrewMember={() => actions.openAddCrewMember?.()}
         onCreatePerson={(role, name, slotId) => actions.openAddCrewMember?.({ role, name, slotId })}
       />

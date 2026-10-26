@@ -14,6 +14,7 @@ import DropdownSubmenu from '../../DropdownSubmenu';
 import Button from '../../Button';
 import { useFollowView } from '../../../lib/supabase/useFollowView';
 import { findDesignCallSheetZone } from '../../../lib/reportBlocks';
+import type { PickedLocation } from '../../../lib/places';
 
 /**
  * Full-surface per-day call-sheet editor (item 10, D17): the whole design
@@ -37,6 +38,9 @@ export interface CallSheetEditPageProps {
   /** Item 146 — the shared Add Crew Member modal (crew table person swap /
    *  Add role flows). */
   openAddCrewMember?: (opts?: { role?: string; name?: string; slotId?: string }) => void;
+  /** Item 156 — creates the Locations-DB entry the crew board's picker
+   *  confirmed (the Day Manager composition root owns dispatch). */
+  onCreateLocation?: (picked: PickedLocation, type: string) => string;
   onReset: () => void;
   onSelectDesign: (id: string) => void;
   onSelectDay: (sectionIndex: number) => void;
@@ -56,7 +60,7 @@ export interface CallSheetEditPageProps {
 const isCallSheet = (d: ReportDesign) => /call\s*sheet/i.test(d.name);
 
 const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
-  day, days, design, designs, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, onReset, onSelectDesign, onSelectDay, onPrint, onBack, readOnly, hasOverride, headerTarget, dayPickerTarget, openAddCrewMember,
+  day, days, design, designs, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, onReset, onSelectDesign, onSelectDay, onPrint, onBack, readOnly, hasOverride, headerTarget, dayPickerTarget, openAddCrewMember, onCreateLocation,
 }) => {
   const [nonce, setNonce] = useState(0);
   const [preview, setPreview] = useState(false);
@@ -241,6 +245,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
                 readOnly={readOnly}
                 showRibbonTimes={showRibbonTimes}
                 openAddCrewMember={openAddCrewMember}
+                onCreateLocation={onCreateLocation}
                 editor={args}
               />
             ),
@@ -259,6 +264,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           readOnly={readOnly}
           showRibbonTimes={showRibbonTimes}
           openAddCrewMember={openAddCrewMember}
+          onCreateLocation={onCreateLocation}
         />
       )}
     </div>

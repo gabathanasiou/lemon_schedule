@@ -9,6 +9,7 @@ import { getNonShootEntryMap, isElementMarked } from './nonShootHelpers';
 import { computeSectionViolationMap } from './rulesEngine';
 import { codeForType } from './dayTypes';
 import { groupSlotsByDept, resolveSlotCall, slotsForDay, type DayCrewGroup } from './dayCrew';
+import { dayLocationRefs } from './dayLocations';
 
 /**
  * Canonical read model for ONE production day (D7). The page, the pop-out, the
@@ -276,7 +277,12 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
     }
 
     const masterLocation = meta.locationId ? locationById.get(meta.locationId) : undefined;
-    const keyLocations = (meta.locationIds || []).map(id => locationById.get(id)).filter(Boolean) as ProjectLocation[];
+    // Item 156 follow-up: the master is a POINTER into the ordered list — the
+    // key list is every attached location except the master.
+    const keyLocations = dayLocationRefs(meta)
+      .filter(ref => !ref.isMaster)
+      .map(ref => locationById.get(ref.id))
+      .filter(Boolean) as ProjectLocation[];
 
     const callTime = sectionCallTime(sections, s.index);
 

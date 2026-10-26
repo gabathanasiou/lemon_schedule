@@ -100,8 +100,9 @@ persisted, never in the project JSON, never a room action.
 ## Visibility gates
 
 - **Visibility gates** — a peer's pointer renders ONLY while:
-  - you are on their exact PLACE: same tab, sub-tab and sub-sub mode (Day
-    Manager vs Call Sheet, Crew/Locations manager vs Glide) — and
+  - you are on their exact PLACE: same tab, sub-tab, sub-sub mode (Day
+    Manager vs Call Sheet, Crew/Locations manager vs Glide) **and Day Manager
+    category tab** (`dayTab` — Overview/All/Locations/…) — and
   - you have the same DOCUMENT open on document-scoped pages (roadmap 236,
     user decision 2026-10-15): the Sheet scene, the open Reports Designer
     design, the open Ribbon Designer design. The gate compares the peer's
@@ -287,9 +288,10 @@ persisted, never in the project JSON, never a room action.
   - the **manager pages' selected sidebar category** (Element Manager,
     `breakdown/elements`; Crew/Locations, `production/<sub>/manager`) —
     `managerCategory`; category keys are project data (a key this client does
-    not have is ignored) — plus the **Day Manager's selected day** and the
-    **Call Sheet editor's day + Preview** (`daySection` / `preview`; the day
-    itself resolves through the App place).
+    not have is ignored) — plus the **Day Manager's selected day + category
+    tab** and the **Call Sheet editor's day + Preview** (`daySection` /
+    `dayTab` / `preview`; the day and tab resolve through the App place, so a
+    follower's `go` switches both).
   - the **Script page's viewed scene** (roadmap 243) — published as the live
     scene id + scenes index and resolved back through scene NUMBERS, so a
     different doc order still lands right; the jump is rAF-deferred past the

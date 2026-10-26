@@ -309,3 +309,21 @@ A merged-tree full run (212 + 220) flaked `new-cast-naming.spec.ts:58:3`
 the spec is green alone (5/5, 2.3s). Same load-sensitivity class as §F–§I, not
 a regression — 220 touches only the report resolver. Re-triage only if it
 recurs outside load.
+
+## K. rich-text format toggles — kit 0.1.116 active-button tokens (2026-10-26)
+
+**Symptom:** three specs fail on the merged tree:
+`e2e/rich-text-editor.spec.ts:40`, `:77`, `:137` expect the Bold/Italic/Underline
+button to carry `bg-blue-900/50` (`ON_CLS`); the kit now renders
+`bg-[var(--ui-btn-active-bg)]!` (and its hover/active text tokens).
+
+**Evidence:** `package.json` is on `@gabriel/ui-kit#v0.1.116`; the failing
+class strings are the kit's tokenised `FormatToolbar` buttons. The spec is
+unchanged from `main` and still asserts the old literal class. This is the
+302/310 UI-adoption surface (kit RichTextEditor/FormatToolbar tokenisation),
+not the Day Manager card/tab work; do not fix it here.
+
+**Owner:** `310-ui-adoption` — update `ON_CLS` to the token class (or a
+class-independent assertion) in its UI-adoption pass. Until then: 272 passed /
+3 known / 7 skipped on this branch; the three failures are reproducible on
+`main` with the same spec and kit.
