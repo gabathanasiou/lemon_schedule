@@ -533,21 +533,74 @@ the crew reports to — location/contact; user-confirmed not a time).
   path changes.
 - **Relations**: 112, 146.
 
-## 157. Cast performer ("Artiste") — person + contact details on cast elements (`[ ]`, big)
+## 157. Cast performer ("Artiste") — full cast properties, MMS parity (`[ ]`, big)
 
 **Request**: a cast element is the character; users must record the actual
-performer playing them — name + contact details like crew has (phone/email) —
-shown in the cast call-times block (labelled "Artiste") and available to
-reports.
-- Scope first: decide the model — extend `CastMember` (`types.ts`) with
-  performer fields or link a crew-person record (reuse item 146's crew person
-  shape; never duplicate `project.crew`). One source of truth; migration on
-  local load AND `readDriveProject`.
-- Surfaces: Element Manager cast table/columns, `ELEMENT_CALL_FIELDS`
-  (`reportFields.ts:230-236`) + call-times block labels, cast report fields.
-- **Verify**: Vitest for migration + read model; targeted e2e only if
-  call-times output changes (wrong name/contact = silent).
-- **Relations**: 111, 146; 11/44 are links, not the store.
+performer and their booking/contact details — the full MMS Cast Members property
+set from the fixture: **Full Name** (performer), Phone, Email (Lemon addition),
+Agent, Agent phone, Address, Rate, Per (rate basis), Notes — shown in the cast
+call-times block (labelled "Artiste") and available to reports.
+
+**Model — decided (2026-10-26): extend `CastMember`**, never link a crew person.
+Performers are not crew, and item 209's universal person DB is still undesigned;
+all fields are optional strings, so existing projects need no migration. A cast
+field registry (key/label/getter) feeds the manager, import and report fields
+from ONE list — never three copies.
+
+**MSD import** reads the matching `<Property>` children (`Full Name` → performer,
+`Phone`, `Agent`, `Agent Ph`, `Address`, `Rate`, `Per`, `Notes`); email stays
+blank for MMS imports (MMS has no email).
+
+**Surfaces (this item)**: Element Manager cast table extended columns behind a
+"Details" hide/extend toggle (compact by default); `ELEMENT_CALL_FIELDS`
+(`reportFields.ts`) + cast report fields for Artiste/Phone/Email/Agent…; the
+cast call-times block column is labelled **Artiste** (the character Name stays).
+The unified per-element panel is **306**.
+
+- **Verify**: Vitest for the import mapping + report field registry; targeted
+  e2e only where silence hurts (call-times Artiste column); extended columns are
+  a rule-7 manual pass.
+- **Relations**: `relates to` **146** (crew person shape), **306** (Element View
+  panel), **307** (per-category custom fields), **305** (Board IDs in display).
+
+## 306. Element View — one per-element panel for every category (`[ ]`, big; design pass first)
+
+**Requested 2026-10-26 (user):** one "element view" panel that holds everything
+about an element and works for EVERY category, not just cast. It replaces the
+two bolted-on modals — **Linked Crew** (`ElementCrewLinksModal.tsx`, needs a
+redesign) and **Events** (`ElementEventsModal.tsx`) — and is launched from the
+Element Manager first, later from the stripboard / Glide / Scene Sheet / Day
+Manager.
+
+- Shape: header (Board ID + name + category), an element picker with a dropdown
+  + prev/next (the Day Manager's day-selector pattern), and sections/tabs:
+  Properties (157's cast fields; built-ins for other categories), Linked Crew,
+  Events. ONE category-aware modal — never a cast-only fork or a second modal
+  engine (reuse `Modal`).
+- Element Manager: compact rows by default with a column hide/extend control;
+  the row actions open Element View instead of two separate modals.
+- Open at pickup: launch points beyond the manager; whether element links (44)
+  fold in; where "editable in the Glide" lives (Breakdown Glide vs the manager
+  table); per-category custom properties are **307**.
+- **Verify**: e2e for open → navigate → edit → persist (silent data loss =
+  break); layout is rule-7 manual + an iPad pass.
+- **Relations**: `merges` **11** (crew links modal) and **62** (element events
+  modal); `depends on` **157** (cast properties); `relates to` **44**, **172**,
+  **305**.
+
+## 307. Element properties — per-category custom fields (MMS `PropertyDefinition` parity) (`[ ]`, NEEDS CONVERSATION FIRST)
+
+**Requested 2026-10-26 (user, in the element-view conversation):** "manage all
+properties per element … should support not only cast". MMS gives every category
+its own `PropertyDefinitionList` (Cast: Full Name/Phone/Agent/…; Props: …) and
+renders those as per-element fields.
+
+- Open questions: user-defined fields per category vs a fixed built-in set;
+  where definitions live; migration + import mapping from
+  `CategoryMgr/PropertyDefinition`; how the manager / Glide / reports register
+  dynamic fields; defaults, required fields, merge/rename/delete behaviour.
+- **Do NOT build before that conversation.** 157 covers the fixed CAST set only.
+- **Relations**: `depends on` **157** + **306**; `relates to` **40/41**.
 
 ## 158. Reports designer — Requirements table block (FUTURE, parked) (`[ ]`)
 
