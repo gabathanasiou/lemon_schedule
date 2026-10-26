@@ -3,7 +3,7 @@ import { UserPlus, ChevronDown } from 'lucide-react';
 import { useProject } from '../../store';
 import { crewRoleGroup, CREW_DEPARTMENT_NAMES } from '../../lib/crewCatalog';
 import { generateUUID } from '../../lib/utils';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import type { CrewRole } from '../../types';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -27,8 +27,8 @@ export interface AddCrewMemberModalProps {
   onCreated?: (personId: string, roleKey: string) => void;
 }
 
-const INPUT = 'w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500';
-const LABEL = 'text-[10px] font-semibold text-zinc-500 uppercase tracking-wider';
+const INPUT = 'w-full mt-1 px-3 py-2 bg-[var(--ui-input-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]';
+const LABEL = 'text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider';
 
 function slugifyRole(label: string, existing: Set<string>): string {
   const base = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '') || 'role';
@@ -126,14 +126,13 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
             <DropdownMenu
               open={roleOpen}
               onOpenChange={setRoleOpen}
-              theme="dark"
               searchable
               searchPlaceholder="Search roles…"
               width="w-72"
               trigger={
-                <button type="button" disabled={locked} className={`mt-1 w-full justify-between text-xs ${DD_CHIP_TRIGGER_CLASS}`}>
-                  <span className={selectedRoleLabel ? '' : 'text-zinc-500'}>{selectedRoleLabel || 'Select a role…'}</span>
-                  <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                <button type="button" disabled={locked} className={`mt-1 w-full justify-between text-xs ${DD_TOKEN_TRIGGER_CLASS}`}>
+                  <span className={selectedRoleLabel ? '' : 'text-[color:var(--ui-text-faint)]'}>{selectedRoleLabel || 'Select a role…'}</span>
+                  <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
                 </button>
               }
             >
@@ -152,7 +151,7 @@ export const AddCrewMemberModal: React.FC<AddCrewMemberModalProps> = ({ onClose,
               type="button"
               disabled={locked}
               onClick={() => setNewRoleOpen(true)}
-              className="mt-1 text-[11px] text-zinc-500 hover:text-zinc-300 disabled:opacity-40"
+              className="mt-1 text-[11px] text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] disabled:opacity-40"
             >
               + New role…
             </button>

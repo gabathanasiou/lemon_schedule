@@ -204,6 +204,13 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   override. Never hand-tint modal bodies with `bg-blue/emerald-*`. The shim pins `theme="dark"` until
   the light-modal work lands, so a light page scope (e.g. the Day Manager pilot, 310) never flips an
   overlay.
+- **Project chrome (roadmap 311)**: wrap the app header / pop-out toolbar / page toolbar in
+  `ProjectChromeScope` (`src/components/ProjectChromeScope.tsx`) — one kit `ThemeScope` publishing
+  `mode`, the project accent and `context="chrome"`. Bar/hover/title-ring/tab-pill read
+  `--ui-accent-header-*` / `--ui-tab-*`; never hand-write `bg-blue-950` / `bg-emerald-950` or
+  `PROJECT_CHROME` class strings. A one-off accent chip OUTSIDE a toolbar scope carries
+  `data-accent={projectAccentNameOf(theme)}` + an `--ui-accent-*` fill (Sort/Boneyard chips).
+  `PROJECT_CHROME` is the status-bar `barHex` only.
 - **Dialogs (confirm/prompt/alert) are Modal sub-elements**: `useDialog()` renders through the kit
   Modal's `flat` chrome (no header/footer bars — title row + buttons on the body surface) so they
   inherit the morph, one-dim backdrop, viewport clamp and coarse sizing. **Enter ALWAYS triggers the
@@ -218,8 +225,8 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - `TimeField`/`DurationField` (`src/components/`): call-time expression input (absolute/relative,
   touch keypad, live resolved value, reset) + the extracted duration recipe. `GroupedSelect`
   (`production/day/`): grouped single/multi-select rendered through the kit `DropdownMenu` —
-  `DropdownItem group` headers + searchable category matching, light/dark, one positioning/morph
-  path. `EntityItem.group` still renders headers in the bespoke `DropdownPanel` for EntityDropdown.
+  `DropdownItem group` headers + searchable category matching, one positioning/morph path; an
+  omitted `theme` follows the ambient kit mode (light page vs dark modal). `EntityItem.group` still renders headers in the bespoke `DropdownPanel` for EntityDropdown.
 - **Key patterns**: click-to-toggle menus (never `group-hover`); Lucide icons
   `w-3.5 h-3.5 shrink-0` in menus; dark surfaces `bg-zinc-950/95 backdrop-blur-md border
   border-zinc-800`.

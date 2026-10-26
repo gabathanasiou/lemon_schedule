@@ -14,6 +14,7 @@ import { ClipboardPaste, Copy, Scissors, Trash2 } from 'lucide-react';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
+import { useKitTheme } from '@gabriel/ui-kit';
 import { useGlideFill } from '../lib/glideFill';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { expandRangeFill, planGridPaste, type PasteEdit } from '../lib/glidePaste';
@@ -379,9 +380,13 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   // box, never the blue (which is the editable cue). Fully read-only grids
   // (stage-less fallbacks) don't tint at all. Repaint just the two affected
   // rows on hover change.
-  const EDITABLE_BG = '#eff6ff';
-  const EDITABLE_HOVER_BG = '#dbeafe';
-  const READONLY_HOVER_BG = '#f4f4f5';
+  /* Editable-cell cue follows the ambient mode: the light blue wash on the
+     Day pages / call-sheet paper, a raised neutral wash inside a dark modal
+     (a neutral surface never carries the project accent). */
+  const gridMode = useKitTheme()?.mode ?? 'light';
+  const EDITABLE_BG = gridMode === 'dark' ? '#27272a' : '#eff6ff';
+  const EDITABLE_HOVER_BG = gridMode === 'dark' ? '#3f3f46' : '#dbeafe';
+  const READONLY_HOVER_BG = gridMode === 'dark' ? '#27272a' : '#f4f4f5';
   const hoveredRowRef = useRef<number | null>(null);
   const onItemHovered = useCallback((args: any) => {
     const loc = args?.location;
@@ -439,7 +444,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       return { ...cell, themeOverride: { ...((cell as any).themeOverride || {}), bgCell: READONLY_HOVER_BG, bgCellMedium: READONLY_HOVER_BG } };
     }
     return cell;
-  }, [COLUMNS, getCellContent]);
+  }, [COLUMNS, getCellContent, EDITABLE_BG, EDITABLE_HOVER_BG, READONLY_HOVER_BG]);
 
   /** Glide draws header text left-aligned only; repaint centered columns so
    *  each title lines up with its (centered) cells. `wrapHeaders` wraps the

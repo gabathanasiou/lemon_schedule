@@ -1,12 +1,13 @@
 import React from 'react';
 import { useProjectTheme } from '../store';
-import { projectAccentOf } from '../lib/projectTheme';
+import { projectAccentNameOf } from '../lib/projectTheme';
 import { ExternalLink } from 'lucide-react';
 import { IS_COARSE, isTouchLike } from '../lib/device';
-import { useSlidingPill, TAB_PILL } from '@gabriel/ui-kit';
+import { useSlidingPill } from '@gabriel/ui-kit';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import Button from './Button';
 import { CHROME_BAR_INSET, CHROME_BAR_INSET_PX, CHROME_CLUSTER_GAP, CHROME_CLUSTER_GAP_PX, CHROME_ITEM_GAP, CHROME_TAB_GAP } from '../lib/chromeSpacing';
+import { ProjectChromeScope } from './ProjectChromeScope';
 
 export interface ToolbarTab {
   id: string;
@@ -26,17 +27,6 @@ interface PageToolbarProps {
   theme?: 'light' | 'dark';
 }
 
-const THEME = {
-  light: {
-    bar: 'bg-white border-zinc-200',
-    inactive: 'text-zinc-500 hover:text-zinc-900',
-  },
-  dark: {
-    bar: 'bg-zinc-900 border-zinc-800',
-    inactive: 'text-zinc-500 hover:text-zinc-300',
-  },
-} as const;
-
 const JUSTIFY = {
   between: 'justify-between',
   end: 'justify-end',
@@ -44,9 +34,8 @@ const JUSTIFY = {
 } as const;
 
 export default function PageToolbar({ tabs, activeTab, onChange, onPopout, children, rightContent, justify = 'between', theme = 'light' }: PageToolbarProps) {
-  const t = THEME[theme];
   const projectTheme = useProjectTheme();
-  const accent = projectAccentOf(projectTheme);
+  const accentName = projectAccentNameOf(projectTheme);
 
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; tabId: string } | null>(null);
 
@@ -79,10 +68,10 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
   const childrenGroupRef = React.useRef<HTMLDivElement>(null);
   const rightGroupRef = React.useRef<HTMLDivElement>(null);
   /* The active sub-tab's fill is the row's measured pill (useSlidingPill +
-     TAB_PILL — the Seg mechanism), so the selection box glides (roadmap 258). */
+     the --ui-tab-pill-* roles), so the selection box glides (roadmap 258). */
   const activeTabIdx = Math.max(0, (tabs ?? []).findIndex(t => t.id === activeTab));
   const tabPill = useSlidingPill(stripRef, tabRefs, activeTabIdx);
-  const tabPillFill = TAB_PILL[theme][accent === 'emerald' ? 'emerald' : accent ? 'blue' : 'plain'];
+  const tabPillFill = accentName === 'zinc' ? 'bg-[var(--ui-tab-pill-plain)]' : 'bg-[var(--ui-tab-pill-accent)]';
   const requiredStripWidthRef = React.useRef<number | null>(null);
   const syncTabsDock = React.useCallback(() => {
     const el = scrollRef.current;
@@ -159,11 +148,12 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
   }, [isInsideToolbar]);
 
   return (
+    <ProjectChromeScope mode={theme}>
     <div ref={scrollRef} onScroll={checkScroll}
       onPointerDownCapture={onPointerDownCapture}
       onPointerMoveCapture={onPointerMoveCapture}
       onClickCapture={onClickCapture}
-      className={`overflow-x-auto overscroll-x-contain border-b shrink-0 island-inset-l island-inset-r ${t.bar} [&::-webkit-scrollbar]:hidden touch-pan-x`}
+      className="overflow-x-auto overscroll-x-contain border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] shrink-0 island-inset-l island-inset-r [&::-webkit-scrollbar]:hidden touch-pan-x"
       style={{ scrollbarWidth: 'none', WebkitMaskImage: scrollMask, maskImage: scrollMask }}>
       <div data-chrome-bar="page-toolbar" className={`flex items-center ${JUSTIFY[justify]} ${CHROME_CLUSTER_GAP} shrink-0 w-fit min-w-full ${CHROME_BAR_INSET} py-2`}>
         {tabs && tabs.length > 0 && (
@@ -178,8 +168,6 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
                 key={tab.id}
                 ref={el => { tabRefs.current[i] = el; }}
                 variant="tab"
-                theme={theme}
-                cloud={accent}
                 active={active}
                 icon={tab.icon}
                 collapse={tabsDock}
@@ -217,5 +205,6 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, child
         </ContextMenu>
       )}
     </div>
+    </ProjectChromeScope>
   );
 }

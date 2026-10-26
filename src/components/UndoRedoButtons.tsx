@@ -1,7 +1,6 @@
 import React from 'react';
 import { Undo2, Redo2 } from 'lucide-react';
-import { useProject, useProjectTheme } from '../store';
-import { PROJECT_CHROME } from '../lib/projectTheme';
+import { useProject } from '../store';
 
 /**
  * The ONE undo/redo button pair for every chrome (AppHeader + the popout
@@ -16,13 +15,12 @@ import { PROJECT_CHROME } from '../lib/projectTheme';
  * finishes (roadmap 250/251: commit on blur), so undo granularity is per
  * committed edit — there is no separate local history to consult.
  *
- * Colored by the project theme (roadmap 248): zinc / Drive blue / shared
- * emerald, read from the ONE `useProjectTheme()` source.
+ * Colored by the ambient project-chrome scope (roadmap 311): the header's
+ * `ProjectChromeScope` supplies the accent, so the pair carries no palette.
  */
 export function UndoRedoButtons() {
   const { undo, redo, canRoomUndo, canRoomRedo, canLocalUndo, canLocalRedo } = useProject();
-  const theme = useProjectTheme();
-  const tone = `${theme === 'local' ? 'text-zinc-400' : 'text-white/70'} hover:text-white ${PROJECT_CHROME[theme].barHover}`;
+  const tone = 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-accent-header-hover)]';
   const disabledClass = 'disabled:opacity-30 disabled:cursor-not-allowed';
   return (
     <div className="flex items-center gap-1 border border-white/10 rounded bg-white/5">

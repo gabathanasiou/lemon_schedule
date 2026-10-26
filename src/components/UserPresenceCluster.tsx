@@ -5,8 +5,7 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
-import { useProject, useProjectTheme } from '../store';
-import { PROJECT_CHROME, projectMenuThemeOf } from '../lib/projectTheme';
+import { useProject } from '../store';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 import type { SupabaseAccount } from '../lib/supabase/auth';
 import { usePresenceActions, usePresenceState } from '../lib/supabase/presenceContext';
@@ -55,8 +54,6 @@ interface UserPresenceClusterProps {
 export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpenAccount, onManageSharing, className }: UserPresenceClusterProps) {
   const auth = useSupabaseAuth();
   const { currentProjectId, projectList, state, collaborateProject } = useProject();
-  const projectTheme = useProjectTheme();
-  const chrome = PROJECT_CHROME[projectTheme];
   const presence = usePresenceState();
   const presenceActions = usePresenceActions();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -69,8 +66,6 @@ export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpe
   if (!auth.isConfigured || !auth.isReady) return null;
 
   const account = auth.account;
-  const menuTheme = projectMenuThemeOf(projectTheme);
-  const hover = chrome.barHover;
   const currentMeta = projectList.find(p => p.id === currentProjectId);
   // Guests (anonymous sessions) can't own shared projects — "Collaborate"
   // waits until they create an account.
@@ -108,13 +103,13 @@ export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpe
         {peer.overlay && (
           <span
             data-testid="presence-bubble-overlay"
-            className="absolute inset-x-0 bottom-0 flex justify-center pb-[2px] bg-gradient-to-t from-zinc-950/80 to-transparent"
+            className="absolute inset-x-0 bottom-0 flex justify-center pb-[2px] bg-gradient-to-t from-black/80 to-transparent"
           >
             <PresenceDots className="text-white" />
           </span>
         )}
         {peer.isGuest && (
-          <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-amber-400 border border-zinc-950" title="Guest" />
+          <span className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-amber-400 border border-[color:var(--ui-accent-header-bg)]" title="Guest" />
         )}
       </button>
     );
@@ -171,12 +166,11 @@ export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpe
                 onOpenChange={setPeersMenuOpen}
                 align="right"
                 width="w-48"
-                theme={menuTheme}
                 trigger={
                   <button
                     data-testid="presence-overflow"
                     title={`${overflowPeers.length} more collaborator${overflowPeers.length === 1 ? '' : 's'} — click a name to follow`}
-                    className={`relative w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center cursor-pointer select-none transition-all duration-200 ease-out motion-reduce:transition-none ${chrome.bubble}`}
+                    className="relative w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center cursor-pointer select-none transition-all duration-200 ease-out motion-reduce:transition-none bg-[var(--ui-accent-900)] text-[color:var(--ui-text-strong)] ring-1 ring-white/25 hover:bg-[var(--ui-accent-800)]"
                   >
                     +{overflowPeers.length}
                   </button>
@@ -196,11 +190,10 @@ export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpe
         onOpenChange={setMenuOpen}
         align="right"
         width="w-64"
-        theme={menuTheme}
         trigger={
           <button
             data-testid="user-cluster"
-            className={`flex items-center justify-center w-7 h-7 rounded-full border overflow-hidden transition-colors cursor-pointer select-none ${hover} ${account ? 'border-white/25' : 'border-white/15 bg-white/5 text-zinc-400 hover:text-white'}`}
+            className={`flex items-center justify-center w-7 h-7 rounded-full border overflow-hidden transition-colors cursor-pointer select-none hover:bg-[var(--ui-accent-header-hover)] ${account ? 'border-white/25' : 'border-white/15 bg-white/5 text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)]'}`}
             title={account
               ? account.isAnonymous
                 ? 'Guest — create an account to keep your access'

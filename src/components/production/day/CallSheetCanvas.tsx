@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { ThemeScope } from '@gabriel/ui-kit';
 import { useProject } from '../../../store';
 import { useReportCtx } from '../../../lib/useReportCtx';
 import { getReportFieldMap } from '../../../lib/reportFields';
@@ -153,14 +154,15 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({
 
   return (
     <SceneHighlightContext.Provider value={highlightScene}>
-      <div className="flex-1 min-h-0 min-w-0 overflow-auto p-6 bg-zinc-950 text-zinc-300 select-none" data-call-sheet-canvas>
+      <div className="flex-1 min-h-0 min-w-0 overflow-auto p-6 bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)] select-none" data-call-sheet-canvas>
+        <ThemeScope mode="light" surface="neutral" className="mx-auto" style={{ width: metrics.contentWidth }}>
         <div
-          className="mx-auto bg-white shadow-2xl"
-          style={{ width: metrics.contentWidth, padding: `${REPORT_PAGE_PADDING.v}px ${REPORT_PAGE_PADDING.h}px` }}
+          className="bg-[var(--ui-panel-bg)] shadow-2xl text-[color:var(--ui-text)]"
+          style={{ padding: `${REPORT_PAGE_PADDING.v}px ${REPORT_PAGE_PADDING.h}px` }}
           data-call-sheet-page
         >
           {!ctx || !dayItem ? (
-            <div className="py-16 text-center text-xs text-zinc-400">Loading day…</div>
+            <div className="py-16 text-center text-xs text-[color:var(--ui-text-faint)]">Loading day…</div>
           ) : (
             <>
               {renderTemplateRegion(design.header || [])}
@@ -182,6 +184,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({
             </>
           )}
         </div>
+        </ThemeScope>
       </div>
     </SceneHighlightContext.Provider>
   );

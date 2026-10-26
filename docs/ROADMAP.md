@@ -154,15 +154,20 @@ seed→scale mapper if stage 4 lands.
 hardcoded utilities — 2,176 `*-zinc-*` classes across 171 files + blue/emerald chrome classes, and
 zero `--ui-*` references. A light/accent modal today would be a themed frame with dark app content.
 
-**Progress (2026-10-26 — pilot)**: the Day Manager is on the light token ladder (a
+**Progress (2026-10-26 — Day family)**: the Day Manager is on the light token ladder (a
 `ThemeScope mode="light" surface="neutral"` around the manager page) — page shell, `DayPicker`,
 `DaySectionCard`, the weather chip and all section bodies (details/locations/events/scenes/call
-times/breaks/crew/conflicts) now use `--ui-*` fills/text/borders. The Day Events family
+times/breaks/crew/conflicts) use `--ui-*` fills/text/borders. The Day Events family
 (`DayEventsModal` + `EventModal` + `EventAdderModal`), shared `ItemRow`, the dark `RuleCard` branch
-and the event chip trigger are tokenised. App `Modal` defaults `theme="dark"` so a light page scope
-cannot flip existing modals. Remaining hardcoded surfaces: CrewRosterEditor, InteractiveGridBlock,
-the other modal families, and pages. Verified: Day Manager + Day Events look unchanged; the smart
-suite (includes day-manager/day-types/day-call-times/call-sheet) is green. Expansion remains.
+and the event chip trigger are tokenised. Expansion 2 adds: `CrewRosterEditor` (ambient light/dark
+Glide grid via `createDayTimesTheme(fs, mode)` + `dayTimesCellColors`, dark editable-cell wash in
+`InlineGlideTable`), `InteractiveGridBlock`, `ProductionDetailsModal`, `CallTimesSettingsModal`,
+`CopyDayModal`, `AddCrewMemberModal`, `CallSheetEditPage`/`CallSheetCanvas` (the white paper gets
+its own light neutral scope), `GroupedSelect` (omitted theme = ambient mode) and the shared manager
+shell page surfaces. App `Modal` defaults `theme="dark"` so a light page scope cannot flip existing
+modals. Remaining hardcoded families: Link Manager / Crew Links, Element View / manager tables, and
+most page surfaces. Verified: day family looks unchanged light + correct dark (screenshots); full
+e2e green. Expansion remains.
 
 **Phases**:
 1. **Pilot — Production → Days (Day Manager) + Day Events modal**: replace surface/text/border/fill
@@ -179,23 +184,6 @@ shared rows/cards (`ItemRow`, `CardSection` consumers), `src/index.css` for miss
 **Verify**: `npm run lint`; `npm run test:unit`; one behavioural e2e per touched modal (no visual
 assertions); rule-7 manual pass desktop + iPad at both modes.
 **Relations**: 302 (parent), 171, 98, 311. Blocked by 302 stage 2 (kit v0.1.116 shipped).
-
-## 311. App chrome → kit ThemeScope (`[ ]`)
-
-**Request**: the app header/tabs still build their fills from `PROJECT_CHROME` Tailwind class strings
-(`bg-zinc-950` / `bg-blue-950` / emerald) and pass explicit menu/Seg presets. Put the chrome on the
-kit's ambient theme so header, tabs, menus and modal surfaces share ONE source.
-
-**Approach**: `AppHeader.tsx`, `PageToolbar.tsx`, `ScheduleToolbar.tsx`, `CalendarTab.tsx`,
-`ProductionTab.tsx`, `managerShell.tsx`: keep `useProjectTheme()` as the identity source, wrap the
-header/tab strip in `ThemeScope mode="dark" accent={…} context="chrome"`, and replace
-`PROJECT_CHROME` fills/hovers/rings with `--ui-accent-header-*` / `--ui-tab-*` roles. Keep
-`barHex` for the status-bar tint. Remove explicit `theme` props only where the chrome scope supplies
-the same value.
-
-**Verify**: local/Drive/shared manual pass (header, tabs, menus, status bar); existing header/tab
-and menu e2e; no change to local zinc look.
-**Relations**: 302, 248. Pairs with 310 (content) — chrome and body must agree.
 
 ## 312. Grouped pickers → kit searchable dropdown (`[~]`)
 

@@ -113,27 +113,27 @@ const CopyDayModal: React.FC<CopyDayModalProps> = ({ target, days, onClose }) =>
     >
       <div className="p-6 space-y-4">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider w-20 shrink-0">Copy from</span>
+          <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider w-20 shrink-0">Copy from</span>
           <GroupedSelect className="flex-1 min-w-0" items={items} mode="single" selectedIds={[String(sourceIndex)]} onChange={ids => setSourceIndex(Number(ids[0]))} />
         </div>
 
-        <div className="rounded-lg border border-zinc-700 bg-zinc-800/60 divide-y divide-zinc-700/60">
+        <div className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-card-bg)] divide-y divide-[color:var(--ui-border)]">
           {copyable.map(def => {
             const on = checked.has(def.id);
             return (
-              <label key={def.id} className="flex items-start gap-2.5 px-3 py-2 cursor-pointer hover:bg-zinc-700/40 transition-colors">
-                <Checkbox checked={on} onChange={v => toggle(def.id, v)} theme="dark" variant="plain" />
+              <label key={def.id} className="flex items-start gap-2.5 px-3 py-2 cursor-pointer hover:bg-[var(--ui-card-hover)] transition-colors">
+                <Checkbox checked={on} onChange={v => toggle(def.id, v)} variant="plain" />
                 <span className="min-w-0">
-                  <span className="block text-xs font-medium text-zinc-200">{def.title}</span>
-                  <span className="block text-[11px] text-zinc-500 truncate">{def.summary(source) || '—'}</span>
+                  <span className="block text-xs font-medium text-[color:var(--ui-text-strong)]">{def.title}</span>
+                  <span className="block text-[11px] text-[color:var(--ui-text-faint)] truncate">{def.summary(source) || '—'}</span>
                 </span>
               </label>
             );
           })}
         </div>
 
-        <p className="text-[11px] text-zinc-400 leading-relaxed">
-          Copies into <span className="text-zinc-200">DAY {target.chronoDay}</span>, replacing the ticked sections' current values (events merge). You can undo this.
+        <p className="text-[11px] text-[color:var(--ui-text-muted)] leading-relaxed">
+          Copies into <span className="text-[color:var(--ui-text-strong)]">DAY {target.chronoDay}</span>, replacing the ticked sections' current values (events merge). You can undo this.
         </p>
       </div>
     </Modal>

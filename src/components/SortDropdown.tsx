@@ -5,7 +5,7 @@ import { ArrowUpDown, ChevronDown, Eye, Sunrise, FileText, Clock, Building2, Sun
 import DropdownMenu, { getDropdownClasses } from './DropdownMenu';
 import DropdownDivider from './DropdownDivider';
 import { useProjectTheme } from '../store';
-import { PROJECT_CHROME } from '../lib/projectTheme';
+import { projectAccentNameOf } from '../lib/projectTheme';
 import { IS_COARSE } from '../lib/device';
 
 export interface SortCriterion {
@@ -73,8 +73,9 @@ const BTN_SIZE = IS_COARSE ? 'w-8 h-8' : 'w-6 h-6';
 const BTN_ICON = 'w-3.5 h-3.5';
 
 function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onToggleLock, onSort, onCustomSort, categories, intExtLabel, dayNightLabel, compact, presenceKey }: SortDropdownProps) {
-  const chrome = PROJECT_CHROME[useProjectTheme()];
   const d = getDropdownClasses('light');
+  const accentName = projectAccentNameOf(useProjectTheme());
+  const actionCls = 'bg-[var(--ui-accent-950)] hover:bg-[var(--ui-accent-900)] text-white';
 
   const isLocked = (key: string) => lockedCriteria.includes(key);
 
@@ -168,11 +169,11 @@ function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onT
       theme="light"
       trigger={
         compact ? (
-          <button data-presence-anchor={presenceKey} className={`flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer select-none ${chrome.action}`} title="Sort" aria-label="Sort">
+          <button data-accent={accentName} data-presence-anchor={presenceKey} className={`flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer select-none ${actionCls}`} title="Sort" aria-label="Sort">
             <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
           </button>
         ) : (
-          <button data-presence-anchor={presenceKey} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${chrome.action}`}>
+          <button data-accent={accentName} data-presence-anchor={presenceKey} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${actionCls}`}>
             <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
             Sort
             <ChevronDown className="w-3 h-3 shrink-0" />

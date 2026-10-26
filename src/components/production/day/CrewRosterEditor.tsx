@@ -17,7 +17,8 @@ import { crewRoleGroup } from '../../../lib/crewCatalog';
 import { resolveCrewCall } from '../../../lib/callTimes';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction } from '../../InlineGlideTable';
 import { seededTextCell, textCell } from '../../../lib/glideCells';
-import { createDayTimesTheme } from '../../../lib/glideTheme';
+import { createDayTimesTheme, dayTimesCellColors } from '../../../lib/glideTheme';
+import { useKitTheme } from '@gabriel/ui-kit';
 import TimeField from '../../TimeField';
 import Checkbox from '../../Checkbox';
 import Button from '../../Button';
@@ -108,6 +109,9 @@ const DeptTable: React.FC<DeptTableProps> = ({
   presenceScope,
 }) => {
   const crewRoles = project.crewRoles || [];
+  const gridMode = useKitTheme()?.mode ?? 'light';
+  const cellColors = useMemo(() => dayTimesCellColors(gridMode), [gridMode]);
+  const createTheme = useMemo(() => (fontSize: number) => createDayTimesTheme(fontSize, gridMode), [gridMode]);
 
   const columns = useMemo<InlineGlideColumn[]>(
     () => (contacts ? [...COLUMNS, ...CONTACT_COLUMNS] : COLUMNS),
@@ -158,7 +162,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
         keepAlphabetical: true,
         renderItem: (item: { id: string; name: string }) => (
           item.id === ADD_NEW_SENTINEL
-            ? <span className="text-emerald-600">Add new crew member…</span>
+            ? <span className="text-[color:var(--ui-accent-soft-text)]">Add new crew member…</span>
             : <span className="truncate">{item.name}</span>
         ),
         onCreateItem: onCreatePerson ? (val: string) => onCreatePerson(r.roleKey, val, r.slotId) : undefined,
@@ -171,7 +175,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
 
   const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>): GridCell => {
     if (col.key === 'role') {
-      return textCell(row.role, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
+      return textCell(row.role, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: cellColors.muted } });
     }
     if (col.key === 'person') {
       // Seed with the current name so the dropdown opens on it (like Set cells);
@@ -183,7 +187,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
       });
     }
     if (col.key === 'phone' || col.key === 'email') {
-      return textCell(row[col.key], { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#71717a' } });
+      return textCell(row[col.key], { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: cellColors.faint } });
     }
     // call — the editor seeds the row's OWN override (empty when none) so a
     // double-click never shows the department pre-call; the display shows the
@@ -194,9 +198,9 @@ const DeptTable: React.FC<DeptTableProps> = ({
       displayData: noCall ? '—' : row.resolved,
       readonly: !!readOnly,
       align: 'center',
-      themeOverride: overridden ? { textDark: '#b45309' } : undefined,
+      themeOverride: overridden ? { textDark: cellColors.override } : undefined,
     });
-  }, [readOnly]);
+  }, [readOnly, cellColors]);
 
   const onCommit = useCallback((edits: InlineGlideEdit[]) => {
     let next = allSlots;
@@ -275,20 +279,20 @@ const DeptTable: React.FC<DeptTableProps> = ({
   }, [deptRoles, project, usedPersonIds]);
 
   return (
-    <div className={`rounded-lg border border-zinc-200 overflow-hidden bg-white ${excluded ? 'opacity-60' : ''}`} data-crew-dept={dept}>
-      <div className="flex items-center gap-2 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
+    <div className={`rounded-lg border border-[color:var(--ui-border)] overflow-hidden bg-[var(--ui-panel-bg)] ${excluded ? 'opacity-60' : ''}`} data-crew-dept={dept}>
+      <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[var(--ui-card-bg)] border-b border-[color:var(--ui-border)]">
         <Checkbox checked={!excluded} onChange={toggleExcluded} variant="plain" disabled={readOnly} />
-        <span className="text-[11px] font-semibold text-zinc-700">{dept}</span>
+        <span className="text-[11px] font-semibold text-[color:var(--ui-text)]">{dept}</span>
         <span className="ml-auto flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-zinc-400">Pre-call</span>
+          <span className="text-[10px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">Pre-call</span>
           <TimeField
             value={precall}
             onChange={v => onDeptPrecallChange(dept, v)}
             readOnly={readOnly}
             placeholder="-"
-            className="w-24 rounded border border-zinc-300 px-1"
+            className="w-24 rounded border border-[color:var(--ui-border-strong)] px-1"
           />
-          {dayCall && precall && <span className="text-[11px] text-zinc-400">{resolveCrewCall(null, precall, dayCall)}</span>}
+          {dayCall && precall && <span className="text-[11px] text-[color:var(--ui-text-faint)]">{resolveCrewCall(null, precall, dayCall)}</span>}
         </span>
       </div>
 
@@ -302,15 +306,14 @@ const DeptTable: React.FC<DeptTableProps> = ({
           onCommit={onCommit}
           editableKeys={new Set(['person', 'call'])}
           readOnly={readOnly}
-          createTheme={createDayTimesTheme}
+          createTheme={createTheme}
           getEditor={getEditor}
           rowActions={rowActions}
         />
       )}
 
-      <div className="px-2 py-1.5 border-t border-zinc-100 flex items-center gap-2">
+      <div className="px-2 py-1.5 border-t border-[color:var(--ui-border)] flex items-center gap-2">
         <DropdownMenu
-          theme="light"
           width="w-72"
           open={addOpen}
           onOpenChange={setAddOpen}
@@ -369,7 +372,6 @@ export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots
       <DropdownMenu
         open={open}
         onOpenChange={setOpen}
-        theme="light"
         width="w-72"
         searchable
         searchPlaceholder="Search roles…"
@@ -412,7 +414,7 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
   if (groups.length === 0 && allRoles.length === 0) {
     return (
       <div className={className} {...(dataAttr ? { [dataAttr]: '' } : {})}>
-        <p className="text-xs text-zinc-400">No crew roles yet — add a role in the Crew Manager or a crew member below.</p>
+        <p className="text-xs text-[color:var(--ui-text-faint)]">No crew roles yet — add a role in the Crew Manager or a crew member below.</p>
         {onAddCrewMember && (
           <Button variant="subtle" className="mt-2" disabled={readOnly} onClick={() => onAddCrewMember()}>
             <Plus className="w-3 h-3" /> New crew member…

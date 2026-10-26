@@ -90,7 +90,7 @@ import { useKeyboardEnsureVisible } from './lib/useKeyboardEnsureVisible';
 import { useBlockPagePan } from './lib/useBlockPagePan';
 import { useStatusBarTheme } from './lib/useStatusBarTheme';
 import { usePersistState } from './lib/persist';
-import { PROJECT_CHROME } from './lib/projectTheme';
+import { projectAccentNameOf } from './lib/projectTheme';
 import { useLaggingValue } from './lib/useLaggingValue';
 import { ReportBlock, ReportDesign } from './types';
 import { dayScopeFilter } from './components/reports/DayReportPreview';
@@ -113,9 +113,10 @@ function AppContent() {
   const presenceActions = usePresenceActions();
   // Status-bar / browser-chrome tint follows the project theme (roadmap 265).
   useStatusBarTheme();
-  // Project chrome (roadmap 248): the phone splash shares the header bar colour.
+  // Project chrome (roadmap 248/311): the phone splash shares the header fill;
+  // the accent attribute makes the --ui-accent-* tokens resolve on it.
   const projectTheme = useProjectTheme();
-  const chrome = PROJECT_CHROME[projectTheme];
+  const accentName = projectAccentNameOf(projectTheme);
   // Phone portrait (roadmap 267 PoC): collapsed two-tab header + a trimmed
   // Schedule toolbar. False in landscape, on iPad and on desktop.
   const phonePortrait = usePhonePortrait();
@@ -1379,7 +1380,7 @@ function AppContent() {
       <PresenceOverlay />
 
       {phoneSplash && (
-        <div data-testid="phone-splash" role="status" className={`fixed inset-0 z-40 flex flex-col items-center justify-center gap-5 ${chrome.bar}`}>
+        <div data-testid="phone-splash" role="status" data-accent={accentName} data-mode="dark" className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-[var(--ui-accent-950)]">
           <Loader2 className="w-6 h-6 animate-spin text-white/70" />
           <div className="max-w-[80%] truncate px-6 text-sm font-medium text-white">{project.title || 'Untitled Project'}</div>
         </div>

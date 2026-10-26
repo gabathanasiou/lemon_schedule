@@ -49,18 +49,22 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 
 | Layer | Palette | Where |
 |---|---|---|
-| Light page | `bg-gray-50` body; white cards `bg-white border-zinc-200 rounded-xl shadow-sm` | SceneSheet, stripboard, Calendar, ProjectManager cards, PageToolbar light theme |
-| Dark chrome | `bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg` | App header, Modal, DropdownMenu, Dialog, print dialogs, ElementPicker |
-| Drive chrome (`data-theme="blue"`, `bg-blue-950`) | dark bars `bg-blue-950`; light toolbars tint their tab pills / segmented tracks blue | `useProjectTheme()`; tokens in `src/lib/projectTheme.ts`; `PageToolbar.tsx:44-48` |
-| Shared chrome (`data-theme="emerald"`, `bg-emerald-950`) | dark bars `bg-emerald-950`; light toolbars tint their tab pills / segmented tracks emerald | same ONE source; a project is never both (shared > drive) |
+| Light page (token scope) | `ThemeScope mode="light" surface="neutral"`: `bg-[var(--ui-card-band)]` body; cards `bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)]` (light token values match zinc-50 / white / zinc-200) | Day Manager + manager shell; SceneSheet/stripboard/Calendar/ProjectManager cards are being migrated family-by-family (roadmap 310) |
+| Dark chrome | header `bg-[var(--ui-accent-header-bg)]`; kit Menu/Modal/input tokens | App header, pop-out toolbar, Modal, DropdownMenu, Dialog, print dialogs, ElementPicker |
+| Drive chrome | `ProjectChromeScope` publishes `accent="blue"`: header `--ui-accent-950` (#172554), tab pill `--ui-tab-pill-accent`, action chips `--ui-accent-950/900` | ONE identity source `useProjectTheme()` + `projectAccentNameOf()`; `src/components/ProjectChromeScope.tsx` |
+| Shared chrome | same scope with `accent="emerald"`: header #022c22, emerald tab/action roles | same ONE source; a project is never both (shared > drive) |
 
+- `PROJECT_CHROME` keeps ONLY `barHex` (the browser/status-bar `meta[theme-color]`
+  twin). In-app chrome never hand-writes `bg-blue-950` / `bg-emerald-950` / zinc
+  chrome strings — wrap the surface in `ProjectChromeScope` and use the
+  `--ui-accent-*` / `--ui-tab-*` roles (roadmap 311).
 - Modals/menus are dark even when they sit on light pages.
 - **Section containers inside dark modals must step UP a luminance level** — never
-  same-as-body backgrounds (black-on-black): on the `bg-zinc-900` modal body, grouped
-  sections (day-type cards, violation boxes, picker panels, rule lists) use gray
-  containers `bg-zinc-800 border border-zinc-700 rounded-lg` with inner dividers
-  `border-zinc-700/60`. Contents may sit directly on the body only when they are
-  single rows (labels, help text) — anything boxed must be visibly lighter.
+  same-as-body backgrounds (black-on-black): on the `--ui-modal-bg` body, grouped
+  sections (day-type cards, violation boxes, picker panels, rule lists) use the raised
+  `--ui-card-bg` / `--ui-input-bg` fills with `--ui-border` hairlines. Contents may sit
+  directly on the body only when they are single rows (labels, help text) — anything
+  boxed must be visibly lighter.
 - **Exception**: kit `ContextMenu` defaults to **light theme** (its `theme` prop, kit v0.1.81)
   because it anchors on light surfaces; pass `theme="dark"` when it opens over dark chrome
   (the ribbon designer cell menu). DropdownMenu (dark) and Dialog (dark) set their own themes.
@@ -121,11 +125,14 @@ rightmost element (see the merged-view switcher recipe below). Below the toolbar
 collapsible section cards (`DaySectionCard`). All overlays (Copy-from-day, events,
 pickers) are dark per the two-layer rule.
 
-**Theming pilot (roadmap 310)**: the manager page is wrapped in
+**Theming (roadmap 310)**: the manager page is wrapped in
 `ThemeScope mode="light" surface="neutral"`; its shell, `DayPicker`, section cards and
-section bodies read `--ui-*` fills/text/borders instead of zinc utilities. The app
-`Modal` shim pins `theme="dark"` (302), so this light page scope never flips Copy-from-day,
-Day Events, Call Times or any picker overlay — they stay dark until light modals land.
+section bodies read `--ui-*` fills/text/borders instead of zinc utilities. The day
+family is fully tokenised — the Day Events modals, Production Details, Call Times,
+Copy-from-day, Add Crew Member, the crew roster Glide grid (ambient light/dark theme via
+`createDayTimesTheme(fs, mode)`) and the Call Sheet editor/paper (the paper gets its own
+light neutral scope). The app `Modal` shim pins `theme="dark"` (302), so a light page
+scope never flips an overlay — modals stay dark until light modals land.
  The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's

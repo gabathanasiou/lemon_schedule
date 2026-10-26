@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
-import { DropdownMenu, DropdownItem } from '@gabriel/ui-kit';
-import { DD_CHIP_TRIGGER_CLASS } from '../../../lib/dropdown';
+import { DropdownMenu, DropdownItem, useKitTheme } from '@gabriel/ui-kit';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../../lib/dropdown';
 
 /**
  * Light/dark grouped selection picker (locations by type, crew by department,
@@ -27,15 +27,19 @@ export interface GroupedSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
-  /** Dark chrome theme (overlays / the call-sheet editor header). */
+  /** Force a trigger/menu mode; omitted = the ambient kit theme (a dark modal
+   *  stays dark, the light Day Manager stays light). */
   theme?: 'light' | 'dark';
   /** Search input in the panel (default true). Category labels are searchable. */
   searchable?: boolean;
   searchPlaceholder?: string;
 }
 
-const TRIGGER_CLS = 'flex w-full items-center justify-between gap-2 rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 disabled:opacity-50';
-const TRIGGER_CLS_DARK = `flex w-full items-center justify-between gap-2 ${DD_CHIP_TRIGGER_CLASS} text-xs`;
+const TRIGGER_CLS = 'flex w-full items-center justify-between gap-2 rounded border border-[color:var(--ui-border-strong)] bg-[var(--ui-panel-bg)] px-2 py-1 text-xs text-[color:var(--ui-text)] outline-none focus:border-[color:var(--ui-input-focus-border)] focus:ring-1 focus:ring-[color:var(--ui-accent-focus)] disabled:opacity-50';
+/* Legacy light trigger for an un-scoped caller (tokens would fall back to the
+   :root dark values). An ambient kit scope covers every current usage. */
+const TRIGGER_CLS_LEGACY = 'flex w-full items-center justify-between gap-2 rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 disabled:opacity-50';
+const TRIGGER_CLS_DARK = `flex w-full items-center justify-between gap-2 ${DD_TOKEN_TRIGGER_CLASS} text-xs`;
 
 export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   items,
@@ -45,11 +49,14 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   placeholder = 'Select…',
   className = '',
   disabled,
-  theme = 'light',
+  theme,
   searchable = true,
   searchPlaceholder = 'Search…',
 }) => {
-  const dark = theme === 'dark';
+  const ambient = useKitTheme();
+  const resolvedMode = theme ?? ambient?.mode ?? 'light';
+  const dark = resolvedMode === 'dark';
+  const tokenized = !!ambient;
   const [open, setOpen] = useState(false);
   const hintById = useMemo(() => new Map(items.map(i => [i.id, i.hint])), [items]);
 
@@ -89,10 +96,10 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
           <button
             type="button"
             disabled={disabled}
-            className={dark ? TRIGGER_CLS_DARK : TRIGGER_CLS}
+            className={dark ? TRIGGER_CLS_DARK : tokenized ? TRIGGER_CLS : TRIGGER_CLS_LEGACY}
           >
-            <span className={`truncate ${label ? '' : dark ? 'text-zinc-500' : 'text-zinc-400'}`}>{label || placeholder}</span>
-            <ChevronDown className={`w-3 h-3 shrink-0 ${dark ? 'text-zinc-500' : 'text-zinc-400'}`} />
+            <span className={`truncate ${label ? '' : tokenized || dark ? 'text-[color:var(--ui-text-faint)]' : 'text-zinc-400'}`}>{label || placeholder}</span>
+            <ChevronDown className={`w-3 h-3 shrink-0 ${tokenized || dark ? 'text-[color:var(--ui-text-faint)]' : 'text-zinc-400'}`} />
           </button>
         }
       >

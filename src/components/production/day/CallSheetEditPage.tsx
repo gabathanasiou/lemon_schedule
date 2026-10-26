@@ -119,7 +119,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800"
+          className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Days
         </button>
@@ -132,13 +132,12 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
           width="w-56"
-          theme="dark"
           trigger={
             <button
               type="button"
               title="Call sheet design and template reset"
               data-presence-anchor="toolbar:callsheet:settings"
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
             >
               Settings <ChevronDown className="w-3 h-3" />
             </button>
@@ -168,7 +167,6 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         <ToolbarDivider dark />
         {!preview && (
           <Button
-            theme="dark"
             variant="subtle"
             active={showRibbonTimes}
             onClick={() => setShowRibbonTimes(v => !v)}
@@ -185,7 +183,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           title={preview ? 'Edit the call sheet' : 'Preview the day call sheet'}
           aria-label={preview ? 'Edit' : 'Preview'}
           data-presence-anchor="toolbar:callsheet:preview"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
         >
           {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           {preview ? 'Edit' : 'Preview'}
@@ -196,7 +194,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           title="Print the call sheet"
           aria-label="Print"
           data-presence-anchor="toolbar:callsheet:print"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
         >
           <Printer className="w-3.5 h-3.5" />
         </button>
@@ -205,9 +203,9 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
   );
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-zinc-950 text-zinc-300" data-call-sheet-edit>
+    <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)]" data-call-sheet-edit>
       {headerTarget ? createPortal(controls, headerTarget) : (
-        <header className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{controls}</header>
+        <header className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-[color:var(--ui-border)] bg-[var(--ui-modal-bg)]">{controls}</header>
       )}
       {dayPickerTarget && createPortal(dayPickerNode, dayPickerTarget)}
 

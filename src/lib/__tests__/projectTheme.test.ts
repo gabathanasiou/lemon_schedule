@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   projectThemeOf,
   projectAccentOf,
-  projectMenuThemeOf,
-  projectSegThemeOf,
+  projectAccentNameOf,
   projectModalThemeOf,
   PROJECT_CHROME,
 } from '../projectTheme';
@@ -26,16 +25,10 @@ describe('chrome mappers', () => {
     expect(projectAccentOf('shared')).toBe('emerald');
   });
 
-  it('menu theme: dark / blue / emerald', () => {
-    expect(projectMenuThemeOf('local')).toBe('dark');
-    expect(projectMenuThemeOf('drive')).toBe('blue');
-    expect(projectMenuThemeOf('shared')).toBe('emerald');
-  });
-
-  it('seg theme: light / blue / emerald', () => {
-    expect(projectSegThemeOf('local')).toBe('light');
-    expect(projectSegThemeOf('drive')).toBe('blue');
-    expect(projectSegThemeOf('shared')).toBe('emerald');
+  it('theme-scope accent: zinc / blue / emerald', () => {
+    expect(projectAccentNameOf('local')).toBe('zinc');
+    expect(projectAccentNameOf('drive')).toBe('blue');
+    expect(projectAccentNameOf('shared')).toBe('emerald');
   });
 
   it('modal theme: every project kind uses a neutral surface; accent is identity only (roadmap 302)', () => {
@@ -50,12 +43,4 @@ describe('chrome mappers', () => {
     expect(PROJECT_CHROME.shared.barHex).toBe('#022c22');
   });
 
-  it('shared never inherits a blue class token', () => {
-    for (const token of Object.values(PROJECT_CHROME.shared)) {
-      expect(token).not.toMatch(/blue/);
-    }
-    for (const token of Object.values(PROJECT_CHROME.drive)) {
-      expect(token).not.toMatch(/emerald/);
-    }
-  });
 });

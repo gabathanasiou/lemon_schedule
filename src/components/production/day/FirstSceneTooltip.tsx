@@ -31,7 +31,7 @@ const FirstSceneTooltip: React.FC<FirstSceneTooltipProps> = ({ project, day, fir
     : undefined;
 
   return (
-    <div data-testid="first-scene-tooltip" className="w-64 rounded overflow-hidden shadow-xl border border-zinc-700 bg-zinc-900 text-white">
+    <div data-testid="first-scene-tooltip" className="w-64 rounded overflow-hidden shadow-xl border border-[color:var(--ui-tooltip-border)] bg-[var(--ui-tooltip-bg)] text-[color:var(--ui-tooltip-text)]">
       {scene && (
         <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide" style={{ background: style?.background, color: style?.color }}>
           {scene.sceneNumber ? `${scene.sceneNumber}. ` : ''}{[scene.intExt, scene.set].filter(Boolean).join('. ')}{scene.dayNight ? ` — ${scene.dayNight}` : ''}
@@ -39,15 +39,15 @@ const FirstSceneTooltip: React.FC<FirstSceneTooltipProps> = ({ project, day, fir
       )}
       <div className="px-2.5 py-1.5 space-y-0.5">
         <div className="flex items-center gap-1.5 text-[10px]">
-          <span className="text-zinc-400">{title}</span>
-          {categoryLabel && <span className="text-zinc-500">· {categoryLabel}</span>}
+          <span className="text-[color:var(--ui-text-muted)]">{title}</span>
+          {categoryLabel && <span className="text-[color:var(--ui-text-faint)]">· {categoryLabel}</span>}
           {overridden && <span className="font-semibold text-amber-400">OVERRIDE</span>}
         </div>
         <div className="text-[11px]">
-          <span className="text-zinc-400">FIRST TURNOVER </span>
+          <span className="text-[color:var(--ui-text-muted)]">FIRST TURNOVER </span>
           <span className="font-semibold">{callTime || '—'}</span>
         </div>
-        {scene?.description && <div className="text-[10px] leading-snug text-zinc-400 line-clamp-3">{scene.description}</div>}
+        {scene?.description && <div className="text-[10px] leading-snug text-[color:var(--ui-text-muted)] line-clamp-3">{scene.description}</div>}
       </div>
     </div>
   );

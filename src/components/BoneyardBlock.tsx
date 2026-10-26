@@ -6,7 +6,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { SortableRibbon } from './SortableRibbon';
 import { StackedGhosts } from './StripBlock';
 import { useProject, useProjectTheme } from '../store';
-import { PROJECT_CHROME } from '../lib/projectTheme';
+import { projectAccentNameOf } from '../lib/projectTheme';
 import { generateUUID } from '../lib/utils';
 import { StickyNote, Coffee, Clapperboard } from 'lucide-react';
 import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
@@ -79,7 +79,8 @@ export const BoneyardBlock: React.FC<{
   forceExpanded?: boolean,
 }> = React.memo(({ rows, projectScenes, textEditingEnabled, editingTarget, selectedIds, activeDragIds, heldBy, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, collapsed, ribbon, colWidths, cellPaddingV, cellPaddingH, textSize, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
-  const chrome = PROJECT_CHROME[useProjectTheme()];
+  const accentName = projectAccentNameOf(useProjectTheme());
+  const actionCls = 'bg-[var(--ui-accent-950)] hover:bg-[var(--ui-accent-900)] text-white';
   const currentDocument = useCurrentDocument();
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [newSceneOpen, setNewSceneOpen] = useState(false);
@@ -199,15 +200,15 @@ export const BoneyardBlock: React.FC<{
       }
       headerSlot={
         <>
-          <button onClick={() => addRow('NOTE')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${chrome.action}`} title="Add Note Ribbon">
+          <button onClick={() => addRow('NOTE')} data-accent={accentName} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${actionCls}`} title="Add Note Ribbon">
             <StickyNote className="w-3.5 h-3.5 shrink-0" />
             Note
           </button>
-          <button onClick={() => addRow('BREAK')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${chrome.action}`} title="Add Break Ribbon">
+          <button onClick={() => addRow('BREAK')} data-accent={accentName} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${actionCls}`} title="Add Break Ribbon">
             <Coffee className="w-3.5 h-3.5 shrink-0" />
             Break
           </button>
-          <button onClick={() => setNewSceneOpen(true)} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${chrome.action}`} title="Add Scene — opens the New Scene form">
+          <button onClick={() => setNewSceneOpen(true)} data-accent={accentName} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${actionCls}`} title="Add Scene — opens the New Scene form">
             <Clapperboard className="w-3.5 h-3.5 shrink-0" />
             Scene
           </button>
