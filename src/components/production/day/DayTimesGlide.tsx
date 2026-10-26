@@ -8,6 +8,7 @@ import { createDayTimesTheme } from '../../../lib/glideTheme';
 import { doodCellStyle, doodCellText } from '../../../lib/doodCells';
 import { getLabel } from '../../../lib/categories';
 import { isSeededNoop, seededTextCell, textCell } from '../../../lib/glideCells';
+import type { GlideColumnEditor } from '../../../lib/glideEditor';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '../../InlineGlideTable';
 import { ContextMenuItem } from '../../ContextMenu';
 import FirstSceneTooltip from './FirstSceneTooltip';
@@ -128,6 +129,11 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
     });
   }, [resolvedByKey, readOnly, anchorKey, stageDefByKey]);
 
+  /** Touch cells open the shared time keypad; desktop keeps the stock text
+   *  editor (roadmap 301 sweep). Only the stage columns are time cells. */
+  const getEditor = useCallback((_row: number, colKey: string): GlideColumnEditor | undefined =>
+    stageKeySet.has(colKey) ? { kind: 'time', align: 'center' } : undefined, [stageKeySet]);
+
   const onCommit = useCallback((edits: InlineGlideEdit[]) => {
     let calls = day.meta.elementCalls;
     let changed = false;
@@ -155,6 +161,7 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
       rows={rows}
       getCellContent={getCellContent}
       onCommit={onCommit}
+      getEditor={getEditor}
       editableKeys={stageKeySet}
       readOnly={readOnly}
       createTheme={createDayTimesTheme}

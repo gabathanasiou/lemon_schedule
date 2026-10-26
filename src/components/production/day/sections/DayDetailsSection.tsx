@@ -142,6 +142,7 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
           readOnly={readOnly}
           hideOverrideDot
           theme="light"
+          ariaLabel={field === 'sunrise' ? 'Sunrise' : 'Sunset'}
           className="w-24"
         />
       ) : (

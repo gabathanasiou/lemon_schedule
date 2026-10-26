@@ -6,6 +6,7 @@ import type { DayMeta, Project } from '../../../types';
 import { dayDepartments, setDeptPrecall } from '../../../lib/dayCrew';
 import { createDayTimesTheme } from '../../../lib/glideTheme';
 import { isSeededNoop, seededTextCell, textCell } from '../../../lib/glideCells';
+import type { GlideColumnEditor } from '../../../lib/glideEditor';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit } from '../../InlineGlideTable';
 import { ContextMenuItem } from '../../ContextMenu';
 
@@ -86,6 +87,10 @@ const PrecallsGlide: React.FC<PrecallsGlideProps> = ({ day, project, patchMeta, 
     })
   ), [readOnly]);
 
+  /** Touch cells open the shared time keypad (roadmap 301 sweep). */
+  const getEditor = useCallback((_row: number, colKey: string): GlideColumnEditor | undefined =>
+    editableKeys.has(colKey) ? { kind: 'time', align: 'center' } : undefined, [editableKeys]);
+
   const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>): GridCell => {
     if (vertical && col.key === 'dept') {
       return textCell(row.dept, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
@@ -124,6 +129,7 @@ const PrecallsGlide: React.FC<PrecallsGlideProps> = ({ day, project, patchMeta, 
       rows={rows}
       getCellContent={getCellContent}
       onCommit={onCommit}
+      getEditor={getEditor}
       editableKeys={editableKeys}
       readOnly={readOnly}
       emptyLabel={readOnly ? 'No precalls on this day.' : 'No precalls yet — type a call time, or switch Departments to All.'}

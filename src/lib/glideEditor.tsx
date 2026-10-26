@@ -2,7 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { GridCellKind, TextCellEntry, type Item } from '@glideapps/glide-data-grid';
 import { AutocompleteDropdown } from '../components/AutocompleteDropdown';
 import { EntityDropdown } from '../components/EntityDropdown';
+import TimeKeypad from '../components/TimeKeypad';
 import { useCurrentDocument } from './popoutTarget';
+import { useTouchMode } from './useMarquee';
 
 export type GlideColumnEditor =
   | { kind: 'enum'; options: string[]; placeholder?: string }
@@ -30,6 +32,14 @@ export type GlideColumnEditor =
        *  column is configured through `GlideEditorOptions.columns` — Glide's
        *  default TextCell editor ignores the cell's `contentAlign`, so
        *  centered/right text columns get THIS editor to match (item 223). */
+      align?: 'left' | 'center' | 'right';
+    }
+  | {
+      /** Time/duration expression cell (call times, precalls, crew calls).
+       *  Desktop = the stock text editor; touch = the shared TimeKeypad, so
+       *  grid cells open the SAME `: + - h m` modal as TimeField. */
+      kind: 'time';
+      placeholder?: string;
       align?: 'left' | 'center' | 'right';
     };
 
@@ -98,6 +108,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
       Editor = (p: any) => {
         const { value: cellValue, onChange, onFinishedEditing, isHighlighted, validatedSelection } = p;
         const { cfg, align, activation, skipComma, selectAllOnOpen, portal } = box!.current as EditorBox;
+        const isTouch = useTouchMode();
         const currentVal = cellValue?.data ?? '';
         const latestRef = useRef(cellValue);
 
@@ -118,16 +129,18 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
         // no commit), so the cell editor box goes away with the panel.
         const handleEscape = () => onFinishedEditing(undefined, [0, 0] as any);
 
-        if (cfg === null) {
+        if (cfg === null || (cfg.kind === 'time' && !isTouch)) {
           // Glide's OWN TextCell editor, re-wrapped with the column's
           // alignment (item 223): the cell's `contentAlign` is canvas-draw-only
           // and the stock editor ignores it, so centered/right columns would
           // edit left-aligned. Same textarea + seed-selection contract as
           // Glide's default — only `textAlign` is added (and it still lands in
-          // the grid's `#portal`).
+          // the grid's `#portal`). Time cells keep this on desktop; touch
+          // opens the shared keypad below.
+          const textAlign = cfg?.kind === 'time' ? cfg.align : align;
           return (
             <TextCellEntry
-              style={align ? { textAlign: align } : undefined}
+              style={textAlign ? { textAlign } : undefined}
               highlight={isHighlighted}
               autoFocus={cellValue?.readonly !== true}
               disabled={cellValue?.readonly === true}
@@ -194,6 +207,19 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             />
           );
         }
+        if (cfg.kind === 'time') {
+          // Touch (desktop returned above): open the shared time keypad on the
+          // cell. Commit closes the Glide edit through the normal path.
+          return (
+            <TimeKeypad
+              key={activation}
+              value={currentVal}
+              onCommit={v => { handleChange(v); handleClose(); }}
+              onCancel={handleEscape}
+              portalTarget={portal}
+            />
+          );
+        }
         return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
       };
       components.set(colKey, Editor);
@@ -232,9 +258,10 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
     const selectAllOnOpen = !skipComma;
     const { Editor, box } = editorFor(colKey);
     box.current = { cfg: editorCfg ?? null, align: colDef.align, activation: ++activationCounter, skipComma, selectAllOnOpen, portal: portalRef.current };
-    // Plain text keeps Glide's default overlay chrome (padding); entity/enum
-    // editors bring their own trigger + panel styling.
-    if (!editorCfg || editorCfg.kind === 'text') return { editor: Editor };
+    // Plain text (and time, whose desktop arm IS the stock text entry) keeps
+    // Glide's default overlay chrome (padding); entity/enum editors bring
+    // their own trigger + panel styling.
+    if (!editorCfg || editorCfg.kind === 'text' || editorCfg.kind === 'time') return { editor: Editor };
     return { editor: Editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   };
 }
