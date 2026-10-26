@@ -3,10 +3,9 @@ import { Seg } from '@gabriel/ui-kit';
 import type { ReportViewMode } from '../../types';
 
 /**
- * Fields | Values display-mode switch (roadmap 203) — the ONE segmented
- * control for the Reports Designer toolbar and the Call Sheet editor toolbar
- * (roadmap 212). `value`/`onChange` are host-owned; the shared
- * `useReportViewMode` hook persists the choice.
+ * Fields | Values display-mode switch (roadmap 203) — the Reports Designer's
+ * toolbar control. `value`/`onChange` are host-owned; `useReportViewMode`
+ * persists the choice. The Call Sheet editor is always Values (roadmap 212).
  */
 interface ReportModeSegProps {
   value: ReportViewMode;

@@ -77,10 +77,6 @@ export interface ReportDesignerZone {
    *  white page). The editor supplies the live canvas node + read state; the
    *  host owns the read-only template regions and the live grid blocks. */
   renderPage: (args: ReportZonePageArgs) => React.ReactNode;
-  /** Fields/Values is host-owned in zone mode: the host renders the toolbar
-   *  (the zone editor has no header of its own). */
-  viewMode?: ReportViewMode;
-  onViewModeChange?: (mode: ReportViewMode) => void;
 }
 
 /** What the zone host page needs from the editor. */
@@ -169,19 +165,14 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   // One global display/edit mode (roadmap 203): Fields = chips/keys with
   // single-click editing, Values = the final look with double-click/tap-again
   // entry. Default Values; the retired `lemon_schedule_report_view_keys` key is
-  // ignored (no migration). ONE persisted pref shared with the Call Sheet
-  // editor (roadmap 212) — in zone mode the host owns it (it renders the
-  // toolbar), so the value/change callbacks ride on `zone`.
+  // ignored (no migration). The Call Sheet editor is ALWAYS Values (user
+  // decision, roadmap 212): the mode switch is a designer-only tool.
   const [internalReportMode, setInternalReportMode] = useReportViewMode();
-  const reportMode = zone?.viewMode ?? internalReportMode;
+  const reportMode: ReportViewMode = zoneMode ? 'values' : internalReportMode;
   const setReportModePersisted = useCallback((mode: ReportViewMode) => {
     setSelCell(null);
-    if (zone) {
-      zone.onViewModeChange?.(mode);
-      return;
-    }
     setInternalReportMode(mode);
-  }, [zone, setInternalReportMode]);
+  }, [setInternalReportMode]);
   // Designer day picker (roadmap 198): for a day-scoped design, pin which
   // production day the canvas sample AND the Preview/Print resolve against.
   // Persisted per design (localStorage); null = All days (the default).

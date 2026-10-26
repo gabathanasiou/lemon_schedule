@@ -62,12 +62,10 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
 
     // Roadmap 212 — the zone is the REAL Reports Designer in zone mode: the
-    // docked rail's palette is present by default, and the shared Fields/Values
-    // switch rides in the call-sheet toolbar.
+    // docked rail's palette is present by default.
     const editor = page.locator('[data-call-sheet-edit]');
     const railPalette = editor.getByPlaceholder('Search blocks & attributes…');
     await expect(railPalette).toBeVisible({ timeout: 8000 });
-    await expect(page.getByRole('button', { name: 'Fields', exact: true })).toBeVisible();
 
     // Day-grid blocks only work as TEMPLATE blocks (the page renders them live
     // there) — the zone refuses them with the shared placement guard.
@@ -193,12 +191,10 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(page.getByText('{{dayNumber}}')).toHaveCount(0);
 
     // Roadmap 212: the zone is the REAL Reports Designer — the docked rail's
-    // palette + the shared Fields/Values switch are here, and selecting a zone
-    // block swaps the rail to its inspector.
+    // palette is here, and selecting a zone block swaps it to its inspector.
     const editor = page.locator('[data-call-sheet-edit]');
     const railPalette = editor.getByPlaceholder('Search blocks & attributes…');
     await expect(railPalette).toBeVisible({ timeout: 8000 });
-    await expect(page.getByRole('button', { name: 'Fields', exact: true })).toBeVisible();
 
     // The header-hosted empty zone is the designer's drop target — click it.
     await page.getByText(/No blocks yet/).click();

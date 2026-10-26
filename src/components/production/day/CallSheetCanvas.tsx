@@ -3,7 +3,7 @@ import { useProject } from '../../../store';
 import { useReportCtx } from '../../../lib/useReportCtx';
 import { getReportFieldMap } from '../../../lib/reportFields';
 import { useSunWeather } from '../../../lib/useSunWeather';
-import type { ReportBlock, ReportDesign, DayMeta, ReportViewMode } from '../../../types';
+import type { ReportBlock, ReportDesign, DayMeta } from '../../../types';
 import { findDesignCallSheetZone, ribbonTimeOverrides } from '../../../lib/reportBlocks';
 import type { RibbonPrintOptions } from '../../../lib/reportData';
 import { REPORT_PAGE_METRICS, REPORT_PAGE_PADDING, CALL_SHEET_EDIT_ZONE_STYLE } from '../../reports/reportStyle';
@@ -64,9 +64,6 @@ interface CallSheetCanvasProps {
   /** Item 146 — the shared Add Crew Member modal (crew table person swap /
    *  Add role flows); owned by the Day Manager composition root. */
   openAddCrewMember?: (opts?: { role?: string; name?: string; slotId?: string }) => void;
-  /** Fields/Values display mode (roadmap 203/212) — chips on the read-only
-   *  template in Fields mode. */
-  mode?: ReportViewMode;
   /** Zone editor state (roadmap 212). Set only when the design HAS a
    *  `callSheetEdit` zone: `canvas` is the live bare Reports Designer canvas,
    *  positioned at the zone slot. Absent = display-only page (roadmap 211). */
@@ -75,7 +72,7 @@ interface CallSheetCanvasProps {
 
 const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({
   design, day, zoneBlocks, patchMeta, onEditCallTimesSettings, readOnly,
-  showRibbonTimes, openAddCrewMember, mode, editor,
+  showRibbonTimes, openAddCrewMember, editor,
 }) => {
   const { state } = useProject();
   const project = state.present;
@@ -123,7 +120,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({
 
   const readOnlyView = (b: ReportBlock, i: number, item?: any, parentCollection?: string) => (
     <div key={`${b.id}:${weatherTick}`} style={{ marginTop: i === 0 ? 0 : 6 }}>
-      <ReportBlockView block={b} ctx={ctx!} fieldMap={fieldMap} item={item} parentCollection={parentCollection as any} mode={mode} aux={{ callSheetBlocks: zoneBlocks }} ribbonOverrides={ribbonOverrides} />
+      <ReportBlockView block={b} ctx={ctx!} fieldMap={fieldMap} item={item} parentCollection={parentCollection as any} aux={{ callSheetBlocks: zoneBlocks }} ribbonOverrides={ribbonOverrides} />
     </div>
   );
 

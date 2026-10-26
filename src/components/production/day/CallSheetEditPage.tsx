@@ -6,7 +6,6 @@ import type { DayView } from '../../../lib/dayView';
 import type { DayMeta, ReportBlock, ReportDesign } from '../../../types';
 import DayReportPreview from '../../reports/DayReportPreview';
 import ReportDesigner from '../../reports/ReportDesigner';
-import ReportModeSeg from '../../reports/ReportModeSeg';
 import CallSheetCanvas from './CallSheetCanvas';
 import DayPicker from './DayPicker';
 import DropdownMenu from '../../DropdownMenu';
@@ -14,7 +13,6 @@ import DropdownItem from '../../DropdownItem';
 import DropdownSubmenu from '../../DropdownSubmenu';
 import Button from '../../Button';
 import { useFollowView } from '../../../lib/supabase/useFollowView';
-import { useReportViewMode } from '../../../lib/persist';
 import { findDesignCallSheetZone } from '../../../lib/reportBlocks';
 
 /**
@@ -66,9 +64,6 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
   // Design-time aid only: force call times + durations visible in every ribbon
   // block on the editor canvas. Never saved, never printed (item 114).
   const [showRibbonTimes, setShowRibbonTimes] = useState(true);
-  // Fields | Values (roadmap 203) — ONE persisted pref shared with the Reports
-  // Designer (roadmap 212); the zone editor has no header of its own.
-  const [viewMode, setViewMode] = useReportViewMode();
   // A design without a `callSheetEdit` zone is display-only (roadmap 211): the
   // page renders the day, and there is nothing to put in a palette.
   const hasZone = useMemo(() => !!findDesignCallSheetZone(design), [design]);
@@ -184,9 +179,6 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
             <Clock className="w-3.5 h-3.5" /> Times
           </Button>
         )}
-        {!preview && (
-          <ReportModeSeg value={viewMode} onChange={setViewMode} />
-        )}
         <button
           type="button"
           onClick={() => { follow.noteUserChange(); setPreview(v => !v); }}
@@ -240,8 +232,6 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
             onChange: onChangeZone,
             scope: 'days',
             previewSectionIndex: day.sectionIndex,
-            viewMode,
-            onViewModeChange: setViewMode,
             showRibbonTimes,
             renderPage: args => (
               <CallSheetCanvas
@@ -253,7 +243,6 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
                 readOnly={readOnly}
                 showRibbonTimes={showRibbonTimes}
                 openAddCrewMember={openAddCrewMember}
-                mode={viewMode}
                 editor={args}
               />
             ),
@@ -272,7 +261,6 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           readOnly={readOnly}
           showRibbonTimes={showRibbonTimes}
           openAddCrewMember={openAddCrewMember}
-          mode={viewMode}
         />
       )}
     </div>
