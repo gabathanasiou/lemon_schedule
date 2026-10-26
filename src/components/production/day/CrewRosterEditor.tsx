@@ -9,12 +9,16 @@ import {
   peopleForRole,
   removeSlot as removeSlotFromList,
   resolveSlotCall,
+  resolveSlotReportToId,
   rolesForDept,
   setSlotCall,
   setSlotNoCall,
+  setSlotReportToId,
 } from '../../../lib/dayCrew';
 import { crewRoleGroup } from '../../../lib/crewCatalog';
 import { resolveCrewCall } from '../../../lib/callTimes';
+import { locationLabelById, resolvedLocationName, typeLabelOf } from '../../../lib/locations';
+import type { PickedLocation } from '../../../lib/places';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction } from '../../InlineGlideTable';
 import { seededTextCell, textCell } from '../../../lib/glideCells';
 import { createDayTimesTheme } from '../../../lib/glideTheme';
@@ -23,6 +27,8 @@ import Checkbox from '../../Checkbox';
 import Button from '../../Button';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
+import GroupedSelect from './GroupedSelect';
+import { LocationPickerModal } from '../../location/LocationPickerModal';
 import type { GlideColumnEditor } from '../../../lib/glideEditor';
 
 /**
@@ -57,6 +63,18 @@ export interface CrewRosterEditorProps {
   /** Call-sheet host only: append read-only Phone / Email columns (mirrors the
    *  static crewTable block's fixed columns, item 156). */
   contacts?: boolean;
+  /** Item 156: effective "Report to" LOCATION id for everyone (day → template). */
+  reportToId?: string;
+  /** Item 156: effective per-department "Report to" location ids (day → template). */
+  deptReportTo?: Record<string, string>;
+  /** Item 156: writes the everyone default (day meta / crew template).
+   *  Omitted = no input (read-only boards). */
+  onReportToChange?: (locationId: string) => void;
+  /** Item 156: writes one department's default. Omitted = no input. */
+  onDeptReportToChange?: (dept: string, locationId: string) => void;
+  /** Item 156: creates a Locations-DB entry from the map picker and returns its
+   *  id — the host owns the dispatch (`ADD_LOCATION`). */
+  onCreateLocation?: (picked: PickedLocation, type: string) => string;
   /** DOM data attribute for tests. */
   dataAttr?: string;
   /** Peer-selection scope PREFIX (roadmap 234) — the host names the logical
@@ -83,13 +101,24 @@ interface DeptTableProps {
   excludedDepts: string[];
   onCreatePerson?: (roleKey: string, name: string, slotId: string) => void;
   contacts?: boolean;
+  /** Item 156: everyone default location id for this board (resolved fallback). */
+  dayReportToId: string;
+  /** Item 156: this department's effective default location id. */
+  deptReportToId: string;
+  onDeptReportToChange?: (dept: string, locationId: string) => void;
+  /** Item 156: opens the shared location picker for a target ('' prefill = none). */
+  onNewLocation: (target: NewLocationTarget, address?: string) => void;
   /** Peer-selection scope for this department's grid (roadmap 234). */
   presenceScope?: string;
 }
 
+/** Where a newly created location should be assigned. */
+type NewLocationTarget = { kind: 'all' } | { kind: 'dept'; dept: string } | { kind: 'slot'; slotId: string };
+
 const COLUMNS: InlineGlideColumn[] = [
   { key: 'role', label: 'Role', width: 150 },
   { key: 'person', label: 'Person', width: 170 },
+  { key: 'reportTo', label: 'Report To', width: 150 },
   { key: 'call', label: 'Call', width: 90, align: 'center' },
 ];
 
@@ -102,12 +131,35 @@ const CONTACT_COLUMNS: InlineGlideColumn[] = [
 /** Person-dropdown item that opens the Add Crew Member modal. */
 const ADD_NEW_SENTINEL = '__add_new_crew__';
 
+/** Location-dropdown item that opens the shared map picker. */
+const ADD_LOCATION_SENTINEL = '__add_location__';
+
+/** Stable empty map — default for boards with no department report-to values. */
+const EMPTY_DEPT_REPORT_TO: Record<string, string> = {};
+
+/** The location dropdown's items: the Locations DB grouped by type, plus the
+ *  "Add new location…" action row. ONE builder for the board cells, the
+ *  department headers and the everyone bar. */
+function locationItemsFor(project: Project) {
+  const types = project.locationTypes || [];
+  return [
+    { id: ADD_LOCATION_SENTINEL, name: 'Add new location…', accent: true },
+    ...(project.locations || []).map(l => ({
+      id: l.id,
+      name: resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng),
+      group: typeLabelOf(l, types),
+    })),
+  ];
+}
+
 const DeptTable: React.FC<DeptTableProps> = ({
   dept, slots, excluded, precall, templatePrecall, dayCall, project, readOnly,
   allSlots, onSlotsChange, onExcludedChange, onDeptPrecallChange, excludedDepts, onCreatePerson, contacts,
+  dayReportToId, deptReportToId, onDeptReportToChange, onNewLocation,
   presenceScope,
 }) => {
   const crewRoles = project.crewRoles || [];
+  const locationItems = useMemo(() => locationItemsFor(project), [project]);
 
   const columns = useMemo<InlineGlideColumn[]>(
     () => (contacts ? [...COLUMNS, ...CONTACT_COLUMNS] : COLUMNS),
@@ -120,6 +172,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
       const person = slot.personId
         ? Object.values(project.crew || {}).flat().find(p => p.id === slot.personId)
         : undefined;
+      const resolvedReportToId = resolveSlotReportToId(slot, deptReportToId, dayReportToId);
       return {
         key: slot.id,
         slotId: slot.id,
@@ -129,6 +182,8 @@ const DeptTable: React.FC<DeptTableProps> = ({
         phone: person?.phone || '',
         email: person?.email || '',
         role: roleLabel,
+        reportToId: slot.reportToId || '',
+        reportTo: locationLabelById(project, resolvedReportToId),
         isOverride: slot.callTime ? 'true' : '',
         isNoCall: slot.noCall ? 'true' : '',
         call: slot.callTime || '',
@@ -136,7 +191,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
         resolved: resolveSlotCall(slot, precall, dayCall),
       };
     }),
-    [slots, precall, dayCall, crewRoles, project.crew],
+    [slots, precall, dayCall, crewRoles, project, deptReportToId, dayReportToId],
   );
 
   const getEditor = useCallback((row: number, colKey: string): GlideColumnEditor | undefined | null => {
@@ -166,8 +221,32 @@ const DeptTable: React.FC<DeptTableProps> = ({
     }
     // Touch call cells open the shared time keypad (roadmap 301 sweep).
     if (colKey === 'call') return { kind: 'time', align: 'center' };
+    if (colKey === 'reportTo') {
+      // Locations DB, id-keyed (a rename moves the printed name with it). The
+      // trailing action row opens the shared map picker; typed unmatched text
+      // prefills that picker's address instead of storing a free-text value.
+      return {
+        kind: 'entity',
+        mode: 'single',
+        displayMode: 'id',
+        items: locationItems,
+        placeholder: 'Select…',
+        // "Add new location…" is an ACTION row — always first, like the Glide
+        // breakdown's location dropdown (the rest stays alphabetical).
+        sortItems: list => [
+          ...list.filter(i => i.id === ADD_LOCATION_SENTINEL),
+          ...list.filter(i => i.id !== ADD_LOCATION_SENTINEL).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+        ],
+        renderItem: item => (
+          item.id === ADD_LOCATION_SENTINEL
+            ? <span className="text-emerald-600">Add new location…</span>
+            : <span className="truncate">{item.name}</span>
+        ),
+        onCreateItem: (val: string) => onNewLocation({ kind: 'slot', slotId: r.slotId }, val),
+      };
+    }
     return undefined;
-  }, [rows, project, onCreatePerson]);
+  }, [rows, project, onCreatePerson, onNewLocation, locationItems]);
 
   const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>): GridCell => {
     if (col.key === 'role') {
@@ -184,6 +263,16 @@ const DeptTable: React.FC<DeptTableProps> = ({
     }
     if (col.key === 'phone' || col.key === 'email') {
       return textCell(row[col.key], { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#71717a' } });
+    }
+    if (col.key === 'reportTo') {
+      // The editor seeds with the resolved location NAME (the entity panel is
+      // id-keyed, so a pick still commits the exact location id). Amber = the
+      // row carries its own override.
+      return seededTextCell(row.reportTo, {
+        displayData: row.reportTo,
+        readonly: !!readOnly,
+        themeOverride: row.reportToId ? { textDark: '#b45309' } : undefined,
+      });
     }
     // call — the editor seeds the row's OWN override (empty when none) so a
     // double-click never shows the department pre-call; the display shows the
@@ -219,6 +308,24 @@ const DeptTable: React.FC<DeptTableProps> = ({
         changed = true;
         continue;
       }
+      if (edit.colKey === 'reportTo') {
+        const value = edit.value.trim();
+        // "Add new location…" opens the map picker for this slot.
+        if (value === ADD_LOCATION_SENTINEL) {
+          onNewLocation({ kind: 'slot', slotId: r.slotId });
+          continue;
+        }
+        // A pick commits the exact location id; a typed/Enter-committed name
+        // maps back to the Locations DB (never store free text). Anything
+        // unknown was already routed to the picker through onCreateItem.
+        const byId = value ? project.locations?.find(l => l.id === value) : undefined;
+        const byName = value ? project.locations?.find(l => locationLabelById(project, l.id) === value) : undefined;
+        const id = byId?.id ?? byName?.id ?? '';
+        if (id === r.reportToId) continue;
+        next = setSlotReportToId(next, r.slotId, id);
+        changed = true;
+        continue;
+      }
       if (edit.colKey === 'call') {
         const value = edit.value.trim();
         // A literal "-" = no call.
@@ -241,7 +348,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
       }
     }
     if (changed) onSlotsChange(next);
-  }, [allSlots, rows, onSlotsChange, project, onCreatePerson]);
+  }, [allSlots, rows, onSlotsChange, project, onCreatePerson, onNewLocation]);
 
   const toggleExcluded = (included: boolean) => {
     onExcludedChange(included ? excludedDepts.filter(d => d !== dept) : [...excludedDepts, dept]);
@@ -276,19 +383,39 @@ const DeptTable: React.FC<DeptTableProps> = ({
 
   return (
     <div className={`rounded-lg border border-zinc-200 overflow-hidden bg-white ${excluded ? 'opacity-60' : ''}`} data-crew-dept={dept}>
-      <div className="flex items-center gap-2 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
         <Checkbox checked={!excluded} onChange={toggleExcluded} variant="plain" disabled={readOnly} />
         <span className="text-[11px] font-semibold text-zinc-700">{dept}</span>
-        <span className="ml-auto flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-zinc-400">Pre-call</span>
-          <TimeField
-            value={precall}
-            onChange={v => onDeptPrecallChange(dept, v)}
-            readOnly={readOnly}
-            placeholder="-"
-            className="w-24 rounded border border-zinc-300 px-1"
-          />
-          {dayCall && precall && <span className="text-[11px] text-zinc-400">{resolveCrewCall(null, precall, dayCall)}</span>}
+        <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+          {onDeptReportToChange && (
+            <span className="flex items-center gap-1.5" data-crew-dept-report-to>
+              <span className="text-[10px] uppercase tracking-wider text-zinc-400">Report to</span>
+              <GroupedSelect
+                className="w-44"
+                items={locationItems}
+                mode="single"
+                selectedIds={deptReportToId ? [deptReportToId] : []}
+                disabled={readOnly}
+                placeholder="—"
+                onChange={ids => {
+                  const id = ids[0] || '';
+                  if (id === ADD_LOCATION_SENTINEL) { onNewLocation({ kind: 'dept', dept }); return; }
+                  onDeptReportToChange(dept, id);
+                }}
+              />
+            </span>
+          )}
+          <span className="flex items-center gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-400">Pre-call</span>
+            <TimeField
+              value={precall}
+              onChange={v => onDeptPrecallChange(dept, v)}
+              readOnly={readOnly}
+              placeholder="-"
+              className="w-24 rounded border border-zinc-300 px-1"
+            />
+            {dayCall && precall && <span className="text-[11px] text-zinc-400">{resolveCrewCall(null, precall, dayCall)}</span>}
+          </span>
         </span>
       </div>
 
@@ -300,7 +427,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
           rows={rows}
           getCellContent={getCellContent}
           onCommit={onCommit}
-          editableKeys={new Set(['person', 'call'])}
+          editableKeys={new Set(['person', 'reportTo', 'call'])}
           readOnly={readOnly}
           createTheme={createDayTimesTheme}
           getEditor={getEditor}
@@ -396,18 +523,36 @@ export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots
 export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
   slots, excludedDepts, effectivePrecalls, templatePrecalls, dayCall, project,
   readOnly, onSlotsChange, onExcludedChange, onDeptPrecallChange, onAddCrewMember,
-  onCreatePerson, contacts,
+  onCreatePerson, contacts, reportToId = '', deptReportTo = EMPTY_DEPT_REPORT_TO,
+  onReportToChange, onDeptReportToChange, onCreateLocation,
   dataAttr, presenceScopePrefix, className = '',
 }) => {
   const meta: DayMeta = useMemo(
-    () => ({ crewSlots: slots, excludedCrewDepts: excludedDepts, departmentPrecalls: effectivePrecalls }),
-    [slots, excludedDepts, effectivePrecalls],
+    () => ({ crewSlots: slots, excludedCrewDepts: excludedDepts, departmentPrecalls: effectivePrecalls, reportToId, departmentReportTo: deptReportTo }),
+    [slots, excludedDepts, effectivePrecalls, reportToId, deptReportTo],
   );
   const groups = useMemo(
     () => groupSlotsByDept(project, meta, slots, dayCall),
     [project, meta, slots, dayCall],
   );
   const allRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
+  const locationItems = useMemo(() => locationItemsFor(project), [project]);
+  // The shared map picker: opened from a board cell, a department header or the
+  // everyone bar; the confirm assigns the new location to the pending target.
+  const [locationPicker, setLocationPicker] = useState<{ target: NewLocationTarget; initial: Partial<PickedLocation> | null } | null>(null);
+  const requestNewLocation = useCallback((target: NewLocationTarget, address?: string) => {
+    setLocationPicker({ target, initial: address ? { address } : null });
+  }, []);
+  const confirmNewLocation = useCallback((picked: PickedLocation, type?: string) => {
+    const pending = locationPicker;
+    setLocationPicker(null);
+    if (!pending || !onCreateLocation) return;
+    const id = onCreateLocation(picked, type || 'set');
+    if (!id) return;
+    if (pending.target.kind === 'all') onReportToChange?.(id);
+    else if (pending.target.kind === 'dept') onDeptReportToChange?.(pending.target.dept, id);
+    else onSlotsChange(setSlotReportToId(slots, pending.target.slotId, id));
+  }, [locationPicker, onCreateLocation, onReportToChange, onDeptReportToChange, onSlotsChange, slots]);
 
   if (groups.length === 0 && allRoles.length === 0) {
     return (
@@ -424,6 +569,25 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
 
   return (
     <div className={`space-y-2 ${className}`} {...(dataAttr ? { [dataAttr]: '' } : {})}>
+      {onReportToChange && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5" data-crew-report-to>
+          <span className="text-[11px] font-semibold text-zinc-700">Report to</span>
+          <span className="text-[10px] uppercase tracking-wider text-zinc-400">all crew</span>
+          <GroupedSelect
+            className="ml-auto w-56"
+            items={locationItems}
+            mode="single"
+            selectedIds={reportToId ? [reportToId] : []}
+            disabled={readOnly}
+            placeholder="—"
+            onChange={ids => {
+              const id = ids[0] || '';
+              if (id === ADD_LOCATION_SENTINEL) { requestNewLocation({ kind: 'all' }); return; }
+              onReportToChange(id);
+            }}
+          />
+        </div>
+      )}
       {groups.map(g => (
         <DeptTable
           key={g.dept}
@@ -442,9 +606,21 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
           excludedDepts={excludedDepts}
           onCreatePerson={onCreatePerson}
           contacts={contacts}
+          dayReportToId={reportToId}
+          deptReportToId={g.reportToId}
+          onDeptReportToChange={onDeptReportToChange}
+          onNewLocation={requestNewLocation}
           presenceScope={presenceScopePrefix ? `${presenceScopePrefix}:${g.dept}` : undefined}
         />
       ))}
+      <LocationPickerModal
+        open={locationPicker !== null}
+        onClose={() => setLocationPicker(null)}
+        onConfirm={confirmNewLocation}
+        initial={locationPicker?.initial ?? null}
+        locationTypes={project.locationTypes || []}
+        defaultType="set"
+      />
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { MapPin, Pencil, Plus } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import GroupedSelect, { GroupedSelectItem } from '../GroupedSelect';
 import { LocationPickerModal } from '../../../location/LocationPickerModal';
-import { resolvedLocationName, typeLabelOf } from '../../../../lib/locations';
+import { resolvedLocationName, typeLabelOf, locationFromPick } from '../../../../lib/locations';
 import { generateUUID } from '../../../../lib/utils';
 import type { PickedLocation } from '../../../../lib/places';
 import type { ProjectLocation } from '../../../../types';
@@ -53,11 +53,11 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
   const nearestHospital = locationOf(nearby?.hospitalId);
   const nearestPolice = locationOf(nearby?.policeId);
 
-  const savePick = (picked: PickedLocation) => {
-    // A text-only confirm carries no coordinates — never invent a pin.
-    const coords = picked.lat != null && picked.lng != null ? { lat: picked.lat, lng: picked.lng } : {};
+  const savePick = (picked: PickedLocation, type?: string) => {
     if (picker?.mode === 'edit') {
       const { location } = picker;
+      // A text-only confirm carries no coordinates — never invent a pin.
+      const coords = picked.lat != null && picked.lng != null ? { lat: picked.lat, lng: picked.lng } : {};
       dispatch({
         type: 'UPDATE_LOCATION',
         payload: {
@@ -72,15 +72,7 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
       });
       return;
     }
-    const name = (picked.place || picked.address || 'New location').trim();
-    const location: ProjectLocation = {
-      id: generateUUID(),
-      name,
-      type: 'set',
-      address: picked.address,
-      place: picked.place,
-      ...coords,
-    };
+    const location = locationFromPick(picked, type);
     dispatch({ type: 'ADD_LOCATION', payload: { location } });
     patchMeta({ locationId: location.id });
   };
@@ -157,7 +149,7 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
       <LocationPickerModal
         open={picker !== null}
         onClose={() => setPicker(null)}
-        onConfirm={picked => { setPicker(null); savePick(picked); }}
+        onConfirm={(picked, type) => { setPicker(null); savePick(picked, type); }}
         initial={
           editPicker
             ? {
@@ -168,6 +160,8 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
               }
             : null
         }
+        locationTypes={types}
+        defaultType="set"
       />
     </div>
   );

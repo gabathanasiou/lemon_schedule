@@ -2,9 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
   buildDefaultSlots,
   dayDepartments,
+  deptReportToId,
   groupSlotsByDept,
+  reportToIdForDay,
   resolveSlotCall,
+  resolveSlotReportToId,
   setDeptPrecall,
+  setDeptReportTo,
+  setSlotReportToId,
   slotsForDay,
   addSlot,
   removeSlot,
@@ -129,6 +134,52 @@ describe('dayDepartments + setDeptPrecall (item 159)', () => {
     expect(setDeptPrecall({}, 'Camera', '-30m')).toEqual({ departmentPrecalls: { Camera: '-30m' } });
     expect(setDeptPrecall({ departmentPrecalls: { Camera: '-30m' } }, 'Camera', '')).toEqual({ departmentPrecalls: undefined });
     expect(setDeptPrecall({ departmentPrecalls: { Camera: '-30m', Sound: '-1h' } }, 'Camera', '')).toEqual({ departmentPrecalls: { Sound: '-1h' } });
+  });
+});
+
+describe('Report to (item 156)', () => {
+  const project = proj({
+    crewTemplate: { reportToId: 'loc-unit', departmentReportTo: { Camera: 'loc-stage5' } },
+  });
+
+  it('resolves slot → department → everyone default (location ids)', () => {
+    expect(reportToIdForDay(project, {})).toBe('loc-unit');
+    expect(deptReportToId(project, {}, 'Camera')).toBe('loc-stage5');
+    expect(resolveSlotReportToId({ id: 's', role: 'secondAC' }, 'loc-stage5', 'loc-unit')).toBe('loc-stage5');
+    expect(resolveSlotReportToId({ id: 's', role: 'secondAC', reportToId: 'loc-ad' }, 'loc-stage5', 'loc-unit')).toBe('loc-ad');
+    expect(resolveSlotReportToId({ id: 's', role: 'secondAC' }, '', 'loc-unit')).toBe('loc-unit');
+    expect(resolveSlotReportToId({ id: 's', role: 'secondAC' }, '', '')).toBe('');
+  });
+
+  it('day overrides beat the template defaults', () => {
+    const meta: DayMeta = { reportToId: 'loc-site', departmentReportTo: { Camera: 'loc-stage7' } };
+    expect(reportToIdForDay(project, meta)).toBe('loc-site');
+    expect(deptReportToId(project, meta, 'Camera')).toBe('loc-stage7');
+    // An un-overridden department still falls back to the template.
+    expect(deptReportToId(project, meta, 'Sound')).toBe('');
+  });
+
+  it('carries the department default through groupSlotsByDept', () => {
+    const groups = groupSlotsByDept(project, {}, buildDefaultSlots(project), '08:00');
+    expect(groups[0].reportToId).toBe('loc-stage5');
+  });
+
+  it('setDeptReportTo sets, clears and prunes', () => {
+    expect(setDeptReportTo({}, 'Camera', 'loc-stage5')).toEqual({ departmentReportTo: { Camera: 'loc-stage5' } });
+    expect(setDeptReportTo({ departmentReportTo: { Camera: 'loc-stage5' } }, 'Camera', '')).toEqual({ departmentReportTo: undefined });
+    expect(setDeptReportTo({ departmentReportTo: { Camera: 'loc-stage5', Sound: 'loc-unit' } }, 'Camera', '')).toEqual({ departmentReportTo: { Sound: 'loc-unit' } });
+  });
+
+  it('setSlotReportToId sets / clears one slot only', () => {
+    const base: DayCrewSlot[] = [
+      { id: 'a', role: 'secondAC', personId: 'bob' },
+      { id: 'b', role: 'dop', personId: 'ann' },
+    ];
+    const set = setSlotReportToId(base, 'a', 'loc-unit');
+    expect(set[0].reportToId).toBe('loc-unit');
+    expect(set[1].reportToId).toBeUndefined();
+    expect(setSlotReportToId(set, 'a', '')[0].reportToId).toBeUndefined();
+    expect(setSlotReportToId(base, 'a', 'x')).not.toBe(base);
   });
 });
 

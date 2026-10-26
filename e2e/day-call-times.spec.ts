@@ -111,7 +111,8 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     }, undefined, { timeout: 5000 });
     const tBox = (await tmplScroller.boundingBox())!;
     const tTarget = Math.max(120, Math.floor(tBox.width) - 1) - 34;
-    const tCols = [150, 170, 90].map(w => Math.max(40, Math.floor((w / (150 + 170 + 90)) * tTarget)));
+    // Role 150 · Person 170 · Report To 150 (item 156) · Call 90.
+    const tCols = [150, 170, 150, 90].map(w => Math.max(40, Math.floor((w / (150 + 170 + 150 + 90)) * tTarget)));
     tCols[1] += tTarget - tCols.reduce((a, b) => a + b, 0);
     await page.mouse.dblclick(tBox.x + tCols[0] + tCols[1] / 2, tBox.y + 30 + 14);
     const layer = page.locator('[data-glide-overlay-layer]');

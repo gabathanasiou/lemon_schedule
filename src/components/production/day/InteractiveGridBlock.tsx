@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import type { DayMeta, Project, ReportBlock } from '../../../types';
 import type { DayView } from '../../../lib/dayView';
 import { getCallTimeSettings } from '../../../lib/callTimes';
-import { excludedDeptsForDay, setDeptPrecall, slotsForDay } from '../../../lib/dayCrew';
+import { excludedDeptsForDay, reportToIdForDay, setDeptPrecall, setDeptReportTo, slotsForDay } from '../../../lib/dayCrew';
+import type { PickedLocation } from '../../../lib/places';
 import { getLabel } from '../../../lib/categories';
 import { isReportGridCollection } from '../../../lib/reportGrids';
 import DayTimesGlide from './DayTimesGlide';
@@ -39,9 +40,12 @@ export interface InteractiveGridBlockProps {
    *  ONE `ReportBlockTitle` text renderer, rendered above every live grid so
    *  the editing canvas reads like the printed sheet (item 222). */
   title?: React.ReactNode;
+  /** Item 156 — creates the Locations-DB entry the crew board's picker
+   *  confirmed; the host owns dispatch (`ADD_LOCATION`). */
+  onCreateLocation?: (picked: PickedLocation, type: string) => string;
 }
 
-const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes, openAddCrewMember, title }) => {
+const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes, openAddCrewMember, title, onCreateLocation }) => {
   const collection = isReportGridCollection(block.collection) ? block.collection : 'elementCallsOfDay';
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
   // The title (item 140) sits above the grid in every branch — the hardcoded
@@ -103,6 +107,11 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
           onSlotsChange={next => patchMeta({ crewSlots: next })}
           onExcludedChange={next => patchMeta({ excludedCrewDepts: next.length ? next : undefined })}
           onDeptPrecallChange={(dept, expr) => patchMeta(setDeptPrecall(day.meta, dept, expr))}
+          reportToId={reportToIdForDay(project, day.meta)}
+          deptReportTo={day.meta.departmentReportTo}
+          onReportToChange={id => patchMeta({ reportToId: id || undefined })}
+          onDeptReportToChange={(dept, id) => patchMeta(setDeptReportTo(day.meta, dept, id))}
+          onCreateLocation={onCreateLocation}
           onAddCrewMember={() => openAddCrewMember?.()}
           onCreatePerson={(role, name, slotId) => openAddCrewMember?.({ role, name, slotId })}
         />

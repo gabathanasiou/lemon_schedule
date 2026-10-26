@@ -19,6 +19,8 @@ export interface GroupedSelectItem {
   name: string;
   group?: string;
   hint?: string;
+  /** Action row (e.g. "Add new location…") — renders in emerald. */
+  accent?: boolean;
 }
 
 export interface GroupedSelectProps {
@@ -64,6 +66,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
     [items],
   );
   const hintById = useMemo(() => new Map(items.map(i => [i.id, i.hint])), [items]);
+  const accentById = useMemo(() => new Set(items.filter(i => i.accent).map(i => i.id)), [items]);
 
   const label = (() => {
     const picked = items.filter(i => selectedIds.includes(i.id));
@@ -135,7 +138,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
           hasExactMatch
           renderItem={item => (
             <span className="flex items-center gap-2 min-w-0">
-              <span className="truncate">{item.name}</span>
+              <span className={`truncate ${accentById.has(item.id) ? 'text-emerald-600' : ''}`}>{item.name}</span>
               {hintById.get(item.id) && <span className={`text-[10px] shrink-0 ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>{hintById.get(item.id)}</span>}
             </span>
           )}

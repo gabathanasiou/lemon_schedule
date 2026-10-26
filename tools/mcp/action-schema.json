@@ -1422,6 +1422,11 @@
           "type": "boolean"
         },
         {
+          "name": "showReportTo",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
           "name": "axis",
           "optional": true,
           "type": "'columns' | 'rows'"

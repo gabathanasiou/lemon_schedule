@@ -205,6 +205,7 @@ const CREW_FIELDS: ReportFieldDef[] = [
   { key: 'phone', label: 'Phone', group: 'Crew', scope: 'crew', defaultWidth: 14, link: true, linkKind: 'tel', get: (_c, it: ReportCrewItem) => s(it.phone) },
   { key: 'email', label: 'Email', group: 'Crew', scope: 'crew', defaultWidth: 20, link: true, linkKind: 'mailto', get: (_c, it: ReportCrewItem) => s(it.email) },
   { key: 'crewCallTime', label: 'Call Time', group: 'Crew', scope: 'crew', align: 'center', defaultWidth: 9, get: (_c, it: ReportCrewItem) => s(it.callTime || '') },
+  { key: 'reportTo', label: 'Report To', group: 'Crew', scope: 'crew', defaultWidth: 16, get: (_c, it: ReportCrewItem) => s(it.reportTo || '') },
   { key: 'linkedElements', label: 'Linked Elements', group: 'Crew', scope: 'crew', defaultWidth: 22, get: (_c, it: ReportCrewItem) => s(it.linkedElements || '') },
   { key: 'crewLinkedCrew', label: 'Linked Crew', group: 'Crew', scope: 'crew', defaultWidth: 22, get: (_c, it: ReportCrewItem) => s(it.linkedCrew || '') },
 ];

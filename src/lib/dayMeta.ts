@@ -58,6 +58,8 @@ export function isEmptyDayMeta(meta?: DayMeta | null): boolean {
   if (meta.crewSlots && meta.crewSlots.length > 0) return false;
   if (meta.excludedCrewDepts && meta.excludedCrewDepts.length > 0) return false;
   if (meta.departmentPrecalls && Object.keys(meta.departmentPrecalls).length > 0) return false;
+  if (meta.reportToId) return false;
+  if (meta.departmentReportTo && Object.keys(meta.departmentReportTo).length > 0) return false;
   if (meta.elementCalls) {
     for (const category of Object.keys(meta.elementCalls)) {
       if (Object.keys(meta.elementCalls[category] || {}).length > 0) return false;
@@ -149,6 +151,22 @@ export function pruneDayMetaRefs(meta: DayMeta, valid: DayMetaRefSets): DayMeta 
   if (meta.locationIds && valid.locationIds) {
     const kept = meta.locationIds.filter(id => valid.locationIds!.has(id));
     if (kept.length !== meta.locationIds.length) next = { ...next, locationIds: kept };
+  }
+  // Item 156: "Report to" references the same Locations DB — drop dangling ids.
+  if (valid.locationIds) {
+    if (meta.reportToId && !valid.locationIds.has(meta.reportToId)) {
+      const { reportToId: _dropped, ...rest } = next;
+      next = rest;
+    }
+    if (meta.departmentReportTo) {
+      const kept: Record<string, string> = {};
+      let changed = false;
+      for (const [dept, id] of Object.entries(meta.departmentReportTo)) {
+        if (valid.locationIds.has(id)) kept[dept] = id;
+        else changed = true;
+      }
+      if (changed) next = { ...next, departmentReportTo: Object.keys(kept).length ? kept : undefined };
+    }
   }
   return next;
 }

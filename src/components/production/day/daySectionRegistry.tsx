@@ -117,6 +117,8 @@ export const DAY_SECTIONS: DaySectionDef[] = [
         ...(day.meta.crewSlots ? { crewSlots: day.meta.crewSlots } : {}),
         ...(day.meta.excludedCrewDepts ? { excludedCrewDepts: day.meta.excludedCrewDepts } : {}),
         ...(day.meta.departmentPrecalls ? { departmentPrecalls: day.meta.departmentPrecalls } : {}),
+        ...(day.meta.reportToId ? { reportToId: day.meta.reportToId } : {}),
+        ...(day.meta.departmentReportTo ? { departmentReportTo: day.meta.departmentReportTo } : {}),
       };
       return Object.keys(patch).length ? patch : undefined;
     },

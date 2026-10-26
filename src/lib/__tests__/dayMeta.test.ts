@@ -99,4 +99,16 @@ describe('pruneDayMetaRefs', () => {
     const meta: any = { crewIds: ['p1'], locationId: 'loc1' };
     expect(pruneDayMetaRefs(meta, { crewIds: new Set(['p1']), locationIds: new Set(['loc1']) })).toBe(meta);
   });
+
+  it('drops dangling Report-to location ids (item 156)', () => {
+    const meta: any = { reportToId: 'gone', departmentReportTo: { Camera: 'loc1', Sound: 'gone' } };
+    const pruned = pruneDayMetaRefs(meta, { locationIds: new Set(['loc1']) });
+    expect(pruned.reportToId).toBeUndefined();
+    expect(pruned.departmentReportTo).toEqual({ Camera: 'loc1' });
+  });
+
+  it('treats a day with only Report-to values as non-empty (item 156)', () => {
+    expect(isEmptyDayMeta({ reportToId: 'loc1' })).toBe(false);
+    expect(isEmptyDayMeta({ departmentReportTo: { Camera: 'loc1' } })).toBe(false);
+  });
 });

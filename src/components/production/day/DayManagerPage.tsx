@@ -8,6 +8,8 @@ import { useDayViews, type DayView } from '../../../lib/dayView';
 import { useFollowView } from '../../../lib/supabase/useFollowView';
 import { patchDayMeta } from '../../../lib/dayMeta';
 import { assignSlotPerson, slotsForDay } from '../../../lib/dayCrew';
+import { locationFromPick } from '../../../lib/locations';
+import type { PickedLocation } from '../../../lib/places';
 import { rulesRelevantToDay } from '../../../lib/rulesEngine';
 import { IS_COARSE } from '../../../lib/device';
 import { usePersistState } from '../../../lib/persist';
@@ -149,6 +151,13 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     dispatch({ type: 'UPDATE_ROW', payload: { versionId: activeVersion.id, rowId: selected.daybreakRow.id, updates } });
   }, [selected?.daybreakRow, activeVersion, dispatch]);
 
+  /** Item 156 — the crew "Report to" picker's create path (shared mapping). */
+  const createLocation = useCallback((picked: PickedLocation, type: string): string => {
+    const location = locationFromPick(picked, type);
+    dispatch({ type: 'ADD_LOCATION', payload: { location } });
+    return location.id;
+  }, [dispatch]);
+
   const callSheetDesign = useMemo(() => {
     const designs = project.reportDesigns || [];
     return designs.find(d => d.id === prefs.callSheetDesignId)
@@ -269,6 +278,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           patchMeta={patchMeta}
           onEditCallTimesSettings={() => setCallTimesOpen(true)}
           openAddCrewMember={opts => setAddCrew(opts ?? {})}
+          onCreateLocation={createLocation}
           onReset={resetZone}
           onSelectDesign={id => setPrefs(p => ({ ...p, callSheetDesignId: id }))}
           onSelectDay={index => selectDay(index)}

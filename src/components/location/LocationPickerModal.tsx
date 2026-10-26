@@ -4,6 +4,8 @@ import 'leaflet/dist/leaflet.css';
 import { MapPin, Crosshair } from 'lucide-react';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
+import { SelectDropdown } from '../SelectDropdown';
+import type { CrewRole } from '../../types';
 import {
   getPlacesProvider,
   type PickedLocation,
@@ -45,14 +47,21 @@ const GEOCODE_DEBOUNCE_MS = 350;
 export const LocationPickerModal: React.FC<{
   open: boolean;
   onClose: () => void;
-  onConfirm: (loc: PickedLocation) => void;
+  onConfirm: (loc: PickedLocation, type?: string) => void;
   /** Existing location to edit — opens centered on its pin (when it has one)
    *  with its label/address written, instead of the default center. */
   initial?: Partial<PickedLocation> | null;
-}> = ({ open, onClose, onConfirm, initial }) => {
+  /** Item 156: the Locations-DB types a NEW location can be created as.
+   *  Omitted = no type selector (the caller keeps its own default). */
+  locationTypes?: CrewRole[];
+  /** The type key preselected in that selector (default: the first type). */
+  defaultType?: string;
+}> = ({ open, onClose, onConfirm, initial, locationTypes, defaultType }) => {
   // An initial location means the modal is EDITING an attached location, not
   // attaching a new one — say so (title + primary action).
   const editing = !!initial;
+  const typeOptions = locationTypes || [];
+  const [typeLabel, setTypeLabel] = useState('');
   const [place, setPlace] = useState('');
   const [parts, setParts] = useState<PlaceParts | null>(null);
   // ONE field: the editable address is what gets saved AND what searches the
@@ -93,6 +102,14 @@ export const LocationPickerModal: React.FC<{
     setCenter(start);
     centerRef.current = start;
     skipNextGeocode.current = false;
+  }, [open]);
+
+  // Item 156: the new-location type selector resets to the caller's default on
+  // every open (editing hides it — the type is managed in the Locations tab).
+  useEffect(() => {
+    if (!open) return;
+    setTypeLabel(typeOptions.find(t => t.key === defaultType)?.label || typeOptions[0]?.label || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -182,7 +199,7 @@ export const LocationPickerModal: React.FC<{
               ...(place ? { place } : {}),
               ...(parts || {}),
               address: address.trim() || undefined,
-            })}
+            }, editing ? undefined : (typeOptions.find(t => t.label === typeLabel)?.key ?? defaultType))}
           >
             {editing ? 'Save location' : 'Attach pin'}
           </ModalFooterButton>
@@ -190,6 +207,19 @@ export const LocationPickerModal: React.FC<{
       }
     >
       <div className="p-6 space-y-4">
+        {!editing && typeOptions.length > 0 && (
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Location type</div>
+            <SelectDropdown
+              value={typeLabel}
+              onChange={setTypeLabel}
+              options={typeOptions.map(t => t.label)}
+              standalone
+              theme="dark"
+              placeholder="Location type"
+            />
+          </div>
+        )}
         <AsyncResultsDropdown
           value={address}
           onValueChange={v => { addressTouched.current = true; setAddress(v); }}

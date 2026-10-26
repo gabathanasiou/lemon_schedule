@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { GridCellKind, TextCellEntry, type Item } from '@glideapps/glide-data-grid';
 import { AutocompleteDropdown } from '../components/AutocompleteDropdown';
-import { EntityDropdown } from '../components/EntityDropdown';
+import { EntityDropdown, type EntityItem } from '../components/EntityDropdown';
 import TimeKeypad from '../components/TimeKeypad';
 import { useCurrentDocument } from './popoutTarget';
 import { useTouchMode } from './useMarquee';
@@ -19,6 +19,9 @@ export type GlideColumnEditor =
       renderItem?: (item: any, selected: boolean) => React.ReactNode;
       /** Item keys that are element-link anchors — Anchor icon in the panel. */
       anchoredKeys?: Set<string>;
+      /** Custom ordering (wins over `keepAlphabetical`) — e.g. pin an action
+       *  row like "Add new location…" above the alphabetized entities. */
+      sortItems?: (items: EntityItem[], selectedIds: string[]) => EntityItem[];
       /** Fires for a committed value with no matching item (the shared
        *  "type a new value" flow) — e.g. open the Add Crew Member modal. */
       onCreateItem?: (val: string) => void;
@@ -220,7 +223,7 @@ export function createGlideCellEditor(getOpts: () => GlideEditorOptions | null) 
             />
           );
         }
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} onEscape={handleEscape} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} selectAllOnOpen={selectAllOnOpen} portalTarget={portal} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} sortItems={cfg.sortItems} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} onCreateItem={cfg.onCreateItem} autoGrow />;
       };
       components.set(colKey, Editor);
     }
