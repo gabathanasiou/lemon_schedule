@@ -29,10 +29,12 @@ export interface PlaceParts {
   country?: string;
 }
 
-/** A resolved place: coordinates + human label + optional structured parts. */
+/** A resolved place: human label + optional structured parts. Coordinates are
+ *  absent when the user only typed an address — a saved location may have no
+ *  pin (imported/typed rows), and saving must not invent one. */
 export interface PickedLocation {
-  lat: number;
-  lng: number;
+  lat?: number;
+  lng?: number;
   place?: string;
   address?: string;
   city?: string;

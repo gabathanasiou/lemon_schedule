@@ -72,6 +72,10 @@ export const LocationPickerModal: React.FC<{
   // the user edits it (e.g. to type a street number the geocoder can't match),
   // then it stops following and the typed text wins on confirm.
   const addressTouched = useRef(false);
+  // Whether the map holds a REAL pin. A text-only location opens at the
+  // default center without one — confirming must save the address, not stamp
+  // the default coordinates onto it. Any user move/search/geolocate sets this.
+  const pinTouched = useRef(false);
 
   // Reset on open — centered on the location being edited when there is one
   // (no geolocation auto-center — the locate-me button does it). `initial` is
@@ -85,6 +89,7 @@ export const LocationPickerModal: React.FC<{
     setQuery(initial?.place || '');
     setAddress(initial?.address || '');
     addressTouched.current = false;
+    pinTouched.current = initial?.lat != null && initial?.lng != null;
     setCenter(start);
     centerRef.current = start;
     skipNextGeocode.current = false;
@@ -104,6 +109,7 @@ export const LocationPickerModal: React.FC<{
   const pickResult = (hit: PlaceHit) => {
     const { result } = hit;
     skipNextGeocode.current = true;
+    pinTouched.current = true;
     setCenter([result.lat, result.lng]);
     centerRef.current = [result.lat, result.lng];
     setPlace(result.label);
@@ -121,6 +127,7 @@ export const LocationPickerModal: React.FC<{
     }
     centerRef.current = [lat, lng];
     setCenter([lat, lng]);
+    pinTouched.current = true;
     if (skipNextGeocode.current) {
       skipNextGeocode.current = false;
       return;
@@ -160,7 +167,12 @@ export const LocationPickerModal: React.FC<{
         <ModalFooter>
           <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
           <ModalFooterButton
-            onClick={() => onConfirm({ lat: center[0], lng: center[1], ...(place ? { place } : {}), ...(parts || {}), address: address.trim() || undefined })}
+            onClick={() => onConfirm({
+              ...(pinTouched.current ? { lat: center[0], lng: center[1] } : {}),
+              ...(place ? { place } : {}),
+              ...(parts || {}),
+              address: address.trim() || undefined,
+            })}
           >
             {editing ? 'Save location' : 'Attach pin'}
           </ModalFooterButton>

@@ -54,6 +54,8 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
   const nearestPolice = locationOf(nearby?.policeId);
 
   const savePick = (picked: PickedLocation) => {
+    // A text-only confirm carries no coordinates — never invent a pin.
+    const coords = picked.lat != null && picked.lng != null ? { lat: picked.lat, lng: picked.lng } : {};
     if (picker?.mode === 'edit') {
       const { location } = picker;
       dispatch({
@@ -64,8 +66,7 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
             ...(!(location.name || '').trim() ? { name: (picked.place || picked.address || '').trim() } : {}),
             address: picked.address,
             place: picked.place,
-            lat: picked.lat,
-            lng: picked.lng,
+            ...coords,
           },
         },
       });
@@ -78,8 +79,7 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
       type: 'set',
       address: picked.address,
       place: picked.place,
-      lat: picked.lat,
-      lng: picked.lng,
+      ...coords,
     };
     dispatch({ type: 'ADD_LOCATION', payload: { location } });
     patchMeta({ locationId: location.id });

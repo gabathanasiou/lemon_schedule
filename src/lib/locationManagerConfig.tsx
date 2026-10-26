@@ -114,8 +114,12 @@ const AddressCell: React.FC<{ row: ManagerRow; update: (f: string, v: string) =>
       : null;
   const apply = (loc: PickedLocation) => {
     if (!(row.name || '').trim()) update('name', (loc.address || loc.place || '').trim());
-    update('lat', String(loc.lat));
-    update('lng', String(loc.lng));
+    // Text-only save (no pin placed): keep the row pin-less — never stamp the
+    // map's default center onto it.
+    if (loc.lat != null && loc.lng != null) {
+      update('lat', String(loc.lat));
+      update('lng', String(loc.lng));
+    }
     update('place', loc.place || '');
     update('address', loc.address || '');
   };
