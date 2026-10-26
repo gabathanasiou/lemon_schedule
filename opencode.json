@@ -6,7 +6,7 @@
   "mcp": {
     "playwright": {
       "type": "local",
-      "command": ["npx", "@playwright/mcp@latest"],
+      "command": ["sh", "-c", "f=\"$HOME/.config/opencode/skills/agent-window-labels/window-label.cjs\"; if [ -f \"$f\" ]; then set -- \"$@\" --init-page \"$f\"; fi; exec npx @playwright/mcp@latest \"$@\""],
       "environment": {}
     },
     "gcloud": {
