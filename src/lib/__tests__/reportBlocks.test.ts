@@ -16,6 +16,10 @@ import {
   removeCustomRowAt,
   duplicateBlockWithId,
   dayGridOffenders,
+  blockAllowedIn,
+  blockPlacementHint,
+  countCallSheetZones,
+  ribbonTimeOverrides,
 } from '../reportBlocks';
 import type { ReportBlock } from '../../types';
 
@@ -243,5 +247,59 @@ describe('dayGridOffenders (day-grid blocks only inside a Days context)', () => 
     expect([...dayGridOffenders([b('r', 'repeat', { collection: 'scenes', children: [b('y', 'callTimes')] })]).keys()]).toEqual(['y']);
     // Columns pass the ambient context through.
     expect([...dayGridOffenders([b('c', 'columns', { cols: [{ id: 'c1', width: 50, blocks: [b('z', 'precalls')] }] })]).keys()]).toEqual(['z']);
+  });
+});
+
+describe('blockAllowedIn — per-day call-sheet zone (roadmap 212)', () => {
+  it('allows ordinary content, refuses day grids and a nested zone', () => {
+    expect(blockAllowedIn('text', 'days', false, { callSheetZone: true })).toBe(true);
+    expect(blockAllowedIn('table', 'days', false, { callSheetZone: true })).toBe(true);
+    // Grids render live only at TEMPLATE level inside the days repeat.
+    expect(blockAllowedIn('callTimes', 'days', false, { callSheetZone: true })).toBe(false);
+    expect(blockAllowedIn('precalls', 'days', false, { callSheetZone: true })).toBe(false);
+    // One zone per design — never nested inside the zone.
+    expect(blockAllowedIn('callSheetEdit', 'days', false, { callSheetZone: true })).toBe(false);
+    // …while the full designer may place the zone itself.
+    expect(blockAllowedIn('callSheetEdit', 'days')).toBe(true);
+  });
+
+  it('keeps the template rules intact without the zone flag', () => {
+    expect(blockAllowedIn('callTimes', 'days')).toBe(true);
+    expect(blockAllowedIn('callTimes', 'scenes')).toBe(false);
+    expect(blockAllowedIn('columns', 'scenes', true)).toBe(false);
+    expect(blockAllowedIn('relative', null)).toBe(false);
+  });
+
+  it('explains the zone-specific placements', () => {
+    expect(blockPlacementHint('callTimes', { callSheetZone: true })).toContain('template block');
+    expect(blockPlacementHint('callSheetEdit', { callSheetZone: true })).toContain('one edit zone');
+    expect(blockPlacementHint('callTimes')).toBe('This block only works inside a Repeat over Days.');
+  });
+});
+
+describe('countCallSheetZones (one per-day zone per design)', () => {
+  it('counts root, nested and column-hosted zones', () => {
+    expect(countCallSheetZones([])).toBe(0);
+    expect(countCallSheetZones([b('z1', 'callSheetEdit')])).toBe(1);
+    expect(countCallSheetZones([
+      b('d', 'repeat', { collection: 'days', children: [b('z1', 'callSheetEdit')] }),
+      b('c', 'columns', { cols: [{ id: 'c1', width: 50, blocks: [b('z2', 'callSheetEdit')] }] }),
+    ])).toBe(2);
+  });
+});
+
+describe('ribbonTimeOverrides (item 114 — view-only Times aid)', () => {
+  it('forces times/durations on every ribbon, preserving the other flags', () => {
+    const out = ribbonTimeOverrides([
+      b('r', 'ribbon', { ribbonId: 'rd1', ribbonNotes: false, ribbonBreaks: true, ribbonHeaders: true }),
+      b('d', 'repeat', { collection: 'days', children: [b('r2', 'ribbon', { ribbonNotes: true })] }),
+      b('t', 'text'),
+    ]);
+    expect(Object.keys(out).sort()).toEqual(['r', 'r2']);
+    expect(out.r).toMatchObject({
+      ribbonId: 'rd1', showCallTimes: true, showDurations: true,
+      showNotes: false, showBreaks: true, showDayBreaks: true,
+    });
+    expect(out.r2).toMatchObject({ showCallTimes: true, showDurations: true, showNotes: true, showBreaks: false });
   });
 });
