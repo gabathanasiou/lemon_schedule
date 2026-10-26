@@ -826,7 +826,7 @@ parity) and **27** (`relative` context shifter).
 
 **Request** (item 159 follow-up, user 2026-10-09): expose the project's crew
 departments as a BASE report collection — one item per department (label,
-pre-call expression, resolved call in a day context, crew count) — so pre-calls
+pre-call expression, resolved call in a day context, crew count, crew list) — so pre-calls
 can be listed in plain tables/repeats WITHOUT a days repeat and referenced as
 `@` attributes, not only via the day-scoped `departmentCallsOfDay` and the
 precalls block.
@@ -837,11 +837,19 @@ precalls block.
   (`reportData.ts`, reuse `dayCrew.projectDepartments`/`dayDepartments`) +
   labels/identity (`reportBlocks.ts`) + a `departments` field family
   (`reportFields.ts`: label, pre-call expression, day-resolved call via the
-  Lego day ancestor, crew count) + lookup identity (`reportLookup.ts`
+  Lego day ancestor, crew count, crew list) + lookup identity (`reportLookup.ts`
   `fieldScopeFor`, `buildLookupTokens`) so `@Camera` offers its attributes.
+- **Crew list (user, 2026-10-26):** comma-separated names alongside the count,
+  TWO fields — `Crew` ("Alice, Bob, Charlie") and `Crew (roles)`
+  ("Alice (DoP), Bob (1st AC)"). No third variant, no format toggle. Source:
+  inside a day repeat (the day ancestor sets `ctx.dayDate`) the DAY's assigned
+  slots from `crewOfDay` — so a swapped or fitting-only person shows; outside
+  one, the project roster (`project.crew[roleKey]` for the department's roles).
+  Same people pool as everything else (`dayCrew.ts`), never a second list.
 - Keep `departmentCallsOfDay` as the day-scoped contextual child — the base
   collection is the project-level DB (ONE source: the `dayCrew` pool).
-- **Verify**: Vitest for the resolver + lookup identity; `e2e/report-collections.spec.ts`
+- **Verify**: Vitest for the resolver + lookup identity + the crew-list
+  day/project branches; `e2e/report-collections.spec.ts`
   only if a silent break is plausible.
 - **Relations**: extends **159**; overlaps **99**/**146** (pool source); **201**
   (base-vs-contextual collection direction).
