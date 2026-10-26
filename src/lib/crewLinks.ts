@@ -1,6 +1,6 @@
 import { CrewLink, Link, Project } from '../types';
 import { getCategoryElements, elementMatchId } from './elements';
-import { CREW_LINK_TARGET } from './links';
+import { CREW_LINK_TARGET, getElementOutgoingLinks } from './links';
 
 /**
  * Crew links (roadmap 11/308) — a VIEW over the unified `project.links`
@@ -114,13 +114,18 @@ export function linkedCrewNamesForPerson(project: Project, personId: string): st
 }
 
 /** Resolved crew names linked to an element (comma-separated) — the element's
- *  `linkedCrew` report field. */
+ *  `linkedCrew` report field. Whole-department tags read "All <department>";
+ *  the people they currently cover are intentionally NOT expanded. */
 export function linkedCrewNamesForElement(project: Project, category: string, elementKey: string): string {
   const byId = crewNameMap(project);
   const names: string[] = [];
   for (const link of getCrewLinksForElement(project.links, category, elementKey)) {
     const name = byId.get(link.personId);
     if (name && !names.includes(name)) names.push(name);
+  }
+  for (const link of getElementOutgoingLinks(project.links, category, elementKey, 'department')) {
+    const label = `All ${link.linkedValue}`;
+    if (!names.includes(label)) names.push(label);
   }
   return names.join(', ');
 }
@@ -130,7 +135,7 @@ export interface CrewLinkWarning {
   category: string;
   targetKey: string;
   /** 'crew' = the target is another person; 'element' = an element. */
-  targetKind: 'crew' | 'element';
+  targetKind: 'crew' | 'element' | 'department';
   targetLabel: string;
   message: string;
 }
@@ -147,8 +152,27 @@ export function crewLinkWarnings(params: {
   crewName: (id: string) => string | undefined;
   targetLabel: (link: CrewLink) => string;
   isElementOnDay: (category: string, elementKey: string) => boolean;
+  /** Current people of a crew department — required to judge department tags. */
+  peopleInDept?: (dept: string) => string[];
+  /** Display label for the element anchor (department warning copy). */
+  elementLabel?: (category: string, elementKey: string) => string;
 }): CrewLinkWarning[] {
   const out: CrewLinkWarning[] = [];
+  // Whole-department tags: warn when NOBODY from that department is on the day.
+  for (const link of params.links || []) {
+    if (link.anchorKind !== 'element' || link.linkedKind !== 'department' || !link.anchorCategory) continue;
+    const people = params.peopleInDept?.(link.linkedValue) || [];
+    if (people.some(id => params.dayCrewIds.has(id))) continue;
+    const element = params.elementLabel?.(link.anchorCategory, link.anchorValue) || link.anchorValue;
+    out.push({
+      personId: '',
+      category: 'department',
+      targetKey: link.linkedValue,
+      targetKind: 'department',
+      targetLabel: `All ${link.linkedValue}`,
+      message: `${element} is linked to all of ${link.linkedValue}, but nobody from ${link.linkedValue} is on this day.`,
+    });
+  }
   for (const link of crewLinkViews(params.links)) {
     if (!params.dayCrewIds.has(link.personId)) continue;
     const anchor = params.crewName(link.personId) || link.personId;

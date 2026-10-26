@@ -44,6 +44,8 @@ export interface EntityItem {
   /** Optional group label — the panel renders a header when the group changes
    *  (crew by department, locations by type, categories by group). */
   group?: string;
+  /** Render as a highlighted TAG (whole-department link rows). */
+  accent?: boolean;
 }
 
 interface EntityDropdownProps {

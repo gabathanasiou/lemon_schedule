@@ -3,7 +3,8 @@ import { AlertTriangle, UsersRound } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import CrewRosterEditor, { CrewAddRoleMenu } from '../CrewRosterEditor';
 import { excludedDeptsForDay, setDeptPrecall as deptPrecallPatch, slotsForDay } from '../../../../lib/dayCrew';
-import { crewLinkWarnings, crewNameMap, targetLabelForLink } from '../../../../lib/crewLinks';
+import { crewLinkWarnings, crewNameMap, elementLabelForLink, targetLabelForLink } from '../../../../lib/crewLinks';
+import { crewIdsForDepartment } from '../../../../lib/linkTargets';
 import Button from '../../../Button';
 
 /**
@@ -46,6 +47,8 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
         const list = cat === 'cast' ? day.cast : (day.elements[cat] || []);
         return list.some(e => e.key.toLowerCase() === key.toLowerCase());
       },
+      peopleInDept: dept => crewIdsForDepartment(project, dept),
+      elementLabel: (cat, key) => elementLabelForLink(project, { id: '', personId: '', category: cat, elementKey: key }),
     });
   }, [day, project]);
 

@@ -87,10 +87,9 @@ test('crew links: seeded person→element and person→crew show on both sides, 
   await emModal.getByRole('tab', { name: 'Links' }).click();
   const crewRow = emModal.locator('[data-link-row="crew"]');
   await expect(crewRow).toContainText('ZZZ ALPHA');
-  const crewInput = crewRow.locator('[data-el-dropdown] :is(input, textarea)');
-  await crewInput.click();
-  await crewInput.fill('');
-  await crewInput.press('Enter');
+  // Grouped crew picker (names, grouped by department) — untick the person.
+  await crewRow.getByRole('button', { name: 'ZZZ ALPHA' }).click();
+  await page.locator('[data-ei]').filter({ hasText: 'ZZZ ALPHA' }).click();
   await expect.poll(() => page.evaluate(() =>
     ((window as any).__lemonSchedule.getProject().links || []).some((l: any) => l.id === 'zzz-cl-1'),
   )).toBe(false);

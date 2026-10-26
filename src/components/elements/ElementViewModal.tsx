@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useProject } from '../../store';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
-import { elementKey } from '../../lib/elements';
+import { elementKey, elementMatchId } from '../../lib/elements';
 import { ChevronDown, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { Seg } from '@gabriel/ui-kit';
 import DropdownMenu from '../DropdownMenu';
@@ -100,6 +100,11 @@ export function ElementViewModal({ category, rowKey, onClose }: {
   const selected = options.find(o => o.key === selectedKey);
   const categoryLabel = getLabel(category, ELEMENT_CATEGORIES.find(c => c.key === category)?.label || category, project.categoryLabels);
   const elementName = selected?.name || selected?.label || '';
+  // Link values use `elementMatchId` (cast = Board ID, others = the NAME), NOT
+  // the picker's row key (`elementKey` = the element id — which differs after a
+  // rename). Never pass the id into the Links tab: it would read as "no links"
+  // and write rows nothing can resolve.
+  const selectedMatchKey = selected ? elementMatchId(selected, category) : '';
 
   return (
     <Modal
@@ -141,7 +146,17 @@ export function ElementViewModal({ category, rowKey, onClose }: {
         ) : tab === 'properties' ? (
           <ElementPropertiesSection category={category} elementKey={selectedKey} onKeyChange={setSelectedKey} />
         ) : tab === 'links' ? (
-          <ElementLinksSection key={`${category}:${selectedKey}`} category={category} elementKey={selectedKey} onSelectElement={setSelectedKey} />
+          <ElementLinksSection
+            key={`${category}:${selectedMatchKey}`}
+            category={category}
+            elementKey={selectedMatchKey}
+            onSelectElement={matchKey => {
+              // Incoming link values are match keys; map back to the picker's key.
+              const target = options.find(o =>
+                elementMatchId({ id: o.id, name: o.name }, category).toLowerCase() === matchKey.toLowerCase());
+              if (target) setSelectedKey(target.key);
+            }}
+          />
         ) : (
           <ElementEventsSection
             category={category}

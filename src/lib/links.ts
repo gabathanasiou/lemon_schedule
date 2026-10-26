@@ -33,7 +33,10 @@ function elementValue(category: string | undefined, value: string): string {
 
 function sideKey(kind: LinkKind, category: string | undefined, value: string): string {
   if (kind === 'element') return `element\u0000${category || ''}\u0000${elementValue(category, value)}`;
-  return `${kind}\u0000\u0000${String(value ?? '').trim()}`;
+  const raw = String(value ?? '').trim();
+  // Department names are display strings — compare case-insensitively so a
+  // renamed casing can't create duplicate "All Camera" tags.
+  return `${kind}\u0000\u0000${kind === 'department' ? raw.toLowerCase() : raw}`;
 }
 
 /** Exact-duplicate signature for one link (element names case-insensitive). */

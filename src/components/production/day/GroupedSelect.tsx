@@ -19,6 +19,8 @@ export interface GroupedSelectItem {
   name: string;
   group?: string;
   hint?: string;
+  /** Render as a highlighted tag (the "All <department>" coverage rows). */
+  accent?: boolean;
 }
 
 export interface GroupedSelectProps {
@@ -60,10 +62,11 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   useEscapeCapture(open, close);
 
   const dropdownItems: EntityItem[] = useMemo(
-    () => items.map(i => ({ id: i.id, name: i.name, group: i.group })),
+    () => items.map(i => ({ id: i.id, name: i.name, group: i.group, accent: i.accent })),
     [items],
   );
   const hintById = useMemo(() => new Map(items.map(i => [i.id, i.hint])), [items]);
+  const accentIds = useMemo(() => new Set(items.filter(i => i.accent).map(i => i.id)), [items]);
 
   const label = (() => {
     const picked = items.filter(i => selectedIds.includes(i.id));
@@ -133,10 +136,18 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
           itemKey={m => m.id}
           searchQuery=""
           hasExactMatch
-          renderItem={item => (
-            <span className="flex items-center gap-2 min-w-0">
+          renderItem={item => accentIds.has(item.id) ? (
+            <span className="flex flex-1 items-center gap-2 min-w-0">
               <span className="truncate">{item.name}</span>
-              {hintById.get(item.id) && <span className={`text-[10px] shrink-0 ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>{hintById.get(item.id)}</span>}
+            </span>
+          ) : (
+            <span className="flex flex-1 items-center gap-2 min-w-0">
+              <span className="truncate">{item.name}</span>
+              {hintById.get(item.id) && (
+                <span className={`text-[10px] shrink-0 ml-auto ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                  {hintById.get(item.id)}
+                </span>
+              )}
             </span>
           )}
           defaultRenderer={item => <span className="truncate">{item.name}</span>}

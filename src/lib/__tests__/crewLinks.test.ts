@@ -90,6 +90,34 @@ describe('crewLinkWarnings', () => {
     expect(warnings[0].message).toBe("Mat is linked to 1. GEORGE, who is not in this day's scenes.");
   });
 
+  it('warns when nobody from a linked department is on the day', () => {
+    const warnings = crewLinkWarnings({
+      links: [{ id: 'l', anchorKind: 'element', anchorCategory: 'cast', anchorValue: '1', linkedKind: 'department', linkedValue: 'Camera' }],
+      dayCrewIds: new Set(['p-a']),
+      crewName: names,
+      targetLabel: label,
+      isElementOnDay: () => true,
+      peopleInDept: dept => dept === 'Camera' ? ['p-b', 'p-c'] : [],
+      elementLabel: () => '1. GEORGE',
+    });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].targetKind).toBe('department');
+    expect(warnings[0].message).toBe('1. GEORGE is linked to all of Camera, but nobody from Camera is on this day.');
+  });
+
+  it('stays silent when at least one person from the linked department is on the day', () => {
+    const warnings = crewLinkWarnings({
+      links: [{ id: 'l', anchorKind: 'element', anchorCategory: 'cast', anchorValue: '1', linkedKind: 'department', linkedValue: 'Camera' }],
+      dayCrewIds: new Set(['p-b']),
+      crewName: names,
+      targetLabel: label,
+      isElementOnDay: () => true,
+      peopleInDept: () => ['p-b', 'p-c'],
+      elementLabel: () => '1. GEORGE',
+    });
+    expect(warnings).toEqual([]);
+  });
+
   it('ignores links anchored by people who are not on the day', () => {
     const warnings = crewLinkWarnings({
       links: [{ id: 'l', anchorKind: 'crew', anchorValue: 'p-b', linkedKind: 'crew', linkedValue: 'p-a' }],

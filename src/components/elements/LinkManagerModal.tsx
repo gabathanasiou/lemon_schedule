@@ -6,12 +6,13 @@ import { ELEMENT_CATEGORIES, getLabel, getFieldItems, isMultiValue } from '../..
 import { getCategoryElements } from '../../lib/elements';
 import { applyLinkToScenes, isLinkableCategory, anchoredKeysFor } from '../../lib/elementLinks';
 import { isPropagationLink } from '../../lib/links';
-import { CREW_TARGET, LOCATION_TARGET } from '../../lib/linkDrafts';
+import { CREW_TARGET, LOCATION_TARGET, draftValueForLink, targetFromDraftValue } from '../../lib/linkDrafts';
 import { CardSection } from '@gabriel/ui-kit';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { ElementPickerRow } from '../rules/ElementPicker';
+import { LinkRow } from './LinkRow';
 import { useQueueCastNaming, addNewElement } from '../../lib/newCastNaming';
 import { Plus, X, Link2, Check } from 'lucide-react';
 
@@ -75,11 +76,11 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
         g = { id: generateUUID(), category: l.anchorCategory as string, anchorValue: l.anchorValue, links: [] };
         byAnchor.set(key, g);
       }
-      const linkedCategory = l.linkedKind === 'crew' ? CREW_TARGET : l.linkedKind === 'location' ? LOCATION_TARGET : (l.linkedCategory || '');
-      if (!linkedCategory) continue;
-      const row = g.links.find(r => r.linkedCategory === linkedCategory);
-      if (row) row.linkedValue = appendValue(linkedCategory, row.linkedValue, l.linkedValue);
-      else g.links.push({ id: l.id, linkedCategory, linkedValue: l.linkedValue });
+      const mapped = draftValueForLink(l);
+      if (!mapped) continue;
+      const row = g.links.find(r => r.linkedCategory === mapped.category);
+      if (row) row.linkedValue = appendValue(mapped.category, row.linkedValue, mapped.value);
+      else g.links.push({ id: l.id, linkedCategory: mapped.category, linkedValue: mapped.value });
     }
     const list = [...byAnchor.values()];
     if (list.length === 0 && initialAnchorCategory) {
@@ -186,10 +187,10 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
     const seen = new Set<string>();
     for (const l of g.links) {
       if (!l.linkedCategory || !l.linkedValue) continue;
-      const linkedKind = l.linkedCategory === CREW_TARGET ? 'crew' : l.linkedCategory === LOCATION_TARGET ? 'location' : 'element';
-      for (const linkedValue of getFieldItems(l.linkedCategory, l.linkedValue)) {
+      for (const rawValue of getFieldItems(l.linkedCategory, l.linkedValue)) {
+        const target = targetFromDraftValue(l.linkedCategory, rawValue);
         for (const anchorValue of anchors) {
-          const k = `${g.category}|${anchorValue}|${l.linkedCategory}|${linkedValue}`.toLowerCase();
+          const k = `${g.category}|${anchorValue}|${target.linkedKind}|${target.linkedValue}`.toLowerCase();
           if (seen.has(k)) continue;
           seen.add(k);
           out.push({
@@ -197,9 +198,9 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
             anchorKind: 'element',
             anchorCategory: g.category,
             anchorValue,
-            linkedKind,
-            linkedCategory: linkedKind === 'element' ? l.linkedCategory : undefined,
-            linkedValue,
+            linkedKind: target.linkedKind,
+            linkedCategory: target.linkedCategory,
+            linkedValue: target.linkedValue,
           });
         }
       }
@@ -387,12 +388,13 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                   {g.links.map((l, li) => {
                     const linkedElements = elementsFor(l.linkedCategory);
                     return (
-                      <ElementPickerRow
+                      <LinkRow
                         key={l.id}
+                        project={project}
                         category={l.linkedCategory}
-                        elementValue={l.linkedValue}
+                        value={l.linkedValue}
                         onCategoryChange={(cat) => patchLink(g.id, l.id, { linkedCategory: cat, linkedValue: '' })}
-                        onElementChange={(v) => patchLink(g.id, l.id, { linkedValue: v })}
+                        onChange={(v) => patchLink(g.id, l.id, { linkedValue: v })}
                         onCreateItem={(item) => ensureElement(l.linkedCategory, item)}
                         allCategoryKeys={linkedCategoryKeys}
                         categoryLabelLookup={categoryLabelLookup}
@@ -404,8 +406,6 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                         setOpenDropdown={setOpenDropdown}
                         idPrefix={`l${gi}-${li}`}
                         btnClass={BTN}
-                        dataProps={{ 'data-link-row': l.linkedCategory }}
-                        resolveBy={l.linkedCategory === CREW_TARGET || l.linkedCategory === LOCATION_TARGET ? 'id' : undefined}
                         anchoredKeys={anchoredByCategory.get(l.linkedCategory)}
                         wrapValue
                         onRemove={() => removeLink(g.id, l.id)}

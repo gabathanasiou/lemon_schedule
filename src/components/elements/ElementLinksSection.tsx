@@ -8,7 +8,7 @@ import { CREW_TARGET, LOCATION_TARGET, draftRowsFromLinks, flattenLinkRows, type
 import type { Link, ProjectElement } from '../../types';
 import { CardSection } from '@gabriel/ui-kit';
 import { Check, Link2, Plus, X } from 'lucide-react';
-import { ElementPickerRow } from '../rules/ElementPicker';
+import { LinkRow } from './LinkRow';
 import { useQueueCastNaming, addNewElement } from '../../lib/newCastNaming';
 
 /**
@@ -180,12 +180,13 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
       >
         <div className="space-y-2 pt-1">
           {rows.map((row, i) => (
-            <ElementPickerRow
+            <LinkRow
               key={row.id}
+              project={project}
               category={row.linkedCategory}
-              elementValue={row.linkedValue}
+              value={row.linkedValue}
               onCategoryChange={cat => patchRow(row.id, { linkedCategory: cat, linkedValue: '' })}
-              onElementChange={v => patchRow(row.id, { linkedValue: v })}
+              onChange={v => patchRow(row.id, { linkedValue: v })}
               onCreateItem={item => ensureElement(row.linkedCategory, item)}
               allCategoryKeys={allCategoryKeys}
               categoryLabelLookup={categoryLabelLookup}
@@ -197,8 +198,6 @@ export function ElementLinksSection({ category, elementKey: selectedKey, onSelec
               setOpenDropdown={setOpenDropdown}
               idPrefix={`ev-${i}`}
               btnClass={BTN}
-              dataProps={{ 'data-link-row': row.linkedCategory }}
-              resolveBy={isSyntheticCategory(row.linkedCategory) ? 'id' : undefined}
               wrapValue
               placeholder={isSyntheticCategory(row.linkedCategory) ? 'Select…' : 'Select element…'}
               onRemove={() => commit(rows.filter(r => r.id !== row.id))}

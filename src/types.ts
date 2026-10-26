@@ -476,15 +476,17 @@ export interface ElementLink {
 }
 
 /** What a unified link side points at (roadmap 308). */
-export type LinkKind = 'element' | 'crew' | 'location';
+export type LinkKind = 'element' | 'crew' | 'department' | 'location';
 
 /**
  * Unified association (roadmap 308) — ONE store for element rules, crew
- * attachments and location links. Values are `elementMatchId` for elements
- * (cast = Board ID, others = name), person ids for crew and location ids for
- * locations. ONLY `element → element` links propagate into scenes; the other
- * kinds are associations. Canonical direction: the element owns its element/
- * crew/location links; crew owns person→person links.
+ * attachments, whole-department coverage and location links. Values are
+ * `elementMatchId` for elements (cast = Board ID, others = name), person ids
+ * for crew, a DEPARTMENT NAME for `department` (everyone in it, including
+ * future joiners) and location ids for locations. ONLY `element → element`
+ * links propagate into scenes; the other kinds are associations. Canonical
+ * direction: the element owns its element/crew/department/location links; crew
+ * owns person→person links.
  */
 export interface Link {
   id: string;
