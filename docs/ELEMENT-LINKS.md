@@ -1,64 +1,147 @@
-# Element Links & Crew Links — Agent Manual
+# Links — elements, crew, locations (agent manual)
 
-Status: **read this before touching links, link propagation, the Link Manager, or crew↔element
-associations.** `src/lib/elementLinks.ts` and `src/lib/crewLinks.ts` are the canonical modules —
-never re-derive their logic.
+Status: **read this before touching links, link propagation, the Link Manager, the
+Element View Links tab, crew associations, or day-location suggestions.**
+`src/lib/links.ts` is the canonical store module; `src/lib/elementLinks.ts` is the
+scene-propagation seam; `src/lib/crewLinks.ts` is a view adapter over the same
+store. Never re-derive their logic.
 
 ## Mental model
 
-1. **Element links are one-way and anchor-based.** An anchor carries a list of `(linkedCategory,
-   linkedValue)` rows; adding an anchor retroactively applies the link to scenes.
-2. **One write-path seam for scene edits** (`useLinkedEditGuard.tryCommitSceneEdit`) enforces the
-   links; never dispatch raw `UPDATE_SCENE` for entity fields.
-3. **Crew links are a separate store** (`project.crewLinks`) reusing the reserved `category: 'crew'`
-   to link people to people.
+1. **ONE store**: `project.links: Link[]` (roadmap 308). Every association —
+   element rules, crew attachments, location links — is one record.
+2. **Only element → element links propagate into scenes.** All other kinds
+   (element→crew, element→location, crew→crew) are associations: reports, the
+   panel, warnings and the day location suggestions read them; scene fields
+   never change because of them.
+3. **Canonical direction**: the element owns its element/crew/location links;
+   crew owns person→person links.
+4. **Legacy fields are migrated on every read path** — `project.elementLinks`
+   (roadmap 44) and `project.crewLinks` (roadmap 11) are converted by
+   `migrateProjectLinks` and dropped from the in-memory project.
 
-## Element Links (roadmap 44)
+```ts
+type LinkKind = 'element' | 'crew' | 'location';
+interface Link {
+  id: string;
+  anchorKind: LinkKind;
+  anchorCategory?: string;   // element category when anchorKind === 'element'
+  anchorValue: string;       // elementMatchId | person id | location id
+  linkedKind: LinkKind;
+  linkedCategory?: string;   // element category when linkedKind === 'element'
+  linkedValue: string;
+}
+```
 
-- One-way, anchor-based: `project.elementLinks: ElementLink[]` (flat;
-  `{id, anchorCategory, anchorValue, linkedCategory, linkedValue}`) — anchor values via
-  `elementMatchId` (cast = Board ID, others = name; name matching case-insensitive). No
-  bidirectional index — derive anchor-of by scan (`getAnchorLinks`).
-- **One canonical module: `src/lib/elementLinks.ts`** — `computePropagation` (anchors added between
-  before/after → linked values), `computeRemovedLinks`/`cascadeRemoval` (anchor removal with
-  remaining links = warning + cascade), `applyLinkToScenes` (retroactive), `addValueToField`
-  (`isMultiValue`-aware; single-value fields only take the value when empty — never clobber).
-  Re-derive nothing from it.
-- **Write-path seam: `useLinkedEditGuard(links, customCategories, dispatch).tryCommitSceneEdit(scene, updates)`**
-  instead of raw `UPDATE_SCENE` for entity-field edits — wired in SceneSheet `commitField`, Glide
-  `commitEdit` (erase/paste route through it), stripboard/boneyard `updateScene` (SortableRibbon
-  takes an `elementLinks` prop — memo-compared; per-row components MUST NOT call `useProject()`).
-  Removal with links → ui-kit `dialog.confirm`; cancel = edit not applied, confirm = cascade.
-- Link Manager = `elements/LinkManagerModal.tsx` (Element Manager → Links, header + action bar):
-  **grouped anchor cards** — each card = anchor picker + linked-element rows (one row per category);
-  links dispatch immediately (`UPDATE_PROJECT`, exact-duplicate dedupe). Linked rows + anchor pickers
-  are the shared `rules/ElementPicker.tsx` `ElementPickerRow` (extracted from Color Rules'
-  `RuleConditionRow` — extend the shared ones, never fork): CategoryDropdown + `EntityDropdown
-  variant="chip"` — the **day-status modal pattern** (TravelHoldModal): dark chip trigger + dark
-  dropdown panel (`DropdownPanel dark`), type-to-filter, multi-mode per category (one link per comma
-  value via `getFieldItems`). Per-card Apply (retroactive, batch = one undo entry) + footer Apply
-  All. Cast renders like the Glide ("1. FISHERMAN", `—` fallback). **One linked row per category per
-  card** — "Add Linked Element" prefills the next unused category; changing a row's category onto an
-  already-used one merges the values into that row (no duplicate rows). **Single-highlight rule (all
-  `DropdownPanel`s, both themes)**: rows keep their un-gated Tailwind `hover:` fills (they feed iOS
-  tap-to-hover), but `highlightedIndex` is the ONE lit row — written by pointer hover (`onItemHover`)
-  AND the keyboard arrows (latest wins; `onHoverLeave` clears pointer-driven highlights); checked
-  rows stay distinct (dark: Check glyph; light: blue bg). Modal pickers use `EntityDropdown
-  variant="chip"` — see `docs/DESIGN-LANGUAGE.md` §EntityDropdown chip version.
-- `notes` is not linkable; **Sets are anchor-only** — a set can be an anchor, never a linked target
-  (adding a set replaces the field, so a set-target link would silently never apply; not offered in
-  the linked category menu). Custom single-value categories stay linkable. Escape inside any open
-  dropdown (`useEscapeCapture`, `lib/dropdown.ts`) dismisses ONLY the dropdown — never the enclosing
-  modal.
+Value spaces:
 
-## Crew ↔ elements (roadmap 11)
+| Kind | Value | Matching |
+|---|---|---|
+| element (cast) | Board ID (`CastMember.id`) | exact |
+| element (other) | element name | case-insensitive |
+| crew | `CrewPerson.id` | exact |
+| location | `ProjectLocation.id` | exact |
 
-- **Position → categories** (`CrewRole.categories`, resolve via `resolveRoleCategories` in
-  `lib/crewCatalog.ts`; `undefined` = the catalog default, `[]` = none): makes crew rule-bearing —
-  report scoping by the position's categories ("only crew in this day"); managed in Crew Manager →
-  Links → **Positions** (the Element Manager's Positions modal was removed — item 153).
-- **Person → element/crew** (`project.crewLinks`, `lib/crewLinks.ts`; reserved `category: 'crew'` =
-  another person id): Crew Manager → Links → **People** + the element panel's **Crew** tab
-  (`ElementViewModal` → `ElementCrewLinksSection`); report fields crew `linkedElements`/`linkedCrew`
-  and element `linkedCrew`; dangling-target warnings via the `dayWarnings` report field + the Day
-  Manager Crew section.
+## Store module (`src/lib/links.ts`)
+
+- `isPropagationLink(link)` — `anchorKind === 'element' && linkedKind === 'element'`.
+  **Every propagation helper filters this first.**
+- Lookups: `getOutgoingLinks` / `getIncomingLinks` (kind + category aware),
+  `getElementOutgoingLinks` / `getElementIncomingLinks` (optional kind filter),
+  `getCrewPersonLinks` (either side), `crewPersonIdOf`, `elementSideOf`.
+- `dedupeLinks` — drops incomplete rows and exact duplicates (first wins;
+  element names compared case-insensitively, cast IDs exact).
+- `makeLink(anchorKind, anchorCategory, anchorValue, linkedKind, linkedCategory, linkedValue)`.
+- `renameElementInLinks(links, category, oldValue, newValue)` — rewrites both
+  sides; called by `UPDATE_ELEMENT` (cast Board-ID change / non-cast rename) and
+  by `MERGE_ELEMENTS` (then dedupe) so links never dangle.
+- **Deletes keep links** (element trash restore must restore its links too);
+  unresolved targets render as raw values and are skipped by resolvers.
+
+## Migration (`migrateProjectLinks`)
+
+Idempotent; late legacy records from an older peer are merged and deduped on the
+next load. Runs on local load (`store/storage.ts`), the provider's load +
+`importProjectFromData` (`store/provider.tsx`), Drive reads
+(`lib/googleDriveStorage.ts`) and online reads (`lib/supabase/onlineProjects.ts`).
+
+- `elementLinks[]` → `element → element`.
+- `crewLinks[]` with `category !== 'crew'` → `element(category, elementKey) → crew(personId)`.
+- `crewLinks[]` with `category === 'crew'` → `crew(personId) → crew(elementKey)`.
+
+## Element rules (roadmap 44 — propagation)
+
+- One write-path seam for scene entity-field edits:
+  `useLinkedEditGuard(links, customCategories, dispatch).tryCommitSceneEdit(scene, updates)`
+  — never dispatch raw `UPDATE_SCENE` for entity fields.
+- `computePropagation` (anchor added → linked values added),
+  `computeRemovedLinks` / `cascadeRemoval` (anchor removed with remaining links =
+  confirm + cascade), `applyLinkToScenes` (retroactive), `getAnchorLinks`
+  (element→element only), `anchoredKeysFor` (the anchor icon).
+- **Sets are anchor-only** — a set can own links, never be an element target
+  (adding a set replaces the field, so a set-target link would silently never
+  apply; the category is not offered in linked rows). `notes` is not linkable.
+- Scene wiring: `SceneSheet.commitField`, Glide `commitEdit` (erase/paste route
+  through the guard), stripboard/boneyard `updateScene` (`SortableRibbon` takes
+  the `elementLinks` prop — `project.links`; memo-compared; per-row components
+  MUST NOT call `useProject()`).
+
+## UI — one row editor, three hosts
+
+`rules/ElementPicker.tsx` `ElementPickerRow` is the ONE link row (shared with
+Color Rules): `CategoryDropdown` + `EntityDropdown variant="chip"` — dark chip
+trigger + dark `DropdownPanel`, type-to-filter, multi-mode per category (one
+link per comma value via `getFieldItems`). Draft-row helpers live in
+`src/lib/linkDrafts.ts` (`CREW_TARGET = 'crew'`, `LOCATION_TARGET = 'location'`).
+
+- **Link Manager** (`elements/LinkManagerModal.tsx`, Element Manager → Links):
+  grouped anchor cards; each card = anchor picker + linked rows. Linked rows may
+  target element categories **plus Crew and Locations** (people/location
+  catalogs; `resolveBy="id"` makes the dropdown display names while storing ids).
+  Per-card Apply (retroactive, batch = one undo entry) + footer Apply All —
+  **only element→element rows take part**. One row per category per card;
+  changing a row onto a used category merges values.
+- **Element View → Links** (`elements/ElementLinksSection.tsx`): the same card
+  for the selected element (`key={`${category}:${key}`}` remount), plus a
+  read-only **"Pulled in by"** list of incoming links (click to jump when the
+  anchor is the same category). Rows are LOCAL drafts so an empty "Add linked
+  element" row survives until it has a value; every edit persists immediately
+  (`UPDATE_PROJECT`) keeping the links not owned by this element.
+- **Crew Manager → Links → People** (`crew/CrewLinkManagerModal.tsx`): reads
+  `crewLinkViews(project.links)` (legacy-shaped view) and writes back through
+  `crewLinkToUnified`, replacing all crew-involving links. Person→element and
+  person→person stay managed there.
+- **Never** add a fourth link editor — extend `ElementPickerRow` / the shared
+  draft helpers instead. `resolveBy` on `EntityDropdown` = "values are ids,
+  display names" (crew/locations); `displayMode` alone is for element fields.
+
+## Reports + warnings
+
+- `lib/crewLinks.ts` resolves report fields: crew `linkedElements` /
+  `linkedCrew`, element `linkedCrew`; `targetLabelForLink` /
+  `linkedElementLabelsForPerson` / `linkedCrewNamesForElement` resolve
+  ids/keys to display labels.
+- `crewLinkWarnings` feeds the `dayWarnings` report field and the Day Manager
+  Crew section: a person on the day linked to a person/element not on the day.
+- `CrewRole.categories` (position → categories, `resolveRoleCategories` in
+  `lib/crewCatalog.ts`; `undefined` = catalog default, `[]` = none) makes crew
+  rule-bearing — managed in Crew Manager → Links → Positions (item 153).
+
+## Day locations — suggestions from linked sets (roadmap 309)
+
+`linkedLocationsForDay(project, day)` (`lib/dayView.ts`): the day's **set**
+elements → their element→location links → resolved `ProjectLocation`s
+(deduped, keeps the source set). `LocationsSection` shows them in the master/key
+location pickers under **"Linked from <SET>"** — **suggestions only, sets only,
+never auto-attached**; the DB copy of a linked location is folded into the
+suggestion group so it does not appear twice.
+
+## Verification
+
+- Vitest: `src/lib/__tests__/links.test.ts` (migration idempotence, propagation
+  exclusion, reverse scans, rename, day suggestions),
+  `elementLinks.test.ts`, `crewLinks.test.ts`.
+- e2e: `e2e/linked-elements.spec.ts`, `e2e/crew-links.spec.ts`
+  (`[data-link-row="crew"]` in the panel), `e2e/element-manager-merge.spec.ts`.
+- Anything visual (row layout, which categories are offered, the suggestion
+  group) is rule-7 manual — do not add e2e for it.

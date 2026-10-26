@@ -204,8 +204,10 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   never hand-roll overlay divs.
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
-  As a cell editor ALWAYS separate commit from exit: `onChange` updates the value, `onExit` leaves
-  edit mode (never call both in one handler — editor unmounts and can't reopen).
+  `displayMode` picks the value space (`id` fields vs `name`); pass **`resolveBy="id"`** when values
+  are ids but the user should see names (crew people, locations in link rows). As a cell editor
+  ALWAYS separate commit from exit: `onChange` updates the value, `onExit` leaves edit mode (never
+  call both in one handler — editor unmounts and can't reopen).
 - `TimeField`/`DurationField` (`src/components/`): call-time expression input (absolute/relative,
   touch keypad, live resolved value, reset) + the extracted duration recipe. `GroupedSelect`
   (`production/day/`): grouped single/multi-select dropdown rendered through `DropdownPanel` (the one
