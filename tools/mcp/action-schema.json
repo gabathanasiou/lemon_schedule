@@ -760,6 +760,51 @@
           "name": "name",
           "optional": false,
           "type": "string"
+        },
+        {
+          "name": "performer",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "phone",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "agent",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "agentPhone",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "address",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "rate",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "per",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "notes",
+          "optional": true,
+          "type": "string"
         }
       ]
     },

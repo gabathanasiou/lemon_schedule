@@ -48,6 +48,7 @@ type GridRow = Record<string, string> & { key: string };
 
 const ID_COL = 'id';
 const NAME_COL = 'name';
+const ARTISTE_COL = 'artiste';
 const SWF_COL = 'swf';
 
 const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta, project, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes = true, presenceScope }) => {
@@ -79,6 +80,7 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
       key: e.key,
       [ID_COL]: e.boardId || '',
       [NAME_COL]: e.name,
+      [ARTISTE_COL]: e.performer || '',
       // The SWF column is the element's DOOD start/work/finish letter for this
       // day (same vocabulary the stage-less fallback grids use) — NOT the day
       // status code.
@@ -92,9 +94,10 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
   const columns = useMemo<SheetColumn[]>(() => [
     { key: ID_COL, label: 'ID', width: 48, align: 'center' },
     { key: NAME_COL, label: 'Character', width: 220 },
+    ...(category === 'cast' ? [{ key: ARTISTE_COL, label: 'Artiste', width: 180 } as SheetColumn] : []),
     { key: SWF_COL, label: 'SWF', width: 48, align: 'center' },
     ...stageDefs.map<SheetColumn>(def => ({ key: def.key, label: def.abbrev || def.label, width: 88, align: 'center' })),
-  ], [stageDefs]);
+  ], [stageDefs, category]);
 
   const getCellContent = useCallback((col: InlineGlideColumn, row: Record<string, string>, _rowIndex: number): GridCell => {
     if (col.key === ID_COL) {
@@ -111,7 +114,7 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
         themeOverride: { textDark: doodCellStyle(letter).fg },
       });
     }
-    if (col.key === NAME_COL) {
+    if (col.key === NAME_COL || col.key === ARTISTE_COL) {
       return textCell(row[col.key], { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
     }
     const raw = row[col.key] || '';

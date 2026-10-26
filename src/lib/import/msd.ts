@@ -8,6 +8,7 @@ import {
   Scene,
 } from '../../types';
 import { formatPageCount, generateUUID, makeBlankCalendarVersion } from '../utils';
+import { castDetailsFromMmsProperties, type CastDetails } from '../castDetails';
 import { makeBlankProject } from '../../store/reducer';
 import { FDX_CATEGORY_MAP, categoryNameToKey, normalizeCharacterName } from './shared';
 
@@ -381,6 +382,7 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
   // (absent from the registry) append in first-appearance order.
   const castOrder: string[] = [];
   const castSeen = new Set<string>();
+  const castDetailsByName = new Map<string, CastDetails>();
   for (const el of elementsDoc.getElementsByTagName('Element')) {
     const name = el.getAttribute('Name');
     const catLabel = el.getAttribute('CategoryName');
@@ -392,6 +394,14 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
       const boardId = (el.getAttribute('BoardID') || '').trim();
       if (/^\d+$/.test(boardId)) castBoardId.set(normalized, boardId);
       if (el.getAttribute('LockBoardID') === '1') castLocked.add(normalized);
+      // Performer + booking details (roadmap 157) — MMS stores them as
+      // `<Property Name="Full Name">…`. The pure mapper is unit-tested.
+      const properties = Array.from(el.getElementsByTagName('Property')).map(p => ({
+        name: p.getAttribute('Name') || '',
+        value: p.textContent || '',
+      }));
+      const details = castDetailsFromMmsProperties(properties);
+      if (Object.keys(details).length > 0) castDetailsByName.set(normalized, details);
     }
   }
   for (const name of castOrder) castIdFor(name);
@@ -495,7 +505,7 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
       }
     }
   }
-  const castMembers: CastMember[] = castOrder.map(name => ({ id: castIdFor(name), name }));
+  const castMembers: CastMember[] = castOrder.map(name => ({ id: castIdFor(name), name, ...castDetailsByName.get(name) }));
   project.castMembers = castMembers;
 
   const registry: Record<string, ProjectElement[]> = {};

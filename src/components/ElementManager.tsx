@@ -7,6 +7,7 @@ import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems }
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import { loadCategoryElements, elementKey, countOccurrences, boardIdOf, compareBoardIds, isDuplicateBoardId, nextBoardId } from '../lib/elements';
+import { CAST_DETAIL_FIELDS, castDetailsOf, useCastDetailsOpen, type CastDetailKey, type CastDetails } from '../lib/castDetails';
 import { computeElementDayStats } from '../lib/elementDayStats';
 import { getDayTypes } from '../lib/dayTypes';
 import { formatDateShort } from '../lib/utils';
@@ -22,7 +23,7 @@ import { MT_INPUT, MT_HEADER, MT_CELL_SMALL, MT_ADD, useManagerTableSizes } from
 import Button from './Button';
 import SidebarNav, { SidebarNavRow } from './SidebarNav';
 
-interface LocalRow {
+type LocalRow = {
   key: string;
   id: string;
   name: string;
@@ -30,7 +31,7 @@ interface LocalRow {
    *  `boardId` label (roadmap 257). */
   boardId: string;
   occ: number;
-}
+} & Record<CastDetailKey, string>;
 
 interface MergeInfo {
   sourceNames: string[];
@@ -68,6 +69,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     let rows = elems.map(e => ({
       key: elementKey(e), id: e.id, name: e.name, boardId: boardIdOf(e, cat),
       occ: counts.get((cat === 'cast' ? e.id : e.name).toLowerCase()) || 0,
+      ...castDetailsOf(cat === 'cast' ? (e as unknown as CastDetails) : null),
     }));
     if (cat === 'cast') {
       rows.sort((a, b) => compareBoardIds(a.boardId, b.boardId) || a.id.localeCompare(b.id));
@@ -90,6 +92,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const [crewTarget, setCrewTarget] = useState<{ id: string; name: string } | null>(null);
 
   const [sortMode, setSortMode] = useState<'id' | 'name' | 'occurrences'>(isCast ? 'id' : 'name');
+  /** Cast performer/booking columns are hidden by default (roadmap 157). */
+  const [castDetailsOpen, setCastDetailsOpen] = useCastDetailsOpen();
 
   useEffect(() => {
     setSortMode(isCast ? 'id' : 'name');
@@ -103,8 +107,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     projectId: project.id,
     scope: category,
     loadRows,
-    makeBlankRow: () => ({ key: String(Date.now()), id: '', name: '', boardId: '', occ: 0 }),
-    fieldsPerRow: c => (c === 'cast' ? ['id', 'name'] : ['boardId', 'name']),
+    makeBlankRow: () => ({ key: String(Date.now()), id: '', name: '', boardId: '', occ: 0, ...castDetailsOf(null) }),
+    fieldsPerRow: c => (c === 'cast' ? ['id', 'name', ...CAST_DETAIL_FIELDS.map(f => f.key)] : ['boardId', 'name']),
     reloadDeps: [project.breakdownElements, project.scenes, project.castMembers],
     commit: (cat, current) => commitRef.current(cat, current),
     hasPendingConfirmation: () => pendingDiffRef.current !== null,
@@ -364,6 +368,20 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   function commitCast(snap: LocalRow[], current: LocalRow[]): CommitResult {
     const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
     const rowMap = new Map<string, LocalRow>(current.map(r => [r.key, r]));
+    /** Cast details as a payload patch — all keys, blanks included, so clearing
+     *  a field persists (the reducer merges). */
+    const castPayload = (row: LocalRow) => ({ id: row.id, name: row.name, ...castDetailsOf(row) });
+    const detailPatch = (row: LocalRow) => {
+      const out: Record<string, string> = {};
+      for (const f of CAST_DETAIL_FIELDS) {
+        const v = (row[f.key] || '').trim();
+        if (v) out[f.key] = v;
+      }
+      return out;
+    };
+    const detailsChanged = (a: LocalRow, b: LocalRow) =>
+      CAST_DETAIL_FIELDS.some(f => (a[f.key] || '') !== (b[f.key] || ''));
+    const hasDetails = (row: LocalRow) => CAST_DETAIL_FIELDS.some(f => !!(row[f.key] || '').trim());
     // Next free numeric Board ID across the store AND the rows being committed.
     const usedIds = new Set<string>();
     for (const s of snap) usedIds.add(String(s.id));
@@ -392,13 +410,22 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         const match = snap.find(s => s.name.toLowerCase() === row.name.toLowerCase());
         if (match) {
           run(() => dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'cast', id: match.id, updates: { id: row.id, name: row.name } } }));
+          if (hasDetails(row)) {
+            const resolvedId = row.id.trim() || match.id;
+            run(() => dispatch({ type: 'UPDATE_CAST_MEMBER', payload: castPayload({ ...row, id: resolvedId }) }));
+          }
           snapMap.delete(match.key);
         } else if (row.name.trim() || row.id.trim()) {
           const id = row.id.trim() || allocateId();
-          run(() => dispatch({ type: 'ADD_ELEMENT', payload: { category: 'cast', element: { id, name: row.name } } }));
+          run(() => dispatch({ type: 'ADD_ELEMENT', payload: { category: 'cast', element: { id, name: row.name, ...detailPatch(row) } } }));
         }
-      } else if (orig.id !== row.id || orig.name !== row.name) {
-        run(() => dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'cast', id: orig.id, updates: { id: row.id, name: row.name } } }));
+      } else {
+        if (orig.id !== row.id || orig.name !== row.name) {
+          run(() => dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'cast', id: orig.id, updates: { id: row.id, name: row.name } } }));
+        }
+        if (detailsChanged(orig, row)) {
+          run(() => dispatch({ type: 'UPDATE_CAST_MEMBER', payload: castPayload(row) }));
+        }
       }
     }
     for (const orig of snap) {
@@ -420,11 +447,13 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     wrap?: boolean;
     /** Mark the input as the row's Board ID cell (stable e2e hook). */
     boardId?: boolean;
+    /** Cast detail key (roadmap 157) — stable e2e hook. */
+    detail?: string;
     /** Return false to reject the edit on blur (the caller has already reverted). */
     guardBlur?: () => boolean;
   }
 
-  const renderInput = (key: string, field: 'id' | 'boardId' | 'name', val: string, onChange: (v: string) => void, opts: RenderInputOpts = {}) => {
+  const renderInput = (key: string, field: string, val: string, onChange: (v: string) => void, opts: RenderInputOpts = {}) => {
     const { numeric, upper, centered, wrap } = opts;
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
@@ -462,6 +491,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         ref={el => buf.registerInput(key, field, el)}
         type="text"
         data-manager-board-id={opts.boardId ? key : undefined}
+        data-manager-cast-detail={opts.detail}
         value={val}
         readOnly={locked}
         onChange={e => onChange(transform(e.target.value))}
@@ -529,6 +559,15 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           By Occurrences
         </DropdownItem>
       </DropdownMenu>
+      {isCast && (
+        <Button
+          onClick={() => setCastDetailsOpen(!castDetailsOpen)}
+          title="Show performer and booking details for every cast member"
+          data-presence-anchor="toolbar:elements:cast-details"
+        >
+          {castDetailsOpen ? 'Hide details' : 'Details'}
+        </Button>
+      )}
       <Button
         onClick={async () => {
           const ok = await dialog.confirm({
@@ -681,6 +720,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                   <tr className="bg-zinc-50">
                     <th style={sizes.header} className={`sticky top-0 left-0 z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>
                     <th style={sizes.header} className={`sticky top-0 left-24 z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-[140px] max-w-52 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
+                    {isCast && castDetailsOpen && CAST_DETAIL_FIELDS.map(f => (
+                      <th key={f.key} style={{ ...sizes.header, minWidth: f.width, width: f.width }} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left`}>{f.label}</th>
+                    ))}
                     <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>Occ</th>
                     <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-24`}>Start Date</th>
                     <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-24`}>Finish Date</th>
@@ -721,6 +763,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                         </div>
                       </td>
                       <td style={sizes.cellSmall} className={`sticky left-24 z-10 ${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), { upper: isCast || isSet, wrap: true })}</td>
+                      {isCast && castDetailsOpen && CAST_DETAIL_FIELDS.map(f => (
+                        <td key={f.key} style={{ ...sizes.cellSmall, minWidth: f.width }} className={`${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100`}>
+                          {renderInput(r.key, f.key, r[f.key], v => buf.updateRow(r.key, f.key, v), { detail: f.key })}
+                        </td>
+                      ))}
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-zinc-400 font-medium`}>{r.occ}</td>
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-zinc-400`}>{stats?.startDate ? formatDateShort(stats.startDate) : ''}</td>
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-zinc-400`}>{stats?.finishDate ? formatDateShort(stats.finishDate) : ''}</td>

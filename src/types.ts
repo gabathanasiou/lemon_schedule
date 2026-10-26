@@ -438,6 +438,19 @@ export interface HeadingAliases {
 export interface CastMember {
   id: string;
   name: string;
+  /** Performer + booking details (roadmap 157) — the MMS Cast Members
+   *  properties, all optional so older projects need no migration.
+   *  `performer` is MMS "Full Name"; `email` is a Lemon addition (MMS has no
+   *  email); `per` is MMS "Per" (rate basis). */
+  performer?: string;
+  phone?: string;
+  email?: string;
+  agent?: string;
+  agentPhone?: string;
+  address?: string;
+  rate?: string;
+  per?: string;
+  notes?: string;
 }
 
 export interface ProjectElement {

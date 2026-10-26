@@ -62,7 +62,9 @@ export function caseAddCastMember(state: State, action: Action, applyChange: App
 
 export function caseUpdateCastMember(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'UPDATE_CAST_MEMBER') return state;
-  const cms = (state.present.castMembers || []).map(c => c.id === action.payload.id ? action.payload : c);
+  // Merge, never replace: callers that patch one field (the naming modal sends
+  // {id, name}) must not wipe the performer details (roadmap 157).
+  const cms = (state.present.castMembers || []).map(c => c.id === action.payload.id ? { ...c, ...action.payload } : c);
   return applyChange({
     ...state.present,
     castMembers: cms,
@@ -118,7 +120,7 @@ export function caseUpdateElement(state: State, action: Action, applyChange: App
   let list = state.present.breakdownElements[category] || [];
   if (list.length === 0) {
     if (category === 'cast') {
-      list = (state.present.castMembers || []).map(m => ({ id: m.id, name: m.name }));
+      list = (state.present.castMembers || []).map(m => ({ ...m }));
     } else {
       const ids = new Set<string>();
       for (const s of state.present.scenes) {
@@ -223,7 +225,7 @@ export function caseDeleteElement(state: State, action: Action, applyChange: App
   const { category, id } = action.payload;
   const isCast = category === 'cast';
   const list = isCast
-    ? (state.present.castMembers || []).map(m => ({ id: m.id, name: m.name }))
+    ? (state.present.castMembers || []).map(m => ({ ...m }))
     : state.present.breakdownElements[category] || [];
   const el = list.find(e => e.id === id);
   const matchLower = isCast ? id.toLowerCase() : (el?.name ?? id).toLowerCase();

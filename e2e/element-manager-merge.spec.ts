@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, nameCell, bridgeProject } from './helpers';
+import { openSeededProject, nameCell, bridgeProject, seedLeadCast } from './helpers';
 
 type Project = any;
 
@@ -309,5 +309,26 @@ test.describe('Element Manager commit-on-blur', () => {
       return list.find((e: any) => e.id === second.id)?.boardId;
     }).toBe(second.boardId);
     await expect(input).toHaveValue(second.boardId);
+  });
+
+  test('cast Details: performer columns are hidden by default and edits commit (roadmap 157)', async ({ page }) => {
+    await openSeededProject(page);
+    const lead = await seedLeadCast(page);
+    await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+    await page.getByRole('button', { name: 'Element Manager' }).click();
+    await page.locator('aside').getByRole('button', { name: /Cast/ }).click();
+
+    const detail = page.locator('input[data-manager-cast-detail="performer"]');
+    await expect(detail).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Details', exact: true }).click();
+    const input = page.locator('tr', { has: nameCell(page, lead.name) }).locator('input[data-manager-cast-detail="performer"]');
+    await input.fill('James Stewart');
+    await input.press('Enter');
+
+    await expect.poll(async () => {
+      const member = (await getProject(page)).castMembers.find((c: any) => c.id === lead.id);
+      return member?.performer;
+    }).toBe('James Stewart');
   });
 });

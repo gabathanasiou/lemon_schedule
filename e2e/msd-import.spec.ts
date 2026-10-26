@@ -69,6 +69,20 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
     expect(p.castMembers.find((c: any) => c.name === 'GEORGE')?.id).toBe('1');
     expect(p.castMembers.find((c: any) => c.name === 'MARY')?.id).toBe('2');
 
+    // performer/booking details (roadmap 157) — MMS <Property> children
+    const george = p.castMembers.find((c: any) => c.name === 'GEORGE');
+    expect(george).toMatchObject({
+      performer: 'James Stewart',
+      phone: '213-555-2345',
+      agentPhone: '213-555-1427',
+      per: '2',
+      rate: '0',
+    });
+    expect(george.address).toContain('124 Balmoral Lane');
+    expect(george.notes).toBeUndefined(); // blank property dropped
+    expect(p.castMembers.find((c: any) => c.name === 'MARY')?.performer).toBe('Donna Reed');
+    expect(p.castMembers.find((c: any) => c.name === 'HARRY')?.performer).toBe('Todd Karns');
+
     // crew — MMS ProductionInfo named roles land in the crew roster
     for (const [roleKey, names] of Object.entries(GOLDEN.crew || {})) {
       expect((p.crew?.[roleKey] || []).map((m: any) => m.name)).toEqual(names);

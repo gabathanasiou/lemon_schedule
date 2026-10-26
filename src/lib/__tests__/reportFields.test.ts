@@ -363,3 +363,44 @@ describe('buildLookupTokens — stage 1 items only', () => {
     expect(items.some(t => t.field === 'phone')).toBe(false);
   });
 });
+
+/** Roadmap 157 — performer/booking details are report fields on both the cast
+ *  collection and the call-times block. */
+describe('cast performer details', () => {
+  const project = {
+    productionInfo: { callTimes: { stages: [], categoryStages: {} } },
+    categoryLabels: {},
+    dayTypes: [],
+    customCategories: [],
+    crew: {},
+    locations: [],
+    locationTypes: [],
+    scenes: [],
+    breakdownElements: {},
+    castMembers: [],
+  } as any;
+  const defs = getReportFieldDefs(project);
+
+  it('registers Artiste and contact fields on the cast collection', () => {
+    const cast = fieldsForScope(defs, 'cast');
+    expect(cast.find(f => f.key === 'castPerformer')?.label).toBe('Artiste');
+    expect(cast.find(f => f.key === 'castPhone')?.label).toBe('Phone');
+    expect(cast.find(f => f.key === 'castEmail')?.label).toBe('Email');
+    expect(cast.find(f => f.key === 'castAgent')?.label).toBe('Agent');
+  });
+
+  it('registers Artiste/contact columns on the call-times block', () => {
+    const call = fieldsForScope(defs, 'elementCallsOfDay');
+    expect(call.find(f => f.key === 'elementCallArtiste')?.label).toBe('Artiste');
+    expect(call.find(f => f.key === 'elementCallPhone')?.label).toBe('Phone');
+    expect(call.find(f => f.key === 'elementCallEmail')?.label).toBe('Email');
+  });
+
+  it('getters read the details, blank when absent', () => {
+    const performer = defs.find(f => f.key === 'castPerformer')!;
+    const callArtiste = defs.find(f => f.key === 'elementCallArtiste')!;
+    expect(performer.get({} as any, { details: { performer: 'James Stewart' } } as any, undefined)).toBe('James Stewart');
+    expect(performer.get({} as any, {} as any, undefined)).toBe('');
+    expect(callArtiste.get({} as any, { details: { performer: 'Donna Reed' } } as any, undefined)).toBe('Donna Reed');
+  });
+});
