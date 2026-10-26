@@ -25,6 +25,11 @@
     "mcp:install": "node tools/mcp/install.mjs",
     "mcp:schema": "node tools/mcp/gen-schema.mjs"
   },
+  "overrides": {
+    "miniflare": {
+      "undici": "7.30.1"
+    }
+  },
   "dependencies": {
     "@dicebear/core": "^9.4.3",
     "@dicebear/initials": "^9.4.3",

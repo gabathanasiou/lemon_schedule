@@ -133,7 +133,12 @@ clash refused; purge).
 
 ## 5. Dependencies & supply chain
 
-- `npm audit` must stay at **0**. Last sweep 2026-10-15 fixed 41 advisories
+- `npm audit` must stay at **0**. Last sweep 2026-10-26: the 7 dev-only
+  advisories cleared — MCP SDK transitives (express/ajv/zod) plus
+  wrangler→miniflare→undici bumped (wrangler 4.152.0). miniflare pins `undici`
+  exactly, so a surgical `overrides` entry in `package.json`
+  (`miniflare > undici: 7.30.1` — EventSource-parser memory DoS) holds the fix;
+  drop it once wrangler ships a patched pin. 2026-10-15 cleared 41 advisories
   (Tiptap `mergeAttributes` proto-pollution + markdown ReDoS → 3.30.1 bumped to 3.32.0;
   MCP SDK OAuth fix; source-map-js DoS). Run `npm audit` after every dependency change.
 - After any lockfile change, run the FULL e2e suite (rule 7 — dependency changes
