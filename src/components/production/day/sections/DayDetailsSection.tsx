@@ -96,13 +96,17 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
   };
 
   const commitWeatherField = (field: keyof WeatherDraft) => {
-    const next: DayWeatherOverride = { ...(day.meta.weatherOverride || {}), enabled: true };
+    const current = day.meta.weatherOverride;
+    const next: DayWeatherOverride = { ...(current || {}), enabled: true };
     if (field === 'tempMin' || field === 'tempMax') {
       const value = parseTemp(weatherDraft[field]);
+      const stored = current?.[field] ?? undefined;
+      if (value === stored) return; // blur without an edit — no empty undo entry
       if (value == null) delete next[field];
       else next[field] = value;
     } else {
       const value = weatherDraft[field].trim();
+      if (value === (current?.[field] || '')) return;
       if (value) next[field] = value;
       else delete next[field];
     }
