@@ -129,7 +129,10 @@ meta card stays short beside Events/Conflicts. Empty states are compact: **Confl
 skipped entirely** when there are no violations; an empty **Events** card is a single
 header row with the kit `Add event…` trailing action. Events reuses the Calendar's
 per-element `EventCardView` at `size="md"` — click a card to open that element's event
-editor; whole-category/status surfaces open the day editor. All overlays (Copy-from-day, events,
+editor; whole-category/status surfaces open the day editor. An empty **Locations** card
+is one dashed CTA row (`No locations on this day.` + the kit `Add location` action), not
+an instruction line plus an empty grid; with rows, the Glide board + footer add action
+are unchanged. All overlays (Copy-from-day, events,
 pickers) are dark per the two-layer rule. The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's

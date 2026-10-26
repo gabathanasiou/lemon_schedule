@@ -221,18 +221,49 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
     }];
   }, [rows, readOnly, patchMeta, day.meta]);
 
+  const addLocationMenu = (
+    <DropdownMenu
+      theme="light"
+      width="w-80"
+      searchable
+      searchPlaceholder="Search locations…"
+      open={menuOpen}
+      onOpenChange={setMenuOpen}
+      trigger={
+        <Button variant="subtle" disabled={readOnly}>
+          <Plus className="w-3 h-3" /> Add location
+        </Button>
+      }
+    >
+      <DropdownItem onClick={addNew}>
+        <span className="text-emerald-600">Add new location…</span>
+      </DropdownItem>
+      {available.map(item => (
+        <DropdownItem
+          key={item.id}
+          trailing={<span className="opacity-70">{item.group}</span>}
+          onClick={() => attach(item.id)}
+        >
+          {item.name}
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+
   return (
     <div className="space-y-2" data-day-locations>
-      <p className="text-xs text-zinc-500">
-        Tick a row to make it the day's master location — the call sheet's home base. Use Add location for more.
-      </p>
-      <div className="rounded-lg border border-zinc-200 overflow-hidden bg-white">
+      {rows.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-zinc-200 px-3 py-2">
+          <span className="text-xs text-zinc-400">No locations on this day.</span>
+          {addLocationMenu}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-zinc-200 overflow-hidden bg-white">
         <InlineGlideTable
           dataAttr="data-day-locations-glide"
           presenceScope={`day:${day.sectionIndex}:locations`}
           columns={COLUMNS}
           rows={rows}
-          emptyLabel="No locations on this day yet — add the master location below."
           getCellContent={getCellContent}
           onCommit={onCommit}
           editableKeys={new Set(['master', 'location'])}
@@ -241,35 +272,9 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
           getEditor={getEditor}
           rowActions={rowActions}
         />
-        <div className="px-2 py-1.5 border-t border-zinc-100 flex items-center gap-2">
-          <DropdownMenu
-            theme="light"
-            width="w-80"
-            searchable
-            searchPlaceholder="Search locations…"
-            open={menuOpen}
-            onOpenChange={setMenuOpen}
-            trigger={
-              <Button variant="subtle" disabled={readOnly}>
-                <Plus className="w-3 h-3" /> Add location
-              </Button>
-            }
-          >
-            <DropdownItem onClick={addNew}>
-              <span className="text-emerald-600">Add new location…</span>
-            </DropdownItem>
-            {available.map(item => (
-              <DropdownItem
-                key={item.id}
-                trailing={<span className="opacity-70">{item.group}</span>}
-                onClick={() => attach(item.id)}
-              >
-                {item.name}
-              </DropdownItem>
-            ))}
-          </DropdownMenu>
+          <div className="px-2 py-1.5 border-t border-zinc-100 flex items-center gap-2">{addLocationMenu}</div>
         </div>
-      </div>
+      )}
 
       {(nearestHospital || nearestPolice) && (
         <div className="text-[11px] text-zinc-500 space-y-0.5">

@@ -70,7 +70,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     icon: <LocationsIcon className="w-3.5 h-3.5" />,
     summary: day => {
       const n = (day.masterLocation ? 1 : 0) + day.keyLocations.length;
-      return n > 0 ? `${n} location${n !== 1 ? 's' : ''}` : 'None';
+      return n > 0 ? `${n} location${n !== 1 ? 's' : ''}` : 'No locations';
     },
     Component: LocationsSection,
     copyable: true,

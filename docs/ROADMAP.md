@@ -1237,3 +1237,21 @@ their empty state.
   rule-7 manual at 1440px + iPad (empty band, event-card click opens the
   single-event editor, conflict hidden on a clean day).
 - **Relations:** 98, 310; completes the card pass before 311.
+
+## 313. Day Manager — Locations card empty state (`[~]`)
+
+**Asked 2026-10-26 (user):** continue the card-by-card pass; next is Locations.
+
+**Design:** an empty Locations card is ONE dashed CTA row — `No locations on this
+day.` + the kit `Add location` menu — instead of the old instruction line + empty
+Glide grid + footer (162px → ~100px). With rows, the Glide board and its footer add
+action are unchanged. The master hint now lives in Day Details (which owns the
+picker); the registry summary says `No locations`.
+
+- **Scope:** `sections/LocationsSection.tsx` (empty CTA, extracted add menu, no
+  instruction line), `daySectionRegistry.tsx` (summary), docs
+  (`DESIGN-LANGUAGE.md`).
+- **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`;
+  rule-7 manual at 1440px + iPad (empty + populated).
+- **Relations:** 156 (the Locations board), 171 (remaining nearby-field removal),
+  310/312 (card pass), before 311.
