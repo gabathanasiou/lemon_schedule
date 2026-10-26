@@ -4,6 +4,7 @@ import {
   projectAccentOf,
   projectMenuThemeOf,
   projectSegThemeOf,
+  projectModalThemeOf,
   PROJECT_CHROME,
 } from '../projectTheme';
 
@@ -35,6 +36,12 @@ describe('chrome mappers', () => {
     expect(projectSegThemeOf('local')).toBe('light');
     expect(projectSegThemeOf('drive')).toBe('blue');
     expect(projectSegThemeOf('shared')).toBe('emerald');
+  });
+
+  it('modal theme: every project kind uses a neutral surface; accent is identity only (roadmap 302)', () => {
+    expect(projectModalThemeOf('local')).toEqual({ accent: 'zinc', surface: 'neutral' });
+    expect(projectModalThemeOf('drive')).toEqual({ accent: 'blue', surface: 'neutral' });
+    expect(projectModalThemeOf('shared')).toEqual({ accent: 'emerald', surface: 'neutral' });
   });
 
   it('barHex: the bar fill as hex for the status-bar tint (roadmap 265)', () => {

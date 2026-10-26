@@ -1,6 +1,7 @@
 import { ProjectElement } from '../types';
 import { getElementsFromScenes } from '../store';
 import { getFieldItems } from './categories';
+import { canonicalBoardId } from './boardIds';
 
 /**
  * Single source of truth for breakdown elements:
@@ -53,6 +54,36 @@ export function loadCategoryElements(project: any, category: string): ProjectEle
 }
 
 export function elementKey(e: { id: string; name: string }) { return e.id || e.name || '__new__'; }
+
+// ---- Board IDs (roadmap 257) ------------------------------------------------
+// Cast's `CastMember.id` IS its Board ID (the value `scene.cast` stores);
+// every other category keeps a `boardId` label on `ProjectElement` while
+// scenes stay name-keyed. These helpers are the ONE place that branch lives.
+// Allocation/comparison primitives live in the leaf `boardIds.ts` (no store
+// imports) and are re-exported here so consumers have one element-facing API.
+
+export { nextBoardId, compareBoardIds } from './boardIds';
+
+/** The category's Board ID for one element — cast's id, else `boardId`. */
+export function boardIdOf(e: { id: string; name?: string; boardId?: string }, category: string): string {
+  return isIdKeyed(category) ? String(e.id || '') : String(e.boardId || '');
+}
+
+/** True when `value` is already used by a DIFFERENT element of the category.
+ *  `exceptKey` is the edited row's `elementKey` (it may keep its own number). */
+export function isDuplicateBoardId(
+  elements: { id: string; name?: string; boardId?: string }[],
+  category: string,
+  value: string,
+  exceptKey?: string,
+): boolean {
+  const wanted = canonicalBoardId(value);
+  if (!wanted) return false;
+  return elements.some(e => {
+    if (exceptKey !== undefined && (e.id || e.name || '__new__') === exceptKey) return false;
+    return canonicalBoardId(boardIdOf(e, category)) === wanted;
+  });
+}
 
 /**
  * Resolve a typed dropdown segment to the key scenes store (AGENTS.md §Cast &

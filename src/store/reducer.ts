@@ -198,10 +198,10 @@ export type Action =
   | { type: 'RESTORE_HIDDEN_CATEGORY'; payload: string }
   | { type: 'SET_CATEGORY_LABEL'; payload: { key: string; label: string } }
   | { type: 'TOGGLE_ELEMENT_LOCK'; payload: { category: string; id: string } }
-  | { type: 'ADD_ELEMENT'; payload: { category: string; element: { id: string; name: string } } }
-  | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
+  | { type: 'ADD_ELEMENT'; payload: { category: string; element: { id: string; name: string; boardId?: string } } }
+  | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string; boardId?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
-  | { type: 'MERGE_ELEMENTS'; payload: { category: string; renames: { oldName: string; newName: string }[]; removes: { id: string; name: string; toTrash: boolean }[]; adds: { id: string; name: string }[] } }
+  | { type: 'MERGE_ELEMENTS'; payload: { category: string; renames: { oldName: string; newName: string }[]; removes: { id: string; name: string; toTrash: boolean }[]; adds: { id: string; name: string; boardId?: string }[] } }
   | { type: 'RESTORE_ELEMENT_FROM_TRASH'; payload: string }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
   | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; colWidths?: number[]; cellPaddingV?: number; cellPaddingH?: number; edgePadding?: number; textSize?: number; id?: string } }

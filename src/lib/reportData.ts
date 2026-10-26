@@ -6,6 +6,7 @@ import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, pro
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
+import { castDetailsOf, type CastDetails } from './castDetails';
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
 import { formatDateShort, naturalSortSceneStrings } from './utils';
@@ -223,6 +224,8 @@ export interface ReportElementInfo {
   /** Crew members explicitly linked to this element (roadmap 11) — comma list
    *  of names. */
   linkedCrew?: string;
+  /** Cast performer/booking details (roadmap 157) — cast items only. */
+  details?: CastDetails;
 }
 
 /** One day type, as a repeat/table item of the 'dayTypes' collection — the
@@ -290,6 +293,8 @@ export interface ReportElementCallItem {
   firstScene: string;
   /** stage key → resolved call (override or computed). */
   callTimes: Record<string, ResolvedCall>;
+  /** Cast performer/booking details (roadmap 157) — cast items only. */
+  details?: CastDetails;
 }
 
 /** One crew department on a day, as a repeat/table item of the contextual
@@ -905,6 +910,7 @@ function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[]
       finishDate: t?.finishDate ?? null,
       typeDayLists,
       linkedCrew: linkedCrewNamesForElement(project, category, key) || undefined,
+      details: category === 'cast' ? castDetailsOf(e as CastDetails) : undefined,
     });
   }
   return out;
@@ -1125,6 +1131,7 @@ export function resolveCollection(
               code: elementDayCode(ctx, day, cat, key),
               firstScene: si.scene.sceneNumber,
               callTimes: computeElementCallChain(settings.stages, stageKeys, si.callTime, overrides),
+              details: cat === 'cast' ? el.details : undefined,
             });
           }
         }

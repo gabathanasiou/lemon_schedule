@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, nameCell, bridgeProject } from './helpers';
+import { openSeededProject, nameCell, bridgeProject, seedLeadCast } from './helpers';
 
 type Project = any;
 
@@ -56,7 +56,9 @@ async function seedControlledData(page: import('@playwright/test').Page) {
     ];
     const props = [
       { id: 'gun', name: 'gun' },
-      ...(p.breakdownElements?.props || []).filter((e: any) => e.name !== 'cannon'),
+      // Drop the seed's case-variant 'Gun' too: two stored ids ('Gun'/'gun')
+      // collapse case-insensitively on update and would fake a duplicate.
+      ...(p.breakdownElements?.props || []).filter((e: any) => !['cannon', 'gun'].includes(e.name.toLowerCase())),
     ];
     const next = {
       ...p,
@@ -246,5 +248,119 @@ test.describe('Element Manager commit-on-blur', () => {
     // the seed LOAD cleared history and sorting dispatches nothing → no undo
     await expect(undoBtn).toBeDisabled();
     await expect(page.locator('tbody textarea[data-manager-name]').first()).not.toHaveValue(firstValue);
+  });
+
+  test('Board IDs: Auto-ID numbers the category; renumbering never touches scenes', async ({ page }) => {
+    await openElementManagerCategory(page, 'Props');
+    const before = await getProject(page);
+    const scenesBefore = before.scenes.map((s: any) => ({ id: s.id, props: s.props || '' }));
+
+    await page.getByRole('button', { name: 'Auto-ID', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+
+    await expect.poll(async () => {
+      const props = (await getProject(page)).breakdownElements?.props || [];
+      return props.every((e: any) => /^\d+$/.test(e.boardId || ''));
+    }).toBe(true);
+
+    const numbered = (await getProject(page)).breakdownElements.props;
+    expect(new Set(numbered.map((e: any) => e.boardId)).size).toBe(numbered.length);
+
+    // Renumber one element to a fresh number: the registry changes, scenes don't.
+    const gun = numbered.find((e: any) => e.name === 'gun');
+    const nextFree = String(Math.max(...numbered.map((e: any) => parseInt(e.boardId, 10))) + 1);
+    const input = page.locator(`input[data-manager-board-id="${gun.id}"]`);
+    await input.click();
+    await page.keyboard.press('Meta+A');
+    await page.keyboard.type(nextFree, { delay: 20 });
+    await page.keyboard.press('Enter');
+
+    await expect.poll(async () => {
+      const props = (await getProject(page)).breakdownElements?.props || [];
+      return props.find((e: any) => e.id === gun.id)?.boardId;
+    }).toBe(nextFree);
+
+    const after = await getProject(page);
+    expect(after.scenes.map((s: any) => ({ id: s.id, props: s.props || '' }))).toEqual(scenesBefore);
+  });
+
+  test('Board IDs: a duplicate number is rejected and the cell reverts', async ({ page }) => {
+    await openElementManagerCategory(page, 'Props');
+    await page.getByRole('button', { name: 'Auto-ID', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).click();
+
+    let props: any[] = [];
+    await expect.poll(async () => {
+      props = (await getProject(page)).breakdownElements?.props || [];
+      return props.every((e: any) => /^\d+$/.test(e.boardId || ''));
+    }).toBe(true);
+
+    // Pick ids that are valid CSS attribute values (some seed prop names carry quotes).
+    const [first, second] = props.filter((e: any) => /^[A-Za-z0-9 ]+$/.test(e.id));
+    const input = page.locator(`input[data-manager-board-id="${second.id}"]`);
+    await input.click();
+    await page.keyboard.press('Meta+A');
+    await page.keyboard.type(first.boardId, { delay: 20 });
+    await page.keyboard.press('Enter');
+
+    // The edit never lands: the stored number and the cell both keep the old value.
+    await expect.poll(async () => {
+      const list = (await getProject(page)).breakdownElements?.props || [];
+      return list.find((e: any) => e.id === second.id)?.boardId;
+    }).toBe(second.boardId);
+    await expect(input).toHaveValue(second.boardId);
+  });
+
+  test('cast Details: performer columns are hidden by default and edits commit (roadmap 157)', async ({ page }) => {
+    await openSeededProject(page);
+    const lead = await seedLeadCast(page);
+    await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+    await page.getByRole('button', { name: 'Element Manager' }).click();
+    await page.locator('aside').getByRole('button', { name: /Cast/ }).click();
+
+    const detail = page.locator('input[data-manager-cast-detail="performer"]');
+    await expect(detail).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Details', exact: true }).click();
+    const input = page.locator('tr', { has: nameCell(page, lead.name) }).locator('input[data-manager-cast-detail="performer"]');
+    await input.fill('James Stewart');
+    await input.press('Enter');
+
+    await expect.poll(async () => {
+      const member = (await getProject(page)).castMembers.find((c: any) => c.id === lead.id);
+      return member?.performer;
+    }).toBe('James Stewart');
+  });
+});
+
+/** Roadmap 306 — the Element View panel (manager-launched). */
+test.describe('Element View', () => {
+  test('picker navigation + property edits persist', async ({ page }) => {
+    await openSeededProject(page);
+    const lead = await seedLeadCast(page);
+    await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+    await page.getByRole('button', { name: 'Element Manager' }).click();
+    await page.locator('aside').getByRole('button', { name: /Cast/ }).click();
+
+    const row = page.locator('tr', { has: nameCell(page, lead.name) }).first();
+    await row.locator('button[title^="Element view"]').click();
+    const modal = page.getByRole('dialog');
+    await expect(modal.getByRole('tab', { name: 'Properties' })).toHaveAttribute('aria-selected', 'true');
+    await expect(modal.locator('input[data-element-view-field="name"]')).toHaveValue(lead.name);
+
+    // Property edits go through the same UPDATE_CAST_MEMBER path as the table.
+    const performer = modal.locator('input[data-element-view-field="performer"]');
+    await performer.fill('Panel Artiste');
+    await performer.press('Enter');
+    await expect.poll(async () => {
+      const member = (await getProject(page)).castMembers.find((c: any) => c.id === lead.id);
+      return member?.performer;
+    }).toBe('Panel Artiste');
+
+    // Prev/next move the panel to another element and back.
+    await modal.getByRole('button', { name: 'Next element' }).click();
+    await expect(modal.locator('input[data-element-view-field="name"]')).not.toHaveValue(lead.name);
+    await modal.getByRole('button', { name: 'Previous element' }).click();
+    await expect(modal.locator('input[data-element-view-field="name"]')).toHaveValue(lead.name);
   });
 });

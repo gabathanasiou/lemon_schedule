@@ -29,7 +29,7 @@ describe('action schema (derived from source)', () => {
     expect(scene).toContain('sceneNumber');
     expect(scene).toContain('cast');
     const cast = schema.entities.CastMember.fields.map((f: { name: string }) => f.name).sort();
-    expect(cast).toEqual(['id', 'name']);
+    expect(cast).toEqual(['address', 'agent', 'agentPhone', 'email', 'id', 'name', 'notes', 'per', 'performer', 'phone', 'rate']);
   });
 
   it('exposes the Reports Designer entities', () => {

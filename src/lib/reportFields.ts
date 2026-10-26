@@ -116,10 +116,20 @@ const ELEMENT_FIELDS: ReportFieldDef[] = [
   { key: 'linkedCrew', label: 'Linked Crew', group: 'Elements', scope: 'elements', defaultWidth: 22, get: (_c, it: ReportElementInfo) => s(it.linkedCrew || '') },
 ];
 
-// Cast identity only — everything else duplicated the element fields above.
+// Cast identity + performer/booking details (roadmap 157) — everything else
+// duplicates the element fields above.
 const CAST_FIELDS: ReportFieldDef[] = [
   { key: 'id', label: 'Cast ID', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementInfo) => s(it.id) },
   { key: 'castIdName', label: 'Cast ID & Name', group: 'Cast & Talent', scope: 'cast', defaultWidth: 22, get: (_c, it: ReportElementInfo) => s(`${it.id}. ${it.name}`) },
+  { key: 'castPerformer', label: 'Artiste', group: 'Cast & Talent', scope: 'cast', defaultWidth: 20, get: (_c, it: ReportElementInfo) => s(it.details?.performer || '') },
+  { key: 'castPhone', label: 'Phone', group: 'Cast & Talent', scope: 'cast', defaultWidth: 14, get: (_c, it: ReportElementInfo) => s(it.details?.phone || '') },
+  { key: 'castEmail', label: 'Email', group: 'Cast & Talent', scope: 'cast', defaultWidth: 20, get: (_c, it: ReportElementInfo) => s(it.details?.email || '') },
+  { key: 'castAgent', label: 'Agent', group: 'Cast & Talent', scope: 'cast', defaultWidth: 20, get: (_c, it: ReportElementInfo) => s(it.details?.agent || '') },
+  { key: 'castAgentPhone', label: 'Agent Ph', group: 'Cast & Talent', scope: 'cast', defaultWidth: 14, get: (_c, it: ReportElementInfo) => s(it.details?.agentPhone || '') },
+  { key: 'castAddress', label: 'Address', group: 'Cast & Talent', scope: 'cast', defaultWidth: 24, get: (_c, it: ReportElementInfo) => s(it.details?.address || '') },
+  { key: 'castRate', label: 'Rate', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.details?.rate || '') },
+  { key: 'castPer', label: 'Per', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 7, get: (_c, it: ReportElementInfo) => s(it.details?.per || '') },
+  { key: 'castNotes', label: 'Notes', group: 'Cast & Talent', scope: 'cast', defaultWidth: 24, get: (_c, it: ReportElementInfo) => s(it.details?.notes || '') },
 ];
 
 // ---- categories (one item per element category) ------------------------------
@@ -219,6 +229,11 @@ const CREW_FIELDS: ReportFieldDef[] = [
 const ELEMENT_CALL_FIELDS: ReportFieldDef[] = [
   { key: 'elementCallId', label: 'Cast ID', group: 'Call Times', scope: 'elementCallsOfDay', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementCallItem) => s(it.boardId || '') },
   { key: 'elementCallName', label: 'Name', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 22, get: (_c, it: ReportElementCallItem) => s(it.name) },
+  { key: 'elementCallArtiste', label: 'Artiste', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 20, get: (_c, it: ReportElementCallItem) => s(it.details?.performer || '') },
+  { key: 'elementCallPhone', label: 'Phone', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 14, get: (_c, it: ReportElementCallItem) => s(it.details?.phone || '') },
+  { key: 'elementCallEmail', label: 'Email', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 20, get: (_c, it: ReportElementCallItem) => s(it.details?.email || '') },
+  { key: 'elementCallAgent', label: 'Agent', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 20, get: (_c, it: ReportElementCallItem) => s(it.details?.agent || '') },
+  { key: 'elementCallAgentPhone', label: 'Agent Ph', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 14, get: (_c, it: ReportElementCallItem) => s(it.details?.agentPhone || '') },
   { key: 'elementCallCategory', label: 'Category', group: 'Call Times', scope: 'elementCallsOfDay', defaultWidth: 12, get: (_c, it: ReportElementCallItem) => s(it.category) },
   { key: 'elementCallCode', label: 'SWF', group: 'Call Times', scope: 'elementCallsOfDay', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementCallItem) => s(it.code) },
   { key: 'elementCallFirstScene', label: 'First Scene', group: 'Call Times', scope: 'elementCallsOfDay', align: 'center', defaultWidth: 8, get: (_c, it: ReportElementCallItem) => s(it.firstScene) },

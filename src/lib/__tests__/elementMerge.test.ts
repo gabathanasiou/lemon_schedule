@@ -148,3 +148,90 @@ describe('MERGE_ELEMENTS', () => {
     expect((undone.present.breakdownElements.props || []).map((e: any) => e.name)).toEqual(['gun']);
   });
 });
+
+/** Roadmap 257 — Board IDs flow through every element write path. */
+describe('Board IDs', () => {
+  const numbered = (): State => ({
+    past: [],
+    future: [],
+    _batchDepth: 0,
+    present: {
+      scenes: [],
+      breakdownElements: {
+        props: [
+          { id: 'gun', name: 'gun', boardId: '3' },
+          { id: 'torch', name: 'torch', boardId: '7' },
+        ],
+      },
+      elementsTrash: [],
+    } as any,
+  });
+
+  it('ADD_ELEMENT numbers a new element after the highest', () => {
+    const s = reducer(numbered(), { type: 'ADD_ELEMENT', payload: { category: 'props', element: { id: 'lamp', name: 'lamp' } } } as Action);
+    expect(s.present.breakdownElements.props.find((e: any) => e.id === 'lamp').boardId).toBe('8');
+  });
+
+  it('MERGE_ELEMENTS adds get numbers and renames keep the number', () => {
+    const s = merge(numbered(), {
+      category: 'props',
+      renames: [{ oldName: 'gun', newName: 'pistol' }],
+      removes: [],
+      adds: [{ id: 'lamp', name: 'lamp' }],
+    });
+    const byId = new Map(s.present.breakdownElements.props.map((e: any) => [e.id, e]));
+    expect(byId.get('gun')).toMatchObject({ name: 'pistol', boardId: '3' });
+    expect((byId.get('lamp') as any).boardId).toBe('8');
+  });
+
+  it('delete keeps the number in trash; restore brings it back', () => {
+    let s = reducer(numbered(), { type: 'DELETE_ELEMENT', payload: { category: 'props', id: 'torch' } } as Action);
+    expect(s.present.elementsTrash[0].element.boardId).toBe('7');
+    s = reducer(s, { type: 'RESTORE_ELEMENT_FROM_TRASH', payload: 'torch' } as Action);
+    expect(s.present.breakdownElements.props.find((e: any) => e.id === 'torch').boardId).toBe('7');
+  });
+
+  it('restoring a pre-257 element assigns the next free number', () => {
+    const s0 = numbered();
+    s0.present.elementsTrash = [{ category: 'props', element: { id: 'old', name: 'old' }, deletedAt: 1 }];
+    const s = reducer(s0, { type: 'RESTORE_ELEMENT_FROM_TRASH', payload: 'old' } as Action);
+    expect(s.present.breakdownElements.props.find((e: any) => e.id === 'old').boardId).toBe('8');
+  });
+});
+
+/** Roadmap 157 — performer details must survive every cast write path. */
+describe('cast details', () => {
+  const castState = (): State => ({
+    past: [],
+    future: [],
+    _batchDepth: 0,
+    present: {
+      scenes: [{ id: 's1', sceneNumber: '1', cast: '1' }],
+      castMembers: [{ id: '1', name: 'GEORGE', performer: 'James Stewart', phone: '213-555-2345' }],
+      breakdownElements: {},
+      elementsTrash: [],
+    } as any,
+  });
+
+  it('UPDATE_CAST_MEMBER merges, so a name-only patch keeps the details', () => {
+    const s = reducer(castState(), { type: 'UPDATE_CAST_MEMBER', payload: { id: '1', name: 'GEORGE BAILEY' } } as Action);
+    expect(s.present.castMembers[0]).toMatchObject({
+      name: 'GEORGE BAILEY',
+      performer: 'James Stewart',
+      phone: '213-555-2345',
+    });
+  });
+
+  it('a Board ID change through UPDATE_ELEMENT keeps the details', () => {
+    const s = reducer(castState(), { type: 'UPDATE_ELEMENT', payload: { category: 'cast', id: '1', updates: { id: '7' } } } as Action);
+    expect(s.present.castMembers[0]).toMatchObject({ id: '7', performer: 'James Stewart' });
+    expect(s.present.scenes[0].cast).toBe('7');
+  });
+
+  it('delete → trash → restore keeps the details', () => {
+    let s = reducer(castState(), { type: 'DELETE_ELEMENT', payload: { category: 'cast', id: '1' } } as Action);
+    expect(s.present.elementsTrash[0].element).toMatchObject({ performer: 'James Stewart' });
+    s = reducer(s, { type: 'RESTORE_ELEMENT_FROM_TRASH', payload: '1' } as Action);
+    expect(s.present.castMembers[0]).toMatchObject({ performer: 'James Stewart', phone: '213-555-2345' });
+  });
+});

@@ -9,8 +9,7 @@ import { getNonShootEntryMap, upsertNonShootDate, isAllKeys, resolveElementName 
 import { removeItemsFrom, setNote, typeRankOf, statusLabel } from '../../lib/events';
 import { getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { anchoredKeysFor } from '../../lib/elementLinks';
-import Modal, { ModalFooter } from '../Modal';
-import ModalFooterButton from '../ModalFooterButton';
+import Modal from '../Modal';
 import Button from '../Button';
 import { EventAdderModal } from '../calendar/EventAdderModal';
 import { EventModal } from '../calendar/EventModal';
@@ -22,13 +21,12 @@ import { CardSection } from '@gabriel/ui-kit';
 import { ItemRow, ITEM_ROW_BODY_WRAP } from '../cards/ItemRow';
 import { CalendarDays, Plus, X, Flag, Clock4 } from 'lucide-react';
 
-interface ElementEventsModalProps {
+interface ElementEventsSectionProps {
   category: string;
   /** Buffered row identity (elementKey snapshot). */
   rowKey: string;
   rowId: string;
   rowName: string;
-  onClose: () => void;
 }
 
 type NestedModal =
@@ -42,13 +40,13 @@ function formatDateLabel(dateKey: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-/** The element events manager (roadmap 46) — opened from an Element Manager
- *  row. One collapsible card per day type (Travel / Hold / Rehearsal…), each
- *  with the dates the element has that event on — only this element, its
- *  comment inline, Edit/Remove per group. Plus the element's Violations and
- *  Rules (Add Rule pre-scoped to the element). Add Event picks a date in a
- *  collapsed calendar and opens the shared day editor pre-seeded. */
-export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }: ElementEventsModalProps) {
+/** Element View → Events tab (roadmap 46/306). One collapsible card per day
+ *  type (Travel / Hold / Rehearsal…), each with the dates the element has that
+ *  event on — only this element, its comment inline, Edit/Remove per group.
+ *  Plus the element's Violations and Rules (Add Rule pre-scoped to the
+ *  element). Add Event picks a date in a collapsed calendar and opens the
+ *  shared day editor pre-seeded. Body only: the panel owns the chrome. */
+export function ElementEventsSection({ category, rowKey, rowId, rowName }: ElementEventsSectionProps) {
   const { state, dispatch, locked } = useProject();
   const project = state.present;
   const { productionSections, sectionDateMap, activeVersion } = useDaybreakSections();
@@ -202,13 +200,7 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
   };
 
   return (
-    <Modal open onClose={onClose} title={`${identity.name} — Events`} width="max-w-2xl"
-      footer={
-        <ModalFooter>
-          <ModalFooterButton onClick={onClose}>Close</ModalFooterButton>
-        </ModalFooter>
-      }
-    >
+    <>
       <div className={CREM_BODY}>
 
         {/* Events — one collapsible card per day type */}
@@ -414,6 +406,6 @@ export function ElementEventsModal({ category, rowKey, rowId, rowName, onClose }
           </div>
         </Modal>
       )}
-    </Modal>
+    </>
   );
 }

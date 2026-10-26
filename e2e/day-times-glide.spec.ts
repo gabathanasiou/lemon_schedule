@@ -34,8 +34,8 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     expect(await callsFor(page, cast[0])).toBeNull();
 
     const cell = await stageCellPoint(page, 0, 0);
-    // Stage column 0 → a11y col 3 (ID, Character, SWF precede it).
-    const ta = await openGlideCellEditor(page, cell, glideCellId(3, 0));
+    // Stage column 0 → a11y col 4 (ID, Character, Artiste, SWF precede it).
+    const ta = await openGlideCellEditor(page, cell, glideCellId(4, 0));
 
     // The overlay opens with the whole seed selected — not blank, so typing
     // replaces it instead of requiring a retype. A non-anchor stage seeds with
@@ -68,8 +68,8 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     // An untouched anchor seeds with the resolved first-scene call — Enter must
     // store nothing (roadmap 141).
     const anchorCell = await stageCellPoint(page, 0, stageKeys.length - 1);
-    // The anchor stage column's a11y index (cols 0-2 are ID/Character/SWF).
-    const anchorCellA11y = glideCellId(3 + stageKeys.length - 1, 0);
+    // The anchor stage column's a11y index (cols 0-3 are ID/Character/Artiste/SWF).
+    const anchorCellA11y = glideCellId(4 + stageKeys.length - 1, 0);
     const anchorTa = await openGlideCellEditor(page, anchorCell, anchorCellA11y);
     expect(await anchorTa.inputValue()).toMatch(/^\d{1,2}:\d{2}$/);
     await anchorTa.press('Enter');
@@ -101,7 +101,7 @@ test.describe('Day Times Glide (roadmap 101)', () => {
 
     // --- edit the first stage cell of row 0 (overlay editor) ---
     const first = await stageCellPoint(page, 0, 0);
-    const ta = await openGlideCellEditor(page, first, glideCellId(3, 0));
+    const ta = await openGlideCellEditor(page, first, glideCellId(4, 0));
     await ta.click();
     await ta.fill('07:00');
     await expect(ta).toHaveValue('07:00', { timeout: 4000 });
@@ -149,7 +149,7 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     // Type over the anchored cell; committing spreads to the whole selection.
     // Wait for the drag's selection to commit first — `editOnType` reads the
     // committed selection and would drop the first keystroke otherwise (§E).
-    await waitForGlideCellSelected(page, glideCellId(3, 0));
+    await waitForGlideCellSelected(page, glideCellId(4, 0));
     await page.keyboard.type('06:00');
     const ta = page.locator('#portal textarea').first();
     await expect(ta).toBeAttached({ timeout: 4000 });
@@ -169,7 +169,7 @@ test.describe('Day Times Glide (roadmap 101)', () => {
     test.skip(cast.length < 3, 'seed day needs at least 3 cast for a fill-down');
 
     const src = await stageCellPoint(page, 0, 0);
-    const ta = await openGlideCellEditor(page, src, glideCellId(3, 0));
+    const ta = await openGlideCellEditor(page, src, glideCellId(4, 0));
     await ta.click();
     await ta.fill('06:00');
     await expect(ta).toHaveValue('06:00', { timeout: 4000 });

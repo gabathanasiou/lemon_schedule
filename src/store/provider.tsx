@@ -10,7 +10,7 @@ import { getMyRole, type CollaboratorRole } from '../lib/supabase/sharing';
 import { getPresenceDiagnostics, notifyLocalSave } from '../lib/supabase/presenceChannel';
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex, formatDriveError } from '../lib/googleDriveStorage';
-import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
+import { migrateLegacyProject, migrateLegacyCastMirror, migrateElementBoardIds, LegacyMigrationResult } from '../lib/legacyMigration';
 import { hasInFlightEdits } from '../lib/inFlightEdits';
 import { useRoomTransport } from '../lib/rooms/useRoomTransport';
 import { fetchRoomToken } from '../lib/rooms/tokenClient';
@@ -788,6 +788,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           }
           const migrationResult = migrateLegacyProject(parsed);
           migrateLegacyCastMirror(migrationResult.project);
+          migrateElementBoardIds(migrationResult.project);
           if (migrationResult.migrated) {
             setPendingLegacyMigrationNotice(migrationResult);
           }
@@ -1445,6 +1446,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const id = generateUUID();
     const migrationResult = migrateLegacyProject(data);
     migrateLegacyCastMirror(migrationResult.project);
+    migrateElementBoardIds(migrationResult.project);
     if (migrationResult.migrated) {
       setPendingLegacyMigrationNotice(migrationResult);
     }

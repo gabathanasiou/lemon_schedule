@@ -27,10 +27,12 @@ const FALLBACK_EDITABLE = new Set<string>();
  *  every category panel reads in the spreadsheet language, never the old HTML
  *  table. */
 const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; presenceScope?: string; onEditCallTimesSettings?: () => void }> = ({ entries, presenceScope, onEditCallTimesSettings }) => {
+  const isCast = entries[0]?.category === 'cast';
   const rows = useMemo(() => entries.map(e => ({
     key: e.key,
     id: e.boardId || '',
     name: e.boardId ? `${e.boardId}. ${e.name}` : e.name,
+    artiste: e.performer || '',
     swf: e.dood || '',
     scene: String(e.firstScene),
     call: e.firstCallTime || '',
@@ -39,10 +41,11 @@ const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; presenceScope?
   const columns: InlineGlideColumn[] = useMemo(() => [
     { key: 'id', label: 'ID', width: 56, align: 'center' },
     { key: 'name', label: 'Name', width: 220 },
+    ...(isCast ? [{ key: 'artiste', label: 'Artiste', width: 180 } as InlineGlideColumn] : []),
     { key: 'swf', label: 'SWF', width: 56, align: 'center' },
     { key: 'scene', label: 'Scene', width: 70, align: 'center' },
     { key: 'call', label: 'Call', width: 96, align: 'center' },
-  ], []);
+  ], [isCast]);
 
   const getCellContent = (col: InlineGlideColumn, row: Record<string, string>): GridCell => {
     if (col.key === 'swf') {
@@ -62,7 +65,7 @@ const FallbackElementGrid: React.FC<{ entries: DayElementEntry[]; presenceScope?
     if (col.key === 'scene' || col.key === 'id') {
       return textCell(row[col.key], { readonly: true, allowOverlay: false, align: 'center', cursor: 'default', themeOverride: { textDark: '#a1a1aa' } });
     }
-    return textCell(row.name, { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
+    return textCell(row[col.key] || '', { readonly: true, allowOverlay: false, cursor: 'default', themeOverride: { textDark: '#52525b' } });
   };
 
   return (

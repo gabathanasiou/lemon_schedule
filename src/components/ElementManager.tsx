@@ -2,11 +2,12 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES } from '../store';
 import { useDialog } from './Dialog';
-import { Trash2, Plus, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen, CalendarDays, Users } from 'lucide-react';
+import { Trash2, Plus, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen, PanelRight } from 'lucide-react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
-import { loadCategoryElements, elementKey, countOccurrences } from '../lib/elements';
+import { loadCategoryElements, elementKey, countOccurrences, boardIdOf, compareBoardIds, isDuplicateBoardId, nextBoardId } from '../lib/elements';
+import { CAST_DETAIL_FIELDS, castDetailsOf, useCastDetailsOpen, type CastDetailKey, type CastDetails } from '../lib/castDetails';
 import { computeElementDayStats } from '../lib/elementDayStats';
 import { getDayTypes } from '../lib/dayTypes';
 import { formatDateShort } from '../lib/utils';
@@ -16,18 +17,20 @@ import { useFollowView } from '../lib/supabase/useFollowView';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
 import { MergeRowsModal } from './elements/MergeRowsModal';
 import { LinkManagerModal } from './elements/LinkManagerModal';
-import { ElementCrewLinksModal } from './crew/ElementCrewLinksModal';
-import { ElementEventsModal } from './elements/ElementEventsModal';
+import { ElementViewModal } from './elements/ElementViewModal';
 import { MT_INPUT, MT_HEADER, MT_CELL_SMALL, MT_ADD, useManagerTableSizes } from '../lib/managerTable';
 import Button from './Button';
 import SidebarNav, { SidebarNavRow } from './SidebarNav';
 
-interface LocalRow {
+type LocalRow = {
   key: string;
   id: string;
   name: string;
+  /** Board ID as displayed/edited — cast's `id`, every other category's
+   *  `boardId` label (roadmap 257). */
+  boardId: string;
   occ: number;
-}
+} & Record<CastDetailKey, string>;
 
 interface MergeInfo {
   sourceNames: string[];
@@ -38,7 +41,9 @@ interface MergeInfo {
 interface CategoryDiff {
   renames: { oldName: string; newName: string }[];
   removes: { id: string; name: string; toTrash: boolean }[];
-  adds: { key: string; id: string; name: string }[];
+  adds: { key: string; id: string; name: string; boardId: string }[];
+  /** Board ID edits on surviving rows (kept separate from name merges). */
+  boardIds: { id: string; name: string; boardId: string }[];
   merges: MergeInfo[];
 }
 
@@ -61,18 +66,12 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     const elems = loadCategoryElements(project, cat);
     const counts = countOccurrences(project.scenes, cat, cat === 'cast');
     let rows = elems.map(e => ({
-      key: elementKey(e), id: e.id, name: e.name,
+      key: elementKey(e), id: e.id, name: e.name, boardId: boardIdOf(e, cat),
       occ: counts.get((cat === 'cast' ? e.id : e.name).toLowerCase()) || 0,
+      ...castDetailsOf(cat === 'cast' ? (e as unknown as CastDetails) : null),
     }));
     if (cat === 'cast') {
-      rows.sort((a, b) => {
-        const na = parseInt(a.id, 10);
-        const nb = parseInt(b.id, 10);
-        if (!isNaN(na) && !isNaN(nb)) return na - nb;
-        if (!isNaN(na)) return -1;
-        if (!isNaN(nb)) return 1;
-        return a.id.localeCompare(b.id);
-      });
+      rows.sort((a, b) => compareBoardIds(a.boardId, b.boardId) || a.id.localeCompare(b.id));
     }
     return rows;
   }
@@ -88,10 +87,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const [newCatMultiValue, setNewCatMultiValue] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
-  const [eventsTarget, setEventsTarget] = useState<{ key: string; id: string; name: string } | null>(null);
-  const [crewTarget, setCrewTarget] = useState<{ id: string; name: string } | null>(null);
+  const [viewTarget, setViewTarget] = useState<{ key: string } | null>(null);
 
   const [sortMode, setSortMode] = useState<'id' | 'name' | 'occurrences'>(isCast ? 'id' : 'name');
+  /** Cast performer/booking columns are hidden by default (roadmap 157). */
+  const [castDetailsOpen, setCastDetailsOpen] = useCastDetailsOpen();
 
   useEffect(() => {
     setSortMode(isCast ? 'id' : 'name');
@@ -99,20 +99,50 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
   // The commit flow is manager-specific (diff + merge confirmation); the hook
   // calls it on every finished field edit (blur / Enter / Tab).
-  const commitRef = useRef<(cat: string, current: LocalRow[], editedKey?: string) => CommitResult>(() => ({ status: 'none' }));
+  const commitRef = useRef<(cat: string, current: LocalRow[]) => CommitResult>(() => ({ status: 'none' }));
 
   const buf = useRowBuffer<LocalRow>({
     projectId: project.id,
     scope: category,
     loadRows,
-    makeBlankRow: () => ({ key: String(Date.now()), id: '', name: '', occ: 0 }),
-    fieldsPerRow: c => (c === 'cast' ? ['id', 'name'] : ['name']),
+    makeBlankRow: () => ({ key: String(Date.now()), id: '', name: '', boardId: '', occ: 0, ...castDetailsOf(null) }),
+    fieldsPerRow: c => (c === 'cast' ? ['id', 'name', ...CAST_DETAIL_FIELDS.map(f => f.key)] : ['boardId', 'name']),
     reloadDeps: [project.breakdownElements, project.scenes, project.castMembers],
-    commit: (cat, current, editedKey) => commitRef.current(cat, current, editedKey),
+    commit: (cat, current) => commitRef.current(cat, current),
     hasPendingConfirmation: () => pendingDiffRef.current !== null,
     hasContent: r => !!(r.name.trim() || r.id.trim()),
   });
   const { rows } = buf;
+
+  /** Board ID shown/edited in the first column: cast's id, else `boardId`. */
+  const boardIdValue = (r: LocalRow) => (isCast ? r.id : r.boardId);
+  const boardIdField = (): 'id' | 'boardId' => (isCast ? 'id' : 'boardId');
+
+  // Roadmap 257: duplicate numbers are rejected on commit (the edit does not
+  // land; the cell reverts and flashes). Numbers stay unique per category.
+  const [rejectedKey, setRejectedKey] = useState<string | null>(null);
+  const rejectTimer = useRef<number | null>(null);
+  const flashReject = useCallback((key: string) => {
+    setRejectedKey(key);
+    if (rejectTimer.current != null) window.clearTimeout(rejectTimer.current);
+    rejectTimer.current = window.setTimeout(() => setRejectedKey(null), 800);
+  }, []);
+  useEffect(() => () => {
+    if (rejectTimer.current != null) window.clearTimeout(rejectTimer.current);
+  }, []);
+
+  /** Blur guard for the Board ID cell — false = rejected (cell already reverted). */
+  const guardBoardId = (row: LocalRow): boolean => {
+    const value = boardIdValue(row).trim();
+    if (!value) return true;
+    const elems = loadCategoryElements(project, category);
+    if (!isDuplicateBoardId(elems, category, value, row.key)) return true;
+    const storedEl = elems.find(e => elementKey(e) === row.key);
+    flashReject(row.key);
+    buf.updateRow(row.key, boardIdField(), storedEl ? boardIdOf(storedEl, category) : '');
+    return false;
+  };
+
 
   // Follow (roadmap 243): the selected category mirrors through the shared
   // registration — category keys are project data, so a key this client does
@@ -144,7 +174,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     switchCategoryRaw(newCat);
   }, [follow, switchCategoryRaw]);
 
-  const sortByIdFn = () => buf.sortRows((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  const sortByIdFn = () => buf.sortRows((a, b) => compareBoardIds(boardIdValue(a), boardIdValue(b)));
   const sortByNameFn = () => buf.sortRows((a, b) => (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase()));
   const sortByOccurrencesFn = () => buf.sortRows((a, b) => b.occ - a.occ || (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase()));
 
@@ -175,13 +205,13 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
    * - removed rows whose name still exists elsewhere are absorbed (no trash)
    * - truly removed rows are deleted and pushed to trash
    */
-  function computeCategoryDiff(cat: string, snap: LocalRow[], current: LocalRow[], editedKey?: string): CategoryDiff {
+  function computeCategoryDiff(cat: string, snap: LocalRow[], current: LocalRow[]): CategoryDiff {
     const snapByKey = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
     const snapByName = new Map<string, LocalRow>(snap.map(r => [r.name.trim().toLowerCase(), r]));
 
     const renames: { oldName: string; newName: string }[] = [];
     const removes: { id: string; name: string; toTrash: boolean }[] = [];
-    const adds: { key: string; id: string; name: string }[] = [];
+    const adds: { key: string; id: string; name: string; boardId: string }[] = [];
     const merges: MergeInfo[] = [];
 
     const groups = new Map<string, LocalRow[]>();
@@ -197,10 +227,18 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
     for (const [name, group] of groups) {
       if (group.length <= 1) continue;
-      // Only the collision THIS edit caused (or joined) asks to merge. A
-      // pre-existing case-variant pair (car / CAR) must never hijack an
-      // unrelated field edit into a merge dialog (roadmap 250).
-      if (editedKey !== undefined && !group.some(r => r.key === editedKey)) continue;
+      // Only a collision THIS commit caused (or joined) asks to merge: a name
+      // must have changed, or a new row must have joined the name. A plain
+      // Board-ID edit or Auto-ID never hijacks a pre-existing case-variant
+      // pair (car / CAR) into a merge dialog (roadmap 250/257).
+      const nameChanged = group.some(r => {
+        const s = snapByKey.get(r.key);
+        if (!s) return true;
+        // Exact comparison: a case-only rename (FISHING BOAT → fishing boat)
+        // still needs the merge confirmation.
+        return s.name.trim() !== (r.name || r.id).trim();
+      });
+      if (!nameChanged) continue;
       const target = group.find(r => snapByKey.get(r.key)?.name.trim().toLowerCase() === name)
         || group.find(r => snapByKey.has(r.key))
         || group[0];
@@ -232,6 +270,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     }
 
     const claimed = new Set<string>();
+    const boardIds: { id: string; name: string; boardId: string }[] = [];
     for (const r of current) {
       if (handled.has(r.key)) continue;
       const s = snapByKey.get(r.key);
@@ -240,6 +279,12 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         if (!name) {
           removes.push({ id: s.id, name: s.name, toTrash: true });
           continue;
+        }
+        // Board IDs are labels independent of the name merge below; keep the
+        // edit on the stable element id. `name` rides along so the update can
+        // materialize a scene-derived (never-stored) element.
+        if ((r.boardId || '') !== (s.boardId || '')) {
+          boardIds.push({ id: s.id, name: r.name || s.name, boardId: r.boardId });
         }
         if (s.name.trim().toLowerCase() !== name) {
           renames.push({ oldName: s.name, newName: r.name.trim() });
@@ -252,7 +297,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       } else {
         const match = snapByName.get(name);
         if (match) claimed.add(match.key);
-        else if (r.name.trim()) adds.push({ key: r.key, id: r.name.trim(), name: r.name.trim() });
+        else if (r.name.trim()) adds.push({ key: r.key, id: r.name.trim(), name: r.name.trim(), boardId: r.boardId });
       }
     }
 
@@ -271,27 +316,35 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       removes.push({ id: s.id, name: s.name, toTrash: true });
     }
 
-    return { renames, removes, adds, merges };
+    return { renames, removes, adds, boardIds, merges };
   }
 
-  /** Dispatch one finished edit set (renames/removes/adds) as ONE batch. */
+  /** Dispatch one finished edit set (renames/removes/adds + Board ID edits) as ONE batch. */
   function applyDiff(cat: string, d: CategoryDiff): CommitResult {
-    if (d.renames.length === 0 && d.removes.length === 0 && d.adds.length === 0) return { status: 'none' };
+    const hasMerge = d.renames.length > 0 || d.removes.length > 0 || d.adds.length > 0;
+    if (!hasMerge && d.boardIds.length === 0) return { status: 'none' };
     dispatch({ type: 'BATCH_START' });
-    dispatch({
-      type: 'MERGE_ELEMENTS',
-      payload: { category: cat, renames: d.renames, removes: d.removes, adds: d.adds.map(a => ({ id: a.id, name: a.name })) },
-    });
+    // Board-ID edits go FIRST by stable element id: a merge below can remove a
+    // source row, and that row's number must die with it.
+    for (const u of d.boardIds) {
+      dispatch({ type: 'UPDATE_ELEMENT', payload: { category: cat, id: u.id, updates: { name: u.name, boardId: u.boardId } } });
+    }
+    if (hasMerge) {
+      dispatch({
+        type: 'MERGE_ELEMENTS',
+        payload: { category: cat, renames: d.renames, removes: d.removes, adds: d.adds.map(a => ({ id: a.id, name: a.name, boardId: a.boardId })) },
+      });
+    }
     dispatch({ type: 'BATCH_COMMIT' });
     return { status: 'committed' };
   }
 
   /** One finished field edit: diff against store truth; a same-name collision
    *  hands over to the merge confirmation. */
-  const commitCategory = useCallback((cat: string, current: LocalRow[], editedKey?: string): CommitResult => {
+  const commitCategory = useCallback((cat: string, current: LocalRow[]): CommitResult => {
     const snap = loadRows(cat);
     if (cat === 'cast') return commitCast(snap, current);
-    const d = computeCategoryDiff(cat, snap, current, editedKey);
+    const d = computeCategoryDiff(cat, snap, current);
     if (d.merges.length > 0) {
       pendingDiffRef.current = { cat, diff: d };
       setMergeDialog({ label: getLabel(cat, ELEMENT_CATEGORIES.find(c => c.key === cat)?.label || cat, project.categoryLabels), merges: d.merges });
@@ -313,6 +366,20 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   function commitCast(snap: LocalRow[], current: LocalRow[]): CommitResult {
     const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
     const rowMap = new Map<string, LocalRow>(current.map(r => [r.key, r]));
+    /** Cast details as a payload patch — all keys, blanks included, so clearing
+     *  a field persists (the reducer merges). */
+    const castPayload = (row: LocalRow) => ({ id: row.id, name: row.name, ...castDetailsOf(row) });
+    const detailPatch = (row: LocalRow) => {
+      const out: Record<string, string> = {};
+      for (const f of CAST_DETAIL_FIELDS) {
+        const v = (row[f.key] || '').trim();
+        if (v) out[f.key] = v;
+      }
+      return out;
+    };
+    const detailsChanged = (a: LocalRow, b: LocalRow) =>
+      CAST_DETAIL_FIELDS.some(f => (a[f.key] || '') !== (b[f.key] || ''));
+    const hasDetails = (row: LocalRow) => CAST_DETAIL_FIELDS.some(f => !!(row[f.key] || '').trim());
     // Next free numeric Board ID across the store AND the rows being committed.
     const usedIds = new Set<string>();
     for (const s of snap) usedIds.add(String(s.id));
@@ -341,13 +408,22 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         const match = snap.find(s => s.name.toLowerCase() === row.name.toLowerCase());
         if (match) {
           run(() => dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'cast', id: match.id, updates: { id: row.id, name: row.name } } }));
+          if (hasDetails(row)) {
+            const resolvedId = row.id.trim() || match.id;
+            run(() => dispatch({ type: 'UPDATE_CAST_MEMBER', payload: castPayload({ ...row, id: resolvedId }) }));
+          }
           snapMap.delete(match.key);
         } else if (row.name.trim() || row.id.trim()) {
           const id = row.id.trim() || allocateId();
-          run(() => dispatch({ type: 'ADD_ELEMENT', payload: { category: 'cast', element: { id, name: row.name } } }));
+          run(() => dispatch({ type: 'ADD_ELEMENT', payload: { category: 'cast', element: { id, name: row.name, ...detailPatch(row) } } }));
         }
-      } else if (orig.id !== row.id || orig.name !== row.name) {
-        run(() => dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'cast', id: orig.id, updates: { id: row.id, name: row.name } } }));
+      } else {
+        if (orig.id !== row.id || orig.name !== row.name) {
+          run(() => dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'cast', id: orig.id, updates: { id: row.id, name: row.name } } }));
+        }
+        if (detailsChanged(orig, row)) {
+          run(() => dispatch({ type: 'UPDATE_CAST_MEMBER', payload: castPayload(row) }));
+        }
       }
     }
     for (const orig of snap) {
@@ -362,13 +438,31 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     return { status: 'none' };
   }
 
-  const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean, upper?: boolean, centered?: boolean, wrap = false) => {
+  interface RenderInputOpts {
+    numeric?: boolean;
+    upper?: boolean;
+    centered?: boolean;
+    wrap?: boolean;
+    /** Mark the input as the row's Board ID cell (stable e2e hook). */
+    boardId?: boolean;
+    /** Cast detail key (roadmap 157) — stable e2e hook. */
+    detail?: string;
+    /** Return false to reject the edit on blur (the caller has already reverted). */
+    guardBlur?: () => boolean;
+  }
+
+  const renderInput = (key: string, field: string, val: string, onChange: (v: string) => void, opts: RenderInputOpts = {}) => {
+    const { numeric, upper, centered, wrap } = opts;
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
       // Tab moves to the next field/cell (committing this one on the blur);
       // with nowhere to go it falls through to the browser's Tab — focus
       // leaves the table and the field still commits.
       if (e.key === 'Tab' && buf.focusNext(key, field)) e.preventDefault();
+    };
+    const commitBlur = () => {
+      if (opts.guardBlur && !opts.guardBlur()) return;
+      buf.commitEdit();
     };
     const transform = (v: string) => numeric ? v.replace(/[^0-9]/g, '') : upper ? v.toUpperCase() : v.replace(/\n/g, ' ');
     // The name field wraps to a second line on long names (auto-sized textarea,
@@ -384,7 +478,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           onChange={e => onChange(transform(e.target.value))}
           onKeyDown={handleKey}
           onFocus={() => buf.noteFocus(key, field)}
-          onBlur={buf.commitEdit}
+          onBlur={commitBlur}
           style={sizes.input}
           className={`${MT_INPUT} [field-sizing:content] resize-none overflow-hidden leading-snug align-middle ${centered ? 'text-center' : ''}`}
         />
@@ -394,12 +488,14 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       <input
         ref={el => buf.registerInput(key, field, el)}
         type="text"
+        data-manager-board-id={opts.boardId ? key : undefined}
+        data-manager-cast-detail={opts.detail}
         value={val}
         readOnly={locked}
         onChange={e => onChange(transform(e.target.value))}
         onKeyDown={handleKey}
         onFocus={() => buf.noteFocus(key, field)}
-        onBlur={buf.commitEdit}
+        onBlur={commitBlur}
         style={sizes.input}
         className={`${MT_INPUT} ${centered ? 'text-center' : ''}`}
       />
@@ -451,11 +547,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           <Button data-presence-anchor="toolbar:elements:sort">Sort ▾</Button>
         }
       >
-        {isCast && (
-          <DropdownItem onClick={() => applySort('id')} icon={sortMode === 'id' ? <Check className="w-3.5 h-3.5" /> : undefined}>
-            By Board ID
-          </DropdownItem>
-        )}
+        <DropdownItem onClick={() => applySort('id')} icon={sortMode === 'id' ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          By Board ID
+        </DropdownItem>
         <DropdownItem onClick={() => applySort('name')} icon={sortMode === 'name' ? <Check className="w-3.5 h-3.5" /> : undefined}>
           By Name
         </DropdownItem>
@@ -465,20 +559,36 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       </DropdownMenu>
       {isCast && (
         <Button
-          onClick={async () => {
-            const ok = await dialog.confirm({
-              title: 'Auto-ID Cast Members?',
-              message: 'Auto-ID assigns sequential Board IDs (continuing after the highest existing one) to cast members with an empty Board ID. Locked Board IDs are never changed.',
-              suppressKey: 'lemon_schedule_dnwa_auto_id',
-            });
-            if (!ok) return;
-            buf.applyRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() || lockedIds.has(r.key) ? r : { ...r, id: String(n++) }); });
-          }}
-          disabled={locked}
+          onClick={() => setCastDetailsOpen(!castDetailsOpen)}
+          title="Show performer and booking details for every cast member"
+          data-presence-anchor="toolbar:elements:cast-details"
         >
-          Auto-ID
+          {castDetailsOpen ? 'Hide details' : 'Details'}
         </Button>
       )}
+      <Button
+        onClick={async () => {
+          const ok = await dialog.confirm({
+            title: `Auto-ID ${getLabel(category, 'elements', project.categoryLabels)}?`,
+            message: 'Auto-ID assigns sequential Board IDs (continuing after the highest existing one) to elements with an empty Board ID. Locked Board IDs are never changed.',
+            suppressKey: 'lemon_schedule_dnwa_auto_id',
+          });
+          if (!ok) return;
+          buf.applyRows(prev => {
+            const used = prev.map(r => (isCast ? r.id : r.boardId)).filter(Boolean);
+            return prev.map(r => {
+              const value = isCast ? r.id : r.boardId;
+              if (value.trim() || lockedIds.has(r.key)) return r;
+              const id = nextBoardId(used);
+              used.push(id);
+              return { ...r, [isCast ? 'id' : 'boardId']: id };
+            });
+          });
+        }}
+        disabled={locked}
+      >
+        Auto-ID
+      </Button>
     </>
   );
 
@@ -606,8 +716,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
               <table className="w-full manager-table">
                 <thead>
                   <tr className="bg-zinc-50">
-                    {isCast && <th style={sizes.header} className={`sticky top-0 left-0 z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>}
-                    <th style={sizes.header} className={`sticky top-0 ${isCast ? 'left-24' : 'left-0'} z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-[140px] max-w-52 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
+                    <th style={sizes.header} className={`sticky top-0 left-0 z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left w-24 min-w-24 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Board ID</th>
+                    <th style={sizes.header} className={`sticky top-0 left-24 z-30 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-[140px] max-w-52 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>Name</th>
+                    {isCast && castDetailsOpen && CAST_DETAIL_FIELDS.map(f => (
+                      <th key={f.key} style={{ ...sizes.header, minWidth: f.width, width: f.width }} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left`}>{f.label}</th>
+                    ))}
                     <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>Occ</th>
                     <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-24`}>Start Date</th>
                     <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left min-w-24`}>Finish Date</th>
@@ -615,8 +728,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                     {dayTypes.map(t => (
                       <th key={t.key} title={t.label} style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>{t.label}</th>
                     ))}
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center w-12`} title="Crew linked to this element">Crew</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center w-12`}>Events</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center w-12`} title="Element view — properties, crew links and events">View</th>
                     <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 ${MT_HEADER} text-center w-12`} />
                   </tr>
                 </thead>
@@ -625,26 +737,34 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                       const stats = dayStats.get(r.key);
                       return (
                     <tr key={r.key} data-presence-anchor={`elements:${r.key}`} className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}>
-                      {isCast && (
-                        <td style={sizes.cellSmall} className={`sticky left-0 z-10 ${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>
-                          <div className="flex items-center gap-1">
-                            <div className="flex-1 min-w-0">
-                              {renderInput(r.key, 'id', r.id, v => buf.updateRow(r.key, 'id', v), true, false, true)}
-                            </div>
-                            <button
-                              onClick={() => dispatch({ type: 'TOGGLE_ELEMENT_LOCK', payload: { category, id: r.key } })}
-                              disabled={locked}
-                              title={lockedIds.has(r.key) ? 'Unlock Board ID — Auto-ID may renumber it' : 'Lock Board ID — Auto-ID never changes it'}
-                              className="p-1 rounded-md shrink-0 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                            >
-                              {lockedIds.has(r.key)
-                                ? <Lock style={{ width: sizes.icon, height: sizes.icon }} className="text-zinc-700 hover:text-red-500" />
-                                : <LockOpen style={{ width: sizes.icon, height: sizes.icon }} className="text-zinc-400 hover:text-zinc-800" />}
-                            </button>
+                      <td style={sizes.cellSmall} className={`sticky left-0 z-10 ${MT_CELL_SMALL} ${rejectedKey === r.key ? 'bg-red-100' : ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>
+                        <div className="flex items-center gap-1">
+                          <div className="flex-1 min-w-0">
+                            {renderInput(r.key, boardIdField(), boardIdValue(r), v => buf.updateRow(r.key, boardIdField(), v), {
+                              numeric: true,
+                              centered: true,
+                              boardId: true,
+                              guardBlur: () => guardBoardId(r),
+                            })}
                           </div>
+                          <button
+                            onClick={() => dispatch({ type: 'TOGGLE_ELEMENT_LOCK', payload: { category, id: r.key } })}
+                            disabled={locked}
+                            title={lockedIds.has(r.key) ? 'Unlock Board ID — Auto-ID may renumber it' : 'Lock Board ID — Auto-ID never changes it'}
+                            className="p-1 rounded-md shrink-0 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                          >
+                            {lockedIds.has(r.key)
+                              ? <Lock style={{ width: sizes.icon, height: sizes.icon }} className="text-zinc-700 hover:text-red-500" />
+                              : <LockOpen style={{ width: sizes.icon, height: sizes.icon }} className="text-zinc-400 hover:text-zinc-800" />}
+                          </button>
+                        </div>
+                      </td>
+                      <td style={sizes.cellSmall} className={`sticky left-24 z-10 ${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), { upper: isCast || isSet, wrap: true })}</td>
+                      {isCast && castDetailsOpen && CAST_DETAIL_FIELDS.map(f => (
+                        <td key={f.key} style={{ ...sizes.cellSmall, minWidth: f.width }} className={`${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100`}>
+                          {renderInput(r.key, f.key, r[f.key], v => buf.updateRow(r.key, f.key, v), { detail: f.key })}
                         </td>
-                      )}
-                      <td style={sizes.cellSmall} className={`sticky ${isCast ? 'left-24' : 'left-0'} z-10 ${MT_CELL_SMALL} ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), false, isCast || isSet, false, true)}</td>
+                      ))}
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center text-zinc-400 font-medium`}>{r.occ}</td>
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-zinc-400`}>{stats?.startDate ? formatDateShort(stats.startDate) : ''}</td>
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-zinc-400`}>{stats?.finishDate ? formatDateShort(stats.finishDate) : ''}</td>
@@ -654,20 +774,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                       ))}
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
                         <button
-                          onClick={() => setCrewTarget({ id: r.id, name: r.name })}
-                          title={`Linked crew — crew linked to ${r.name || r.id}`}
+                          onClick={() => setViewTarget({ key: r.key })}
+                          title={`Element view — properties, crew links and events for ${r.name || r.id}`}
                           className="p-1.5 rounded-md hover:bg-blue-50 transition-colors opacity-40 hover:opacity-100 align-middle"
                         >
-                          <Users style={{ width: sizes.icon, height: sizes.icon }} className="text-blue-500" />
-                        </button>
-                      </td>
-                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
-                        <button
-                          onClick={() => setEventsTarget({ key: r.key, id: r.id, name: r.name })}
-                          title={`Events — dates, rules and violations for ${r.name || r.id}`}
-                          className="p-1.5 rounded-md hover:bg-blue-50 transition-colors opacity-40 hover:opacity-100 align-middle"
-                        >
-                          <CalendarDays style={{ width: sizes.icon, height: sizes.icon }} className="text-blue-500" />
+                          <PanelRight style={{ width: sizes.icon, height: sizes.icon }} className="text-blue-500" />
                         </button>
                       </td>
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
@@ -759,21 +870,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             onClose={() => setShowLinks(false)}
           />
         )}
-        {eventsTarget && (
-          <ElementEventsModal
+        {viewTarget && (
+          <ElementViewModal
             category={category}
-            rowKey={eventsTarget.key}
-            rowId={eventsTarget.id}
-            rowName={eventsTarget.name}
-            onClose={() => setEventsTarget(null)}
-          />
-        )}
-        {crewTarget && (
-          <ElementCrewLinksModal
-            category={category}
-            elementKey={isCast ? crewTarget.id : crewTarget.name}
-            elementName={crewTarget.name || crewTarget.id}
-            onClose={() => setCrewTarget(null)}
+            rowKey={viewTarget.key}
+            onClose={() => setViewTarget(null)}
           />
         )}
       </div>

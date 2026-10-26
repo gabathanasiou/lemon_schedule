@@ -182,7 +182,9 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - `DropdownMenu`/`DropdownItem`/`DropdownDivider`/`DropdownSubmenu` (Radix click-to-toggle;
   **single-highlight + keys/lock shared with ContextMenu** — one `.ui-item-highlighted` row, the CSS
   `:hover` fill is suppressed while a row is highlighted (kit `tokens.css`), arrows/Enter/typeahead,
-  document-level menu key-lock, panel positioning; `ContextMenuSub` = `DropdownSubmenu`),
+  document-level menu key-lock, panel positioning; `ContextMenuSub` = `DropdownSubmenu`;
+  `DropdownItem group="Set"` renders category headers in plain AND `searchable` menus, and the
+  search query matches the group label),
   `Modal`+`ModalFooter` (draggable; no manual resize — auto-fits content; one `.ui-modal-overlay`
   dim per window — stacked modals zero non-top dims), `ContextMenu`/`ContextMenuItem`/
   `ContextMenuDivider` (fixed-position), `CellInput` (inline text, Enter confirm/Escape cancel;
@@ -201,6 +203,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `bg-zinc-800`, e.g. "+ New Project"); EVERY other button — Cancel, secondary actions, Import — is
   `variant="ghost"` (e.g. "Import"). Destructive: `variant="danger"` (ghost, `mr-auto`) for Delete,
   `variant="danger-solid"` for red confirms. Never hand-write footer button classes.
+- **Modal theming (roadmap 302)**: the app `Modal` shim applies `projectModalThemeOf` — every
+  project kind is a neutral surface, so the shell and its kit children carry NO project accent
+  inside; Drive/shared colour stays in the chrome. Pass `surface="accent"` to opt one surface into
+  the accent ladder, or wrap a single control in an accent-only `ThemeProvider` for a manual (Lego)
+  override. Never hand-tint modal bodies with `bg-blue/emerald-*`.
 - **Dialogs (confirm/prompt/alert) are Modal sub-elements**: `useDialog()` renders through the kit
   Modal's `flat` chrome (no header/footer bars — title row + buttons on the body surface) so they
   inherit the morph, one-dim backdrop, viewport clamp and coarse sizing. **Enter ALWAYS triggers the

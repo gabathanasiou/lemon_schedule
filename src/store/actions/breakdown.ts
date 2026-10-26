@@ -3,6 +3,7 @@ import { getSceneFieldValue } from '../reducer';
 import type { Action, State } from '../reducer';
 import { generateUUID } from '../../lib/utils';
 import { getFieldItems, isMultiValue } from '../../lib/categories';
+import { nextBoardId } from '../../lib/boardIds';
 import { cascadeAnnotationRename } from '../../lib/scriptAnnotations';
 import type { RuleTrashItem, ElementTrashItem, CategoryTrashItem } from '../../types';
 
@@ -61,7 +62,9 @@ export function caseAddCastMember(state: State, action: Action, applyChange: App
 
 export function caseUpdateCastMember(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'UPDATE_CAST_MEMBER') return state;
-  const cms = (state.present.castMembers || []).map(c => c.id === action.payload.id ? action.payload : c);
+  // Merge, never replace: callers that patch one field (the naming modal sends
+  // {id, name}) must not wipe the performer details (roadmap 157).
+  const cms = (state.present.castMembers || []).map(c => c.id === action.payload.id ? { ...c, ...action.payload } : c);
   return applyChange({
     ...state.present,
     castMembers: cms,
@@ -102,9 +105,12 @@ export function caseAddElement(state: State, action: Action, applyChange: ApplyC
       breakdownElements: { ...state.present.breakdownElements, [category]: existing.map(e => ((e.id || e.name.toLowerCase()) === dedupKey ? { ...e, ...element, id: element.id || e.id } : e)) },
     });
   }
+  // Roadmap 257: every non-cast element is numbered on create (next after the
+  // highest, never renumbering an explicit value). Cast allocates in its own
+  // commit flow because its id IS the reference key.
   return applyChange({
     ...state.present,
-    breakdownElements: { ...state.present.breakdownElements, [category]: [...existing, element] },
+    breakdownElements: { ...state.present.breakdownElements, [category]: [...existing, { ...element, boardId: element.boardId || nextBoardId(existing.map(e => e.boardId || '')) }] },
   });
 }
 
@@ -114,7 +120,7 @@ export function caseUpdateElement(state: State, action: Action, applyChange: App
   let list = state.present.breakdownElements[category] || [];
   if (list.length === 0) {
     if (category === 'cast') {
-      list = (state.present.castMembers || []).map(m => ({ id: m.id, name: m.name }));
+      list = (state.present.castMembers || []).map(m => ({ ...m }));
     } else {
       const ids = new Set<string>();
       for (const s of state.present.scenes) {
@@ -130,7 +136,7 @@ export function caseUpdateElement(state: State, action: Action, applyChange: App
     ? list.find(e => e.id === id)
     : list.find(e => e.id.toLowerCase() === id.toLowerCase());
   if (!old) {
-    const newElement = { id: updates.id || id, name: updates.name || '' };
+    const newElement = { id: updates.id || id, name: updates.name || '', ...(updates.boardId !== undefined ? { boardId: updates.boardId } : {}) };
     return applyChange({
       ...state.present,
       breakdownElements: { ...state.present.breakdownElements, [category]: [...list, newElement] },
@@ -219,13 +225,13 @@ export function caseDeleteElement(state: State, action: Action, applyChange: App
   const { category, id } = action.payload;
   const isCast = category === 'cast';
   const list = isCast
-    ? (state.present.castMembers || []).map(m => ({ id: m.id, name: m.name }))
+    ? (state.present.castMembers || []).map(m => ({ ...m }))
     : state.present.breakdownElements[category] || [];
   const el = list.find(e => e.id === id);
   const matchLower = isCast ? id.toLowerCase() : (el?.name ?? id).toLowerCase();
   const trashItem: ElementTrashItem = {
     category,
-    element: el ? { id: el.id, name: el.name } : { id, name: '' },
+    element: el ? { ...el } : { id, name: '' },
     deletedAt: Date.now(),
   };
   return applyChange({
@@ -282,7 +288,8 @@ export function caseMergeElements(state: State, action: Action, applyChange: App
     removeIdSet.add(rm.id);
     removeNameSet.add(rm.name.toLowerCase());
     if (rm.toTrash) {
-      trashItems.push({ category, element: { id: rm.id, name: rm.name }, deletedAt: Date.now() });
+      const el = list.find(e => e.id === rm.id);
+      trashItems.push({ category, element: el ? { ...el } : { id: rm.id, name: rm.name }, deletedAt: Date.now() });
     }
   }
 
@@ -309,7 +316,7 @@ export function caseMergeElements(state: State, action: Action, applyChange: App
     const key = (a.name || '').toLowerCase();
     if (finalNames.has(key)) continue;
     finalNames.add(key);
-    next.push({ id: a.id || a.name, name: a.name });
+    next.push({ id: a.id || a.name, name: a.name, boardId: a.boardId || nextBoardId(next.map(e => e.boardId || '')) });
   }
 
   const scenes = state.present.scenes.map(scene => {
@@ -371,11 +378,16 @@ export function caseRestoreElementFromTrash(state: State, action: Action, applyC
     });
   }
   const existing = state.present.breakdownElements[category] || [];
+  // Roadmap 257: a restored element keeps its number; one trashed before the
+  // field existed gets the next free one (restore is a create).
+  const restored = element.boardId
+    ? element
+    : { ...element, boardId: nextBoardId(existing.map(e => e.boardId || '')) };
   return applyChange({
     ...state.present,
     breakdownElements: {
       ...state.present.breakdownElements,
-      [category]: [...existing, element],
+      [category]: [...existing, restored],
     },
     elementsTrash: state.present.elementsTrash.filter(t => t.element.id !== action.payload),
   });
@@ -424,7 +436,7 @@ export function caseDeleteCustomCategory(state: State, action: Action, applyChan
   }
   const trashItem: CategoryTrashItem = {
     category: { ...def },
-    elements: elements.map(e => ({ id: e.id, name: e.name })),
+    elements: elements.map(e => ({ ...e })),
     sceneValues,
     deletedAt: Date.now(),
   };

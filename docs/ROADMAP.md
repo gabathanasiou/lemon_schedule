@@ -39,50 +39,6 @@ skill, §Queries.
   move-via-controls. Re-run against item 24's shared draggers (**DONE** —
   `src/components/columnResize.tsx`) to confirm no regression.
 
-## 50. EXPERIMENTAL: EntityDropdown committed values as chips (`[ ]`)
-
-**Parked exploration — not building now.** Review question: should
-`EntityDropdown` render committed multi-values as per-value chip pills
-(tag-input pattern) instead of the comma-joined resolved text? The chip
-variant (`variant="chip"`) already exists — the trigger shows the values
-resolved Glide-style via the `chipDisplay` overlay (`EntityDropdown.tsx:457`).
-
-**Why parked** (verified against the code):
-- The value IS the input (caret-at-end to append, backspace, Enter/Tab
-  commit, Glide callbacks) — per-value chips would render only in the closed
-  trigger and vanish on open, so the text-editing model underneath stays.
-- The ui-kit has no generic Chip primitive (TokenChipView is tied to the
-  contenteditable token editor) — this would be new in-app UI.
-- 34 call sites; multi-chip triggers wrap/overflow the single-line modal
-  rows (Link Manager cards, ElementPicker/ElementPickerRow).
-
-**When it becomes worth it** — a requirement giving committed values
-per-item affordances: per-chip × to remove one cast member from a
-travel/hold attachment or linked row without retyping the list; or
-category-colored chips (45/46's calendar event chips are the visual
-precedent). A kit `Tag/Chip` primitive could host both if item 49's
-`Button` work opens the door to kit primitives generally.
-
-**Experimental-branch plan (when triggered)**:
-- Work on an experimental branch ONLY; scope = a NEW `variant="tags"`
-  (default untouched), wired into ONE place first — Link Manager multi
-  rows (biggest density case).
-- Interaction contract to evaluate: click chip = remove (and how it
-  coexists with toggle-in-panel); Backspace on last chip removes it;
-  typing appends a fresh segment; committed value stays raw comma-
-  separated (invariant intact).
-- Kill criteria: row wrap pain in Link Manager, keyboard-flow regressions
-  in Glide/SceneSheet cell editing, double-affordance blur (chip × vs
-  panel toggle). Survives → DESIGN-LANGUAGE update + rollout to remaining
-  modal rows; fails → delete the branch (AGENTS.md rule 3 — no speculative
-  abstractions).
-
-**Verify**: probe spec exercising the new variant only; full suite green
-with `variant="tags"` unused by default UI.
-
-**Relations**: chip language + modal patterns from items 45/46; kit
-primitive work out of item 49.
-
 ## 56. Promote shared bespoke components into @gabriel/ui-kit (`[ ]`)
 
 DESIGN-LANGUAGE §Mental model #2: "All interaction primitives come from `@gabriel/ui-kit`… extend the
@@ -95,13 +51,172 @@ kit instead." The genuinely-shared components that are still app-local should mo
 - **`RuleCard`** — the shared rule card (light + dark themes, conflict-count badge, cast-aware
   `describeRuleDetailed`); used by the Rules tab + day modal Rules tab.
 - **`EntityDropdown`** — the cast/element picker (multi/single/chip variants); the app's largest
-  bespoke primitive, used everywhere.
+  bespoke primitive, used everywhere. Kit v0.1.116 now ships grouped + category-searching
+  `DropdownMenu`/`DropdownItem` (302 stage 2) — move the picker panel onto that instead of forking
+  the new group/search logic into `DropdownPanel`.
 
 Per item: bump `@gabriel/ui-kit` (`package.json` → `@gabriel/ui-kit#v0.1.x`), re-verify the
 DESIGN-LANGUAGE §Primitive matrix + Recipes class strings, update this roadmap + the matrix in the
 same commit. The events-mode day cells and section tabs stay bespoke; icon-only
 buttons move to the kit via **216** (the "icon-only is the documented exception"
 note is retired).
+
+## 302. UI-kit theming — mode × accent, every primitive token-driven (`[~]`, big)
+
+**Request** (2026-10-26): make EVERY kit primitive themeable by colour — light-theme
+modals, or a modal that matches the app header's project chrome — instead of today's
+"dark modals only" plus blue/emerald as full themes.
+
+**Findings** (verified against ui-kit v0.1.114 + this app):
+- The token model already supports it: `ui-kit.css` says "override any `--ui-*` variable
+  at `:root` or any scope" (66 vars, 4 preset scopes). Blue/emerald ARE the tinted-surface
+  pattern — `rgba(23,37,84,0.95)` base + white-alpha borders/hover, not a second palette.
+- The gap is component COVERAGE, not the model. Five incompatible theme shapes:
+  menus `light|dark|blue|emerald`; Checkbox/Checklist/RadioList/NumberInput
+  `dark|light|blue` (no emerald); Seg `light|dark|blue|emerald`; DatePicker `light|dark`;
+  Button `light|dark` + `cloud`; **Modal/Dialog/Tooltip accept no theme at all** (kit
+  Modal hardcodes `bg-zinc-950` header/footer, `bg-zinc-900 text-zinc-100` body).
+- App side: 2,176 `*-zinc-*` utilities across 171 files + 142 blue/emerald ones, and ZERO
+  `--ui-*` references — theming stops at the kit boundary. A light modal therefore also
+  needs its app-rendered body tokenised (or it stays dark-on-light). `color-scheme` is
+  never set, so native scrollbars/inputs would not follow a light surface either.
+
+**Approach** (staged; each stage shippable alone):
+1. **Two axes, not one list**: `data-mode="light|dark"` (surfaces/text/borders) ×
+   `data-accent=<hue>` (selection, primary, focus, presence). Keep the existing
+   `light|dark|blue|emerald` props as `mode` + accent aliases (no API break); set
+   `color-scheme` per mode and let `light-dark()` collapse the duplicated 66-var blocks.
+2. **Tokenise the palette-baked components**: kit Modal/Dialog/Button/Seg/DatePicker read
+   semantic vars only (no Tailwind zinc/blue strings in kit JS); add `Modal theme` — the
+   first real light modal. Keep base surfaces >=95% alpha or opaque; use alpha for hover,
+   selected and borders. A fully translucent base changes contrast with whatever scrolls
+   behind it, compounds across modal > menu > tooltip, and `backdrop-filter` is expensive
+   on iPad while the overlay morph animates transforms.
+3. **App adoption, surface-by-surface**: convert one modal family first (Day Manager +
+   Day Events) from `*-zinc-*` to tokens, then expand. Never half-flip an ambient mode.
+4. **Optional accent-tinted surfaces**: a `surface="tinted"` modal variant (accent-derived
+   OPAQUE fill + hairline + tinted scrim) — never a raw hex prop. Arbitrary project colour
+   = generate an OKLCH scale from one seed + contrast-guard foregrounds; not "pick any
+   colour" unguarded. Neutral surface + accent edge/icon/scrim is the tasteful default:
+   a modal wearing the header's full colour loses its raised read.
+
+**Progress (stage 1 — shipped 2026-10-26, kit v0.1.115)**: two-axis theming is live.
+- **Surface ownership**: `ThemeProvider` (context) / `ThemeScope` (attrs) carry
+  `mode` × `accent` × `surface` × `context`; `Modal` provides the theme to its whole
+  subtree (portals included), and every portaled root re-writes the axes. Explicit
+  component props still win.
+- **Accent ladder**: `--ui-accent-50…950`; `surface="accent"` = `accent-950` header
+  (THE app-header colour, white title), NEUTRAL body, `accent-100` wells/footer,
+  `accent-900` card/calendar headers; the calendar BODY and checklist/radio panels stay
+  NEUTRAL. Outlines are ALWAYS neutral (`--ui-border` / `--ui-border-strong`) — colour
+  is fills/bands only. Selection/hover/checked/button-hover/active derive from the
+  accent; `zinc` = neutral selection (kit default, no blue). Text contrast tuned per mode.
+- **Components**: tokenised Modal shell (`theme`/`accent`/`surface` + `color-scheme`),
+  footer buttons, Tooltip, CardSection (accent header + count chip), DatePicker (accent
+  header/footer, neutral body), Seg (neutral outline/labels, accent pill), Button
+  (ambient mode/accent, accent primary + hovers + active), ambient menus.
+- **Playground**: Theme lab (mode/accent/surface, chrome header menu, full dummy modal,
+  a surface menu opened inside it, state strip); `modal-portal.spec.ts`.
+
+**Progress (stage 2 — shipped 2026-10-26, kit v0.1.116)**: the app-shape pass.
+- **Neutral means neutral**: `surface="neutral"` now resolves the accent to `zinc` for
+  its whole subtree — selection/checks/Seg/date chips/selected rows have no accent inside
+  a normal modal. `surface="accent"` keeps the ladder. `context="chrome"` (app header/tabs)
+  always keeps the project colour. A nested accent-only `ThemeProvider`/`ThemeScope` is a
+  manual Lego override; declaring `surface="neutral"` re-neutralises.
+- **Dialogs** inherit the neutralising surface too; `DialogProvider` accepts
+  `theme`/`accent`/`surface`; confirm actions use the accent only where it applies, and
+  destructive confirms stay danger-red.
+- **Grouped menus**: `DropdownItem group="Set"` renders category headers in normal AND
+  searchable menus; a searchable query matches the group label (`set` → the whole Set
+  category), and filtered-out groups drop their headers. This is the kit foundation for
+  the locations picker.
+- **Playground**: neutral-surface + Lego assertions in `modal-portal.spec.ts`; grouped
+  searchable/plain demos + `searchable-dropdown.spec.ts`; suite caps 15/84 → 15/85.
+- **App**: the `Modal` shim maps every project kind to `surface="neutral"` (local zinc,
+  Drive blue identity, shared emerald identity); Drive/shared colour stays in the chrome.
+  A per-call `surface="accent"` / local accent override remains available. The app branch
+  adopts kit v0.1.116; modal bodies remain hardcoded dark (see 310).
+**Remaining**: app content tokenisation (310), chrome onto kit scopes (311), grouped
+picker adoption (312), RichTextEditor/FormatToolbar/`TB_*` (313), optional seed→OKLCH
+generator for arbitrary colours. No mass-regex sweep — one surface family at a time.
+
+**Verify**: kit playground spec per primitive × mode × accent; app: converted family green
++ rule-7 visual pass (light modal on page + dark modal in Day Manager); unit test for the
+seed→scale mapper if stage 4 lands.
+**Relations**: builds on 56 (promote AND tokenise EntityDropdown in the same move), 248
+(blue/emerald chrome become accent presets), 216/202 (Seg/NumberInput `theme` props), 59
+(overlay dimming). Updates DESIGN-LANGUAGE §two-layer surface model + UI-KIT §Theming.
+
+## 310. App surface tokenisation — modal + page content (`[ ]`, big)
+
+**Request**: kit v0.1.116 tokenised the Modal SHELL (302), but app-rendered content still uses
+hardcoded utilities — 2,176 `*-zinc-*` classes across 171 files + blue/emerald chrome classes, and
+zero `--ui-*` references. A light/accent modal today would be a themed frame with dark app content.
+
+**Phases**:
+1. **Pilot — Production → Days (Day Manager) + Day Events modal**: replace surface/text/border/fill
+   utilities with semantic tokens (`bg-[var(--ui-*)]`, `text-[color:var(--ui-*)]`,
+   `border-[color:var(--ui-*)]`); keep kit input/button/row recipes. Do not half-flip a family.
+2. **Expand by family** (one PR each): Link Manager, Crew Links, Call Times, then page surfaces.
+   Never bulk-regex across the app.
+3. Add a **dev-only light-modal harness** (or test query) so the pilot can be checked at light/dark ×
+   zinc/blue/emerald without shipping a user-facing toggle.
+4. Update DESIGN-LANGUAGE §Modal/§surfaces + AGENTS UI Primitives once the pattern is proven.
+
+**Files**: `src/components/production/day/**`, `src/components/calendar/DayEventsModal.tsx`,
+shared rows/cards (`ItemRow`, `CardSection` consumers), `src/index.css` for missing tokens.
+**Verify**: `npm run lint`; `npm run test:unit`; one behavioural e2e per touched modal (no visual
+assertions); rule-7 manual pass desktop + iPad at both modes.
+**Relations**: 302 (parent), 171, 98, 311. Blocked by 302 stage 2 (kit v0.1.116 shipped).
+
+## 311. App chrome → kit ThemeScope (`[ ]`)
+
+**Request**: the app header/tabs still build their fills from `PROJECT_CHROME` Tailwind class strings
+(`bg-zinc-950` / `bg-blue-950` / emerald) and pass explicit menu/Seg presets. Put the chrome on the
+kit's ambient theme so header, tabs, menus and modal surfaces share ONE source.
+
+**Approach**: `AppHeader.tsx`, `PageToolbar.tsx`, `ScheduleToolbar.tsx`, `CalendarTab.tsx`,
+`ProductionTab.tsx`, `managerShell.tsx`: keep `useProjectTheme()` as the identity source, wrap the
+header/tab strip in `ThemeScope mode="dark" accent={…} context="chrome"`, and replace
+`PROJECT_CHROME` fills/hovers/rings with `--ui-accent-header-*` / `--ui-tab-*` roles. Keep
+`barHex` for the status-bar tint. Remove explicit `theme` props only where the chrome scope supplies
+the same value.
+
+**Verify**: local/Drive/shared manual pass (header, tabs, menus, status bar); existing header/tab
+and menu e2e; no change to local zinc look.
+**Relations**: 302, 248. Pairs with 310 (content) — chrome and body must agree.
+
+## 312. Grouped pickers → kit searchable dropdown (`[ ]`)
+
+**Request**: the kit's `DropdownMenu searchable` now supports `DropdownItem group` headers and
+search-by-category. The app's shared `GroupedSelect` (Day Manager locations, crew links, copy day,
+call times) still uses the bespoke `DropdownPanel` with headers but NO search. Move the primitive to
+the kit so every consumer gets groups + category search once.
+
+**Approach**: rewrite `src/components/production/day/GroupedSelect.tsx` internals on the kit
+`DropdownMenu`/`DropdownItem`, keeping the public props/API (`items`, `selectedIds`, `onChange`,
+`mode`, `theme`, `hint`, `disabled`). Map `{id,name,group,hint}` → `DropdownItem group={…}` with the
+hint as trailing muted text; keep the kit's portal, flip, coarse sizing and touch dismissal.
+Scene-derived locations stay ungrouped (first section). No parallel panel, no second positioner.
+
+**Verify**: `e2e/day-manager.spec.ts` + `e2e/locations.spec.ts`; type `set`/`hospital` in the Day
+Manager locations picker, groups follow the filtered set; crew links/copy day/call times smoke;
+iPad flip + touch dismissal. Update `scripts/smart-test.mjs` RULES for the shared file.
+**Relations**: 171 (locations overhaul), 56 (EntityDropdown later), 302 (kit grouped menu).
+
+## 313. Kit RichTextEditor / FormatToolbar tokenisation (`[ ]`)
+
+**Request**: the last kit surface that is dark-only. Move `RichTextEditor`, `FormatToolbar` and the
+`TB_*` editor chrome onto `--ui-*` tokens so they follow mode/accent/surface like every other
+primitive (302).
+
+**Approach**: kit `src/RichTextEditor.tsx`, `src/FormatToolbar.tsx`, `src/EditorChrome.tsx` `TB_*`
+recipes; replace zinc/blue literals with token classes; set `data-mode`/`data-accent` on the editor
+root; keep ProseMirror content styles and staged-token behavior. Light + dark + accent surfaces.
+**Verify**: kit `rich-text-formatting.spec.ts` + `rich-text-staged-tokens.spec.ts` in both modes;
+`npm run lint`; no app adoption until the kit tag ships.
+**Relations**: 302. App adoption follows through 310 when a modal hosts the editor.
 
 ## 97. Developer/agent API + MCP server for the app (`[ ]`)
 
@@ -521,21 +636,19 @@ stays; the ship path to everyone moves here). `depends on` 97 stage 1.
   edits and undoes a project end-to-end; helper is unreachable from non-app
   origins; project data survives app restart.
 
-## 157. Cast performer ("Artiste") — person + contact details on cast elements (`[ ]`, big)
+## 307. Element properties — per-category custom fields (MMS `PropertyDefinition` parity) (`[ ]`, NEEDS CONVERSATION FIRST)
 
-**Request**: a cast element is the character; users must record the actual
-performer playing them — name + contact details like crew has (phone/email) —
-shown in the cast call-times block (labelled "Artiste") and available to
-reports.
-- Scope first: decide the model — extend `CastMember` (`types.ts`) with
-  performer fields or link a crew-person record (reuse item 146's crew person
-  shape; never duplicate `project.crew`). One source of truth; migration on
-  local load AND `readDriveProject`.
-- Surfaces: Element Manager cast table/columns, `ELEMENT_CALL_FIELDS`
-  (`reportFields.ts:230-236`) + call-times block labels, cast report fields.
-- **Verify**: Vitest for migration + read model; targeted e2e only if
-  call-times output changes (wrong name/contact = silent).
-- **Relations**: 111, 146; 11/44 are links, not the store.
+**Requested 2026-10-26 (user, in the element-view conversation):** "manage all
+properties per element … should support not only cast". MMS gives every category
+its own `PropertyDefinitionList` (Cast: Full Name/Phone/Agent/…; Props: …) and
+renders those as per-element fields.
+
+- Open questions: user-defined fields per category vs a fixed built-in set;
+  where definitions live; migration + import mapping from
+  `CategoryMgr/PropertyDefinition`; how the manager / Glide / reports register
+  dynamic fields; defaults, required fields, merge/rename/delete behaviour.
+- **Do NOT build before that conversation.** 157 covers the fixed CAST set only.
+- **Relations**: `depends on` **157** + **306**; `relates to` **40/41**.
 
 ## 158. Reports designer — Requirements table block (FUTURE, parked) (`[ ]`)
 
@@ -808,60 +921,25 @@ visually; `npm run lint`.
 
 **Relations**: `relates to` **229** (collab entitlement + shared gating), **145** (desktop app = the true offline host), **209** (account question).
 
-## 257. Element Manager — Board IDs for every element category (MMS parity, Option A) (`[ ]`)
+## 305. Board IDs in display surfaces — "N. NAME" everywhere (`[ ]`, second pass of 257)
 
-**Requested 2026-10-15 (user):** Movie Magic numbers every element — its
-`<Element>` records carry `BoardID` + `LockBoardID` + `SortOrder` (the
-`wonderful-life.msd` fixture: Cast 1..59, all 99 Props and 11 Vehicles numbered,
-other categories blank; `CategoryMgr` has a per-category `AutoAssignIds` flag) —
-while Lemon only numbers cast. Give every category MMS-style Board IDs and stop
-discarding the file's real numbers on import.
+**Request**: 257 stores a per-category Board ID but shows it only in the Element
+Manager. This pass surfaces it where users read elements: EntityDropdown item
+prefixes, Breakdown Sheet / Element Breakdown print, DOOD, call sheets, report
+ordering and the `dayView` board ID column — the deferred list from 257.
 
-**Model — numbers as labels, references unchanged (Option A, user's pick).** Cast
-keeps `CastMember.id` as its Board ID; `ProjectElement` (every other category)
-gains `boardId` (numeric string, per-category from 1). Scenes keep referencing
-non-cast categories by NAME — MMS's own `ElementRef`s carry only
-`CategoryName`+`ElementName` (`msd.ts:174-186`), so numbers are registry-side
-identity, not the reference. Consequence (accepted): renames still cascade and
-duplicate names still merge (the `MergeRowsModal` flow stays), and cast stays the
-one id-keyed category for refs (`isIdKeyed`, `elements.ts:16`) — no key-space
-change.
-
-**Decisions (user, 2026-10-15).**
-- Per-category numbering starting at 1 (Props 1..n, Vehicles 1..n, …).
-- Auto-assign the next free number on element create — editable + lockable in
-  the Element Manager for EVERY category. Reuse the cast machinery, don't fork:
-  `lockedElementIds` is already per-category (`types.ts:869-870`),
-  `TOGGLE_ELEMENT_LOCK` is generic (`actions/breakdown.ts:487-499`); only the
-  column / lock / Auto-ID UI and the allocator are gated on `isCast`
-  (`ElementManager.tsx:313-363` `commitCast`, `:454-481` sort + Auto-ID,
-  `:609,628-645` column + lock). Auto-ID contract verbatim: fill empty ids
-  (continuing after the highest), never touch locked ones, one undo batch.
-- Typing a NUMBER does NOT select an element — numbers are display-only for now.
-- Existing projects: one-time migration assigns sequential numbers per category
-  in stored order (idempotent, no scene rewrites).
-- MMS import reads real ids: `msd.ts` currently ignores `BoardID` (cast ids are
-  re-derived by counting ElementMgr order at `:352-384` — coincidence in the
-  fixture, unvalidated) and drops Props/Vehicles numbers. Read
-  `BoardID`/`LockBoardID` per element; cast ids come from the attribute (keep
-  the counting fallback for blank ids).
-
-**"N. NAME" display surfaces — DEFERRED (user: discuss later).** Candidate list
-for the follow-up pass only, do not build now: `EntityDropdown` prefixes,
-Breakdown Sheet / Element Breakdown print, DOOD, call sheets, and widening
-`sortReportElements` (`reportData.ts:813`, cast-by-id today) + the `dayView`
-`boardId` field (cast-only) to all categories.
-
-- **Verify:** Vitest — per-category allocator (next free, gaps, locked skipped),
-  migration (stable, idempotent), msd mapping (cast from `BoardID`, Props/
-  Vehicles preserved, blank fallback); e2e only where silence would hurt:
-  renumbering a boardId must never rewrite `scene.*` (debug-bridge assertion),
-  plus the manager commit paths (`e2e/new-cast-naming.spec.ts` is the template).
-  Column/prefix UI = rule-7 manual pass (deferred surfaces anyway).
-- **Relations:** `extends` **122** (cast-only lock/Auto-ID — generalized here)
-  and **143** (report ordering by Board ID — candidate to widen, second pass);
-  `relates to` **228** (name-typed cast guard), **157** (cast details),
-  **40/41** (MSD/SEX import — real BoardIDs).
+- Scope: widen `sortReportElements` (`reportData.ts`, cast-by-id today) to every
+  category's `boardId`; `dayView.ts` `boardId` + `reportData.ts`
+  `ReportElementCallItem.boardId` (`cat === 'cast' ? key : undefined`); label
+  `ELEMENT_CALL_FIELDS.elementCallId` "Cast ID" → "Board ID"; `EntityDropdown`
+  prefixes; print / DOOD / call-sheet renderers.
+- Decisions at pickup: which surfaces show "N. NAME" vs a separate column;
+  whether report element lists sort by number by default (ties by name).
+- **Verify**: Vitest for the ordering/field resolvers; e2e only where silence
+  would hurt (call sheet columns, report ordering); print/DOOD are rule-7 manual.
+- **Relations**: `depends on` **257** (numbers stored/imported); `extends` **143**
+  (cast-only report ordering); `relates to` **157** (performer details add
+  fields), **111/112** (call-times grids), **172** (search).
 
 ## 262. File → Help — Send feedback / support entry (`[ ]`)
 

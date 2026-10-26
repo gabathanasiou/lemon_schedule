@@ -448,11 +448,31 @@ export interface HeadingAliases {
 export interface CastMember {
   id: string;
   name: string;
+  /** Performer + booking details (roadmap 157) — the MMS Cast Members
+   *  properties, all optional so older projects need no migration.
+   *  `performer` is MMS "Full Name"; `email` is a Lemon addition (MMS has no
+   *  email); `per` is MMS "Per" (rate basis). */
+  performer?: string;
+  phone?: string;
+  email?: string;
+  agent?: string;
+  agentPhone?: string;
+  address?: string;
+  rate?: string;
+  per?: string;
+  notes?: string;
 }
 
 export interface ProjectElement {
+  /** Stable registry key (initialised to the name at creation, kept across
+   *  renames). Scenes reference non-cast categories by NAME, not this id. */
   id: string;
   name: string;
+  /** MMS-style Board ID — numeric string, unique per category, 1-based
+   *  (roadmap 257). A label, never a reference: scenes keep referencing
+   *  non-cast categories by name. Cast's Board ID is `CastMember.id` and is
+   *  never duplicated here. */
+  boardId?: string;
 }
 
 /** One-way anchor→linked element link (roadmap 44). Anchor owns the link;

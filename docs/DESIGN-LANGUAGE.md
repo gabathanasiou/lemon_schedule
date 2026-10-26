@@ -363,6 +363,15 @@ distinct from the highlight: dark `bg-zinc-800/40 text-zinc-100` + trailing `Che
 scrolls the active row into view** — pointer hover never moves the list (item 187; `EntityDropdown`
 gates its `scrollIntoView` on `hoverRef`).
 
+**Committed values as per-value chips — considered, declined (retired roadmap 50).** A tag-input
+variant would render pills only in the CLOSED trigger: the value IS the input (caret-at-end append,
+Backspace, Enter/Tab commit, Glide callbacks), so the text-editing model stays underneath. The kit
+has no generic Chip primitive (`TokenChipView` is tied to the contenteditable token editor), and
+multi-value chip triggers wrap/overflow single-line modal rows. Revisit only when a requirement
+needs per-item affordances (per-chip × to remove one attachment/linked value without retyping, or
+category-coloured chips — items 45/46's calendar event chips are the precedent); then build it as a
+new `variant="tags"` (default untouched) on an experimental branch, Link Manager multi rows first.
+
 **Single-highlight rule (kit menus AND context menus — the kit `DropdownMenu`/`DropdownSubmenu`/
 `ContextMenu` share the panel's highlight model, item 64)**: the one lit row is `.ui-item-highlighted`
 (kit `tokens.css`) — written by pointer hover AND the keyboard arrows (latest wins; `onPointerLeave`
@@ -401,18 +410,31 @@ Schedule stripboard, not popout editors).
 ## Modal anatomy & rules
 
 Structure (all in `src/components/Modal.tsx`):
-- **Header** (`:177`): `flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 bg-zinc-950`, `cursor-grab`, **draggable** by pointer-capture; icon (`text-zinc-400`) + title `text-xs font-bold text-white truncate` (`:184`) + optional Reset (`:190`) + close X `text-zinc-500 hover:text-white` (`:195`).
-- **Body** (`:201`): `overflow-y-auto flex-1 bg-zinc-900 text-zinc-100`; content carries `p-6 space-y-5`.
-- **Footer** (`ModalFooter`, `:227-233`): `flex items-center justify-end gap-3 px-5 py-2 border-t border-zinc-800 bg-zinc-950`.
+- **Theme (roadmap 302)**: the shell reads kit tokens, never Tailwind zinc. `theme` picks the mode
+  (`light | dark`; default = ambient `ThemeScope`, else dark), `accent` (`zinc | blue | emerald`)
+  is project identity, and `surface="accent"` opts into the accent ladder: `accent-950` header (THE
+  app-header colour, white title), NEUTRAL body, `accent-100` wells/footer. Every normal app modal
+  uses `surface="neutral"`: light/dark shell, **no accent inside** (selection/checks/Seg/date chips
+  are neutral) — Drive/shared keep their blue/emerald colour in the chrome (header/tabs), not in the
+  modal. Card and calendar headers use `accent-900` only on an accent surface; the calendar body +
+  checklist/radio panels stay neutral; every outline stays neutral (`--ui-border` /
+  `--ui-border-strong`). A nested accent-only `ThemeProvider`/`ThemeScope` is a manual Lego
+  override. The app's `src/components/Modal.tsx` shim maps the open project
+  (`projectModalThemeOf`); callers can override either prop. `color-scheme` follows the mode.
+- **Header**: `flex items-center justify-between px-5 py-2.5 border-b border-[var(--ui-modal-header-border)] bg-[var(--ui-modal-header-bg)]`, `cursor-grab`, **draggable** by pointer-capture; icon (`text-[var(--ui-modal-icon)]`) + title `text-xs font-bold text-[var(--ui-modal-title)] truncate` + optional Reset (`text-[var(--ui-modal-muted)] bg-[var(--ui-modal-control-bg)]`) + close X (`text-[var(--ui-modal-muted)] hover:text-[var(--ui-modal-title)]`).
+- **Body**: `overflow-y-auto flex-1 bg-[var(--ui-modal-body-bg)] text-[var(--ui-modal-body-text)]`; content carries `p-6 space-y-5`.
+- **Footer** (`ModalFooter`): `flex items-center justify-end gap-3 px-5 py-2 border-t border-[var(--ui-modal-border)] bg-[var(--ui-modal-header-base)]` (the NEUTRAL band, so an accent header stays the only tinted strip).
 - **Footer buttons — one hero, rest ghost**: every modal footer has exactly ONE hero button — the
   primary action — and EVERY other button (Cancel, secondary actions, Import) is the ghost style.
   Use the kit's `ModalFooterButton` (`src/components/ModalFooterButton.tsx` re-export) — never
-  hand-write footer classes. Variants: `hero` (default; solid
-  `bg-zinc-800 text-white border-zinc-700`, e.g. "+ New Project" in the Project Manager), `ghost`
-  (e.g. "Import"), `danger` (text+ghost destructive, left-aligned with `mr-auto` — Delete), and
-  `danger-solid` (red confirm — Delete Selected). Sizes (coarse-aware `px-6 py-2` /
-  `px-7 py-2.5 text-sm`), icon spacing (`gap-2`) and disabled states are baked in. A single-button
-  footer IS the hero (Close). No second hero; async heroes swap to a `Loader2` spin + `disabled`.
+  hand-write footer classes. Variants: `hero` (default; solid `--ui-footer-hero-*`, e.g. "+ New
+  Project" in the Project Manager), `ghost` (e.g. "Import"), `danger` (text+ghost destructive,
+  left-aligned with `mr-auto` — Delete), and `danger-solid` (red confirm — Delete Selected). The
+  hero's `tone="accent"` uses the project accent (`--ui-accent-solid`) — pass it from
+  `projectAccentOf(useProjectTheme())` when the action should wear the chrome. Sizes (coarse-aware
+  `px-6 py-2` / `px-7 py-2.5 text-sm`), icon spacing (`gap-2`) and disabled states are baked in. A
+  single-button footer IS the hero (Close). No second hero; async heroes swap to a `Loader2` spin +
+  `disabled`.
 - **No manual resize** — the modal auto-fits its content (content-driven height changes animate,
   see Morph below); drag-to-move by the header is the only manual geometry control. Default
   width comes from the `width` prop (`max-w-* w-full`, else `max-w-xl`) clamped by

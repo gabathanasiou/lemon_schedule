@@ -25,10 +25,20 @@ Status: read this before touching any import/export work.
 - `parseMsdFile` builds a COMPLETE `Project` via `importProjectFromData`,
   new-project-only.
 - Reference parser: `tools/msd_probe.py`; golden: `e2e/fixtures/wonderful-life.expected.json`.
-- **Cast ids are sequential integers in MMS roster order** = the "Board IDs"
-  MMS assigns (ElementMgr registry order — George=1, Mary=2; the UI calls them
-  "Board ID"; `scene.cast` stores the ids; sheet-only names append after the
-  roster).
+- **Board IDs come from the file** (roadmap 257): each `<Element>` carries
+  `BoardID` + `LockBoardID`; those numbers are preserved per category
+  (`ProjectElement.boardId`), gaps and all. Cast ids use `BoardID` (George=1,
+  Mary=2) with the ElementMgr counting order as the fallback for blank ids;
+  `scene.cast` stores the ids. `CategoryMgr/AutoAssignIds` is NOT a numbering
+  switch (the fixture has it `0` everywhere while Props/Vehicles/Cast carry
+  numbers). Categories the file left blank are numbered by
+  `migrateElementBoardIds` on import.
+- **Cast performer details** (roadmap 157) come from each cast `<Element>`'s
+  `<Property Name="…">` children: `Full Name`→`performer`, `Phone`, `Agent`,
+  `Agent Ph`→`agentPhone`, `Address`, `Rate`, `Per`, `Notes`. The DOM-free
+  mapper is `castDetailsFromMmsProperties` (`src/lib/castDetails.ts`,
+  unit-tested); blank properties and unknown names are dropped, and MMS has no
+  email — Lemon's `email` stays blank on import.
 - `pageCount` = `formatPageCount(total)` + total `pageCountDecimal`;
   `scriptPageNumbers` (script start page — MSD attr / FDX `<Page>` break
   markers, first-class Scene field for future full-FDX render).

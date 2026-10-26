@@ -7,21 +7,19 @@ import { getCrewLinksForElement } from '../../lib/crewLinks';
 import { CrewRole } from '../../types';
 import { CardSection } from '@gabriel/ui-kit';
 import Checklist from '../Checklist';
-import Modal, { ModalFooter } from '../Modal';
-import ModalFooterButton from '../ModalFooterButton';
 import { Users } from 'lucide-react';
 
 /**
- * Element Manager → Linked crew (roadmap 11, layer 2 reverse view): the crew
- * members linked to ONE element, grouped by department. Toggling writes the
- * same flat `project.crewLinks` records the Crew Links manager edits — one
- * source of truth (`lib/crewLinks.ts`).
+ * Element View → Crew tab (roadmap 11/306): the crew members linked to ONE
+ * element, grouped by department. Toggling writes the same flat
+ * `project.crewLinks` records the Crew Links manager edits — one source of
+ * truth (`lib/crewLinks.ts`). Body only: the Element View panel owns the
+ * header, tabs and footer.
  */
-export function ElementCrewLinksModal({ category, elementKey, elementName, onClose }: {
+export function ElementCrewLinksSection({ category, elementKey, elementName }: {
   category: string;
   elementKey: string;
   elementName: string;
-  onClose: () => void;
 }) {
   const { state, dispatch, locked } = useProject();
   const project = state.present;
@@ -61,46 +59,41 @@ export function ElementCrewLinksModal({ category, elementKey, elementName, onClo
     });
 
   return (
-    <Modal open onClose={onClose} title={`Linked crew — ${elementName || elementKey}`} width="max-w-lg"
-      footer={
-        <ModalFooter>
-          <ModalFooterButton onClick={onClose}>Close</ModalFooterButton>
-        </ModalFooter>
-      }
-    >
-      <div className="p-6 space-y-4">
-        <p className="text-xs text-zinc-400 leading-relaxed">
-          Crew members linked to this {categoryLabel.toLowerCase()} element. The same links appear on the person's card in
-          Crew Manager → Links.
-        </p>
-        {groups.map(g => {
-          const count = g.people.filter(p => linkedIds.has(p.id)).length;
-          return (
-            <CardSection
-              key={g.name}
-              icon={<Users className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
-              title={g.name}
-              count={`${count}/${g.people.length}`}
-              collapsed={collapsed.has(g.name)}
-              onToggle={() => toggleCollapse(g.name)}
-              dataProps={{ 'data-crew-link-group': g.name }}
-            >
-              <Checklist
-                checkPosition="trailing"
-                items={g.people.map(p => ({
-                  id: p.id,
-                  label: p.name || '(unnamed)',
-                  leading: <span className="w-44 shrink-0 text-left text-[11px] font-medium text-zinc-300">{p.role.label}</span>,
-                  dataProps: { 'data-crew-person': p.id },
-                }))}
-                selected={linkedIds}
-                onToggle={id => toggle(String(id))}
-                disabled={locked}
-              />
-            </CardSection>
-          );
-        })}
-      </div>
-    </Modal>
+    <div className="p-6 space-y-4">
+      <p className="text-xs text-zinc-400 leading-relaxed">
+        Crew members linked to this {categoryLabel.toLowerCase()} element. The same links appear on the person's card in
+        Crew Manager → Links.
+      </p>
+      {groups.length === 0 && (
+        <p className="text-xs text-zinc-500 italic">No crew roster yet — add people in the Crew Manager.</p>
+      )}
+      {groups.map(g => {
+        const count = g.people.filter(p => linkedIds.has(p.id)).length;
+        return (
+          <CardSection
+            key={g.name}
+            icon={<Users className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
+            title={g.name}
+            count={`${count}/${g.people.length}`}
+            collapsed={collapsed.has(g.name)}
+            onToggle={() => toggleCollapse(g.name)}
+            dataProps={{ 'data-crew-link-group': g.name }}
+          >
+            <Checklist
+              checkPosition="trailing"
+              items={g.people.map(p => ({
+                id: p.id,
+                label: p.name || '(unnamed)',
+                leading: <span className="w-44 shrink-0 text-left text-[11px] font-medium text-zinc-300">{p.role.label}</span>,
+                dataProps: { 'data-crew-person': p.id },
+              }))}
+              selected={linkedIds}
+              onToggle={id => toggle(String(id))}
+              disabled={locked}
+            />
+          </CardSection>
+        );
+      })}
+    </div>
   );
 }

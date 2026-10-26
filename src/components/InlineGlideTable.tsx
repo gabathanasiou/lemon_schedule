@@ -89,6 +89,9 @@ export interface InlineGlideTableProps {
   wrapHeaders?: boolean;
   /** DOM data attribute for tests/scoping (e.g. `data-day-times-glide`). */
   dataAttr?: string;
+  /** Optional category on the same wrapper (test geometry: cast grids carry
+   *  the Artiste column). */
+  dataCategory?: string;
   /** Extra context-menu items shown when the HEADER is right-clicked. Return
    *  `ContextMenuItem`s; call `close()` to dismiss the menu. Omit for the
    *  default (cell-only) context menu. */
@@ -149,6 +152,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
   baseHeaderHeight = DEFAULT_HEADER_HEIGHT,
   wrapHeaders,
   dataAttr,
+  dataCategory,
   headerMenuItems,
   rowTooltip,
   onRowHover,
@@ -712,6 +716,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
       ref={wrapperRef}
       className="inline-glide-table"
       {...(dataAttr ? { [dataAttr]: '' } : {})}
+      {...(dataCategory ? { 'data-category': dataCategory } : {})}
       data-presence-grid={presenceScope}
       onPointerLeave={() => {
         // Moving onto a floating chrome (block editor / palette) that sits over
