@@ -183,11 +183,11 @@
     },
     {
       "type": "ADD_ELEMENT",
-      "payload": "{ category: string; element: { id: string; name: string } }"
+      "payload": "{ category: string; element: { id: string; name: string; boardId?: string } }"
     },
     {
       "type": "UPDATE_ELEMENT",
-      "payload": "{ category: string; id: string; updates: { id?: string; name?: string } }"
+      "payload": "{ category: string; id: string; updates: { id?: string; name?: string; boardId?: string } }"
     },
     {
       "type": "DELETE_ELEMENT",
@@ -195,7 +195,7 @@
     },
     {
       "type": "MERGE_ELEMENTS",
-      "payload": "{ category: string; renames: { oldName: string; newName: string }[]; removes: { id: string; name: string; toTrash: boolean }[]; adds: { id: string; name: string }[] }"
+      "payload": "{ category: string; renames: { oldName: string; newName: string }[]; removes: { id: string; name: string; toTrash: boolean }[]; adds: { id: string; name: string; boardId?: string }[] }"
     },
     {
       "type": "RESTORE_ELEMENT_FROM_TRASH",
@@ -774,6 +774,11 @@
         {
           "name": "name",
           "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "boardId",
+          "optional": true,
           "type": "string"
         }
       ]
