@@ -1,6 +1,7 @@
 import { ProjectElement } from '../types';
 import { getElementsFromScenes } from '../store';
 import { getFieldItems } from './categories';
+import { canonicalBoardId } from './boardIds';
 
 /**
  * Single source of truth for breakdown elements:
@@ -58,36 +59,14 @@ export function elementKey(e: { id: string; name: string }) { return e.id || e.n
 // Cast's `CastMember.id` IS its Board ID (the value `scene.cast` stores);
 // every other category keeps a `boardId` label on `ProjectElement` while
 // scenes stay name-keyed. These helpers are the ONE place that branch lives.
+// Allocation/comparison primitives live in the leaf `boardIds.ts` (no store
+// imports) and are re-exported here so consumers have one element-facing API.
 
-/** Canonical numeric form of a Board ID ('' when blank/unusable). */
-function canonicalBoardId(value: string | null | undefined): string {
-  const raw = String(value ?? '').trim();
-  if (!/^\d+$/.test(raw)) return '';
-  return String(parseInt(raw, 10));
-}
+export { nextBoardId, compareBoardIds } from './boardIds';
 
 /** The category's Board ID for one element — cast's id, else `boardId`. */
 export function boardIdOf(e: { id: string; name?: string; boardId?: string }, category: string): string {
   return isIdKeyed(category) ? String(e.id || '') : String(e.boardId || '');
-}
-
-/**
- * Next free Board ID continuing AFTER the highest used number (the cast
- * Auto-ID contract): gaps are never filled automatically, and every number in
- * `used` is skipped. Non-numeric values are ignored; `7` and `07` collide.
- */
-export function nextBoardId(used: Iterable<string>): string {
-  const taken = new Set<string>();
-  let max = 0;
-  for (const raw of used) {
-    const id = canonicalBoardId(raw);
-    if (!id) continue;
-    taken.add(id);
-    max = Math.max(max, parseInt(id, 10));
-  }
-  let n = max + 1;
-  while (taken.has(String(n))) n++;
-  return String(n);
 }
 
 /** True when `value` is already used by a DIFFERENT element of the category.
@@ -104,15 +83,6 @@ export function isDuplicateBoardId(
     if (exceptKey !== undefined && (e.id || e.name || '__new__') === exceptKey) return false;
     return canonicalBoardId(boardIdOf(e, category)) === wanted;
   });
-}
-
-/** "Sort by Board ID" comparator — numeric, blanks last. */
-export function compareBoardIds(a: string, b: string): number {
-  const ca = canonicalBoardId(a);
-  const cb = canonicalBoardId(b);
-  if (!ca) return cb ? 1 : 0;
-  if (!cb) return -1;
-  return parseInt(ca, 10) - parseInt(cb, 10);
 }
 
 /**

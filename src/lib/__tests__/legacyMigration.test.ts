@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { migrateLegacyCastMirror, migrateLegacyProject, migrateCrewSlots } from '../legacyMigration';
+import { migrateLegacyCastMirror, migrateLegacyProject, migrateCrewSlots, migrateElementBoardIds } from '../legacyMigration';
 
 /** Minimal cast-bearing project shape (the functions only touch these fields). */
 function castProject(castMembers: any[], mirror: any): any {
@@ -134,5 +134,45 @@ describe('migrateCrewSlots', () => {
     const p = crewProject();
     expect(migrateCrewSlots(p)).toBe(true);
     expect(migrateCrewSlots(p)).toBe(false);
+  });
+});
+
+/** Roadmap 257 — backfill per-category Board IDs on older projects. */
+describe('migrateElementBoardIds', () => {
+  const projectWith = (elements: Record<string, any[]>): any => ({
+    castMembers: [{ id: '1', name: 'GEORGE' }],
+    breakdownElements: elements,
+  });
+
+  it('fills blanks in stored order, continuing after the highest number', () => {
+    const p = projectWith({
+      props: [
+        { id: 'A', name: 'A' },
+        { id: 'B', name: 'B', boardId: '7' },
+        { id: 'C', name: 'C' },
+      ],
+    });
+    expect(migrateElementBoardIds(p)).toBe(true);
+    expect(p.breakdownElements.props.map((e: any) => e.boardId)).toEqual(['8', '7', '9']);
+  });
+
+  it('numbers each category independently and never touches cast', () => {
+    const p = projectWith({
+      cast: [{ id: '1', name: 'GEORGE' }], // legacy mirror — skipped
+      props: [{ id: 'A', name: 'A' }],
+      vehicles: [{ id: 'V', name: 'V' }],
+    });
+    migrateElementBoardIds(p);
+    expect(p.breakdownElements.props[0].boardId).toBe('1');
+    expect(p.breakdownElements.vehicles[0].boardId).toBe('1');
+    expect(p.breakdownElements.cast[0].boardId).toBeUndefined();
+  });
+
+  it('is idempotent and leaves existing numbers alone', () => {
+    const p = projectWith({ props: [{ id: 'A', name: 'A' }, { id: 'B', name: 'B' }] });
+    expect(migrateElementBoardIds(p)).toBe(true);
+    expect(p.breakdownElements.props.map((e: any) => e.boardId)).toEqual(['1', '2']);
+    expect(migrateElementBoardIds(p)).toBe(false);
+    expect(p.breakdownElements.props.map((e: any) => e.boardId)).toEqual(['1', '2']);
   });
 });

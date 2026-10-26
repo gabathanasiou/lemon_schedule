@@ -1,6 +1,7 @@
 import { Project, ScheduleVersion, ScheduleRow } from '../types';
 import { generateUUID } from './utils';
 import { crewPeopleById } from './dayCrew';
+import { nextBoardId } from './boardIds';
 
 export interface LegacyMigrationResult {
   project: Project;
@@ -232,6 +233,31 @@ export function migrateCrewSlots(project: Project): boolean {
     changed = true;
   }
 
+  return changed;
+}
+
+/**
+ * Roadmap 257: backfill per-category Board IDs on projects saved before the
+ * field existed. Blanks get the next number continuing after the highest
+ * (stored order); existing numbers are never changed, so this is idempotent.
+ * Cast needs nothing — `CastMember.id` is its Board ID.
+ *
+ * Runs on every read path (local load, `.lemon` import, Drive, online) — the
+ * notice-free companion to `migrateLegacyProject`.
+ */
+export function migrateElementBoardIds(project: Project): boolean {
+  let changed = false;
+  const categories = project.breakdownElements || {};
+  for (const [category, list] of Object.entries(categories)) {
+    if (category === 'cast' || !Array.isArray(list)) continue;
+    const used = list.map(e => e.boardId || '');
+    for (const el of list) {
+      if (String(el.boardId || '').trim()) continue;
+      el.boardId = nextBoardId(used);
+      used.push(el.boardId);
+      changed = true;
+    }
+  }
   return changed;
 }
 

@@ -4,6 +4,7 @@ import { pruneReportTrash } from '../../store/storage';
 import { supabase } from './client';
 import { fetchAllPages } from './pagination';
 import { serializeProject, deserializeProject } from '../projectCodec';
+import { migrateElementBoardIds } from '../legacyMigration';
 
 /**
  * Online project rows (roadmap 229 S1). ONE module for every Supabase
@@ -82,6 +83,8 @@ export async function readOnlineProject(id: string): Promise<OnlineReadResult> {
   if (error || !data) throw new Error(error?.message || 'Project not found');
   const row = data as Pick<ProjectRow, 'data' | 'revision'>;
   const project = deserializeProject(row.data);
+  // Roadmap 257: shared projects saved before Board IDs get their numbers.
+  migrateElementBoardIds(project);
   // Roadmap 275: report-design trash is pruned on read, same retention as
   // local loads and Drive reads (shared projects used to accumulate it).
   if (Array.isArray(project.reportTrash)) {
