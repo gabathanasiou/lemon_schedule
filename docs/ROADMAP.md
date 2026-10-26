@@ -521,18 +521,6 @@ stays; the ship path to everyone moves here). `depends on` 97 stage 1.
   edits and undoes a project end-to-end; helper is unreachable from non-app
   origins; project data survives app restart.
 
-## 156. Crew table block — contact details + "Report to" (`[ ]`)
-
-**Request**: the `crewTable` report block needs **report-to** info (who/where
-the crew reports to — location/contact; user-confirmed not a time).
-- SHIPPED: Phone/Email columns (static `CREW_FIXED` + the interactive
-  `CrewTableGlide`) — `reportGrids.ts`, `CrewTableGlide.tsx`.
-- Remaining: decide the report-to source (per-person/per-slot field on the
-  item-146 crew model vs crew links) — one owner, no parallel model.
-- **Verify**: rule-7 manual + `e2e/report-grid-blocks.spec.ts` only if the write
-  path changes.
-- **Relations**: 112, 146.
-
 ## 157. Cast performer ("Artiste") — person + contact details on cast elements (`[ ]`, big)
 
 **Request**: a cast element is the character; users must record the actual
@@ -759,7 +747,6 @@ equality, reload keeps the size, Fit modes unchanged.
 **Relations**: overlaps **160** (page geometry/scale — the single metrics source;
 its scale control must compose with this, not fork it); reuses **188**'s resize
 recipe; touches **212** (call-sheet editor inherits the same canvas).
-
 
 ## 215. Reports — unlock chained reference navigation (roadmap 196 child steps) (`[ ]`, gated, parked)
 
@@ -1156,111 +1143,3 @@ future … not able to edit day manager stuff for days that are past today."
   handles the API-call side; this is a workflow guard against rewriting
   history.
 - **Verify:** manual pass per surface; the lock must never block undo/history.
-
-## 314. Day Manager — compact Day Details + Breaks & Notes card (`[~]`)
-
-**Asked 2026-10-26 (user):** "the Day Details card … very long and a bit confusing …
-let's see how we can redesign it so it's more readable and displays the right information
-that makes sense and how we can save space." Agreed shape (2026-10-26): a compact
-overview card, with breaks/notes/announcements in their own card; category tabs later
-(315).
-
-**Design:** Day Details drops the `Field | Value` table. Title-case date + day number +
-day-type pill; one muted stats line (scenes · pages · cast · elements); three timing
-tiles (general call with a pencil affordance, first turnover, est. wrap + day length);
-one location/weather strip: a **master-location picker** over the day's attached
-locations — the **category entity dropdown** (Locations DB grouped by location type,
-searchable by name/group; writes `setDayMaster`) — + the one-line forecast with the
-card-owned refresh and the `Manual weather` toggle. The old toolbar weather chip is
-removed. Breaks,
-stripboard notes and the free-text announcements move to a new full-width **Breaks &
-Notes** card (registry `wide`, after Scenes), which owns the Copy-from-day extract; Day
-Details is no longer copyable. No data-model change.
-
-- **Scope:** `sections/DayDetailsSection.tsx`, `sections/BreaksNotesSection.tsx`
-  (announcements move in), `daySectionRegistry.tsx`, `TimeField.align` (left-aligned
-  tile value), `DayManagerPage.tsx` + `daySectionTypes.ts` (weather refresh moves into
-  the section; `DayWeatherChip.tsx` deleted), `components/location/LocationEntityDropdown.tsx`
-  (the standalone category picker), `e2e/day-manager.spec.ts` (section/textarea
-  selectors, Copy-from-day pick, master-picker leg), docs (`AGENTS.md`,
-  `DESIGN-LANGUAGE.md`, `UI-PRIMITIVES.md`, `REPORTS-DESIGNER.md` — including the new
-  **grouped-dropdown rule**: locations by type, crew by department/position).
-- **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`; rule-7 manual
-  for the card layout/alignment and the weather refresh.
-- **Relations:** 98, 101, 301; precedes 315.
-
-## 315. Day Manager — category tab strip (`[~]`)
-
-**Asked 2026-10-26 (user):** "making the whole day manager have a segmented control or
-tabbing system where I can jump between different categories like locations, call times,
-crew and all of that. Or an all category where I can see all cards at the same time."
-Agreed after the card-by-card pass (314).
-
-**Design:** a centered category strip at the top of the page content (it scrolls with
-the page — NOT sticky): **Overview (default)** · **All** (today's stacked page) ·
-**Locations** · **Scenes** · **Call Times** · **Crew**. Use the mini-tab recipe (kit
-`Button variant="tab"` + `useSlidingPill`/`TAB_PILL`, icons + labels, no counts). A tab
-shows its sections full-width. Overview is the default and is omitted from the hash
-(`#/production/days`); All is explicit (`#/production/days/manager/all`). The active tab
-is part of the presence place (`PresenceView.dayTab`), so cursors/selection are gated by
-it and following switches the tab. The selected day/tab survive tab changes; per-grid
-cell/range selection is cached by `InlineGlideTable` under its presence scope so it
-survives the tab unmount/remount. This is a lighter stepping stone to 142's data rail,
-not a competing surface.
-
-- **Scope:** `DayManagerPage.tsx` (filtered rendering, centered tab row),
-  `daySectionRegistry.tsx` (tab grouping), `src/lib/dayTabs.ts`,
-  `src/lib/appNav.ts` + `src/App.tsx` (place field), `InlineGlideTable.tsx` (selection
-  cache), `src/lib/supabase/presence.ts` (`dayTab` gate/follow), pop-out parity.
-- **Verify:** unit `appNav` + `presence`; e2e back/forward + reload keeps the tab and
-  Overview is the landing tab; rule-7 manual for the centered strip and selection
-  survival.
-- **Relations:** 98, 142 (later rail), 176, 314.
-
-## 316. Day Manager — Events + Conflicts cards (`[~]`)
-
-**Asked 2026-10-26 (user):** "Events + Conflicts" next in the card-by-card pass.
-
-**Design:** Conflicts is an alert, not a permanent section — the whole card
-(header included) is skipped when the day has no rule violations; the toolbar
-pill already appears only when there are conflicts. Events keeps its card when
-empty but collapses to ONE header row: title + `None` summary + a kit
-`Add event…` trailing action; the section body returns null. With events, the
-body reuses the Calendar's per-element **`EventCardView`** at `size="md"` (type
-tint/icon + name + note marker; status chip + kit `Manage events…`), so a card
-is readable in the page card — clicking an element card opens the single-event
-`EventModal` (calendar parity), whole-category/status opens `DayEventsModal`.
-The header still adds. `DaySectionDef.hideWhenEmpty` is the registry switch;
-`DaySectionCard.collapsible={false}` drops the chevron for a card with no body;
-the page no longer injects a generic "Nothing here yet." body — sections own
-their empty state.
-
-- **Scope:** `daySectionRegistry.tsx` (`hideWhenEmpty`, shared element-level
-  `eventCount`, Events `isEmpty`), `DayManagerPage.tsx` (visible-section filter,
-  Events trailing action, `eventEditor` + `EventModal`, no empty placeholder),
-  `DaySectionCard.tsx` (`collapsible`), `sections/EventsSection.tsx`,
-  `sections/ConflictsSection.tsx`, `calendar/EventDayCell.tsx`
-  (`EventCardView.size`), `daySectionTypes.ts` (`openEvent`), docs
-  (`AGENTS.md`, `DESIGN-LANGUAGE.md`).
-- **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`;
-  rule-7 manual at 1440px + iPad (empty band, event-card click opens the
-  single-event editor, conflict hidden on a clean day).
-- **Relations:** 98, 314; completes the card pass before 315.
-
-## 317. Day Manager — Locations card empty state (`[~]`)
-
-**Asked 2026-10-26 (user):** continue the card-by-card pass; next is Locations.
-
-**Design:** an empty Locations card is ONE dashed CTA row — `No locations on this
-day.` + the kit `Add location` menu — instead of the old instruction line + empty
-Glide grid + footer (162px → ~100px). With rows, the Glide board and its footer add
-action are unchanged. The master hint now lives in Day Details (which owns the
-picker); the registry summary says `No locations`.
-
-- **Scope:** `sections/LocationsSection.tsx` (empty CTA, extracted add menu, no
-  instruction line), `daySectionRegistry.tsx` (summary), docs
-  (`DESIGN-LANGUAGE.md`).
-- **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`;
-  rule-7 manual at 1440px + iPad (empty + populated).
-- **Relations:** 156 (the Locations board), 171 (remaining nearby-field removal),
-  314/316 (card pass), before 315.
