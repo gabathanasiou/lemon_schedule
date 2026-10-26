@@ -51,7 +51,9 @@ kit instead." The genuinely-shared components that are still app-local should mo
 - **`RuleCard`** — the shared rule card (light + dark themes, conflict-count badge, cast-aware
   `describeRuleDetailed`); used by the Rules tab + day modal Rules tab.
 - **`EntityDropdown`** — the cast/element picker (multi/single/chip variants); the app's largest
-  bespoke primitive, used everywhere.
+  bespoke primitive, used everywhere. Kit v0.1.116 now ships grouped + category-searching
+  `DropdownMenu`/`DropdownItem` (302 stage 2) — move the picker panel onto that instead of forking
+  the new group/search logic into `DropdownPanel`.
 
 Per item: bump `@gabriel/ui-kit` (`package.json` → `@gabriel/ui-kit#v0.1.x`), re-verify the
 DESIGN-LANGUAGE §Primitive matrix + Recipes class strings, update this roadmap + the matrix in the
@@ -59,7 +61,7 @@ same commit. The events-mode day cells and section tabs stay bespoke; icon-only
 buttons move to the kit via **216** (the "icon-only is the documented exception"
 note is retired).
 
-## 302. UI-kit theming — mode × accent, every primitive token-driven (`[~]`, NEEDS DECISION FIRST)
+## 302. UI-kit theming — mode × accent, every primitive token-driven (`[~]`, big)
 
 **Request** (2026-10-26): make EVERY kit primitive themeable by colour — light-theme
 modals, or a modal that matches the app header's project chrome — instead of today's
@@ -133,9 +135,11 @@ modals, or a modal that matches the app header's project chrome — instead of t
   searchable/plain demos + `searchable-dropdown.spec.ts`; suite caps 15/84 → 15/85.
 - **App**: the `Modal` shim maps every project kind to `surface="neutral"` (local zinc,
   Drive blue identity, shared emerald identity); Drive/shared colour stays in the chrome.
-  A per-call `surface="accent"` / local accent override remains available.
-**Remaining**: RichTextEditor/FormatToolbar/`TB_*` (dark-only), app page/menu scopes to
-retire explicit `theme` props, optional seed→OKLCH generator for arbitrary colours.
+  A per-call `surface="accent"` / local accent override remains available. The app branch
+  adopts kit v0.1.116; modal bodies remain hardcoded dark (see 310).
+**Remaining**: app content tokenisation (310), chrome onto kit scopes (311), grouped
+picker adoption (312), RichTextEditor/FormatToolbar/`TB_*` (313), optional seed→OKLCH
+generator for arbitrary colours. No mass-regex sweep — one surface family at a time.
 
 **Verify**: kit playground spec per primitive × mode × accent; app: converted family green
 + rule-7 visual pass (light modal on page + dark modal in Day Manager); unit test for the
@@ -143,6 +147,76 @@ seed→scale mapper if stage 4 lands.
 **Relations**: builds on 56 (promote AND tokenise EntityDropdown in the same move), 248
 (blue/emerald chrome become accent presets), 216/202 (Seg/NumberInput `theme` props), 59
 (overlay dimming). Updates DESIGN-LANGUAGE §two-layer surface model + UI-KIT §Theming.
+
+## 310. App surface tokenisation — modal + page content (`[ ]`, big)
+
+**Request**: kit v0.1.116 tokenised the Modal SHELL (302), but app-rendered content still uses
+hardcoded utilities — 2,176 `*-zinc-*` classes across 171 files + blue/emerald chrome classes, and
+zero `--ui-*` references. A light/accent modal today would be a themed frame with dark app content.
+
+**Phases**:
+1. **Pilot — Production → Days (Day Manager) + Day Events modal**: replace surface/text/border/fill
+   utilities with semantic tokens (`bg-[var(--ui-*)]`, `text-[color:var(--ui-*)]`,
+   `border-[color:var(--ui-*)]`); keep kit input/button/row recipes. Do not half-flip a family.
+2. **Expand by family** (one PR each): Link Manager, Crew Links, Call Times, then page surfaces.
+   Never bulk-regex across the app.
+3. Add a **dev-only light-modal harness** (or test query) so the pilot can be checked at light/dark ×
+   zinc/blue/emerald without shipping a user-facing toggle.
+4. Update DESIGN-LANGUAGE §Modal/§surfaces + AGENTS UI Primitives once the pattern is proven.
+
+**Files**: `src/components/production/day/**`, `src/components/calendar/DayEventsModal.tsx`,
+shared rows/cards (`ItemRow`, `CardSection` consumers), `src/index.css` for missing tokens.
+**Verify**: `npm run lint`; `npm run test:unit`; one behavioural e2e per touched modal (no visual
+assertions); rule-7 manual pass desktop + iPad at both modes.
+**Relations**: 302 (parent), 171, 98, 311. Blocked by 302 stage 2 (kit v0.1.116 shipped).
+
+## 311. App chrome → kit ThemeScope (`[ ]`)
+
+**Request**: the app header/tabs still build their fills from `PROJECT_CHROME` Tailwind class strings
+(`bg-zinc-950` / `bg-blue-950` / emerald) and pass explicit menu/Seg presets. Put the chrome on the
+kit's ambient theme so header, tabs, menus and modal surfaces share ONE source.
+
+**Approach**: `AppHeader.tsx`, `PageToolbar.tsx`, `ScheduleToolbar.tsx`, `CalendarTab.tsx`,
+`ProductionTab.tsx`, `managerShell.tsx`: keep `useProjectTheme()` as the identity source, wrap the
+header/tab strip in `ThemeScope mode="dark" accent={…} context="chrome"`, and replace
+`PROJECT_CHROME` fills/hovers/rings with `--ui-accent-header-*` / `--ui-tab-*` roles. Keep
+`barHex` for the status-bar tint. Remove explicit `theme` props only where the chrome scope supplies
+the same value.
+
+**Verify**: local/Drive/shared manual pass (header, tabs, menus, status bar); existing header/tab
+and menu e2e; no change to local zinc look.
+**Relations**: 302, 248. Pairs with 310 (content) — chrome and body must agree.
+
+## 312. Grouped pickers → kit searchable dropdown (`[ ]`)
+
+**Request**: the kit's `DropdownMenu searchable` now supports `DropdownItem group` headers and
+search-by-category. The app's shared `GroupedSelect` (Day Manager locations, crew links, copy day,
+call times) still uses the bespoke `DropdownPanel` with headers but NO search. Move the primitive to
+the kit so every consumer gets groups + category search once.
+
+**Approach**: rewrite `src/components/production/day/GroupedSelect.tsx` internals on the kit
+`DropdownMenu`/`DropdownItem`, keeping the public props/API (`items`, `selectedIds`, `onChange`,
+`mode`, `theme`, `hint`, `disabled`). Map `{id,name,group,hint}` → `DropdownItem group={…}` with the
+hint as trailing muted text; keep the kit's portal, flip, coarse sizing and touch dismissal.
+Scene-derived locations stay ungrouped (first section). No parallel panel, no second positioner.
+
+**Verify**: `e2e/day-manager.spec.ts` + `e2e/locations.spec.ts`; type `set`/`hospital` in the Day
+Manager locations picker, groups follow the filtered set; crew links/copy day/call times smoke;
+iPad flip + touch dismissal. Update `scripts/smart-test.mjs` RULES for the shared file.
+**Relations**: 171 (locations overhaul), 56 (EntityDropdown later), 302 (kit grouped menu).
+
+## 313. Kit RichTextEditor / FormatToolbar tokenisation (`[ ]`)
+
+**Request**: the last kit surface that is dark-only. Move `RichTextEditor`, `FormatToolbar` and the
+`TB_*` editor chrome onto `--ui-*` tokens so they follow mode/accent/surface like every other
+primitive (302).
+
+**Approach**: kit `src/RichTextEditor.tsx`, `src/FormatToolbar.tsx`, `src/EditorChrome.tsx` `TB_*`
+recipes; replace zinc/blue literals with token classes; set `data-mode`/`data-accent` on the editor
+root; keep ProseMirror content styles and staged-token behavior. Light + dark + accent surfaces.
+**Verify**: kit `rich-text-formatting.spec.ts` + `rich-text-staged-tokens.spec.ts` in both modes;
+`npm run lint`; no app adoption until the kit tag ships.
+**Relations**: 302. App adoption follows through 310 when a modal hosts the editor.
 
 ## 97. Developer/agent API + MCP server for the app (`[ ]`)
 
