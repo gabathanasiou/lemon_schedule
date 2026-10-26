@@ -112,7 +112,7 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
   };
 
   if (presentCategories.length === 0) {
-    return <p className="text-xs text-zinc-400">No elements on this day.</p>;
+    return <p className="text-xs text-[color:var(--ui-text-faint)]">No elements on this day.</p>;
   }
 
   return (
@@ -123,14 +123,14 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
         const stageDefs = settings.stages.filter(s => stageKeys.includes(s.key));
         const entries: DayElementEntry[] = category === 'cast' ? day.cast : (day.elements[category] || []);
         return (
-          <div key={category} className="rounded-lg border border-zinc-200 overflow-hidden bg-white">
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
-              <Icon className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="text-[11px] font-semibold text-zinc-700">{categoryLabel(category)}</span>
-              <span className="text-[10px] text-zinc-400">{entries.length}</span>
+          <div key={category} className="rounded-lg border border-[color:var(--ui-border)] overflow-hidden bg-[var(--ui-panel-bg)]">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--ui-card-band)] border-b border-[color:var(--ui-border)]">
+              <Icon className="w-3.5 h-3.5 text-[color:var(--ui-text-muted)]" />
+              <span className="text-[11px] font-semibold text-[color:var(--ui-text)]">{categoryLabel(category)}</span>
+              <span className="text-[10px] text-[color:var(--ui-text-faint)]">{entries.length}</span>
               {stageDefs.length > 0
-                ? <span className="ml-auto text-[10px] text-zinc-400">7:30 · 730 · -1h</span>
-                : <span className="ml-auto text-[10px] text-zinc-400">no call stages — DOOD + first scene</span>}
+                ? <span className="ml-auto text-[10px] text-[color:var(--ui-text-faint)]">7:30 · 730 · -1h</span>
+                : <span className="ml-auto text-[10px] text-[color:var(--ui-text-faint)]">no call stages — DOOD + first scene</span>}
             </div>
             {stageDefs.length > 0 ? (
               <DayTimesGlide
@@ -152,7 +152,7 @@ const CallTimesSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
           </div>
         );
       })}
-      <p className="text-[11px] text-zinc-400">
+      <p className="text-[11px] text-[color:var(--ui-text-faint)]">
         Categories with call stages show the editable chain (override a cell to pin it — amber). Categories without
         stages list each element with its DOOD start/work/finish letter and first scene + call time.
       </p>

@@ -39,7 +39,7 @@ export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, castMembers, t
           <>
             {!compact && (
               <>
-                <span className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-zinc-900 border border-zinc-700/60">
+                <span className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-[var(--ui-card-band)] border border-[color:var(--ui-border-strong)]">
                   <Icon className={cn('w-3.5 h-3.5', meta.chipIcon)} />
                 </span>
                 <span className={cn('text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0', meta.chip)}>
@@ -47,7 +47,7 @@ export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, castMembers, t
                 </span>
               </>
             )}
-            <span className="flex-1 min-w-0 text-xs text-zinc-300 group-hover:text-zinc-100 transition-colors truncate">
+            <span className="flex-1 min-w-0 text-xs text-[color:var(--ui-text)] group-hover:text-[color:var(--ui-text-strong)] transition-colors truncate">
               {desc}
             </span>
             {!!conflicts && conflicts > 0 && (
@@ -63,7 +63,7 @@ export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, castMembers, t
             onClick={onDelete}
             aria-label="Delete rule"
             title="Delete this rule"
-            className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors shrink-0"
+            className="p-1 rounded hover:bg-[var(--ui-row-hover-bg)] text-[color:var(--ui-text-muted)] hover:text-red-400 transition-colors shrink-0"
           >
             <X className="w-3 h-3" />
           </button>

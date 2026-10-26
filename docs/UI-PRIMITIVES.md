@@ -201,7 +201,9 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   project kind is a neutral surface, so the shell and its kit children carry NO project accent
   inside; Drive/shared colour stays in the chrome. Pass `surface="accent"` to opt one surface into
   the accent ladder, or wrap a single control in an accent-only `ThemeProvider` for a manual (Lego)
-  override. Never hand-tint modal bodies with `bg-blue/emerald-*`.
+  override. Never hand-tint modal bodies with `bg-blue/emerald-*`. The shim pins `theme="dark"` until
+  the light-modal work lands, so a light page scope (e.g. the Day Manager pilot, 310) never flips an
+  overlay.
 - **Dialogs (confirm/prompt/alert) are Modal sub-elements**: `useDialog()` renders through the kit
   Modal's `flat` chrome (no header/footer bars — title row + buttons on the body surface) so they
   inherit the morph, one-dim backdrop, viewport clamp and coarse sizing. **Enter ALWAYS triggers the

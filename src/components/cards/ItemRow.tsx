@@ -46,7 +46,7 @@ export interface ItemRowProps {
  *  uses it too): row-wide click opens the editor, hover fill, pointer,
  *  rounded (the rows sit with gaps inside the CardSection's padded band). Wraps
  *  (`flex-wrap gap-y-1`) so a narrow row stacks its body below the title. */
-export const ITEM_ROW_CLASS = 'group flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 hover:bg-zinc-800/60 transition-colors cursor-pointer rounded-md';
+export const ITEM_ROW_CLASS = 'group flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 hover:bg-[var(--ui-card-hover)] transition-colors cursor-pointer rounded-md';
 
 /** Body wrapper that makes the note area drop to its own line under the title
  *  when the row can't fit both side-by-side (≈208px basis — under a fixed
@@ -64,7 +64,7 @@ export function ItemRow({ onClick, title, titleClass, titleAttr, children, bodyC
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onClick(); }}
-        className={titleClass || 'w-44 shrink-0 text-left text-[11px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors cursor-pointer'}
+        className={titleClass || 'w-44 shrink-0 text-left text-[11px] font-medium text-[color:var(--ui-text)] group-hover:text-[color:var(--ui-text-strong)] transition-colors cursor-pointer'}
       >
         {title}
       </button>

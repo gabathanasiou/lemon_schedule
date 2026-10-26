@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ThemeScope } from '@gabriel/ui-kit';
 import { ArrowLeft, CalendarDays, ChevronDown, Clock, Copy, ExternalLink, Flag, Info } from 'lucide-react';
 import ProductionDetailsModal from './ProductionDetailsModal';
 import CallTimesSettingsModal from './CallTimesSettingsModal';
@@ -200,16 +201,16 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
 
   if (!selected) {
     return (
-      <div className="flex-1 flex overflow-hidden bg-gray-50" data-day-manager>
+      <div className="flex-1 flex overflow-hidden bg-[var(--ui-card-band)]" data-day-manager>
         <div className="flex-1 flex flex-col items-center justify-center gap-5 p-8 text-center">
-          <div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center shadow-sm">
-            <CalendarDays className="w-6 h-6 text-zinc-300" />
+          <div className="w-14 h-14 rounded-full bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] flex items-center justify-center shadow-sm">
+            <CalendarDays className="w-6 h-6 text-[color:var(--ui-text-disabled)]" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-zinc-700">No production days yet</p>
-            <p className="text-xs text-zinc-400 mt-1.5 max-w-sm leading-relaxed">
+            <p className="text-sm font-semibold text-[color:var(--ui-text)]">No production days yet</p>
+            <p className="text-xs text-[color:var(--ui-text-faint)] mt-1.5 max-w-sm leading-relaxed">
               Days appear here once you split the stripboard with a day break — open the Schedule tab, add a
-              <span className="text-zinc-500"> Day Break</span> row, and drop scenes below it. Each break becomes a
+              <span className="text-[color:var(--ui-text-muted)]"> Day Break</span> row, and drop scenes below it. Each break becomes a
               shooting day you can manage here.
             </p>
           </div>
@@ -218,7 +219,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
               type="button"
               onClick={() => setDetailsOpen(true)}
               data-presence-anchor="toolbar:days:details"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-200 bg-white text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)] shadow-sm"
             >
               <Info className="w-3.5 h-3.5" /> Production Details
             </button>
@@ -226,7 +227,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
               type="button"
               onClick={() => setCallTimesOpen(true)}
               data-presence-anchor="toolbar:days:call-times-settings"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-200 bg-white text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)] shadow-sm"
             >
               <Clock className="w-3.5 h-3.5" /> Call Times
             </button>
@@ -297,7 +298,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
         collapsed={prefs.collapsed.includes(def.id)}
         onToggle={() => toggleSection(def.id)}
       >
-        {empty ? <p className="text-xs text-zinc-400">Nothing here yet.</p> : (
+        {empty ? <p className="text-xs text-[color:var(--ui-text-faint)]">Nothing here yet.</p> : (
           <Section
             day={selected}
             patchMeta={patchMeta}
@@ -333,7 +334,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           disabled={!callSheetDesign}
           title="Open the call sheet editor for this day"
           data-presence-anchor="toolbar:days:call-sheet"
-          className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 disabled:opacity-40"
+          className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)] disabled:opacity-40"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Call Sheet
         </button>
@@ -368,7 +369,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
               type="button"
               title="Production details, call-time settings, day copy and pop-out"
               data-presence-anchor="toolbar:days:settings"
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
             >
               Settings <ChevronDown className="w-3 h-3" />
             </button>
@@ -399,13 +400,13 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const editor = (
     <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
       {headerTarget ? createPortal(managerControls, headerTarget) : (
-        <header className="shrink-0 bg-white border-b border-zinc-200 px-3 py-2">
+        <header className="shrink-0 bg-[var(--ui-panel-bg)] border-b border-[color:var(--ui-border)] px-3 py-2">
           <div className="flex items-center gap-2 flex-wrap">{managerControls}</div>
         </header>
       )}
       {dayPickerTarget && createPortal(dayPickerNode, dayPickerTarget)}
 
-      <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50 p-4" data-day-sections>
+      <div className="flex-1 min-w-0 overflow-y-auto bg-[var(--ui-card-band)] p-4" data-day-sections>
         <div className="mx-auto w-full max-w-6xl">
           {/* The narrow meta sections (Day Details + Locations/Events/Conflicts)
               render as a two-column band on TOP — Day Details in the left
@@ -431,7 +432,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   );
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-gray-50" data-day-manager data-day-manager-day={selected.sectionIndex}>
+    <ThemeScope mode="light" surface="neutral" className="flex-1 flex overflow-hidden bg-[var(--ui-card-band)]">
+    <div className="flex-1 flex overflow-hidden" data-day-manager data-day-manager-day={selected.sectionIndex}>
       {editor}
       {eventsDate && (
         <DayEventsModal
@@ -447,6 +449,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
       {crewMemberModal}
     </div>
+    </ThemeScope>
   );
 };
 

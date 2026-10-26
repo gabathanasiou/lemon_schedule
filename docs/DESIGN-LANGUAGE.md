@@ -119,7 +119,14 @@ view-specific controls from that shared day-selector + switcher cluster. The **v
 switcher** is the toolbar's
 rightmost element (see the merged-view switcher recipe below). Below the toolbar sit the
 collapsible section cards (`DaySectionCard`). All overlays (Copy-from-day, events,
-pickers) are dark per the two-layer rule. The **Call Sheet** surface is its own
+pickers) are dark per the two-layer rule.
+
+**Theming pilot (roadmap 310)**: the manager page is wrapped in
+`ThemeScope mode="light" surface="neutral"`; its shell, `DayPicker`, section cards and
+section bodies read `--ui-*` fills/text/borders instead of zinc utilities. The app
+`Modal` shim pins `theme="dark"` (302), so this light page scope never flips Copy-from-day,
+Day Events, Call Times or any picker overlay — they stay dark until light modals land.
+ The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's
 `onChromeModeChange`) so the light tabs never float over the dark editor — the switcher

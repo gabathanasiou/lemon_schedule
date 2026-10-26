@@ -83,10 +83,10 @@ export const DayPickerList: React.FC<DayPickerListProps> = ({ options, selectedI
           {allLabel}
         </DropdownItem>
       )}
-      {weeks.length === 0 && <div className="px-3 py-2 text-xs text-zinc-500">No production days yet.</div>}
+      {weeks.length === 0 && <div className="px-3 py-2 text-xs text-[color:var(--ui-text-muted)]">No production days yet.</div>}
       {weeks.map(week => (
         <React.Fragment key={week.key}>
-          <div className={`px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${dark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+          <div className={`px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${dark ? 'text-[color:var(--ui-text-faint)]' : 'text-[color:var(--ui-label)]'}`}>
             Week of {formatDateShort(week.key)}
           </div>
           {week.days.map(d => (
@@ -122,7 +122,7 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
   };
 
   const stop = (e: React.SyntheticEvent) => { e.preventDefault(); e.stopPropagation(); };
-  const arrowCls = `px-1.5 py-1 ${dark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'} disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-inherit rounded transition-colors`;
+  const arrowCls = 'px-1.5 py-1 text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)] disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-inherit rounded transition-colors';
 
   return (
     <DropdownMenu
@@ -139,7 +139,8 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
           aria-haspopup="listbox"
           aria-label={`Select day${selected ? `, currently DAY ${selected.chronoDay}` : ''}`}
           data-presence-anchor={presenceKey}
-          className={`inline-flex items-center rounded border ${dark ? 'border-zinc-700 bg-zinc-950 text-zinc-200' : 'border-zinc-300 bg-white text-zinc-800 shadow-sm'} disabled:opacity-50`}
+          data-mode={theme}
+          className="inline-flex items-center rounded border border-[color:var(--ui-border-strong)] bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] shadow-sm disabled:opacity-50"
         >
           <span
             role="button"
@@ -151,7 +152,7 @@ const DayPicker: React.FC<DayPickerProps> = ({ options, selectedIndex, onSelect,
           >
             <ChevronLeft className="w-4 h-4" />
           </span>
-          <span className={`px-2 text-xs font-bold whitespace-nowrap ${dark ? 'text-zinc-200' : 'text-zinc-800'}`}>
+          <span className="px-2 text-xs font-bold whitespace-nowrap text-[color:var(--ui-text)]">
             DAY {selected?.chronoDay ?? '—'}
           </span>
           <span

@@ -37,7 +37,7 @@ export const DayWeatherChip: React.FC<DayWeatherChipProps> = ({ view, date, refr
     const NoPinIcon = wmoIcon();
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-400"
+        className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] px-2 py-0.5 text-[11px] text-[color:var(--ui-text-faint)]"
         title="No location pin for this day — set its master location (or pin a scene location) in Day Details."
       >
         <NoPinIcon className="w-3 h-3" />
@@ -50,7 +50,7 @@ export const DayWeatherChip: React.FC<DayWeatherChipProps> = ({ view, date, refr
   const past = isPastDate(date);
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white py-0.5 pl-2 pr-0.5 text-[11px] text-zinc-600"
+      className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] py-0.5 pl-2 pr-0.5 text-[11px] text-[color:var(--ui-text-muted)]"
       title={view.manual
         ? 'Manual weather — entered in Day Details; the API value is not shown.'
         : past
@@ -58,10 +58,10 @@ export const DayWeatherChip: React.FC<DayWeatherChipProps> = ({ view, date, refr
           : 'Latest forecast for this day — refreshes automatically after 6 h.'}
       data-presence-anchor="toolbar:days:weather"
     >
-      <Icon className="w-3 h-3 text-zinc-400" />
+      <Icon className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
       <span className="tabular-nums">{chipLabel(view)}</span>
       {view.manual && (
-        <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-400" title="Entered manually in Day Details">
+        <span className="text-[9px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]" title="Entered manually in Day Details">
           Manual
         </span>
       )}
@@ -72,7 +72,7 @@ export const DayWeatherChip: React.FC<DayWeatherChipProps> = ({ view, date, refr
           disabled={refreshing || view.miss === 'too-far'}
           title={past ? 'Re-check this day’s historical weather' : 'Fetch the latest forecast'}
           aria-label="Refresh weather"
-          className="inline-flex items-center justify-center w-5 h-5 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 disabled:opacity-40"
+          className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] hover:bg-[var(--ui-card-hover)] disabled:opacity-40"
         >
           {refreshing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
         </button>

@@ -17,9 +17,9 @@ import { DAY_ALIGN, DAY_GROUP_ROW, DAY_INPUT, DAY_TABLE, DAY_TABLE_WRAP, DAY_TD,
 const FIELD = `${DAY_INPUT} w-full px-2.5 py-2`;
 
 const ValueRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <tr className="even:bg-zinc-50/60">
-    <td className={`${DAY_TD} ${DAY_ALIGN.left} text-[11px] font-medium text-zinc-500 w-40`}>{label}</td>
-    <td className={`${DAY_TD} ${DAY_ALIGN.left} text-xs text-zinc-800`}>{children}</td>
+  <tr className="even:bg-[var(--ui-card-band)]">
+    <td className={`${DAY_TD} ${DAY_ALIGN.left} text-[11px] font-medium text-[color:var(--ui-text-muted)] w-40`}>{label}</td>
+    <td className={`${DAY_TD} ${DAY_ALIGN.left} text-xs text-[color:var(--ui-text-strong)]`}>{children}</td>
   </tr>
 );
 
@@ -132,8 +132,8 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
   /** Desktop keeps the native time box; touch opens the shared TimeField
    *  keypad (the same `:` entry as call times). */
   const renderTimeInput = (field: 'sunrise' | 'sunset', Icon: React.ComponentType<{ className?: string }>) => (
-    <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
-      <Icon className="w-3.5 h-3.5 text-zinc-400" />
+    <span className="inline-flex items-center gap-1.5 text-[11px] text-[color:var(--ui-text-muted)]">
+      <Icon className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
       {isTouch ? (
         <TimeField
           value={weatherDraft[field]}
@@ -165,13 +165,13 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
       <div className={DAY_TABLE_WRAP}>
         <table className={DAY_TABLE}>
           <thead>
-            <tr className="border-b border-zinc-200">
+            <tr className="border-b border-[color:var(--ui-border)]">
               <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Field</th>
               <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Value</th>
             </tr>
           </thead>
           <tbody>
-            <tr className={DAY_GROUP_ROW}><td colSpan={2} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Day</td></tr>
+            <tr className={DAY_GROUP_ROW}><td colSpan={2} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-muted)]">Day</td></tr>
             <ValueRow label="Date">{day.date ? formatDateLong(day.date) : '—'}</ValueRow>
             <ValueRow label="Day">{day.chronoDay ? `Day ${day.chronoDay}` : '—'}</ValueRow>
             <ValueRow label="Day type">{dayType ? dayType.label : 'Work'}</ValueRow>
@@ -185,7 +185,7 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
             <tr className={DAY_GROUP_ROW}>
               <td colSpan={2} className="px-2.5 py-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Weather</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-muted)]">Weather</span>
                   <Checkbox
                     variant="plain"
                     theme="light"
@@ -193,7 +193,7 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
                     disabled={readOnly}
                     onChange={toggleOverride}
                     label="Override the API"
-                    labelClassName="text-zinc-500"
+                    labelClassName="text-[color:var(--ui-text-muted)]"
                   />
                 </div>
               </td>
@@ -211,7 +211,7 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
                     aria-label="Weather condition"
                     className={`${DAY_INPUT} px-1.5 py-1 w-36 min-w-0`}
                   />
-                  <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500">
+                  <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--ui-text-muted)]">
                     H
                     <LiveNumberInput
                       value={override?.tempMax ?? undefined}
@@ -226,7 +226,7 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
                     />
                     °C
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500">
+                  <span className="inline-flex items-center gap-1 text-[11px] text-[color:var(--ui-text-muted)]">
                     L
                     <LiveNumberInput
                       value={override?.tempMin ?? undefined}
@@ -243,10 +243,10 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
                   </span>
                 </div>
               ) : noPinHint ? (
-                <span className="text-[11px] text-zinc-400">No location pin — set a master location, or override to type it.</span>
+                <span className="text-[11px] text-[color:var(--ui-text-faint)]">No location pin — set a master location, or override to type it.</span>
               ) : (
                 <span className="inline-flex items-center gap-1.5">
-                  <WeatherIcon className="w-3.5 h-3.5 text-zinc-400" />
+                  <WeatherIcon className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
                   <span>{weatherText}</span>
                 </span>
               )}
@@ -260,20 +260,20 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
               ) : hasSun ? (
                 <span className="inline-flex items-center gap-3">
                   <span className="inline-flex items-center gap-1.5">
-                    <Sunrise className="w-3.5 h-3.5 text-zinc-400" />
+                    <Sunrise className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
                     <span className="tabular-nums">{entry?.sunrise || '—'}</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Sunset className="w-3.5 h-3.5 text-zinc-400" />
+                    <Sunset className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
                     <span className="tabular-nums">{entry?.sunset || '—'}</span>
                   </span>
                 </span>
               ) : (
-                <span className="text-zinc-400">—</span>
+                <span className="text-[color:var(--ui-text-faint)]">—</span>
               )}
             </ValueRow>
 
-            <tr className={DAY_GROUP_ROW}><td colSpan={2} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Timing</td></tr>
+            <tr className={DAY_GROUP_ROW}><td colSpan={2} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-muted)]">Timing</td></tr>
             <ValueRow label="General call">
               <TimeField
                 value={day.daybreakRow?.daybreakCallTime || '08:00'}
@@ -289,12 +289,12 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({ day, patchMeta, patchRow
       </div>
 
       <div>
-        <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Breaks & notes (call sheet)</div>
+        <div className="text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider mb-2">Breaks & notes (call sheet)</div>
         <BreaksNotesSection day={day} patchMeta={patchMeta} patchRow={patchRow} readOnly={readOnly} project={project} dispatch={dispatch} actions={actions} />
       </div>
 
       <label className="block">
-        <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Day notes / announcements</span>
+        <span className="text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider">Day notes / announcements</span>
         <textarea
           value={note}
           readOnly={readOnly}

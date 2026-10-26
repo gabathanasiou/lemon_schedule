@@ -12,8 +12,8 @@ const EventsSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
   if (!statusType && groups.length === 0) {
     return (
       <div className="flex items-center justify-between">
-        <p className="text-xs text-zinc-400">No events on this day.</p>
-        <button type="button" onClick={() => actions.addEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Add event…</button>
+        <p className="text-xs text-[color:var(--ui-text-faint)]">No events on this day.</p>
+        <button type="button" onClick={() => actions.addEvents?.(day.date)} className="text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)]">Add event…</button>
       </div>
     );
   }
@@ -22,7 +22,7 @@ const EventsSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
     <div className="space-y-2.5">
       {statusType && (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Day status</span>
+          <span className="text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider">Day status</span>
           <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium" style={statusType.color ? { backgroundColor: `${statusType.color}22`, color: statusType.color } : undefined}>
             {statusType.label}
           </span>
@@ -32,18 +32,18 @@ const EventsSection: React.FC<DaySectionProps> = ({ day, project, actions }) => 
         const t = getDayType(project, g.status);
         const names = g.keys.map(k => isAllKeys(g.keys) ? `All ${getLabel(g.category, g.category, project.categoryLabels)}` : resolveElementName(k, g.category, project));
         return (
-          <div key={`${g.status}-${g.category}-${i}`} className="rounded-md border border-zinc-200 px-2.5 py-1.5">
+          <div key={`${g.status}-${g.category}-${i}`} className="rounded-md border border-[color:var(--ui-border)] px-2.5 py-1.5">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider" style={t?.color ? { color: t.color } : undefined}>{t?.label || g.status}</span>
-              <span className="text-[10px] text-zinc-400">{getLabel(g.category, g.category, project.categoryLabels)}</span>
+              <span className="text-[10px] text-[color:var(--ui-text-faint)]">{getLabel(g.category, g.category, project.categoryLabels)}</span>
             </div>
-            <div className="text-xs text-zinc-700 mt-0.5">{names.join(', ')}</div>
+            <div className="text-xs text-[color:var(--ui-text)] mt-0.5">{names.join(', ')}</div>
           </div>
         );
       })}
       <div className="flex justify-end gap-3">
-        <button type="button" onClick={() => actions.addEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Add event…</button>
-        <button type="button" onClick={() => actions.openEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Manage events…</button>
+        <button type="button" onClick={() => actions.addEvents?.(day.date)} className="text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)]">Add event…</button>
+        <button type="button" onClick={() => actions.openEvents?.(day.date)} className="text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)]">Manage events…</button>
       </div>
     </div>
   );

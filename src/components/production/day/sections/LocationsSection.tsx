@@ -91,8 +91,8 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
     <div className="space-y-3">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-0.5">Master location</div>
-          <p className="text-[10px] text-zinc-400 mb-1">Where the crew reports — the day's home base (call sheets + nearby services use it).</p>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)] mb-0.5">Master location</div>
+          <p className="text-[10px] text-[color:var(--ui-text-faint)] mb-1">Where the crew reports — the day's home base (call sheets + nearby services use it).</p>
           <div className="flex items-center gap-1.5">
             <GroupedSelect
               className="flex-1 min-w-0"
@@ -104,15 +104,15 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
               onChange={ids => patchMeta({ locationId: ids[0] ? resolveLocationId(ids[0]) : undefined })}
             />
             {!readOnly && (
-              <button type="button" onClick={() => setPicker({ mode: 'new' })} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 shrink-0">
+              <button type="button" onClick={() => setPicker({ mode: 'new' })} className="inline-flex items-center gap-1 text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] shrink-0">
                 <Plus className="w-3.5 h-3.5" /> New
               </button>
             )}
           </div>
         </div>
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-0.5">Key locations</div>
-          <p className="text-[10px] text-zinc-400 mb-1">Any additional locations worked this day — choose more than one.</p>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)] mb-0.5">Key locations</div>
+          <p className="text-[10px] text-[color:var(--ui-text-faint)] mb-1">Any additional locations worked this day — choose more than one.</p>
           <GroupedSelect
             className="w-full"
             items={items}
@@ -148,9 +148,9 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
       )}
 
       {(nearestHospital || nearestPolice) && (
-        <div className="text-[11px] text-zinc-500 space-y-0.5">
-          {nearestHospital && <div>Nearest hospital: <span className="text-zinc-700">{resolvedLocationName(nearestHospital.name, nearestHospital.address, nearestHospital.place, nearestHospital.lat, nearestHospital.lng)}</span></div>}
-          {nearestPolice && <div>Nearest police: <span className="text-zinc-700">{resolvedLocationName(nearestPolice.name, nearestPolice.address, nearestPolice.place, nearestPolice.lat, nearestPolice.lng)}</span></div>}
+        <div className="text-[11px] text-[color:var(--ui-text-muted)] space-y-0.5">
+          {nearestHospital && <div>Nearest hospital: <span className="text-[color:var(--ui-text)]">{resolvedLocationName(nearestHospital.name, nearestHospital.address, nearestHospital.place, nearestHospital.lat, nearestHospital.lng)}</span></div>}
+          {nearestPolice && <div>Nearest police: <span className="text-[color:var(--ui-text)]">{resolvedLocationName(nearestPolice.name, nearestPolice.address, nearestPolice.place, nearestPolice.lat, nearestPolice.lng)}</span></div>}
         </div>
       )}
 

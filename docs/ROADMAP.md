@@ -148,11 +148,21 @@ seed→scale mapper if stage 4 lands.
 (blue/emerald chrome become accent presets), 216/202 (Seg/NumberInput `theme` props), 59
 (overlay dimming). Updates DESIGN-LANGUAGE §two-layer surface model + UI-KIT §Theming.
 
-## 310. App surface tokenisation — modal + page content (`[ ]`, big)
+## 310. App surface tokenisation — modal + page content (`[~]`, big)
 
 **Request**: kit v0.1.116 tokenised the Modal SHELL (302), but app-rendered content still uses
 hardcoded utilities — 2,176 `*-zinc-*` classes across 171 files + blue/emerald chrome classes, and
 zero `--ui-*` references. A light/accent modal today would be a themed frame with dark app content.
+
+**Progress (2026-10-26 — pilot)**: the Day Manager is on the light token ladder (a
+`ThemeScope mode="light" surface="neutral"` around the manager page) — page shell, `DayPicker`,
+`DaySectionCard`, the weather chip and all section bodies (details/locations/events/scenes/call
+times/breaks/crew/conflicts) now use `--ui-*` fills/text/borders. The Day Events family
+(`DayEventsModal` + `EventModal` + `EventAdderModal`), shared `ItemRow`, the dark `RuleCard` branch
+and the event chip trigger are tokenised. App `Modal` defaults `theme="dark"` so a light page scope
+cannot flip existing modals. Remaining hardcoded surfaces: CrewRosterEditor, InteractiveGridBlock,
+the other modal families, and pages. Verified: Day Manager + Day Events look unchanged; the smart
+suite (includes day-manager/day-types/day-call-times/call-sheet) is green. Expansion remains.
 
 **Phases**:
 1. **Pilot — Production → Days (Day Manager) + Day Events modal**: replace surface/text/border/fill
@@ -187,12 +197,18 @@ the same value.
 and menu e2e; no change to local zinc look.
 **Relations**: 302, 248. Pairs with 310 (content) — chrome and body must agree.
 
-## 312. Grouped pickers → kit searchable dropdown (`[ ]`)
+## 312. Grouped pickers → kit searchable dropdown (`[~]`)
 
 **Request**: the kit's `DropdownMenu searchable` now supports `DropdownItem group` headers and
 search-by-category. The app's shared `GroupedSelect` (Day Manager locations, crew links, copy day,
 call times) still uses the bespoke `DropdownPanel` with headers but NO search. Move the primitive to
 the kit so every consumer gets groups + category search once.
+
+**Progress (2026-10-26)**: `GroupedSelect` now renders the kit `DropdownMenu`/`DropdownItem` with
+`group` headers, search (row + category), single/multi, hints as trailing text, and `keepOpen` for
+multi. The locations picker is covered by `e2e/day-manager.spec.ts` (category search + multi-select
+keep-open); the smart suite covers crew links/copy day/call times. Docs updated (§Primitive matrix +
+§UI-PRIMITIVES). Ready to close on merge.
 
 **Approach**: rewrite `src/components/production/day/GroupedSelect.tsx` internals on the kit
 `DropdownMenu`/`DropdownItem`, keeping the public props/API (`items`, `selectedIds`, `onChange`,

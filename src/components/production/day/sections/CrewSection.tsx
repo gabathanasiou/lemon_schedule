@@ -52,7 +52,7 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
   return (
     <div className="space-y-3" data-crew-section data-crew-calls>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-500 flex-1">
+        <span className="text-xs text-[color:var(--ui-text-muted)] flex-1">
           {day.crew.length > 0 ? `${day.crew.length} crew across ${day.crewGroups.filter(g => !g.excluded).length} departments` : 'No crew assigned'}
         </span>
         <CrewAddRoleMenu
