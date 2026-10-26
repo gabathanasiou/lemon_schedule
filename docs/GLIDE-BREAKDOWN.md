@@ -129,12 +129,19 @@ Every Glide page has one row filter in its toolbar — `GlideFilter`
 `Filter` button that morphs into the text field. The term survives collapsing
 (click into the grid and the toolbar stays compact with the filter applied and a
 `shown / total` count); Escape clears + collapses; click-away only collapses.
+While active the collapsed button **names the term** and swaps its magnifier for
+a funnel (no accent tint); the expanded field's leading icon matches.
 
 - **Semantics**: comma-separated tags, ALL must match (AND), case-insensitive —
-  the same `parseSearchTags` as the manager search. Matching runs over the
-  values the user can SEE: `src/lib/glideFilter.ts` (`filterGlideRows`) is the
-  one implementation; the Breakdown passes cast as `id name` so a performer
-  search works on the displayed Board ID + name.
+  the same `parseSearchTags` as the manager search. The Breakdown matches
+  **EVERY scene field** (`sceneFilterValues`, `src/lib/glideFilter.ts`), not
+  just the columns currently on screen: hidden/custom breakdown categories,
+  sheet/script-page numbers, the scene location, unit/sequence, etc. Only
+  internal ids and the script-anchored `cutAnchor` are excluded — "everything
+  except the actual script". Cast contributes `id name` so the displayed Board
+  ID + performer name both search. Matching is SUBSTRING: `night` also matches
+  a Day scene whose props say "Overnight Bag" (the count reflects every real
+  match; rows never reorder).
 - **Display-only**: `allRows`/`allScenes` still feed Info counts, CSV export
   and the project; the grid indexes the FILTERED list everywhere
   (`rowsRef`/`scenesRef`). Editing, range fill, copy/cut/paste, delete and peer

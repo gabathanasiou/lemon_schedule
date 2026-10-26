@@ -282,6 +282,8 @@ test('row filter is display-only, survives collapsing, and restores every row (r
   // Clicking away collapses to the button but KEEPS the filter applied.
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
   await expect(trigger).toBeVisible();
+  await expect(trigger).toContainText(term!); // the button names what is filtering
+  await expect(trigger.locator('svg.lucide-funnel')).toHaveCount(1);
   await expect(input).not.toBeFocused();
   await expect(filter.locator('[data-glide-filter-count]')).toHaveText(`${shown} / ${total}`);
   expect(Number(await grid.getAttribute('data-glide-visible-rows'))).toBe(shown);
@@ -292,6 +294,49 @@ test('row filter is display-only, survives collapsing, and restores every row (r
   await input.press('Escape');
   await expect.poll(async () => Number(await grid.getAttribute('data-glide-visible-rows'))).toBe(total);
   await expect(filter.locator('[data-glide-filter-count]')).toHaveCount(0);
+
+  // EVERY scene field filters, not just the columns on screen: D/N ("night"
+  // must match every Night scene, plus any other field that contains it) …
+  const dn = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const counts = new Map<string, number>();
+    for (const s of p.scenes || []) {
+      const v = String(s.dayNight || '').trim();
+      if (v) counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    const [value, count] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
+    return value ? { value, count } : null;
+  });
+  if (dn && dn.count < total) {
+    await trigger.click();
+    await input.fill(dn.value);
+    await expect.poll(async () => Number(await grid.getAttribute('data-glide-visible-rows')))
+      .toBeGreaterThanOrEqual(dn.count);
+    await input.press('Escape');
+  }
+
+  // … and fields that are NOT grid columns at all (the scene's Unit).
+  const hidden = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const shownCols = ['sceneNumber', 'pageCount', 'scriptDay', 'intExt', 'set', 'dayNight', 'description', 'cast', 'notes'];
+    const units: string[] = [...new Set<string>((p.scenes || []).map((s: any) => String(s.unit || '').trim()).filter(Boolean))];
+    for (const unit of units) {
+      const needle = unit.toLowerCase();
+      const count = (p.scenes || []).filter((s: any) => String(s.unit || '').toLowerCase().includes(needle)).length;
+      const onScreen = (p.scenes || []).some((s: any) =>
+        shownCols.some(k => String(s[k] || '').toLowerCase().includes(needle)));
+      if (count > 0 && count < p.scenes.length && !onScreen) return { value: unit, count };
+    }
+    return null;
+  });
+  if (hidden) {
+    await trigger.click();
+    await input.fill(hidden.value);
+    await expect.poll(async () => Number(await grid.getAttribute('data-glide-visible-rows')))
+      .toBeGreaterThanOrEqual(hidden.count);
+    expect(Number(await grid.getAttribute('data-glide-visible-rows'))).toBeGreaterThan(0);
+    await input.press('Escape');
+  }
 
   // Display-only: filtering never touched or reordered the scenes.
   const idsAfter = await page.evaluate(() =>

@@ -70,7 +70,7 @@ import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 import { useQueueCastNaming, addNewElements } from '../lib/newCastNaming';
 import { useGlideFill } from '../lib/glideFill';
 import { isWarningSuppressed, suppressWarningFor24h } from '../lib/warnings';
-import { filterGlideRows } from '../lib/glideFilter';
+import { filterGlideRows, sceneFilterValues } from '../lib/glideFilter';
 import { useFollowView } from '../lib/supabase/useFollowView';
 import { GlideFilter } from './GlideFilter';
 
@@ -169,26 +169,16 @@ export function GlideBreakdownTab({
      rows; project data, the add row and the manager datalists keep using the
      full scene list. Cell values are matched as DISPLAYED (cast shows the
      member's name next to the Board ID). */
-  const castById = useMemo(
-    () => new Map((project.castMembers || []).map(m => [m.id, m])),
+  const castNameById = useMemo(
+    () => new Map((project.castMembers || []).map(m => [m.id, m.name])),
     [project.castMembers],
   );
   const scenes = useMemo(() => filterGlideRows(allScenes, filterQuery, scene =>
-    COLUMNS
-      .filter(c => c.key !== 'actions')
-      .map(c => {
-        if (c.key !== 'cast') return String((scene as any)[c.key] ?? '');
-        return (scene.cast || '')
-          .split(',')
-          .map(id => {
-            const trimmed = id.trim();
-            if (!trimmed) return '';
-            const member = castById.get(trimmed);
-            return member ? `${trimmed} ${member.name}` : trimmed;
-          })
-          .join(', ');
-      })
-  ), [allScenes, filterQuery, COLUMNS, castById]);
+    // EVERY scene field, not just the on-screen columns — hidden/custom
+    // categories, script-page/sheet numbers and the scene location too; the
+    // script fragment is excluded (roadmap 172).
+    sceneFilterValues(scene as unknown as Record<string, unknown>, castNameById)
+  ), [allScenes, filterQuery, castNameById]);
 
   useEffect(() => {
     localStorage.setItem(`lemon_schedule_glide_cols_${project.id}`, JSON.stringify(columnWidths));

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterGlideRows } from '../glideFilter';
+import { filterGlideRows, sceneFilterValues } from '../glideFilter';
 
 interface Row {
   name: string;
@@ -40,5 +40,49 @@ describe('filterGlideRows (roadmap 172)', () => {
     const source = [...rows];
     filterGlideRows(rows, 'camera', valuesOf);
     expect(rows).toEqual(source);
+  });
+});
+
+describe('sceneFilterValues (roadmap 172)', () => {
+  const cast = new Map([['1', 'GEORGE'], ['2', 'MARY']]);
+  const scene = {
+    id: 'uuid-should-not-match',
+    ghostOf: 'uuid-ghost',
+    duplicateOf: 'uuid-parent',
+    cutAnchor: 'SCRIPT FRAGMENT',
+    sceneNumber: '12',
+    sheetNumber: '12A',
+    scriptPageNumbers: '21-24',
+    pageCount: '2 3/8',
+    pageCountDecimal: 2.375,
+    scriptDay: '1928',
+    intExt: 'INT',
+    set: 'DRUGSTORE',
+    location: 'Stage 1',
+    dayNight: 'NIGHT',
+    description: 'George buys luggage.',
+    cast: '1, 2',
+    notes: 'Overnight bag',
+    props: 'Suitcase',
+    unit: 'VisFX Unit',
+  };
+
+  it('collects every scene field, not just the on-screen columns', () => {
+    const values = sceneFilterValues(scene, cast);
+    for (const expected of ['12A', '21-24', '2.375', 'Stage 1', 'VisFX Unit', 'Suitcase']) {
+      expect(values).toContain(expected);
+    }
+  });
+
+  it("adds cast names next to their Board IDs (displayed '1. GEORGE')", () => {
+    const values = sceneFilterValues(scene, cast);
+    expect(values).toContain('1 GEORGE');
+    expect(values).toContain('2 MARY');
+  });
+
+  it('never searches internal ids or the script fragment', () => {
+    const values = sceneFilterValues(scene, cast);
+    expect(values.some(v => v.includes('uuid'))).toBe(false);
+    expect(values).not.toContain('SCRIPT FRAGMENT');
   });
 });
