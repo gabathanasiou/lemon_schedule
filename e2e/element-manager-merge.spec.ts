@@ -332,3 +332,35 @@ test.describe('Element Manager commit-on-blur', () => {
     }).toBe('James Stewart');
   });
 });
+
+/** Roadmap 306 — the Element View panel (manager-launched). */
+test.describe('Element View', () => {
+  test('picker navigation + property edits persist', async ({ page }) => {
+    await openSeededProject(page);
+    const lead = await seedLeadCast(page);
+    await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+    await page.getByRole('button', { name: 'Element Manager' }).click();
+    await page.locator('aside').getByRole('button', { name: /Cast/ }).click();
+
+    const row = page.locator('tr', { has: nameCell(page, lead.name) }).first();
+    await row.locator('button[title^="Element view"]').click();
+    const modal = page.getByRole('dialog');
+    await expect(modal.getByRole('tab', { name: 'Properties' })).toHaveAttribute('aria-selected', 'true');
+    await expect(modal.locator('input[data-element-view-field="name"]')).toHaveValue(lead.name);
+
+    // Property edits go through the same UPDATE_CAST_MEMBER path as the table.
+    const performer = modal.locator('input[data-element-view-field="performer"]');
+    await performer.fill('Panel Artiste');
+    await performer.press('Enter');
+    await expect.poll(async () => {
+      const member = (await getProject(page)).castMembers.find((c: any) => c.id === lead.id);
+      return member?.performer;
+    }).toBe('Panel Artiste');
+
+    // Prev/next move the panel to another element and back.
+    await modal.getByRole('button', { name: 'Next element' }).click();
+    await expect(modal.locator('input[data-element-view-field="name"]')).not.toHaveValue(lead.name);
+    await modal.getByRole('button', { name: 'Previous element' }).click();
+    await expect(modal.locator('input[data-element-view-field="name"]')).toHaveValue(lead.name);
+  });
+});

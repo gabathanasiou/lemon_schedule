@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES } from '../store';
 import { useDialog } from './Dialog';
-import { Trash2, Plus, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen, CalendarDays, Users } from 'lucide-react';
+import { Trash2, Plus, Pencil, Eye, EyeOff, Check, Link2, Lock, LockOpen, PanelRight } from 'lucide-react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -17,8 +17,7 @@ import { useFollowView } from '../lib/supabase/useFollowView';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
 import { MergeRowsModal } from './elements/MergeRowsModal';
 import { LinkManagerModal } from './elements/LinkManagerModal';
-import { ElementCrewLinksModal } from './crew/ElementCrewLinksModal';
-import { ElementEventsModal } from './elements/ElementEventsModal';
+import { ElementViewModal } from './elements/ElementViewModal';
 import { MT_INPUT, MT_HEADER, MT_CELL_SMALL, MT_ADD, useManagerTableSizes } from '../lib/managerTable';
 import Button from './Button';
 import SidebarNav, { SidebarNavRow } from './SidebarNav';
@@ -88,8 +87,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const [newCatMultiValue, setNewCatMultiValue] = useState(true);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showLinks, setShowLinks] = useState(false);
-  const [eventsTarget, setEventsTarget] = useState<{ key: string; id: string; name: string } | null>(null);
-  const [crewTarget, setCrewTarget] = useState<{ id: string; name: string } | null>(null);
+  const [viewTarget, setViewTarget] = useState<{ key: string } | null>(null);
 
   const [sortMode, setSortMode] = useState<'id' | 'name' | 'occurrences'>(isCast ? 'id' : 'name');
   /** Cast performer/booking columns are hidden by default (roadmap 157). */
@@ -730,8 +728,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                     {dayTypes.map(t => (
                       <th key={t.key} title={t.label} style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center min-w-14`}>{t.label}</th>
                     ))}
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center w-12`} title="Crew linked to this element">Crew</th>
-                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center w-12`}>Events</th>
+                    <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-center w-12`} title="Element view — properties, crew links and events">View</th>
                     <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 ${MT_HEADER} text-center w-12`} />
                   </tr>
                 </thead>
@@ -777,20 +774,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                       ))}
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
                         <button
-                          onClick={() => setCrewTarget({ id: r.id, name: r.name })}
-                          title={`Linked crew — crew linked to ${r.name || r.id}`}
+                          onClick={() => setViewTarget({ key: r.key })}
+                          title={`Element view — properties, crew links and events for ${r.name || r.id}`}
                           className="p-1.5 rounded-md hover:bg-blue-50 transition-colors opacity-40 hover:opacity-100 align-middle"
                         >
-                          <Users style={{ width: sizes.icon, height: sizes.icon }} className="text-blue-500" />
-                        </button>
-                      </td>
-                      <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
-                        <button
-                          onClick={() => setEventsTarget({ key: r.key, id: r.id, name: r.name })}
-                          title={`Events — dates, rules and violations for ${r.name || r.id}`}
-                          className="p-1.5 rounded-md hover:bg-blue-50 transition-colors opacity-40 hover:opacity-100 align-middle"
-                        >
-                          <CalendarDays style={{ width: sizes.icon, height: sizes.icon }} className="text-blue-500" />
+                          <PanelRight style={{ width: sizes.icon, height: sizes.icon }} className="text-blue-500" />
                         </button>
                       </td>
                       <td style={sizes.cellSmall} className={`${MT_CELL_SMALL} text-center whitespace-nowrap`}>
@@ -882,21 +870,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             onClose={() => setShowLinks(false)}
           />
         )}
-        {eventsTarget && (
-          <ElementEventsModal
+        {viewTarget && (
+          <ElementViewModal
             category={category}
-            rowKey={eventsTarget.key}
-            rowId={eventsTarget.id}
-            rowName={eventsTarget.name}
-            onClose={() => setEventsTarget(null)}
-          />
-        )}
-        {crewTarget && (
-          <ElementCrewLinksModal
-            category={category}
-            elementKey={isCast ? crewTarget.id : crewTarget.name}
-            elementName={crewTarget.name || crewTarget.id}
-            onClose={() => setCrewTarget(null)}
+            rowKey={viewTarget.key}
+            onClose={() => setViewTarget(null)}
           />
         )}
       </div>

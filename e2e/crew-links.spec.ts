@@ -82,8 +82,9 @@ test('crew links: seeded person→element and person→crew show on both sides, 
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
   await page.getByRole('button', { name: 'Element Manager' }).click();
   const row = page.locator('tr', { hasText: anchor.name }).first();
-  await row.getByTitle(/^Linked crew/).click();
+  await row.getByTitle(/^Element view/).click();
   const emModal = page.getByRole('dialog');
+  await emModal.getByRole('tab', { name: 'Crew' }).click();
   await expect(emModal).toContainText('ZZZ ALPHA');
   await emModal.locator('[data-crew-person="zzz-crew-a"]').click();
   await expect.poll(() => page.evaluate(() =>
