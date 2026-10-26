@@ -1,10 +1,11 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import React, { useCallback, useMemo } from 'react';
+import { Plus, UserPlus } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
 import type { DayCrewSlot, DayMeta, Project } from '../../../types';
 import {
   addSlot as addSlotToList,
   assignSlotPerson,
+  departmentOrder,
   groupSlotsByDept,
   peopleForRole,
   removeSlot as removeSlotFromList,
@@ -23,13 +24,12 @@ import type { PickedLocation } from '../../../lib/places';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction } from '../../InlineGlideTable';
 import { seededTextCell, textCell } from '../../../lib/glideCells';
 import { createDayTimesTheme, dayTimesCellColors } from '../../../lib/glideTheme';
-import { useKitTheme } from '@gabriel/ui-kit';
+import { SearchMenu, useKitTheme } from '@gabriel/ui-kit';
+import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import TimeField from '../../TimeField';
 import Checkbox from '../../Checkbox';
 import Button from '../../Button';
-import DropdownMenu from '../../DropdownMenu';
-import DropdownItem from '../../DropdownItem';
-import GroupedSelect from './GroupedSelect';
+import { LocationSearchMenu } from '../../location/LocationSearchMenu';
 import { useLocationPicker } from '../../location/useLocationPicker';
 import type { GlideColumnEditor } from '../../../lib/glideEditor';
 
@@ -343,7 +343,6 @@ const DeptTable: React.FC<DeptTableProps> = ({
   const usedPersonIds = useMemo(() => new Set(allSlots.map(s => s.personId).filter(Boolean) as string[]), [allSlots]);
   // Only this department's roles.
   const deptRoles = useMemo(() => rolesForDept(project, dept), [project, dept]);
-  const [addOpen, setAddOpen] = useState(false);
   const addSlotFor = (roleKey: string, personId?: string) => {
     onSlotsChange(addSlotToList(allSlots, roleKey, personId));
   };
@@ -352,20 +351,30 @@ const DeptTable: React.FC<DeptTableProps> = ({
     if (!r) return [];
     return [{ key: 'remove', title: 'Remove from this day', icon: 'trash', onClick: () => onSlotsChange(removeSlotFromList(allSlots, r.slotId)) }];
   }, [rows, allSlots, onSlotsChange]);
-  // Role on the left, available person on the right (role repeated when it
-  // has several available people). A role with none offers "add new".
-  const addMenuItems = useMemo(() => {
-    const rows: { key: string; role: string; personId?: string; label: string; subtitle: string }[] = [];
+  /** Add-role catalogue (roadmap 318): the department's roles are the
+   *  categories, their available people the records. Categories only expand
+   *  (never add on category click); pick a person — or "Add new person…" —
+   *  to add the slot. */
+  const addRoleMenu = useMemo(() => {
+    const groups: SearchMenuGroup[] = [];
+    const items: SearchMenuItem[] = [];
     for (const role of deptRoles) {
       const available = peopleForRole(project, role.key).filter(p => !usedPersonIds.has(p.id));
-      if (available.length > 0) {
-        for (const p of available) rows.push({ key: `${role.key}:${p.id}`, role: role.key, personId: p.id, label: role.label, subtitle: p.name });
+      groups.push({ key: role.key, label: role.label, count: Math.max(available.length, 1) });
+      if (available.length === 0) {
+        items.push({ id: `${role.key}::__new__`, label: 'Add new person…', group: role.key, keywords: role.label });
       } else {
-        rows.push({ key: `${role.key}:empty`, role: role.key, label: role.label, subtitle: 'add new' });
+        for (const p of available) {
+          items.push({ id: `${role.key}::${p.id}`, label: p.name, group: role.key, keywords: role.label });
+        }
       }
     }
-    return rows;
+    return { groups, items };
   }, [deptRoles, project, usedPersonIds]);
+  const addRoleFromItem = (item: SearchMenuItem) => {
+    const [roleKey, personPart] = item.id.split('::');
+    addSlotFor(roleKey, personPart && personPart !== '__new__' ? personPart : undefined);
+  };
 
   return (
     <div className={`rounded-lg border border-[color:var(--ui-border)] overflow-hidden bg-[var(--ui-panel-bg)] ${excluded ? 'opacity-60' : ''}`} data-crew-dept={dept}>
@@ -376,18 +385,18 @@ const DeptTable: React.FC<DeptTableProps> = ({
           {onDeptReportToChange && (
             <span className="flex items-center gap-1.5" data-crew-dept-report-to>
               <span className="text-[10px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">Report to</span>
-              <GroupedSelect
-                className="w-44"
+              <LocationSearchMenu
                 items={locationItems}
-                mode="single"
-                selectedIds={deptReportToId ? [deptReportToId] : []}
-                disabled={readOnly}
+                value={deptReportToId}
+                onSelect={id => onDeptReportToChange?.(dept, id)}
+                onClear={() => onDeptReportToChange?.(dept, '')}
+                onAddNew={query => onNewLocation({ kind: 'dept', dept }, query)}
+                readOnly={readOnly}
                 placeholder="—"
-                onChange={ids => {
-                  const id = ids[0] || '';
-                  if (id === ADD_LOCATION_SENTINEL) { onNewLocation({ kind: 'dept', dept }); return; }
-                  onDeptReportToChange(dept, id);
-                }}
+                collapsedWidth={176}
+                expandedWidth={240}
+                panelWidth={320}
+                theme={gridMode}
               />
             </span>
           )}
@@ -422,26 +431,28 @@ const DeptTable: React.FC<DeptTableProps> = ({
       )}
 
       <div className="px-2 py-1.5 border-t border-[color:var(--ui-border)] flex items-center gap-2">
-        <DropdownMenu
-          width="w-72"
-          open={addOpen}
-          onOpenChange={setAddOpen}
-          trigger={
-            <Button variant="subtle" disabled={readOnly || addMenuItems.length === 0}>
-              <Plus className="w-3 h-3" /> Add role
-            </Button>
-          }
-        >
-          {addMenuItems.map(item => (
-            <DropdownItem
-              key={item.key}
-              trailing={<span className="opacity-70">{item.subtitle}</span>}
-              onClick={() => { setAddOpen(false); addSlotFor(item.role, item.personId); }}
-            >
-              {item.label}
-            </DropdownItem>
-          ))}
-        </DropdownMenu>
+        {addRoleMenu.items.length > 0 ? (
+          <SearchMenu
+            mode="expandable"
+            theme={gridMode}
+            items={addRoleMenu.items}
+            groups={addRoleMenu.groups}
+            triggerLabel="Add role"
+            triggerIcon={<UserPlus className="w-3.5 h-3.5" />}
+            placeholder="Search roles or people…"
+            onSelect={addRoleFromItem}
+            expandableGroups
+            groupExpandMode="single"
+            collapsedWidth={110}
+            expandedWidth={240}
+            panelWidth={340}
+            emptyHint="Try a role, department or person."
+          />
+        ) : (
+          <Button variant="subtle" disabled>
+            <Plus className="w-3 h-3" /> Add role
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -467,39 +478,48 @@ export interface CrewAddRoleMenuProps {
  */
 export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots, onSlotsChange, readOnly, className = '' }) => {
   const allRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
-  const [open, setOpen] = useState(false);
+  const ambient = useKitTheme();
 
   const addRoleSlot = useCallback((roleKey: string) => {
     const used = new Set(slots.map(s => s.personId).filter(Boolean) as string[]);
     onSlotsChange(addSlotToList(slots, roleKey, peopleForRole(project, roleKey).find(p => !used.has(p.id))?.id));
   }, [project, slots, onSlotsChange]);
 
+  /** Every role as one catalogue (roadmap 318): departments are the
+   *  categories, so a role in a department with no card stays reachable. */
+  const addRoleMenu = useMemo(() => {
+    const counts = new Map<string, number>();
+    const items: SearchMenuItem[] = allRoles.map(role => {
+      const group = crewRoleGroup(role);
+      counts.set(group, (counts.get(group) || 0) + 1);
+      return { id: role.key, label: role.label, group, keywords: group };
+    });
+    const groups: SearchMenuGroup[] = departmentOrder(project)
+      .filter(dept => counts.has(dept))
+      .map(dept => ({ key: dept, label: dept, count: counts.get(dept) }));
+    return { groups, items };
+  }, [allRoles, project]);
+
   if (readOnly || allRoles.length === 0) return null;
 
   return (
     <div className={`flex items-center ${className}`} data-crew-add-role>
-      <DropdownMenu
-        open={open}
-        onOpenChange={setOpen}
-        width="w-72"
-        searchable
-        searchPlaceholder="Search roles…"
-        trigger={
-          <Button variant="subtle">
-            <Plus className="w-3 h-3" /> Add role…
-          </Button>
-        }
-      >
-        {allRoles.map(r => (
-          <DropdownItem
-            key={r.key}
-            trailing={<span className="opacity-70">{crewRoleGroup(r)}</span>}
-            onClick={() => { setOpen(false); addRoleSlot(r.key); }}
-          >
-            {r.label}
-          </DropdownItem>
-        ))}
-      </DropdownMenu>
+      <SearchMenu
+        mode="expandable"
+        theme={ambient?.mode ?? 'light'}
+        items={addRoleMenu.items}
+        groups={addRoleMenu.groups}
+        triggerLabel="Add role…"
+        triggerIcon={<UserPlus className="w-3.5 h-3.5" />}
+        placeholder="Search roles…"
+        onSelect={item => addRoleSlot(item.id)}
+        expandableGroups
+        groupExpandMode="single"
+        collapsedWidth={110}
+        expandedWidth={240}
+        panelWidth={320}
+        emptyHint="Try a role or department."
+      />
     </div>
   );
 };
@@ -521,6 +541,7 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
   );
   const allRoles = useMemo(() => project.crewRoles || [], [project.crewRoles]);
   const locationItems = useMemo(() => locationOptions(project), [project]);
+  const ambientTheme = useKitTheme()?.mode ?? 'light';
   // The shared map picker (one hook for every host): the confirm creates the
   // Locations-DB entry and assigns it to the pending board target.
   const { open: openLocationPicker, node: locationPickerNode } = useLocationPicker<NewLocationTarget>(project, (target, picked, type) => {
@@ -554,18 +575,19 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-card-band)] px-2.5 py-1.5" data-crew-report-to>
           <span className="text-[11px] font-semibold text-[color:var(--ui-text)]">Report to</span>
           <span className="text-[10px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">all crew</span>
-          <GroupedSelect
-            className="ml-auto w-56"
+          <LocationSearchMenu
+            className="ml-auto"
             items={locationItems}
-            mode="single"
-            selectedIds={reportToId ? [reportToId] : []}
-            disabled={readOnly}
+            value={reportToId}
+            onSelect={onReportToChange}
+            onClear={() => onReportToChange('')}
+            onAddNew={query => requestNewLocation({ kind: 'all' }, query)}
+            readOnly={readOnly}
             placeholder="—"
-            onChange={ids => {
-              const id = ids[0] || '';
-              if (id === ADD_LOCATION_SENTINEL) { requestNewLocation({ kind: 'all' }); return; }
-              onReportToChange(id);
-            }}
+            collapsedWidth={224}
+            expandedWidth={280}
+            panelWidth={320}
+            theme={ambientTheme}
           />
         </div>
       )}

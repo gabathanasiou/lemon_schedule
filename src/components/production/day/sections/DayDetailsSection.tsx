@@ -9,7 +9,7 @@ import type { DayWeatherOverride } from '../../../../types';
 import TimeField from '../../../TimeField';
 import { LiveNumberInput } from '../../../LiveNumberInput';
 import Checkbox from '../../../Checkbox';
-import { LocationEntityDropdown } from '../../../location/LocationEntityDropdown';
+import { LocationSearchMenu } from '../../../location/LocationSearchMenu';
 import { dayLocationRefs, setDayMaster } from '../../../../lib/dayLocations';
 import { locationOptions } from '../../../../lib/locationOptions';
 import { wmoIcon } from '../weatherIcon';
@@ -240,13 +240,17 @@ const DayDetailsSection: React.FC<DaySectionProps> = ({
               No locations attached
             </span>
           ) : (
-            <LocationEntityDropdown
+            <LocationSearchMenu
               className="min-w-[10rem] flex-1"
               value={masterId}
-              onChange={id => patchMeta(setDayMaster(day.meta, id))}
+              onSelect={id => patchMeta(setDayMaster(day.meta, id))}
+              onClear={() => patchMeta(setDayMaster(day.meta, undefined))}
               items={locationItems}
               readOnly={readOnly}
               placeholder="Choose a location…"
+              collapsedWidth={220}
+              expandedWidth={280}
+              panelWidth={320}
             />
           )}
         </div>

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject, useProjectTheme } from '../store';
-import { ThemeScope } from '@gabriel/ui-kit';
+import { ThemeScope, searchMenuContent } from '@gabriel/ui-kit';
 import { projectAccentOf } from './projectTheme';
 import { useDialog } from '../components/Dialog';
 import { useFollowView } from './supabase/useFollowView';
@@ -19,7 +19,7 @@ import Button from '../components/Button';
 import { MT_INPUT, MT_HEADER, MT_CELL, MT_ADD, useManagerTableSizes } from './managerTable';
 import type { CrewRole, Project } from '../types';
 import type { SearchMenuItem } from '@gabriel/ui-kit';
-import { searchManagerRecords, type ManagerSearchHit, type ManagerSearchRecord } from './managerSearch';
+import type { ManagerSearchHit, ManagerSearchRecord } from './managerSearch';
 
 // ---- Generic commit-on-blur database manager ---------------------------------
 //
@@ -322,6 +322,11 @@ export const DatabaseManagerView: React.FC<{
     };
   }), [searchRecords]);
 
+  const searchGroups = useMemo(
+    () => categories.map(c => ({ key: c.key, label: c.label })),
+    [categories],
+  );
+
   // Follow (roadmap 243): the selected sidebar category mirrors through the
   // shared registration — category keys are project data, so a key this
   // client does not have is ignored.
@@ -356,12 +361,15 @@ export const DatabaseManagerView: React.FC<{
 
   /** A search hit opens its category and flags every matching row in it. */
   const jumpToSearchHit = useCallback((hit: ManagerSearchHit, query: string) => {
-    const rowKeys = searchManagerRecords(searchRecords, query)
-      .filter(h => h.categoryKey === hit.categoryKey)
-      .map(h => h.rowKey);
+    // Reuse the kit's matcher — the flashed rows must be exactly the hits the
+    // user saw (a second matcher drifted on field snippets/keywords). Row keys
+    // ride the `category::row` item id.
+    const rowKeys = searchMenuContent(searchItems, searchGroups, query).hits
+      .filter(h => h.item.group === hit.categoryKey)
+      .map(h => h.item.id.slice(hit.categoryKey.length + 2));
     setPendingSearchJump({ categoryKey: hit.categoryKey, rowKeys });
     switchCategory(hit.categoryKey);
-  }, [searchRecords, switchCategory]);
+  }, [searchItems, searchGroups, switchCategory]);
 
   // Scroll only the first match into view; flash every matching row.
   useEffect(() => {

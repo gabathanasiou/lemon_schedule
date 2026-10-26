@@ -11,6 +11,9 @@ export interface LocationOption {
   group?: string;
   /** Renders emerald (the "Add new location…" action row). */
   accent?: boolean;
+  /** Extra searchable attributes for catalogue pickers (the kit SearchMenu
+   *  face — roadmap 318): address, contact, phone. Cell editors ignore them. */
+  fields?: { label: string; value: string }[];
 }
 
 /**
@@ -35,6 +38,12 @@ export function locationOptions(project: Project, extra: LocationOption[] = []):
       id: l.id,
       name: resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng),
       group: labelOf.get(l.type) || l.type,
+      fields: [
+        { label: 'Address', value: l.address || '' },
+        { label: 'Place', value: l.place || '' },
+        { label: 'Contact', value: l.contactName || '' },
+        { label: 'Phone', value: l.phone || '' },
+      ].filter(f => f.value.trim()),
     });
   }
   const extraIds = new Set(extra.map(e => e.id));

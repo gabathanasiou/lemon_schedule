@@ -13,7 +13,8 @@ import { getDayTypes } from '../lib/dayTypes';
 import { formatDateShort } from '../lib/utils';
 import { useRowBuffer, type CommitResult } from '../lib/rowBuffer';
 import type { SearchMenuItem } from '@gabriel/ui-kit';
-import { searchManagerRecords, type ManagerSearchHit, type ManagerSearchRecord } from '../lib/managerSearch';
+import { searchMenuContent } from '@gabriel/ui-kit';
+import type { ManagerSearchHit, ManagerSearchRecord } from '../lib/managerSearch';
 import { useScrolledLeft } from '../lib/useScrolledLeft';
 import { useFollowView } from '../lib/supabase/useFollowView';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
@@ -579,13 +580,19 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     };
   }), [searchRecords]);
 
+  const searchGroups = useMemo(
+    () => allCategoryKeys.map(({ key, isCustom }) => ({ key, label: categoryLabelOf(key, isCustom) })),
+    [allCategoryKeys, categoryLabelOf],
+  );
+
   const jumpToSearchHit = useCallback((hit: ManagerSearchHit, query: string) => {
-    const rowKeys = searchManagerRecords(searchRecords, query)
-      .filter(h => h.categoryKey === hit.categoryKey)
-      .map(h => h.rowKey);
+    // Same matcher the kit SearchMenu used — see managerShell's jump.
+    const rowKeys = searchMenuContent(searchItems, searchGroups, query).hits
+      .filter(h => h.item.group === hit.categoryKey)
+      .map(h => h.item.id.slice(hit.categoryKey.length + 2));
     setPendingSearchJump({ categoryKey: hit.categoryKey, rowKeys });
     switchCategory(hit.categoryKey);
-  }, [searchRecords, switchCategory]);
+  }, [searchItems, searchGroups, switchCategory]);
 
   // Scroll only the first match into view; flash every matching row.
   useEffect(() => {

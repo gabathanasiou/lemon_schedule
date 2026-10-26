@@ -53,16 +53,19 @@ test.describe('Day Manager (roadmap 98)', () => {
       });
     });
 
-    // The Day Details category picker writes the master (grouped by location type).
-    const picker = page.locator('[data-master-location] input');
-    await expect(picker).toHaveValue('Test Base');
-    await picker.click();
+    // The Day Details catalogue picker writes the master (grouped by location type).
+    const masterField = page.locator('[data-master-location]');
+    const masterMenu = masterField.locator('[data-search-menu]');
+    await expect(masterMenu.getByRole('button', { name: /^Test Base/ })).toBeVisible();
+    await masterMenu.getByRole('button', { name: /^Test Base/ }).click();
     // Search matches the TYPE header too: "set" keeps every Set location.
-    await picker.fill('set');
-    await expect(page.getByRole('button', { name: /^Test Stage 7/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Test Base/ })).toHaveCount(0);
-    await page.getByRole('button', { name: /^Test Stage 7/ }).click();
-    await expect(picker).toHaveValue('Test Stage 7');
+    const masterSearch = masterMenu.locator('[data-search-input]');
+    await masterSearch.fill('set');
+    const panel = page.locator('#search-menu-panel');
+    await expect(panel.getByRole('option', { name: /^Test Stage 7/ })).toBeVisible();
+    await expect(panel.getByRole('option', { name: /^Test Base/ })).toHaveCount(0);
+    await panel.getByRole('option', { name: /^Test Stage 7/ }).click();
+    await expect(masterMenu.getByRole('button', { name: /^Test Stage 7/ })).toBeVisible();
     await expect.poll(async () => page.evaluate(() => {
       const b: any = (window as any).__lemonSchedule;
       const p = b.getProject();

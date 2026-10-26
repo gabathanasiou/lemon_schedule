@@ -161,10 +161,10 @@ test.describe('Day call times + crew (roadmap 99)', () => {
     await expect(card).toHaveCount(0);
     const addRoleMenu = modal.locator('[data-crew-add-role]');
     await addRoleMenu.getByRole('button', { name: 'Add role…' }).click();
-    const roleSearch = page.getByPlaceholder('Search roles…');
+    const roleSearch = addRoleMenu.locator('[data-search-input]');
     await expect(roleSearch).toBeVisible({ timeout: 4000 });
     await roleSearch.fill(role.label);
-    await page.getByRole('menuitem', { name: role.label }).first().click();
+    await page.locator('#search-menu-panel').getByRole('option', { name: role.label }).first().click();
     await expect(card).toBeVisible({ timeout: 5000 });
     await expect.poll(() => page.evaluate((key) => {
       const p = (window as any).__lemonSchedule.getProject();

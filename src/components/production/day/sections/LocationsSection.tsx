@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { MapPin, Plus } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
 import { GridCellKind } from '@glideapps/glide-data-grid';
@@ -12,9 +12,8 @@ import { locationFromPick, resolvedLocationName, typeLabelOf } from '../../../..
 import { ADD_LOCATION_SENTINEL, locationOptions } from '../../../../lib/locationOptions';
 import { addDayLocation, dayLocationRefs, removeDayLocation, replaceDayLocation, setDayMaster } from '../../../../lib/dayLocations';
 import { useLocationPicker } from '../../../location/useLocationPicker';
+import { LocationSearchMenu } from '../../../location/LocationSearchMenu';
 import Button from '../../../Button';
-import DropdownMenu from '../../../DropdownMenu';
-import DropdownItem from '../../../DropdownItem';
 import type { GlideColumnEditor } from '../../../../lib/glideEditor';
 
 /**
@@ -55,7 +54,6 @@ const displayName = (l: ProjectLocation) => resolvedLocationName(l.name, l.addre
 
 const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly, dispatch }) => {
   const types = project.locationTypes || [];
-  const [menuOpen, setMenuOpen] = useState(false);
   const locationById = useMemo(() => new Map((project.locations || []).map(l => [l.id, l])), [project.locations]);
 
   const rows = useMemo<LocationRow[]>(() => dayLocationRefs(day.meta).map(ref => {
@@ -125,16 +123,14 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
   }, [dispatch, project.locations]);
 
   const attach = useCallback((id: string) => {
-    setMenuOpen(false);
     if (!id || attached.has(id)) return;
     const realId = id.startsWith('scene:') ? sceneLocationId(id.slice(6)) : id;
     if (attached.has(realId)) return;
     patchMeta(addDayLocation(day.meta, realId));
   }, [attached, patchMeta, day.meta, sceneLocationId]);
 
-  const addNew = useCallback(() => {
-    setMenuOpen(false);
-    openPicker({ kind: 'add' });
+  const addNew = useCallback((address?: string) => {
+    openPicker({ kind: 'add' }, { initial: address ? { address } : null });
   }, [openPicker]);
 
   const getEditor = useCallback((rowIndex: number, colKey: string): GlideColumnEditor | undefined | null => {
@@ -233,33 +229,24 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
     }];
   }, [rows, readOnly, patchMeta, day.meta]);
 
-  const addLocationMenu = (
-    <DropdownMenu
-      theme="light"
-      width="w-80"
-      searchable
-      searchPlaceholder="Search locations…"
-      open={menuOpen}
-      onOpenChange={setMenuOpen}
-      trigger={
-        <Button variant="subtle" disabled={readOnly}>
-          <Plus className="w-3 h-3" /> Add location
-        </Button>
-      }
-    >
-      <DropdownItem onClick={addNew}>
-        <span className="text-emerald-600">Add new location…</span>
-      </DropdownItem>
-      {available.map(item => (
-        <DropdownItem
-          key={item.id}
-          trailing={<span className="opacity-70">{item.group}</span>}
-          onClick={() => attach(item.id)}
-        >
-          {item.name}
-        </DropdownItem>
-      ))}
-    </DropdownMenu>
+  const addLocationMenu = readOnly ? null : (
+    <div className="flex items-center gap-1.5">
+      <LocationSearchMenu
+        items={available}
+        onSelect={attach}
+        onAddNew={addNew}
+        placeholder="Add location"
+        browse="accordion"
+        icon={<Plus className="w-3.5 h-3.5" />}
+        collapsedWidth={140}
+        expandedWidth={280}
+        panelWidth={320}
+        theme="light"
+      />
+      <Button variant="subtle" onClick={() => addNew()} title="Create a new location…">
+        <Plus className="w-3 h-3" /> New
+      </Button>
+    </div>
   );
 
   return (
@@ -284,7 +271,9 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
           getEditor={getEditor}
           rowActions={rowActions}
         />
-          <div className="px-2 py-1.5 border-t border-[color:var(--ui-border)] flex items-center gap-2">{addLocationMenu}</div>
+          {addLocationMenu && (
+            <div className="px-2 py-1.5 border-t border-[color:var(--ui-border)] flex items-center gap-2">{addLocationMenu}</div>
+          )}
         </div>
       )}
 
