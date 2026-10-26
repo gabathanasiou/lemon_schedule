@@ -1,13 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { ListChecks } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import type { ScheduleRow } from '../../../../types';
 import Checkbox from '../../../Checkbox';
 import { CellInput } from '../../../CellInput';
 import DurationField from '../../../DurationField';
-import { DAY_ALIGN, DAY_GROUP_ROW, DAY_TABLE, DAY_TABLE_WRAP, DAY_TD, DAY_TH } from '../tableStyles';
+import { DAY_ALIGN, DAY_GROUP_ROW, DAY_INPUT, DAY_TABLE, DAY_TABLE_WRAP, DAY_TD, DAY_TH } from '../tableStyles';
 
-/** The day's breaks/notes: tick for call-sheet inclusion, edit label + duration
- *  inline (the computed start time is shown read-only). */
+const FIELD = `${DAY_INPUT} w-full px-2.5 py-2`;
+
+/**
+ * Breaks & Notes (call sheet): the stripboard's break/note rows with their
+ * call-sheet inclusion ticks and inline label/duration edits, plus the day's
+ * free-text announcements. Split out of Day Details so that card stays a
+ * compact overview (roadmap 308).
+ */
 const BreaksNotesSection: React.FC<DaySectionProps> = ({ day, patchMeta, readOnly, project, dispatch }) => {
   const patchRowById = (rowId: string, updates: Partial<ScheduleRow>) =>
     dispatch({ type: 'UPDATE_ROW', payload: { versionId: project.activeVersionId, rowId, updates } });
@@ -21,64 +28,88 @@ const BreaksNotesSection: React.FC<DaySectionProps> = ({ day, patchMeta, readOnl
     patchMeta({ [key]: next.length === allIds.length ? undefined : next } as any);
   };
 
-  if (day.breaks.length === 0 && day.notes.length === 0) {
-    return <p className="text-xs text-zinc-400">No breaks or notes on this day.</p>;
-  }
+  const [note, setNote] = useState(day.meta.note || '');
+  useEffect(() => { setNote(day.meta.note || ''); }, [day.meta.note, day.sectionIndex]);
+
+  const commitNote = () => {
+    if ((day.meta.note || '') !== note) patchMeta({ note: note.trim() || undefined });
+  };
 
   return (
-    <div className={DAY_TABLE_WRAP}>
-      <table className={DAY_TABLE}>
-        <thead>
-          <tr className="border-b border-zinc-200">
-            <th className={`${DAY_TH} w-9 text-center`} title="Include on the call sheet">✓</th>
-            <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Label</th>
-            <th className={`${DAY_TH} ${DAY_ALIGN.center} w-16`}>Time</th>
-            <th className={`${DAY_TH} ${DAY_ALIGN.center} w-24`}>Duration</th>
-          </tr>
-        </thead>
-        <tbody>
-          {day.breaks.length > 0 && (
-            <tr className={DAY_GROUP_ROW}>
-              <td colSpan={4} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Breaks</td>
-            </tr>
-          )}
-          {day.breaks.map(b => (
-            <tr key={b.row.id} className="even:bg-zinc-50/60">
-              <td className={`${DAY_TD} text-center`}>
-                <Checkbox checked={included(day.meta.includeBreaks, b.row.id)} disabled={readOnly} variant="plain" onChange={on => setIncluded('includeBreaks', allBreakIds, b.row.id, on)} />
-              </td>
-              <td className={`${DAY_TD} ${DAY_ALIGN.left}`}>
-                <CellInput value={b.label} onChange={v => patchRowById(b.row.id, { breakLabel: v })} readOnly={readOnly} noFill />
-              </td>
-              <td className={`${DAY_TD} ${DAY_ALIGN.center} text-xs text-zinc-500 tabular-nums`}>{b.time || '—'}</td>
-              <td className={`${DAY_TD} ${DAY_ALIGN.center}`}>
-                <DurationField value={b.duration} onChange={v => patchRowById(b.row.id, { breakDuration: v })} readOnly={readOnly} className="w-16 justify-center mx-auto" />
-              </td>
-            </tr>
-          ))}
-          {day.notes.length > 0 && (
-            <tr className={DAY_GROUP_ROW}>
-              <td colSpan={4} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Notes</td>
-            </tr>
-          )}
-          {day.notes.map(n => (
-            <tr key={n.row.id} className="even:bg-zinc-50/60">
-              <td className={`${DAY_TD} text-center`}>
-                <Checkbox checked={included(day.meta.includeNotes, n.row.id)} disabled={readOnly} variant="plain" onChange={on => setIncluded('includeNotes', allNoteIds, n.row.id, on)} />
-              </td>
-              <td className={`${DAY_TD} ${DAY_ALIGN.left}`}>
-                <CellInput value={n.text} onChange={v => patchRowById(n.row.id, { noteText: v })} readOnly={readOnly} noFill />
-              </td>
-              <td className={`${DAY_TD} ${DAY_ALIGN.center} text-xs text-zinc-500 tabular-nums`}>{n.time || '—'}</td>
-              <td className={`${DAY_TD} ${DAY_ALIGN.center}`}>
-                <DurationField value={n.row.estimatedDuration || 0} onChange={v => patchRowById(n.row.id, { estimatedDuration: v })} readOnly={readOnly} className="w-16 justify-center mx-auto" />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-4">
+      {day.breaks.length === 0 && day.notes.length === 0 ? (
+        <p className="text-xs text-zinc-400">No breaks or notes on this day — add them in the Schedule tab.</p>
+      ) : (
+        <div className={DAY_TABLE_WRAP}>
+          <table className={DAY_TABLE}>
+            <thead>
+              <tr className="border-b border-zinc-200">
+                <th className={`${DAY_TH} w-9 text-center`} title="Include on the call sheet">✓</th>
+                <th className={`${DAY_TH} ${DAY_ALIGN.left}`}>Label</th>
+                <th className={`${DAY_TH} ${DAY_ALIGN.center} w-16`}>Time</th>
+                <th className={`${DAY_TH} ${DAY_ALIGN.center} w-24`}>Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {day.breaks.length > 0 && (
+                <tr className={DAY_GROUP_ROW}>
+                  <td colSpan={4} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Breaks</td>
+                </tr>
+              )}
+              {day.breaks.map(b => (
+                <tr key={b.row.id} className="even:bg-zinc-50/60">
+                  <td className={`${DAY_TD} text-center`}>
+                    <Checkbox checked={included(day.meta.includeBreaks, b.row.id)} disabled={readOnly} variant="plain" onChange={on => setIncluded('includeBreaks', allBreakIds, b.row.id, on)} />
+                  </td>
+                  <td className={`${DAY_TD} ${DAY_ALIGN.left}`}>
+                    <CellInput value={b.label} onChange={v => patchRowById(b.row.id, { breakLabel: v })} readOnly={readOnly} noFill />
+                  </td>
+                  <td className={`${DAY_TD} ${DAY_ALIGN.center} text-xs text-zinc-500 tabular-nums`}>{b.time || '—'}</td>
+                  <td className={`${DAY_TD} ${DAY_ALIGN.center}`}>
+                    <DurationField value={b.duration} onChange={v => patchRowById(b.row.id, { breakDuration: v })} readOnly={readOnly} className="w-16 justify-center mx-auto" />
+                  </td>
+                </tr>
+              ))}
+              {day.notes.length > 0 && (
+                <tr className={DAY_GROUP_ROW}>
+                  <td colSpan={4} className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Notes</td>
+                </tr>
+              )}
+              {day.notes.map(n => (
+                <tr key={n.row.id} className="even:bg-zinc-50/60">
+                  <td className={`${DAY_TD} text-center`}>
+                    <Checkbox checked={included(day.meta.includeNotes, n.row.id)} disabled={readOnly} variant="plain" onChange={on => setIncluded('includeNotes', allNoteIds, n.row.id, on)} />
+                  </td>
+                  <td className={`${DAY_TD} ${DAY_ALIGN.left}`}>
+                    <CellInput value={n.text} onChange={v => patchRowById(n.row.id, { noteText: v })} readOnly={readOnly} noFill />
+                  </td>
+                  <td className={`${DAY_TD} ${DAY_ALIGN.center} text-xs text-zinc-500 tabular-nums`}>{n.time || '—'}</td>
+                  <td className={`${DAY_TD} ${DAY_ALIGN.center}`}>
+                    <DurationField value={n.row.estimatedDuration || 0} onChange={v => patchRowById(n.row.id, { estimatedDuration: v })} readOnly={readOnly} className="w-16 justify-center mx-auto" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <label className="block">
+        <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Day notes / announcements</span>
+        <textarea
+          value={note}
+          readOnly={readOnly}
+          onChange={e => setNote(e.target.value)}
+          onBlur={commitNote}
+          rows={2}
+          placeholder="Parking, catering, announcements…"
+          className={`${FIELD} mt-1.5 resize-y`}
+        />
+      </label>
     </div>
   );
 };
+
+export const BreaksNotesIcon = ListChecks;
 
 export default BreaksNotesSection;

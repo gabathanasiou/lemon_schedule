@@ -8,12 +8,13 @@ test.describe('Day Manager (roadmap 98)', () => {
     await expect(page.locator('[data-section="details"]')).toBeVisible();
     await expect(page.locator('[data-section="locations"]')).toBeVisible();
     await expect(page.locator('[data-section="scenes"]')).toBeVisible();
+    await expect(page.locator('[data-section="breaksNotes"]')).toBeVisible();
     await expect(page.locator('[data-section="callTimes"]')).toBeVisible();
     await expect(page.locator('[data-section="events"]')).toBeVisible();
     await expect(page.locator('[data-section="conflicts"]')).toBeVisible();
 
     const note = 'Parking behind the diner';
-    const ta = page.locator('[data-section="details"] textarea');
+    const ta = page.locator('[data-section="breaksNotes"] textarea');
     await ta.fill(note);
     await ta.blur();
 
@@ -67,7 +68,7 @@ test.describe('Day Manager (roadmap 98)', () => {
     await page.getByRole('menuitem', { name: /^DAY 2 / }).click();
     await page.getByRole('main').getByRole('button', { name: 'Settings', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Copy from day' }).click();
-    await page.getByText('Day Details', { exact: true }).last().click();
+    await page.getByText('Breaks & Notes', { exact: true }).last().click();
     await page.getByRole('button', { name: 'Copy to this day' }).click();
 
     // DAY 2's governing daybreak is the first non-pinned break.

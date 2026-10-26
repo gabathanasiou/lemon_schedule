@@ -1156,3 +1156,46 @@ future … not able to edit day manager stuff for days that are past today."
   handles the API-call side; this is a workflow guard against rewriting
   history.
 - **Verify:** manual pass per surface; the lock must never block undo/history.
+
+## 310. Day Manager — compact Day Details + Breaks & Notes card (`[~]`)
+
+**Asked 2026-10-26 (user):** "the Day Details card … very long and a bit confusing …
+let's see how we can redesign it so it's more readable and displays the right information
+that makes sense and how we can save space." Agreed shape (2026-10-26): a compact
+overview card, with breaks/notes/announcements in their own card; category tabs later
+(311).
+
+**Design:** Day Details drops the `Field | Value` table. Title-case date + day number +
+day-type pill; one muted stats line (scenes · pages · cast · elements); three timing
+tiles (general call with a pencil affordance, first turnover, est. wrap + day length);
+one-line weather strip with the `Manual weather` toggle and the no-pin CTA. Breaks,
+stripboard notes and the free-text announcements move to a new full-width **Breaks &
+Notes** card (registry `wide`, after Scenes), which owns the Copy-from-day extract; Day
+Details is no longer copyable. No data-model change.
+
+- **Scope:** `sections/DayDetailsSection.tsx`, `sections/BreaksNotesSection.tsx`
+  (announcements move in), `daySectionRegistry.tsx`, `e2e/day-manager.spec.ts`
+  (section/textarea selectors + the Copy-from-day pick), `TimeField.align` (left-aligned
+  tile value), docs (`AGENTS.md`, `DESIGN-LANGUAGE.md`).
+- **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`; rule-7 manual
+  for the card layout/alignment.
+- **Relations:** 98, 101, 301; precedes 311.
+
+## 311. Day Manager — category tab strip (`[ ]`)
+
+**Asked 2026-10-26 (user):** "making the whole day manager have a segmented control or
+tabbing system where I can jump between different categories like locations, call times,
+crew and all of that. Or an all category where I can see all cards at the same time."
+Agreed after the card-by-card pass (310).
+
+**Design:** a sticky tab strip under the toolbar: **All** (today's stacked page) ·
+**Overview** (Details + Breaks & Notes + Events + Conflicts) · **Locations** · **Scenes**
+· **Call Times** · **Crew**. A tab shows its one section full-width; labels may carry
+live counts. Remember the last tab per user and carry it in the app place/hash (roadmap
+176), so back/forward, reload and day pop-outs keep the tab. This is a lighter stepping
+stone to 142's data rail, not a competing surface.
+
+- **Scope:** `DayManagerPage.tsx` (filtered rendering), `daySectionRegistry.tsx` (tab
+  grouping), `src/lib/appNav.ts` + `src/App.tsx` (place field), pop-out parity.
+- **Verify:** e2e back/forward + reload keeps the tab; rule-7 manual for the strip.
+- **Relations:** 98, 142 (later rail), 176, 310.

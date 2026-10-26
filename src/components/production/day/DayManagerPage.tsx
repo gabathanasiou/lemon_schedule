@@ -417,10 +417,11 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
 
       <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50 p-4" data-day-sections>
         <div className="mx-auto w-full max-w-6xl">
-          {/* The narrow meta sections (Day Details + Locations/Events/Conflicts)
-              render as a two-column band on TOP — Day Details in the left
-              column, the rest stacked right; the wide data-dense sections
-              (scenes, call times, crew) span both columns beneath. */}
+          {/* The narrow meta sections (Day Details, Events, Conflicts) render
+              as a two-column band on TOP — Day Details in the left column, the
+              rest stacked right; the wide data-dense sections (locations,
+              scenes, breaks & notes, call times, crew) span both columns
+              beneath. */}
           {(() => {
             const narrow = DAY_SECTIONS.filter(d => !d.wide);
             if (narrow.length === 0) return null;

@@ -2,9 +2,11 @@ import React from 'react';
 import type { DayMeta } from '../../../types';
 import type { DayView } from '../../../lib/dayView';
 import type { DaySectionProps } from './daySectionTypes';
+import { formatDateShort } from '../../../lib/utils';
 import DayDetailsSection, { DayDetailsIcon } from './sections/DayDetailsSection';
 import LocationsSection, { LocationsIcon } from './sections/LocationsSection';
 import ScenesSection, { ScenesIcon } from './sections/ScenesSection';
+import BreaksNotesSection, { BreaksNotesIcon } from './sections/BreaksNotesSection';
 import CallTimesSection, { CallTimesIcon } from './sections/CallTimesSection';
 import CrewSection, { CrewIcon } from './sections/CrewSection';
 import EventsSection, { EventsIcon } from './sections/EventsSection';
@@ -26,10 +28,10 @@ export interface DaySectionDef {
   copyable: boolean;
   copyMode?: 'replace' | 'merge';
   /** Full-width card (spans both Day Manager columns) vs the narrow 2-column
-   *  band. Wide = the data-dense grids/tables (scenes, call times, crew);
-   *  narrow = the short meta cards. The page lays the narrow sections out as
-   *  a two-column band: the FIRST narrow section on the left, the rest stacked
-   *  on the right (roadmap 105). */
+   *  band. Wide = the data-dense grids/tables (locations, scenes, breaks &
+   *  notes, call times, crew); narrow = the short meta cards. The page lays
+   *  the narrow sections out as a two-column band: the FIRST narrow section on
+   *  the left, the rest stacked on the right (roadmap 105). */
   wide?: boolean;
   /** The meta patch this section copies (Copy-from-day). Events are handled
    *  by the modal (date-keyed, merged into the calendar version). */
@@ -43,18 +45,9 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     id: 'details',
     title: 'Day Details',
     icon: <DayDetailsIcon className="w-3.5 h-3.5" />,
-    summary: day => day.meta.note ? day.meta.note : '',
+    summary: day => `Day ${day.chronoDay}${day.date ? ` · ${formatDateShort(day.date)}` : ''}`,
     Component: DayDetailsSection,
-    copyable: true,
-    copyMode: 'replace',
-    extract: day => {
-      const patch = {
-        ...(day.meta.note ? { note: day.meta.note } : {}),
-        ...(day.meta.includeBreaks ? { includeBreaks: day.meta.includeBreaks } : {}),
-        ...(day.meta.includeNotes ? { includeNotes: day.meta.includeNotes } : {}),
-      };
-      return Object.keys(patch).length ? patch : undefined;
-    },
+    copyable: false,
   },
   {
     wide: true,
@@ -85,6 +78,30 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: ScenesSection,
     copyable: false,
     isEmpty: day => day.scenes.length === 0,
+  },
+  {
+    wide: true,
+    id: 'breaksNotes',
+    title: 'Breaks & Notes',
+    icon: <BreaksNotesIcon className="w-3.5 h-3.5" />,
+    summary: day => {
+      const parts: string[] = [];
+      if (day.breaks.length) parts.push(`${day.breaks.length} break${day.breaks.length !== 1 ? 's' : ''}`);
+      if (day.notes.length) parts.push(`${day.notes.length} note${day.notes.length !== 1 ? 's' : ''}`);
+      if (day.meta.note) parts.push(day.meta.note);
+      return parts.length ? parts.join(' · ') : 'None';
+    },
+    Component: BreaksNotesSection,
+    copyable: true,
+    copyMode: 'replace',
+    extract: day => {
+      const patch = {
+        ...(day.meta.note ? { note: day.meta.note } : {}),
+        ...(day.meta.includeBreaks ? { includeBreaks: day.meta.includeBreaks } : {}),
+        ...(day.meta.includeNotes ? { includeNotes: day.meta.includeNotes } : {}),
+      };
+      return Object.keys(patch).length ? patch : undefined;
+    },
   },
   {
     wide: true,

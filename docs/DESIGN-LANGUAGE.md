@@ -118,7 +118,12 @@ same spot in BOTH Days views (roadmap 177) — a thin vertical divider separates
 view-specific controls from that shared day-selector + switcher cluster. The **view
 switcher** is the toolbar's
 rightmost element (see the merged-view switcher recipe below). Below the toolbar sit the
-collapsible section cards (`DaySectionCard`). All overlays (Copy-from-day, events,
+collapsible section cards (`DaySectionCard`). **Day Details is a compact overview**, not
+a field/value table: a title-case date + day number + day-type pill, one muted stats
+line, three timing tiles (only the general call shows a pencil edit affordance), and a
+one-line weather strip with a `Manual weather` toggle. Breaks, stripboard notes and the
+free-text announcements live in their own full-width **Breaks & Notes** card, so the
+meta card stays short beside Events/Conflicts. All overlays (Copy-from-day, events,
 pickers) are dark per the two-layer rule. The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's
