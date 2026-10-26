@@ -8,7 +8,7 @@
 //  - https://archive-api.open-meteo.com/v1/archive   — any past date (ERA5)
 // Both return weather_code + sunrise/sunset in local time via `timezone=`.
 
-import { Project, ScheduleVersion, CalendarVersion, ReportDesign } from '../types';
+import { Project, ScheduleVersion, CalendarVersion, ReportDesign, DayWeatherOverride } from '../types';
 import { ReportCtx, ReportDaybreakData, buildReportCtx, getReportLocation, pickLocation, designLocationsIn, type ReportLocationInfo } from './reportData';
 import { getBrowserTimeZone } from './timezones';
 import { partsFromPlace } from './locations';
@@ -78,6 +78,8 @@ export interface SunWeather {
   weather: string;   // WMO label (e.g. "Partly cloudy")
   tempMin: number | null;
   tempMax: number | null;
+  /** WMO code (4677) — the Day Manager picks its glyph from this. */
+  code?: number | null;
 }
 
 // WMO weather interpretation codes (4677) — the code set Open-Meteo returns.
@@ -116,13 +118,14 @@ export function wmoLabel(code: number): string {
   return WMO_LABELS[code] ?? 'Weather';
 }
 
-/** "Partly cloudy · 18–24°C" (temps omitted when the API didn't return them). */
+/** "Partly cloudy · 18–24°C" (temps omitted when the API didn't return them).
+ *  Empty parts are dropped, so a partly filled manual override (roadmap 301)
+ *  never renders a stray separator. */
 export function formatWeatherValue(w: SunWeather): string {
-  const hasTemps = w.tempMin != null && w.tempMax != null;
-  const temps = hasTemps
-    ? ` · ${Math.round(w.tempMin)}–${Math.round(w.tempMax)}°C`
+  const temps = w.tempMin != null && w.tempMax != null
+    ? `${Math.round(w.tempMin)}–${Math.round(w.tempMax)}°C`
     : '';
-  return `${w.weather}${temps}`;
+  return [w.weather.trim(), temps].filter(Boolean).join(' · ');
 }
 
 // ---- location display + map links (shared by the map block and the fields) ----
@@ -248,6 +251,7 @@ async function fetchForEndpoint(
       weather: wmoLabel(daily.weather_code?.[i]),
       tempMin: daily.temperature_2m_min?.[i] ?? null,
       tempMax: daily.temperature_2m_max?.[i] ?? null,
+      code: daily.weather_code?.[i] ?? null,
       at: Date.now(),
     };
     cache.set(weatherKey(loc.lat, loc.lng, d), entry);
@@ -392,22 +396,77 @@ export async function refreshSunWeatherForCtx(ctx: ReportCtx, date: string): Pro
 }
 
 export interface DaySunWeatherView {
-  /** False when the day has no location pin — nothing to look up. */
+  /** False when the day has no location pin — nothing to look up. A manual
+   *  override still supplies `entry` without a pin. */
   hasPin: boolean;
   /** undefined = not warmed yet this session · null = a known miss. */
   entry: StoredSunWeather | null | undefined;
   miss: WeatherMissReason | undefined;
+  /** True when the day's manual override (roadmap 301) supplies the values. */
+  manual: boolean;
 }
 
-/** The selected day's sun/weather state for the Day Manager chip (roadmap
- *  298) — the day-seam location's values, or its no-pin/miss state. */
+// ---- manual override (roadmap 301) -------------------------------------------
+// Typed weather lives on the governing daybreak's `daybreakMeta.weatherOverride`.
+// THIS is the one read path: the Day Manager chip/Details and every report
+// weather field resolve through it; a blank field falls back to the fetched
+// value so a partial override never blanks the rest.
+
+/** Merge the manual fields over the fetched entry (blank = API value). */
+function overrideEntry(
+  ov: DayWeatherOverride,
+  base: StoredSunWeather | null | undefined,
+): StoredSunWeather {
+  return {
+    sunrise: (ov.sunrise || '').trim() || base?.sunrise || '',
+    sunset: (ov.sunset || '').trim() || base?.sunset || '',
+    weather: (ov.weather || '').trim() || base?.weather || '',
+    tempMin: ov.tempMin ?? base?.tempMin ?? null,
+    tempMax: ov.tempMax ?? base?.tempMax ?? null,
+    code: base?.code ?? null,
+    at: base?.at ?? Date.now(),
+  };
+}
+
+/** The day override that applies to a weather field, or undefined. The
+ *  override is day-scoped: it only wins for the day item itself or a location
+ *  item pinned at the day's own location — never a location-table row pointing
+ *  at another pin, and never an explicit `locationChoice` pick. */
+function dayOverrideFor(
+  ctx: ReportCtx,
+  item: any,
+  aux: { dayDate?: string; locationChoice?: string } | undefined,
+  date: string,
+): DayWeatherOverride | undefined {
+  if (aux?.locationChoice) return undefined;
+  const info = ctx.dayInfos?.find(d => d.date === date);
+  const ov = info?.weatherOverride;
+  if (!info || !ov?.enabled) return undefined;
+  if (item === info) return ov;
+  const loc = pickLocation(ctx, item, aux?.locationChoice);
+  if (!loc) return undefined;
+  const dayLoc = getReportLocation(ctx, info);
+  if (!hasMapPin(dayLoc)) return undefined;
+  return weatherKey(loc.lat, loc.lng, date) === weatherKey(dayLoc.lat, dayLoc.lng, date)
+    ? ov
+    : undefined;
+}
+
+/** The selected day's sun/weather state for the Day Manager chip + Details
+ *  (roadmaps 298/301) — the manual override, else the day-seam location's
+ *  values, else the no-pin/miss state. */
 export function daySunWeather(ctx: ReportCtx, date: string): DaySunWeatherView {
-  const info = ctx.dayInfos.find(d => d.date === date);
-  if (!info) return { hasPin: false, entry: undefined, miss: undefined };
+  const info = ctx.dayInfos?.find(d => d.date === date);
+  if (!info) return { hasPin: false, entry: undefined, miss: undefined, manual: false };
   const loc = getReportLocation(ctx, info);
-  if (!hasMapPin(loc)) return { hasPin: false, entry: undefined, miss: undefined };
+  const hasPin = hasMapPin(loc);
+  if (info.weatherOverride?.enabled) {
+    const base = hasPin ? getCachedSunWeather(loc, date) : undefined;
+    return { hasPin, entry: overrideEntry(info.weatherOverride, base), miss: undefined, manual: true };
+  }
+  if (!hasPin) return { hasPin: false, entry: undefined, miss: undefined, manual: false };
   const entry = getCachedSunWeather(loc, date);
-  return { hasPin: true, entry, miss: entry === null ? getSunWeatherMiss(loc, date) : undefined };
+  return { hasPin: true, entry, miss: entry === null ? getSunWeatherMiss(loc, date) : undefined, manual: false };
 }
 
 export async function prepareSunWeatherForDesign(project: Project, version: ScheduleVersion, calendarVersion: CalendarVersion, daybreak: ReportDaybreakData, design?: ReportDesign): Promise<void> {
@@ -433,17 +492,19 @@ export function sunWeatherFieldValue(
   const date = aux?.dayDate || (item?.date as string | undefined);
   if (!date) return '—';
   const loc = pickLocation(ctx, item, aux?.locationChoice);
-  if (!loc) return '—';
-  const w = getCachedSunWeather(loc, date);
+  const override = dayOverrideFor(ctx, item, aux, date);
+  const w = override
+    ? overrideEntry(override, loc && hasMapPin(loc) ? getCachedSunWeather(loc, date) : undefined)
+    : loc ? getCachedSunWeather(loc, date) : undefined;
   if (!w) {
     // A resolved miss (not the pre-fetch undefined, which stays a dash until
     // the canvas/preview warms): a date past the forecast horizon gets a short
     // hint instead of a bare dash. Fetch errors stay quiet.
-    if (w === null && getSunWeatherMiss(loc, date) === 'too-far') return 'No forecast yet';
+    if (w === null && loc && getSunWeatherMiss(loc, date) === 'too-far') return 'No forecast yet';
     return '—';
   }
-  if (kind === 'weather') return formatWeatherValue(w);
+  if (kind === 'weather') return formatWeatherValue(w) || '—';
   if (kind === 'tempHigh') return formatTempC(w.tempMax);
   if (kind === 'tempLow') return formatTempC(w.tempMin);
-  return w[kind];
+  return w[kind] || '—';
 }

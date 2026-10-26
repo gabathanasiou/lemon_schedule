@@ -1,6 +1,7 @@
 import type { Dispatch } from 'react';
 import type { DayMeta, Project, ScheduleRow } from '../../../types';
 import type { DayView } from '../../../lib/dayView';
+import type { DaySunWeatherView } from '../../../lib/reportWeather';
 
 /**
  * The one props contract every day section implements (D7). Sections are pure:
@@ -35,4 +36,7 @@ export interface DaySectionProps {
   project: Project;
   dispatch: Dispatch<any>;
   actions: DaySectionActions;
+  /** The selected day's sun/weather (roadmap 301). The page owns the single
+   *  warm/refresh run so every surface reads the same resolved values. */
+  weatherView?: DaySunWeatherView | null;
 }

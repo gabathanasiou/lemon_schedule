@@ -26,6 +26,8 @@ import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
 import { findDesignCallSheetZone } from '../../../lib/reportBlocks';
 import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../types';
 import { useReportCtx } from '../../../lib/useReportCtx';
+import { daySunWeather } from '../../../lib/reportWeather';
+import { useSunWeather } from '../../../lib/useSunWeather';
 import DayWeatherChip from './DayWeatherChip';
 
 const PREFS_KEY = 'lemon_schedule_day_manager';
@@ -77,6 +79,9 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { days, byIndex } = useDayViews();
   const ctx = useReportCtx();
+  // ONE warm/refresh run for the selected day (roadmap 301) — the toolbar chip
+  // and the Day Details weather rows read the same resolved values.
+  const sunWeather = useSunWeather(ctx);
   const [prefs, setPrefs] = usePersistState<DayManagerPrefs>(PREFS_KEY, DEFAULT_PREFS);
   const [eventsDate, setEventsDate] = useState<string | null>(null);
   const [adderDate, setAdderDate] = useState<string | null>(null);
@@ -100,6 +105,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     if (prefs.selectedIndex >= 0 && byIndex.has(prefs.selectedIndex)) return byIndex.get(prefs.selectedIndex)!;
     return days[0];
   }, [initialDayIndex, byIndex, prefs.selectedIndex, days]);
+
+  const weatherView = ctx && selected ? daySunWeather(ctx, selected.date) : null;
 
   useEffect(() => {
     if (selected && prefs.selectedIndex !== selected.sectionIndex) {
@@ -299,6 +306,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
             project={project}
             dispatch={dispatch}
             actions={actions}
+            weatherView={weatherView}
           />
         )}
       </DaySectionCard>
@@ -344,7 +352,12 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       )}
 
       <div className="ml-auto flex items-center gap-1">
-        <DayWeatherChip ctx={ctx} date={selected.date} />
+        <DayWeatherChip
+          view={weatherView}
+          date={selected.date}
+          refresh={sunWeather.refresh}
+          refreshing={sunWeather.refreshing}
+        />
         <DropdownMenu
           open={settingsOpen}
           onOpenChange={setSettingsOpen}

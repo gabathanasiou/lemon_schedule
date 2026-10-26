@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   formatTempC,
+  formatWeatherValue,
   fetchSunWeatherBatch,
   sunWeatherFieldValue,
+  daySunWeather,
   getReportLocation,
   reverseGeocodeAddress,
   getCachedAddress,
   type ReportLocation,
 } from '../reportWeather';
 import type { ReportCtx } from '../reportData';
+import type { DayWeatherOverride } from '../../types';
 
 const isoDay = (offset: number) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
 
@@ -130,6 +133,85 @@ describe('sunWeatherFieldValue — unavailable weather', () => {
   it('keeps the dash before a fetch has resolved (not a miss)', () => {
     const dayInfo = { date: isoDay(2), locationId: 'loc-master', sceneLocations: ['Scene Place'] };
     expect(sunWeatherFieldValue(makeCtx(), dayInfo, undefined, 'weather')).toBe('—');
+  });
+});
+
+describe('manual day weather override (roadmap 301)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** A ctx whose single day optionally carries a manual weather override. */
+  const makeDayCtx = (date: string, override?: DayWeatherOverride, locationId: string | undefined = 'loc-master') => ({
+    project: {
+      locations: [{ id: 'loc-master', name: 'Master', type: 'set', lat: 52.1, lng: -1.2, place: 'Master Place' }],
+      productionInfo: { timezone: 'Europe/London' },
+    },
+    dayInfos: [{ date, locationId, sceneLocations: [], weatherOverride: override }],
+  }) as unknown as ReportCtx;
+
+  /** Seed the session cache for one pin/date (the API part of an override). */
+  const seed = async (date: string, lat: number, lng: number, weatherCode = 0) => {
+    const loc: ReportLocation = { lat, lng, timezone: 'Europe/London', place: 'Seed' };
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        daily: {
+          time: [date],
+          sunrise: [`${date}T07:00`],
+          sunset: [`${date}T19:00`],
+          weather_code: [weatherCode],
+          temperature_2m_max: [21],
+          temperature_2m_min: [11],
+        },
+      }),
+    } as any)));
+    await fetchSunWeatherBatch(loc, [date]);
+    vi.unstubAllGlobals();
+  };
+
+  it('works without a location pin and marks the view manual', () => {
+    const date = isoDay(3);
+    const ctx = makeDayCtx(date, { enabled: true, weather: 'Hail', tempMin: 2, tempMax: 5 }, 'missing');
+    const view = daySunWeather(ctx, date);
+    expect(view).toMatchObject({
+      hasPin: false,
+      manual: true,
+      entry: { weather: 'Hail', tempMin: 2, tempMax: 5 },
+    });
+    expect(sunWeatherFieldValue(ctx, ctx.dayInfos[0], undefined, 'weather')).toBe('Hail · 2–5°C');
+  });
+
+  it('fills blank override fields from the fetched day weather', async () => {
+    const date = isoDay(4);
+    await seed(date, 52.1, -1.2);
+    const ctx = makeDayCtx(date, { enabled: true, weather: 'Hail' });
+    expect(sunWeatherFieldValue(ctx, ctx.dayInfos[0], undefined, 'weather')).toBe('Hail · 11–21°C');
+    expect(sunWeatherFieldValue(ctx, ctx.dayInfos[0], undefined, 'sunrise')).toBe('07:00');
+    expect(daySunWeather(ctx, date).entry).toMatchObject({ weather: 'Hail', sunrise: '07:00' });
+  });
+
+  it('a disabled override keeps the typed values but shows the API', async () => {
+    const date = isoDay(5);
+    await seed(date, 52.1, -1.2);
+    const ctx = makeDayCtx(date, { enabled: false, weather: 'Hail' });
+    expect(sunWeatherFieldValue(ctx, ctx.dayInfos[0], undefined, 'weather')).toBe('Clear sky · 11–21°C');
+    expect(daySunWeather(ctx, date).manual).toBe(false);
+  });
+
+  it('never replaces another pin or an explicit location pick', async () => {
+    const date = isoDay(6);
+    await seed(date, 52.1, -1.2);
+    await seed(date, 41, -4);
+    const ctx = makeDayCtx(date, { enabled: true, weather: 'Hail' });
+    const other = { id: 'other', name: 'Other', type: 'set', typeLabel: 'Set', lat: 41, lng: -4, place: 'Other Place' };
+    expect(sunWeatherFieldValue(ctx, other, { dayDate: date }, 'weather')).toBe('Clear sky · 11–21°C');
+    expect(sunWeatherFieldValue(ctx, other, { dayDate: date, locationChoice: 'set' }, 'weather'))
+      .toBe('Clear sky · 11–21°C');
+    expect(sunWeatherFieldValue(ctx, ctx.dayInfos[0], undefined, 'weather')).toBe('Hail · 11–21°C');
+  });
+
+  it('formatWeatherValue drops empty parts for a partly filled override', () => {
+    expect(formatWeatherValue({ sunrise: '', sunset: '', weather: 'Rain', tempMin: null, tempMax: null })).toBe('Rain');
+    expect(formatWeatherValue({ sunrise: '', sunset: '', weather: '', tempMin: null, tempMax: null })).toBe('');
   });
 });
 

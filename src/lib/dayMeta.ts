@@ -52,6 +52,8 @@ export function isEmptyDayMeta(meta?: DayMeta | null): boolean {
   if (meta.locationId) return false;
   if (meta.locationIds && meta.locationIds.length > 0) return false;
   if (meta.note && meta.note.trim()) return false;
+  // Manual weather counts even while disabled — the typed values would be lost.
+  if (meta.weatherOverride) return false;
   if (meta.crewIds && meta.crewIds.length > 0) return false;
   if (meta.crewSlots && meta.crewSlots.length > 0) return false;
   if (meta.excludedCrewDepts && meta.excludedCrewDepts.length > 0) return false;
