@@ -22,14 +22,13 @@ import { AsyncResultsDropdown, type AsyncResultItem } from './AsyncResultsDropdo
 
 type PlaceHit = AsyncResultItem & { result: PlaceResult };
 
-// Location picker for map surfaces: address search (results float in a
-// dropdown, never growing the modal) + Apple Maps–style static center pin
-// (drag the map to place — the pin never moves) + a "center on my location"
-// button. The picked location is the map's current center at confirm time;
-// the place label settles via debounced reverse geocode after each move.
-// The Address input is a manual override — it follows the geocoded street
-// until edited, so a street number the geocoder can't match (e.g. "Mikras
-// Asias 92" in a thinly-mapped area) can still be committed by hand.
+// Location picker for map surfaces: ONE address field — typing searches places
+// and picking fills the field; unpicked text commits as the manual address (the
+// override for streets the geocoder can't match, e.g. "Mikras Asias 92" in a
+// thinly-mapped area). Apple Maps–style static center pin (drag the map to
+// place — the pin never moves) + a "center on my location" button. The picked
+// location is the map's current center at confirm time; the place label settles
+// via debounced reverse geocode after each move and shows under the map.
 
 function CenterProbe({ onCenterMove }: { onCenterMove: (lat: number, lng: number) => void }) {
   const map = useMapEvents({
@@ -47,12 +46,18 @@ export const LocationPickerModal: React.FC<{
   open: boolean;
   onClose: () => void;
   onConfirm: (loc: PickedLocation) => void;
-  /** Existing pin to edit — opens centered on it (with its label) instead of the default center. */
-  initial?: PickedLocation | null;
+  /** Existing location to edit — opens centered on its pin (when it has one)
+   *  with its label/address written, instead of the default center. */
+  initial?: Partial<PickedLocation> | null;
 }> = ({ open, onClose, onConfirm, initial }) => {
+  // An initial location means the modal is EDITING an attached location, not
+  // attaching a new one — say so (title + primary action).
+  const editing = !!initial;
   const [place, setPlace] = useState('');
   const [parts, setParts] = useState<PlaceParts | null>(null);
-  const [query, setQuery] = useState('');
+  // ONE field: the editable address is what gets saved AND what searches the
+  // geocoder (autocomplete). There is no separate query box — typing looks up
+  // places, picking fills the field, and unpicked text is the manual override.
   const [address, setAddress] = useState('');
   const [center, setCenter] = useState<[number, number]>(DEFAULT_MAP_CENTER);
   const geocodeSeq = useRef(0);
@@ -68,6 +73,10 @@ export const LocationPickerModal: React.FC<{
   // the user edits it (e.g. to type a street number the geocoder can't match),
   // then it stops following and the typed text wins on confirm.
   const addressTouched = useRef(false);
+  // Whether the map holds a REAL pin. A text-only location opens at the
+  // default center without one — confirming must save the address, not stamp
+  // the default coordinates onto it. Any user move/search/geolocate sets this.
+  const pinTouched = useRef(false);
 
   // Reset on open — centered on the location being edited when there is one
   // (no geolocation auto-center — the locate-me button does it). `initial` is
@@ -78,9 +87,9 @@ export const LocationPickerModal: React.FC<{
       initial?.lat != null && initial.lng != null ? [initial.lat, initial.lng] : DEFAULT_MAP_CENTER;
     setPlace(initial?.place || '');
     setParts(initial ? { address: initial.address, city: initial.city, postcode: initial.postcode, country: initial.country } : null);
-    setQuery(initial?.place || '');
-    setAddress(initial?.address || '');
+    setAddress(initial?.address || initial?.place || '');
     addressTouched.current = false;
+    pinTouched.current = initial?.lat != null && initial?.lng != null;
     setCenter(start);
     centerRef.current = start;
     skipNextGeocode.current = false;
@@ -100,12 +109,17 @@ export const LocationPickerModal: React.FC<{
   const pickResult = (hit: PlaceHit) => {
     const { result } = hit;
     skipNextGeocode.current = true;
+    pinTouched.current = true;
     setCenter([result.lat, result.lng]);
     centerRef.current = [result.lat, result.lng];
     setPlace(result.label);
     setParts(result.parts);
-    setQuery(result.label);
-    if (!addressTouched.current) setAddress(result.parts.address || '');
+    // The field is the saved ADDRESS: take the structured street when the
+    // geocoder has one, else the label (a venue with no street line).
+    setAddress(result.parts.address || result.label);
+    // A pick is an explicit choice — let the map's reverse geocode take over
+    // again until the user types over it.
+    addressTouched.current = false;
   };
 
   const onCenterMove = (lat: number, lng: number) => {
@@ -117,6 +131,7 @@ export const LocationPickerModal: React.FC<{
     }
     centerRef.current = [lat, lng];
     setCenter([lat, lng]);
+    pinTouched.current = true;
     if (skipNextGeocode.current) {
       skipNextGeocode.current = false;
       return;
@@ -130,7 +145,7 @@ export const LocationPickerModal: React.FC<{
           if (geocodeSeq.current === s && r) {
             setPlace(r.label);
             setParts(r.parts);
-            if (!addressTouched.current) setAddress(r.parts.address || '');
+            if (!addressTouched.current) setAddress(r.parts.address || r.label);
           }
         });
     }, GEOCODE_DEBOUNCE_MS);
@@ -145,37 +160,42 @@ export const LocationPickerModal: React.FC<{
     );
   };
 
+  // Under-map caption: the resolved place, unless it merely repeats the field
+  // (a landmark with no street line resolves to the same text).
+  const placeLine = place && place !== address.trim()
+    ? place
+    : !place && !address.trim() ? 'Search or drag the map to place the pin' : '';
+
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Attach a location"
+      title={editing ? 'Edit location' : 'Attach a location'}
       width="max-w-lg"
       icon={<MapPin className="w-3.5 h-3.5" />}
       footer={
         <ModalFooter>
           <ModalFooterButton variant="ghost" onClick={onClose}>Cancel</ModalFooterButton>
           <ModalFooterButton
-            onClick={() => onConfirm({ lat: center[0], lng: center[1], ...(place ? { place } : {}), ...(parts || {}), address: address.trim() || undefined })}
+            onClick={() => onConfirm({
+              ...(pinTouched.current ? { lat: center[0], lng: center[1] } : {}),
+              ...(place ? { place } : {}),
+              ...(parts || {}),
+              address: address.trim() || undefined,
+            })}
           >
-            Attach pin
+            {editing ? 'Save location' : 'Attach pin'}
           </ModalFooterButton>
         </ModalFooter>
       }
     >
       <div className="p-6 space-y-4">
         <AsyncResultsDropdown
-          value={query}
-          onValueChange={setQuery}
+          value={address}
+          onValueChange={v => { addressTouched.current = true; setAddress(v); }}
           search={search}
           onPick={pickResult}
-          placeholder="Search an address or place…"
-        />
-        <input
-          value={address}
-          onChange={e => { addressTouched.current = true; setAddress(e.target.value); }}
-          placeholder={place ? 'Street number / address' : 'Street number / address (or drag to drop a pin)'}
-          className="w-full bg-zinc-950 border border-zinc-700 rounded-md px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+          placeholder="Search or type an address…"
         />
         <div className="rounded-md overflow-hidden border border-zinc-700 relative">
           <MapContainer
@@ -207,7 +227,7 @@ export const LocationPickerModal: React.FC<{
           </button>
         </div>
         <div className="flex items-center justify-between gap-3 text-[11px] text-zinc-400 min-h-4">
-          <span className="truncate">{place || 'Drag the map to place the pin'}</span>
+          <span className="truncate">{placeLine}</span>
           <span className="shrink-0 text-zinc-500">{center[0].toFixed(4)}, {center[1].toFixed(4)}</span>
         </div>
       </div>

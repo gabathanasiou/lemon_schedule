@@ -3,7 +3,7 @@ import { ELEMENT_CATEGORIES, getLabel } from './categories';
 import { elementMatchId, getCategoryElements } from './elements';
 import { formatDateCustom } from './utils';
 import { getDayTypes } from './dayTypes';
-import { resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, parentScenesOf, ancestorSceneScope, type ReportCtx, type ReportCollectionItem, type ReportCategoryInfo, type ReportCrewItem, type ReportElementInfo, type ReportSceneInfo } from './reportData';
+import { resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, parentScenesOf, ancestorSceneScope, projectDepartmentItems, type ReportCtx, type ReportCollectionItem, type ReportCategoryInfo, type ReportCrewItem, type ReportElementInfo, type ReportSceneInfo } from './reportData';
 import type { ReportFieldDef, FieldAux } from './reportFields';
 
 // Item lookup + reference navigation for the Reports Designer (roadmaps 100,
@@ -14,7 +14,7 @@ import type { ReportFieldDef, FieldAux } from './reportFields';
 // consumers. ReportFieldDef/FieldAux are imported type-only — no runtime cycle.
 /** Scopes whose values come from the resolved collection ITEM (repeat/table
  *  rows) — vs document/project/smart fields that resolve from ctx/aux. */
-export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew', 'locations', 'locationTypes', 'dayTypes', 'elementCallsOfDay', 'departmentCallsOfDay']);
+export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew', 'departments', 'locations', 'locationTypes', 'dayTypes', 'elementCallsOfDay', 'departmentCallsOfDay']);
 
 /** Distinct values a scene-scope field yields across scenes (case-insensitive
  *  dedupe, first-seen order) plus the raw occurrence/scene counts — the union
@@ -199,6 +199,7 @@ interface LookupSpec { collection: ReportCollection; label: string; identityFiel
 const LOOKUP_SPECS: LookupSpec[] = [
   { collection: 'days', label: 'Days', identityField: 'dayLabel' },
   { collection: 'crew', label: 'Crew', identityField: 'crewName' },
+  { collection: 'departments', label: 'Departments', identityField: 'deptLabel' },
   { collection: 'locations', label: 'Locations', identityField: 'locationName' },
   { collection: 'categories', label: 'Categories', identityField: 'categoryLabel' },
   { collection: 'locationTypes', label: 'Location Types', identityField: 'locationTypeLabel' },
@@ -230,6 +231,8 @@ function lookupItemsFor(project: Project, collection: ReportCollection, days: Lo
       }
       return out;
     }
+    case 'departments':
+      return projectDepartmentItems(project).map(d => ({ key: d.key, label: d.label, hint: 'Department' }));
     case 'locations': {
       const typeLabel = new Map((project.locationTypes || []).map(t => [t.key, t.label]));
       return (project.locations || []).map(l => ({

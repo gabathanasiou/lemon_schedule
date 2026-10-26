@@ -32,7 +32,7 @@ describe('buildCsp', () => {
   it('names every third-party origin the app reaches', () => {
     for (const origin of [
       'https://accounts.google.com', 'https://www.googleapis.com',
-      'https://places.googleapis.com', 'https://maps.googleapis.com',
+      'https://places.googleapis.com',
       'https://nominatim.openstreetmap.org',
       'https://tile.openstreetmap.org',
       'https://api.open-meteo.com', 'https://archive-api.open-meteo.com',

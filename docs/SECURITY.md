@@ -166,12 +166,15 @@ clash refused; purge).
   Authentication → Sessions → **Inactivity timeout = 30 days**, then unschedule the
   sweep (`select cron.unschedule('session-timebox-180d');`).
 - **Google Maps/Places key (roadmap 297)** — create ONE key in the same Cloud project
-  as the Drive client: billing enabled; "Places API (New)" + "Geocoding API" enabled;
-  application restriction = HTTP referrers (`https://<user>.github.io/*`,
-  `http://localhost:3000/*`, dev ports as needed); API restriction = those two APIs;
-  set daily quota caps (~500/day each) and a budget alert. Then add the value to the
-  local `.env` AND the repo secret of the same name (`deploy.yml` reads it). The key
-  is public in the bundle — the restrictions are the guard.
+  as the Drive client: billing enabled; "Places API (New)" enabled (→ Text Search
+  forward, Nearby Search reverse); application restriction = HTTP referrers
+  (`https://<user>.github.io/*`, `http://localhost:3000/*`, dev ports as needed);
+  API restriction = Places API (New); set daily quota caps and a budget alert. Then
+  add the value to the local `.env` AND the repo secret of the same name (`deploy.yml`
+  reads it). The key is public in the bundle — the restrictions are the guard.
+  **The legacy Geocoding API is not an option here**: it rejects referrer-restricted
+  keys ("API keys with referer restrictions cannot be used with this API"), so a
+  keyed build must reverse-geocode through Places API (New) too.
 
 ## 7. Honest gaps (planned, not yet done)
 
@@ -190,7 +193,7 @@ clash refused; purge).
   inline-handler class stays inert — item 274's defense-in-depth), with an
   explicit allowlist: GIS (`accounts.google.com` in script/frame/connect),
   Drive + userinfo (`www.googleapis.com`), Google geocoding
-  (`places.` / `maps.googleapis.com`, roadmap 297), Nominatim fallback +
+  (`places.googleapis.com`, roadmap 297), Nominatim fallback +
   Open-Meteo, the gstatic probe, Supabase (`https`/`wss://*.supabase.co`), the
   room worker (`*.workers.dev`), OSM tiles, Google avatars, and the local agent
   bridge (`ws://127.0.0.1:3939`). `index.html` also carries

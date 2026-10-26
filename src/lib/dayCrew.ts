@@ -40,6 +40,12 @@ export function departmentOfRole(project: Project, roleKey: string): string {
   return role ? crewRoleGroup(role) : OTHER_DEPT;
 }
 
+/** Display label for a crew role key (the roster's own label; key fallback).
+ *  ONE lookup for report fields, grids and the crew surfaces. */
+export function roleLabelOf(project: Project, roleKey: string): string {
+  return (project.crewRoles || []).find(r => r.key === roleKey)?.label || roleKey;
+}
+
 export interface CrewPersonRef {
   roleKey: string;
   person: CrewPerson;

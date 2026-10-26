@@ -234,6 +234,8 @@ test.describe('Locations', () => {
       add({ id: 'loc-h2', name: 'City Gen', type: 'hospital', address: '2 Gen Rd' });
       add({ id: 'loc-p1', name: 'Xanthi Precinct', type: 'policeStation', address: '3 Precinct St' });
       add({ id: 'loc-p2', name: '', type: 'policeStation', address: 'Mikras Asias 92, Xanthi' });
+      // Pin-less row: opens with its text, and a save must not invent a pin.
+      add({ id: 'loc-nopin', name: 'No Pin Place', type: 'policeStation', address: '12 Somewhere Road' });
     });
 
     await page.getByRole('button', { name: 'Production', exact: true }).click();
@@ -247,7 +249,7 @@ test.describe('Locations', () => {
     await page.locator('tr', { has: nameCell(page, '99 New Rd') }).getByTitle('Set address').click();
     const picker = page.getByRole('dialog');
     await expect(picker.getByText('51.5000, -0.1200')).toBeVisible();
-    await expect(picker.getByPlaceholder('Street number / address')).toHaveValue('99 New Rd');
+    await expect(picker.getByPlaceholder('Search or type an address…')).toHaveValue('99 New Rd');
     await picker.getByRole('button', { name: 'Cancel' }).click();
 
     // ---- saving an untouched blank-name row persists the resolved name ----
@@ -271,6 +273,23 @@ test.describe('Locations', () => {
     // ---- blank-name police station resolves too; its dropdown lists peers ----
     await page.locator('button', { hasText: 'Police Station' }).first().click();
     await expect(nameCell(page, 'Mikras Asias 92, Xanthi')).toBeVisible();
+
+    // ---- pin-less row: the picker opens with the address written (no blank
+    // London map) and Save keeps it pin-less — the default center is not a pin ----
+    await page.locator('tr', { has: nameCell(page, 'No Pin Place') }).getByTitle('Set address').click();
+    const pinless = page.getByRole('dialog');
+    await expect(pinless.getByText('Edit location')).toBeVisible();
+    await expect(pinless.getByPlaceholder('Search or type an address…')).toHaveValue('12 Somewhere Road');
+    await pinless.getByRole('button', { name: 'Save location' }).click();
+    // The manager commits the buffered row on the next field blur.
+    await page.getByPlaceholder('Phone').last().fill('777');
+    await page.getByPlaceholder('Phone').last().press('Enter');
+    await expect.poll(async () => {
+      const p = await page.evaluate(() => (window as any).__lemonSchedule.getProject());
+      const l = (p.locations || []).find((x: any) => x.id === 'loc-nopin');
+      return l ? { address: l.address, lat: l.lat ?? null, lng: l.lng ?? null } : null;
+    }, { timeout: 8000 }).toEqual({ address: '12 Somewhere Road', lat: null, lng: null });
+
     await page.locator('tr', { has: nameCell(page, 'Mikras Asias 92, Xanthi') }).getByTitle('Set nearest police station').click();
     await expect(page.getByRole('menuitem', { name: 'Xanthi Precinct' })).toBeVisible();
   });

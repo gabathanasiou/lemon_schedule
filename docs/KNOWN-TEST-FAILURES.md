@@ -301,3 +301,11 @@ dropdown once it had painted. Fixed by making the locator `exact: true` (the
 pattern five other specs already use); `scene-sheet-order.spec.ts` got the same
 one-token fix. Retry had passed, so no behavioural regression.
 
+
+## J. new-cast-naming flake under full-suite load (2026-10-26)
+
+A merged-tree full run (212 + 220) flaked `new-cast-naming.spec.ts:58:3`
+("Save: a new cast id gets its name…") once at 5 workers; the retry passed and
+the spec is green alone (5/5, 2.3s). Same load-sensitivity class as §F–§I, not
+a regression — 220 touches only the report resolver. Re-triage only if it
+recurs outside load.

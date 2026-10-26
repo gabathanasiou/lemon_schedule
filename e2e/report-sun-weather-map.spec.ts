@@ -230,14 +230,14 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     const paneBefore = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
     await page.locator('[data-block-id="map-block"]').click({ force: true });
         await page.getByRole('button', { name: 'Change location' }).click();
-    await expect(page.getByText('Attach a location')).toBeVisible();
-    await page.getByPlaceholder('Search an address or place…').fill('Big Ben');
+    await expect(page.getByText('Edit location')).toBeVisible();
+    await page.getByPlaceholder('Search or type an address…').fill('Big Ben');
         // The results panel portals to the body (roadmap 165) — query it outside the dialog.
         await page.getByRole('button', { name: /Big Ben, Bridge Street/ }).first().click();
     // The editable address input follows the picked street — a manual
     // street number override (geocoder can't match it) survives confirm.
-    await page.getByPlaceholder('Street number / address').fill('1 Bridge Street 92');
-    await page.getByRole('button', { name: 'Attach pin' }).click();
+    await page.getByPlaceholder('Search or type an address…').fill('1 Bridge Street 92');
+    await page.getByRole('button', { name: 'Save location' }).click();
         const paneAfter = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
     expect(paneAfter).not.toBe(paneBefore);
     // The address bar formats the picker's structured parts (address, city, postcode).
@@ -249,7 +249,8 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     await page.locator('[data-block-id="map-block"]').click({ force: true });
         await page.getByRole('button', { name: 'Change location' }).click();
     const picker = page.getByRole('dialog');
-    await expect(picker.getByPlaceholder('Street number / address')).toHaveValue('1 Bridge Street 92');
+    await expect(picker.getByText('Edit location')).toBeVisible();
+    await expect(picker.getByPlaceholder('Search or type an address…')).toHaveValue('1 Bridge Street 92');
     await expect(picker.getByText('Big Ben, Bridge Street', { exact: false })).toBeVisible();
     await picker.getByRole('button', { name: 'Cancel' }).click();
 

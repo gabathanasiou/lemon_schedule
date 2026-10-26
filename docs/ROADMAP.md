@@ -784,38 +784,6 @@ restores the anchor.
 **Relations**: unlocks the gate over **196**; related to **195** (attribute
 parity) and **27** (`relative` context shifter).
 
-## 220. Reports designer — base `departments` collection (pre-calls in tables + `@`) (`[ ]`)
-
-**Request** (item 159 follow-up, user 2026-10-09): expose the project's crew
-departments as a BASE report collection — one item per department (label,
-pre-call expression, resolved call in a day context, crew count, crew list) — so pre-calls
-can be listed in plain tables/repeats WITHOUT a days repeat and referenced as
-`@` attributes, not only via the day-scoped `departmentCallsOfDay` and the
-precalls block.
-- **ONLY the new picker category** — it does NOT touch the existing day-scoped
-  collections (`elementCallsOfDay`/`crewOfDay`/`departmentCallsOfDay`, item 99),
-  which stay as-is; those remain the day-contextual data behind the grid blocks.
-- Registry: `ReportCollection` (`types.ts`) + `resolveCollection` branch
-  (`reportData.ts`, reuse `dayCrew.projectDepartments`/`dayDepartments`) +
-  labels/identity (`reportBlocks.ts`) + a `departments` field family
-  (`reportFields.ts`: label, pre-call expression, day-resolved call via the
-  Lego day ancestor, crew count, crew list) + lookup identity (`reportLookup.ts`
-  `fieldScopeFor`, `buildLookupTokens`) so `@Camera` offers its attributes.
-- **Crew list (user, 2026-10-26):** comma-separated names alongside the count,
-  TWO fields — `Crew` ("Alice, Bob, Charlie") and `Crew (roles)`
-  ("Alice (DoP), Bob (1st AC)"). No third variant, no format toggle. Source:
-  inside a day repeat (the day ancestor sets `ctx.dayDate`) the DAY's assigned
-  slots from `crewOfDay` — so a swapped or fitting-only person shows; outside
-  one, the project roster (`project.crew[roleKey]` for the department's roles).
-  Same people pool as everything else (`dayCrew.ts`), never a second list.
-- Keep `departmentCallsOfDay` as the day-scoped contextual child — the base
-  collection is the project-level DB (ONE source: the `dayCrew` pool).
-- **Verify**: Vitest for the resolver + lookup identity + the crew-list
-  day/project branches; `e2e/report-collections.spec.ts`
-  only if a silent break is plausible.
-- **Relations**: extends **159**; overlaps **99**/**146** (pool source); **201**
-  (base-vs-contextual collection direction).
-
 ## 224. Call Sheet editor — container/card affordance for the live editable grids (`[ ]`, NEEDS DECISION)
 
 **Request** (user 2026-10-09): in the Call Sheet editor's fill canvas, the
@@ -1143,7 +1111,12 @@ ever return to.
 **Status:** code + Google Cloud setup LIVE 2026-10-16 — restricted key (Places
 API (New) + Geocoding API only; HTTP referrers; stored in the repo secret
 `VITE_GOOGLE_MAPS_API_KEY` + local `.env`), billing on, £5/mo budget alert.
-Remaining: verify search + pin-drop on the DEPLOYED app after the next deploy.
+2026-10-26: reverse geocoding moved from the legacy Geocoding API to Places API
+(New) `searchNearby` — Geocoding rejects referrer-restricted keys outright, so
+the deployed app's pin-drop labels were silently blank while Text Search worked
+(verified against the live key). Remaining: verify search + pin-drop on the
+DEPLOYED app after this branch deploys (Nearby Search Pro ≈ $32/1000 — pin
+drops are rare, well inside the budget).
 
 **Request:** address search / reverse geocoding defaulted to keyless Nominatim,
 but OSM coverage is thin in practice (missing street numbers); the owner wants

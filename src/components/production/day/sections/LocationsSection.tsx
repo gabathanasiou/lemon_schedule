@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { MapPin, Plus } from 'lucide-react';
+import { MapPin, Pencil, Plus } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
 import GroupedSelect, { GroupedSelectItem } from '../GroupedSelect';
 import { LocationPickerModal } from '../../../location/LocationPickerModal';
@@ -8,8 +8,13 @@ import { generateUUID } from '../../../../lib/utils';
 import type { PickedLocation } from '../../../../lib/places';
 import type { ProjectLocation } from '../../../../types';
 
+/** The picker is open either to CREATE a new location or to EDIT one already
+ *  attached (master / key location chip) — editing must never spawn a duplicate
+ *  DB row. */
+type PickerState = { mode: 'new' } | { mode: 'edit'; location: ProjectLocation } | null;
+
 const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readOnly, dispatch }) => {
-  const [picking, setPicking] = useState(false);
+  const [picker, setPicker] = useState<PickerState>(null);
   const locations = project.locations || [];
   const types = project.locationTypes || [];
 
@@ -48,7 +53,25 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
   const nearestHospital = locationOf(nearby?.hospitalId);
   const nearestPolice = locationOf(nearby?.policeId);
 
-  const createFromPick = (picked: PickedLocation) => {
+  const savePick = (picked: PickedLocation) => {
+    // A text-only confirm carries no coordinates — never invent a pin.
+    const coords = picked.lat != null && picked.lng != null ? { lat: picked.lat, lng: picked.lng } : {};
+    if (picker?.mode === 'edit') {
+      const { location } = picker;
+      dispatch({
+        type: 'UPDATE_LOCATION',
+        payload: {
+          id: location.id,
+          updates: {
+            ...(!(location.name || '').trim() ? { name: (picked.place || picked.address || '').trim() } : {}),
+            address: picked.address,
+            place: picked.place,
+            ...coords,
+          },
+        },
+      });
+      return;
+    }
     const name = (picked.place || picked.address || 'New location').trim();
     const location: ProjectLocation = {
       id: generateUUID(),
@@ -56,12 +79,13 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
       type: 'set',
       address: picked.address,
       place: picked.place,
-      lat: picked.lat,
-      lng: picked.lng,
+      ...coords,
     };
     dispatch({ type: 'ADD_LOCATION', payload: { location } });
     patchMeta({ locationId: location.id });
   };
+
+  const editPicker = picker?.mode === 'edit' ? picker.location : null;
 
   return (
     <div className="space-y-3">
@@ -80,7 +104,7 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
               onChange={ids => patchMeta({ locationId: ids[0] ? resolveLocationId(ids[0]) : undefined })}
             />
             {!readOnly && (
-              <button type="button" onClick={() => setPicking(true)} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 shrink-0">
+              <button type="button" onClick={() => setPicker({ mode: 'new' })} className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 shrink-0">
                 <Plus className="w-3.5 h-3.5" /> New
               </button>
             )}
@@ -103,8 +127,23 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
 
       {(master || day.keyLocations.length > 0) && (
         <div className="flex flex-wrap gap-1.5">
-          {master && <Chip label={resolvedLocationName(master.name, master.address, master.place, master.lat, master.lng)} sub={typeLabelOf(master, types)} />}
-          {day.keyLocations.map(l => <Chip key={l.id} label={resolvedLocationName(l.name, l.address, l.place, l.lat, l.lng)} sub={typeLabelOf(l, types)} />)}
+          {master && (
+            <LocationChip
+              location={master}
+              types={types}
+              readOnly={readOnly}
+              onEdit={() => setPicker({ mode: 'edit', location: master })}
+            />
+          )}
+          {day.keyLocations.map(l => (
+            <LocationChip
+              key={l.id}
+              location={l}
+              types={types}
+              readOnly={readOnly}
+              onEdit={() => setPicker({ mode: 'edit', location: l })}
+            />
+          ))}
         </div>
       )}
 
@@ -115,17 +154,44 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
         </div>
       )}
 
-      <LocationPickerModal open={picking} onClose={() => setPicking(false)} onConfirm={picked => { setPicking(false); createFromPick(picked); }} />
+      <LocationPickerModal
+        open={picker !== null}
+        onClose={() => setPicker(null)}
+        onConfirm={picked => { setPicker(null); savePick(picked); }}
+        initial={
+          editPicker
+            ? {
+                lat: editPicker.lat,
+                lng: editPicker.lng,
+                place: editPicker.place,
+                address: editPicker.address,
+              }
+            : null
+        }
+      />
     </div>
   );
 };
 
-const Chip: React.FC<{ label: string; sub?: string }> = ({ label, sub }) => (
-  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] text-emerald-800">
+/** A day location pill — click to edit the attached location's pin/address. */
+const LocationChip: React.FC<{
+  location: ProjectLocation;
+  types: DaySectionProps['project']['locationTypes'];
+  readOnly: boolean;
+  onEdit: () => void;
+}> = ({ location, types, readOnly, onEdit }) => (
+  <button
+    type="button"
+    onClick={onEdit}
+    disabled={readOnly}
+    title="Edit this location's address and pin"
+    className="group inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] text-emerald-800 hover:bg-emerald-100 hover:border-emerald-300 transition-colors disabled:opacity-60"
+  >
     <MapPin className="w-3 h-3" />
-    {label}
-    {sub && <span className="text-emerald-500">{sub}</span>}
-  </span>
+    {resolvedLocationName(location.name, location.address, location.place, location.lat, location.lng)}
+    <span className="text-emerald-500">{typeLabelOf(location, types)}</span>
+    <Pencil className="w-2.5 h-2.5 text-emerald-500 opacity-60 group-hover:opacity-100" />
+  </button>
 );
 
 export const LocationsIcon = MapPin;

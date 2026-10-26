@@ -41,8 +41,7 @@ const CONNECT_SRC = [
   "'self'",
   'https://accounts.google.com', // GIS token/status endpoints
   'https://www.googleapis.com', // Drive API + oauth2/v3/userinfo
-  'https://places.googleapis.com', // Google address search (keyed, roadmap 297)
-  'https://maps.googleapis.com', // Google reverse geocoding (keyed, roadmap 297)
+  'https://places.googleapis.com', // Google address search + reverse geocoding (keyed, roadmap 297)
   'https://nominatim.openstreetmap.org', // keyless geocoding fallback + weather labels
   'https://api.open-meteo.com', // weather (forecast window)
   'https://archive-api.open-meteo.com', // weather (past dates)

@@ -495,7 +495,7 @@ const COLLECTION_LABELS_LOCAL: Record<string, string> = {
   scenes: 'scenes', scenesOfDay: 'scenes', scenesOfElement: 'scenes', scenesOfCast: 'scenes',
   days: 'days', daysOfCast: 'days',
   elements: 'elements', elementsOfCategory: 'elements', elementsOfScene: 'elements',
-  categories: 'categories', cast: 'cast', crew: 'crew', violationTypes: 'violation types',
+  categories: 'categories', cast: 'cast', crew: 'crew', departments: 'departments', violationTypes: 'violation types',
   locations: 'locations', locationsOfType: 'locations', locationTypes: 'location types',
   crewOfDay: 'crew', elementCallsOfDay: 'element calls', departmentCallsOfDay: 'department calls', locationsOfDay: 'locations',
 };
@@ -1353,10 +1353,10 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             setLocationOpen(false);
           }}
           initial={
-            block.mapLat != null && block.mapLng != null
+            block.mapLat != null || block.mapLng != null || block.mapPlace || block.mapAddress
               ? {
-                  lat: block.mapLat,
-                  lng: block.mapLng,
+                  lat: block.mapLat ?? undefined,
+                  lng: block.mapLng ?? undefined,
                   place: block.mapPlace,
                   address: block.mapAddress,
                   city: block.mapCity,
