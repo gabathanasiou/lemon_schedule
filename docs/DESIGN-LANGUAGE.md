@@ -117,8 +117,18 @@ portals into its OWN slot **immediately left of the view switcher**, so it sits 
 same spot in BOTH Days views (roadmap 177) — a thin vertical divider separates the
 view-specific controls from that shared day-selector + switcher cluster. The **view
 switcher** is the toolbar's
-rightmost element (see the merged-view switcher recipe below). Below the toolbar sit the
-collapsible section cards (`DaySectionCard`). **Day Details is a compact overview**, not
+rightmost element (see the merged-view switcher recipe below). At the top of the page
+content sits a **centered mini-tab strip** (it scrolls with the cards — not sticky) — the
+same kit `Button variant="tab"` + measured
+`useSlidingPill`/`TAB_PILL` row as the header/mini tabs, with an icon + label per tab
+(never counts): **Overview (default) · All · Locations · Scenes · Call Times · Crew**.
+Overview is Details + Breaks & Notes + Events + Conflicts; All is the stacked page; the
+others show their one card. The active tab is a place
+(`#/production/days/manager/<tab>`; `overview` omitted, `all` explicit), so
+back/forward, reload and pop-outs keep it. Switching tabs keeps the selected
+day/tab and each Glide grid's cell/range selection (cached under its presence
+scope and restored on remount). Below it sit the collapsible
+section cards (`DaySectionCard`). **Day Details is a compact overview**, not
 a field/value table: a title-case date + day number + day-type pill, one muted stats
 line, three timing tiles (only the general call shows a pencil edit affordance), and a
 location/weather strip: a master-location picker over the day's attached locations plus
@@ -311,7 +321,7 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Call-time / duration input | `TimeField` / `DurationField` | Shared expression parsing + touch keypad; never a raw time input |
 | Grouped single/multi-select dropdown (locations/crew/categories) | `GroupedSelect` (`production/day/`) | Renders through the shared `DropdownPanel` (group headers + single-highlight), NOT the kit `DropdownMenu` (the async/darker interaction needs the panel's typeahead-friendly model); light/dark themes. Positioning comes from the one engine — never hand-place the panel |
 | Grouped item list (dark modals) | `ItemCard` + `ItemRow` (`src/components/cards/`) | Collapsible group card + interactive row — the element events manager's day-type sections and its Rules section (first migrations). §Item cards below |
-| Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), read-only cells gray + `cursor: default`, editable rows hover-tinted, centered headers, one commit per edit/paste/fill/clear. Header right-click can expose caller menu items via `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut. Day Manager Call Times + Crew; reuse for manager pages |
+| Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), read-only cells gray + `cursor: default`, editable rows hover-tinted, centered headers, one commit per edit/paste/fill/clear. Header right-click can expose caller menu items via `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut. The local cell/range selection is cached under its presence scope (or data attr) and restored on remount, so a Day Manager tab switch doesn't drop it. Day Manager Call Times + Crew; reuse for manager pages |
 
 Dropdown **light picker** classes live in `src/lib/dropdown.ts` (panel `bg-white border-zinc-200
 rounded-lg shadow-lg`, `DD_PANEL_CLASS_LIB` `:21-24`; items `DD_ITEM_CLASS_LIB` `:16-17`; selected

@@ -417,10 +417,13 @@ export async function gotoDayManager(page: Page) {
 }
 
 /** Seeds the project (optionally mutating it) and opens Production → Day
- *  Manager, waiting for the page shell. */
+ *  Manager on the full stacked page. The page lands on Overview by default
+ *  (roadmap 315); the pre-tabs specs below expect every section, so select All
+ *  here. A tab-specific spec can switch after this helper. */
 export async function openDayManager(page: Page, mutate?: (project: any) => void) {
   await openSeededProject(page, mutate);
   await gotoDayManager(page);
+  await page.locator('[data-day-tab="all"]').click();
 }
 
 /** Reloads and waits for the last project to auto-open (roadmap 178). */

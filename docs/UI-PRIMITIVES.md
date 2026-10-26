@@ -87,6 +87,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `DayManagerPage` receives `dayMode`/`onDayModeChange`. Memory persists across tab switches and app
   restarts (a fresh open resumes the last-used view); the editor's Back button returns to the
   manager without stacking duplicate entries.
+- **Day Manager category tabs are a fourth segment** (roadmap 315): `#/production/days/manager/scenes`
+  (Overview is the default and is omitted; `all` is explicit). The centered strip is the mini-tab recipe — kit `Button variant="tab"` +
+  `useSlidingPill`/`TAB_PILL`, an icon + label per tab (no counts) — inside
+  `DayManagerPage`; `AppPlace.dayTab` is the place field (`samePlace` compares it), while a day
+  pop-out keeps the local `lemon_schedule_day_manager.tab` pref. The registry's `tabs` metadata
+  decides which cards each tab renders.
 - **One entry point**: `go(place)` in `App.tsx` (dedupe → `pushState`/`replaceState` → applies
   tab/sub/target state). Never call `setActiveTab`/sub-tab setters directly for user navigation —
   route through `go` (in-tab selections like a selected day/scene are NOT places). One-shot jump

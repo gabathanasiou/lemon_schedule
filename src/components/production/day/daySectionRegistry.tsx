@@ -2,6 +2,7 @@ import React from 'react';
 import type { DayMeta } from '../../../types';
 import type { DayView } from '../../../lib/dayView';
 import type { DaySectionProps } from './daySectionTypes';
+import type { DayManagerTab } from '../../../lib/dayTabs';
 import { formatDateShort } from '../../../lib/utils';
 import DayDetailsSection, { DayDetailsIcon } from './sections/DayDetailsSection';
 import LocationsSection, { LocationsIcon } from './sections/LocationsSection';
@@ -33,6 +34,9 @@ export interface DaySectionDef {
    *  the narrow sections out as a two-column band: the FIRST narrow section on
    *  the left, the rest stacked on the right (roadmap 105). */
   wide?: boolean;
+  /** Category tabs (roadmap 315) that include this section. Omitted = every
+   *  tab; `all` is the full stacked page. */
+  tabs?: DayManagerTab[];
   /** The meta patch this section copies (Copy-from-day). Events are handled
    *  by the modal (date-keyed, merged into the calendar version). */
   extract?: (day: DayView) => Partial<DayMeta> | undefined;
@@ -62,6 +66,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     summary: day => `Day ${day.chronoDay}${day.date ? ` · ${formatDateShort(day.date)}` : ''}`,
     Component: DayDetailsSection,
     copyable: false,
+    tabs: ['all', 'overview'],
   },
   {
     wide: true,
@@ -75,6 +80,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: LocationsSection,
     copyable: true,
     copyMode: 'replace',
+    tabs: ['all', 'locations'],
     extract: day => {
       const patch = {
         ...(day.meta.locationId ? { locationId: day.meta.locationId } : {}),
@@ -91,6 +97,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     summary: day => `${day.scenes.length} scene${day.scenes.length !== 1 ? 's' : ''} · ${day.sums.pages || 0} pgs`,
     Component: ScenesSection,
     copyable: false,
+    tabs: ['all', 'scenes'],
   },
   {
     wide: true,
@@ -107,6 +114,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: BreaksNotesSection,
     copyable: true,
     copyMode: 'replace',
+    tabs: ['all', 'overview'],
     extract: day => {
       const patch = {
         ...(day.meta.note ? { note: day.meta.note } : {}),
@@ -128,6 +136,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: CallTimesSection,
     copyable: true,
     copyMode: 'replace',
+    tabs: ['all', 'callTimes'],
     extract: day => (day.meta.elementCalls && Object.keys(day.meta.elementCalls).length ? { elementCalls: day.meta.elementCalls } : undefined),
   },
   {
@@ -143,6 +152,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: CrewSection,
     copyable: true,
     copyMode: 'replace',
+    tabs: ['all', 'crew'],
     extract: day => {
       const patch = {
         ...(day.meta.crewSlots ? { crewSlots: day.meta.crewSlots } : {}),
@@ -166,6 +176,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     copyable: true,
     copyMode: 'merge',
     isEmpty: day => eventCount(day) === 0,
+    tabs: ['all', 'overview'],
   },
   {
     id: 'conflicts',
@@ -176,6 +187,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     copyable: false,
     isEmpty: day => day.violations.length === 0,
     hideWhenEmpty: true,
+    tabs: ['all', 'overview'],
   },
 ];
 

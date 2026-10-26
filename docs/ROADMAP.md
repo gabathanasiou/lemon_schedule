@@ -1157,13 +1157,13 @@ future … not able to edit day manager stuff for days that are past today."
   history.
 - **Verify:** manual pass per surface; the lock must never block undo/history.
 
-## 310. Day Manager — compact Day Details + Breaks & Notes card (`[~]`)
+## 314. Day Manager — compact Day Details + Breaks & Notes card (`[~]`)
 
 **Asked 2026-10-26 (user):** "the Day Details card … very long and a bit confusing …
 let's see how we can redesign it so it's more readable and displays the right information
 that makes sense and how we can save space." Agreed shape (2026-10-26): a compact
 overview card, with breaks/notes/announcements in their own card; category tabs later
-(311).
+(315).
 
 **Design:** Day Details drops the `Field | Value` table. Title-case date + day number +
 day-type pill; one muted stats line (scenes · pages · cast · elements); three timing
@@ -1187,28 +1187,37 @@ Details is no longer copyable. No data-model change.
   **grouped-dropdown rule**: locations by type, crew by department/position).
 - **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`; rule-7 manual
   for the card layout/alignment and the weather refresh.
-- **Relations:** 98, 101, 301; precedes 311.
+- **Relations:** 98, 101, 301; precedes 315.
 
-## 311. Day Manager — category tab strip (`[ ]`)
+## 315. Day Manager — category tab strip (`[~]`)
 
 **Asked 2026-10-26 (user):** "making the whole day manager have a segmented control or
 tabbing system where I can jump between different categories like locations, call times,
 crew and all of that. Or an all category where I can see all cards at the same time."
-Agreed after the card-by-card pass (310).
+Agreed after the card-by-card pass (314).
 
-**Design:** a sticky tab strip under the toolbar: **All** (today's stacked page) ·
-**Overview** (Details + Breaks & Notes + Events + Conflicts) · **Locations** · **Scenes**
-· **Call Times** · **Crew**. A tab shows its one section full-width; labels may carry
-live counts. Remember the last tab per user and carry it in the app place/hash (roadmap
-176), so back/forward, reload and day pop-outs keep the tab. This is a lighter stepping
-stone to 142's data rail, not a competing surface.
+**Design:** a centered category strip at the top of the page content (it scrolls with
+the page — NOT sticky): **Overview (default)** · **All** (today's stacked page) ·
+**Locations** · **Scenes** · **Call Times** · **Crew**. Use the mini-tab recipe (kit
+`Button variant="tab"` + `useSlidingPill`/`TAB_PILL`, icons + labels, no counts). A tab
+shows its sections full-width. Overview is the default and is omitted from the hash
+(`#/production/days`); All is explicit (`#/production/days/manager/all`). The active tab
+is part of the presence place (`PresenceView.dayTab`), so cursors/selection are gated by
+it and following switches the tab. The selected day/tab survive tab changes; per-grid
+cell/range selection is cached by `InlineGlideTable` under its presence scope so it
+survives the tab unmount/remount. This is a lighter stepping stone to 142's data rail,
+not a competing surface.
 
-- **Scope:** `DayManagerPage.tsx` (filtered rendering), `daySectionRegistry.tsx` (tab
-  grouping), `src/lib/appNav.ts` + `src/App.tsx` (place field), pop-out parity.
-- **Verify:** e2e back/forward + reload keeps the tab; rule-7 manual for the strip.
-- **Relations:** 98, 142 (later rail), 176, 310.
+- **Scope:** `DayManagerPage.tsx` (filtered rendering, centered tab row),
+  `daySectionRegistry.tsx` (tab grouping), `src/lib/dayTabs.ts`,
+  `src/lib/appNav.ts` + `src/App.tsx` (place field), `InlineGlideTable.tsx` (selection
+  cache), `src/lib/supabase/presence.ts` (`dayTab` gate/follow), pop-out parity.
+- **Verify:** unit `appNav` + `presence`; e2e back/forward + reload keeps the tab and
+  Overview is the landing tab; rule-7 manual for the centered strip and selection
+  survival.
+- **Relations:** 98, 142 (later rail), 176, 314.
 
-## 312. Day Manager — Events + Conflicts cards (`[~]`)
+## 316. Day Manager — Events + Conflicts cards (`[~]`)
 
 **Asked 2026-10-26 (user):** "Events + Conflicts" next in the card-by-card pass.
 
@@ -1236,9 +1245,9 @@ their empty state.
 - **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`;
   rule-7 manual at 1440px + iPad (empty band, event-card click opens the
   single-event editor, conflict hidden on a clean day).
-- **Relations:** 98, 310; completes the card pass before 311.
+- **Relations:** 98, 314; completes the card pass before 315.
 
-## 313. Day Manager — Locations card empty state (`[~]`)
+## 317. Day Manager — Locations card empty state (`[~]`)
 
 **Asked 2026-10-26 (user):** continue the card-by-card pass; next is Locations.
 
@@ -1254,4 +1263,4 @@ picker); the registry summary says `No locations`.
 - **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`;
   rule-7 manual at 1440px + iPad (empty + populated).
 - **Relations:** 156 (the Locations board), 171 (remaining nearby-field removal),
-  310/312 (card pass), before 311.
+  314/316 (card pass), before 315.

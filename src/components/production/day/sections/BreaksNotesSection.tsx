@@ -13,7 +13,7 @@ const FIELD = `${DAY_INPUT} w-full px-2.5 py-2`;
  * Breaks & Notes (call sheet): the stripboard's break/note rows with their
  * call-sheet inclusion ticks and inline label/duration edits, plus the day's
  * free-text announcements. Split out of Day Details so that card stays a
- * compact overview (roadmap 308).
+ * compact overview (roadmap 314).
  */
 const BreaksNotesSection: React.FC<DaySectionProps> = ({ day, patchMeta, readOnly, project, dispatch }) => {
   const patchRowById = (rowId: string, updates: Partial<ScheduleRow>) =>

@@ -11,7 +11,7 @@ import Button from '../../../Button';
  * chip, one card per element attachment (type tint/icon + name + note marker),
  * and a Manage action. Clicking an element card opens the single-event editor
  * directly; whole-category/status surfaces open the day editor. Empty returns
- * null — the card header carries the single Add event CTA (roadmap 312).
+ * null — the card header carries the single Add event CTA (roadmap 316).
  */
 const EventsSection: React.FC<DaySectionProps> = ({ day, project, actions }) => {
   const statusType = day.status ? getDayType(project, day.status) : null;
