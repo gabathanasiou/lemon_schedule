@@ -35,7 +35,7 @@ async function enterTextEdit(card: any) {
   return editor;
 }
 
-const ON_CLS = 'bg-blue-900/50';
+const ON_CLS = 'bg-\\[var\\(--ui-btn-active-bg\\)\\]';
 
 test('format toggles light up from the selection (bold, italic, underline)', async ({ page }) => {
   const { chrome, card } = await insertFreshTextBlock(page);

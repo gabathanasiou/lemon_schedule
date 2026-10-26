@@ -98,6 +98,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 - Never write a second copy of a primitive — reuse kit primitives (`DropdownMenu`, `Modal`+`ModalFooter`, `EntityDropdown`, `PageToolbar`, `Button`, `CellInput`, …). Modal footer = exactly one hero (`ModalFooterButton`), every other button `variant="ghost"`. Every floating surface uses the kit overlay morph (`useOverlayMorph`); async pickers use the shared `DropdownPanel`, not the kit menu.
 - Hover styles are **un-gated** (iOS tap-to-hover) — never wrap in `(hover: hover)`/`(any-hover: hover)`; pen = finger = touch. Project chrome: ONE source `useProjectTheme()` (`src/lib/projectTheme.ts`) — zinc / blue / emerald, no blue checks.
 - **App navigation is history-backed** (roadmap 176, `docs/UI-PRIMITIVES.md` §App Navigation): tabs/sub-tabs (+ Days' Call Sheet) are hash places via `go()` in `App.tsx` — route ALL user navigation through `go` (never raw `setActiveTab`); the mounted surface lags the pill one frame (`useLaggingValue`, 263) — nav/pill/presence urgent.
+- **Record search = the kit `SearchMenu`** (roadmap 172): inline for manager sidebars, expandable (primary button ↔ kit input) elsewhere; category tree rows, comma tags, custom empty actions. Never build a second search dropdown.
 
 ## Store & Sync
 - **Read `docs/STORE-AND-SYNC.md`** for the module layout, persistence keys, connectivity probe, Drive text-only upload rules, and the full memo contract.

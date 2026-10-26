@@ -12,6 +12,7 @@ import { computeElementDayStats } from '../lib/elementDayStats';
 import { getDayTypes } from '../lib/dayTypes';
 import { formatDateShort } from '../lib/utils';
 import { useRowBuffer, type CommitResult } from '../lib/rowBuffer';
+import type { SearchMenuItem } from '@gabriel/ui-kit';
 import { searchManagerRecords, type ManagerSearchHit, type ManagerSearchRecord } from '../lib/managerSearch';
 import { useScrolledLeft } from '../lib/useScrolledLeft';
 import { useFollowView } from '../lib/supabase/useFollowView';
@@ -566,7 +567,17 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     return out;
   }, [allCategoryKeys, categoryLabelOf, project]);
 
-  const deepSearch = useCallback((query: string) => searchManagerRecords(searchRecords, query), [searchRecords]);
+  const searchItems = useMemo<SearchMenuItem[]>(() => searchRecords.map(record => {
+    const detailField = record.fields.find(field =>
+      field.value.trim() && field.value.trim().toLowerCase() !== record.label.trim().toLowerCase());
+    return {
+      id: `${record.categoryKey}::${record.rowKey}`,
+      label: record.label,
+      group: record.categoryKey,
+      fields: record.fields.map(field => ({ label: field.label, value: field.value })),
+      detail: detailField ? `${detailField.label}: ${detailField.value}` : undefined,
+    };
+  }), [searchRecords]);
 
   const jumpToSearchHit = useCallback((hit: ManagerSearchHit, query: string) => {
     const rowKeys = searchManagerRecords(searchRecords, query)
@@ -771,7 +782,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         addLabel="Add Custom"
         addDisabled={locked}
         renderRowActions={renderRowActions}
-        deepSearch={deepSearch}
+        searchItems={searchItems}
         onSearchSelect={jumpToSearchHit}
       />
 

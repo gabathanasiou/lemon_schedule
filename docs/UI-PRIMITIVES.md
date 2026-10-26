@@ -202,6 +202,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   Esc/outside/X = cancel; DNWA checkbox via `suppressKey`. `NewProjectModal` and `TrashModal`
   (File → Trash…, per-kind `ItemCard` sections + Empty) are kit-Modal surfaces — reuse the pattern,
   never hand-roll overlay divs.
+- **SearchMenu** (kit): the ONE record-search surface — inline (manager sidebar
+  textbox) or expandable (primary button ↔ kit input), category tree rows with
+  chevrons, comma tags, zero-or-more custom empty actions. Consumed by the
+  Element/Crew/Locations manager search (roadmap 172); never fork a second
+  search dropdown.
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
   `displayMode` picks the value space (`id` fields vs `name`); pass **`resolveBy="id"`** when values

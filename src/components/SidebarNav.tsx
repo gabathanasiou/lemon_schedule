@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
-import { inputCls } from '@gabriel/ui-kit';
+import { inputCls, SearchMenu } from '@gabriel/ui-kit';
+import type { SearchMenuItem } from '@gabriel/ui-kit';
 import { MT_TITLE, MT_ROW, useManagerTableSizes } from '../lib/managerTable';
 import { usePaneResize } from '../lib/usePaneResize';
 import type { ManagerSearchHit } from '../lib/managerSearch';
-import DropdownMenu from './DropdownMenu';
-import DropdownItem from './DropdownItem';
 
 export interface SidebarNavRow {
   key: string;
@@ -37,9 +36,8 @@ interface SidebarNavProps {
   onWidthChange?: (w: number) => void;
   /** Let long labels wrap instead of truncating (the Script scene list). */
   wrapRows?: boolean;
-  /** Roadmap 172 — deep search inside the records (category + every field).
-   *  Shown in the kit's searchable DropdownMenu under the search box. */
-  deepSearch?: (query: string) => ManagerSearchHit[];
+  /** Roadmap 172 — records for the kit SearchMenu (deep manager search). */
+  searchItems?: SearchMenuItem[];
   onSearchSelect?: (hit: ManagerSearchHit, query: string) => void;
 }
 
@@ -52,14 +50,12 @@ const SIDEBAR_MAX_W = 560;
  *  shared `useManagerTableSizes` — tracking the kit coarseScale knob like the
  *  Glide reference.
  *
- *  With `deepSearch` the search box drives the kit's searchable DropdownMenu
- *  (controlled `searchValue`, the field itself is the trigger): categories stay
- *  listed for a direct jump, and record hits appear grouped under a clickable
- *  category header. */
-export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, renderRowActions, resizable = true, width, defaultWidth, onWidthChange, wrapRows = false, deepSearch, onSearchSelect }: SidebarNavProps) {
+ *  With `searchItems` the box is the kit `SearchMenu` (inline mode): type to
+ *  search records, or browse categories with expandable tree rows. */
+export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, renderRowActions, resizable = true, width, defaultWidth, onWidthChange, wrapRows = false, searchItems, onSearchSelect }: SidebarNavProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const sizes = useManagerTableSizes();
   const [innerWidth, setInnerWidth] = useState(defaultWidth ?? sizes.sidebarW);
   const w = width ?? innerWidth;
@@ -74,24 +70,37 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
   // Deep search lives in the menu; the sidebar list stays the full list.
-  const filtered = searching && !deepSearch ? rows.filter(r => r.label.toLowerCase().includes(q)) : rows;
-  const hits = deepSearch && searching ? deepSearch(query) : [];
-  const categoriesWithHits = new Set(hits.map(h => h.categoryKey));
-  const categoryMatches = deepSearch
-    ? rows.filter(r => !categoriesWithHits.has(r.key) && (!searching || r.label.toLowerCase().includes(q)))
-    : [];
+  const filtered = searchItems ? rows : (searching ? rows.filter(r => r.label.toLowerCase().includes(q)) : rows);
 
-  const chooseCategory = (key: string) => {
-    onSelect(key);
-    setQuery('');
-    setSearchOpen(false);
+  const searchGroups = useMemo(() => rows.map(row => {
+    const Icon = row.icon;
+    return {
+      key: row.key,
+      label: row.label,
+      count: row.count,
+      icon: Icon ? <Icon className="w-3.5 h-3.5" /> : undefined,
+    };
+  }), [rows]);
+
+  const handleSearchSelect = (item: SearchMenuItem) => {
+    const parts = item.id.split('::');
+    const rowKey = parts.length > 1 ? parts[1] : item.id;
+    const categoryKey = item.group || (parts.length > 1 ? parts[0] : '');
+    const group = searchGroups.find(g => g.key === categoryKey);
+    onSearchSelect?.({
+      categoryKey,
+      categoryLabel: group?.label || '',
+      rowKey,
+      label: item.label,
+    }, searchQuery);
+    setSearchQuery('');
   };
 
-  const chooseHit = (hit: ManagerSearchHit) => {
-    onSearchSelect?.(hit, query);
-    setQuery('');
-    setSearchOpen(false);
+  const handleSearchGroup = (group: { key: string }) => {
+    onSelect(group.key);
+    setSearchQuery('');
   };
+
   if (collapsed) {
     return (
       <div style={{ width: sizes.railW }} className="shrink-0 bg-zinc-50 border-r border-zinc-200 flex flex-col items-center pt-3 island-inset-l">
@@ -120,87 +129,43 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
             <PanelLeftClose className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="relative mt-2 mb-1">
-          <Search className="w-3 h-3 text-zinc-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-          {deepSearch ? (
-            <DropdownMenu
-              open={searchOpen}
-              onOpenChange={open => { setSearchOpen(open); if (!open) setQuery(''); }}
+        <div className="mt-2 mb-1">
+          {searchItems ? (
+            <SearchMenu
+              mode="inline"
               theme="light"
-              align="left"
-              width="min-w-[26rem] max-w-[34rem]"
-              maxMenuHeight={480}
-              searchable
-              searchValue={query}
-              onSearchValueChange={setQuery}
-              searchFilter={() => true}
-              trigger={
-                <input
-                  value={query}
-                  onChange={e => { setQuery(e.target.value); setSearchOpen(true); }}
-                  onFocus={() => setSearchOpen(true)}
-                  placeholder={`Search ${title.toLowerCase()} and records…`}
-                  className={`${inputCls('sm')} w-full pl-6 pr-6`}
-                />
-              }
-            >
-              {categoryMatches.map(row => {
-                const Icon = row.icon;
-                return (
-                  <DropdownItem
-                    key={`cat:${row.key}`}
-                    onClick={() => chooseCategory(row.key)}
-                    icon={Icon ? <Icon className="w-3.5 h-3.5 text-zinc-400" /> : undefined}
-                    trailing={row.count !== undefined ? <span className="text-[10px] text-zinc-400 tabular-nums">{row.count}</span> : undefined}
-                  >
-                    {row.label}
-                  </DropdownItem>
-                );
-              })}
-              {hits.map((hit, i) => {
-                const showHeader = i === 0 || hits[i - 1].categoryKey !== hit.categoryKey;
-                const categoryLabel = rows.find(r => r.key === hit.categoryKey)?.label || hit.categoryLabel;
-                return (
-                  <React.Fragment key={`row:${hit.categoryKey}:${hit.rowKey}`}>
-                    {showHeader && (
-                      <DropdownItem
-                        onClick={() => chooseCategory(hit.categoryKey)}
-                        className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400"
-                        trailing={<span className="text-[9px] font-medium text-zinc-400">Open</span>}
-                      >
-                        {categoryLabel}
-                      </DropdownItem>
-                    )}
-                    <DropdownItem
-                      onClick={() => chooseHit(hit)}
-                      trailing={hit.detail ? <span className="text-[10px] text-zinc-400 truncate max-w-[14rem]">{hit.detail}</span> : undefined}
-                    >
-                      {hit.label}
-                    </DropdownItem>
-                  </React.Fragment>
-                );
-              })}
-              {categoryMatches.length === 0 && hits.length === 0 && (
-                <DropdownItem onClick={() => {}} disabled>No matches</DropdownItem>
-              )}
-            </DropdownMenu>
-          ) : (
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder={`Search ${title.toLowerCase()}…`}
-              className={`${inputCls('sm')} w-full pl-6 pr-6`}
+              items={searchItems}
+              groups={searchGroups}
+              query={searchQuery}
+              onQueryChange={setSearchQuery}
+              onSelect={handleSearchSelect}
+              onSelectGroup={handleSearchGroup}
+              onClose={() => setSearchQuery('')}
+              expandableGroups
+              groupExpandMode="single"
+              placeholder={`Search ${title.toLowerCase()} and records…`}
+              panelWidth={Math.min(380, Math.max(288, w - 24))}
             />
-          )}
-          {!deepSearch && query && (
-            <button
-              onClick={() => setQuery('')}
-              onMouseDown={e => e.preventDefault()}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
-              title="Clear search"
-            >
-              <X className="w-3 h-3" />
-            </button>
+          ) : (
+            <div className="relative">
+              <Search className="w-3 h-3 text-zinc-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={`Search ${title.toLowerCase()}…`}
+                className={`${inputCls('sm')} w-full pl-6 pr-6`}
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  onMouseDown={e => e.preventDefault()}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
+                  title="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -210,7 +175,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
             const isActive = row.key === activeKey;
             const Icon = row.icon;
             const actions = renderRowActions?.(row, isActive);
-            const showHeader = row.group && (!searching || !!deepSearch) && row.group !== (i > 0 ? filtered[i - 1].group : undefined);
+            const showHeader = row.group && (!searching || !!searchItems) && row.group !== (i > 0 ? filtered[i - 1].group : undefined);
             return (
               <div key={row.key} className="group">
                 {showHeader && (
@@ -247,7 +212,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
             );
           })}
         </div>
-        {searching && !deepSearch && filtered.length === 0 && (
+        {searching && !searchItems && filtered.length === 0 && (
           <div className="px-1 py-2 text-[10px] text-zinc-400 italic">No {title.toLowerCase()} match “{query}”.</div>
         )}
         {onAdd && (

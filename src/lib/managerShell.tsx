@@ -17,6 +17,7 @@ import DropdownItem from '../components/DropdownItem';
 import Button from '../components/Button';
 import { MT_INPUT, MT_HEADER, MT_CELL, MT_ADD, useManagerTableSizes } from './managerTable';
 import type { CrewRole, Project } from '../types';
+import type { SearchMenuItem } from '@gabriel/ui-kit';
 import { searchManagerRecords, type ManagerSearchHit, type ManagerSearchRecord } from './managerSearch';
 
 // ---- Generic commit-on-blur database manager ---------------------------------
@@ -308,7 +309,17 @@ export const DatabaseManagerView: React.FC<{
     return out;
   }, [categories, project, config]);
 
-  const deepSearch = useCallback((query: string) => searchManagerRecords(searchRecords, query), [searchRecords]);
+  const searchItems = useMemo<SearchMenuItem[]>(() => searchRecords.map(record => {
+    const detailField = record.fields.find(field =>
+      field.value.trim() && field.value.trim().toLowerCase() !== record.label.trim().toLowerCase());
+    return {
+      id: `${record.categoryKey}::${record.rowKey}`,
+      label: record.label,
+      group: record.categoryKey,
+      fields: record.fields.map(field => ({ label: field.label, value: field.value })),
+      detail: detailField ? `${detailField.label}: ${detailField.value}` : undefined,
+    };
+  }), [searchRecords]);
 
   // Follow (roadmap 243): the selected sidebar category mirrors through the
   // shared registration — category keys are project data, so a key this
@@ -537,7 +548,7 @@ export const DatabaseManagerView: React.FC<{
         addLabel={config.addScopeLabel}
         addDisabled={locked}
         renderRowActions={renderRowActions}
-        deepSearch={deepSearch}
+        searchItems={searchItems}
         onSearchSelect={jumpToSearchHit}
       />
 
