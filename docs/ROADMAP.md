@@ -859,6 +859,23 @@ change.
   `BoardID`/`LockBoardID` per element; cast ids come from the attribute (keep
   the counting fallback for blank ids).
 
+**Decisions (user, 2026-10-26, prep pass).**
+- **Display scope stays Manager-only.** Numbers are stored for every category
+  and visible/editable in the Element Manager; dropdowns, sheets, call sheets,
+  DOOD, report ordering and `dayView.boardId` keep the deferred list below.
+  A follow-up roadmap item is created when this one closes.
+- **Duplicate numbers are rejected on commit** — the edit does not land and the
+  cell reverts to its previous number (brief flash). Numbers stay unique per
+  category, so a future "N. NAME" display is unambiguous. Comparison is numeric
+  (`7` == `07`).
+- **Auto-ID ignores `CategoryMgr/AutoAssignIds`.** The real fixture has
+  `AutoAssignIds="0"` on EVERY category while Props/Vehicles/Cast still carry
+  `BoardID`s — the attribute is a preference, not "numbering enabled". Read
+  `BoardID` and assign on create in Lemon regardless.
+- Fixture facts verified for the import tests: Props numbered 1..99 but NOT in
+  file order (first three: 52, 15, 83), Vehicles have real gaps (1, 2, 5…),
+  Cast 1..59, `LockBoardID="0"` everywhere.
+
 **"N. NAME" display surfaces — DEFERRED (user: discuss later).** Candidate list
 for the follow-up pass only, do not build now: `EntityDropdown` prefixes,
 Breakdown Sheet / Element Breakdown print, DOOD, call sheets, and widening
