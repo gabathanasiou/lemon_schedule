@@ -533,36 +533,6 @@ the crew reports to — location/contact; user-confirmed not a time).
   path changes.
 - **Relations**: 112, 146.
 
-## 157. Cast performer ("Artiste") — full cast properties, MMS parity (`[ ]`, big)
-
-**Request**: a cast element is the character; users must record the actual
-performer and their booking/contact details — the full MMS Cast Members property
-set from the fixture: **Full Name** (performer), Phone, Email (Lemon addition),
-Agent, Agent phone, Address, Rate, Per (rate basis), Notes — shown in the cast
-call-times block (labelled "Artiste") and available to reports.
-
-**Model — decided (2026-10-26): extend `CastMember`**, never link a crew person.
-Performers are not crew, and item 209's universal person DB is still undesigned;
-all fields are optional strings, so existing projects need no migration. A cast
-field registry (key/label/getter) feeds the manager, import and report fields
-from ONE list — never three copies.
-
-**MSD import** reads the matching `<Property>` children (`Full Name` → performer,
-`Phone`, `Agent`, `Agent Ph`, `Address`, `Rate`, `Per`, `Notes`); email stays
-blank for MMS imports (MMS has no email).
-
-**Surfaces (this item)**: Element Manager cast table extended columns behind a
-"Details" hide/extend toggle (compact by default); `ELEMENT_CALL_FIELDS`
-(`reportFields.ts`) + cast report fields for Artiste/Phone/Email/Agent…; the
-cast call-times block column is labelled **Artiste** (the character Name stays).
-The unified per-element panel is **306**.
-
-- **Verify**: Vitest for the import mapping + report field registry; targeted
-  e2e only where silence hurts (call-times Artiste column); extended columns are
-  a rule-7 manual pass.
-- **Relations**: `relates to` **146** (crew person shape), **306** (Element View
-  panel), **307** (per-category custom fields), **305** (Board IDs in display).
-
 ## 306. Element View — one per-element panel for every category (`[ ]`, big; design pass first)
 
 **Requested 2026-10-26 (user):** one "element view" panel that holds everything

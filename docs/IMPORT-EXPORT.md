@@ -33,6 +33,12 @@ Status: read this before touching any import/export work.
   switch (the fixture has it `0` everywhere while Props/Vehicles/Cast carry
   numbers). Categories the file left blank are numbered by
   `migrateElementBoardIds` on import.
+- **Cast performer details** (roadmap 157) come from each cast `<Element>`'s
+  `<Property Name="…">` children: `Full Name`→`performer`, `Phone`, `Agent`,
+  `Agent Ph`→`agentPhone`, `Address`, `Rate`, `Per`, `Notes`. The DOM-free
+  mapper is `castDetailsFromMmsProperties` (`src/lib/castDetails.ts`,
+  unit-tested); blank properties and unknown names are dropped, and MMS has no
+  email — Lemon's `email` stays blank on import.
 - `pageCount` = `formatPageCount(total)` + total `pageCountDecimal`;
   `scriptPageNumbers` (script start page — MSD attr / FDX `<Page>` break
   markers, first-class Scene field for future full-FDX render).
