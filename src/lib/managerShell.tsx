@@ -17,6 +17,7 @@ import DropdownItem from '../components/DropdownItem';
 import Button from '../components/Button';
 import { MT_INPUT, MT_HEADER, MT_CELL, MT_ADD, useManagerTableSizes } from './managerTable';
 import type { CrewRole, Project } from '../types';
+import { searchManagerRecords, type ManagerSearchHit, type ManagerSearchRecord } from './managerSearch';
 
 // ---- Generic commit-on-blur database manager ---------------------------------
 //
@@ -214,7 +215,7 @@ export const DatabaseManagerView: React.FC<{
   const project = state.present;
   const sizes = useManagerTableSizes();
 
-  const categories = config.categories(project);
+  const categories = useMemo(() => config.categories(project), [config, project]);
 
   const [categoryKey, setCategoryKey] = useState(() => {
     if (initialCategory && categories.some(c => c.key === initialCategory)) return initialCategory;
@@ -235,6 +236,8 @@ export const DatabaseManagerView: React.FC<{
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const tableScrolled = useScrolledLeft(scrollRef);
+  const [pendingSearchJump, setPendingSearchJump] = useState<{ categoryKey: string; rowKeys: string[] } | null>(null);
+  const [flashKeys, setFlashKeys] = useState<ReadonlySet<string>>(new Set());
 
   /** Apply a computed diff (dispatch only when it carries changes). */
   const applyPlan = useCallback((scopeKey: string, plan: ManagerSavePlan): CommitResult => {
@@ -287,6 +290,26 @@ export const DatabaseManagerView: React.FC<{
 
   const category = categories.find(c => c.key === categoryKey);
 
+  /** Roadmap 172 — one searchable record per row across ALL categories. */
+  const searchRecords = useMemo<ManagerSearchRecord[]>(() => {
+    const identityKey = config.fields[0]?.key || 'name';
+    const out: ManagerSearchRecord[] = [];
+    for (const c of categories) {
+      for (const r of config.loadRows(project, c.key)) {
+        out.push({
+          categoryKey: c.key,
+          categoryLabel: c.label,
+          rowKey: r.key,
+          label: r[identityKey] || r.id || r.key,
+          fields: config.fields.map(f => ({ key: f.key, label: f.label, value: r[f.key] || '' })),
+        });
+      }
+    }
+    return out;
+  }, [categories, project, config]);
+
+  const deepSearch = useCallback((query: string) => searchManagerRecords(searchRecords, query), [searchRecords]);
+
   // Follow (roadmap 243): the selected sidebar category mirrors through the
   // shared registration — category keys are project data, so a key this
   // client does not have is ignored.
@@ -318,6 +341,36 @@ export const DatabaseManagerView: React.FC<{
     follow.noteUserChange();
     switchCategoryRaw(newKey);
   }, [follow, switchCategoryRaw]);
+
+  /** A search hit opens its category and flags every matching row in it. */
+  const jumpToSearchHit = useCallback((hit: ManagerSearchHit, query: string) => {
+    const rowKeys = searchManagerRecords(searchRecords, query)
+      .filter(h => h.categoryKey === hit.categoryKey)
+      .map(h => h.rowKey);
+    setPendingSearchJump({ categoryKey: hit.categoryKey, rowKeys });
+    switchCategory(hit.categoryKey);
+  }, [searchRecords, switchCategory]);
+
+  // Scroll only the first match into view; flash every matching row.
+  useEffect(() => {
+    if (!pendingSearchJump || categoryKey !== pendingSearchJump.categoryKey) return;
+    const container = scrollRef.current;
+    if (!container) return;
+    const trs = Array.from(container.querySelectorAll<HTMLElement>('[data-manager-row]'));
+    const els = pendingSearchJump.rowKeys
+      .map(key => trs.find(el => el.dataset.managerRow === key))
+      .filter((el): el is HTMLElement => !!el);
+    if (els.length === 0) return;
+    els[0].scrollIntoView({ block: 'center' });
+    setFlashKeys(new Set(pendingSearchJump.rowKeys));
+    setPendingSearchJump(null);
+  }, [pendingSearchJump, categoryKey, rows]);
+
+  useEffect(() => {
+    if (flashKeys.size === 0) return;
+    const t = setTimeout(() => setFlashKeys(new Set()), 1400);
+    return () => clearTimeout(t);
+  }, [flashKeys]);
 
   /** Add button: appends an inline blank row (user decision — no modal in the
    *  Crew Manager; the Add Crew Member modal stays on the day-slot/template
@@ -484,6 +537,8 @@ export const DatabaseManagerView: React.FC<{
         addLabel={config.addScopeLabel}
         addDisabled={locked}
         renderRowActions={renderRowActions}
+        deepSearch={deepSearch}
+        onSearchSelect={jumpToSearchHit}
       />
 
       <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
@@ -508,7 +563,12 @@ export const DatabaseManagerView: React.FC<{
                   </thead>
                   <tbody>
                     {rows.map((r, ri) => (
-                      <tr key={r.key} className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}>
+                      <tr
+                        key={r.key}
+                        data-manager-row={r.key}
+                        style={flashKeys.has(r.key) ? { backgroundColor: '#fee2e2' } : undefined}
+                        className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}
+                      >
                         {config.fields.map((f, fi) => (
                           <td key={f.key} style={sizes.cell} className={`${fi === 0 ? `sticky left-0 z-10 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : ''} ${MT_CELL}`}>
                             {f.render
