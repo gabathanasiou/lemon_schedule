@@ -1,6 +1,7 @@
 import { Project, ScheduleVersion, TrashItem, VersionTrashItem, CalendarVersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, ReportTrashItem, CrewTrashItem } from '../types';
 import { cid } from '../lib/ribbonUtils';
 import { migrateLegacyProject, migrateLegacyCastMirror, migrateCrewSlots, migrateElementBoardIds, LegacyMigrationResult } from '../lib/legacyMigration';
+import { migrateProjectLinks } from '../lib/links';
 import { serializeProject, deserializeProject } from '../lib/projectCodec';
 
 export const LEGACY_KEY = 'a-little-bit-of-hope-project';
@@ -258,6 +259,7 @@ export function loadProjectFromStorage(id: string): Project | null {
         const migrationResult = migrateLegacyProject(parsed);
         migrateCrewSlots(parsed);
         migrateElementBoardIds(parsed);
+        migrateProjectLinks(parsed);
         if (migrationResult.migrated) {
           _pendingLegacyMigrationNotice = migrationResult;
         }

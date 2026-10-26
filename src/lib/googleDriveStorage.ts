@@ -2,6 +2,7 @@ import type { ProjectMeta } from '../store';
 import type { Project } from '../types';
 import { pruneVersionTrash, pruneCalendarVersionTrash, pruneReportTrash } from '../store/storage';
 import { migrateCrewSlots, migrateCrewNamesToUpper, migrateElementBoardIds } from './legacyMigration';
+import { migrateProjectLinks } from './links';
 
 export function getDriveErrorStatus(err: unknown): number | null {
   const msg = err instanceof Error ? err.message : String(err ?? '');
@@ -289,6 +290,7 @@ export async function readDriveProject(
   migrateCrewNamesToUpper(project);
   // Roadmap 257: projects saved before Board IDs get their per-category numbers.
   migrateElementBoardIds(project);
+  migrateProjectLinks(project);
   return project;
 }
 

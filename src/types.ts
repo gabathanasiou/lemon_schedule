@@ -465,13 +465,36 @@ export interface ProjectElement {
   boardId?: string;
 }
 
-/** One-way anchor→linked element link (roadmap 44). Anchor owns the link;
- *  values use `elementMatchId`: cast = Board ID, other categories = name. */
+/** One-way anchor→linked element link (roadmap 44) — LEGACY shape, migrated
+ *  into `Project.links` on load (roadmap 308). New writes use `Link`. */
 export interface ElementLink {
   id: string;
   anchorCategory: string;
   anchorValue: string;
   linkedCategory: string;
+  linkedValue: string;
+}
+
+/** What a unified link side points at (roadmap 308). */
+export type LinkKind = 'element' | 'crew' | 'location';
+
+/**
+ * Unified association (roadmap 308) — ONE store for element rules, crew
+ * attachments and location links. Values are `elementMatchId` for elements
+ * (cast = Board ID, others = name), person ids for crew and location ids for
+ * locations. ONLY `element → element` links propagate into scenes; the other
+ * kinds are associations. Canonical direction: the element owns its element/
+ * crew/location links; crew owns person→person links.
+ */
+export interface Link {
+  id: string;
+  anchorKind: LinkKind;
+  /** Element category when `anchorKind === 'element'`. */
+  anchorCategory?: string;
+  anchorValue: string;
+  linkedKind: LinkKind;
+  /** Element category when `linkedKind === 'element'`. */
+  linkedCategory?: string;
   linkedValue: string;
 }
 
@@ -932,9 +955,12 @@ export interface Project {
    * Custom day types (calendar day statuses). Built-ins present unless
    *  untouched (old projects fall back via `getDayTypes` in lib/dayTypes). */
   dayTypes?: DayTypeDef[];
-  /** Element links (anchor-based, one-way) — see lib/elementLinks.ts. */
+  /** Unified links (roadmap 308) — elements, crew and locations in ONE store.
+   *  See `lib/links.ts`; only element→element links propagate into scenes. */
+  links?: Link[];
+  /** LEGACY element links — migrated into `links` on load (roadmap 308). */
   elementLinks?: ElementLink[];
-  /** Crew person ↔ element links (roadmap 11) — see lib/crewLinks.ts. */
+  /** LEGACY crew links (roadmap 11) — migrated into `links` on load. */
   crewLinks?: CrewLink[];
   reportDesigns?: ReportDesign[];
   activeReportId?: string;
