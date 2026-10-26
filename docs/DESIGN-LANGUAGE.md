@@ -125,7 +125,11 @@ location/weather strip: a master-location picker over the day's attached locatio
 the one-line forecast with refresh and the `Manual weather` toggle. The old toolbar
 weather chip is gone — Day Details is the weather home. Breaks, stripboard notes and the
 free-text announcements live in their own full-width **Breaks & Notes** card, so the
-meta card stays short beside Events/Conflicts. All overlays (Copy-from-day, events,
+meta card stays short beside Events/Conflicts. Empty states are compact: **Conflicts is
+skipped entirely** when there are no violations; an empty **Events** card is a single
+header row with the kit `Add event…` trailing action. Events reuses the Calendar's
+per-element `EventCardView` at `size="md"` — click a card to open that element's event
+editor; whole-category/status surfaces open the day editor. All overlays (Copy-from-day, events,
 pickers) are dark per the two-layer rule. The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's

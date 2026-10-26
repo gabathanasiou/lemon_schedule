@@ -1207,3 +1207,33 @@ stone to 142's data rail, not a competing surface.
   grouping), `src/lib/appNav.ts` + `src/App.tsx` (place field), pop-out parity.
 - **Verify:** e2e back/forward + reload keeps the tab; rule-7 manual for the strip.
 - **Relations:** 98, 142 (later rail), 176, 310.
+
+## 312. Day Manager — Events + Conflicts cards (`[~]`)
+
+**Asked 2026-10-26 (user):** "Events + Conflicts" next in the card-by-card pass.
+
+**Design:** Conflicts is an alert, not a permanent section — the whole card
+(header included) is skipped when the day has no rule violations; the toolbar
+pill already appears only when there are conflicts. Events keeps its card when
+empty but collapses to ONE header row: title + `None` summary + a kit
+`Add event…` trailing action; the section body returns null. With events, the
+body reuses the Calendar's per-element **`EventCardView`** at `size="md"` (type
+tint/icon + name + note marker; status chip + kit `Manage events…`), so a card
+is readable in the page card — clicking an element card opens the single-event
+`EventModal` (calendar parity), whole-category/status opens `DayEventsModal`.
+The header still adds. `DaySectionDef.hideWhenEmpty` is the registry switch;
+`DaySectionCard.collapsible={false}` drops the chevron for a card with no body;
+the page no longer injects a generic "Nothing here yet." body — sections own
+their empty state.
+
+- **Scope:** `daySectionRegistry.tsx` (`hideWhenEmpty`, shared element-level
+  `eventCount`, Events `isEmpty`), `DayManagerPage.tsx` (visible-section filter,
+  Events trailing action, `eventEditor` + `EventModal`, no empty placeholder),
+  `DaySectionCard.tsx` (`collapsible`), `sections/EventsSection.tsx`,
+  `sections/ConflictsSection.tsx`, `calendar/EventDayCell.tsx`
+  (`EventCardView.size`), `daySectionTypes.ts` (`openEvent`), docs
+  (`AGENTS.md`, `DESIGN-LANGUAGE.md`).
+- **Verify:** `npm run lint`; `npx playwright test e2e/day-manager.spec.ts`;
+  rule-7 manual at 1440px + iPad (empty band, event-card click opens the
+  single-event editor, conflict hidden on a clean day).
+- **Relations:** 98, 310; completes the card pass before 311.

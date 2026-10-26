@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, CalendarDays, ChevronDown, Clock, Copy, ExternalLink, Flag, Info } from 'lucide-react';
+import { ArrowLeft, CalendarDays, ChevronDown, Clock, Copy, ExternalLink, Flag, Info, Plus } from 'lucide-react';
 import ProductionDetailsModal from './ProductionDetailsModal';
 import CallTimesSettingsModal from './CallTimesSettingsModal';
 import { useProject } from '../../../store';
@@ -15,6 +15,7 @@ import { IS_COARSE } from '../../../lib/device';
 import { usePersistState } from '../../../lib/persist';
 import DaySectionCard from './DaySectionCard';
 import DayPicker from './DayPicker';
+import Button from '../../Button';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
 import DropdownDivider from '../../DropdownDivider';
@@ -22,6 +23,7 @@ import { DAY_SECTIONS } from './daySectionRegistry';
 import type { DaySectionActions } from './daySectionTypes';
 import { DayEventsModal } from '../../calendar/DayEventsModal';
 import { EventAdderModal } from '../../calendar/EventAdderModal';
+import { EventModal } from '../../calendar/EventModal';
 import CopyDayModal from './CopyDayModal';
 import CallSheetEditPage from './CallSheetEditPage';
 import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
@@ -86,6 +88,10 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const [prefs, setPrefs] = usePersistState<DayManagerPrefs>(PREFS_KEY, DEFAULT_PREFS);
   const [eventsDate, setEventsDate] = useState<string | null>(null);
   const [adderDate, setAdderDate] = useState<string | null>(null);
+  // One element's event card (calendar parity): click a card in the Events
+  // section to edit that element's event; whole-category cards open the day
+  // editor instead.
+  const [eventEditor, setEventEditor] = useState<{ date: string; status: string; category: string; elementKey: string } | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   // Controlled by App's history-backed place when provided (main window);
   // local state keeps pop-out day windows self-contained.
@@ -188,6 +194,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     openScene: onOpenScene,
     openEvents: date => setEventsDate(date),
     addEvents: date => setAdderDate(date),
+    openEvent: (date, status, category, elementKey) => setEventEditor({ date, status, category, elementKey }),
     openCallTimesSettings: () => setCallTimesOpen(true),
     openAddCrewMember: opts => setAddCrew(opts ?? {}),
     callSheetDesignId: callSheetDesign?.id || '',
@@ -304,25 +311,41 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
         icon={def.icon}
         summary={def.summary(selected)}
         collapsed={prefs.collapsed.includes(def.id)}
+        collapsible={!empty}
         onToggle={() => toggleSection(def.id)}
+        trailing={def.id === 'events' ? (
+          <Button
+            variant="subtle"
+            disabled={locked}
+            className="shrink-0"
+            onClick={() => actions.addEvents?.(selected.date)}
+          >
+            <Plus className="w-3 h-3" /> Add event…
+          </Button>
+        ) : undefined}
       >
-        {empty ? <p className="text-xs text-zinc-400">Nothing here yet.</p> : (
-          <Section
-            day={selected}
-            patchMeta={patchMeta}
-            patchRow={patchRow}
-            readOnly={locked}
-            project={project}
-            dispatch={dispatch}
-            actions={actions}
-            weatherView={weatherView}
-            refreshWeather={sunWeather.refresh}
-            weatherRefreshing={sunWeather.refreshing}
-          />
-        )}
+        <Section
+          day={selected}
+          patchMeta={patchMeta}
+          patchRow={patchRow}
+          readOnly={locked}
+          project={project}
+          dispatch={dispatch}
+          actions={actions}
+          weatherView={weatherView}
+          refreshWeather={sunWeather.refresh}
+          weatherRefreshing={sunWeather.refreshing}
+        />
       </DaySectionCard>
     );
   };
+
+  // `hideWhenEmpty` sections (currently Conflicts) disappear entirely when
+  // they have nothing to say; the rest own their empty state inside the card.
+  const visibleSections = DAY_SECTIONS.filter(def => !(def.hideWhenEmpty && def.isEmpty?.(selected)));
+  const narrowSections = visibleSections.filter(def => !def.wide);
+  const wideSections = visibleSections.filter(def => def.wide);
+  const [leftSection, ...rightSections] = narrowSections;
 
   // Toolbar controls live in the shared sub-tab toolbar (roadmap 177) when a
   // header target exists (main window); pop-out day windows render them as a
@@ -412,24 +435,19 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
 
       <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50 p-4" data-day-sections>
         <div className="mx-auto w-full max-w-6xl">
-          {/* The narrow meta sections (Day Details, Events, Conflicts) render
-              as a two-column band on TOP — Day Details in the left column, the
-              rest stacked right; the wide data-dense sections (locations,
+          {/* The narrow meta sections render as a two-column band on TOP —
+              Day Details in the left column, the rest (Events, Conflicts when
+              present) stacked right; the wide data-dense sections (locations,
               scenes, breaks & notes, call times, crew) span both columns
               beneath. */}
-          {(() => {
-            const narrow = DAY_SECTIONS.filter(d => !d.wide);
-            if (narrow.length === 0) return null;
-            const [left, ...right] = narrow;
-            return (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-                <div className="min-w-0 space-y-3">{renderSection(left)}</div>
-                <div className="min-w-0 space-y-3">{right.map(renderSection)}</div>
-              </div>
-            );
-          })()}
-          {DAY_SECTIONS.filter(d => d.wide).length > 0 && (
-            <div className="mt-3 space-y-3">{DAY_SECTIONS.filter(d => d.wide).map(renderSection)}</div>
+          {leftSection && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+              <div className="min-w-0 space-y-3">{renderSection(leftSection)}</div>
+              <div className="min-w-0 space-y-3">{rightSections.map(renderSection)}</div>
+            </div>
+          )}
+          {wideSections.length > 0 && (
+            <div className="mt-3 space-y-3">{wideSections.map(renderSection)}</div>
           )}
         </div>
       </div>
@@ -448,6 +466,16 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
         />
       )}
       {adderDate && <EventAdderModal date={adderDate} onClose={() => setAdderDate(null)} />}
+      {eventEditor && (
+        <EventModal
+          dateKey={eventEditor.date}
+          statusKey={eventEditor.status}
+          category={eventEditor.category}
+          elementKey={eventEditor.elementKey}
+          editableElement
+          onClose={() => setEventEditor(null)}
+        />
+      )}
       {copyOpen && <CopyDayModal target={selected} days={days} onClose={() => setCopyOpen(false)} />}
       {detailsOpen && <ProductionDetailsModal onClose={() => setDetailsOpen(false)} />}
       {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}

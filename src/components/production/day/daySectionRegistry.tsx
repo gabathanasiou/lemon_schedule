@@ -36,9 +36,23 @@ export interface DaySectionDef {
   /** The meta patch this section copies (Copy-from-day). Events are handled
    *  by the modal (date-keyed, merged into the calendar version). */
   extract?: (day: DayView) => Partial<DayMeta> | undefined;
-  /** True when the section has no content for this day (drives empty copy). */
+  /** True when the section has no content for this day. Sections with
+   *  `hideWhenEmpty` are skipped entirely; the rest own their empty state. */
   isEmpty?: (day: DayView) => boolean;
+  /** Skip the card (and its header) when {@link isEmpty} is true. */
+  hideWhenEmpty?: boolean;
 }
+
+/** Day status + every element event card — the Events card's live count. */
+const eventCount = (day: DayView): number => {
+  const cards = day.event?.lists
+    ? Object.values(day.event.lists).reduce(
+        (n, categories) => n + Object.values(categories).reduce((m, keys) => m + keys.length, 0),
+        0,
+      )
+    : 0;
+  return (day.status ? 1 : 0) + cards;
+};
 
 export const DAY_SECTIONS: DaySectionDef[] = [
   {
@@ -77,7 +91,6 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     summary: day => `${day.scenes.length} scene${day.scenes.length !== 1 ? 's' : ''} · ${day.sums.pages || 0} pgs`,
     Component: ScenesSection,
     copyable: false,
-    isEmpty: day => day.scenes.length === 0,
   },
   {
     wide: true,
@@ -146,13 +159,13 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     title: 'Events',
     icon: <EventsIcon className="w-3.5 h-3.5" />,
     summary: day => {
-      const groups = day.event?.lists ? Object.values(day.event.lists).reduce((n, g) => n + Object.keys(g).length, 0) : 0;
-      const status = day.status ? 1 : 0;
-      return `${status + groups} event${status + groups !== 1 ? 's' : ''}`;
+      const n = eventCount(day);
+      return n > 0 ? `${n} event${n !== 1 ? 's' : ''}` : 'None';
     },
     Component: EventsSection,
     copyable: true,
     copyMode: 'merge',
+    isEmpty: day => eventCount(day) === 0,
   },
   {
     id: 'conflicts',
@@ -162,6 +175,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: ConflictsSection,
     copyable: false,
     isEmpty: day => day.violations.length === 0,
+    hideWhenEmpty: true,
   },
 ];
 

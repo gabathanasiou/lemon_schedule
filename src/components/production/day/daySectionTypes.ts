@@ -14,6 +14,9 @@ export interface DaySectionActions {
   openEvents?: (date: string) => void;
   /** Open the Add-Event adder (not the manager) for a date. */
   addEvents?: (date: string) => void;
+  /** Open the single-element event editor (calendar parity): one card for one
+   *  element on one date. Whole-category/status cards use `openEvents`. */
+  openEvent?: (date: string, status: string, category: string, elementKey: string) => void;
   openCallSheet?: () => void;
   printCallSheet?: () => void;
   /** Open the Call Times settings modal (stages / category defaults / crew).
