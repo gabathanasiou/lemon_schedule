@@ -215,8 +215,9 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   edit mode (never call both in one handler — editor unmounts and can't reopen).
 - `TimeField`/`DurationField` (`src/components/`): call-time expression input (absolute/relative,
   touch keypad, live resolved value, reset) + the extracted duration recipe. `GroupedSelect`
-  (`production/day/`): grouped single/multi-select dropdown rendered through `DropdownPanel` (the one
-  positioning engine handles flip/clamp); `EntityItem.group` also renders headers in `DropdownPanel`.
+  (`production/day/`): grouped single/multi-select rendered through the kit `DropdownMenu` —
+  `DropdownItem group` headers + searchable category matching, light/dark, one positioning/morph
+  path. `EntityItem.group` still renders headers in the bespoke `DropdownPanel` for EntityDropdown.
 - **Key patterns**: click-to-toggle menus (never `group-hover`); Lucide icons
   `w-3.5 h-3.5 shrink-0` in menus; dark surfaces `bg-zinc-950/95 backdrop-blur-md border
   border-zinc-800`.

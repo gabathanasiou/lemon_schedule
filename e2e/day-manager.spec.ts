@@ -39,11 +39,38 @@ test.describe('Day Manager (roadmap 98)', () => {
       const b: any = (window as any).__lemonSchedule;
       const p = b.getProject();
       const v = p.versions.find((x: any) => x.id === p.activeVersionId);
-      const loc = { id: 'loc-test-stage', name: 'Test Stage 7', type: 'set', address: '7 Stage Way' };
+      const typeKey = (label: string) => p.locationTypes.find((t: any) => t.label === label)?.key;
+      const loc = { id: 'loc-test-stage', name: 'Test Stage 7', type: typeKey('Set'), address: '7 Stage Way' };
       b.dispatch({ type: 'ADD_LOCATION', payload: { location: loc } });
-      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned) || v.rows.find((r: any) => r.type === 'DAYBREAK');
-      b.dispatch({ type: 'UPDATE_ROW', payload: { versionId: v.id, rowId: gov.id, updates: { daybreakMeta: { locationId: 'loc-test-stage' } } } });
+      b.dispatch({ type: 'ADD_LOCATION', payload: { location: { id: 'loc-test-unit', name: 'Unit base 4', type: typeKey('Unit Base') } } });
+      b.dispatch({ type: 'ADD_LOCATION', payload: { location: { id: 'loc-test-hospital', name: 'St. Mary\'s Hospital', type: typeKey('Hospital') } } });
     });
+
+    /* The shared locations picker is the kit grouped searchable menu: headers
+       follow the visible set and "set" matches the CATEGORY. */
+    await page.getByRole('button', { name: 'No master location' }).click();
+    const menu = page.locator('[role="menu"]');
+    const groups = page.locator('[data-menu-group]');
+    await expect(menu).toBeVisible();
+    await expect(groups).toHaveText(['Set', 'Unit Base', 'Hospital']);
+    await menu.locator('input').fill('set');
+    await expect(menu.locator('[role="menuitem"]:visible')).toHaveCount(1);
+    await expect(groups).toHaveText(['Set']);
+    await menu.getByRole('menuitem', { name: 'Test Stage 7' }).click();
+    await expect(page.locator('[data-section="locations"] button').filter({ hasText: 'Test Stage 7' }).first()).toBeVisible();
+
+    /* Multi-select keeps the menu open and each pick lands in the trigger. */
+    await page.getByRole('button', { name: 'Add key locations…' }).click();
+    const keyMenu = page.locator('[role="menu"]');
+    await expect(keyMenu).toBeVisible();
+    await keyMenu.locator('input').fill('unit');
+    await keyMenu.getByRole('menuitem', { name: 'Unit base 4' }).click();
+    await expect(keyMenu).toBeVisible();
+    await keyMenu.locator('input').fill('set');
+    await keyMenu.getByRole('menuitem', { name: 'Test Stage 7' }).click();
+    await expect(keyMenu).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-section="locations"] button').filter({ hasText: 'Unit base 4' }).first()).toContainText('Test Stage 7');
 
     await openCallSheetEdit(page);
     await page.getByRole('button', { name: 'Preview', exact: true }).click();
