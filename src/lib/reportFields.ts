@@ -1,13 +1,14 @@
-import { Project, ReportBlock, RuleViolation } from '../types';
+import { Project, ReportBlock, RuleViolation, DayMeta } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { dayTypeLabelForDate, getDayTypes, codeForType, dayTypeForDate } from './dayTypes';
 import { getStatusesWithLists } from './nonShootHelpers';
 import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, hasMapPin, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
-  ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportElementCallItem, ReportDepartmentCallItem, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
+  ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportElementCallItem, ReportDepartmentCallItem, ReportDepartmentInfo, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
   ReportLocationInfo, ReportLocationTypeInfo, ReportDayTypeInfo, ReportCollectionItem, locationsOfItem, pickLocation, resolveCollection, reportItemKey, reportItemLabel, reportSceneInfoFor, crewLinkWarningsForReportDay,
 } from './reportData';
+import { crewPeopleById, dayDepartments, deptPrecallExpr, groupSlotsByDept, roleLabelOf, rolesForDept, slotsForDay } from './dayCrew';
 import { getCallTimeSettings } from './callTimes';
 import { fieldValueSafe } from './reportLookup';
 
@@ -24,7 +25,7 @@ export interface ReportFieldDef {
   key: string;
   label: string;
   group: string;
-  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart' | 'violationTypes' | 'locations' | 'locationTypes' | 'dayTypes' | 'elementCallsOfDay' | 'departmentCallsOfDay';
+  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'departments' | 'production' | 'project' | 'smart' | 'violationTypes' | 'locations' | 'locationTypes' | 'dayTypes' | 'elementCallsOfDay' | 'departmentCallsOfDay';
   align?: 'left' | 'center' | 'right';
   defaultWidth?: number;
   multiValue?: boolean;  // value is a comma-separated list → per-item affixes apply
@@ -225,6 +226,68 @@ const ELEMENT_CALL_FIELDS: ReportFieldDef[] = [
 const DEPARTMENT_CALL_FIELDS: ReportFieldDef[] = [
   { key: 'departmentLabel', label: 'Department', group: 'Call Times', scope: 'departmentCallsOfDay', defaultWidth: 22, get: (_c, it: ReportDepartmentCallItem) => s(it.label) },
   { key: 'departmentCallTime', label: 'Call Time', group: 'Call Times', scope: 'departmentCallsOfDay', align: 'center', defaultWidth: 10, get: (_c, it: ReportDepartmentCallItem) => s(it.callTime || '') },
+];
+
+// ---- departments (base collection, roadmap 220) ------------------------------
+// ONE project-level list; the day-dependent fields resolve through the nearest
+// day ancestor (`aux.dayDate`) using the SAME dayCrew/dayDepartments pool as
+// the precalls block and the crew grids — never a second roster.
+
+function dayOfAux(ctx: ReportCtx, aux?: FieldAux): ReportDayInfo | undefined {
+  const date = aux?.dayDate;
+  return date ? ctx.dayInfos.find(d => d.date === date) : undefined;
+}
+
+function dayMetaOf(day: ReportDayInfo): DayMeta {
+  return { crewSlots: day.crewSlots, excludedCrewDepts: day.excludedCrewDepts, departmentPrecalls: day.departmentPrecalls };
+}
+
+/** The department's people: the DAY's assigned slots inside a day repeat (so a
+ *  swapped or fitting-only person shows), else the project roster for the
+ *  department's roles. Deduped by person; role = the one they fill that day. */
+function departmentPeople(ctx: ReportCtx, dept: string, day?: ReportDayInfo): { name: string; roleKey: string }[] {
+  const out: { name: string; roleKey: string }[] = [];
+  const seen = new Set<string>();
+  if (day) {
+    const meta = dayMetaOf(day);
+    const group = groupSlotsByDept(ctx.project, meta, slotsForDay(ctx.project, meta), day.callTime).find(g => g.dept === dept);
+    const byId = crewPeopleById(ctx.project);
+    for (const slot of group?.slots || []) {
+      if (!slot.personId || seen.has(slot.personId)) continue;
+      const entry = byId.get(slot.personId);
+      if (!entry) continue;
+      seen.add(slot.personId);
+      out.push({ name: entry.person.name, roleKey: slot.role });
+    }
+    return out;
+  }
+  for (const role of rolesForDept(ctx.project, dept)) {
+    for (const person of ctx.project.crew?.[role.key] || []) {
+      if (seen.has(person.id)) continue;
+      seen.add(person.id);
+      out.push({ name: person.name, roleKey: role.key });
+    }
+  }
+  return out;
+}
+
+/** Effective pre-call expression + resolved call: the day's (pre-call resolved
+ *  against its call) inside a day repeat; the template expression and a blank
+ *  call outside one. */
+function departmentScheduleInfo(ctx: ReportCtx, dept: string, aux?: FieldAux): { precall: string; call: string } {
+  const day = dayOfAux(ctx, aux);
+  if (!day) return { precall: deptPrecallExpr(ctx.project, {}, dept), call: '' };
+  const info = dayDepartments(ctx.project, dayMetaOf(day), day.callTime).find(d => d.dept === dept);
+  return { precall: info?.precall || '', call: info?.deptCall || '' };
+}
+
+const DEPARTMENT_FIELDS: ReportFieldDef[] = [
+  { key: 'deptLabel', label: 'Department', group: 'Departments', scope: 'departments', defaultWidth: 22, get: (_c, it: ReportDepartmentInfo) => s(it.label) },
+  { key: 'deptPrecall', label: 'Pre-call', group: 'Departments', scope: 'departments', defaultWidth: 18, get: (ctx, it: ReportDepartmentInfo, aux) => s(departmentScheduleInfo(ctx, it.key, aux).precall) },
+  { key: 'deptCall', label: 'Call', group: 'Departments', scope: 'departments', align: 'center', defaultWidth: 10, get: (ctx, it: ReportDepartmentInfo, aux) => s(departmentScheduleInfo(ctx, it.key, aux).call) },
+  { key: 'deptCrewCount', label: 'Crew Count', group: 'Departments', scope: 'departments', align: 'center', defaultWidth: 9, get: (ctx, it: ReportDepartmentInfo, aux) => s(departmentPeople(ctx, it.key, dayOfAux(ctx, aux)).length) },
+  { key: 'deptCrew', label: 'Crew', group: 'Departments', scope: 'departments', multiValue: true, defaultWidth: 28, get: (ctx, it: ReportDepartmentInfo, aux) => departmentPeople(ctx, it.key, dayOfAux(ctx, aux)).map(p => p.name).join(', ') },
+  { key: 'deptCrewRoles', label: 'Crew (roles)', group: 'Departments', scope: 'departments', multiValue: true, defaultWidth: 34, get: (ctx, it: ReportDepartmentInfo, aux) => departmentPeople(ctx, it.key, dayOfAux(ctx, aux)).map(p => `${p.name} (${roleLabelOf(ctx.project, p.roleKey)})`).join(', ') },
 ];
 
 /** One resolved call-time column per configured stage (settings-driven, like
@@ -636,6 +699,7 @@ export function getReportFieldDefs(project: Project): ReportFieldDef[] {
     ...LOCATION_FIELDS,
     ...LOCATION_TYPE_FIELDS,
     ...CREW_FIELDS,
+    ...DEPARTMENT_FIELDS,
     ...ELEMENT_CALL_FIELDS,
     ...DEPARTMENT_CALL_FIELDS,
     ...PRODUCTION_FIELDS,

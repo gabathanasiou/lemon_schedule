@@ -484,6 +484,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   elements: 'Elements',
   categories: 'Categories',
   crew: 'Crew',
+  departments: 'Departments',
   violationTypes: 'Violation Types',
   locations: 'Locations',
   locationTypes: 'Location Types',
@@ -502,7 +503,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   locationsOfDay: 'Locations (of this day)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'violationTypes', 'locations', 'locationTypes', 'scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'dayTypes', 'cast', 'elements', 'categories', 'crew', 'departments', 'violationTypes', 'locations', 'locationTypes', 'scenesOfDay', 'crewOfDay', 'elementCallsOfDay', 'departmentCallsOfDay', 'locationsOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType', 'dayTypesOfElement'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
@@ -641,7 +642,7 @@ export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'crewOfDay', 'elem
 /** Collections with NO Lego scene-rule — the "Only … in this …" scope checkbox
  *  is hidden for them and ancestor scoping is a no-op. Crew is scopable since
  *  roadmap 11 (position → categories: "only crew in this day"). */
-export const NON_SCOPABLE_COLLECTIONS = new Set(['crewOfDay', 'locations', 'locationTypes', 'departmentCallsOfDay', 'locationsOfDay']);
+export const NON_SCOPABLE_COLLECTIONS = new Set(['crewOfDay', 'locations', 'locationTypes', 'departmentCallsOfDay', 'departments', 'locationsOfDay']);
 
 /**
  * Menu options: BASE collections only — the contextual variants ("Scenes (of
@@ -660,6 +661,7 @@ export function parentNoun(parentCollection?: ReportCollection): string {
     case 'categories': return 'category';
     case 'cast': return 'cast member';
     case 'crew': case 'crewOfDay': return 'crew member';
+    case 'departments': return 'department';
     case 'violationTypes': return 'violation type';
     case 'locations': case 'locationsOfType': return 'location';
     case 'locationTypes': return 'location type';
@@ -754,6 +756,7 @@ export function defaultIdentityField(collection?: ReportCollection): string {
     case 'elementsOfScene': return 'elementName';
     case 'categories': return 'categoryLabel';
     case 'crew': case 'crewOfDay': return 'crewName';
+    case 'departments': return 'deptLabel';
     case 'elementCallsOfDay': return 'elementCallName';
     case 'departmentCallsOfDay': return 'departmentLabel';
     case 'locationsOfDay': return 'locationName';

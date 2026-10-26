@@ -495,7 +495,7 @@ const COLLECTION_LABELS_LOCAL: Record<string, string> = {
   scenes: 'scenes', scenesOfDay: 'scenes', scenesOfElement: 'scenes', scenesOfCast: 'scenes',
   days: 'days', daysOfCast: 'days',
   elements: 'elements', elementsOfCategory: 'elements', elementsOfScene: 'elements',
-  categories: 'categories', cast: 'cast', crew: 'crew', violationTypes: 'violation types',
+  categories: 'categories', cast: 'cast', crew: 'crew', departments: 'departments', violationTypes: 'violation types',
   locations: 'locations', locationsOfType: 'locations', locationTypes: 'location types',
   crewOfDay: 'crew', elementCallsOfDay: 'element calls', departmentCallsOfDay: 'department calls', locationsOfDay: 'locations',
 };

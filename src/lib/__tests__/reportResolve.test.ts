@@ -9,7 +9,7 @@ import {
   ancestorSceneScope,
   type ReportCtx,
 } from '../reportData';
-import { composeLookupKey, composeLookupPathKey, elementLookupKey, referenceOffer, getReportFieldDefs, getReportFieldMap, resolveReportTokens, resolveReportTokensHtml, type LookupPath } from '../reportFields';
+import { composeLookupKey, composeLookupPathKey, elementLookupKey, referenceOffer, getReportFieldDefs, getReportFieldMap, reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, type LookupPath } from '../reportFields';
 import { resolveReportGridGroups, skeletonReportGridGroups } from '../reportGrids';
 
 // Resolver-level coverage for the day-scoped report collections, built from the
@@ -435,5 +435,98 @@ describe('scene lookup — the Scene identity label', () => {
     const day = composeLookupKey('scenes', 'day', off!.id);
     expect(resolveReportTokens(ctx, fieldMap, `{{${intExt}}}`, null)).toBe(off!.intExt);
     expect(resolveReportTokens(ctx, fieldMap, `{{${day}}}`, null)).toBe('');
+  });
+});
+
+describe('base departments collection (roadmap 220)', () => {
+  it('lists project departments that carry crew or a pre-call', () => {
+    const ctx = buildCtx(seedProject());
+    const keys = (resolveCollection(ctx, 'departments', undefined, undefined) as any[]).map(d => d.key);
+    expect(keys).toContain('Camera');
+    expect(keys).toContain('Production');
+    expect(keys).toContain('Above the Line');
+    expect(keys).not.toContain('Art');   // nobody in the pool, no pre-call
+    expect(keys).not.toContain('Other');
+  });
+
+  it('adds a department that only carries a template pre-call', () => {
+    const project = seedProject((p) => { p.crewTemplate = { departmentPrecalls: { Sound: '-1h' } }; });
+    const ctx = buildCtx(project);
+    const keys = (resolveCollection(ctx, 'departments', undefined, undefined) as any[]).map(d => d.key);
+    expect(keys).toContain('Sound');
+  });
+
+  it('narrows to the day\'s departments when a day parent is in scope', () => {
+    const project = seedProject((p) => {
+      p.crewTemplate = { departmentPrecalls: { Camera: '-30m', Sound: '-1h' }, excludedCrewDepts: ['Sound'] };
+    });
+    const ctx = buildCtx(project);
+    const day = (resolveCollection(ctx, 'days', undefined, undefined) as any[])[0];
+    const keys = (resolveCollection(ctx, 'departments', undefined, day) as any[]).map(d => d.key);
+    expect(keys).toContain('Camera');
+    expect(keys).not.toContain('Sound'); // excluded for the day
+    expect(keys).not.toContain('Art');   // nobody working, no pre-call
+  });
+
+  it('resolves the crew list from the day\'s assigned slots inside a day repeat', () => {
+    const project = seedProject((p) => {
+      const cameraPerson = p.crew.cameraOperator[0];
+      // Day 1's governing daybreak (pinned) carries an explicit roster:
+      // one camera operator, nobody else.
+      const gov = p.versions[0].rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+      gov.daybreakMeta = {
+        ...(gov.daybreakMeta || {}),
+        crewSlots: [{ id: 'slot-camera', role: 'cameraOperator', personId: cameraPerson.id }],
+      };
+    });
+    const ctx = buildCtx(project);
+    const fieldMap = getReportFieldMap(project);
+    const day = (resolveCollection(ctx, 'days', undefined, undefined) as any[])[0];
+    const camera = (resolveCollection(ctx, 'departments', undefined, day) as any[]).find(d => d.key === 'Camera');
+    const person = project.crew.cameraOperator[0];
+    const aux = { dayDate: day.date };
+    expect(reportFieldValueByKey(ctx, fieldMap, 'deptCrew', camera, aux)).toBe(person.name);
+    expect(reportFieldValueByKey(ctx, fieldMap, 'deptCrewCount', camera, aux)).toBe('1');
+    expect(reportFieldValueByKey(ctx, fieldMap, 'deptCrewRoles', camera, aux)).toBe(`${person.name} (Camera Operator)`);
+  });
+
+  it('uses the project roster and template pre-call outside a day repeat', () => {
+    const project = seedProject((p) => { p.crewTemplate = { departmentPrecalls: { Camera: '-30m' } }; });
+    const ctx = buildCtx(project);
+    const fieldMap = getReportFieldMap(project);
+    const camera = (resolveCollection(ctx, 'departments', undefined, undefined) as any[]).find(d => d.key === 'Camera');
+    // Roster order follows the crew roles: Camera Operator, then 2nd AC.
+    expect(reportFieldValueByKey(ctx, fieldMap, 'deptCrew', camera)).toBe('People, Frank Capra');
+    expect(reportFieldValueByKey(ctx, fieldMap, 'deptCrewRoles', camera)).toBe('People (Camera Operator), Frank Capra (2nd AC)');
+    expect(reportFieldValueByKey(ctx, fieldMap, 'deptCrewCount', camera)).toBe('2');
+    expect(reportFieldValueByKey(ctx, fieldMap, 'deptPrecall', camera)).toBe('-30m');
+    expect(reportFieldValueByKey(ctx, fieldMap, 'deptCall', camera)).toBe('');
+  });
+
+  it('resolves the day call from the pre-call against the day\'s general call', () => {
+    const project = seedProject((p) => { p.crewTemplate = { departmentPrecalls: { Camera: '-30m' } }; });
+    const ctx = buildCtx(project);
+    const fieldMap = getReportFieldMap(project);
+    const day = (resolveCollection(ctx, 'days', undefined, undefined) as any[])[0];
+    const camera = (resolveCollection(ctx, 'departments', undefined, day) as any[]).find(d => d.key === 'Camera');
+    const call = reportFieldValueByKey(ctx, fieldMap, 'deptCall', camera, { dayDate: day.date });
+    expect(call).toBeTruthy();
+    expect(call).not.toBe(day.callTime);
+    expect(reportFieldValueByKey(ctx, fieldMap, 'deptPrecall', camera, { dayDate: day.date })).toBe('-30m');
+  });
+
+  it('resolves @Camera attributes through the one registry (project context)', () => {
+    const project = seedProject((p) => { p.crewTemplate = { departmentPrecalls: { Camera: '-30m' } }; });
+    const ctx = buildCtx(project);
+    const fieldMap = getReportFieldMap(project);
+    const labelKey = composeLookupKey('departments', 'deptLabel', 'Camera');
+    const crewKey = composeLookupKey('departments', 'deptCrew', 'Camera');
+    expect(resolveReportTokens(ctx, fieldMap, `{{${labelKey}}}`, null)).toBe('Camera');
+    expect(resolveReportTokens(ctx, fieldMap, `{{${crewKey}}}`, null)).toBe('People, Frank Capra');
+    // Day context comes through the same auxiliary channel as normal fields.
+    const day = (resolveCollection(ctx, 'days', undefined, undefined) as any[])[0];
+    const callKey = composeLookupKey('departments', 'deptCall', 'Camera');
+    const call = resolveReportTokens(ctx, fieldMap, `{{${callKey}}}`, null, { dayDate: day.date });
+    expect(call).toBeTruthy();
   });
 });
