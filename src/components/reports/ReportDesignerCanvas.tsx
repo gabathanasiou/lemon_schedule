@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { TB_BTN_ICON, ToolButton } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportViewMode } from '../../types';
-import { ReportCtx, resolveCollectionItems, resolveRelativeItems, reportItemLabel, locationsOfItem, filterItemsByScope, ReportCollectionItem } from '../../lib/reportData';
+import { ReportCtx, resolveCollectionItems, resolveRelativeItems, reportItemLabel, locationsOfItem, filterItemsByScope, ReportCollectionItem, type RibbonPrintOptions } from '../../lib/reportData';
 import { FieldAux, ReportFieldDef } from '../../lib/reportFields';
 import { sampleRepeatItem } from '../../lib/reportSampling';
 import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, scopedCollectionLabel, supportsTitle } from '../../lib/reportBlocks';
@@ -39,7 +39,7 @@ const TipStar: React.FC = () => (
   <span className="report-tip-star" title={CALCULATED_CONTENT_TIP}>★</span>
 );
 
-interface ReportDesignerCanvasProps {
+export interface ReportDesignerCanvasProps {
   blocks: ReportBlock[];
   headerBlocks: ReportBlock[];
   footerBlocks: ReportBlock[];
@@ -126,6 +126,9 @@ interface ReportDesignerCanvasProps {
    *  the Call-Sheet zone editor omits it (its canvas is day-scoped, not the
    *  designer document). */
   presenceAnchorPrefix?: string;
+  /** View-only ribbon overrides (the "Times" aid, item 114): canvas blocks
+   *  render call times/durations without touching the stored design. */
+  ribbonOverrides?: Record<string, RibbonPrintOptions>;
 }
 
 type ZoneKind = 'header' | 'body' | 'footer';
@@ -214,7 +217,7 @@ const EmptyDropZone: React.FC<{
   </div>
 );
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, autoEditId, onAutoEditHandled, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onToggleEditorMode, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, previewSectionIndex, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp, presenceAnchorPrefix }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, mode, autoEditId, onAutoEditHandled, project, parentCollection, parentCategory, rootItem, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onToggleEditorMode, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode, bare, previewSectionIndex, cellSel, onCellSel, cellEditorRef, onCellRtStateChange, textEditorRef: textEditorRefProp, textRtState: textRtStateProp, onTextRtStateChange: onTextRtStateChangeProp, textChipKey: textChipKeyProp, onTextSelectionChange: onTextSelectionChangeProp, presenceAnchorPrefix, ribbonOverrides }) => {
 
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
@@ -771,7 +774,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     endDrag={endDrag}
                   />
                 ) : (
-                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint mode={mode} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
+                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint mode={mode} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit ribbonOverrides={ribbonOverrides} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
                 )}
               </div>
             ) : b.type === 'pageBreak' ? (
@@ -901,7 +904,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     {b.type === 'callTimes' && b.category ? ` · ${getLabel(b.category, b.category, project.categoryLabels)}` : null}
                   </div>
                 )}
-                <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint mode={mode} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
+                <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint mode={mode} showUnresolved previewLimit aux={{ index: 0, pageSize }} ancestors={ancestors} ribbonOverrides={ribbonOverrides} onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} onPatchBlock={p => onPatch(b.id, p)} selected={selected} {...cellPropsFor(b)} {...textEditProps} />
               </div>
             )}
           </div>

@@ -6,8 +6,9 @@ import { CHROME_BAR_INSET, CHROME_ITEM_GAP } from '../../lib/chromeSpacing';
 import { registerInFlightEdits } from '../../lib/inFlightEdits';
 import { isTextEditingElement } from '../../lib/textEditing';
 import { useReportCtx } from '../../lib/useReportCtx';
-import { getReportFieldMap } from '../../lib/reportFields';
+import { getReportFieldMap, type ReportFieldDef } from '../../lib/reportFields';
 import { useSunWeather } from '../../lib/useSunWeather';
+import type { ReportCtx } from '../../lib/reportData';
 import { ReportDesign, ReportBlock, ReportCollection, ReportTextStyle, ReportViewMode } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlockWithId,
@@ -15,12 +16,13 @@ import {
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock, listOwnerOf,
   insertColumnAt, removeColumnAt, moveColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
   moveTableColumn, insertTableColumnAt, removeTableColumnAt, blockAllowedIn, blockPlacementHint, designIsDayScoped,
-  tableItemCollection, dayGridOffenders, isDayGridBlock,
+  tableItemCollection, dayGridOffenders, isDayGridBlock, collectRibbonBlocks, countCallSheetZones,
+  findDesignCallSheetZone, ribbonTimeOverrides,
 } from '../../lib/reportBlocks';
 import { fieldScopeFor } from '../../lib/reportLookup';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { useDayViews } from '../../lib/dayView';
-import { useViewMode, usePersistState, useActiveDesignId, REPORT_ACTIVE_DESIGN_KEY } from '../../lib/persist';
+import { useViewMode, usePersistState, useActiveDesignId, useReportViewMode, REPORT_ACTIVE_DESIGN_KEY } from '../../lib/persist';
 import { generateUUID } from '../../lib/utils';
 import { usePaneResize } from '../../lib/usePaneResize';
 import { ItemManagerDropdown } from '../DropdownMenu';
@@ -28,6 +30,7 @@ import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import ReportPalette, { PaletteDropPayload } from './ReportPalette';
 import ReportToolbar from './ReportToolbar';
+import ReportModeSeg from './ReportModeSeg';
 import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import { PeerItemOutlines } from '../PeerItemOutlines';
 import { reportSelectionItems, resolveReportItem } from '../../lib/reportSelectionItems';
@@ -42,9 +45,9 @@ import DelegatedTooltip from '../DelegatedTooltip';
 import CustomCellControls, { cellStructureOps } from './CustomCellControls';
 import { CustomCellSelection, useCustomTableCells } from './useCustomTableCells';
 import { RichTextEditorHandle, RICH_TEXT_STATE_IDLE, RichTextState } from './RichTextEditor';
-import { Printer, Eye, EyeOff, ChevronDown, Check, ArrowRightLeft, PanelLeftClose, PanelLeftOpen, CalendarDays } from 'lucide-react';
+import { Printer, Eye, EyeOff, ChevronDown, Check, ArrowRightLeft, PanelLeftClose, PanelLeftOpen, CalendarDays, Clock } from 'lucide-react';
 import Button from '../Button';
-import { Seg, ToolButton, TB_BTN_ICON } from '@gabriel/ui-kit';
+import { ToolButton, TB_BTN_ICON } from '@gabriel/ui-kit';
 import { useDialog } from '../Dialog';
 
 function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
@@ -64,6 +67,28 @@ export interface ReportDesignerZone {
   /** Palette field scope when nothing is selected (the zone lives in a `days`
    *  repeat, so its content is day-scoped). */
   scope?: ReportCollection;
+  /** The production day being edited (section index) — the zone canvas and its
+   *  nested repeats resolve against it (roadmap 212). */
+  previewSectionIndex?: number;
+  /** Item 114 — the host's "Times" aid: force call times/durations on ribbons
+   *  inside the zone canvas too (the page handles the template's own ribbons). */
+  showRibbonTimes?: boolean;
+  /** The host page built AROUND the bare zone canvas (the call-sheet WYSIWYG
+   *  white page). The editor supplies the live canvas node + read state; the
+   *  host owns the read-only template regions and the live grid blocks. */
+  renderPage: (args: ReportZonePageArgs) => React.ReactNode;
+  /** Fields/Values is host-owned in zone mode: the host renders the toolbar
+   *  (the zone editor has no header of its own). */
+  viewMode?: ReportViewMode;
+  onViewModeChange?: (mode: ReportViewMode) => void;
+}
+
+/** What the zone host page needs from the editor. */
+export interface ReportZonePageArgs {
+  /** The live, BARE zone canvas — mount it at the design's zone slot. */
+  canvas: React.ReactNode;
+  ctx: ReportCtx;
+  fieldMap: Record<string, ReportFieldDef>;
 }
 
 interface ReportDesignerProps {
@@ -144,15 +169,19 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   // One global display/edit mode (roadmap 203): Fields = chips/keys with
   // single-click editing, Values = the final look with double-click/tap-again
   // entry. Default Values; the retired `lemon_schedule_report_view_keys` key is
-  // ignored (no migration).
-  const [reportMode, setReportMode] = useState<ReportViewMode>(() => {
-    try { return localStorage.getItem('lemon_schedule_report_view_mode') === 'fields' ? 'fields' : 'values'; } catch { return 'values'; }
-  });
+  // ignored (no migration). ONE persisted pref shared with the Call Sheet
+  // editor (roadmap 212) — in zone mode the host owns it (it renders the
+  // toolbar), so the value/change callbacks ride on `zone`.
+  const [internalReportMode, setInternalReportMode] = useReportViewMode();
+  const reportMode = zone?.viewMode ?? internalReportMode;
   const setReportModePersisted = useCallback((mode: ReportViewMode) => {
-    setReportMode(mode);
     setSelCell(null);
-    try { localStorage.setItem('lemon_schedule_report_view_mode', mode); } catch { /* ignore */ }
-  }, []);
+    if (zone) {
+      zone.onViewModeChange?.(mode);
+      return;
+    }
+    setInternalReportMode(mode);
+  }, [zone, setInternalReportMode]);
   // Designer day picker (roadmap 198): for a day-scoped design, pin which
   // production day the canvas sample AND the Preview/Print resolve against.
   // Persisted per design (localStorage); null = All days (the default).
@@ -160,13 +189,21 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const [previewDay, setPreviewDay] = useState<number | null>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  // Item 114 — the Call Sheet's "Times" aid, ported to the designer (roadmap
+  // 212): force call times + durations visible on every ribbon block in the
+  // canvas WITHOUT mutating the design. Off by default (the designer shows the
+  // design as stored); never saved, never printed. The call-sheet editor keeps
+  // its own host-owned toggle (default on).
+  const [showRibbonTimes, setShowRibbonTimes] = useState(false);
   // Sun & Weather values: warm the cache on load so canvas + preview render
   // real values instead of "—" (the hook prefetches per the storage policy —
   // roadmap 299 — and ticks so the memoized canvas re-renders). Location-aware:
   // also warms every pinned location the ACTIVE design iterates (a locations
   // repeat/table in the tree).
   const designId = activeDesign?.id;
-  useSunWeather(ctx, activeDesign);
+  // Zone mode (roadmap 212): the call-sheet PAGE owns the weather warm (it
+  // renders the whole day, template included) — skip the duplicate prefetch.
+  useSunWeather(zoneMode ? null : ctx, activeDesign);
 
   // Presence (roadmap 236 + follow 243): publish the OPEN design so peers on
   // another design are hidden (the pointer document gate) — and mirror the
@@ -197,8 +234,6 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
 
   // Warm sun/weather per the storage policy (roadmap 299) — deps are the ctx
   // (rebuilds on project changes) + the design id, so edits never refire it.
-  useSunWeather(ctx, activeDesign);
-
   useEffect(() => {
     if (zoneMode) return;
     // In-flight text belongs to the design it was typed into; a switch flushes
@@ -281,11 +316,31 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   const isTextEditingRef = useRef(isTextEditingElement);
   isTextEditingRef.current = isTextEditingElement;
   // Un-flushed text counts as "in flight" for the S3.5 peer-save gate: a peer's
-  // save must raise "Changes available" instead of LOADing over it.
+  // save must raise "Changes available" instead of LOADing over it. Zone mode
+  // edits the day's `daybreakMeta.callSheets` through the same gate (roadmap
+  // 212 — the per-day zone commits on blur too).
+  useEffect(() => registerInFlightEdits(() => pendingTextRef.current), []);
+
+  // Zone mode (roadmap 212): the day's zone blocks live in the STORE
+  // (`daybreakMeta.callSheets[designId]`) and the host owns them. Re-sync the
+  // local copy when the store changes under us — undo/redo, a peer's save,
+  // "Reset day to template", or a design switch — so the canvas can never
+  // drift. An un-flushed text edit owns the local copy until its commit
+  // (roadmap 251), exactly like the full designer's store sync above.
+  const zoneBlocksRef = useRef(zone?.blocks);
   useEffect(() => {
-    if (zoneMode) return;
-    return registerInFlightEdits(() => pendingTextRef.current);
-  }, [zoneMode]);
+    if (!zoneMode) return;
+    const incoming = zone!.blocks;
+    if (incoming === zoneBlocksRef.current) return;
+    zoneBlocksRef.current = incoming;
+    if (pendingTextRef.current) return;
+    const fresh = JSON.parse(JSON.stringify(incoming));
+    blocksRef.current = fresh;
+    setBlocks(fresh);
+    setSelId(prev => (prev && findBlock(fresh, prev) ? prev : null));
+    setSelCol(prev => (prev && prev.colsId && findBlock(fresh, prev.colsId) ? prev : null));
+    setSelCell(prev => (prev && findBlock(fresh, prev.blockId) ? prev : null));
+  }, [zone?.blocks, zoneMode]);
   // Last-resort flush: the tab is going away (the click paths all blur first).
   useEffect(() => {
     const win = currentDocument.defaultView;
@@ -315,16 +370,19 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     zone === 'header' ? headerRef.current : zone === 'footer' ? footerRef.current : blocksRef.current;
 
   const commitAll = (force = false) => {
-    if (zoneMode) { zone!.onChange(blocksRef.current); return; }
-    if (!activeDesign) return;
+    if (!zoneMode && !activeDesign) return;
     // Roadmap 251: defer while a text editor / text input has focus inside the
     // designer — the local state is already current; the store follows on the
-    // flush (blur / Escape / structural edit / unmount).
+    // flush (blur / Escape / structural edit / unmount). Zone mode (roadmap
+    // 212) uses the SAME gate: typing in the day's zone must not dispatch per
+    // keystroke — it commits to `daybreakMeta` on blur.
     if (!force && isTextEditingRef.current(currentDocument.activeElement)) {
       pendingTextRef.current = true;
       return;
     }
     pendingTextRef.current = false;
+    // Zone mode: the HOST owns the storage (the day's `daybreakMeta.callSheets`).
+    if (zoneMode) { zone!.onChange(blocksRef.current); return; }
     dispatch({
       type: 'UPDATE_REPORT_DESIGN',
       payload: {
@@ -348,6 +406,20 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
     const introduced = [...dayGridOffenders(next)].find(([id]) => !before.has(id));
     if (introduced) {
       dialog.alert({ title: 'Can’t drop that here', message: blockPlacementHint(introduced[1]) });
+      return;
+    }
+    // Invariant (roadmap 212): ONE per-day edit zone per design. The day page
+    // swaps exactly that block for the live canvas; a second zone would
+    // duplicate the day's content. Same safety net — only NEWLY introduced
+    // zones abort, so a legacy design stays editable.
+    const beforeZones = countCallSheetZones(zoneMode ? blocksRef.current : [...headerRef.current, ...blocksRef.current, ...footerRef.current]);
+    const nextAllZones = zoneMode
+      ? next
+      : zone === 'header' ? [...next, ...blocksRef.current, ...footerRef.current]
+        : zone === 'footer' ? [...headerRef.current, ...blocksRef.current, ...next]
+          : [...headerRef.current, ...next, ...footerRef.current];
+    if (countCallSheetZones(nextAllZones) > 1 && countCallSheetZones(nextAllZones) > beforeZones) {
+      dialog.alert({ title: 'One call-sheet zone per report', message: blockPlacementHint('callSheetEdit') });
       return;
     }
     if (zone === 'header') { setHeaderBlocks(next); headerRef.current = next; }
@@ -376,6 +448,18 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   };
 
   const allBlocks = useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
+
+  // Item 114 — "Times" is a VIEW aid: force call times/durations on every ribbon
+  // block in the canvas, never saved and never printed (Preview uses the stored
+  // flags). `collectRibbonBlocks` also finds ribbons nested in repeats/columns.
+  // In zone mode the host owns the toggle (the page and the zone canvas both
+  // render its overrides).
+  const hasRibbons = useMemo(() => collectRibbonBlocks(allBlocks).length > 0, [allBlocks]);
+  const effectiveShowRibbonTimes = zoneMode ? !!zone!.showRibbonTimes : showRibbonTimes;
+  const ribbonOverrides = useMemo(
+    () => (effectiveShowRibbonTimes && hasRibbons ? ribbonTimeOverrides(allBlocks) : undefined),
+    [effectiveShowRibbonTimes, hasRibbons, allBlocks],
+  );
 
   // Day picker resolution (roadmap 198): visible only for day-scoped designs.
   // `null` = All days (the default): canvas samples the first production day
@@ -463,8 +547,13 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
   // the block CAN go instead of silently disabling the palette item.
   const guardAllowed = (payload: PaletteDropPayload, scope: ReportCollection | null | undefined, insideColumns: boolean): boolean => {
     const type: ReportBlock['type'] = payload.field ? 'text' : ((payload.type || 'text') as ReportBlock['type']);
-    if (blockAllowedIn(type, scope, insideColumns)) return true;
-    dialog.alert({ title: 'Can’t drop that here', message: blockPlacementHint(type) });
+    // Full designer: a design may hold one `callSheetEdit` zone (roadmap 212).
+    if (!zoneMode && type === 'callSheetEdit' && activeDesign && findDesignCallSheetZone(activeDesign)) {
+      dialog.alert({ title: 'One call-sheet zone per report', message: blockPlacementHint('callSheetEdit') });
+      return false;
+    }
+    if (blockAllowedIn(type, scope, insideColumns, { callSheetZone: zoneMode })) return true;
+    dialog.alert({ title: 'Can’t drop that here', message: blockPlacementHint(type, { callSheetZone: zoneMode }) });
     return false;
   };
   const guardInsert = (payload: PaletteDropPayload, scope: ReportCollection | null | undefined, insideColumns: boolean, apply: () => void) => {
@@ -675,16 +764,9 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         }}
       />
       <div className="flex-1" />
-      <Seg
-        variant="track"
-        theme="dark"
-        dense
+      <ReportModeSeg
         value={reportMode}
-        options={[
-          { v: 'fields', l: 'Fields', title: 'Fields — chips everywhere; text and tables edit in place', dataProps: { 'data-presence-anchor': 'toolbar:designer:fields' } },
-          { v: 'values', l: 'Values', title: 'Values — the final look; double-click or tap again to edit', dataProps: { 'data-presence-anchor': 'toolbar:designer:values' } },
-        ]}
-        onChange={v => { follow.noteUserChange(); setReportModePersisted(v as ReportViewMode); }}
+        onChange={mode => { follow.noteUserChange(); setReportModePersisted(mode); }}
       />
       <DropdownMenu
         open={viewMenuOpen}
@@ -729,6 +811,19 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           </>
         )}
       </DropdownMenu>
+      {hasRibbons && !preview && (
+        <Button
+          theme="dark"
+          variant="subtle"
+          active={showRibbonTimes}
+          onClick={() => setShowRibbonTimes(v => !v)}
+          title="Preview times & durations"
+          aria-pressed={showRibbonTimes}
+          data-presence-anchor="toolbar:designer:times"
+        >
+          <Clock className="w-3.5 h-3.5" /> Times
+        </Button>
+      )}
       <button
         onClick={() => { follow.noteUserChange(); setPreview(v => !v); }}
         data-presence-anchor="toolbar:designer:preview"
@@ -765,6 +860,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
 
   const docked = editorMode === 'toolbar';
   const selColBlock = selCol ? findBlock(allBlocks, selCol.colsId)?.block ?? null : null;
+  // The production day the zone resolves against (roadmap 212) — passed to the
+  // bare canvas so `{{dayNumber}}`-style tokens and nested repeats use it.
+  const zoneItem = zoneMode && ctx && zone!.previewSectionIndex != null
+    ? ctx.dayInfos.find(d => d.section.index === zone!.previewSectionIndex)
+    : undefined;
 
   // Column ops shared by the canvas column chromes and the docked inspector.
   const insertTableColumn = (tableId: string, at: number) => {
@@ -846,7 +946,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       <DelegatedTooltip />
       {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header data-chrome-bar="report-designer-header" className={`flex items-center ${CHROME_ITEM_GAP} ${CHROME_BAR_INSET} py-2 border-b border-zinc-800 bg-zinc-900`}>{headerContent}</header>)}
 
-      {preview ? (
+      {preview && !zoneMode ? (
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} scopeFilter={previewScopeFilter} onExit={() => setPreview(false)} />
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
@@ -894,6 +994,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
             <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={locked} />
           )}
           <div className="flex-1 flex flex-col min-w-0 min-h-0" data-presence-surface={zoneMode ? undefined : 'report-designer'}>
+            {(() => {
+              // Zone mode (roadmap 212): the call-sheet host builds its WYSIWYG
+              // white page AROUND this canvas, so hand it the live canvas node
+              // instead of rendering the designer's own page here.
+              const canvasNode = (
             <ReportDesignerCanvas
               blocks={blocks}
               headerBlocks={headerBlocks}
@@ -908,15 +1013,18 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               fieldMap={fieldMap}
               readOnly={locked}
               mode={reportMode}
-              previewSectionIndex={dayScoped && effectiveDay != null ? effectiveDay : undefined}
+              previewSectionIndex={zoneMode ? zone!.previewSectionIndex : (dayScoped && effectiveDay != null ? effectiveDay : undefined)}
               autoEditId={autoEditId}
               onAutoEditHandled={() => setAutoEditId(null)}
               project={project}
               parentCollection={zoneMode ? zone!.scope : selParentCollection}
               parentCategory={selParentCategory}
+              rootItem={zoneMode ? zoneItem : undefined}
+              bare={zoneMode}
+              ribbonOverrides={ribbonOverrides}
       onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
       onToggleEditorMode={toggleEditorMode}
-      viewWidth={viewWidth}
+      viewWidth={zoneMode ? null : viewWidth}
               pageSize={activeDesign?.page}
               presenceAnchorPrefix={designId && !zoneMode ? `report:${designId}:block:` : undefined}
               onSelect={selectBlock}
@@ -1095,6 +1203,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
               textChipKey={textChipKey}
               onTextSelectionChange={sel => setTextChipKey(sel?.key ?? null)}
             />
+              );
+              return zoneMode
+                ? zone!.renderPage({ canvas: canvasNode, ctx, fieldMap })
+                : canvasNode;
+            })()}
 
             {/* Peer selection (roadmap 234 stage 2): the selected block (or
                 table column) publishes as an item id; peers' selections paint
