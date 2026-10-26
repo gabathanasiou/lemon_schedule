@@ -17,7 +17,8 @@ type PState = {
     castMembers: any[];
     crew?: Record<string, { id: string; name: string }[]>;
     customCategories: { key: string }[];
-    breakdownElements: Record<string, { id: string; name: string }[]>;
+    breakdownElements: Record<string, { id: string; name: string; boardId?: string }[]>;
+    lockedElementIds?: Record<string, string[]>;
     locations?: any[];
     colorPalette?: {
       sceneColors: { intExt: string; dayNight: string; background: string; text: string }[];
@@ -96,6 +97,26 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
       Object.entries(p.breakdownElements).map(([k, v]) => [k, v.map(e => e.name).sort()]),
     );
     expect(elemNames).toEqual(GOLDEN.elements);
+
+    // Board IDs (roadmap 257): the FILE's real numbers, not a re-count.
+    // Props are numbered 1..99 but not in file order; Vehicles have gaps.
+    const props = p.breakdownElements.props;
+    expect(props).toHaveLength(99);
+    expect(props.find(e => e.name === '"Bridal Suite" Sign')?.boardId).toBe('52');
+    expect(props.find(e => e.name === '"Buffalo Gals" Record')?.boardId).toBe('15');
+    expect(props.find(e => e.name === '"Tom Sawyer" Book')?.boardId).toBe('83');
+    const vehicles = p.breakdownElements.vehicles;
+    expect(vehicles.find(e => e.name === "Ernie's Cab")?.boardId).toBe('1');
+    expect(vehicles.find(e => e.name === "George's Rickety Car")?.boardId).toBe('2');
+    expect(vehicles.find(e => e.name === "Martini's Rickety Truck")?.boardId).toBe('5');
+    // Categories the file left blank are numbered sequentially by the load
+    // migration; every category ends up uniquely numbered.
+    for (const list of Object.values(p.breakdownElements)) {
+      expect(list.every(e => /^\d+$/.test(e.boardId || ''))).toBe(true);
+      expect(new Set(list.map(e => e.boardId)).size).toBe(list.length);
+    }
+    // LockBoardID is 0 throughout the fixture.
+    expect(p.lockedElementIds?.cast ?? []).toHaveLength(0);
 
     // spot-check scene fields (first + a multi-scene sheet)
     const scene0 = p.scenes[0];
