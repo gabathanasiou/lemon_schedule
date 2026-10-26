@@ -10,6 +10,7 @@ import {
   lookupIdentityField,
   lookupAttributeFields,
   buildLookupTokens,
+  getReportFieldDefs,
   fieldsForScope,
   fieldScopeFor,
   GLOBAL_FIELD_SCOPES,
@@ -304,7 +305,7 @@ describe('buildLookupTokens — stage 1 items only', () => {
   const project = {
     productionInfo: {},
     categoryLabels: {},
-    crewRoles: [{ key: 'gaffer', label: 'Gaffer' }],
+    crewRoles: [{ key: 'gaffer', label: 'Gaffer', department: 'Grip & Electric' }],
     crew: { gaffer: [{ id: 'p1', name: 'Bob', phone: '555' }] },
     locations: [{ id: 'loc1', name: 'Main St', type: 'set' }],
     locationTypes: [{ key: 'set', label: 'Set' }],
@@ -325,12 +326,26 @@ describe('buildLookupTokens — stage 1 items only', () => {
 
   it('rows carry a contextual hint instead of a generic collection tag', () => {
     expect(items.find(t => t.key === composeLookupKey('crew', 'crewName', 'p1'))?.hint).toBe('Gaffer');
+    expect(items.find(t => t.key === composeLookupKey('departments', 'deptLabel', 'Grip & Electric'))?.hint).toBe('Department');
     expect(items.find(t => t.key === composeLookupKey('locations', 'locationName', 'loc1'))?.hint).toBe('Set');
     expect(items.find(t => t.key === composeLookupKey('scenes', 'sceneLabel', 's1'))?.hint).toBe('Scene');
     expect(items.find(t => t.collection === 'categories' && t.itemKey === 'props')?.hint).toBe('Category');
     expect(items.find(t => t.collection === 'locationTypes' && t.itemKey === 'set')?.hint).toBe('Location type');
     expect(items.find(t => t.collection === 'dayTypes')?.hint).toBe('Day type');
     expect(items.find(t => t.collection === 'days')?.hint).toBe('Prod date');
+  });
+
+  it('departments are first-class lookup items with their own attributes', () => {
+    const deptFields = getReportFieldDefs(project);
+    expect(lookupIdentityField('departments')).toBe('deptLabel');
+    expect(items.find(t => t.key === composeLookupKey('departments', 'deptLabel', 'Grip & Electric'))?.label).toBe('Grip & Electric');
+    const attrs = lookupAttributeFields(deptFields, 'departments').map(f => f.key);
+    expect(attrs).toContain('deptPrecall');
+    expect(attrs).toContain('deptCall');
+    expect(attrs).toContain('deptCrew');
+    expect(attrs).toContain('deptCrewRoles');
+    expect(attrs).not.toContain('deptLabel'); // the identity IS the chip
+    expect(fieldScopeFor('departments')).toBe('departments');
   });
 
   it('elements carry their category in the item key, entry and hint', () => {

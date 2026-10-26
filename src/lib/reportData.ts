@@ -2,7 +2,7 @@ import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShoot
 import { resolveRoleCategories } from './crewCatalog';
 import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, CrewLinkWarning } from './crewLinks';
 import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, ResolvedCall } from './callTimes';
-import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, resolveSlotCall, slotsForDay } from './dayCrew';
+import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, projectDepartments, resolveSlotCall, rolesForDept, slotsForDay } from './dayCrew';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { sectionCallTime } from './dayMeta';
 import { loadCategoryElements, elementMatchId } from './elements';
@@ -291,6 +291,29 @@ export interface ReportDepartmentCallItem {
   callTime?: string;
 }
 
+/** One project department, as an item of the BASE `departments` collection
+ *  (roadmap 220). The item is deliberately day-free: its fields resolve the
+ *  pre-call / call / crew through the nearest day ancestor, so the same item
+ *  works in a project-level table and inside a Days repeat. `key` is the
+ *  department name (the one pool key used by dayCrew). */
+export interface ReportDepartmentInfo {
+  key: string;
+  label: string;
+}
+
+/**
+ * The departments a project actually carries — one with crew in the pool or a
+ * template pre-call (a blank project lists nothing, not 12 empty rows). ONE
+ * source for the base `departments` collection AND the `@Camera` lookup list.
+ */
+export function projectDepartmentItems(project: Project): ReportDepartmentInfo[] {
+  const precalls = project.crewTemplate?.departmentPrecalls || {};
+  return projectDepartments(project)
+    .filter(dept => !!precalls[dept] || rolesForDept(project, dept).some(role => (project.crew?.[role.key] || []).length > 0))
+    .map(dept => ({ key: dept, label: dept }));
+}
+
+
 /** One element category, as a repeat/table item of the 'categories' collection. */
 export interface ReportCategoryInfo {
   key: string;
@@ -393,6 +416,7 @@ export function reportItemKey(collection: ReportCollection, item: ReportCollecti
     case 'crewOfDay': return (item as ReportCrewItem).id;
     case 'elementCallsOfDay': return (item as ReportElementCallItem).id;
     case 'departmentCallsOfDay': return (item as ReportDepartmentCallItem).key;
+    case 'departments': return (item as ReportDepartmentInfo).key;
     default: return 0;
   }
 }
@@ -428,6 +452,7 @@ export function reportItemLabel(collection: ReportCollection, it: ReportCollecti
     case 'crew': case 'crewOfDay': return `${(it as ReportCrewItem).role}: ${(it as ReportCrewItem).name}`;
     case 'elementCallsOfDay': return (it as ReportElementCallItem).name;
     case 'departmentCallsOfDay': return (it as ReportDepartmentCallItem).label;
+    case 'departments': return (it as ReportDepartmentInfo).label;
     case 'violationTypes': return (it as ReportViolationTypeInfo).label;
     case 'locations': case 'locationsOfType': case 'locationsOfDay': return (it as ReportLocationInfo).name;
     case 'locationTypes': return (it as ReportLocationTypeInfo).label;
@@ -950,12 +975,21 @@ export type ReportCollectionItem =
   | ReportElementInfo
   | ReportElementCallItem
   | ReportDepartmentCallItem
+  | ReportDepartmentInfo
   | ReportCategoryInfo
   | ReportCrewItem
   | ReportViolationTypeInfo
   | ReportLocationInfo
   | ReportLocationTypeInfo
   | ReportDayTypeInfo;
+
+/** The DAY item behind a repeat/table parent, when one is in scope — the same
+ *  shape check the renderer uses for `aux.dayDate` (a day item carries a
+ *  computed `section` with an index; scenes carry `sectionIndex`). */
+function dayItemOf(item: unknown): ReportDayInfo | undefined {
+  const day = item as ReportDayInfo | undefined;
+  return day && typeof (day as any).section?.index === 'number' && typeof (day as any).date === 'string' ? day : undefined;
+}
 
 export function resolveCollection(
   ctx: ReportCtx,
@@ -968,6 +1002,18 @@ export function resolveCollection(
     case 'scenes': return ctx.sceneInfos;
     case 'days': return ctx.dayInfos;
     case 'dayTypes': return ctx.dayTypeInfos;
+    case 'departments': {
+      // Base collection (roadmap 220): the project's departments. Inside a day
+      // repeat it narrows to THAT day's departments (same pool/order/exclusion
+      // rules as the precalls block) so a day table never lists a department
+      // that isn't working; the project list is the project-level database.
+      const day = dayItemOf(parentItem);
+      if (!day) return projectDepartmentItems(ctx.project);
+      const meta: DayMeta = { crewSlots: day.crewSlots, excludedCrewDepts: day.excludedCrewDepts, departmentPrecalls: day.departmentPrecalls };
+      return dayDepartments(ctx.project, meta, day.callTime)
+        .filter(d => !d.excluded)
+        .map(d => ({ key: d.dept, label: d.dept }));
+    }
     case 'dayTypesOfElement': {
       // The day types THIS element has days in — derived from the parent
       // element's attachment dates (status OR card; never re-derived).
