@@ -130,11 +130,12 @@ call-sheet designs with the active one checked, and **Reset to template** — th
 Preview/Edit · Print, all icon + label) portal into the SAME dark toolbar (the day
 selector reuses the slot left of the switcher) over a **single-page WYSIWYG canvas**
 (`CallSheetCanvas`) — the whole design renders on one white page filled with THAT day's
-real data (scenes/crew/locations read-only), and the `callSheetEdit` zone slot embeds the
-REAL reports-designer canvas (`ReportDesignerCanvas` `bare` + `CallSheetZoneDesigner`):
-full palette/canvas drag & drop, drop zones, floating block chrome, column ops and
-right-click menus, all scoped to the day's zone content. A design without a `days`-repeat
-`callSheetEdit` zone falls back to a zone-only editor.
+real data (scenes/crew/locations read-only), and the `callSheetEdit` zone slot is the
+REPORTS DESIGNER in **zone mode** (roadmap 212): the same docked rail (palette ↔ block
+inspector, collapse + drag-resize), block/column/cell chrome, drop zones, context menus,
+keyboard and commit-on-blur, scoped to the day's zone content. Fields/Values is
+designer-only — the call sheet stays Values. A design without a `callSheetEdit` zone
+renders the same page display-only, with no palette.
 **Pop-out day windows** (no shared toolbar) keep the local header with the Call
 Sheet/Days buttons.
 
