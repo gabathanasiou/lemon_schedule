@@ -34,8 +34,12 @@ import { planGridPaste, type PasteEdit, type PasteColumn, type PasteRange } from
 import { useGlideFill } from './glideFill';
 import { useGlidePeerSelection } from './useGlidePeerSelection';
 import { registerPresenceGridScope, type PresenceGridScope } from './presenceResolvers';
+import { useFollowView } from './supabase/useFollowView';
+import type { AppPlace } from './appNav';
 import { effectiveGridRange } from './glideSelection';
 import Button from '../components/Button';
+import { GlideFilter } from '../components/GlideFilter';
+import { filterGlideRows } from './glideFilter';
 import type { Project } from '../types';
 
 // ---- Generic database "glide" grid shell ------------------------------------
@@ -108,6 +112,9 @@ export interface GlideShellConfig {
    *  by every client (`crew-glide`, `locations-glide`) — peer selections
    *  publish/render per instance under it. */
   presenceScope: string;
+  /** Follow place (roadmap 229/172): the App place this grid is the view of,
+   *  so the row filter mirrors while following. */
+  followPlace: Pick<AppPlace, 'tab' | 'sub' | 'mode'>;
   columnDefs: GlideColumnDef[];
   buildRows(project: Project): GlideRow[];
   categories(project: Project): GlideCategory[];
@@ -146,9 +153,35 @@ export const GlideGridShell: React.FC<{
   const project = state.present;
 
   const categories = useMemo(() => config.categories(project), [config, project]);
-  const rows = useMemo(() => config.buildRows(project), [config, project]);
+  const allRows = useMemo(() => config.buildRows(project), [config, project]);
+  /** Roadmap 172 — the grid indexes THIS list everywhere; filtering is
+   *  display-only, so `allRows` still feeds the Info counts and the project
+   *  itself is never rewritten. */
+  const [filterQuery, setFilterQuery] = useState('');
+  const rows = useMemo(
+    () => filterGlideRows(allRows, filterQuery, row =>
+      config.columnDefs
+        .filter(c => c.key !== 'actions')
+        .map(c => (c.kind === 'category' ? row.categoryLabel : String(row[c.key] ?? '')))
+    ),
+    [allRows, filterQuery, config.columnDefs],
+  );
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  // The row filter is view state, not project data: a follower mirrors the
+  // leader's query through the shared follow seam. Typing your own filter does
+  // NOT end follow (same rule as scrolling) — the leader's next view sync wins.
+  const filterRef = useRef(filterQuery);
+  filterRef.current = filterQuery;
+  useFollowView({
+    place: config.followPlace,
+    fields: [{ key: 'glideFilter', value: filterQuery }],
+    apply: view => {
+      const next = view.glideFilter ?? '';
+      if (next === filterRef.current) return;
+      setFilterQuery(next);
+    },
+  });
   const categoriesRef = useRef(categories);
   categoriesRef.current = categories;
   const readOnlyRef = useRef(locked);
@@ -204,6 +237,12 @@ export const GlideGridShell: React.FC<{
   const gridSelectionRef = useRef(gridSelection);
   gridSelectionRef.current = gridSelection;
 
+  // Row indices change when the filter changes — drop the selection instead of
+  // leaving it pointing at different records.
+  useEffect(() => {
+    setGridSelection({ columns: CompactSelection.empty(), rows: CompactSelection.empty() });
+  }, [filterQuery]);
+
   // Peer selections (roadmap 234) — every mounted instance publishes its own
   // selection and paints the peers' ones under `config.presenceScope`.
   const presenceRowKeys = useMemo(() => rows.map(r => r.key), [rows]);
@@ -236,8 +275,10 @@ export const GlideGridShell: React.FC<{
         const rows = rowsRef.current;
         const cols = COLUMNSRef.current;
         if (rows.length === 0 || cols.length === 0) return null;
-        let ri = rows.findIndex(r => r.key === rowKey);
-        if (ri < 0) ri = Math.min(Math.max(rowIndex, 0), rows.length - 1);
+        const ri = rows.findIndex(r => r.key === rowKey);
+        // Filtered out / deleted: hide the peer highlight rather than paint it
+        // over an unrelated visible row.
+        if (ri < 0) return null;
         let ci = cols.findIndex(c => c.key === colKey);
         if (ci < 0) ci = Math.min(Math.max(colIndex, 0), cols.length - 1);
         const rect = gridRef.current?.getBounds(ci, ri);
@@ -624,11 +665,17 @@ export const GlideGridShell: React.FC<{
   const [viewOpen, setViewOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  const infoCounts = useMemo(() => config.labels.infoCounts(rows, project), [config, rows, project]);
+  const infoCounts = useMemo(() => config.labels.infoCounts(allRows, project), [config, allRows, project]);
   const headerActions = config.renderHeaderActions?.({ dispatch, readOnly: locked, project });
 
   const headerContent = (
     <div className="flex items-center justify-end gap-1">
+      <GlideFilter
+        value={filterQuery}
+        onChange={setFilterQuery}
+        total={allRows.length}
+        shown={rows.length}
+      />
       {headerActions}
       <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-52" theme="light"
         trigger={
@@ -701,7 +748,13 @@ export const GlideGridShell: React.FC<{
       )}
 
       {/* Grid */}
-      <div ref={gridSizeRef} data-presence-grid={config.presenceScope} style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
+      <div
+        ref={gridSizeRef}
+        data-presence-grid={config.presenceScope}
+        data-glide-visible-rows={rows.length}
+        data-glide-total-rows={allRows.length}
+        style={{ flex: 1, minHeight: 0, touchAction: 'none' }}
+      >
         <DataEditor
           key={fontVersion}
           ref={gridRef}

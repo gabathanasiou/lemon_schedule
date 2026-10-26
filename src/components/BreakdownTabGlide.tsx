@@ -70,6 +70,9 @@ import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 import { useQueueCastNaming, addNewElements } from '../lib/newCastNaming';
 import { useGlideFill } from '../lib/glideFill';
 import { isWarningSuppressed, suppressWarningFor24h } from '../lib/warnings';
+import { filterGlideRows, sceneFilterValues } from '../lib/glideFilter';
+import { useFollowView } from '../lib/supabase/useFollowView';
+import { GlideFilter } from './GlideFilter';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -110,7 +113,22 @@ export function GlideBreakdownTab({
   const { request: requestSceneDuplicate } = useSceneDuplicate();
   const accent = projectAccentOf(useProjectTheme());
   const project = state.present;
-  const scenes = project.scenes;
+  const allScenes = project.scenes;
+  const [filterQuery, setFilterQuery] = useState('');
+  // The row filter mirrors while following (view state, never project data).
+  // Typing your own filter does NOT end follow — the leader's next view sync
+  // wins, the same rule as scrolling.
+  const filterRef = useRef(filterQuery);
+  filterRef.current = filterQuery;
+  useFollowView({
+    place: { tab: 'breakdown', sub: 'glide' },
+    fields: [{ key: 'glideFilter', value: filterQuery }],
+    apply: view => {
+      const next = view.glideFilter ?? '';
+      if (next === filterRef.current) return;
+      setFilterQuery(next);
+    },
+  });
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
   const allBreakdownCategories = useMemo(() => [
@@ -145,6 +163,22 @@ export function GlideBreakdownTab({
 
   const COLUMNSRef = useRef(COLUMNS);
   COLUMNSRef.current = COLUMNS;
+
+  /* Roadmap 172 — display-only row filter. Every GRID callback indexes this
+     list, so editing / copy / paste / delete / presence act on the visible
+     rows; project data, the add row and the manager datalists keep using the
+     full scene list. Cell values are matched as DISPLAYED (cast shows the
+     member's name next to the Board ID). */
+  const castNameById = useMemo(
+    () => new Map((project.castMembers || []).map(m => [m.id, m.name])),
+    [project.castMembers],
+  );
+  const scenes = useMemo(() => filterGlideRows(allScenes, filterQuery, scene =>
+    // EVERY scene field, not just the on-screen columns — hidden/custom
+    // categories, script-page/sheet numbers and the scene location too; the
+    // script fragment is excluded (roadmap 172).
+    sceneFilterValues(scene as unknown as Record<string, unknown>, castNameById)
+  ), [allScenes, filterQuery, castNameById]);
 
   useEffect(() => {
     localStorage.setItem(`lemon_schedule_glide_cols_${project.id}`, JSON.stringify(columnWidths));
@@ -313,6 +347,11 @@ export function GlideBreakdownTab({
     rows: CompactSelection.empty(),
   });
   const scriptPane = useScriptPanePref('glide');
+  // Row indices change with the filter — drop the selection rather than leave
+  // it pointing at different scenes.
+  useEffect(() => {
+    setGridSelection({ columns: CompactSelection.empty(), rows: CompactSelection.empty() });
+  }, [filterQuery]);
   // The pane follows the grid's active cell (first row of the selection).
   const activeRow = gridSelection.current?.cell?.[1];
   const activeSceneNumber = activeRow != null && activeRow >= 0 && activeRow < scenes.length ? scenes[activeRow].sceneNumber : undefined;
@@ -355,7 +394,7 @@ export function GlideBreakdownTab({
 
   const setItems = useMemo(() => {
     const map = new Map<string, string>();
-    for (const s of scenes) {
+    for (const s of allScenes) {
       const v = s.set.trim().toUpperCase();
       if (v) map.set(v, v);
     }
@@ -364,7 +403,7 @@ export function GlideBreakdownTab({
       if (v) map.set(v, v);
     }
     return [...map.entries()].map(([id, name]) => ({ id, name }));
-  }, [scenes, project.breakdownElements]);
+  }, [allScenes, project.breakdownElements]);
 
   const castItems = useMemo(() => {
     const seen = new Set<string>();
@@ -372,13 +411,13 @@ export function GlideBreakdownTab({
     for (const e of project.castMembers || []) {
       if (e.id && !seen.has(e.id)) { items.push(e); seen.add(e.id); }
     }
-    for (const sc of scenes) {
+    for (const sc of allScenes) {
       for (const v of (sc.cast || '').split(',').map(x => x.trim()).filter(Boolean)) {
         if (!seen.has(v)) { items.push({ id: v, name: '' }); seen.add(v); }
       }
     }
     return items;
-  }, [scenes, project.castMembers]);
+  }, [allScenes, project.castMembers]);
 
   const breakdownEditorItems = useMemo(() => {
     const map = new Map<string, { id: string; name: string }[]>();
@@ -398,6 +437,24 @@ export function GlideBreakdownTab({
 
   const scenesRef = useRef(scenes);
   scenesRef.current = scenes;
+  const allScenesRef = useRef(allScenes);
+  allScenesRef.current = allScenes;
+  /** A grid row → the scene's index in the project (SceneSheet / pop-outs take
+   *  the project index, never the filtered one). */
+  const actualSceneIndex = useCallback((sceneId: string) =>
+    allScenesRef.current.findIndex(s => s.id === sceneId), []);
+  const openSheetAt = useCallback((gridRow: number) => {
+    const scene = scenesRef.current[gridRow];
+    if (!scene) return;
+    const index = actualSceneIndex(scene.id);
+    if (index >= 0) onOpenSheet?.(index);
+  }, [actualSceneIndex, onOpenSheet]);
+  const openSheetInPopoutAt = useCallback((gridRow: number) => {
+    const scene = scenesRef.current[gridRow];
+    if (!scene) return;
+    const index = actualSceneIndex(scene.id);
+    if (index >= 0) onOpenSheetInPopout?.(index);
+  }, [actualSceneIndex, onOpenSheetInPopout]);
   const readOnlyRef = useRef(locked);
   readOnlyRef.current = locked;
   const selectModeRef = useRef(false);
@@ -405,7 +462,7 @@ export function GlideBreakdownTab({
   const projectRef = useRef(project);
   projectRef.current = project;
   const linkGuard = useLinkedEditGuard(project.links, project.customCategories, dispatch);
-  const { trySetSceneNumber, modal: sceneNumberCollisionModal } = useSceneNumberCollisionGuard(dispatch, scenes);
+  const { trySetSceneNumber, modal: sceneNumberCollisionModal } = useSceneNumberCollisionGuard(dispatch, allScenes);
   const { queue } = useQueueCastNaming();
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
   allBreakdownLabelsRef.current = allBreakdownLabels;
@@ -433,8 +490,10 @@ export function GlideBreakdownTab({
         const rows = scenesRef.current;
         const cols = COLUMNSRef.current;
         if (rows.length === 0 || cols.length === 0) return null;
-        let ri = rows.findIndex(s => s.id === rowKey);
-        if (ri < 0) ri = Math.min(Math.max(rowIndex, 0), rows.length - 1);
+        const ri = rows.findIndex(s => s.id === rowKey);
+        // Filtered out / deleted: hide the peer highlight instead of painting
+        // it over an unrelated visible row.
+        if (ri < 0) return null;
         let ci = cols.findIndex(c => c.key === colKey);
         if (ci < 0) ci = Math.min(Math.max(colIndex, 0), cols.length - 1);
         const rect = gridRef.current?.getBounds(ci, ri);
@@ -576,7 +635,8 @@ export function GlideBreakdownTab({
         [colDef.key]: val,
       } as Partial<Scene>);
       if (!newScene.sceneNumber) {
-        const prev = scenesRef.current[scenesRef.current.length - 1];
+        const all = allScenesRef.current;
+        const prev = all[all.length - 1];
         const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
         newScene.sceneNumber = nextNum;
       }
@@ -756,25 +816,35 @@ export function GlideBreakdownTab({
   }, [COLUMNS, dispatch, commitEdit, ensureElements]);
 
   const addScene = useCallback(() => {
-    const prev = scenesRef.current[scenesRef.current.length - 1];
+    const all = allScenesRef.current;
+    const prev = all[all.length - 1];
     const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
     dispatch({ type: 'ADD_SCENE', payload: createBlankScene({ sceneNumber: nextNum, containerId: null } as any) });
   }, [dispatch]);
 
-  const insertSceneAt = useCallback((index: number) => {
-    const prev = scenesRef.current[index - 1];
+  const insertSceneAt = useCallback((gridIndex: number) => {
+    // Insert BEFORE the visible row at `gridIndex` (Below passes +1). Map the
+    // anchor back to the project list so a filtered view inserts in the right
+    // place; past the last visible row appends.
+    const visible = scenesRef.current;
+    const anchor = gridIndex < visible.length ? visible[gridIndex] : null;
+    const all = allScenesRef.current;
+    const found = anchor ? all.findIndex(s => s.id === anchor.id) : all.length;
+    const at = found < 0 ? all.length : found;
+    const prev = all[at - 1];
     const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
     const newScene: Scene = createBlankScene({ sceneNumber: nextNum } as any);
-    dispatch({ type: 'INSERT_SCENE_AT', payload: { index, scene: newScene } });
+    dispatch({ type: 'INSERT_SCENE_AT', payload: { index: at, scene: newScene } });
   }, [dispatch]);
 
-  const duplicateSceneAt = useCallback((index: number) => {
-    const original = scenes[index];
+  const duplicateSceneAt = useCallback((gridIndex: number) => {
+    const original = scenes[gridIndex];
     if (!original) return;
+    const actual = allScenes.findIndex(s => s.id === original.id);
     requestSceneDuplicate({ scene: original, onConfirm: (duplicate) => {
-      dispatch({ type: 'INSERT_SCENE_AT', payload: { index: index + 1, scene: duplicate } });
+      dispatch({ type: 'INSERT_SCENE_AT', payload: { index: actual >= 0 ? actual + 1 : allScenes.length, scene: duplicate } });
     } });
-  }, [dispatch, scenes, requestSceneDuplicate]);
+  }, [dispatch, scenes, allScenes, requestSceneDuplicate]);
 
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
@@ -994,10 +1064,10 @@ export function GlideBreakdownTab({
       if (sameCell && !penTouch) {
         // Double-CLICK (mouse) opens the scene sheet. Touch/pen double-taps do
         // not — the context menu's "Open Sheet" is the mobile path.
-        if (!IS_COARSE && shiftHeld && onOpenSheetInPopout) {
-          onOpenSheetInPopout(row);
+        if (!IS_COARSE && shiftHeld) {
+          openSheetInPopoutAt(row);
         } else {
-          onOpenSheet?.(row);
+          openSheetAt(row);
         }
         return;
       }
@@ -1024,7 +1094,7 @@ export function GlideBreakdownTab({
       const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
       setContextMenu({ x, y, row, col });
     }
-  }, [scenes.length, onOpenSheet, onOpenSheetInPopout]);
+  }, [scenes.length, openSheetAt, openSheetInPopoutAt]);
 
   const onHeaderContextMenu = useCallback((colIndex: number, e: any) => {
     e.preventDefault();
@@ -1044,14 +1114,14 @@ export function GlideBreakdownTab({
 
   const cleanEmptyRows = useCallback(() => {
     const toDelete: string[] = [];
-    for (const s of scenes) {
+    for (const s of allScenes) {
       const isEmpty = !s.sceneNumber && !s.set && !s.description && !s.cast && !s.notes && !s.pageCount && !s.intExt && !s.dayNight;
       if (isEmpty) toDelete.push(s.id);
     }
     for (const id of toDelete) dispatch({ type: 'DELETE_SCENE', payload: id });
-  }, [scenes, dispatch]);
+  }, [allScenes, dispatch]);
 
-  const totalPagesDecimal = useMemo(() => scenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0), [scenes]);
+  const totalPagesDecimal = useMemo(() => allScenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0), [allScenes]);
 
   const hasSelection = gridSelection.current?.range !== undefined || gridSelection.rows.length > 0 || gridSelection.columns.length > 0;
   const hasActiveCell = gridSelection.current?.cell !== undefined || gridSelection.rows.length > 0;
@@ -1069,6 +1139,13 @@ export function GlideBreakdownTab({
 
   const headerContent = (
     <div className="flex items-center justify-end gap-1">
+      <GlideFilter
+        value={filterQuery}
+        onChange={setFilterQuery}
+        total={allScenes.length}
+        shown={scenes.length}
+        placeholder="Filter scenes…"
+      />
       <Button variant="primary" cloud={accent} onClick={addScene} disabled={locked} data-presence-anchor="toolbar:glide:add-scene">
         + Add Scene
       </Button>
@@ -1130,7 +1207,7 @@ export function GlideBreakdownTab({
         <div className="px-4 py-2.5 text-xs text-zinc-500 space-y-1.5">
           <div className="flex items-center justify-between gap-6">
             <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Scenes</span>
-            <span className="font-semibold text-zinc-800">{scenes.length}</span>
+            <span className="font-semibold text-zinc-800">{allScenes.length}</span>
           </div>
           <div className="flex items-center justify-between gap-6">
             <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Pages</span>
@@ -1154,7 +1231,13 @@ export function GlideBreakdownTab({
       )}
 
       {/* Grid */}
-      <div ref={gridContainerRef} data-presence-grid="breakdown-glide" style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
+      <div
+        ref={gridContainerRef}
+        data-presence-grid="breakdown-glide"
+        data-glide-visible-rows={scenes.length}
+        data-glide-total-rows={allScenes.length}
+        style={{ flex: 1, minHeight: 0, touchAction: 'none' }}
+      >
         <DataEditor
           key={fontVersion}
           ref={gridRef}
@@ -1222,9 +1305,9 @@ export function GlideBreakdownTab({
             <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={locked || marqueeMode === 'tool'}>Duplicate</ContextMenuItem>
             <ContextMenuDivider />
             {!IS_COARSE && shiftHeld && onOpenSheetInPopout ? (
-              <ContextMenuItem onClick={() => { if (onOpenSheetInPopout) onOpenSheetInPopout(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-zinc-400" />}>Open in New Window</ContextMenuItem>
+              <ContextMenuItem onClick={() => { openSheetInPopoutAt(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-zinc-400" />}>Open in New Window</ContextMenuItem>
             ) : (
-              <ContextMenuItem onClick={() => { if (onOpenSheet) onOpenSheet(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>Open Sheet</ContextMenuItem>
+              <ContextMenuItem onClick={() => { openSheetAt(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>Open Sheet</ContextMenuItem>
             )}
             <ContextMenuDivider />
             <ContextMenuItem
@@ -1261,9 +1344,7 @@ export function GlideBreakdownTab({
                 <>
                   <ContextMenuDivider />
                   <ContextMenuItem onClick={() => {
-                    if (onOpenSheet && typeof onOpenSheet === 'function') {
-                      onOpenSheet(contextMenu.row);
-                    }
+                    openSheetAt(contextMenu.row);
                     setContextMenu(null);
                   }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>
                     Go to Element Manager → {colLabel}

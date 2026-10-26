@@ -685,29 +685,6 @@ set manually per day instead.
   persistence; module is a rule-7 manual pass.
 - **Relations**: 98, 53 (supersedes its nearby-fields part), 109, 146.
 
-## 172. Managers + Glide — deep search, jump-and-flash, table filtering (`[~]`, big)
-
-**Request**: the managers' left search must also search **inside** categories
-and attributes (e.g. "Roy" → crew roles containing Roy; phone numbers).
-Clicking a result opens that category, scrolls to the match and briefly flashes
-the matching row(s) red (scroll only to the first). Universal for all manager
-pages. Glide tables get a row **filter** (show only matching rows). Multiple
-tags via commas — consider reusing the rich-text chip/token system for search
-tags.
-- Approach: one shared search module (parse comma tags → per-manager field
-  accessors from the manager configs) consumed by `managerShell.tsx` (sidebar)
-  and `ElementManager.tsx` (scroll + flash); Glide filter in `glideShell.tsx` /
-  `InlineGlideTable`. Evaluate a small fuzzy lib (fuse.js / uFuzzy) — no new dep
-  unless it clearly beats a tokenizer (deps must be imported by ≥1 source file).
-- **Shipped (manager search, v0.1.119 kit)**: kit `SearchMenu` (inline +
-  expandable, category tree with animated rows, comma tags, custom empty
-  actions); shared record builder `src/lib/managerSearch.ts`; jump/flash in
-  `managerShell.tsx` / `ElementManager.tsx`; kit playground specs. **Glide row
-  filtering remains.**
-- **Verify**: Vitest for the query/tag parser; e2e for flash/scroll + glide
-  filter (rows silently disappearing = break).
-- **Relations**: 121, 84, 88, 139-145, 318.
-
 ## 318. SearchMenu adoption audit — replace eligible controls with the kit SearchMenu (`[~]`)
 
 **Request**: audit the app for buttons/pickers that can become the kit
@@ -715,21 +692,21 @@ tags.
 candidate list, then migrate the clear wins; don't force a search where a plain
 select is better.
 
-- **Shipped (Day Manager, v0.3.131)**: master location · Add location (search +
-  explicit New) · crew Report to (all crew + per department) · Add role (header
-  across all departments + per-department, role categories with available
-  people) → kit `SearchMenu` expandable. ONE adapter `LocationSearchMenu`
+- **Shipped (Day Manager)**: master location · Add location (search + explicit
+  New) · crew Report to (all crew + per department) · Add role (header across
+  all departments + per-department, role categories with available people) →
+  kit `SearchMenu` expandable. ONE adapter `LocationSearchMenu`
   (`src/components/location/`) replaces the retired `LocationEntityDropdown`;
   `LocationOption.fields` carries address/place/contact/phone into deep search.
-  Browse modes: field pickers (master location, Report to) use the new kit
-  `browseExpanded` — plain type headers, all records open; Add location + Add
-  role stay accordions. Kit v0.1.122/123 released for `browseExpanded` +
-  `triggerIcon` (MapPin on location pickers, UserPlus/Plus on adders). Category
-  rows only expand — never add on category click.
+  Browse modes: field pickers (master location, Report to) use kit
+  **`browseExpanded`** — plain type headers, all records open; Add location +
+  Add role stay accordions. Kit v0.1.122/123 supplies `browseExpanded` +
+  **`triggerIcon`** (MapPin on location pickers, UserPlus/Plus on adders).
+  **Category rows only expand — never add on category click.**
   Manager jump/flash now uses the kit `searchMenuContent` matcher (single
   matcher; the duplicate `managerSearch` matcher + its test are gone).
   Docs: `UI-PRIMITIVES.md` §SearchMenu (full capability reference),
-  `DESIGN-LANGUAGE.md` picker table.
+  `DESIGN-LANGUAGE.md` picker table, `UI-KIT.md` v0.1.117-123.
 - **Audit — EntityDropdown**: not replaceable wholesale (cell editor: multi/comma,
   Tab/Enter/Escape commit, free-text create, anchored keys, scene counts, id/name
   spaces, portal target). SearchMenu takes only standalone single-select
@@ -742,15 +719,14 @@ select is better.
 - **Later (adapter/kit)**: report field/collection/palette pickers (flatten the
   grouped submenus); ribbon field palette + Change Field; PeoplePicker (needs
   async + avatar rows); Add Crew Member role field; version/design/style pickers
-  (keep inline rename/duplicate/delete); Glide row filter (kit
-  `MorphSearchField`, shipped in 0.1.120 — the app now pins 0.1.122).
+  (keep inline rename/duplicate/delete).
 - **Blocked — do not force**: in-cell EntityDropdown editors (ribbon/Glide/Sheet/
   crew Person + per-slot Report To/locations grid); multi-select surfaces
   (Checklists, multi GroupedSelect/EntityDropdown, event filter); async geocoder;
   free-text cast/set creation (empty actions only cover no-match).
-- **Verify**: lint + smart suite; Day Manager surfaces are rule-7 manual checks
-  (panel opens, categories expand, picking/changing/clearing persists, add-role
-  adds the role/person, add location creates from typed text).
+- **Verify**: lint + full suite (done); Day Manager surfaces are rule-7 manual
+  checks (panel opens, categories expand, picking/changing/clearing persists,
+  add-role adds the person, add location creates from typed text, icons).
 - **Relations**: `follows` **172**; `relates to` **306**, **308**.
 
 ## 174. Call Times — label audit (`[ ]`, parked)

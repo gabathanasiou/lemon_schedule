@@ -285,6 +285,12 @@ persisted, never in the project JSON, never a room action.
     mode (`reportViewMode`): per-user prefs (roadmap 233, `src/lib/persist.ts`
     `useActiveDesignId`) that DO mirror while following — the peer's pick wins
     until you unfollow, then yours sticks.
+  - the **Glide page row filter** (roadmap 172) — `glideFilter`; the follower's
+    matching grid (`breakdown/glide`, `production/crew/glide`,
+    `production/locations/glide`) applies the leader's query, so both see the
+    same rows. Typing your own filter is scroll-like (does NOT end follow); the
+    leader's next view sync re-applies. Rows your own override hides suppress
+    the peer's highlight/follow anchor — never clamped onto a different row.
   - the **manager pages' selected sidebar category** (Element Manager,
     `breakdown/elements`; Crew/Locations, `production/<sub>/manager`) —
     `managerCategory`; category keys are project data (a key this client does

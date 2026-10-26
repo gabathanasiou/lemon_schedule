@@ -36,7 +36,10 @@ async function cellCenter(page: Page, colKey: string, row = 0): Promise<{ x: num
 
 async function editorState(page: Page): Promise<{ hasEditor: boolean; readOnly: boolean | null }> {
   return page.evaluate(() => {
-    const els = Array.from(document.querySelectorAll('input, textarea')).filter(i => (i as HTMLElement).offsetParent !== null);
+    // A collapsed morph search field keeps its input mounted for the cross-fade
+    // under aria-hidden — that is not an open editor (roadmap 172).
+    const els = Array.from(document.querySelectorAll('input, textarea')).filter(i =>
+      (i as HTMLElement).offsetParent !== null && !i.closest('[aria-hidden="true"]'));
     if (els.length === 0) return { hasEditor: false, readOnly: null };
     return { hasEditor: true, readOnly: els.every(i => (i as HTMLInputElement).readOnly) };
   });

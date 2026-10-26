@@ -259,17 +259,23 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   - Sizing/theme: `collapsedWidth`, `expandedWidth`, `panelWidth`, `maxMenuHeight`, `theme`,
     `morph`, `autoFocus`, controlled `query`/`onQueryChange`, `closeOnSelect`.
   **Limits (by design)**: single-select · synchronous items only (no async source) · no
-  inline create/rename (empty actions instead) · no controlled `open` · fixed trigger content
-  (Search icon + `triggerLabel`). **Use for**: standalone single-record catalogue pickers
+  inline create/rename (empty actions instead) · no controlled `open` · fixed trigger
+  STRUCTURE (an icon + `triggerLabel`; `triggerIcon` swaps the icon). **Use for**: standalone
+  single-record catalogue pickers
   (locations, crew roles/people, days, report fields) where categories or deep fields matter.
   **Do NOT use for**: grid/cell editors (`EntityDropdown` — Tab/Enter commit, comma multi,
   free-text create), short fixed option lists (`SelectDropdown`/`AutocompleteDropdown`),
-  async place search (`AsyncResultsDropdown`), or toolbar filters (`MorphSearchField`, kit
-  v0.1.120+ — a filter that keeps its term, not a record picker). Never fork a second search
+  async place search (`AsyncResultsDropdown`), or toolbar filters (`MorphSearchField` — a
+  filter that keeps its term, not a record picker). Never fork a second search
   dropdown. **App adapter**: `LocationSearchMenu` (`src/components/location/`) is the
   standalone location face — grouped by type, searches address/contact/phone, optional
   "add the typed name" action and clear button; used by the Day Manager master location,
   Add location, and crew Report-to headers (roadmap 318).
+- **MorphSearchField** (kit): the FILTER trigger — a `Filter` button that morphs into the
+  kit input and keeps its term when collapsed (unlike SearchMenu's clear-on-close), Escape
+  clears, click-away collapses. Pass `triggerLabel` / `triggerIcon` to name the active term
+  and swap the icon (Glide uses the query + a funnel, with no accent tint). Used by every
+  Glide page toolbar (`GlideFilter`, roadmap 172); a record picker still uses SearchMenu.
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
   `displayMode` picks the value space (`id` fields vs `name`); pass **`resolveBy="id"`** when values

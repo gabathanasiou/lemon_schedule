@@ -191,6 +191,10 @@ const RULES = [
   // glide breakdown
   { g: 'src/components/BreakdownTabGlide.tsx', s: [...GLIDE, ...LINKED, ...ENTITY_CTX] },
   { g: 'src/components/InlineGlideTable.tsx', s: GLIDE },
+  // shared Glide DB shell + the row-filter field also serve crew/locations
+  { g: 'src/lib/glideShell.tsx', s: [...GLIDE, ...CREW, 'locations'] },
+  { g: 'src/lib/glideFilter.ts', s: [...GLIDE, ...CREW, 'locations'] },
+  { g: 'src/components/GlideFilter.tsx', s: [...GLIDE, ...CREW, 'locations'] },
   { g: 'src/lib/glide*', s: GLIDE },
   { g: 'src/lib/useGlidePeerSelection.ts', s: GLIDE },
   { g: 'src/components/SceneSheet*.tsx', s: [...CAST, ...ELEM, ...LINKED, ...SHEET, ...ENTITY_CTX] },

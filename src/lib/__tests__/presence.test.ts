@@ -96,6 +96,18 @@ describe('presence wire helpers', () => {
       .toEqual({ tab: 'schedule' });
   });
 
+  it('parses the Glide row filter and caps its length (roadmap 172)', () => {
+    expect(parseView({ tab: 'breakdown', sub: 'glide', glideFilter: 'camera, 555' }))
+      .toEqual({ tab: 'breakdown', sub: 'glide', glideFilter: 'camera, 555' });
+    expect(parseView({ tab: 'production', sub: 'crew', mode: 'glide', glideFilter: 'grip' }))
+      .toEqual({ tab: 'production', sub: 'crew', mode: 'glide', glideFilter: 'grip' });
+    // Unknown shapes are dropped; long queries are truncated, never trusted raw.
+    expect(parseView({ tab: 'breakdown', sub: 'glide', glideFilter: 7 }))
+      .toEqual({ tab: 'breakdown', sub: 'glide' });
+    expect(parseView({ tab: 'breakdown', sub: 'glide', glideFilter: 'x'.repeat(300) }).glideFilter)
+      .toHaveLength(160);
+  });
+
   it('parses the follow-lens fields (manager category, preview, editor mode — roadmap 243)', () => {
     expect(parseView({ tab: 'breakdown', sub: 'elements', managerCategory: 'props' }))
       .toEqual({ tab: 'breakdown', sub: 'elements', managerCategory: 'props' });

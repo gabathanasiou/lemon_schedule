@@ -122,6 +122,48 @@ auto-repaint.
   dropdown AND cancels the whole cell-edit overlay (`onFinishedEditing(undefined, [0,0])` — no
   commit), so the edit popout never lingers.
 
+## Row filter (roadmap 172)
+
+Every Glide page has one row filter in its toolbar — `GlideFilter`
+(`src/components/GlideFilter.tsx`) wrapping the kit **`MorphSearchField`**: a
+`Filter` button that morphs into the text field. The term survives collapsing
+(click into the grid and the toolbar stays compact with the filter applied and a
+`shown / total` count); Escape clears + collapses; click-away only collapses.
+While active the collapsed button **names the term** and swaps its magnifier for
+a funnel (no accent tint); the expanded field's leading icon matches.
+
+- **Semantics**: comma-separated tags, ALL must match (AND), case-insensitive —
+  the same `parseSearchTags` as the manager search. The Breakdown matches
+  **EVERY scene field** (`sceneFilterValues`, `src/lib/glideFilter.ts`), not
+  just the columns currently on screen: hidden/custom breakdown categories,
+  sheet/script-page numbers, the scene location, unit/sequence, etc. Only
+  internal ids and the script-anchored `cutAnchor` are excluded — "everything
+  except the actual script". Cast contributes `id name` so the displayed Board
+  ID + performer name both search. Matching is SUBSTRING: `night` also matches
+  a Day scene whose props say "Overnight Bag" (the count reflects every real
+  match; rows never reorder).
+- **Display-only**: `allRows`/`allScenes` still feed Info counts, CSV export
+  and the project; the grid indexes the FILTERED list everywhere
+  (`rowsRef`/`scenesRef`). Editing, range fill, copy/cut/paste, delete and peer
+  selections therefore act on the visible row objects — no stale-index edits.
+  A new/pasted row may not match the active filter; it appears when the filter
+  clears (never silently mutated to fit).
+- **Breakdown specifics**: grid row → project index goes through
+  `actualSceneIndex` for the Scene Sheet / pop-out (`openSheetAt`), and
+  Insert/Duplicate map the visible anchor back into `project.scenes`.
+  Data-list dropdowns (`setItems`, `castItems`) and the scene-number collision
+  guard use the FULL list, never the filtered one.
+- **Presence**: a peer row filtered out locally hides its highlight — never
+  clamp it onto a different visible row.
+- **Multiplayer**: filters are per-user view state, published as
+  `PresenceView.glideFilter` through `useFollowView`. While following someone,
+  your matching Glide page mirrors their query (and clears when they clear
+  it); typing your own re-syncs on the leader's next view change. Filters never
+  enter project data. See `docs/PRESENCE.md` §Follow.
+- **Verify**: `src/lib/__tests__/glideFilter.test.ts` (tags/AND/display values)
+  + `e2e/glide-breakdown.spec.ts` and `e2e/crew-glide.spec.ts` "row filter"
+  cases (counts change, clearing restores, project ids unchanged).
+
 ## Peer selection highlights (roadmap 234)
 
 Every Glide grid participates in peer-selection presence through ONE shared seam — never per-surface
