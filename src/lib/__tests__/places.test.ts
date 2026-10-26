@@ -53,34 +53,37 @@ describe('places provider selection', () => {
     });
   });
 
-  it('reverse: maps Geocoding address_components (street_number + route join)', async () => {
+  it('reverse: uses Places Nearby Search (Geocoding rejects referrer-restricted keys)', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key');
-    stubFetch({
-      results: [{
-        formatted_address: '112 Maryland Street, London E15 1QD, United Kingdom',
-        address_components: [
-          { long_name: '112', types: ['street_number'] },
-          { long_name: 'Maryland Street', types: ['route'] },
-          { long_name: 'London', types: ['locality'] },
-          { long_name: 'E15 1QD', types: ['postal_code'] },
-          { long_name: 'United Kingdom', types: ['country'] },
+    const urls = stubFetch({
+      places: [{
+        displayName: { text: 'Trafalgar Square' },
+        formattedAddress: 'Trafalgar Sq, London WC2N 5DS, UK',
+        location: { latitude: 51.508, longitude: -0.128 },
+        addressComponents: [
+          { longText: 'Trafalgar Square', types: ['route'] },
+          { longText: 'London', types: ['postal_town'] },
+          { longText: 'WC2N 5DS', types: ['postal_code'] },
+          { longText: 'United Kingdom', types: ['country'] },
         ],
       }],
     });
 
     const hit = await getPlacesProvider().reverseGeocode(51.5, -0.1);
-    expect(hit?.parts).toEqual({
-      address: '112 Maryland Street',
-      city: 'London',
-      postcode: 'E15 1QD',
-      country: 'United Kingdom',
+    expect(urls[0]).toContain('places.googleapis.com');
+    expect(urls[0]).toContain('searchNearby');
+    expect(urls[0]).not.toContain('maps.googleapis.com');
+    expect(hit).toEqual({
+      lat: 51.5,
+      lng: -0.1,
+      label: 'Trafalgar Sq, London WC2N 5DS, UK',
+      parts: { address: 'Trafalgar Square', city: 'London', postcode: 'WC2N 5DS', country: 'United Kingdom' },
     });
   });
 
-  it('reverse: falls back to the formatted address when components are absent', async () => {
+  it('reverse: no nearby place → null (no label invented)', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key');
-    stubFetch({ results: [{ formatted_address: 'Somewhere' }] });
-    const hit = await getPlacesProvider().reverseGeocode(1, 2);
-    expect(hit?.parts).toEqual({ address: 'Somewhere' });
+    stubFetch({});
+    expect(await getPlacesProvider().reverseGeocode(1, 2)).toBeNull();
   });
 });

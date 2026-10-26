@@ -178,7 +178,7 @@ const RULES = [
   { g: 'src/components/RulesTab.tsx', s: RIBBON },
   { g: 'src/lib/dayTypes.ts', s: CAL },
   { g: 'src/lib/nonShoot*.ts', s: CAL },
-  { g: 'src/lib/places.ts', s: CAL },
+  { g: 'src/lib/places.ts', s: [...CAL, 'report-sun-weather-map'] },
   { g: 'src/lib/timezones.ts', s: CAL },
   { g: 'src/lib/daysOffSync.ts', s: CAL },
   { g: 'src/lib/events.ts', s: CAL },

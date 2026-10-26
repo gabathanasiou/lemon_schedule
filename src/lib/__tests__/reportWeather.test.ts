@@ -139,20 +139,27 @@ describe('reverseGeocodeAddress — through the places provider (roadmap 297)', 
     vi.unstubAllEnvs();
   });
 
-  it('uses Google Geocoding when a key is configured', async () => {
+  it('uses Google Places reverse lookup when a key is configured', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'test-key');
     const urls: string[] = [];
     vi.stubGlobal('fetch', vi.fn(async (input: any) => {
       urls.push(String(input));
       return {
         ok: true,
-        json: async () => ({ results: [{ formatted_address: '10 Downing Street, London' }] }),
+        json: async () => ({
+          places: [{
+            displayName: { text: 'Downing Street' },
+            formattedAddress: '10 Downing Street, London',
+            addressComponents: [{ longText: '10 Downing Street', types: ['route'] }],
+          }],
+        }),
       } as any;
     }));
 
     // Unique coords — the module cache is process-wide across tests.
     await reverseGeocodeAddress(12.3456, 78.9);
-    expect(urls[0]).toContain('maps.googleapis.com');
+    expect(urls[0]).toContain('places.googleapis.com');
+    expect(urls[0]).toContain('searchNearby');
     expect(getCachedAddress(12.3456, 78.9)).toBe('10 Downing Street, London');
   });
 

@@ -1,14 +1,25 @@
 // Pluggable place lookup. Default provider is Nominatim (keyless, OpenStreetMap
-// data). When VITE_GOOGLE_MAPS_API_KEY is set, Google Places (New) Text Search
-// + Geocoding take over. Everything that searches an address goes through
-// getPlacesProvider() — never call a geocoding endpoint directly.
+// data). When VITE_GOOGLE_MAPS_API_KEY is set, Google Places (New) takes over
+// (Text Search forward, Nearby Search reverse). Everything that searches an
+// address goes through getPlacesProvider() — never call a geocoding endpoint
+// directly.
 
 const NOMINATIM_SEARCH =
   'https://nominatim.openstreetmap.org/search?q={q}&format=jsonv2&limit=5&addressdetails=1';
 const NOMINATIM_REVERSE =
   'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat}&lon={lng}&zoom=16&addressdetails=1';
 const GOOGLE_TEXT_SEARCH = 'https://places.googleapis.com/v1/places:searchText';
-const GOOGLE_GEOCODE = 'https://maps.googleapis.com/maps/api/geocode/json';
+// Reverse is Nearby Search, NOT the Geocoding API: the browser key is
+// referrer-restricted by design (it ships in the public bundle) and Geocoding
+// rejects referrer-restricted keys outright ("API keys with referer
+// restrictions cannot be used with this API"). Places API (New) accepts the
+// same key, so pin drops resolve in the deployed app.
+const GOOGLE_NEARBY = 'https://places.googleapis.com/v1/places:searchNearby';
+const GOOGLE_FIELD_MASK =
+  'places.displayName,places.formattedAddress,places.location,places.addressComponents';
+/** Reverse lookup radius — wide enough for a pin dropped on a street corner,
+ *  tight enough that the nearest place is the one at the pin. */
+const REVERSE_RADIUS_M = 60;
 const MAX_PLACE = 120;
 
 export interface PlaceParts {
@@ -130,8 +141,7 @@ const googleProvider: PlacesProvider = {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': googleApiKey()!,
-          'X-Goog-FieldMask':
-            'places.displayName,places.formattedAddress,places.location,places.addressComponents',
+          'X-Goog-FieldMask': GOOGLE_FIELD_MASK,
         },
         body: JSON.stringify({ textQuery: query, pageSize: 5 }),
       });
@@ -140,8 +150,8 @@ const googleProvider: PlacesProvider = {
       return (data?.places || []).map((p: any) => ({
         lat: p.location.latitude,
         lng: p.location.longitude,
-        label: [p.displayName?.text, p.formattedAddress].filter(Boolean).join(', ').slice(0, MAX_PLACE),
-        parts: partsWithAddressFallback(googleParts(p.addressComponents), p.formattedAddress),
+        label: googleLabel(p),
+        parts: googlePartsFromPlace(p),
       }));
     } catch {
       return [];
@@ -149,22 +159,49 @@ const googleProvider: PlacesProvider = {
   },
   async reverseGeocode(lat, lng) {
     try {
-      const res = await fetch(`${GOOGLE_GEOCODE}?latlng=${lat},${lng}&key=${googleApiKey()!}`);
+      const res = await fetch(GOOGLE_NEARBY, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': googleApiKey()!,
+          'X-Goog-FieldMask': GOOGLE_FIELD_MASK,
+        },
+        body: JSON.stringify({
+          maxResultCount: 1,
+          rankPreference: 'DISTANCE',
+          locationRestriction: {
+            circle: { center: { latitude: lat, longitude: lng }, radius: REVERSE_RADIUS_M },
+          },
+        }),
+      });
       if (!res.ok) return null;
       const data = await res.json();
-      const r = data?.results?.[0];
-      if (!r) return null;
-      return {
-        lat,
-        lng,
-        label: (r.formatted_address || '').slice(0, MAX_PLACE),
-        parts: partsWithAddressFallback(googleParts(r.address_components), r.formatted_address),
-      };
+      const p = data?.places?.[0];
+      if (!p) return null;
+      // Label stays address-first (the picker shows it as the place line and
+      // weather uses it as a location label — both read better as an address
+      // than as a shop name).
+      return { lat, lng, label: googleLabel(p, true), parts: googlePartsFromPlace(p) };
     } catch {
       return null;
     }
   },
 };
+
+/** Places API (New) place → our parts (formatted address as the street line
+ *  when the breakdown is missing). */
+function googlePartsFromPlace(p: any): PlaceParts {
+  return partsWithAddressFallback(googleParts(p?.addressComponents), p?.formattedAddress);
+}
+
+function googleLabel(place: any, preferAddress = false): string {
+  const name = place?.displayName?.text;
+  const address = place?.formattedAddress;
+  const joined = preferAddress
+    ? address || name
+    : [name, address].filter(Boolean).join(', ');
+  return (joined || '').slice(0, MAX_PLACE);
+}
 
 function googleApiKey(): string | undefined {
   return import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
