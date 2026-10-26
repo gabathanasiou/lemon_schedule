@@ -1143,7 +1143,12 @@ ever return to.
 **Status:** code + Google Cloud setup LIVE 2026-10-16 — restricted key (Places
 API (New) + Geocoding API only; HTTP referrers; stored in the repo secret
 `VITE_GOOGLE_MAPS_API_KEY` + local `.env`), billing on, £5/mo budget alert.
-Remaining: verify search + pin-drop on the DEPLOYED app after the next deploy.
+2026-10-26: reverse geocoding moved from the legacy Geocoding API to Places API
+(New) `searchNearby` — Geocoding rejects referrer-restricted keys outright, so
+the deployed app's pin-drop labels were silently blank while Text Search worked
+(verified against the live key). Remaining: verify search + pin-drop on the
+DEPLOYED app after this branch deploys (Nearby Search Pro ≈ $32/1000 — pin
+drops are rare, well inside the budget).
 
 **Request:** address search / reverse geocoding defaulted to keyless Nominatim,
 but OSM coverage is thin in practice (missing street numbers); the owner wants
