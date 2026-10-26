@@ -229,6 +229,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   chevrons, comma tags, zero-or-more custom empty actions. Consumed by the
   Element/Crew/Locations manager search (roadmap 172); never fork a second
   search dropdown.
+- **MorphSearchField** (kit): the FILTER trigger — a `Filter` button that morphs
+  into the kit input and keeps its term when collapsed (unlike SearchMenu's
+  clear-on-close), Escape clears, click-away collapses, `active` tints the
+  button. Used by every Glide page toolbar (`GlideFilter`, roadmap 172); a
+  record picker still uses SearchMenu.
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
   `displayMode` picks the value space (`id` fields vs `name`); pass **`resolveBy="id"`** when values

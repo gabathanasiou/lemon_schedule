@@ -241,3 +241,60 @@ test.describe('Glide Breakdown Tab', () => {
     ), { timeout: 5000 }).toContain(pickId);
   });
 });
+
+test('row filter is display-only, survives collapsing, and restores every row (roadmap 172)', async ({ page }) => {
+  await openSeededProject(page);
+  await page.getByRole('button', { name: 'Glide Breakdown' }).click();
+
+  const grid = page.locator('[data-presence-grid="breakdown-glide"]');
+  const filter = page.locator('[data-glide-filter-root]');
+  const trigger = filter.locator('[data-morph-search-trigger]');
+  const input = filter.locator('[data-morph-search-input]');
+  const total = Number(await grid.getAttribute('data-glide-total-rows'));
+  expect(total).toBeGreaterThan(5);
+
+  // Seed-agnostic term: the most common Set value (never hardcode seed content).
+  const term = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const counts = new Map<string, number>();
+    for (const s of p.scenes || []) {
+      const v = String(s.set || '').trim();
+      if (v) counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  });
+  test.skip(!term, 'seed has no named sets to filter by');
+  const idsBefore = await page.evaluate(() =>
+    (window as any).__lemonSchedule.getProject().scenes.map((s: any) => s.id));
+
+  // The collapsed control is a button; clicking it morphs the field open.
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await expect(input).toBeFocused();
+  await input.fill(term!);
+
+  await expect.poll(async () => Number(await grid.getAttribute('data-glide-visible-rows')))
+    .toBeLessThan(total);
+  const shown = Number(await grid.getAttribute('data-glide-visible-rows'));
+  expect(shown).toBeGreaterThan(0);
+  await expect(filter.locator('[data-glide-filter-count]')).toHaveText(`${shown} / ${total}`);
+
+  // Clicking away collapses to the button but KEEPS the filter applied.
+  await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+  await expect(trigger).toBeVisible();
+  await expect(input).not.toBeFocused();
+  await expect(filter.locator('[data-glide-filter-count]')).toHaveText(`${shown} / ${total}`);
+  expect(Number(await grid.getAttribute('data-glide-visible-rows'))).toBe(shown);
+
+  // Reopening restores the term; Escape clears it and brings every row back.
+  await trigger.click();
+  await expect(input).toHaveValue(term!);
+  await input.press('Escape');
+  await expect.poll(async () => Number(await grid.getAttribute('data-glide-visible-rows'))).toBe(total);
+  await expect(filter.locator('[data-glide-filter-count]')).toHaveCount(0);
+
+  // Display-only: filtering never touched or reordered the scenes.
+  const idsAfter = await page.evaluate(() =>
+    (window as any).__lemonSchedule.getProject().scenes.map((s: any) => s.id));
+  expect(idsAfter).toEqual(idsBefore);
+});

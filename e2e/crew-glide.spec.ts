@@ -243,3 +243,39 @@ test.describe('Crew Glide', () => {
     }, { timeout: 8000 }).toEqual(expect.objectContaining({ phone: '555-9999', email: 'alice@new.test' }));
   });
 });
+
+test('row filter narrows the crew grid and restores every row (roadmap 172)', async ({ page }) => {
+  await openSeededProject(page);
+  await openCrewGlide(page);
+
+  const grid = page.locator('[data-presence-grid="crew-glide"]');
+  const filter = page.locator('[data-glide-filter-root]');
+  const trigger = filter.locator('[data-morph-search-trigger]');
+  const input = filter.locator('[data-morph-search-input]');
+  const total = Number(await grid.getAttribute('data-glide-total-rows'));
+  expect(total).toBeGreaterThan(1);
+
+  // A name unique across the seed's crew — filtering by it leaves exactly one row.
+  const term = await page.evaluate(() => {
+    const p = (window as any).__lemonSchedule.getProject();
+    const names = Object.values(p.crew || {}).flat().map((c: any) => String(c.name || '').trim()).filter(Boolean);
+    return names.find(n => names.filter(m => m.toLowerCase().includes(n.toLowerCase())).length === 1) ?? null;
+  });
+  test.skip(!term, 'seed has no uniquely named crew member');
+  const membersBefore = await page.evaluate(() =>
+    Object.values((window as any).__lemonSchedule.getProject().crew || {}).flat().length);
+
+  await trigger.click();
+  await expect(input).toBeFocused();
+  await input.fill(term!);
+  await expect.poll(async () => Number(await grid.getAttribute('data-glide-visible-rows'))).toBe(1);
+  await expect(filter.locator('[data-glide-filter-count]')).toHaveText(`1 / ${total}`);
+
+  // Escape clears; the whole crew is back and nothing was deleted.
+  await input.press('Escape');
+  await expect.poll(async () => Number(await grid.getAttribute('data-glide-visible-rows'))).toBe(total);
+  await expect(filter.locator('[data-glide-filter-count]')).toHaveCount(0);
+  const membersAfter = await page.evaluate(() =>
+    Object.values((window as any).__lemonSchedule.getProject().crew || {}).flat().length);
+  expect(membersAfter).toBe(membersBefore);
+});

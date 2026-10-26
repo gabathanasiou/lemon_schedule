@@ -91,6 +91,9 @@ export interface PresenceView {
   /** Report Designer / Call Sheet editor (roadmap 243): Preview on/off. The
    *  place (`tab`/`sub`/`mode`) says which surface's preview it is. */
   preview?: boolean;
+  /** Glide page row filter (roadmap 172): the peer's filter query, mirrored by
+   *  a follower's matching grid. Per-user view state — never project data. */
+  glideFilter?: string;
   /** Reports Designer (roadmap 243): Fields vs Values display mode. */
   reportViewMode?: ReportViewMode;
 }
@@ -400,6 +403,10 @@ export function parseView(raw: unknown): PresenceView | null {
   const managerCategory = str(r.managerCategory, 64);
   if (managerCategory) view.managerCategory = managerCategory;
   if (typeof r.preview === 'boolean') view.preview = r.preview;
+  // The Glide row filter is plain text (the follower's grid applies it), so
+  // cap it rather than allow-list it.
+  const glideFilter = str(r.glideFilter, 160);
+  if (glideFilter) view.glideFilter = glideFilter;
   const reportViewMode = REPORT_VIEW_MODE_VALUES.find(v => v === r.reportViewMode);
   if (reportViewMode) view.reportViewMode = reportViewMode;
   return view;
