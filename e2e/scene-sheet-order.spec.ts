@@ -32,7 +32,7 @@ const switchOrder = async (page: import('@playwright/test').Page, label: string)
 test.describe('scene sheet view order (roadmap 51)', () => {
   test('three orders render distinct sequences with true sheet numbers', async ({ page }) => {
     await openSeededProject(page);
-    await page.getByRole('button', { name: 'Sheet' }).click();
+    await page.getByRole('button', { name: 'Sheet', exact: true }).click();
 
     const p0 = await bridgeProject(page);
     const firstScene = p0.scenes[0];
@@ -82,7 +82,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
 
   test('switching order keeps the current scene; navigation follows the order; edits commit to the right scene', async ({ page }) => {
     await openSeededProject(page);
-    await page.getByRole('button', { name: 'Sheet' }).click();
+    await page.getByRole('button', { name: 'Sheet', exact: true }).click();
 
     // Jump to a mid-sheet scene, then switch to Stripboard order — the SAME
     // scene must stay visible. (Seed-agnostic: resolve the scene at that sheet
@@ -129,12 +129,12 @@ test.describe('scene sheet view order (roadmap 51)', () => {
 
   test('preference persists across reload', async ({ page }) => {
     await openSeededProject(page);
-    await page.getByRole('button', { name: 'Sheet' }).click();
+    await page.getByRole('button', { name: 'Sheet', exact: true }).click();
     await switchOrder(page, 'Scene Number Order');
     await expect(page.getByRole('button', { name: 'Scene Number Order' })).toBeVisible();
 
     await reloadProject(page);
-    await page.getByRole('button', { name: 'Sheet' }).click();
+    await page.getByRole('button', { name: 'Sheet', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Scene Number Order' })).toBeVisible();
     const pref = await page.evaluate(() => JSON.parse(localStorage.getItem('lemon_schedule_breakdown_order') || '{}').order);
     expect(pref).toBe('sceneNumber');
@@ -142,7 +142,7 @@ test.describe('scene sheet view order (roadmap 51)', () => {
 
   test('a duplicate scene number warns and offers a swap (roadmap 134)', async ({ page }) => {
     await openSeededProject(page);
-    await page.getByRole('button', { name: 'Sheet' }).click();
+    await page.getByRole('button', { name: 'Sheet', exact: true }).click();
 
     // The script body attaches by scene number, so a duplicate would make both
     // scenes show one body. Seed-agnostic: collide the shown scene with any

@@ -294,3 +294,10 @@ regression (the branch touches the File menu + the local flush in
 e2e specs now navigate via baseURL (`page.goto('/lemon_schedule/')`), so
 `test:baseline` triages this spec normally (see `docs/TESTING.md` §triage).
 
+**2026-10-26 — same spec, new ambiguity (not the boot race):** a full suite
+flaked at `:47:3` with a strict-mode violation — `getByRole('button', { name:
+'Sheet' })` matched both the Sheet sub-tab and the SceneSheet's "Sheet Order"
+dropdown once it had painted. Fixed by making the locator `exact: true` (the
+pattern five other specs already use); `scene-sheet-order.spec.ts` got the same
+one-token fix. Retry had passed, so no behavioural regression.
+

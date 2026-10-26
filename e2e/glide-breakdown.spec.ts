@@ -48,7 +48,7 @@ test.describe('Glide Breakdown Tab', () => {
     await page.goto('/lemon_schedule/');
     await ensureProject(page);
 
-    const sheetBtn = page.getByRole('button', { name: 'Sheet' });
+    const sheetBtn = page.getByRole('button', { name: 'Sheet', exact: true });
     await expect(sheetBtn).toBeVisible({ timeout: 5000 });
     await sheetBtn.click();
 
