@@ -189,6 +189,11 @@ machine (271 passed / 1 failed / 1 flaky overall; the day-times flake passed on
 retry, §G). Same load-sensitivity class — the branch touches cast naming only.
 If it recurs a third time, take the documented remedy and `@quarantine` it.
 
+**2026-10-26 — root cause of the class failures:** the spec still asserted the
+pre-theming hardcoded `bg-blue-900/50`; kit v0.1.116+ paints the active state
+with `bg-[var(--ui-btn-active-bg)]!`. `ON_CLS` now matches the token class; the
+load-timing note above still applies if the repaint assertions flake.
+
 **2026-10-15 (roadmap-264 worktree suite) — recursed: `:137` flaked once**
 (suite 272 passed / 1 flaky / 7 skipped, retry passed) while two peer worktrees
 and three dev servers were running on the machine. **Triage:** solo re-run

@@ -685,7 +685,7 @@ set manually per day instead.
   persistence; module is a rule-7 manual pass.
 - **Relations**: 98, 53 (supersedes its nearby-fields part), 109, 146.
 
-## 172. Managers + Glide — deep search, jump-and-flash, table filtering (`[ ]`, big)
+## 172. Managers + Glide — deep search, jump-and-flash, table filtering (`[~]`, big)
 
 **Request**: the managers' left search must also search **inside** categories
 and attributes (e.g. "Roy" → crew roles containing Roy; phone numbers).
@@ -699,9 +699,29 @@ tags.
   and `ElementManager.tsx` (scroll + flash); Glide filter in `glideShell.tsx` /
   `InlineGlideTable`. Evaluate a small fuzzy lib (fuse.js / uFuzzy) — no new dep
   unless it clearly beats a tokenizer (deps must be imported by ≥1 source file).
+- **Shipped (manager search, v0.1.119 kit)**: kit `SearchMenu` (inline +
+  expandable, category tree with animated rows, comma tags, custom empty
+  actions); shared record builder `src/lib/managerSearch.ts`; jump/flash in
+  `managerShell.tsx` / `ElementManager.tsx`; kit playground specs. **Glide row
+  filtering remains.**
 - **Verify**: Vitest for the query/tag parser; e2e for flash/scroll + glide
   filter (rows silently disappearing = break).
-- **Relations**: 121, 84, 88, 139-145.
+- **Relations**: 121, 84, 88, 139-145, 318.
+
+## 318. SearchMenu adoption audit — replace eligible controls with the kit SearchMenu (`[ ]`)
+
+**Request**: audit the app for buttons/pickers that can become the kit
+`SearchMenu` (inline textbox or expandable button→field). Produce a short
+candidate list, then migrate the clear wins; don't force a search where a plain
+select is better.
+
+- Start with: EntityDropdown/SelectDropdown/AutocompleteDropdown usages, crew
+  and location pickers, rule/condition pickers, report collection pickers, day
+  event/location pickers, toolbar search/filter controls, Script scene-list
+  search.
+- For each candidate: current control, why SearchMenu (records inside, category
+  groups, empty action), risk, and manual check. Keep the one search surface.
+- **Relations**: `follows` **172**; `relates to` **306**, **308**.
 
 ## 174. Call Times — label audit (`[ ]`, parked)
 

@@ -18,6 +18,8 @@ export interface GroupedSelectItem {
   hint?: string;
   /** Action row (e.g. "Add new location…") — renders in emerald. */
   accent?: boolean;
+  /** Whole-department tag row (roadmap 308) — amber background. */
+  tag?: boolean;
 }
 
 export interface GroupedSelectProps {
@@ -62,6 +64,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   const [open, setOpen] = useState(false);
   const hintById = useMemo(() => new Map(items.map(i => [i.id, i.hint])), [items]);
   const accentById = useMemo(() => new Set(items.filter(i => i.accent).map(i => i.id)), [items]);
+  const tagById = useMemo(() => new Set(items.filter(i => i.tag).map(i => i.id)), [items]);
 
   const label = (() => {
     const picked = items.filter(i => selectedIds.includes(i.id));
@@ -116,6 +119,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
               selected={selected}
               keepOpen={mode === 'multi'}
               onClick={() => toggle(item)}
+              className={tagById.has(item.id) ? (dark ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'bg-amber-50 hover:bg-amber-100') : undefined}
               trailing={
                 (hint || selected) ? (
                   <span className="flex items-center gap-1.5">

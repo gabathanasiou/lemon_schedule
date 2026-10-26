@@ -4,6 +4,7 @@ import type { GridCell } from '@glideapps/glide-data-grid';
 import { GridCellKind } from '@glideapps/glide-data-grid';
 import type { DaySectionProps } from '../daySectionTypes';
 import type { ProjectLocation } from '../../../../types';
+import { linkedLocationsForDay } from '../../../../lib/dayView';
 import InlineGlideTable, { type InlineGlideColumn, type InlineGlideEdit, type InlineGlideRowAction } from '../../../InlineGlideTable';
 import { seededTextCell, textCell } from '../../../../lib/glideCells';
 import { createDayTimesTheme } from '../../../../lib/glideTheme';
@@ -79,7 +80,18 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
       .filter(name => name.trim() && !dbNames.has(name.trim().toLowerCase()))
       .map(name => ({ id: `scene:${name.trim()}`, name: name.trim(), group: 'Scene locations' }));
   }, [day.sceneLocations, project.locations]);
-  const items = useMemo(() => locationOptions(project, sceneExtras), [project, sceneExtras]);
+  // Roadmap 309: locations linked from this day's SET elements are suggestions
+  // in the location cell + add menu (never auto-attached). The DB copy of a
+  // linked location is folded into its suggestion group by locationOptions.
+  const linkedExtras = useMemo(
+    () => linkedLocationsForDay(project, day).map(x => ({
+      id: x.location.id,
+      name: displayName(x.location),
+      group: `Linked from ${x.fromSet}`,
+    })),
+    [project, day],
+  );
+  const items = useMemo(() => locationOptions(project, [...sceneExtras, ...linkedExtras]), [project, sceneExtras, linkedExtras]);
   const attached = useMemo(() => new Set(dayLocationRefs(day.meta).map(r => r.id)), [day.meta]);
   // The "Add location" menu lists what is NOT attached yet (add-new first).
   const available = useMemo(

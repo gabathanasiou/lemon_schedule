@@ -4,6 +4,7 @@ import type { Action, State } from '../reducer';
 import { generateUUID } from '../../lib/utils';
 import { getFieldItems, isMultiValue } from '../../lib/categories';
 import { nextBoardId } from '../../lib/boardIds';
+import { dedupeLinks, renameElementInLinks } from '../../lib/links';
 import { cascadeAnnotationRename } from '../../lib/scriptAnnotations';
 import type { RuleTrashItem, ElementTrashItem, CategoryTrashItem } from '../../types';
 
@@ -207,10 +208,22 @@ export function caseUpdateElement(state: State, action: Action, applyChange: App
     newAnnotations = cascadeAnnotationRename(newAnnotations, category, old.name, updates.name);
   }
 
+  // Links reference element values — a rename / Board-ID change must rewrite
+  // them in the SAME batch or links dangle (roadmap 308).
+  let newLinks = state.present.links;
+  if (newLinks) {
+    if (isCast && updates.id && updates.id !== id) {
+      newLinks = renameElementInLinks(newLinks, category, String(id), String(updates.id));
+    } else if (!isCast && updates.name && updates.name !== old.name) {
+      newLinks = renameElementInLinks(newLinks, category, old.name, updates.name);
+    }
+  }
+
   return applyChange({
     ...state.present,
     scenes: newScenes,
     scriptAnnotations: newAnnotations,
+    links: newLinks,
     breakdownElements: isCast
       ? state.present.breakdownElements
       : { ...state.present.breakdownElements, [category]: newList },
@@ -354,9 +367,17 @@ export function caseMergeElements(state: State, action: Action, applyChange: App
     || next.some((e, i) => e.id !== list[i]?.id || e.name !== list[i]?.name);
   if (!hasChanges) return state;
 
+  // Renames / merges move link values to the survivor and dedupe.
+  let newLinks = state.present.links;
+  if (newLinks && renames.length > 0) {
+    for (const rn of renames) newLinks = renameElementInLinks(newLinks, category, rn.oldName, rn.newName);
+    newLinks = dedupeLinks(newLinks);
+  }
+
   return applyChange({
     ...state.present,
     scenes,
+    links: newLinks,
     breakdownElements: { ...state.present.breakdownElements, [category]: next },
     elementsTrash: trashItems.length > 0
       ? [...state.present.elementsTrash, ...trashItems]

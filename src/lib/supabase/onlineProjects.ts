@@ -5,6 +5,7 @@ import { supabase } from './client';
 import { fetchAllPages } from './pagination';
 import { serializeProject, deserializeProject } from '../projectCodec';
 import { migrateElementBoardIds } from '../legacyMigration';
+import { migrateProjectLinks } from '../links';
 
 /**
  * Online project rows (roadmap 229 S1). ONE module for every Supabase
@@ -85,6 +86,7 @@ export async function readOnlineProject(id: string): Promise<OnlineReadResult> {
   const project = deserializeProject(row.data);
   // Roadmap 257: shared projects saved before Board IDs get their numbers.
   migrateElementBoardIds(project);
+  migrateProjectLinks(project);
   // Roadmap 275: report-design trash is pruned on read, same retention as
   // local loads and Drive reads (shared projects used to accumulate it).
   if (Array.isArray(project.reportTrash)) {

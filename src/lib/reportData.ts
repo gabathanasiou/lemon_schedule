@@ -1,6 +1,7 @@
 import { Project, ScheduleVersion, CalendarVersion, Scene, ScheduleRow, NonShootDate, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation, ProjectLocation, DayCrewCall, DayCrewSlot, DayMeta, DayWeatherOverride, ElementCallTimes } from '../types';
 import { resolveRoleCategories } from './crewCatalog';
-import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, CrewLinkWarning } from './crewLinks';
+import { linkedElementLabelsForPerson, linkedCrewNamesForPerson, linkedCrewNamesForElement, crewLinkWarnings, targetLabelForLink, crewNameMap, elementLabelForLink, CrewLinkWarning } from './crewLinks';
+import { crewIdsForDepartment } from './linkTargets';
 import { computeElementCallChain, getCallTimeSettings, resolveCallExpression, ResolvedCall } from './callTimes';
 import { crewPeopleById, dayDepartments, departmentOfRole, groupSlotsByDept, projectDepartments, reportToIdForDay, resolveSlotCall, resolveSlotReportToId, rolesForDept, slotsForDay } from './dayCrew';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
@@ -1267,11 +1268,13 @@ export function crewLinkWarningsForReportDay(ctx: ReportCtx, day: ReportDayInfo)
   }
   const byId = crewNameMap(ctx.project);
   return crewLinkWarnings({
-    links: ctx.project.crewLinks,
+    links: ctx.project.links,
     dayCrewIds,
     crewName: id => byId.get(id),
     targetLabel: link => targetLabelForLink(ctx.project, link),
     isElementOnDay: (cat, key) => present.has(`${cat}|${key.toLowerCase()}`),
+    peopleInDept: dept => crewIdsForDepartment(ctx.project, dept),
+    elementLabel: (cat, key) => elementLabelForLink(ctx.project, { id: '', personId: '', category: cat, elementKey: key }),
   });
 }
 

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { ElementLink, Scene } from '../types';
+import { Link, Scene } from '../types';
 import type { CustomCategoryDef } from '../types';
 import { useDialog } from '../components/Dialog';
 import { cascadeRemoval, computePropagation, computeRemovedLinks } from './elementLinks';
@@ -38,12 +38,12 @@ function labelFor(category: string, customCategories: CustomCategoryDef[] | unde
   return custom?.label || category;
 }
 
-function linkLabels(links: ElementLink[], customCategories: CustomCategoryDef[] | undefined): string {
+function linkLabels(links: Link[], customCategories: CustomCategoryDef[] | undefined): string {
   return links.map(l => `${labelFor(l.linkedCategory, customCategories)} · ${l.linkedValue}`).join(', ');
 }
 
 export function useLinkedEditGuard(
-  links: ElementLink[] | undefined,
+  links: Link[] | undefined,
   customCategories: CustomCategoryDef[] | undefined,
   dispatch: (a: any) => void,
 ) {

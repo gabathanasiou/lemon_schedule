@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket, Tag, CircleDot } from 'lucide-react';
+import { Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket, Tag, CircleDot, UserRound, MapPin } from 'lucide-react';
 import type { CustomCategoryDef } from '../types';
 
 export const ELEMENT_CATEGORIES: { key: string; label: string; multiValue: boolean }[] = [
@@ -41,6 +41,8 @@ export const CAT_ICONS: Record<string, React.ElementType> = {
   cast: Users, set: Building2, props: Package, backgroundActors: UserPlus, stunts: Sparkles,
   vehicles: Car, wardrobe: Shirt, makeup: Scissors, sfx: Volume1, vfx: Video,
   sound: Volume2, music: Music, animalsAndWranglers: PawPrint, weapons: Sword, greenery: Leaf, artDept: PaintBucket,
+  // Synthetic link targets (roadmap 308) — rows can point at crew/locations too.
+  crew: UserRound, location: MapPin,
 };
 
 export const CUSTOM_ICON_OPTIONS: { name: string; Icon: React.ElementType }[] = [

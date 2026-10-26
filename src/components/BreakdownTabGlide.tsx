@@ -404,7 +404,7 @@ export function GlideBreakdownTab({
   selectModeRef.current = marqueeMode === 'tool';
   const projectRef = useRef(project);
   projectRef.current = project;
-  const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
+  const linkGuard = useLinkedEditGuard(project.links, project.customCategories, dispatch);
   const { trySetSceneNumber, modal: sceneNumberCollisionModal } = useSceneNumberCollisionGuard(dispatch, scenes);
   const { queue } = useQueueCastNaming();
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
@@ -662,8 +662,8 @@ export function GlideBreakdownTab({
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const anchoredByCategory = new Map<string, Set<string>>();
-    for (const cat of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
-      anchoredByCategory.set(cat, anchoredKeysFor(project.elementLinks, cat));
+    for (const cat of new Set((project.links || []).map(l => l.anchorCategory))) {
+      anchoredByCategory.set(cat, anchoredKeysFor(project.links, cat));
     }
     const anchored = (cat: string) => anchoredByCategory.get(cat);
     const editors: Record<string, GlideColumnEditor> = {
@@ -686,7 +686,7 @@ export function GlideBreakdownTab({
       };
     }
     return editors;
-  }, [intExtOptions, dayNightOptions, setItems, castItems, allBreakdownCategories, allBreakdownLabels, project.customCategories, project.elementLinks, breakdownEditorItems]);
+  }, [intExtOptions, dayNightOptions, setItems, castItems, allBreakdownCategories, allBreakdownLabels, project.customCategories, project.links, breakdownEditorItems]);
 
   // ONE stable provideEditor for the grid's lifetime — the current config
   // travels through a ref, so re-renders can never recreate the editor

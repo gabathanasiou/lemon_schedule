@@ -44,6 +44,8 @@ export interface EntityItem {
   /** Optional group label — the panel renders a header when the group changes
    *  (crew by department, locations by type, categories by group). */
   group?: string;
+  /** Render as a highlighted TAG (whole-department link rows). */
+  accent?: boolean;
 }
 
 interface EntityDropdownProps {
@@ -123,6 +125,10 @@ interface EntityDropdownProps {
    *  The committed value stays untouched. For cell displays (SceneSheet)
    *  that want the readable closed form without the chip chrome. */
   resolveClosed?: boolean;
+  /** How committed VALUES identify an item. Defaults to `displayMode` (id for
+   *  `id`, name for `name`). Use `'id'` for id-valued catalogs that DISPLAY
+   *  names (crew people, locations). */
+  resolveBy?: 'id' | 'name';
   /** Called for each committed item segment that has NO matching entry in
    *  `items` — lets callers auto-create new elements (cast → the naming modal
    *  flow). Fires on every commit (pick/Enter/Tab/blur) against the final
@@ -269,6 +275,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   wrapValue = false,
   onCreateItem,
   resolveClosed = false,
+  resolveBy,
 }) => {
   const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
@@ -399,7 +406,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     return () => el.removeEventListener('wheel', onWheel);
   }, [open]);
 
-  const itemKey = useCallback((m: EntityItem) => displayMode === 'name' ? m.name : (m.id || m.name), [displayMode]);
+  const valueById = (resolveBy ?? (displayMode === 'id' ? 'id' : 'name')) === 'id';
+  const itemKey = useCallback((m: EntityItem) => valueById ? (m.id || m.name) : m.name, [valueById]);
 
   /** Fires `onCreateItem` for every committed segment with no matching entry
    *  in `items` — the shared "type a new element and it appears" flow. Split
@@ -414,11 +422,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     for (const seg of segments) {
       const exists = items.some(m => {
         const key = itemKey(m);
-        return displayMode === 'id' ? String(key) === seg : key.toLowerCase() === seg.toLowerCase();
+        return valueById ? String(key) === seg : key.toLowerCase() === seg.toLowerCase();
       });
       if (!exists) onCreateItem(seg);
     }
-  }, [onCreateItem, items, mode, displayMode, itemKey]);
+  }, [onCreateItem, items, mode, valueById, itemKey]);
 
   /* All commits route through this wrapper so creation stays in ONE place —
      every internal `onChange(...)` call now auto-creates missing items. Cast
@@ -426,6 +434,18 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
      stores Board IDs, so typing an existing member's display name binds their
      id instead of creating a duplicate blank member + naming modal. */
   const normalizeCommitValue = useCallback((v: string): string => {
+    if (valueById) {
+      const resolve = (seg: string): string => {
+        const byId = items.find(i => String(i.id) === seg);
+        if (byId) return String(byId.id);
+        const byName = items.find(i => (i.name || '').toLowerCase() === seg.toLowerCase());
+        return byName ? String(byName.id) : seg;
+      };
+      if (mode === 'multi' || mode === 'select') {
+        return v.split(',').map(s => s.trim()).filter(Boolean).map(resolve).join(', ');
+      }
+      return resolve(v.trim());
+    }
     if (displayMode !== 'id') return v;
     if (mode === 'multi' || mode === 'select') {
       return v.split(',').map(s => s.trim()).filter(Boolean)
@@ -433,7 +453,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         .join(', ');
     }
     return resolveTypedElementKey(items, displayMode, v);
-  }, [displayMode, mode, items]);
+  }, [valueById, displayMode, mode, items]);
 
   const onChange = useCallback((v: string) => {
     const resolved = normalizeCommitValue(v);
@@ -558,8 +578,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const isAnchored = useCallback((item: EntityItem): boolean => {
     if (!anchoredKeys || anchoredKeys.size === 0) return false;
     const key = itemKey(item);
-    return displayMode === 'id' ? anchoredKeys.has(key) : anchoredLower.has(key.toLowerCase());
-  }, [anchoredKeys, anchoredLower, displayMode, itemKey]);
+    return valueById ? anchoredKeys.has(key) : anchoredLower.has(key.toLowerCase());
+  }, [anchoredKeys, anchoredLower, valueById, itemKey]);
 
   const itemRenderer = useCallback((item: EntityItem, checked: boolean) => {
     const content = renderItem ? renderItem(item, checked) : defaultRenderer(item, checked);
@@ -593,15 +613,14 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     return displayValue.split(',').map((segRaw: string) => {
       const seg = segRaw.trim();
       if (!seg) return '';
-      const item = displayMode === 'id'
-        ? items.find(i => i.id === seg)
+      const item = valueById
+        ? items.find(i => String(i.id) === seg)
         : items.find(i => (i.name || i.id) === seg);
       if (!item) return seg;
-      return displayMode === 'id'
-        ? `${item.id}. ${item.name && item.name !== item.id ? item.name : '—'}`
-        : (item.name || item.id);
+      if (displayMode === 'id') return `${item.id}. ${item.name && item.name !== item.id ? item.name : '—'}`;
+      return item.name || item.id;
     }).filter(Boolean).join(', ');
-  }, [variant, open, displayValue, items, displayMode, resolveClosed]);
+  }, [variant, open, displayValue, items, displayMode, valueById, resolveClosed]);
 
   if (readOnly && !open) {
     return <span className={className} onAuxClick={forceOpen}>{value || '?'}</span>;

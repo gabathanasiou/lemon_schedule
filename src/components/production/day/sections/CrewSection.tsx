@@ -4,7 +4,8 @@ import type { DaySectionProps } from '../daySectionTypes';
 import CrewRosterEditor, { CrewAddRoleMenu } from '../CrewRosterEditor';
 import { excludedDeptsForDay, reportToIdForDay, setDeptPrecall as deptPrecallPatch, setDeptReportTo as deptReportToPatch, slotsForDay } from '../../../../lib/dayCrew';
 import { locationFromPick } from '../../../../lib/locations';
-import { crewLinkWarnings, crewNameMap, targetLabelForLink } from '../../../../lib/crewLinks';
+import { crewLinkWarnings, crewNameMap, elementLabelForLink, targetLabelForLink } from '../../../../lib/crewLinks';
+import { crewIdsForDepartment } from '../../../../lib/linkTargets';
 import type { PickedLocation } from '../../../../lib/places';
 import Button from '../../../Button';
 
@@ -52,7 +53,7 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
     const dayCrewIds = new Set(day.crew.map(c => c.person.id));
     const nameById = crewNameMap(project);
     return crewLinkWarnings({
-      links: project.crewLinks,
+      links: project.links,
       dayCrewIds,
       crewName: id => nameById.get(id),
       targetLabel: link => targetLabelForLink(project, link),
@@ -60,6 +61,8 @@ const CrewSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, readO
         const list = cat === 'cast' ? day.cast : (day.elements[cat] || []);
         return list.some(e => e.key.toLowerCase() === key.toLowerCase());
       },
+      peopleInDept: dept => crewIdsForDepartment(project, dept),
+      elementLabel: (cat, key) => elementLabelForLink(project, { id: '', personId: '', category: cat, elementKey: key }),
     });
   }, [day, project]);
 

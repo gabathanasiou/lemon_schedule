@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Plus, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
-import { inputCls } from '@gabriel/ui-kit';
+import { inputCls, SearchMenu } from '@gabriel/ui-kit';
+import type { SearchMenuItem } from '@gabriel/ui-kit';
 import { MT_TITLE, MT_ROW, useManagerTableSizes } from '../lib/managerTable';
 import { usePaneResize } from '../lib/usePaneResize';
+import type { ManagerSearchHit } from '../lib/managerSearch';
 
 export interface SidebarNavRow {
   key: string;
@@ -34,6 +36,9 @@ interface SidebarNavProps {
   onWidthChange?: (w: number) => void;
   /** Let long labels wrap instead of truncating (the Script scene list). */
   wrapRows?: boolean;
+  /** Roadmap 172 — records for the kit SearchMenu (deep manager search). */
+  searchItems?: SearchMenuItem[];
+  onSearchSelect?: (hit: ManagerSearchHit, query: string) => void;
 }
 
 const SIDEBAR_MIN_W = 200;
@@ -43,10 +48,14 @@ const SIDEBAR_MAX_W = 560;
  *  category search box (the kit `inputCls` recipe), a collapse-to-rail toggle
  *  and an add button. Coarse-pointer devices scale the rows/icons via the
  *  shared `useManagerTableSizes` — tracking the kit coarseScale knob like the
- *  Glide reference. */
-export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, renderRowActions, resizable = true, width, defaultWidth, onWidthChange, wrapRows = false }: SidebarNavProps) {
+ *  Glide reference.
+ *
+ *  With `searchItems` the box is the kit `SearchMenu` (inline mode): type to
+ *  search records, or browse categories with expandable tree rows. */
+export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, renderRowActions, resizable = true, width, defaultWidth, onWidthChange, wrapRows = false, searchItems, onSearchSelect }: SidebarNavProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const sizes = useManagerTableSizes();
   const [innerWidth, setInnerWidth] = useState(defaultWidth ?? sizes.sidebarW);
   const w = width ?? innerWidth;
@@ -60,7 +69,37 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
   });
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
-  const filtered = searching ? rows.filter(r => r.label.toLowerCase().includes(q)) : rows;
+  // Deep search lives in the menu; the sidebar list stays the full list.
+  const filtered = searchItems ? rows : (searching ? rows.filter(r => r.label.toLowerCase().includes(q)) : rows);
+
+  const searchGroups = useMemo(() => rows.map(row => {
+    const Icon = row.icon;
+    return {
+      key: row.key,
+      label: row.label,
+      count: row.count,
+      icon: Icon ? <Icon className="w-3.5 h-3.5" /> : undefined,
+    };
+  }), [rows]);
+
+  const handleSearchSelect = (item: SearchMenuItem) => {
+    const parts = item.id.split('::');
+    const rowKey = parts.length > 1 ? parts[1] : item.id;
+    const categoryKey = item.group || (parts.length > 1 ? parts[0] : '');
+    const group = searchGroups.find(g => g.key === categoryKey);
+    onSearchSelect?.({
+      categoryKey,
+      categoryLabel: group?.label || '',
+      rowKey,
+      label: item.label,
+    }, searchQuery);
+    setSearchQuery('');
+  };
+
+  const handleSearchGroup = (group: { key: string }) => {
+    onSelect(group.key);
+    setSearchQuery('');
+  };
 
   if (collapsed) {
     return (
@@ -90,22 +129,43 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
             <PanelLeftClose className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="relative mt-2 mb-1">
-          <Search className="w-3 h-3 text-zinc-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder={`Search ${title.toLowerCase()}…`}
-            className={`${inputCls('sm')} w-full pl-6 pr-6`}
-          />
-          {query && (
-            <button
-              onClick={() => setQuery('')}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
-              title="Clear search"
-            >
-              <X className="w-3 h-3" />
-            </button>
+        <div className="mt-2 mb-1">
+          {searchItems ? (
+            <SearchMenu
+              mode="inline"
+              theme="light"
+              items={searchItems}
+              groups={searchGroups}
+              query={searchQuery}
+              onQueryChange={setSearchQuery}
+              onSelect={handleSearchSelect}
+              onSelectGroup={handleSearchGroup}
+              onClose={() => setSearchQuery('')}
+              expandableGroups
+              groupExpandMode="single"
+              placeholder={`Search ${title.toLowerCase()} and records…`}
+              panelWidth={Math.min(380, Math.max(288, w - 24))}
+            />
+          ) : (
+            <div className="relative">
+              <Search className="w-3 h-3 text-zinc-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={`Search ${title.toLowerCase()}…`}
+                className={`${inputCls('sm')} w-full pl-6 pr-6`}
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  onMouseDown={e => e.preventDefault()}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
+                  title="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -115,7 +175,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
             const isActive = row.key === activeKey;
             const Icon = row.icon;
             const actions = renderRowActions?.(row, isActive);
-            const showHeader = row.group && !searching && row.group !== (i > 0 ? filtered[i - 1].group : undefined);
+            const showHeader = row.group && (!searching || !!searchItems) && row.group !== (i > 0 ? filtered[i - 1].group : undefined);
             return (
               <div key={row.key} className="group">
                 {showHeader && (
@@ -152,7 +212,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
             );
           })}
         </div>
-        {searching && filtered.length === 0 && (
+        {searching && !searchItems && filtered.length === 0 && (
           <div className="px-1 py-2 text-[10px] text-zinc-400 italic">No {title.toLowerCase()} match “{query}”.</div>
         )}
         {onAdd && (

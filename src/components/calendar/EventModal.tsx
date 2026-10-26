@@ -105,11 +105,11 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
 
   const anchoredByCategory = useMemo(() => {
     const map = new Map<string, Set<string>>();
-    for (const cat2 of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
-      map.set(cat2, anchoredKeysFor(project.elementLinks, cat2));
+    for (const cat2 of new Set((project.links || []).map(l => l.anchorCategory))) {
+      map.set(cat2, anchoredKeysFor(project.links, cat2));
     }
     return map;
-  }, [project.elementLinks]);
+  }, [project.links]);
 
   const save = () => {
     if (locked) return;

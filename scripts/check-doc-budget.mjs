@@ -248,8 +248,9 @@ const E2E_SPEC_CAP = 70;
 // 283 → 284: roadmap 157 — cast detail edits behind the Details toggle must
 // persist (a dropped performer/contact is silent data loss).
 // 284 → 285: roadmap 306 — Element View property edits + picker navigation
+// 285 → 286: roadmap 172 — manager SearchMenu jump/flash
 // share the manager's write paths (a stale selection or dropped edit is silent).
-const E2E_TEST_CAP = 285;
+const E2E_TEST_CAP = 286;
 const e2eSpecFiles = readdirSync(e2eDir).filter((x) => x.endsWith('.spec.ts'));
 const e2eTestCount = e2eSpecFiles.reduce(
   (n, f) => n + (read(`e2e/${f}`).match(/^\s*test\(/gm) || []).length,

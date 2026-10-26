@@ -37,8 +37,12 @@ export function locationOptions(project: Project, extra: LocationOption[] = []):
       group: labelOf.get(l.type) || l.type,
     });
   }
+  const extraIds = new Set(extra.map(e => e.id));
   const dbItems = order.flatMap(typeKey =>
-    (byType.get(typeKey) || []).slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+    (byType.get(typeKey) || [])
+      .filter(item => !extraIds.has(item.id))
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
   );
   return [
     { id: ADD_LOCATION_SENTINEL, name: 'Add new location…', accent: true },

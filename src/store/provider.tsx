@@ -11,6 +11,7 @@ import { getPresenceDiagnostics, notifyLocalSave } from '../lib/supabase/presenc
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex, formatDriveError } from '../lib/googleDriveStorage';
 import { migrateLegacyProject, migrateLegacyCastMirror, migrateElementBoardIds, LegacyMigrationResult } from '../lib/legacyMigration';
+import { migrateProjectLinks } from '../lib/links';
 import { hasInFlightEdits } from '../lib/inFlightEdits';
 import { useRoomTransport } from '../lib/rooms/useRoomTransport';
 import { fetchRoomToken } from '../lib/rooms/tokenClient';
@@ -789,6 +790,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           const migrationResult = migrateLegacyProject(parsed);
           migrateLegacyCastMirror(migrationResult.project);
           migrateElementBoardIds(migrationResult.project);
+          migrateProjectLinks(migrationResult.project);
           if (migrationResult.migrated) {
             setPendingLegacyMigrationNotice(migrationResult);
           }
@@ -1447,6 +1449,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const migrationResult = migrateLegacyProject(data);
     migrateLegacyCastMirror(migrationResult.project);
     migrateElementBoardIds(migrationResult.project);
+    migrateProjectLinks(migrationResult.project);
     if (migrationResult.migrated) {
       setPendingLegacyMigrationNotice(migrationResult);
     }

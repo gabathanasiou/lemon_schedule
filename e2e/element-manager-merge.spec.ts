@@ -364,3 +364,29 @@ test.describe('Element View', () => {
     await expect(modal.locator('input[data-element-view-field="name"]')).toHaveValue(lead.name);
   });
 });
+
+test('manager search: a performer hit jumps to Cast and flashes the row', async ({ page }) => {
+  await openSeededProject(page);
+  const lead = await seedLeadCast(page);
+  await page.evaluate(({ id, name }) => {
+    (window as any).__lemonSchedule.dispatch({
+      type: 'UPDATE_CAST_MEMBER',
+      payload: { id, name, performer: 'ZZZ AUDIT' },
+    });
+  }, { id: lead.id, name: lead.name });
+
+  await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+  await page.getByRole('button', { name: 'Element Manager' }).click();
+  const search = page.locator('[data-search-input]');
+  await search.click();
+  await search.fill('ZZZ AUDIT');
+
+  const hit = page.locator(`[data-search-item="cast::${lead.id}"]`);
+  await expect(hit).toContainText('Artiste: ZZZ AUDIT');
+  await hit.click();
+
+  // It opens the record's category and flashes the row (roadmap 172).
+  const row = page.locator(`[data-manager-row="${lead.id}"]`);
+  await expect(row).toBeVisible();
+  await expect.poll(() => row.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(254, 226, 226)');
+});

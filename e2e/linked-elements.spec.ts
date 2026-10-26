@@ -27,8 +27,8 @@ async function seedLinks(page: any, anchorId: string) {
     b.dispatch({
       type: 'UPDATE_PROJECT',
       payload: {
-        elementLinks: [
-          { id: 'link-1', anchorCategory: 'cast', anchorValue: String(aId), linkedCategory: 'props', linkedValue: 'LINKED RIBBON' },
+        links: [
+          { id: 'link-1', anchorKind: 'element', anchorCategory: 'cast', anchorValue: String(aId), linkedKind: 'element', linkedCategory: 'props', linkedValue: 'LINKED RIBBON' },
         ],
       },
     });
@@ -129,7 +129,7 @@ test('link manager: anchor card links multiple elements and applies retroactivel
   // The seed ships its own links — clear them so exactly one anchor card exists.
   await page.evaluate(() => {
     const b = (window as any).__lemonSchedule;
-    b.dispatch({ type: 'UPDATE_PROJECT', payload: { elementLinks: [] } });
+    b.dispatch({ type: 'UPDATE_PROJECT', payload: { links: [] } });
   });
 
   // Find a scene with the anchor and clear its props (clean retroactive target).
@@ -196,7 +196,7 @@ test('link manager: anchor card links multiple elements and applies retroactivel
     return {
       anchorScenes: p.scenes.filter((x: any) => (x.cast || '').split(',').map((c: string) => c.trim()).includes(String(aId))).length,
       anchoredSceneProps: s?.props || '',
-      links: p.elementLinks || [],
+      links: p.links || [],
     };
   }, { id: target.id, aId: anchorId });
 
@@ -235,7 +235,7 @@ test('link manager: typing a brand-new element in a linked row creates it', asyn
   // Clear the seed's links so the modal starts from one clean anchor card.
   await page.evaluate(() => {
     const b = (window as any).__lemonSchedule;
-    b.dispatch({ type: 'UPDATE_PROJECT', payload: { elementLinks: [] } });
+    b.dispatch({ type: 'UPDATE_PROJECT', payload: { links: [] } });
   });
   const anchor = await seedLeadCast(page);
 
@@ -269,7 +269,7 @@ test('link manager: typing a brand-new element in a linked row creates it', asyn
   const created = await page.evaluate(() => {
     const p = (window as any).__lemonSchedule.getProject();
     const el = (p.breakdownElements?.props || []).find((e: any) => e.name === 'zzz brand new prop');
-    const links = p.elementLinks || [];
+    const links = p.links || [];
     return {
       created: !!el,
       linked: links.some((l: any) => l.linkedCategory === 'props' && l.linkedValue === 'zzz brand new prop'),
@@ -288,8 +288,8 @@ test('anchored elements show an anchor icon in pickers (link manager + scene she
     b.dispatch({
       type: 'UPDATE_PROJECT',
       payload: {
-        elementLinks: [
-          { id: 'link-1', anchorCategory: 'cast', anchorValue: String(aId), linkedCategory: 'props', linkedValue: 'LINKED RIBBON' },
+        links: [
+          { id: 'link-1', anchorKind: 'element', anchorCategory: 'cast', anchorValue: String(aId), linkedKind: 'element', linkedCategory: 'props', linkedValue: 'LINKED RIBBON' },
         ],
       },
     });

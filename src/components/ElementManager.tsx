@@ -12,6 +12,8 @@ import { computeElementDayStats } from '../lib/elementDayStats';
 import { getDayTypes } from '../lib/dayTypes';
 import { formatDateShort } from '../lib/utils';
 import { useRowBuffer, type CommitResult } from '../lib/rowBuffer';
+import type { SearchMenuItem } from '@gabriel/ui-kit';
+import { searchManagerRecords, type ManagerSearchHit, type ManagerSearchRecord } from '../lib/managerSearch';
 import { useScrolledLeft } from '../lib/useScrolledLeft';
 import { useFollowView } from '../lib/supabase/useFollowView';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
@@ -511,6 +513,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const lockedIds = useMemo(() => new Set((project.lockedElementIds || {})[category] || []), [project.lockedElementIds, category]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const tableScrolled = useScrolledLeft(scrollRef);
+  const [pendingSearchJump, setPendingSearchJump] = useState<{ categoryKey: string; rowKeys: string[] } | null>(null);
+  const [flashKeys, setFlashKeys] = useState<ReadonlySet<string>>(new Set());
 
   const dayTypes = useMemo(() => getDayTypes(project), [project]);
   const dayStats = useMemo(() => computeElementDayStats(project, category), [project, category]);
@@ -527,6 +531,82 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }, [project.customCategories, hiddenSet]);
   // The follow applier (registered once) reads the live key list through a ref.
   allCategoryKeysRef.current = allCategoryKeys;
+
+  const categoryLabelOf = useCallback((key: string, isCustom: boolean) => (
+    isCustom
+      ? project.customCategories.find(c => c.key === key)?.label || key
+      : getLabel(key, ELEMENT_CATEGORIES.find(c => c.key === key)?.label || key, project.categoryLabels)
+  ), [project.customCategories, project.categoryLabels]);
+
+  /** Roadmap 172 — every element in every category, with its searchable fields. */
+  const searchRecords = useMemo<ManagerSearchRecord[]>(() => {
+    const out: ManagerSearchRecord[] = [];
+    const castById = new Map((project.castMembers || []).map(m => [m.id, m]));
+    for (const { key, isCustom } of allCategoryKeys) {
+      const categoryLabel = categoryLabelOf(key, isCustom);
+      for (const r of loadRows(key)) {
+        // `loadCategoryElements` trims cast to id/name — read the performer
+        // details from the cast member itself.
+        const details = key === 'cast' ? (castById.get(r.id) as any) : null;
+        const fields = [
+          { key: 'boardId', label: 'Board ID', value: r.boardId || '' },
+          { key: 'name', label: 'Name', value: r.name || '' },
+          ...(key === 'cast'
+            ? CAST_DETAIL_FIELDS.map(f => ({ key: f.key, label: f.label, value: String(details?.[f.key] || r[f.key] || '') }))
+            : []),
+        ];
+        out.push({
+          categoryKey: key,
+          categoryLabel,
+          rowKey: r.key,
+          label: r.name || r.id || r.key,
+          fields,
+        });
+      }
+    }
+    return out;
+  }, [allCategoryKeys, categoryLabelOf, project]);
+
+  const searchItems = useMemo<SearchMenuItem[]>(() => searchRecords.map(record => {
+    const detailField = record.fields.find(field =>
+      field.value.trim() && field.value.trim().toLowerCase() !== record.label.trim().toLowerCase());
+    return {
+      id: `${record.categoryKey}::${record.rowKey}`,
+      label: record.label,
+      group: record.categoryKey,
+      fields: record.fields.map(field => ({ label: field.label, value: field.value })),
+      detail: detailField ? `${detailField.label}: ${detailField.value}` : undefined,
+    };
+  }), [searchRecords]);
+
+  const jumpToSearchHit = useCallback((hit: ManagerSearchHit, query: string) => {
+    const rowKeys = searchManagerRecords(searchRecords, query)
+      .filter(h => h.categoryKey === hit.categoryKey)
+      .map(h => h.rowKey);
+    setPendingSearchJump({ categoryKey: hit.categoryKey, rowKeys });
+    switchCategory(hit.categoryKey);
+  }, [searchRecords, switchCategory]);
+
+  // Scroll only the first match into view; flash every matching row.
+  useEffect(() => {
+    if (!pendingSearchJump || category !== pendingSearchJump.categoryKey) return;
+    const container = scrollRef.current;
+    if (!container) return;
+    const trs = Array.from(container.querySelectorAll<HTMLElement>('[data-manager-row]'));
+    const els = pendingSearchJump.rowKeys
+      .map(key => trs.find(el => el.dataset.managerRow === key))
+      .filter((el): el is HTMLElement => !!el);
+    if (els.length === 0) return;
+    els[0].scrollIntoView({ block: 'center' });
+    setFlashKeys(new Set(pendingSearchJump.rowKeys));
+    setPendingSearchJump(null);
+  }, [pendingSearchJump, category, rows]);
+
+  useEffect(() => {
+    if (flashKeys.size === 0) return;
+    const t = setTimeout(() => setFlashKeys(new Set()), 1400);
+    return () => clearTimeout(t);
+  }, [flashKeys]);
 
   const actionBar = (
     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap shrink-0">
@@ -690,9 +770,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         title="Categories"
         rows={allCategoryKeys.map(({ key, isCustom, isHidden }) => ({
           key,
-          label: isCustom
-            ? project.customCategories.find(c => c.key === key)?.label || key
-            : getLabel(key, ELEMENT_CATEGORIES.find(c => c.key === key)?.label || key, project.categoryLabels),
+          label: categoryLabelOf(key, isCustom),
           icon: isCustom ? getCustomIcon(project.customCategories.find(c => c.key === key)?.icon || 'Tag') : CAT_ICONS[key],
           dimmed: isHidden,
           italic: !isCustom && !!project.categoryLabels?.[key],
@@ -704,6 +782,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         addLabel="Add Custom"
         addDisabled={locked}
         renderRowActions={renderRowActions}
+        searchItems={searchItems}
+        onSearchSelect={jumpToSearchHit}
       />
 
       <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
@@ -736,7 +816,13 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                   {rows.map((r, ri) => {
                       const stats = dayStats.get(r.key);
                       return (
-                    <tr key={r.key} data-presence-anchor={`elements:${r.key}`} className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}>
+                    <tr
+                      key={r.key}
+                      data-presence-anchor={`elements:${r.key}`}
+                      data-manager-row={r.key}
+                      style={flashKeys.has(r.key) ? { backgroundColor: '#fee2e2' } : undefined}
+                      className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}
+                    >
                       <td style={sizes.cellSmall} className={`sticky left-0 z-10 ${MT_CELL_SMALL} ${rejectedKey === r.key ? 'bg-red-100' : ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}`}>
                         <div className="flex items-center gap-1">
                           <div className="flex-1 min-w-0">

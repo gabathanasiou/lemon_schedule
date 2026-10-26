@@ -394,7 +394,7 @@ export function ElementEventsSection({ category, rowKey, rowId, rowName }: Eleme
               initial={nested.rule ?? null}
               scenes={project.scenes}
               castMembers={project.castMembers || []}
-              anchoredKeys={anchoredKeysFor(project.elementLinks, 'cast')}
+              anchoredKeys={anchoredKeysFor(project.links, 'cast')}
               productionStart={activeCalendarVersion?.productionStart}
               onSave={saveRule}
               onDelete={nested.rule && nested.rule.id ? () => {

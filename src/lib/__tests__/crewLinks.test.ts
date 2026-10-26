@@ -21,10 +21,10 @@ function fixture(): any {
         { id: 'p-b', name: 'Dana' },
       ],
     },
-    crewLinks: [
-      { id: 'l1', personId: 'p-a', category: 'cast', elementKey: '1' },
-      { id: 'l2', personId: 'p-a', category: CREW_LINK_TARGET, elementKey: 'p-b' },
-      { id: 'l3', personId: 'p-b', category: 'props', elementKey: 'gun' },
+    links: [
+      { id: 'l1', anchorKind: 'element', anchorCategory: 'cast', anchorValue: '1', linkedKind: 'crew', linkedValue: 'p-a' },
+      { id: 'l2', anchorKind: 'crew', anchorValue: 'p-a', linkedKind: 'crew', linkedValue: 'p-b' },
+      { id: 'l3', anchorKind: 'element', anchorCategory: 'props', anchorValue: 'gun', linkedKind: 'crew', linkedValue: 'p-b' },
     ],
   };
 }
@@ -32,13 +32,13 @@ function fixture(): any {
 describe('crew link lookups', () => {
   it('filters by anchor person and by target element', () => {
     const p = fixture();
-    expect(getCrewLinksForPerson(p.crewLinks, 'p-a').map((l: any) => l.id)).toEqual(['l1', 'l2']);
-    expect(getCrewLinksForElement(p.crewLinks, 'cast', '1').map((l: any) => l.id)).toEqual(['l1']);
+    expect(getCrewLinksForPerson(p.links, 'p-a').map((l: any) => l.id)).toEqual(['l1', 'l2']);
+    expect(getCrewLinksForElement(p.links, 'cast', '1').map((l: any) => l.id)).toEqual(['l1']);
     // non-cast matching is case-insensitive
-    expect(getCrewLinksForElement(p.crewLinks, 'props', 'GUN').map((l: any) => l.id)).toEqual(['l3']);
+    expect(getCrewLinksForElement(p.links, 'props', 'GUN').map((l: any) => l.id)).toEqual(['l3']);
     // crew→crew links are excluded from the element view
-    expect(getCrewLinksForElement(p.crewLinks, CREW_LINK_TARGET, 'p-b')).toEqual([]);
-    expect(getCrewLinksTargetingPerson(p.crewLinks, 'p-b').map((l: any) => l.id)).toEqual(['l2']);
+    expect(getCrewLinksForElement(p.links, CREW_LINK_TARGET, 'p-b')).toEqual([]);
+    expect(getCrewLinksTargetingPerson(p.links, 'p-b').map((l: any) => l.id)).toEqual(['l2']);
   });
 
   it('resolves labels (cast shows "id. name")', () => {
@@ -55,7 +55,7 @@ describe('crewLinkWarnings', () => {
 
   it('warns for a linked crew target who is not on the day', () => {
     const warnings = crewLinkWarnings({
-      links: [{ id: 'l', personId: 'p-a', category: CREW_LINK_TARGET, elementKey: 'p-b' }],
+      links: [{ id: 'l', anchorKind: 'crew', anchorValue: 'p-a', linkedKind: 'crew', linkedValue: 'p-b' }],
       dayCrewIds: new Set(['p-a']),
       crewName: names,
       targetLabel: label,
@@ -68,7 +68,7 @@ describe('crewLinkWarnings', () => {
 
   it('stays silent when both people are on the day', () => {
     const warnings = crewLinkWarnings({
-      links: [{ id: 'l', personId: 'p-a', category: CREW_LINK_TARGET, elementKey: 'p-b' }],
+      links: [{ id: 'l', anchorKind: 'crew', anchorValue: 'p-a', linkedKind: 'crew', linkedValue: 'p-b' }],
       dayCrewIds: new Set(['p-a', 'p-b']),
       crewName: names,
       targetLabel: label,
@@ -79,7 +79,7 @@ describe('crewLinkWarnings', () => {
 
   it('warns for an element target missing from the day\'s scenes', () => {
     const warnings = crewLinkWarnings({
-      links: [{ id: 'l', personId: 'p-a', category: 'cast', elementKey: '1' }],
+      links: [{ id: 'l', anchorKind: 'element', anchorCategory: 'cast', anchorValue: '1', linkedKind: 'crew', linkedValue: 'p-a' }],
       dayCrewIds: new Set(['p-a']),
       crewName: names,
       targetLabel: label,
@@ -90,9 +90,37 @@ describe('crewLinkWarnings', () => {
     expect(warnings[0].message).toBe("Mat is linked to 1. GEORGE, who is not in this day's scenes.");
   });
 
+  it('warns when nobody from a linked department is on the day', () => {
+    const warnings = crewLinkWarnings({
+      links: [{ id: 'l', anchorKind: 'element', anchorCategory: 'cast', anchorValue: '1', linkedKind: 'department', linkedValue: 'Camera' }],
+      dayCrewIds: new Set(['p-a']),
+      crewName: names,
+      targetLabel: label,
+      isElementOnDay: () => true,
+      peopleInDept: dept => dept === 'Camera' ? ['p-b', 'p-c'] : [],
+      elementLabel: () => '1. GEORGE',
+    });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].targetKind).toBe('department');
+    expect(warnings[0].message).toBe('1. GEORGE is linked to all of Camera, but nobody from Camera is on this day.');
+  });
+
+  it('stays silent when at least one person from the linked department is on the day', () => {
+    const warnings = crewLinkWarnings({
+      links: [{ id: 'l', anchorKind: 'element', anchorCategory: 'cast', anchorValue: '1', linkedKind: 'department', linkedValue: 'Camera' }],
+      dayCrewIds: new Set(['p-b']),
+      crewName: names,
+      targetLabel: label,
+      isElementOnDay: () => true,
+      peopleInDept: () => ['p-b', 'p-c'],
+      elementLabel: () => '1. GEORGE',
+    });
+    expect(warnings).toEqual([]);
+  });
+
   it('ignores links anchored by people who are not on the day', () => {
     const warnings = crewLinkWarnings({
-      links: [{ id: 'l', personId: 'p-b', category: CREW_LINK_TARGET, elementKey: 'p-a' }],
+      links: [{ id: 'l', anchorKind: 'crew', anchorValue: 'p-b', linkedKind: 'crew', linkedValue: 'p-a' }],
       dayCrewIds: new Set(['p-a']),
       crewName: names,
       targetLabel: () => 'Mat',

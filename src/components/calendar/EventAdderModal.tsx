@@ -104,11 +104,11 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
 
   const anchoredByCategory = useMemo(() => {
     const map = new Map<string, Set<string>>();
-    for (const cat of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
-      map.set(cat, anchoredKeysFor(project.elementLinks, cat));
+    for (const cat of new Set((project.links || []).map(l => l.anchorCategory))) {
+      map.set(cat, anchoredKeysFor(project.links, cat));
     }
     return map;
-  }, [project.elementLinks]);
+  }, [project.links]);
 
   const activeType = getDayType(project, status);
   const StatusIcon = typeIconComponent(project.dayTypes, status);

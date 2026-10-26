@@ -86,17 +86,19 @@ export default function DropdownPanel({
   // onItemHover) and the keyboard arrows both write; the latest interaction
   // wins and leaving the list clears a pointer-driven highlight. Checked rows
   // are visually distinct from the highlight (dark: Check glyph; light: blue).
-  const itemCls = (checked: boolean, highlighted: boolean, synthetic: boolean): string => {
+  const itemCls = (checked: boolean, highlighted: boolean, synthetic: boolean, accent: boolean): string => {
     if (dark) {
       if (synthetic) return `${ITEM_BASE} ${highlighted ? 'bg-emerald-800/70 text-emerald-100' : 'bg-emerald-900/40 text-emerald-300'}`;
-      if (highlighted) return `${ITEM_BASE} bg-zinc-700 text-white`;
+      if (highlighted) return `${ITEM_BASE} ${accent ? 'bg-amber-500/20 text-amber-100' : 'bg-zinc-700 text-white'}`;
+      if (accent) return `${ITEM_BASE} bg-amber-500/10 text-amber-200`;
       if (checked) return `${ITEM_BASE} bg-zinc-800/40 text-zinc-100`;
       return `${ITEM_BASE} text-zinc-300`;
     }
     if (synthetic) {
       return `${LIGHT_BASE} text-zinc-400 ${highlighted ? 'bg-emerald-50 text-emerald-700' : ''}`;
     }
-    if (highlighted) return `${LIGHT_BASE} ${checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900'}`;
+    if (highlighted) return `${LIGHT_BASE} ${accent ? 'bg-amber-100 text-amber-800' : checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900'}`;
+    if (accent) return `${LIGHT_BASE} bg-amber-50 text-amber-700`;
     if (checked) return `${LIGHT_BASE} bg-blue-50 text-blue-700 active:bg-blue-200`;
     return `${LIGHT_BASE} text-zinc-600 active:bg-zinc-200 active:text-zinc-900`;
   };
@@ -140,7 +142,7 @@ export default function DropdownPanel({
         const checked = currentIds.includes(itemKey(m));
         const highlighted = highlightedIndex === idx;
         const isSynthetic = searchQuery && !hasExactMatch && idx === 0;
-        const cls = itemCls(checked, highlighted, isSynthetic);
+        const cls = itemCls(checked, highlighted, isSynthetic, !!m.accent);
         const showGroup = !isSynthetic && !!m.group && m.group !== lastGroup;
         if (!isSynthetic && m.group) lastGroup = m.group;
         return (
