@@ -47,9 +47,13 @@ export const LocationPickerModal: React.FC<{
   open: boolean;
   onClose: () => void;
   onConfirm: (loc: PickedLocation) => void;
-  /** Existing pin to edit — opens centered on it (with its label) instead of the default center. */
-  initial?: PickedLocation | null;
+  /** Existing location to edit — opens centered on its pin (when it has one)
+   *  with its label/address written, instead of the default center. */
+  initial?: Partial<PickedLocation> | null;
 }> = ({ open, onClose, onConfirm, initial }) => {
+  // An initial location means the modal is EDITING an attached location, not
+  // attaching a new one — say so (title + primary action).
+  const editing = !!initial;
   const [place, setPlace] = useState('');
   const [parts, setParts] = useState<PlaceParts | null>(null);
   const [query, setQuery] = useState('');
@@ -149,7 +153,7 @@ export const LocationPickerModal: React.FC<{
     <Modal
       open={open}
       onClose={onClose}
-      title="Attach a location"
+      title={editing ? 'Edit location' : 'Attach a location'}
       width="max-w-lg"
       icon={<MapPin className="w-3.5 h-3.5" />}
       footer={
@@ -158,7 +162,7 @@ export const LocationPickerModal: React.FC<{
           <ModalFooterButton
             onClick={() => onConfirm({ lat: center[0], lng: center[1], ...(place ? { place } : {}), ...(parts || {}), address: address.trim() || undefined })}
           >
-            Attach pin
+            {editing ? 'Save location' : 'Attach pin'}
           </ModalFooterButton>
         </ModalFooter>
       }

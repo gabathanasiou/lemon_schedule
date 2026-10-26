@@ -1353,10 +1353,10 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             setLocationOpen(false);
           }}
           initial={
-            block.mapLat != null && block.mapLng != null
+            block.mapLat != null || block.mapLng != null || block.mapPlace || block.mapAddress
               ? {
-                  lat: block.mapLat,
-                  lng: block.mapLng,
+                  lat: block.mapLat ?? undefined,
+                  lng: block.mapLng ?? undefined,
                   place: block.mapPlace,
                   address: block.mapAddress,
                   city: block.mapCity,

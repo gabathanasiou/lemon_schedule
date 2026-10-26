@@ -104,6 +104,14 @@ const AddressCell: React.FC<{ row: ManagerRow; update: (f: string, v: string) =>
   const [open, setOpen] = useState(false);
   const hasPin = row.lat !== '' && row.lng !== '';
   const label = row.address || row.place || (hasPin ? `${row.lat}, ${row.lng}` : 'Set address…');
+  // Seed the modal from the row even without a pin — an imported/type-only
+  // location still opens with its address written (the map starts at the
+  // default center until a pin is placed).
+  const initial = hasPin
+    ? { lat: Number(row.lat), lng: Number(row.lng), place: row.place || undefined, address: row.address || undefined }
+    : (row.place || row.address)
+      ? { place: row.place || undefined, address: row.address || undefined }
+      : null;
   const apply = (loc: PickedLocation) => {
     if (!(row.name || '').trim()) update('name', (loc.address || loc.place || '').trim());
     update('lat', String(loc.lat));
@@ -126,7 +134,7 @@ const AddressCell: React.FC<{ row: ManagerRow; update: (f: string, v: string) =>
         open={open}
         onClose={() => setOpen(false)}
         onConfirm={loc => { apply(loc); setOpen(false); }}
-        initial={hasPin ? { lat: Number(row.lat), lng: Number(row.lng), place: row.place || undefined, address: row.address || undefined } : null}
+        initial={initial}
       />
     </>
   );
