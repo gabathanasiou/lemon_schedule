@@ -159,6 +159,7 @@ const DayTimesGlide: React.FC<DayTimesGlideProps> = ({ day, category, patchMeta,
   return (
     <InlineGlideTable
       dataAttr="data-day-times-glide"
+      dataCategory={category}
       presenceScope={presenceScope}
       columns={columns}
       rows={rows}

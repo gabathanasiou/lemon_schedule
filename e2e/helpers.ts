@@ -635,6 +635,8 @@ export async function firstStageLabel(page: Page): Promise<string> {
 }
 
 const STAGE_BASE_WIDTHS = [48, 220, 48, 88, 88, 88, 88, 88];
+/** Cast grids carry an Artiste column after the Character name (roadmap 157). */
+const CAST_STAGE_BASE_WIDTHS = [48, 220, 180, 48, 88, 88, 88, 88, 88];
 
 /** Center of a stage cell in a day-times Glide grid. Mirrors the component's
  *  fit-to-card column math (desktop defaults: 11px font → 30px header, 28px
@@ -645,20 +647,25 @@ export async function stageCellPoint(
   stageIndex: number,
   scope?: import('@playwright/test').Locator,
 ) {
-  const base = (scope || page).locator('[data-day-times-glide] .dvn-scroller').first();
+  const wrapper = (scope || page).locator('[data-day-times-glide]').first();
+  const category = await wrapper.getAttribute('data-category');
+  const isCast = category === 'cast';
+  const baseWidths = isCast ? CAST_STAGE_BASE_WIDTHS : STAGE_BASE_WIDTHS;
+  const stageStart = isCast ? 4 : 3;
+  const base = wrapper.locator('.dvn-scroller').first();
   const box = (await base.boundingBox())!;
   const target = Math.max(120, Math.floor(box.width) - 1);
-  const total = STAGE_BASE_WIDTHS.reduce((s, w) => s + w, 0);
-  const widths = STAGE_BASE_WIDTHS.map(w => Math.max(40, Math.floor((w / total) * target)));
+  const total = baseWidths.reduce((s, w) => s + w, 0);
+  const widths = baseWidths.map(w => Math.max(40, Math.floor((w / total) * target)));
   const sum = widths.reduce((s, w) => s + w, 0);
   widths[1] += target - sum;
-  const before = widths[0] + widths[1] + widths[2];
+  const before = widths.slice(0, stageStart).reduce((s, w) => s + w, 0);
   const rowH = 28;
   const headerH = 30;
   return {
-    x: box.x + before + stageIndex * widths[3] + widths[3] / 2,
+    x: box.x + before + stageIndex * widths[stageStart] + widths[stageStart] / 2,
     y: box.y + headerH + row * rowH + rowH / 2,
-    stageW: widths[3],
+    stageW: widths[stageStart],
     rowH,
   };
 }
