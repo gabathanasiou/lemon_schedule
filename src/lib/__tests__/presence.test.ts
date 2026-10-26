@@ -65,6 +65,14 @@ describe('presence wire helpers', () => {
   it('parses a view and rejects unknown tabs', () => {
     expect(parseView({ tab: 'schedule', sceneId: 's1' })).toEqual({ tab: 'schedule', sceneId: 's1' });
     expect(parseView({ tab: 'schedule', sub: 'x', mode: 'y', daySection: 2.9 })).toEqual({ tab: 'schedule', sub: 'x', mode: 'y', daySection: 2 });
+    expect(parseView({ tab: 'production', sub: 'days', mode: 'manager', dayTab: 'scenes' }))
+      .toEqual({ tab: 'production', sub: 'days', mode: 'manager', dayTab: 'scenes' });
+    expect(parseView({ tab: 'production', sub: 'days', dayTab: 'all' }))
+      .toEqual({ tab: 'production', sub: 'days', dayTab: 'all' });
+    expect(parseView({ tab: 'production', sub: 'days', mode: 'callsheet', dayTab: 'scenes' }))
+      .toEqual({ tab: 'production', sub: 'days', mode: 'callsheet' });
+    expect(parseView({ tab: 'production', sub: 'days', dayTab: 'nope' }))
+      .toEqual({ tab: 'production', sub: 'days' });
     expect(parseView({ tab: 'nope' })).toBeNull();
     expect(parseView(null)).toBeNull();
   });
@@ -517,6 +525,13 @@ describe('view ↔ place mapping', () => {
     expect(presenceViewToPlace(view)).toEqual(place);
   });
 
+  it('carries the Day Manager category tab', () => {
+    const place = { tab: 'production' as const, sub: 'days', mode: 'manager', dayTab: 'scenes' as const, daySection: 2 };
+    const view = placeToPresenceView(place);
+    expect(view).toEqual({ tab: 'production', sub: 'days', mode: 'manager', dayTab: 'scenes', daySection: 2 });
+    expect(presenceViewToPlace(view)).toEqual(place);
+  });
+
   it('carries the Sheet scene + position (picked scene wins on the follower)', () => {
     const place = { tab: 'breakdown' as const, sub: 'sheet', sceneId: 's3', sheetIndex: 4 };
     const view = placeToPresenceView(place);
@@ -663,6 +678,15 @@ describe('same-view gating (only show a peer on their exact place)', () => {
     expect(sameViewPlace({ tab: 'production', sub: 'days' }, manager)).toBe(true);
     expect(sameViewPlace({ tab: 'production', sub: 'days', mode: 'manager' }, manager)).toBe(true);
     expect(sameViewPlace({ tab: 'production', sub: 'days', mode: 'callsheet' }, manager)).toBe(false);
+  });
+
+  it('gates the Day Manager category tab (roadmap 315)', () => {
+    const overview = { tab: 'production' as const, sub: 'days', mode: 'manager' };
+    const scenes = { ...overview, dayTab: 'scenes' as const };
+    expect(sameViewPlace(overview, scenes)).toBe(false);
+    expect(sameViewPlace(scenes, overview)).toBe(false);
+    expect(sameViewPlace(scenes, { ...scenes })).toBe(true);
+    expect(sameViewPlace({ ...callsheet, dayTab: 'scenes' as const }, { ...callsheet, dayTab: 'crew' as const })).toBe(true);
   });
 
   it('hides pointers from a peer with no view yet', () => {

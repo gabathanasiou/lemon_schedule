@@ -13,6 +13,9 @@ export interface DaySectionCardProps {
   summary?: React.ReactNode;
   collapsed: boolean;
   onToggle: () => void;
+  /** Empty cards (an Events card with no events) have no body to fold, so
+   *  they drop the chevron and read as a single action row. */
+  collapsible?: boolean;
   trailing?: React.ReactNode;
   children?: React.ReactNode;
   'data-section'?: string;
@@ -24,30 +27,34 @@ export const DaySectionCard: React.FC<DaySectionCardProps> = ({
   summary,
   collapsed,
   onToggle,
+  collapsible = true,
   trailing,
   children,
   ...rest
 }) => (
   <section
-    className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden"
+    className="bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] rounded-xl shadow-sm overflow-hidden"
     {...rest}
   >
     <div className="flex items-center gap-2 px-3 py-2">
       <button
         type="button"
         onClick={onToggle}
-        aria-expanded={!collapsed}
-        className="flex flex-1 min-w-0 items-center gap-2 text-left"
+        disabled={!collapsible}
+        aria-expanded={collapsible ? !collapsed : undefined}
+        className="flex flex-1 min-w-0 items-center gap-2 text-left disabled:cursor-default"
       >
-        {collapsed ? <ChevronRight className="w-3.5 h-3.5 shrink-0 text-zinc-400" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0 text-zinc-400" />}
-        <span className="text-zinc-500 shrink-0">{icon}</span>
-        <span className="text-xs font-semibold text-zinc-800 truncate">{title}</span>
-        {summary && <span className="text-[11px] text-zinc-400 truncate">{summary}</span>}
+        {collapsible
+          ? (collapsed ? <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[color:var(--ui-text-faint)]" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0 text-[color:var(--ui-text-faint)]" />)
+          : <span className="w-3.5 shrink-0" />}
+        <span className="text-[color:var(--ui-text-muted)] shrink-0">{icon}</span>
+        <span className="text-xs font-semibold text-[color:var(--ui-text-strong)] truncate">{title}</span>
+        {summary && <span className="text-[11px] text-[color:var(--ui-text-faint)] truncate">{summary}</span>}
       </button>
       {trailing}
     </div>
-    {!collapsed && (
-      <div className="border-t border-zinc-100 px-3 py-2.5">{children}</div>
+    {!collapsed && children != null && (
+      <div className="border-t border-[color:var(--ui-border)] px-3 py-2.5">{children}</div>
     )}
   </section>
 );

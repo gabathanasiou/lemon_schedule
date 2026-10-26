@@ -27,6 +27,15 @@ describe('place hash round-trip', () => {
     expect(placeToHash({ tab: 'production', sub: 'crew', mode: 'nope' })).toBe('production/crew');
   });
 
+  it('encodes a Day Manager category tab as a fourth segment', () => {
+    expect(placeToHash({ tab: 'production', sub: 'days', mode: 'manager', dayTab: 'scenes' }))
+      .toBe('production/days/manager/scenes');
+    expect(placeToHash({ tab: 'production', sub: 'days', dayTab: 'overview' })).toBe('production/days');
+    expect(placeToHash({ tab: 'production', sub: 'days', dayTab: 'all' })).toBe('production/days/manager/all');
+    expect(placeToHash({ tab: 'production', sub: 'days', mode: 'callsheet', dayTab: 'crew' }))
+      .toBe('production/days/callsheet');
+  });
+
   it('parses valid hashes and drops unknown tabs/subs/modes', () => {
     expect(parsePlaceHash('#/production/days')).toEqual({ tab: 'production', sub: 'days' });
     expect(parsePlaceHash('#/production/days/callsheet')).toEqual({ tab: 'production', sub: 'days', mode: 'callsheet' });
@@ -34,6 +43,8 @@ describe('place hash round-trip', () => {
     expect(parsePlaceHash('#/production/days/nope')).toEqual({ tab: 'production', sub: 'days' });
     expect(parsePlaceHash('#/production/crew/glide')).toEqual({ tab: 'production', sub: 'crew', mode: 'glide' });
     expect(parsePlaceHash('#/production/crew/callsheet')).toEqual({ tab: 'production', sub: 'crew' });
+    expect(parsePlaceHash('#/production/days/manager/scenes')).toEqual({ tab: 'production', sub: 'days', mode: 'manager', dayTab: 'scenes' });
+    expect(parsePlaceHash('#/production/days/manager/nope')).toEqual({ tab: 'production', sub: 'days', mode: 'manager' });
     expect(parsePlaceHash('#/production/crewGlide')).toEqual({ tab: 'production' });
     expect(parsePlaceHash('breakdown/sheet')).toEqual({ tab: 'breakdown', sub: 'sheet' });
     expect(parsePlaceHash('#/schedule')).toEqual({ tab: 'schedule' });
@@ -95,6 +106,16 @@ describe('nav stack', () => {
     expect(samePlace(manager, { tab: 'production', sub: 'days', mode: 'manager' })).toBe(true);
     expect(samePlace(manager, { tab: 'production', sub: 'days', mode: 'callsheet' })).toBe(false);
     expect(samePlace({ tab: 'production', sub: 'crew', mode: 'glide' }, { tab: 'production', sub: 'crew' })).toBe(false);
+    expect(samePlace(manager, { tab: 'production', sub: 'days', dayTab: 'overview' })).toBe(true);
+    expect(samePlace(manager, { tab: 'production', sub: 'days', dayTab: 'all' })).toBe(false);
+    const scenes: AppPlace = { tab: 'production', sub: 'days', dayTab: 'scenes' };
+    expect(samePlace(manager, scenes)).toBe(false);
+    expect(samePlace(scenes, { tab: 'production', sub: 'days', mode: 'manager', dayTab: 'scenes' })).toBe(true);
+    // The Call Sheet has no category tabs — the field is ignored there.
+    expect(samePlace(
+      { tab: 'production', sub: 'days', mode: 'callsheet', dayTab: 'scenes' },
+      { tab: 'production', sub: 'days', mode: 'callsheet', dayTab: 'crew' },
+    )).toBe(true);
   });
 
   it('validates persisted stacks from history.state', () => {
@@ -103,6 +124,8 @@ describe('nav stack', () => {
     expect(isNavStack({ stack: [], index: 0 })).toBe(false);
     expect(isNavStack({ stack: [{ tab: 'nope' }], index: 0 })).toBe(false);
     expect(isNavStack({ stack: [{ tab: 'production', sub: 'days', mode: 7 }], index: 0 })).toBe(false);
+    expect(isNavStack({ stack: [{ tab: 'production', sub: 'days', dayTab: 'scenes' }], index: 0 })).toBe(true);
+    expect(isNavStack({ stack: [{ tab: 'production', sub: 'days', dayTab: 7 }], index: 0 })).toBe(false);
     expect(isNavStack(null)).toBe(false);
   });
 });

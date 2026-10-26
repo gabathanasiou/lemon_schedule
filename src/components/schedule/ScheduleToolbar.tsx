@@ -138,9 +138,9 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       itemLabel="Version"
       trigger={
         <Button theme="light" data-presence-anchor="toolbar:schedule:versions">
-          <span className="text-xs font-semibold text-zinc-400">Schedule:</span>
-          <span className="text-xs font-semibold text-zinc-900">{version?.name || 'Select Version'}</span>
-          <ChevronDown className="w-3 h-3 text-zinc-400" />
+          <span className="text-xs font-semibold text-[color:var(--ui-text-faint)]">Schedule:</span>
+          <span className="text-xs font-semibold text-[color:var(--ui-text-strong)]">{version?.name || 'Select Version'}</span>
+          <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
         </Button>
       }
     />
@@ -159,7 +159,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         <Button title="View" aria-label="View" data-presence-anchor="toolbar:schedule:view">
           <Eye className="w-3.5 h-3.5 shrink-0" />
           {phone && <span className="text-xs font-semibold">View</span>}
-          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-muted)]" />
         </Button>
       }
     >
@@ -313,7 +313,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       <button
         onClick={onShowHelp}
         data-presence-anchor="toolbar:schedule:help"
-        className="flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer select-none"
+        className="flex items-center justify-center w-7 h-7 rounded-full text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] hover:bg-[var(--ui-row-hover-bg)] transition-colors cursor-pointer select-none"
         title="Keyboard Shortcuts & Help"
       >
         <HelpCircle className="w-4 h-4" />

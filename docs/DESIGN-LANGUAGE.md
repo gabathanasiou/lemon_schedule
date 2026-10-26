@@ -49,18 +49,22 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 
 | Layer | Palette | Where |
 |---|---|---|
-| Light page | `bg-gray-50` body; white cards `bg-white border-zinc-200 rounded-xl shadow-sm` | SceneSheet, stripboard, Calendar, ProjectManager cards, PageToolbar light theme |
-| Dark chrome | `bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg` | App header, Modal, DropdownMenu, Dialog, print dialogs, ElementPicker |
-| Drive chrome (`data-theme="blue"`, `bg-blue-950`) | dark bars `bg-blue-950`; light toolbars tint their tab pills / segmented tracks blue | `useProjectTheme()`; tokens in `src/lib/projectTheme.ts`; `PageToolbar.tsx:44-48` |
-| Shared chrome (`data-theme="emerald"`, `bg-emerald-950`) | dark bars `bg-emerald-950`; light toolbars tint their tab pills / segmented tracks emerald | same ONE source; a project is never both (shared > drive) |
+| Light page (token scope) | `ThemeScope mode="light" surface="neutral"`: `bg-[var(--ui-card-band)]` body; cards `bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)]` (light token values match zinc-50 / white / zinc-200) | Day Manager + manager shell; SceneSheet/stripboard/Calendar/ProjectManager cards are being migrated family-by-family (roadmap 310) |
+| Dark chrome | header `bg-[var(--ui-accent-header-bg)]`; kit Menu/Modal/input tokens | App header, pop-out toolbar, Modal, DropdownMenu, Dialog, print dialogs, ElementPicker |
+| Drive chrome | `ProjectChromeScope` publishes `accent="blue"`: header `--ui-accent-950` (#172554), tab pill `--ui-tab-pill-accent`, action chips `--ui-accent-950/900` | ONE identity source `useProjectTheme()` + `projectAccentNameOf()`; `src/components/ProjectChromeScope.tsx` |
+| Shared chrome | same scope with `accent="emerald"`: header #022c22, emerald tab/action roles | same ONE source; a project is never both (shared > drive) |
 
+- `PROJECT_CHROME` keeps ONLY `barHex` (the browser/status-bar `meta[theme-color]`
+  twin). In-app chrome never hand-writes `bg-blue-950` / `bg-emerald-950` / zinc
+  chrome strings — wrap the surface in `ProjectChromeScope` and use the
+  `--ui-accent-*` / `--ui-tab-*` roles (roadmap 311).
 - Modals/menus are dark even when they sit on light pages.
 - **Section containers inside dark modals must step UP a luminance level** — never
-  same-as-body backgrounds (black-on-black): on the `bg-zinc-900` modal body, grouped
-  sections (day-type cards, violation boxes, picker panels, rule lists) use gray
-  containers `bg-zinc-800 border border-zinc-700 rounded-lg` with inner dividers
-  `border-zinc-700/60`. Contents may sit directly on the body only when they are
-  single rows (labels, help text) — anything boxed must be visibly lighter.
+  same-as-body backgrounds (black-on-black): on the `--ui-modal-bg` body, grouped
+  sections (day-type cards, violation boxes, picker panels, rule lists) use the raised
+  `--ui-card-bg` / `--ui-input-bg` fills with `--ui-border` hairlines. Contents may sit
+  directly on the body only when they are single rows (labels, help text) — anything
+  boxed must be visibly lighter.
 - **Exception**: kit `ContextMenu` defaults to **light theme** (its `theme` prop, kit v0.1.81)
   because it anchors on light surfaces; pass `theme="dark"` when it opens over dark chrome
   (the ribbon designer cell menu). DropdownMenu (dark) and Dialog (dark) set their own themes.
@@ -117,9 +121,43 @@ portals into its OWN slot **immediately left of the view switcher**, so it sits 
 same spot in BOTH Days views (roadmap 177) — a thin vertical divider separates the
 view-specific controls from that shared day-selector + switcher cluster. The **view
 switcher** is the toolbar's
-rightmost element (see the merged-view switcher recipe below). Below the toolbar sit the
-collapsible section cards (`DaySectionCard`). All overlays (Copy-from-day, events,
-pickers) are dark per the two-layer rule. The **Call Sheet** surface is its own
+rightmost element (see the merged-view switcher recipe below). At the top of the page
+content sits a **centered mini-tab strip** (it scrolls with the cards — not sticky) — the
+same kit `Button variant="tab"` + measured
+`useSlidingPill`/`TAB_PILL` row as the header/mini tabs, with an icon + label per tab
+(never counts): **Overview (default) · All · Locations · Scenes · Call Times · Crew**.
+Overview is Details + Breaks & Notes + Events + Conflicts; All is the stacked page; the
+others show their one card. The active tab is a place
+(`#/production/days/manager/<tab>`; `overview` omitted, `all` explicit), so
+back/forward, reload and pop-outs keep it. Switching tabs keeps the selected
+day/tab and each Glide grid's cell/range selection (cached under its presence
+scope and restored on remount). Below it sit the collapsible
+section cards (`DaySectionCard`). **Day Details is a compact overview**, not
+a field/value table: a title-case date + day number + day-type pill, one muted stats
+line, three timing tiles (only the general call shows a pencil edit affordance), and a
+location/weather strip: a master-location picker over the day's attached locations plus
+the one-line forecast with refresh and the `Manual weather` toggle. The old toolbar
+weather chip is gone — Day Details is the weather home. Breaks, stripboard notes and the
+free-text announcements live in their own full-width **Breaks & Notes** card, so the
+meta card stays short beside Events/Conflicts. Empty states are compact: **Conflicts is
+skipped entirely** when there are no violations; an empty **Events** card is a single
+header row with the kit `Add event…` trailing action. Events reuses the Calendar's
+per-element `EventCardView` at `size="md"` — click a card to open that element's event
+editor; whole-category/status surfaces open the day editor. An empty **Locations** card
+is one dashed CTA row (`No locations on this day.` + the kit `Add location` action), not
+an instruction line plus an empty grid; with rows, the Glide board + footer add action
+are unchanged. All overlays (Copy-from-day, events,
+pickers) are dark per the two-layer rule.
+
+**Theming (roadmap 310)**: the manager page is wrapped in
+`ThemeScope mode="light" surface="neutral"`; its shell, `DayPicker`, section cards and
+section bodies read `--ui-*` fills/text/borders instead of zinc utilities. The day
+family is fully tokenised — the Day Events modals, Production Details, Call Times,
+Copy-from-day, Add Crew Member, the crew roster Glide grid (ambient light/dark theme via
+`createDayTimesTheme(fs, mode)`) and the Call Sheet editor/paper (the paper gets its own
+light neutral scope). The app `Modal` shim pins `theme="dark"` (302), so a light page
+scope never flips an overlay — modals stay dark until light modals land.
+ The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's
 `onChromeModeChange`) so the light tabs never float over the dark editor — the switcher
@@ -283,6 +321,8 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Click-to-toggle anchored menu | `DropdownMenu`/`DropdownItem`/`DropdownSubmenu` | Radix; **one `.ui-item-highlighted` row** (pointer hover + arrows, latest wins; the CSS `:hover` fill feeds iOS tap-to-hover but is suppressed while a row is highlighted — kit `tokens.css`, keyed on the kit class not Radix's attr), arrows/typeahead/Esc + the document-level menu key-lock (mini-modal: menu keys stay captured even when focus sits on a canvas); `modal:false`; root content = the one positioning engine (`useDropdownPosition`: fixed below the trigger, width-matched, visual-viewport flip/clamp, `maxMenuHeight` ceiling); submenus keep the Radix popper side-placement; portals at `z-[200]` (bumped to 10001 inside modals, `index.css:29-31`). **Trigger-anchored open/close morph** (grow out of the trigger corner, shrink back on close — kit `overlayMorph.ts`, the modal FLIP language; §Modal anatomy). **`searchable`** adds the kit search box that filters the registered rows (the long category list in Script tagging, roadmap 136: `ScriptTagMenu` anchors a zero-size fixed trigger at the text selection, so the highlighted text stays selected while the menu is open) |
 | Right-click / long-press menu | `ContextMenu` + `data-context-menu` targets | Fixed at (x,y), clamped to viewport, **light theme by default** (`theme` prop; the ribbon designer passes `"dark"`); press-point-anchored morph, closes on Esc. Shares the kit menu machinery (highlight/keys/lock) — `ContextMenuSub` = `DropdownSubmenu` |
 | Entity/cast picker in a cell or form | `EntityDropdown` | Modes: `multi` (comma list, click toggles), `single` (search-then-select), `select` (legacy). `items` prop REQUIRED — no context fallback. **Inside modals use `variant="chip"`** (dark chip trigger + dark panel; §EntityDropdown chip version below) — cells/forms keep the light default |
+| Location picker | `locationOptions(project)` + `EntityDropdown` / `LocationEntityDropdown` | **ALWAYS the category version** — the emerald add-new row first, then the Locations DB grouped by **location type** (`searchFields: ['name','group']`, `sortItems: list => list` so headers never split). Standalone fields use `LocationEntityDropdown` (name-keyed display adapter, committed value stays the location **id**); grid/cell editors pass the same options to `EntityDropdown` | `src/lib/locationOptions.ts`, `src/components/location/LocationEntityDropdown.tsx` |
+| Crew picker | `crewRoleGroup` / `departmentOrder` | **ALWAYS grouped by crew position/department** (catalog order, then custom departments) — never a flat role list; sort within a department only. Same for the Add-role menu and the Day Manager crew grids | `src/lib/crewCatalog.ts`, `src/lib/dayCrew.ts` |
 | Async address/place search | `AsyncResultsDropdown` (`src/components/location/`) | Debounced async results rendered in the **shared dark `DropdownPanel`** (the chip-EntityDropdown panel — morph, touch/wheel scroll, visual-viewport keyboard clamp for free) with a `Loader2` spinner in the trigger while searching; the search input keeps focus (NOT a kit `DropdownMenu`: its document key-lock consumes typeahead letters + steals focus to the content, breaking typing) |
 | Inline cell text edit | `CellInput` | **Commits on blur only, never per keystroke**; Enter=commit, Esc=cancel |
 | Numeric box (ribbon Pad V/H, Edge, Master Size, cell offset; designer/report panels; format-bar size) | kit `NumberInput` (v0.1.99; app shim `src/components/LiveNumberInput.tsx`) | Free-typed draft while focused (type digits one at a time, delete-to-empty); commit clamps live (preview updates), Enter/blur clamps + finalizes, Escape reverts to the committed value; ArrowUp/Down and the stacked chevron steppers step ±`step` (disabled at the bounds); mouse drag scrubs (Premiere/Resolve — up = increase, 2px/step; touch/pen keep scrolling). Never a clamped controlled input — clamping on change snaps the first keystroke. Default = the `.ui-number-box` token box (`theme="dark\|light\|blue"`); a `className` keeps the consumer's own input look |
@@ -293,9 +333,9 @@ Touch (`IS_COARSE`) bumps modal icons to `w-4 h-4` (`Modal.tsx:13`).
 | Full-page detail editor | SceneSheet pattern (light page, NOT a modal) | `SceneSheet.tsx` |
 | Multi-select lists | `Checklist` / `RadioList` / `Checkbox` | kit, `data-theme` aware |
 | Call-time / duration input | `TimeField` / `DurationField` | Shared expression parsing + touch keypad; never a raw time input |
-| Grouped single/multi-select dropdown (locations/crew/categories) | `GroupedSelect` (`production/day/`) | Renders through the shared `DropdownPanel` (group headers + single-highlight), NOT the kit `DropdownMenu` (the async/darker interaction needs the panel's typeahead-friendly model); light/dark themes. Positioning comes from the one engine — never hand-place the panel |
+| Grouped single/multi-select dropdown (locations/crew/categories) | `GroupedSelect` (`production/day/`) | Kit `DropdownMenu` + `DropdownItem group` — category headers, searchable by row/category, single/multi, light/dark. Never fork a second grouped panel |
 | Grouped item list (dark modals) | `ItemCard` + `ItemRow` (`src/components/cards/`) | Collapsible group card + interactive row — the element events manager's day-type sections and its Rules section (first migrations). §Item cards below |
-| Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), read-only cells gray + `cursor: default`, editable rows hover-tinted, centered headers, one commit per edit/paste/fill/clear. Header right-click can expose caller menu items via `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut. Day Manager Call Times + Crew; reuse for manager pages |
+| Inline spreadsheet on a page card | `InlineGlideTable` (`src/components/InlineGlideTable.tsx`) | Compact Glide grid: auto-fit columns (no horizontal scroll), content height + `overflow: hidden` (no vertical scroll), read-only cells gray + `cursor: default`, editable rows hover-tinted, centered headers, one commit per edit/paste/fill/clear. Header right-click can expose caller menu items via `headerMenuItems(close)` (e.g. Day Manager Call Times → "Edit Call Time Stages…"); cell right-click keeps Copy/Paste/Clear/Cut. The local cell/range selection is cached under its presence scope (or data attr) and restored on remount, so a Day Manager tab switch doesn't drop it. Day Manager Call Times + Crew; reuse for manager pages |
 
 Dropdown **light picker** classes live in `src/lib/dropdown.ts` (panel `bg-white border-zinc-200
 rounded-lg shadow-lg`, `DD_PANEL_CLASS_LIB` `:21-24`; items `DD_ITEM_CLASS_LIB` `:16-17`; selected
@@ -337,6 +377,15 @@ distinct from the highlight: dark `bg-zinc-800/40 text-zinc-100` + trailing `Che
 scrolls the active row into view** — pointer hover never moves the list (item 187; `EntityDropdown`
 gates its `scrollIntoView` on `hoverRef`).
 
+**Committed values as per-value chips — considered, declined (retired roadmap 50).** A tag-input
+variant would render pills only in the CLOSED trigger: the value IS the input (caret-at-end append,
+Backspace, Enter/Tab commit, Glide callbacks), so the text-editing model stays underneath. The kit
+has no generic Chip primitive (`TokenChipView` is tied to the contenteditable token editor), and
+multi-value chip triggers wrap/overflow single-line modal rows. Revisit only when a requirement
+needs per-item affordances (per-chip × to remove one attachment/linked value without retyping, or
+category-coloured chips — items 45/46's calendar event chips are the precedent); then build it as a
+new `variant="tags"` (default untouched) on an experimental branch, Link Manager multi rows first.
+
 **Single-highlight rule (kit menus AND context menus — the kit `DropdownMenu`/`DropdownSubmenu`/
 `ContextMenu` share the panel's highlight model, item 64)**: the one lit row is `.ui-item-highlighted`
 (kit `tokens.css`) — written by pointer hover AND the keyboard arrows (latest wins; `onPointerLeave`
@@ -375,18 +424,31 @@ Schedule stripboard, not popout editors).
 ## Modal anatomy & rules
 
 Structure (all in `src/components/Modal.tsx`):
-- **Header** (`:177`): `flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 bg-zinc-950`, `cursor-grab`, **draggable** by pointer-capture; icon (`text-zinc-400`) + title `text-xs font-bold text-white truncate` (`:184`) + optional Reset (`:190`) + close X `text-zinc-500 hover:text-white` (`:195`).
-- **Body** (`:201`): `overflow-y-auto flex-1 bg-zinc-900 text-zinc-100`; content carries `p-6 space-y-5`.
-- **Footer** (`ModalFooter`, `:227-233`): `flex items-center justify-end gap-3 px-5 py-2 border-t border-zinc-800 bg-zinc-950`.
+- **Theme (roadmap 302)**: the shell reads kit tokens, never Tailwind zinc. `theme` picks the mode
+  (`light | dark`; default = ambient `ThemeScope`, else dark), `accent` (`zinc | blue | emerald`)
+  is project identity, and `surface="accent"` opts into the accent ladder: `accent-950` header (THE
+  app-header colour, white title), NEUTRAL body, `accent-100` wells/footer. Every normal app modal
+  uses `surface="neutral"`: light/dark shell, **no accent inside** (selection/checks/Seg/date chips
+  are neutral) — Drive/shared keep their blue/emerald colour in the chrome (header/tabs), not in the
+  modal. Card and calendar headers use `accent-900` only on an accent surface; the calendar body +
+  checklist/radio panels stay neutral; every outline stays neutral (`--ui-border` /
+  `--ui-border-strong`). A nested accent-only `ThemeProvider`/`ThemeScope` is a manual Lego
+  override. The app's `src/components/Modal.tsx` shim maps the open project
+  (`projectModalThemeOf`); callers can override either prop. `color-scheme` follows the mode.
+- **Header**: `flex items-center justify-between px-5 py-2.5 border-b border-[var(--ui-modal-header-border)] bg-[var(--ui-modal-header-bg)]`, `cursor-grab`, **draggable** by pointer-capture; icon (`text-[var(--ui-modal-icon)]`) + title `text-xs font-bold text-[var(--ui-modal-title)] truncate` + optional Reset (`text-[var(--ui-modal-muted)] bg-[var(--ui-modal-control-bg)]`) + close X (`text-[var(--ui-modal-muted)] hover:text-[var(--ui-modal-title)]`).
+- **Body**: `overflow-y-auto flex-1 bg-[var(--ui-modal-body-bg)] text-[var(--ui-modal-body-text)]`; content carries `p-6 space-y-5`.
+- **Footer** (`ModalFooter`): `flex items-center justify-end gap-3 px-5 py-2 border-t border-[var(--ui-modal-border)] bg-[var(--ui-modal-header-base)]` (the NEUTRAL band, so an accent header stays the only tinted strip).
 - **Footer buttons — one hero, rest ghost**: every modal footer has exactly ONE hero button — the
   primary action — and EVERY other button (Cancel, secondary actions, Import) is the ghost style.
   Use the kit's `ModalFooterButton` (`src/components/ModalFooterButton.tsx` re-export) — never
-  hand-write footer classes. Variants: `hero` (default; solid
-  `bg-zinc-800 text-white border-zinc-700`, e.g. "+ New Project" in the Project Manager), `ghost`
-  (e.g. "Import"), `danger` (text+ghost destructive, left-aligned with `mr-auto` — Delete), and
-  `danger-solid` (red confirm — Delete Selected). Sizes (coarse-aware `px-6 py-2` /
-  `px-7 py-2.5 text-sm`), icon spacing (`gap-2`) and disabled states are baked in. A single-button
-  footer IS the hero (Close). No second hero; async heroes swap to a `Loader2` spin + `disabled`.
+  hand-write footer classes. Variants: `hero` (default; solid `--ui-footer-hero-*`, e.g. "+ New
+  Project" in the Project Manager), `ghost` (e.g. "Import"), `danger` (text+ghost destructive,
+  left-aligned with `mr-auto` — Delete), and `danger-solid` (red confirm — Delete Selected). The
+  hero's `tone="accent"` uses the project accent (`--ui-accent-solid`) — pass it from
+  `projectAccentOf(useProjectTheme())` when the action should wear the chrome. Sizes (coarse-aware
+  `px-6 py-2` / `px-7 py-2.5 text-sm`), icon spacing (`gap-2`) and disabled states are baked in. A
+  single-button footer IS the hero (Close). No second hero; async heroes swap to a `Loader2` spin +
+  `disabled`.
 - **No manual resize** — the modal auto-fits its content (content-driven height changes animate,
   see Morph below); drag-to-move by the header is the only manual geometry control. Default
   width comes from the `width` prop (`max-w-* w-full`, else `max-w-xl`) clamped by

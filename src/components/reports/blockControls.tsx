@@ -1078,6 +1078,17 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           />
         </EditorGroup>
       </ContentRow>,
+      <ContentRow key="reportTo" label="Columns">
+        <EditorGroup className={panel ? 'w-full' : undefined}>
+          <EditorCheckbox
+            className={panel ? 'flex-1' : undefined}
+            checked={block.showReportTo === true}
+            disabled={disabled}
+            onChange={on => onPatch({ showReportTo: on || undefined })}
+            label="Show Report To"
+          />
+        </EditorGroup>
+      </ContentRow>,
       titleSection,
     );
   } else if (block.type === 'precalls') {
@@ -1365,6 +1376,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
                 }
               : null
           }
+          editing={block.mapLat != null || block.mapLng != null || !!block.mapPlace || !!block.mapAddress}
         />
       )}
     </div>

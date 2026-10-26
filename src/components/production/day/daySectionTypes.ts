@@ -14,6 +14,9 @@ export interface DaySectionActions {
   openEvents?: (date: string) => void;
   /** Open the Add-Event adder (not the manager) for a date. */
   addEvents?: (date: string) => void;
+  /** Open the single-element event editor (calendar parity): one card for one
+   *  element on one date. Whole-category/status cards use `openEvents`. */
+  openEvent?: (date: string, status: string, category: string, elementKey: string) => void;
   openCallSheet?: () => void;
   printCallSheet?: () => void;
   /** Open the Call Times settings modal (stages / category defaults / crew).
@@ -39,4 +42,8 @@ export interface DaySectionProps {
   /** The selected day's sun/weather (roadmap 301). The page owns the single
    *  warm/refresh run so every surface reads the same resolved values. */
   weatherView?: DaySunWeatherView | null;
+  /** Force-refresh the day's forecast. The Day Details card owns the action
+   *  now that the toolbar weather chip is gone. */
+  refreshWeather?: (date: string) => void;
+  weatherRefreshing?: boolean;
 }

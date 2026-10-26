@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { ThemeScope } from '@gabriel/ui-kit';
 import { useProject } from '../../../store';
 import { useReportCtx } from '../../../lib/useReportCtx';
 import { getReportFieldMap } from '../../../lib/reportFields';
@@ -10,6 +11,7 @@ import { REPORT_PAGE_METRICS, REPORT_PAGE_PADDING, CALL_SHEET_EDIT_ZONE_STYLE } 
 import { ReportBlockView } from '../../reports/ReportBlockView';
 import ReportBlockTitle from '../../reports/ReportBlockTitle';
 import type { ReportZonePageArgs } from '../../reports/ReportDesigner';
+import type { PickedLocation } from '../../../lib/places';
 import InteractiveGridBlock from './InteractiveGridBlock';
 import { SceneHighlightContext } from '../../reports/sceneHighlight';
 import type { DayView } from '../../../lib/dayView';
@@ -64,6 +66,9 @@ interface CallSheetCanvasProps {
   /** Item 146 — the shared Add Crew Member modal (crew table person swap /
    *  Add role flows); owned by the Day Manager composition root. */
   openAddCrewMember?: (opts?: { role?: string; name?: string; slotId?: string }) => void;
+  /** Item 156 — creates the Locations-DB entry the crew board's picker
+   *  confirmed; the Day Manager composition root owns dispatch. */
+  onCreateLocation?: (picked: PickedLocation, type: string) => string;
   /** Zone editor state (roadmap 212). Set only when the design HAS a
    *  `callSheetEdit` zone: `canvas` is the live bare Reports Designer canvas,
    *  positioned at the zone slot. Absent = display-only page (roadmap 211). */
@@ -72,7 +77,7 @@ interface CallSheetCanvasProps {
 
 const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({
   design, day, zoneBlocks, patchMeta, onEditCallTimesSettings, readOnly,
-  showRibbonTimes, openAddCrewMember, editor,
+  showRibbonTimes, openAddCrewMember, onCreateLocation, editor,
 }) => {
   const { state } = useProject();
   const project = state.present;
@@ -153,14 +158,15 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({
 
   return (
     <SceneHighlightContext.Provider value={highlightScene}>
-      <div className="flex-1 min-h-0 min-w-0 overflow-auto p-6 bg-zinc-950 text-zinc-300 select-none" data-call-sheet-canvas>
+      <div className="flex-1 min-h-0 min-w-0 overflow-auto p-6 bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)] select-none" data-call-sheet-canvas>
+        <ThemeScope mode="light" surface="neutral" className="mx-auto" style={{ width: metrics.contentWidth }}>
         <div
-          className="mx-auto bg-white shadow-2xl"
-          style={{ width: metrics.contentWidth, padding: `${REPORT_PAGE_PADDING.v}px ${REPORT_PAGE_PADDING.h}px` }}
+          className="bg-[var(--ui-panel-bg)] shadow-2xl text-[color:var(--ui-text)]"
+          style={{ padding: `${REPORT_PAGE_PADDING.v}px ${REPORT_PAGE_PADDING.h}px` }}
           data-call-sheet-page
         >
           {!ctx || !dayItem ? (
-            <div className="py-16 text-center text-xs text-zinc-400">Loading day…</div>
+            <div className="py-16 text-center text-xs text-[color:var(--ui-text-faint)]">Loading day…</div>
           ) : (
             <>
               {renderTemplateRegion(design.header || [])}
@@ -169,7 +175,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({
                 if (b.type === 'callTimes' || b.type === 'crewTable' || b.type === 'precalls') {
                   return (
                     <div key={b.id} className="my-3">
-                      <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={setHighlightScene} showTimes={showRibbonTimes} openAddCrewMember={openAddCrewMember} title={gridTitle(b)} />
+                      <InteractiveGridBlock block={b} day={day} project={project} patchMeta={patchMeta} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={setHighlightScene} showTimes={showRibbonTimes} openAddCrewMember={openAddCrewMember} onCreateLocation={onCreateLocation} title={gridTitle(b)} />
                     </div>
                   );
                 }
@@ -182,6 +188,7 @@ const CallSheetCanvas: React.FC<CallSheetCanvasProps> = ({
             </>
           )}
         </div>
+        </ThemeScope>
       </div>
     </SceneHighlightContext.Provider>
   );

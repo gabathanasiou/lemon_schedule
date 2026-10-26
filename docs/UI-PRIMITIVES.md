@@ -87,6 +87,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `DayManagerPage` receives `dayMode`/`onDayModeChange`. Memory persists across tab switches and app
   restarts (a fresh open resumes the last-used view); the editor's Back button returns to the
   manager without stacking duplicate entries.
+- **Day Manager category tabs are a fourth segment** (roadmap 315): `#/production/days/manager/scenes`
+  (Overview is the default and is omitted; `all` is explicit). The centered strip is the mini-tab recipe — kit `Button variant="tab"` +
+  `useSlidingPill`/`TAB_PILL`, an icon + label per tab (no counts) — inside
+  `DayManagerPage`; `AppPlace.dayTab` is the place field (`samePlace` compares it), while a day
+  pop-out keeps the local `lemon_schedule_day_manager.tab` pref. The registry's `tabs` metadata
+  decides which cards each tab renders.
 - **One entry point**: `go(place)` in `App.tsx` (dedupe → `pushState`/`replaceState` → applies
   tab/sub/target state). Never call `setActiveTab`/sub-tab setters directly for user navigation —
   route through `go` (in-tab selections like a selected day/scene are NOT places). One-shot jump
@@ -176,7 +182,9 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - `DropdownMenu`/`DropdownItem`/`DropdownDivider`/`DropdownSubmenu` (Radix click-to-toggle;
   **single-highlight + keys/lock shared with ContextMenu** — one `.ui-item-highlighted` row, the CSS
   `:hover` fill is suppressed while a row is highlighted (kit `tokens.css`), arrows/Enter/typeahead,
-  document-level menu key-lock, panel positioning; `ContextMenuSub` = `DropdownSubmenu`),
+  document-level menu key-lock, panel positioning; `ContextMenuSub` = `DropdownSubmenu`;
+  `DropdownItem group="Set"` renders category headers in plain AND `searchable` menus, and the
+  search query matches the group label),
   `Modal`+`ModalFooter` (draggable; no manual resize — auto-fits content; one `.ui-modal-overlay`
   dim per window — stacked modals zero non-top dims), `ContextMenu`/`ContextMenuItem`/
   `ContextMenuDivider` (fixed-position), `CellInput` (inline text, Enter confirm/Escape cancel;
@@ -195,6 +203,20 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `bg-zinc-800`, e.g. "+ New Project"); EVERY other button — Cancel, secondary actions, Import — is
   `variant="ghost"` (e.g. "Import"). Destructive: `variant="danger"` (ghost, `mr-auto`) for Delete,
   `variant="danger-solid"` for red confirms. Never hand-write footer button classes.
+- **Modal theming (roadmap 302)**: the app `Modal` shim applies `projectModalThemeOf` — every
+  project kind is a neutral surface, so the shell and its kit children carry NO project accent
+  inside; Drive/shared colour stays in the chrome. Pass `surface="accent"` to opt one surface into
+  the accent ladder, or wrap a single control in an accent-only `ThemeProvider` for a manual (Lego)
+  override. Never hand-tint modal bodies with `bg-blue/emerald-*`. The shim pins `theme="dark"` until
+  the light-modal work lands, so a light page scope (e.g. the Day Manager pilot, 310) never flips an
+  overlay.
+- **Project chrome (roadmap 311)**: wrap the app header / pop-out toolbar / page toolbar in
+  `ProjectChromeScope` (`src/components/ProjectChromeScope.tsx`) — one kit `ThemeScope` publishing
+  `mode`, the project accent and `context="chrome"`. Bar/hover/title-ring/tab-pill read
+  `--ui-accent-header-*` / `--ui-tab-*`; never hand-write `bg-blue-950` / `bg-emerald-950` or
+  `PROJECT_CHROME` class strings. A one-off accent chip OUTSIDE a toolbar scope carries
+  `data-accent={projectAccentNameOf(theme)}` + an `--ui-accent-*` fill (Sort/Boneyard chips).
+  `PROJECT_CHROME` is the status-bar `barHex` only.
 - **Dialogs (confirm/prompt/alert) are Modal sub-elements**: `useDialog()` renders through the kit
   Modal's `flat` chrome (no header/footer bars — title row + buttons on the body surface) so they
   inherit the morph, one-dim backdrop, viewport clamp and coarse sizing. **Enter ALWAYS triggers the
@@ -210,13 +232,18 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
   `displayMode` picks the value space (`id` fields vs `name`); pass **`resolveBy="id"`** when values
-  are ids but the user should see names (crew people, locations in link rows). As a cell editor
-  ALWAYS separate commit from exit: `onChange` updates the value, `onExit` leaves edit mode (never
-  call both in one handler — editor unmounts and can't reopen).
+  are ids but the user should see names (crew people, locations in link rows).
+  As a cell editor ALWAYS separate commit from exit: `onChange` updates the value, `onExit` leaves
+  edit mode (never call both in one handler — editor unmounts and can't reopen). **Domain lists stay
+  grouped**: location pickers use `locationOptions(project)` — add-new first, then the Locations DB
+  grouped by location type (search `name` + `group`, never re-sort across headers); crew pickers
+  group by `crewRoleGroup`/`departmentOrder`. Standalone location fields use
+  `LocationEntityDropdown`; never a flat location or role list.
 - `TimeField`/`DurationField` (`src/components/`): call-time expression input (absolute/relative,
   touch keypad, live resolved value, reset) + the extracted duration recipe. `GroupedSelect`
-  (`production/day/`): grouped single/multi-select dropdown rendered through `DropdownPanel` (the one
-  positioning engine handles flip/clamp); `EntityItem.group` also renders headers in `DropdownPanel`.
+  (`production/day/`): grouped single/multi-select rendered through the kit `DropdownMenu` —
+  `DropdownItem group` headers + searchable category matching, one positioning/morph path; an
+  omitted `theme` follows the ambient kit mode (light page vs dark modal). `EntityItem.group` still renders headers in the bespoke `DropdownPanel` for EntityDropdown.
 - **Key patterns**: click-to-toggle menus (never `group-hover`); Lucide icons
   `w-3.5 h-3.5 shrink-0` in menus; dark surfaces `bg-zinc-950/95 backdrop-blur-md border
   border-zinc-800`.

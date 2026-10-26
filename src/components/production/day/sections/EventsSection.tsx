@@ -1,49 +1,78 @@
 import React from 'react';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Pencil } from 'lucide-react';
 import type { DaySectionProps } from '../daySectionTypes';
-import { getTypeListGroups, isAllKeys, resolveElementName } from '../../../../lib/nonShootHelpers';
+import { computeDayEvents } from '../../../../lib/events';
 import { getDayType } from '../../../../lib/dayTypes';
-import { getLabel } from '../../../../lib/categories';
+import { EventCardView } from '../../../calendar/EventDayCell';
+import Button from '../../../Button';
 
+/**
+ * The day's events as the SAME per-element cards the Calendar shows: a status
+ * chip, one card per element attachment (type tint/icon + name + note marker),
+ * and a Manage action. Clicking an element card opens the single-event editor
+ * directly; whole-category/status surfaces open the day editor. Empty returns
+ * null — the card header carries the single Add event CTA (roadmap 316).
+ */
 const EventsSection: React.FC<DaySectionProps> = ({ day, project, actions }) => {
-  const groups = getTypeListGroups(day.event);
   const statusType = day.status ? getDayType(project, day.status) : null;
+  const cards = computeDayEvents(project, day.date, day.event, day.violations, project.rules || [])
+    .filter(card => card.kind === 'attachment');
 
-  if (!statusType && groups.length === 0) {
-    return (
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-zinc-400">No events on this day.</p>
-        <button type="button" onClick={() => actions.addEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Add event…</button>
-      </div>
-    );
-  }
+  if (!statusType && cards.length === 0) return null;
+
+  const openCard = (card: (typeof cards)[number]) => {
+    if (card.kind === 'attachment' && !card.all && actions.openEvent) {
+      actions.openEvent(day.date, card.status, card.category, card.key);
+    } else {
+      actions.openEvents?.(day.date);
+    }
+  };
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       {statusType && (
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Day status</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium" style={statusType.color ? { backgroundColor: `${statusType.color}22`, color: statusType.color } : undefined}>
+        <button
+          type="button"
+          onClick={() => actions.openEvents?.(day.date)}
+          title="Edit this day's events"
+          className="flex w-full items-center gap-2 rounded-md border border-[color:var(--ui-border)] px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--ui-card-hover)]"
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-muted)]">Day status</span>
+          <span
+            className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+            style={statusType.color ? { backgroundColor: `${statusType.color}22`, color: statusType.color } : undefined}
+          >
             {statusType.label}
           </span>
+          <Pencil className="ml-auto w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" aria-hidden />
+        </button>
+      )}
+
+      {cards.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {cards.map(card => (
+            <div
+              key={card.id}
+              role="button"
+              tabIndex={0}
+              title="Click to edit"
+              onClick={() => openCard(card)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  openCard(card);
+                }
+              }}
+              className="w-full cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            >
+              <EventCardView card={card} project={project} size="md" />
+            </div>
+          ))}
         </div>
       )}
-      {groups.map((g, i) => {
-        const t = getDayType(project, g.status);
-        const names = g.keys.map(k => isAllKeys(g.keys) ? `All ${getLabel(g.category, g.category, project.categoryLabels)}` : resolveElementName(k, g.category, project));
-        return (
-          <div key={`${g.status}-${g.category}-${i}`} className="rounded-md border border-zinc-200 px-2.5 py-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider" style={t?.color ? { color: t.color } : undefined}>{t?.label || g.status}</span>
-              <span className="text-[10px] text-zinc-400">{getLabel(g.category, g.category, project.categoryLabels)}</span>
-            </div>
-            <div className="text-xs text-zinc-700 mt-0.5">{names.join(', ')}</div>
-          </div>
-        );
-      })}
-      <div className="flex justify-end gap-3">
-        <button type="button" onClick={() => actions.addEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Add event…</button>
-        <button type="button" onClick={() => actions.openEvents?.(day.date)} className="text-xs font-medium text-zinc-600 hover:text-zinc-900">Manage events…</button>
+
+      <div className="flex justify-end">
+        <Button variant="subtle" onClick={() => actions.openEvents?.(day.date)}>Manage events…</Button>
       </div>
     </div>
   );

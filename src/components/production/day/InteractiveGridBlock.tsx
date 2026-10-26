@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import type { DayMeta, Project, ReportBlock } from '../../../types';
 import type { DayView } from '../../../lib/dayView';
 import { getCallTimeSettings } from '../../../lib/callTimes';
-import { excludedDeptsForDay, setDeptPrecall, slotsForDay } from '../../../lib/dayCrew';
+import { excludedDeptsForDay, reportToIdForDay, setDeptPrecall, setDeptReportTo, slotsForDay } from '../../../lib/dayCrew';
+import type { PickedLocation } from '../../../lib/places';
 import { getLabel } from '../../../lib/categories';
 import { isReportGridCollection } from '../../../lib/reportGrids';
 import DayTimesGlide from './DayTimesGlide';
@@ -39,9 +40,12 @@ export interface InteractiveGridBlockProps {
    *  ONE `ReportBlockTitle` text renderer, rendered above every live grid so
    *  the editing canvas reads like the printed sheet (item 222). */
   title?: React.ReactNode;
+  /** Item 156 — creates the Locations-DB entry the crew board's picker
+   *  confirmed; the host owns dispatch (`ADD_LOCATION`). */
+  onCreateLocation?: (picked: PickedLocation, type: string) => string;
 }
 
-const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes, openAddCrewMember, title }) => {
+const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day, project, patchMeta, readOnly, onEditCallTimesSettings, onHighlightScene, showTimes, openAddCrewMember, title, onCreateLocation }) => {
   const collection = isReportGridCollection(block.collection) ? block.collection : 'elementCallsOfDay';
   const settings = useMemo(() => getCallTimeSettings(project), [project]);
   // The title (item 140) sits above the grid in every branch — the hardcoded
@@ -58,9 +62,9 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
 
   if (collection === 'departmentCallsOfDay') {
     return withTitle(
-      <div className="rounded-lg border border-zinc-200 overflow-hidden bg-white" data-report-grid="precalls">
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
-          <span className="text-[11px] font-semibold text-zinc-700">Precalls</span>
+      <div className="rounded-lg border border-[color:var(--ui-border)] overflow-hidden bg-[var(--ui-panel-bg)]" data-report-grid="precalls">
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--ui-card-bg)] border-b border-[color:var(--ui-border)]">
+          <span className="text-[11px] font-semibold text-[color:var(--ui-text)]">Precalls</span>
         </div>
         <PrecallsGlide
           day={day}
@@ -103,6 +107,11 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
           onSlotsChange={next => patchMeta({ crewSlots: next })}
           onExcludedChange={next => patchMeta({ excludedCrewDepts: next.length ? next : undefined })}
           onDeptPrecallChange={(dept, expr) => patchMeta(setDeptPrecall(day.meta, dept, expr))}
+          reportToId={reportToIdForDay(project, day.meta)}
+          deptReportTo={day.meta.departmentReportTo}
+          onReportToChange={id => patchMeta({ reportToId: id || undefined })}
+          onDeptReportToChange={(dept, id) => patchMeta(setDeptReportTo(day.meta, dept, id))}
+          onCreateLocation={onCreateLocation}
           onAddCrewMember={() => openAddCrewMember?.()}
           onCreatePerson={(role, name, slotId) => openAddCrewMember?.({ role, name, slotId })}
         />
@@ -111,15 +120,15 @@ const InteractiveGridBlock: React.FC<InteractiveGridBlockProps> = ({ block, day,
   }
 
   if (stagedCategories.length === 0) {
-    return withTitle(<p className="px-2 py-3 text-xs text-zinc-400">No call-time elements on this day.</p>);
+    return withTitle(<p className="px-2 py-3 text-xs text-[color:var(--ui-text-faint)]">No call-time elements on this day.</p>);
   }
 
   return withTitle(
     <div style={{ display: 'flex', flexDirection: 'column', gap: block.gap ?? 8 }} data-report-grid="elementCalls">
       {stagedCategories.map(category => (
-        <div key={category} className="rounded-lg border border-zinc-200 overflow-hidden bg-white">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-50 border-b border-zinc-200">
-            <span className="text-[11px] font-semibold text-zinc-700">{getLabel(category, category, project.categoryLabels)}</span>
+        <div key={category} className="rounded-lg border border-[color:var(--ui-border)] overflow-hidden bg-[var(--ui-panel-bg)]">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--ui-card-bg)] border-b border-[color:var(--ui-border)]">
+            <span className="text-[11px] font-semibold text-[color:var(--ui-text)]">{getLabel(category, category, project.categoryLabels)}</span>
           </div>
           <DayTimesGlide day={day} category={category} patchMeta={patchMeta} project={project} readOnly={readOnly} onEditCallTimesSettings={onEditCallTimesSettings} onHighlightScene={onHighlightScene} showTimes={showTimes} presenceScope={`callsheet:${day.sectionIndex}:times:${category}`} />
         </div>

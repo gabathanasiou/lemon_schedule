@@ -9,6 +9,7 @@ import { getNonShootEntryMap, isElementMarked } from './nonShootHelpers';
 import { computeSectionViolationMap } from './rulesEngine';
 import { codeForType } from './dayTypes';
 import { groupSlotsByDept, resolveSlotCall, slotsForDay, type DayCrewGroup } from './dayCrew';
+import { dayLocationRefs } from './dayLocations';
 import { getElementOutgoingLinks } from './links';
 
 /**
@@ -111,32 +112,6 @@ export interface DayView {
   crewGroups: DayCrewGroup[];
   violations: RuleViolation[];
   sums: SectionSums;
-}
-
-/** Locations linked from the day's SET elements (roadmap 309) — suggestions
- *  for the master/key location pickers. Nothing is attached automatically. */
-export interface LinkedDayLocation {
-  location: ProjectLocation;
-  /** Display name of the set element that owns the link. */
-  fromSet: string;
-}
-
-export function linkedLocationsForDay(project: Project, day: DayView): LinkedDayLocation[] {
-  const sets = day.elements['set'] || [];
-  if (sets.length === 0) return [];
-  const byId = new Map((project.locations || []).map(l => [l.id, l]));
-  const out: LinkedDayLocation[] = [];
-  const seen = new Set<string>();
-  for (const set of sets) {
-    for (const link of getElementOutgoingLinks(project.links, 'set', set.key, 'location')) {
-      if (seen.has(link.linkedValue)) continue;
-      const location = byId.get(link.linkedValue);
-      if (!location) continue;
-      seen.add(link.linkedValue);
-      out.push({ location, fromSet: set.name || set.key });
-    }
-  }
-  return out;
 }
 
 function resolveName(key: string, category: string, project: any): string {
@@ -303,7 +278,12 @@ export function buildDayViews(input: DayViewInputs): DayView[] {
     }
 
     const masterLocation = meta.locationId ? locationById.get(meta.locationId) : undefined;
-    const keyLocations = (meta.locationIds || []).map(id => locationById.get(id)).filter(Boolean) as ProjectLocation[];
+    // Item 156 follow-up: the master is a POINTER into the ordered list — the
+    // key list is every attached location except the master.
+    const keyLocations = dayLocationRefs(meta)
+      .filter(ref => !ref.isMaster)
+      .map(ref => locationById.get(ref.id))
+      .filter(Boolean) as ProjectLocation[];
 
     const callTime = sectionCallTime(sections, s.index);
 
@@ -382,3 +362,30 @@ export function useDayViews(): { days: DayView[]; byIndex: Map<number, DayView> 
 /** The daybreak above a production section — re-exported so callers building
  *  meta patches don't import both modules. */
 export { daybreakAbove };
+
+
+/** Locations linked from the day's SET elements (roadmap 309) — suggestions
+ *  for the day's location pickers. Nothing is attached automatically. */
+export interface LinkedDayLocation {
+  location: ProjectLocation;
+  /** Display name of the set element that owns the link. */
+  fromSet: string;
+}
+
+export function linkedLocationsForDay(project: Project, day: DayView): LinkedDayLocation[] {
+  const sets = day.elements['set'] || [];
+  if (sets.length === 0) return [];
+  const byId = new Map((project.locations || []).map(l => [l.id, l]));
+  const out: LinkedDayLocation[] = [];
+  const seen = new Set<string>();
+  for (const set of sets) {
+    for (const link of getElementOutgoingLinks(project.links, 'set', set.key, 'location')) {
+      if (seen.has(link.linkedValue)) continue;
+      const location = byId.get(link.linkedValue);
+      if (!location) continue;
+      seen.add(link.linkedValue);
+      out.push({ location, fromSet: set.name || set.key });
+    }
+  }
+  return out;
+}

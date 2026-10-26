@@ -30,14 +30,14 @@ function fixture(): any {
 
 describe('crewTargetItems', () => {
   it('groups people by department with the role as the hint', () => {
-    const items = crewTargetItems(fixture()).filter(i => !i.accent);
+    const items = crewTargetItems(fixture()).filter(i => !i.tag);
     expect(items.find(i => i.id === 'p1')).toMatchObject({ name: 'MAT', group: 'Camera', hint: 'DoP' });
     expect(items.find(i => i.id === 'p3')).toMatchObject({ group: 'Transport', hint: 'Driver' });
   });
 
   it('offers one accent "All <department>" tag per department, above its people', () => {
     const items = crewTargetItems(fixture());
-    const tags = items.filter(i => i.accent);
+    const tags = items.filter(i => i.tag);
     expect(tags.map(i => i.name)).toEqual(['All Camera', 'All Transport']);
     expect(tags.every(i => i.id.startsWith('dept:'))).toBe(true);
     expect(items.findIndex(i => i.id === crewDeptTargetId('Camera')))
@@ -48,7 +48,7 @@ describe('crewTargetItems', () => {
     const project = fixture();
     project.crewRoles.push({ key: 'emptyrole', label: 'Runner', department: 'Production' });
     const tag = crewTargetItems(project).find(i => i.id === crewDeptTargetId('Production'));
-    expect(tag).toMatchObject({ name: 'All Production', accent: true });
+    expect(tag).toMatchObject({ name: 'All Production', tag: true });
   });
 
   it('handles a project with no crew roster', () => {

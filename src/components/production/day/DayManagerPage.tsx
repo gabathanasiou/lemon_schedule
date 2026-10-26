@@ -1,25 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, CalendarDays, ChevronDown, Clock, Copy, ExternalLink, Flag, Info } from 'lucide-react';
+import { ThemeScope, useSlidingPill, TAB_PILL } from '@gabriel/ui-kit';
+import { ArrowLeft, CalendarDays, ChevronDown, Clapperboard, Clock, Copy, ExternalLink, Flag, Info, LayoutGrid, MapPin, Plus, UsersRound } from 'lucide-react';
 import ProductionDetailsModal from './ProductionDetailsModal';
 import CallTimesSettingsModal from './CallTimesSettingsModal';
-import { useProject } from '../../../store';
+import { useProject, useProjectTheme } from '../../../store';
 import { useDayViews, type DayView } from '../../../lib/dayView';
 import { useFollowView } from '../../../lib/supabase/useFollowView';
 import { patchDayMeta } from '../../../lib/dayMeta';
+import { projectAccentOf } from '../../../lib/projectTheme';
+import { CHROME_TAB_GAP } from '../../../lib/chromeSpacing';
 import { assignSlotPerson, slotsForDay } from '../../../lib/dayCrew';
+import { locationFromPick } from '../../../lib/locations';
+import type { PickedLocation } from '../../../lib/places';
 import { rulesRelevantToDay } from '../../../lib/rulesEngine';
 import { IS_COARSE } from '../../../lib/device';
 import { usePersistState } from '../../../lib/persist';
 import DaySectionCard from './DaySectionCard';
 import DayPicker from './DayPicker';
+import Button from '../../Button';
 import DropdownMenu from '../../DropdownMenu';
 import DropdownItem from '../../DropdownItem';
 import DropdownDivider from '../../DropdownDivider';
 import { DAY_SECTIONS } from './daySectionRegistry';
 import type { DaySectionActions } from './daySectionTypes';
+import { DAY_MANAGER_TAB_LABELS, isDayManagerTab, type DayManagerTab } from '../../../lib/dayTabs';
 import { DayEventsModal } from '../../calendar/DayEventsModal';
 import { EventAdderModal } from '../../calendar/EventAdderModal';
+import { EventModal } from '../../calendar/EventModal';
 import CopyDayModal from './CopyDayModal';
 import CallSheetEditPage from './CallSheetEditPage';
 import AddCrewMemberModal from '../../crew/AddCrewMemberModal';
@@ -28,7 +36,6 @@ import type { DayMeta, ReportBlock, ReportDesign, ScheduleRow } from '../../../t
 import { useReportCtx } from '../../../lib/useReportCtx';
 import { daySunWeather } from '../../../lib/reportWeather';
 import { useSunWeather } from '../../../lib/useSunWeather';
-import DayWeatherChip from './DayWeatherChip';
 
 const PREFS_KEY = 'lemon_schedule_day_manager';
 
@@ -36,9 +43,22 @@ interface DayManagerPrefs {
   selectedIndex: number;
   collapsed: string[];
   callSheetDesignId: string;
+  /** Last category tab — the uncontrolled (pop-out) source and the main
+   *  window's fallback when the URL has no tab. */
+  tab: DayManagerTab;
 }
 
-const DEFAULT_PREFS: DayManagerPrefs = { selectedIndex: -1, collapsed: [], callSheetDesignId: '' };
+const DEFAULT_PREFS: DayManagerPrefs = { selectedIndex: -1, collapsed: [], callSheetDesignId: '', tab: 'overview' };
+
+/** The category strip — the same labelled icon tabs as the mini bars. */
+const DAY_TAB_OPTIONS: { id: DayManagerTab; label: string; title: string; icon: React.ReactNode }[] = [
+  { id: 'overview', label: DAY_MANAGER_TAB_LABELS.overview, title: 'Day details, breaks & notes, events and conflicts', icon: <Info className="w-3.5 h-3.5" /> },
+  { id: 'all', label: DAY_MANAGER_TAB_LABELS.all, title: 'Show every card', icon: <LayoutGrid className="w-3.5 h-3.5" /> },
+  { id: 'locations', label: DAY_MANAGER_TAB_LABELS.locations, title: 'Locations', icon: <MapPin className="w-3.5 h-3.5" /> },
+  { id: 'scenes', label: DAY_MANAGER_TAB_LABELS.scenes, title: 'Scenes', icon: <Clapperboard className="w-3.5 h-3.5" /> },
+  { id: 'callTimes', label: DAY_MANAGER_TAB_LABELS.callTimes, title: 'Call times', icon: <Clock className="w-3.5 h-3.5" /> },
+  { id: 'crew', label: DAY_MANAGER_TAB_LABELS.crew, title: 'Crew', icon: <UsersRound className="w-3.5 h-3.5" /> },
+];
 
 export interface DayManagerPageProps {
   headerTarget?: HTMLElement | null;
@@ -51,6 +71,10 @@ export interface DayManagerPageProps {
    *  (pop-out day windows); the main window passes App's history-backed state. */
   dayMode?: 'manager' | 'callsheet';
   onDayModeChange?: (mode: 'manager' | 'callsheet') => void;
+  /** Category tab (roadmap 315). Uncontrolled when omitted (pop-out windows
+   *  remember their own tab); the main window passes the history-backed place. */
+  dayTab?: DayManagerTab;
+  onDayTabChange?: (tab: DayManagerTab) => void;
   onOpenScene?: (sceneId: string) => void;
   onPrintCallSheet?: (day: DayView, design: ReportDesign, zoneBlocks?: ReportBlock[]) => void;
   onPopOutDay?: (day: DayView) => void;
@@ -69,6 +93,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   onTargetSeen,
   dayMode,
   onDayModeChange,
+  dayTab,
+  onDayTabChange,
   onOpenScene,
   onPrintCallSheet,
   onPopOutDay,
@@ -79,12 +105,24 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { days, byIndex } = useDayViews();
   const ctx = useReportCtx();
-  // ONE warm/refresh run for the selected day (roadmap 301) — the toolbar chip
-  // and the Day Details weather rows read the same resolved values.
+  // ONE warm/refresh run for the selected day (roadmap 301) — the Day Details
+  // weather row reads the resolved values and owns the manual refresh.
   const sunWeather = useSunWeather(ctx);
   const [prefs, setPrefs] = usePersistState<DayManagerPrefs>(PREFS_KEY, DEFAULT_PREFS);
+  const tab: DayManagerTab = dayTab && isDayManagerTab(dayTab) ? dayTab : (isDayManagerTab(prefs.tab) ? prefs.tab : 'overview');
+  const projectTheme = useProjectTheme();
+  const accent = projectAccentOf(projectTheme);
+  const tabRowRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const tabPill = useSlidingPill(tabRowRef, tabRefs, Math.max(0, DAY_TAB_OPTIONS.findIndex(option => option.id === tab)));
+  const tabPillFill = TAB_PILL.light[accent === 'emerald' ? 'emerald' : accent ? 'blue' : 'plain'];
+  const sectionsRef = useRef<HTMLDivElement>(null);
   const [eventsDate, setEventsDate] = useState<string | null>(null);
   const [adderDate, setAdderDate] = useState<string | null>(null);
+  // One element's event card (calendar parity): click a card in the Events
+  // section to edit that element's event; whole-category cards open the day
+  // editor instead.
+  const [eventEditor, setEventEditor] = useState<{ date: string; status: string; category: string; elementKey: string } | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   // Controlled by App's history-backed place when provided (main window);
   // local state keeps pop-out day windows self-contained.
@@ -94,6 +132,10 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     if (onDayModeChange) onDayModeChange(value ? 'callsheet' : 'manager');
     else setLocalEditCallSheet(value);
   }, [onDayModeChange]);
+  const setTab = useCallback((next: DayManagerTab) => {
+    setPrefs(p => ({ ...p, tab: next }));
+    onDayTabChange?.(next);
+  }, [onDayTabChange, setPrefs]);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [callTimesOpen, setCallTimesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -114,6 +156,20 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     }
   }, [selected?.sectionIndex]);
 
+  // The main window's tab is URL/place-driven; keep the local pref in sync so
+  // a day pop-out opens on the same tab.
+  useEffect(() => {
+    if (dayTab && isDayManagerTab(dayTab) && prefs.tab !== dayTab) {
+      setPrefs(p => ({ ...p, tab: dayTab }));
+    }
+  }, [dayTab, prefs.tab, setPrefs]);
+
+  // A tab is a new surface: start it at the top, never at the previous tab's
+  // scroll offset.
+  useEffect(() => {
+    sectionsRef.current?.scrollTo({ top: 0 });
+  }, [tab]);
+
   useEffect(() => {
     if (initialDayIndex != null) onTargetSeen?.();
   }, [initialDayIndex, onTargetSeen]);
@@ -123,7 +179,13 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   // applier carries `daySection` in the place, so a follower's day follows.
   const follow = useFollowView({
     place: { tab: 'production', sub: 'days', mode: 'manager' },
-    fields: [{ key: 'daySection', value: selected?.sectionIndex }],
+    fields: [
+      { key: 'daySection', value: selected?.sectionIndex },
+      // Publish the tab with the surface's own view too — App's place publish
+      // carries it, but a day change re-publishes from here and must not strip
+      // it (the presence gate/follow keys on `dayTab`).
+      { key: 'dayTab', value: tab },
+    ],
     enabled: !editCallSheet,
   });
 
@@ -148,6 +210,13 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     if (!selected?.daybreakRow || !activeVersion) return;
     dispatch({ type: 'UPDATE_ROW', payload: { versionId: activeVersion.id, rowId: selected.daybreakRow.id, updates } });
   }, [selected?.daybreakRow, activeVersion, dispatch]);
+
+  /** Item 156 — the crew "Report to" picker's create path (shared mapping). */
+  const createLocation = useCallback((picked: PickedLocation, type: string): string => {
+    const location = locationFromPick(picked, type);
+    dispatch({ type: 'ADD_LOCATION', payload: { location } });
+    return location.id;
+  }, [dispatch]);
 
   const callSheetDesign = useMemo(() => {
     const designs = project.reportDesigns || [];
@@ -180,6 +249,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
     openScene: onOpenScene,
     openEvents: date => setEventsDate(date),
     addEvents: date => setAdderDate(date),
+    openEvent: (date, status, category, elementKey) => setEventEditor({ date, status, category, elementKey }),
     openCallTimesSettings: () => setCallTimesOpen(true),
     openAddCrewMember: opts => setAddCrew(opts ?? {}),
     callSheetDesignId: callSheetDesign?.id || '',
@@ -200,16 +270,16 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
 
   if (!selected) {
     return (
-      <div className="flex-1 flex overflow-hidden bg-gray-50" data-day-manager>
+      <div className="flex-1 flex overflow-hidden bg-[var(--ui-card-band)]" data-day-manager>
         <div className="flex-1 flex flex-col items-center justify-center gap-5 p-8 text-center">
-          <div className="w-14 h-14 rounded-full bg-white border border-zinc-200 flex items-center justify-center shadow-sm">
-            <CalendarDays className="w-6 h-6 text-zinc-300" />
+          <div className="w-14 h-14 rounded-full bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] flex items-center justify-center shadow-sm">
+            <CalendarDays className="w-6 h-6 text-[color:var(--ui-text-disabled)]" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-zinc-700">No production days yet</p>
-            <p className="text-xs text-zinc-400 mt-1.5 max-w-sm leading-relaxed">
+            <p className="text-sm font-semibold text-[color:var(--ui-text)]">No production days yet</p>
+            <p className="text-xs text-[color:var(--ui-text-faint)] mt-1.5 max-w-sm leading-relaxed">
               Days appear here once you split the stripboard with a day break — open the Schedule tab, add a
-              <span className="text-zinc-500"> Day Break</span> row, and drop scenes below it. Each break becomes a
+              <span className="text-[color:var(--ui-text-muted)]"> Day Break</span> row, and drop scenes below it. Each break becomes a
               shooting day you can manage here.
             </p>
           </div>
@@ -218,7 +288,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
               type="button"
               onClick={() => setDetailsOpen(true)}
               data-presence-anchor="toolbar:days:details"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-200 bg-white text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)] shadow-sm"
             >
               <Info className="w-3.5 h-3.5" /> Production Details
             </button>
@@ -226,7 +296,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
               type="button"
               onClick={() => setCallTimesOpen(true)}
               data-presence-anchor="toolbar:days:call-times-settings"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-200 bg-white text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)] shadow-sm"
             >
               <Clock className="w-3.5 h-3.5" /> Call Times
             </button>
@@ -269,6 +339,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           patchMeta={patchMeta}
           onEditCallTimesSettings={() => setCallTimesOpen(true)}
           openAddCrewMember={opts => setAddCrew(opts ?? {})}
+          onCreateLocation={createLocation}
           onReset={resetZone}
           onSelectDesign={id => setPrefs(p => ({ ...p, callSheetDesignId: id }))}
           onSelectDay={index => selectDay(index)}
@@ -295,23 +366,45 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
         icon={def.icon}
         summary={def.summary(selected)}
         collapsed={prefs.collapsed.includes(def.id)}
+        collapsible={!empty}
         onToggle={() => toggleSection(def.id)}
+        trailing={def.id === 'events' ? (
+          <Button
+            variant="subtle"
+            disabled={locked}
+            className="shrink-0"
+            onClick={() => actions.addEvents?.(selected.date)}
+          >
+            <Plus className="w-3 h-3" /> Add event…
+          </Button>
+        ) : undefined}
       >
-        {empty ? <p className="text-xs text-zinc-400">Nothing here yet.</p> : (
-          <Section
-            day={selected}
-            patchMeta={patchMeta}
-            patchRow={patchRow}
-            readOnly={locked}
-            project={project}
-            dispatch={dispatch}
-            actions={actions}
-            weatherView={weatherView}
-          />
-        )}
+        <Section
+          day={selected}
+          patchMeta={patchMeta}
+          patchRow={patchRow}
+          readOnly={locked}
+          project={project}
+          dispatch={dispatch}
+          actions={actions}
+          weatherView={weatherView}
+          refreshWeather={sunWeather.refresh}
+          weatherRefreshing={sunWeather.refreshing}
+        />
       </DaySectionCard>
     );
   };
+
+  // `hideWhenEmpty` sections (currently Conflicts) disappear entirely when
+  // they have nothing to say; the rest own their empty state inside the card.
+  // The active category tab then narrows the registry to its own cards.
+  const tabSections = DAY_SECTIONS.filter(def => {
+    if (def.hideWhenEmpty && def.isEmpty?.(selected)) return false;
+    return !def.tabs || def.tabs.includes(tab);
+  });
+  const narrowSections = tabSections.filter(def => !def.wide);
+  const wideSections = tabSections.filter(def => def.wide);
+  const [leftSection, ...rightSections] = narrowSections;
 
   // Toolbar controls live in the shared sub-tab toolbar (roadmap 177) when a
   // header target exists (main window); pop-out day windows render them as a
@@ -333,7 +426,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
           disabled={!callSheetDesign}
           title="Open the call sheet editor for this day"
           data-presence-anchor="toolbar:days:call-sheet"
-          className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 disabled:opacity-40"
+          className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)] disabled:opacity-40"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Call Sheet
         </button>
@@ -352,12 +445,6 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
       )}
 
       <div className="ml-auto flex items-center gap-1">
-        <DayWeatherChip
-          view={weatherView}
-          date={selected.date}
-          refresh={sunWeather.refresh}
-          refreshing={sunWeather.refreshing}
-        />
         <DropdownMenu
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
@@ -368,7 +455,7 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
               type="button"
               title="Production details, call-time settings, day copy and pop-out"
               data-presence-anchor="toolbar:days:settings"
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
             >
               Settings <ChevronDown className="w-3 h-3" />
             </button>
@@ -399,31 +486,59 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   const editor = (
     <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
       {headerTarget ? createPortal(managerControls, headerTarget) : (
-        <header className="shrink-0 bg-white border-b border-zinc-200 px-3 py-2">
+        <header className="shrink-0 bg-[var(--ui-panel-bg)] border-b border-[color:var(--ui-border)] px-3 py-2">
           <div className="flex items-center gap-2 flex-wrap">{managerControls}</div>
         </header>
       )}
       {dayPickerTarget && createPortal(dayPickerNode, dayPickerTarget)}
 
-      <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50 p-4" data-day-sections>
+      <div ref={sectionsRef} className="flex-1 min-w-0 overflow-y-auto bg-[var(--ui-card-band)] p-4" data-day-sections>
         <div className="mx-auto w-full max-w-6xl">
-          {/* The narrow meta sections (Day Details + Locations/Events/Conflicts)
-              render as a two-column band on TOP — Day Details in the left
-              column, the rest stacked right; the wide data-dense sections
-              (scenes, call times, crew) span both columns beneath. */}
-          {(() => {
-            const narrow = DAY_SECTIONS.filter(d => !d.wide);
-            if (narrow.length === 0) return null;
-            const [left, ...right] = narrow;
-            return (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-                <div className="min-w-0 space-y-3">{renderSection(left)}</div>
-                <div className="min-w-0 space-y-3">{right.map(renderSection)}</div>
-              </div>
-            );
-          })()}
-          {DAY_SECTIONS.filter(d => d.wide).length > 0 && (
-            <div className="mt-3 space-y-3">{DAY_SECTIONS.filter(d => d.wide).map(renderSection)}</div>
+          <div className="mb-3 overflow-x-auto" data-day-tabs>
+            <div
+              ref={tabRowRef}
+              role="tablist"
+              aria-label="Day Manager sections"
+              className={`relative mx-auto flex w-max items-center ${CHROME_TAB_GAP}`}
+            >
+              {tabPill.style && (
+                <span aria-hidden className={`absolute top-0 bottom-0 rounded pointer-events-none ${tabPillFill} ${tabPill.motionClass}`} style={tabPill.style} />
+              )}
+              {DAY_TAB_OPTIONS.map((option, i) => (
+                <Button
+                  key={option.id}
+                  ref={el => { tabRefs.current[i] = el; }}
+                  variant="tab"
+                  theme="light"
+                  cloud={accent}
+                  active={tab === option.id}
+                  icon={option.icon}
+                  title={option.title}
+                  role="tab"
+                  aria-selected={tab === option.id}
+                  data-presence-anchor={`toolbar:days:tab:${option.id}`}
+                  data-day-tab={option.id}
+                  onClick={() => setTab(option.id)}
+                  className="shrink-0 relative z-10"
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {/* The narrow meta sections render as a two-column band on TOP —
+              Day Details in the left column, the rest (Events, Conflicts when
+              present) stacked right; the wide data-dense sections (locations,
+              scenes, breaks & notes, call times, crew) span both columns
+              beneath. */}
+          {leftSection && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+              <div className="min-w-0 space-y-3">{renderSection(leftSection)}</div>
+              <div className="min-w-0 space-y-3">{rightSections.map(renderSection)}</div>
+            </div>
+          )}
+          {wideSections.length > 0 && (
+            <div className={leftSection ? 'mt-3 space-y-3' : 'space-y-3'}>{wideSections.map(renderSection)}</div>
           )}
         </div>
       </div>
@@ -431,7 +546,8 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
   );
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-gray-50" data-day-manager data-day-manager-day={selected.sectionIndex}>
+    <ThemeScope mode="light" surface="neutral" className="flex-1 flex overflow-hidden bg-[var(--ui-card-band)]">
+    <div className="flex-1 flex overflow-hidden" data-day-manager data-day-manager-day={selected.sectionIndex}>
       {editor}
       {eventsDate && (
         <DayEventsModal
@@ -442,11 +558,22 @@ const DayManagerPage: React.FC<DayManagerPageProps> = ({
         />
       )}
       {adderDate && <EventAdderModal date={adderDate} onClose={() => setAdderDate(null)} />}
+      {eventEditor && (
+        <EventModal
+          dateKey={eventEditor.date}
+          statusKey={eventEditor.status}
+          category={eventEditor.category}
+          elementKey={eventEditor.elementKey}
+          editableElement
+          onClose={() => setEventEditor(null)}
+        />
+      )}
       {copyOpen && <CopyDayModal target={selected} days={days} onClose={() => setCopyOpen(false)} />}
       {detailsOpen && <ProductionDetailsModal onClose={() => setDetailsOpen(false)} />}
       {callTimesOpen && <CallTimesSettingsModal onClose={() => setCallTimesOpen(false)} />}
       {crewMemberModal}
     </div>
+    </ThemeScope>
   );
 };
 

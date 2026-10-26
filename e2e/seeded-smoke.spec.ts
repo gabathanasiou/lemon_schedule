@@ -262,6 +262,10 @@ test.describe('App Navigation (roadmap 176)', () => {
     // Production → Days: Day Manager and the Call Sheet editor are separate places.
     await page.getByRole('button', { name: 'Production', exact: true }).click();
     await expect(page).toHaveURL(/#\/production\/days$/);
+    // Overview is the default category tab (roadmap 315).
+    await expect(page.locator('[data-day-tab="overview"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[data-day-tab="all"]')).toHaveAttribute('aria-selected', 'false');
+    await expect(page.locator('[data-section="scenes"]')).toHaveCount(0);
     await page.getByRole('button', { name: 'Call Sheet view' }).click();
     await expect(page.locator('[data-call-sheet-edit]')).toBeVisible();
     await expect(page).toHaveURL(/#\/production\/days\/callsheet$/);
@@ -276,5 +280,21 @@ test.describe('App Navigation (roadmap 176)', () => {
     await reloadProject(page);
     await expect(page.locator('[data-call-sheet-edit]')).toBeVisible();
     await expect(page).toHaveURL(/#\/production\/days\/callsheet$/);
+
+    // Day Manager category tabs are history places too (roadmap 315).
+    await page.goBack();
+    await expect(page).toHaveURL(/#\/production\/days$/);
+    await page.locator('[data-day-tab="scenes"]').click();
+    await expect(page).toHaveURL(/#\/production\/days\/manager\/scenes$/);
+    await expect(page.locator('[data-section="scenes"]')).toBeVisible();
+    await page.locator('[data-day-tab="callTimes"]').click();
+    await expect(page).toHaveURL(/#\/production\/days\/manager\/callTimes$/);
+    await expect(page.locator('[data-section="callTimes"]')).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(/#\/production\/days\/manager\/scenes$/);
+    await expect(page.locator('[data-section="scenes"]')).toBeVisible();
+    await reloadProject(page);
+    await expect(page).toHaveURL(/#\/production\/days\/manager\/scenes$/);
+    await expect(page.locator('[data-section="scenes"]')).toBeVisible();
   });
 });

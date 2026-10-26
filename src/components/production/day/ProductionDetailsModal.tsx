@@ -40,10 +40,10 @@ const DETAIL_FIELDS: { key: string; label: string }[] = [
   { key: 'email', label: 'Email' },
 ];
 
-const INPUT_CLS = 'flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 placeholder:text-zinc-500 outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400 disabled:opacity-50';
-const PICKER_TRIGGER = 'flex w-full items-center justify-between gap-2 rounded bg-zinc-800 border border-zinc-700 px-2 py-1 text-xs text-zinc-200 outline-none hover:bg-zinc-900 focus:border-zinc-500 disabled:opacity-50';
+const INPUT_CLS = 'flex-1 min-w-0 bg-[var(--ui-input-bg)] border border-[color:var(--ui-input-border)] rounded px-2 py-1 text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)] focus:ring-1 focus:ring-[color:var(--ui-accent-focus)] disabled:opacity-50';
+const PICKER_TRIGGER = 'flex w-full items-center justify-between gap-2 rounded bg-[var(--ui-input-bg)] border border-[color:var(--ui-input-border)] px-2 py-1 text-xs text-[color:var(--ui-input-text)] outline-none hover:bg-[var(--ui-modal-bg)] focus:border-[color:var(--ui-input-focus-border)] disabled:opacity-50';
 
-// Controlled click-to-toggle dark menu (the modal surfaces).
+// Controlled click-to-toggle menu (follows the modal's ambient theme).
 const Menu: React.FC<{ trigger: React.ReactNode; width?: string; searchable?: boolean; searchPlaceholder?: string; onClose?: () => void; children: React.ReactNode }> = ({ trigger, width, searchable, searchPlaceholder, onClose, children }) => {
   const [open, setOpen] = useState(false);
   return (
@@ -55,7 +55,6 @@ const Menu: React.FC<{ trigger: React.ReactNode; width?: string; searchable?: bo
       width={width}
       searchable={searchable}
       searchPlaceholder={searchPlaceholder}
-      theme="dark"
     >
       {children}
     </DropdownMenu>
@@ -100,7 +99,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
     dispatch({ type: 'UPDATE_CREW_PERSON', payload: { role: fromRole, id: person.id, updates: {}, toRole } });
   };
 
-  const rowLabel = (text: string) => <span className={`${CREM_LABEL} text-zinc-400 w-40 shrink-0`}>{text}</span>;
+  const rowLabel = (text: string) => <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] w-40 shrink-0`}>{text}</span>;
 
   return (
     <Modal open onClose={onClose} title="Production Details" icon={<Info className="w-4 h-4" />} width="max-w-xl"
@@ -112,8 +111,8 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
     >
       <div className={CREM_BODY}>
         <div>
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-            <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider`}>Project Details</span>
+          <div className="flex items-center justify-between border-b border-[color:var(--ui-border)] pb-1.5 mb-3">
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider`}>Project Details</span>
           </div>
           <div className="space-y-2.5">
             {DETAIL_FIELDS.map(f => (
@@ -132,14 +131,14 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
         </div>
 
         <div className="mt-5">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-            <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider`}>Dates</span>
+          <div className="flex items-center justify-between border-b border-[color:var(--ui-border)] pb-1.5 mb-3">
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider`}>Dates</span>
           </div>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               {rowLabel('Production Start')}
               {locked ? (
-                <span className={`${CREM_TEXT} text-zinc-300`}>{activeCalendarVersion?.productionStart || '—'}</span>
+                <span className={`${CREM_TEXT} text-[color:var(--ui-text)]`}>{activeCalendarVersion?.productionStart || '—'}</span>
               ) : (
                 <div className="flex-1 min-w-0">
                   <DateField
@@ -153,7 +152,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
             </div>
             <div className="flex items-center gap-3">
               {rowLabel('Wrap Date')}
-              <span className={`${CREM_TEXT} text-zinc-500`}>{wrapDate || '—'}</span>
+              <span className={`${CREM_TEXT} text-[color:var(--ui-text-faint)]`}>{wrapDate || '—'}</span>
             </div>
             <div className="flex items-center gap-3">
               {rowLabel('Report Date Format')}
@@ -163,7 +162,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                   trigger={
                     <button type="button" disabled={locked} className={PICKER_TRIGGER}>
                       <span className="truncate">{DATE_FORMAT_OPTIONS.find(o => o.key === (productionInfo.dateFormat || 'short'))?.label}</span>
-                      <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                      <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
                     </button>
                   }
                 >
@@ -179,7 +178,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
               {rowLabel('Timezone')}
               <div className="flex-1 min-w-0">
                 {locked ? (
-                  <span className={`${CREM_TEXT} text-zinc-300`}>{productionInfo.timezone || '—'}</span>
+                  <span className={`${CREM_TEXT} text-[color:var(--ui-text)]`}>{productionInfo.timezone || '—'}</span>
                 ) : (
                   <Menu
                     width="w-72"
@@ -188,7 +187,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                     trigger={
                       <button type="button" className={PICKER_TRIGGER}>
                         <span className="truncate">{productionInfo.timezone || `Browser default (${getBrowserTimeZone()})`}</span>
-                        <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                        <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
                       </button>
                     }
                   >
@@ -200,23 +199,23 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                   </Menu>
                 )}
               </div>
-              <span className="text-[10px] text-zinc-600 w-32 shrink-0 text-right">Sunrise / sunset &amp; weather</span>
+              <span className="text-[10px] text-[color:var(--ui-text-faint)] w-32 shrink-0 text-right">Sunrise / sunset &amp; weather</span>
             </div>
           </div>
         </div>
 
         <div className="mt-5">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-            <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider`}>Key Positions</span>
+          <div className="flex items-center justify-between border-b border-[color:var(--ui-border)] pb-1.5 mb-3">
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider`}>Key Positions</span>
           </div>
           <div className="space-y-2">
             {KEY_POSITIONS.map(kp => {
               const people = crew[kp.key] || [];
               const candidates = allPeople.filter(a => a.role !== kp.key);
               return (
-                <div key={kp.key} className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-950/60 px-3 py-2">
-                  <span className={`${CREM_LABEL} text-zinc-300 w-40 shrink-0 font-medium`}>{kp.label}</span>
-                  <span className={`flex-1 min-w-0 truncate ${CREM_TEXT} ${people.length ? 'text-zinc-200' : 'text-zinc-600 italic'}`}>
+                <div key={kp.key} className="flex items-center gap-3 rounded border border-[color:var(--ui-border)] bg-[var(--ui-card-band)] px-3 py-2">
+                  <span className={`${CREM_LABEL} text-[color:var(--ui-text)] w-40 shrink-0 font-medium`}>{kp.label}</span>
+                  <span className={`flex-1 min-w-0 truncate ${CREM_TEXT} ${people.length ? 'text-[color:var(--ui-text-strong)]' : 'text-[color:var(--ui-text-faint)] italic'}`}>
                     {people.length > 0 ? people.map((p: CrewPerson) => p.name).join(', ') : '— unassigned —'}
                   </span>
                   {!locked && (
@@ -231,7 +230,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                     >
                       {candidates.map(a => (
                         <DropdownItem key={a.person.id} onClick={() => movePersonToRole(a.person, a.role, kp.key)}>
-                          {a.person.name} <span className="text-zinc-500">({roleLabel(a.role)})</span>
+                          {a.person.name} <span className="text-[color:var(--ui-text-faint)]">({roleLabel(a.role)})</span>
                         </DropdownItem>
                       ))}
                       {candidates.length > 0 && <DropdownDivider />}
@@ -246,7 +245,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                       onCommit={v => { addPersonToRole(kp.key, v); setAddingName(null); }}
                       readOnly={locked}
                       placeholder="Name"
-                      className="w-40 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 outline-none placeholder:text-zinc-500"
+                      className={`${INPUT_CLS} w-40`}
                     />
                   )}
                 </div>

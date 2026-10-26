@@ -18,7 +18,7 @@ import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { usePortalTarget } from '../../lib/popoutTarget';
 import { initialViewFor } from './calendarUtils';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import { ChevronDown, Sun, Trash2, MessageSquare } from 'lucide-react';
 
 interface EventModalProps {
@@ -181,8 +181,8 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
             manager locks it — the title already names the element) */}
         {editableElement && (
           <div>
-            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-              <Sun className={`${XSZ} text-zinc-500`} />
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+              <Sun className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
               Element
             </span>
             <div className="flex items-center gap-2">
@@ -209,7 +209,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
                 className="text-xs flex-1 min-w-0"
                 displayMode={cat === 'cast' ? 'id' : 'name'}
                 anchoredKeys={anchoredByCategory.get(cat)}
-                renderItem={cat === 'cast' ? (item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
+                renderItem={cat === 'cast' ? (item) => <><span className="text-[color:var(--ui-text-muted)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
               />
             </div>
           </div>
@@ -218,8 +218,8 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
         {/* Date + Event Type — side by side; both pickers fill their column */}
         <div className="grid grid-cols-2 gap-3 items-start">
           <div>
-            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-              <Sun className={`${XSZ} text-zinc-500`} />
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+              <Sun className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
               Date
             </span>
             <DateField
@@ -235,8 +235,8 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
           </div>
 
           <div>
-            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-              <Sun className={`${XSZ} text-zinc-500`} />
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+              <Sun className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
               Event Type
             </span>
             <DropdownMenu
@@ -245,12 +245,12 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
               width="w-56"
               theme="dark"
               trigger={
-                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
+                <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
                   <span className="flex items-center gap-1.5 min-w-0">
                     <TypeIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
                     <span className="truncate">{activeType?.label || type}</span>
                   </span>
-                  <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                  <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                 </button>
               }
             >
@@ -260,7 +260,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
                   <DropdownItem key={t.key} onClick={() => { setType(t.key); setTypeMenuOpen(false); }}
                     icon={<Icon className="w-3.5 h-3.5" style={t.color ? { color: t.color } : undefined} />}
                   >
-                    <span className="text-zinc-200">{t.label}</span>
+                    <span className="text-[color:var(--ui-text-strong)]">{t.label}</span>
                   </DropdownItem>
                 );
               })}
@@ -270,8 +270,8 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
 
         {/* Note — open by default */}
         <div>
-          <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-            <NoteIcon className={`${XSZ} text-zinc-500`} />
+          <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+            <NoteIcon className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
             Note for {name}
           </span>
           <input
@@ -279,7 +279,7 @@ export function EventModal({ dateKey, statusKey, category, elementKey, editableE
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder='e.g. "Traveling from Singapore"'
-            className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
+            className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border-strong)] outline-none focus:border-[color:var(--ui-input-focus-border)] placeholder:text-[color:var(--ui-text-faint)]`}
             autoFocus
           />
         </div>

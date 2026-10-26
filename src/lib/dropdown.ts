@@ -15,6 +15,11 @@ import { useLocalOverlaySignal } from './localOverlaySignal';
 export const DD_CHIP_TRIGGER_CLASS =
   `flex items-center gap-1.5 ${IS_COARSE ? 'px-3.5 py-2.5' : 'px-2.5 py-1.5'} bg-zinc-950 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-900`;
 
+/** Token-driven chip trigger for themed surfaces (modal bodies): follows
+ *  mode/surface instead of the fixed dark zinc palette. */
+export const DD_TOKEN_TRIGGER_CLASS =
+  `flex items-center gap-1.5 ${IS_COARSE ? 'px-3.5 py-2.5' : 'px-2.5 py-1.5'} bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border-strong)] rounded text-[color:var(--ui-text)] hover:bg-[var(--ui-card-hover)]`;
+
 /**
  * Padding for the `wrapValue` chip's absolute textarea so its caret sits
  * exactly on the in-flow value span's glyphs: left = the chip's px, right =

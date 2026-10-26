@@ -19,7 +19,7 @@ import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import Button from '../Button';
 import Checkbox from '../Checkbox';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import { Plus, X, ChevronDown, Sun, Clock4 } from 'lucide-react';
 
 interface AdderRow {
@@ -193,8 +193,8 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
         <div className="space-y-5">
             {/* Date: pre-targeted label, else the picker */}
           <div>
-            <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-              <Sun className={`${XSZ} text-zinc-500`} />
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+              <Sun className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
               Date
             </span>
             <DateField
@@ -213,8 +213,8 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
 
             {/* Event type */}
             <div data-event-type-row>
-              <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-                <Clock4 className={`${XSZ} text-zinc-500`} />
+              <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+                <Clock4 className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
                 Event Type
               </span>
               <DropdownMenu
@@ -223,12 +223,12 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
                 width="w-52"
                 theme="dark"
                 trigger={
-                  <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
+                  <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
                     <span className="flex items-center gap-1.5 min-w-0">
                       <StatusIcon className={XSZ} style={activeType?.color ? { color: activeType.color } : undefined} />
                       <span className="truncate">{activeType?.label || status}</span>
                     </span>
-                    <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                    <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                   </button>
                 }
               >
@@ -238,7 +238,7 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
                     <DropdownItem key={t.key} onClick={() => { setStatus(t.key); setStatusMenuOpen(false); }}
                       icon={<Icon className="w-3.5 h-3.5" style={t.color ? { color: t.color } : undefined} />}
                     >
-                      <span className="text-zinc-200">{t.label}</span>
+                      <span className="text-[color:var(--ui-text-strong)]">{t.label}</span>
                     </DropdownItem>
                   );
                 })}
@@ -248,15 +248,15 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
             {locked ? (
             /* Element-locked: no cast & elements section — the element is in
                the title. Nothing else to pick. */
-            <p className={`${CREM_LABEL} text-zinc-600 italic`}>
+            <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic`}>
               {elementName} will be added on the selected date{dateKeys.length > 1 ? 's' : ''}.
             </p>
           ) : (
             <>
             {/* Elements: comma-typed rows per category (parentless mode) */}
             <div>
-              <span className={`${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
-                <Plus className={`${XSZ} text-zinc-500`} />
+              <span className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`}>
+                <Plus className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
                 Cast & Elements
               </span>
               <div className="space-y-2">
@@ -289,7 +289,7 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
                         className="text-xs flex-1 min-w-0"
                         displayMode={isCast ? 'id' : 'name'}
                         anchoredKeys={anchoredByCategory.get(r.category)}
-                        renderItem={isCast ? (item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
+                        renderItem={isCast ? (item) => <><span className="text-[color:var(--ui-text-muted)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
                       />
                       <Checkbox
                         checked={r.all}
@@ -309,7 +309,7 @@ export function EventAdderModal({ date: preseedDate, preseed, status: statusProp
               <button
                 type="button"
                 onClick={() => setRows(prev => [...prev, { id: newRowId(), category: allCategoryKeys[0]?.key || 'cast', keys: [], all: false }])}
-                className="mt-2 flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="mt-2 flex items-center gap-1 text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> Add element
               </button>

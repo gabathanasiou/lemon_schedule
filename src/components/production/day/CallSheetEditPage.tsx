@@ -14,6 +14,7 @@ import DropdownSubmenu from '../../DropdownSubmenu';
 import Button from '../../Button';
 import { useFollowView } from '../../../lib/supabase/useFollowView';
 import { findDesignCallSheetZone } from '../../../lib/reportBlocks';
+import type { PickedLocation } from '../../../lib/places';
 
 /**
  * Full-surface per-day call-sheet editor (item 10, D17): the whole design
@@ -37,6 +38,9 @@ export interface CallSheetEditPageProps {
   /** Item 146 — the shared Add Crew Member modal (crew table person swap /
    *  Add role flows). */
   openAddCrewMember?: (opts?: { role?: string; name?: string; slotId?: string }) => void;
+  /** Item 156 — creates the Locations-DB entry the crew board's picker
+   *  confirmed (the Day Manager composition root owns dispatch). */
+  onCreateLocation?: (picked: PickedLocation, type: string) => string;
   onReset: () => void;
   onSelectDesign: (id: string) => void;
   onSelectDay: (sectionIndex: number) => void;
@@ -56,7 +60,7 @@ export interface CallSheetEditPageProps {
 const isCallSheet = (d: ReportDesign) => /call\s*sheet/i.test(d.name);
 
 const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
-  day, days, design, designs, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, onReset, onSelectDesign, onSelectDay, onPrint, onBack, readOnly, hasOverride, headerTarget, dayPickerTarget, openAddCrewMember,
+  day, days, design, designs, zoneBlocks, onChangeZone, patchMeta, onEditCallTimesSettings, onReset, onSelectDesign, onSelectDay, onPrint, onBack, readOnly, hasOverride, headerTarget, dayPickerTarget, openAddCrewMember, onCreateLocation,
 }) => {
   const [nonce, setNonce] = useState(0);
   const [preview, setPreview] = useState(false);
@@ -119,7 +123,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800"
+          className="inline-flex items-center justify-center gap-1.5 w-28 px-2 py-1 rounded text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Days
         </button>
@@ -132,13 +136,12 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
           width="w-56"
-          theme="dark"
           trigger={
             <button
               type="button"
               title="Call sheet design and template reset"
               data-presence-anchor="toolbar:callsheet:settings"
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
             >
               Settings <ChevronDown className="w-3 h-3" />
             </button>
@@ -168,7 +171,6 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
         <ToolbarDivider dark />
         {!preview && (
           <Button
-            theme="dark"
             variant="subtle"
             active={showRibbonTimes}
             onClick={() => setShowRibbonTimes(v => !v)}
@@ -185,7 +187,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           title={preview ? 'Edit the call sheet' : 'Preview the day call sheet'}
           aria-label={preview ? 'Edit' : 'Preview'}
           data-presence-anchor="toolbar:callsheet:preview"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
         >
           {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           {preview ? 'Edit' : 'Preview'}
@@ -196,7 +198,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           title="Print the call sheet"
           aria-label="Print"
           data-presence-anchor="toolbar:callsheet:print"
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)]"
         >
           <Printer className="w-3.5 h-3.5" />
         </button>
@@ -205,9 +207,9 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
   );
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-zinc-950 text-zinc-300" data-call-sheet-edit>
+    <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)]" data-call-sheet-edit>
       {headerTarget ? createPortal(controls, headerTarget) : (
-        <header className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{controls}</header>
+        <header className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-[color:var(--ui-border)] bg-[var(--ui-modal-bg)]">{controls}</header>
       )}
       {dayPickerTarget && createPortal(dayPickerNode, dayPickerTarget)}
 
@@ -243,6 +245,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
                 readOnly={readOnly}
                 showRibbonTimes={showRibbonTimes}
                 openAddCrewMember={openAddCrewMember}
+                onCreateLocation={onCreateLocation}
                 editor={args}
               />
             ),
@@ -261,6 +264,7 @@ const CallSheetEditPage: React.FC<CallSheetEditPageProps> = ({
           readOnly={readOnly}
           showRibbonTimes={showRibbonTimes}
           openAddCrewMember={openAddCrewMember}
+          onCreateLocation={onCreateLocation}
         />
       )}
     </div>

@@ -127,6 +127,38 @@ describe('resolveCollection — day-scoped call-sheet collections', () => {
     expect(skeleton).toHaveLength(1);
   });
 
+  it('crew grid adds the opt-in Report To column with layered values (item 156)', () => {
+    const project = seedProject((p) => {
+      p.locations = [
+        { id: 'loc-unit', name: 'Unit Base', type: 'unitBase' },
+        { id: 'loc-stage5', name: 'Stage 5', type: 'set' },
+        { id: 'loc-site', name: 'Site office', type: 'office' },
+      ];
+      p.crewTemplate = { ...(p.crewTemplate || {}), reportToId: 'loc-unit', departmentReportTo: { Camera: 'loc-stage5' } };
+      // Day-level override wins over the template for the whole crew.
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId) || p.versions[0];
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+      if (gov) gov.daybreakMeta = { ...(gov.daybreakMeta || {}), reportToId: 'loc-site' };
+    });
+    const ctx = buildCtx(project);
+    const day = (resolveCollection(ctx, 'days', undefined, undefined) as any[])[0];
+    const fieldMap = getReportFieldMap(project);
+    // Off by default — existing crew tables keep their five columns.
+    const off = resolveReportGridGroups(ctx, 'crewOfDay', undefined, day, fieldMap);
+    expect(off[0].columns.map(c => c.field)).not.toContain('reportTo');
+    // Opted in: before Call, mirroring the live board.
+    const on = resolveReportGridGroups(ctx, 'crewOfDay', undefined, day, fieldMap, { showReportTo: true });
+    expect(on[0].columns.map(c => c.field)).toEqual(['crewName', 'role', 'reportTo', 'crewCallTime', 'phone', 'email']);
+    const crew = on[0].items as any[];
+    const camera = crew.find((c: any) => c.department === 'Camera');
+    const other = crew.find((c: any) => c.department !== 'Camera');
+    expect(camera?.reportTo).toBe('Stage 5');
+    expect(other?.reportTo).toBe('Site office');
+    // The designer skeleton shows the column shape too.
+    const skeleton = skeletonReportGridGroups(project, 'crewOfDay', undefined, fieldMap, { showReportTo: true });
+    expect(skeleton[0].columns.map(c => c.field)).toContain('reportTo');
+  });
+
   it('precalls grid resolves one flat group over departmentCallsOfDay (item 159)', () => {
     const project = seedProject((p) => {
       p.crewTemplate = { departmentPrecalls: { Camera: '-30m' } };

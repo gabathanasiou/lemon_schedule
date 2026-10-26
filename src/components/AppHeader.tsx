@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, FolderOpen, FileUp, Download, Printer, LogOut, Cloud, Trash2, X, NotebookText, Rows3, Calendar1, Palette, Scale, Clapperboard, FileChartColumn, CircleHelp, Sparkles } from 'lucide-react';
 import { useProject, useProjectTheme } from '../store';
-import { PROJECT_CHROME, projectAccentOf, projectMenuThemeOf } from '../lib/projectTheme';
+import { projectAccentNameOf } from '../lib/projectTheme';
 import { useSlidingPill } from '@gabriel/ui-kit';
 import { useDialog } from './Dialog';
 import { IS_COARSE } from '../lib/device';
@@ -20,6 +20,7 @@ import type { AgentBridgeStatus } from '../lib/agentBridgeClient';
 import { TAB_LABELS, TAB_ORDER } from '../lib/appNav';
 import type { AppTabId } from '../lib/appNav';
 import { CHROME_BAR_INSET, CHROME_CLUSTER_GAP, CHROME_CLUSTER_MARGIN, CHROME_ITEM_GAP, CHROME_TAB_GAP } from '../lib/chromeSpacing';
+import { ProjectChromeScope } from './ProjectChromeScope';
 
 export type { AppTabId };
 
@@ -152,13 +153,13 @@ export default function AppHeader(props: AppHeaderProps) {
 
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
-  /* Project chrome (roadmap 248): local zinc / Drive blue / shared emerald. */
+  /* Project chrome (roadmap 248/311): local zinc / Drive blue / shared
+   * emerald. The identity reaches kit children through ProjectChromeScope;
+   * only the tab pill needs the accent name here. */
   const projectTheme = useProjectTheme();
-  const chrome = PROJECT_CHROME[projectTheme];
-  const accent = projectAccentOf(projectTheme);
-  const menuTheme = projectMenuThemeOf(projectTheme);
+  const accentName = projectAccentNameOf(projectTheme);
   const isCloud = projectTheme !== 'local';
-  const fileTriggerText = projectTheme === 'local' ? 'text-zinc-400 hover:text-white' : 'text-white';
+  const tabPillFill = accentName === 'zinc' ? 'bg-[var(--ui-tab-pill-plain)]' : 'bg-[var(--ui-tab-pill-accent)]';
 
   /* Phone-portrait row (roadmap 267 PoC): Schedule + Sheet; the Sheet tab
      opens the Breakdown tab's SceneSheet surface. Desktop/iPad keep all seven
@@ -184,7 +185,7 @@ export default function AppHeader(props: AppHeaderProps) {
     agentBridge.status === 'connected' ? 'bg-emerald-400'
     : agentBridge.status === 'connecting' ? 'bg-amber-400 animate-pulse'
     : agentBridge.status === 'error' ? 'bg-red-500'
-    : 'bg-zinc-600';
+    : 'bg-[var(--ui-text-faint)]';
 
   /* Close project (roadmap 268): local projects are flushed by closeProject()
      itself; a cloud/shared save that failed, is still retrying, sits in the
@@ -207,24 +208,24 @@ export default function AppHeader(props: AppHeaderProps) {
   return (
     /* Sticky top-0 z-20 (roadmap 265): iOS 26+ Safari tints the status bar from
        the fixed/sticky element at the viewport's top edge — the header must BE
-       that element (it carries the theme `bar` fill). z-20 sits above `main`
+       that element (it carries the accent header fill). z-20 sits above `main`
        (z-auto — header-hung tooltips keep painting over content) and below the
        presence pointers (z-30) and the portaled menus. */
-    <header data-chrome-bar="app-header" className={`sticky top-0 z-20 flex items-center ${chrome.bar} text-zinc-300 ${CHROME_BAR_INSET} py-2 select-none print:hidden`}>
+    <ProjectChromeScope mode="dark">
+    <header data-chrome-bar="app-header" className={`sticky top-0 z-20 flex items-center bg-[var(--ui-accent-header-bg)] text-[color:var(--ui-text)] ${CHROME_BAR_INSET} py-2 select-none print:hidden`}>
       <div className={`flex items-center ${CHROME_ITEM_GAP} shrink-0 island-inset-l`}>
           <DropdownMenu
             open={showFileMenu}
             onOpenChange={setShowFileMenu}
             width="w-56"
             align="left"
-            theme={menuTheme}
             trigger={
               <button
                 data-presence-anchor="toolbar:header:file"
                 /* Edge rail (roadmap 247/264): the trigger's own px-3 padding
                    hangs -ml-3 into the bar margin, so the LABEL starts on the
                    16px rail while the hover box keeps its full size. */
-                className={`flex items-center space-x-1.5 rounded transition-colors -ml-3 px-3 py-1.5 font-sans font-medium cursor-pointer select-none ${fileTriggerText} ${chrome.barHover}`}
+                className="flex items-center space-x-1.5 rounded transition-colors -ml-3 px-3 py-1.5 font-sans font-medium cursor-pointer select-none text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-accent-header-hover)]"
               >
                 <span className="hidden md:inline">File</span>
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -328,13 +329,13 @@ export default function AppHeader(props: AppHeaderProps) {
                 if (titleDraft !== project.title) renameProject(currentProjectId!, titleDraft, currentDriveFileId);
               }}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
-              className={`bg-transparent border-none text-white font-medium rounded px-1 mr-2 outline-none font-sans max-w-[60px] md:max-w-[120px] ${chrome.titleRing}`}
+              className="bg-transparent border-none text-[color:var(--ui-text-strong)] font-medium rounded px-1 mr-2 outline-none font-sans max-w-[60px] md:max-w-[120px] focus:ring-1 focus:ring-[color:var(--ui-accent-600)]"
             />
           ) : (
             <span
               onClick={() => { if (!locked) { setTitleDraft(project.title); setEditingTitle(true); } }}
               data-presence-anchor="header:project-title"
-              className={`text-white font-medium px-1 mr-2 truncate max-w-[60px] md:max-w-[120px] ${locked ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
+              className={`text-[color:var(--ui-text-strong)] font-medium px-1 mr-2 truncate max-w-[60px] md:max-w-[120px] ${locked ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
               title={project.title}
             >
               {project.title}
@@ -344,14 +345,13 @@ export default function AppHeader(props: AppHeaderProps) {
         <div ref={topTabContainerRef} onScroll={syncTabLayout} className="overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
           <div ref={tabContentRef} className={`relative flex items-center ${CHROME_TAB_GAP} mx-auto shrink-0 w-fit`}>
             {tabPill.style && (
-              <span aria-hidden className={`absolute top-0 bottom-0 rounded bg-white pointer-events-none ${tabPill.motionClass}`} style={tabPill.style} />
+              <span aria-hidden className={`absolute top-0 bottom-0 rounded pointer-events-none ${tabPillFill} ${tabPill.motionClass}`} style={tabPill.style} />
             )}
             {headerTabs.map((tab, i) => (
               <Button
                 key={tab.key}
                 ref={el => { tabButtonRefs.current[i] = el; }}
                 variant="tab-header"
-                cloud={accent}
                 active={tab.active}
                 icon={tab.icon}
                 collapse={tabDock}
@@ -382,5 +382,6 @@ export default function AppHeader(props: AppHeaderProps) {
         <UserPresenceCluster className={CHROME_CLUSTER_MARGIN} driveCtx={driveCtx} driveBacked={!!currentDriveFileId} closeProject={closeProject} onOpenAccount={onOpenAccount} onManageSharing={onManageSharing} />
       </div>
     </header>
+    </ProjectChromeScope>
   );
 }

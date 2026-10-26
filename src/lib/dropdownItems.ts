@@ -25,7 +25,8 @@ export function buildDropdownItems(
   const { keepAlphabetical, searchFields } = opts;
   const filterItem = opts.filterItem ?? ((item: EntityItem, q: string) => {
     const lower = q.toLowerCase();
-    return searchFields.some(f => item[f].toLowerCase().includes(lower));
+    // `group` is optional (action rows / ungrouped items) — never crash on it.
+    return searchFields.some(f => (item[f] ?? '').toLowerCase().includes(lower));
   });
   const lastSegment = mode === 'select'
     ? val.trim()

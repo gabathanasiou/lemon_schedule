@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject, useProjectTheme } from '../store';
+import { ThemeScope } from '@gabriel/ui-kit';
 import { projectAccentOf } from './projectTheme';
 import { useDialog } from '../components/Dialog';
 import { useFollowView } from './supabase/useFollowView';
@@ -431,9 +432,9 @@ export const DatabaseManagerView: React.FC<{
         onClick={(e) => { e.stopPropagation(); setRenamingKey(row.key); setRenameDraft(row.label); }}
         disabled={locked}
         title={`Rename ${config.categorySingular}`}
-        className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'} disabled:opacity-30 disabled:cursor-not-allowed`}
+        className="p-0.5 rounded transition-colors hover:bg-[var(--ui-row-hover-bg)] disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        <Pencil style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
+        <Pencil style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-[color:var(--ui-text-faint)]" />
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); void deleteCategory(row.key); }}
@@ -528,7 +529,7 @@ export const DatabaseManagerView: React.FC<{
   );
 
   const topBar = (
-    <div className="flex items-center justify-end px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm shrink-0">
+    <div className="flex items-center justify-end px-4 py-2.5 rounded-xl bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] shadow-sm shrink-0">
       <div className="flex items-center gap-1.5">
         {headerActions}
         {addButton}
@@ -537,7 +538,7 @@ export const DatabaseManagerView: React.FC<{
   );
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <ThemeScope mode="light" surface="neutral" className="flex-1 flex overflow-hidden">
       {headerTarget ? createPortal(headerContent, headerTarget) : null}
       <SidebarNav
         title={config.sidebarTitle}
@@ -552,24 +553,24 @@ export const DatabaseManagerView: React.FC<{
         onSearchSelect={jumpToSearchHit}
       />
 
-      <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
+      <div className="flex-1 flex flex-col h-full bg-[var(--ui-card-band)] overflow-hidden">
         {!headerTarget && topBar}
         <div className={`flex-1 flex flex-col h-full px-4 py-4 gap-3`}>
-          <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm min-h-0">
+          <div className="flex-1 overflow-hidden rounded-xl bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] shadow-sm min-h-0">
             <div ref={scrollRef} className="h-full overflow-auto tab-scroll pb-10">
               {category && rows.length === 0 && (
-                <div className="text-xs text-zinc-400 py-8 text-center">
+                <div className="text-xs text-[color:var(--ui-text-faint)] py-8 text-center">
                   No {config.nounPlural} in this {config.categorySingular} yet.
                 </div>
               )}
               {rows.length > 0 && (
                 <table className="w-full manager-table">
                   <thead>
-                    <tr className="bg-zinc-50">
+                    <tr className="bg-[var(--ui-card-bg)]">
                       {config.fields.map((f, fi) => (
-                        <th key={f.key} style={sizes.header} className={`sticky top-0 ${fi === 0 ? `left-0 z-30 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : 'z-10'} bg-zinc-50 border-r border-zinc-200 ${MT_HEADER} text-left ${f.width || ''}`}>{f.label}</th>
+                        <th key={f.key} style={sizes.header} className={`sticky top-0 ${fi === 0 ? `left-0 z-30 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : 'z-10'} bg-[var(--ui-card-bg)] border-r border-[color:var(--ui-border)] ${MT_HEADER} text-left ${f.width || ''}`}>{f.label}</th>
                       ))}
-                      <th style={sizes.header} className={`sticky top-0 z-10 bg-zinc-50 ${MT_HEADER} text-center w-12`} />
+                      <th style={sizes.header} className={`sticky top-0 z-10 bg-[var(--ui-card-bg)] ${MT_HEADER} text-center w-12`} />
                     </tr>
                   </thead>
                   <tbody>
@@ -578,10 +579,10 @@ export const DatabaseManagerView: React.FC<{
                         key={r.key}
                         data-manager-row={r.key}
                         style={flashKeys.has(r.key) ? { backgroundColor: '#fee2e2' } : undefined}
-                        className={`group transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-zinc-100`}
+                        className={`group transition-colors ${ri % 2 === 0 ? 'bg-[var(--ui-panel-bg)]' : 'bg-[var(--ui-card-bg)]'} hover:bg-[var(--ui-card-hover)]`}
                       >
                         {config.fields.map((f, fi) => (
-                          <td key={f.key} style={sizes.cell} className={`${fi === 0 ? `sticky left-0 z-10 ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50'} group-hover:bg-zinc-100 ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : ''} ${MT_CELL}`}>
+                          <td key={f.key} style={sizes.cell} className={`${fi === 0 ? `sticky left-0 z-10 ${ri % 2 === 0 ? 'bg-[var(--ui-panel-bg)]' : 'bg-[var(--ui-card-bg)]'} group-hover:bg-[var(--ui-card-hover)] ${tableScrolled ? 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.12)]' : ''}` : ''} ${MT_CELL}`}>
                             {f.render
                               ? f.render(r, (field, val) => buf.updateRow(r.key, field, val), locked, { project })
                               : defaultInput(f, r, (field, val) => buf.updateRow(r.key, field, val), locked, fi === 0)}
@@ -668,7 +669,7 @@ export const DatabaseManagerView: React.FC<{
           }}
         />
       </div>
-    </div>
+    </ThemeScope>
   );
 };
 

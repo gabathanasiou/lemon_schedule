@@ -7,6 +7,8 @@ import { useProject } from '../../../store';
 import { getCallTimeSettings } from '../../../lib/callTimes';
 import { CREW_DEPARTMENTS } from '../../../lib/crewCatalog';
 import { assignSlotPerson, buildDefaultSlots, templateSlots } from '../../../lib/dayCrew';
+import { locationFromPick } from '../../../lib/locations';
+import type { PickedLocation } from '../../../lib/places';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../../lib/categories';
 import type { CallStageDef, CallTimeSettings, CrewTemplate } from '../../../types';
 import TimeField from '../../TimeField';
@@ -33,10 +35,10 @@ import { ruleModalSizes } from '../../rules/ColorRuleFormParts';
  * with a remove X (cast is locked — it is always staged). Stage drag-reorder
  * is roadmap 104.
  */
-const PLAIN_DARK_INPUT = 'w-full px-1.5 py-0.5 rounded bg-transparent text-xs text-left text-zinc-100 placeholder:text-zinc-500 outline-none cursor-text transition-colors hover:bg-zinc-800 hover:ring-1 hover:ring-zinc-700 focus:bg-zinc-800 focus:ring-2 focus:ring-zinc-600 disabled:opacity-50';
+const PLAIN_INPUT = 'w-full px-1.5 py-0.5 rounded bg-transparent text-xs text-left text-[color:var(--ui-text-strong)] placeholder:text-[color:var(--ui-text-faint)] outline-none cursor-text transition-colors hover:bg-[var(--ui-card-hover)] hover:ring-1 hover:ring-[color:var(--ui-border)] focus:bg-[var(--ui-card-hover)] focus:ring-2 focus:ring-[color:var(--ui-border-strong)] disabled:opacity-50';
 /** Contained grouped list — the ImportDialog "Board ID Assignment" table
  *  language (bordered container, header row, zebra rows). */
-const CONTAINER = 'rounded-lg border border-zinc-800 overflow-hidden';
+const CONTAINER = 'rounded-lg border border-[color:var(--ui-border)] overflow-hidden';
 
 type TabKey = 'stages' | 'categories' | 'precalls' | 'crew';
 
@@ -48,7 +50,7 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 const Hint: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p className="text-[11px] text-zinc-500 leading-relaxed">{children}</p>
+  <p className="text-[11px] text-[color:var(--ui-text-faint)] leading-relaxed">{children}</p>
 );
 
 /** One draggable call-stage row (roadmap 104) — the table row is the sortable
@@ -70,7 +72,7 @@ const StageRow: React.FC<StageRowProps> = ({ stage, index, count, readOnly, onCh
     <tr
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 30 : undefined }}
-      className={`border-b border-zinc-800/50 last:border-b-0 ${index % 2 === 0 ? 'bg-zinc-950' : 'bg-zinc-900/50'} ${isDragging ? 'opacity-80 shadow-lg' : ''}`}
+      className={`border-b border-[color:var(--ui-border)] last:border-b-0 ${index % 2 === 0 ? 'bg-[var(--ui-card-band)]' : 'bg-[var(--ui-card-bg)]'} ${isDragging ? 'opacity-80 shadow-lg' : ''}`}
     >
       <td className="pl-1 pr-0 py-1.5 w-8">
         <button
@@ -80,24 +82,24 @@ const StageRow: React.FC<StageRowProps> = ({ stage, index, count, readOnly, onCh
           {...listeners}
           aria-label={`Drag ${stage.label} to reorder`}
           title="Drag to reorder"
-          className={`flex mx-auto p-1 rounded text-zinc-600 hover:text-zinc-200 hover:bg-zinc-800 transition-colors ${readOnly ? 'cursor-not-allowed opacity-40' : 'cursor-grab active:cursor-grabbing'}`}
+          className={`flex mx-auto p-1 rounded text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-hover)] transition-colors ${readOnly ? 'cursor-not-allowed opacity-40' : 'cursor-grab active:cursor-grabbing'}`}
           style={{ touchAction: 'none' }}
         >
           <GripVertical className="w-3.5 h-3.5" />
         </button>
       </td>
-      <td className="px-3 py-2 text-zinc-300 text-xs font-mono w-10">{index + 1}</td>
+      <td className="px-3 py-2 text-[color:var(--ui-text)] text-xs font-mono w-10">{index + 1}</td>
       <td className="px-3 py-1.5">
         <CommitInput
           value={stage.label}
           onCommit={v => onChange(index, { label: v })}
           readOnly={readOnly}
-          className={PLAIN_DARK_INPUT}
+          className={PLAIN_INPUT}
         />
       </td>
       <td className="px-3 py-1.5 w-32">
         {isLast ? (
-          <span className="block text-center text-[11px] text-zinc-500">anchor</span>
+          <span className="block text-center text-[11px] text-[color:var(--ui-text-faint)]">anchor</span>
         ) : (
           <TimeField
             value={stage.lead || ''}
@@ -115,7 +117,7 @@ const StageRow: React.FC<StageRowProps> = ({ stage, index, count, readOnly, onCh
           type="button"
           disabled={readOnly || count <= 1}
           onClick={() => onRemove(index)}
-          className="flex mx-auto p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+          className="flex mx-auto p-1 rounded text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] hover:bg-[var(--ui-card-hover)] disabled:opacity-30 transition-colors"
           aria-label={`Remove ${stage.label}`}
           title="Remove stage"
         >
@@ -143,6 +145,13 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
     dispatch({ type: 'SET_PRODUCTION_INFO', payload: { callTimes: { ...settings, ...patch } } });
   const setTemplate = (patch: Partial<CrewTemplate>) =>
     dispatch({ type: 'UPDATE_PROJECT', payload: { crewTemplate: { ...template, ...patch } } });
+
+  /** Item 156 — the crew "Report to" picker's create path (shared mapping). */
+  const createLocation = (picked: PickedLocation, type: string): string => {
+    const location = locationFromPick(picked, type);
+    dispatch({ type: 'ADD_LOCATION', payload: { location } });
+    return location.id;
+  };
 
   const setStage = (index: number, patch: Partial<CallStageDef>) =>
     setCallTimes({ stages: settings.stages.map((s, i) => i === index ? { ...s, ...patch } : s) });
@@ -232,7 +241,6 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
       <div className={sizes.CREM_BODY}>
         <Seg
           variant="track"
-          theme="dark"
           stretch
           value={tab}
           options={TABS.map(t => ({ v: t.key, l: t.label }))}
@@ -246,11 +254,11 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
             <div className={CONTAINER}>
               <table className="w-full">
                 <thead>
-                  <tr className="bg-zinc-900 border-b border-zinc-800">
+                  <tr className="bg-[var(--ui-card-bg)] border-b border-[color:var(--ui-border)]">
                     <th className="w-8" />
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-10">#</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Stage</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-32">Lead to next</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-10">#</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider">Stage</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-32">Lead to next</th>
                     <th className="px-2 py-2 w-10" />
                   </tr>
                 </thead>
@@ -273,7 +281,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 </DndContext>
               </table>
             </div>
-            <Button theme="dark" variant="subtle" onClick={addStage} disabled={locked} className="flex items-center gap-1">
+            <Button variant="subtle" onClick={addStage} disabled={locked} className="flex items-center gap-1">
               <Plus className="w-3 h-3" /> Add stage
             </Button>
           </div>
@@ -287,14 +295,13 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 <div
                   key={category}
                   data-call-category={category}
-                  className={`flex items-center gap-2 px-3 py-2 border-b border-zinc-800/50 last:border-b-0 ${i % 2 === 0 ? 'bg-zinc-950' : 'bg-zinc-900/50'}`}
+                  className={`flex items-center gap-2 px-3 py-2 border-b border-[color:var(--ui-border)] last:border-b-0 ${i % 2 === 0 ? 'bg-[var(--ui-card-band)]' : 'bg-[var(--ui-card-bg)]'}`}
                 >
                   <span className="flex items-center gap-1.5 w-44 shrink-0 min-w-0">
-                    {catIcon(category, 'w-3.5 h-3.5 shrink-0 text-zinc-400')}
-                    <span className={`${CREM_TEXT} text-zinc-300 truncate`}>{getLabel(category, category, project.categoryLabels)}</span>
+                    {catIcon(category, 'w-3.5 h-3.5 shrink-0 text-[color:var(--ui-text-muted)]')}
+                    <span className={`${CREM_TEXT} text-[color:var(--ui-text)] truncate`}>{getLabel(category, category, project.categoryLabels)}</span>
                   </span>
                   <GroupedSelect
-                    theme="dark"
                     className="flex-1 min-w-0"
                     items={stageItems}
                     mode="multi"
@@ -310,7 +317,7 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                       type="button"
                       disabled={locked}
                       onClick={() => setCategoryStages(category, [])}
-                      className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 disabled:opacity-30 transition-colors shrink-0"
+                      className="p-1 rounded text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] hover:bg-[var(--ui-card-hover)] disabled:opacity-30 transition-colors shrink-0"
                       aria-label={`Remove ${getLabel(category, category, project.categoryLabels)} default`}
                       title="Remove category default"
                     >
@@ -345,9 +352,9 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
               {CREW_DEPARTMENTS.map((dept, i) => (
                 <div
                   key={dept.name}
-                  className={`flex items-center gap-2 px-3 py-2 border-b border-zinc-800/50 last:border-b-0 ${i % 2 === 0 ? 'bg-zinc-950' : 'bg-zinc-900/50'}`}
+                  className={`flex items-center gap-2 px-3 py-2 border-b border-[color:var(--ui-border)] last:border-b-0 ${i % 2 === 0 ? 'bg-[var(--ui-card-band)]' : 'bg-[var(--ui-card-bg)]'}`}
                 >
-                  <span className={`${CREM_TEXT} text-zinc-300 flex-1`}>{dept.name}</span>
+                  <span className={`${CREM_TEXT} text-[color:var(--ui-text)] flex-1`}>{dept.name}</span>
                   <TimeField
                     theme="dark"
                     value={template.departmentPrecalls?.[dept.name] || ''}
@@ -397,6 +404,15 @@ export const CallTimesSettingsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 if (value) next[dept] = value; else delete next[dept];
                 setTemplate({ departmentPrecalls: Object.keys(next).length ? next : undefined });
               }}
+              reportToId={template.reportToId || ''}
+              deptReportTo={template.departmentReportTo}
+              onReportToChange={id => setTemplate({ reportToId: id || undefined })}
+              onDeptReportToChange={(dept, id) => {
+                const next = { ...(template.departmentReportTo || {}) };
+                if (id) next[dept] = id; else delete next[dept];
+                setTemplate({ departmentReportTo: Object.keys(next).length ? next : undefined });
+              }}
+              onCreateLocation={createLocation}
               onAddCrewMember={role => setAddCrew({ role })}
               onCreatePerson={(role, name, slotId) => setAddCrew({ role, name, slotId })}
             />

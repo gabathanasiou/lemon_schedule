@@ -3,7 +3,7 @@ import { useProject } from '../../store';
 import { NonShootDate, ProjectRule, RuleViolation } from '../../types';
 import { NON_SHOOT_ALL, getNonShootEntryMap, upsertNonShootDate } from '../../lib/nonShootHelpers';
 import { getMarkableDayTypes, getDayType, typeIconComponent } from '../../lib/dayTypes';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
@@ -214,10 +214,10 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
     >
       <div className={CREM_BODY}>
         {/* Day status + section tabs — one row, status always settable */}
-        <div className="flex items-center justify-between gap-3 pb-3 border-b border-zinc-800 mb-3">
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-[color:var(--ui-border)] mb-3">
           <div className="flex items-center gap-2.5">
-          <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
-            <Sun className={`${XSZ} text-zinc-500`} />
+          <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+            <Sun className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
             Day Status
           </span>
             <DropdownMenu
@@ -227,10 +227,10 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
               width="w-52"
               theme="dark"
               trigger={
-                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`}>
+                <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer`}>
                   {StatusIcon(statusKey, XSZ, activeType?.color)}
                   <span className="truncate">{activeType?.label || 'None'}</span>
-                  <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                  <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                 </button>
               }
             >
@@ -242,7 +242,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                 <DropdownItem key={t.key} onClick={() => { changeStatus(t.key); setStatusMenuOpen(false); }}
                   icon={StatusIcon(t.key, 'w-3.5 h-3.5', t.color)}
                 >
-                  <span className="text-zinc-200">{t.label}</span>
+                  <span className="text-[color:var(--ui-text-strong)]">{t.label}</span>
                 </DropdownItem>
               ))}
             </DropdownMenu>
@@ -263,9 +263,9 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
 
         {activeTab === 'events' && (
           <div>
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-              <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
-                <Link2 className={`${XSZ} text-zinc-400`} />
+            <div className="flex items-center justify-between border-b border-[color:var(--ui-border)] pb-1.5 mb-3">
+              <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+                <Link2 className={`${XSZ} text-[color:var(--ui-text-muted)]`} />
                 Events
               </span>
               <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => setNested({ kind: 'adder' })} disabled={locked}>
@@ -274,7 +274,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
             </div>
 
             {typeCards.length === 0 ? (
-              <p className={`${CREM_LABEL} text-zinc-600 italic`}>No events on this day — add an event.</p>
+              <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic`}>No events on this day — add an event.</p>
             ) : (
               <div className="space-y-2">
                 {typeCards.map(({ status, rows }) => {
@@ -296,13 +296,13 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                           key={`${row.category}|${row.refKey}`}
                           onClick={() => setNested({ kind: 'event', status, category: row.category, refKey: row.refKey })}
                           titleAttr={`Edit ${row.name}'s ${def?.label || status} event on this day`}
-                          titleClass="w-56 shrink-0 text-left text-[11px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors cursor-pointer flex items-center gap-1.5"
+                          titleClass="w-56 shrink-0 text-left text-[11px] font-medium text-[color:var(--ui-text)] group-hover:text-[color:var(--ui-text-strong)] transition-colors cursor-pointer flex items-center gap-1.5"
                           bodyClass={ITEM_ROW_BODY_WRAP}
                           title={
                             <>
-                              {catIcon(row.category, 'w-3.5 h-3.5 shrink-0 text-zinc-500')}
+                              {catIcon(row.category, 'w-3.5 h-3.5 shrink-0 text-[color:var(--ui-text-faint)]')}
                               {!row.all && (
-                                <span className="shrink-0 text-[9px] uppercase tracking-wider text-zinc-500">
+                                <span className="shrink-0 text-[9px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">
                                   {categoryLabelLookup[row.category] || row.category}
                                 </span>
                               )}
@@ -315,7 +315,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                               onClick={() => removeGroup(status, row.category, row.refKey, row.all)}
                               aria-label={`Remove ${row.name} from this day`}
                               title={`Remove ${row.name}'s ${def?.label || status} event`}
-                              className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors shrink-0"
+                              className="p-1 rounded hover:bg-[var(--ui-row-hover-bg)] text-[color:var(--ui-text-muted)] hover:text-red-400 transition-colors shrink-0"
                             >
                               <X className="w-3 h-3" />
                             </button>
@@ -333,23 +333,23 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
                                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                                 if (e.key === 'Escape') { setNoteFor(null); }
                               }}
-                              className={`${CREM_TEXT} px-2 py-0.5 rounded bg-zinc-950 border border-transparent hover:border-zinc-600 focus:border-zinc-500 transition-colors outline-none placeholder-zinc-600 text-[11px] [field-sizing:content] min-w-60 cursor-text`}
+                              className={`${CREM_TEXT} px-2 py-0.5 rounded bg-[var(--ui-panel-bg)] border border-transparent hover:border-[color:var(--ui-border-strong)] focus:border-[color:var(--ui-input-focus-border)] transition-colors outline-none placeholder:text-[color:var(--ui-text-faint)] text-[11px] [field-sizing:content] min-w-60 cursor-text`}
                             />
                           ) : row.comment ? (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setNoteFor({ status, category: row.category, refKey: row.refKey }); }}
                               title={locked ? row.comment : 'Edit note'}
-                              className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-text"
+                              className="inline-flex max-w-full items-baseline gap-1.5 text-[11px] text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] transition-colors cursor-text"
                             >
-                              <span className="text-zinc-500 shrink-0 font-medium">Notes:</span>
+                              <span className="text-[color:var(--ui-text-faint)] shrink-0 font-medium">Notes:</span>
                               <span className="truncate italic">"{row.comment}"</span>
                             </button>
                           ) : !locked ? (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setNoteFor({ status, category: row.category, refKey: row.refKey }); }}
-                              className="text-[10px] text-zinc-500 hover:text-zinc-200 transition-colors cursor-text"
+                              className="text-[10px] text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-strong)] transition-colors cursor-text"
                             >
                               Add note
                             </button>
@@ -366,20 +366,20 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
 
         {activeTab === 'conflicts' && (
           <div className="mb-4">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2.5">
+            <div className="flex items-center justify-between border-b border-[color:var(--ui-border)] pb-1.5 mb-2.5">
               <span className={`${CREM_LABEL} text-red-400/80 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
                 <Flag className={`${XSZ} text-red-400`} />
                 Conflicts
               </span>
             </div>
             {!violations || violations.length === 0 ? (
-              <p className={`${CREM_LABEL} text-zinc-600 italic`}>No conflicts on this day.</p>
+              <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic`}>No conflicts on this day.</p>
             ) : (
               <ul className="space-y-1.5">
                 {violations.map(v => (
                   <li key={v.ruleId} className="text-[11px] leading-snug">
                     <span className="text-red-300 font-medium">{v.message}</span>
-                    {v.detail && <span className="text-zinc-500"> — {v.detail}</span>}
+                    {v.detail && <span className="text-[color:var(--ui-text-faint)]"> — {v.detail}</span>}
                   </li>
                 ))}
               </ul>
@@ -389,9 +389,9 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
 
         {activeTab === 'rules' && (
           <div className="mb-1">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2.5">
-              <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
-                <Sun className={`${XSZ} text-zinc-500`} />
+            <div className="flex items-center justify-between border-b border-[color:var(--ui-border)] pb-1.5 mb-2.5">
+              <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+                <Sun className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
                 Rules
               </span>
               <Button theme="dark" variant="subtle" className="flex items-center gap-1" onClick={() => openRuleEditor()}>
@@ -399,7 +399,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, violati
               </Button>
             </div>
             {rules.length === 0 ? (
-              <p className={`${CREM_LABEL} text-zinc-600 italic`}>No rules on this day.</p>
+              <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] italic`}>No rules on this day.</p>
             ) : (
               <div className="space-y-2">
                 {rulesByType.map(([type, rs]) => {

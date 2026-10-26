@@ -23,7 +23,7 @@ export interface LinkTargetItem {
   group?: string;
   hint?: string;
   /** Render as a highlighted tag (the "All <department>" rows). */
-  accent?: boolean;
+  tag?: boolean;
 }
 
 const DEPT_PREFIX = 'dept:';
@@ -53,7 +53,7 @@ export function crewTargetItems(project: Project): LinkTargetItem[] {
       seenDept.add(dept);
       // Always offered — even for an empty department: the tag is the promise
       // that future joiners are covered.
-      people.push({ id: crewDeptTargetId(dept), name: `All ${dept}`, group: dept, accent: true });
+      people.push({ id: crewDeptTargetId(dept), name: `All ${dept}`, group: dept, tag: true });
     }
     for (const person of project.crew?.[role.key] || []) {
       people.push({ id: person.id, name: person.name || '(unnamed)', group: dept, hint: role.label });

@@ -1,4 +1,5 @@
-import type { CrewRole, ProjectLocation } from '../types';
+import type { CrewRole, Project, ProjectLocation } from '../types';
+import type { PickedLocation } from './places';
 import { generateUUID } from './utils';
 
 // Locations database — a flat list of places, each with a type (from
@@ -78,4 +79,26 @@ export function resolvedLocationName(
   if (p) return p;
   if (lat != null && lat !== '' && lng != null && lng !== '') return `${lat}, ${lng}`;
   return '';
+}
+
+/** A Locations-DB id → display name ('' when missing/dangling). One lookup for
+ *  the crew "Report to" board, report items and any other id-keyed surface. */
+export function locationLabelById(project: Project, id?: string): string {
+  const loc = id ? (project.locations || []).find(l => l.id === id) : undefined;
+  return loc ? resolvedLocationName(loc.name, loc.address, loc.place, loc.lat, loc.lng) : '';
+}
+
+/** Builds a Locations-DB entry from the map picker's confirm result — the ONE
+ *  creation mapping shared by the day Locations section and the crew "Report
+ *  to" picker. A text-only confirm carries no coordinates: never invent a pin. */
+export function locationFromPick(picked: PickedLocation, type = 'set'): ProjectLocation {
+  const coords = picked.lat != null && picked.lng != null ? { lat: picked.lat, lng: picked.lng } : {};
+  return {
+    id: generateUUID(),
+    name: (picked.place || picked.address || 'New location').trim(),
+    type,
+    address: picked.address,
+    place: picked.place,
+    ...coords,
+  };
 }

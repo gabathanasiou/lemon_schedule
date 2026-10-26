@@ -1,4 +1,5 @@
 import { isAppTabId, modeOf, type AppPlace, type AppTabId } from '../appNav';
+import { isDayManagerTab, type DayManagerTab } from '../dayTabs';
 import { CELL_BORDER_VALUES, VIEW_MODE_VALUES, type CellBorders, type ViewMode } from '../persist';
 import type { ReportViewMode } from '../../types';
 import { num, str } from './presenceWire';
@@ -74,6 +75,9 @@ export interface PresenceView {
   ribbonId?: string;
   /** Day Manager jump: the peer's production day (section index). */
   daySection?: number;
+  /** Day Manager category tab (roadmap 315) — a presence place, so cursors and
+   *  grid selections are gated by it and following switches the tab. */
+  dayTab?: DayManagerTab;
   /** Stripboard View menu: A4 width / cell borders (per-user prefs). */
   viewMode?: ViewMode;
   cellBorders?: CellBorders;
@@ -378,6 +382,10 @@ export function parseView(raw: unknown): PresenceView | null {
   if (ribbonId) view.ribbonId = ribbonId;
   const daySection = num(r.daySection);
   if (daySection != null) view.daySection = Math.trunc(daySection);
+  // The Day Manager tab is part of the place only in manager mode.
+  if (view.tab === 'production' && view.sub === 'days' && modeOf(view) === 'manager' && isDayManagerTab(r.dayTab)) {
+    view.dayTab = r.dayTab;
+  }
   const sheetIndex = num(r.sheetIndex);
   if (sheetIndex != null) view.sheetIndex = Math.max(0, Math.trunc(sheetIndex));
   // In-page view switches: clamp to the allow-lists, drop anything else.
@@ -770,6 +778,12 @@ export function sameViewPlace(peerView: PresenceView | null | undefined, localVi
   if (peerView.tab !== localView.tab) return false;
   if ((peerView.sub ?? null) !== (localView.sub ?? null)) return false;
   if (modeOf(peerView) !== modeOf(localView)) return false;
+  // The Day Manager category tab is a place (manager mode only): a peer on
+  // another tab is not looking at the same surface, so their cursor/selection
+  // stays hidden. The Call Sheet has no category tabs.
+  if (peerView.tab === 'production' && peerView.sub === 'days' && modeOf(peerView) === 'manager') {
+    if ((peerView.dayTab ?? 'overview') !== (localView.dayTab ?? 'overview')) return false;
+  }
   return sameViewDocument(peerView, localView);
 }
 
@@ -892,6 +906,9 @@ export function placeToPresenceView(place: AppPlace): PresenceView {
   if (place.sceneId) view.sceneId = place.sceneId;
   if (place.sheetIndex !== undefined) view.sheetIndex = place.sheetIndex;
   if (place.daySection != null) view.daySection = place.daySection;
+  if (place.tab === 'production' && place.sub === 'days' && modeOf(place) === 'manager' && isDayManagerTab(place.dayTab)) {
+    view.dayTab = place.dayTab;
+  }
   return view;
 }
 
@@ -905,5 +922,6 @@ export function presenceViewToPlace(view: unknown): AppPlace | null {
   if (parsed.sceneId) place.sceneId = parsed.sceneId;
   if (parsed.sheetIndex !== undefined) place.sheetIndex = parsed.sheetIndex;
   if (parsed.daySection != null) place.daySection = parsed.daySection;
+  if (parsed.dayTab) place.dayTab = parsed.dayTab;
   return place;
 }

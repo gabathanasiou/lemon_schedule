@@ -2,9 +2,12 @@ import React from 'react';
 import type { DayMeta } from '../../../types';
 import type { DayView } from '../../../lib/dayView';
 import type { DaySectionProps } from './daySectionTypes';
+import type { DayManagerTab } from '../../../lib/dayTabs';
+import { formatDateShort } from '../../../lib/utils';
 import DayDetailsSection, { DayDetailsIcon } from './sections/DayDetailsSection';
 import LocationsSection, { LocationsIcon } from './sections/LocationsSection';
 import ScenesSection, { ScenesIcon } from './sections/ScenesSection';
+import BreaksNotesSection, { BreaksNotesIcon } from './sections/BreaksNotesSection';
 import CallTimesSection, { CallTimesIcon } from './sections/CallTimesSection';
 import CrewSection, { CrewIcon } from './sections/CrewSection';
 import EventsSection, { EventsIcon } from './sections/EventsSection';
@@ -26,47 +29,58 @@ export interface DaySectionDef {
   copyable: boolean;
   copyMode?: 'replace' | 'merge';
   /** Full-width card (spans both Day Manager columns) vs the narrow 2-column
-   *  band. Wide = the data-dense grids/tables (scenes, call times, crew);
-   *  narrow = the short meta cards. The page lays the narrow sections out as
-   *  a two-column band: the FIRST narrow section on the left, the rest stacked
-   *  on the right (roadmap 105). */
+   *  band. Wide = the data-dense grids/tables (locations, scenes, breaks &
+   *  notes, call times, crew); narrow = the short meta cards. The page lays
+   *  the narrow sections out as a two-column band: the FIRST narrow section on
+   *  the left, the rest stacked on the right (roadmap 105). */
   wide?: boolean;
+  /** Category tabs (roadmap 315) that include this section. Omitted = every
+   *  tab; `all` is the full stacked page. */
+  tabs?: DayManagerTab[];
   /** The meta patch this section copies (Copy-from-day). Events are handled
    *  by the modal (date-keyed, merged into the calendar version). */
   extract?: (day: DayView) => Partial<DayMeta> | undefined;
-  /** True when the section has no content for this day (drives empty copy). */
+  /** True when the section has no content for this day. Sections with
+   *  `hideWhenEmpty` are skipped entirely; the rest own their empty state. */
   isEmpty?: (day: DayView) => boolean;
+  /** Skip the card (and its header) when {@link isEmpty} is true. */
+  hideWhenEmpty?: boolean;
 }
+
+/** Day status + every element event card — the Events card's live count. */
+const eventCount = (day: DayView): number => {
+  const cards = day.event?.lists
+    ? Object.values(day.event.lists).reduce(
+        (n, categories) => n + Object.values(categories).reduce((m, keys) => m + keys.length, 0),
+        0,
+      )
+    : 0;
+  return (day.status ? 1 : 0) + cards;
+};
 
 export const DAY_SECTIONS: DaySectionDef[] = [
   {
     id: 'details',
     title: 'Day Details',
     icon: <DayDetailsIcon className="w-3.5 h-3.5" />,
-    summary: day => day.meta.note ? day.meta.note : '',
+    summary: day => `Day ${day.chronoDay}${day.date ? ` · ${formatDateShort(day.date)}` : ''}`,
     Component: DayDetailsSection,
-    copyable: true,
-    copyMode: 'replace',
-    extract: day => {
-      const patch = {
-        ...(day.meta.note ? { note: day.meta.note } : {}),
-        ...(day.meta.includeBreaks ? { includeBreaks: day.meta.includeBreaks } : {}),
-        ...(day.meta.includeNotes ? { includeNotes: day.meta.includeNotes } : {}),
-      };
-      return Object.keys(patch).length ? patch : undefined;
-    },
+    copyable: false,
+    tabs: ['all', 'overview'],
   },
   {
+    wide: true,
     id: 'locations',
     title: 'Locations',
     icon: <LocationsIcon className="w-3.5 h-3.5" />,
     summary: day => {
       const n = (day.masterLocation ? 1 : 0) + day.keyLocations.length;
-      return n > 0 ? `${n} location${n !== 1 ? 's' : ''}` : 'None';
+      return n > 0 ? `${n} location${n !== 1 ? 's' : ''}` : 'No locations';
     },
     Component: LocationsSection,
     copyable: true,
     copyMode: 'replace',
+    tabs: ['all', 'locations'],
     extract: day => {
       const patch = {
         ...(day.meta.locationId ? { locationId: day.meta.locationId } : {}),
@@ -83,7 +97,32 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     summary: day => `${day.scenes.length} scene${day.scenes.length !== 1 ? 's' : ''} · ${day.sums.pages || 0} pgs`,
     Component: ScenesSection,
     copyable: false,
-    isEmpty: day => day.scenes.length === 0,
+    tabs: ['all', 'scenes'],
+  },
+  {
+    wide: true,
+    id: 'breaksNotes',
+    title: 'Breaks & Notes',
+    icon: <BreaksNotesIcon className="w-3.5 h-3.5" />,
+    summary: day => {
+      const parts: string[] = [];
+      if (day.breaks.length) parts.push(`${day.breaks.length} break${day.breaks.length !== 1 ? 's' : ''}`);
+      if (day.notes.length) parts.push(`${day.notes.length} note${day.notes.length !== 1 ? 's' : ''}`);
+      if (day.meta.note) parts.push(day.meta.note);
+      return parts.length ? parts.join(' · ') : 'None';
+    },
+    Component: BreaksNotesSection,
+    copyable: true,
+    copyMode: 'replace',
+    tabs: ['all', 'overview'],
+    extract: day => {
+      const patch = {
+        ...(day.meta.note ? { note: day.meta.note } : {}),
+        ...(day.meta.includeBreaks ? { includeBreaks: day.meta.includeBreaks } : {}),
+        ...(day.meta.includeNotes ? { includeNotes: day.meta.includeNotes } : {}),
+      };
+      return Object.keys(patch).length ? patch : undefined;
+    },
   },
   {
     wide: true,
@@ -97,6 +136,7 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: CallTimesSection,
     copyable: true,
     copyMode: 'replace',
+    tabs: ['all', 'callTimes'],
     extract: day => (day.meta.elementCalls && Object.keys(day.meta.elementCalls).length ? { elementCalls: day.meta.elementCalls } : undefined),
   },
   {
@@ -112,11 +152,14 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: CrewSection,
     copyable: true,
     copyMode: 'replace',
+    tabs: ['all', 'crew'],
     extract: day => {
       const patch = {
         ...(day.meta.crewSlots ? { crewSlots: day.meta.crewSlots } : {}),
         ...(day.meta.excludedCrewDepts ? { excludedCrewDepts: day.meta.excludedCrewDepts } : {}),
         ...(day.meta.departmentPrecalls ? { departmentPrecalls: day.meta.departmentPrecalls } : {}),
+        ...(day.meta.reportToId ? { reportToId: day.meta.reportToId } : {}),
+        ...(day.meta.departmentReportTo ? { departmentReportTo: day.meta.departmentReportTo } : {}),
       };
       return Object.keys(patch).length ? patch : undefined;
     },
@@ -126,13 +169,14 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     title: 'Events',
     icon: <EventsIcon className="w-3.5 h-3.5" />,
     summary: day => {
-      const groups = day.event?.lists ? Object.values(day.event.lists).reduce((n, g) => n + Object.keys(g).length, 0) : 0;
-      const status = day.status ? 1 : 0;
-      return `${status + groups} event${status + groups !== 1 ? 's' : ''}`;
+      const n = eventCount(day);
+      return n > 0 ? `${n} event${n !== 1 ? 's' : ''}` : 'None';
     },
     Component: EventsSection,
     copyable: true,
     copyMode: 'merge',
+    isEmpty: day => eventCount(day) === 0,
+    tabs: ['all', 'overview'],
   },
   {
     id: 'conflicts',
@@ -142,6 +186,8 @@ export const DAY_SECTIONS: DaySectionDef[] = [
     Component: ConflictsSection,
     copyable: false,
     isEmpty: day => day.violations.length === 0,
+    hideWhenEmpty: true,
+    tabs: ['all', 'overview'],
   },
 ];
 

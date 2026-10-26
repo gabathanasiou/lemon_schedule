@@ -141,16 +141,16 @@ test.describe('Report grid blocks (items 111/112/159)', () => {
     }, undefined, { timeout: 5000 });
 
     const box = (await scroller.boundingBox())!;
-    // Role 150 · Person 170 · Call 90 · Phone 110 · Email 150, plus the
-    // trailing row-actions column (34). The shared auto-fit flexes the second
-    // column; Call's center is the target.
-    const cols = [150, 170, 90, 110, 150];
+    // Role 150 · Person 170 · Report To 150 (item 156) · Call 90 · Phone 110 ·
+    // Email 150, plus the trailing row-actions column (34). The shared auto-fit
+    // flexes the second column; Call's center is the target.
+    const cols = [150, 170, 150, 90, 110, 150];
     const total = cols.reduce((a, b) => a + b, 0);
     const target = Math.max(120, Math.floor(box.width) - 1) - 34;
     const widths = cols.map(w => Math.max(40, Math.floor((w / total) * target)));
     const sum = widths.reduce((a, b) => a + b, 0);
     widths[1] += target - sum;
-    const x = box.x + widths[0] + widths[1] + widths[2] / 2;
+    const x = box.x + widths[0] + widths[1] + widths[2] + widths[3] / 2;
     const y = box.y + 30 + 14;
 
     await page.mouse.dblclick(x, y);

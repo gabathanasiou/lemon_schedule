@@ -11,8 +11,7 @@ import { CrewGlideTab } from './CrewGlideTab';
 import { LocationsManager } from './LocationsManager';
 import { LocationsGlideTab } from './LocationsGlideTab';
 import type { DayView } from '../lib/dayView';
-import { useProjectTheme } from '../store';
-import { projectSegThemeOf } from '../lib/projectTheme';
+import type { DayManagerTab } from '../lib/dayTabs';
 
 export type ProductionSubTab = 'days' | 'crew' | 'locations';
 
@@ -40,6 +39,10 @@ interface ProductionTabProps {
   /** Pending Day Manager target (section index) from an entry point. */
   dayTarget?: number | null;
   onDayTargetSeen?: () => void;
+  /** Day Manager category tab (roadmap 315); App owns the history-backed value
+   *  in the main window. Omitted in pop-outs → DayManagerPage's local pref. */
+  dayTab?: DayManagerTab;
+  onDayTabChange?: (tab: DayManagerTab) => void;
   onOpenScene?: (sceneId: string) => void;
   onPrintCallSheet?: (day: DayView, design: ReportDesign, zoneBlocks?: ReportBlock[]) => void;
   onPopOutDay?: (day: DayView) => void;
@@ -50,7 +53,7 @@ interface ProductionTabProps {
  *  collapsed to three, with a toolbar toggle for each merged pair. Project
  *  Details and the Call Times settings live in the Day Manager header as
  *  draggable modals (ProductionDetailsModal / CallTimesSettingsModal). */
-export default function ProductionTab({ subTab, onSubTabChange, views, onViewChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, onOpenScene, onPrintCallSheet, onPopOutDay }: ProductionTabProps) {
+export default function ProductionTab({ subTab, onSubTabChange, views, onViewChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange, dayTarget, onDayTargetSeen, dayTab, onDayTabChange, onOpenScene, onPrintCallSheet, onPopOutDay }: ProductionTabProps) {
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
   // Second slot, immediately left of the view switcher: the day selector is
@@ -62,10 +65,6 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
   // the dark editor.
   const [daysChromeDark, setDaysChromeDark] = useState(false);
   const handleDaysChrome = useCallback((dark: boolean) => setDaysChromeDark(dark), []);
-  /* Light-chrome palette follows the project theme (248): zinc / blue /
-   * emerald; the dark Call Sheet chrome keeps its own dark palette. */
-  const segTheme = projectSegThemeOf(useProjectTheme());
-
   // Sub-tab switches/popouts and manager ↔ alternate-view toggles run directly:
   // the click blurs and commits any focused field first (roadmap 250).
   const requestSubTabChange = useCallback((id: string) => {
@@ -95,7 +94,6 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
     return (
       <Seg
         variant="track"
-        theme={dark ? 'dark' : segTheme}
         dense
         value={views[sub]}
         options={[
@@ -141,6 +139,8 @@ export default function ProductionTab({ subTab, onSubTabChange, views, onViewCha
           onTargetSeen={onDayTargetSeen}
           dayMode={views.days}
           onDayModeChange={(mode) => onViewChange('days', mode)}
+          dayTab={dayTab}
+          onDayTabChange={onDayTabChange}
           onOpenScene={onOpenScene}
           onPrintCallSheet={onPrintCallSheet}
           onPopOutDay={onPopOutDay}
