@@ -62,9 +62,9 @@ test('crew links: seeded person→element and person→crew show on both sides, 
     (window as any).__lemonSchedule.dispatch({
       type: 'UPDATE_PROJECT',
       payload: {
-        crewLinks: [
-          { id: 'zzz-cl-1', personId: a, category: 'cast', elementKey: String(anchorId) },
-          { id: 'zzz-cl-2', personId: a, category: 'crew', elementKey: b },
+        links: [
+          { id: 'zzz-cl-1', anchorKind: 'element', anchorCategory: 'cast', anchorValue: String(anchorId), linkedKind: 'crew', linkedValue: a },
+          { id: 'zzz-cl-2', anchorKind: 'crew', anchorValue: a, linkedKind: 'crew', linkedValue: b },
         ],
       },
     });
@@ -78,17 +78,17 @@ test('crew links: seeded person→element and person→crew show on both sides, 
   await modal.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(modal).toBeHidden();
 
-  // Element Manager → Linked crew: the mirror view shows the person; unlink removes.
+  // Element View → Links → Crew attached: the same record; unlink removes it.
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
   await page.getByRole('button', { name: 'Element Manager' }).click();
   const row = page.locator('tr', { hasText: anchor.name }).first();
   await row.getByTitle(/^Element view/).click();
   const emModal = page.getByRole('dialog');
-  await emModal.getByRole('tab', { name: 'Crew' }).click();
+  await emModal.getByRole('tab', { name: 'Links' }).click();
   await expect(emModal).toContainText('ZZZ ALPHA');
   await emModal.locator('[data-crew-person="zzz-crew-a"]').click();
   await expect.poll(() => page.evaluate(() =>
-    ((window as any).__lemonSchedule.getProject().crewLinks || []).some((l: any) => l.id === 'zzz-cl-1'),
+    ((window as any).__lemonSchedule.getProject().links || []).some((l: any) => l.id === 'zzz-cl-1'),
   )).toBe(false);
 });
 
@@ -97,7 +97,7 @@ test('day manager: warns when a linked crew target is not on the day', async ({ 
   const crew = await seedCrew(page);
   await page.evaluate(({ a, b }) => {
     const w: any = (window as any).__lemonSchedule;
-    w.dispatch({ type: 'UPDATE_PROJECT', payload: { crewLinks: [{ id: 'zzz-cl-2', personId: a, category: 'crew', elementKey: b }] } });
+    w.dispatch({ type: 'UPDATE_PROJECT', payload: { links: [{ id: 'zzz-cl-2', anchorKind: 'crew', anchorValue: a, linkedKind: 'crew', linkedValue: b }] } });
     const p = w.getProject();
     const v = p.versions.find((x: any) => x.id === p.activeVersionId);
     const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned) || v.rows.find((r: any) => r.type === 'DAYBREAK');
