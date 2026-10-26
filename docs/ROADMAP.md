@@ -1183,3 +1183,76 @@ future … not able to edit day manager stuff for days that are past today."
   handles the API-call side; this is a workflow guard against rewriting
   history.
 - **Verify:** manual pass per surface; the lock must never block undo/history.
+
+## 301. Day Manager — weather in Day Details + manual override (`[ ]`)
+
+**Asked 2026-10-26 (user):** "day manager -> day details, add the weather info
+there as well with the option to check a box and override the api in order for
+you to write it yourself."
+
+**Request:** show the selected day's sun/weather inside the Day Details table
+(today only the toolbar chip has it), with an "Override the API" checkbox that
+unlocks manual condition / high / low / sunrise / sunset fields.
+
+**Approach — extend the ONE weather pipeline (299), no second path:**
+- Read through the existing seam: `daySunWeather` / `getCachedSunWeather` +
+  `SunWeather` / `formatWeatherValue` / `formatTempC`
+  (`src/lib/reportWeather.ts`). Day Details renders the SAME values as the chip
+  and the `{{weather}}` / `{{sunrise}}` / `{{sunset}}` / `{{tempHigh}}` /
+  `{{tempLow}}` tokens — never a local fetch, cache or formatter.
+- Manual value lives on the governing DAYBREAK row: `DayMeta.weatherOverride`
+  (`src/types.ts`) = `{ enabled, sunrise?, sunset?, weather?, tempMin?,
+  tempMax? }`, written through the existing `patchMeta` (one undo entry, shared
+  in rooms, travels with the project). NOT `sunWeatherCache` (that store is
+  device-local derived data). Blank fields fall back to the fetched value, so
+  checking the box does not force retyping all five; unchecking stops applying
+  but keeps what was typed (non-destructive toggle).
+- ONE resolver: `daySunWeather` and the weather-family `sunWeatherFieldValue`
+  prefer the override for the day's own resolved location, so the chip, day
+  report fields and the call sheet inherit it automatically. The override is
+  day-scoped: it must NOT replace a `block.locationChoice` pick or a
+  `locations`-table row pointing at another pin (one manual value cannot stand
+  for several places). It MUST still work when the day has no location pin
+  (exactly when the API has nothing) — the pin check runs after the override.
+- UI: a `Weather` group in the existing Day Details table
+  (`sections/DayDetailsSection.tsx`) directly under the Day group (weather
+  follows the master location) and above Timing. Read state = two rows:
+  `Weather` (`☁ Partly cloudy · 18–24°C` via `formatWeatherValue`) and `Sun`
+  (`🌅 05:44   🌇 20:25`). Override affordance = kit `Checkbox`
+  (`variant="plain"`, label "Override the API") right-aligned in the group
+  header. Ticked → the same two rows become inline editors (condition text,
+  H/L °C numbers, two native `type="time"` fields) — no modal, no new
+  primitive. No location pin → read state shows "No location pin — set a
+  master location or override", and the checkbox still works (manual weather
+  is exactly the no-pin case). `readOnly`/`canEdit` gates edits like every
+  other row. Keep the section pure: lift the single `useSunWeather(ctx)`
+  warm/refresh owner from `DayWeatherChip` to `DayManagerPage` and pass the
+  resolved view + refresh into both the chip and the section (no second hook
+  instance, no section-side API/cache access).
+- Icons (one set, no new dependency): the app ships lucide only — SF Symbols
+  are Apple-platform licensed and cannot ship in this cross-platform web app.
+  Add ONE `wmoIcon(code)` map (Sun / CloudSun / Cloud / CloudFog /
+  CloudDrizzle / CloudRain / CloudSnow / CloudLightning, CloudSun fallback)
+  used by both the group and the chip, plus `Sunrise`/`Sunset` glyphs on the
+  sun row. Stored entries only carry the WMO label today — add an optional
+  `code` to `StoredSunWeather`/`SunWeather` (old entries fall back to the
+  generic glyph).
+- Chip: same icon; mark "Manual" and disable refresh while the override is on
+  (nothing to re-fetch), so the two surfaces can never disagree. Fetch policy
+  stays untouched — the cache still warms under the override; the override
+  only wins at render time. No new API calls, token family or cache key.
+- `isEmptyDayMeta` (`src/lib/dayMeta.ts`) counts `weatherOverride` as day data
+  (delete-daybreak warning stays honest); `pruneDayMetaRefs` needs no change
+  (no refs). Day Details is not copyable, so Copy-from-day is unaffected.
+- Update `docs/REPORTS-DESIGNER.md` §Location attributes + the `daybreakMeta`
+  summary in AGENTS.md.
+
+**Verify:** unit tests for override precedence (day field + chip view, another
+pin in a locations table, blank-field fallback, no-pin day) in
+`src/lib/__tests__/reportWeather.test.ts`; manual: tick the box, type values →
+chip + call sheet + printed report show them, refresh does not clobber them;
+untick → API values return. Rule 7: no e2e for the visuals, automate only the
+resolver.
+
+**Relations:** extends **299** (stored sun/weather + chip) and reuses **98**'s
+`getReportLocation` seam; complies with **300**'s past-day lock once built.
