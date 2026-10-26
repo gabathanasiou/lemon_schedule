@@ -708,19 +708,49 @@ tags.
   filter (rows silently disappearing = break).
 - **Relations**: 121, 84, 88, 139-145, 318.
 
-## 318. SearchMenu adoption audit — replace eligible controls with the kit SearchMenu (`[ ]`)
+## 318. SearchMenu adoption audit — replace eligible controls with the kit SearchMenu (`[~]`)
 
 **Request**: audit the app for buttons/pickers that can become the kit
 `SearchMenu` (inline textbox or expandable button→field). Produce a short
 candidate list, then migrate the clear wins; don't force a search where a plain
 select is better.
 
-- Start with: EntityDropdown/SelectDropdown/AutocompleteDropdown usages, crew
-  and location pickers, rule/condition pickers, report collection pickers, day
-  event/location pickers, toolbar search/filter controls, Script scene-list
-  search.
-- For each candidate: current control, why SearchMenu (records inside, category
-  groups, empty action), risk, and manual check. Keep the one search surface.
+- **Shipped (Day Manager, v0.3.131)**: master location · Add location (search +
+  explicit New) · crew Report to (all crew + per department) · Add role (header
+  across all departments + per-department, role categories with available
+  people) → kit `SearchMenu` expandable. ONE adapter `LocationSearchMenu`
+  (`src/components/location/`) replaces the retired `LocationEntityDropdown`;
+  `LocationOption.fields` carries address/place/contact/phone into deep search.
+  Browse modes: field pickers (master location, Report to) use the new kit
+  `browseExpanded` — plain type headers, all records open; Add location + Add
+  role stay accordions. Kit v0.1.122/123 released for `browseExpanded` +
+  `triggerIcon` (MapPin on location pickers, UserPlus/Plus on adders). Category
+  rows only expand — never add on category click.
+  Manager jump/flash now uses the kit `searchMenuContent` matcher (single
+  matcher; the duplicate `managerSearch` matcher + its test are gone).
+  Docs: `UI-PRIMITIVES.md` §SearchMenu (full capability reference),
+  `DESIGN-LANGUAGE.md` picker table.
+- **Audit — EntityDropdown**: not replaceable wholesale (cell editor: multi/comma,
+  Tab/Enter/Escape commit, free-text create, anchored keys, scene counts, id/name
+  spaces, portal target). SearchMenu takes only standalone single-select
+  catalogue cases; don't fork a third panel.
+- **Next (clear wins)**: Key Positions → Assign (crew grouped by department);
+  Element View header element picker (per-category, no search today); Script
+  scene sidebar (scene records: number/set/location/cast); Day Types sidebar;
+  Reports category sidebar (+ popout); Day picker (days grouped by week); nearby
+  hospital/police picker; Trash search.
+- **Later (adapter/kit)**: report field/collection/palette pickers (flatten the
+  grouped submenus); ribbon field palette + Change Field; PeoplePicker (needs
+  async + avatar rows); Add Crew Member role field; version/design/style pickers
+  (keep inline rename/duplicate/delete); Glide row filter (kit
+  `MorphSearchField`, shipped in 0.1.120 — the app now pins 0.1.122).
+- **Blocked — do not force**: in-cell EntityDropdown editors (ribbon/Glide/Sheet/
+  crew Person + per-slot Report To/locations grid); multi-select surfaces
+  (Checklists, multi GroupedSelect/EntityDropdown, event filter); async geocoder;
+  free-text cast/set creation (empty actions only cover no-match).
+- **Verify**: lint + smart suite; Day Manager surfaces are rule-7 manual checks
+  (panel opens, categories expand, picking/changing/clearing persists, add-role
+  adds the role/person, add location creates from typed text).
 - **Relations**: `follows` **172**; `relates to` **306**, **308**.
 
 ## 174. Call Times — label audit (`[ ]`, parked)

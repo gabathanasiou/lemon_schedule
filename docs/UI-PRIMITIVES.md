@@ -224,11 +224,52 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   Esc/outside/X = cancel; DNWA checkbox via `suppressKey`. `NewProjectModal` and `TrashModal`
   (File → Trash…, per-kind `ItemCard` sections + Empty) are kit-Modal surfaces — reuse the pattern,
   never hand-roll overlay divs.
-- **SearchMenu** (kit): the ONE record-search surface — inline (manager sidebar
-  textbox) or expandable (primary button ↔ kit input), category tree rows with
-  chevrons, comma tags, zero-or-more custom empty actions. Consumed by the
-  Element/Crew/Locations manager search (roadmap 172); never fork a second
-  search dropdown.
+- **SearchMenu** (kit, roadmaps 172 + 318): the ONE catalogue-search surface. It is a
+  **picker**, not a filter or a cell editor. Two modes:
+  - **`inline`** — the field is always visible (manager sidebars); click/focus opens the panel.
+  - **`expandable`** — the **button → textbox morph**: a primary `triggerLabel` button
+    cross-fades into a field (animated `collapsedWidth` → `expandedWidth`), focuses it on open,
+    and collapses back on select / Escape / outside click (focus returns to the button).
+    `triggerIcon` gives the collapsed button its domain icon (MapPin for locations,
+    UserPlus/Plus for adders) — the expanded field keeps the magnifier.
+  Panel model: `items` (`SearchMenuItem`: `id`/`label`/`group`/`detail`/`icon`/`disabled`/
+  `fields[]`/`keywords`) × `groups` (`SearchMenuGroup`: `key`/`label`/`icon`/`count`).
+  - **Categories + accordions**: groups render as icon+count category rows. With
+    `expandableGroups` each row gets a chevron that expands its records (animated height);
+    `groupExpandMode="single"` = one open at a time (accordion), `"multiple"` = many.
+    Keyboard: ↑↓ rows, **→ expands / ← collapses** a category, Enter activates the highlighted
+    record (categories are never the default Enter action), Esc closes.
+  - **Open vs accordion**: `browseExpanded` shows every group's records under a PLAIN header
+    (no chevron, header not clickable) — use it for SHORT catalogues where hiding records
+    behind categories only adds a click. Use `expandableGroups` for LONG catalogues. Rule of
+    thumb: field pickers (master location, Report to) = open; adders over a big list (Add
+    location, Add role) = accordion. **Category rows never perform the action** — on a picker
+    they only expand (never pass `onSelectGroup` to make a category "add"); the records do.
+  - **Browse vs search**: `openOnFocus` (default) makes an empty query the category browse
+    state (category rows only); typing switches to grouped results. Without groups, an empty
+    query shows "Type to search…" — provide groups when browsing matters.
+  - **Deep search**: comma-separated tags are AND. Matched against label, `detail`, category
+    label, `keywords` and every `fields[].value`; the matched attribute becomes the row's
+    right-hand snippet. The pure model is exported (`parseSearchTags`, `searchMenuContent`,
+    `buildSearchMenuRows`) — **use it for any jump/highlight bookkeeping too**, never a second
+    matcher (that drifted in the managers, roadmap 318).
+  - **Empty state**: `emptyTitle` / `emptyHint` / `renderEmpty({query,close})` plus
+    `emptyActions[]` (label may be a function of the query; icon optional). Actions render
+    **only when the query yields no rows** — an "Add “…”" action never competes with results.
+  - Sizing/theme: `collapsedWidth`, `expandedWidth`, `panelWidth`, `maxMenuHeight`, `theme`,
+    `morph`, `autoFocus`, controlled `query`/`onQueryChange`, `closeOnSelect`.
+  **Limits (by design)**: single-select · synchronous items only (no async source) · no
+  inline create/rename (empty actions instead) · no controlled `open` · fixed trigger content
+  (Search icon + `triggerLabel`). **Use for**: standalone single-record catalogue pickers
+  (locations, crew roles/people, days, report fields) where categories or deep fields matter.
+  **Do NOT use for**: grid/cell editors (`EntityDropdown` — Tab/Enter commit, comma multi,
+  free-text create), short fixed option lists (`SelectDropdown`/`AutocompleteDropdown`),
+  async place search (`AsyncResultsDropdown`), or toolbar filters (`MorphSearchField`, kit
+  v0.1.120+ — a filter that keeps its term, not a record picker). Never fork a second search
+  dropdown. **App adapter**: `LocationSearchMenu` (`src/components/location/`) is the
+  standalone location face — grouped by type, searches address/contact/phone, optional
+  "add the typed name" action and clear button; used by the Day Manager master location,
+  Add location, and crew Report-to headers (roadmap 318).
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode =
   search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly).
   `displayMode` picks the value space (`id` fields vs `name`); pass **`resolveBy="id"`** when values
@@ -238,7 +279,7 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   grouped**: location pickers use `locationOptions(project)` — add-new first, then the Locations DB
   grouped by location type (search `name` + `group`, never re-sort across headers); crew pickers
   group by `crewRoleGroup`/`departmentOrder`. Standalone location fields use
-  `LocationEntityDropdown`; never a flat location or role list.
+  `LocationSearchMenu`; never a flat location or role list.
 - `TimeField`/`DurationField` (`src/components/`): call-time expression input (absolute/relative,
   touch keypad, live resolved value, reset) + the extracted duration recipe. `GroupedSelect`
   (`production/day/`): grouped single/multi-select rendered through the kit `DropdownMenu` —
