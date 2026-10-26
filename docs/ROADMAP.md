@@ -437,7 +437,7 @@ FILL (default)                           LAYOUT (toggle, or click a block)
 **Design**:
 - **One host, sheet main.** `DayManagerPage` stops page-swapping: shared
   header + data rail + the existing `CallSheetCanvas` as the main pane (reuse
-  it, `InteractiveGridBlock` and the zone designer untouched — one canvas).
+  it, `InteractiveGridBlock` and the editor's zone mode untouched — one canvas).
   The light sections page goes away as a separate screen; its panels become
   the rail.
 - **One header**: `< DAY N >` picker (week-grouped, conflict badges), date +
@@ -451,8 +451,8 @@ FILL (default)                           LAYOUT (toggle, or click a block)
 - **Two intents, never mixed.** Fill: rail + in-place edits, NO palette,
   chrome or drop zones. Shape (`Layout` toggle, or click a zone block → enters
   Layout with it selected): design picker + palette + block chrome + drop
-  zones + Reset; enforce `blockAllowedIn` in the zone designer (today only the
-  full designer guards it, `ReportDesigner.tsx:223-231`).
+  zones + Reset; the zone already shares `blockAllowedIn` + the commit
+  invariants (roadmap 212).
 - **In-place editing v1 (minimal mapped set)**: day note, general call,
   master location, breaks — click the rendered value on the sheet, edit with
   the existing primitive (`TimeField`/`CellInput`/`EntityDropdown`) through a
@@ -721,44 +721,6 @@ offline behavior (`docs/STORE-AND-SYNC.md` read-only rules).
 the same "person beyond one project" idea for cast); overlaps **146** (crew
 roster/template model) and the Crew Manager items **89-91**; may interact with
 **145** (desktop app hosting) and **97** (API store) for where the DB is kept.
-
-## 212. Call Sheet editor — 1:1 designer parity with the Reports designer (docked inspector included) (`[ ]`, future, big)
-
-**Request** (user, 2026-10-08, user-confirmed direction): the call-sheet
-editor's design surface should BE the Reports designer — including the
-right-hand inspector dock (palette when nothing selected → block/column/cell
-inspector on selection, collapse + drag-resize), Fields/Values mode, and the
-full block/column/cell editing chrome. **Confirmed as accurate**: today the zone
-mounts the raw canvas with `editorMode: 'floating'` and `mode: 'values'`
-hardcoded (`CallSheetZoneDesigner.tsx:84,148`) — no rail, no mode switch,
-floating chrome only. `CallSheetZoneDesigner` is the wrapper to retire in favour
-of a first-class zone mode on `ReportDesigner` — not a second designer.
-(Zone-less designs now render through the same `CallSheetCanvas` page with no
-zone slot — roadmap 211 — so this item only concerns the zone itself.)
-
-**Approach**: give `ReportDesigner` a first-class zone mode (design = the
-selected call-sheet template's `days` repeat, editable root = the
-`callSheetEdit` zone, day item resolved like today) and retire the hand-rolled
-wrapper: same rail layout/`usePaneResize` + persisted prefs
-(`lemon_schedule_report_editor_mode` / `..._rail`), same Fields/Values `Seg`,
-same canvas. Keep the surrounding template read-only and the per-day-per-design
-zone writes (`daybreakMeta.callSheets[designId]`); keep the live grid blocks
-(`callTimes`/`crewTable`) interactive. Decide the toolbar shape in
-implementation (keep the editor header's Times/Preview/Print, or adopt the
-designer toolbar) and document whichever ships.
-
-**Verify**: `npm run lint`; `e2e/call-sheet-day.spec.ts` stays green + new
-assertions (rail open by default, selecting a block swaps palette → inspector, a
-Fields-mode edit still persists to that day's zone); rule-7 manual (rail parity
-side-by-side with the Reports designer).
-
-**Relations**: replaces `CallSheetZoneDesigner` (keep until then); **142**
-(Unified Day workspace) merges the surfaces — this item makes the editor good
-WITHOUT merging navigation (the 176 note keeps Day Manager / Call Sheet
-separately navigable); builds on **203** (Fields/Values mode) and **204**
-(duplicate selects); touches **113**/**114** (zone chrome/Times toggle) and
-**208**/**211** (same editor); related **222** (the fill canvas's live-grid
-headings/print parity — independent, not blocked by this).
 
 ## 214. Image block — bottom-right drag to scale; editor renders at true print scale (`[ ]`)
 

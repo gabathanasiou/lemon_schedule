@@ -1,4 +1,5 @@
 import { ReportBlock, ReportCollection, ReportColumn, ReportCustomRow, ReportDesign, ReportTableColumn } from '../types';
+import type { RibbonPrintOptions } from './reportData';
 import { generateUUID } from './utils';
 import { normalizeColWidths } from './ribbonDefaults';
 import { insertMergeRow, removeMergeRow, remapMergesForColumns } from './reportTableMerges';
@@ -46,6 +47,25 @@ export function collectRibbonBlocks(list: ReportBlock[] | undefined, out: Report
     if (b.type === 'ribbon') out.push(b);
     if (b.type === 'repeat' || b.type === 'callSheetEdit' || b.type === 'relative') collectRibbonBlocks(b.children, out);
     if (b.type === 'columns') for (const c of b.cols || []) collectRibbonBlocks(c.blocks, out);
+  }
+  return out;
+}
+
+/** The view-only "Times" aid (item 114): force call times + durations visible
+ *  on EVERY ribbon block of a design, preserving each block's other flags.
+ *  Never saved, never printed — the canvas renders it through
+ *  `ReportBlockView`'s `ribbonOverrides`, exactly like the Call Sheet editor. */
+export function ribbonTimeOverrides(blocks: ReportBlock[] | undefined): Record<string, RibbonPrintOptions> {
+  const out: Record<string, RibbonPrintOptions> = {};
+  for (const b of collectRibbonBlocks(blocks)) {
+    out[b.id] = {
+      ribbonId: b.ribbonId,
+      showCallTimes: true,
+      showDurations: true,
+      showNotes: b.ribbonNotes !== false,
+      showBreaks: b.ribbonBreaks === true,
+      showDayBreaks: b.ribbonDayBreaks === true || b.ribbonHeaders === true,
+    };
   }
   return out;
 }
@@ -236,6 +256,21 @@ export function findCallSheetZone(blocks: ReportBlock[]): ReportBlock | undefine
  *  honored wherever it sits (item 213). */
 export function findDesignCallSheetZone(design: ReportDesign): ReportBlock | undefined {
   return findCallSheetZone([...(design.header || []), ...(design.blocks || []), ...(design.footer || [])]);
+}
+
+/** How many per-day edit zones a block tree holds. A design may host ONE
+ *  editable zone — the day editor swaps exactly that block for the live
+ *  canvas; every other zone would duplicate the day's content (roadmap 212). */
+export function countCallSheetZones(blocks: ReportBlock[]): number {
+  let n = 0;
+  for (const b of blocks) {
+    if (b.type === 'callSheetEdit') n += 1;
+    if (b.children?.length) n += countCallSheetZones(b.children);
+    if (b.type === 'columns' && b.cols) {
+      for (const c of b.cols) n += countCallSheetZones(c.blocks || []);
+    }
+  }
+  return n;
 }
 
 export function removeBlock(blocks: ReportBlock[], id: string): ReportBlock[] {
@@ -862,10 +897,24 @@ export function dayGridOffenders(blocks: ReportBlock[], parentCollection?: Repor
   return out;
 }
 
+/** Placement context beyond the collection scope. */
+export interface BlockPlacementOptions {
+  /** Editing the per-day call-sheet zone (roadmap 212): day-grid blocks live
+   *  only at TEMPLATE level (the day page renders them live there); the zone
+   *  renders them read-only, and a second/nested zone would duplicate the
+   *  day's content. */
+  callSheetZone?: boolean;
+}
+
 /** Whether a block type can be placed in the given context. The palette keeps
  *  EVERY block enabled — a disallowed drop/click explains where the block can
  *  go (`blockPlacementHint`) instead of silently disabling the palette item. */
-export function blockAllowedIn(type: ReportBlock['type'], insertScope?: ReportCollection | null, insideColumns?: boolean): boolean {
+export function blockAllowedIn(
+  type: ReportBlock['type'],
+  insertScope?: ReportCollection | null,
+  insideColumns?: boolean,
+  opts?: BlockPlacementOptions,
+): boolean {
   // Columns can't nest inside a columns block's column.
   if (type === 'columns' && insideColumns) return false;
   // Advance needs a current item — only inside a repeat/relative context.
@@ -873,13 +922,25 @@ export function blockAllowedIn(type: ReportBlock['type'], insertScope?: ReportCo
   // Day-scoped grids (items 111/112/159) only make sense inside a days repeat —
   // any day context (days, daysOfCast) through the ONE collection→scope map.
   if (isDayGridBlock(type) && fieldScopeFor(insertScope) !== 'days') return false;
+  if (opts?.callSheetZone) {
+    // The zone is day-scoped content: a grid block there would render read-only.
+    if (isDayGridBlock(type)) return false;
+    // One zone per design — nesting another would duplicate the day's page.
+    if (type === 'callSheetEdit') return false;
+  }
   return true;
 }
 
 /** Where a disallowed block type is allowed (dialog message). */
-export function blockPlacementHint(type: ReportBlock['type']): string {
+export function blockPlacementHint(type: ReportBlock['type'], opts?: BlockPlacementOptions): string {
   if (type === 'columns') return 'Columns can’t be nested inside another Columns block — drop it outside the columns.';
   if (type === 'relative') return 'Advance needs a repeating block — put it inside a Repeat (or another Advance).';
+  if (opts?.callSheetZone && isDayGridBlock(type)) {
+    return 'This block only works as a template block — add it in Design → Reports Designer, inside the Days repeat. In the per-day edit zone it would render read-only.';
+  }
+  if (opts?.callSheetZone && type === 'callSheetEdit') {
+    return 'A call sheet has one edit zone — edit the existing zone’s blocks instead.';
+  }
   if (isDayGridBlock(type)) return 'This block only works inside a Repeat over Days.';
   return 'This block isn’t allowed here.';
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, SetStateAction } from 'react';
+import type { ReportViewMode } from '../types';
 
 export function usePersistState<T>(storageKey: string, defaults: T): [T, (value: SetStateAction<T>) => void, () => void] {
   const [value, setValue] = useState<T>(() => {
@@ -44,6 +45,24 @@ export function useViewMode(): [ViewMode, (m: ViewMode) => void, number | null] 
   }, []);
 
   return [mode, setViewMode, VIEW_WIDTHS[mode]];
+}
+
+/** Fields/Values display mode (roadmap 203) — ONE per-user pref shared by the
+ *  Reports Designer and the Call Sheet editor (roadmap 212), so the mode you
+ *  edit in follows you between the two surfaces. Default Values. */
+const REPORT_VIEW_MODE_KEY = 'lemon_schedule_report_view_mode';
+
+export function useReportViewMode(): [ReportViewMode, (m: ReportViewMode) => void] {
+  const [mode, setMode] = useState<ReportViewMode>(() => {
+    try { return localStorage.getItem(REPORT_VIEW_MODE_KEY) === 'fields' ? 'fields' : 'values'; } catch { return 'values'; }
+  });
+
+  const setReportViewMode = useCallback((m: ReportViewMode) => {
+    setMode(m);
+    try { localStorage.setItem(REPORT_VIEW_MODE_KEY, m); } catch {}
+  }, []);
+
+  return [mode, setReportViewMode];
 }
 
 export type KeyboardMode = 'on' | 'off';

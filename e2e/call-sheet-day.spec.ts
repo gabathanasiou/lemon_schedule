@@ -60,6 +60,19 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await page.getByRole('menuitem', { name: 'Design' }).click();
     await page.getByRole('menuitem', { name: 'Call Sheet Zone', exact: true }).click();
     await expect(page.locator('[data-call-sheet-page]')).toBeVisible({ timeout: 8000 });
+
+    // Roadmap 212 — the zone is the REAL Reports Designer in zone mode: the
+    // docked rail's palette is present by default.
+    const editor = page.locator('[data-call-sheet-edit]');
+    const railPalette = editor.getByPlaceholder('Search blocks & attributes…');
+    await expect(railPalette).toBeVisible({ timeout: 8000 });
+
+    // Day-grid blocks only work as TEMPLATE blocks (the page renders them live
+    // there) — the zone refuses them with the shared placement guard.
+    await editor.locator('aside').first().getByRole('button', { name: 'Call Times', exact: true }).click();
+    await expect(page.getByText('Can’t drop that here')).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: 'OK' }).click();
+
     const formulaCell = page.locator('[data-cell="r1:c3"]');
     await expect(formulaCell).toBeVisible({ timeout: 8000 });
 
@@ -67,6 +80,8 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     // click used to bubble to the card, exit Values editing and lose the pick.
     await formulaCell.dblclick();
     await expect(page.locator('[data-cell="r1:c3"] .report-cell-editor-active')).toBeVisible({ timeout: 5000 });
+    // Selecting a zone block swaps the rail from the palette to its inspector.
+    await expect(railPalette).toHaveCount(0);
     await page.locator('[data-cell="r1:c3"] .tiptap').first().click();
     await page.keyboard.type('=');
     await page.getByRole('option', { name: '← Cell left' }).click();
@@ -92,6 +107,21 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await page.keyboard.press('Enter');
     await page.getByRole('menuitem', { name: 'Reset to template' }).click();
     await expect.poll(async () => (await readPinnedMeta(page, 'cs-zone')) === null, { timeout: 5000 }).toBe(true);
+
+    // Roadmap 212 — a store change UNDER the editor re-syncs the live canvas
+    // (undo / a peer's save). Simulate a peer writing the day's zone: the
+    // canvas swaps to the new content and the stale selection clears.
+    await page.evaluate((designId) => {
+      const b: any = (window as any).__lemonSchedule;
+      const p = b.getProject();
+      const v = p.versions.find((x: any) => x.id === p.activeVersionId);
+      const gov = v.rows.find((r: any) => r.type === 'DAYBREAK' && r.pinned);
+      const meta = { ...(gov.daybreakMeta || {}) };
+      meta.callSheets = { ...(meta.callSheets || {}), [designId]: [{ id: 'peer-zone-text', type: 'text', text: 'PEER ZONE' }] };
+      b.dispatch({ type: 'UPDATE_ROW', payload: { versionId: v.id, rowId: gov.id, updates: { daybreakMeta: meta } } });
+    }, 'cs-zone');
+    await expect(page.locator('[data-call-sheet-page]').getByText('PEER ZONE', { exact: true })).toBeVisible({ timeout: 5000 });
+    await expect(railPalette).toBeVisible({ timeout: 5000 });
   });
 
   test('custom-rows table renders literal cells and resolves tokens', async ({ page }) => {
@@ -160,9 +190,16 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(page.getByText('HEADER TEMPLATE', { exact: true })).toBeVisible({ timeout: 8000 });
     await expect(page.getByText('{{dayNumber}}')).toHaveCount(0);
 
+    // Roadmap 212: the zone is the REAL Reports Designer — the docked rail's
+    // palette is here, and selecting a zone block swaps it to its inspector.
+    const editor = page.locator('[data-call-sheet-edit]');
+    const railPalette = editor.getByPlaceholder('Search blocks & attributes…');
+    await expect(railPalette).toBeVisible({ timeout: 8000 });
+
     // The header-hosted empty zone is the designer's drop target — click it.
     await page.getByText(/No blocks yet/).click();
     await expect(page.locator('[data-call-sheet-page] [data-block-id]').first()).toBeAttached({ timeout: 8000 });
+    await expect(railPalette).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => {
       const b: any = (window as any).__lemonSchedule;
       const p = b.getProject();
@@ -331,7 +368,7 @@ test.describe('Call Sheet Designer (roadmap 10)', () => {
     await expect(strip).toBeAttached({ timeout: 8000 });
     await expect(strip).toContainText(/\d{1,2}:\d{2}/);
 
-    await page.getByRole('button', { name: 'Preview times & durations' }).click();
+    await page.getByRole('button', { name: 'Times', exact: true }).click();
     await expect(strip).not.toContainText(/\d{1,2}:\d{2}/);
   });
 
