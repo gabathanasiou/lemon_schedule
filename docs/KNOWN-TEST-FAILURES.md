@@ -332,3 +332,17 @@ not the Day Manager card/tab work; do not fix it here.
 class-independent assertion) in its UI-adoption pass. Until then: 272 passed /
 3 known / 7 skipped on this branch; the three failures are reproducible on
 `main` with the same spec and kit.
+
+## L. overlay-morph trace sampling under extra process load (2026-10-27)
+
+**Symptom:** a full-suite run on `305-board-ids-display` failed
+`overlay-morph.spec.ts:183` + `:214` (both attempts) on
+`midMorph(samples).length > 0` — zero intermediate frames were sampled.
+
+**Cause:** unit tests were running concurrently on the same machine, so the
+rAF sampler never caught the open morph. Both specs pass 10/10 in isolation
+with `--workers=1` (24s), and the changes in 305 touch no overlay code.
+
+**Rule:** never run the unit suite alongside the e2e suite; both are
+wall-clock sensitive. Re-run the spec alone before treating a zero-sample
+morph as a regression.

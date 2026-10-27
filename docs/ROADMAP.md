@@ -912,31 +912,6 @@ visually; `npm run lint`.
 
 **Relations**: `relates to` **229** (collab entitlement + shared gating), **145** (desktop app = the true offline host), **209** (account question).
 
-## 305. Board IDs in display surfaces — "N. NAME" everywhere (`[ ]`, second pass of 257)
-
-**Request**: 257 stores a per-category Board ID but shows it only in the Element
-Manager. This pass surfaces it where users read elements: EntityDropdown item
-prefixes, Breakdown Sheet / Element Breakdown print, DOOD, call sheets, report
-ordering and the `dayView` board ID column — the deferred list from 257.
-
-- **Manager search slice (shipped)**: manager search rows now use the
-  board-numbered identity (`1. BOB`) with the cast subtitle as the artiste, and
-  field LABELS are no longer searchable — the old synthetic `"Board ID: n"`
-  subtitle made `board` list every element (`managerSearch.ts`,
-  `managerShell.tsx`, `ElementManager.tsx`).
-- Scope: widen `sortReportElements` (`reportData.ts`, cast-by-id today) to every
-  category's `boardId`; `dayView.ts` `boardId` + `reportData.ts`
-  `ReportElementCallItem.boardId` (`cat === 'cast' ? key : undefined`); label
-  `ELEMENT_CALL_FIELDS.elementCallId` "Cast ID" → "Board ID"; `EntityDropdown`
-  prefixes; print / DOOD / call-sheet renderers.
-- Decisions at pickup: which surfaces show "N. NAME" vs a separate column;
-  whether report element lists sort by number by default (ties by name).
-- **Verify**: Vitest for the ordering/field resolvers; e2e only where silence
-  would hurt (call sheet columns, report ordering); print/DOOD are rule-7 manual.
-- **Relations**: `depends on` **257** (numbers stored/imported); `extends` **143**
-  (cast-only report ordering); `relates to` **157** (performer details add
-  fields), **111/112** (call-times grids), **172** (search).
-
 ## 262. File → Help — Send feedback / support entry (`[ ]`)
 
 **Requested 2026-10-15 (user):** the Help submenu should gain a contact /
