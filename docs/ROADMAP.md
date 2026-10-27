@@ -1137,3 +1137,88 @@ Split out of 297 (archived), where it was explicitly deferred.
   deployed app; keyless build unchanged.
 - **Relations**: `follows` **297** (archived); `pairs with` **285** (CSP
   allowlist); `feeds` **288** (privacy data-flow list).
+
+## 322. Picker architecture — multi-select menus + ONE value picker (`[ ]`, big)
+
+**Asked 2026-10-27 (user):** multi-select is only possible through
+`EntityDropdown` today; both kit menus should support it ("keeps open, you keep
+selecting, commit when you close"), everything the dropdowns already do
+(categories, accordions, actions, morphing) must come along, and the entity
+dropdown should eventually move into the kit so the three picker families stop
+being used interchangeably. Real use case: adding crew-template roles one modal
+at a time is painfully slow.
+
+**Contract (locked with the user):**
+
+- **Menus that DO something (bulk action)** = draft + explicit footer hero
+  ("Add 6 roles"); Escape / click-away CANCELS the draft, the hero commits ONE
+  undo entry.
+- **Fields that STORE a value** = commit on close (blur/Escape/outside), one
+  batched dispatch, and only when the value actually changed (no empty undo
+  entries).
+- In BOTH: a row click TOGGLES and the panel stays open; checked ≠ highlighted;
+  select-all in the footer AND per group; ⌘A selects the visible (filtered) set;
+  selection is emitted in catalogue order.
+- **Field trigger display supports ALL modes**: `names` | `chips` | `count`
+  presets, `formatDisplay(values, items) => string` for arbitrary selected text,
+  `renderTrigger` for custom JSX. Menus need none (button label + panel footer
+  count).
+- Naming: `PickerField` (value field), `selection.ts` / `SelectionFooter` /
+  `SelectionCheck` (shared model). Panels keep `DropdownMenu` / `SearchMenu`.
+
+**Phases (each ships independently; 1→4 is the prerequisite chain):**
+
+1. **Selection model** — new `src/selection.ts` in the kit: `SelectionProps`
+   (mode, selectedIds, onChange/onToggle, max, disabledIds, footer),
+   `useSelection` (toggle / toggleGroup / setAll / clear / count / order),
+   `SelectionFooter` (sticky: `N selected · Clear · hero`), `SelectionCheck`.
+   Pure logic → `src/__tests__/selection.test.ts`.
+2. **`DropdownMenu` multiple mode** — a selection context flips rows from
+   activate→toggle; check affordance; sticky footer; Enter/Space toggle; ⌘A;
+   per-group select-all (group headers become actionable in this mode ONLY);
+   Escape/outside = cancel. Extend `playground/specs/dropdown-menu.spec.ts`.
+3. **`SearchMenu` multiple mode** — the accordion stays an accordion (expand ≠
+   select); category rows show `x/y selected` + per-group select-all; footer
+   count with a "N hidden by filter" note; Enter toggles; selected-but-filtered
+   rows stay selected. Extend
+   `playground/specs/searchable-dropdown.spec.ts`.
+4. **Crew roles bulk-add (app proof)** — an "Add roles" multi-picker in the Call
+   Times modal / Day Crew: grouped by department, searchable, select-all per
+   department, one batch dispatch (one undo entry). Replaces the one-role-at-a-
+   time flow.
+5. **`PickerField` (kit, the big one)** — the value layer extracted from
+   `EntityDropdown`: single/multi + comma list + typed-segment query,
+   create-from-typed, commit-on-close, `display` presets + `formatDisplay` +
+   `renderTrigger`, trigger faces `inline` (cell) / `chip` / `wrap` / `morph`,
+   id↔label (`resolveBy`), custom row renderer/badge/trailing/anchor icon, Tab
+   hand-off, `selectAllOnOpen`, async source (replaces `AsyncResultsDropdown`).
+   Built on the catalogue face (`SearchMenu`) — **NO `face` prop and no second
+   panel implementation**. Needs ONE small backward-compatible seam: controlled
+   `open`/`onOpenChange` + `renderTrigger`/`hideTrigger` on `SearchMenu`. The app
+   keeps a thin adapter (`src/components/EntityDropdown.tsx`) for the domain:
+   cast Board IDs, other categories name-keyed, `addNewElement` + naming modal,
+   `useLinkedEditGuard`.
+6. **Retire the zoo** — `GroupedSelect`, `SelectDropdown`, `AutocompleteDropdown`
+   and `AsyncResultsDropdown` become faces of `PickerField`; migration order by
+   risk: Link Manager / Color Rules (chip) → Scene Sheet (inline wrap) →
+   stripboard inline → **Glide cell editors LAST** (Tab hand-off + focus timing).
+
+**Non-goals:** no `PickerField` over `DropdownMenu` (menus are for commands);
+submenus stay out of value fields; the comma-string storage format and cast-by-ID
+stay app-side (the kit models an array, adapters serialise).
+
+**Docs per phase:** `docs/SEARCH-MENU.md` §4b loses "single-select by design";
+`docs/DESIGN-LANGUAGE.md` gains the selection contract (checked ≠ highlighted,
+never close on toggle, sticky footer); `PickerField` gets
+`docs/PICKER-FIELD.md` at phase 5; the kit `AGENTS.md` is at its 200-line cap —
+point at `selection.ts` instead of adding a section.
+
+**Verify:** kit — `npm run lint` + `npm run test:playground` (new selection specs)
++ Vitest for the pure model; app — `npm run lint` + the full suite at phases 4 and
+6; manual pass (menu: tick 6 roles, Escape cancels, the hero adds them in one
+undo; field: reopening shows the committed value in names / chips / count / custom
+text; iPad tap targets and the sticky footer).
+
+**Relations:** `follows` **56** (promote shared components into the kit) and
+**318** (SearchMenu adoption); `relates to` **172** (search family), **302**
+(modal theming); `supersedes` the remaining EntityDropdown part of **56**.
