@@ -692,21 +692,29 @@ set manually per day instead.
 candidate list, then migrate the clear wins; don't force a search where a plain
 select is better.
 
-- **Shipped (Day Manager)**: master location · Add location (search + explicit
-  New) · crew Report to (all crew + per department) · Add role (header across
-  all departments + per-department, role categories with available people) →
-  kit `SearchMenu` expandable. ONE adapter `LocationSearchMenu`
+- **Shipped (Day Manager)**: master location · Add location · crew Report to
+  (all crew + per department) · Add role (header across all departments +
+  per-department, role categories with available people) → kit `SearchMenu`
+  expandable. ONE adapter `LocationSearchMenu`
   (`src/components/location/`) replaces the retired `LocationEntityDropdown`;
   `LocationOption.fields` carries address/place/contact/phone into deep search.
-  Browse modes: field pickers (master location, Report to) use kit
-  **`browseExpanded`** — plain type headers, all records open; Add location +
-  Add role stay accordions. Kit v0.1.122/123 supplies `browseExpanded` +
-  **`triggerIcon`** (MapPin on location pickers, UserPlus/Plus on adders).
-  **Category rows only expand — never add on category click.**
+  Browse modes: **master location = `browseExpanded`** (plain, non-interactive
+  type headers, all attached records open); **all Report-to pickers, Add
+  location and the master Add role = accordion**; **per-department Add role =
+  open** (few roles). Add location's create path is a pinned leading
+  **“New location…”** row (typed text prefills the map), not a separate button.
+  Category counts are true totals — a role with only “Add new person…” shows
+  **0**. Kit **v0.1.122-125** supplies `browseExpanded`, `triggerIcon`
+  (**MapPin** on location fields, **Plus** on adders), `leadingActions` /
+  `footerActions`, plain-header rendering that can never look selectable
+  (no hover/pointer/`role=option`/keyboard stop — including during a query),
+  and focus retention when a category is clicked. **Categories only expand —
+  never add on category click.**
   Manager jump/flash now uses the kit `searchMenuContent` matcher (single
   matcher; the duplicate `managerSearch` matcher + its test are gone).
-  Docs: `UI-PRIMITIVES.md` §SearchMenu (full capability reference),
-  `DESIGN-LANGUAGE.md` picker table, `UI-KIT.md` v0.1.117-123.
+  Docs: **`docs/SEARCH-MENU.md`** (full manual: model, props, decision table,
+  app map), `UI-PRIMITIVES.md` §SearchMenu (summary),
+  `DESIGN-LANGUAGE.md` picker table, `UI-KIT.md` v0.1.117-125.
 - **Audit — EntityDropdown**: not replaceable wholesale (cell editor: multi/comma,
   Tab/Enter/Escape commit, free-text create, anchored keys, scene counts, id/name
   spaces, portal target). SearchMenu takes only standalone single-select
