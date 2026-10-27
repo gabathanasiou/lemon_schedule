@@ -78,8 +78,9 @@ Rows in the panel, top to bottom:
 **`mode="expandable"`** (default). A primary `triggerLabel` button morphs into
 the text field (animated `collapsedWidth` → `expandedWidth`, focus moves into
 the input, Escape/select/outside click collapses it and returns focus to the
-button). The panel opens **after the width morph settles**, so it anchors to
-the expanded field rather than the collapsed button. `triggerIcon` sets the
+button). The panel opens **immediately**; the shared positioner watches the
+trigger's size, so it follows the width morph and stays anchored to the
+expanded field instead of waiting for a scroll. `triggerIcon` sets the
 collapsed button's leading icon: **MapPin** for locations, **Plus** for adders.
 The expanded field always carries the magnifier. `autoFocus` controls the
 focus-on-open.
@@ -108,6 +109,12 @@ it does something real. Three browse behaviours:
 group labels: `role="presentation"`, no `ui-item` class, no pointer cursor, no
 hover fill, no keyboard stop, no `aria-selected`. Counts remain (a count of
 `0` means “no available records” — e.g. a role with only “Add new person…”).
+
+**`browseAll`** (v0.1.129) is the value-field mode: it shows one flat list on
+open (no category rows). Pair it with **`selectedId`**, which marks the current
+value with a check and scrolls it into view — used when the picker edits an
+existing value rather than browsing a catalogue. Neither changes the item
+model; they are presentation flags.
 
 **During a query, every category is a plain header.** Search results are shown
 under their category label; a category's chevron/action only exists in the
