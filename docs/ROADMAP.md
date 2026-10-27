@@ -54,6 +54,10 @@ kit instead." The genuinely-shared components that are still app-local should mo
   bespoke primitive, used everywhere. Kit v0.1.116 now ships grouped + category-searching
   `DropdownMenu`/`DropdownItem` (302 stage 2) — move the picker panel onto that instead of forking
   the new group/search logic into `DropdownPanel`.
+- **Shared popover primitives** — `DropdownPanel`, `SelectDropdown`, `AutocompleteDropdown`,
+  `FieldBox`, `ToolbarDivider`, `TimeField`: each still picks its palette from an explicit
+  `dark`/`light` prop rather than the ambient scope. Convert them to `--ui-*` tokens as part
+  of the move (310 deliberately left them because their branch prop owns the palette).
 
 Per item: bump `@gabriel/ui-kit` (`package.json` → `@gabriel/ui-kit#v0.1.x`), re-verify the
 DESIGN-LANGUAGE §Primitive matrix + Recipes class strings, update this roadmap + the matrix in the
@@ -137,9 +141,12 @@ modals, or a modal that matches the app header's project chrome — instead of t
   Drive blue identity, shared emerald identity); Drive/shared colour stays in the chrome.
   A per-call `surface="accent"` / local accent override remains available. The app branch
   adopts kit v0.1.116; modal bodies remain hardcoded dark (see 310).
-**Remaining**: app content tokenisation (310), chrome onto kit scopes (311), grouped
-picker adoption (312), RichTextEditor/FormatToolbar/`TB_*` (313), optional seed→OKLCH
-generator for arbitrary colours. No mass-regex sweep — one surface family at a time.
+**Remaining**: ambient theme adoption for the kit components that still take an explicit
+`theme` prop (Button / SearchMenu / Seg / RuleCard — a light modal still shows those dark
+until they read the scope), chrome onto kit scopes (311), grouped picker adoption (312),
+RichTextEditor/FormatToolbar/`TB_*` (313), optional seed→OKLCH generator for arbitrary
+colours. No mass-regex sweep — one surface family at a time. App content tokenisation
+landed as 310 (see archive).
 
 **Verify**: kit playground spec per primitive × mode × accent; app: converted family green
 + rule-7 visual pass (light modal on page + dark modal in Day Manager); unit test for the
@@ -147,43 +154,6 @@ seed→scale mapper if stage 4 lands.
 **Relations**: builds on 56 (promote AND tokenise EntityDropdown in the same move), 248
 (blue/emerald chrome become accent presets), 216/202 (Seg/NumberInput `theme` props), 59
 (overlay dimming). Updates DESIGN-LANGUAGE §two-layer surface model + UI-KIT §Theming.
-
-## 310. App surface tokenisation — modal + page content (`[~]`, big)
-
-**Request**: kit v0.1.116 tokenised the Modal SHELL (302), but app-rendered content still uses
-hardcoded utilities — 2,176 `*-zinc-*` classes across 171 files + blue/emerald chrome classes, and
-zero `--ui-*` references. A light/accent modal today would be a themed frame with dark app content.
-
-**Progress (2026-10-26 — Day family)**: the Day Manager is on the light token ladder (a
-`ThemeScope mode="light" surface="neutral"` around the manager page) — page shell, `DayPicker`,
-`DaySectionCard`, the category tab strip and all section bodies (details/locations/events/scenes/call
-times/breaks/crew/conflicts, including the Day Details weather strip) use `--ui-*` fills/text/borders. The Day Events family
-(`DayEventsModal` + `EventModal` + `EventAdderModal`), shared `ItemRow`, the dark `RuleCard` branch
-and the event chip trigger are tokenised. Expansion 2 adds: `CrewRosterEditor` (ambient light/dark
-Glide grid via `createDayTimesTheme(fs, mode)` + `dayTimesCellColors`, dark editable-cell wash in
-`InlineGlideTable`), `InteractiveGridBlock`, `LocationEntityDropdown`, `ProductionDetailsModal`, `CallTimesSettingsModal`,
-`CopyDayModal`, `AddCrewMemberModal`, `CallSheetEditPage`/`CallSheetCanvas` (the white paper gets
-its own light neutral scope), `GroupedSelect` (omitted theme = ambient mode) and the shared manager
-shell page surfaces. App `Modal` defaults `theme="dark"` so a light page scope cannot flip existing
-modals. Remaining hardcoded families: Link Manager / Crew Links, Element View / manager tables, and
-most page surfaces. Verified: day family looks unchanged light + correct dark (screenshots); full
-e2e green. Expansion remains.
-
-**Phases**:
-1. **Pilot — Production → Days (Day Manager) + Day Events modal**: replace surface/text/border/fill
-   utilities with semantic tokens (`bg-[var(--ui-*)]`, `text-[color:var(--ui-*)]`,
-   `border-[color:var(--ui-*)]`); keep kit input/button/row recipes. Do not half-flip a family.
-2. **Expand by family** (one PR each): Link Manager, Crew Links, Call Times, then page surfaces.
-   Never bulk-regex across the app.
-3. Add a **dev-only light-modal harness** (or test query) so the pilot can be checked at light/dark ×
-   zinc/blue/emerald without shipping a user-facing toggle.
-4. Update DESIGN-LANGUAGE §Modal/§surfaces + AGENTS UI Primitives once the pattern is proven.
-
-**Files**: `src/components/production/day/**`, `src/components/calendar/DayEventsModal.tsx`,
-shared rows/cards (`ItemRow`, `CardSection` consumers), `src/index.css` for missing tokens.
-**Verify**: `npm run lint`; `npm run test:unit`; one behavioural e2e per touched modal (no visual
-assertions); rule-7 manual pass desktop + iPad at both modes.
-**Relations**: 302 (parent), 171, 98, 311. Blocked by 302 stage 2 (kit v0.1.116 shipped).
 
 ## 313. Kit RichTextEditor / FormatToolbar tokenisation (`[ ]`)
 

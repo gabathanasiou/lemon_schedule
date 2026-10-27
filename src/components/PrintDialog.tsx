@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useProject } from '../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import { RibbonCell } from '../types';
-import { DD_CHIP_TRIGGER_CLASS } from '../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../lib/dropdown';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import Modal from './Modal';
@@ -162,7 +162,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   contentClassName="z-[10001]"
                   maxMenuHeight={288}
                   trigger={
-                    <button type="button" data-print-picker="ribbon-layout" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+                    <button type="button" data-print-picker="ribbon-layout" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                       <span className="tabular-nums truncate max-w-[120px]">{settings.selectedRibbonId ? (ribbonDesigns.find(d => d.id === settings.selectedRibbonId)?.name || 'Unknown') : (ribbonDesigns[0]?.name || 'Unknown')}</span>
                       <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                     </button>
@@ -190,7 +190,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   width="min-w-[180px]!"
                   contentClassName="z-[10001]"
                   trigger={
-                    <button type="button" data-print-picker="page-size" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+                    <button type="button" data-print-picker="page-size" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                       <span className="tabular-nums">{viewMode === 'portrait' ? 'Portrait' : viewMode === 'landscape' ? 'Landscape' : 'Full'}</span>
                       <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
                     </button>

@@ -22,10 +22,22 @@ export default function Modal({ accent, surface, theme, ...props }: ModalProps) 
   return (
     <KitModal
       {...props}
-      theme={theme ?? 'dark'}
+      theme={theme ?? modalThemeHarness() ?? 'dark'}
       accent={accent ?? projectModalTheme.accent}
       surface={surface ?? projectModalTheme.surface}
       morph={props.morph ?? overlayMorphOptIn()}
     />
   );
+}
+
+/** Roadmap 310 phase 3 — dev-only light-modal harness: `?modalTheme=light`
+ *  (or `dark`) opens every app modal on that ladder so tokenised content can be
+ *  checked without shipping a user-facing toggle. Honoured in dev builds and
+ *  agent mode only (same gate as the debug bridge); an explicit `theme` prop
+ *  always wins. */
+function modalThemeHarness(): 'light' | 'dark' | undefined {
+  if (typeof window === 'undefined') return undefined;
+  if (!import.meta.env.DEV && localStorage.getItem('LEMON_AGENT') !== '1') return undefined;
+  const [value] = (new URLSearchParams(window.location.search).get('modalTheme') || '').split(',');
+  return value === 'light' || value === 'dark' ? value : undefined;
 }

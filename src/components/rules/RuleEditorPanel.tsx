@@ -10,7 +10,7 @@ import DateField from '../DateField';
 import Checkbox from '../Checkbox';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import {
   RULE_TYPE_META, RULE_TYPES,
   RuleFormState, blankRuleForm, formFromRule, validateRuleForm, buildRulesFromForm,
@@ -168,7 +168,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
         width="w-56"
         theme="dark"
         trigger={
-          <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`} data-rule-type>
+          <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`} data-rule-type>
             <span className="flex items-center gap-1.5 min-w-0">
               <SelectedIcon className={`w-3.5 h-3.5 shrink-0 ${selectedMeta.chipIcon}`} />
               <span className="truncate">{selectedMeta.label}</span>

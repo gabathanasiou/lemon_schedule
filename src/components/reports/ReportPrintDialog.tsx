@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import { ReportBlock, ReportCollection, ReportDesign, RibbonDesign } from '../../types';
 import { ReportScope, reportItemKey, reportItemLabel, resolveCollectionItems, RibbonPrintOptions, ReportPrintOptions } from '../../lib/reportData';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { useReportCtx } from '../../lib/useReportCtx';
@@ -193,7 +193,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
               width="min-w-[180px]!"
               contentClassName="z-[10001]"
               trigger={
-                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+                <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                   <span className="tabular-nums">{page === 'inherit' ? 'From design' : page === 'portrait' ? 'Portrait' : 'Landscape'}</span>
                   <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
                 </button>
@@ -257,7 +257,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
                     width="min-w-[180px]!"
                     contentClassName="z-[10001]"
                     trigger={
-                      <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
+                      <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                         <span className="tabular-nums truncate max-w-[160px]">{design?.name || '—'}</span>
                         <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
                       </button>

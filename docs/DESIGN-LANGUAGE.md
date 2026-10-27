@@ -49,7 +49,7 @@ Glide canvas internals, reports-designer canvas (`docs/REPORTS-DESIGNER.md`).
 
 | Layer | Palette | Where |
 |---|---|---|
-| Light page (token scope) | `ThemeScope mode="light" surface="neutral"`: `bg-[var(--ui-card-band)]` body; cards `bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)]` (light token values match zinc-50 / white / zinc-200) | Day Manager + the managers (manager shell, Element Manager); SceneSheet/stripboard/Calendar/ProjectManager/Reports are being migrated family-by-family (roadmap 310) |
+| Light page (token scope) | `ThemeScope mode="light" surface="neutral"`: `bg-[var(--ui-card-band)]` body; cards `bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)]` (light token values match zinc-50 / white / zinc-200) | Day Manager, managers, Calendar, Rules, Breakdown/Glide/Scene Sheet, Script tab, project-manager shell; tokenised app-wide (roadmap 310 — fixed-palette exceptions in §Theming) |
 | Dark chrome | header `bg-[var(--ui-accent-header-bg)]`; kit Menu/Modal/input tokens | App header, pop-out toolbar, Modal, DropdownMenu, Dialog, print dialogs, ElementPicker |
 | Drive chrome | `ProjectChromeScope` publishes `accent="blue"`: header `--ui-accent-950` (#172554), tab pill `--ui-tab-pill-accent`, action chips `--ui-accent-950/900` | ONE identity source `useProjectTheme()` + `projectAccentNameOf()`; `src/components/ProjectChromeScope.tsx` |
 | Shared chrome | same scope with `accent="emerald"`: header #022c22, emerald tab/action roles | same ONE source; a project is never both (shared > drive) |
@@ -149,22 +149,28 @@ an instruction line plus an empty grid; with rows, the Glide board + footer add 
 are unchanged. All overlays (Copy-from-day, events,
 pickers) are dark per the two-layer rule.
 
-**Theming (roadmap 310)**: the manager page is wrapped in
-`ThemeScope mode="light" surface="neutral"`; its shell, `DayPicker`, section cards and
-section bodies read `--ui-*` fills/text/borders instead of zinc utilities. The day
-family is fully tokenised — the Day Events modals, Production Details, Call Times,
-Copy-from-day, Add Crew Member, the crew roster Glide grid (ambient light/dark theme via
-`createDayTimesTheme(fs, mode)`) and the Call Sheet editor/paper (the paper gets its own
-light neutral scope). **The manager family is too**: `managerShell` pages,
-`ElementManager` (its own light `ThemeScope`), the shared `SidebarNav` + `MT_*` table
-recipes, Link Manager, Crew Links and the Element View panel/sections — chip pickers use
-the token trigger (`DD_TOKEN_TRIGGER_CLASS`). **The Calendar page is light-scoped too**
-(`CalendarTab` root): month grid, day/event cells, boneyard sidebar, Day Types and
-Production Dates. **Rules is a light scope** (page, rule cards, Rule editor) and the
-**Design sub-tabs pin `mode="dark"`** (Ribbon Designer + its toolbar/palette/preview,
-Colors, and the rule/colour forms) — a dark editor stays dark even under a light host.
-The app `Modal` shim pins `theme="dark"` (302), so a light page scope never flips an
-overlay — modals stay dark until light modals land.
+**Theming (roadmap 310)**: every app surface reads the `--ui-*` ladder. Light pages
+(`ThemeScope mode="light" surface="neutral"`) are the Day Manager + manager pages,
+Calendar, Rules, Breakdown (Sheet/Glide/Scene Sheet/Element Manager), the Script tab and
+the project-manager shell; dark pages pin `mode="dark"` (Design → Ribbon Designer/Colors/
+Reports Designer, Reports → DOODs/Element Breakdown); dark modals inherit the kit Modal.
+Modal bodies, cards, tables, chip triggers (`DD_TOKEN_TRIGGER_CLASS`), pickers and shared
+rows are tokenised across the Day, manager, Calendar, Rules/Colors, Reports/print, import,
+sharing/account/help/trash, script and Schedule-dialog families. **Fixed palettes stay
+fixed on purpose**: print paper + previews, ribbon/strip/DOOD/event cell colours, drag
+ghosts and floating hints, the script paper themes, the boot backdrop, and the shared
+popover primitives that pick a palette from their own dark/light prop instead of the
+ambient scope (`DropdownPanel`, `SelectDropdown`, `AutocompleteDropdown`, `HoverTooltip`/
+`DelegatedTooltip`, `FieldBox`, `ToolbarDivider`, `TimeField`) — those move when they are
+promoted to the kit (56) and every kit primitive takes the ambient theme (302).
+`RibbonEditor.tsx` / `CastTab.tsx` are unmounted legacy files.
+**Dev harness (310 phase 3)**: in a dev build or agent mode, append
+`?modalTheme=light` (or `dark`) to the app URL — every app `Modal` opens on that ladder
+(`src/components/Modal.tsx` `modalThemeHarness`); an explicit `theme` prop still wins.
+Use it for the light/dark × zinc/blue/emerald pass. Kit components with an explicit
+`theme` prop (Button, SearchMenu, Seg) keep their own palette until 302 makes them ambient.
+The app `Modal` shim pins `theme="dark"` by default (302), so a light page scope never
+flips an overlay — modals stay dark until light modals land.
  The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's

@@ -3,7 +3,7 @@ import { Check, ChevronDown, Mail, X } from 'lucide-react';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { AccountAvatar } from '../AccountAvatar';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import type { CollaboratorRole, PendingInvite, SharingMember } from '../../lib/supabase/sharing';
 
 /**
@@ -47,7 +47,7 @@ export function RoleMenu({ role, disabled, onSelect }: {
           type="button"
           disabled={disabled}
           aria-label={`Permission: ${ROLE_LABELS[role]}`}
-          className={`${DD_CHIP_TRIGGER_CLASS} text-xs shrink-0`}
+          className={`${DD_TOKEN_TRIGGER_CLASS} text-xs shrink-0`}
         >
           {ROLE_LABELS[role]}
           <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />

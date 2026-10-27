@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useProject } from '../../store';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
@@ -103,7 +103,7 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
               <button
                 type="button"
                 data-print-picker="category"
-                className={`${DD_CHIP_TRIGGER_CLASS} text-xs w-full justify-between cursor-pointer px-3 py-2`}
+                className={`${DD_TOKEN_TRIGGER_CLASS} text-xs w-full justify-between cursor-pointer px-3 py-2`}
               >
                 <span>{categoryLabel}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />

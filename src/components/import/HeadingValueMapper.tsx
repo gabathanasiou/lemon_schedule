@@ -4,7 +4,7 @@ import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
-import { DD_CHIP_TRIGGER_CLASS } from '../../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../../lib/dropdown';
 import { Seg } from '@gabriel/ui-kit';
 import type { HeadingMapping, HeadingValueChoice } from '../../lib/import';
 
@@ -48,7 +48,7 @@ function ValueMenu({ value, options, onChange }: { value: string; options: strin
       width="w-44"
       contentClassName="z-[10001]"
       trigger={
-        <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`}>
+        <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer`}>
           <span className="truncate">{value}</span>
           <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
         </button>

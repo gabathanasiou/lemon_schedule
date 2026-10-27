@@ -11,7 +11,7 @@ import { useQueueCastNaming, addNewElement } from '../lib/newCastNaming';
 import { createBlankScene, getNextSceneNumber } from '../lib/sceneFactory';
 import { getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { usePortalTarget } from '../lib/popoutTarget';
-import { DD_CHIP_TRIGGER_CLASS } from '../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../lib/dropdown';
 import { Clapperboard, ChevronDown } from 'lucide-react';
 
 /** New Scene modal (roadmap 227) — the Boneyard header's Scene button fills
@@ -90,7 +90,7 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
               width="w-40"
               theme="dark"
               trigger={
-                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
+                <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
                   <span className={`truncate ${intExt ? '' : 'text-[color:var(--ui-text-faint)]'}`}>{intExt || 'INT / EXT'}</span>
                   <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                 </button>
@@ -109,7 +109,7 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
               width="w-40"
               theme="dark"
               trigger={
-                <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
+                <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
                   <span className={`truncate ${dayNight ? '' : 'text-[color:var(--ui-text-faint)]'}`}>{dayNight || 'DAY / NIGHT'}</span>
                   <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                 </button>

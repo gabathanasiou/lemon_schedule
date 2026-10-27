@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import DropdownMenu from './DropdownMenu';
 import DatePicker from './DatePicker';
-import { DD_CHIP_TRIGGER_CLASS } from '../lib/dropdown';
+import { DD_TOKEN_TRIGGER_CLASS } from '../lib/dropdown';
 import { ChevronDown } from 'lucide-react';
 
 /**
@@ -94,7 +94,7 @@ export default function DateField({ value, onChange, placeholder = 'Pick a date'
           <button
             type="button"
             title={hasValue ? 'Change date' : placeholder}
-            className={`${triggerClassName ?? DD_CHIP_TRIGGER_CLASS} text-xs select-none transition-colors ${fullWidth ? 'flex-1 min-w-0 justify-between' : ''}`}
+            className={`${triggerClassName ?? DD_TOKEN_TRIGGER_CLASS} text-xs select-none transition-colors ${fullWidth ? 'flex-1 min-w-0 justify-between' : ''}`}
           >
             <span className="truncate">{summaryLabel(value, placeholder)}</span>
             <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
