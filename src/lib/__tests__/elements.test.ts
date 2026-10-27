@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isIdKeyed, elementMatchId, resolveTypedElementKey, boardIdOf, boardIdMapFor, boardLabel, nextBoardId, isDuplicateBoardId, compareBoardIds } from '../elements';
+import { isIdKeyed, elementMatchId, resolveTypedElementKey, boardIdOf, boardIdMapFor, boardLabel, boardLabelForDisplay, nextBoardId, isDuplicateBoardId, compareBoardIds } from '../elements';
+import { setBoardIdDisplay } from '../persist';
 
 /**
  * AGENTS.md §Cast & Entities — the STRICT cast-vs-elements storage rule:
@@ -86,6 +87,16 @@ describe('Board IDs', () => {
     expect(boardLabel('7', 'GUN')).toBe('7. GUN');
     expect(boardLabel('', 'GUN')).toBe('GUN');
     expect(boardLabel(undefined, 'GUN')).toBe('GUN');
+  });
+
+  it('boardLabelForDisplay follows the Cast-only pref (roadmap 321)', () => {
+    setBoardIdDisplay('cast');
+    expect(boardLabelForDisplay('2', 'MARY', 'cast')).toBe('2. MARY');
+    expect(boardLabelForDisplay('7', 'GUN', 'props')).toBe('GUN');
+    setBoardIdDisplay('all');
+    expect(boardLabelForDisplay('2', 'MARY', 'cast')).toBe('2. MARY');
+    expect(boardLabelForDisplay('7', 'GUN', 'props')).toBe('7. GUN');
+    setBoardIdDisplay('cast');
   });
 
   it('boardIdMapFor keys name categories case-insensitively', () => {

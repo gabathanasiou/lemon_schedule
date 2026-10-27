@@ -2,6 +2,7 @@ import { ProjectElement } from '../types';
 import { getElementsFromScenes } from '../store';
 import { getFieldItems } from './categories';
 import { canonicalBoardId } from './boardIds';
+import { getBoardIdDisplay } from './persist';
 
 /**
  * Single source of truth for breakdown elements:
@@ -75,6 +76,15 @@ export function boardLabel(boardId: string | null | undefined, name: string): st
   const id = String(boardId ?? '').trim();
   const label = String(name ?? '');
   return id ? `${id}. ${label}` : label;
+}
+
+/** Display label for the surfaces that follow the user's Board ID pref
+ *  (roadmap 321 — cast only by default): cast always keeps its number, other
+ *  categories only when the pref is "All elements". Reports/print/DOOD call
+ *  `boardLabel` directly and stay numbered regardless. */
+export function boardLabelForDisplay(boardId: string | null | undefined, name: string, category: string): string {
+  const show = isIdKeyed(category) || getBoardIdDisplay() === 'all';
+  return boardLabel(show ? boardId : undefined, name);
 }
 
 /** Scene-value key (lowercase) → Board ID, built ONCE per display surface

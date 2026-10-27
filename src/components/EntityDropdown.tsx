@@ -36,7 +36,7 @@ export const DD_PANEL_CLASS = DD_PANEL_CLASS_LIB;
 export const DD_INPUT_CLASS = DD_INPUT_CLASS_LIB;
 import { boardLabel, resolveTypedElementKey } from '../lib/elements';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
-import { useKeyboardMode } from '../lib/persist';
+import { useKeyboardMode, useBoardIdDisplay } from '../lib/persist';
 import { revealRowInScroller } from '@gabriel/ui-kit';
 
 export interface EntityItem {
@@ -293,6 +293,9 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
    *  precedes focus) is the only reliable "was this the opening click?" test. */
   const openAtMousedownRef = useRef(open);
   const [keyboardMode] = useKeyboardMode();
+  /** Device pref (roadmap 321): name-mode items carry a number unless the user
+   *  chose Cast only. Cast `displayMode="id"` is always numbered. */
+  const [boardIdDisplay] = useBoardIdDisplay();
   const hwKeyboard = useHardwareKeyboard();
   // Who moved the highlight last — pointer hover or the keyboard arrows. The
   // highLighter state is shared, so the latest interaction wins; leaving the
@@ -568,7 +571,9 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
       {/* Board ID prefix: id mode already carries the number in `id` (cast);
-          name mode reads the element's per-category number (roadmap 305). */}
+          name mode reads the element's per-category number (roadmap 305). The
+          PANEL is a lookup surface — it always shows every number; only the
+          closed/committed display follows the Cast-only pref (roadmap 321). */}
       {(displayMode === 'id' ? item.id : item.boardId) && (
         <span className="text-zinc-400 shrink-0">{displayMode === 'id' ? item.id : item.boardId}.</span>
       )}
@@ -630,9 +635,9 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         : items.find(i => (i.name || i.id) === seg);
       if (!item) return seg;
       if (displayMode === 'id') return `${item.id}. ${item.name && item.name !== item.id ? item.name : '—'}`;
-      return boardLabel(item.boardId, item.name || item.id);
+      return boardLabel(boardIdDisplay === 'all' ? item.boardId : undefined, item.name || item.id);
     }).filter(Boolean).join(', ');
-  }, [variant, open, displayValue, items, displayMode, valueById, resolveClosed]);
+  }, [variant, open, displayValue, items, displayMode, valueById, resolveClosed, boardIdDisplay]);
 
   if (readOnly && !open) {
     return <span className={className} onAuxClick={forceOpen}>{value || '?'}</span>;

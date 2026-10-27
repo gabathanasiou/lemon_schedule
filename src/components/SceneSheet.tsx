@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { useProject, DEFAULT_CATEGORY_LABELS, useProjectTheme } from '../store';
 import { projectAccentOf } from '../lib/projectTheme';
 import { Scene } from '../types';
-import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Check, ChevronDown, ListOrdered } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Copy, Trash2, Check, ChevronDown, ListOrdered, Hash } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import Button from './Button';
 import DropdownMenu from './DropdownMenu';
@@ -24,6 +24,7 @@ import { useFollowView } from '../lib/supabase/useFollowView';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
 import { resolvedLocationName } from '../lib/locations';
 import { usePersistState } from '../lib/persist';
+import { useBoardIdDisplay } from '../lib/persist';
 import { SceneScriptPane, ScriptPaneToggle, useScriptPanePref } from './script/SceneScriptPane';
 import { useSceneNumberCollisionGuard } from './SceneNumberCollisionGuard';
 
@@ -61,6 +62,10 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const order = orderPrefs.order;
   const setOrder = useCallback((o: BreakdownOrder) => setOrderPrefs({ order: o }), [setOrderPrefs]);
   const [orderMenuOpen, setOrderMenuOpen] = useState(false);
+  /** Board ID display pref (roadmap 321) — Cast only by default; the toggle
+   *  rewrites the closed sheet cells and every picker's closed chip. */
+  const [boardIdDisplay, setBoardIdDisplay] = useBoardIdDisplay();
+  const [idsMenuOpen, setIdsMenuOpen] = useState(false);
   const scriptPane = useScriptPanePref('sheet', phone ? false : undefined);
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
@@ -480,6 +485,34 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     </DropdownMenu>
   );
 
+  /** Board ID visibility toggle (roadmap 321) — the pref defaults to Cast
+   *  only; "All elements" brings the 305 numbering back in the sheet/pickers. */
+  const idsMenu = (
+    <DropdownMenu
+      open={idsMenuOpen}
+      onOpenChange={setIdsMenuOpen}
+      width="w-52"
+      theme="light"
+      trigger={
+        <Button title="Board IDs shown in the sheet and element pickers">
+          <Hash className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">{boardIdDisplay === 'all' ? 'IDs: All' : 'IDs: Cast'}</span>
+          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+        </Button>
+      }
+    >
+      {([['cast', 'Cast only'], ['all', 'All elements']] as const).map(([mode, label]) => (
+        <DropdownItem
+          key={mode}
+          onClick={() => setBoardIdDisplay(mode)}
+          icon={boardIdDisplay === mode ? <Check className="w-3.5 h-3.5" /> : undefined}
+        >
+          {label}
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+
   const sheetNav = (
     <>
       <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-500" /></button>
@@ -501,6 +534,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     phone ? (
       <>
         {orderMenu}
+        {idsMenu}
         <ToolbarDivider />
         {sheetNav}
         <ToolbarDivider />
@@ -509,6 +543,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     ) : (
       <>
         {orderMenu}
+        {idsMenu}
         <ToolbarDivider />
         {sheetNav}
         <ToolbarDivider />
