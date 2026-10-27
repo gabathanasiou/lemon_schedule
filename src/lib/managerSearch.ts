@@ -21,6 +21,10 @@ export interface ManagerSearchRecord {
   rowKey: string;
   /** The row's display name (identity field). */
   label: string;
+  /** Right-hand subtitle — a field VALUE (cast → the artiste name), never a
+   *  `"Label: value"` string: the kit matcher searches the detail text, so a
+   *  field label here would make searching "board"/"phone" return every row. */
+  detail?: string;
   fields: ManagerSearchField[];
 }
 

@@ -556,11 +556,18 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             ? CAST_DETAIL_FIELDS.map(f => ({ key: f.key, label: f.label, value: String(details?.[f.key] || r[f.key] || '') }))
             : []),
         ];
+        const boardId = (r.boardId || '').trim();
+        const name = (r.name || '').trim() || r.id || r.key;
+        // Board IDs are part of an element's identity — "1. BOB" (roadmap 305).
+        // The detail is the artiste for cast, never "Board ID: n" (the kit
+        // matches detail text, so the label would match every row).
+        const performer = key === 'cast' ? String(details?.performer || '').trim() : '';
         out.push({
           categoryKey: key,
           categoryLabel,
           rowKey: r.key,
-          label: r.name || r.id || r.key,
+          label: boardId && name !== boardId ? `${boardId}. ${name}` : name,
+          detail: performer || undefined,
           fields,
         });
       }
@@ -568,17 +575,13 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     return out;
   }, [allCategoryKeys, categoryLabelOf, project]);
 
-  const searchItems = useMemo<SearchMenuItem[]>(() => searchRecords.map(record => {
-    const detailField = record.fields.find(field =>
-      field.value.trim() && field.value.trim().toLowerCase() !== record.label.trim().toLowerCase());
-    return {
-      id: `${record.categoryKey}::${record.rowKey}`,
-      label: record.label,
-      group: record.categoryKey,
-      fields: record.fields.map(field => ({ label: field.label, value: field.value })),
-      detail: detailField ? `${detailField.label}: ${detailField.value}` : undefined,
-    };
-  }), [searchRecords]);
+  const searchItems = useMemo<SearchMenuItem[]>(() => searchRecords.map(record => ({
+    id: `${record.categoryKey}::${record.rowKey}`,
+    label: record.label,
+    group: record.categoryKey,
+    fields: record.fields.map(field => ({ label: field.label, value: field.value })),
+    detail: record.detail,
+  })), [searchRecords]);
 
   const searchGroups = useMemo(
     () => allCategoryKeys.map(({ key, isCustom }) => ({ key, label: categoryLabelOf(key, isCustom) })),
