@@ -18,6 +18,7 @@ import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
 import { anchoredKeysFor } from '../lib/elementLinks';
 import { useQueueCastNaming, addNewElements } from '../lib/newCastNaming';
+import { boardIdOf } from '../lib/elements';
 import { useSceneDuplicate } from '../lib/sceneDuplicate';
 import { useFollowView } from '../lib/supabase/useFollowView';
 import { usePresenceScrollSurface } from '../lib/supabase/usePresenceScrollSurface';
@@ -351,35 +352,35 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   }, [scene, index, dispatch, orderedScenes.length, onIndexChange]);
 
   const breakdownItems = useMemo(() => {
-    const result: Record<string, { id: string; name: string }[]> = {};
+    const result: Record<string, { id: string; name: string; boardId?: string }[]> = {};
     for (const cat of allBreakdownCats) {
       if (cat === 'notes') continue;
       const isCast = cat === 'cast';
-      const stored: { id: string; name: string }[] = isCast ? castMembers : (breakdownElements[cat] || []);
+      const stored: { id: string; name: string; boardId?: string }[] = isCast ? castMembers : (breakdownElements[cat] || []);
       const nameMap = new Map(stored.map(e => [isCast ? (e.id || e.name).toLowerCase() : e.name.toLowerCase(), e]));
-      const items: { id: string; name: string }[] = [];
-      const addItem = (iid: string, iname: string) => {
+      const items: { id: string; name: string; boardId?: string }[] = [];
+      const addItem = (iid: string, iname: string, boardId?: string) => {
         const k = (iid || iname).toLowerCase();
         if (items.some(i => (i.id || i.name).toLowerCase() === k)) return;
         if (isCast) {
           const nameIdx = items.findIndex(i => i.name.toLowerCase() === iname.toLowerCase());
           if (nameIdx >= 0) {
-            if (!items[nameIdx].id && iid) items[nameIdx] = { id: iid, name: iname };
+            if (!items[nameIdx].id && iid) items[nameIdx] = { id: iid, name: iname, boardId: iid };
             return;
           }
         }
-        items.push({ id: iid, name: iname });
+        items.push({ id: iid, name: iname, boardId: boardId || (isCast ? iid : undefined) });
       };
-      for (const e of stored) addItem(e.id || e.name, e.name);
+      for (const e of stored) addItem(e.id || e.name, e.name, isCast ? (e.id || e.name) : boardIdOf(e, cat));
       for (const s of scenes) {
         const raw = isCast ? s.cast : (s as any)[cat] || '';
         for (const v of getFieldItems(cat, raw)) {
-          const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v);
+          const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v, matched ? boardIdOf(matched, cat) : undefined);
         }
       }
       if (scene) {
         const ev = (edits[scene.id] as Record<string, any>)?.[cat];
-        if (ev) for (const v of getFieldItems(cat, ev)) { const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v); }
+        if (ev) for (const v of getFieldItems(cat, ev)) { const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v, matched ? boardIdOf(matched, cat) : undefined); }
       }
       result[cat] = items;
     }
@@ -390,7 +391,8 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     const sets = new Map<string, string>();
     for (const s of scenes) { const v = s.set.trim().toUpperCase(); if (v) sets.set(v, v); }
     (breakdownElements['set'] || []).forEach(e => { const v = e.name.toUpperCase(); if (v) sets.set(v, v); });
-    return [...sets.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
+    const boardIds = new Map((breakdownElements['set'] || []).map(e => [e.name.toUpperCase(), e.boardId || '']));
+    return [...sets.entries()].map(([id, name]) => ({ id, name, boardId: boardIds.get(name) || undefined })).sort((a, b) => a.id.localeCompare(b.id));
   }, [scenes, breakdownElements]);
 
   const locationItems = useMemo(() => {

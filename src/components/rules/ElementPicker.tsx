@@ -89,7 +89,6 @@ export const ElementPickerRow: React.FC<{
           anchoredKeys={anchoredKeys}
           onCreateItem={onCreateItem}
           wrapValue={wrapValue}
-          renderItem={isCast ? (item) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>) : undefined}
         />
       </span>
 

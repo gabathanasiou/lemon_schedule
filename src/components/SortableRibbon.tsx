@@ -8,6 +8,7 @@ import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseSty
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { isMultiValue } from '../lib/categories';
+import { boardIdOf } from '../lib/elements';
 import { usePortalTarget } from '../lib/popoutTarget';
 import { CellInput } from './CellInput';
 import { advanceRibbonFocus } from '../lib/ribbonEditNav';
@@ -340,7 +341,6 @@ const SortableRowContent: React.FC<{
             displayMode="id"
             items={castItems}
             anchoredKeys={anchoredByCategory.get('cast')}
-            renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
           />
         </td>
       );
@@ -462,19 +462,21 @@ const SortableRowContent: React.FC<{
   }, [customCategories]);
 
   const entityItemsMap = useMemo(() => {
-    const map: Record<string, { id: string; name: string }[]> = {};
+    const map: Record<string, { id: string; name: string; boardId?: string }[]> = {};
     for (const field of ENTITY_FIELDS) {
       const sceneValues = [...new Set(scenes.map(s => ((s as any)[field] as string) || '').filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())))] as string[];
       const stored = breakdownElements?.[field] || [];
+      const boardIds = new Map<string, string>();
+      for (const e of stored) boardIds.set((e.name || e.id).toUpperCase(), boardIdOf(e, field));
       const seen = new Set<string>();
-      const items: { id: string; name: string }[] = [];
+      const items: { id: string; name: string; boardId?: string }[] = [];
       for (const e of stored) {
         const key = (e.name || e.id).toUpperCase();
-        if (key && !seen.has(key)) { items.push(e); seen.add(key); }
+        if (key && !seen.has(key)) { items.push({ id: e.id, name: e.name, boardId: boardIdOf(e, field) }); seen.add(key); }
       }
       for (const v of sceneValues) {
         const key = v.toUpperCase();
-        if (!seen.has(key)) { items.push({ id: v, name: v }); seen.add(key); }
+        if (!seen.has(key)) { items.push({ id: v, name: v, boardId: boardIds.get(key) }); seen.add(key); }
       }
       map[field] = items;
     }
@@ -543,7 +545,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={style}>
           {isEditable ? (
-            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!isEditable} mode="multi" placeholder="Cast" displayMode="id" anchoredKeys={anchoredByCategory.get('cast')} renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>} />
+            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!isEditable} mode="multi" placeholder="Cast" displayMode="id" anchoredKeys={anchoredByCategory.get('cast')} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} textSize={textSize} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}

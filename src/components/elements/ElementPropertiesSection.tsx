@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useProject } from '../../store';
-import { boardIdOf, elementKey, getCategoryElements, isDuplicateBoardId, compareBoardIds } from '../../lib/elements';
+import { boardIdOf, boardLabel, elementKey, getCategoryElements, isDuplicateBoardId, compareBoardIds } from '../../lib/elements';
 import { CAST_DETAIL_FIELDS, type CastDetailKey } from '../../lib/castDetails';
 import type { CastMember } from '../../types';
 
@@ -125,16 +125,13 @@ export function ElementPropertiesSection({ category, elementKey: selectedKey, on
   );
 }
 
-/** The element list for the picker — cast by Board ID, others by name. */
+/** The element list for the picker — every category by Board ID, ties by name
+ *  (roadmap 305), labelled "N. NAME". */
 export function elementViewOptions(project: any, category: string): { key: string; id: string; name: string; label: string }[] {
   const list = getCategoryElements(project, category).slice();
-  if (category === 'cast') {
-    list.sort((a, b) => compareBoardIds(boardIdOf(a, category), boardIdOf(b, category)) || a.name.localeCompare(b.name));
-  } else {
-    list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }
+  list.sort((a, b) => compareBoardIds(boardIdOf(a, category), boardIdOf(b, category)) || (a.name || '').localeCompare(b.name || ''));
   return list.map(e => {
     const boardId = boardIdOf(e, category);
-    return { key: elementKey(e), id: e.id, name: e.name, label: boardId ? `${boardId}. ${e.name || e.id}` : (e.name || e.id) };
+    return { key: elementKey(e), id: e.id, name: e.name, label: boardLabel(boardId, e.name || e.id) };
   });
 }
