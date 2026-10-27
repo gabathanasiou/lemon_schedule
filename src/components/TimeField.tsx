@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
+import { inputCls } from '@gabriel/ui-kit';
 import { useTouchMode } from '../lib/useMarquee';
 import TimeKeypad from './TimeKeypad';
 
@@ -33,6 +34,10 @@ export interface TimeFieldProps {
   /** Horizontal alignment of the value. Default center (the inline forms);
    *  `left` for value tiles whose label is left-aligned. */
   align?: 'left' | 'center';
+  /** Draw the kit textbox (`.ui-input` via `inputCls('sm')`) — the same field
+   *  face as the SearchMenu textbox — instead of the borderless inline cell.
+   *  For chrome-level fields (crew pre-calls) that sit beside pickers. */
+  boxed?: boolean;
 }
 
 export const TimeField: React.FC<TimeFieldProps> = ({
@@ -48,6 +53,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
   hideOverrideDot,
   ariaLabel,
   align = 'center',
+  boxed = false,
 }) => {
   const isTouch = useTouchMode();
   const dark = theme === 'dark';
@@ -119,9 +125,11 @@ export const TimeField: React.FC<TimeFieldProps> = ({
             cancelRef.current = false;
             setFocused(false);
           }}
-          className={`w-full min-w-[3.25rem] px-1.5 py-0.5 rounded bg-transparent text-xs tabular-nums ${alignCls} outline-none cursor-text transition-colors ${dark
-            ? 'text-zinc-100 hover:bg-zinc-800 hover:ring-1 hover:ring-zinc-700 focus:bg-zinc-800 focus:ring-2 focus:ring-zinc-600'
-            : 'text-zinc-800 hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 focus:bg-white focus:ring-2 focus:ring-blue-400'}`}
+          className={boxed
+            ? `${inputCls('sm')} w-full min-w-[3.25rem] tabular-nums ${alignCls} outline-none`
+            : `w-full min-w-[3.25rem] px-1.5 py-0.5 rounded bg-transparent text-xs tabular-nums ${alignCls} outline-none cursor-text transition-colors ${dark
+              ? 'text-zinc-100 hover:bg-zinc-800 hover:ring-1 hover:ring-zinc-700 focus:bg-zinc-800 focus:ring-2 focus:ring-zinc-600'
+              : 'text-zinc-800 hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 focus:bg-white focus:ring-2 focus:ring-blue-400'}`}
         />
         {overrideDot}
         {resetBtn}
@@ -136,7 +144,7 @@ export const TimeField: React.FC<TimeFieldProps> = ({
         data-timefield
         aria-label={ariaLabel}
         onClick={openKeypad}
-        className={`flex-1 min-w-0 flex items-center ${align === 'left' ? 'justify-start' : 'justify-center'} gap-1 px-2 py-1.5 rounded border text-xs tabular-nums transition-colors ${dark ? 'bg-zinc-950 border-zinc-700 text-zinc-100 hover:bg-zinc-900' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50'}`}
+        className={`flex-1 min-w-0 flex items-center ${align === 'left' ? 'justify-start' : 'justify-center'} gap-1 px-2 py-1.5 rounded border text-xs tabular-nums transition-colors ${boxed ? `${inputCls('sm')} flex ${align === 'left' ? 'justify-start' : 'justify-center'}` : dark ? 'bg-zinc-950 border-zinc-700 text-zinc-100 hover:bg-zinc-900' : 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50'}`}
       >
         <span className="truncate">{display || <span className="text-zinc-400">{placeholder}</span>}</span>
         {overrideDot}

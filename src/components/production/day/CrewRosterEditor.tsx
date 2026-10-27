@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { Plus, UserPlus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { GridCell } from '@glideapps/glide-data-grid';
 import type { DayCrewSlot, DayMeta, Project } from '../../../types';
 import {
@@ -352,15 +352,17 @@ const DeptTable: React.FC<DeptTableProps> = ({
     return [{ key: 'remove', title: 'Remove from this day', icon: 'trash', onClick: () => onSlotsChange(removeSlotFromList(allSlots, r.slotId)) }];
   }, [rows, allSlots, onSlotsChange]);
   /** Add-role catalogue (roadmap 318): the department's roles are the
-   *  categories, their available people the records. Categories only expand
-   *  (never add on category click); pick a person — or "Add new person…" —
-   *  to add the slot. */
+   *  categories, their available people the records. Categories never add on
+   *  click; pick a person — or "Add new person…" — to add the slot. The
+   *  per-department menu shows every role open (a few per department) with
+   *  plain role headers; the header menu is the long accordion across
+   *  departments. */
   const addRoleMenu = useMemo(() => {
     const groups: SearchMenuGroup[] = [];
     const items: SearchMenuItem[] = [];
     for (const role of deptRoles) {
       const available = peopleForRole(project, role.key).filter(p => !usedPersonIds.has(p.id));
-      groups.push({ key: role.key, label: role.label, count: Math.max(available.length, 1) });
+      groups.push({ key: role.key, label: role.label, count: available.length });
       if (available.length === 0) {
         items.push({ id: `${role.key}::__new__`, label: 'Add new person…', group: role.key, keywords: role.label });
       } else {
@@ -393,6 +395,7 @@ const DeptTable: React.FC<DeptTableProps> = ({
                 onAddNew={query => onNewLocation({ kind: 'dept', dept }, query)}
                 readOnly={readOnly}
                 placeholder="—"
+                browse="accordion"
                 collapsedWidth={176}
                 expandedWidth={240}
                 panelWidth={320}
@@ -407,7 +410,8 @@ const DeptTable: React.FC<DeptTableProps> = ({
               onChange={v => onDeptPrecallChange(dept, v)}
               readOnly={readOnly}
               placeholder="-"
-              className="w-24 rounded border border-[color:var(--ui-border-strong)] px-1"
+              boxed
+              className="w-24"
             />
             {dayCall && precall && <span className="text-[11px] text-[color:var(--ui-text-faint)]">{resolveCrewCall(null, precall, dayCall)}</span>}
           </span>
@@ -438,11 +442,10 @@ const DeptTable: React.FC<DeptTableProps> = ({
             items={addRoleMenu.items}
             groups={addRoleMenu.groups}
             triggerLabel="Add role"
-            triggerIcon={<UserPlus className="w-3.5 h-3.5" />}
+            triggerIcon={<Plus className="w-3.5 h-3.5" />}
             placeholder="Search roles or people…"
             onSelect={addRoleFromItem}
-            expandableGroups
-            groupExpandMode="single"
+            browseExpanded
             collapsedWidth={110}
             expandedWidth={240}
             panelWidth={340}
@@ -510,7 +513,7 @@ export const CrewAddRoleMenu: React.FC<CrewAddRoleMenuProps> = ({ project, slots
         items={addRoleMenu.items}
         groups={addRoleMenu.groups}
         triggerLabel="Add role…"
-        triggerIcon={<UserPlus className="w-3.5 h-3.5" />}
+        triggerIcon={<Plus className="w-3.5 h-3.5" />}
         placeholder="Search roles…"
         onSelect={item => addRoleSlot(item.id)}
         expandableGroups
@@ -584,6 +587,7 @@ export const CrewRosterEditor: React.FC<CrewRosterEditorProps> = ({
             onAddNew={query => requestNewLocation({ kind: 'all' }, query)}
             readOnly={readOnly}
             placeholder="—"
+            browse="accordion"
             collapsedWidth={224}
             expandedWidth={280}
             panelWidth={320}
