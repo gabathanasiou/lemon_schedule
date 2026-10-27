@@ -35,32 +35,32 @@ function DayTypeFormModal({ open, onClose, title, submitLabel, name, onNameChang
     >
       <div className="p-6 space-y-4">
         <div>
-          <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Name</label>
+          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Name</label>
           <input
             type="text"
             value={name}
             onChange={e => onNameChange(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && name.trim()) onSubmit(); }}
             autoFocus
-            className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+            className="w-full mt-1 px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]"
             placeholder="e.g. Rehearsal, Wrap, Tech Scout..."
           />
         </div>
         <div>
-          <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
+          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Icon</label>
           <IconGrid value={icon} onChange={onIconChange} />
         </div>
         <div>
-          <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Color</label>
+          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Color</label>
           <div className="mt-1">
             <ColorField value={color || '#000000'} onChange={onColorChange} size="sm" hexVariant="sm" />
           </div>
         </div>
         <div>
-          <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider flex items-center gap-1">
             <Link2 className="w-3 h-3" /> Attach cast &amp; elements
           </label>
-          <p className="text-[10px] text-zinc-600 mt-0.5">When a day is marked with this type, let it carry per-day cast/element lists (DOODs codes like travel/hold).</p>
+          <p className="text-[10px] text-[color:var(--ui-text-faint)] mt-0.5">When a day is marked with this type, let it carry per-day cast/element lists (DOODs codes like travel/hold).</p>
           <div className="mt-1">
             <Seg
               variant="track"

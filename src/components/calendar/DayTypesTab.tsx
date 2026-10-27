@@ -186,7 +186,7 @@ export const DayTypesTab: React.FC = () => {
 
   const renderRowActions = (row: SidebarNavRow, active: boolean) => {
     if (DAY_TYPE_BUILTIN_KEYS.has(row.key)) return null;
-    const hoverCls = active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300';
+    const hoverCls = active ? 'hover:bg-[var(--ui-panel-bg)]/10' : 'hover:bg-black/10';
     // Inner actions are spans (role=button) — they live inside the row's own
     // <button> and nested buttons are invalid HTML.
     const actionCls = (extra: string) => `p-0.5 rounded transition-colors cursor-pointer select-none ${extra} ${locked ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`;
@@ -200,7 +200,7 @@ export const DayTypesTab: React.FC = () => {
           title="Edit"
           className={actionCls(hoverCls)}
         >
-          <Pencil style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-zinc-400" />
+          <Pencil style={{ width: sizes.iconSm, height: sizes.iconSm }} className="text-[color:var(--ui-text-faint)]" />
         </span>
         <span
           role="button"
@@ -216,7 +216,7 @@ export const DayTypesTab: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-zinc-100">
+    <div className="flex-1 flex overflow-hidden bg-[var(--ui-card-band)]">
       <SidebarNav
         title="Day Types"
         rows={rows}
@@ -229,21 +229,21 @@ export const DayTypesTab: React.FC = () => {
       />
 
       <div className="flex-1 flex flex-col h-full px-4 py-4 min-w-0">
-        <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm min-h-0 flex flex-col">
-          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-zinc-100 shrink-0">
-            {SelectedIcon && <SelectedIcon className="w-4 h-4 text-zinc-500" />}
-            <span className="w-3 h-3 rounded-full shrink-0 border border-zinc-300" style={selected?.color ? { background: selected.color } : undefined} />
-            <span className="text-sm font-semibold text-zinc-800">{selected?.label || 'Day Types'}</span>
-            {selected?.color && <span className="text-[10px] font-mono text-zinc-400 uppercase">{selected.color}</span>}
-            <span className="text-[11px] text-zinc-400 ml-auto">{isProductionRow ? productionDays.length : usedDates.length} {isProductionRow ? (productionDays.length === 1 ? 'production day' : 'production days') : (usedDates.length === 1 ? 'day' : 'days')}</span>
+        <div className="flex-1 overflow-hidden rounded-xl bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] shadow-sm min-h-0 flex flex-col">
+          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[color:var(--ui-border)] shrink-0">
+            {SelectedIcon && <SelectedIcon className="w-4 h-4 text-[color:var(--ui-text-faint)]" />}
+            <span className="w-3 h-3 rounded-full shrink-0 border border-[color:var(--ui-border-strong)]" style={selected?.color ? { background: selected.color } : undefined} />
+            <span className="text-sm font-semibold text-[color:var(--ui-text-strong)]">{selected?.label || 'Day Types'}</span>
+            {selected?.color && <span className="text-[10px] font-mono text-[color:var(--ui-text-faint)] uppercase">{selected.color}</span>}
+            <span className="text-[11px] text-[color:var(--ui-text-faint)] ml-auto">{isProductionRow ? productionDays.length : usedDates.length} {isProductionRow ? (productionDays.length === 1 ? 'production day' : 'production days') : (usedDates.length === 1 ? 'day' : 'days')}</span>
           </div>
           <div className="flex-1 overflow-y-auto tab-scroll p-4">
             {isProductionRow ? (
               productionDays.length === 0 ? (
-                <div className="text-xs text-zinc-400 py-10 text-center">
-                  <div className="flex justify-center mb-2"><CalendarDays className="w-5 h-5 text-zinc-300" /></div>
+                <div className="text-xs text-[color:var(--ui-text-faint)] py-10 text-center">
+                  <div className="flex justify-center mb-2"><CalendarDays className="w-5 h-5 text-[color:var(--ui-text-disabled)]" /></div>
                   No production days yet.
-                  <div className="text-[11px] text-zinc-400 mt-1">Add days to the schedule to populate production days.</div>
+                  <div className="text-[11px] text-[color:var(--ui-text-faint)] mt-1">Add days to the schedule to populate production days.</div>
                 </div>
               ) : (
                 <ul className="space-y-1">
@@ -254,12 +254,12 @@ export const DayTypesTab: React.FC = () => {
                         <button
                           onClick={() => setEventDate(pd.date)}
                           title="Open day events"
-                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md bg-zinc-50 border border-zinc-100 text-xs text-zinc-700 hover:bg-zinc-100 hover:border-zinc-200 transition-colors text-left cursor-pointer"
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md bg-[var(--ui-card-bg)] border border-[color:var(--ui-border)] text-xs text-[color:var(--ui-text)] hover:bg-[var(--ui-card-band)] hover:border-[color:var(--ui-border)] transition-colors text-left cursor-pointer"
                         >
                           <span className="font-bold">DAY {pd.day}</span>
                           <span className="font-semibold">{new Date(pd.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                          <span className="text-zinc-400 font-mono text-[10px]">{pd.date}</span>
-                          {parts.length > 0 && <span className="truncate text-zinc-500 min-w-0">{parts.join(' · ')}</span>}
+                          <span className="text-[color:var(--ui-text-faint)] font-mono text-[10px]">{pd.date}</span>
+                          {parts.length > 0 && <span className="truncate text-[color:var(--ui-text-faint)] min-w-0">{parts.join(' · ')}</span>}
                           {violations.length > 0 && (
                             <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-red-500 shrink-0">
                               <Flag className="w-3 h-3" /> {violations.length}
@@ -272,10 +272,10 @@ export const DayTypesTab: React.FC = () => {
                 </ul>
               )
             ) : usedDates.length === 0 ? (
-              <div className="text-xs text-zinc-400 py-10 text-center">
-                <div className="flex justify-center mb-2"><CalendarDays className="w-5 h-5 text-zinc-300" /></div>
+              <div className="text-xs text-[color:var(--ui-text-faint)] py-10 text-center">
+                <div className="flex justify-center mb-2"><CalendarDays className="w-5 h-5 text-[color:var(--ui-text-disabled)]" /></div>
                 No days marked with this type yet.
-                <div className="text-[11px] text-zinc-400 mt-1">Right-click a day in the Calendar tab to mark it.</div>
+                <div className="text-[11px] text-[color:var(--ui-text-faint)] mt-1">Right-click a day in the Calendar tab to mark it.</div>
               </div>
             ) : (
               <ul className="space-y-1">
@@ -288,11 +288,11 @@ export const DayTypesTab: React.FC = () => {
                       <button
                         onClick={() => setEventDate(date)}
                         title="Open day events"
-                        className="w-full flex flex-col gap-1 px-2.5 py-2 rounded-md bg-zinc-50 border border-zinc-100 text-xs text-zinc-700 hover:bg-zinc-100 hover:border-zinc-200 transition-colors text-left cursor-pointer"
+                        className="w-full flex flex-col gap-1 px-2.5 py-2 rounded-md bg-[var(--ui-card-bg)] border border-[color:var(--ui-border)] text-xs text-[color:var(--ui-text)] hover:bg-[var(--ui-card-band)] hover:border-[color:var(--ui-border)] transition-colors text-left cursor-pointer"
                       >
                         <span className="flex items-center gap-2">
                           <span className="font-semibold">{new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                          <span className="text-zinc-400 font-mono text-[10px]">{date}</span>
+                          <span className="text-[color:var(--ui-text-faint)] font-mono text-[10px]">{date}</span>
                           {hasComments && <MessageSquare className="w-3 h-3 text-amber-500" />}
                           {violations.length > 0 && (
                             <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-red-500 shrink-0">
@@ -301,7 +301,7 @@ export const DayTypesTab: React.FC = () => {
                           )}
                         </span>
                         {parts.length > 0 && (
-                          <span className="truncate text-zinc-500">{parts.join(' · ')}</span>
+                          <span className="truncate text-[color:var(--ui-text-faint)]">{parts.join(' · ')}</span>
                         )}
                       </button>
                     </li>

@@ -108,9 +108,9 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
     >
       <div className={CREM_BODY}>
         <div>
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-            <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
-              <CalendarDays className={`${XSZ} text-zinc-500`} />
+          <div className="flex items-center justify-between border-b border-[color:var(--ui-border)] pb-1.5 mb-3">
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+              <CalendarDays className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
               Production Window
             </span>
           </div>
@@ -121,7 +121,7 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
               { label: 'Post End', value: postEnd, set: setPostEnd },
             ].map(f => (
               <div key={f.label} data-date-row={f.label} className="flex items-center justify-between py-1">
-                <span className={`${CREM_LABEL} text-zinc-300`}>{f.label}</span>
+                <span className={`${CREM_LABEL} text-[color:var(--ui-text)]`}>{f.label}</span>
                 {dateField(f.value, f.set)}
               </div>
             ))}
@@ -129,14 +129,14 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
         </div>
 
         <div className="mt-5">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-            <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
-              <CalendarDays className={`${XSZ} text-zinc-500`} />
+          <div className="flex items-center justify-between border-b border-[color:var(--ui-border)] pb-1.5 mb-3">
+            <span className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+              <CalendarDays className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
               Days Off
             </span>
             <button
               onClick={applyDaysOff}
-              className={`${CREM_LABEL} text-zinc-300 hover:text-white font-medium transition-colors`}
+              className={`${CREM_LABEL} text-[color:var(--ui-text)] hover:text-[color:var(--ui-text-strong)] font-medium transition-colors`}
               title="Sync the weekly days off with the schedule (adds pattern days, removes unchecked ones)"
             >
               Apply Days Off
@@ -149,20 +149,20 @@ export const ProductionDatesModal: React.FC<{ onClose: () => void }> = ({ onClos
                 onClick={() => toggleDay(i)}
                 className={`w-9 h-8 text-[10px] font-semibold rounded transition-colors ${
                   daysOff.has(i)
-                    ? 'bg-zinc-700 text-white'
-                    : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 border border-zinc-800'
+                    ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]'
+                    : 'bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-item-hover-bg)] border border-[color:var(--ui-border)]'
                 }`}
               >
                 {label}
               </button>
             ))}
           </div>
-          <p className={`${CREM_LABEL} text-zinc-600 mt-2 flex items-center gap-1`}>
+          <p className={`${CREM_LABEL} text-[color:var(--ui-text-faint)] mt-2 flex items-center gap-1`}>
             <Check className="w-3 h-3 shrink-0" />
             Days off sync both ways across the schedule (post end extends the window): pattern days are marked Day Off, unchecking a weekday removes only the statuses it created — hand-marked statuses and event cards are kept.
           </p>
           {applyNote && (
-            <p className={`${CREM_LABEL} text-zinc-400 mt-2`}>{applyNote}</p>
+            <p className={`${CREM_LABEL} text-[color:var(--ui-text-muted)] mt-2`}>{applyNote}</p>
           )}
         </div>
       </div>

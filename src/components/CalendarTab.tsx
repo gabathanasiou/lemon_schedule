@@ -9,7 +9,7 @@ import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '
 import { ChevronLeft, ChevronRight, Flag, X, Pause, Plane, Check, ChevronDown, AlignLeft, StickyNote, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2, Trash2, Plus, Eye, Tags } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
-import { Seg } from '@gabriel/ui-kit';
+import { Seg, ThemeScope } from '@gabriel/ui-kit';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { computeSectionViolationMap, rulesRelevantToDay } from '../lib/rulesEngine';
@@ -726,7 +726,7 @@ export const CalendarTab: React.FC<{
   const dayGhost = (dayIdx: number) => (
     <div className="bg-zinc-900 text-white rounded px-3 py-2 shadow-xl opacity-90">
       <div className="text-[11px] font-bold uppercase tracking-wider">DAY {chronoDayMap.get(dayIdx) ?? 0}</div>
-      <div className="text-[9px] text-zinc-400">{sections[dayIdx]?.rows.length ?? 0} strips</div>
+      <div className="text-[9px] text-[color:var(--ui-text-faint)]">{sections[dayIdx]?.rows.length ?? 0} strips</div>
     </div>
   );
   const cardGhost = (ghostRows: ScheduleRow[]) => (
@@ -734,7 +734,7 @@ export const CalendarTab: React.FC<{
       {ghostRows.slice(0, 3).map(r => (
         <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} displayField={displayField} />
       ))}
-      {ghostRows.length > 3 && <div className="text-[9px] text-center text-zinc-500">+{ghostRows.length - 3} more</div>}
+      {ghostRows.length > 3 && <div className="text-[9px] text-center text-[color:var(--ui-text-faint)]">+{ghostRows.length - 3} more</div>}
     </div>
   );
   const resolveHeldRows = (itemIds: string[]): ScheduleRow[] =>
@@ -934,10 +934,10 @@ export const CalendarTab: React.FC<{
     onOpenEvents: (dateKey) => setTravelHoldModal({ dateKey }),
   });
 
-  if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
+  if (!activeVersion) return <div className="p-8 text-[color:var(--ui-text-faint)]">No active version</div>;
 
   return (
-    <div className="flex flex-col h-full bg-white overflow-hidden">
+    <ThemeScope mode="light" surface="neutral" className="flex flex-col h-full bg-[var(--ui-panel-bg)] overflow-hidden">
     <style>{`
       @keyframes cal-day-flash {
         0% { background-color: rgba(59,130,246,0.55); }
@@ -998,9 +998,9 @@ export const CalendarTab: React.FC<{
           itemLabel="Calendar"
           trigger={
             <Button theme="light" data-presence-anchor="toolbar:calendar:versions">
-              <span className="text-xs font-semibold text-zinc-400">Calendar:</span>
-              <span className="text-xs font-semibold text-zinc-900">{activeCalendarVersion?.name || 'Select Calendar'}</span>
-              <ChevronDown className="w-3 h-3 text-zinc-400" />
+              <span className="text-xs font-semibold text-[color:var(--ui-text-faint)]">Calendar:</span>
+              <span className="text-xs font-semibold text-[color:var(--ui-text-strong)]">{activeCalendarVersion?.name || 'Select Calendar'}</span>
+              <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
             </Button>
           }
         />
@@ -1044,10 +1044,10 @@ export const CalendarTab: React.FC<{
                 {viewMode === 'strips' && boneyardCollapsed && (
                   <BoneyardExpandButton onClick={() => setBoneyardCollapsed(false)} />
                 )}
-                <button onClick={() => { follow.noteUserChange(); goPrevMonth(); }} title="Previous month" data-presence-anchor="toolbar:calendar:prev" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
+                <button onClick={() => { follow.noteUserChange(); goPrevMonth(); }} title="Previous month" data-presence-anchor="toolbar:calendar:prev" className="p-1 hover:bg-[var(--ui-card-band)] rounded"><ChevronLeft className="w-4 h-4" /></button>
                 <h2 className="font-semibold text-sm whitespace-nowrap">{rangeLabel}</h2>
-                <button onClick={() => { follow.noteUserChange(); goNextMonth(); }} title="Next month" data-presence-anchor="toolbar:calendar:next" className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
-                <button onClick={() => { follow.noteUserChange(); goToday(); }} title="Jump to today" data-presence-anchor="toolbar:calendar:today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
+                <button onClick={() => { follow.noteUserChange(); goNextMonth(); }} title="Next month" data-presence-anchor="toolbar:calendar:next" className="p-1 hover:bg-[var(--ui-card-band)] rounded"><ChevronRight className="w-4 h-4" /></button>
+                <button onClick={() => { follow.noteUserChange(); goToday(); }} title="Jump to today" data-presence-anchor="toolbar:calendar:today" className="px-2 py-1 rounded text-[10px] font-semibold text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-card-band)] transition-colors">
                   Today
                 </button>
               </div>
@@ -1083,7 +1083,7 @@ export const CalendarTab: React.FC<{
                     <Button data-presence-anchor="toolbar:calendar:filter">
                       <ListFilter className="w-3.5 h-3.5" />
                       Filter
-                      <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                      <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
                     </Button>
                   }
                 >
@@ -1091,20 +1091,20 @@ export const CalendarTab: React.FC<{
                     <>
                       <DropdownItem keepOpen onClick={() => updateCal({ showBreaks: !showBreaks })}>
                         <span className="flex items-center justify-between w-full gap-2">
-                          <span className="flex items-center gap-2"><StickyNote className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> Breaks &amp; Notes</span>
+                          <span className="flex items-center gap-2"><StickyNote className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] shrink-0" /> Breaks &amp; Notes</span>
                           {showBreaks && <Check className="w-3.5 h-3.5 shrink-0" />}
                         </span>
                       </DropdownItem>
                       <DropdownItem keepOpen onClick={() => updateCal({ showConflicts: !showConflicts })}>
                         <span className="flex items-center justify-between w-full gap-2">
-                          <span className="flex items-center gap-2"><Flag className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> Conflicts</span>
+                          <span className="flex items-center gap-2"><Flag className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] shrink-0" /> Conflicts</span>
                           {showConflicts && <Check className="w-3.5 h-3.5 shrink-0" />}
                         </span>
                       </DropdownItem>
                     </>
                   ) : (
                     <>
-                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Events</div>
+                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]">Events</div>
                     <DropdownItem keepOpen onClick={() => updateCal({ eventsFilter: { ...eventsFilter, statuses: eventsFilter.statuses == null ? [] : null } })} className="font-semibold">
                       <span className="flex items-center justify-between w-full gap-2">All Events{eventsFilter.statuses == null && <Check className="w-3.5 h-3.5 shrink-0" />}</span>
                     </DropdownItem>
@@ -1125,7 +1125,7 @@ export const CalendarTab: React.FC<{
                       );
                     })}
                     <DropdownDivider />
-                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Rules</div>
+                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]">Rules</div>
                     <DropdownItem keepOpen onClick={() => updateCal({ eventsFilter: { ...eventsFilter, rules: eventsFilter.rules == null ? [] : null } })} className="font-semibold">
                       <span className="flex items-center justify-between w-full gap-2">All Rule Types{eventsFilter.rules == null && <Check className="w-3.5 h-3.5 shrink-0" />}</span>
                     </DropdownItem>
@@ -1153,7 +1153,7 @@ export const CalendarTab: React.FC<{
                   trigger={
                     <Button title="View" aria-label="View" data-presence-anchor="toolbar:calendar:view">
                       <Eye className="w-3.5 h-3.5 shrink-0" />
-                      <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                      <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
                     </Button>
                   }
                 >
@@ -1177,8 +1177,8 @@ export const CalendarTab: React.FC<{
                     <DropdownDivider />
                     <DropdownItem keepOpen onClick={() => updateCal({ expandDays: !expandDays })}>
                       <span className="flex items-center justify-between w-full gap-2">
-                        <span className="flex items-center gap-2"><Maximize2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> Expand Day Cells</span>
-                        {expandDays ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Minimize2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                        <span className="flex items-center gap-2"><Maximize2 className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] shrink-0" /> Expand Day Cells</span>
+                        {expandDays ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Minimize2 className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)] shrink-0" />}
                       </span>
                     </DropdownItem>
                     </>
@@ -1194,8 +1194,8 @@ export const CalendarTab: React.FC<{
             setContextMenuDate(null);
             setContextMenu(null);
           }} onScroll={() => { updateViewAnchor(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); presenceScroll.notify(); }} className="flex-1 overflow-y-auto min-h-0 relative overscroll-contain" data-cal-grid style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
-            <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50" data-cal-sticky>
-              {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
+            <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-[color:var(--ui-border)] bg-[var(--ui-card-bg)]" data-cal-sticky>
+              {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-[color:var(--ui-text-faint)] py-1.5 border-r border-b border-[color:var(--ui-border)] bg-[var(--ui-card-bg)]">{n}</div>)}
             </div>
             <MarqueeOverlay box={marqueeBox} />
             {calendarMonths.map((m, mi) => {
@@ -1205,7 +1205,7 @@ export const CalendarTab: React.FC<{
                 : undefined;
               return (
                 <div key={key} data-cal-month>
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-2 py-1 border-l border-t border-r border-zinc-200 bg-zinc-100">
+                  <div className="text-[10px] font-bold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-2 py-1 border-l border-t border-r border-[color:var(--ui-border)] bg-[var(--ui-card-band)]">
                     {monthTitle(m.year, m.month)}
                   </div>
                   {viewMode === 'events' ? (
@@ -1218,8 +1218,8 @@ export const CalendarTab: React.FC<{
                           .filter((s): s is Extract<MonthSlot, { filler: false }> => !s.filler)
                           .map(s => s.dateKey);
                         return (
-                          <div key={`wk-${wi}`} data-cal-week className="relative border-t border-zinc-200">
-                            <div className="grid grid-cols-7 border-l border-zinc-200">
+                          <div key={`wk-${wi}`} data-cal-week className="relative border-t border-[color:var(--ui-border)]">
+                            <div className="grid grid-cols-7 border-l border-[color:var(--ui-border)]">
                               {week.map(slot => {
                                 if (slot.filler) return <FillerCell key={slot.key} />;
                                 const day = slot as Extract<MonthSlot, { filler: false }>;
@@ -1272,7 +1272,7 @@ export const CalendarTab: React.FC<{
                       });
                     })()
                   ) : (
-                  <div className="grid grid-cols-7 border-l border-t border-zinc-200" style={{ gridAutoRows: expandDays ? 'auto' : DAY_CELL_HEIGHT }}>
+                  <div className="grid grid-cols-7 border-l border-t border-[color:var(--ui-border)]" style={{ gridAutoRows: expandDays ? 'auto' : DAY_CELL_HEIGHT }}>
                     {buildMonthSlots(m.year, m.month, trim).map(slot => {
                       if (slot.filler) return <FillerCell key={slot.key} />;
                       const day = slot as Extract<MonthSlot, { filler: false }>;
@@ -1362,7 +1362,7 @@ export const CalendarTab: React.FC<{
                   return idx != null ? `DAY ${chronoDayMap.get(idx) ?? 0}` : '';
                 })()}
               </div>
-              <div className="text-[9px] text-zinc-400">{countMovableEvents(eventsByDate.get(activeEventMeta.dateKey) || [])} events</div>
+              <div className="text-[9px] text-[color:var(--ui-text-faint)]">{countMovableEvents(eventsByDate.get(activeEventMeta.dateKey) || [])} events</div>
             </div>
           ) : (
             (() => {
@@ -1493,11 +1493,11 @@ export const CalendarTab: React.FC<{
         >
           <div className="p-6 space-y-5">
             <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-zinc-300">Background</span>
+              <span className="text-xs text-[color:var(--ui-text)]">Background</span>
               <ColorField value={colorPicker.bg} onChange={v => setColorPicker(p => p ? { ...p, bg: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).background} />
             </div>
             <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-zinc-300">Text Color</span>
+              <span className="text-xs text-[color:var(--ui-text)]">Text Color</span>
               <ColorField value={colorPicker.text} onChange={v => setColorPicker(p => p ? { ...p, text: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).color} />
             </div>
             <div>
@@ -1505,7 +1505,7 @@ export const CalendarTab: React.FC<{
                 value={colorPicker.noteText}
                 onChange={e => setColorPicker(p => p ? { ...p, noteText: e.target.value.toUpperCase() } : null)}
                 rows={3}
-                className="w-full text-xs px-3 py-2 rounded border border-zinc-800 outline-none focus:border-zinc-600 resize-none"
+                className="w-full text-xs px-3 py-2 rounded border border-[color:var(--ui-border)] outline-none focus:border-[color:var(--ui-border-strong)] resize-none"
                 style={{ background: colorPicker.bg, color: colorPicker.text }}
                 placeholder="Banner text..."
               />
@@ -1558,6 +1558,6 @@ export const CalendarTab: React.FC<{
     </DndContext>
     </>
     )}
-  </div>
+  </ThemeScope>
   );
 };

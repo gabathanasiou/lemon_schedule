@@ -90,7 +90,7 @@ export const DayCell: React.FC<{
 
   const visual = dayTypeVisual || null;
   const statusBg = nonShootStatus
-    ? (visual?.color ? undefined : nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : 'bg-zinc-100')
+    ? (visual?.color ? undefined : nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : 'bg-[var(--ui-card-band)]')
     : '';
   const statusBgStyle = visual?.color ? { background: `${visual.color}1A` } : undefined;
   const hdr = getDayHeaderColors(palette);
@@ -98,9 +98,9 @@ export const DayCell: React.FC<{
   const headerColor = statusHeaderStyle ? ''
     : nonShootStatus === 'hold' ? 'bg-red-600 text-white'
     : nonShootStatus === 'travel' ? 'bg-purple-600 text-white'
-    : nonShootStatus === 'holiday' ? 'bg-zinc-400 text-zinc-800'
+    : nonShootStatus === 'holiday' ? 'bg-[var(--ui-border-strong)] text-[color:var(--ui-text-strong)]'
     : sectionLabel ? ''
-    : 'bg-zinc-200 text-zinc-600';
+    : 'bg-[var(--ui-card-count-bg)] text-[color:var(--ui-text-muted)]';
   const headerStyle = statusHeaderStyle || (sectionLabel && !nonShootStatus ? { background: hdr.background, color: hdr.color } : undefined);
 
   const headerLabel = visual ? visual.label.toUpperCase() : sectionLabel || '';
@@ -113,8 +113,8 @@ export const DayCell: React.FC<{
   return (
     <div ref={setNodeRef} data-date-key={dateKey}
       className={`min-h-[80px] h-full border-r flex flex-col relative
-        ${!isWorking && !nonShootStatus ? 'border-b border-dashed border-zinc-200' : 'border-b border-zinc-200'}
-        ${!isWorking && !nonShootStatus ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
+        ${!isWorking && !nonShootStatus ? 'border-b border-dashed border-[color:var(--ui-border)]' : 'border-b border-[color:var(--ui-border)]'}
+        ${!isWorking && !nonShootStatus ? 'bg-[var(--ui-card-bg)] text-[color:var(--ui-text-faint)]' : statusBg || 'bg-[var(--ui-card-bg)]'}
         ${!drop && isOver && !isNonShoot ? '!bg-blue-50' : ''}`}
       style={statusBgStyle}
     >
@@ -183,7 +183,7 @@ export const DayCell: React.FC<{
             if (groups.length === 0) {
               return (
                 <div
-                  className="px-0.5 pb-1 text-[8px] text-zinc-500 italic cursor-pointer select-none"
+                  className="px-0.5 pb-1 text-[8px] text-[color:var(--ui-text-faint)] italic cursor-pointer select-none"
                   onDoubleClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
                   title="Double click to set up travel/hold"
                 >
@@ -226,7 +226,7 @@ export const DayCell: React.FC<{
                   {activeDragRows.slice(0, 3).map(dr => (
                     <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
                   ))}
-                  {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
+                  {activeDragRows.length > 3 && <div className="text-[8px] text-[color:var(--ui-text-faint)] text-center">+{activeDragRows.length - 3} more</div>}
                 </div>
               )}
 <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} heldBy={heldBy?.get(r.id) ?? null} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
@@ -235,7 +235,7 @@ export const DayCell: React.FC<{
                   {activeDragRows.slice(0, 3).map(dr => (
                     <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
                   ))}
-                  {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
+                  {activeDragRows.length > 3 && <div className="text-[8px] text-[color:var(--ui-text-faint)] text-center">+{activeDragRows.length - 3} more</div>}
                 </div>
               )}
             </React.Fragment>
@@ -245,7 +245,7 @@ export const DayCell: React.FC<{
               {activeDragRows.slice(0, 3).map(dr => (
                 <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
               ))}
-              {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
+              {activeDragRows.length > 3 && <div className="text-[8px] text-[color:var(--ui-text-faint)] text-center">+{activeDragRows.length - 3} more</div>}
             </div>
           )}
         </SortableContext>
@@ -256,5 +256,5 @@ export const DayCell: React.FC<{
 };
 
 export const FillerCell: React.FC = () => (
-  <div className="min-h-[80px] h-full border-r border-b border-dashed border-zinc-200 bg-zinc-50/30" />
+  <div className="min-h-[80px] h-full border-r border-b border-dashed border-[color:var(--ui-border)] bg-[var(--ui-card-bg)]" />
 );

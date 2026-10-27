@@ -158,9 +158,10 @@ Copy-from-day, Add Crew Member, the crew roster Glide grid (ambient light/dark t
 light neutral scope). **The manager family is too**: `managerShell` pages,
 `ElementManager` (its own light `ThemeScope`), the shared `SidebarNav` + `MT_*` table
 recipes, Link Manager, Crew Links and the Element View panel/sections — chip pickers use
-the token trigger (`DD_TOKEN_TRIGGER_CLASS`). The app `Modal` shim pins `theme="dark"`
-(302), so a light page scope never flips an overlay — modals stay dark until light
-modals land.
+the token trigger (`DD_TOKEN_TRIGGER_CLASS`). **The Calendar page is light-scoped too**
+(`CalendarTab` root): month grid, day/event cells, boneyard sidebar, Day Types and
+Production Dates. The app `Modal` shim pins `theme="dark"` (302), so a light page scope
+never flips an overlay — modals stay dark until light modals land.
  The **Call Sheet** surface is its own
 full-screen DARK editor (next paragraph); while it is open the host darkens the
 surrounding Production sub-tab bar (`PageToolbar theme="dark"`, driven by the Days page's

@@ -73,7 +73,7 @@ export const BoneyardSidebar: React.FC<{
                 {activeDragRows.slice(0, 2).map(dr => (
                   <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
                 ))}
-                {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
+                {activeDragRows.length > 2 && <div className="text-[8px] text-[color:var(--ui-text-faint)] text-center">+{activeDragRows.length - 2} more</div>}
               </div>
             )}
             <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} heldBy={heldBy?.get(r.id) ?? null} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
@@ -81,9 +81,9 @@ export const BoneyardSidebar: React.FC<{
         ))}
         {rows.some(r => r.containerId != null) && (
           <div className="flex items-center gap-2 px-1 pt-3 pb-1">
-            <div className="flex-1 border-t border-zinc-300" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 shrink-0 select-none">Unplaced</span>
-            <div className="flex-1 border-t border-zinc-300" />
+            <div className="flex-1 border-t border-[color:var(--ui-border-strong)]" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--ui-text-faint)] shrink-0 select-none">Unplaced</span>
+            <div className="flex-1 border-t border-[color:var(--ui-border-strong)]" />
           </div>
         )}
         {rows.filter(r => r.containerId != null).map((r, i, arr) => (
@@ -93,7 +93,7 @@ export const BoneyardSidebar: React.FC<{
                 {activeDragRows.slice(0, 2).map(dr => (
                   <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
                 ))}
-                {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
+                {activeDragRows.length > 2 && <div className="text-[8px] text-[color:var(--ui-text-faint)] text-center">+{activeDragRows.length - 2} more</div>}
               </div>
             )}
             <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} heldBy={heldBy?.get(r.id) ?? null} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
@@ -102,12 +102,12 @@ export const BoneyardSidebar: React.FC<{
                 {activeDragRows.slice(0, 2).map(dr => (
                   <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
                 ))}
-                {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
+                {activeDragRows.length > 2 && <div className="text-[8px] text-[color:var(--ui-text-faint)] text-center">+{activeDragRows.length - 2} more</div>}
               </div>
             )}
           </React.Fragment>
         ))}
-        {rows.length === 0 && <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>}
+        {rows.length === 0 && <div className="text-center text-[color:var(--ui-text-faint)] text-[10px] py-8">All scenes scheduled</div>}
       </div>
     </BoneyardPanel>
   );

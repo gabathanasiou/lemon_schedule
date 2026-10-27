@@ -72,7 +72,7 @@ export const EventDayCell: React.FC<{
   const statusHeaderStyle = visual?.color ? { background: visual.color, color: dayTypeTextColor(visual.color) } : undefined;
   const headerColor = statusHeaderStyle ? ''
     : sectionLabel ? ''
-    : 'bg-zinc-200 text-zinc-600';
+    : 'bg-[var(--ui-card-count-bg)] text-[color:var(--ui-text-muted)]';
   const headerStyle = statusHeaderStyle || (sectionLabel ? { background: hdr.background, color: hdr.color } : undefined);
   const headerLabel = visual ? visual.label.toUpperCase() : sectionLabel || '';
 
@@ -88,7 +88,7 @@ export const EventDayCell: React.FC<{
 
   return (
     <div ref={setNodeRef} data-date-key={dateKey} data-cal-day
-      className={`min-h-[110px] h-full border-r border-b border-zinc-200 flex flex-col relative ${!sectionLabel && !visual ? 'bg-zinc-50' : 'bg-white'} ${flash ? 'cal-day-flash' : ''}`}
+      className={`min-h-[110px] h-full border-r border-b border-[color:var(--ui-border)] flex flex-col relative ${!sectionLabel && !visual ? 'bg-[var(--ui-card-bg)]' : 'bg-[var(--ui-panel-bg)]'} ${flash ? 'cal-day-flash' : ''}`}
       onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
     >
       {drop?.zone === 'insert' && drop.side === 'before' && (
@@ -147,7 +147,7 @@ export const EventDayCell: React.FC<{
         ))}
         <button
           onClick={(e) => { e.stopPropagation(); if (onAddEvent) onAddEvent(dateKey); else onOpenEvents(dateKey); }}
-          className={`w-full grow flex items-center justify-center gap-1 rounded border border-dashed border-zinc-300 text-[9px] font-semibold text-zinc-400 hover:text-zinc-600 hover:border-zinc-400 transition-colors whitespace-nowrap overflow-hidden ${IS_COARSE ? 'py-1.5' : 'py-1'}`}
+          className={`w-full grow flex items-center justify-center gap-1 rounded border border-dashed border-[color:var(--ui-border-strong)] text-[9px] font-semibold text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-muted)] hover:border-[color:var(--ui-text-faint)] transition-colors whitespace-nowrap overflow-hidden ${IS_COARSE ? 'py-1.5' : 'py-1'}`}
           title="Add event"
         >
           <Plus className="w-2.5 h-2.5 shrink-0" />
@@ -207,7 +207,7 @@ export const EventCardView: React.FC<{
       <div data-card-status={card.status} data-card-category={card.category} data-card-key={card.key}
         data-card-comment={card.comment || ''}
         onClick={onClick}
-        className={`${base} text-zinc-700 flex items-start gap-1.5`}
+        className={`${base} text-[color:var(--ui-text)] flex items-start gap-1.5`}
         style={selStyle || { background: `${color}1A` }}
       >
         {/* The tooltip anchors to the icon only — hovering the label/comment
@@ -250,7 +250,7 @@ export const EventCardView: React.FC<{
         <div
           onClick={onClick}
           data-violated={card.violated || undefined}
-          className={`${base} flex items-center gap-1 ${card.violated ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-700'}`}
+          className={`${base} flex items-center gap-1 ${card.violated ? 'bg-red-100 text-red-700' : 'bg-[var(--ui-card-band)] text-[color:var(--ui-text)]'}`}
           style={selStyle}
         >
           {card.violated ? (
