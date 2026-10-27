@@ -88,6 +88,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
       display="names"
       allowFreeText
       uppercase
+      keepAllRows
       placeholder={placeholder}
       readOnly={readOnly}
       inputReadOnly={typingBlocked}
