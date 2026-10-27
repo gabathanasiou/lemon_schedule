@@ -34,6 +34,11 @@ export interface GroupedSelectProps {
   /** Force a trigger/menu theme; omitted = the ambient kit theme (a dark modal
    *  stays dark, the light Day Manager stays light). */
   theme?: 'light' | 'dark';
+  /** Grouped catalogue behaviour: `accordion` (default — headers expand one
+   *  section at a time and are never selectable) or `open` (every section
+   *  expanded; used where the "All <department>" rows must be visible and
+   *  pickable, e.g. Element links). */
+  browse?: 'open' | 'accordion';
 }
 
 export const GroupedSelect: React.FC<GroupedSelectProps> = ({
@@ -45,6 +50,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   className = '',
   disabled,
   theme,
+  browse = 'accordion',
 }) => {
   const ambient = useKitTheme();
   const dark = (theme ?? ambient?.mode ?? 'light') === 'dark';
@@ -80,6 +86,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
       onChange={onChange}
       items={pickerItems}
       groups={groups}
+      browse={browse}
       theme={theme}
       placeholder={placeholder}
       className={className}

@@ -77,14 +77,15 @@ test('discrete filter fields use a value dropdown, not a free-text box', async (
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
   await page.locator('.block-card.block-type-repeat').first().click({ position: { x: 3, y: 3 } });
 
-  // The values control is the GroupedSelect dropdown trigger, not a text input.
-  const trigger = page.getByRole('button', { name: 'Values…' }).first();
+  // The values control is the shared PickerField (a value dropdown), not a
+  // free-text box: it lists the field's real values.
+  const trigger = page.locator('[data-picker-field]').first();
   await expect(trigger).toBeVisible({ timeout: 5000 });
-  await expect(page.getByPlaceholder('Values…')).toHaveCount(0);
 
-  // Picking a value writes it to the block filter.
-  await trigger.click();
-  await page.getByText('INT', { exact: true }).last().click();
+  // Picking a value writes it to the block filter on close.
+  await trigger.locator('input').click();
+  await page.locator('[data-search-item="INT"]').click();
+  await page.locator('.block-card.block-type-repeat').first().click({ position: { x: 3, y: 3 } });
   await expect.poll(() => page.evaluate(() => {
     const b = (window as any).__lemonSchedule;
     return b.getProject().reportDesigns.find((d: any) => d.id === 'filter-dd')?.blocks?.[0]?.itemFilter?.values;
