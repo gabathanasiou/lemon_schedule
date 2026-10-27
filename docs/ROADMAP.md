@@ -140,7 +140,8 @@ modals, or a modal that matches the app header's project chrome — instead of t
 - **App**: the `Modal` shim maps every project kind to `surface="neutral"` (local zinc,
   Drive blue identity, shared emerald identity); Drive/shared colour stays in the chrome.
   A per-call `surface="accent"` / local accent override remains available. The app branch
-  adopts kit v0.1.116; modal bodies remain hardcoded dark (see 310).
+  adopts kit v0.1.116; app modal bodies are tokenised (310, archived) and the kit
+  primitives still take explicit `theme` props (remaining below).
 **Remaining**: ambient theme adoption for the kit components that still take an explicit
 `theme` prop (Button / SearchMenu / Seg / RuleCard — a light modal still shows those dark
 until they read the scope), chrome onto kit scopes (311), grouped picker adoption (312),
