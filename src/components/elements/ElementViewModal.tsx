@@ -4,8 +4,8 @@ import { ELEMENT_CATEGORIES, getLabel, CAT_ICONS } from '../../lib/categories';
 import { elementKey, elementMatchId } from '../../lib/elements';
 import { clipTriggerLabel } from '../../lib/searchMenuTrigger';
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
-import { Seg, SearchMenu, useKitTheme } from '@gabriel/ui-kit';
-import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
+import { Seg, SearchMenu } from '@gabriel/ui-kit';
+import type { SearchMenuItem } from '@gabriel/ui-kit';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
 import { ElementPropertiesSection, elementViewOptions } from './ElementPropertiesSection';
@@ -28,24 +28,22 @@ const TAB_OPTIONS = [
   { v: 'events', l: 'Events' },
 ];
 
-function ElementPicker({ options, selectedKey, onSelect, groupLabel, groupIcon }: {
+function ElementPicker({ options, selectedKey, onSelect, groupIcon }: {
   options: { key: string; label: string }[];
   selectedKey: string;
   onSelect: (key: string) => void;
-  groupLabel: string;
   groupIcon?: React.ReactNode;
 }) {
-  const ambient = useKitTheme();
   const i = options.findIndex(o => o.key === selectedKey);
   const selected = i >= 0 ? options[i] : undefined;
   const step = (delta: number) => {
     const next = options[i + delta];
     if (next) onSelect(next.key);
   };
-  // Roadmap 318 — the category's elements are the catalogue (one group, every
-  // record open); typing searches names and Board IDs.
-  const items: SearchMenuItem[] = options.map(o => ({ id: o.key, label: o.label, group: 'elements' }));
-  const groups: SearchMenuGroup[] = [{ key: 'elements', label: groupLabel, icon: groupIcon, count: options.length }];
+  // Roadmap 318 — the category's elements are the catalogue: `browseAll` opens
+  // the FULL flat list (no category header — it would only repeat the trigger)
+  // and `selectedId` marks + scrolls to the element we are on.
+  const items: SearchMenuItem[] = options.map(o => ({ id: o.key, label: o.label }));
   const collapsedWidth = 216;
   const arrow = 'p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700 disabled:opacity-25 disabled:hover:bg-transparent transition-colors';
   return (
@@ -55,15 +53,14 @@ function ElementPicker({ options, selectedKey, onSelect, groupLabel, groupIcon }
       </button>
       <SearchMenu
         mode="expandable"
-        theme={ambient?.mode ?? 'dark'}
+        theme="dark"
         items={items}
-        groups={groups}
         triggerLabel={clipTriggerLabel(selected ? selected.label : 'Select element', collapsedWidth)}
         triggerIcon={groupIcon}
         placeholder="Search elements…"
         onSelect={item => onSelect(item.id)}
-        browseExpanded
-        groupExpandMode="single"
+        browseAll
+        selectedId={selectedKey}
         collapsedWidth={collapsedWidth}
         expandedWidth={260}
         panelWidth={320}
@@ -123,7 +120,6 @@ export function ElementViewModal({ category, rowKey, onClose }: {
             options={options}
             selectedKey={selectedKey}
             onSelect={setSelectedKey}
-            groupLabel={categoryLabel}
             groupIcon={CategoryIcon ? <CategoryIcon className="w-3.5 h-3.5" /> : undefined}
           />
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">

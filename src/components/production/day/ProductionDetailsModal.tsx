@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, Info, Plus, UserPlus } from 'lucide-react';
-import { SearchMenu, useKitTheme } from '@gabriel/ui-kit';
+import { ChevronDown, Globe, Info, Plus, UserPlus } from 'lucide-react';
+import { SearchMenu } from '@gabriel/ui-kit';
 import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
 import { useProject } from '../../../store';
 import { generateUUID, formatDateShort, DATE_FORMAT_OPTIONS } from '../../../lib/utils';
@@ -15,6 +15,7 @@ import { useDialog } from '../../Dialog';
 import DateField from '../../DateField';
 import { initialViewFor } from '../../calendar/calendarUtils';
 import { ruleModalSizes } from '../../rules/ColorRuleFormParts';
+import { clipTriggerLabel } from '../../../lib/searchMenuTrigger';
 import { crewRoleGroup } from '../../../lib/crewCatalog';
 import { departmentOrder } from '../../../lib/dayCrew';
 import type { CrewPerson } from '../../../types';
@@ -33,6 +34,9 @@ const KEY_POSITIONS: { key: string; label: string }[] = [
   { key: 'firstAD', label: '1st AD' },
   { key: 'upm', label: 'UPM' },
 ];
+
+/** Timezone catalogue for the SearchMenu picker (flat — no categories). */
+const TIMEZONE_ITEMS: SearchMenuItem[] = COMMON_TIMEZONES.map(tz => ({ id: tz, label: tz }));
 
 const DETAIL_FIELDS: { key: string; label: string }[] = [
   { key: 'company', label: 'Production Company' },
@@ -67,7 +71,6 @@ const Menu: React.FC<{ trigger: React.ReactNode; width?: string; searchable?: bo
 export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { state, dispatch, locked } = useProject();
   const dialog = useDialog();
-  const ambient = useKitTheme();
   const project = state.present;
   const sizes = ruleModalSizes();
   const { CREM_LABEL, CREM_TEXT, CREM_BODY } = sizes;
@@ -195,23 +198,22 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                 {locked ? (
                   <span className={`${CREM_TEXT} text-[color:var(--ui-text)]`}>{productionInfo.timezone || '—'}</span>
                 ) : (
-                  <Menu
-                    width="w-72"
-                    searchable
-                    searchPlaceholder="Search timezones…"
-                    trigger={
-                      <button type="button" className={PICKER_TRIGGER}>
-                        <span className="truncate">{productionInfo.timezone || `Browser default (${getBrowserTimeZone()})`}</span>
-                        <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
-                      </button>
-                    }
-                  >
-                    {COMMON_TIMEZONES.map(tz => (
-                      <DropdownItem key={tz} selected={productionInfo.timezone === tz} onClick={() => commitInfo({ timezone: tz })}>
-                        {tz}
-                      </DropdownItem>
-                    ))}
-                  </Menu>
+                  <SearchMenu
+                    mode="expandable"
+                    theme="dark"
+                    items={TIMEZONE_ITEMS}
+                    triggerLabel={clipTriggerLabel(productionInfo.timezone || `Browser default (${getBrowserTimeZone()})`, 190)}
+                    triggerIcon={<Globe className="w-3.5 h-3.5" />}
+                    placeholder="Search timezones…"
+                    onSelect={item => commitInfo({ timezone: item.id })}
+                    browseAll
+                    selectedId={productionInfo.timezone || ''}
+                    collapsedWidth={190}
+                    expandedWidth={240}
+                    panelWidth={280}
+                    maxMenuHeight={320}
+                    emptyHint="Try a city or region — London, New York, Asia."
+                  />
                 )}
               </div>
               <span className="text-[10px] text-[color:var(--ui-text-faint)] w-32 shrink-0 text-right">Sunrise / sunset &amp; weather</span>
@@ -257,7 +259,7 @@ export const ProductionDetailsModal: React.FC<{ onClose: () => void }> = ({ onCl
                   {!locked && (
                     <SearchMenu
                       mode="expandable"
-                      theme={ambient?.mode ?? 'light'}
+                      theme="dark"
                       items={items}
                       groups={groups}
                       triggerLabel="Assign"

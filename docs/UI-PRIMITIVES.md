@@ -276,8 +276,15 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   **Record-only lists**: pass `searchGroups={[]}` + `searchOpenOnFocus={false}` (the
   `SidebarNav` props) so the panel opens on the first keystroke instead of showing an
   empty browse state — the Script scene list does this.
+  **Value-field pickers**: `browseAll` (flat list on open, no category rows) + `selectedId`
+  (the current record tinted + checked, the panel opens scrolled to it, and the keyboard
+  highlight starts there) — the kit 0.1.129-134 pair used by the Element View header picker
+  and the Production Details timezone. Row scrolling always uses the panel's own scroller;
+  never `scrollIntoView` (it also scrolls the page/modal in Safari and moves the list under
+  the pointer).
   **Adoption audit (318)**: Key Positions → Assign (crew grouped by department), the
-  Element View header picker (per category, one open group), the Script scene sidebar
+  Element View header picker (flat list, current element anchored), the Production Details
+  timezone (flat list, current timezone anchored), the Script scene sidebar
   (scene records — number/set/location/cast, jumping the script) and Trash (sections as
   categories; picking expands + flashes the row, restore stays a click) are SearchMenu.
   Audited and deliberately KEPT plain: **Day Types sidebar** (a 3-10 row registry — the
@@ -286,6 +293,12 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
   `reports/ReportCategorySidebar.tsx`), the **day picker** (prev/next stepper is the
   primary control and the list already groups by week + scrolls to the current day) and
   the **nearby hospital/police** fields (in-cell `EntityDropdown`; item 171 deletes them).
+  **Searchable menus need a no-match state**: the kit `DropdownMenu` now renders
+  `No matches for “…”` when a searchable query hides every row (both the in-panel box and
+  the trigger-as-search mode) — never leave a blank panel.
+  **Theme gotcha**: a component that calls `useKitTheme()` ABOVE its own `<Modal>` reads the
+  PAGE theme, not the modal's (the provider lives inside `Modal`) — pass the modal's theme
+  explicitly (`theme="dark"` for the app's always-dark modals).
   Kit-dependent leftovers → roadmap **319**.
 - **MorphSearchField** (kit): the FILTER trigger — a `Filter` button that morphs into the
   kit input and keeps its term when collapsed (unlike SearchMenu's clear-on-close), Escape
