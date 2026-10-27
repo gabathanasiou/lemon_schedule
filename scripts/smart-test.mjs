@@ -237,6 +237,7 @@ const RULES = [
   { g: 'src/components/location/**', s: [...LOC, 'report-sun-weather-map', ...IPAD] },
   { g: 'src/lib/rowBuffer.ts', s: MANAGERS },
   { g: 'src/lib/managerShell.tsx', s: MANAGERS },
+  { g: 'src/lib/managerSearch.ts', s: MANAGERS },
   { g: 'src/lib/managerTable.ts', s: MANAGERS },
   { g: 'src/components/SidebarNav.tsx', s: MANAGERS },
   // day manager (roadmap 98) + day times sheet (roadmap 101)

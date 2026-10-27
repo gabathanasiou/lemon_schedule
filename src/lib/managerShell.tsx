@@ -298,11 +298,20 @@ export const DatabaseManagerView: React.FC<{
     const out: ManagerSearchRecord[] = [];
     for (const c of categories) {
       for (const r of config.loadRows(project, c.key)) {
+        const label = r[identityKey] || r.id || r.key;
+        // Subtitle = a bare VALUE, never "Label: value" — the kit matches the
+        // detail text, so a field label would make searching it ("phone",
+        // "address") match every row (roadmap 305).
+        const subtitle = config.fields.find(field =>
+          field.key !== identityKey
+          && (r[field.key] || '').trim()
+          && (r[field.key] || '').trim().toLowerCase() !== label.trim().toLowerCase());
         out.push({
           categoryKey: c.key,
           categoryLabel: c.label,
           rowKey: r.key,
-          label: r[identityKey] || r.id || r.key,
+          label,
+          detail: subtitle ? r[subtitle.key] : undefined,
           fields: config.fields.map(f => ({ key: f.key, label: f.label, value: r[f.key] || '' })),
         });
       }
@@ -310,17 +319,13 @@ export const DatabaseManagerView: React.FC<{
     return out;
   }, [categories, project, config]);
 
-  const searchItems = useMemo<SearchMenuItem[]>(() => searchRecords.map(record => {
-    const detailField = record.fields.find(field =>
-      field.value.trim() && field.value.trim().toLowerCase() !== record.label.trim().toLowerCase());
-    return {
-      id: `${record.categoryKey}::${record.rowKey}`,
-      label: record.label,
-      group: record.categoryKey,
-      fields: record.fields.map(field => ({ label: field.label, value: field.value })),
-      detail: detailField ? `${detailField.label}: ${detailField.value}` : undefined,
-    };
-  }), [searchRecords]);
+  const searchItems = useMemo<SearchMenuItem[]>(() => searchRecords.map(record => ({
+    id: `${record.categoryKey}::${record.rowKey}`,
+    label: record.label,
+    group: record.categoryKey,
+    fields: record.fields.map(field => ({ label: field.label, value: field.value })),
+    detail: record.detail,
+  })), [searchRecords]);
 
   const searchGroups = useMemo(
     () => categories.map(c => ({ key: c.key, label: c.label })),

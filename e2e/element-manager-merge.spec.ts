@@ -383,6 +383,19 @@ test('manager search: a performer hit jumps to Cast and flashes the row', async 
 
   const hit = page.locator(`[data-search-item="cast::${lead.id}"]`);
   await expect(hit).toContainText('Artiste: ZZZ AUDIT');
+
+  // Field titles are not searchable: the old "Board ID: n" subtitle made
+  // "board id" list every element (roadmap 305). The row face is the
+  // board-numbered identity.
+  await search.fill('board id');
+  await expect(page.locator('[data-search-empty]')).toBeVisible();
+  await expect(page.locator('[data-search-item]')).toHaveCount(0);
+  await search.fill(lead.name.toUpperCase());
+  const named = page.locator(`[data-search-item="cast::${lead.id}"]`);
+  await expect(named).toContainText(`${lead.id}. ${lead.name.toUpperCase()}`);
+  // …and the subtitle is the artiste, not "Board ID: n".
+  await expect(named).toContainText('ZZZ AUDIT');
+
   await hit.click();
 
   // It opens the record's category and flashes the row (roadmap 172).

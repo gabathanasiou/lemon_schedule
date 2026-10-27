@@ -249,9 +249,11 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
     query-aware action already covers the same create path (Add location: “hello” → only
     **“Add “hello”…”**).
   - **Deep search**: comma tags AND-match label/`detail`/category/`keywords`/`fields[]`; the
-    matched attribute becomes the row snippet. Reuse `parseSearchTags` /
+    matched attribute becomes the row snippet. `detail` is searched, so it is a display
+    **value**, never `"Label: value"` (field labels must not match). Reuse `parseSearchTags` /
     `searchMenuContent` / `buildSearchMenuRows` for any jump/highlight bookkeeping — never a
-    second matcher.
+    second matcher. Manager rows use the board-numbered identity (`1. BOB`; cast subtitle =
+    artiste) — `lib/managerSearch.ts`.
   - **Keyboard**: ↑↓ actionable rows (plain headers skipped), **→/←** expands/collapses a
     category in accordion browse, Enter activates the highlight (opening highlights the first
     list row, not a pinned create action), Esc closes.

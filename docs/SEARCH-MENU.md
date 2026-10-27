@@ -171,6 +171,12 @@ current value MUST use the same hook (`SearchMenu` `selectedId`,
   `fields[].value` (case-insensitive substring).
 - When a tag matched a `field`, that field's value becomes the row's right-hand
   snippet (`Phone: 555-0199`); a `detail` match uses the detail.
+- `detail` is a **display subtitle that the matcher also searches** — so it is a
+  bare value, never `"Label: value"`. A field label there would make searching
+  the label name return every row (the managers' old `"Board ID: 3"` subtitles
+  made `board` list every element). Managers pass the value itself (cast → the
+  artiste name); field labels stay display-only, and a matched `fields[]` value
+  still produces the labeled snippet.
 - The empty query is the **browse state** (`openOnFocus`, or always with
   `browseExpanded`). Typing switches to grouped hits.
 - The pure model is exported and MUST be reused for any jump/highlight

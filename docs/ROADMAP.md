@@ -919,6 +919,11 @@ Manager. This pass surfaces it where users read elements: EntityDropdown item
 prefixes, Breakdown Sheet / Element Breakdown print, DOOD, call sheets, report
 ordering and the `dayView` board ID column — the deferred list from 257.
 
+- **Manager search slice (shipped)**: manager search rows now use the
+  board-numbered identity (`1. BOB`) with the cast subtitle as the artiste, and
+  field LABELS are no longer searchable — the old synthetic `"Board ID: n"`
+  subtitle made `board` list every element (`managerSearch.ts`,
+  `managerShell.tsx`, `ElementManager.tsx`).
 - Scope: widen `sortReportElements` (`reportData.ts`, cast-by-id today) to every
   category's `boardId`; `dayView.ts` `boardId` + `reportData.ts`
   `ReportElementCallItem.boardId` (`cat === 'cast' ? key : undefined`); label
@@ -1160,45 +1165,6 @@ ever return to.
   scratch project.
 - **Relations:** extends **281** (the deletion path ships there).
 
-## 297. Location stack — Google geocoding when keyed (`[~]`)
-
-**Priority: P2 — decided 2026-10-16 (owner) while scoping 285.**
-
-**Status:** code + Google Cloud setup LIVE 2026-10-16 — restricted key (Places
-API (New) + Geocoding API only; HTTP referrers; stored in the repo secret
-`VITE_GOOGLE_MAPS_API_KEY` + local `.env`), billing on, £5/mo budget alert.
-2026-10-26: reverse geocoding moved from the legacy Geocoding API to Places API
-(New) `searchNearby` — Geocoding rejects referrer-restricted keys outright, so
-the deployed app's pin-drop labels were silently blank while Text Search worked
-(verified against the live key). Remaining: verify search + pin-drop on the
-DEPLOYED app after this branch deploys (Nearby Search Pro ≈ $32/1000 — pin
-drops are rare, well inside the budget).
-
-**Request:** address search / reverse geocoding defaulted to keyless Nominatim,
-but OSM coverage is thin in practice (missing street numbers); the owner wants
-Google quality in the deployed app. `src/lib/places.ts` already ships a Google
-provider — dormant because `VITE_GOOGLE_MAPS_API_KEY` is set nowhere (local
-`.env` or deploy).
-
-- **Approach:** wire the key — local `.env` + repo secret read by `deploy.yml`.
-  Google Cloud setup (owner, once): billing enabled; "Places API (New)" +
-  "Geocoding API" enabled; ONE key restricted to those two APIs + HTTP
-  referrers (`https://<user>.github.io/*`, `http://localhost:3000/*`), with
-  daily quota caps + a budget alert (the key ships in the public bundle — the
-  referrer restriction is the guard). Fix `reportWeather.ts`'s direct
-  Nominatim call to route through `getPlacesProvider().reverseGeocode` (it
-  bypasses the provider — stays on OSM even when keyed). Enrich the Google
-  path with structured parts from `addressComponents`
-  (street/city/postcode/country; today only the joined formatted address is
-  kept, LESS than Nominatim). Keep Nominatim as the keyless fallback
-  (open-source builds / no-card deployments keep working; map tiles stay OSM
-  by decision). Future (not this pass): switch search from Text Search to
-  Places Autocomplete — better typeahead UX + cheaper SKU.
-- **Verify:** unit tests for provider selection + parts mapping; with a key
-  set, a live search + pin-drop on the deployed app; keyless build unchanged.
-- **Relations:** pairs with **285** (the CSP allowlist covers both geocoders);
-  feeds **288** (privacy data-flow list).
-
 ## 300. Past-days edit lock — freeze editing before today (`[ ]`, NEEDS CONVERSATION FIRST)
 
 **Asked 2026-10-16 (user):** "a toggle might be a settings option in the
@@ -1212,3 +1178,16 @@ future … not able to edit day manager stuff for days that are past today."
   handles the API-call side; this is a workflow guard against rewriting
   history.
 - **Verify:** manual pass per surface; the lock must never block undo/history.
+
+## 320. Location search — Places Autocomplete typeahead (`[ ]`, parked)
+
+**Request**: switch forward address search in `src/lib/places.ts` from Text
+Search to Places API (New) **Autocomplete** with session tokens — a real
+typeahead and a cheaper SKU than one Text Search per committed query.
+Split out of 297 (archived), where it was explicitly deferred.
+
+- Keep the keyless Nominatim path as the fallback; no keyless behaviour change.
+- **Verify**: Vitest for provider/session-token handling; live search on the
+  deployed app; keyless build unchanged.
+- **Relations**: `follows` **297** (archived); `pairs with` **285** (CSP
+  allowlist); `feeds` **288** (privacy data-flow list).
