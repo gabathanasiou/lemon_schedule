@@ -10,6 +10,7 @@ import Button from './Button';
 import PageToolbar from './PageToolbar';
 import { GlideBreakdownTab } from './BreakdownTabGlide';
 import { PopoutPlaceholder } from './PopoutWindow';
+import { ThemeScope } from '@gabriel/ui-kit';
 import { TEST_IDS } from '../lib/testIds';
 
 export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, onUpdateScript, onCutScene, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, phone = false }: {
@@ -60,7 +61,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   }, [onToggleSubPopout]);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 overflow-hidden relative select-none">
+    <ThemeScope mode="light" surface="neutral" className="flex-1 flex flex-col h-full bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-strong)] border-x border-[color:var(--ui-border)] overflow-hidden relative select-none">
       <PageToolbar
         tabs={phone ? [] : [
           { id: 'sheet', label: 'Sheet', icon: <Table2 className="w-3.5 h-3.5" /> },
@@ -84,7 +85,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                 width="w-56"
                 trigger={
                   <Button variant="subtle" type="button" active={cutMode} aria-pressed={cutMode} data-testid={TEST_IDS.scriptCutToggle}>
-                    <Scissors className="w-3.5 h-3.5" /> Cut <ChevronDown className="w-3 h-3.5 text-zinc-400" />
+                    <Scissors className="w-3.5 h-3.5" /> Cut <ChevronDown className="w-3 h-3.5 text-[color:var(--ui-text-faint)]" />
                   </Button>
                 }
               >
@@ -113,6 +114,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} onOpenScheduleInPopout={onOpenScheduleInPopout} phone={phone} /> : subTab === 'script' ? <ScriptView headerTarget={portalTarget} onOpenSheet={onOpenSheet} onOpenSchedule={onOpenSchedule} onUpdateScript={onUpdateScript} onCutScene={onCutScene} cutMode={cutMode} onCutModeChange={setCutMode} /> : <GlideBreakdownTab onOpenSheet={onOpenSheet} onOpenSheetInPopout={onOpenSheetInPopout} headerTarget={portalTarget} />
       )}
       {splitManagerOpen && <SplitManagerModal onOpen={onOpenSchedule} onClose={() => setSplitManagerOpen(false)} />}
-    </div>
+    </ThemeScope>
   );
 }

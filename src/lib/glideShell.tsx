@@ -681,7 +681,7 @@ export const GlideGridShell: React.FC<{
         trigger={
           <Button>
             Edit
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
           </Button>
         }
       >
@@ -698,7 +698,7 @@ export const GlideGridShell: React.FC<{
         trigger={
           <Button>
             View
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
           </Button>
         }
       >
@@ -722,15 +722,15 @@ export const GlideGridShell: React.FC<{
         trigger={
           <Button>
             Info
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
           </Button>
         }
       >
-        <div className="px-4 py-2.5 text-xs text-zinc-500 space-y-1.5">
+        <div className="px-4 py-2.5 text-xs text-[color:var(--ui-text-muted)] space-y-1.5">
           {infoCounts.map(ic => (
             <div key={ic.label} className="flex items-center justify-between gap-6">
-              <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">{ic.label}</span>
-              <span className="font-semibold text-zinc-800">{ic.count}</span>
+              <span className="font-medium text-[color:var(--ui-text-faint)] uppercase tracking-wider text-[10px]">{ic.label}</span>
+              <span className="font-semibold text-[color:var(--ui-text-strong)]">{ic.count}</span>
             </div>
           ))}
         </div>
@@ -742,7 +742,7 @@ export const GlideGridShell: React.FC<{
     <div className="flex-1 flex flex-col min-h-0 w-full">
       <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void handleCSVFile(f); }} />
       {headerTarget ? createPortal(headerContent, headerTarget) : (
-        <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
+        <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] shrink-0">
           {headerContent}
         </div>
       )}
@@ -806,7 +806,7 @@ export const GlideGridShell: React.FC<{
             <ContextMenuItem onClick={() => void handlePasteFromMenu()} icon={<ClipboardPaste className="w-3.5 h-3.5" />} disabled={locked}>
               Paste
             </ContextMenuItem>
-            <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3.5 h-3.5 text-zinc-400" />} disabled={!hasSelection || locked}>
+            <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />} disabled={!hasSelection || locked}>
               Clear
             </ContextMenuItem>
             <ContextMenuDivider />
@@ -816,7 +816,7 @@ export const GlideGridShell: React.FC<{
               return (
                 <ContextMenuItem
                   onClick={() => { onGoToManager?.(row.categoryKey); setContextMenu(null); }}
-                  icon={<Eye className="w-3 h-3 text-zinc-400" />}
+                  icon={<Eye className="w-3 h-3 text-[color:var(--ui-text-faint)]" />}
                   disabled={!onGoToManager}
                 >
                   {config.labels.goToManager(row)}
@@ -837,14 +837,14 @@ export const GlideGridShell: React.FC<{
           <>
             <ContextMenuItem
               onClick={() => { config.sortAction(dispatch, sortMenu.colKey, 'asc'); setSortMenu(null); }}
-              icon={<ArrowUp className="w-3 h-3 text-zinc-400" />}
+              icon={<ArrowUp className="w-3 h-3 text-[color:var(--ui-text-faint)]" />}
               disabled={locked}
             >
               Sort A to Z
             </ContextMenuItem>
             <ContextMenuItem
               onClick={() => { config.sortAction(dispatch, sortMenu.colKey, 'desc'); setSortMenu(null); }}
-              icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}
+              icon={<ArrowDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />}
               disabled={locked}
             >
               Sort Z to A
@@ -864,17 +864,17 @@ export const GlideGridShell: React.FC<{
           }
         >
           <div className="p-6 space-y-4">
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              <span className="text-zinc-200 font-semibold">{pendingImport.result.count}</span> {config.labels.importNoun} in <span className="text-zinc-200 font-semibold">{pendingImport.fileName}</span>. {config.labels.importSummary}
+            <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
+              <span className="text-[color:var(--ui-input-text)] font-semibold">{pendingImport.result.count}</span> {config.labels.importNoun} in <span className="text-[color:var(--ui-input-text)] font-semibold">{pendingImport.fileName}</span>. {config.labels.importSummary}
             </p>
             {pendingImport.result.newCategories.length > 0 && (
               <div>
-                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)] mb-1.5">
                   {pendingImport.result.newCategories.length} new {pendingImport.result.newCategories.length === 1 ? 'category' : 'categories'}
                 </h4>
                 <div className="flex flex-wrap gap-1">
                   {pendingImport.result.newCategories.map(c => (
-                    <span key={c.key} className="text-[11px] bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-zinc-300">{c.label}</span>
+                    <span key={c.key} className="text-[11px] bg-[var(--ui-input-bg)] border border-[color:var(--ui-card-border)] rounded px-2 py-0.5 text-[color:var(--ui-text)]">{c.label}</span>
                   ))}
                 </div>
               </div>

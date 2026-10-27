@@ -412,12 +412,12 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const inputCls = "w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent";
 
   if (scenes.length === 0) return (
-    <div className="flex-1 flex flex-col items-center justify-center bg-zinc-50 gap-4">
-      <p className="text-sm text-zinc-500">No scenes defined yet.</p>
+    <div className="flex-1 flex flex-col items-center justify-center bg-[var(--ui-card-bg)] gap-4">
+      <p className="text-sm text-[color:var(--ui-text-muted)]">No scenes defined yet.</p>
       <button
         onClick={createNewScene}
         disabled={locked}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--ui-text-strong)] text-[var(--ui-panel-bg)] text-sm font-medium hover:bg-[var(--ui-text)] transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <Plus className="w-4 h-4" />
         Create First Scene
@@ -426,18 +426,18 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   );
 
   const navBar = scenes.length > 0 ? (
-    <div className="shrink-0 flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm">
+    <div className="shrink-0 flex items-center justify-between px-4 py-2.5 rounded-xl bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] shadow-sm">
       <div className="flex items-center gap-2.5">
-        <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-600" /></button>
+        <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded-md hover:bg-[var(--ui-card-band)] transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-[color:var(--ui-text-muted)]" /></button>
         <div className="flex items-center gap-1 text-sm">
-          <span className="text-zinc-400">Sheet</span>
-          <input type="text" aria-label="Sheet number" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-12 text-center border border-zinc-200 rounded-md px-1 py-0.5 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
-          <span className="text-zinc-400">of {scenes.length}</span>
+          <span className="text-[color:var(--ui-text-faint)]">Sheet</span>
+          <input type="text" aria-label="Sheet number" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-12 text-center border border-[color:var(--ui-border)] rounded-md px-1 py-0.5 text-sm font-semibold text-[color:var(--ui-text-strong)] focus:outline-none focus:ring-1 focus:ring-[color:var(--ui-text-strong)]" />
+          <span className="text-[color:var(--ui-text-faint)]">of {scenes.length}</span>
           {scene?.duplicateKind === 'coverage' && (
             <span className="ml-1 rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-700" title="Coverage / second unit — same number, schedule-only copy">Copy</span>
           )}
         </div>
-        <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
+        <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-[var(--ui-card-band)] transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-[color:var(--ui-text-muted)]" /></button>
         <ToolbarDivider />
         <Button onClick={createNewScene} disabled={locked} title="New Scene Sheet" aria-label="New">
           <Plus className="w-3.5 h-3.5" />
@@ -462,7 +462,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         <Button>
           <ListOrdered className="w-3.5 h-3.5" />
           <span className="hidden md:inline">{ORDER_LABELS[order]}</span>
-          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-muted)]" />
         </Button>
       }
     >
@@ -480,11 +480,11 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
 
   const sheetNav = (
     <>
-      <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-500" /></button>
-      <span className="text-[11px] text-zinc-500">Sheet</span>
-      <input type="text" aria-label="Sheet number" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-10 text-center border border-zinc-200 rounded px-1 py-0.5 text-[11px] font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
-      <span className="text-[11px] text-zinc-500">of {scenes.length}</span>
-      <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-500" /></button>
+      <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded hover:bg-[var(--ui-card-band)] transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-[color:var(--ui-text-muted)]" /></button>
+      <span className="text-[11px] text-[color:var(--ui-text-muted)]">Sheet</span>
+      <input type="text" aria-label="Sheet number" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-10 text-center border border-[color:var(--ui-border)] rounded px-1 py-0.5 text-[11px] font-semibold text-[color:var(--ui-text-strong)] focus:outline-none focus:ring-1 focus:ring-[color:var(--ui-text-strong)]" />
+      <span className="text-[11px] text-[color:var(--ui-text-muted)]">of {scenes.length}</span>
+      <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-[var(--ui-card-band)] transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-[color:var(--ui-text-muted)]" /></button>
     </>
   );
 
@@ -527,7 +527,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
 
   return (
     <div className="flex-1 flex h-full min-h-0 w-full">
-    <div ref={containerRef} onScroll={presenceScroll.notify} className={`flex-1 flex flex-col h-full min-w-0 bg-zinc-100 overflow-y-auto island-inset-l island-inset-r ${phone ? 'pb-safe-or-16' : ''}`} style={phone ? undefined : { paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
+    <div ref={containerRef} onScroll={presenceScroll.notify} className={`flex-1 flex flex-col h-full min-w-0 bg-[var(--ui-card-band)] overflow-y-auto island-inset-l island-inset-r ${phone ? 'pb-safe-or-16' : ''}`} style={phone ? undefined : { paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
 
       {scene && (() => {

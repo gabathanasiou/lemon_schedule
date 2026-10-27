@@ -50,8 +50,8 @@ export function ReportCategorySidebar({ collapsed, onToggleCollapsed, keys, sele
 
   if (collapsed) {
     return (
-      <div className="w-9 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center pt-3">
-        <button onClick={() => onToggleCollapsed(false)} className="text-zinc-500 hover:text-zinc-300 transition-colors" title="Expand sidebar">
+      <div className="w-9 shrink-0 bg-[var(--ui-panel-bg)] border-r border-[color:var(--ui-border)] flex flex-col items-center pt-3">
+        <button onClick={() => onToggleCollapsed(false)} className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] transition-colors" title="Expand sidebar">
           <PanelLeftOpen className="w-4 h-4" />
         </button>
       </div>
@@ -59,11 +59,11 @@ export function ReportCategorySidebar({ collapsed, onToggleCollapsed, keys, sele
   }
 
   return (
-    <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto island-inset-l">
+    <aside className="w-[188px] shrink-0 bg-[var(--ui-panel-bg)] border-r border-[color:var(--ui-border)] overflow-y-auto island-inset-l">
       <div className="p-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
-          <button onClick={() => onToggleCollapsed(true)} className="text-zinc-500 hover:text-zinc-300 transition-colors" title="Collapse sidebar">
+          <button onClick={() => onToggleCollapsed(true)} className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] transition-colors" title="Collapse sidebar">
             <PanelLeftClose className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -82,11 +82,11 @@ export function ReportCategorySidebar({ collapsed, onToggleCollapsed, keys, sele
                 key={key}
                 onClick={() => onSelect(key)}
                 data-report-category={key}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs transition-colors ${isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'}`}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs transition-colors ${isActive ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'text-zinc-400 hover:text-zinc-200 hover:bg-[var(--ui-panel-bg)]/50'}`}
               >
                 {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
                 <span className="truncate flex-1">{label}</span>
-                <span className="text-[10px] text-zinc-600">{count || ''}</span>
+                <span className="text-[10px] text-[color:var(--ui-text-faint)]">{count || ''}</span>
               </button>
             );
           })}

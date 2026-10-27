@@ -738,7 +738,7 @@ export function GlideBreakdownTab({
       set: { kind: 'entity', mode: 'single', uppercase: true, keepAlphabetical: true, items: setItems, placeholder: 'Set', anchoredKeys: anchored('set') },
       cast: {
         kind: 'entity', mode: 'multi', displayMode: 'id', items: castItems, placeholder: 'Cast', anchoredKeys: anchored('cast'),
-        renderItem: (item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>),
+        renderItem: (item: any, _sel: any) => (<><span className="text-[color:var(--ui-text-faint)] shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>),
       },
     };
     for (const cat of allBreakdownCategories) {
@@ -1159,7 +1159,7 @@ export function GlideBreakdownTab({
         trigger={
           <Button data-presence-anchor="toolbar:glide:edit">
             Edit
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
           </Button>
         }
       >
@@ -1182,7 +1182,7 @@ export function GlideBreakdownTab({
         trigger={
           <Button data-presence-anchor="toolbar:glide:view">
             View
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
           </Button>
         }
       >
@@ -1206,18 +1206,18 @@ export function GlideBreakdownTab({
         trigger={
           <Button data-presence-anchor="toolbar:glide:info">
             Info
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
           </Button>
         }
       >
-        <div className="px-4 py-2.5 text-xs text-zinc-500 space-y-1.5">
+        <div className="px-4 py-2.5 text-xs text-[color:var(--ui-text-faint)] space-y-1.5">
           <div className="flex items-center justify-between gap-6">
-            <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Scenes</span>
-            <span className="font-semibold text-zinc-800">{allScenes.length}</span>
+            <span className="font-medium text-[color:var(--ui-text-faint)] uppercase tracking-wider text-[10px]">Scenes</span>
+            <span className="font-semibold text-[color:var(--ui-text-strong)]">{allScenes.length}</span>
           </div>
           <div className="flex items-center justify-between gap-6">
-            <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Pages</span>
-            <span className="font-semibold text-zinc-800">{formatPageCount(totalPagesDecimal)}</span>
+            <span className="font-medium text-[color:var(--ui-text-faint)] uppercase tracking-wider text-[10px]">Pages</span>
+            <span className="font-semibold text-[color:var(--ui-text-strong)]">{formatPageCount(totalPagesDecimal)}</span>
           </div>
         </div>
       </DropdownMenu>
@@ -1231,7 +1231,7 @@ export function GlideBreakdownTab({
     <div className="flex-1 flex h-full min-h-0 w-full">
     <div className="flex-1 flex flex-col min-h-0 min-w-0">
       {headerTarget ? createPortal(headerContent, headerTarget) : (
-        <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
+        <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] shrink-0">
           {headerContent}
         </div>
       )}
@@ -1295,25 +1295,25 @@ export function GlideBreakdownTab({
           <>
             {contextMenu.col !== undefined && (
               <>
-                <ContextMenuItem onClick={handleCopy} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection}>Copy</ContextMenuItem>
-                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || locked || marqueeMode === 'tool'}>Cut</ContextMenuItem>
+                <ContextMenuItem onClick={handleCopy} icon={<Copy className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={!hasSelection}>Copy</ContextMenuItem>
+                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={!hasSelection || locked || marqueeMode === 'tool'}>Cut</ContextMenuItem>
                 {contextMenu.col >= 0 ? (
-                  <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!hasActiveCell || locked || marqueeMode === 'tool'}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={!hasActiveCell || locked || marqueeMode === 'tool'}>Paste</ContextMenuItem>
                 ) : (
-                  <ContextMenuItem onClick={() => handlePasteAtRow(contextMenu.row)} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={locked || marqueeMode === 'tool'}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handlePasteAtRow(contextMenu.row)} icon={<ClipboardPaste className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={locked || marqueeMode === 'tool'}>Paste</ContextMenuItem>
                 )}
-                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || locked || marqueeMode === 'tool'}>Clear</ContextMenuItem>
+                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={!hasSelection || locked || marqueeMode === 'tool'}>Clear</ContextMenuItem>
                 <ContextMenuDivider />
               </>
             )}
-            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />} disabled={locked || marqueeMode === 'tool'}>Insert Above</ContextMenuItem>
-            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />} disabled={locked || marqueeMode === 'tool'}>Insert Below</ContextMenuItem>
-            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={locked || marqueeMode === 'tool'}>Duplicate</ContextMenuItem>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={locked || marqueeMode === 'tool'}>Insert Above</ContextMenuItem>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={locked || marqueeMode === 'tool'}>Insert Below</ContextMenuItem>
+            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={locked || marqueeMode === 'tool'}>Duplicate</ContextMenuItem>
             <ContextMenuDivider />
             {!IS_COARSE && shiftHeld && onOpenSheetInPopout ? (
-              <ContextMenuItem onClick={() => { openSheetInPopoutAt(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-zinc-400" />}>Open in New Window</ContextMenuItem>
+              <ContextMenuItem onClick={() => { openSheetInPopoutAt(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-[color:var(--ui-text-faint)]" />}>Open in New Window</ContextMenuItem>
             ) : (
-              <ContextMenuItem onClick={() => { openSheetAt(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>Open Sheet</ContextMenuItem>
+              <ContextMenuItem onClick={() => { openSheetAt(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-[color:var(--ui-text-faint)]" />}>Open Sheet</ContextMenuItem>
             )}
             <ContextMenuDivider />
             <ContextMenuItem
@@ -1352,7 +1352,7 @@ export function GlideBreakdownTab({
                   <ContextMenuItem onClick={() => {
                     openSheetAt(contextMenu.row);
                     setContextMenu(null);
-                  }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>
+                  }} icon={<Eye className="w-3 h-3 text-[color:var(--ui-text-faint)]" />}>
                     Go to Element Manager → {colLabel}
                   </ContextMenuItem>
                 </>
@@ -1361,7 +1361,7 @@ export function GlideBreakdownTab({
           </>
         )}
         {contextMenu && contextMenu.row === scenes.length && (
-          <ContextMenuItem onClick={handlePasteToAddRow} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={locked}>Paste</ContextMenuItem>
+          <ContextMenuItem onClick={handlePasteToAddRow} icon={<ClipboardPaste className="w-3 h-3 text-[color:var(--ui-text-faint)]" />} disabled={locked}>Paste</ContextMenuItem>
         )}
       </ContextMenu>
 
@@ -1374,14 +1374,14 @@ export function GlideBreakdownTab({
             <>
               <ContextMenuItem
                 onClick={() => { dispatch({ type: 'SORT_SCENES_BY', payload: { key: sortMenu.colKey, direction: 'asc' } }); setSortMenu(null); }}
-                icon={<ArrowUp className="w-3 h-3 text-zinc-400" />}
+                icon={<ArrowUp className="w-3 h-3 text-[color:var(--ui-text-faint)]" />}
                 disabled={locked}
               >
                 {isNumeric ? 'Sort Smallest to Largest' : 'Sort A to Z'}
               </ContextMenuItem>
               <ContextMenuItem
                 onClick={() => { dispatch({ type: 'SORT_SCENES_BY', payload: { key: sortMenu.colKey, direction: 'desc' } }); setSortMenu(null); }}
-                icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}
+                icon={<ArrowDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />}
                 disabled={locked}
               >
                 {isNumeric ? 'Sort Largest to Smallest' : 'Sort Z to A'}
@@ -1430,8 +1430,8 @@ export function GlideBreakdownTab({
         }
       >
         <div className="px-5 py-4 space-y-4">
-          <p className="text-sm text-zinc-300">
-            Are you sure you want to delete{deleteConfirm?.sceneId.includes(',') ? '' : ' scene'} <span className="font-semibold text-white">{deleteConfirm?.sceneNumber}</span>?
+          <p className="text-sm text-[color:var(--ui-text)]">
+            Are you sure you want to delete{deleteConfirm?.sceneId.includes(',') ? '' : ' scene'} <span className="font-semibold text-[color:var(--ui-text-strong)]">{deleteConfirm?.sceneNumber}</span>?
           </p>
           <Checkbox
             block

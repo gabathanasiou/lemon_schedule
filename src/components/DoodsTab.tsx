@@ -7,6 +7,7 @@ import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { addDays } from '../lib/daybreakUtils';
 import { isElementMarked } from '../lib/nonShootHelpers';
 import { getDayTypes, codeForType, getDayTypeVisual, dayTypeTextColor, getDayType } from '../lib/dayTypes';
+import { ThemeScope } from '@gabriel/ui-kit';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -249,20 +250,20 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
 
   if (data.days.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-zinc-950 text-zinc-500 gap-2">
+      <ThemeScope mode="dark" surface="neutral" className="flex-1 flex flex-col items-center justify-center bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text-faint)] gap-2">
         <p className="text-sm">No days scheduled</p>
-        <p className="text-xs text-zinc-600">Add days to the schedule to populate the Day Out of Days</p>
-      </div>
+        <p className="text-xs text-[color:var(--ui-text-faint)]">Add days to the schedule to populate the Day Out of Days</p>
+      </ThemeScope>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-zinc-950 text-zinc-300">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 shrink-0">
-        <span className="text-sm font-bold text-white">Day Out of Days - {categoryLabel}</span>
-        <div className="flex items-center gap-4 text-[10px] text-zinc-500">
+    <ThemeScope mode="dark" surface="neutral" className="flex-1 flex flex-col min-h-0 min-w-0 bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)]">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[color:var(--ui-border)] shrink-0">
+        <span className="text-sm font-bold text-[color:var(--ui-text-strong)]">Day Out of Days - {categoryLabel}</span>
+        <div className="flex items-center gap-4 text-[10px] text-[color:var(--ui-text-faint)]">
           {hasCustomWidths && (
-            <button onClick={resetWidths} className="text-zinc-500 hover:text-zinc-300 transition-colors">Reset Columns</button>
+            <button onClick={resetWidths} className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] transition-colors">Reset Columns</button>
           )}
           <span><span className="inline-block w-2 h-2 rounded-sm bg-lime-900/40 mr-1"></span>W=Work</span>
           <span><span className="inline-block w-2 h-2 rounded-sm bg-amber-900/30 mr-1"></span>H=Hold</span>
@@ -288,164 +289,164 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
           </colgroup>
           <thead>
             <tr className="sticky top-0 z-20">
-              <th className="sticky left-0 bg-zinc-900 px-3 py-1.5 text-left text-zinc-400 font-medium border-r border-zinc-800 whitespace-nowrap z-30" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+              <th className="sticky left-0 bg-[var(--ui-panel-bg)] px-3 py-1.5 text-left text-[color:var(--ui-text-muted)] font-medium border-r border-[color:var(--ui-border)] whitespace-nowrap z-30" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 {categoryLabel}
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.isoDate} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                <th key={d.isoDate} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-[var(--ui-panel-bg)] cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : ''} ${d.isShooting ? 'text-[color:var(--ui-text)]' : 'text-[color:var(--ui-text-faint)]'}`}>
                   <div title={formatDateLong(d.isoDate)}>{formatDateShort(d.isoDate)}</div>
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('day', e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium border-l border-l-zinc-800 bg-zinc-900 cursor-default">
+              <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium border-l border-l-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
                 Work
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('work', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('work', e)} />
               </th>
-              <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+              <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                 Hold
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('hold', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('hold', e)} />
               </th>
-              {isCast && <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+              {isCast && <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                 Trav
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
               {typeColumns.map(tc => (
-                <th key={tc.key} className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+                <th key={tc.key} className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                   {tc.label}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+              <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                 Start
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('start', e)} />
               </th>
-              <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+              <th className="relative px-2 py-1.5 text-center text-[color:var(--ui-text-faint)] font-medium bg-[var(--ui-panel-bg)] cursor-default">
                 Finish
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('finish', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('finish', e)} />
               </th>
             </tr>
             <tr className="sticky z-20" style={{ top: 28 }}>
-              <th className="sticky left-0 bg-zinc-900 px-3 py-1 text-left text-zinc-500 font-normal border-r border-zinc-800 z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+              <th className="sticky left-0 bg-[var(--ui-panel-bg)] px-3 py-1 text-left text-[color:var(--ui-text-faint)] font-normal border-r border-[color:var(--ui-border)] z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 Day of Week
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.isoDate} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                <th key={d.isoDate} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-[var(--ui-panel-bg)] cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : ''} ${d.isShooting ? 'text-[color:var(--ui-text-muted)]' : 'text-[color:var(--ui-text-faint)]'}`}>
                   {formatDow(d.isoDate)}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('day', e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1 border-l border-l-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('work', e)} />
+              <th className="relative px-2 py-1 border-l border-l-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('work', e)} />
               </th>
-              <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('hold', e)} />
+              <th className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('hold', e)} />
               </th>
-              {isCast && <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
+              {isCast && <th className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
               {typeColumns.map(tc => (
-                <th key={tc.key} className="relative px-2 py-1 bg-zinc-900 cursor-default">
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
+                <th key={tc.key} className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
+              <th className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('start', e)} />
               </th>
-              <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('finish', e)} />
+              <th className="relative px-2 py-1 bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('finish', e)} />
               </th>
             </tr>
             <tr className="sticky z-20" style={{ top: 52, boxShadow: '0 4px 6px -2px rgba(0,0,0,0.5)' }}>
-              <th className="sticky left-0 bg-zinc-900 px-3 py-1 text-left text-zinc-500 font-normal border-b border-r border-zinc-800 z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+              <th className="sticky left-0 bg-[var(--ui-panel-bg)] px-3 py-1 text-left text-[color:var(--ui-text-faint)] font-normal border-b border-r border-[color:var(--ui-border)] z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 Shooting Day
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => {
                 const v = getDayTypeVisual(project, d.status);
                 return (
-                  <th key={d.isoDate} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}
+                  <th key={d.isoDate} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-[color:var(--ui-border)] text-[10px] bg-[var(--ui-panel-bg)] cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : ''} ${d.isShooting ? 'text-[color:var(--ui-text-muted)]' : 'text-[color:var(--ui-text-faint)]'}`}
                     style={!d.isShooting && v?.color ? { background: v.color, color: dayTypeTextColor(v.color) } : undefined}>
                     <span className="block overflow-hidden text-ellipsis max-w-[3.5rem]" title={d.isShooting ? '' : v?.label}>
                       {d.isShooting ? chronoDayMap.get(d.sectionIndex) : v?.label ?? ''}
                     </span>
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('day', e)} />
                   </th>
                 );
               })}
-              <th className="relative px-2 py-1 border-b border-zinc-800 border-l border-l-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('work', e)} />
+              <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] border-l border-l-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('work', e)} />
               </th>
-              <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('hold', e)} />
+              <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('hold', e)} />
               </th>
-              {isCast && <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
+              {isCast && <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
               {typeColumns.map(tc => (
-                <th key={tc.key} className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
+                <th key={tc.key} className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
                 </th>
               ))}
-              <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
+              <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('start', e)} />
               </th>
-              <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('finish', e)} />
+              <th className="relative px-2 py-1 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('finish', e)} />
               </th>
             </tr>
           </thead>
           <tbody>
             {data.rows.map(row => (
-              <tr key={row.elementId} className="group hover:bg-zinc-800/40">
-                <td className="sticky left-0 bg-zinc-950 group-hover:bg-zinc-800 px-3 py-1.5 text-white font-medium border-b border-r border-zinc-800 whitespace-nowrap z-10 overflow-hidden text-ellipsis cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+              <tr key={row.elementId} className="group hover:bg-[var(--ui-card-hover)]">
+                <td className="sticky left-0 bg-[var(--ui-modal-header-base)] group-hover:bg-[var(--ui-item-hover-bg)] px-3 py-1.5 text-[color:var(--ui-text-strong)] font-medium border-b border-r border-[color:var(--ui-border)] whitespace-nowrap z-10 overflow-hidden text-ellipsis cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                   {row.elementName}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('name', e)} />
                 </td>
                 {data.days.map((d, ci) => {
                   const code = row.cells[ci];
                   const cls = getCellClass(code);
                   const isSwCell = code === 'SW' || code === 'SWF';
-                  const gapClass = (d.hasGap && !isSwCell) ? 'border-l [border-left-style:dotted] border-l-zinc-600' : '';
+                  const gapClass = (d.hasGap && !isSwCell) ? 'border-l [border-left-style:dotted] border-l-[color:var(--ui-border-strong)]' : '';
                   return (
-                    <td key={ci} className={`relative px-2 py-1.5 text-center border-b border-zinc-800 text-xs font-medium cursor-default ${gapClass} ${cls}`} title={getCellTooltip(code) || (code ? codeToType.get(code) : '')}>
+                    <td key={ci} className={`relative px-2 py-1.5 text-center border-b border-[color:var(--ui-border)] text-xs font-medium cursor-default ${gapClass} ${cls}`} title={getCellTooltip(code) || (code ? codeToType.get(code) : '')}>
                       <span className={!d.isShooting ? 'opacity-40' : ''}>{code}</span>
-                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('day', e)} />
                     </td>
                   );
                 })}
-                <td className="relative px-2 py-1.5 text-center text-xs text-zinc-400 font-medium border-b border-zinc-800 border-l border-l-zinc-800 cursor-default">
+                <td className="relative px-2 py-1.5 text-center text-xs text-[color:var(--ui-text-muted)] font-medium border-b border-[color:var(--ui-border)] border-l border-l-[color:var(--ui-border)] cursor-default">
                   {row.workDays > 0 ? row.workDays : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('work', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('work', e)} />
                 </td>
-                <td className="relative px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">
+                <td className="relative px-2 py-1.5 text-center text-xs text-[color:var(--ui-text-muted)] border-b border-[color:var(--ui-border)] cursor-default">
                   {row.holdDays > 0 ? row.holdDays : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('hold', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('hold', e)} />
                 </td>
-                {isCast && <td className="relative px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">
+                {isCast && <td className="relative px-2 py-1.5 text-center text-xs text-[color:var(--ui-text-muted)] border-b border-[color:var(--ui-border)] cursor-default">
                   {row.travelDays > 0 ? row.travelDays : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('trav', e)} />
                 </td>}
                 {typeColumns.map(tc => (
-                  <td key={tc.key} className="relative px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">
+                  <td key={tc.key} className="relative px-2 py-1.5 text-center text-xs text-[color:var(--ui-text-muted)] border-b border-[color:var(--ui-border)] cursor-default">
                     {row.typeCounts[tc.key] > 0 ? row.typeCounts[tc.key] : ''}
-                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
                   </td>
                 ))}
-                <td className="relative px-2 py-1.5 text-center text-xs text-zinc-500 border-b border-zinc-800 cursor-default">
+                <td className="relative px-2 py-1.5 text-center text-xs text-[color:var(--ui-text-faint)] border-b border-[color:var(--ui-border)] cursor-default">
                   {row.startDate ? formatDateShort(row.startDate) : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('start', e)} />
                 </td>
-                <td className="relative px-2 py-1.5 text-center text-xs text-zinc-500 border-b border-zinc-800 cursor-default">
+                <td className="relative px-2 py-1.5 text-center text-xs text-[color:var(--ui-text-faint)] border-b border-[color:var(--ui-border)] cursor-default">
                   {row.finishDate ? formatDateShort(row.finishDate) : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('finish', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--ui-card-hover)]" onPointerDown={(e) => startResize('finish', e)} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+    </ThemeScope>
   );
 }
