@@ -706,19 +706,19 @@ select is better.
   in the no-results state the row hides and the query-aware **“Add “typed”…”**
   action takes over (`hideLeadingOnEmpty`) so there are never two add rows.
   Category counts are true totals — a role with only “Add new person…” shows
-  **0**. Kit **v0.1.122-128** supplies `browseExpanded`, `triggerIcon`
+  **0**. Kit **v0.1.122-130** supplies `browseExpanded`, `triggerIcon`
   (**MapPin** on location fields, **Plus** on adders), `leadingActions` /
   `footerActions`, `hideLeadingOnEmpty`, plain-header rendering that can never
   look selectable (no hover/pointer/`role=option`/keyboard stop — including
-  during a query), focus retention when a category is clicked, anchor-resize
-  tracking, and the expandable panel opening **after** the button→field morph
-  settles (no wrong-position snap). **Categories only expand — never add on
-  category click.**
+  during a query), focus retention when a category is clicked, and
+  anchor-resize tracking so the panel opens immediately and follows the
+  button→field morph (no wrong-position snap). **Categories only expand —
+  never add on category click.**
   Manager jump/flash now uses the kit `searchMenuContent` matcher (single
   matcher; the duplicate `managerSearch` matcher + its test are gone).
   Docs: **`docs/SEARCH-MENU.md`** (full manual: model, props, decision table,
   app map), `UI-PRIMITIVES.md` §SearchMenu (summary),
-  `DESIGN-LANGUAGE.md` picker table, `UI-KIT.md` v0.1.117-128.
+  `DESIGN-LANGUAGE.md` picker table, `UI-KIT.md` v0.1.117-130.
 - **Audit — EntityDropdown**: not replaceable wholesale (cell editor: multi/comma,
   Tab/Enter/Escape commit, free-text create, anchored keys, scene counts, id/name
   spaces, portal target). SearchMenu takes only standalone single-select
