@@ -33,10 +33,13 @@ export interface LocationSearchMenuProps {
   placeholder?: string;
   /** Category behaviour:
    *  - `open` (default) — plain type headers with every location visible; the
-   *    small field pickers (master location, Report to) are one glance.
-   *  - `accordion` — collapsed type rows with a chevron; the Add-location
-   *    catalogue can be long, so it starts folded. */
+   *    master-location field is one glance.
+   *  - `accordion` — folded type categories with a chevron, one open at a
+   *    time; the Report-to pickers and the Add-location catalogue use it. */
   browse?: 'open' | 'accordion';
+  /** Pin a `New location…` action above the catalogue (the Add-location
+   *  menu's create path). Requires `onAddNew`. */
+  newActionFirst?: boolean;
   /** Trigger leading icon (default: a map pin — the location cue). */
   icon?: React.ReactNode;
   /** Expandable-mode widths (px). */
@@ -60,6 +63,7 @@ export const LocationSearchMenu: React.FC<LocationSearchMenuProps> = ({
   placeholder = 'Choose a location…',
   icon = <MapPin className="w-3.5 h-3.5" />,
   browse = 'open',
+  newActionFirst = false,
   collapsedWidth = 220,
   expandedWidth = 280,
   panelWidth = 320,
@@ -155,6 +159,12 @@ export const LocationSearchMenu: React.FC<LocationSearchMenuProps> = ({
           icon: <Plus className="w-3.5 h-3.5" />,
           onClick: (query: string) => onAddNew(query),
         }] : undefined}
+        leadingActions={newActionFirst && onAddNew ? [{
+          label: 'New location…',
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: (query: string) => onAddNew(query),
+        }] : undefined}
+        hideLeadingOnEmpty={newActionFirst && !!onAddNew}
       />
       {value && onClear && (
         <button

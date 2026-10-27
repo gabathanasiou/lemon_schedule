@@ -13,7 +13,6 @@ import { ADD_LOCATION_SENTINEL, locationOptions } from '../../../../lib/location
 import { addDayLocation, dayLocationRefs, removeDayLocation, replaceDayLocation, setDayMaster } from '../../../../lib/dayLocations';
 import { useLocationPicker } from '../../../location/useLocationPicker';
 import { LocationSearchMenu } from '../../../location/LocationSearchMenu';
-import Button from '../../../Button';
 import type { GlideColumnEditor } from '../../../../lib/glideEditor';
 
 /**
@@ -235,6 +234,7 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
         items={available}
         onSelect={attach}
         onAddNew={addNew}
+        newActionFirst
         placeholder="Add location"
         browse="accordion"
         icon={<Plus className="w-3.5 h-3.5" />}
@@ -243,9 +243,6 @@ const LocationsSection: React.FC<DaySectionProps> = ({ day, project, patchMeta, 
         panelWidth={320}
         theme="light"
       />
-      <Button variant="subtle" onClick={() => addNew()} title="Create a new location…">
-        <Plus className="w-3 h-3" /> New
-      </Button>
     </div>
   );
 
