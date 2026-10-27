@@ -82,10 +82,11 @@ test('discrete filter fields use a value dropdown, not a free-text box', async (
   const trigger = page.locator('[data-picker-field]').first();
   await expect(trigger).toBeVisible({ timeout: 5000 });
 
-  // Picking a value writes it to the block filter on close.
-  await trigger.locator('input').click();
+  // Picking a value writes it to the block filter when the field commits
+  // (an outside click closes + commits the draft).
+  await trigger.locator('button').click();
   await page.locator('[data-search-item="INT"]').click();
-  await page.locator('.block-card.block-type-repeat').first().click({ position: { x: 3, y: 3 } });
+  await page.getByRole('button', { name: 'Values', exact: true }).click();
   await expect.poll(() => page.evaluate(() => {
     const b = (window as any).__lemonSchedule;
     return b.getProject().reportDesigns.find((d: any) => d.id === 'filter-dd')?.blocks?.[0]?.itemFilter?.values;

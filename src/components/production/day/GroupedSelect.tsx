@@ -34,6 +34,9 @@ export interface GroupedSelectProps {
   /** Force a trigger/menu theme; omitted = the ambient kit theme (a dark modal
    *  stays dark, the light Day Manager stays light). */
   theme?: 'light' | 'dark';
+  /** Whole-group value: the header tick stores this token instead of selecting
+   *  every member (crew "whole department" tags cover future joiners). */
+  groupToken?: (group: string) => string;
 }
 
 export const GroupedSelect: React.FC<GroupedSelectProps> = ({
@@ -45,15 +48,32 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
   className = '',
   disabled,
   theme,
+  groupToken,
 }) => {
   const hintById = useMemo(() => new Map(items.map(i => [i.id, i.hint])), [items]);
   const accentById = useMemo(() => new Set(items.filter(i => i.accent).map(i => i.id)), [items]);
 
-  const pickerItems = useMemo<PickerItem[]>(() => items.map(item => ({
-    id: item.id,
-    label: item.name,
-    group: item.group,
-  })), [items]);
+  const pickerItems = useMemo<PickerItem[]>(() => {
+    const rows: PickerItem[] = items.map(item => ({
+      id: item.id,
+      label: item.name,
+      group: item.group,
+      /* The subtitle (crew role, location address) is part of the search index —
+         typing "1st AC" finds the person holding it. */
+      detail: item.hint,
+    }));
+    if (!groupToken) return rows;
+    /* One hidden value per group: the header tick stores this tag (never a row,
+       never searchable) so a whole department covers future joiners. */
+    const tags: PickerItem[] = [];
+    const seen = new Set<string>();
+    for (const item of items) {
+      if (!item.group || seen.has(item.group)) continue;
+      seen.add(item.group);
+      tags.push({ id: groupToken(item.group), label: `All ${item.group}`, group: item.group, hidden: true });
+    }
+    return [...rows, ...tags];
+  }, [items, groupToken]);
 
   /* Group headers follow the item order; the kit searches the label AND the
      group name, so typing a type keeps its whole section. */
@@ -68,14 +88,18 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
 
   return (
     <PickerField
-      appearance="chip"
+      appearance={mode === 'single' ? 'chip' : 'morph'}
       mode={mode === 'single' ? 'single' : 'multiple'}
+      display={mode === 'single' ? 'names' : 'count'}
       values={selectedIds}
       onChange={onChange}
       items={pickerItems}
       groups={groups}
       browse="accordion"
+      groupToken={groupToken}
       theme={theme}
+      collapsedWidth={160}
+      expandedWidth={300}
       placeholder={placeholder}
       className={className}
       disabled={disabled}

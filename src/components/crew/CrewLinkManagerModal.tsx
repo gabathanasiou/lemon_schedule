@@ -7,6 +7,7 @@ import { getCategoryElements } from '../../lib/elements';
 import { isLinkableCategory } from '../../lib/elementLinks';
 import { CREW_LINK_TARGET, crewLinkViews, crewLinkToUnified } from '../../lib/crewLinks';
 import { crewRoleGroup, resolveRoleCategories } from '../../lib/crewCatalog';
+import { crewDeptTargetId } from '../../lib/linkTargets';
 import { CardSection, Seg } from '@gabriel/ui-kit';
 import Modal, { ModalFooter } from '../Modal';
 import ModalFooterButton from '../ModalFooterButton';
@@ -316,6 +317,7 @@ export function CrewLinkManagerModal({ onClose }: { onClose: () => void }) {
                           selectedIds={getFieldItems(CREW_LINK_TARGET, l.elementKey)}
                           onChange={(ids) => patchLink(g.id, l.id, { elementKey: ids.join(', ') })}
                           placeholder="Select crew…"
+                          groupToken={crewDeptTargetId}
                         />
                         <button onClick={() => removeLink(g.id, l.id)} aria-label="Remove crew link" className={REMOVE_BTN}>
                           <X className="w-3.5 h-3.5" />

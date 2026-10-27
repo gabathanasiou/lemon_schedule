@@ -78,7 +78,7 @@ test.describe('Day call times + crew (roadmap 99)', () => {
 
     // Multi-select stage dropdown (GroupedSelect → shared PickerField) toggles
     // a stage off cast; clicking away commits the draft.
-    await castRow.locator('[data-picker-field] input').click();
+    await castRow.locator('[data-picker-field] button').click();
     await page.locator('[data-search-item]').filter({ hasText: /^Pickup$/ }).click();
     await modal.getByRole('heading', { name: 'Call Times' }).click();
     await expect.poll(() => page.evaluate(() => {
