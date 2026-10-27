@@ -89,7 +89,7 @@ export function ShareLinkGate() {
   if (auth.account || waitingForGuest) {
     return (
       <Modal open onClose={() => {}} title="Opening shared project" width="max-w-xs" closable={false}>
-        <div className="p-6 flex items-center gap-3 text-xs text-zinc-300">
+        <div className="p-6 flex items-center gap-3 text-xs text-[color:var(--ui-text)]">
           <Loader2 className="w-4 h-4 animate-spin" />
           {redeeming ? 'Opening the shared project…' : 'Letting you in…'}
         </div>

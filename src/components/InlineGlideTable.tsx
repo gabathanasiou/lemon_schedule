@@ -752,7 +752,7 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
           // Keep the measured container mounted for the empty state: rows can
           // arrive later (bridge/peer/collaborator), and an unmounted ref would
           // never attach the width observer (the grid stuck at zero width).
-          <div className="px-2.5 py-6 text-center text-xs text-zinc-400">{emptyLabel}</div>
+          <div className="px-2.5 py-6 text-center text-xs text-[color:var(--ui-text-faint)]">{emptyLabel}</div>
         ) : gridWidth && gridWidth > 0 ? (
           <DataEditor
             ref={gridRef}
@@ -805,11 +805,11 @@ export const InlineGlideTable: React.FC<InlineGlideTableProps> = ({
             <ContextMenuItem onClick={() => void handlePasteFromMenu()} icon={<ClipboardPaste className="w-3.5 h-3.5" />} disabled={readOnly}>
               Paste
             </ContextMenuItem>
-            <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3.5 h-3.5 text-zinc-400" />} disabled={!hasSelection || readOnly}>
+            <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />} disabled={!hasSelection || readOnly}>
               Clear
             </ContextMenuItem>
             <ContextMenuDivider />
-            <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3.5 h-3.5 text-zinc-400" />} disabled={!hasSelection || readOnly}>
+            <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />} disabled={!hasSelection || readOnly}>
               Cut
             </ContextMenuItem>
           </>

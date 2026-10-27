@@ -194,6 +194,7 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
                 )}
                 <button
                   data-sidebar-row={row.key}
+                  aria-current={isActive ? 'true' : undefined}
                   onClick={() => onSelect(row.key)}
                   style={sizes.row}
                   className={`${MT_ROW} ${

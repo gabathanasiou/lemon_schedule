@@ -19,12 +19,12 @@ interface DurationKeypadProps {
 }
 
 const KEY = 'flex items-center justify-center rounded-md text-base font-semibold transition-all cursor-pointer active:scale-90 h-11 min-w-[48px] select-none';
-const NUM = `${KEY} bg-zinc-200 text-zinc-800 hover:bg-zinc-300 hover:text-zinc-900 active:bg-zinc-400 active:text-zinc-900`;
-const ACT = `${KEY} bg-zinc-100 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700 active:bg-zinc-400 active:text-zinc-800`;
-const CMD = `${KEY} bg-zinc-800 text-white hover:bg-zinc-700 active:bg-zinc-600`;
-const PNUM = 'bg-zinc-400 text-zinc-900 scale-90';
-const PACT = 'bg-zinc-400 text-zinc-800 scale-90';
-const PCMD = 'bg-zinc-600 text-white scale-90';
+const NUM = `${KEY} bg-[var(--ui-card-count-bg)] text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-border-strong)] hover:text-[color:var(--ui-text-strong)] active:bg-[var(--ui-text-faint)] active:text-[color:var(--ui-text-strong)]`;
+const ACT = `${KEY} bg-[var(--ui-card-band)] text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-border-strong)] hover:text-[color:var(--ui-text)] active:bg-[var(--ui-text-faint)] active:text-[color:var(--ui-text-strong)]`;
+const CMD = `${KEY} bg-[var(--ui-text-strong)] text-[var(--ui-panel-bg)] hover:bg-[var(--ui-text)] active:bg-[var(--ui-text-muted)]`;
+const PNUM = 'bg-[var(--ui-text-faint)] text-[color:var(--ui-text-strong)] scale-90';
+const PACT = 'bg-[var(--ui-text-faint)] text-[color:var(--ui-text-strong)] scale-90';
+const PCMD = 'bg-[var(--ui-text-muted)] text-[var(--ui-panel-bg)] scale-90';
 
 export default function DurationKeypad({
   value,
@@ -247,14 +247,14 @@ export default function DurationKeypad({
             style={{ top: pos.top, left: pos.left }}
             onPointerDown={e => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); }}
           >
-            <div className="bg-white/95 backdrop-blur-md border border-zinc-200 rounded-lg shadow-[0_-1px_8px_rgba(0,0,0,0.04),0_12px_40px_rgba(0,0,0,0.13)] p-4 min-w-[220px] font-sans">
+            <div className="bg-[var(--ui-panel-bg)] backdrop-blur-md border border-[color:var(--ui-border)] rounded-lg shadow-[0_-1px_8px_rgba(0,0,0,0.04),0_12px_40px_rgba(0,0,0,0.13)] p-4 min-w-[220px] font-sans">
               {(sceneNumber || pageCount) && (
-                <div className="flex items-center justify-between text-[11px] text-zinc-500 font-medium mb-3 px-1">
+                <div className="flex items-center justify-between text-[11px] text-[color:var(--ui-text-muted)] font-medium mb-3 px-1">
                   <span>{sceneNumber ? `Scene ${sceneNumber}` : ''}</span>
                   <span>{pageCount ? `${pageCount} pgs` : ''}</span>
                 </div>
               )}
-              <div className="text-right text-zinc-900 text-base font-mono mb-3 px-3 py-2 bg-zinc-200/70 border-2 border-zinc-300 rounded min-h-[32px]">
+              <div className="text-right text-[color:var(--ui-text-strong)] text-base font-mono mb-3 px-3 py-2 bg-[var(--ui-card-count-bg)] border-2 border-[color:var(--ui-border-strong)] rounded min-h-[32px]">
                 {draft || '\u00A0'}
               </div>
               <div className="grid grid-cols-4 gap-2">

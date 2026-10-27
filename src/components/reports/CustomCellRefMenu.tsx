@@ -94,7 +94,7 @@ const CustomCellRefMenu: React.FC<CustomCellRefMenuProps> = ({ focus, query, hig
         >
           <div ref={scrollRef} style={{ maxHeight: pos.maxH - 8 }}>
             {query && <div className={`${classes.headerPad} ${classes.headerText}`}>= {query}</div>}
-            {entries.length === 0 && <div className="px-2 py-1 text-xs text-zinc-500 text-center">No matches</div>}
+            {entries.length === 0 && <div className="px-2 py-1 text-xs text-[color:var(--ui-text-faint)] text-center">No matches</div>}
             {entries.map((e, i) => (
               <div
                 key={e.id}

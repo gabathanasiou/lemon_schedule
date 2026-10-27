@@ -98,11 +98,11 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
       draggable={!readOnly && !unavailable}
       onDragStart={unavailable ? undefined : (e => startDrag(e, { kind: 'block', type: 'text', field: f.key }))}
       onClick={unavailable ? undefined : (() => !readOnly && onInsert({ kind: 'block', type: 'text', field: f.key }))}
-      className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs transition-colors disabled:opacity-40 ${unavailable ? 'text-zinc-600 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 active:bg-zinc-800'}`}
+      className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs transition-colors disabled:opacity-40 ${unavailable ? 'text-[color:var(--ui-text-faint)] cursor-not-allowed' : 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)] active:bg-[var(--ui-item-hover-bg)]'}`}
     >
       <span className="truncate">{labelOf(f)}</span>
       {unavailable && (
-        <span className="ml-auto shrink-0 text-[9px] uppercase tracking-wider text-zinc-600">Not available here</span>
+        <span className="ml-auto shrink-0 text-[9px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">Not available here</span>
       )}
     </button>
   );
@@ -116,7 +116,7 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
       draggable={!readOnly}
       onDragStart={e => startDrag(e, item.type)}
       onClick={() => !readOnly && onInsert(item.type)}
-      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs transition-colors text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 active:bg-zinc-800"
+      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs transition-colors text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)] active:bg-[var(--ui-item-hover-bg)]"
     >
       {item.icon}
       <span className="truncate">{item.label}</span>
@@ -125,7 +125,7 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
 
   const groupBlock = (g: { group: string; fields: ReportFieldDef[] }) => (
     <div key={g.group} className="mb-2">
-      <div className="text-[10px] font-medium text-zinc-600 px-1 mb-0.5">{g.group}</div>
+      <div className="text-[10px] font-medium text-[color:var(--ui-text-faint)] px-1 mb-0.5">{g.group}</div>
       <div className="space-y-0.5">
         {g.fields.map(f => fieldButton(f, searching && !availableKeys.has(f.key)))}
       </div>
@@ -135,20 +135,20 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
   const noResults = searching && matchedBlocks.length === 0 && groups.length === 0;
 
   return (
-    <aside className={`${fill ? 'flex-1 min-h-0 w-full island-inset-r' : 'w-[188px] shrink-0 border-r border-zinc-800 island-inset-l'} bg-zinc-900 overflow-y-auto select-none`}>
+    <aside className={`${fill ? 'flex-1 min-h-0 w-full island-inset-r' : 'w-[188px] shrink-0 border-r border-[color:var(--ui-border)] island-inset-l'} bg-[var(--ui-panel-bg)] overflow-y-auto select-none`}>
       <div className="p-3">
         <div className="relative mb-3">
-          <Search className="w-3 h-3 text-zinc-600 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-3 h-3 text-[color:var(--ui-text-faint)] absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search blocks & attributes…"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded pl-6 pr-6 py-1 text-[11px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+            className="w-full bg-[var(--ui-input-bg)] border border-[color:var(--ui-card-border)] rounded pl-6 pr-6 py-1 text-[11px] text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-300"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)]"
               title="Clear search"
             >
               <X className="w-3 h-3" />
@@ -156,26 +156,26 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
           )}
         </div>
 
-        <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-2">Blocks</div>
+        <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-2">Blocks</div>
         {matchedBlocks.length > 0 ? (
           <div className="space-y-0.5">
             {matchedBlocks.map(item => blockButton(item))}
           </div>
         ) : (
-          !noResults && <div className="px-1 text-[10px] text-zinc-600 italic">No blocks match.</div>
+          !noResults && <div className="px-1 text-[10px] text-[color:var(--ui-text-faint)] italic">No blocks match.</div>
         )}
 
         {matchedCallSheetBlocks.length > 0 && (
           <>
-            <div className="border-t border-zinc-800 my-3" />
-            <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-2">Call Sheet</div>
+            <div className="border-t border-[color:var(--ui-border)] my-3" />
+            <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-2">Call Sheet</div>
             <div className="space-y-0.5">
               {matchedCallSheetBlocks.map(item => blockButton(item))}
             </div>
           </>
         )}
 
-        <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mt-4 mb-2 flex items-center justify-between">
+        <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mt-4 mb-2 flex items-center justify-between">
           Attributes
           <span className="normal-case text-[9px] text-sky-400/80">{scopeLabel}</span>
         </div>
@@ -184,16 +184,16 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
             {itemGroups.map(groupBlock)}
             {globalGroups.length > 0 && (
               <>
-                {itemGroups.length > 0 && <div className="border-t border-zinc-800 my-2" />}
-                <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1">Global</div>
+                {itemGroups.length > 0 && <div className="border-t border-[color:var(--ui-border)] my-2" />}
+                <div className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider px-1 mb-1">Global</div>
                 {globalGroups.map(groupBlock)}
               </>
             )}
           </>
         ) : (
           noResults
-            ? <div className="px-1 text-[10px] text-zinc-600 italic">Nothing matches “{query}”.</div>
-            : <div className="px-1 text-[10px] text-zinc-600 italic">No attributes here — production/project fields are available everywhere.</div>
+            ? <div className="px-1 text-[10px] text-[color:var(--ui-text-faint)] italic">Nothing matches “{query}”.</div>
+            : <div className="px-1 text-[10px] text-[color:var(--ui-text-faint)] italic">No attributes here — production/project fields are available everywhere.</div>
         )}
       </div>
     </aside>

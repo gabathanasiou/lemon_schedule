@@ -33,20 +33,20 @@ interface AddBannerModalProps {
 }
 
 const SEG_BASE = 'flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer';
-const SEG_SEL = 'bg-zinc-800 text-white';
-const SEG_DEF = 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50';
+const SEG_SEL = 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]';
+const SEG_DEF = 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]';
 const SEG_ROW = 'flex gap-1.5';
 
 const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
   <div className="flex items-center gap-2">
-    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{title}</span>
-    <div className="flex-1 h-px bg-zinc-800" />
+    <span className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]">{title}</span>
+    <div className="flex-1 h-px bg-[var(--ui-input-bg)]" />
   </div>
 );
 
 const Row: React.FC<{ label: React.ReactNode; children: React.ReactNode }> = ({ label, children }) => (
   <div className="flex items-center justify-between gap-4 py-1.5">
-    <span className="text-xs text-zinc-300">{label}</span>
+    <span className="text-xs text-[color:var(--ui-text)]">{label}</span>
     {children}
   </div>
 );
@@ -152,7 +152,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
       }
     >
       <div className="p-6 space-y-4">
-        <p className="text-xs text-zinc-400 leading-relaxed">
+        <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
           Inserts one {type === 'BREAK' ? 'break' : 'note'} banner into each of {dayCount} production day{dayCount !== 1 ? 's' : ''}.
         </p>
 
@@ -177,7 +177,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                     e.currentTarget.focus();
                   }
                 }}
-                className="flex-1 min-w-0 bg-transparent outline-none text-xs text-zinc-200 placeholder:text-zinc-600"
+                className="flex-1 min-w-0 bg-transparent outline-none text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)]"
                 placeholder={type === 'BREAK' ? 'LUNCH' : 'Note text…'}
               />
             </FieldBox>
@@ -188,7 +188,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                 <DurationKeypad
                   value={parseDuration(durationStr) || 0}
                   onChange={val => setDurationStr(val > 0 ? formatDuration(val) : '')}
-                  className="flex-1 text-left text-xs text-zinc-200"
+                  className="flex-1 text-left text-xs text-[color:var(--ui-input-text)]"
                 />
               ) : (
                 <CellInput
@@ -207,11 +207,11 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
           {type === 'NOTE' && (
             <>
               <div className="flex items-center justify-between gap-4 py-1.5">
-                <span className="text-xs text-zinc-300">Background</span>
+                <span className="text-xs text-[color:var(--ui-text)]">Background</span>
                 <ColorField value={noteColor} onChange={setNoteColor} defaultValue={nb.background} />
               </div>
               <div className="flex items-center justify-between gap-4 py-1.5">
-                <span className="text-xs text-zinc-300">Text Color</span>
+                <span className="text-xs text-[color:var(--ui-text)]">Text Color</span>
                 <ColorField value={noteTextColor} onChange={setNoteTextColor} defaultValue={nb.color} />
               </div>
             </>
@@ -237,7 +237,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                 </div>
               </Row>
               {splitMethod === 'ribbons' && (
-                <p className="text-[11px] text-zinc-500 leading-relaxed">Equal number of ribbons above and below the banner.</p>
+                <p className="text-[11px] text-[color:var(--ui-text-faint)] leading-relaxed">Equal number of ribbons above and below the banner.</p>
               )}
               {splitMethod === 'duration' && (
                 <Row label="Split after">
@@ -247,7 +247,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                         value={splitDurationStr ? parseDuration(splitDurationStr) : 0}
                         display={splitDurationStr}
                         onChange={val => setSplitDurationStr(val > 0 ? formatDuration(val) : '')}
-                        className="flex-1 text-left text-xs text-zinc-200"
+                        className="flex-1 text-left text-xs text-[color:var(--ui-input-text)]"
                       />
                     ) : (
                       <CellInput

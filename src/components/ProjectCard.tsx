@@ -44,8 +44,8 @@ export default function ProjectCard({
       onDoubleClick={isRenaming || isBusy ? undefined : () => onStartRenaming(p)}
       className={`group flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer select-none ${
         isActive
-          ? 'bg-zinc-800 border-zinc-700 text-white'
-          : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
+          ? 'bg-[var(--ui-input-bg)] border-[color:var(--ui-card-border)] text-[color:var(--ui-text-strong)]'
+          : 'bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)] hover:border-[color:var(--ui-card-border)] text-[color:var(--ui-text)]'
       }`}
     >
       {isRenaming ? (
@@ -58,7 +58,7 @@ export default function ProjectCard({
               if (e.key === 'Escape') setRenamingId(null);
             }}
             autoFocus
-            className={`flex-1 bg-zinc-950 border border-zinc-600 text-white ${PM_INPUT} rounded-md outline-none focus:ring-2 focus:ring-zinc-500`}
+            className={`flex-1 bg-[var(--ui-seg-track-bg)] border border-[color:var(--ui-border-strong)] text-[color:var(--ui-text-strong)] ${PM_INPUT} rounded-md outline-none focus:ring-2 focus:ring-[color:var(--ui-input-focus-border)]`}
             onClick={e => e.stopPropagation()}
           />
           <button
@@ -79,19 +79,19 @@ export default function ProjectCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               {(openingId === p.id || deletingId === p.id || movingId === p.id || duplicatingId === p.id) && (
-                <Loader2 className={`${PM_ICON_SM} text-zinc-400 animate-spin shrink-0`} />
+                <Loader2 className={`${PM_ICON_SM} text-[color:var(--ui-text-muted)] animate-spin shrink-0`} />
               )}
               <h3 className={`font-semibold truncate ${PM_TITLE}`}>{p.title}</h3>
               {p.onlineId ? (
                 <Users className={`${PM_ICON_SM} text-emerald-500/90 shrink-0`} aria-label="Shared project" />
               ) : p.driveFileId ? (
-                <Cloud className={`${PM_ICON_SM} text-zinc-500 shrink-0`} aria-label="Cloud project" />
+                <Cloud className={`${PM_ICON_SM} text-[color:var(--ui-text-faint)] shrink-0`} aria-label="Cloud project" />
               ) : null}
               {isActive && (
                 <CheckCircle2 className={`${PM_ICON} text-emerald-400 shrink-0`} />
               )}
             </div>
-            <p className={`${PM_SUBTITLE} mt-0.5 ${isActive ? 'text-zinc-500' : 'text-zinc-500'}`}>
+            <p className={`${PM_SUBTITLE} mt-0.5 ${isActive ? 'text-[color:var(--ui-text-faint)]' : 'text-[color:var(--ui-text-faint)]'}`}>
               {isActive ? 'Currently open' : formatDate(p.lastModified)}
             </p>
           </div>
@@ -100,47 +100,47 @@ export default function ProjectCard({
             <button
               onClick={() => onStartRenaming(p)}
               disabled={isBusy}
-              className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
+              className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-[var(--ui-item-active-bg)] disabled:opacity-30`}
               title="Rename"
             >
-              <Pencil className={`${PM_ICON} text-zinc-400`} />
+              <Pencil className={`${PM_ICON} text-[color:var(--ui-text-muted)]`} />
             </button>
             <button
               onClick={() => onDuplicate(p)}
               disabled={isBusy}
-              className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
+              className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-[var(--ui-item-active-bg)] disabled:opacity-30`}
               title="Duplicate"
             >
-              <Copy className={`${PM_ICON} text-zinc-400`} />
+              <Copy className={`${PM_ICON} text-[color:var(--ui-text-muted)]`} />
             </button>
             <button
               onClick={e => onExport(e, p)}
               disabled={isBusy}
-              className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
+              className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-[var(--ui-item-active-bg)] disabled:opacity-30`}
               title="Export"
             >
               {exportingId === p.id
-                ? <Loader2 className={`${PM_ICON} text-zinc-400 animate-spin`} />
-                : <Save className={`${PM_ICON} text-zinc-400`} />}
+                ? <Loader2 className={`${PM_ICON} text-[color:var(--ui-text-muted)] animate-spin`} />
+                : <Save className={`${PM_ICON} text-[color:var(--ui-text-muted)]`} />}
             </button>
             {activeTab === 'local' && authSignedIn && (
               <button
                 onClick={() => onMoveToDrive(p)}
                 disabled={isBusy}
-                className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
+                className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-[var(--ui-item-active-bg)] disabled:opacity-30`}
                 title="Move to Drive"
               >
-                <CloudUpload className={`${PM_ICON} text-zinc-400`} />
+                <CloudUpload className={`${PM_ICON} text-[color:var(--ui-text-muted)]`} />
               </button>
             )}
             {activeTab === 'cloud' && (
               <button
                 onClick={() => onMoveToLocal(p)}
                 disabled={isBusy}
-                className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
+                className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-[var(--ui-item-active-bg)] disabled:opacity-30`}
                 title="Move to Local"
               >
-                <HardDriveDownload className={`${PM_ICON} text-zinc-400`} />
+                <HardDriveDownload className={`${PM_ICON} text-[color:var(--ui-text-muted)]`} />
               </button>
             )}
             <button
@@ -149,7 +149,7 @@ export default function ProjectCard({
               className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-rose-900/40 disabled:opacity-30`}
               title="Delete"
             >
-              <Trash2 className="w-3.5 h-3.5 text-zinc-400 hover:text-rose-400 transition-colors" />
+              <Trash2 className="w-3.5 h-3.5 text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-danger-text)] transition-colors" />
             </button>
           </div>
         </>

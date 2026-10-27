@@ -22,9 +22,9 @@ export interface TimeKeypadProps {
 }
 
 const KEY = 'flex items-center justify-center rounded-md text-base font-semibold transition-all cursor-pointer active:scale-90 h-11 min-w-[44px] select-none';
-const NUM = `${KEY} bg-zinc-200 text-zinc-800 hover:bg-zinc-300`;
-const ACT = `${KEY} bg-zinc-100 text-zinc-500 hover:bg-zinc-300`;
-const CMD = `${KEY} bg-zinc-800 text-white hover:bg-zinc-700`;
+const NUM = `${KEY} bg-[var(--ui-card-count-bg)] text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-border-strong)]`;
+const ACT = `${KEY} bg-[var(--ui-card-band)] text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-border-strong)]`;
+const CMD = `${KEY} bg-[var(--ui-text-strong)] text-[var(--ui-panel-bg)] hover:bg-[var(--ui-text)]`;
 
 export const TimeKeypad: React.FC<TimeKeypadProps> = ({ value, onCommit, onCancel, portalTarget }) => {
   const popoutTarget = usePortalTarget();
@@ -87,8 +87,8 @@ export const TimeKeypad: React.FC<TimeKeypadProps> = ({ value, onCommit, onCance
         onMouseDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
       >
-        <div className="bg-white/95 backdrop-blur-md border border-zinc-200 rounded-lg shadow-[0_12px_40px_rgba(0,0,0,0.18)] p-4 font-sans">
-          <div className="text-right text-zinc-900 text-base font-mono mb-3 px-3 py-2 bg-zinc-200/70 border-2 border-zinc-300 rounded min-h-[32px]">
+        <div className="bg-[var(--ui-panel-bg)] backdrop-blur-md border border-[color:var(--ui-border)] rounded-lg shadow-[0_12px_40px_rgba(0,0,0,0.18)] p-4 font-sans">
+          <div className="text-right text-[color:var(--ui-text-strong)] text-base font-mono mb-3 px-3 py-2 bg-[var(--ui-card-count-bg)] border-2 border-[color:var(--ui-border-strong)] rounded min-h-[32px]">
             {draft || '\u00A0'}
           </div>
           <div className="grid grid-cols-4 gap-2">

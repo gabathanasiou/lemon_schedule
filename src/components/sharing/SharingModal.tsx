@@ -275,7 +275,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
     >
       <div className="p-6 space-y-5">
         {!share && loading && (
-          <div className="flex items-center gap-2 text-xs text-zinc-400">
+          <div className="flex items-center gap-2 text-xs text-[color:var(--ui-text-muted)]">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading access…
           </div>
         )}
@@ -301,10 +301,10 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                     onChange={handleModeChange}
                   />
                   {mode === 'invite' ? (
-                    <p className="text-[10px] text-zinc-600">Only the people below can open this project.</p>
+                    <p className="text-[10px] text-[color:var(--ui-text-faint)]">Only the people below can open this project.</p>
                   ) : (
                     <>
-                      <p className="text-[10px] text-zinc-600">
+                      <p className="text-[10px] text-[color:var(--ui-text-faint)]">
                         {expired ? 'The link has expired — Create New Link replaces it.' : 'Anyone with the link can view this project (view only).'}
                       </p>
                       <div className="space-y-2 pt-0.5">
@@ -329,7 +329,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                             width="w-36"
                             theme="dark"
                             trigger={
-                              <button type="button" disabled={busy} className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors disabled:opacity-40">
+                              <button type="button" disabled={busy} className="flex items-center gap-1.5 px-2 py-1 text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)] rounded transition-colors disabled:opacity-40">
                                 Expires: {EXPIRY_OPTIONS.find(o => o.v === (activeLink ? expiryValue(activeLink.expiresAt) : 'never'))?.l}
                               </button>
                             }
@@ -347,14 +347,14 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                   )}
                 </>
               ) : (
-                <p className="text-xs text-zinc-500">Only the owner can change who has access to this project.</p>
+                <p className="text-xs text-[color:var(--ui-text-faint)]">Only the owner can change who has access to this project.</p>
               )}
             </section>
 
             {/* People -------------------------------------------------------- */}
             <section>
               <SectionLabel>People ({share.members.length + share.pendingInvites.length})</SectionLabel>
-              <div className="divide-y divide-zinc-800/60">
+              <div className="divide-y divide-[color:var(--ui-border)]">
                 {share.members.map(member => (
                   <MemberRow
                     key={member.userId}
@@ -396,7 +396,7 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                     onChange={v => setInviteRole(v as 'editor' | 'viewer')}
                   />
                 </div>
-                <p className="mt-1.5 text-[10px] text-zinc-600">
+                <p className="mt-1.5 text-[10px] text-[color:var(--ui-text-faint)]">
                   Pick someone you collaborate with, or type an email. No email is sent yet — existing accounts get access right away, new emails activate when they create an account (send them the link to be sure).
                 </p>
               </section>
@@ -412,13 +412,13 @@ export function SharingModal({ open, onClose }: { open: boolean; onClose: () => 
                 disabled={!isOwner || busy}
                 label="Allow others to invite"
               />
-              <p className="mt-1.5 text-[10px] text-zinc-600">Editors can add people and create links without asking you.</p>
+              <p className="mt-1.5 text-[10px] text-[color:var(--ui-text-faint)]">Editors can add people and create links without asking you.</p>
             </section>
 
             {notice && <p className="text-xs text-emerald-400">{notice}</p>}
             {actionError && <p className="text-xs text-red-400">{actionError}</p>}
             {!isOwner && share.myRole === 'viewer' && (
-              <p className="flex items-center gap-1.5 text-[10px] text-zinc-600">
+              <p className="flex items-center gap-1.5 text-[10px] text-[color:var(--ui-text-faint)]">
                 <ShieldCheck className="w-3 h-3" /> You have view-only access to this project.
               </p>
             )}

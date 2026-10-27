@@ -182,9 +182,9 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
       }
     >
       <div className="px-6 py-4 space-y-4">
-        <div className="flex items-center border-b border-zinc-800 pb-1.5">
+        <div className="flex items-center border-b border-[color:var(--ui-border)] pb-1.5">
           <div className="flex items-center gap-2 flex-1">
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Page Size</span>
+            <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Page Size</span>
             <DropdownMenu
               open={pageOpen}
               onOpenChange={setPageOpen}
@@ -195,7 +195,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
               trigger={
                 <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                   <span className="tabular-nums">{page === 'inherit' ? 'From design' : page === 'portrait' ? 'Portrait' : 'Landscape'}</span>
-                  <ChevronDown className="w-3 h-3 text-zinc-500" />
+                  <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
                 </button>
               }
             >
@@ -203,7 +203,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
                 <DropdownItem
                   key={m}
                   onClick={() => { setPageOpen(false); setPage(m); }}
-                  className={page === m ? 'bg-zinc-800 text-white' : ''}
+                  className={page === m ? 'bg-[var(--ui-input-bg)] text-[color:var(--ui-text-strong)]' : ''}
                   trailing={page === m ? <Check className="w-3 h-3 shrink-0" /> : undefined}
                 >
                   {m === 'inherit' ? 'From design' : m === 'portrait' ? 'Portrait' : 'Landscape'}
@@ -214,7 +214,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
         </div>
 
         {resolved.length === 0 && ribbonBlocks.length === 0 && (
-          <div className="text-sm text-zinc-400">This report has no repeated content — it prints as-is.</div>
+          <div className="text-sm text-[color:var(--ui-text-muted)]">This report has no repeated content — it prints as-is.</div>
         )}
 
         {resolved.map(({ block, scope, items, keys }) => {
@@ -222,7 +222,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
           const allChecked = selected.length === keys.length;
           return (
             <div key={block.id} className="space-y-2">
-              <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">
                 Repeat over {COLLECTION_LABELS[scope.collection]}
               </span>
               <Checklist
@@ -246,9 +246,9 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
           const rightChecks = checks.slice(2);
           return (
             <div key={b.id} className="space-y-3">
-              <div className="flex items-center border-b border-zinc-800 pb-1.5">
+              <div className="flex items-center border-b border-[color:var(--ui-border)] pb-1.5">
                 <div className="flex items-center gap-2 flex-1">
-                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ribbon Layout</span>
+                  <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Ribbon Layout</span>
                   <DropdownMenu
                     open={ribbonMenuOpenId === b.id}
                     onOpenChange={(o) => setRibbonMenuOpenId(o ? b.id : null)}
@@ -259,7 +259,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
                     trigger={
                       <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                         <span className="tabular-nums truncate max-w-[160px]">{design?.name || '—'}</span>
-                        <ChevronDown className="w-3 h-3 text-zinc-500" />
+                        <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
                       </button>
                     }
                   >
@@ -267,7 +267,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
                       <DropdownItem
                         key={d.id}
                         onClick={() => { setRibbonMenuOpenId(null); patchRibbon(b.id, { ribbonId: d.id }); }}
-                        className={o.ribbonId === d.id ? 'bg-zinc-800 text-white' : ''}
+                        className={o.ribbonId === d.id ? 'bg-[var(--ui-input-bg)] text-[color:var(--ui-text-strong)]' : ''}
                         trailing={o.ribbonId === d.id ? <Check className="w-3 h-3 shrink-0" /> : undefined}
                       >
                         {d.name}
@@ -277,20 +277,20 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
                 </div>
               </div>
 
-              <div className="mb-3 border border-zinc-700 rounded overflow-hidden">
+              <div className="mb-3 border border-[color:var(--ui-card-border)] rounded overflow-hidden">
                 {ctx && (
                   <RibbonDummyPreview ctx={ctx} overrides={o} />
                 )}
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Cell Borders</h3>
+                <h3 className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider border-b border-[color:var(--ui-border)] pb-1.5">Cell Borders</h3>
                 <div className="flex gap-1.5">
                   {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
                     <button
                       key={m}
                       onClick={() => patchRibbon(b.id, { cellBorders: m })}
-                      className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${(o.cellBorders ?? 'none') === m ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+                      className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${(o.cellBorders ?? 'none') === m ? 'bg-[var(--ui-input-bg)] text-[color:var(--ui-text-strong)]' : 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-card-bg)]'}`}
                     >
                       {m === 'none' ? 'None' : m === 'vertical' ? 'Vertical' : m === 'horizontal' ? 'Horizontal' : 'Both'}
                     </button>
@@ -299,7 +299,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, initialDa
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Ribbon</h3>
+                <h3 className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider border-b border-[color:var(--ui-border)] pb-1.5">Ribbon</h3>
                 <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                   <Checklist
                     items={leftChecks.map(c => ({ id: c.id, label: c.label }))}

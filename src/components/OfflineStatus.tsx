@@ -87,7 +87,7 @@ export default function OfflineStatus({
       {showModal && (
         <Modal open={showModal} onClose={() => setShowModal(false)}
             title={isAuthIssue ? 'Signed out' : "You're offline"}
-            icon={isAuthIssue ? <CloudOff className="w-5 h-5 text-amber-400" /> : <WifiOff className="w-5 h-5 text-zinc-400" />}
+            icon={isAuthIssue ? <CloudOff className="w-5 h-5 text-amber-400" /> : <WifiOff className="w-5 h-5 text-[color:var(--ui-text-muted)]" />}
             width="max-w-md"
             footer={
               <ModalFooter>
@@ -114,7 +114,7 @@ export default function OfflineStatus({
               </ModalFooter>
             }
           >
-            <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
+            <div className="px-5 py-3 text-[color:var(--ui-text-muted)] text-xs border-b border-[color:var(--ui-border)]">
               {isAuthIssue
                 ? authModalBody
                 : 'This cloud project needs an internet connection to stay in sync. You can keep browsing, but editing is paused until your connection returns.'}

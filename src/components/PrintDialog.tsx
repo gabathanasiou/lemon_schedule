@@ -150,9 +150,9 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
       <div className="px-6 py-4 space-y-4">
         {ribbonDesigns.length > 0 && (
           <div className="space-y-3">
-            <div className="flex items-center border-b border-zinc-800 pb-1.5">
+            <div className="flex items-center border-b border-[color:var(--ui-border)] pb-1.5">
               <div className="flex items-center gap-2 flex-1">
-                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ribbon Layout</span>
+                <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Ribbon Layout</span>
                 <DropdownMenu
                   open={ribbonMenuOpen}
                   onOpenChange={setRibbonMenuOpen}
@@ -164,7 +164,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   trigger={
                     <button type="button" data-print-picker="ribbon-layout" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                       <span className="tabular-nums truncate max-w-[120px]">{settings.selectedRibbonId ? (ribbonDesigns.find(d => d.id === settings.selectedRibbonId)?.name || 'Unknown') : (ribbonDesigns[0]?.name || 'Unknown')}</span>
-                      <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                      <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                     </button>
                   }
                 >
@@ -172,7 +172,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                     <DropdownItem
                       key={d.id}
                       onClick={() => { setRibbonMenuOpen(false); update({ selectedRibbonId: d.id }); }}
-                      className={settings.selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : ''}
+                      className={settings.selectedRibbonId === d.id ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : ''}
                       trailing={settings.selectedRibbonId === d.id ? <Check className="w-3 h-3 shrink-0" /> : undefined}
                     >
                       {d.name}
@@ -181,7 +181,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                 </DropdownMenu>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Page Size</span>
+                <span className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Page Size</span>
                 <DropdownMenu
                   open={pageSizeOpen}
                   onOpenChange={setPageSizeOpen}
@@ -192,13 +192,13 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   trigger={
                     <button type="button" data-print-picker="page-size" className={`${DD_CHIP_TRIGGER_CLASS} text-xs justify-between cursor-pointer`}>
                       <span className="tabular-nums">{viewMode === 'portrait' ? 'Portrait' : viewMode === 'landscape' ? 'Landscape' : 'Full'}</span>
-                      <ChevronDown className="w-3 h-3 text-zinc-500" />
+                      <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
                     </button>
                   }
                 >
-                  <DropdownItem onClick={() => { setPageSizeOpen(false); setViewMode('portrait'); }} className={viewMode === 'portrait' ? 'bg-zinc-800 text-white' : ''} trailing={viewMode === 'portrait' ? <Check className="w-3 h-3 shrink-0" /> : undefined}>Portrait</DropdownItem>
-                  <DropdownItem onClick={() => { setPageSizeOpen(false); setViewMode('landscape'); }} className={viewMode === 'landscape' ? 'bg-zinc-800 text-white' : ''} trailing={viewMode === 'landscape' ? <Check className="w-3 h-3 shrink-0" /> : undefined}>Landscape</DropdownItem>
-                  <DropdownItem onClick={() => { setPageSizeOpen(false); setViewMode('full'); }} className={viewMode === 'full' ? 'bg-zinc-800 text-white' : ''} trailing={viewMode === 'full' ? <Check className="w-3 h-3 shrink-0" /> : undefined}>Full Width</DropdownItem>
+                  <DropdownItem onClick={() => { setPageSizeOpen(false); setViewMode('portrait'); }} className={viewMode === 'portrait' ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : ''} trailing={viewMode === 'portrait' ? <Check className="w-3 h-3 shrink-0" /> : undefined}>Portrait</DropdownItem>
+                  <DropdownItem onClick={() => { setPageSizeOpen(false); setViewMode('landscape'); }} className={viewMode === 'landscape' ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : ''} trailing={viewMode === 'landscape' ? <Check className="w-3 h-3 shrink-0" /> : undefined}>Landscape</DropdownItem>
+                  <DropdownItem onClick={() => { setPageSizeOpen(false); setViewMode('full'); }} className={viewMode === 'full' ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : ''} trailing={viewMode === 'full' ? <Check className="w-3 h-3 shrink-0" /> : undefined}>Full Width</DropdownItem>
                 </DropdownMenu>
               </div>
             </div>
@@ -290,13 +290,13 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
         )}
 
         <div className="space-y-3">
-          <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Cell Borders</h3>
+          <h3 className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider border-b border-[color:var(--ui-border)] pb-1.5">Cell Borders</h3>
           <div className="flex gap-1.5">
             {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
               <button
                 key={m}
                 onClick={() => update({ cellBorders: m })}
-                className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${settings.cellBorders === m ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+                className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${settings.cellBorders === m ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]'}`}
               >
                 {m === 'none' ? 'None' : m === 'vertical' ? 'Vertical' : m === 'horizontal' ? 'Horizontal' : 'Both'}
               </button>

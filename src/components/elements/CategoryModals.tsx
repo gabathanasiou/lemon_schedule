@@ -42,20 +42,20 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
     >
       <div className="p-6 space-y-4">
         <div>
-          <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{withValueType ? 'Name' : 'New label'}</label>
+          <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">{withValueType ? 'Name' : 'New label'}</label>
           <input
             type="text"
             value={name}
             onChange={e => onNameChange(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && name.trim()) onSubmit(); }}
             autoFocus
-            className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+            className="w-full mt-1 px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]"
             placeholder={withValueType ? 'e.g. Firearms, Period Vehicles...' : undefined}
           />
         </div>
         {groupOptions && groupOptions.length > 0 && (
           <div>
-            <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Section</label>
+            <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Section</label>
             <DropdownMenu
               open={groupOpen}
               onOpenChange={setGroupOpen}
@@ -64,7 +64,7 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
               trigger={
                 <button type="button" className={`${DD_TOKEN_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between mt-1`}>
                   <span className="truncate">{group || 'Other'}</span>
-                  <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                  <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                 </button>
               }
             >
@@ -79,23 +79,23 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
         {withValueType && (
           <>
             <div>
-              <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
+              <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Icon</label>
               <IconGrid value={catIcon} onChange={onIconChange} />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Value Type</label>
+              <label className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Value Type</label>
               <div className="mt-1 flex gap-1">
                 <button
                   type="button"
                   onClick={() => onMultiValueChange(true)}
-                  className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${multiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
+                  className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${multiValue ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text)]'}`}
                 >
                   Multiple values
                 </button>
                 <button
                   type="button"
                   onClick={() => onMultiValueChange(false)}
-                  className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${!multiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
+                  className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${!multiValue ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text)]'}`}
                 >
                   Single value
                 </button>

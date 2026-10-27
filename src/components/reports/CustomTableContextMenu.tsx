@@ -45,7 +45,7 @@ const CustomTableContextMenu: React.FC<CustomTableContextMenuProps> = ({
   const run = (fn: () => void) => () => { fn(); onClose(); };
   return (
     <ContextMenu open x={menu.x} y={menu.y} theme="dark" onClose={onClose}>
-      <div className="px-2.5 py-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{rangeLabel}</div>
+      <div className="px-2.5 py-1 text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">{rangeLabel}</div>
       <ContextMenuItem icon={<Combine className="w-3.5 h-3.5 shrink-0" />} disabled={!canMerge} onClick={run(onMerge)}>Merge cells</ContextMenuItem>
       <ContextMenuItem icon={<Ungroup className="w-3.5 h-3.5 shrink-0" />} disabled={!canUnmerge} onClick={run(onUnmerge)}>Unmerge</ContextMenuItem>
       {!header && (

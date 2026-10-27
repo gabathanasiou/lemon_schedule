@@ -13,7 +13,7 @@ export const IconGrid: React.FC<{ value: string; onChange: (name: string) => voi
           type="button"
           onClick={() => onChange(opt.name)}
           className={`p-2 rounded-md transition-colors flex items-center justify-center ${
-            selected ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+            selected ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-faint)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text)]'
           }`}
         >
           <Icon className="w-4 h-4" />

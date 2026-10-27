@@ -119,7 +119,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
   const [pinned, setPinned] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
-  const iconColor = isCloudProject ? 'text-white' : 'text-zinc-500';
+  const iconColor = isCloudProject ? 'text-white' : 'text-[color:var(--ui-text-faint)]';
 
   // Roadmap 239 stage 1: the room badge (a pure mapping in lib/rooms/roomBadge).
   const roomBadge = roomBadgeState({
@@ -147,7 +147,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
       >
         <Eye className={`w-3.5 h-3.5 ${iconColor}`} />
         {showTooltip && (
-          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+          <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             {driveErrorMsg || 'View only — you can’t make changes to this shared project'}
           </div>
         )}
@@ -171,7 +171,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
       >
         <WifiOff className={`w-3.5 h-3.5 ${iconColor}`} />
         {showTooltip && (
-          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+          <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             {tooltipText}
           </div>
         )}
@@ -203,7 +203,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
           </span>
         </button>
         {(showTooltip || pinned) && (
-          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 w-56 whitespace-normal z-50">
+          <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] w-56 whitespace-normal z-50">
             {text}
           </div>
         )}
@@ -220,7 +220,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
       >
         <Loader2 className={`w-3.5 h-3.5 animate-spin ${iconColor}`} />
         {showTooltip && (
-          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+          <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             Saving...
           </div>
         )}
@@ -239,7 +239,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
       >
         <HardDrive className="w-3.5 h-3.5 text-rose-400" />
         {showTooltip && (
-          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+          <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             Storage full - changes not saved
           </div>
         )}
@@ -262,7 +262,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
           <CloudOff className="w-3.5 h-3.5 text-amber-400" />
         </button>
         {showTooltip && (
-          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+          <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             Sign in to resume sync
           </div>
         )}
@@ -279,7 +279,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
       >
         <Loader2 className={`w-3.5 h-3.5 animate-spin ${iconColor}`} />
         {showTooltip && (
-          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+          <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             Retrying sync…
           </div>
         )}
@@ -295,9 +295,9 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
         >
-          <WifiOff className="w-3.5 h-3.5 text-zinc-400" />
+          <WifiOff className="w-3.5 h-3.5 text-[color:var(--ui-text-muted)]" />
           {showTooltip && (
-            <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+            <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
               Working offline
             </div>
           )}
@@ -323,7 +323,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
           )}
         </button>
         {showTooltip && (
-          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+          <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
             {driveErrorMsg ? `Sync failed: ${driveErrorMsg} - click to retry` : 'Sync failed - click to retry'}
           </div>
         )}
@@ -348,7 +348,7 @@ function SaveIndicatorStatus({ isCloudProject }: { isCloudProject?: boolean }) {
         <Save className={`w-3.5 h-3.5 ${iconColor}`} />
       )}
       {showTooltip && (
-        <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+        <div className="absolute top-full left-0 mt-1.5 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text)] text-[11px] px-2 py-1 rounded border border-[color:var(--ui-card-border)] whitespace-nowrap z-50">
           {tooltip}
         </div>
       )}

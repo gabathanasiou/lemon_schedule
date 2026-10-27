@@ -11,8 +11,8 @@ import { nextLetterSceneNumber } from '../../lib/sceneNumbering';
 import { TEST_IDS } from '../../lib/testIds';
 import type { ScriptBlock } from '../../types';
 
-const FIELD_LABEL = 'mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500';
-const FIELD_INPUT = 'w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500';
+const FIELD_LABEL = 'mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]';
+const FIELD_INPUT = 'w-full px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]';
 
 /**
  * Cut a scene at a block boundary into a new lettered scene (roadmap 132
@@ -79,7 +79,7 @@ export default function SceneCutModal({ sceneId, initialSplitIndex, onClose }: {
     >
       <div className="space-y-5 p-6" data-testid={TEST_IDS.sceneCutModal}>
         {!canCut ? (
-          <p className="text-xs text-zinc-400">This scene has no retained script body to cut (or the project is read-only).</p>
+          <p className="text-xs text-[color:var(--ui-text-muted)]">This scene has no retained script body to cut (or the project is read-only).</p>
         ) : (
           <>
             <RadioList
@@ -90,7 +90,7 @@ export default function SceneCutModal({ sceneId, initialSplitIndex, onClose }: {
               onChange={id => setSplitIndex(Number(id))}
               items={blocks.slice(1).map((b, i) => ({
                 id: i + 1,
-                leading: <span className="text-[10px] uppercase text-zinc-500">{b[0]}</span>,
+                leading: <span className="text-[10px] uppercase text-[color:var(--ui-text-faint)]">{b[0]}</span>,
                 label: <span className="block truncate font-mono">{blockLabel(b)}</span>,
               }))}
             />
@@ -114,8 +114,8 @@ export default function SceneCutModal({ sceneId, initialSplitIndex, onClose }: {
               </label>
             </div>
 
-            <Checkbox variant="plain" checked={moveTags} onChange={setMoveTags} label={<span className="text-xs text-zinc-300">Move tags after the cut to the new scene</span>} />
-            <p className="text-[10px] text-zinc-600">The new scene inherits the parent's elements and lands in the boneyard — your schedule is untouched. One undo step.</p>
+            <Checkbox variant="plain" checked={moveTags} onChange={setMoveTags} label={<span className="text-xs text-[color:var(--ui-text)]">Move tags after the cut to the new scene</span>} />
+            <p className="text-[10px] text-[color:var(--ui-text-faint)]">The new scene inherits the parent's elements and lands in the boneyard — your schedule is untouched. One undo step.</p>
           </>
         )}
       </div>

@@ -46,7 +46,7 @@ export default function ColorField({
     }
   };
 
-  const swatchBase = 'rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0 appearance-none [&::-webkit-color-swatch-wrapper]:p-[3px] [&::-webkit-color-swatch]:border-none';
+  const swatchBase = 'rounded border border-[color:var(--ui-border-strong)] bg-[var(--ui-panel-bg)] cursor-pointer p-0 appearance-none [&::-webkit-color-swatch-wrapper]:p-[3px] [&::-webkit-color-swatch]:border-none';
   const swatchSizeClass = size === 'lg' ? 'w-10 h-10' : 'w-7 h-7';
   const hexClass = hexVariant === 'sm'
     ? 'w-[4.5rem] text-[10px] px-1.5 py-1'
@@ -69,14 +69,14 @@ export default function ColorField({
         onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         placeholder="#000000"
         spellCheck={false}
-        className={`${hexClass} text-zinc-200 bg-zinc-950 border border-zinc-700 rounded-md outline-none focus:border-zinc-500 placeholder:text-zinc-600 transition-colors`}
+        className={`${hexClass} text-[color:var(--ui-input-text)] bg-[var(--ui-seg-track-bg)] border border-[color:var(--ui-card-border)] rounded-md outline-none focus:border-[color:var(--ui-input-focus-border)] placeholder:text-[color:var(--ui-text-faint)] transition-colors`}
       />
       {defaultValue && (
         <button
           type="button"
           onClick={() => onChange(defaultValue)}
           title="Reset to Colors tab default"
-          className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors shrink-0"
+          className="p-1 rounded text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)] transition-colors shrink-0"
         >
           <RotateCcw className="w-3 h-3" />
         </button>

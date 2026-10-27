@@ -70,14 +70,14 @@ export function useSceneNumberCollisionGuard(
       }
     >
       <div className="px-5 py-4 space-y-3">
-        <p className="text-sm text-zinc-300">
-          Scene <span className="font-semibold text-white">{pending?.collision.sceneNumber}</span> is already used by{' '}
-          <span className="font-semibold text-white">{pending ? sceneLabel(pending.collision) : ''}</span>.
+        <p className="text-sm text-[color:var(--ui-text)]">
+          Scene <span className="font-semibold text-[color:var(--ui-text-strong)]">{pending?.collision.sceneNumber}</span> is already used by{' '}
+          <span className="font-semibold text-[color:var(--ui-text-strong)]">{pending ? sceneLabel(pending.collision) : ''}</span>.
         </p>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-[color:var(--ui-text-muted)]">
           Two scenes can’t share a number — they would both show the same script. Swap the two numbers so{' '}
-          <span className="text-zinc-200">{pending ? sceneLabel(pending.scene) : ''}</span> takes{' '}
-          <span className="text-zinc-200">{pending?.collision.sceneNumber}</span>, or cancel and pick a free number.
+          <span className="text-[color:var(--ui-input-text)]">{pending ? sceneLabel(pending.scene) : ''}</span> takes{' '}
+          <span className="text-[color:var(--ui-input-text)]">{pending?.collision.sceneNumber}</span>, or cancel and pick a free number.
         </p>
       </div>
     </Modal>

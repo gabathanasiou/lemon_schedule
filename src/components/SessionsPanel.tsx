@@ -65,14 +65,14 @@ export function SessionsPanel({ onSignedOutEverywhere }: { onSignedOutEverywhere
       <div className="flex items-center gap-3">
         <AccountAvatar account={auth.account} className="w-10 h-10" />
         <div className="min-w-0">
-          <div className="text-sm text-zinc-200 truncate">{auth.account?.name || 'Signed in'}</div>
-          <div className="text-xs text-zinc-500 truncate">This device is signed in.</div>
+          <div className="text-sm text-[color:var(--ui-input-text)] truncate">{auth.account?.name || 'Signed in'}</div>
+          <div className="text-xs text-[color:var(--ui-text-faint)] truncate">This device is signed in.</div>
         </div>
       </div>
 
       <section className="space-y-2">
         <SectionLabel>Other devices</SectionLabel>
-        <p className="text-[11px] text-zinc-500">
+        <p className="text-[11px] text-[color:var(--ui-text-faint)]">
           Sign out every other device that is signed in to this account. This device stays signed in.
         </p>
         <Button variant="primary" theme="dark" onClick={() => void runOthers()} disabled={busy !== null}>
@@ -83,7 +83,7 @@ export function SessionsPanel({ onSignedOutEverywhere }: { onSignedOutEverywhere
 
       <section className="space-y-2">
         <SectionLabel>Everywhere</SectionLabel>
-        <p className="text-[11px] text-zinc-500">
+        <p className="text-[11px] text-[color:var(--ui-text-faint)]">
           Sign out every device, including this one. As a safety net, sessions also expire automatically after six months.
         </p>
         <Button variant="danger-ghost" theme="dark" onClick={runEverywhere} disabled={busy !== null}>

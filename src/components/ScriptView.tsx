@@ -11,6 +11,7 @@ import { ScriptTagOverlay, useScriptTagging } from './script/ScriptTagging';
 import SidebarNav, { type SidebarNavRow } from './SidebarNav';
 import Button from './Button';
 import type { SearchMenuGroup, SearchMenuItem } from '@gabriel/ui-kit';
+import { ThemeScope } from '@gabriel/ui-kit';
 import { normalizeSceneNumber, formatSceneHeading } from '../lib/script';
 import { cutSceneAt, mergeSceneWithNext } from '../lib/scriptSceneOps';
 import { IS_COARSE } from '../lib/device';
@@ -24,7 +25,7 @@ import type { ScriptAnnotation, ScriptScene } from '../types';
 function CutHandle({ label, onMerge, disabled }: { label: string; onMerge: () => void; disabled?: boolean }) {
   return (
     <div data-testid={TEST_IDS.scriptCutHandle} className="group relative z-10 -my-1 flex h-7 items-center justify-center">
-      <div className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-zinc-300" />
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-[color:var(--ui-border-strong)]" />
       <Button
         variant="subtle"
         type="button"
@@ -497,7 +498,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
             <Button variant="subtle" type="button" title={scriptLabel} data-testid={TEST_IDS.scriptMenuTrigger}>
               <FileText className="w-3.5 h-3.5" />
               <span className="max-w-[16rem] truncate">{scriptLabel}</span>
-              <ChevronDown className="w-3 h-3.5 text-zinc-400" />
+              <ChevronDown className="w-3 h-3.5 text-[color:var(--ui-text-muted)]" />
             </Button>
           }
         >
@@ -507,33 +508,33 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
             </DropdownItem>
           )}
           <DropdownDivider />
-          <DropdownItem disabled onClick={() => {}} trailing={<span className="text-[10px] text-zinc-400">{(doc.format || '').toUpperCase()} · {doc.scenes.length} scenes</span>}>
+          <DropdownItem disabled onClick={() => {}} trailing={<span className="text-[10px] text-[color:var(--ui-text-muted)]">{(doc.format || '').toUpperCase()} · {doc.scenes.length} scenes</span>}>
             Script
           </DropdownItem>
         </DropdownMenu>
       )}
       {doc && doc.scenes.length > 0 && (
         <div className="relative flex items-center">
-          <Search className="absolute left-2 h-3.5 w-3.5 text-zinc-400" />
+          <Search className="absolute left-2 h-3.5 w-3.5 text-[color:var(--ui-text-muted)]" />
           <input
             type="text"
             aria-label="Search script"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search script"
-            className="w-40 rounded border border-zinc-200 bg-white py-1 pl-7 pr-2 text-[11px] text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+            className="w-40 rounded border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] py-1 pl-7 pr-2 text-[11px] text-[color:var(--ui-text-strong)] focus:outline-none focus:ring-1 focus:ring-[color:var(--ui-text-strong)]"
           />
           {q && (
-            <span className="ml-1.5 min-w-[3.5rem] text-[10px] tabular-nums text-zinc-500">
+            <span className="ml-1.5 min-w-[3.5rem] text-[10px] tabular-nums text-[color:var(--ui-text-muted)]">
               {matches.length === 0 ? 'No matches' : `${matchPos + 1}/${matches.length}`}
             </span>
           )}
           <button type="button" title="Previous match" onClick={() => stepMatch(-1)} disabled={matches.length === 0}
-            className="ml-0.5 rounded p-0.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30">
+            className="ml-0.5 rounded p-0.5 text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-card-band)] disabled:opacity-30">
             <ChevronUp className="h-3.5 w-3.5" />
           </button>
           <button type="button" title="Next match" onClick={() => stepMatch(1)} disabled={matches.length === 0}
-            className="rounded p-0.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30">
+            className="rounded p-0.5 text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-card-band)] disabled:opacity-30">
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -546,7 +547,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
           width="w-52"
           trigger={
             <Button variant="subtle" type="button">
-              <SlidersHorizontal className="w-3.5 h-3.5" /> View <ChevronDown className="w-3 h-3.5 text-zinc-400" />
+              <SlidersHorizontal className="w-3.5 h-3.5" /> View <ChevronDown className="w-3 h-3.5 text-[color:var(--ui-text-muted)]" />
             </Button>
           }
         >
@@ -582,17 +583,20 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
 
   if (!doc || doc.scenes.length === 0) {
     return (
-      <div data-testid={TEST_IDS.scriptView} className="flex-1 flex flex-col items-center justify-center gap-2 bg-white text-zinc-400">
-        {header}
-        <FileText className="w-8 h-8" />
-        <p className="text-sm text-zinc-500">No script retained for this project.</p>
-        <p className="text-xs text-zinc-400">Import a screenplay (.fdx or .fountain) to read it here.</p>
-      </div>
+      <ThemeScope mode="light" surface="neutral" className="flex-1 flex flex-col items-center justify-center gap-2 bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-muted)]">
+        <div data-testid={TEST_IDS.scriptView} className="flex flex-col items-center gap-2">
+          {header}
+          <FileText className="w-8 h-8" />
+          <p className="text-sm text-[color:var(--ui-text-muted)]">No script retained for this project.</p>
+          <p className="text-xs text-[color:var(--ui-text-muted)]">Import a screenplay (.fdx or .fountain) to read it here.</p>
+        </div>
+      </ThemeScope>
     );
   }
 
   return (
-    <div data-testid={TEST_IDS.scriptView} className="flex-1 flex min-h-0 bg-zinc-100">
+    <div data-testid={TEST_IDS.scriptView} className="flex-1 flex min-h-0 bg-[var(--ui-card-band)]">
+    <ThemeScope mode="light" surface="neutral" className="flex-1 flex min-h-0">
       {header}
       <SidebarNav
         title="Scenes"
@@ -621,10 +625,10 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
             onMouseMove={cutActive && !IS_COARSE ? handleRazorMove : undefined}
             onMouseLeave={cutActive && !IS_COARSE ? () => setRazor(null) : undefined}
             onClick={cutActive && !IS_COARSE ? handleRazorClick : undefined}
-            className={`relative w-[8.5in] max-w-full border border-zinc-200 bg-white px-14 py-12 shadow-sm ${cutActive ? 'script-razor select-none' : 'select-text'}`}
+            className={`relative w-[8.5in] max-w-full border border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)] px-14 py-12 shadow-sm ${cutActive ? 'script-razor select-none' : 'select-text'}`}
           >
             {doc.titlePage?.title && (
-              <div className="mb-12 text-center font-mono uppercase tracking-widest text-zinc-900">
+              <div className="mb-12 text-center font-mono uppercase tracking-widest text-[color:var(--ui-text-strong)]">
                 <div className="text-lg font-bold">{doc.titlePage.title}</div>
               </div>
             )}
@@ -735,6 +739,7 @@ export function ScriptView({ headerTarget, onOpenSheet, onOpenSchedule, onUpdate
         </div>
       </div>
       <ScriptTagOverlay tagging={tagging} project={project} />
+    </ThemeScope>
     </div>
   );
 }

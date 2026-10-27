@@ -226,11 +226,11 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center cursor-pointer hover:border-zinc-500 transition-colors"
+              className="border-2 border-dashed border-[color:var(--ui-card-border)] rounded-xl p-8 text-center cursor-pointer hover:border-[color:var(--ui-border-strong)] transition-colors"
             >
-              <Upload className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
-              <p className="text-zinc-400 text-sm font-medium">Drop a screenplay file here</p>
-              <p className="text-zinc-600 text-xs mt-1">{fileFilter === '.csv' ? '.csv' : '.fdx, .fountain, .txt, .csv'}</p>
+              <Upload className="w-8 h-8 text-[color:var(--ui-text-faint)] mx-auto mb-3" />
+              <p className="text-[color:var(--ui-text-muted)] text-sm font-medium">Drop a screenplay file here</p>
+              <p className="text-[color:var(--ui-text-faint)] text-xs mt-1">{fileFilter === '.csv' ? '.csv' : '.fdx, .fountain, .txt, .csv'}</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -249,25 +249,25 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
 
         {stage === 'parsing' && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <Loader2 className="w-8 h-8 text-zinc-400 animate-spin" />
-            <p className="text-zinc-400 text-sm">Parsing {fileLabel}...</p>
+            <Loader2 className="w-8 h-8 text-[color:var(--ui-text-muted)] animate-spin" />
+            <p className="text-[color:var(--ui-text-muted)] text-sm">Parsing {fileLabel}...</p>
           </div>
         )}
 
         {stage === 'review' && result && (
           <>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
-              <span className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">File</span>
-              <span className="text-zinc-300 text-xs">{fileLabel}</span>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)]">
+              <span className="text-[color:var(--ui-text-faint)] text-[11px] font-medium uppercase tracking-wider">File</span>
+              <span className="text-[color:var(--ui-text)] text-xs">{fileLabel}</span>
             </div>
 
             <RenameProjectField value={projectTitle} onChange={setProjectTitle} />
 
             <div className="flex items-center gap-3">
-              <span className="text-zinc-400 text-xs">{result.scenes.length} scenes</span>
+              <span className="text-[color:var(--ui-text-muted)] text-xs">{result.scenes.length} scenes</span>
               {result.unknownCategories.length > 0 && (
                 <>
-                  <span className="text-zinc-600">·</span>
+                  <span className="text-[color:var(--ui-text-faint)]">·</span>
                   <span className="text-amber-400 text-xs">{result.unknownCategories.length} new categories found</span>
                 </>
               )}

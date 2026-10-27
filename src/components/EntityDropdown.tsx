@@ -559,15 +559,15 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
-      {displayMode === 'id' && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
+      {displayMode === 'id' && <span className="text-[color:var(--ui-text-muted)] shrink-0">{item.id}.</span>}
       <span className="truncate flex-1">{displayMode === 'id' ? (item.name && item.name !== item.id ? item.name : '?') : (item.name || '?')}</span>
       {showSceneCounts && scenes && (
-        <span className="text-[10px] text-zinc-400">
+        <span className="text-[10px] text-[color:var(--ui-text-muted)]">
           {scenes.filter(s => s.cast.split(',').map(x => x.trim()).includes(item.id)).length} scenes
         </span>
       )}
       {itemBadge && itemBadge(item) && (
-        <span className="text-[10px] text-zinc-400">{itemBadge(item)}</span>
+        <span className="text-[10px] text-[color:var(--ui-text-muted)]">{itemBadge(item)}</span>
       )}
     </>
   );
@@ -838,7 +838,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         </span>
       )}
       {variant === 'chip' && (
-        <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0 absolute right-2 pointer-events-none" />
+        <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0 absolute right-2 pointer-events-none" />
       )}
       {open && (
         <DropdownPanel

@@ -161,7 +161,7 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
           className={`${panel ? 'w-full' : width} ${TB_PICKER}`}
         >
           <span className="truncate">{label}</span>
-          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
         </button>
       }
     >

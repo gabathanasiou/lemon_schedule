@@ -68,21 +68,21 @@ export default function BreakdownSheetDialog({ onPrint, onClose }: BreakdownShee
       <div className="px-6 py-4 space-y-5">
         <div className="space-y-4">
           <div>
-            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">
+            <h3 className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider border-b border-[color:var(--ui-border)] pb-1.5 mb-3">
               Sort Order
             </h3>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => update({ sortOrder: 'sheet' })}
-                className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${sortOrder === 'sheet' ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border border-zinc-700'}`}
+                className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${sortOrder === 'sheet' ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)] border border-[color:var(--ui-card-border)]' : 'text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text)] border border-[color:var(--ui-card-border)]'}`}
               >
                 Sheet Order
               </button>
               <button
                 type="button"
                 onClick={() => update({ sortOrder: 'scene' })}
-                className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${sortOrder === 'scene' ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border border-zinc-700'}`}
+                className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${sortOrder === 'scene' ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)] border border-[color:var(--ui-card-border)]' : 'text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-hover-bg)] hover:text-[color:var(--ui-text)] border border-[color:var(--ui-card-border)]'}`}
               >
                 Scene Order
               </button>

@@ -130,7 +130,7 @@ const AddressCell: React.FC<{ row: ManagerRow; update: (f: string, v: string) =>
         disabled={readOnly}
         onClick={() => setOpen(true)}
         title="Set address"
-        className="w-full text-left bg-white border border-zinc-200 rounded-md px-2 py-1 text-xs text-zinc-700 hover:border-zinc-400 transition-colors disabled:opacity-40"
+        className="w-full text-left bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] rounded-md px-2 py-1 text-xs text-[color:var(--ui-text)] hover:border-[color:var(--ui-border-strong)] transition-colors disabled:opacity-40"
       >
         {label}
       </button>
@@ -177,10 +177,10 @@ const NearbyCell: React.FC<{
           type="button"
           disabled={readOnly}
           title={`Set nearest ${typeKey === 'hospital' ? 'hospital' : 'police station'}`}
-          className="w-full flex items-center justify-between gap-1 text-left bg-white border border-zinc-200 rounded-md px-2 py-1 text-xs text-zinc-700 hover:border-zinc-400 transition-colors disabled:opacity-40"
+          className="w-full flex items-center justify-between gap-1 text-left bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] rounded-md px-2 py-1 text-xs text-[color:var(--ui-text)] hover:border-[color:var(--ui-border-strong)] transition-colors disabled:opacity-40"
         >
           <span className="truncate">{currentLabel || '—'}</span>
-          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
+          <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
         </button>
       }
     >

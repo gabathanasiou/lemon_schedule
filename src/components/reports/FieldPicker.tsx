@@ -126,7 +126,7 @@ export const FieldPickerItems: React.FC<FieldPickerItemsProps> = ({ fields, valu
           {hasBoth && (
             <>
               <DropdownDivider />
-              <div className="px-2.5 py-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Global</div>
+              <div className="px-2.5 py-1 text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">Global</div>
             </>
           )}
           {globalGroups.map(g => (
@@ -162,7 +162,7 @@ export const FieldPicker: React.FC<FieldPickerProps> = ({ value, fields, onChang
           className={`flex items-center justify-between gap-1 ${triggerCls}`}
         >
           <span className="truncate">{current ? labelOf(current) : placeholder}</span>
-          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
         </button>
       }
     >

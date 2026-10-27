@@ -62,7 +62,7 @@ const ColumnHeader: React.FC<{
   return (
     <ChromeHeader
       className="w-full"
-      leading={<span className="text-[10px] font-semibold text-zinc-300 pr-1">{rows ? 'Row' : 'Column'} {colIndex + 1} of {colsCount}</span>}
+      leading={<span className="text-[10px] font-semibold text-[color:var(--ui-text)] pr-1">{rows ? 'Row' : 'Column'} {colIndex + 1} of {colsCount}</span>}
       trailing={
         <>
           <ToolButton onClick={onDelete} disabled={readOnly || colsCount <= 1} title={rows ? 'Delete row' : 'Delete column'} className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /></ToolButton>

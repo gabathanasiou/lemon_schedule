@@ -1377,7 +1377,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onOpenDayManager
       onDragCancel={handleDragCancel}
     >
       <div 
-          className="flex-1 flex bg-zinc-200/50 relative min-h-0"
+          className="flex-1 flex bg-[var(--ui-card-band)] relative min-h-0"
           onClick={() => {
             if (marqueeJustEndedRef.current) {
               marqueeJustEndedRef.current = false;

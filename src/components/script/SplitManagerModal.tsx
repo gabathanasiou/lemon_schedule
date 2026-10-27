@@ -52,7 +52,7 @@ export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (scene
       >
         <div className="space-y-2 p-6" data-testid={TEST_IDS.splitManagerModal}>
           {groups.length === 0 ? (
-            <p className="py-6 text-center text-xs text-zinc-400">No split scenes. Cutting a scene in the Script tab creates a group.</p>
+            <p className="py-6 text-center text-xs text-[color:var(--ui-text-muted)]">No split scenes. Cutting a scene in the Script tab creates a group.</p>
           ) : groups.map(group => {
             const badge = splitGroupBadge(project, group);
             const members = splitGroupMembers(group);
@@ -63,9 +63,9 @@ export default function SplitManagerModal({ onOpen, onClose }: { onOpen?: (scene
             const canMoveBreak = !!stream && (stream.boundaries[0] > 1 || stream.boundaries[1] - 1 > stream.boundaries[0]);
             const label = `${group.original.sceneNumber} → ${[group.original.sceneNumber, ...group.fragments.map(f => f.sceneNumber)].join(' + ')}`;
             return (
-              <div key={group.original.id} className="rounded-lg border border-zinc-700 bg-zinc-800 p-3 space-y-2">
+              <div key={group.original.id} className="rounded-lg border border-[color:var(--ui-card-border)] bg-[var(--ui-input-bg)] p-3 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-zinc-200">{label}</span>
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-[color:var(--ui-input-text)]">{label}</span>
                   <span className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${badge === 'clean' ? 'bg-emerald-900/40 text-emerald-300' : 'bg-amber-900/40 text-amber-300'}`}>{badge}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">

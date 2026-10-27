@@ -11,7 +11,7 @@ export function HeldItemHint({ hint }: { hint: { x: number; y: number; name: str
   if (!hint) return null;
   return (
     <FloatingTooltip open anchor={{ x: hint.x, y: hint.y }} followPointer={false}>
-      <div className="bg-zinc-900 text-white text-[11px] rounded shadow-xl whitespace-nowrap leading-relaxed px-2.5 py-1.5">
+      <div className="bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-strong)] text-[11px] rounded shadow-xl whitespace-nowrap leading-relaxed px-2.5 py-1.5">
         {hint.name} is moving this
       </div>
     </FloatingTooltip>

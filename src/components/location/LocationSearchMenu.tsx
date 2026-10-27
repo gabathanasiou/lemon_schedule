@@ -143,13 +143,13 @@ export const LocationSearchMenu: React.FC<LocationSearchMenuProps> = ({
         emptyHint="Try a location name, type, address, contact or phone."
         renderEmpty={({ query }) => (
           <>
-            <div className="mx-auto mb-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
+            <div className="mx-auto mb-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ui-card-band)] text-[color:var(--ui-text-faint)]">
               <MapPin className="w-3.5 h-3.5" />
             </div>
-            <div className="text-xs font-medium text-zinc-500">
+            <div className="text-xs font-medium text-[color:var(--ui-text-muted)]">
               {query.trim() ? `No locations match “${query.trim()}”` : 'Search locations'}
             </div>
-            <div className="mt-0.5 text-[10px] text-zinc-400">
+            <div className="mt-0.5 text-[10px] text-[color:var(--ui-text-faint)]">
               {query.trim() ? 'Try a name, type, address, contact or phone.' : 'Type a name, type or address — or add a new one.'}
             </div>
           </>

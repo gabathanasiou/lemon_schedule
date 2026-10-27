@@ -94,8 +94,8 @@ export const CustomCellControls: React.FC<CustomCellControlsProps> = ({
         className="w-full"
         leading={
           <>
-            <TableCellsMerge className="w-3 h-3 text-zinc-400" />
-            <span className="text-[10px] font-semibold text-zinc-300 pr-1">{label}</span>
+            <TableCellsMerge className="w-3 h-3 text-[color:var(--ui-text-muted)]" />
+            <span className="text-[10px] font-semibold text-[color:var(--ui-text)] pr-1">{label}</span>
           </>
         }
         trailing={

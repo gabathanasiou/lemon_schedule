@@ -97,7 +97,7 @@ export default function DateField({ value, onChange, placeholder = 'Pick a date'
             className={`${triggerClassName ?? DD_CHIP_TRIGGER_CLASS} text-xs select-none transition-colors ${fullWidth ? 'flex-1 min-w-0 justify-between' : ''}`}
           >
             <span className="truncate">{summaryLabel(value, placeholder)}</span>
-            <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+            <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
           </button>
         }
       >

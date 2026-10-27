@@ -65,7 +65,7 @@ export function PeoplePicker({ suggestions, placeholder = 'Invite by name or ema
             />
             <span className="flex-1 min-w-0 flex flex-col leading-tight">
               <span className="truncate">{s?.name || 'Member'}</span>
-              {s?.email ? <span className="text-[10px] text-zinc-500 truncate">{s.email}</span> : null}
+              {s?.email ? <span className="text-[10px] text-[color:var(--ui-text-faint)] truncate">{s.email}</span> : null}
             </span>
           </>
         );

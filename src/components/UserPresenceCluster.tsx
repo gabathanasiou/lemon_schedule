@@ -292,11 +292,11 @@ export function UserPresenceCluster({ driveCtx, driveBacked, closeProject, onOpe
         }
       >
         <div className="p-6 space-y-3">
-          <p className="text-sm text-zinc-300">
+          <p className="text-sm text-[color:var(--ui-text)]">
             <span className="font-medium text-white">{projectTitle}</span> will be added to your
             shared projects and kept in sync automatically.
           </p>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-[color:var(--ui-text-muted)]">
             Shared projects sync over the internet — you'll need a connection while you work on
             this one.
           </p>

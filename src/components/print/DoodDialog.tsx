@@ -222,7 +222,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
     >
       <div className="px-6 py-4 space-y-5">
         <div>
-          <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider border-b border-zinc-800 pb-1.5 mb-3 block">
+          <label className="text-[10px] text-[color:var(--ui-text-faint)] uppercase font-semibold tracking-wider border-b border-[color:var(--ui-border)] pb-1.5 mb-3 block">
             Category
           </label>
           <DropdownMenu
@@ -241,7 +241,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
                 className={`${DD_CHIP_TRIGGER_CLASS} text-xs w-full justify-between cursor-pointer px-3 py-2`}
               >
                 <span>{categoryLabel}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                <ChevronDown className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
               </button>
             }
           >
@@ -255,7 +255,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
                   <div key={key} data-cat={key}>
                     <DropdownItem
                       onClick={() => setCategory(key)}
-                      className={active ? 'bg-zinc-800 text-white' : ''}
+                      className={active ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : ''}
                       icon={Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
                       trailing={active ? <Check className="w-3 h-3 shrink-0" /> : undefined}
                     >
@@ -305,9 +305,9 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Options</h3>
-          <Checkbox block checked={includeNonShooting} onChange={on => update({ includeNonShooting: on })} label="Include non-shooting days (grey columns)" labelClassName="text-zinc-300" />
-          <Checkbox block checked={showTotals} onChange={on => update({ showTotals: on })} label="Show totals columns" labelClassName="text-zinc-300" />
+          <h3 className="text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider border-b border-[color:var(--ui-border)] pb-1.5">Options</h3>
+          <Checkbox block checked={includeNonShooting} onChange={on => update({ includeNonShooting: on })} label="Include non-shooting days (grey columns)" labelClassName="text-[color:var(--ui-text)]" />
+          <Checkbox block checked={showTotals} onChange={on => update({ showTotals: on })} label="Show totals columns" labelClassName="text-[color:var(--ui-text)]" />
         </div>
       </div>
     </Modal>

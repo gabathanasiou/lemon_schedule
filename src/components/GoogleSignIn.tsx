@@ -22,13 +22,13 @@ export function GoogleSignIn() {
       <div className="flex items-center gap-1.5">
         <button
           onClick={signOut}
-          className="flex items-center gap-2 px-2 py-1 rounded border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors text-[11px] font-medium cursor-pointer select-none"
+          className="flex items-center gap-2 px-2 py-1 rounded border border-[color:var(--ui-card-border)] bg-[var(--ui-input-bg)] text-[color:var(--ui-text)] hover:bg-[var(--ui-item-active-bg)] hover:text-[color:var(--ui-text-strong)] transition-colors text-[11px] font-medium cursor-pointer select-none"
           title={`Signed in as ${user.email}\nClick to disconnect`}
         >
           {user.picture ? (
             <img src={user.picture} alt="" className="w-4 h-4 rounded-full" />
           ) : (
-            <div className="w-4 h-4 rounded-full bg-zinc-600 flex items-center justify-center text-[9px] font-bold text-white">
+            <div className="w-4 h-4 rounded-full bg-[var(--ui-border-strong)] flex items-center justify-center text-[9px] font-bold text-[color:var(--ui-text-strong)]">
               {(user.name || '?')[0].toUpperCase()}
             </div>
           )}
@@ -41,7 +41,7 @@ export function GoogleSignIn() {
   return (
     <button
       onClick={signIn}
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-600 bg-white text-zinc-800 hover:bg-zinc-100 hover:border-zinc-500 transition-colors text-[11px] font-medium cursor-pointer select-none"
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[color:var(--ui-border-strong)] bg-white text-zinc-800 hover:bg-zinc-100 hover:border-zinc-500 transition-colors text-[11px] font-medium cursor-pointer select-none"
     >
       <GoogleG />
       <span>Sign in with Google</span>

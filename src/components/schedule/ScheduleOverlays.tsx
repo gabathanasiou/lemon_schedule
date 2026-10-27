@@ -135,10 +135,10 @@ export default function ScheduleOverlays({
 
       {digitBuffer && (
         <div className="fixed inset-0 pointer-events-none z-[9999] flex items-start justify-center pt-12">
-          <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 rounded-xl shadow-2xl px-6 py-3 flex flex-col items-center gap-1.5 min-w-[140px]">
-            <span className="text-zinc-300 text-xs font-semibold uppercase tracking-widest">Schedule to Section</span>
-            <span className="text-white text-3xl font-bold tabular-nums">{digitBuffer}</span>
-            <div className="w-full h-1 bg-zinc-700 rounded-full overflow-hidden">
+          <div className="bg-[var(--ui-panel-bg)]/90 backdrop-blur-md border border-[color:var(--ui-card-border)] rounded-xl shadow-2xl px-6 py-3 flex flex-col items-center gap-1.5 min-w-[140px]">
+            <span className="text-[color:var(--ui-text)] text-xs font-semibold uppercase tracking-widest">Schedule to Section</span>
+            <span className="text-[color:var(--ui-text-strong)] text-3xl font-bold tabular-nums">{digitBuffer}</span>
+            <div className="w-full h-1 bg-[var(--ui-item-active-bg)] rounded-full overflow-hidden">
               <div key={digitBuffer} className="h-full bg-blue-500 rounded-full" style={{ animation: `shrink ${bufferMs}ms linear forwards` }} />
             </div>
           </div>
@@ -146,14 +146,14 @@ export default function ScheduleOverlays({
       )}
 
       <FloatingTooltip open={!!selectionSummary || !!bufferSummary}>
-        <div className="bg-zinc-900 text-white text-[10px] rounded shadow-xl whitespace-nowrap leading-relaxed">
+        <div className="bg-[var(--ui-panel-bg)] text-[color:var(--ui-text-strong)] text-[10px] rounded shadow-xl whitespace-nowrap leading-relaxed">
           {selectionSummary && (
             <>
               <div className="px-2.5 py-1.5">{selectionSummary.count} strip{selectionSummary.count > 1 ? 's' : ''} selected</div>
-              <div className="border-t border-zinc-700 px-2.5 py-1.5">{formatDuration(selectionSummary.totalMinutes)}</div>
+              <div className="border-t border-[color:var(--ui-card-border)] px-2.5 py-1.5">{formatDuration(selectionSummary.totalMinutes)}</div>
             </>
           )}
-          {selectionSummary && bufferSummary && <div className="border-t border-zinc-700" />}
+          {selectionSummary && bufferSummary && <div className="border-t border-[color:var(--ui-card-border)]" />}
           {bufferSummary && (
             <div className="px-2.5 py-1.5">{bufferSummary.count} strip{bufferSummary.count > 1 ? 's' : ''} in buffer</div>
           )}

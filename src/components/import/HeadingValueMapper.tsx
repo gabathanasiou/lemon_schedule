@@ -24,13 +24,13 @@ interface Props {
   onConfirm: (mapping: HeadingMapping) => void;
 }
 
-const GROUP_LABEL = 'text-[10px] font-semibold uppercase tracking-wider text-zinc-500';
+const GROUP_LABEL = 'text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
       <h3 className={GROUP_LABEL}>{title}</h3>
-      <div className="rounded-lg border border-zinc-700 bg-zinc-800 divide-y divide-zinc-700/60 overflow-hidden">
+      <div className="rounded-lg border border-[color:var(--ui-card-border)] bg-[var(--ui-input-bg)] divide-y divide-[color:var(--ui-card-border)]/60 overflow-hidden">
         {children}
       </div>
     </div>
@@ -50,7 +50,7 @@ function ValueMenu({ value, options, onChange }: { value: string; options: strin
       trigger={
         <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer`}>
           <span className="truncate">{value}</span>
-          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+          <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
         </button>
       }
     >
@@ -73,7 +73,7 @@ function Row({ value, known, choice, onChange }: {
   const matchTo = choice.mapTo || known[0];
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
-      <div className="min-w-0 flex-1 text-sm font-semibold text-zinc-100 truncate">{value}</div>
+      <div className="min-w-0 flex-1 text-sm font-semibold text-[color:var(--ui-text-strong)] truncate">{value}</div>
       <Seg
         variant="track"
         theme="dark"
@@ -114,7 +114,7 @@ export default function HeadingValueMapper({ unknown, knownIntExt, knownDayNight
       }
     >
       <div className="p-6 space-y-5">
-        <p className="text-xs text-zinc-400 leading-relaxed">
+        <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
           This script uses heading values your Colors options don't include yet. For each value
           below, either add it as a new option, or replace it with one you already use.
         </p>

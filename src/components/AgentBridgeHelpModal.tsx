@@ -14,7 +14,7 @@ const STEPS: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         It talks to the app through the lemon MCP server. Run{' '}
-        <code className="text-zinc-200">npm run mcp:install</code> once in the repo to register it
+        <code className="text-[color:var(--ui-input-text)]">npm run mcp:install</code> once in the repo to register it
         with the AI clients on this machine.
       </>
     ),
@@ -27,9 +27,9 @@ const STEPS: { title: string; body: React.ReactNode }[] = [
     title: 'Ask the agent to edit this project',
     body: (
       <>
-        For example: <span className="text-zinc-200">“break down scene 4 into props, wardrobe and vehicles”</span>,{' '}
-        <span className="text-zinc-200">“add 5 dummy crew to the grip department”</span>, or{' '}
-        <span className="text-zinc-200">“schedule the diner scene on day 3”</span>.
+        For example: <span className="text-[color:var(--ui-input-text)]">“break down scene 4 into props, wardrobe and vehicles”</span>,{' '}
+        <span className="text-[color:var(--ui-input-text)]">“add 5 dummy crew to the grip department”</span>, or{' '}
+        <span className="text-[color:var(--ui-input-text)]">“schedule the diner scene on day 3”</span>.
       </>
     ),
   },
@@ -55,21 +55,21 @@ export default function AgentBridgeHelpModal({ onClose, onConfirm }: AgentBridge
         </ModalFooter>
       }
     >
-      <div className="px-5 py-4 space-y-4 text-sm text-zinc-300">
+      <div className="px-5 py-4 space-y-4 text-sm text-[color:var(--ui-text)]">
         <p>
           Lets an AI agent read and edit the project you have open here — useful for a first-pass
           breakdown, dummy crew, or bulk edits. Everything stays on this machine and every change
-          is a normal undoable step (<kbd className="text-zinc-200">⌘Z</kbd>).
+          is a normal undoable step (<kbd className="text-[color:var(--ui-input-text)]">⌘Z</kbd>).
         </p>
-        <ol className="space-y-2.5 list-decimal list-inside marker:text-zinc-500">
+        <ol className="space-y-2.5 list-decimal list-inside marker:text-[color:var(--ui-text-faint)]">
           {STEPS.map((step) => (
             <li key={step.title}>
-              <span className="font-medium text-zinc-100">{step.title}</span>
-              <p className="pl-5 mt-0.5 text-zinc-400">{step.body}</p>
+              <span className="font-medium text-[color:var(--ui-text-strong)]">{step.title}</span>
+              <p className="pl-5 mt-0.5 text-[color:var(--ui-text-muted)]">{step.body}</p>
             </li>
           ))}
         </ol>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-[color:var(--ui-text-faint)]">
           The helper listens on 127.0.0.1 only and only while the bridge is on. Turn it off any
           time from the same menu.
         </p>

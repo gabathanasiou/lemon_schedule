@@ -10,14 +10,14 @@ function SortableCastRow({ character, index, id }: { character: ImportCharacter;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: character.name });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <tr ref={setNodeRef} style={style} className={`border-b border-zinc-800/50 ${index % 2 === 0 ? 'bg-zinc-950' : 'bg-zinc-900/50'}`}>
-      <td className="px-3 py-2 text-zinc-300 text-xs font-mono font-medium w-10">{id}</td>
-      <td className="px-3 py-2 text-zinc-200 text-xs font-medium">{character.name}</td>
-      <td className="px-3 py-2 text-zinc-500 text-[10px] font-mono">
+    <tr ref={setNodeRef} style={style} className={`border-b border-[color:var(--ui-border)]/50 ${index % 2 === 0 ? 'bg-[var(--ui-panel-bg)]' : 'bg-[var(--ui-card-band)]'}`}>
+      <td className="px-3 py-2 text-[color:var(--ui-text)] text-xs font-mono font-medium w-10">{id}</td>
+      <td className="px-3 py-2 text-[color:var(--ui-input-text)] text-xs font-medium">{character.name}</td>
+      <td className="px-3 py-2 text-[color:var(--ui-text-faint)] text-[10px] font-mono">
         {character.scenes.slice(0, 5).join(', ')}{character.scenes.length > 5 ? '...' : ''}
       </td>
       <td className="px-3 py-2 w-8">
-        <button {...attributes} {...listeners} className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 cursor-grab active:cursor-grabbing transition-colors">
+        <button {...attributes} {...listeners} className="p-1 rounded hover:bg-[var(--ui-item-hover-bg)] text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] cursor-grab active:cursor-grabbing transition-colors">
           <GripVertical className="w-3.5 h-3.5" />
         </button>
       </td>
@@ -43,17 +43,17 @@ export function CastAssignmentTable({ castOrder, onReorder, startId, ids }: {
   };
   return (
     <div>
-      <h3 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Board ID Assignment</h3>
-      <p className="text-zinc-500 text-[10px] mb-2">Drag rows to reorder. Board IDs are assigned by row position (starting from {startId}).</p>
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <h3 className="text-[11px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider mb-2">Board ID Assignment</h3>
+      <p className="text-[color:var(--ui-text-faint)] text-[10px] mb-2">Drag rows to reorder. Board IDs are assigned by row position (starting from {startId}).</p>
+      <div className="rounded-lg border border-[color:var(--ui-border)] overflow-hidden">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={castOrder.map(c => c.name)} strategy={verticalListSortingStrategy}>
             <table className="w-full">
               <thead>
-                <tr className="bg-zinc-900 border-b border-zinc-800">
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-10">#</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-24">In Scenes</th>
+                <tr className="bg-[var(--ui-panel-bg)] border-b border-[color:var(--ui-border)]">
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-10">#</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider">Name</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider w-24">In Scenes</th>
                   <th className="px-3 py-2 w-8" />
                 </tr>
               </thead>
@@ -81,17 +81,17 @@ export function CategoryChecklist({ title, hint, items, selected, onToggle }: {
   if (items.length === 0) return null;
   return (
     <div>
-      <h3 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">{title}</h3>
-      <p className="text-zinc-500 text-[10px] mb-2">{hint}</p>
+      <h3 className="text-[11px] font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider mb-2">{title}</h3>
+      <p className="text-[color:var(--ui-text-faint)] text-[10px] mb-2">{hint}</p>
       <div className="space-y-1.5">
         {items.map(({ key, label }) => (
           <div
             key={key}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] hover:border-[color:var(--ui-card-border)] cursor-pointer transition-colors"
             onClick={() => onToggle(key)}
           >
-            <Checkbox variant="plain" checked={selected.has(key)} onChange={() => onToggle(key)} labelClassName="text-zinc-300" />
-            <span className="text-zinc-300 text-xs">{label}</span>
+            <Checkbox variant="plain" checked={selected.has(key)} onChange={() => onToggle(key)} labelClassName="text-[color:var(--ui-text)]" />
+            <span className="text-[color:var(--ui-text)] text-xs">{label}</span>
           </div>
         ))}
       </div>
@@ -102,13 +102,13 @@ export function CategoryChecklist({ title, hint, items, selected, onToggle }: {
 export function RenameProjectField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider shrink-0">Rename Project</span>
+      <span className="text-[color:var(--ui-text-faint)] text-[11px] font-medium uppercase tracking-wider shrink-0">Rename Project</span>
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder="Leave blank to keep current title"
-        className="flex-1 bg-zinc-950 border border-zinc-700 text-zinc-200 text-xs px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-zinc-600"
+        className="flex-1 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-card-border)] text-[color:var(--ui-input-text)] text-xs px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-[color:var(--ui-input-focus-border)]"
       />
     </div>
   );

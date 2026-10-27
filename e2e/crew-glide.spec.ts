@@ -196,7 +196,7 @@ test.describe('Crew Glide', () => {
     }
     // Lands on the Crew manager with the Grip role selected
     await expect(page.getByText('Roles', { exact: true })).toBeVisible();
-    await expect(page.locator('button.bg-zinc-900', { hasText: 'Grip' })).toBeVisible();
+    await expect(page.locator('button[aria-current="true"]', { hasText: 'Grip' })).toBeVisible();
     await expect(nameCell(page, 'ALICE SMITH')).toBeVisible();
 
     // --- Back to the glide: CSV export ---

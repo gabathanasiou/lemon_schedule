@@ -43,7 +43,7 @@ export function GlideFilter({
         expandedWidth={180}
       />
       {active && (
-        <span data-glide-filter-count className="text-[10px] tabular-nums text-zinc-400 whitespace-nowrap">
+        <span data-glide-filter-count className="text-[10px] tabular-nums text-[color:var(--ui-text-faint)] whitespace-nowrap">
           {shown} / {total}
         </span>
       )}

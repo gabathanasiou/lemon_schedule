@@ -210,7 +210,7 @@ export const LocationPickerModal: React.FC<{
       <div className="p-6 space-y-4">
         {!editing && typeOptions.length > 0 && (
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Location type</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-muted)] mb-1">Location type</div>
             <SelectDropdown
               value={typeLabel}
               onChange={setTypeLabel}
@@ -228,7 +228,7 @@ export const LocationPickerModal: React.FC<{
           onPick={pickResult}
           placeholder="Search or type an address…"
         />
-        <div className="rounded-md overflow-hidden border border-zinc-700 relative">
+        <div className="rounded-md overflow-hidden border border-[color:var(--ui-card-border)] relative">
           <MapContainer
             center={center}
             zoom={14}
@@ -251,15 +251,15 @@ export const LocationPickerModal: React.FC<{
           />
           <button
             onClick={recenter}
-            className="absolute right-2 top-2 z-[1000] bg-zinc-900/90 border border-zinc-700 rounded p-1.5 text-zinc-300 hover:bg-zinc-800 transition-colors"
+            className="absolute right-2 top-2 z-[1000] bg-[var(--ui-panel-bg)]/90 border border-[color:var(--ui-card-border)] rounded p-1.5 text-[color:var(--ui-text)] hover:bg-[var(--ui-item-hover-bg)] transition-colors"
             title="Center on my location"
           >
             <Crosshair className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="flex items-center justify-between gap-3 text-[11px] text-zinc-400 min-h-4">
+        <div className="flex items-center justify-between gap-3 text-[11px] text-[color:var(--ui-text-muted)] min-h-4">
           <span className="truncate">{placeLine}</span>
-          <span className="shrink-0 text-zinc-500">{center[0].toFixed(4)}, {center[1].toFixed(4)}</span>
+          <span className="shrink-0 text-[color:var(--ui-text-faint)]">{center[0].toFixed(4)}, {center[1].toFixed(4)}</span>
         </div>
       </div>
     </Modal>

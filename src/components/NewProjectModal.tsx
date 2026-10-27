@@ -51,7 +51,7 @@ export default function NewProjectModal({ open, isCloud, name, onNameChange, cre
           disabled={creating}
           placeholder="Project name"
           autoFocus
-          className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50 ui-input"
+          className="w-full px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)] disabled:opacity-50 ui-input"
         />
       </div>
     </Modal>

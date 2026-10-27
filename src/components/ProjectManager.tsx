@@ -448,9 +448,9 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
       <div className="relative">
         {parsingSchedule && (
           <div className="absolute inset-0 z-20 bg-zinc-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-lg" data-testid="schedule-import-progress">
-            <Loader2 className="w-8 h-8 text-zinc-300 animate-spin" />
-            <div className="text-xs text-zinc-400">
-              Parsing schedule… <span className="text-zinc-500">{parsingSchedule}</span>
+            <Loader2 className="w-8 h-8 text-[color:var(--ui-text)] animate-spin" />
+            <div className="text-xs text-[color:var(--ui-text-muted)]">
+              Parsing schedule… <span className="text-[color:var(--ui-text-faint)]">{parsingSchedule}</span>
             </div>
           </div>
         )}
@@ -470,8 +470,8 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
             onClick={() => setActiveTab('local')}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === 'local'
-                ? 'bg-zinc-800 text-white'
-                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'
+                ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]'
+                : 'text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] hover:bg-[var(--ui-item-hover-bg)]'
             }`}
           >
             <HardDrive className="w-3 h-3" />
@@ -483,13 +483,13 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === 'cloud'
                 ? 'bg-blue-900 text-white'
-                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'
+                : 'text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] hover:bg-[var(--ui-item-hover-bg)]'
             }`}
           >
             <Cloud className="w-3 h-3" />
             Cloud
             {driveLoading
-              ? <Loader2 className="w-3 h-3 text-zinc-400 animate-spin ml-0.5" />
+              ? <Loader2 className="w-3 h-3 text-[color:var(--ui-text-muted)] animate-spin ml-0.5" />
               : <span className="text-[10px] opacity-60 ml-0.5">{cloudProjects.length}</span>
             }
           </button>
@@ -499,13 +499,13 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
               className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 activeTab === 'online'
                   ? 'bg-emerald-900 text-white'
-                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'
+                  : 'text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text)] hover:bg-[var(--ui-item-hover-bg)]'
               }`}
             >
               <Users className="w-3 h-3" />
               Shared
               {onlineLoading
-                ? <Loader2 className="w-3 h-3 text-zinc-400 animate-spin ml-0.5" />
+                ? <Loader2 className="w-3 h-3 text-[color:var(--ui-text-muted)] animate-spin ml-0.5" />
                 : onlineProjectList && <span className="text-[10px] opacity-60 ml-0.5">{onlineProjectList.length}</span>
               }
             </button>
@@ -520,14 +520,14 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
                 <Skull className="w-3 h-3" /> DEBUG PANEL
               </span>
               {driveTotalCount !== null && (
-                <span className="text-[10px] text-zinc-400">{driveTotalCount.toLocaleString()} files in Drive</span>
+                <span className="text-[10px] text-[color:var(--ui-text-muted)]">{driveTotalCount.toLocaleString()} files in Drive</span>
               )}
             </div>
             <div className="flex gap-2">
               <button
                 onClick={refetchDrive}
                 disabled={driveLoading}
-                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors disabled:opacity-40"
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[var(--ui-input-bg)] text-[color:var(--ui-text)] hover:bg-[var(--ui-item-active-bg)] transition-colors disabled:opacity-40"
               >
                 <RefreshCw className={`w-3 h-3 ${driveLoading ? 'animate-spin' : ''}`} /> Refetch
               </button>
@@ -604,25 +604,25 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
 
         {activeTab === 'cloud' && !auth.isSignedIn ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
-          <div className="text-center py-12 text-zinc-500">
-            <Cloud className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
-            <p className="text-sm font-medium text-zinc-400">Sign in required</p>
-            <p className="text-xs mt-1 text-zinc-600">Connect to Google Drive to access your cloud projects.</p>
+          <div className="text-center py-12 text-[color:var(--ui-text-faint)]">
+            <Cloud className="w-12 h-12 mx-auto mb-3 text-[color:var(--ui-text-disabled)]" />
+            <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">Sign in required</p>
+            <p className="text-xs mt-1 text-[color:var(--ui-text-faint)]">Connect to Google Drive to access your cloud projects.</p>
           </div>
           </div>
         ) : activeTab === 'cloud' && driveLoading ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
-          <div className="text-center py-12 text-zinc-500">
-            <Loader2 className="w-8 h-8 mx-auto mb-3 text-zinc-600 animate-spin" />
-            <p className="text-xs text-zinc-500">Loading cloud projects...</p>
+          <div className="text-center py-12 text-[color:var(--ui-text-faint)]">
+            <Loader2 className="w-8 h-8 mx-auto mb-3 text-[color:var(--ui-text-faint)] animate-spin" />
+            <p className="text-xs text-[color:var(--ui-text-faint)]">Loading cloud projects...</p>
           </div>
           </div>
         ) : activeTab === 'cloud' && driveError && !driveCorrupt ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
-          <div className="text-center py-12 text-zinc-500">
+          <div className="text-center py-12 text-[color:var(--ui-text-faint)]">
             <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-amber-600" />
-            <p className="text-sm font-medium text-zinc-400">Failed to load</p>
-            <p className="text-xs mt-1 text-zinc-600 mb-3">{driveError}</p>
+            <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">Failed to load</p>
+            <p className="text-xs mt-1 text-[color:var(--ui-text-faint)] mb-3">{driveError}</p>
             {driveAuthError ? (
               <button
                 onClick={() => auth.signIn()}
@@ -633,7 +633,7 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
             ) : (
               <button
                 onClick={refetchDrive}
-                className="flex items-center gap-1 mx-auto px-3 py-1.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors"
+                className="flex items-center gap-1 mx-auto px-3 py-1.5 rounded text-[10px] font-medium bg-[var(--ui-input-bg)] text-[color:var(--ui-text)] hover:bg-[var(--ui-item-active-bg)] transition-colors"
               >
                 <RefreshCw className="w-3 h-3" /> Retry
               </button>
@@ -642,28 +642,28 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
           </div>
         ) : activeTab === 'online' && !sbAuth.account ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
-          <div className="text-center py-12 text-zinc-500">
-            <Users className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
-            <p className="text-sm font-medium text-zinc-400">Sign in required</p>
-            <p className="text-xs mt-1 text-zinc-600">Sign in to see your shared projects and collaborate.</p>
+          <div className="text-center py-12 text-[color:var(--ui-text-faint)]">
+            <Users className="w-12 h-12 mx-auto mb-3 text-[color:var(--ui-text-disabled)]" />
+            <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">Sign in required</p>
+            <p className="text-xs mt-1 text-[color:var(--ui-text-faint)]">Sign in to see your shared projects and collaborate.</p>
           </div>
           </div>
         ) : activeTab === 'online' && onlineLoading ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
-          <div className="text-center py-12 text-zinc-500">
-            <Loader2 className="w-8 h-8 mx-auto mb-3 text-zinc-600 animate-spin" />
-            <p className="text-xs text-zinc-500">Loading shared projects...</p>
+          <div className="text-center py-12 text-[color:var(--ui-text-faint)]">
+            <Loader2 className="w-8 h-8 mx-auto mb-3 text-[color:var(--ui-text-faint)] animate-spin" />
+            <p className="text-xs text-[color:var(--ui-text-faint)]">Loading shared projects...</p>
           </div>
           </div>
         ) : activeTab === 'online' && onlineError ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
-          <div className="text-center py-12 text-zinc-500">
+          <div className="text-center py-12 text-[color:var(--ui-text-faint)]">
             <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-amber-600" />
-            <p className="text-sm font-medium text-zinc-400">Failed to load</p>
-            <p className="text-xs mt-1 text-zinc-600 mb-3">{onlineError}</p>
+            <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">Failed to load</p>
+            <p className="text-xs mt-1 text-[color:var(--ui-text-faint)] mb-3">{onlineError}</p>
             <button
               onClick={() => refetchOnlineProjects()}
-              className="flex items-center gap-1 mx-auto px-3 py-1.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors"
+              className="flex items-center gap-1 mx-auto px-3 py-1.5 rounded text-[10px] font-medium bg-[var(--ui-input-bg)] text-[color:var(--ui-text)] hover:bg-[var(--ui-item-active-bg)] transition-colors"
             >
               <RefreshCw className="w-3 h-3" /> Retry
             </button>
@@ -671,24 +671,24 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
           </div>
         ) : !hasProjects ? (
           <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
-          <div className="text-center py-12 text-zinc-500">
+          <div className="text-center py-12 text-[color:var(--ui-text-faint)]">
             {activeTab === 'local' ? (
               <>
-                <HardDrive className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
-                <p className="text-sm font-medium text-zinc-400">No local projects</p>
-                <p className="text-xs mt-1 text-zinc-600">Create a new project or import one to get started.</p>
+                <HardDrive className="w-12 h-12 mx-auto mb-3 text-[color:var(--ui-text-disabled)]" />
+                <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">No local projects</p>
+                <p className="text-xs mt-1 text-[color:var(--ui-text-faint)]">Create a new project or import one to get started.</p>
               </>
             ) : activeTab === 'cloud' ? (
               <>
-                <Cloud className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
-                <p className="text-sm font-medium text-zinc-400">No cloud projects</p>
-                <p className="text-xs mt-1 text-zinc-600">Create a new cloud project to see it here.</p>
+                <Cloud className="w-12 h-12 mx-auto mb-3 text-[color:var(--ui-text-disabled)]" />
+                <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">No cloud projects</p>
+                <p className="text-xs mt-1 text-[color:var(--ui-text-faint)]">Create a new cloud project to see it here.</p>
               </>
             ) : (
               <>
-                <Users className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
-                <p className="text-sm font-medium text-zinc-400">No shared projects</p>
-                <p className="text-xs mt-1 text-zinc-600">Open a project and choose Collaborate from the account menu to add it here.</p>
+                <Users className="w-12 h-12 mx-auto mb-3 text-[color:var(--ui-text-disabled)]" />
+                <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">No shared projects</p>
+                <p className="text-xs mt-1 text-[color:var(--ui-text-faint)]">Open a project and choose Collaborate from the account menu to add it here.</p>
               </>
             )}
           </div>
@@ -696,13 +696,13 @@ export function ProjectManager({ onClose, onOpenAccount }: ProjectManagerProps) 
         ) : (
           <>
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{sortedList.length} {activeTab === 'cloud' ? 'cloud' : activeTab === 'online' ? 'shared' : 'local'} project{sortedList.length !== 1 ? 's' : ''}</span>
+              <span className="text-[10px] text-[color:var(--ui-text-faint)] font-semibold uppercase tracking-wider">{sortedList.length} {activeTab === 'cloud' ? 'cloud' : activeTab === 'online' ? 'shared' : 'local'} project{sortedList.length !== 1 ? 's' : ''}</span>
               <DropdownMenu
                 open={showSortMenu}
                 onOpenChange={setShowSortMenu}
                 align="right"
                 trigger={
-                  <button className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800 px-2.5 py-1 rounded-md transition-colors">
+                  <button className="flex items-center gap-1.5 text-[10px] font-medium text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] bg-[var(--ui-input-bg)] px-2.5 py-1 rounded-md transition-colors">
                     <ArrowUpDown className="w-3 h-3" />
                     {/* Reserve the widest sort label's width so the button
                         never jumps between "Last Modified" / "Created" / "A-Z" */}

@@ -92,7 +92,7 @@ export function addNewElements(
   }
 }
 
-const NAME_INPUT_CLASS = 'flex-1 min-w-0 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500';
+const NAME_INPUT_CLASS = 'flex-1 min-w-0 px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)]';
 
 /** Names newly added cast members (the element-dropdown flow). Mounted above
  *  the tabs so it fires wherever a brand-new cast id is typed — stripboard,
@@ -209,7 +209,7 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
         >
           <div className="p-6 space-y-3" data-testid={TEST_IDS.newCastNameModal}>
             {!hasNameTyped && (
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
                 These new cast members stay blank until you give them a name.
               </p>
             )}
@@ -225,7 +225,7 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
             )}
             {visible.map((p, i) => (
               <div key={p.id} className="flex items-center gap-2" data-testid={TEST_IDS.newCastNameRow}>
-                <span className="text-xs text-zinc-400 w-7 shrink-0 tabular-nums text-right">
+                <span className="text-xs text-[color:var(--ui-text-muted)] w-7 shrink-0 tabular-nums text-right">
                   {p.nameTyped ? projectedIds.get(p.id) : p.id}.
                 </span>
                 <input
@@ -245,7 +245,7 @@ export function NewCastNamingProvider({ children }: { children: React.ReactNode 
                     data-testid={TEST_IDS.newCastNameUndo}
                     onClick={() => undoEntry(p.id)}
                     title="Remove this cast member (undo)"
-                    className="shrink-0 p-1.5 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-900 transition-colors"
+                    className="shrink-0 p-1.5 rounded text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-danger-text)] hover:bg-[var(--ui-item-hover-bg)] transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

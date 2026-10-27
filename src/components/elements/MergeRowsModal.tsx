@@ -37,22 +37,22 @@ export function MergeRowsModal({ title, intro, groups, confirmLabel = 'Merge', o
       }
     >
       <div className="p-6 space-y-5">
-        <p className="text-xs text-zinc-400 leading-relaxed">{intro}</p>
+        <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">{intro}</p>
         {groups.map(g => (
           <div key={g.label} className="space-y-2">
-            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{g.label}</h4>
+            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]">{g.label}</h4>
             {g.merges.map((m, i) => (
-              <div key={i} className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5">
+              <div key={i} className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-card-bg)] px-3 py-2.5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                    <span className="text-xs text-zinc-300 font-medium">{m.sourceNames.join(', ')}</span>
-                    <ArrowRight className="w-3 h-3 text-zinc-600 shrink-0" />
+                    <span className="text-xs text-[color:var(--ui-text)] font-medium">{m.sourceNames.join(', ')}</span>
+                    <ArrowRight className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                     <span className="text-xs text-white font-semibold">{m.targetName}</span>
                   </div>
-                  {m.summary && <span className="text-[10px] text-zinc-500 shrink-0 tabular-nums">{m.summary}</span>}
+                  {m.summary && <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0 tabular-nums">{m.summary}</span>}
                 </div>
                 {m.detailLines && m.detailLines.length > 0 && (
-                  <div className="mt-1.5 text-[10px] text-zinc-500 leading-relaxed max-h-20 overflow-y-auto tab-scroll">
+                  <div className="mt-1.5 text-[10px] text-[color:var(--ui-text-faint)] leading-relaxed max-h-20 overflow-y-auto tab-scroll">
                     {m.detailLines.join(' · ')}
                   </div>
                 )}

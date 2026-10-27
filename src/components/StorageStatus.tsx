@@ -102,7 +102,7 @@ export const StorageStatus: React.FC<StorageStatusProps> = ({
     return (
       <button
         onClick={handlePick}
-        className="flex items-center gap-1.5 text-amber-400 hover:text-amber-300 text-xs px-2.5 py-1 rounded hover:bg-zinc-800 transition-colors"
+        className="flex items-center gap-1.5 text-amber-400 hover:text-amber-300 text-xs px-2.5 py-1 rounded hover:bg-[var(--ui-item-hover-bg)] transition-colors"
         title="Pick a folder so your projects are saved to disk and survive browser cache clearing"
       >
         <HardDrive className="w-3.5 h-3.5" />
@@ -140,7 +140,7 @@ export const StorageStatus: React.FC<StorageStatusProps> = ({
         align="right"
         trigger={
           <button
-            className={`flex items-center gap-1.5 ${colorClass} text-xs px-2.5 py-1 rounded hover:bg-zinc-800 transition-colors`}
+            className={`flex items-center gap-1.5 ${colorClass} text-xs px-2.5 py-1 rounded hover:bg-[var(--ui-item-hover-bg)] transition-colors`}
           title={errorMessage || label}
         >
           {icon}
@@ -148,9 +148,9 @@ export const StorageStatus: React.FC<StorageStatusProps> = ({
         </button>
       }
     >
-      <div className="px-3 py-2 border-b border-zinc-800">
-        <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-mono">Save folder</div>
-        <div className="text-white text-xs font-semibold mt-0.5 truncate" title={getFolderDisplayName(handle)}>
+      <div className="px-3 py-2 border-b border-[color:var(--ui-border)]">
+        <div className="text-[10px] text-[color:var(--ui-text-faint)] uppercase tracking-wider font-mono">Save folder</div>
+        <div className="text-[color:var(--ui-text-strong)] text-xs font-semibold mt-0.5 truncate" title={getFolderDisplayName(handle)}>
           {getFolderDisplayName(handle)}
         </div>
         {errorMessage && (

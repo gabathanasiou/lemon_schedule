@@ -15,9 +15,9 @@ const SortableOption: React.FC<{ id: string; label: string }> = ({ id, label }) 
       style={{ transform: CSS.Transform.toString(transform), transition }}
       {...attributes}
       {...listeners}
-      className={`px-3 py-2 rounded border border-zinc-800 bg-zinc-900/60 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50 z-50' : ''}`}
+      className={`px-3 py-2 rounded border border-[color:var(--ui-border)] bg-[var(--ui-card-bg)] cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50 z-50' : ''}`}
     >
-      <span className="text-xs text-zinc-200 select-none">{label}</span>
+      <span className="text-xs text-[color:var(--ui-input-text)] select-none">{label}</span>
     </div>
   );
 };
@@ -98,10 +98,10 @@ export function CustomOrderSortModal({ open, onClose, title, options, onSort }: 
     >
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] text-zinc-400">Drag to reorder. Top items come first.</p>
+          <p className="text-[10px] text-[color:var(--ui-text-muted)]">Drag to reorder. Top items come first.</p>
           <button
             onClick={handleReverse}
-            className="px-2 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors flex items-center gap-1 text-[10px]"
+            className="px-2 py-1 rounded bg-[var(--ui-input-bg)] text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] transition-colors flex items-center gap-1 text-[10px]"
             title="Reverse order"
           >
             <ArrowUpDown className="w-3 h-3" />

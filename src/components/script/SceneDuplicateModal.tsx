@@ -72,16 +72,16 @@ export default function SceneDuplicateModal({ scene, onConfirm, onClose }: {
             id: m.mode,
             label: (
               <span className="block">
-                <span className="block text-xs font-medium text-zinc-200">{m.label}</span>
-                <span className="mt-0.5 block text-[11px] text-zinc-500">{m.hint}</span>
+                <span className="block text-xs font-medium text-[color:var(--ui-input-text)]">{m.label}</span>
+                <span className="mt-0.5 block text-[11px] text-[color:var(--ui-text-faint)]">{m.hint}</span>
               </span>
             ),
           }))}
         />
         {mode !== 'coverage' && (
           <label className="block">
-            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">New number</span>
-            <input value={number} onChange={e => setNumber(e.target.value)} className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 outline-none focus:border-zinc-500" />
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]">New number</span>
+            <input value={number} onChange={e => setNumber(e.target.value)} className="w-full px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-input-border)] rounded-md text-xs text-[color:var(--ui-input-text)] outline-none focus:border-[color:var(--ui-input-focus-border)]" />
           </label>
         )}
       </div>

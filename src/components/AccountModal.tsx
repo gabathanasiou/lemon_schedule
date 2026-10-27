@@ -7,8 +7,8 @@ import { GoogleG } from './GoogleSignIn';
 
 type Mode = 'signin' | 'signup' | 'reset';
 
-const INPUT_CLASS = 'w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50 ui-input';
-const SOCIAL_CLASS = 'w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 transition-colors';
+const INPUT_CLASS = 'w-full px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-card-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)] disabled:opacity-50 ui-input';
+const SOCIAL_CLASS = 'w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-[color:var(--ui-card-border)] bg-[var(--ui-input-bg)] hover:bg-[var(--ui-item-active-bg)] text-xs font-medium text-[color:var(--ui-input-text)] transition-colors';
 
 /** The one account surface (roadmap 229 S1): email + password sign-in,
  *  account creation and password reset — plus Google / Apple buttons that
@@ -139,10 +139,10 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
           </div>
         )}
         {info ? (
-          <p className="text-sm text-zinc-300">{info}</p>
+          <p className="text-sm text-[color:var(--ui-text)]">{info}</p>
         ) : (
           <>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-[color:var(--ui-text-muted)]">
               {view === 'signin' && 'Sign in to collaborate on shared projects.'}
               {view === 'signup' && (anonymous
                 ? 'Create an account to keep access to the projects shared with you.'
@@ -161,9 +161,9 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
                   ))}
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-zinc-800" />
-                  <span className="text-[10px] uppercase tracking-wider text-zinc-600">or</span>
-                  <div className="h-px flex-1 bg-zinc-800" />
+                  <div className="h-px flex-1 bg-[var(--ui-input-bg)]" />
+                  <span className="text-[10px] uppercase tracking-wider text-[color:var(--ui-text-faint)]">or</span>
+                  <div className="h-px flex-1 bg-[var(--ui-input-bg)]" />
                 </div>
               </>
             )}
@@ -211,13 +211,13 @@ export function AccountModal({ open, onClose, notice }: { open: boolean; onClose
 
             {view === 'signin' && (
               <div className="flex justify-end">
-                <button type="button" onClick={() => switchMode('reset')} className="text-[11px] text-zinc-400 hover:text-zinc-200 underline underline-offset-2">
+                <button type="button" onClick={() => switchMode('reset')} className="text-[11px] text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] underline underline-offset-2">
                   Forgot password?
                 </button>
               </div>
             )}
 
-            <p className="text-xs text-zinc-500 pt-1">
+            <p className="text-xs text-[color:var(--ui-text-faint)] pt-1">
               {view === 'signin' && (
                 auth.providers?.signupDisabled
                   ? 'New accounts are disabled on this deployment.'

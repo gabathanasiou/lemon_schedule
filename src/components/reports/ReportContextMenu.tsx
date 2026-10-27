@@ -113,7 +113,7 @@ const ReportContextMenu: React.FC<ReportContextMenuProps> = ({
     <ContextMenu open x={menu.x} y={menu.y} theme="dark" onClose={onClose}>
       {isColumnMenu ? (
         <>
-          <div className="px-2.5 py-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+          <div className="px-2.5 py-1 text-[10px] font-semibold text-[color:var(--ui-text-faint)] uppercase tracking-wider">
             {isTableColumn ? `Table ${isTableRow ? 'row' : 'column'} ${colIndex! + 1} of ${(block.columns || []).length}` : `Column ${colIndex! + 1} of ${(block.cols || []).length}`}
           </div>
           {isTableColumn && (

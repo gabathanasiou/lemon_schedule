@@ -109,7 +109,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
           </EditorGroup>
         ) : undefined}
       />
-      {cellControls && <div className="mt-2 pt-2 border-t border-zinc-800">{cellControls}</div>}
+      {cellControls && <div className="mt-2 pt-2 border-t border-[color:var(--ui-border)]">{cellControls}</div>}
     </div>
   );
   return <BlockEditorPanelContext.Provider value={true}>{body}</BlockEditorPanelContext.Provider>;

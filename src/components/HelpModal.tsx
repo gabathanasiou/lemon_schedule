@@ -9,7 +9,7 @@
 import React from 'react';
 import { IS_COARSE } from '../lib/device';
 
-const HM_KBD = IS_COARSE ? 'inline-flex items-center justify-center min-w-[2rem] h-6 px-1.5 rounded bg-zinc-800 border border-zinc-600 text-xs font-medium text-zinc-200 font-sans' : 'inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1 rounded bg-zinc-800 border border-zinc-600 text-[10px] font-medium text-zinc-200 font-sans';
+const HM_KBD = IS_COARSE ? 'inline-flex items-center justify-center min-w-[2rem] h-6 px-1.5 rounded bg-[var(--ui-input-bg)] border border-[color:var(--ui-border-strong)] text-xs font-medium text-[color:var(--ui-input-text)] font-sans' : 'inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1 rounded bg-[var(--ui-input-bg)] border border-[color:var(--ui-border-strong)] text-[10px] font-medium text-[color:var(--ui-input-text)] font-sans';
 const HM_SECTION_TITLE = IS_COARSE ? 'text-xs' : 'text-[10px]';
 const HM_TABLE_CELL = IS_COARSE ? 'text-sm py-2' : 'text-xs py-1.5';
 const HM_CONTENT = IS_COARSE ? 'px-7 py-5 space-y-6' : 'px-6 py-4 space-y-5';
@@ -26,7 +26,7 @@ const Kbd: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div>
-    <h3 className={`${HM_SECTION_TITLE} font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-2`}>{title}</h3>
+    <h3 className={`${HM_SECTION_TITLE} font-semibold text-[color:var(--ui-text-muted)] uppercase tracking-wider border-b border-[color:var(--ui-border)] pb-1.5 mb-2`}>{title}</h3>
     <table className={`w-full ${IS_COARSE ? 'text-sm' : 'text-xs'}`}>
       <tbody>{children}</tbody>
     </table>
@@ -34,9 +34,9 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 );
 
 const Row: React.FC<{ keys: React.ReactNode; action: string }> = ({ keys, action }) => (
-  <tr className="border-b border-zinc-800/50 last:border-b-0">
-    <td className={`${HM_TABLE_CELL} pr-3 text-zinc-300 whitespace-nowrap align-top w-[130px]`}>{keys}</td>
-    <td className={`${HM_TABLE_CELL} text-zinc-400`}>{action}</td>
+  <tr className="border-b border-[color:var(--ui-border)] last:border-b-0">
+    <td className={`${HM_TABLE_CELL} pr-3 text-[color:var(--ui-text)] whitespace-nowrap align-top w-[130px]`}>{keys}</td>
+    <td className={`${HM_TABLE_CELL} text-[color:var(--ui-text-muted)]`}>{action}</td>
   </tr>
 );
 
@@ -230,7 +230,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Tab pop-out icon</>} action="Hover tab name and click <Kbd>⇗</Kbd> to open tab in a separate window. Click again to bring back." />
         </Section>
 
-        <div className="text-[10px] text-zinc-600 pt-2 border-t border-zinc-800">
+        <div className="text-[10px] text-[color:var(--ui-text-faint)] pt-2 border-t border-[color:var(--ui-border)]">
           <Kbd>⌘</Kbd> = Command (Mac) / Ctrl (Win) · <Kbd>⌥</Kbd> = Option (Mac) / Alt (Win) · <Kbd>⇧</Kbd> = Shift
         </div>
       </div>

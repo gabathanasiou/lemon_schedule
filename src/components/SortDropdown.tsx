@@ -115,13 +115,13 @@ function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onT
           </span>
         </RadixDropdownMenu.Item>
         <RadixDropdownMenu.Item
-          className={`shrink-0 ${BTN_SIZE} rounded flex items-center justify-center outline-none cursor-pointer ${d.btnBase} hover:bg-zinc-100`}
+          className={`shrink-0 ${BTN_SIZE} rounded flex items-center justify-center outline-none cursor-pointer ${d.btnBase} hover:bg-[var(--ui-card-hover)]`}
           onSelect={(e) => { e.preventDefault(); onToggleLock(criterion.key); }}
           onTouchStart={() => {}}
         >
           {locked
             ? <Lock className={`${BTN_ICON} text-red-500`} />
-            : <LockOpen className={`${BTN_ICON} text-zinc-400`} />
+            : <LockOpen className={`${BTN_ICON} text-[color:var(--ui-text-faint)]`} />
           }
         </RadixDropdownMenu.Item>
       </div>
@@ -148,13 +148,13 @@ function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onT
           </span>
         </RadixDropdownMenu.Item>
         <RadixDropdownMenu.Item
-          className={`shrink-0 ${BTN_SIZE} rounded flex items-center justify-center outline-none cursor-pointer ${d.btnBase} hover:bg-zinc-100`}
+          className={`shrink-0 ${BTN_SIZE} rounded flex items-center justify-center outline-none cursor-pointer ${d.btnBase} hover:bg-[var(--ui-card-hover)]`}
           onSelect={(e) => { e.preventDefault(); onToggleLock(criterion); }}
           onTouchStart={() => {}}
         >
           {locked
             ? <Lock className={`${BTN_ICON} text-red-500`} />
-            : <LockOpen className={`${BTN_ICON} text-zinc-400`} />
+            : <LockOpen className={`${BTN_ICON} text-[color:var(--ui-text-faint)]`} />
           }
         </RadixDropdownMenu.Item>
       </div>

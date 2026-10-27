@@ -42,7 +42,7 @@ type View = 'review' | 'confirm' | 'setup';
 
 function Kbd({ children, icon: Icon }: { children?: React.ReactNode; icon?: React.ElementType }) {
   return (
-    <kbd className="ml-1 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded border border-zinc-500 bg-zinc-700 px-1 font-mono text-[10px] leading-none text-zinc-100">
+    <kbd className="ml-1 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded border border-[color:var(--ui-border-strong)] bg-[var(--ui-item-active-bg)] px-1 font-mono text-[10px] leading-none text-[color:var(--ui-input-text)]">
       {Icon ? <Icon className="h-3 w-3" /> : children}
     </kbd>
   );
@@ -65,7 +65,7 @@ function FieldStrip({ fields, keeps, onToggle }: { fields: SceneFieldDiff[]; kee
             disabled={!onToggle}
             label={
               <span className="flex flex-wrap items-center gap-2 text-[11px] min-w-0">
-                <span className="uppercase tracking-wider text-zinc-500 w-16 shrink-0">{f.key}</span>
+                <span className="uppercase tracking-wider text-[color:var(--ui-text-faint)] w-16 shrink-0">{f.key}</span>
                 {f.kind === 'items' ? (
                   <span className="flex flex-wrap gap-1">
                     {f.removed.map(x => <span key={`r-${x}`} className="px-1.5 py-0.5 rounded bg-red-900/40 text-red-300 line-through">{x}</span>)}
@@ -74,7 +74,7 @@ function FieldStrip({ fields, keeps, onToggle }: { fields: SceneFieldDiff[]; kee
                 ) : (
                   <span>
                     <span className="text-red-300/80 line-through">{f.before || '—'}</span>
-                    <span className="mx-1 text-zinc-600">→</span>
+                    <span className="mx-1 text-[color:var(--ui-text-faint)]">→</span>
                     <span className="text-emerald-300/90">{f.after || '—'}</span>
                   </span>
                 )}
@@ -83,7 +83,7 @@ function FieldStrip({ fields, keeps, onToggle }: { fields: SceneFieldDiff[]; kee
                     your edit · was: {f.baseline || '—'}
                   </span>
                 )}
-                {onToggle && <span className="text-[9px] text-zinc-600">{keep ? 'keep mine' : 'take script'}</span>}
+                {onToggle && <span className="text-[9px] text-[color:var(--ui-text-faint)]">{keep ? 'keep mine' : 'take script'}</span>}
               </span>
             }
           />
@@ -99,13 +99,13 @@ function DecisionButtons({ status, decision, onDecide }: { status: string; decis
     <div className="flex items-center gap-1">
       <button
         onClick={() => onDecide(opts.keep.decision)}
-        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${decision === opts.keep.decision ? 'bg-zinc-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${decision === opts.keep.decision ? 'bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]' : 'bg-[var(--ui-input-bg)] text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-active-bg)]'}`}
       >
         {opts.keep.label}
       </button>
       <button
         onClick={() => onDecide(opts.accept.decision)}
-        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${decision === opts.accept.decision ? (status === 'removed' ? 'bg-red-800 text-white' : 'bg-blue-800 text-white') : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${decision === opts.accept.decision ? (status === 'removed' ? 'bg-red-800 text-white' : 'bg-blue-800 text-white') : 'bg-[var(--ui-input-bg)] text-[color:var(--ui-text-muted)] hover:bg-[var(--ui-item-active-bg)]'}`}
       >
         {opts.accept.label}
       </button>
@@ -483,24 +483,24 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
     const cols = '1fr 1fr';
     return (
       <>
-        <div className="rounded-lg border border-zinc-800 bg-zinc-950 overflow-hidden">
-          <div className="grid border-b border-zinc-800 text-[10px] font-semibold uppercase tracking-wider text-zinc-500" style={{ gridTemplateColumns: cols }}>
+        <div className="rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-seg-track-bg)] overflow-hidden">
+          <div className="grid border-b border-[color:var(--ui-border)] text-[10px] font-semibold uppercase tracking-wider text-[color:var(--ui-text-faint)]" style={{ gridTemplateColumns: cols }}>
             <div className={`truncate px-4 py-2 ${showLeft ? '' : 'opacity-40'}`} title={leftName}>
               {leftName}
             </div>
-            <div className={`truncate border-l border-zinc-800 px-4 py-2 ${showRight ? '' : 'opacity-40'}`} title={rightName}>
+            <div className={`truncate border-l border-[color:var(--ui-border)] px-4 py-2 ${showRight ? '' : 'opacity-40'}`} title={rightName}>
               {rightName}
             </div>
           </div>
           <div ref={diffScrollRef} className="h-[320px] overflow-y-auto">
             {rows.length === 0
-              ? <p className="px-4 py-3 text-zinc-600 text-xs italic">No retained screenplay for this scene.</p>
+              ? <p className="px-4 py-3 text-[color:var(--ui-text-faint)] text-xs italic">No retained screenplay for this scene.</p>
               : (
-                <div className="grid font-mono text-[12.5px] leading-[1.45] text-zinc-200" style={{ gridTemplateColumns: cols }}>
+                <div className="grid font-mono text-[12.5px] leading-[1.45] text-[color:var(--ui-input-text)]" style={{ gridTemplateColumns: cols }}>
                   {rows.map((r, i) => (
                     <React.Fragment key={i}>
-                      <div data-review-row={i} data-review-side="left" data-tone={r.left?.tone ?? ''} className={`min-w-0 px-4 ${showLeft ? '' : 'bg-zinc-900/40'}`}>{showLeft && r.left ? <ScriptBlockLine block={r.left} /> : null}</div>
-                      <div data-review-row={i} data-review-side="right" data-tone={r.right?.tone ?? ''} className={`min-w-0 border-l border-zinc-800 px-4 ${showRight ? '' : 'bg-zinc-900/40'}`}>{showRight && r.right ? <ScriptBlockLine block={r.right} /> : null}</div>
+                      <div data-review-row={i} data-review-side="left" data-tone={r.left?.tone ?? ''} className={`min-w-0 px-4 ${showLeft ? '' : 'bg-[var(--ui-card-band)]'}`}>{showLeft && r.left ? <ScriptBlockLine block={r.left} /> : null}</div>
+                      <div data-review-row={i} data-review-side="right" data-tone={r.right?.tone ?? ''} className={`min-w-0 border-l border-[color:var(--ui-border)] px-4 ${showRight ? '' : 'bg-[var(--ui-card-band)]'}`}>{showRight && r.right ? <ScriptBlockLine block={r.right} /> : null}</div>
                     </React.Fragment>
                   ))}
                 </div>
@@ -508,7 +508,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
           </div>
         </div>
         {e.fields.some(f => f.key !== 'body') && (
-          <div className="mt-2 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
+          <div className="mt-2 px-3 py-2 rounded-lg bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)]">
             <FieldStrip fields={e.fields} keeps={fieldKeeps[index]} onToggle={key => toggleFieldKeep(index, key)} />
           </div>
         )}
@@ -537,12 +537,12 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
     if (view === 'confirm') {
       return (
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-xs">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 rounded-lg bg-[var(--ui-panel-bg)] border border-[color:var(--ui-border)] text-xs">
             <span className="text-amber-300"><b>{mutationCount}</b> to apply</span>
-            <span className="text-zinc-400">{diff.summary.unchanged} unchanged (hidden)</span>
-            {diff.pageDelta !== 0 && <span className="text-zinc-400">page count {diff.pageDelta > 0 ? '+' : ''}{diff.pageDelta}</span>}
-            {diff.castRenames.length > 0 && <span className="text-zinc-400">rename {diff.castRenames.map(r => `${r.from}→${r.to}`).join(', ')}</span>}
-            {report.orphaned > 0 && <span className="text-zinc-400">{report.orphaned} tag{report.orphaned === 1 ? '' : 's'} orphaned</span>}
+            <span className="text-[color:var(--ui-text-muted)]">{diff.summary.unchanged} unchanged (hidden)</span>
+            {diff.pageDelta !== 0 && <span className="text-[color:var(--ui-text-muted)]">page count {diff.pageDelta > 0 ? '+' : ''}{diff.pageDelta}</span>}
+            {diff.castRenames.length > 0 && <span className="text-[color:var(--ui-text-muted)]">rename {diff.castRenames.map(r => `${r.from}→${r.to}`).join(', ')}</span>}
+            {report.orphaned > 0 && <span className="text-[color:var(--ui-text-muted)]">{report.orphaned} tag{report.orphaned === 1 ? '' : 's'} orphaned</span>}
           </div>
           {splitNotice.map(g => (
             <SplitReconcileCard
@@ -554,19 +554,19 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
               onAction={a => setSplitActions(prev => ({ ...prev, [g.original.id]: a }))}
             />
           ))}
-          <div className="rounded-lg border border-zinc-800 overflow-hidden divide-y divide-zinc-800/70 max-h-[440px] overflow-y-auto">
+          <div className="rounded-lg border border-[color:var(--ui-border)] overflow-hidden divide-y divide-[color:var(--ui-border)] max-h-[440px] overflow-y-auto">
             {changed.map(({ e, i }) => (
-              <div key={`${e.status}-${e.sceneNumber}-${i}`} className="bg-zinc-950">
+              <div key={`${e.status}-${e.sceneNumber}-${i}`} className="bg-[var(--ui-seg-track-bg)]">
                 <div className="flex items-center gap-2 px-3 py-2">
                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${STATUS_STYLE[e.status]}`}>{e.status === 'added' ? 'new' : e.status}</span>
-                  <span className="text-zinc-300 text-xs font-mono w-12 shrink-0">{e.sceneNumber}</span>
-                  <span className="text-zinc-400 text-xs truncate flex-1">{e.newScene?.set || e.oldScene?.set || ''}</span>
+                  <span className="text-[color:var(--ui-text)] text-xs font-mono w-12 shrink-0">{e.sceneNumber}</span>
+                  <span className="text-[color:var(--ui-text-muted)] text-xs truncate flex-1">{e.newScene?.set || e.oldScene?.set || ''}</span>
                   <DecisionButtons status={e.status} decision={decisions[i]} onDecide={d => decide(i, d)} />
                 </div>
                 <div className="px-3 pb-2">
                   {e.fields.length > 0
                     ? <FieldStrip fields={e.fields} keeps={fieldKeeps[i]} onToggle={key => toggleFieldKeep(i, key)} />
-                    : <p className="text-zinc-600 text-[11px] italic">{e.status === 'added' ? 'New scene' : 'Remove this scene'}</p>}
+                    : <p className="text-[color:var(--ui-text-faint)] text-[11px] italic">{e.status === 'added' ? 'New scene' : 'Remove this scene'}</p>}
                 </div>
               </div>
             ))}
@@ -577,7 +577,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
 
     // review
     if (!entry) {
-      return <div className="text-center py-10 text-zinc-500 text-sm">Review complete.</div>;
+      return <div className="text-center py-10 text-[color:var(--ui-text-faint)] text-sm">Review complete.</div>;
     }
     return (
       <div className="space-y-3">
@@ -585,7 +585,7 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
           <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${STATUS_STYLE[entry.status]}`}>
             {entry.status === 'added' ? 'New scene' : entry.status}
           </span>
-          <span className="text-zinc-200 text-sm font-mono">{entry.sceneNumber}</span>
+          <span className="text-[color:var(--ui-input-text)] text-sm font-mono">{entry.sceneNumber}</span>
           {entry.splitOf && <span className="text-[11px] text-purple-300">split of {entry.splitOf}</span>}
           {entry.mergedInto && <span className="text-[11px] text-purple-300">merged into {entry.mergedInto}</span>}
           {entry.collision && <span className="text-[11px] text-amber-300">possible collision — same number, different scene</span>}
@@ -646,10 +646,10 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
       <div className="px-5 py-4 space-y-3">
         {view !== 'setup' && total > 0 && (
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-1 rounded-full bg-zinc-800 overflow-hidden">
+            <div className="flex-1 h-1 rounded-full bg-[var(--ui-input-bg)] overflow-hidden">
               <div className="h-full bg-blue-600 transition-all" style={{ width: `${Math.round((reviewed / total) * 100)}%` }} />
             </div>
-            <span className="text-[11px] text-zinc-400 tabular-nums shrink-0">{reviewed} / {total}</span>
+            <span className="text-[11px] text-[color:var(--ui-text-muted)] tabular-nums shrink-0">{reviewed} / {total}</span>
           </div>
         )}
         {body()}
@@ -681,8 +681,8 @@ export default function ScriptUpdateModal({ result, fileName, onClose }: { resul
         {view === 'confirm' && (
           <div className="flex items-center justify-start gap-2 pt-1">
             <ModalFooterButton variant="ghost" onClick={() => setView('setup')}>Setup…</ModalFooterButton>
-            <List className="w-3.5 h-3.5 text-zinc-600" />
-            <span className="text-[10px] text-zinc-500">Only changed scenes are listed. Uncheck a field to keep your value.</span>
+            <List className="w-3.5 h-3.5 text-[color:var(--ui-text-faint)]" />
+            <span className="text-[10px] text-[color:var(--ui-text-faint)]">Only changed scenes are listed. Uncheck a field to keep your value.</span>
           </div>
         )}
       </div>

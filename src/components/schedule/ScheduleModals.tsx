@@ -96,11 +96,11 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
         >
           <div className="p-6 space-y-5">
             <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-zinc-300">Background</span>
+              <span className="text-xs text-[color:var(--ui-text)]">Background</span>
               <ColorField value={colorPicker.bg} onChange={v => setColorPicker(p => p ? { ...p, bg: v } : null)} defaultValue={getNoteBannerColors(palette).background} />
             </div>
             <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-zinc-300">Text Color</span>
+              <span className="text-xs text-[color:var(--ui-text)]">Text Color</span>
               <ColorField value={colorPicker.text} onChange={v => setColorPicker(p => p ? { ...p, text: v } : null)} defaultValue={getNoteBannerColors(palette).color} />
             </div>
             <div>
@@ -108,7 +108,7 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
                 value={colorPicker.noteText}
                 onChange={e => setColorPicker(p => p ? { ...p, noteText: e.target.value.toUpperCase() } : null)}
                 rows={3}
-                className="w-full text-xs px-3 py-2 rounded border border-zinc-800 outline-none focus:border-zinc-600 resize-none"
+                className="w-full text-xs px-3 py-2 rounded border border-[color:var(--ui-border)] outline-none focus:border-[color:var(--ui-input-focus-border)] resize-none"
                 style={{ background: colorPicker.bg, color: colorPicker.text }}
                 placeholder="Banner text..."
               />
@@ -133,7 +133,7 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
             <div className="p-6 space-y-5" onKeyDown={e => { if (e.key === 'Enter' && valid) confirmAutoDaybreak(); }}>
               <div className="flex items-center gap-3 py-1">
                 {autoDaybreakPrompt.mode === 'duration' && (
-                  <span className="text-xs text-zinc-300 shrink-0">Duration</span>
+                  <span className="text-xs text-[color:var(--ui-text)] shrink-0">Duration</span>
                 )}
                 {autoDaybreakPrompt.mode === 'duration' ? (
                   <FieldBox className="flex-1 min-w-0">
@@ -169,8 +169,8 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
       })()}
       {autoDaybreakCleanup && (() => {
         const segBase = `flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer`;
-        const segSel = `bg-zinc-800 text-white`;
-        const segDef = `text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50`;
+        const segSel = `bg-[var(--ui-item-active-bg)] text-[color:var(--ui-text-strong)]`;
+        const segDef = `text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]`;
         const parts: string[] = [];
         if (daybreakCount > 0) parts.push(`${daybreakCount} day break${daybreakCount !== 1 ? 's' : ''}`);
         if (noteCount > 0) parts.push(`${noteCount} note${noteCount !== 1 ? 's' : ''}`);
@@ -190,7 +190,7 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
             }
           >
             <div className="p-6 space-y-5">
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
                 {daybreakCount > 0 && (noteCount > 0 || breakCount > 0)
                   ? <>Existing day breaks will be removed. {summary} found - choose how to handle notes and breaks.</>
                   : daybreakCount > 0
@@ -205,13 +205,13 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
               )}
               {daybreakCount > 0 && (
                 <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-zinc-300">Day Breaks <span className="text-zinc-500">({daybreakCount})</span></span>
-                  <span className="text-xs text-zinc-500">Will be removed</span>
+                  <span className="text-xs text-[color:var(--ui-text)]">Day Breaks <span className="text-[color:var(--ui-text-faint)]">({daybreakCount})</span></span>
+                  <span className="text-xs text-[color:var(--ui-text-faint)]">Will be removed</span>
                 </div>
               )}
               {noteCount > 0 && (
                 <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-zinc-300">Notes <span className="text-zinc-500">({noteCount})</span></span>
+                  <span className="text-xs text-[color:var(--ui-text)]">Notes <span className="text-[color:var(--ui-text-faint)]">({noteCount})</span></span>
                   <div className="flex gap-1.5">
                     <button className={`${segBase} ${autoDaybreakNotesAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('boneyard')}>Boneyard</button>
                     <button className={`${segBase} ${autoDaybreakNotesAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('delete')}>Delete</button>
@@ -220,7 +220,7 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
               )}
               {breakCount > 0 && (
                 <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-zinc-300">Breaks <span className="text-zinc-500">({breakCount})</span></span>
+                  <span className="text-xs text-[color:var(--ui-text)]">Breaks <span className="text-[color:var(--ui-text-faint)]">({breakCount})</span></span>
                   <div className="flex gap-1.5">
                     <button className={`${segBase} ${autoDaybreakBreaksAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('boneyard')}>Boneyard</button>
                     <button className={`${segBase} ${autoDaybreakBreaksAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('delete')}>Delete</button>
@@ -252,7 +252,7 @@ export default function ScheduleModals(props: ScheduleModalsProps) {
             }
           >
             <div className="p-6 space-y-5">
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
                 Choose which {bannerDelete.type === 'NOTE' ? 'note' : 'break'} banners to remove.
               </p>
               <Checklist

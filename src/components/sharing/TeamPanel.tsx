@@ -130,7 +130,7 @@ export function TeamPanel() {
   return (
     <div className="space-y-5">
       {!team && loading && (
-        <div className="flex items-center gap-2 text-xs text-zinc-400">
+        <div className="flex items-center gap-2 text-xs text-[color:var(--ui-text-muted)]">
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading your team…
         </div>
       )}
@@ -138,7 +138,7 @@ export function TeamPanel() {
       {!team && !loading && !loadError && (
         <section className="space-y-2">
           <SectionLabel>Create your team</SectionLabel>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-[color:var(--ui-text-faint)]">
             A team is your address book — the people you work with, ready to pick when you share a project. It grants no access by itself.
           </p>
           <div className="flex items-center gap-2">
@@ -174,14 +174,14 @@ export function TeamPanel() {
 
           <section>
             <SectionLabel>Members ({team.members.length + team.invites.length})</SectionLabel>
-            <div className="divide-y divide-zinc-800/60">
+            <div className="divide-y divide-[color:var(--ui-border)]">
               {team.members.map(member => (
                 <div key={member.userId} className="flex items-center gap-2 py-2">
                   <AccountAvatar
                     account={{ id: member.userId, name: member.name, email: null, avatarUrl: member.avatarUrl, isAnonymous: false }}
                     className="w-7 h-7"
                   />
-                  <span className="flex-1 min-w-0 truncate text-xs text-zinc-200">{member.name || 'Member'}</span>
+                  <span className="flex-1 min-w-0 truncate text-xs text-[color:var(--ui-input-text)]">{member.name || 'Member'}</span>
                   <Button variant="danger-ghost" theme="dark" onClick={() => handleRemove(member.userId, member.name)} disabled={busy} className="shrink-0">
                     Remove
                   </Button>
@@ -189,18 +189,18 @@ export function TeamPanel() {
               ))}
               {team.invites.map(invite => (
                 <div key={invite.id} className="flex items-center gap-2 py-2">
-                  <span className="w-7 h-7 shrink-0 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400">
+                  <span className="w-7 h-7 shrink-0 flex items-center justify-center rounded-full bg-[var(--ui-input-bg)] text-[color:var(--ui-text-muted)]">
                     <Mail className="w-3.5 h-3.5" />
                   </span>
-                  <span className="flex-1 min-w-0 truncate text-xs text-zinc-300">{invite.email}</span>
-                  <span className="text-[10px] text-zinc-600 shrink-0">Invited</span>
+                  <span className="flex-1 min-w-0 truncate text-xs text-[color:var(--ui-text)]">{invite.email}</span>
+                  <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Invited</span>
                   <Button variant="danger-ghost" theme="dark" onClick={() => void run(() => cancelTeamInvite(invite.id))} disabled={busy} className="shrink-0">
                     Cancel
                   </Button>
                 </div>
               ))}
               {team.members.length === 0 && team.invites.length === 0 && (
-                <p className="py-2 text-xs text-zinc-600">No one yet — add the people you work with below.</p>
+                <p className="py-2 text-xs text-[color:var(--ui-text-faint)]">No one yet — add the people you work with below.</p>
               )}
             </div>
           </section>
@@ -208,7 +208,7 @@ export function TeamPanel() {
           <section>
             <SectionLabel>Add people</SectionLabel>
             <PeoplePicker suggestions={suggestions} onCommit={handleCommit} />
-            <p className="mt-1.5 text-[10px] text-zinc-600">
+            <p className="mt-1.5 text-[10px] text-[color:var(--ui-text-faint)]">
               Pick someone you already work with, or type an email. No email is sent yet — new addresses join when they create an account.
             </p>
           </section>

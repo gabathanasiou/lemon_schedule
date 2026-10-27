@@ -284,9 +284,9 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
             emptyHint="Try a name, a category or a date."
           />
         )}
-        <p className="text-[11px] text-zinc-500">Items expire after 30 days</p>
+        <p className="text-[11px] text-[color:var(--ui-text-faint)]">Items expire after 30 days</p>
         {totalItems === 0 ? (
-          <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>
+          <div className="text-[color:var(--ui-text-faint)] text-center py-12 text-sm">Trash is empty</div>
         ) : (
           sections.map(section => (
             <CardSection
@@ -303,15 +303,15 @@ export default function TrashModal({ open, onClose, project, dispatch }: TrashMo
                   key={entry.id}
                   data-trash-item={section.kind}
                   data-trash-id={`${section.kind}::${entry.id}`}
-                  className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${flashKey === `${section.kind}::${entry.id}` ? 'bg-red-500/20 ring-1 ring-red-500/50' : 'hover:bg-zinc-800/60'}`}
+                  className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${flashKey === `${section.kind}::${entry.id}` ? 'bg-red-500/20 ring-1 ring-red-500/50' : 'hover:bg-[var(--ui-item-hover-bg)]'}`}
                 >
                   <div className="min-w-0">
-                    <div className="text-white text-sm font-semibold truncate">{entry.title}</div>
-                    <div className="text-zinc-500 text-[11px] mt-0.5">{entry.subtitle}</div>
+                    <div className="text-[color:var(--ui-text-strong)] text-sm font-semibold truncate">{entry.title}</div>
+                    <div className="text-[color:var(--ui-text-faint)] text-[11px] mt-0.5">{entry.subtitle}</div>
                   </div>
                   <button
                     onClick={() => dispatch({ type: entry.actionType, payload: entry.id } as Action)}
-                    className="hover-reveal text-zinc-400 hover:text-white p-1 rounded transition-all shrink-0 ml-3"
+                    className="hover-reveal text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] p-1 rounded transition-all shrink-0 ml-3"
                     title="Restore"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />

@@ -18,8 +18,8 @@ interface BoneyardPanelProps {
 }
 
 const TONE_CLASSES = {
-  zinc: 'bg-zinc-50 border-zinc-200',
-  white: 'bg-white border-zinc-300',
+  neutral: 'bg-[var(--ui-card-bg)] border-[color:var(--ui-border)]',
+  white: 'bg-[var(--ui-panel-bg)] border-[color:var(--ui-border-strong)]',
 } as const;
 
 export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ collapsed, onToggleCollapsed, widthKey, defaultWidth, minWidth, maxWidth, tone = 'zinc', className, hideCollapseButton, titleSlot, headerSlot, children }) => {
@@ -67,16 +67,16 @@ export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ collapsed, onToggl
       className={`${TONE_CLASSES[tone]} border-r flex flex-col shrink-0 relative overflow-hidden island-inset-l ${className ?? ''}`}
       style={{ width: `${width}px` }}
     >
-      <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200">
+      <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)]">
         <div className="flex items-center justify-between min-h-[25px]">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm font-semibold text-zinc-700 shrink-0 select-none">Boneyard</span>
+            <span className="text-sm font-semibold text-[color:var(--ui-text)] shrink-0 select-none">Boneyard</span>
             {titleSlot}
           </div>
           {!hideCollapseButton && (
             <button
               onClick={onToggleCollapsed}
-              className="p-1 -mr-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer shrink-0"
+              className="p-1 -mr-1 hover:bg-[var(--ui-card-hover)] rounded text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] transition-colors cursor-pointer shrink-0"
               title="Collapse Sidebar"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -85,7 +85,7 @@ export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ collapsed, onToggl
         </div>
       </div>
       {headerSlot && (
-        <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200 flex flex-wrap items-center gap-2">
+        <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-[var(--ui-panel-bg)] border-[color:var(--ui-border)] flex flex-wrap items-center gap-2">
           {headerSlot}
         </div>
       )}

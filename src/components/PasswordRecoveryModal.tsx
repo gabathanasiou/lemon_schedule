@@ -4,7 +4,7 @@ import Modal, { ModalFooter } from './Modal';
 import ModalFooterButton from './ModalFooterButton';
 import { useSupabaseAuth } from '../lib/supabase/auth';
 
-const INPUT_CLASS = 'w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50 ui-input';
+const INPUT_CLASS = 'w-full px-3 py-2 bg-[var(--ui-panel-bg)] border border-[color:var(--ui-card-border)] rounded-md text-xs text-[color:var(--ui-input-text)] placeholder:text-[color:var(--ui-text-faint)] outline-none focus:border-[color:var(--ui-input-focus-border)] disabled:opacity-50 ui-input';
 
 /** App-level password-recovery surface (may land on a fresh tab, so it renders
  *  over the boot screen too). Two states:
@@ -72,9 +72,9 @@ export function PasswordRecoveryModal() {
         }
       >
         <div className="p-6 space-y-3">
-          <p className="text-xs text-zinc-400">{linkError}</p>
+          <p className="text-xs text-[color:var(--ui-text-muted)]">{linkError}</p>
           {sentTo ? (
-            <p className="text-sm text-zinc-300">
+            <p className="text-sm text-[color:var(--ui-text)]">
               New reset link sent to {sentTo}. Open it on this device to choose a new password.
             </p>
           ) : (
@@ -115,8 +115,8 @@ export function PasswordRecoveryModal() {
       }
     >
       <div className="p-6 space-y-3">
-        <p className="text-xs text-zinc-400">
-          You're signed in{auth.account?.email ? <> as <span className="text-zinc-200">{auth.account.email}</span></> : null} —
+        <p className="text-xs text-[color:var(--ui-text-muted)]">
+          You're signed in{auth.account?.email ? <> as <span className="text-[color:var(--ui-input-text)]">{auth.account.email}</span></> : null} —
           choose a new password.
         </p>
         <input

@@ -764,11 +764,11 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         onOpenChange={setViewMenuOpen}
         width="w-36"
         trigger={
-          <button data-presence-anchor="toolbar:designer:view" className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
-            <span className="font-semibold text-zinc-500">View:</span>
-            <span className="text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
-            {scopedDayLabel != null && <span className="text-zinc-400" title="This report day is pinned — canvas sample and Preview/Print resolve it">· Day {scopedDayLabel}</span>}
-            <ChevronDown className="w-3 h-3 text-zinc-500" />
+          <button data-presence-anchor="toolbar:designer:view" className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)] transition-colors">
+            <span className="font-semibold text-[color:var(--ui-text-faint)]">View:</span>
+            <span className="text-[color:var(--ui-input-text)]">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
+            {scopedDayLabel != null && <span className="text-[color:var(--ui-text-muted)]" title="This report day is pinned — canvas sample and Preview/Print resolve it">· Day {scopedDayLabel}</span>}
+            <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
           </button>
         }
       >
@@ -818,7 +818,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       <button
         onClick={() => { follow.noteUserChange(); setPreview(v => !v); }}
         data-presence-anchor="toolbar:designer:preview"
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text-strong)] hover:bg-[var(--ui-item-hover-bg)]"
       >
         {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
         {preview ? 'Edit' : 'Preview'}
@@ -827,7 +827,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
         onClick={() => activeDesign && onPrint?.(activeDesign, dayScoped && scopedDay != null ? scopedDay : undefined)}
         disabled={!onPrint}
         data-presence-anchor="toolbar:designer:print"
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-zinc-100 text-zinc-900 font-medium hover:bg-white disabled:opacity-30"
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-[var(--ui-text-strong)] text-[color:var(--ui-panel-bg)] font-medium hover:bg-[var(--ui-text)] disabled:opacity-30"
       >
         <Printer className="w-3.5 h-3.5" /> Print
       </button>
@@ -843,7 +843,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
 
   if (!activeDesign || !ctx) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-500 text-sm">
+      <div className="flex-1 flex items-center justify-center bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text-faint)] text-sm">
         No report designs yet — create one from the header menu.
       </div>
     );
@@ -927,7 +927,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
 
   return (
     <div
-      className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 select-none min-h-0 min-w-0"
+      className="flex-1 flex flex-col bg-[var(--ui-modal-header-base)] text-[color:var(--ui-text)] select-none min-h-0 min-w-0"
       // Commit-on-blur (roadmap 251): a text editor losing focus — or Escape
       // ending an edit session (capture: the editor stops propagation) — is the
       // commit point for the deferred store write.
@@ -935,7 +935,7 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
       onKeyDownCapture={e => { if (e.key === 'Escape') flushPendingText(); }}
     >
       <DelegatedTooltip />
-      {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header data-chrome-bar="report-designer-header" className={`flex items-center ${CHROME_ITEM_GAP} ${CHROME_BAR_INSET} py-2 border-b border-zinc-800 bg-zinc-900`}>{headerContent}</header>)}
+      {!zoneMode && (headerTarget ? createPortal(headerContent, headerTarget) : <header data-chrome-bar="report-designer-header" className={`flex items-center ${CHROME_ITEM_GAP} ${CHROME_BAR_INSET} py-2 border-b border-[color:var(--ui-border)] bg-[var(--ui-panel-bg)]`}>{headerContent}</header>)}
 
       {preview && !zoneMode ? (
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} scopeFilter={previewScopeFilter} onExit={() => setPreview(false)} />
@@ -947,16 +947,16 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
           {docked ? (
             rail.open ? (
               <div className="relative flex shrink-0" style={{ width: rail.width, maxWidth: '70%' }}>
-                <aside className="min-w-0 flex-1 bg-zinc-900 border-r border-zinc-800 flex flex-col min-h-0">
+                <aside className="min-w-0 flex-1 bg-[var(--ui-panel-bg)] border-r border-[color:var(--ui-border)] flex flex-col min-h-0">
                   {selBlock || selColBlock ? (
                     <ReportToolbar {...toolbarProps} headerActions={railActions} />
                   ) : (
                     <>
-                      <div className="shrink-0 flex flex-wrap items-center gap-x-1 gap-y-1 border-b border-zinc-800 px-3 py-2">
+                      <div className="shrink-0 flex flex-wrap items-center gap-x-1 gap-y-1 border-b border-[color:var(--ui-border)] px-3 py-2">
                         <div className="ml-auto flex items-center gap-1">{railActions}</div>
                       </div>
-                      <div className="shrink-0 border-b border-zinc-800 px-3 py-2">
-                        <span className="text-[10px] text-zinc-600">Select a block to edit it. Click an item in the palette to add it.</span>
+                      <div className="shrink-0 border-b border-[color:var(--ui-border)] px-3 py-2">
+                        <span className="text-[10px] text-[color:var(--ui-text-faint)]">Select a block to edit it. Click an item in the palette to add it.</span>
                       </div>
                       <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={locked} fill />
                     </>
@@ -971,10 +971,10 @@ export default function ReportDesigner({ headerTarget, onPrint, zone }: ReportDe
                 />
               </div>
             ) : (
-              <div className="w-8 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center pt-3">
+              <div className="w-8 shrink-0 bg-[var(--ui-panel-bg)] border-r border-[color:var(--ui-border)] flex flex-col items-center pt-3">
                 <button
                   onClick={() => setRail(p => ({ ...p, open: true }))}
-                  className="text-zinc-500 hover:text-zinc-200 transition-colors"
+                  className="text-[color:var(--ui-text-faint)] hover:text-[color:var(--ui-text-strong)] transition-colors"
                   title="Expand panel"
                 >
                   <PanelLeftOpen className="w-4 h-4" />
@@ -1303,8 +1303,8 @@ const DesignsMenu: React.FC<{
       readOnly={readOnly}
       trigger={
         <Button theme="dark" data-presence-anchor="toolbar:designer:designs" className={readOnly ? 'opacity-40 cursor-not-allowed' : ''}>
-          <span className="text-xs font-semibold text-zinc-500">Editing: <span className="text-zinc-200">{designs.find(d => d.id === activeId)?.name || '—'}</span></span>
-          <ChevronDown className="w-3 h-3 text-zinc-500" />
+          <span className="text-xs font-semibold text-[color:var(--ui-text-faint)]">Editing: <span className="text-[color:var(--ui-input-text)]">{designs.find(d => d.id === activeId)?.name || '—'}</span></span>
+          <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)]" />
         </Button>
       }
       onSelect={id => { onSelect(id); setOpen(false); }}

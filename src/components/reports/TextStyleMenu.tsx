@@ -54,7 +54,7 @@ export const TextStyleMenu: React.FC<{
       trigger={
         <button type="button" disabled={disabled} className={`${TB_PICKER} w-32 disabled:pointer-events-none`}>
           <span className="truncate">{hasSelection && mixed ? 'Mixed' : current ? current.name : 'Direct formatting'}</span>
-          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+          <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
         </button>
       }
     >
@@ -158,7 +158,7 @@ export const TextStylesModal: React.FC<{
       }
     >
       <div className="p-5 space-y-3">
-        <p className="text-xs text-zinc-500">Edits update every block that uses the style.</p>
+        <p className="text-xs text-[color:var(--ui-text-faint)]">Edits update every block that uses the style.</p>
 
         {/* Style picker (version-picker recipe) + the rich-text Format-bar
             controls for the style's typography — same chrome as the editors. */}
@@ -204,7 +204,7 @@ export const TextStylesModal: React.FC<{
             trigger={
               <button type="button" className={`${TB_PICKER} w-36`}>
                 <span className="truncate">{sel ? sel.name : 'No styles'}</span>
-                <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
               </button>
             }
           />
@@ -243,7 +243,7 @@ export const TextStylesModal: React.FC<{
         {/* live preview — paper white so it matches print; wraps inside the
             modal width (never widens it) */}
         {sel && (
-          <div className="rounded-md border border-zinc-700 bg-white px-3 py-2">
+          <div className="rounded-md border border-[color:var(--ui-card-border)] bg-white px-3 py-2">
             <div className="leading-snug break-words" style={{ ...styleCss(sel), color: '#000' }}>
               The quick brown fox jumps over the lazy dog
             </div>

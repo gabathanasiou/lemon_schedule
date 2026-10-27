@@ -110,7 +110,7 @@ const LocationChoiceRow: React.FC<{
                 ? (() => { const l = choices.find(x => x.typeKey === current)!; return `${l.info!.name} · ${l.info!.typeLabel}`; })()
                 : reportLocationLabel(choices[0])}
             </span>
-            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+            <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
           </button>
         }
       >
@@ -191,7 +191,7 @@ const ItemFilterControl: React.FC<{
           trigger={
             <button type="button" disabled={disabled} className={`${panel ? 'w-full' : 'w-32'} ${TB_PICKER}`}>
               <span className="truncate">{fieldDef?.label || 'Pick a field'}</span>
-              <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+              <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
             </button>
           }
         >
@@ -263,7 +263,7 @@ const GridCategoryMenu: React.FC<{
       trigger={
         <button type="button" disabled={disabled} className={`${panel ? 'w-full' : 'w-44'} ${TB_PICKER}`}>
           <span className="truncate">{value ? (categoryLabels[value] || value) : 'All categories'}</span>
-          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
         </button>
       }
     >
@@ -380,7 +380,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
         leading={
           isField && !panel ? (
             <>
-              <span className="flex items-center text-zinc-400 shrink-0">{meta.icon}</span>
+              <span className="flex items-center text-[color:var(--ui-text-muted)] shrink-0">{meta.icon}</span>
               <FieldPicker
                 value={block.field || ''}
                 fields={contextFields}
@@ -392,10 +392,10 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
               />
             </>
           ) : (
-            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-zinc-300 pr-1">
+            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[color:var(--ui-text)] pr-1">
               {meta.icon}
               {meta.label}
-              {block.collection && <span className="text-zinc-500 font-normal">· {COLLECTION_LABELS[block.collection]}</span>}
+              {block.collection && <span className="text-[color:var(--ui-text-faint)] font-normal">· {COLLECTION_LABELS[block.collection]}</span>}
             </span>
           )
         }
@@ -549,7 +549,7 @@ const ExcludeCategoriesMenu: React.FC<{
       trigger={
         <button type="button" disabled={disabled} className={`${TB_PICKER} ${panel ? 'w-full' : 'w-32'} disabled:pointer-events-none`}>
           <span className="truncate">{label}</span>
-          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          <ChevronDown className="w-3 h-3 shrink-0 text-[color:var(--ui-text-faint)]" />
         </button>
       }
     >
@@ -613,7 +613,7 @@ const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disable
       trigger={
         <button type="button" disabled={disabled} className={`${TB_PICKER} ${panel ? 'w-full' : 'w-40'} disabled:pointer-events-none`}>
           <span className="truncate">{designs.find(d => d.id === (block.ribbonId || project.activeRibbonId || ''))?.name || '—'}</span>
-          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+          <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
         </button>
       }
     >
@@ -1258,7 +1258,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             placeholder="Auto"
             onChange={e => onPatch({ imageHeight: e.target.value ? Number(e.target.value) : undefined })}
           />
-          <span className="text-[9px] text-zinc-500">blank = natural size (fits the container)</span>
+          <span className="text-[9px] text-[color:var(--ui-text-faint)]">blank = natural size (fits the container)</span>
         </ContentRow>,
         <ContentRow key="fit" label="Fit">
           <SegControl
@@ -1282,14 +1282,14 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     push(null,
       <ContentRow key="loc" label="Location">
         {inherited ? (
-          <span className="text-[10px] text-zinc-400">Comes from the day's location</span>
+          <span className="text-[10px] text-[color:var(--ui-text-muted)]">Comes from the day's location</span>
         ) : hasPin ? (
           <>
             <button
               onClick={() => setLocationOpen(true)}
               disabled={disabled}
               title="Change location"
-              className="max-w-44 truncate text-[10px] text-zinc-400 cursor-pointer text-left hover:text-zinc-200 transition-colors"
+              className="max-w-44 truncate text-[10px] text-[color:var(--ui-text-muted)] cursor-pointer text-left hover:text-[color:var(--ui-text-strong)] transition-colors"
             >
               {block.mapPlace || `${block.mapLat!.toFixed(4)}, ${block.mapLng!.toFixed(4)}`}
             </button>
@@ -1520,7 +1520,7 @@ export const OutlineControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch }
 export const LayoutControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch }) => (
   <>
     <EditorGroup>
-      <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
+      <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Pad V</span>
       <Tooltip content="Vertical padding (px)">
         <LiveNumberInput
           value={block.paddingV}
@@ -1534,7 +1534,7 @@ export const LayoutControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch })
       </Tooltip>
     </EditorGroup>
     <EditorGroup>
-      <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
+      <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Pad H</span>
       <Tooltip content="Horizontal padding (px)">
         <LiveNumberInput
           value={block.paddingH}
@@ -1573,15 +1573,15 @@ export const ChipAffixSection: React.FC<{
       <SectionHeader>Item formatting — {fieldLabel}</SectionHeader>
       <div className={panel ? 'flex flex-wrap items-center gap-1.5 min-w-0' : 'flex items-center gap-1.5 flex-nowrap min-w-max'}>
         <EditorGroup className={panel ? 'min-w-0 flex-1' : undefined}>
-          <span className="text-[10px] text-zinc-500 shrink-0">Prefix</span>
+          <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Prefix</span>
           <input aria-label="Item prefix" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemPrefix ?? ''} onChange={e => setOpt('itemPrefix', e.target.value)} />
         </EditorGroup>
         <EditorGroup className={panel ? 'min-w-0 flex-1' : undefined}>
-          <span className="text-[10px] text-zinc-500 shrink-0">Suffix</span>
+          <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Suffix</span>
           <input aria-label="Item suffix" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemSuffix ?? ''} onChange={e => setOpt('itemSuffix', e.target.value)} />
         </EditorGroup>
         <EditorGroup className={panel ? 'min-w-0 flex-1' : undefined}>
-          <span className="text-[10px] text-zinc-500 shrink-0">Sep</span>
+          <span className="text-[10px] text-[color:var(--ui-text-faint)] shrink-0">Sep</span>
           <input aria-label="Item separator" readOnly={readOnly} className={TB_INPUT + (panel ? ' flex-1' : ' w-20')} value={opts.itemSeparator ?? ''} onChange={e => setOpt('itemSeparator', e.target.value)} />
         </EditorGroup>
       </div>
@@ -1603,7 +1603,7 @@ export const DayFormatMenu: React.FC<{ value: string; disabled: boolean; onChang
       trigger={
         <button type="button" disabled={disabled} className={`${TB_PICKER} ${panel ? 'w-full' : 'w-36'} disabled:pointer-events-none`}>
           <span className="truncate">{DAY_FORMAT_OPTIONS.find(o => o.key === value)?.label || value}</span>
-          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+          <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
         </button>
       }
     >

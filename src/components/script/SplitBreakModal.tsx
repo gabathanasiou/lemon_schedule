@@ -27,7 +27,7 @@ export default function SplitBreakModal({ group, onClose }: { group: SplitGroup;
       <Modal open onClose={onClose} title="Move Break" icon={<Scissors className="w-4 h-4" />} width="max-w-2xl"
         footer={<ModalFooter><ModalFooterButton variant="hero" onClick={onClose}>Close</ModalFooterButton></ModalFooter>}>
         <div className="p-6">
-          <p className="text-xs text-zinc-400">This group has a missing script body. Use Resolve first.</p>
+          <p className="text-xs text-[color:var(--ui-text-muted)]">This group has a missing script body. Use Resolve first.</p>
         </div>
       </Modal>
     );
@@ -61,17 +61,17 @@ export default function SplitBreakModal({ group, onClose }: { group: SplitGroup;
       }
     >
       <div className="space-y-3 p-6" data-testid={TEST_IDS.splitBreakModal}>
-        <p className="text-xs text-zinc-400 leading-relaxed">
-          Step the break between <b className="text-zinc-200">{first.sceneNumber}</b> and{' '}
-          <b className="text-zinc-200">{second.sceneNumber}</b>. Blocks above the line stay in {first.sceneNumber};
+        <p className="text-xs text-[color:var(--ui-text-muted)] leading-relaxed">
+          Step the break between <b className="text-[color:var(--ui-input-text)]">{first.sceneNumber}</b> and{' '}
+          <b className="text-[color:var(--ui-input-text)]">{second.sceneNumber}</b>. Blocks above the line stay in {first.sceneNumber};
           blocks below move into {second.sceneNumber}.
         </p>
         <div className="flex items-center gap-2">
           <Button variant="subtle" theme="dark" type="button" disabled={boundary <= 1} onClick={() => setBoundary(b => Math.max(1, b - 1))}>◀ Earlier</Button>
-          <span className="text-[11px] text-zinc-400 tabular-nums">Block {boundary} / {stream.merged.length}</span>
+          <span className="text-[11px] text-[color:var(--ui-text-muted)] tabular-nums">Block {boundary} / {stream.merged.length}</span>
           <Button variant="subtle" theme="dark" type="button" disabled={boundary >= max} onClick={() => setBoundary(b => Math.min(max, b + 1))}>Later ▶</Button>
         </div>
-        <div className="max-h-[380px] overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 font-mono text-[12.5px] leading-[1.45] text-zinc-200">
+        <div className="max-h-[380px] overflow-y-auto rounded-lg border border-[color:var(--ui-border)] bg-[var(--ui-seg-track-bg)] px-4 py-3 font-mono text-[12.5px] leading-[1.45] text-[color:var(--ui-input-text)]">
           {stream.merged.map((block, i) => (
             <React.Fragment key={i}>
               {i === boundary && <BreakLine from={first.sceneNumber} to={second.sceneNumber} />}

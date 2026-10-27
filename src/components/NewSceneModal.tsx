@@ -53,7 +53,7 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
     onClose();
   };
 
-  const labelCls = `${CREM_LABEL} text-zinc-400 uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`;
+  const labelCls = `${CREM_LABEL} text-[color:var(--ui-text-muted)] uppercase font-semibold tracking-wider flex items-center gap-1.5 mb-1.5`;
 
   return (
     <Modal open onClose={onClose} title="New Scene" width="max-w-md"
@@ -67,7 +67,7 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
       <div className={CREM_BODY}>
         <div>
           <span className={labelCls}>
-            <Clapperboard className={`${XSZ} text-zinc-500`} />
+            <Clapperboard className={`${XSZ} text-[color:var(--ui-text-faint)]`} />
             Scene Number
           </span>
           <input
@@ -76,7 +76,7 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
             onChange={(e) => setSceneNumber(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !locked) create(); }}
             placeholder="e.g. 12A"
-            className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-zinc-950 border border-zinc-700 outline-none focus:border-zinc-500 placeholder-zinc-600`}
+            className={`${CREM_TEXT} w-full px-2.5 py-1.5 rounded bg-[var(--ui-panel-bg)] border border-[color:var(--ui-card-border)] outline-none focus:border-[color:var(--ui-input-focus-border)] placeholder:text-[color:var(--ui-text-faint)]`}
             autoFocus
           />
         </div>
@@ -91,8 +91,8 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
               theme="dark"
               trigger={
                 <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
-                  <span className={`truncate ${intExt ? '' : 'text-zinc-500'}`}>{intExt || 'INT / EXT'}</span>
-                  <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                  <span className={`truncate ${intExt ? '' : 'text-[color:var(--ui-text-faint)]'}`}>{intExt || 'INT / EXT'}</span>
+                  <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                 </button>
               }
             >
@@ -110,8 +110,8 @@ export function NewSceneModal({ onClose, onCreated }: { onClose: () => void; onC
               theme="dark"
               trigger={
                 <button type="button" className={`${DD_CHIP_TRIGGER_CLASS} text-xs cursor-pointer w-full justify-between`}>
-                  <span className={`truncate ${dayNight ? '' : 'text-zinc-500'}`}>{dayNight || 'DAY / NIGHT'}</span>
-                  <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                  <span className={`truncate ${dayNight ? '' : 'text-[color:var(--ui-text-faint)]'}`}>{dayNight || 'DAY / NIGHT'}</span>
+                  <ChevronDown className="w-3 h-3 text-[color:var(--ui-text-faint)] shrink-0" />
                 </button>
               }
             >

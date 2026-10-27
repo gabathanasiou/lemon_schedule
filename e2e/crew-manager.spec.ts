@@ -84,7 +84,7 @@ test.describe('Crew Manager', () => {
     const roleInput = page.getByRole('dialog').getByRole('textbox');
     await roleInput.fill('Sound Designer');
     await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
-    await expect(page.locator('button.bg-zinc-900', { hasText: 'Sound Designer' })).toBeVisible();
+    await expect(page.locator('button[aria-current="true"]', { hasText: 'Sound Designer' })).toBeVisible();
 
     // Rename the custom role via the modal
     const sdRow = page.locator('button', { hasText: 'Sound Designer' }).first();
@@ -94,7 +94,7 @@ test.describe('Crew Manager', () => {
     await expect(renameInput).toHaveValue('Sound Designer');
     await renameInput.fill('Sound Design');
     await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-    await expect(page.locator('button.bg-zinc-900', { hasText: 'Sound Design' })).toBeVisible();
+    await expect(page.locator('button[aria-current="true"]', { hasText: 'Sound Design' })).toBeVisible();
 
     // Delete the custom role -> confirm dialog, role disappears from sidebar
     const sdRow2 = page.locator('button', { hasText: 'Sound Design' }).first();

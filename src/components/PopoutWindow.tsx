@@ -114,11 +114,11 @@ export default function PopoutWindow({ title, win, onClose, children }: PopoutWi
 
 export function PopoutPlaceholder({ title, onBringBack }: { title: string; onBringBack: () => void }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center bg-zinc-50 text-zinc-400 select-none">
+    <div className="flex-1 flex flex-col items-center justify-center bg-[var(--ui-card-band)] text-[color:var(--ui-text-faint)] select-none">
       <div className="text-sm font-medium mb-2">{title} is open in a separate window</div>
       <button
         onClick={onBringBack}
-        className="text-xs text-zinc-500 hover:text-zinc-700 underline underline-offset-2 transition-colors"
+        className="text-xs text-[color:var(--ui-text-muted)] hover:text-[color:var(--ui-text)] underline underline-offset-2 transition-colors"
       >
         Bring back
       </button>
