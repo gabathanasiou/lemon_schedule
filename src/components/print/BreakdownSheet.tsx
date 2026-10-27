@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Scene, ScheduleRow, CastMember, CustomCategoryDef } from '../../types';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
+import { boardIdMapFor } from '../../lib/elements';
 import { naturalSortSceneStrings } from '../../lib/utils';
 
 const CSS = `
@@ -32,6 +33,8 @@ interface BreakdownSheetProps {
   scenes: Scene[];
   rows: ScheduleRow[];
   castMembers: CastMember[];
+  /** Element registry per category — Board ID prefixes (roadmap 305). */
+  breakdownElements?: Record<string, { id: string; name: string; boardId?: string }[]>;
   customCategories: CustomCategoryDef[];
   sortOrder: 'sheet' | 'scene';
   sceneIds: string[];
@@ -42,6 +45,16 @@ interface CategoryDef {
   key: string;
   label: string;
   getData: (scene: Scene, castMembers: CastMember[]) => string;
+}
+
+/** Prefix each comma-listed value with its category Board ID — "3. GUN"
+ *  (roadmap 305). Values without a stored number stay plain. */
+function formatBoardValues(raw: string, boardIds?: Map<string, string>): string {
+  if (!raw || !boardIds || boardIds.size === 0) return raw;
+  return raw.split(',').map(v => v.trim()).filter(Boolean).map(v => {
+    const id = boardIds.get(v.toLowerCase());
+    return id ? `${id}. ${v}` : v;
+  }).join(', ');
 }
 
 const CATEGORIES: CategoryDef[] = [
@@ -66,10 +79,9 @@ const CATEGORIES: CategoryDef[] = [
   { key: 'notes', label: 'Notes / Special Requirements', getData: s => s.notes },
 ];
 
-const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScenes, rows, castMembers, customCategories, sortOrder, sceneIds, hiddenCategories }) => {
+const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScenes, rows, castMembers, breakdownElements, customCategories, sortOrder, sceneIds, hiddenCategories }) => {
   const now = new Date();
   const genStr = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
-
   const hiddenSet = useMemo(() => new Set(hiddenCategories || []), [hiddenCategories]);
 
   const scenes = useMemo(() => {
@@ -95,6 +107,18 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScene
     return [...CATEGORIES, ...custom].filter(c => !hiddenSet.has(c.key));
   }, [customCategories, hiddenSet]);
 
+  /** Category key → Board ID map (roadmap 305). `art` is the sheet's scene
+   *  field name for the `artDept` category; cast/notes are not prefixed here
+   *  (cast already renders "N. NAME"). */
+  const boardMaps = useMemo(() => {
+    const out: Record<string, Map<string, string>> = {};
+    for (const c of allCategories) {
+      if (c.key === 'cast' || c.key === 'notes') continue;
+      out[c.key] = boardIdMapFor({ breakdownElements: breakdownElements || {} }, c.key === 'art' ? 'artDept' : c.key);
+    }
+    return out;
+  }, [allCategories, breakdownElements]);
+
   return (
     <div className="bs-root">
       <style>{CSS}</style>
@@ -119,7 +143,8 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScene
 
           <div className="bs-cat-grid">
             {allCategories.map(cat => {
-              const data = cat.getData(scene, castMembers);
+              const raw = cat.getData(scene, castMembers);
+              const data = cat.key === 'cast' || cat.key === 'notes' ? raw : formatBoardValues(raw, boardMaps[cat.key]);
               return (
                 <div key={cat.key} className="bs-cat-box">
                   <div className="bs-cat-header">{cat.label}</div>

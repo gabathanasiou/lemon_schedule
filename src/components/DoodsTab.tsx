@@ -7,6 +7,7 @@ import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { addDays } from '../lib/daybreakUtils';
 import { isElementMarked } from '../lib/nonShootHelpers';
 import { getDayTypes, codeForType, getDayTypeVisual, dayTypeTextColor, getDayType } from '../lib/dayTypes';
+import { boardIdMapFor, boardLabel, compareBoardIds } from '../lib/elements';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -91,6 +92,8 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
     return m;
   }, [project]);
 
+  const boardIds = useMemo(() => boardIdMapFor(project, selectedCategory), [project, selectedCategory]);
+
   const elementIds = useMemo(() => {
     const allIds = new Set<string>();
     for (const s of project.scenes) {
@@ -103,9 +106,12 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         const na = parseInt(a), nb = parseInt(b);
         if (!isNaN(na) && !isNaN(nb)) return na - nb;
       }
+      const ba = boardIds.get(a.toLowerCase());
+      const bb = boardIds.get(b.toLowerCase());
+      if (ba || bb) return ba && bb ? compareBoardIds(ba, bb) || a.localeCompare(b) : (ba ? -1 : 1);
       return a.localeCompare(b);
     });
-  }, [project.scenes, selectedCategory, isCast]);
+  }, [project.scenes, selectedCategory, isCast, boardIds]);
 
   const sectionDayEntries = useMemo(() => {
     const sectionByDate = new Map<string, { sectionIndex: number; label: string; isShooting: boolean }>();
@@ -203,7 +209,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         const cm = castMembers.find(m => m.id === elementId);
         displayName = cm ? `${elementId.padStart(3, ' ')}.  ${cm.name}` : elementId;
       } else {
-        displayName = elementId;
+        displayName = boardLabel(boardIds.get(elementId.toLowerCase()), elementId);
       }
 
       doodRows.push({
@@ -220,7 +226,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
     }
 
     return { days: sectionDayEntries, rows: doodRows };
-  }, [project.scenes, sections, sectionDayEntries, sceneToSection, elementIds, castMembers, selectedCategory, isCast, activeCalendarVersion, typeCodes]);
+  }, [project.scenes, sections, sectionDayEntries, sceneToSection, elementIds, castMembers, boardIds, selectedCategory, isCast, activeCalendarVersion, typeCodes]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
