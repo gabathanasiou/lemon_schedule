@@ -240,7 +240,9 @@ hit. When they disagree, DESIGN-LANGUAGE wins; update both in the same commit as
     category keeps the field focused, so typing still filters.
   - **Actions**: `emptyActions` (no-match only — e.g. “Add “…”“”); `leadingActions` /
     `footerActions` are pinned, always-visible rows (e.g. leading **“New location…”**) whose
-    callbacks receive the query. Default icon Plus.
+    callbacks receive the query. Default icon Plus. `hideLeadingOnEmpty` drops the
+    leading row when the empty state's query-aware action already covers the same create
+    path (Add location: “hello” → only **“Add “hello”…”**).
   - **Deep search**: comma tags AND-match label/`detail`/category/`keywords`/`fields[]`; the
     matched attribute becomes the row snippet. Reuse `parseSearchTags` /
     `searchMenuContent` / `buildSearchMenuRows` for any jump/highlight bookkeeping — never a

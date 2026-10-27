@@ -702,19 +702,23 @@ select is better.
   type headers, all attached records open); **all Report-to pickers, Add
   location and the master Add role = accordion**; **per-department Add role =
   open** (few roles). Add location's create path is a pinned leading
-  **“New location…”** row (typed text prefills the map), not a separate button.
+  **“New location…”** row (typed text prefills the map), not a separate button;
+  in the no-results state the row hides and the query-aware **“Add “typed”…”**
+  action takes over (`hideLeadingOnEmpty`) so there are never two add rows.
   Category counts are true totals — a role with only “Add new person…” shows
-  **0**. Kit **v0.1.122-125** supplies `browseExpanded`, `triggerIcon`
+  **0**. Kit **v0.1.122-128** supplies `browseExpanded`, `triggerIcon`
   (**MapPin** on location fields, **Plus** on adders), `leadingActions` /
-  `footerActions`, plain-header rendering that can never look selectable
-  (no hover/pointer/`role=option`/keyboard stop — including during a query),
-  and focus retention when a category is clicked. **Categories only expand —
-  never add on category click.**
+  `footerActions`, `hideLeadingOnEmpty`, plain-header rendering that can never
+  look selectable (no hover/pointer/`role=option`/keyboard stop — including
+  during a query), focus retention when a category is clicked, anchor-resize
+  tracking, and the expandable panel opening **after** the button→field morph
+  settles (no wrong-position snap). **Categories only expand — never add on
+  category click.**
   Manager jump/flash now uses the kit `searchMenuContent` matcher (single
   matcher; the duplicate `managerSearch` matcher + its test are gone).
   Docs: **`docs/SEARCH-MENU.md`** (full manual: model, props, decision table,
   app map), `UI-PRIMITIVES.md` §SearchMenu (summary),
-  `DESIGN-LANGUAGE.md` picker table, `UI-KIT.md` v0.1.117-125.
+  `DESIGN-LANGUAGE.md` picker table, `UI-KIT.md` v0.1.117-128.
 - **Audit — EntityDropdown**: not replaceable wholesale (cell editor: multi/comma,
   Tab/Enter/Escape commit, free-text create, anchored keys, scene counts, id/name
   spaces, portal target). SearchMenu takes only standalone single-select

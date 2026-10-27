@@ -78,9 +78,11 @@ Rows in the panel, top to bottom:
 **`mode="expandable"`** (default). A primary `triggerLabel` button morphs into
 the text field (animated `collapsedWidth` → `expandedWidth`, focus moves into
 the input, Escape/select/outside click collapses it and returns focus to the
-button). `triggerIcon` sets the collapsed button's leading icon: **MapPin** for
-locations, **Plus** for adders. The expanded field always carries the
-magnifier. `autoFocus` controls the focus-on-open.
+button). The panel opens **after the width morph settles**, so it anchors to
+the expanded field rather than the collapsed button. `triggerIcon` sets the
+collapsed button's leading icon: **MapPin** for locations, **Plus** for adders.
+The expanded field always carries the magnifier. `autoFocus` controls the
+focus-on-open.
 
 **`mode="inline"`.** The field is always visible (manager sidebars). Focus or
 click opens the panel when `openOnFocus` is true.
@@ -147,12 +149,18 @@ onClick(query); icon?: ReactNode }`.
 | Prop | Where | Visible when | Use for |
 |---|---|---|---|
 | `emptyActions` | In the empty state, below the “No matches” body | ONLY when the query yields no rows | “Add “typed name”…” (the typed text becomes the new record's name/address) |
-| `leadingActions` | Pinned above the list | Always | The primary create action: **“New location…”** at the top of the Add-location menu |
+| `leadingActions` | Pinned above the list | Always, unless `hideLeadingOnEmpty` is set and the query has no results | The primary create action: **“New location…”** at the top of the Add-location menu |
 | `footerActions` | Pinned below the list | Always | A persistent management action that should stay reachable |
 
 Action rows are keyboard-reachable and receive the **current query**, so a
 leading “New location…” can prefill the map with what the user typed. The
 default action icon is **Plus**. Empty actions never compete with results.
+
+**Set `hideLeadingOnEmpty` when the leading action and the empty action are the
+same create path.** That is the Add-location rule: with an empty query you see
+**“New location…”**; with a query that matches nothing you see only
+**“Add “typed”…”** (query-aware) — never both. With a matching query the
+leading row returns.
 
 ## 7. Empty state
 
@@ -186,7 +194,7 @@ the SearchMenu. It is not a second dropdown; it builds the catalogue from
 | `onSelect(id)` | commit a location id |
 | `onClear()` | show an × that clears the value |
 | `onAddNew(query)` | the create path; powers the no-match “Add “…”“” action and, with `newActionFirst`, the pinned “New location…” leading action |
-| `newActionFirst` | pin “New location…” above the catalogue (Add location only) |
+| `newActionFirst` | pin “New location…” above the catalogue (Add location only); it hides while the query has no matches, where the typed “Add “…”“” action takes over |
 | `browse` | `'open'` = `browseExpanded` plain headers; `'accordion'` = `expandableGroups` single |
 | `icon` | trigger icon; default MapPin, Add location passes Plus |
 | `readOnly` | renders a plain non-interactive field (SearchMenu has no disabled mode) |
@@ -224,7 +232,9 @@ labels (the panel always shows the full text).
 - **Counts are totals**, not hits. A `0` is meaningful; don't hide it or floor
   it to 1 to account for a create row.
 - **One create affordance per menu.** If a “New location…” action exists, do
-  not also add a separate “New” button beside the trigger.
+  not also add a separate “New” button beside the trigger; when the no-results
+  state has its own query-aware “Add “…”“”, hide the leading create
+  (`hideLeadingOnEmpty`) so the panel never shows two add rows.
 - **Verb-first action labels**: “New location…”, “Add new person…”,
   “Add “…”“”. The ellipsis means “more input follows”.
 - **Deep search fields are attributes, not labels**: `fields` should carry
